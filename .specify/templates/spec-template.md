@@ -98,13 +98,16 @@
 ### Security, Permissions & Audit *(mandatory if feature has protected operations)*
 
 - **Permissions**: [Explicit RBAC permissions required per operation, e.g., `turmas.criar`]
-- **Resource context**: [Ownership/membership checks, e.g., "teacher must own the class"]
+- **Resource context**: [Academic context of each resource (class) and link checks, e.g., "teacher assigned to the class", "student with ACTIVE enrollment"]
 - **Audit events**: [Critical operations that MUST produce audit records, or "None"]
 - **Untrusted input**: [External inputs and how invalid values are rejected]
 - **States & transitions**: [Explicit states and allowed transitions for critical workflows, or "None"]
 - **Idempotency**: [Operations that must be safe under retries/double submits and how duplicates are prevented]
 - **Evidence vs. decisions**: [What is recorded as FACT/RULE_RESULT/SUGGESTION and which decisions require HUMAN_DECISION]
 - **Automation risk level**: [L1/L2/L3 for any automated or AI operation, or "N/A"]
+- **Domain configurability**: [Confirm no subject/language/technology is hard-coded; what is teacher-configurable data]
+- **Sensitive data & adaptations**: [Individual needs/adaptations touched, who can access them, and what is (not) sent to AI, or "None"]
+- **Curricular traceability**: [Which contents/learning objectives activities or questions link to; how AI scope is restricted to what the class has been taught, or "N/A"]
 
 ### Key Entities *(include if feature involves data)*
 
