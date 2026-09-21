@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { Type } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
@@ -32,6 +33,8 @@ export interface TestAppOptions {
 export interface TestApp {
   app: NestExpressApplication;
   http: Server;
+  /** `http://127.0.0.1:<port>` of the listening app; supertest targets it (see createTestApp). */
+  baseUrl: string;
   prisma: PrismaService;
   config: AppConfig;
   /** The InMemoryMailer when no other mailer was given. */
@@ -66,11 +69,17 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
   configureApp(app, config);
   await app.init();
+  // Listen once on an explicit IPv4 loopback port. Handing the bare server to supertest makes it
+  // listen(0) on "::" per request, and on macOS that port may already be taken on 127.0.0.1 by
+  // another program — the request then reaches that program (random 401/403/socket hang up).
+  await app.listen(0, "127.0.0.1");
+  const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
 
   const dispatcher = app.get(MailDispatcher);
   return {
     app,
     http: app.getHttpServer() as Server,
+    baseUrl: `http://127.0.0.1:${port}`,
     prisma: app.get(PrismaService),
     config,
     mailer: mailer as InMemoryMailer,
@@ -117,9 +126,9 @@ export function api(t: TestApp, options: ApiClientOptions = {}) {
     decorate(req).set("Content-Type", "application/json").send(JSON.stringify(body));
 
   return {
-    get: (path: string) => decorate(request(t.http).get(path)),
-    post: (path: string, body: object = {}) => withBody(request(t.http).post(path), body),
-    patch: (path: string, body: object = {}) => withBody(request(t.http).patch(path), body),
-    delete: (path: string) => withBody(request(t.http).delete(path), {}),
+    get: (path: string) => decorate(request(t.baseUrl).get(path)),
+    post: (path: string, body: object = {}) => withBody(request(t.baseUrl).post(path), body),
+    patch: (path: string, body: object = {}) => withBody(request(t.baseUrl).patch(path), body),
+    delete: (path: string) => withBody(request(t.baseUrl).delete(path), {}),
   };
 }
