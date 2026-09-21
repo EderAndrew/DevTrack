@@ -5,8 +5,10 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "check-types": "turbo run check-types",
+    "admin:bootstrap": "pnpm --filter api admin:bootstrap --"
   },
   "devDependencies": {
     "prettier": "3.9.6",

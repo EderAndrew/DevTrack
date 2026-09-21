@@ -1,0 +1,301 @@
+// Data model of spec 001 — Foundation, Identity & Access (see specs/001-foundation-identity-access/data-model.md).
+// Rules Prisma cannot express (partial unique indexes, CHECK, append-only trigger, reference data)
+// live as SQL in the migrations. No academic-domain model belongs here (FR-080).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("account_status")
+}
+
+enum RoleAssignmentStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+
+  @@map("role_assignment_status")
+}
+
+enum GrantSource {
+  SELF_SIGNUP
+  INVITATION
+  ADMIN_BOOTSTRAP
+
+  @@map("grant_source")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+
+  @@map("invitation_status")
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+
+  @@map("token_purpose")
+}
+
+enum BootstrapStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+
+  @@map("bootstrap_status")
+}
+
+enum SessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  USER_REVOKED
+  PASSWORD_RESET
+  ACCOUNT_CLAIMED
+  ACCOUNT_SUSPENDED
+  ROLE_DEACTIVATED
+
+  @@map("session_revoke_reason")
+}
+
+enum ActorType {
+  USER
+  OPERATOR
+  ANONYMOUS
+  SYSTEM
+
+  @@map("actor_type")
+}
+
+model User {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String        @unique
+  name            String
+  passwordHash    String        @map("password_hash")
+  emailVerifiedAt DateTime?     @map("email_verified_at") @db.Timestamptz(6)
+  status          AccountStatus @default(ACTIVE)
+  statusChangedAt DateTime?     @map("status_changed_at") @db.Timestamptz(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roles               UserRole[]       @relation("UserRoleUser")
+  rolesGranted        UserRole[]       @relation("UserRoleGrantedBy")
+  roleStatusChanges   UserRole[]       @relation("UserRoleStatusChangedBy")
+  teacherProfile      TeacherProfile?
+  studentProfile      StudentProfile?
+  sessions            Session[]
+  tokens              UserToken[]
+  invitationsSent     Invitation[]     @relation("InvitationInvitedBy")
+  invitationsAccepted Invitation[]     @relation("InvitationAcceptedBy")
+  invitationsRevoked  Invitation[]     @relation("InvitationRevokedBy")
+  adminBootstraps     AdminBootstrap[]
+
+  @@map("users")
+}
+
+model Role {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key        String  @unique
+  name       String
+  privileged Boolean @default(false)
+
+  permissions RolePermission[]
+  assignments UserRole[]
+  invitations Invitation[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String @unique
+  description String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  roleId            String               @map("role_id") @db.Uuid
+  status            RoleAssignmentStatus
+  grantedById       String?              @map("granted_by_id") @db.Uuid
+  grantedVia        GrantSource          @map("granted_via")
+  grantedAt         DateTime             @default(now()) @map("granted_at") @db.Timestamptz(6)
+  statusChangedAt   DateTime?            @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById String?              @map("status_changed_by_id") @db.Uuid
+
+  user            User  @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Restrict)
+  role            Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  grantedBy       User? @relation("UserRoleGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  statusChangedBy User? @relation("UserRoleStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId])
+  @@index([roleId, status])
+  @@map("user_roles")
+}
+
+model TeacherProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("teacher_profiles")
+}
+
+model StudentProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("student_profiles")
+}
+
+model Invitation {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String
+  displayName      String           @map("display_name")
+  roleId           String           @map("role_id") @db.Uuid
+  invitedById      String           @map("invited_by_id") @db.Uuid
+  tokenHash        String           @unique @map("token_hash")
+  status           InvitationStatus
+  expiresAt        DateTime         @map("expires_at") @db.Timestamptz(6)
+  sendCount        Int              @default(1) @map("send_count")
+  lastSentAt       DateTime         @map("last_sent_at") @db.Timestamptz(6)
+  acceptedAt       DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  acceptedByUserId String?          @map("accepted_by_user_id") @db.Uuid
+  revokedAt        DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  revokedById      String?          @map("revoked_by_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy  User  @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy User? @relation("InvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+  revokedBy  User? @relation("InvitationRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
+
+  @@index([invitedById, status])
+  @@index([email])
+  @@map("invitations")
+}
+
+model UserToken {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  purpose       TokenPurpose
+  tokenHash     String       @unique @map("token_hash")
+  expiresAt     DateTime     @map("expires_at") @db.Timestamptz(6)
+  usedAt        DateTime?    @map("used_at") @db.Timestamptz(6)
+  invalidatedAt DateTime?    @map("invalidated_at") @db.Timestamptz(6)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, purpose])
+  @@map("user_tokens")
+}
+
+model AdminBootstrap {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String
+  targetUserId String?         @map("target_user_id") @db.Uuid
+  status       BootstrapStatus
+  tokenHash    String?         @unique @map("token_hash")
+  expiresAt    DateTime?       @map("expires_at") @db.Timestamptz(6)
+  linkPrinted  Boolean         @default(false) @map("link_printed")
+  operatorHost String          @map("operator_host")
+  operatorUser String          @map("operator_user")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt  DateTime?       @map("completed_at") @db.Timestamptz(6)
+  cancelledAt  DateTime?       @map("cancelled_at") @db.Timestamptz(6)
+
+  targetUser User? @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@map("admin_bootstraps")
+}
+
+model Session {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  tokenHash         String               @unique @map("token_hash")
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt        DateTime             @map("last_used_at") @db.Timestamptz(6)
+  absoluteExpiresAt DateTime             @map("absolute_expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime?            @map("revoked_at") @db.Timestamptz(6)
+  revokeReason      SessionRevokeReason? @map("revoke_reason")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@map("sessions")
+}
+
+model AuditEvent {
+  id          BigInt    @id @default(autoincrement())
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  type        String
+  actorType   ActorType @map("actor_type")
+  actorUserId String?   @map("actor_user_id") @db.Uuid
+  targetType  String?   @map("target_type")
+  targetId    String?   @map("target_id")
+  requestId   String?   @map("request_id")
+  metadata    Json      @default("{}")
+
+  @@index([type, occurredAt])
+  @@index([targetType, targetId])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_events")
+}
+
+model AccessRecord {
+  id         BigInt   @id @default(autoincrement())
+  userId     String   @map("user_id") @db.Uuid
+  ip         String   @db.Inet
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([occurredAt])
+  @@index([userId, occurredAt])
+  @@map("access_records")
+}
+
+model RateLimitCounter {
+  key         String   @id
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+  count       Int
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("rate_limit_counters")
+}
