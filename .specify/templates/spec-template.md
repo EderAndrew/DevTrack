@@ -95,6 +95,17 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Security, Permissions & Audit *(mandatory if feature has protected operations)*
+
+- **Permissions**: [Explicit RBAC permissions required per operation, e.g., `turmas.criar`]
+- **Resource context**: [Ownership/membership checks, e.g., "teacher must own the class"]
+- **Audit events**: [Critical operations that MUST produce audit records, or "None"]
+- **Untrusted input**: [External inputs and how invalid values are rejected]
+- **States & transitions**: [Explicit states and allowed transitions for critical workflows, or "None"]
+- **Idempotency**: [Operations that must be safe under retries/double submits and how duplicates are prevented]
+- **Evidence vs. decisions**: [What is recorded as FACT/RULE_RESULT/SUGGESTION and which decisions require HUMAN_DECISION]
+- **Automation risk level**: [L1/L2/L3 for any automated or AI operation, or "N/A"]
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
