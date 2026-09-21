@@ -143,6 +143,29 @@ main:focus {
   padding: 2rem 1rem;
 }
 
+.page--wide {
+  max-width: 64rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.search .field {
+  flex: 1 1 16rem;
+  margin-bottom: 0;
+}
+
 /* Forms */
 .field {
   display: flex;

@@ -8,7 +8,13 @@ import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 
 /** Public flows limited per origin and per target e-mail or token (FR-022). */
-export type PublicFlow = "signup" | "resend" | "admin_activation" | "admin_activation_preview";
+export type PublicFlow =
+  | "signup"
+  | "resend"
+  | "admin_activation"
+  | "admin_activation_preview"
+  | "invitation_accept"
+  | "invitation_preview";
 
 /** What the per-target counter is keyed on, as named in the audit scope. */
 const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
@@ -16,6 +22,8 @@ const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
   resend: "email",
   admin_activation: "token",
   admin_activation_preview: "token",
+  invitation_accept: "token",
+  invitation_preview: "token",
 };
 
 /**

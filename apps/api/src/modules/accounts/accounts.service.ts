@@ -1,0 +1,217 @@
+import { Injectable } from "@nestjs/common";
+import type { AccountStatus, Prisma, RoleAssignmentStatus } from "../../generated/prisma/client";
+import { PrismaService } from "../../platform/database/prisma.service";
+import {
+  AppException,
+  invalidStateTransition,
+  notFound,
+  selfActionForbidden,
+  validationError,
+} from "../../platform/http/errors";
+import type { AuthContext } from "../../platform/http/request-context";
+import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
+import { AuditService } from "../audit/audit.service";
+import { SessionService } from "../auth/session.service";
+import { UserRepository } from "../identity/user.repository";
+
+/** `UserAccountView` of contracts/http-api.md: identity only, never academic data (FR-056). */
+export interface UserAccountView {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  status: AccountStatus;
+  roles: { key: string; status: RoleAssignmentStatus }[];
+  createdAt: Date;
+}
+
+export interface AccountPage {
+  items: UserAccountView[];
+  nextCursor: string | null;
+}
+
+export const ACCOUNTS_PAGE_SIZE = 50;
+
+const SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  emailVerifiedAt: true,
+  status: true,
+  createdAt: true,
+  roles: { select: { status: true, role: { select: { key: true } } } },
+} as const satisfies Prisma.UserSelect;
+
+type AccountRow = Prisma.UserGetPayload<{ select: typeof SELECT }>;
+
+function toView(row: AccountRow): UserAccountView {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    emailVerified: row.emailVerifiedAt !== null,
+    status: row.status,
+    roles: row.roles
+      .map((assignment) => ({ key: assignment.role.key, status: assignment.status }))
+      .sort((a, b) => a.key.localeCompare(b.key)),
+    createdAt: row.createdAt,
+  };
+}
+
+interface Cursor {
+  createdAt: Date;
+  id: string;
+}
+
+/** Opaque keyset cursor: base64url of `{createdAt, id}` of the last item of the page. */
+export function encodeCursor(row: Cursor): string {
+  return Buffer.from(JSON.stringify({ c: row.createdAt.toISOString(), i: row.id })).toString("base64url");
+}
+
+export function decodeCursor(cursor: string): Cursor {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { c?: unknown; i?: unknown };
+    const createdAt = new Date(String(parsed.c));
+    if (typeof parsed.i !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.i) || Number.isNaN(createdAt.getTime())) {
+      throw new Error("bad cursor");
+    }
+    return { createdAt, id: parsed.i };
+  } catch {
+    throw validationError();
+  }
+}
+
+/** Escapes LIKE wildcards so a search for "100%" means the literal text. */
+const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+
+/**
+ * ADMIN's identity-level view and control of accounts (FR-052, FR-054, FR-056). Suspension
+ * revokes every session; the last active ADMIN account can never be suspended, and nobody
+ * suspends their own account.
+ */
+@Injectable()
+export class AccountsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UserRepository,
+    private readonly sessions: SessionService,
+    private readonly lifecycle: RoleLifecycleService,
+    private readonly audit: AuditService,
+  ) {}
+
+  async list({ query, cursor }: { query?: string; cursor?: string }): Promise<AccountPage> {
+    const after = cursor ? decodeCursor(cursor) : null;
+    const where: Prisma.UserWhereInput = {
+      ...(query?.trim()
+        ? {
+            OR: [
+              { name: { contains: escapeLike(query.trim()), mode: "insensitive" } },
+              { email: { contains: escapeLike(query.trim()), mode: "insensitive" } },
+            ],
+          }
+        : {}),
+      ...(after
+        ? {
+            AND: [
+              {
+                OR: [
+                  { createdAt: { lt: after.createdAt } },
+                  { createdAt: after.createdAt, id: { lt: after.id } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    };
+    const rows = await this.prisma.user.findMany({
+      where,
+      select: SELECT,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: ACCOUNTS_PAGE_SIZE + 1,
+    });
+    const page = rows.slice(0, ACCOUNTS_PAGE_SIZE);
+    return {
+      items: page.map(toView),
+      nextCursor: rows.length > ACCOUNTS_PAGE_SIZE ? encodeCursor(page.at(-1)!) : null,
+    };
+  }
+
+  async get(id: string): Promise<UserAccountView> {
+    const row = await this.prisma.user.findUnique({ where: { id }, select: SELECT });
+    if (!row) throw notFound();
+    return toView(row);
+  }
+
+  async suspend(id: string, auth: AuthContext, requestId: string | null): Promise<UserAccountView> {
+    if (id === auth.userId) throw selfActionForbidden();
+    try {
+      await this.prisma.runInTransaction(async (tx) => {
+        const [target] = await tx.$queryRaw<{ status: AccountStatus }[]>`
+          SELECT status FROM users WHERE id = ${id}::uuid FOR UPDATE`;
+        if (!target) throw notFound();
+        if (target.status === "SUSPENDED") throw invalidStateTransition();
+
+        const isActiveAdmin = await tx.userRole.count({
+          where: { userId: id, status: "ACTIVE", role: { key: "ADMIN" } },
+        });
+        if (isActiveAdmin > 0) await this.lifecycle.assertAnotherActiveAdmin(tx, id);
+
+        await this.users.setStatus(tx, id, "SUSPENDED");
+        const count = await this.sessions.revokeAllForUser(tx, id, "ACCOUNT_SUSPENDED");
+        if (count > 0) {
+          await this.audit.record(tx, {
+            type: "session.revoked_all",
+            actorType: "USER",
+            actorUserId: auth.userId,
+            targetType: "USER",
+            targetId: id,
+            requestId,
+            metadata: { reason: "ACCOUNT_SUSPENDED", count },
+          });
+        }
+        await this.audit.record(tx, {
+          type: "account.suspended",
+          actorType: "USER",
+          actorUserId: auth.userId,
+          targetType: "USER",
+          targetId: id,
+          requestId,
+        });
+      });
+    } catch (error) {
+      if (error instanceof AppException && error.code === "LAST_ADMIN_PROTECTED") {
+        // The refused operation rolled back; its audit record commits on its own (FR-054, FR-070).
+        await this.audit.record(this.prisma, {
+          type: "account.last_admin_protected",
+          actorType: "USER",
+          actorUserId: auth.userId,
+          targetType: "USER",
+          targetId: id,
+          requestId,
+          metadata: { operation: "SUSPEND" },
+        });
+      }
+      throw error;
+    }
+    return this.get(id);
+  }
+
+  async reactivate(id: string, auth: AuthContext, requestId: string | null): Promise<UserAccountView> {
+    await this.prisma.runInTransaction(async (tx) => {
+      const [target] = await tx.$queryRaw<{ status: AccountStatus }[]>`
+        SELECT status FROM users WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!target) throw notFound();
+      if (target.status !== "SUSPENDED") throw invalidStateTransition();
+      await this.users.setStatus(tx, id, "ACTIVE");
+      await this.audit.record(tx, {
+        type: "account.reactivated",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "USER",
+        targetId: id,
+        requestId,
+      });
+    });
+    return this.get(id);
+  }
+}

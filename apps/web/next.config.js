@@ -15,6 +15,7 @@ const nextConfig = {
     return [
       { source: "/verificar-email", headers: noReferrer },
       { source: "/ativar-admin", headers: noReferrer },
+      { source: "/convite", headers: noReferrer },
     ];
   },
   async rewrites() {

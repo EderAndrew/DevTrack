@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import type { DestinationStream } from "pino";
+import { AccountsModule } from "./modules/accounts/accounts.module";
 import { AdminBootstrapModule } from "./modules/admin-bootstrap/admin-bootstrap.module";
 import { AccessControlModule } from "./modules/access-control/access-control.module";
 import { PermissionsGuard } from "./modules/access-control/guards/permissions.guard";
@@ -48,6 +49,7 @@ export class AppModule {
         AccessControlModule,
         ProvisioningModule,
         AdminBootstrapModule,
+        AccountsModule,
         RetentionModule,
         HealthModule,
       ],

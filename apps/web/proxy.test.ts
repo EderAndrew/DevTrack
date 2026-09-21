@@ -7,13 +7,18 @@ const request = (path: string, cookie?: string) =>
 
 describe("proxy (UX only)", () => {
   it("covers only the account area", () => {
-    expect(config.matcher).toEqual(["/conta/:path*"]);
+    expect(config.matcher).toEqual(["/conta/:path*", "/admin/:path*"]);
   });
 
   it("without the session cookie redirects to /entrar with next", () => {
     const res = proxy(request("/conta/sessoes"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/entrar?next=%2Fconta%2Fsessoes");
+  });
+
+  it("also covers the admin area", () => {
+    const res = proxy(request("/admin/managers"));
+    expect(res.headers.get("location")).toBe("http://localhost:3000/entrar?next=%2Fadmin%2Fmanagers");
   });
 
   it("with a session cookie lets the request through (the API decides validity)", () => {
