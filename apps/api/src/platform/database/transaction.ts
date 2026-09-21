@@ -10,6 +10,8 @@ export type Tx = Prisma.TransactionClient;
 export const LockKey = {
   ADMIN_BOOTSTRAP_LOCK: 7_001_001n,
   ADMIN_GUARD_LOCK: 7_001_002n,
+  /** Session-level (pg_try_advisory_lock): one maintenance run at a time (R21). */
+  MAINTENANCE_LOCK: 7_001_003n,
 } as const;
 
 export type LockKey = (typeof LockKey)[keyof typeof LockKey];

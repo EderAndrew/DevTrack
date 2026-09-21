@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --filter api...
 RUN pnpm --filter api exec prisma generate && pnpm --filter api build
 RUN pnpm deploy --filter api --prod /out \
  && cp -r apps/api/dist /out/dist \
- && cp -r apps/api/prisma apps/api/prisma.config.ts /out/
+ && cp -r apps/api/prisma apps/api/prisma.config.ts apps/api/assets /out/
 
 FROM node:24-slim AS runtime
 ENV NODE_ENV=production
