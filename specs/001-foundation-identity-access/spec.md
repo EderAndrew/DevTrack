@@ -29,8 +29,8 @@ verificar o e-mail, o acesso normal é liberado.
    verificado, e um link de verificação é enviado.
 2. **Given** um cadastro público que inclui campos como `role: "TEACHER"`,
    `roles`, `permissions` ou `isAdmin`, **When** a requisição é processada, **Then**
-   esses campos são ignorados ou a requisição é rejeitada, e a conta resultante (se
-   criada) tem somente `STUDENT`.
+   a requisição é rejeitada como inválida (400) e nenhuma conta é criada; um
+   cadastro válido sem esses campos resulta em conta somente com `STUDENT`.
 3. **Given** um aluno com e-mail não verificado, **When** ele tenta usar uma
    funcionalidade que exige identidade verificada, **Then** o acesso é negado e ele
    só pode verificar o e-mail, pedir reenvio da verificação ou sair.
@@ -114,9 +114,10 @@ recusa; confirmar que não existe nenhuma operação pública que produza `ADMIN
 **Acceptance Scenarios**:
 
 1. **Given** uma base sem `ADMIN` ativo, **When** o operador executa o bootstrap com
-   um e-mail sem conta, **Then** é criado um `User` com o papel `ADMIN` pendente de
-   ativação e é emitido um link de ativação de uso único, enviado por e-mail, pelo
-   qual a própria pessoa define sua senha; nenhuma senha padrão é gerada.
+   um e-mail sem conta, **Then** é registrado um bootstrap pendente para esse e-mail
+   e é emitido um link de ativação de uso único, enviado por e-mail, pelo qual a
+   própria pessoa define sua senha; o `User` e o papel `ADMIN` só são criados quando
+   a ativação é concluída; nenhuma senha padrão é gerada.
 2. **Given** o mesmo cenário, **When** o operador solicita explicitamente a exibição
    do link no terminal (opção dedicada do comando), **Then** o link também é exibido
    ao operador e o uso dessa opção é registrado na auditoria; sem a opção, o link
@@ -132,14 +133,14 @@ recusa; confirmar que não existe nenhuma operação pública que produza `ADMIN
    **Then** ele falha com a mensagem "Bootstrap administrativo já realizado" e
    nenhum papel é atribuído.
 6. **Given** duas execuções simultâneas do bootstrap em uma base sem `ADMIN`,
-   **When** ambas são processadas, **Then** no máximo uma resulta em `ADMIN`
-   pendente ou ativo.
+   **When** ambas são processadas, **Then** no máximo uma resulta em bootstrap
+   pendente ou em `ADMIN` ativo.
 7. **Given** um bootstrap pendente (link ainda não usado, válido ou expirado) e
    nenhum `ADMIN` ativo, **When** o operador executa o bootstrap novamente (com o
    mesmo ou outro e-mail), **Then** o bootstrap pendente anterior é cancelado — seu
-   link deixa de funcionar e o `ADMIN` pendente é removido da identidade anterior —,
-   um novo bootstrap pendente é criado e ambos os eventos são auditados; nunca
-   existem dois `ADMIN`s pendentes.
+   link deixa de funcionar e nenhum papel resta dele, pois o papel só é concedido na
+   ativação —, um novo bootstrap pendente é criado e ambos os eventos são auditados;
+   nunca existem dois bootstraps pendentes.
 8. **Given** qualquer requisição pública (cadastro, ativação, verificação, convite),
    **When** ela tenta criar ou promover alguém a `ADMIN`, **Then** nenhuma
    atribuição de `ADMIN` ocorre.
@@ -386,7 +387,7 @@ recusa.
   ao `MANAGER` (professores são o escopo cadastral dele) — ativo: já é professor;
   suspenso/inativo: usar reativação.
 - **Bootstrap pendente**: nova execução cancela o pendente anterior; nunca há dois
-  `ADMIN`s pendentes.
+  bootstraps pendentes.
 - **Último `ADMIN`**: não pode ser removido, desativado nem ter o papel retirado.
 - **Normalização de e-mail**: variações de maiúsculas/minúsculas e espaços nas
   extremidades representam a mesma identidade.
@@ -426,8 +427,9 @@ recusa.
 **Autocadastro e verificação de e-mail**
 
 - **FR-010**: O fluxo público de cadastro DEVE criar exclusivamente `User` com o papel
-  `STUDENT` e `StudentProfile`, ignorando ou rejeitando qualquer campo de papel,
-  permissão ou equivalente enviado pelo cliente.
+  `STUDENT` e `StudentProfile`. Requisições que contenham campos de papel,
+  permissão ou qualquer campo não reconhecido DEVEM ser rejeitadas como inválidas
+  (400), sem criar conta.
 - **FR-011**: Senhas DEVEM ter no mínimo 12 e no máximo 128 caracteres e NÃO DEVEM
   constar de uma lista de senhas comuns ou vazadas conhecidas; a validação definitiva
   ocorre no backend.
@@ -501,15 +503,17 @@ recusa.
   administrativo executado no ambiente do backend, que recebe apenas o e-mail alvo.
 - **FR-032**: O bootstrap DEVE ser permitido somente quando não existir `ADMIN`
   ativo, DEVE ser atômico sob execuções concorrentes e DEVE recusar execução quando
-  já existir `ADMIN` ativo. Nunca pode existir mais de um `ADMIN` pendente de
-  bootstrap: uma nova execução cancela o pendente anterior (link invalidado, papel
-  pendente removido), com auditoria.
+  já existir `ADMIN` ativo. Nunca pode existir mais de um bootstrap pendente: uma
+  nova execução cancela o pendente anterior (link invalidado; nenhum papel havia sido
+  concedido), com auditoria.
 - **FR-033**: O bootstrap NÃO DEVE usar senha padrão, credenciais em código-fonte,
   seed ou variáveis de ambiente, nem ser executado automaticamente na inicialização.
-- **FR-034**: Para e-mail sem conta, o bootstrap DEVE criar o `User` com `ADMIN`
+- **FR-034**: Para e-mail sem conta, o bootstrap DEVE registrar um bootstrap
   pendente e emitir link de ativação de uso único, com validade de 24 horas e
   armazenado como hash, pelo qual a pessoa define a própria senha e comprova a posse
-  do e-mail. O link DEVE ser enviado por e-mail e SÓ PODE ser exibido ao operador
+  do e-mail. O "`ADMIN` pendente" é representado apenas pelo registro de bootstrap
+  `PENDING`: o `User` (quando não existir) e a atribuição `ADMIN` só são criados na
+  conclusão da ativação. O link DEVE ser enviado por e-mail e SÓ PODE ser exibido ao operador
   quando ele usar explicitamente a opção dedicada do comando, com esse uso
   registrado na auditoria.
 - **FR-035**: Para e-mail de `User` verificado, o bootstrap DEVE acrescentar `ADMIN`
@@ -586,7 +590,10 @@ recusa.
   e-mail verificado (salvo FR-016), permissão explícita e, quando aplicável, contexto
   do recurso.
 - **FR-061**: Ausência de sessão válida DEVE resultar em 401; ausência da permissão
-  exigida DEVE resultar em 403 (ex.: `MANAGER` consultando alunos); recurso fora do
+  exigida DEVE resultar em 403 (ex.: `MANAGER` chamando a consulta de contas de
+  usuário, FR-056 — nesta feature, a rota que expõe contas de alunos; recursos
+  acadêmicos de alunos, como `/students`, surgem na Spec 002 com permissões que o
+  `MANAGER` nunca recebe); recurso fora do
   contexto autorizado de quem tem a capacidade geral DEVE resultar em 404.
 - **FR-062**: A verificação de contexto DEVE ser um mecanismo reutilizável pelas specs
   seguintes (turmas, matrículas, avaliações), coberto nesta feature pela revogação e
@@ -624,25 +631,31 @@ recusa.
 
 ### Security, Permissions & Audit *(mandatory if feature has protected operations)*
 
-- **Permissions** (iniciais, nomes ilustrativos a confirmar no plano):
-  - `ADMIN`: `managers.convidar`, `managers.revogar_convite`, `managers.ativar`,
-    `managers.desativar`, `managers.visualizar`, `usuarios.visualizar` (identidade,
-    FR-056), `usuarios.suspender`, `usuarios.reativar` + permissões de `MANAGER`
-    (FR-005). Criação de `ADMIN`s adicionais fica para spec futura.
+- **Permissions** (confirmadas no plano; fonte de verdade em
+  `contracts/permissions.md`):
+  - `ADMIN`: `managers.visualizar`, `managers.convidar`,
+    `managers.reenviar_convite`, `managers.revogar_convite`, `managers.ativar`,
+    `managers.desativar`, `usuarios.visualizar` (identidade, FR-056),
+    `usuarios.suspender`, `usuarios.reativar` + permissões de `MANAGER` (FR-005).
+    Criação de `ADMIN`s adicionais fica para spec futura.
   - `MANAGER`: `professores.visualizar`, `professores.convidar`,
     `professores.reenviar_convite`, `professores.revogar_convite`,
-    `professores.ativar`, `professores.desativar`.
-  - Todos os papéis: operações sobre a própria conta (`conta.propria.visualizar`,
-    `sessoes.proprias.listar`, `sessoes.proprias.revogar`). Para `TEACHER` e
-    `STUDENT`, são as únicas nesta feature; permissões pedagógicas chegam nas specs
-    seguintes.
+    `professores.suspender`, `professores.desativar`, `professores.ativar`.
+  - Todos os papéis: `sessoes.proprias.listar`, `sessoes.proprias.revogar`. Para
+    `TEACHER` e `STUDENT`, são as únicas nesta feature; permissões pedagógicas chegam
+    nas specs seguintes.
+  - Sem permissão, apenas com sessão válida (inclusive com e-mail não verificado ou
+    sem papel ativo): consultar a própria identidade, encerrar a sessão atual e
+    encerrar todas as sessões — ninguém pode ficar impedido de sair.
 - **Resource context**: operações sobre conta, sessões e perfil são restritas ao
   próprio usuário; sessões de outro usuário respondem 404 para quem tem a capacidade
   apenas sobre as próprias. Contexto acadêmico (turma) chega na Spec 002.
 - **Audit events**: ver FR-070.
 - **Untrusted input**: todo dado de cadastro, login, convite e ativação é validado
-  no backend; campos não reconhecidos (ex.: `role`, `permissions`) são ignorados ou
-  rejeitados; e-mails normalizados; senhas validadas por FR-011.
+  no backend; campos não reconhecidos (ex.: `role`, `permissions`) fazem a
+  requisição ser rejeitada (400); e-mails normalizados; senhas validadas por FR-011.
+  Exceção explícita: no aceite de convite para conta verificada, o campo de senha é
+  aceito pelo formato e descartado (FR-047).
 - **States & transitions**: convite `PENDING → ACCEPTED | EXPIRED | REVOKED`
   (reenvio mantém `PENDING` com novo token); atribuição de papel (`UserRole`,
   fonte única, FR-007) `ACTIVE ⇄ SUSPENDED`, `ACTIVE | SUSPENDED → INACTIVE → ACTIVE`
@@ -683,8 +696,10 @@ recusa.
   expiração, uso.
 - **Session**: `User`, hash do segredo da sessão, identificador público não secreto,
   criação, último uso, expiração, revogação (motivo e data).
-- **AdminBootstrap**: e-mail alvo, `User` alvo, status (`PENDING`, `COMPLETED`,
-  `CANCELLED`), token de ativação associado, datas; no máximo um `PENDING`.
+- **AdminBootstrap**: e-mail alvo, `User` alvo (quando já existir ou após a
+  conclusão), status (`PENDING`, `COMPLETED`, `CANCELLED`), token de ativação
+  associado, datas; no máximo um `PENDING`. É a única representação do "`ADMIN`
+  pendente" — a atribuição `ADMIN` só existe após a conclusão.
 - **AuditEvent**: tipo de evento, ator, alvo, data/hora, identificador da requisição,
   metadados não sensíveis.
 

@@ -50,3 +50,11 @@
 - The spec is security-focused, so some vocabulary (session, token, rate limit) is
   unavoidable; each term is described by its observable behavior.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.
+- Plan alignment (2026-09-21), applied after `/speckit-plan`: final permission list
+  (`professores.suspender` and `managers.reenviar_convite` added;
+  `conta.propria.visualizar` replaced by session-only access to identity, logout and
+  logout-all); "pending ADMIN" represented only by the `PENDING` bootstrap — `User`
+  and `ADMIN` assignment are created on activation (US3-1, US3-6, US3-7, FR-032,
+  FR-034); unknown fields in public requests are rejected with 400 (US1-2, FR-010);
+  FR-061's 403 example is the account consultation (FR-056), with `/students`
+  deferred to Spec 002.
