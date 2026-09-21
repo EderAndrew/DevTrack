@@ -118,10 +118,10 @@ núcleo de concessão de papel — pré-requisitos de todas as histórias
 
 ### Web — base
 
-- [ ] T046 [P] Configurar rewrite `/api/:path*` → `API_ORIGIN` em `apps/web/next.config.js`, criar `apps/web/.env.example` (`API_ORIGIN`) e substituir `apps/web/app/page.tsx`/`layout.tsx` do template por layout DevTrack mínimo (título, `lang="pt-BR"`)
-- [ ] T047 [P] Implementar `apiClient` (fetch com `credentials: 'same-origin'`, JSON, conversão de `{statusCode, code, message}` em `ApiError`) e `getMe()` server-side repassando o cookie em `apps/web/lib/api-client.ts` e `apps/web/lib/session.ts` (R18)
-- [ ] T048 [P] Criar componentes de formulário acessíveis `Field` (label associado, `aria-invalid`, `aria-describedby` para erro/ajuda), `ErrorSummary` (`aria-live="polite"`, recebe foco após submissão inválida, links para os campos) e `SubmitButton` (estado ocupado anunciado), e estilos globais de foco visível e contraste AA em `apps/web/components/form/` e `apps/web/app/globals.css` (FR-075, R22)
-- [ ] T049 [P] Configurar Vitest + Testing Library + `vitest-axe` + `@testing-library/user-event` em `apps/web/vitest.config.ts`, helper `expectNoA11yViolations(container)` em `apps/web/test/a11y.ts` (R22) e teste do `apiClient` (mapeamento de erros) em `apps/web/lib/api-client.test.ts`
+- [X] T046 [P] Configurar rewrite `/api/:path*` → `API_ORIGIN` em `apps/web/next.config.js`, criar `apps/web/.env.example` (`API_ORIGIN`) e substituir `apps/web/app/page.tsx`/`layout.tsx` do template por layout DevTrack mínimo (título, `lang="pt-BR"`)
+- [X] T047 [P] Implementar `apiClient` (fetch com `credentials: 'same-origin'`, JSON, conversão de `{statusCode, code, message}` em `ApiError`) e `getMe()` server-side repassando o cookie em `apps/web/lib/api-client.ts` e `apps/web/lib/session.ts` (R18)
+- [X] T048 [P] Criar componentes de formulário acessíveis `Field` (label associado, `aria-invalid`, `aria-describedby` para erro/ajuda), `ErrorSummary` (`aria-live="polite"`, recebe foco após submissão inválida, links para os campos) e `SubmitButton` (estado ocupado anunciado), e estilos globais de foco visível e contraste AA em `apps/web/components/form/` e `apps/web/app/globals.css` (FR-075, R22)
+- [X] T049 [P] Configurar Vitest + Testing Library + `vitest-axe` + `@testing-library/user-event` em `apps/web/vitest.config.ts`, helper `expectNoA11yViolations(container)` em `apps/web/test/a11y.ts` (R22) e teste do `apiClient` (mapeamento de erros) em `apps/web/lib/api-client.test.ts`
 
 **Checkpoint**: migrations aplicam, guards bloqueiam por padrão, núcleo de concessão
 testado — histórias podem começar
