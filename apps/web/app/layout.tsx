@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import localFont from "next/font/local";
-import { LogoutButton } from "../components/logout-button";
+import { SiteNav } from "../components/site-nav";
 import { getMe, type MeView } from "../lib/session";
 import "./globals.css";
 
@@ -40,22 +40,7 @@ export default async function RootLayout({
           <Link href="/" className="brand">
             DevTrack
           </Link>
-          <nav aria-label="Conta" className="site-nav">
-            {me ? (
-              <>
-                {me.permissions.includes("professores.visualizar") ? <Link href="/professores">Professores</Link> : null}
-                {me.permissions.includes("managers.visualizar") ? <Link href="/admin/managers">Gestores</Link> : null}
-                {me.permissions.includes("usuarios.visualizar") ? <Link href="/admin/usuarios">Usuários</Link> : null}
-                <Link href="/conta/sessoes">Minhas sessões</Link>
-                <LogoutButton />
-              </>
-            ) : (
-              <>
-                <Link href="/entrar">Entrar</Link>
-                <Link href="/cadastro">Criar conta</Link>
-              </>
-            )}
-          </nav>
+          <SiteNav me={me} />
         </header>
         <main id="conteudo" tabIndex={-1}>
           {children}
