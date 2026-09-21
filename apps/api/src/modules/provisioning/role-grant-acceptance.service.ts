@@ -42,6 +42,8 @@ export interface AcceptResult {
   /** false when the user already had an assignment of this role (idempotent repeat). */
   roleGranted: boolean;
   revokedSessions: number;
+  /** CLAIM_ACCOUNT only: pending verification/reset tokens of the claimed account that were invalidated. */
+  invalidatedTokens: number;
 }
 
 interface LockedUser {
@@ -87,6 +89,7 @@ export class RoleGrantAcceptance {
 
     let userId: string;
     let revokedSessions = 0;
+    let invalidatedTokens = 0;
 
     switch (mode) {
       case "CREATE_ACCOUNT": {
@@ -117,6 +120,16 @@ export class RoleGrantAcceptance {
         await this.users.setPassword(tx, userId, passwordHash);
         await this.users.markEmailVerified(tx, userId);
         revokedSessions = await this.sessions.revokeAllForUser(tx, userId, "ACCOUNT_CLAIMED");
+        // Nothing of whoever pre-registered the address survives the claim (US6-10): pending
+        // links die and the account takes the name given by the issuer.
+        const now = new Date();
+        const { count } = await tx.userToken.updateMany({
+          where: { userId, usedAt: null, invalidatedAt: null },
+          data: { invalidatedAt: now },
+        });
+        invalidatedTokens = count;
+        await tx.user.update({ where: { id: userId }, data: { name: input.displayName } });
+        await tx.studentProfile.updateMany({ where: { userId }, data: { displayName: input.displayName } });
         await this.audit.record(tx, {
           type: "account.claimed",
           actorType: "ANONYMOUS",
@@ -145,7 +158,7 @@ export class RoleGrantAcceptance {
 
     if (input.roleKey === "TEACHER") await this.profiles.ensureTeacherProfile(tx, userId, input.displayName);
 
-    return { mode, userId, userRoleId: grant.assignment.id, roleGranted: grant.created, revokedSessions };
+    return { mode, userId, userRoleId: grant.assignment.id, roleGranted: grant.created, revokedSessions, invalidatedTokens };
   }
 
   /** Serializes concurrent acceptances for the same identity (claim vs. claim, claim vs. grant). */

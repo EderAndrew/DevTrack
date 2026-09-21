@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { INVITATION_TOKEN_KEY, InvitationAcceptance } from "./invitation-acceptance";
 
+const router = { replace: vi.fn(), refresh: vi.fn() };
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
 const TOKEN = "i".repeat(43);
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -15,6 +18,8 @@ describe("InvitationAcceptance (US4-2, FR-075)", () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
+    router.replace.mockReset();
+    router.refresh.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     window.sessionStorage.clear();
     window.history.replaceState(null, "", `/convite?token=${TOKEN}`);
@@ -42,19 +47,53 @@ describe("InvitationAcceptance (US4-2, FR-075)", () => {
     expect(window.sessionStorage.getItem(INVITATION_TOKEN_KEY)).toBeNull();
   });
 
-  it("SIGN_IN_REQUIRED: link sem token e aceite só com {token}", async () => {
-    fetchMock.mockResolvedValueOnce(preview("SIGN_IN_REQUIRED")).mockResolvedValueOnce(
-      json(403, { statusCode: 403, code: "WRONG_ACCOUNT", message: "Você está conectado em outra conta." }),
-    );
-    const { container } = render(<InvitationAcceptance token={TOKEN} />);
+  it("SIGN_IN_REQUIRED sem sessão: só o link para entrar, sem token na URL", async () => {
+    fetchMock.mockResolvedValueOnce(preview("SIGN_IN_REQUIRED"));
+    const { container } = render(<InvitationAcceptance token={TOKEN} signedInAs={null} />);
     const link = await screen.findByRole("link", { name: "Entrar para aceitar" });
     expect(link.getAttribute("href")).toBe("/entrar?next=%2Fconvite");
+    expect(screen.queryByRole("button", { name: "Aceitar convite" })).toBeNull();
     expect(window.sessionStorage.getItem(INVITATION_TOKEN_KEY)).toBe(TOKEN);
+    await expectNoA11yViolations(container);
+  });
+
+  it("SIGN_IN_REQUIRED com a conta do convite: aceita enviando só {token}", async () => {
+    fetchMock
+      .mockResolvedValueOnce(preview("SIGN_IN_REQUIRED"))
+      .mockResolvedValueOnce(json(200, { role: "TEACHER", mode: "SIGN_IN_REQUIRED" }));
+    const { container } = render(
+      <InvitationAcceptance token={TOKEN} signedInAs={{ name: "Bia", email: "GESTORA@example.test" }} />,
+    );
+    expect(await screen.findByText(/Você está conectado como/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Entrar para aceitar" })).toBeNull();
     await expectNoA11yViolations(container);
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Aceitar convite" }));
     expect(bodyOf(1)).toEqual({ token: TOKEN });
-    expect((await screen.findByRole("group")).textContent).toContain("Você está conectado em outra conta.");
+    expect(await screen.findByText(/Boas-vindas! Você agora tem o papel de Professor/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ir para o início" })).toBeTruthy();
+  });
+
+  it("SIGN_IN_REQUIRED com outra conta: sem botão de aceite, oferece trocar de conta", async () => {
+    fetchMock.mockResolvedValueOnce(preview("SIGN_IN_REQUIRED")).mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const { container } = render(
+      <InvitationAcceptance token={TOKEN} signedInAs={{ name: "Outro", email: "outro@example.test" }} />,
+    );
+    expect(await screen.findByText(/é preciso entrar com a conta gestora@example.test/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aceitar convite" })).toBeNull();
+    await expectNoA11yViolations(container);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sair e entrar com outra conta" }));
+    expect(fetchMock.mock.calls[1]![0]).toBe("/api/auth/logout");
+    expect(router.replace).toHaveBeenCalledWith("/entrar?next=%2Fconvite");
+    expect(window.sessionStorage.getItem(INVITATION_TOKEN_KEY)).toBe(TOKEN);
+  });
+
+  it("CLAIM_ACCOUNT avisa que a senha anterior e as sessões deixam de valer", async () => {
+    fetchMock.mockResolvedValueOnce(preview("CLAIM_ACCOUNT"));
+    const { container } = render(<InvitationAcceptance token={TOKEN} />);
+    expect(await screen.findByText(/a senha anterior deixa de funcionar e todas as sessões/)).toBeTruthy();
+    await expectNoA11yViolations(container);
   });
 
   it("TOKEN_INVALID mostra orientação genérica", async () => {

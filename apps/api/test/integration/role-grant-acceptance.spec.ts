@@ -154,6 +154,38 @@ describe("RoleGrantAcceptance (R15, FR-044–FR-048)", () => {
       expect(claimed.metadata).toEqual({ via: "INVITATION", revokedSessions: 2 });
     });
 
+    it("invalidates pending tokens and drops the pre-registered name (US6-10)", async () => {
+      const squatter = await createUser(t, { verified: false, name: "Nome do Invasor" });
+      const token = (purpose: "EMAIL_VERIFICATION" | "PASSWORD_RESET", suffix: string) =>
+        t.prisma.userToken.create({
+          data: { userId: squatter.id, purpose, tokenHash: hashToken(`pendente-${suffix}`), expiresAt: new Date(Date.now() + 3_600_000) },
+        });
+      // At most one live token per purpose: the used one is created (and consumed) first.
+      const used = await token("EMAIL_VERIFICATION", "usado");
+      await t.prisma.userToken.update({ where: { id: used.id }, data: { usedAt: new Date() } });
+      await token("EMAIL_VERIFICATION", "v");
+      await token("PASSWORD_RESET", "r");
+
+      const result = await accept({ email: squatter.email, password: NEW_PASSWORD });
+
+      expect(result.invalidatedTokens).toBe(2);
+      expect(await t.prisma.userToken.count({ where: { userId: squatter.id, usedAt: null, invalidatedAt: null } })).toBe(0);
+      const user = await t.prisma.user.findUniqueOrThrow({ where: { id: squatter.id }, include: { studentProfile: true } });
+      expect(user.name).toBe("Prof. Convidada");
+      expect(user.studentProfile?.displayName).toBe("Prof. Convidada");
+    });
+
+    it("other branches never touch tokens or the name", async () => {
+      const verified = await createUser(t, { name: "Nome Mantido" });
+      await t.prisma.userToken.create({
+        data: { userId: verified.id, purpose: "PASSWORD_RESET", tokenHash: hashToken("reset-mantido"), expiresAt: new Date(Date.now() + 3_600_000) },
+      });
+      const result = await accept({ email: verified.email, currentUserId: verified.id });
+      expect(result).toMatchObject({ mode: "SIGN_IN_REQUIRED", invalidatedTokens: 0 });
+      expect((await t.prisma.user.findUniqueOrThrow({ where: { id: verified.id } })).name).toBe("Nome Mantido");
+      expect(await t.prisma.userToken.count({ where: { userId: verified.id, invalidatedAt: null } })).toBe(1);
+    });
+
     it("requires a password", async () => {
       const squatter = await createUser(t, { verified: false });
       expect(await errorCode(accept({ email: squatter.email }))).toBe("PASSWORD_REQUIRED");
