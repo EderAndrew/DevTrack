@@ -1,54 +1,55 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.0 → 1.2.0
-Motivo (MINOR): novos princípios (domínio configurável e personalização/
-acessibilidade), expansão material de II, XIII e XIV e reorganização do roadmap.
-Nenhum princípio foi removido; nenhuma regra existente foi afrouxada.
+Version change: 1.2.0 → 2.0.0
+Motivo (MAJOR): redefinição incompatível de papéis e responsabilidades —
+ACADEMIC_MANAGER é substituído por MANAGER, restrito ao provisionamento cadastral de
+professores e sem autoridade pedagógica; disciplinas, períodos e ementas deixam de
+ser institucionais e passam ao contexto do professor. Nada foi implementado ainda,
+portanto não há migração de código ou dados.
 
 Princípios modificados:
-  II. Autenticação e Autorização — novas permissões de exemplo (disciplinas,
-      conteúdos, questões, IA), isolamento explícito entre professores,
-      "RBAC define o que; vínculo acadêmico define onde" e papéis elevados nunca
-      autoatribuídos
-  XIII. Classificação de Risco — funcionalidades L2 (Professor Copilot) permitidas
-      com spec, avaliação de risco e evals; IA nunca publica
-  XIV. IA como Componente Não Autoritativo — papéis distintos professor/aluno,
-      minimização de dados enviados a provedores de IA e documentos/uploads como
-      dados, nunca instruções (prompt injection)
+  II. Autenticação e Autorização — papéis ADMIN / MANAGER / TEACHER / STUDENT;
+      cadastro público nunca aceita role como parâmetro; permissões de exemplo
+      ajustadas (professores.convidar, professores.reenviar_convite; removido
+      periodos.gerenciar)
+  XXI. Domínio Educacional Configurável — professor cria disciplinas/ofertas,
+       períodos da oferta, ementa, turmas, aulas e atividades; removida a gestão
+       institucional de disciplinas e períodos
+  XXIII. Referência Curricular — ementa recebida pelo professor e importada para a
+         disciplina dele (não mais referência institucional compartilhada)
+  XXIV. Isolamento por Contexto Acadêmico — MANAGER no lugar de ACADEMIC_MANAGER;
+        distinção 403 (sem capacidade) × 404 (fora do contexto)
+  XXV. Provisionamento de Usuários e Privilégios → Provisionamento Controlado de
+       Professores e Privilégios, reorganizado em Provisionamento, Escopo do
+       MANAGER, Identidade única e Desativação: MANAGER sem acesso a alunos e dados
+       pedagógicos (negado no backend com 403); User único com múltiplos papéis
+       via UserRole (nunca users.role); convite para e-mail existente reutiliza a
+       identidade com e-mail verificado e autenticação, sem redefinir credencial;
+       aceite transacional e idempotente; desativação preserva o histórico e não
+       deixa recursos sem responsável; bootstrap do primeiro ADMIN apenas por
+       comando operacional (sem endpoint público, senha padrão ou seed)
 
-Princípios adicionados:
-  XXI. Domínio Educacional Configurável
-  XXII. Personalização Pedagógica e Acessibilidade
-  XXIII. Referência Curricular e Rastreabilidade Pedagógica (inclui snapshot de
-         questões e distinção disciplina × turma)
-  XXIV. Isolamento por Contexto Acadêmico (papéis administrativos não atravessam
-        o isolamento implicitamente)
-  XXV. Provisionamento de Usuários e Privilégios
-
-Também modificados nesta versão:
-  II. User único + perfis; papéis ADMIN / ACADEMIC_MANAGER / TEACHER / STUDENT
-  XXI. Disciplinas institucionais pela gestão acadêmica; professor cria turmas e,
-       em ofertas não acadêmicas, disciplina própria
+Princípios adicionados: nenhum.
+Princípios removidos: nenhum.
 
 Seções modificadas:
-  - Introdução — plataforma configurável por professor, para qualquer área
-  - Fluxo de Desenvolvimento e Roadmap de Fases — roadmap 001–004 substituído por
-    001–010 (turmas vão para a Fase 002; ementa e plano de ensino ganham a Fase 003,
-    antes do banco de questões)
-
-Seções removidas: nenhuma.
+  - Fluxo de Desenvolvimento e Roadmap de Fases — Fases 001 e 002 ajustadas aos
+    novos papéis (sem períodos letivos e disciplinas institucionais)
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gates XXI–XXV no Constitution Check
-  ✅ .specify/templates/spec-template.md  — configurabilidade do domínio, dados
-                                            sensíveis/adaptações e rastreabilidade
-                                            curricular
+  ✅ .specify/templates/plan-template.md  — gate XXV atualizado
+  ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
   ⚠ README.md — ainda é o README do starter do Turborepo; reescrever na Fase 001
 
-Follow-ups:
+Follow-ups (decisões para specs 001/002):
+  - Detalhes do comando de bootstrap e do fluxo de prova de posse de e-mail
+    (spec 001); fluxo autenticado para novos ADMINs.
+  - Política para turmas/provas em andamento quando um professor é desativado
+    (transferência, congelamento, somente leitura; afastamento × desligamento ×
+    suspensão) — spec do ciclo de vida de professores e turmas.
   - apps/docs (starter do create-turbo) não faz parte da arquitetura definida;
     remover ou justificar na spec da Fase 001.
   - apps/api (NestJS) ainda não existe; será criado na Fase 001.
@@ -94,7 +95,8 @@ compromete diretamente a integridade acadêmica.
   solicitado (ex.: o professor é responsável por *esta* turma).
 - O controle de acesso DEVE usar RBAC com permissões explícitas verificadas no backend,
   por exemplo: `usuarios.gerenciar`, `professores.criar`, `professores.ativar`,
-  `professores.desativar`, `periodos.gerenciar`, `disciplinas.criar`,
+  `professores.visualizar`, `professores.convidar`, `professores.reenviar_convite`,
+  `professores.desativar`, `disciplinas.criar`,
   `disciplinas.editar`, `turmas.buscar`, `turmas.visualizar`, `turmas.criar`,
   `turmas.gerenciar`, `matriculas.solicitar`, `matriculas.aprovar`, `notas.lancar`,
   `notas.proprias.visualizar`, `conteudos.criar`, `conteudos.editar`,
@@ -108,13 +110,19 @@ compromete diretamente a integridade acadêmica.
   Compartilhamento entre professores DEVE ser explícito e autorizado.
 - **RBAC define o que** o usuário pode fazer; **o vínculo acadêmico define onde**
   (Princípio XXIV). Autorização DEVE combinar os dois.
-- Uma única identidade (`User`: autenticação, status, roles) serve a todos os perfis;
-  dados específicos ficam em perfis (ex.: `TeacherProfile`, `StudentProfile`). Não
-  criar mecanismos de autenticação separados por tipo de usuário.
-- Papéis de domínio: `ADMIN` (plataforma), `ACADEMIC_MANAGER` (gestão acadêmica),
-  `TEACHER` e `STUDENT`. Cada papel é um conjunto de permissões explícitas; nomes
-  exibidos na interface PODEM ser personalizados por instituição (ex.: "Secretaria",
-  "Coordenação"). No início, `ADMIN` PODE acumular as funções de `ACADEMIC_MANAGER`.
+- Uma única identidade (`User`: autenticação, status, roles) serve a todos os perfis
+  e PODE acumular papéis; dados específicos ficam em perfis (ex.: `TeacherProfile`,
+  `StudentProfile`). Não criar mecanismos de autenticação separados por tipo de
+  usuário (ver XXV — Identidade única).
+- Papéis de domínio, cada um um conjunto de permissões explícitas:
+  - `ADMIN` — administra a plataforma e provisiona `MANAGER`s;
+  - `MANAGER` — garante **quem pode ser professor** (provisionamento cadastral);
+  - `TEACHER` — administra todo o seu processo pedagógico;
+  - `STUDENT` — autocadastro e participação nas turmas em que foi admitido.
+  Nomes exibidos na interface PODEM ser personalizados (ex.: "Gestor de Cadastros").
+  No início, `ADMIN` PODE acumular as funções de `MANAGER`. Necessidades futuras
+  (coordenação, secretaria, gestão acadêmica) DEVEM gerar papéis novos, nunca
+  ampliar indevidamente um papel existente.
 - Papéis elevados NUNCA DEVEM ser autoatribuídos; provisionamento segue o Princípio
   XXV.
 - Flags como `isAdmin`, `isTeacher` ou `isStudent` NÃO DEVEM ser o mecanismo
@@ -345,17 +353,13 @@ o propósito continua sendo aprendizagem.
 - O sistema é uma plataforma de ensino e avaliação configurável por professor, não um
   sistema para disciplinas específicas. Disciplina, linguagem, tecnologia, conteúdo,
   nível e necessidades pedagógicas são **dados do domínio**, não código.
-- Disciplinas, períodos letivos, turmas, módulos, conteúdos, aulas, objetivos de
-  aprendizagem, exercícios e avaliações DEVEM ser criados e organizados no sistema,
-  por quem tem o papel adequado:
-  - **disciplinas institucionais** (nome, código, ementa) e **períodos letivos** são
-    mantidos pela gestão acadêmica (`ACADEMIC_MANAGER`/`ADMIN`), evitando duplicatas
-    como "POO", "POO Java" e "Programação OO";
-  - **professores** criam e organizam suas turmas (ofertas), planos, aulas e
-    atividades;
-  - ofertas não acadêmicas (ex.: `EXTENSION`, `WORKSHOP`, `COURSE` — aulas online,
-    cursos mensais) PODEM ter disciplina própria criada pelo professor, quando a
-    plataforma permitir, sem exigir disciplina institucional formal.
+- O **professor** é responsável pelo seu contexto pedagógico e DEVE poder criar e
+  organizar: disciplinas/ofertas, período da oferta (ex.: "2026/2",
+  "Setembro/2026"), ementa (importada), plano de ensino, turmas, módulos, conteúdos,
+  aulas, objetivos de aprendizagem, exercícios, trabalhos e provas.
+- Ofertas PODEM ser de tipos diferentes (ex.: `ACADEMIC`, `EXTENSION`, `WORKSHOP`,
+  `COURSE`), atendendo tanto semestres acadêmicos quanto aulas online e cursos
+  independentes.
 - Disciplina não é linguagem: uma disciplina PODE usar uma, várias ou nenhuma
   linguagem/tecnologia (ex.: Paradigmas com Python; Git & Agile sem linguagem
   principal).
@@ -395,9 +399,11 @@ meio de progressão, não redução de expectativa.
 ### XXIII. Referência Curricular e Rastreabilidade Pedagógica
 
 - Cada camada tem papel próprio e NÃO DEVE ser confundida com as demais:
-  - **Ementa**: referência curricular institucional (ementa, competência, objetos de
-    aprendizagem). Pode ser compartilhada entre turmas e mudar entre semestres; DEVE
-    ser versionada, e o plano DEVE referenciar a versão utilizada.
+  - **Ementa**: referência curricular (ementa, competência, objetos de aprendizagem)
+    recebida pelo professor e importada para a disciplina dele. PODE ser reutilizada
+    nas turmas desse professor e mudar entre semestres; DEVE ser versionada, e o
+    plano DEVE referenciar a versão utilizada. Uma ementa não determina uma aula por
+    tópico — a distribuição em aulas é decisão do professor.
   - **Plano de ensino**: como o professor organiza a ementa para uma **turma**
     (semanas, aulas, sequência, junção de conteúdos, linguagem/tecnologia adotada).
     A ordem da ementa não é a ordem de ensino.
@@ -454,8 +460,12 @@ análise de evolução.
   avaliações, submissões, resultados e notas. Um aluno vê somente as próprias notas e
   respostas; um professor, somente as de suas turmas.
 - Conhecer o identificador de uma turma ou recurso NUNCA é suficiente para obter
-  acesso. Recursos fora do contexto do usuário DEVERIAM ser respondidos como
-  inexistentes (404), sem revelar sua existência.
+  acesso. Distinção de respostas:
+  - **sem a capacidade** (o papel não possui a permissão para aquele tipo de
+    recurso) → `403`;
+  - **com a capacidade, mas fora do contexto** (ex.: prova de outra turma) → o
+    recurso DEVERIA ser respondido como inexistente (`404`), sem revelar sua
+    existência.
 - **Conta ≠ matrícula**: o aluno cria a própria conta (autocadastro, quando permitido
   pela configuração da plataforma — XXV); a conta sozinha não dá acesso a nenhuma
   turma.
@@ -468,7 +478,7 @@ análise de evolução.
 - Matrículas DEVEM ter ciclo de vida explícito (XVI) — ex.: `PENDING`, `ACTIVE`,
   `REJECTED`, `CANCELLED` — cobrindo troca de turma, desistência e entrada tardia.
   Mudanças de matrícula DEVEM ser auditadas.
-- Papéis administrativos (`ADMIN`, `ACADEMIC_MANAGER`) NÃO atravessam esse isolamento
+- Papéis administrativos (`ADMIN`, `MANAGER`) NÃO atravessam esse isolamento
   implicitamente: acesso a respostas, submissões e notas de turmas às quais não estão
   vinculados exige permissão explícita, escopo definido e auditoria.
 - Toda autorização é aplicada no backend (II).
@@ -476,34 +486,103 @@ análise de evolução.
 **Rationale**: previne Broken Access Control/IDOR, o risco nº 1 do OWASP, na
 fronteira mais sensível do produto — notas e avaliações de alunos.
 
-### XXV. Provisionamento de Usuários e Privilégios
+### XXV. Provisionamento Controlado de Professores e Privilégios
 
-- Contas com privilégios administrativos ou docentes NÃO DEVEM ter cadastro público.
-  Professores DEVEM ser provisionados por usuário autorizado (`ADMIN` ou
-  `ACADEMIC_MANAGER`), preferencialmente por **convite**.
+**Provisionamento**
+
+- `TEACHER` é papel privilegiado e NUNCA pode ser obtido por autocadastro público.
+  Professores DEVEM ser provisionados exclusivamente por usuário administrativo com a
+  permissão correspondente (`MANAGER`, ou `ADMIN` enquanto acumular a função),
+  preferencialmente por **convite** com validade limitada. `MANAGER`s são
+  provisionados por `ADMIN`.
+- O fluxo público de cadastro DEVE criar exclusivamente contas permitidas para
+  autocadastro (`STUDENT`) e NUNCA permite atribuir `TEACHER`, `MANAGER` ou `ADMIN`.
+  Roles não são parâmetro confiável do cadastro público — um payload com
+  `"role": "TEACHER"` é ignorado ou rejeitado, mesmo que a interface não ofereça
+  essa opção.
 - O administrador autoriza a existência da conta, mas NÃO DEVE conhecer nem definir
-  a credencial pessoal do professor: o próprio professor a define ao aceitar o
-  convite. Convites DEVEM ser de uso único, com expiração, armazenados como hash e
-  revogáveis.
+  a credencial pessoal do professor. Convites DEVEM ser de uso único, vinculados ao
+  e-mail convidado, com expiração, armazenados como hash (`tokenHash`) e revogáveis.
 - Contas de professor DEVEM ter ciclo de vida explícito (XVI) — ex.: `INVITED`,
   `ACTIVE`, `SUSPENDED`, `INACTIVE`.
 - Alunos PODEM ter autocadastro quando permitido pela configuração da plataforma. O
-  autocadastro concede apenas o papel `STUDENT` e nenhum acesso acadêmico — este
-  depende de matrícula válida (XXIV).
-- Papéis e permissões DEVEM ser concedidos explicitamente. Toda concessão ou remoção
-  de privilégio DEVE exigir autorização no backend e ser auditada, registrando quem
-  alterou, quando e qual papel/permissão foi concedido ou removido.
-- Nenhum usuário pode conceder a si próprio privilégios superiores. O sistema NÃO
-  DEVE permitir remover ou desativar o último `ADMIN` ativo.
-- **Desativar, não apagar**: desativar um professor (ou cancelar uma matrícula) DEVE
-  impedir novos acessos sem destruir o histórico acadêmico (turmas, provas,
-  trabalhos, notas). Contas com histórico acadêmico não são excluídas fisicamente;
-  pedidos de exclusão de dados (LGPD) são atendidos por anonimização, preservando a
-  integridade do registro acadêmico conforme a lei e a política institucional.
+  autocadastro concede apenas `STUDENT` e nenhum acesso acadêmico — este depende de
+  matrícula válida (XXIV). O e-mail DEVE ser verificado.
+- Toda atribuição, remoção ou alteração de privilégio (incluindo `TEACHER`) DEVE
+  exigir autorização no backend e ser auditada, registrando o responsável, data e
+  hora e o papel/permissão concedido ou removido. Nenhum usuário concede a si
+  próprio privilégios superiores, e o sistema NÃO DEVE permitir remover ou
+  desativar o último `ADMIN` ativo.
 
-**Rationale**: professor é identidade privilegiada — tem acesso a notas e dados de
-alunos; por isso nasce de processo administrativo controlado, e seu histórico
-sobrevive à sua saída da instituição.
+**Bootstrap administrativo**
+
+- NÃO PODE existir endpoint público capaz de criar ou promover alguém a `ADMIN`.
+- O primeiro `ADMIN` nasce exclusivamente de um comando operacional executado no
+  ambiente do backend (ex.: `pnpm admin:bootstrap`), que só funciona enquanto não
+  existir `ADMIN` ativo, é transacional (duas execuções simultâneas não criam dois
+  administradores), auditado e, depois de concluído, recusa novas execuções.
+- PROIBIDO: senha padrão, credenciais de administrador em seed ou variáveis de
+  ambiente (ex.: `ADMIN_EMAIL` + `ADMIN_PASSWORD`) e criação automática no startup.
+- O bootstrap respeita a identidade única: se o e-mail já pertencer a um `User`
+  verificado, acrescenta `ADMIN` a ele; uma conta não verificada NUNCA é promovida
+  sem prova prévia de posse do e-mail.
+- Administradores seguintes dependem de fluxo autenticado e autorizado, definido em
+  spec.
+
+**Escopo do `MANAGER`**
+
+- `MANAGER` tem finalidade restrita ao provisionamento e à gestão cadastral de
+  professores (ex.: `professores.visualizar`, `professores.criar`,
+  `professores.convidar`, `professores.reenviar_convite`, `professores.ativar`,
+  `professores.desativar`).
+- Por padrão, `MANAGER` NÃO tem acesso a dados de alunos, matrículas, dados
+  pedagógicos das turmas, ementas e planos do professor, exercícios, trabalhos,
+  avaliações, submissões, correções, resultados ou notas.
+- Essas restrições DEVEM ser aplicadas no backend: sem a capacidade, a API nega
+  explicitamente (ex.: `GET /students` → `403`), em vez de responder vazio.
+
+**Identidade única**
+
+- `User` representa uma identidade única; roles representam capacidades. Uma mesma
+  identidade PODE acumular múltiplos papéis explicitamente autorizados (ex.:
+  `STUDENT` e `TEACHER`). O sistema NÃO DEVE criar contas duplicadas para
+  representar papéis diferentes da mesma pessoa.
+- Papéis DEVEM ser modelados como relação (ex.:
+  `User → UserRole → Role → RolePermission → Permission`), nunca como coluna única
+  (`users.role`). Perfis são opcionais por papel (`TeacherProfile` 0..1,
+  `StudentProfile` 0..1).
+- Se o convite for para um e-mail que já pertence a um `User`, a aceitação DEVE
+  reutilizar essa identidade e adicionar `TEACHER` e `TeacherProfile`. Para impedir
+  sequestro de conta e pré-registro malicioso:
+  - privilégios só são vinculados a um `User` existente cujo e-mail esteja
+    verificado e mediante autenticação nessa conta; o convite NUNCA redefine a
+    credencial de uma conta existente;
+  - se a conta existente não tiver e-mail verificado, quem aceita o convite (e,
+    portanto, controla o e-mail) assume a conta com redefinição de credencial e
+    revogação de todas as sessões ativas.
+- A aceitação de convites DEVE ser transacional e idempotente (XVII): aceitar o
+  mesmo convite duas vezes nunca cria dois `TeacherProfile` nem atribuições
+  duplicadas de papel.
+
+**Desativação**
+
+- **Desativar, não apagar**: a desativação de um professor (ou o cancelamento de uma
+  matrícula) DEVE impedir novos acessos e preservar integralmente turmas,
+  avaliações, submissões, resultados, notas, auditorias e demais registros
+  históricos. Recursos acadêmicos NÃO DEVEM ser excluídos nem ficar sem responsável
+  válido em consequência da desativação.
+- A política para turmas em andamento — transferência, congelamento, continuidade,
+  acesso somente leitura, e as diferenças entre afastamento temporário,
+  desligamento e suspensão por segurança — DEVE ser definida na spec responsável
+  pelo ciclo de vida de professores e turmas.
+- Contas com histórico acadêmico não são excluídas fisicamente; pedidos de exclusão
+  de dados (LGPD) são atendidos por anonimização, preservando a integridade do
+  registro acadêmico conforme a lei e a política institucional.
+
+**Rationale**: `MANAGER` controla quem pode ser professor; o professor controla seu
+ambiente pedagógico. Uma pessoa tem uma identidade e pode acumular papéis ao longo
+da vida do sistema — projetar a autenticação como "aluno **ou** professor" seria um
+erro caro de corrigir depois.
 
 ## Arquitetura e Stack Técnica
 
@@ -579,14 +658,16 @@ banco de questões, porque toda questão precisa saber a que conteúdo e objetiv
 pertence; o Code Runner fica isolado e por último entre os componentes de risco):
 
 1. **Fase 001 — Foundation**: monorepo, Next.js, NestJS, PostgreSQL, Prisma,
-   autenticação, `User` único com roles (`ADMIN`, `ACADEMIC_MANAGER`, `TEACHER`,
-   `STUDENT`) e permissões, provisionamento de professor por convite, autocadastro
-   de aluno, auditoria de privilégios, health check, logs, Docker e testes. A
-   arquitetura de autorização DEVE nascer preparada para checagem por contexto de
-   recurso (XXIV), para que a Fase 002 não exija refazer a fundação.
-2. **Fase 002 — Academic Domain**: perfis de professor e aluno, períodos letivos,
-   disciplinas institucionais, turmas/ofertas (tipo de oferta, turno e modalidade) e
-   matrículas com ingresso controlado.
+   autenticação, `User` único multi-papel (`UserRole` → `Role` → `Permission`;
+   `ADMIN`, `MANAGER`, `TEACHER`, `STUDENT`), provisionamento de `MANAGER` por
+   `ADMIN`, convite de professor por `MANAGER` (`TeacherInvitation`), bootstrap do
+   primeiro `ADMIN` por comando operacional, autocadastro de aluno com e-mail
+   verificado, sessões, auditoria de privilégios, health check, logs,
+   Docker e testes. A arquitetura de autorização DEVE nascer preparada para checagem
+   por contexto de recurso (XXIV), para que a Fase 002 não exija refazer a fundação.
+2. **Fase 002 — Academic Domain**: perfis de professor e aluno, disciplinas/ofertas
+   do professor (tipo de oferta e período), turmas (turno e modalidade) e matrículas
+   com ingresso controlado.
 3. **Fase 003 — Syllabus & Learning Plan**: ementa (versionada), plano de ensino por
    turma, módulos, aulas, conteúdos e objetivos de aprendizagem.
 4. **Fase 004 — Question Bank**: questões com níveis, tipos, tags e vínculo com
@@ -613,7 +694,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-21
+**Version**: 2.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-21
 
 Histórico:
 
@@ -621,5 +702,9 @@ Histórico:
 - **1.1.0** — Governança, evidência e preparação para automação/IA (Princípios X–XX).
 - **1.2.0** — Domínio educacional configurável, personalização/acessibilidade e
   referência curricular (Princípios XXI–XXIII), isolamento por contexto acadêmico
-  (XXIV), provisionamento de usuários e privilégios (XXV), multi-professor, papéis da IA, documentos como dados e novo roadmap
-  (001–010).
+  (XXIV), provisionamento de usuários e privilégios (XXV), multi-professor, papéis
+  da IA, documentos como dados e novo roadmap (001–010).
+- **2.0.0** — `ACADEMIC_MANAGER` substituído por `MANAGER`, restrito ao
+  provisionamento de professores e sem autoridade pedagógica; disciplinas, períodos
+  e ementas passam ao contexto do professor; identidade única com múltiplos papéis;
+  403 × 404; desativação preserva o histórico; bootstrap administrativo.

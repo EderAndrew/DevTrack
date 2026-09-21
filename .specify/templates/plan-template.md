@@ -56,7 +56,7 @@ Verify against `.specify/memory/constitution.md` (mark each ✅ / ❌ / N/A):
 - [ ] **XXII. Personalization & accessibility**: content difficulty and adaptation needs modeled separately; individual needs minimized, access-restricted, audited and never sent identifiable to AI
 - [ ] **XXIII. Curricular traceability**: syllabus / learning plan / lessons kept distinct; activities linked to contents and objectives; AI generation limited to the class's taught scope and validated deterministically; uploads treated as data
 - [ ] **XXIV. Academic isolation**: every class-scoped resource checked for permission AND academic link (teacher assignment / active enrollment); no horizontal access; out-of-context resources not revealed
-- [ ] **XXV. Privileged provisioning**: no public signup for privileged roles; teacher accounts via invite (single-use, expiring, hashed); privilege changes audited; no self-escalation; deactivate instead of delete
+- [ ] **XXV. Privileged provisioning**: public signup creates only STUDENT and never trusts a role parameter; teachers provisioned by MANAGER via invite (single-use, email-bound, expiring, hashed); MANAGER has no pedagogical or student access (403 in the backend); one User with multiple roles via UserRole (no users.role column); invite acceptance transactional, idempotent and never resets an existing account's credential; first ADMIN only via operational bootstrap command (no public endpoint, default password or seed); privilege changes audited; no self-escalation; deactivation preserves history
 
 Any ❌ MUST be justified in *Complexity Tracking* below.
 
