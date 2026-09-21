@@ -6,6 +6,7 @@ import { MeController } from "./me.controller";
 import { MeService } from "./me.service";
 import { OwnSessionsController } from "./own-sessions.controller";
 import { OwnSessionsService } from "./own-sessions.service";
+import { PasswordResetService } from "./password-reset.service";
 import { PublicRateLimit } from "./public-rate-limit";
 import { SessionEndService } from "./session-end.service";
 import { SessionService } from "./session.service";
@@ -30,6 +31,7 @@ import { UserTokenService } from "./user-token.service";
     LoginService,
     SessionEndService,
     OwnSessionsService,
+    PasswordResetService,
   ],
   exports: [SessionService, UserTokenService, PublicRateLimit],
 })

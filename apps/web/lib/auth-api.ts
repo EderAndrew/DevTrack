@@ -41,6 +41,9 @@ export const authApi = {
   verifyEmail: (token: string) => apiClient.post<{ emailVerified: true }>("/auth/verify-email", { token }),
   resendVerification: (email: string) => apiClient.post<PublicAccepted>("/auth/verify-email/resend", { email }),
   /** Sends exactly `{email, password}`; the session cookie is set by the API. */
+  requestPasswordReset: (email: string) => apiClient.post<PublicAccepted>("/auth/password-reset/request", { email }),
+  confirmPasswordReset: (token: string, password: string) =>
+    apiClient.post<{ message: string }>("/auth/password-reset/confirm", { token, password }),
   login: (email: string, password: string) => apiClient.post<{ user: MeView }>("/auth/login", { email, password }),
   logout: () => apiClient.post<void>("/auth/logout"),
   logoutAll: () => apiClient.post<void>("/auth/logout-all"),

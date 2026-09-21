@@ -518,17 +518,58 @@ tomada de conta.
 **Independent Test**: três ramos, replay, concorrência, conta errada, senha ignorada,
 pré-registro por atacante.
 
+**Já disponível (entregue na US4/US5; esta fase comprova e fecha lacunas)**: `POST /api/invitations/preview|accept`
+(`InvitationAcceptanceService`: linha do convite `FOR UPDATE`, replay idempotente só para a conta aceitante
+autenticada, `TOKEN_INVALID` genérico para expirado/revogado/substituído/adulterado, expiração preguiçosa persistida,
+recusas `SELF_INVITE`/`SIGN_IN_REQUIRED`/`WRONG_ACCOUNT` auditadas em transação própria, rate limit por token);
+`RoleGrantAcceptance` (modos `CREATE_ACCOUNT` — `User` verificado com `name = displayName`; `SIGN_IN_REQUIRED` —
+senha enviada ignorada; `CLAIM_ACCOUNT` — nova senha, e-mail verificado, sessões revogadas `ACCOUNT_CLAIMED`,
+`account.claimed`; `ensureTeacherProfile(tx, userId, displayName)` com `createMany skipDuplicates`);
+`TeacherInvitationsService` (`POST /api/teacher-invitations`); schemas estritos (campo extra → `400`); tela
+`/convite` (token em `sessionStorage`, `next=%2Fconvite`, modos, erros genéricos). Nos testes: `createUser`,
+`loginAs`, `api()`, `uniqueEmail`, `InMemoryMailer.lastTokenFor(email, "invitation-teacher")`, cadastro real via
+`POST /api/auth/signup` para simular o atacante.
+
+**Lacunas conhecidas que esta fase fecha (T090)**: no ramo `CLAIM_ACCOUNT`, os tokens pendentes da conta
+(`user_tokens` `EMAIL_VERIFICATION`/`PASSWORD_RESET` não usados) continuam válidos e o `User.name` continua sendo o
+escolhido por quem pré-registrou a conta.
+
+**Decisões desta fase**: ao assumir a conta (`CLAIM_ACCOUNT`, convites e ativação de ADMIN), todos os tokens pendentes
+da conta são invalidados e `User.name` passa a ser o `displayName` do convite (na ativação de ADMIN, a parte local do
+e-mail, como em US3); o papel `STUDENT` e o `StudentProfile` criados pelo pré-registro são mantidos (não há como
+distinguir um cadastro legítimo, e `STUDENT` não dá acesso privilegiado), com o `displayName` do perfil de aluno
+também substituído; a tela `/convite` não usa `?next=/convite?token=…` (o token nunca vai para a URL de login) — o
+retorno do login recupera o token do `sessionStorage`.
+
 ### Tests for User Story 6 ⚠️
 
-- [ ] T088 [P] [US6] Testes de integração US6-1…US6-10 via HTTP em `apps/api/test/integration/us6-teacher-acceptance.spec.ts`: e-mail novo → `User` verificado + `TEACHER` + `TeacherProfile`, convite `ACCEPTED`; STUDENT verificado autenticado → mesmo `User` com `STUDENT`+`TEACHER`, senha inalterada; sem sessão → `401 SIGN_IN_REQUIRED`, outra conta → `403 WRONG_ACCOUNT`, nada atribuído; não verificado → mesmo `User`, verificado, sessões anteriores revogadas, senha antiga inválida; replay → sem novos registros; aceitação concorrente (`Promise.all`) → um `User`, um perfil, um `UserRole`; expirado/revogado/reenviado/adulterado → `TOKEN_INVALID`; corpo com `email` diferente → `400 VALIDATION_ERROR` e papel só na identidade convidada; campo `password` com conta verificada → ignorado (login só com a senha antiga); atacante pré-registrado com sessão aberta → sessão do atacante `401`, senha dele inválida, `account.claimed` auditado
-- [ ] T089 [P] [US6] Teste agregado SC-011 (pré-registro, aceite com outra conta, replay, autoconvite) verificando que nenhum papel/acesso é obtido pelo atacante em `apps/api/test/security/us6-account-takeover.spec.ts`
+> Escrever primeiro. Os cenários já cobertos pela US4 devem passar de imediato; os de T090 (tokens pendentes, nome
+> e perfil do pré-registro) devem falhar até a implementação.
+
+- [X] T088 [P] [US6] Testes de integração US6-1…US6-10 via HTTP em `apps/api/test/integration/us6-teacher-acceptance.spec.ts` (convites emitidos por um MANAGER com `POST /api/teacher-invitations`; token lido do `InMemoryMailer`):
+  (US6-1) e-mail novo → `POST /api/invitations/accept {token, password}` → `200 {role: "TEACHER", mode: "CREATE_ACCOUNT"}`; `User` verificado com `name` = `displayName` do convite, `TEACHER` `ACTIVE` (`grantedVia INVITATION`, `grantedById` = MANAGER), `TeacherProfile.displayName` = do convite, convite `ACCEPTED` com `acceptedByUserId`; nenhuma sessão criada (sem `Set-Cookie`); login com a senha escolhida funciona;
+  (US6-2) aluno verificado autenticado → mesmo `id`, papéis `STUDENT` + `TEACHER` `ACTIVE`, `StudentProfile` intacto, `TeacherProfile` criado com o `displayName` do convite, `passwordHash` inalterado, sessão atual continua válida;
+  (US6-3) sem sessão → `401 SIGN_IN_REQUIRED`; autenticado em outra conta → `403 WRONG_ACCOUNT`; em ambos nenhuma atribuição `TEACHER` em conta alguma e o convite continua `PENDING` e aceitável pelo dono;
+  (US6-4) conta não verificada com 2 sessões → `CLAIM_ACCOUNT` com nova senha: mesmo `id`, `emailVerifiedAt` preenchido, as 2 sessões → `401`, senha antiga → `401 INVALID_CREDENTIALS`, nova → `200`; `TEACHER` + `TeacherProfile`; `account.claimed` (`{via: "INVITATION", revokedSessions: 2}`); sem senha → `400 PASSWORD_REQUIRED` e senha fraca → `400 WEAK_PASSWORD` sem efeito algum (convite segue `PENDING`, sessões intactas);
+  (US6-5) replay: com a conta aceitante autenticada → `200` sem novos registros; sem sessão ou com outra conta → `400 TOKEN_INVALID`; contagens de `users`, `teacher_profiles`, `user_roles` e eventos `invitation.accepted` inalteradas;
+  (US6-6) `Promise.all` de 5 aceites `CREATE_ACCOUNT` do mesmo token → exatamente um `200`, os demais `400 TOKEN_INVALID`; um `User`, um `TeacherProfile`, uma atribuição `TEACHER`, um `invitation.accepted`; também com 2 aceites `SIGN_IN_REQUIRED` concorrentes da mesma conta → uma atribuição;
+  (US6-7) expirado (via SQL), revogado, substituído por reenvio e adulterado → `400 TOKEN_INVALID` com corpo idêntico entre si e sem e-mail/nome no corpo; o expirado fica `EXPIRED` no banco;
+  (US6-8) corpo com `email` de outra pessoa (ou `userId`/`role`) → `400 VALIDATION_ERROR`, nada atribuído; aceite válido só atribui à identidade do e-mail convidado mesmo quando a sessão enviada é de outra conta (→ `WRONG_ACCOUNT`);
+  (US6-9) conta verificada autenticada enviando `password` nova → `200`, login com a senha nova → `401`, com a antiga → `200`;
+  (US6-10) atacante faz `POST /api/auth/signup` com o e-mail do professor (nome "Atacante") e `POST /api/auth/login` (sessão aberta); o dono aceita com nova senha → sessão do atacante `401`, senha do atacante `401 INVALID_CREDENTIALS`, `account.claimed` auditado; token de verificação enviado ao cadastro do atacante → `400 TOKEN_INVALID`; `User.name` e `StudentProfile.displayName` passam a ser o `displayName` do convite (sem "Atacante" em `GET /api/me` do dono)
+- [X] T089 [P] [US6] Teste agregado SC-011 em `apps/api/test/security/us6-account-takeover.spec.ts`: para cada vetor — (a) pré-registro não verificado com sessão, (b) aceite com a própria sessão de outra conta, (c) replay do link já aceito por um terceiro que o interceptou depois, (d) autoconvite do MANAGER e aceite pelo emissor, (e) reenvio de verificação disparado pelo atacante antes do aceite (tokens de redefinição de senha entram na US8, T096) — o atacante termina sem sessão válida, sem `TEACHER` em conta alguma sob seu controle, sem conseguir entrar com a senha que escolheu e sem token utilizável; relatório ao final de cada caso por meio de asserções sobre `sessions`, `user_roles`, `user_tokens` (não usados e não invalidados = 0 para a conta assumida) e `audit_events`
 
 ### Implementation for User Story 6
 
-- [ ] T090 [US6] Ajustar `InvitationAcceptanceService`/`RoleGrantAcceptance` para o que os testes T088/T089 exigirem além do núcleo (ex.: `displayName` do convite em `TeacherProfile`, mensagem/`mode` na resposta, auditoria `invitation.acceptance_refused` com `reason`) em `apps/api/src/modules/provisioning/invitation-acceptance.service.ts`
-- [ ] T091 [P] [US6] Completar `apps/web/app/(public)/convite/page.tsx` para `TEACHER`: retorno de `/entrar?next=/convite?token=…`, confirmação de aceite autenticado, aviso de que a sessão será encerrada no modo `CLAIM_ACCOUNT`
+- [X] T090 [US6] Fechar as lacunas do ramo `CLAIM_ACCOUNT` em `apps/api/src/modules/provisioning/role-grant-acceptance.service.ts` (vale para convites e ativação de ADMIN):
+  invalidar os tokens pendentes da conta (`tx.userToken.updateMany({where: {userId, usedAt: null, invalidatedAt: null}, data: {invalidatedAt: now}})`) na mesma transação; `tx.user.update({where: {id}, data: {name: input.displayName}})`; se existir `StudentProfile`, `displayName` ← `input.displayName`; acrescentar `invalidatedTokens` ao retorno (`AcceptResult`) sem mudar os metadados de `account.claimed` (catálogo fechado);
+  ajustar `RoleGrantAcceptance`/`InvitationAcceptanceService` para qualquer outro comportamento que T088/T089 revelarem, sem alterar o contrato HTTP; atualizar `apps/api/test/integration/role-grant-acceptance.spec.ts` com os casos novos do `CLAIM_ACCOUNT`
+- [X] T091 [P] [US6] Completar a tela `/convite` para `TEACHER` em `apps/web/app/(public)/convite/page.tsx` e `invitation-acceptance.tsx`:
+  `page.tsx` chama `getMe()` (tolerando falha → `null`) e passa `signedInAs: {name, email} | null` ao componente; no modo `SIGN_IN_REQUIRED` o componente mostra "Você está conectado como {email}" — se for o e-mail convidado, só o botão "Aceitar convite"; se for outro, aviso de que é preciso entrar com a conta do convite, botão "Sair e entrar com outra conta" (`POST /api/auth/logout` → `/entrar?next=%2Fconvite`) e nenhum botão de aceite; sem sessão, link "Entrar para aceitar"; no modo `CLAIM_ACCOUNT`, aviso explícito de que a senha anterior deixará de funcionar e todas as sessões serão encerradas; após o aceite de `TEACHER`, mensagem de boas-vindas ao papel e link para `/entrar` (ou para `/` quando já autenticado);
+  atualizar `apps/web/app/(public)/convite/convite.test.tsx` (conectado com a conta certa, com outra conta, sem sessão; aviso do `CLAIM_ACCOUNT`; sem violações axe)
 
-**Checkpoint**: provisionamento de professores seguro e idempotente
+**Checkpoint**: provisionamento de professores seguro e idempotente — `pnpm --filter api test`,
+`pnpm --filter web test` e `turbo run lint check-types test` verdes
 
 ---
 
@@ -539,17 +580,43 @@ pré-registro por atacante.
 **Independent Test**: matriz rota × papel da `contracts/permissions.md` executada
 integralmente.
 
+**Já disponível (reutilizar, não recriar)**: guards globais `OriginGuard → SessionGuard (401) → VerifiedGuard
+(403 EMAIL_NOT_VERIFIED) → PermissionsGuard (403 FORBIDDEN)` antes de qualquer `ZodValidationPipe` (400), então um
+corpo vazio `{}` e um UUID aleatório isolam a decisão dos guards sem efeitos colaterais; `PermissionResolver`
+(permissões lidas do banco a cada requisição); `findOwnedOrNotFound`/`ResourceContextPolicy`; `registeredRoutes()`
+(`test/helpers/routes.ts`, com `isPublic`); `route-declarations.spec.ts` (toda rota declara acesso); `createUser({roles,
+verified, status})`, `loginAs`, `api(t, {cookie, origin})` (envia `Origin` permitido por padrão; `origin: null` omite,
+string troca). Já cobertos em outras fases e **não repetir**: formato de `UserAccountView` e cursor (US4, T076), sessão
+de outro usuário → 404 (US2, T060), `/teachers/:userId` de aluno → 404 (US5, T083). Web: `/admin/usuarios` e os links
+do cabeçalho por permissão já existem (US4/US5).
+
+**Decisões desta fase**: a matriz de teste é uma tabela escrita à mão a partir de `contracts/permissions.md` (não
+derivada do seed), para que um desvio do seed quebre o teste; "permitido" significa status fora de `{401, 403}` (o
+corpo `{}`/UUID aleatório leva a `400`/`404`, que vêm depois dos guards); rotas públicas ficam fora da matriz de papéis,
+mas entram nas checagens de completude e de `Origin`.
+
 ### Tests for User Story 7 ⚠️
 
-- [ ] T092 [P] [US7] Teste de matriz gerado a partir de uma tabela (rota, método, corpo mínimo válido, status esperado por anônimo/STUDENT/TEACHER/MANAGER/ADMIN) espelhando `contracts/permissions.md` em `apps/api/test/security/us7-authorization-matrix.spec.ts` (US7-1, US7-2, SC-003)
-- [ ] T093 [P] [US7] Testes US7-3…US7-5 em `apps/api/test/security/us7-context-and-roles.spec.ts`: contexto → 404 (sessões de outro usuário; `/teachers/:userId` de não-professor); `STUDENT+TEACHER` → união; conceder/desativar papel reflete na requisição seguinte sem novo login (reativar MANAGER → nova sessão ganha `professores.*`); e-mail não verificado → `EMAIL_NOT_VERIFIED` em todas as rotas `perm:*`; `Origin` ausente/estranho em `POST` → `403 ORIGIN_NOT_ALLOWED`
-- [ ] T094 [P] [US7] Teste de forma de `UserAccountView`: as chaves devolvidas por `GET /users` e `GET /users/:id` são exatamente `{id, name, email, emailVerified, status, roles, createdAt}`, sem perfis nem dados de outros domínios, e a paginação por cursor não repete nem pula contas, em `apps/api/test/security/us7-account-view.spec.ts` (FR-056)
+> Escrever primeiro. Espera-se que passem com a implementação atual; qualquer falha revela um furo de autorização e
+> deve ser corrigida no módulo da rota, no mesmo commit.
 
-### Implementation for User Story 7
+- [X] T092 [P] [US7] Matriz de autorização em `apps/api/test/security/us7-authorization-matrix.spec.ts` (US7-1, US7-2, SC-003):
+  tabela `MATRIX: {method, path, access: "session" | Permission}[]` cobrindo todas as rotas não públicas (`GET /me`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /me/sessions`, `GET|DELETE /me/sessions/:id`, as 9 de professores, as 7 de managers, as 4 de `/users`), com `:id`/`:userId` = UUID aleatório e corpo `{}`; `ROLE_PERMISSIONS` escrito a partir da tabela "Papéis → permissões" do contrato;
+  principais criados uma vez por arquivo: anônimo, STUDENT, TEACHER, MANAGER, ADMIN (verificados) e STUDENT não verificado; `it.each` por (rota × principal): anônimo → `401 UNAUTHENTICATED`; não verificado → `access: "session"` permitido, `perm:*` → `403 EMAIL_NOT_VERIFIED`; demais → `403 FORBIDDEN` quando o papel não tem a permissão, senão status ∉ `{401, 403}`;
+  `logout`/`logout-all` executados por último para cada principal (ou com sessão descartável criada por `loginAs` a cada caso), para não derrubar as demais chamadas
+- [X] T093 [P] [US7] Contexto, papéis e origem em `apps/api/test/security/us7-context-and-roles.spec.ts` (US7-3…US7-5, FR-060–FR-063):
+  (US7-4) `STUDENT + TEACHER` → `GET /api/me` com a união (`sessoes.proprias.*`, sem `professores.*`); `STUDENT + MANAGER` → `professores.*` e `GET /api/teachers` `200`; papel `SUSPENDED`/`INACTIVE` não contribui;
+  (US7-5, sem novo login) aluno verificado com sessão aceita convite de `MANAGER` no modo `SIGN_IN_REQUIRED` → com o **mesmo cookie**, `GET /api/teachers` passa de `403` para `200`; atribuição `MANAGER` marcada `INACTIVE` direto no banco (sem revogar sessões) → mesmo cookie volta a `403`; `ADMIN` desativando o MANAGER pela API → sessões `401` e, com nova sessão, `403` (caso obrigatório do contrato);
+  (US7-3) política de contexto reutilizável: um `ResourceContextPolicy` de teste (fixture controller com `@RequirePermissions("sessoes.proprias.listar")` que usa `findOwnedOrNotFound`) → recurso alheio e inexistente dão o mesmo `404`, sem permissão → `403` antes do contexto (ordem 401 → 403 → 404);
+  (CSRF) para cada rota `POST`/`DELETE` de `registeredRoutes()` (públicas incluídas), `Origin` ausente ou `https://evil.example` → `403 ORIGIN_NOT_ALLOWED` com cookie válido de ADMIN e nenhum efeito (contagens de `invitations`, `sessions` revogadas e `audit_events` inalteradas); `GET` sem `Origin` continua aceito
+- [X] T094 [P] [US7] Guardas de regressão em `apps/api/test/security/us7-matrix-completeness.spec.ts`:
+  toda rota não pública de `registeredRoutes()` aparece exatamente uma vez em `MATRIX` e toda entrada de `MATRIX` existe (exportar `MATRIX` e `ROLE_PERMISSIONS` de `apps/api/test/security/authorization-matrix.ts`, usado também por T092), para que uma rota nova não escape da matriz;
+  para cada papel, as permissões de uma conta com só aquele papel `ACTIVE` (`GET /api/me`) são exatamente `ROLE_PERMISSIONS[papel]` (desvio do seed → falha); nenhuma permissão do seed fica sem uso: cada chave de `PERMISSIONS` é exigida por pelo menos uma rota de `MATRIX`
+- [X] T095 [P] [US7] Web — navegação só por UX (a API continua autorizando):
+  extrair o cabeçalho de `apps/web/app/layout.tsx` para `apps/web/components/site-nav.tsx` (`SiteNav({me})`, sem `fetch`), mantendo os links "Professores" (`professores.visualizar`), "Gestores" (`managers.visualizar`), "Usuários" (`usuarios.visualizar`), "Minhas sessões" + "Sair" para quem tem sessão e "Entrar"/"Criar conta" para anônimos; teste `apps/web/components/site-nav.test.tsx` com `vitest-axe` para anônimo, STUDENT, TEACHER, MANAGER e ADMIN (conjunto exato de links de cada um, conforme `ROLE_PERMISSIONS` do contrato) e para e-mail não verificado (sem links administrativos mesmo com permissões — `emailVerified: false` esconde tudo que exige `perm:*`)
 
-- [ ] T095 [P] [US7] Criar `apps/web/app/admin/usuarios/page.tsx` (busca, lista, suspender/reativar conta) e ocultar links de navegação conforme `MeView.permissions` (somente UX)
-
-**Checkpoint**: nenhuma rota contornável por chamada direta
+**Checkpoint**: nenhuma rota contornável por chamada direta — `pnpm --filter api test`,
+`pnpm --filter web test` e `turbo run lint check-types test` verdes
 
 ---
 
@@ -560,17 +627,51 @@ integralmente.
 **Independent Test**: pedir para e-mail existente e inexistente (respostas iguais),
 redefinir, sessões antigas revogadas, nova senha funciona, replay recusado.
 
+**Já disponível (reutilizar, não recriar)**: `UserTokenService.issue(tx, userId, "PASSWORD_RESET")` (invalida o
+anterior, TTL 1 h em `USER_TOKEN_TTL_MS`) e `consume(tx, token, "PASSWORD_RESET")` (UPDATE condicional atômico);
+`PublicRateLimit.enforce(flow, target, ctx)` (acrescentar flows); `PasswordPolicy.validate`, `PasswordHasher.hash`;
+`UserRepository.findByEmail/setPassword/markEmailVerified`; `SessionService.revokeAllForUser(tx, userId,
+"PASSWORD_RESET")`; `MailDispatcher.send` com o template `password-reset` (`{name, link}`); `PUBLIC_ACCEPTED_MESSAGE`
+e `webLinks` de `signup.service.ts`; eventos `password_reset.requested` (só quando a conta existe) e
+`password_reset.completed` (`{revokedSessions}`) no catálogo; `AuthController` (US2); na web `lib/auth-api.ts`,
+`components/form`, o padrão de `/verificar-email` e `/ativar-admin` (token tirado da URL, `Referrer-Policy`), e o link
+"Esqueci minha senha" em `/entrar` (já aponta para `/esqueci-senha`).
+
+**Decisões desta fase**: o link de redefinição é `${WEB_ORIGIN}/redefinir-senha?token=…` (novo `webLinks.passwordResetConfirm`;
+`webLinks.passwordReset` continua apontando para `/esqueci-senha` no e-mail de cadastro duplicado); conta suspensa recebe o
+link e pode trocar a senha, mas continua `SUSPENDED` (login → `403 ACCOUNT_SUSPENDED`); a política de senha é validada
+**antes** de consumir o token, então senha fraca não queima o link; ao concluir, os demais tokens pendentes da conta
+(ex.: verificação de e-mail) também são invalidados; a revogação fica registrada em `password_reset.completed`
+(`revokedSessions`), sem `session.revoked_all` duplicado; `confirm` responde `200 {message}` e não cria sessão.
+
 ### Tests for User Story 8 ⚠️
 
-- [ ] T096 [P] [US8] Testes US8-1…US8-6 em `apps/api/test/integration/us8-password-reset.spec.ts`: resposta idêntica para existente/inexistente; redefinição troca senha, revoga todas as sessões (`PASSWORD_RESET`) e audita; conta não verificada passa a verificada; link usado/expirado (1 h)/adulterado/substituído → `TOKEN_INVALID`; conta suspensa continua sem acesso e papéis inalterados; rate limit com mesma resposta pública
+> Escrever primeiro; devem falhar (rotas inexistentes → 404) antes de T097–T098.
+
+- [X] T096 [P] [US8] Testes US8-1…US8-6 em `apps/api/test/integration/us8-password-reset.spec.ts` e anti-enumeração/rate limit em `apps/api/test/security/us8-password-reset-security.spec.ts`:
+  (US8-1) `POST /api/auth/password-reset/request {email}` para e-mail existente (com variação de caixa/espaços) e inexistente → status `202`, corpo e cabeçalhos idênticos (exceto `X-Request-Id`); só o existente recebe `password-reset` com `${WEB_ORIGIN}/redefinir-senha?token=…`; `UserToken PASSWORD_RESET` só com hash, `expiresAt` ≈ +1 h; `password_reset.requested` só para o existente, sem e-mail no `metadata`; mediana de latência dos dois caminhos dentro de um fator 3; corpo com campo extra → `400`;
+  (US8-2) `POST /api/auth/password-reset/confirm {token, password}` → `200 {message}`, sem `Set-Cookie`; todas as sessões → `401` (`revokeReason = PASSWORD_RESET`); senha antiga → `401 INVALID_CREDENTIALS`, nova → `200`; `password_reset.completed` (`{revokedSessions: n}`, ator `ANONYMOUS`, alvo `USER`); senha fraca → `400 WEAK_PASSWORD` e o mesmo token continua funcionando depois;
+  (US8-3) conta não verificada → após a redefinição `emailVerified: true` e o token de verificação pendente fica invalidado;
+  (US8-4) replay do token usado, token expirado (via SQL, e também `expires_at` = criação + 1 h − 1 s ainda válido), adulterado e substituído por nova solicitação → `400 TOKEN_INVALID` com corpo idêntico; formato inválido → `400 VALIDATION_ERROR`; duas confirmações simultâneas do mesmo token → exatamente uma `200`;
+  (US8-5) conta `SUSPENDED` com papéis `TEACHER`/`MANAGER` → redefinição `200`, conta continua `SUSPENDED`, login com a nova senha → `403 ACCOUNT_SUSPENDED`, `user_roles` inalterados (status e quantidade);
+  (US8-6) com `testConfig({rateLimit: {...base, publicTarget: 2}})`: a 3ª solicitação para o mesmo e-mail → `429 RATE_LIMITED` + `Retry-After`, idêntica para e-mail existente e inexistente, e nenhum e-mail a mais enviado; a 3ª confirmação com o mesmo token inválido → `429`; bloqueios auditados em `auth.rate_limit.blocked` (`scope` `password_reset_email`/`password_reset_confirm_token`) sem e-mail/IP; logs e `audit_events` sem senha, token ou hash do token
 
 ### Implementation for User Story 8
 
-- [ ] T097 [US8] Implementar `PasswordResetService.request(email, ctx)` (rate limit, resposta genérica, `UserTokenService.issue(PASSWORD_RESET)` e e-mail após commit só se a conta existir, auditoria `password_reset.requested`) e `confirm(token, password)` (consome token, `PasswordPolicy`, `setPassword`, `markEmailVerified`, `revokeAllForUser(PASSWORD_RESET)`, auditoria `password_reset.completed`; não altera status nem papéis) em `apps/api/src/modules/auth/password-reset.service.ts` (FR-029a–e)
-- [ ] T098 [US8] Adicionar `POST /auth/password-reset/request` e `POST /auth/password-reset/confirm` (`@Public()`) ao `apps/api/src/modules/auth/auth.controller.ts`
-- [ ] T099 [P] [US8] Criar `apps/web/app/(public)/esqueci-senha/page.tsx` e `apps/web/app/(public)/redefinir-senha/page.tsx`
+- [X] T097 [US8] Implementar `PasswordResetService` em `apps/api/src/modules/auth/password-reset.service.ts` (FR-029a–e):
+  `request(email, ctx)` → `normalizeEmail`; `PublicRateLimit.enforce("password_reset", email, ctx)`; transação: `findByEmail`; se existir → `UserTokenService.issue(tx, id, "PASSWORD_RESET")` + `password_reset.requested` (ator `ANONYMOUS`, alvo `USER`); após o commit `MailDispatcher.send({template: "password-reset", params: {name, link: webLinks.passwordResetConfirm(token)}})`; sempre devolve `{message: PUBLIC_ACCEPTED_MESSAGE}`;
+  `confirm(token, password, ctx)` → `PublicRateLimit.enforce("password_reset_confirm", hashToken(token), ctx)`; `PasswordPolicy.validate(password)` e `hash` **antes** da transação; transação: `consume(tx, token, "PASSWORD_RESET")` (nulo → `tokenInvalid()`), `setPassword`, `markEmailVerified`, invalidar os demais `user_tokens` pendentes da conta, `revokeAllForUser(tx, userId, "PASSWORD_RESET")`, `password_reset.completed` (`{revokedSessions}`); não toca `status` nem `user_roles`; devolve `{message: "Senha redefinida. Entre com a nova senha."}`;
+  acrescentar `password_reset` (alvo `email`) e `password_reset_confirm` (alvo `token`) a `PublicFlow`/`TARGET_KIND` em `apps/api/src/modules/auth/public-rate-limit.ts`, `passwordResetConfirm(token)` a `webLinks` em `signup.service.ts`, e registrar o serviço em `AuthModule`
+- [X] T098 [US8] Adicionar ao `apps/api/src/modules/auth/auth.controller.ts` (controller fino, `@Public()`): `POST /auth/password-reset/request` (`@HttpCode(202)`, `z.strictObject({email: emailSchema})`) e `POST /auth/password-reset/confirm` (`@HttpCode(200)`, `z.strictObject({token: tokenSchema, password: passwordInputSchema})`), ambos com `@Ctx()`; acrescentar as duas rotas ao `route-declarations.spec.ts`; a completude da matriz (US7) continua verde por serem públicas
+- [X] T099 [P] [US8] Web (FR-075; sem regra de negócio no componente):
+  `apps/web/lib/auth-api.ts` ganha `requestPasswordReset(email)` e `confirmPasswordReset(token, password)`;
+  `apps/web/app/(public)/esqueci-senha/page.tsx` + `forgot-password-form.tsx` (Client) — campo e-mail, após `202` substitui o formulário pela mensagem genérica da API com foco nela (validade de 1 hora), `429` com minutos de espera;
+  `apps/web/app/(public)/redefinir-senha/page.tsx` (Server Component, `metadata.referrer = "no-referrer"`, lê `searchParams.token`) + `reset-password-form.tsx` (Client) — tira o token da URL (`history.replaceState`), campos "Nova senha" e "Confirme a nova senha" (12–128 e iguais, só UX), aviso de que todas as sessões serão encerradas, envia só `{token, password}`; sucesso → mensagem com link para `/entrar`; `TOKEN_INVALID` → orientação com link para `/esqueci-senha`; `WEAK_PASSWORD` ligado ao campo; sem token → mesma orientação;
+  `Referrer-Policy: no-referrer` para `/redefinir-senha` em `apps/web/next.config.js`;
+  testes com `vitest-axe` e `fetch` simulado em `apps/web/app/(public)/esqueci-senha/esqueci-senha.test.tsx` e `apps/web/app/(public)/redefinir-senha/redefinir-senha.test.tsx` (corpos enviados, confirmação divergente não envia, erros com foco, sem violações)
 
-**Checkpoint**: todas as user stories funcionais e testadas
+**Checkpoint**: todas as user stories funcionais e testadas — `pnpm --filter api test`,
+`pnpm --filter web test` e `turbo run lint check-types test` verdes
 
 ---
 

@@ -16,6 +16,7 @@ const nextConfig = {
       { source: "/verificar-email", headers: noReferrer },
       { source: "/ativar-admin", headers: noReferrer },
       { source: "/convite", headers: noReferrer },
+      { source: "/redefinir-senha", headers: noReferrer },
     ];
   },
   async rewrites() {

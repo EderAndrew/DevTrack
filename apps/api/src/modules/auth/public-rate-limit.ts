@@ -14,7 +14,9 @@ export type PublicFlow =
   | "admin_activation"
   | "admin_activation_preview"
   | "invitation_accept"
-  | "invitation_preview";
+  | "invitation_preview"
+  | "password_reset"
+  | "password_reset_confirm";
 
 /** What the per-target counter is keyed on, as named in the audit scope. */
 const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
@@ -24,6 +26,8 @@ const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
   admin_activation_preview: "token",
   invitation_accept: "token",
   invitation_preview: "token",
+  password_reset: "email",
+  password_reset_confirm: "token",
 };
 
 /**

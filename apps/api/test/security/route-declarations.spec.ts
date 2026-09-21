@@ -81,6 +81,8 @@ describe("route access declarations", () => {
         "POST /auth/login",
         "POST /auth/logout",
         "POST /auth/logout-all",
+        "POST /auth/password-reset/request",
+        "POST /auth/password-reset/confirm",
         "GET /me/sessions",
         "GET /me/sessions/:id",
         "DELETE /me/sessions/:id",
