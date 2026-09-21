@@ -1,4 +1,5 @@
 import { ApiError, apiClient } from "./api-client";
+import type { MeView } from "./session";
 
 /** Public account endpoints of contracts/http-api.md. The API validates and decides; this only calls it. */
 export interface PublicAccepted {
@@ -9,6 +10,15 @@ export interface SignupInput {
   name: string;
   email: string;
   password: string;
+}
+
+/** `SessionView` of contracts/http-api.md (dates as ISO strings). */
+export interface SessionView {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+  current: boolean;
 }
 
 export const PASSWORD_MIN_LENGTH = 12;
@@ -23,7 +33,22 @@ export const authApi = {
     apiClient.post<PublicAccepted>("/auth/signup", { name, email, password }),
   verifyEmail: (token: string) => apiClient.post<{ emailVerified: true }>("/auth/verify-email", { token }),
   resendVerification: (email: string) => apiClient.post<PublicAccepted>("/auth/verify-email/resend", { email }),
+  /** Sends exactly `{email, password}`; the session cookie is set by the API. */
+  login: (email: string, password: string) => apiClient.post<{ user: MeView }>("/auth/login", { email, password }),
+  logout: () => apiClient.post<void>("/auth/logout"),
+  logoutAll: () => apiClient.post<void>("/auth/logout-all"),
+  listSessions: () => apiClient.get<{ items: SessionView[] }>("/me/sessions"),
+  revokeSession: (id: string) => apiClient.delete<void>(`/me/sessions/${encodeURIComponent(id)}`),
 };
+
+/**
+ * Post-login destination: only a path of this app (`/…`), never `//host` or `/\host`, so a
+ * crafted `?next=` cannot send the user to another site. Defaults to the sessions page.
+ */
+export function safeNextPath(next: string | null | undefined, fallback = "/conta/sessoes"): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
+  return next;
+}
 
 /** User-facing text for an API failure; API messages are already generic and in Portuguese. */
 export function errorMessage(error: unknown): string {

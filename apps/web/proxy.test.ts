@@ -1,0 +1,24 @@
+import { NextRequest } from "next/server";
+import { describe, expect, it } from "vitest";
+import { config, proxy } from "./proxy";
+
+const request = (path: string, cookie?: string) =>
+  new NextRequest(new URL(path, "http://localhost:3000"), cookie ? { headers: { cookie } } : undefined);
+
+describe("proxy (UX only)", () => {
+  it("covers only the account area", () => {
+    expect(config.matcher).toEqual(["/conta/:path*"]);
+  });
+
+  it("without the session cookie redirects to /entrar with next", () => {
+    const res = proxy(request("/conta/sessoes"));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/entrar?next=%2Fconta%2Fsessoes");
+  });
+
+  it("with a session cookie lets the request through (the API decides validity)", () => {
+    const res = proxy(request("/conta/sessoes", "__Host-devtrack_session=qualquer"));
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+});

@@ -78,6 +78,12 @@ describe("route access declarations", () => {
         "POST /auth/verify-email",
         "POST /auth/verify-email/resend",
         "GET /me",
+        "POST /auth/login",
+        "POST /auth/logout",
+        "POST /auth/logout-all",
+        "GET /me/sessions",
+        "GET /me/sessions/:id",
+        "DELETE /me/sessions/:id",
       ]),
     );
   });

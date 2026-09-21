@@ -25,6 +25,8 @@ export interface TestAppOptions {
   config?: Partial<AppConfig>;
   /** Extra controllers mounted next to the application (guard tests). */
   controllers?: Type[];
+  /** Providers replaced by fixed values (e.g. the login delay). */
+  overrides?: { provide: unknown; useValue: unknown }[];
 }
 
 export interface TestApp {
@@ -50,13 +52,16 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const config = testConfig(options.config);
   const mailer = options.mailer ?? new InMemoryMailer();
 
-  const moduleRef = await Test.createTestingModule({
+  let builder = Test.createTestingModule({
     imports: [AppModule.forRoot(config, { logDestination: options.logs ?? new LogCapture() })],
     controllers: options.controllers ?? [],
   })
     .overrideProvider(Mailer)
-    .useValue(mailer)
-    .compile();
+    .useValue(mailer);
+  for (const { provide, useValue } of options.overrides ?? []) {
+    builder = builder.overrideProvider(provide).useValue(useValue);
+  }
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
   configureApp(app, config);

@@ -99,8 +99,36 @@ main:focus {
 }
 
 .site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid var(--border);
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-nav a,
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem; /* 44px target size */
+}
+
+.link-button {
+  font: inherit;
+  color: var(--primary);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .brand {
@@ -200,6 +228,30 @@ main:focus {
 .button[aria-disabled="true"] {
   cursor: progress;
   opacity: 0.85;
+}
+
+.table {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.button--secondary {
+  color: var(--primary);
+  background: var(--background);
+  border-color: var(--primary);
+}
+
+.button--secondary:hover {
+  color: var(--on-primary);
 }
 
 .notice {
