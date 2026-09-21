@@ -43,6 +43,7 @@ export default async function RootLayout({
           <nav aria-label="Conta" className="site-nav">
             {me ? (
               <>
+                {me.permissions.includes("professores.visualizar") ? <Link href="/professores">Professores</Link> : null}
                 {me.permissions.includes("managers.visualizar") ? <Link href="/admin/managers">Gestores</Link> : null}
                 {me.permissions.includes("usuarios.visualizar") ? <Link href="/admin/usuarios">Usuários</Link> : null}
                 <Link href="/conta/sessoes">Minhas sessões</Link>

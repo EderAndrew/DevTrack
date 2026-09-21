@@ -189,7 +189,8 @@ main:focus {
   font-size: 0.9rem;
 }
 
-.field input {
+.field input,
+.field select {
   font: inherit;
   color: var(--foreground);
   background: var(--background);

@@ -34,6 +34,24 @@ export interface UserAccountView {
   createdAt: string;
 }
 
+export type TeacherStatus = "INVITED" | RoleAssignmentStatus;
+
+export interface TeacherListItem {
+  userId: string | null;
+  invitationId: string | null;
+  displayName: string;
+  email: string;
+  status: TeacherStatus;
+}
+
+export interface TeacherView {
+  userId: string;
+  displayName: string;
+  email: string;
+  status: RoleAssignmentStatus;
+  invitations: InvitationView[];
+}
+
 export interface AccountPage {
   items: UserAccountView[];
   nextCursor: string | null;
@@ -60,6 +78,14 @@ export const adminApi = {
   revokeManagerInvitation: (id: string) => apiClient.post<InvitationView>(`/manager-invitations/${id}/revoke`),
   deactivateManager: (userId: string) => apiClient.post<ManagerView>(`/managers/${userId}/deactivate`),
   reactivateManager: (userId: string) => apiClient.post<ManagerView>(`/managers/${userId}/reactivate`),
+  listTeachers: (status?: TeacherStatus) => apiClient.get<{ items: TeacherListItem[] }>(`/teachers${query({ status })}`),
+  inviteTeacher: (email: string, displayName: string) =>
+    apiClient.post<InvitationView>("/teacher-invitations", { email, displayName }),
+  resendTeacherInvitation: (id: string) => apiClient.post<InvitationView>(`/teacher-invitations/${id}/resend`),
+  revokeTeacherInvitation: (id: string) => apiClient.post<InvitationView>(`/teacher-invitations/${id}/revoke`),
+  suspendTeacher: (userId: string) => apiClient.post<TeacherView>(`/teachers/${userId}/suspend`),
+  deactivateTeacher: (userId: string) => apiClient.post<TeacherView>(`/teachers/${userId}/deactivate`),
+  reactivateTeacher: (userId: string) => apiClient.post<TeacherView>(`/teachers/${userId}/reactivate`),
   listUsers: (params: { query?: string; cursor?: string }) => apiClient.get<AccountPage>(`/users${query(params)}`),
   suspendUser: (id: string) => apiClient.post<UserAccountView>(`/users/${id}/suspend`),
   reactivateUser: (id: string) => apiClient.post<UserAccountView>(`/users/${id}/reactivate`),
@@ -86,6 +112,7 @@ export const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Ativo",
   SUSPENDED: "Suspenso",
   INACTIVE: "Inativo",
+  INVITED: "Convidado",
   PENDING: "Pendente",
   ACCEPTED: "Aceito",
   EXPIRED: "Expirado",

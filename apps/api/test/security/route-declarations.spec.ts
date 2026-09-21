@@ -99,6 +99,15 @@ describe("route access declarations", () => {
         "GET /users/:id",
         "POST /users/:id/suspend",
         "POST /users/:id/reactivate",
+        "GET /teachers",
+        "GET /teachers/:userId",
+        "POST /teachers/:userId/suspend",
+        "POST /teachers/:userId/deactivate",
+        "POST /teachers/:userId/reactivate",
+        "GET /teacher-invitations",
+        "POST /teacher-invitations",
+        "POST /teacher-invitations/:id/resend",
+        "POST /teacher-invitations/:id/revoke",
       ]),
     );
   });

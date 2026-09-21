@@ -124,6 +124,13 @@ describe("ciclo de vida do convite (FR-041, FR-042, FR-049)", () => {
     expect((await t.prisma.invitation.findUniqueOrThrow({ where: { id } })).status).toBe("EXPIRED");
   });
 
+  it("listagem sem filtro traz todos os status", async () => {
+    const { id } = await invite();
+    const res = await client.get("/api/manager-invitations");
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([id]);
+  });
+
   it("status inválido no filtro → 400", async () => {
     expect((await client.get("/api/manager-invitations?status=QUALQUER")).status).toBe(400);
   });

@@ -448,18 +448,65 @@ papel `TEACHER` — sem enxergar alunos.
 desativa, reativa professor; qualquer operação sobre contas de alunos → 403; aluno
 existente não é revelado.
 
+**Já disponível (reutilizar, não recriar)**: `InvitationService` (US4) — `create(tx, {email, displayName,
+roleKey: "TEACHER", issuer, requestId})` (autoconvite → `SELF_INVITE_FORBIDDEN`, expiração preguiçosa,
+`INVITATION_ALREADY_PENDING`, auditoria `invitation.created`), `resend/revoke(tx, id, scope, actor)`,
+`list(scope, status?)` (status efetivo), `sendInvitationMail` (template `invitation-teacher`); `toInvitationView`,
+`effectiveStatus`, `INVITATION_INCLUDE`, `invitationStatusQuerySchema` (exportado de `managers.controller.ts`);
+`InvitationAcceptanceService` + rotas `/invitations/preview|accept` (já concedem `TEACHER` e criam
+`TeacherProfile` via `RoleGrantAcceptance`); `RoleLifecycleService.changeStatus(tx, userId, "TEACHER", to,
+actorId, {requestId})` (`ACTIVE ⇄ SUSPENDED`, `→ INACTIVE → ACTIVE`, revoga sessões `ROLE_DEACTIVATED` ao
+sair de `ACTIVE`, `409 INVALID_STATE_TRANSITION`, `404` sem atribuição); padrão de `ManagersService`
+(auditoria de `invitation.self_invite_blocked` em transação própria); erros `alreadyTeacher()` e
+`teacherReactivationRequired()`; nos testes `createUser({roles: [..., {key: "TEACHER", status}]})` (cria
+`TeacherProfile`), `loginAs`, `api()`. Web: padrão de `/admin/managers` (`serverGet`, `NoAccess`,
+`aria-label` nos botões de linha, `ErrorSummary`), `lib/admin-api.ts`.
+
+**Decisões desta fase**: o escopo docente é compartilhado — qualquer portador de `professores.*` (MANAGER
+ou ADMIN, FR-005) vê todos os professores e reenvia/revoga qualquer convite de `TEACHER`, não só os que
+emitiu (a permissão é a barreira; o emissor fica em `invitedBy`); a checagem de autoconvite vem antes de
+`ALREADY_TEACHER`/`TEACHER_REACTIVATION_REQUIRED`; convite para e-mail de aluno ou de qualquer conta sem
+atribuição `TEACHER` segue exatamente o caminho de e-mail sem conta (FR-043) — no aceite a pessoa cai no
+modo `SIGN_IN_REQUIRED` ou `CLAIM_ACCOUNT`; `displayName` de `TeacherView`/`TeacherListItem` vem de
+`TeacherProfile` (ou do convite, para `INVITED`), nunca de `User.name`.
+
 ### Tests for User Story 5 ⚠️
 
-- [ ] T083 [P] [US5] Testes de integração US5-1…US5-12 em `apps/api/test/integration/us5-teacher-invitations.spec.ts`: convite `PENDING` e status `INVITED` derivado; reenvio invalida link anterior; revogação; e-mail de aluno → resposta idêntica à de e-mail sem conta (mesmo status/corpo exceto `id`/datas); MANAGER em `GET /users` e `GET /users/:id` → `403` (nunca lista vazia); `GET /teachers/:userId` de um aluno → `404`; desativar professor que também é STUDENT → sessões revogadas, `TEACHER` `INACTIVE`, `STUDENT` intacto, perfil preservado; reativar sem novo perfil/identidade; MANAGER suspendendo conta/alterando senha/atribuindo outro papel → `403`; autoconvite e aceite pelo próprio emissor → `403`; `TeacherView` sem outros papéis; banco sem token em claro (varre `invitations`, `user_tokens`, `sessions`, `admin_bootstraps` pelo token gerado); `ALREADY_TEACHER` e `TEACHER_REACTIVATION_REQUIRED`
+> Escrever primeiro; devem falhar (rotas inexistentes → 404) antes de T084–T086.
+
+- [X] T083 [P] [US5] Testes de integração US5-1…US5-12 em `apps/api/test/integration/us5-teacher-invitations.spec.ts` (MANAGER via `createUser({roles: ["MANAGER"]})` + `loginAs`; também repetir o caminho feliz com ADMIN, FR-005):
+  (US5-1) `POST /api/teacher-invitations {email, displayName}` → `201 InvitationView` (`role: "TEACHER"`, `expiresAt` ≈ +7 d), e-mail `invitation-teacher`; `GET /api/teachers` traz `{userId: null, invitationId, displayName, email, status: "INVITED"}`; `?status=INVITED` filtra; após o aceite (`POST /api/invitations/accept`) o item vira `{userId, invitationId: null, status: "ACTIVE"}` com `displayName` do convite (também em `TeacherProfile`);
+  (US5-2) `POST /api/teacher-invitations/:id/resend` → token antigo `TOKEN_INVALID` em preview, novo funciona, `sendCount: 2`; (US5-3) `revoke` → `REVOKED` e o item `INVITED` some da lista;
+  (US5-4) e-mail de aluno existente × e-mail sem conta → mesmo status e mesmo corpo exceto `id`, `email`, `expiresAt`, `lastSentAt`; nenhum dos dois revela conta; aceite do aluno exige a sessão dele (`SIGN_IN_REQUIRED`) e depois ele tem `STUDENT` e `TEACHER` ativos;
+  (US5-5) MANAGER em `GET /api/users` e `GET /api/users/:id` de um aluno → `403 FORBIDDEN` (nunca `200` com lista vazia); `GET /api/teachers/:userId` de um aluno → `404 NOT_FOUND` idêntico ao de UUID inexistente;
+  (US5-6) professor que também é `STUDENT`, com sessão aberta: `POST /api/teachers/:userId/deactivate` → `200 TeacherView` `INACTIVE`, sessão → `401`, `STUDENT` continua `ACTIVE`, `TeacherProfile` preservado, `role.status_changed`; `suspend` de ativo → `SUSPENDED` com sessões revogadas;
+  (US5-7) `reactivate` de `SUSPENDED` e de `INACTIVE` → `ACTIVE`, mesma identidade e mesmo `TeacherProfile` (contagem de perfis e usuários inalterada); transições inválidas (`suspend` de `INACTIVE`, `reactivate` de `ACTIVE`) → `409 INVALID_STATE_TRANSITION`;
+  (US5-8) MANAGER em `POST /api/users/:id/suspend`, `POST /api/manager-invitations`, `POST /api/managers/:id/deactivate` → `403`; nenhuma rota registrada permite alterar a senha de outra pessoa (via `DiscoveryService`, nenhuma rota autenticada com `password` no caminho);
+  (US5-9) MANAGER convidando o próprio e-mail → `403 SELF_INVITE_FORBIDDEN` + `invitation.self_invite_blocked` (`{role: "TEACHER"}`); convite de `TEACHER` inserido via Prisma com o e-mail do MANAGER e `invitedById` = MANAGER → aceite pelo próprio MANAGER → `403 SELF_INVITE_FORBIDDEN`, nenhum `TEACHER`;
+  (US5-10) `GET /api/teachers/:userId` de professor que também é `STUDENT` e `MANAGER` → exatamente as chaves `{userId, displayName, email, status, invitations}`, sem `roles`, sem `STUDENT`/`MANAGER` em lugar algum do corpo; `invitations` traz os convites de `TEACHER` daquele e-mail;
+  (US5-11) após criar convite, cadastro, login e bootstrap, nenhuma coluna de texto de `invitations`, `user_tokens`, `sessions` e `admin_bootstraps` contém algum dos tokens/segredos emitidos (consulta `row_to_json(t)::text LIKE '%'||token||'%'`), só seus hashes;
+  (US5-12) e-mail com `TEACHER` `ACTIVE` → `409 ALREADY_TEACHER`; `SUSPENDED` ou `INACTIVE` → `409 TEACHER_REACTIVATION_REQUIRED`; nenhum convite criado;
+  STUDENT e TEACHER em `GET /api/teachers` e `POST /api/teacher-invitations` → `403`; `?status=` inválido → `400`
 
 ### Implementation for User Story 5
 
-- [ ] T084 [US5] Implementar `TeachersService` (`list(status?)` → `TeacherListItem[]` unindo `UserRole TEACHER` + perfis e convites `PENDING` de `TEACHER` sem `UserRole TEACHER` como itens `INVITED` com `userId: null`; `get(userId)` escopado a quem tem `UserRole TEACHER` → senão 404; `suspend/deactivate/reactivate` via `RoleLifecycleService`; `TeacherView` apenas com dados docentes) em `apps/api/src/modules/provisioning/teachers.service.ts` (FR-050, FR-051)
-- [ ] T085 [US5] Implementar `TeacherInvitationsService.create` sobre `InvitationService` com regras FR-043 (TEACHER ativo → `ALREADY_TEACHER`; suspenso/inativo → `TEACHER_REACTIVATION_REQUIRED`; demais contas não reveladas) em `apps/api/src/modules/provisioning/teacher-invitations.service.ts`
-- [ ] T086 [US5] Implementar `TeachersController` (`GET /teachers`, `GET /teachers/:userId`, `POST /teachers/:userId/suspend|deactivate|reactivate`) e `TeacherInvitationsController` (`GET/POST /teacher-invitations`, `POST /teacher-invitations/:id/resend|revoke`) com permissões `professores.*` em `apps/api/src/modules/provisioning/teachers.controller.ts` e `teacher-invitations.controller.ts`
-- [ ] T087 [P] [US5] Criar `apps/web/app/professores/page.tsx` (lista com status `INVITED/ACTIVE/SUSPENDED/INACTIVE`, convidar, reenviar, revogar, suspender, desativar, reativar; mensagens para `ALREADY_TEACHER`/`TEACHER_REACTIVATION_REQUIRED`)
+- [X] T084 [US5] Implementar `TeachersService` em `apps/api/src/modules/provisioning/teachers.service.ts` (FR-050, FR-051, FR-007):
+  tipos `TeacherView` (`{userId, displayName, email, status, invitations: InvitationView[]}`) e `TeacherListItem` (`{userId: string|null, invitationId: string|null, displayName, email, status: "INVITED"|"ACTIVE"|"SUSPENDED"|"INACTIVE"}`) exportados;
+  `list(status?)`: atribuições `TEACHER` (qualquer status) com `TeacherProfile.displayName` e `User.email` + convites `TEACHER` com status efetivo `PENDING` cujo e-mail não tem atribuição `TEACHER` (itens `INVITED`, `userId: null`); filtro por `status`; ordenação por `displayName` e depois e-mail;
+  `get(userId)`: consulta já escopada a quem tem atribuição `TEACHER` (senão `findOwnedOrNotFound` → `404`), com os convites `TEACHER` do e-mail (mais recentes primeiro) via `toInvitationView`;
+  `setStatus(userId, "SUSPENDED"|"INACTIVE"|"ACTIVE", auth, requestId)` → `RoleLifecycleService.changeStatus(tx, userId, "TEACHER", to, auth.userId, {requestId})` e devolve `get(userId)`
+- [X] T085 [US5] Implementar `TeacherInvitationsService` em `apps/api/src/modules/provisioning/teacher-invitations.service.ts` (FR-040, FR-040a, FR-042, FR-043):
+  `invite({email, displayName}, auth, requestId)` → busca e-mail do emissor; transação: e-mail ≠ do emissor e com atribuição `TEACHER` `ACTIVE` → `alreadyTeacher()`, `SUSPENDED`/`INACTIVE` → `teacherReactivationRequired()`; qualquer outra conta (aluno, MANAGER, sem papel) segue sem consulta adicional para `InvitationService.create(tx, {..., roleKey: "TEACHER"})`; após commit `sendInvitationMail`; `SELF_INVITE_FORBIDDEN` → `invitation.self_invite_blocked` (`{role: "TEACHER"}`) em transação própria e relança;
+  `list(status?)`, `resend(id)`, `revoke(id)` com escopo `{roleKey: "TEACHER"}` (convite de outro papel → `404`), `resend` reenviando o e-mail após o commit
+- [X] T086 [US5] Implementar os controllers em `apps/api/src/modules/provisioning/teachers.controller.ts` (`GET /teachers?status=` e `GET /teachers/:userId` com `professores.visualizar`; `POST /teachers/:userId/suspend|deactivate|reactivate` com `professores.suspender|desativar|ativar`, `200 TeacherView`) e `teacher-invitations.controller.ts` (`GET /teacher-invitations?status=` com `professores.visualizar`; `POST /teacher-invitations` `201` com `professores.convidar` e `z.strictObject({email: emailSchema, displayName: nameSchema})`; `POST /teacher-invitations/:id/resend|revoke` `200` com `professores.reenviar_convite|revogar_convite`); `:userId`/`:id` validados como UUID; `?status=` de `/teachers` aceita `INVITED|ACTIVE|SUSPENDED|INACTIVE`; registrar serviços e controllers em `ProvisioningModule` e as 9 rotas em `route-declarations.spec.ts`
+- [X] T087 [P] [US5] Web do cadastro docente (FR-075; sem regra de negócio no componente):
+  `apps/web/lib/admin-api.ts` ganha `TeacherListItem`, `TeacherView` e as chamadas de `/teachers` e `/teacher-invitations`;
+  `apps/web/app/professores/page.tsx` (Server Component: sem sessão → `/entrar?next=%2Fprofessores`; sem `professores.visualizar` → `NoAccess`; carrega `GET /teachers` via `serverGet`) + `professores/teachers-admin.tsx` (Client): filtro por situação (`Todos`, `Convidado`, `Ativo`, `Suspenso`, `Inativo`) que refaz a consulta; tabela com nome, e-mail, situação e ações por linha — `INVITED`: "Reenviar convite"/"Revogar convite" (pelo `invitationId`); `ACTIVE`: "Suspender"/"Desativar"; `SUSPENDED`: "Reativar"/"Desativar"; `INACTIVE`: "Reativar" (todas com `aria-label` incluindo o nome); formulário "Convidar professor" (`displayName`, `email`) com `ALREADY_TEACHER`, `TEACHER_REACTIVATION_REQUIRED`, `SELF_INVITE_FORBIDDEN` e `INVITATION_ALREADY_PENDING` ligados ao campo e-mail no `ErrorSummary`; após convidar/agir, recarrega a lista; anúncios em `aria-live`;
+  `proxy.ts` cobre `/professores/:path*` (e `proxy.test.ts`); cabeçalho mostra "Professores" quando `me.permissions` tem `professores.visualizar`;
+  teste de componente com `vitest-axe` e `fetch` simulado em `apps/web/app/professores/professores.test.tsx` (ações por status, corpo do convite só `{email, displayName}`, erros com foco, sem violações)
 
-**Checkpoint**: MANAGER opera o cadastro docente de ponta a ponta
+**Checkpoint**: MANAGER opera o cadastro docente de ponta a ponta — `pnpm --filter api test`,
+`pnpm --filter web test` e `turbo run lint check-types test` verdes
 
 ---
 

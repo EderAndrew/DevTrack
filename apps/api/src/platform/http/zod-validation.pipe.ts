@@ -1,4 +1,4 @@
-import { Body, type PipeTransform } from "@nestjs/common";
+import { type ArgumentMetadata, Body, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
 import { validationError } from "./errors";
 
@@ -10,8 +10,10 @@ import { validationError } from "./errors";
 export class ZodValidationPipe<S extends z.ZodType> implements PipeTransform<unknown, z.output<S>> {
   constructor(private readonly schema: S) {}
 
-  transform(value: unknown): z.output<S> {
-    const result = this.schema.safeParse(value ?? {});
+  transform(value: unknown, metadata?: ArgumentMetadata): z.output<S> {
+    // A missing body is an empty object; a missing query/route parameter stays undefined.
+    const input = value === undefined && (metadata === undefined || metadata.type === "body") ? {} : value;
+    const result = this.schema.safeParse(input);
     if (!result.success) throw validationError();
     return result.data;
   }

@@ -5,11 +5,22 @@ import { InvitationService } from "./invitation.service";
 import { ManagersController } from "./managers.controller";
 import { ManagersService } from "./managers.service";
 import { RoleGrantAcceptance } from "./role-grant-acceptance.service";
+import { TeacherInvitationsController } from "./teacher-invitations.controller";
+import { TeacherInvitationsService } from "./teacher-invitations.service";
+import { TeachersController } from "./teachers.controller";
+import { TeachersService } from "./teachers.service";
 
-/** Invitations (creation, lifecycle, acceptance) and the ADMIN's management of MANAGERs. */
+/** Invitations (creation, lifecycle, acceptance), MANAGER management (ADMIN) and the teaching registry. */
 @Module({
-  controllers: [InvitationAcceptanceController, ManagersController],
-  providers: [RoleGrantAcceptance, InvitationService, InvitationAcceptanceService, ManagersService],
+  controllers: [InvitationAcceptanceController, ManagersController, TeachersController, TeacherInvitationsController],
+  providers: [
+    RoleGrantAcceptance,
+    InvitationService,
+    InvitationAcceptanceService,
+    ManagersService,
+    TeachersService,
+    TeacherInvitationsService,
+  ],
   exports: [RoleGrantAcceptance, InvitationService],
 })
 export class ProvisioningModule {}

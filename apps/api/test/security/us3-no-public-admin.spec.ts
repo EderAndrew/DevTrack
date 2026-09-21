@@ -1,52 +1,11 @@
-import { RequestMethod } from "@nestjs/common";
-import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
-import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
-import { Test } from "@nestjs/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { AppModule } from "../../src/app.module";
-import { IS_PUBLIC_KEY } from "../../src/modules/access-control/decorators";
 import { uniqueEmail } from "../helpers/factories";
-import { LogCapture } from "../helpers/log-capture";
-import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
-
-interface Route {
-  route: string;
-  isPublic: boolean;
-}
-
-async function registeredRoutes(): Promise<Route[]> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule.forRoot(testConfig(), { logDestination: new LogCapture() }), DiscoveryModule],
-  }).compile();
-  const app = await moduleRef.init();
-  try {
-    const scanner = app.get(MetadataScanner);
-    const reflector = app.get(Reflector);
-    const routes: Route[] = [];
-    for (const { instance, metatype } of app.get(DiscoveryService).getControllers()) {
-      if (!instance || !metatype) continue;
-      const prototype = Object.getPrototypeOf(instance) as Record<string, unknown>;
-      const base = Reflect.getMetadata(PATH_METADATA, metatype) as string;
-      for (const name of scanner.getAllMethodNames(prototype)) {
-        const handler = prototype[name] as () => unknown;
-        const path = Reflect.getMetadata(PATH_METADATA, handler) as string | undefined;
-        if (path === undefined) continue;
-        const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod];
-        routes.push({
-          route: `${method} /${base}/${path}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1"),
-          isPublic: Boolean(reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler, metatype])),
-        });
-      }
-    }
-    return routes;
-  } finally {
-    await app.close();
-  }
-}
+import { type RegisteredRoute, registeredRoutes } from "../helpers/routes";
+import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 /** FR-030 / US3-8: no public operation creates or promotes an ADMIN. */
 describe("US3-8 — nenhuma rota pública produz ADMIN", () => {
-  let routes: Route[];
+  let routes: RegisteredRoute[];
   let t: TestApp;
 
   beforeAll(async () => {
