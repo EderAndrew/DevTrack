@@ -21,6 +21,11 @@ spec para o plano. Formato: **Decision / Rationale / Alternatives considered**.
   `check-types`, fixar `typescript@~5.9` apenas em `apps/api` (devDependency local)
   e registrar em Complexity Tracking. O ambiente local atual está em Node 22 —
   a quickstart exige Node 24.
+- **Nota de implementação (T021)**: o `tsc` 7 aceitou os decorators, mas o Nest CLI
+  exige a API programática do compilador, ausente no TypeScript 7.0. Em vez de fixar o
+  TS 6/5.9, o `apps/api` dispensa o Nest CLI: `build` usa `@swc/cli` diretamente
+  (`swc src -d dist`), `dev` combina `swc -w` com `node --watch`, e `check-types`
+  continua com `tsc --noEmit`. `nest-cli.json` foi removido.
 
 ## R2. Framework HTTP da API
 
