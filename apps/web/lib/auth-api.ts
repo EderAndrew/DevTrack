@@ -21,6 +21,13 @@ export interface SessionView {
   current: boolean;
 }
 
+export type AcceptanceMode = "CREATE_ACCOUNT" | "SIGN_IN_REQUIRED" | "CLAIM_ACCOUNT";
+
+export interface AdminActivationPreview {
+  email: string;
+  mode: AcceptanceMode;
+}
+
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
 
@@ -38,6 +45,11 @@ export const authApi = {
   logout: () => apiClient.post<void>("/auth/logout"),
   logoutAll: () => apiClient.post<void>("/auth/logout-all"),
   listSessions: () => apiClient.get<{ items: SessionView[] }>("/me/sessions"),
+  previewAdminActivation: (token: string) =>
+    apiClient.post<AdminActivationPreview>("/admin-activation/preview", { token }),
+  /** `password` only for CREATE_ACCOUNT/CLAIM_ACCOUNT; SIGN_IN_REQUIRED relies on the session. */
+  activateAdmin: (token: string, password?: string) =>
+    apiClient.post<{ role: "ADMIN" }>("/admin-activation", password === undefined ? { token } : { token, password }),
   revokeSession: (id: string) => apiClient.delete<void>(`/me/sessions/${encodeURIComponent(id)}`),
 };
 

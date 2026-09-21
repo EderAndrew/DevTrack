@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import type { DestinationStream } from "pino";
+import { AdminBootstrapModule } from "./modules/admin-bootstrap/admin-bootstrap.module";
 import { AccessControlModule } from "./modules/access-control/access-control.module";
 import { PermissionsGuard } from "./modules/access-control/guards/permissions.guard";
 import { SessionGuard } from "./modules/access-control/guards/session.guard";
@@ -18,12 +19,15 @@ import { GlobalExceptionFilter } from "./platform/http/exception.filter";
 import { OriginGuard } from "./platform/http/origin.guard";
 import { LoggingModule } from "./platform/logging/logging.module";
 import { MailModule } from "./platform/mail/mail.module";
+import type { Mailer } from "./platform/mail/mailer";
 import { MaintenanceModule } from "./platform/maintenance/maintenance.module";
 import { RateLimitModule } from "./platform/rate-limit/rate-limit.module";
 
 export interface AppModuleOptions {
   /** Tests capture logs through this stream. */
   logDestination?: DestinationStream;
+  /** Replaces the SMTP mailer (CLI tests). */
+  mailer?: Mailer;
 }
 
 @Module({})
@@ -36,13 +40,14 @@ export class AppModule {
         LoggingModule.forRoot(config, options.logDestination),
         DatabaseModule,
         CryptoModule,
-        MailModule,
+        MailModule.forRoot(options.mailer),
         MaintenanceModule,
         RateLimitModule,
         AuditModule,
         IdentityModule,
         AccessControlModule,
         ProvisioningModule,
+        AdminBootstrapModule,
         RetentionModule,
         HealthModule,
       ],

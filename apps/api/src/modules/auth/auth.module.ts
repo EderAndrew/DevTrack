@@ -31,6 +31,6 @@ import { UserTokenService } from "./user-token.service";
     SessionEndService,
     OwnSessionsService,
   ],
-  exports: [SessionService, UserTokenService],
+  exports: [SessionService, UserTokenService, PublicRateLimit],
 })
 export class AuthModule {}

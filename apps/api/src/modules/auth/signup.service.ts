@@ -33,6 +33,7 @@ export function webLinks(webOrigin: string) {
     verifyEmail: (token: string) => `${webOrigin}/verificar-email?token=${encodeURIComponent(token)}`,
     login: `${webOrigin}/entrar`,
     passwordReset: `${webOrigin}/esqueci-senha`,
+    adminActivation: (token: string) => `${webOrigin}/ativar-admin?token=${encodeURIComponent(token)}`,
   };
 }
 

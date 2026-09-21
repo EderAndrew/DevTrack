@@ -84,6 +84,8 @@ describe("route access declarations", () => {
         "GET /me/sessions",
         "GET /me/sessions/:id",
         "DELETE /me/sessions/:id",
+        "POST /admin-activation",
+        "POST /admin-activation/preview",
       ]),
     );
   });
