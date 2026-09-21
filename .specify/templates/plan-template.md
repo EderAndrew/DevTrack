@@ -31,7 +31,29 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify against `.specify/memory/constitution.md` (mark each ✅ / ❌ / N/A):
+
+- [ ] **I. Security**: all external inputs validated in the backend; OWASP Top 10 risks considered
+- [ ] **II. RBAC**: every protected operation lists its explicit permission(s) and resource-context check
+- [ ] **III. Server authority**: state, time and submission rules enforced server-side; autosave where answers are entered
+- [ ] **IV. Untrusted code**: no student code executed in the API process or main server
+- [ ] **V. Data integrity**: schema changes via Prisma migrations; PK/FK/UNIQUE/NOT NULL/indexes defined
+- [ ] **VI. Audit & logs**: critical operations audited; structured logs; no secrets/tokens logged
+- [ ] **VII. Tests**: automated tests planned for every critical business rule touched
+- [ ] **VIII. Layering**: no business rules or Prisma calls in controllers/React components
+- [ ] **IX. Simplicity**: no new infra, dependency or shared abstraction without a spec-backed need
+- [ ] **X. Evidence**: events recorded as observable facts; no single event treated as a conclusion; uncertainty represented
+- [ ] **XI. Human oversight**: critical pedagogical decisions stay with the teacher; results typed as FACT / RULE_RESULT / SUGGESTION / HUMAN_DECISION
+- [ ] **XII. Determinism first**: no AI where deterministic rules, tests or constraints suffice
+- [ ] **XIII. Risk level**: automated/AI operations classified L1/L2/L3; L3 authorized, audited, human-confirmed when critical
+- [ ] **XIV–XV. AI governance**: AI non-authoritative, least-privilege tools with schema/validation/timeout, grounded on identifiable sources
+- [ ] **XVI. Explicit states**: critical workflows use explicit states and validated transitions, not boolean flags
+- [ ] **XVII. Idempotency**: critical operations safe under retries/double submits
+- [ ] **XVIII. Safe interruption**: long/risky operations support timeout, cancel and kill switch with recoverable state
+- [ ] **XIX. AI evals**: AI features have automated evals / versioned Golden Set before release
+- [ ] **XX. Pedagogy**: monitoring is proportional; least invasive option that preserves assessment integrity
+
+Any ❌ MUST be justified in *Complexity Tracking* below.
 
 ## Project Structure
 
