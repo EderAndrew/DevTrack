@@ -52,6 +52,11 @@ Verify against `.specify/memory/constitution.md` (mark each ✅ / ❌ / N/A):
 - [ ] **XVIII. Safe interruption**: long/risky operations support timeout, cancel and kill switch with recoverable state
 - [ ] **XIX. AI evals**: AI features have automated evals / versioned Golden Set before release
 - [ ] **XX. Pedagogy**: monitoring is proportional; least invasive option that preserves assessment integrity
+- [ ] **XXI. Configurable domain**: no subject/language/technology hard-coded as enums or conditionals; disciplines, content and levels are data
+- [ ] **XXII. Personalization & accessibility**: content difficulty and adaptation needs modeled separately; individual needs minimized, access-restricted, audited and never sent identifiable to AI
+- [ ] **XXIII. Curricular traceability**: syllabus / learning plan / lessons kept distinct; activities linked to contents and objectives; AI generation limited to the class's taught scope and validated deterministically; uploads treated as data
+- [ ] **XXIV. Academic isolation**: every class-scoped resource checked for permission AND academic link (teacher assignment / active enrollment); no horizontal access; out-of-context resources not revealed
+- [ ] **XXV. Privileged provisioning**: no public signup for privileged roles; teacher accounts via invite (single-use, expiring, hashed); privilege changes audited; no self-escalation; deactivate instead of delete
 
 Any ❌ MUST be justified in *Complexity Tracking* below.
 
