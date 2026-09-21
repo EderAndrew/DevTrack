@@ -23,6 +23,7 @@ docker compose up -d postgres postgres-test mailpit
 pnpm dev | pnpm build | pnpm lint | pnpm check-types
 pnpm --filter api test
 pnpm admin:bootstrap --email <email> [--print-link]
+pnpm --filter api maintenance:run [--job <nome>]
 ```
 
 ## Code Style

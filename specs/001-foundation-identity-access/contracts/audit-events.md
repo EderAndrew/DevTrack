@@ -35,11 +35,17 @@ de cookie de sessão, cabeçalhos, secrets. O `id` público de sessão pode apar
 | `session.revoked_all` | USER \| SYSTEM | USER | `reason`, `count` | logout-all e revogações por evento |
 | `password_reset.requested` | ANONYMOUS | USER | — (só quando a conta existe; resposta pública não muda) | |
 | `password_reset.completed` | ANONYMOUS | USER | `revokedSessions` | FR-029c |
+| `account.unverified_purged` | SYSTEM | USER | — (só o `id` do alvo; nunca nome/e-mail) | FR-017 |
+| `audit.purged` | SYSTEM | — | `count`, `olderThan` | FR-077 |
+| `access_records.purged` | SYSTEM | — | `count`, `olderThan` | FR-076 |
 
 Notas:
 - `auth.login.succeeded` é registrado; falhas individuais de login **não** (volume) —
   são refletidas pelos eventos de rate limit.
 - Eventos do comando operacional usam `requestId = NULL` e identificam a origem em
   `metadata` (`operatorHost`, `operatorUser`).
+- Retenção: 5 anos (FR-077). O único `DELETE` permitido é o do job de expurgo, sob
+  `SET LOCAL devtrack.audit_purge = 'on'` (R23); `UPDATE` é sempre bloqueado.
+- IP de origem **não** é auditado: fica em `access_records` por 6 meses (FR-076).
 - O evento é gravado na mesma transação da operação; se a transação falhar, não há
   evento (e não há efeito).

@@ -65,12 +65,24 @@ curl -i -b "__Host-devtrack_session=<cookie>" localhost:3000/api/users
 Entre em dois navegadores; em `/conta/sessoes` revogue a outra sessão → o outro
 navegador recebe 401 na próxima ação. "Sair de todos os dispositivos" derruba ambos.
 
-## 7. Testes automatizados
+## 7. Retenção e manutenção (FR-017, FR-076, FR-077)
+
+```bash
+pnpm --filter api maintenance:run            # todos os jobs; saída só com contagens
+pnpm --filter api maintenance:run --job unverified-accounts
+```
+
+- Após um login, `access_records` tem uma linha com o IP; `audit_events` não tem IP.
+- Uma conta de aluno não verificada criada há mais de 7 dias (ajuste `created_at`
+  no banco de dev) some após o job, com evento `account.unverified_purged`.
+- `DELETE FROM audit_events` manual no psql falha (trigger append-only).
+
+## 8. Testes automatizados
 
 ```bash
 pnpm --filter api test            # unit + integração (usa postgres-test)
 pnpm --filter api test:security   # matriz de autorização, replay, concorrência, varredura de segredos
-pnpm --filter web test
+pnpm --filter web test            # inclui axe (WCAG 2.2 AA) e navegação por teclado
 pnpm check-types && pnpm lint
 ```
 

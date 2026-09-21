@@ -58,3 +58,15 @@
   FR-034); unknown fields in public requests are rejected with 400 (US1-2, FR-010);
   FR-061's 403 example is the account consultation (FR-056), with `/students`
   deferred to Spec 002.
+- Analysis remediation (2026-09-21, `/speckit-analyze`): FR-022 limits per origin
+  count only authentication failures (100) or are high for public endpoints (300),
+  so a class behind one NAT is not blocked; US3-10 + FR-035 cover an account that
+  becomes verified between bootstrap and activation (sign-in required); FR-050 own
+  account operations clarified (password change via recovery; authenticated password
+  change deferred); `User` has a name and profiles hold the role display name
+  (FR-006, Key Entities).
+- Clarify session (2026-09-21, 3 questions): never-verified STUDENT accounts purged
+  after 7 days (FR-017); WCAG 2.2 AA with automated axe checks (FR-075, SC-012);
+  access records (IP + timestamp) kept 6 months and audit events 5 years (FR-076,
+  FR-077). Propagated to research (R21–R23), data-model (`AccessRecord`, purge
+  rules), contracts (`maintenance-jobs.md`, new audit events), plan and tasks (110).

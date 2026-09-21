@@ -123,13 +123,17 @@ Comportamento de `accept` por `mode` (FR-044–FR-049):
 
 | Método | Rota | Acesso | Corpo | Sucesso | Erros |
 |--------|------|--------|-------|---------|-------|
-| POST | `/admin-activation/preview` | public | `{token}` | `200 {email, mode}` (`CREATE_ACCOUNT` \| `CLAIM_ACCOUNT`) | 400 `TOKEN_INVALID` |
-| POST | `/admin-activation` | public | `{token, password}` | `200 {role:"ADMIN"}` | 400 `TOKEN_INVALID`, 400 `WEAK_PASSWORD`, 409 `BOOTSTRAP_ALREADY_DONE`, 429 |
+| POST | `/admin-activation/preview` | public | `{token}` | `200 {email, mode}` (`CREATE_ACCOUNT` \| `SIGN_IN_REQUIRED` \| `CLAIM_ACCOUNT`) | 400 `TOKEN_INVALID` |
+| POST | `/admin-activation` | public (sessão opcional) | `{token, password?}` | `200 {role:"ADMIN"}` | 400 `TOKEN_INVALID`, 400 `WEAK_PASSWORD`, 400 `PASSWORD_REQUIRED`, 401 `SIGN_IN_REQUIRED`, 403 `WRONG_ACCOUNT`, 409 `BOOTSTRAP_ALREADY_DONE`, 429 |
 
 Esta rota **não cria bootstrap**: só conclui um `AdminBootstrap PENDING` emitido pelo
 comando operacional ([cli-admin-bootstrap.md](./cli-admin-bootstrap.md)). Se já existir
 `ADMIN` ativo no momento da ativação → 409 `BOOTSTRAP_ALREADY_DONE` e o pendente é
-cancelado. Usuários verificados nunca passam por aqui (o comando conclui direto).
+cancelado. Os modos seguem as mesmas regras do aceite de convite: quando o e-mail era
+de um `User` verificado já na execução do comando, o comando conclui direto e não há
+link; se a conta se tornou verificada depois da emissão do link, a ativação exige
+sessão dessa conta (`SIGN_IN_REQUIRED`), ignora `password` e não altera a senha
+(US3-10).
 
 ## Professores (escopo do MANAGER; ADMIN também, FR-005)
 
@@ -138,7 +142,7 @@ TEACHER` (qualquer status). Outro `userId` → 404 `NOT_FOUND` — nunca revela 
 
 | Método | Rota | Acesso | Corpo | Sucesso | Erros |
 |--------|------|--------|-------|---------|-------|
-| GET | `/teachers?status=` | perm:`professores.visualizar` | — | `200 {items: TeacherView[]}` | 401, 403 |
+| GET | `/teachers?status=` | perm:`professores.visualizar` | — | `200 {items: TeacherListItem[]}` | 401, 403 |
 | GET | `/teachers/:userId` | perm:`professores.visualizar` | — | `200 TeacherView` | 404 |
 | POST | `/teachers/:userId/suspend` | perm:`professores.suspender` | — | `200 TeacherView` | 404, 409 `INVALID_STATE_TRANSITION` |
 | POST | `/teachers/:userId/deactivate` | perm:`professores.desativar` | — | `200 TeacherView` | 404, 409 |
@@ -150,8 +154,11 @@ TEACHER` (qualquer status). Outro `userId` → 404 `NOT_FOUND` — nunca revela 
 
 `TeacherView` (somente dados docentes, FR-050, US5-10):
 `{userId, displayName, email, status: "ACTIVE"|"SUSPENDED"|"INACTIVE", invitations: InvitationView[]}`.
-Convites pendentes de quem ainda não é professor aparecem em `/teacher-invitations`
-com status derivado `INVITED` na UI (FR-007).
+`TeacherListItem`: `{userId: uuid|null, invitationId: uuid|null, displayName, email,
+status: "INVITED"|"ACTIVE"|"SUSPENDED"|"INACTIVE"}`. Itens `INVITED` vêm de convites
+`PENDING` de `TEACHER` sem `UserRole TEACHER` (`userId: null`, FR-007); `displayName`
+e `email` são os informados pelo próprio emissor no convite, portanto não revelam
+nada sobre contas existentes. `?status=` filtra por esses valores.
 
 `InvitationView`: `{id, email, displayName, role, status, expiresAt, sendCount,
 lastSentAt, invitedBy: {id, name}}` — nunca token nem `tokenHash`.
@@ -222,3 +229,9 @@ recebe.
 | 500 | `INTERNAL_ERROR` | genérico |
 
 Mensagens (`message`) em português, sem dados do alvo.
+
+## Acessibilidade das telas que consomem esta API
+
+Toda tela web desta feature segue FR-075 (WCAG 2.2 AA): erros devolvidos pela API
+são exibidos em região `aria-live`, vinculados ao campo por `aria-describedby`
+quando se referem a um campo, e o foco vai para o resumo de erros (R22).

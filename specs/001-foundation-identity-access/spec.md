@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: User description: "Crie a especificação da feature '001 — Foundation, Identity & Access': fundação de identidade, autenticação, autorização e provisionamento de usuários — identidade única multi-papel, sessões, verificação de e-mail, RBAC, provisionamento controlado de MANAGER e TEACHER, autocadastro de STUDENT e bootstrap do primeiro ADMIN, seguindo a Constitution v2.0.0 e sem domínio acadêmico."
 
+## Clarifications
+
+### Session 2026-09-21
+
+- Q: O que acontece com contas de aluno que nunca verificam o e-mail? → A: Excluídas após 7 dias da criação por job de limpeza auditado; contas com papel além de `STUDENT` ou com convite aceito nunca são excluídas.
+- Q: Que nível de acessibilidade as telas desta feature devem atender? → A: WCAG 2.2 AA, com verificação automatizada (axe) nos formulários e navegação completa por teclado.
+- Q: Quais registros de acesso são guardados e por quanto tempo? → A: IP + data/hora de cada login bem-sucedido por 6 meses (Marco Civil, art. 15), depois expurgado; auditoria de ações, sem IP, por 5 anos.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Aluno cria a própria conta e verifica o e-mail (Priority: P1)
@@ -147,6 +155,10 @@ recusa; confirmar que não existe nenhuma operação pública que produza `ADMIN
 9. **Given** um bootstrap concluído, **When** a trilha de auditoria é consultada,
    **Then** existe o registro do bootstrap (e-mail alvo, data/hora, origem
    operacional), sem senha ou token.
+10. **Given** um bootstrap pendente cujo e-mail passou a pertencer a um `User`
+    verificado antes da ativação, **When** o link de ativação é usado, **Then** a
+    pessoa precisa autenticar-se nessa conta para concluir — `ADMIN` é acrescentado
+    sem alterar a senha; sem sessão ou com sessão de outra conta, nada é concedido.
 
 ---
 
@@ -391,6 +403,10 @@ recusa.
 - **Último `ADMIN`**: não pode ser removido, desativado nem ter o papel retirado.
 - **Normalização de e-mail**: variações de maiúsculas/minúsculas e espaços nas
   extremidades representam a mesma identidade.
+- **Conta nunca verificada**: excluída 7 dias após a criação (FR-017); um link de
+  verificação dessa conta deixa de funcionar e a pessoa pode se cadastrar de novo.
+  Um convite pendente para o mesmo e-mail continua válido e, se aceito depois da
+  exclusão, cria a identidade normalmente.
 - **Falha no envio de e-mail**: a operação não fica em estado inconsistente; o
   usuário ou o `MANAGER` pode reenviar.
 
@@ -415,7 +431,8 @@ recusa.
   `ADMIN` a contas é restrito ao nível de identidade (FR-056); ele NÃO DEVE acessar
   dados acadêmicos de alunos.
 - **FR-006**: `TeacherProfile` e `StudentProfile` DEVEM existir no máximo uma vez por
-  `User` e conter apenas o nome de exibição, sem dados acadêmicos nem status.
+  `User` e conter apenas o nome de exibição do papel (inicializado a partir do nome
+  do `User` ou do nome informado no convite), sem dados acadêmicos nem status.
 - **FR-007**: O status de cada papel de um usuário DEVE ter uma única fonte de
   verdade: a atribuição `UserRole`, com estados `ACTIVE`, `SUSPENDED` e `INACTIVE`. O
   estado `INVITED` de um professor é derivado da existência de convite `PENDING` sem
@@ -448,6 +465,12 @@ recusa.
 - **FR-016**: Um usuário com e-mail não verificado DEVE conseguir apenas: verificar o
   e-mail, pedir reenvio, consultar o próprio estado de verificação e encerrar a
   sessão; todas as demais operações autenticadas DEVEM ser negadas.
+- **FR-017**: Contas cujo e-mail nunca foi verificado DEVEM ser excluídas
+  definitivamente 7 dias após a criação, por rotina automática de limpeza, junto com
+  seus papéis, perfil, tokens e sessões (minimização de dados, LGPD). Só são
+  elegíveis contas não verificadas que possuam exclusivamente o papel `STUDENT` e
+  nenhum convite aceito; cada exclusão é auditada sem registrar nome ou e-mail. Após
+  a exclusão, o e-mail fica livre para novo cadastro.
 
 **Autenticação e sessões**
 
@@ -458,12 +481,16 @@ recusa.
   inexistente e senha incorreta.
 - **FR-022**: O sistema DEVE aplicar rate limiting a autenticação, cadastro, reenvio
   de verificação, recuperação de senha, aceitação de convite e ativação, com os
-  limites: no máximo 5 falhas de autenticação por combinação e-mail + origem em 15
-  minutos (bloqueio dessa combinação até o fim da janela); no máximo 20 tentativas
-  por origem em 15 minutos; e atraso progressivo, com alerta na auditoria, para
-  falhas contra o mesmo e-mail vindas de várias origens. Nenhum limite DEVE impedir
-  o dono de uma conta de autenticar-se com a senha correta a partir de uma origem
-  não bloqueada.
+  limites padrão (configuráveis): autenticação — no máximo 5 falhas por combinação
+  e-mail + origem em 15 minutos (bloqueio dessa combinação até o fim da janela), no
+  máximo 100 **falhas** por origem em 15 minutos, e atraso progressivo, com alerta na
+  auditoria, para falhas contra o mesmo e-mail vindas de várias origens; cadastro,
+  reenvio, recuperação, aceite e ativação — no máximo 5 solicitações por e-mail alvo
+  (ou token) em 15 minutos e 300 por origem em 15 minutos. Autenticações bem
+  sucedidas não contam para limites por origem, e uma turma inteira atrás do mesmo
+  endereço de rede (laboratório, NAT) DEVE conseguir cadastrar-se e autenticar-se
+  simultaneamente. Nenhum limite DEVE impedir o dono de uma conta de autenticar-se
+  com a senha correta a partir de uma origem não bloqueada.
 - **FR-023**: Uma autenticação válida de usuário ativo DEVE criar uma sessão com
   identificador secreto imprevisível, armazenado no servidor apenas como hash.
 - **FR-024**: Sessões DEVEM expirar após 8 horas de inatividade e, em qualquer caso,
@@ -519,7 +546,9 @@ recusa.
 - **FR-035**: Para e-mail de `User` verificado, o bootstrap DEVE acrescentar `ADMIN`
   ao mesmo `User` sem alterar sua credencial; para `User` não verificado, `ADMIN` só
   é efetivado após prova de posse do e-mail, com redefinição de senha e revogação de
-  sessões.
+  sessões. Se a conta se tornar verificada entre a emissão e o uso do link de
+  ativação, a ativação DEVE exigir autenticação nessa conta e não altera a senha
+  (US3-10).
 - **FR-036**: O bootstrap DEVE ser auditado.
 
 **Provisionamento de MANAGER e TEACHER (convites)**
@@ -559,7 +588,9 @@ recusa.
 
 **Escopo e ciclo de vida de papéis**
 
-- **FR-050**: Além das operações sobre a própria conta (sessões, logout, senha),
+- **FR-050**: Além das operações sobre a própria conta (consultar a própria
+  identidade, gerenciar as próprias sessões, logout e recuperação de senha pelo
+  fluxo de FR-029),
   `MANAGER` DEVE ter apenas as capacidades: visualizar cadastro e status de
   professores, criar, reenviar e revogar convites de professor, ativar e desativar
   professores. Qualquer outra operação DEVE retornar 403. Ao visualizar um
@@ -609,7 +640,8 @@ recusa.
   recusa, tentativa de autoconvite); atribuição e remoção de papéis; ativação,
   desativação e suspensão; login bem sucedido; bloqueios e alertas de rate limit;
   revogação de sessão individual e "sair de todos os dispositivos"; verificação de
-  e-mail; tomada segura de conta não verificada; solicitação e conclusão de
+  e-mail; tomada segura de conta não verificada; exclusão de conta nunca verificada
+  (FR-017); solicitação e conclusão de
   redefinição de senha.
 - **FR-071**: Cada registro de auditoria DEVE conter evento, ator (quando houver),
   alvo, data/hora e identificador da requisição; NUNCA senhas, tokens em texto puro,
@@ -621,6 +653,22 @@ recusa.
   de infraestrutura.
 - **FR-074**: A aplicação DEVE validar configurações obrigatórias na inicialização e
   falhar imediatamente se estiverem ausentes.
+- **FR-076**: O sistema DEVE manter registro de acesso de cada autenticação bem
+  sucedida — usuário, endereço IP de origem e data/hora — retido por 6 meses (Marco
+  Civil da Internet, art. 15) e excluído automaticamente depois disso. Esse registro
+  é separado da trilha de auditoria e só é acessível por operação administrativa
+  futura ou requisição legal; nesta feature não há tela ou endpoint de consulta.
+- **FR-077**: Eventos de auditoria (que não contêm IP) DEVEM ser retidos por 5 anos e
+  então excluídos por rotina automática — a única remoção permitida na trilha
+  append-only —, registrando a execução do expurgo (quantidade e intervalo) sem
+  dados pessoais.
+
+**Acessibilidade**
+
+- **FR-075**: Todas as telas desta feature DEVEM atender à WCAG 2.2 nível AA:
+  navegação completa por teclado com foco visível, rótulos associados a todos os
+  campos, erros de validação anunciados a leitores de tela e vinculados ao campo, e
+  contraste mínimo AA.
 
 **Fora de escopo (guarda)**
 
@@ -675,7 +723,7 @@ recusa.
 
 ### Key Entities *(include if feature involves data)*
 
-- **User**: identidade única da pessoa — e-mail normalizado (único), credencial
+- **User**: identidade única da pessoa — nome, e-mail normalizado (único), credencial
   (hash), estado do e-mail (verificado ou não), status da conta (`ACTIVE`,
   `SUSPENDED`, FR-008), datas de criação/atualização. Não contém papel.
 - **Role**: papel nomeado (`ADMIN`, `MANAGER`, `TEACHER`, `STUDENT`), extensível.
@@ -701,7 +749,9 @@ recusa.
   associado, datas; no máximo um `PENDING`. É a única representação do "`ADMIN`
   pendente" — a atribuição `ADMIN` só existe após a conclusão.
 - **AuditEvent**: tipo de evento, ator, alvo, data/hora, identificador da requisição,
-  metadados não sensíveis.
+  metadados não sensíveis; sem IP; retido por 5 anos (FR-077).
+- **AccessRecord**: registro de acesso — `User`, IP de origem, data/hora da
+  autenticação bem sucedida; retido por 6 meses (FR-076).
 
 ## Success Criteria *(mandatory)*
 
@@ -734,6 +784,9 @@ recusa.
 - **SC-011**: Um atacante sem controle do e-mail convidado não obtém nenhum papel nem
   acesso a nenhuma conta em 100% dos cenários de tomada de conta testados
   (pré-registro, aceite com outra conta, replay, autoconvite).
+- **SC-012**: 0 violações de nível A/AA na verificação automatizada de acessibilidade
+  (axe) em todos os formulários desta feature, e todos os fluxos da interface
+  concluíveis apenas com teclado.
 
 ### Acceptance Criteria Traceability
 
@@ -781,8 +834,9 @@ recusa.
 - Valores padrão (ajustáveis no plano sem mudar o comportamento): senha 12–128
   caracteres; verificação e ativação válidas por 24 h; convite válido por 7 dias;
   redefinição de senha válida por 1 h; sessão expira após 8 h de inatividade ou 7
-  dias; rate limit de 5 falhas por e-mail + origem e 20 tentativas por origem em
-  15 min, com atraso progressivo por e-mail.
+  dias; rate limit de 5 falhas por e-mail + origem, 100 falhas de autenticação por
+  origem e 300 solicitações públicas por origem em 15 min, com atraso progressivo
+  por e-mail.
 - A interface web desta feature cobre apenas os fluxos listados (cadastro,
   verificação, login/logout, sessões próprias, recuperação de senha, aceitação de
   convite, telas mínimas de ADMIN e MANAGER).
@@ -800,6 +854,8 @@ recusa.
 - **Metadados avançados de sessão** (dispositivo, localização aproximada): avaliação
   futura; listagem e revogação individual já estão nesta feature (FR-027).
 - **Troca de e-mail da conta**: fora de escopo; exige fluxo próprio de verificação.
+- **Troca de senha autenticada** (confirmando a senha atual e revogando as demais
+  sessões): spec posterior; até lá, a troca é feita pelo fluxo de recuperação (US8).
 - **Exclusão/anonimização de conta (LGPD)**: princípio definido na constituição;
   fluxo operacional em spec posterior.
 - **MFA** para papéis privilegiados: avaliação futura.

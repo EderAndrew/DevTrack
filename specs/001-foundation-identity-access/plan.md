@@ -11,21 +11,24 @@ e-mail verificado, login por e-mail e senha com sessões opacas revogáveis,
 recuperação de senha, provisionamento por convite (`ADMIN → MANAGER → TEACHER`) com
 aceitação transacional, idempotente e resistente a tomada de conta, bootstrap do
 primeiro `ADMIN` por comando operacional, RBAC deny-by-default no backend com a
-semântica 401/403/404, auditoria append-only e rate limiting.
+semântica 401/403/404, auditoria append-only e rate limiting, retenção de dados
+(contas nunca verificadas excluídas em 7 dias, registro de acesso por 6 meses,
+auditoria por 5 anos) e telas WCAG 2.2 AA.
 
 Abordagem técnica: nova app `apps/api` (NestJS 11 + Prisma 7 + PostgreSQL 17) com
 módulos `identity`, `auth`, `access-control`, `provisioning`, `admin-bootstrap`,
 `audit` e `platform` (config, logs, erros, rate limit, e-mail, health); `apps/web`
 (Next.js 16) com as telas mínimas, falando com a API pela mesma origem via rewrite.
 Integridade garantida no banco (índices únicos, inclusive parciais; advisory locks;
-trigger append-only). Sem Redis, filas ou WebSocket.
+trigger append-only). Expurgos por rotina de manutenção interna com advisory lock
+(R21). Sem Redis, filas ou WebSocket.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1)
 **Primary Dependencies**: NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19
 **Storage**: PostgreSQL 17 (dev, teste e produção); sem cache externo
-**Testing**: Vitest (+ `unplugin-swc`), `@nestjs/testing` + `supertest` contra PostgreSQL real; Vitest + Testing Library no web (R17)
+**Testing**: Vitest (+ `unplugin-swc`), `@nestjs/testing` + `supertest` contra PostgreSQL real; Vitest + Testing Library + `vitest-axe` no web (R17, R22)
 **Target Platform**: servidor Linux em contêiner (API), navegador moderno (web)
 **Project Type**: web application — monorepo pnpm + Turborepo (`apps/api`, `apps/web`)
 **Performance Goals**: 95% dos logins em ≤ 2 s (SC-009); hash Argon2id ≲ 300 ms por verificação
@@ -33,7 +36,7 @@ trigger append-only). Sem Redis, filas ou WebSocket.
 **Scale/Scope**: fase inicial — centenas a poucos milhares de usuários, dezenas de professores; 8 user stories, ~30 endpoints, ~12 telas
 
 Nenhum item ficou como NEEDS CLARIFICATION; todas as escolhas estão em
-[research.md](./research.md) (R1–R20).
+[research.md](./research.md) (R1–R23).
 
 ## Constitution Check
 
@@ -43,7 +46,7 @@ Verificado contra `.specify/memory/constitution.md` v2.0.0 — antes da Fase 0 e
 novamente após o design (Fase 1). Resultado: **PASS** nas duas avaliações.
 
 - [x] ✅ **I. Security**: toda entrada validada por schemas Zod estritos na API (R10); OWASP considerado — access control (guard deny-by-default), falhas de autenticação (Argon2id, rate limit, anti-enumeração R16), falhas criptográficas (tokens 256 bits, só hash), CSRF (R6), misconfiguration (config validada no startup), logging (auditoria + redact).
-- [x] ✅ **II. RBAC**: cada operação protegida lista sua permissão explícita em [contracts/permissions.md](./contracts/permissions.md) e [contracts/http-api.md](./contracts/http-api.md); nenhuma checagem por nome de papel.
+- [x] ✅ **II. RBAC**: cada operação protegida lista sua permissão explícita em [contracts/permissions.md](./contracts/permissions.md) e [contracts/http-api.md](./contracts/http-api.md); nenhuma checagem por nome de papel. Exceção justificada: `GET /me`, `POST /auth/logout` e `POST /auth/logout-all` exigem apenas sessão válida — atuam exclusivamente sobre a identidade e as sessões do próprio ator (o contexto do recurso é o próprio usuário) e nenhuma pessoa pode ser impedida de encerrar suas sessões (FR-016); nenhuma delas lê ou altera dados de terceiros.
 - [x] ✅ **III. Server authority**: estado de sessão, expiração, tokens e transições decididos só no servidor (FR-028); autosave N/A (não há entrada de respostas).
 - [x] N/A **IV. Untrusted code**: nenhum código de aluno é executado.
 - [x] ✅ **V. Data integrity**: migrations Prisma; `UNIQUE` em e-mail, `(userId, roleId)`, perfis, `tokenHash`; únicos parciais para convite pendente, token vigente e bootstrap pendente; FKs e `NOT NULL` ([data-model.md](./data-model.md)).
@@ -54,15 +57,15 @@ novamente após o design (Fase 1). Resultado: **PASS** nas duas avaliações.
 - [x] N/A **X. Evidence**: não há eventos pedagógicos nesta feature.
 - [x] N/A **XI. Human oversight**: sem decisões pedagógicas.
 - [x] ✅ **XII. Determinism first**: nenhuma IA; tudo determinístico.
-- [x] N/A **XIII. Risk level**: sem operações automatizadas ou de IA.
+- [x] ✅ **XIII. Risk level**: sem IA. Os jobs de manutenção (R21) são automação determinística **L3** (excluem dados): autorização explícita dada pelas regras fixas da spec (FR-017, FR-076, FR-077), critérios de elegibilidade testados, execução auditada; não envolvem decisão pedagógica.
 - [x] N/A **XIV–XV. AI governance**: sem IA.
 - [x] ✅ **XVI. Explicit states**: `AccountStatus`, `RoleAssignmentStatus`, `InvitationStatus`, `BootstrapStatus`, estado de e-mail e de sessão com transições explícitas e rejeição de inválidas (`409 INVALID_STATE_TRANSITION`).
 - [x] ✅ **XVII. Idempotency**: verificação, aceite de convite, ativação/bootstrap, redefinição, logout, revogação de sessão e logout-all seguros sob repetição e concorrência (row locks, advisory locks, updates condicionais, únicos).
-- [x] N/A **XVIII. Safe interruption**: não há operações longas; o bootstrap é transacional (interrupção = rollback).
+- [x] ✅ **XVIII. Safe interruption**: não há operações longas de usuário; o bootstrap é transacional (interrupção = rollback); os jobs de manutenção apagam em lotes transacionais, podem ser desligados (`MAINTENANCE_INTERVAL_SECONDS=0`) e retomam do ponto em que pararam na execução seguinte.
 - [x] N/A **XIX. AI evals**: sem IA.
 - [x] N/A **XX. Pedagogy**: sem monitoramento.
 - [x] ✅ **XXI. Configurable domain**: nenhuma disciplina/tecnologia modelada; papéis e permissões são dados; enums só para estados de plataforma.
-- [x] ✅ **XXII. Personalization & accessibility**: nenhuma necessidade individual tratada; dados pessoais mínimos (nome, e-mail); MANAGER não vê alunos.
+- [x] ✅ **XXII. Personalization & accessibility**: nenhuma necessidade individual tratada; dados pessoais mínimos (nome, e-mail) com prazos de retenção definidos (FR-017, FR-076, FR-077); MANAGER não vê alunos; todas as telas WCAG 2.2 AA com verificação automatizada (FR-075, SC-012, R22).
 - [x] N/A **XXIII. Curricular traceability**: sem conteúdo curricular.
 - [x] ✅ **XXIV. Academic isolation**: turmas ainda não existem; o mecanismo de contexto (consultas escopadas → 404) nasce aqui com sessões próprias e `/teachers/:userId`, e a interface `ResourceContextPolicy` fica documentada para a Spec 002.
 - [x] ✅ **XXV. Privileged provisioning**: cadastro público cria só `STUDENT` e rejeita campos de papel; `TEACHER` por convite de `MANAGER`/`ADMIN` (uso único, vinculado ao e-mail, 7 dias, hash); `MANAGER` recebe 403 fora de `professores.*`; `UserRole` sem `users.role`; aceite transacional, idempotente e sem reset de credencial de conta verificada; primeiro `ADMIN` só por `pnpm admin:bootstrap` (sem rota, senha padrão ou seed); mudanças de privilégio auditadas; autoconvite bloqueado; desativação preserva histórico; último `ADMIN` protegido.
@@ -76,14 +79,15 @@ Nenhum ❌ — *Complexity Tracking* vazio.
 ```text
 specs/001-foundation-identity-access/
 ├── plan.md                        # este arquivo
-├── research.md                    # Fase 0 — decisões R1–R20
+├── research.md                    # Fase 0 — decisões R1–R23
 ├── data-model.md                  # Fase 1 — entidades, índices, estados
 ├── quickstart.md                  # Fase 1 — roteiro de validação
 ├── contracts/
 │   ├── http-api.md                # endpoints, acesso, erros
 │   ├── permissions.md             # seed de papéis/permissões + matriz de autorização
 │   ├── audit-events.md            # catálogo de eventos de auditoria
-│   └── cli-admin-bootstrap.md     # contrato do comando operacional
+│   ├── cli-admin-bootstrap.md     # contrato do comando operacional
+│   └── maintenance-jobs.md        # jobs de retenção/expurgo
 ├── checklists/requirements.md
 └── tasks.md                       # Fase 2 — gerado por /speckit-tasks
 ```
@@ -107,6 +111,7 @@ apps/api/
 │   ├── main.ts                    # bootstrap HTTP (config validada antes)
 │   ├── app.module.ts
 │   ├── cli/admin-bootstrap.ts     # comando operacional (application context, sem HTTP)
+│   ├── cli/maintenance.ts         # execução manual dos jobs de manutenção
 │   ├── platform/                  # infraestrutura transversal
 │   │   ├── config/                # schema Zod do env, fail fast
 │   │   ├── database/              # PrismaService, helpers de transação e advisory lock
@@ -115,6 +120,7 @@ apps/api/
 │   │   ├── mail/                  # porta Mailer, SmtpMailer, InMemoryMailer, templates
 │   │   ├── rate-limit/            # RateLimitService (PostgreSQL)
 │   │   ├── crypto/                # geração/hash de tokens, HMAC
+│   │   ├── maintenance/           # MaintenanceService (intervalo + advisory lock, lotes)
 │   │   └── health/
 │   └── modules/
 │       ├── identity/              # User, perfis, PasswordPolicy/Hasher, normalização de e-mail
@@ -123,6 +129,7 @@ apps/api/
 │       ├── provisioning/          # convites TEACHER/MANAGER, RoleGrantAcceptance, teachers/managers
 │       ├── admin-bootstrap/       # AdminBootstrapService + ativação
 │       ├── accounts/              # consulta/suspensão de contas (ADMIN)
+│       ├── retention/             # jobs: contas nunca verificadas, access_records, auditoria
 │       └── audit/                 # AuditService + allowlist de metadata
 └── test/
     ├── helpers/                   # app de teste, fábrica de usuários/sessões, captura de logs
@@ -135,6 +142,8 @@ apps/web/
 ├── next.config.js                 # rewrite /api/* → API
 ├── proxy.ts                       # redireciona para /entrar por UX (não autoriza nada)
 ├── lib/                           # api-client (fetch + erros), sessão server-side via /api/me
+├── components/form/               # campos/erros acessíveis reutilizados pelas telas (FR-075)
+├── test/a11y.ts                   # helper vitest-axe
 └── app/
     ├── (public)/cadastro, verificar-email, entrar, esqueci-senha, redefinir-senha,
     │            convite, ativar-admin
@@ -177,6 +186,12 @@ saída de `ACTIVE` de papel privilegiado — sempre dentro da transação do eve
 **Anti-enumeração** (SC-006): respostas fixas em `202`; hash dummy no login; hash
 Argon2 também no caminho de e-mail existente do cadastro; e-mails enviados após o
 commit e fora do caminho da resposta.
+
+**Retenção** (FR-017, FR-076, FR-077): o login grava `access_records` (IP) na mesma
+transação da sessão; o `MaintenanceService` roda os jobs de
+[contracts/maintenance-jobs.md](./contracts/maintenance-jobs.md) a cada hora, em
+uma única instância por vez; o trigger de auditoria só aceita `DELETE` do job de
+expurgo (R23).
 
 **Riscos**
 - TS 7 × decorators do Nest (R1) — fallback documentado.

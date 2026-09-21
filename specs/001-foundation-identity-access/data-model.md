@@ -20,7 +20,8 @@ User 1───* UserRole *───1 Role 1───* RolePermission *───
  │
 Invitation *───1 User (invitedBy) ; 0..1 User (acceptedBy)
 AdminBootstrap 0..1─── User (targetUser, preenchido quando conhecido/concluído)
-AuditEvent (append-only; refs lógicas, sem FK obrigatória)
+AuditEvent (append-only, retido 5 anos; refs lógicas, sem FK obrigatória)
+AccessRecord (userId lógico, sem FK; retido 6 meses)
 RateLimitCounter (independente)
 ```
 
@@ -40,6 +41,12 @@ RateLimitCounter (independente)
 | `createdAt` / `updatedAt` | timestamptz NOT NULL | |
 
 - **Sem coluna de papel** (FR-002, Constituição XXV).
+- **Exclusão de conta nunca verificada** (FR-017, R23): elegível quando
+  `emailVerifiedAt IS NULL`, `createdAt < now() − 7 dias`, o único `UserRole` é
+  `STUDENT` e nenhum convite tem `acceptedByUserId` igual ao usuário. Remove na
+  mesma transação sessões, `user_tokens`, `student_profiles`, `user_roles` e o
+  `User`; audita `account.unverified_purged` apenas com o `id`. É a única exclusão
+  física de `User` nesta feature (FR-053 continua valendo para desativação/suspensão).
 - Não há usuário sem senha: toda criação de `User` recebe a senha da própria pessoa
   (cadastro, aceite de convite, ativação de bootstrap).
 
@@ -92,7 +99,9 @@ nesse seed (Constituição XXV).
 
 - **UNIQUE (`userId`, `roleId`)** — nunca duas atribuições do mesmo papel (FR-044).
 - Índice (`roleId`, `status`) — contagem de `ADMIN`s ativos e listagem de professores.
-- Papéis nunca são apagados: "remoção" = `INACTIVE` (FR-053).
+- Papéis nunca são apagados: "remoção" = `INACTIVE` (FR-053). Única exceção: a
+  exclusão de conta nunca verificada (FR-017), que remove o `UserRole STUDENT` junto
+  com o `User`.
 
 **Máquina de estados** (inválidas → `409 INVALID_STATE_TRANSITION`)
 
@@ -188,7 +197,7 @@ redefinição de senha.
 |-------|------|--------|
 | `id` | uuid PK | |
 | `email` | text NOT NULL | normalizado |
-| `targetUserId` | uuid FK → users NULL | preenchido quando o `User` já existia ou na conclusão |
+| `targetUserId` | uuid FK → users NULL, `ON DELETE SET NULL` | preenchido quando o `User` já existia ou na conclusão |
 | `status` | `BootstrapStatus` NOT NULL | `PENDING` \| `COMPLETED` \| `CANCELLED` |
 | `tokenHash` | text NULL **UNIQUE** | `NULL` quando concluído direto (usuário verificado, FR-035) |
 | `expiresAt` | timestamptz NULL | criação + 24 h quando há token |
@@ -240,11 +249,32 @@ PENDING ──nova execução──────────▶ CANCELLED
 | `requestId` | text NULL | `NULL` para eventos do comando operacional (usa `operatorHost`/`operatorUser` em `metadata`) |
 | `metadata` | jsonb NOT NULL default `{}` | somente chaves permitidas por tipo de evento |
 
-- **Append-only**: trigger `BEFORE UPDATE OR DELETE` que lança exceção.
+- **Append-only**: trigger `BEFORE UPDATE OR DELETE` que lança exceção. Única
+  exceção: `DELETE` é permitido quando a transação define
+  `SET LOCAL devtrack.audit_purge = 'on'` (apenas o job de expurgo) e a linha tem
+  `occurredAt` anterior a 5 anos; `UPDATE` é sempre proibido (FR-077, R23).
+- Retenção: 5 anos; cada expurgo com remoções gera `audit.purged`.
 - Índices: (`type`, `occurredAt`), (`targetType`, `targetId`), (`actorUserId`,
   `occurredAt`).
 - Nunca contém senha, token, `tokenHash`, segredo de sessão, cookie ou secret
   (FR-071). E-mail aparece apenas quando é o próprio alvo (convite, bootstrap).
+
+## AccessRecord — `access_records`
+
+Registro de acesso exigido pelo Marco Civil da Internet (art. 15) — FR-076.
+
+| Campo | Tipo | Regras |
+|-------|------|--------|
+| `id` | bigint identity PK | |
+| `userId` | uuid NOT NULL | sem FK (o registro legal sobrevive à exclusão da conta) |
+| `ip` | inet NOT NULL | IP de origem da autenticação bem sucedida (`req.ip` com `trust proxy`) |
+| `occurredAt` | timestamptz NOT NULL default now() | |
+
+- Gravado pelo login na mesma transação da criação da sessão.
+- Índices: (`occurredAt`) para o expurgo; (`userId`, `occurredAt`) para consulta
+  legal futura.
+- Retenção: 6 meses; linhas mais antigas são removidas pelo job de manutenção (R21).
+- Sem endpoint ou tela de consulta nesta feature.
 
 ## RateLimitCounter — `rate_limit_counters`
 

@@ -111,12 +111,18 @@ spec para o plano. Formato: **Decision / Rationale / Alternatives considered**.
   `HMAC-SHA-256(APP_HMAC_SECRET, escopo:valor)` — nunca e-mail ou IP em claro. Limites
   (FR-022):
   - `login:email+ip` — 5 falhas / 15 min → bloqueio dessa combinação;
-  - `login:ip` e demais endpoints sensíveis por IP — 20 tentativas / 15 min;
+  - `login:ip` — 100 **falhas** / 15 min (logins bem-sucedidos não contam);
   - `login:email` (todas as origens) — a partir da 5ª falha, atraso progressivo
     (`min(250 ms · 2^(n−5), 8 s)`) antes de responder, e evento de auditoria
     `auth.rate_limit.alert` ao cruzar 10 falhas; **nunca bloqueia**, garantindo US2-4.
   - Cadastro, reenvio de verificação, recuperação, aceite de convite e ativação: por
-    IP (20/15 min) e por e-mail alvo (5/15 min), sempre com a mesma resposta pública.
+    IP (300/15 min) e por e-mail alvo ou token (5/15 min), sempre com a mesma
+    resposta pública.
+  Os limites vêm de variáveis `RATE_LIMIT_*` com esses padrões. Laboratórios e redes
+  institucionais compartilham IP (NAT): uma turma inteira precisa conseguir se
+  cadastrar e entrar ao mesmo tempo, por isso os limites por origem contam só falhas
+  (login) ou são altos (endpoints públicos), e a proteção fina fica nas chaves por
+  e-mail/token.
   A origem é o IP do cliente com `trust proxy` configurado explicitamente
   (`TRUST_PROXY_HOPS`). Contadores expirados são removidos oportunisticamente.
 - **Rationale**: dispensa Redis (IX); o banco já é dependência; contadores por
@@ -192,7 +198,11 @@ spec para o plano. Formato: **Decision / Rationale / Alternatives considered**.
 - **Decision**: schema Zod para `process.env`, avaliado antes de o Nest subir; falha
   lista as variáveis ausentes/invalidas sem ecoar valores. Variáveis: `DATABASE_URL`,
   `APP_HMAC_SECRET` (≥ 32 bytes), `WEB_ORIGIN`, `ALLOWED_ORIGINS`, `SMTP_URL`,
-  `MAIL_FROM`, `TRUST_PROXY_HOPS`, `NODE_ENV`, `LOG_LEVEL`. `.env.example` sem valores
+  `MAIL_FROM`, `TRUST_PROXY_HOPS`, `NODE_ENV`, `LOG_LEVEL`, e opcionais com padrão
+  `RATE_LIMIT_LOGIN_EMAIL_ORIGIN_FAILURES` (5), `RATE_LIMIT_LOGIN_ORIGIN_FAILURES`
+  (100), `RATE_LIMIT_PUBLIC_ORIGIN` (300), `RATE_LIMIT_PUBLIC_TARGET` (5),
+  `RATE_LIMIT_WINDOW_SECONDS` (900). Também opcional:
+  `MAINTENANCE_INTERVAL_SECONDS` (3600; `0` desliga — R21). `.env.example` sem valores
   reais.
 - **Rationale**: FR-074 e constituição (fail fast).
 - **Alternatives considered**: `@nestjs/config` + Joi (duas bibliotecas de validação
@@ -211,8 +221,9 @@ spec para o plano. Formato: **Decision / Rationale / Alternatives considered**.
   - caso contrário → novo `PENDING` com token de ativação (24 h), enviado por e-mail;
     `--print-link` também imprime o link e gera `admin.bootstrap.link_printed`.
   A **ativação** (`POST /api/admin-activation`) reutiliza a mesma lógica de aceitação
-  de convite (R15): cria o `User` se não existir, ou assume com segurança o `User` não
-  verificado (nova senha + revogação de sessões). O "ADMIN pendente" é representado
+  de convite (R15): cria o `User` se não existir, assume com segurança o `User` não
+  verificado (nova senha + revogação de sessões) ou, se a conta ficou verificada
+  depois da emissão do link, exige login nessa conta (`SIGN_IN_REQUIRED`, US3-10). O "ADMIN pendente" é representado
   pelo `AdminBootstrap PENDING`; o `UserRole ADMIN` só nasce na ativação — assim
   cancelar um pendente nunca deixa papel órfão e nunca há dois `ADMIN`s pendentes.
   A origem operacional auditada é `OPERATOR` + hostname + usuário do SO.
@@ -308,3 +319,60 @@ spec para o plano. Formato: **Decision / Rationale / Alternatives considered**.
 - **Rationale**: IX — nada existe sem necessidade explícita.
 - **Alternatives considered**: manter `apps/docs` para documentação futura (não há
   spec pedindo).
+
+## R21. Rotinas de manutenção (expurgos agendados)
+
+- **Decision**: `MaintenanceService` dentro do próprio processo da API, com três
+  jobs — exclusão de contas nunca verificadas (FR-017), expurgo de registros de
+  acesso (FR-076) e expurgo de auditoria (FR-077) — além da limpeza de
+  `rate_limit_counters` expirados. Executa a cada `MAINTENANCE_INTERVAL_SECONDS`
+  (padrão 3600) via `setInterval`, e cada execução só roda se obtiver
+  `pg_try_advisory_lock(MAINTENANCE_LOCK)` — com várias instâncias, apenas uma
+  trabalha. Cada job apaga em lotes (1000 linhas por transação) para não segurar
+  locks longos. O mesmo serviço é exposto pelo comando
+  `pnpm --filter api maintenance:run` (execução manual/cron externo). Desligado em
+  testes (`MAINTENANCE_INTERVAL_SECONDS=0`); os testes chamam os jobs diretamente
+  com relógio controlado.
+- **Rationale**: os prazos (7 dias, 6 meses, 5 anos) toleram atraso de uma hora; não
+  há necessidade de fila ou agendador externo (IX).
+- **Alternatives considered**: `@nestjs/schedule` (dependência para um único
+  intervalo); BullMQ/Redis (infraestrutura sem necessidade); `pg_cron` (depende de
+  extensão no provedor de banco).
+
+## R22. Acessibilidade verificável (FR-075, SC-012)
+
+- **Decision**: formulários com `<label>` associado, erros em elemento com
+  `aria-live="polite"` e `aria-describedby` no campo, foco movido para o resumo de
+  erros após submissão inválida, foco visível via CSS global, contraste AA nos tokens
+  de cor. Verificação: `vitest-axe` (axe-core) em testes de componente de cada página
+  com formulário e testes de teclado com `@testing-library/user-event`
+  (`user.tab()`/`user.keyboard('{Enter}')`) cobrindo cada fluxo.
+- **Rationale**: axe detecta a maior parte das violações automáticas de WCAG A/AA; os
+  testes de teclado cobrem o que axe não verifica (ordem e operabilidade).
+- **Alternatives considered**: Playwright + axe em navegador real (mais fiel, porém
+  E2E está adiado — R17); `eslint-plugin-jsx-a11y` isolado (só análise estática).
+
+## R23. Retenção: registro de acesso e expurgo da auditoria (FR-076, FR-077)
+
+- **Decision**:
+  - Tabela `access_records` (`userId`, `ip` como `inet`, `occurredAt`), gravada pelo
+    `LoginService` na mesma transação da criação da sessão; sem FK para `users`
+    (preserva o registro legal mesmo se a conta for excluída); expurgo de linhas com
+    mais de 6 meses. Não há endpoint nem tela de consulta nesta feature.
+  - `audit_events` continua append-only: o trigger bloqueia sempre `UPDATE` e só
+    permite `DELETE` quando a transação define
+    `SET LOCAL devtrack.audit_purge = 'on'`, o que apenas o job de expurgo faz, e
+    somente para linhas com `occurredAt` > 5 anos. Cada execução com remoções gera o
+    evento `audit.purged` (`count`, `olderThan`).
+  - Exclusão de conta nunca verificada (FR-017): elegível se `emailVerifiedAt IS
+    NULL`, `createdAt < now() − 7 dias`, único papel `STUDENT` e nenhum convite com
+    `acceptedByUserId` igual ao usuário; remove, na mesma transação, sessões,
+    tokens, perfil, `UserRole` e o `User`; zera `admin_bootstraps.targetUserId`
+    (FK `ON DELETE SET NULL`). Evento `account.unverified_purged` com o `id`
+    removido, sem nome ou e-mail.
+- **Rationale**: Marco Civil art. 15 (6 meses de registros de acesso) e LGPD
+  (minimização e prazo definido); o expurgo controlado mantém a garantia de
+  imutabilidade para qualquer outro caminho.
+- **Alternatives considered**: IP dentro de `audit_events` (misturaria prazos de 6
+  meses e 5 anos na mesma tabela); particionamento por mês (desnecessário no volume
+  atual).
