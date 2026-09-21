@@ -48,7 +48,7 @@ function collectRoutes(app: INestApplicationContext): RouteInfo[] {
       if (reflector.getAllAndMerge<string[]>(REQUIRED_PERMISSIONS_KEY, targets).length > 0) {
         declared.push("@RequirePermissions");
       }
-      routes.push({ route: `${RequestMethod[method]} /${controllerPath}/${path}`.replace(/\/+/g, "/"), declared });
+      routes.push({ route: `${RequestMethod[method]} /${controllerPath}/${path}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1"), declared });
     }
   }
   return routes;
@@ -71,7 +71,15 @@ describe("route access declarations", () => {
   afterAll(() => app.close());
 
   it("discovers the registered routes", () => {
-    expect(routes.map((r) => r.route)).toEqual(expect.arrayContaining(["GET /health/live", "GET /health/ready"]));
+    expect(routes.map((r) => r.route)).toEqual(expect.arrayContaining([
+        "GET /health/live",
+        "GET /health/ready",
+        "POST /auth/signup",
+        "POST /auth/verify-email",
+        "POST /auth/verify-email/resend",
+        "GET /me",
+      ]),
+    );
   });
 
   it("every route declares @Public, @AllowUnverified or @RequirePermissions", () => {

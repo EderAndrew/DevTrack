@@ -40,6 +40,26 @@ export class UserRepository {
     });
   }
 
+  /**
+   * `INSERT … ON CONFLICT DO NOTHING`: returns null when the e-mail already exists, including
+   * when a concurrent transaction inserted it first (it waits for that one to commit). Unlike
+   * `create`, a conflict does not abort the caller's transaction.
+   */
+  async createIfAbsent(tx: Tx, data: CreateUserData): Promise<User | null> {
+    const [user] = await tx.user.createManyAndReturn({
+      data: [
+        {
+          email: normalizeEmail(data.email),
+          name: data.name,
+          passwordHash: data.passwordHash,
+          emailVerifiedAt: data.emailVerifiedAt ?? null,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    return user ?? null;
+  }
+
   /** Idempotent: `UNVERIFIED → VERIFIED` only once; returns whether this call made the change. */
   async markEmailVerified(tx: Tx, userId: string, at: Date = new Date()): Promise<boolean> {
     const { count } = await tx.user.updateMany({

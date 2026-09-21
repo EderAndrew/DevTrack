@@ -202,6 +202,18 @@ main:focus {
   opacity: 0.85;
 }
 
+.notice {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius);
+}
+
+.notice h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;
