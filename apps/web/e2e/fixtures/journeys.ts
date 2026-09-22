@@ -36,7 +36,7 @@ export async function verifyEmail(page: Page, account: Account): Promise<void> {
 }
 
 /** Signs in through the login page and waits for `next` (default: the page's own fallback). */
-export async function logIn(page: Page, account: Pick<Account, "email" | "password">, next = "/conta/sessoes"): Promise<void> {
+export async function logIn(page: Page, account: Pick<Account, "email" | "password">, next = "/conta/perfil"): Promise<void> {
   await page.goto(`/entrar?next=${encodeURIComponent(next)}`);
   await field(page, "E-mail").fill(account.email);
   await field(page, "Senha").fill(account.password);
@@ -69,7 +69,7 @@ export async function acceptInvitationWithPassword(page: Page, invitee: Account)
   await expect(page.getByRole("heading", { name: "Convite aceito" })).toBeVisible();
 }
 
-/** Rows of the "Minhas sessões" table (the header row has no button). */
+/** Rows of the "Minhas sessões" table on the profile page (the header row has no button). */
 export const sessionRows = (page: Page) =>
   page.getByRole("row").filter({ has: page.getByRole("button", { name: /^Encerrar sessão/ }) });
 

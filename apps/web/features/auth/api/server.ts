@@ -8,3 +8,12 @@ import { serverGet } from "@/lib/api/server";
 export function getMe(): Promise<MeView | null> {
   return serverGet<MeView>("/me");
 }
+
+/** For navigation (header, side menu) only: any failure shows the signed-out navigation. */
+export async function getMeForNavigation(): Promise<MeView | null> {
+  try {
+    return await getMe();
+  } catch {
+    return null;
+  }
+}

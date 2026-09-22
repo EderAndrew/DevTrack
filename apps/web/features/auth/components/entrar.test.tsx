@@ -86,11 +86,11 @@ describe("safeNextPath", () => {
   it.each([
     ["/conta/sessoes", "/conta/sessoes"],
     ["/conta/sessoes?x=1", "/conta/sessoes?x=1"],
-    ["https://evil.example", "/conta/sessoes"],
-    ["//evil.example", "/conta/sessoes"],
-    ["/\\evil.example", "/conta/sessoes"],
-    ["", "/conta/sessoes"],
-    [null, "/conta/sessoes"],
+    ["https://evil.example", "/conta/perfil"],
+    ["//evil.example", "/conta/perfil"],
+    ["/\\evil.example", "/conta/perfil"],
+    ["", "/conta/perfil"],
+    [null, "/conta/perfil"],
   ])("%s → %s", (input, expected) => {
     expect(safeNextPath(input)).toBe(expected);
   });

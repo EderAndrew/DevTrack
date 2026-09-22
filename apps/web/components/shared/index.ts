@@ -3,5 +3,6 @@ export { Field, fieldErrorId, fieldHintId, type FieldProps } from "./field";
 export { SubmitButton, type SubmitButtonProps } from "./submit-button";
 export { LogoutButton } from "./logout-button";
 export { NoAccess } from "./no-access";
+export { SiteHeader, type SiteHeaderProps } from "./site-header";
 export { SiteNav, type SiteNavProps } from "./site-nav";
 export { Notice } from "./notice";

@@ -25,7 +25,7 @@ test("002/US5-1 esqueci a senha → e-mail → redefinir → login com a nova se
   await expect(page.getByRole("heading", { name: "Não foi possível entrar" })).toBeVisible();
 
   await logIn(page, { email: account.email, password: newPassword });
-  await expect(page.getByRole("heading", { level: 1, name: "Minhas sessões" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Meu perfil" })).toBeVisible();
 
   // The link is single-use.
   await page.goto(link);

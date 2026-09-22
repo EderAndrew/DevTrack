@@ -14,7 +14,7 @@ test("002/US5-3 002/SC-007 A vê suas sessões → sai → B entra no mesmo nave
   await logIn(page, a);
   await expect(sessionRows(page)).toHaveCount(2);
 
-  await page.getByRole("navigation", { name: "Conta" }).getByRole("button", { name: "Sair" }).click();
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL("/entrar");
 
   await logIn(page, b);

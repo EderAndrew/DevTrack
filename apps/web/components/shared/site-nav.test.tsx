@@ -28,18 +28,18 @@ const ROLE_PERMISSIONS = {
 const links = () => screen.queryAllByRole("link").map((link) => link.textContent);
 
 describe("SiteNav (UX only)", () => {
-  it("anônimo: entrar e criar conta", async () => {
+  it("anônimo: só entrar (sem link de cadastro)", async () => {
     const { container } = renderWithProviders(<SiteNav me={null} />);
-    expect(links()).toEqual(["Entrar", "Criar conta"]);
+    expect(links()).toEqual(["Entrar"]);
     expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
     await expectNoA11yViolations(container);
   });
 
   it.each([
-    ["STUDENT", ["Minhas sessões"]],
-    ["TEACHER", ["Minhas sessões"]],
-    ["MANAGER", ["Professores", "Minhas sessões"]],
-    ["ADMIN", ["Professores", "Gestores", "Usuários", "Minhas sessões"]],
+    ["STUDENT", ["Meu perfil"]],
+    ["TEACHER", ["Meu perfil"]],
+    ["MANAGER", ["Professores", "Meu perfil"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderWithProviders(<SiteNav me={{ emailVerified: true, permissions: ROLE_PERMISSIONS[role] }} />);
     expect(links()).toEqual(expected);
@@ -49,6 +49,6 @@ describe("SiteNav (UX only)", () => {
 
   it("e-mail não verificado não vê áreas administrativas, mesmo com permissões", () => {
     renderWithProviders(<SiteNav me={{ emailVerified: false, permissions: ROLE_PERMISSIONS.ADMIN }} />);
-    expect(links()).toEqual(["Minhas sessões"]);
+    expect(links()).toEqual(["Meu perfil"]);
   });
 });

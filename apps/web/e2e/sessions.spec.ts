@@ -16,7 +16,7 @@ test("002/US5-1 dois logins → revogar o outro → sair de todos → sessões r
   await expect(sessionRows(first)).toContainText("(esta sessão)");
 
   // The revoked session is refused by the API: the page sends it back to the login.
-  await second.goto("/conta/sessoes");
+  await second.goto("/conta/perfil");
   await expect(second).toHaveURL(/\/entrar\?next=/);
 
   await logIn(second, account);
@@ -26,7 +26,7 @@ test("002/US5-1 dois logins → revogar o outro → sair de todos → sessões r
   await expect(first).toHaveURL("/entrar");
 
   for (const page of [first, second]) {
-    await page.goto("/conta/sessoes");
+    await page.goto("/conta/perfil");
     await expect(page).toHaveURL(/\/entrar\?next=/);
   }
 });
