@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import localFont from "next/font/local";
 import { SiteNav } from "@/components/shared/site-nav";
-import { getMe, type MeView } from "../lib/session";
+import type { MeView } from "@repo/contracts";
+import { getMe } from "@/features/auth/api/server";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -33,18 +35,20 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={geistSans.variable}>
-        <a className="skip-link" href="#conteudo">
-          Pular para o conteúdo
-        </a>
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4">
-          <Link href="/" className="font-bold text-foreground no-underline">
-            DevTrack
-          </Link>
-          <SiteNav me={me} />
-        </header>
-        <main id="conteudo" tabIndex={-1}>
-          {children}
-        </main>
+        <Providers>
+          <a className="skip-link" href="#conteudo">
+            Pular para o conteúdo
+          </a>
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4">
+            <Link href="/" className="font-bold text-foreground no-underline">
+              DevTrack
+            </Link>
+            <SiteNav me={me} />
+          </header>
+          <main id="conteudo" tabIndex={-1}>
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

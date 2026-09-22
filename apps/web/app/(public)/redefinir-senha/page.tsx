@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ResetPasswordForm } from "./reset-password-form";
+import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
 
 /** The token must not leak to other sites through the Referer header (R7). */
 export const metadata: Metadata = { title: "Redefinir senha", referrer: "no-referrer" };

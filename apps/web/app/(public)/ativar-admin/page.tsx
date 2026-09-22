@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminActivation } from "./admin-activation";
+import { AdminActivation } from "@/features/admin-activation/components/admin-activation";
 
 /** The token must not leak to other sites through the Referer header (R7). */
 export const metadata: Metadata = { title: "Ativar administrador", referrer: "no-referrer" };

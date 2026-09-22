@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { safeNextPath } from "../../../lib/auth-api";
-import { LoginForm } from "./login-form";
+import { LoginForm } from "@/features/auth/components/login-form";
+import { safeNextPath } from "@/lib/navigation";
 
 export const metadata: Metadata = { title: "Entrar" };
 

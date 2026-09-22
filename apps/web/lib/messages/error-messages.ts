@@ -1,5 +1,5 @@
 import type { ErrorCode } from "@repo/contracts";
-import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api-client";
+import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 
@@ -50,4 +50,13 @@ export function messageForError(error: unknown): string {
     return `Muitas tentativas. Tente novamente em ${minutes} minuto${minutes > 1 ? "s" : ""}.`;
   }
   return isKnownCode(error.code) ? ERROR_MESSAGES[error.code] : ERROR_MESSAGES[UNEXPECTED_RESPONSE];
+}
+
+/**
+ * Code of an API answer (`WEAK_PASSWORD`, `TOKEN_INVALID`…), for screens that point an error at a
+ * field or change step; undefined for anything that is not an `ApiError`. Components use this
+ * instead of importing `lib/api` (FR-025).
+ */
+export function apiErrorCode(error: unknown): string | undefined {
+  return error instanceof ApiError ? error.code : undefined;
 }

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getMe, getOwnSessions } from "../../../lib/session";
-import { SessionsList } from "./sessions-list";
 import { Notice } from "@/components/shared";
+import { getMe } from "@/features/auth/api/server";
+import { fetchOwnSessions } from "@/features/sessions/api/server";
+import { SessionsList } from "@/features/sessions/components/sessions-list";
 
 export const metadata: Metadata = { title: "Minhas sessões" };
 
@@ -28,14 +29,14 @@ export default async function SessionsPage() {
     );
   }
 
-  const sessions = await getOwnSessions();
+  const sessions = await fetchOwnSessions();
   if (!sessions) redirect(LOGIN);
 
   return (
     <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Minhas sessões</h1>
       <p>Estas são as sessões abertas na sua conta. Encerre as que você não reconhece.</p>
-      <SessionsList initialSessions={sessions} />
+      <SessionsList initialData={sessions} />
     </section>
   );
 }

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NoAccess } from "../../../components/shared/no-access";
-import type { AccountPage } from "../../../lib/admin-api";
-import { serverGet } from "../../../lib/server-api";
-import { getMe } from "../../../lib/session";
-import { UsersAdmin } from "./users-admin";
+import { NoAccess } from "@/components/shared/no-access";
+import { fetchFirstAccountsPage } from "@/features/accounts/api/server";
+import { UsersAdmin } from "@/features/accounts/components/users-admin";
+import { getMe } from "@/features/auth/api/server";
 
 export const metadata: Metadata = { title: "Contas de usuário" };
 
@@ -15,7 +14,7 @@ export default async function UsersPage() {
   if (!me) redirect(LOGIN);
   if (!me.permissions.includes("usuarios.visualizar")) return <NoAccess title="Contas de usuário" />;
 
-  const page = await serverGet<AccountPage>("/users");
+  const page = await fetchFirstAccountsPage();
   if (!page) redirect(LOGIN);
 
   return (
