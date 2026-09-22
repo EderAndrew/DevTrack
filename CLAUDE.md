@@ -33,6 +33,7 @@ hand-maintained.
 
 ## Active Technologies
 
+- `@repo/contracts` (Zod 4 via pnpm catalog, ESM built with `tsc`); web: Tailwind CSS 4, shadcn/ui (Radix), Lucide, TanStack Query 5, React Hook Form 7 + `@hookform/resolvers`; E2E: Playwright; CI: GitHub Actions (002-stack-alignment)
 - TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19 (001-foundation-identity-access)
 
 ## Stack notes
@@ -158,6 +159,7 @@ the removal conditions are in `apps/api/DEPENDENCIES.md`.
 
 ## Recent Changes
 
+- 002-stack-alignment: Added `@repo/contracts` shared Zod contracts, official frontend stack (Tailwind, shadcn/ui, TanStack Query, React Hook Form), Playwright E2E and GitHub Actions CI
 - 001-foundation-identity-access: Added TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19
 
 <!-- MANUAL ADDITIONS START -->
