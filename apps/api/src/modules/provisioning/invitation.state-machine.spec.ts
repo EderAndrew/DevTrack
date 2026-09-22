@@ -1,9 +1,9 @@
+import { InvitationStatusSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import type { InvitationStatus } from "../../generated/prisma/client";
 import { AppException } from "../../platform/http/errors";
 import { InvitationStateMachine } from "./invitation.state-machine";
 
-const ALL: InvitationStatus[] = ["PENDING", "ACCEPTED", "EXPIRED", "REVOKED"];
+const ALL = InvitationStatusSchema.options;
 
 describe("InvitationStateMachine (data-model.md, FR-041)", () => {
   it.each([

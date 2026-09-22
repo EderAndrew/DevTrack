@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { LoginRequest, MeView } from "@repo/contracts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
@@ -10,7 +11,7 @@ import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { PasswordHasher } from "../identity/password-hasher";
 import { UserRepository } from "../identity/user.repository";
-import { MeService, type MeView } from "./me.service";
+import { MeService } from "./me.service";
 import { SessionService } from "./session.service";
 
 /** `(ms) => Promise<void>` used for the progressive delay; tests replace it to avoid sleeping. */
@@ -28,11 +29,6 @@ const SCOPE = {
   origin: "login:origin",
   email: "login:email",
 } as const;
-
-export interface LoginInput {
-  email: string;
-  password: string;
-}
 
 export interface LoginResult {
   /** Goes only into the cookie. */
@@ -64,7 +60,7 @@ export class LoginService {
     private readonly audit: AuditService,
   ) {}
 
-  async login(input: LoginInput, ctx: RequestContext): Promise<LoginResult> {
+  async login(input: LoginRequest, ctx: RequestContext): Promise<LoginResult> {
     const email = normalizeEmail(input.email);
     const ip = ctx.ip ?? "unknown";
     const { loginEmailOriginFailures, loginOriginFailures, windowSeconds } = this.config.rateLimit;

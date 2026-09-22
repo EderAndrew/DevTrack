@@ -46,11 +46,11 @@ pnpm build --filter @repo/contracts && pnpm check-types
 
 | # | Contrato | Alteração | Esperado: `check-types` falha em |
 |---|----------|-----------|----------------------------------|
-| 1 | `ManagerViewSchema` (resposta, `src/provisioning/managers.ts`) | renomear `name → fullName` | `apps/api` (mapeador) e `apps/web` (tela de gestores) |
-| 2 | `ManagerViewSchema` (resposta) | remover `name` | `apps/web` (tela de gestores lê o campo) |
-| 3 | `ManagerViewSchema` (resposta) | trocar `name` para `z.number()` | `apps/api` (mapeador) e `apps/web` |
-| 4 | `InviteRequestSchema` (requisição) | renomear `email → address` | `apps/api` (service lê o campo) e `apps/web` (hook de convite) |
-| 5 | `InviteRequestSchema` (requisição) | remover `email` | `apps/api` (service lê o campo) e `apps/web` (objeto com propriedade a mais) |
+| 1 | `ManagerViewSchema` (resposta, `src/provisioning/managers.ts`) | renomear `name → fullName` | `apps/api` (mapeador em `managers.service.ts`) e `apps/web` (tela e teste de gestores) |
+| 2 | `ManagerViewSchema` (resposta) | remover `name` | `apps/api` (propriedade a mais no mapeador) e `apps/web` (tela e teste de gestores) |
+| 3 | `ManagerViewSchema` (resposta) | trocar `name` para `z.number()` | `apps/api` (mapeador) e `apps/web` (teste de gestores; na tela um número ainda é um nó React válido) |
+| 4 | `InviteRequestSchema` (requisição) | renomear `email → address` | `apps/api` (services de convite) e `apps/web` (corpo com `satisfies InviteRequest` na camada de API do web) |
+| 5 | `InviteRequestSchema` (requisição) | remover `email` | `apps/api` (services de convite) e `apps/web` (propriedade a mais no corpo) |
 | 6 | `InviteRequestSchema` (requisição) | trocar `email` para `z.number()` | `apps/api` e `apps/web` |
 
 Esperado: 6 de 6 falham no lado que usa a forma antiga (SC-003).

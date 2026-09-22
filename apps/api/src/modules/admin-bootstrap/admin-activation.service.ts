@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { AdminActivated, AdminActivationPreview } from "@repo/contracts";
 import { hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey } from "../../platform/database/transaction";
@@ -6,7 +7,7 @@ import { bootstrapAlreadyDone, tokenInvalid } from "../../platform/http/errors";
 import type { RequestContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { PublicRateLimit } from "../auth/public-rate-limit";
-import { type AcceptanceMode, RoleGrantAcceptance } from "../provisioning/role-grant-acceptance.service";
+import { RoleGrantAcceptance } from "../provisioning/role-grant-acceptance.service";
 import { hasActiveAdmin } from "./admin-bootstrap.service";
 
 interface LockedBootstrap {
@@ -34,7 +35,7 @@ export class AdminActivationService {
     private readonly audit: AuditService,
   ) {}
 
-  async preview(token: string, ctx: RequestContext): Promise<{ email: string; mode: AcceptanceMode }> {
+  async preview(token: string, ctx: RequestContext): Promise<AdminActivationPreview> {
     const tokenHash = hashToken(token);
     await this.rateLimit.enforce("admin_activation_preview", tokenHash, ctx);
     return this.prisma.runInTransaction(async (tx) => {
@@ -47,7 +48,7 @@ export class AdminActivationService {
     });
   }
 
-  async activate(token: string, password: string | undefined, ctx: RequestContext): Promise<{ role: "ADMIN" }> {
+  async activate(token: string, password: string | undefined, ctx: RequestContext): Promise<AdminActivated> {
     const tokenHash = hashToken(token);
     await this.rateLimit.enforce("admin_activation", tokenHash, ctx);
     const currentUserId = ctx.auth?.userId ?? null;

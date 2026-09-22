@@ -1,7 +1,5 @@
+import type { InvitableRole, InvitationView } from "@repo/contracts";
 import type { InvitationStatus } from "../../generated/prisma/client";
-
-/** Roles that can be granted by invitation (FR-040). */
-export type InvitableRole = "MANAGER" | "TEACHER";
 
 /** Invitation row with what the views need. */
 export interface InvitationRow {
@@ -16,19 +14,6 @@ export interface InvitationRow {
   invitedBy: { id: string; name: string };
 }
 
-/** `InvitationView` of contracts/http-api.md — never the token or its hash. */
-export interface InvitationView {
-  id: string;
-  email: string;
-  displayName: string;
-  role: InvitableRole;
-  status: InvitationStatus;
-  expiresAt: Date;
-  sendCount: number;
-  lastSentAt: Date;
-  invitedBy: { id: string; name: string };
-}
-
 /** Prisma `include` producing an `InvitationRow`. */
 export const INVITATION_INCLUDE = {
   role: { select: { key: true } },
@@ -40,6 +25,7 @@ export function effectiveStatus(row: Pick<InvitationRow, "status" | "expiresAt">
   return row.status === "PENDING" && row.expiresAt <= now ? "EXPIRED" : row.status;
 }
 
+/** `InvitationView` of the contract — never the token or its hash; dates as ISO strings (002 S4). */
 export function toInvitationView(row: InvitationRow, now: Date = new Date()): InvitationView {
   return {
     id: row.id,
@@ -47,9 +33,9 @@ export function toInvitationView(row: InvitationRow, now: Date = new Date()): In
     displayName: row.displayName,
     role: row.role.key as InvitableRole,
     status: effectiveStatus(row, now),
-    expiresAt: row.expiresAt,
+    expiresAt: row.expiresAt.toISOString(),
     sendCount: row.sendCount,
-    lastSentAt: row.lastSentAt,
+    lastSentAt: row.lastSentAt.toISOString(),
     invitedBy: { id: row.invitedBy.id, name: row.invitedBy.name },
   };
 }

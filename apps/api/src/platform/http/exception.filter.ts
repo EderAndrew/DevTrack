@@ -1,6 +1,7 @@
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Logger } from "@nestjs/common";
+import type { ErrorBody, ErrorCode } from "@repo/contracts";
 import type { Response } from "express";
-import { AppException, type ErrorBody, type ErrorCode, ErrorCatalog } from "./errors";
+import { AppException, ErrorCatalog } from "./errors";
 
 /** Framework-level HTTP errors (unknown route, malformed JSON, body too large…) mapped to the catalogue. */
 const HTTP_STATUS_TO_CODE: Record<number, ErrorCode> = {

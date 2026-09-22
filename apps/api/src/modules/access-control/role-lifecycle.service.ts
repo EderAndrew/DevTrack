@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
+import type { RoleKey } from "@repo/contracts";
 import type { RoleAssignmentStatus } from "../../generated/prisma/client";
 import { advisoryXactLock, LockKey, type Tx } from "../../platform/database/transaction";
 import { lastAdminProtected, notFound } from "../../platform/http/errors";
 import { AuditService } from "../audit/audit.service";
 import { SessionService } from "../auth/session.service";
-import type { RoleKey } from "./permissions";
 import { RoleAssignmentStateMachine } from "./role-assignment.state-machine";
 import type { AssignmentWithRole } from "./role.repository";
 

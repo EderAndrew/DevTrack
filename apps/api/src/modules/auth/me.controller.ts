@@ -1,7 +1,8 @@
 import { Controller, Get } from "@nestjs/common";
+import type { MeView } from "@repo/contracts";
 import { type RequestContext, Ctx } from "../../platform/http/request-context";
 import { AllowUnverified } from "../access-control/decorators";
-import { MeService, type MeView } from "./me.service";
+import { MeService } from "./me.service";
 
 @Controller("me")
 export class MeController {

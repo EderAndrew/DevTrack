@@ -1,4 +1,5 @@
-import type { PermissionKey, RoleKey } from "../../src/modules/access-control/permissions";
+import type { RoleKey } from "@repo/contracts";
+import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
  * Transcribed by hand from contracts/permissions.md (not derived from the seed), so a drift

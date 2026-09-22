@@ -11,8 +11,8 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 RUN pnpm install --frozen-lockfile --filter api...
-RUN pnpm --filter api exec prisma generate && pnpm --filter api build
-RUN pnpm deploy --filter api --prod /out \
+RUN pnpm --filter api exec prisma generate && pnpm --filter "api..." build
+RUN pnpm deploy --legacy --filter api --prod /out \
  && cp -r apps/api/dist /out/dist \
  && cp -r apps/api/prisma apps/api/prisma.config.ts apps/api/assets /out/
 

@@ -1,32 +1,24 @@
+import type {
+  AdminActivated,
+  AdminActivationPreview,
+  AdminActivationRequest,
+  EmailVerifiedResponse,
+  LoginRequest,
+  LoginResponse,
+  MessageResponse,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
+  PublicAccepted,
+  ResendVerificationRequest,
+  SessionListResponse,
+  SignupRequest,
+  TokenRequest,
+  VerifyEmailRequest,
+} from "@repo/contracts";
 import { ApiError, apiClient } from "./api-client";
-import type { MeView } from "./session";
 
-/** Public account endpoints of contracts/http-api.md. The API validates and decides; this only calls it. */
-export interface PublicAccepted {
-  message: string;
-}
-
-export interface SignupInput {
-  name: string;
-  email: string;
-  password: string;
-}
-
-/** `SessionView` of contracts/http-api.md (dates as ISO strings). */
-export interface SessionView {
-  id: string;
-  createdAt: string;
-  lastUsedAt: string;
-  expiresAt: string;
-  current: boolean;
-}
-
-export type AcceptanceMode = "CREATE_ACCOUNT" | "SIGN_IN_REQUIRED" | "CLAIM_ACCOUNT";
-
-export interface AdminActivationPreview {
-  email: string;
-  mode: AcceptanceMode;
-}
+/** Types of @repo/contracts still imported from here by the screens (moved to features/ in US4). */
+export type { AdminActivationPreview, SessionView } from "@repo/contracts";
 
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
@@ -34,25 +26,32 @@ export const PASSWORD_MAX_LENGTH = 128;
 /** Password length in characters as the API counts it (code points), for UX hints only. */
 export const passwordLength = (password: string) => [...password].length;
 
+/**
+ * Public account endpoints of @repo/contracts. The API validates and decides; this only calls it.
+ * Every body `satisfies` its request contract, so a contract change breaks the type-check here (SC-003).
+ */
 export const authApi = {
   /** Sends exactly `{name, email, password}`: extra fields are rejected by the API (FR-010). */
-  signup: ({ name, email, password }: SignupInput) =>
-    apiClient.post<PublicAccepted>("/auth/signup", { name, email, password }),
-  verifyEmail: (token: string) => apiClient.post<{ emailVerified: true }>("/auth/verify-email", { token }),
-  resendVerification: (email: string) => apiClient.post<PublicAccepted>("/auth/verify-email/resend", { email }),
+  signup: ({ name, email, password }: SignupRequest) =>
+    apiClient.post<PublicAccepted>("/auth/signup", { name, email, password } satisfies SignupRequest),
+  verifyEmail: (token: string) => apiClient.post<EmailVerifiedResponse>("/auth/verify-email", { token } satisfies VerifyEmailRequest),
+  resendVerification: (email: string) => apiClient.post<PublicAccepted>("/auth/verify-email/resend", { email } satisfies ResendVerificationRequest),
   /** Sends exactly `{email, password}`; the session cookie is set by the API. */
-  requestPasswordReset: (email: string) => apiClient.post<PublicAccepted>("/auth/password-reset/request", { email }),
+  requestPasswordReset: (email: string) => apiClient.post<PublicAccepted>("/auth/password-reset/request", { email } satisfies PasswordResetRequest),
   confirmPasswordReset: (token: string, password: string) =>
-    apiClient.post<{ message: string }>("/auth/password-reset/confirm", { token, password }),
-  login: (email: string, password: string) => apiClient.post<{ user: MeView }>("/auth/login", { email, password }),
+    apiClient.post<MessageResponse>("/auth/password-reset/confirm", { token, password } satisfies PasswordResetConfirmRequest),
+  login: (email: string, password: string) => apiClient.post<LoginResponse>("/auth/login", { email, password } satisfies LoginRequest),
   logout: () => apiClient.post<void>("/auth/logout"),
   logoutAll: () => apiClient.post<void>("/auth/logout-all"),
-  listSessions: () => apiClient.get<{ items: SessionView[] }>("/me/sessions"),
+  listSessions: () => apiClient.get<SessionListResponse>("/me/sessions"),
   previewAdminActivation: (token: string) =>
-    apiClient.post<AdminActivationPreview>("/admin-activation/preview", { token }),
+    apiClient.post<AdminActivationPreview>("/admin-activation/preview", { token } satisfies TokenRequest),
   /** `password` only for CREATE_ACCOUNT/CLAIM_ACCOUNT; SIGN_IN_REQUIRED relies on the session. */
   activateAdmin: (token: string, password?: string) =>
-    apiClient.post<{ role: "ADMIN" }>("/admin-activation", password === undefined ? { token } : { token, password }),
+    apiClient.post<AdminActivated>(
+      "/admin-activation",
+      (password === undefined ? { token } : { token, password }) satisfies AdminActivationRequest,
+    ),
   revokeSession: (id: string) => apiClient.delete<void>(`/me/sessions/${encodeURIComponent(id)}`),
 };
 

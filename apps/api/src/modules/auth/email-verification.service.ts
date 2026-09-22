@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { EmailVerifiedResponse, PublicAccepted } from "@repo/contracts";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
@@ -9,7 +10,7 @@ import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
 import { PublicRateLimit } from "./public-rate-limit";
-import { PUBLIC_ACCEPTED_MESSAGE, type PublicAccepted, webLinks } from "./signup.service";
+import { PUBLIC_ACCEPTED_MESSAGE, webLinks } from "./signup.service";
 import { UserTokenService } from "./user-token.service";
 
 /**
@@ -33,7 +34,7 @@ export class EmailVerificationService {
     this.links = webLinks(config.webOrigin);
   }
 
-  async verify(token: string, ctx: RequestContext): Promise<{ emailVerified: true }> {
+  async verify(token: string, ctx: RequestContext): Promise<EmailVerifiedResponse> {
     await this.prisma.runInTransaction(async (tx) => {
       const consumed = await this.tokens.consume(tx, token, "EMAIL_VERIFICATION");
       if (!consumed) {

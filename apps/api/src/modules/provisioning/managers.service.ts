@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { InvitationView, InviteRequest, ManagerView } from "@repo/contracts";
 import type { InvitationStatus, RoleAssignmentStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
@@ -8,15 +9,7 @@ import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { InvitationService, type InvitationScope } from "./invitation.service";
-import { type InvitationView, toInvitationView } from "./invitation.view";
-
-/** `ManagerView` of contracts/http-api.md. */
-export interface ManagerView {
-  userId: string;
-  name: string;
-  email: string;
-  status: RoleAssignmentStatus;
-}
+import { toInvitationView } from "./invitation.view";
 
 const SCOPE: InvitationScope = { roleKey: "MANAGER" };
 
@@ -42,7 +35,7 @@ export class ManagersService {
     return rows.map((row) => ({ userId: row.user.id, name: row.user.name, email: row.user.email, status: row.status }));
   }
 
-  async invite(input: { email: string; displayName: string }, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
+  async invite(input: InviteRequest, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
     const issuer = await this.prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, email: true } });
     try {
       const { invitation, token } = await this.prisma.runInTransaction(async (tx) => {

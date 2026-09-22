@@ -1,31 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import type { TeacherListItem, TeacherStatus, TeacherView } from "@repo/contracts";
 import type { RoleAssignmentStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { AuthContext } from "../../platform/http/request-context";
 import { findOwnedOrNotFound } from "../access-control/resource-context";
 import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
-import { INVITATION_INCLUDE, type InvitationView, toInvitationView } from "./invitation.view";
-
-/** Teacher lifecycle as seen by MANAGER (FR-051, FR-007): INVITED is derived, never stored. */
-export type TeacherStatus = "INVITED" | RoleAssignmentStatus;
-
-/** `TeacherListItem` of contracts/http-api.md. */
-export interface TeacherListItem {
-  userId: string | null;
-  invitationId: string | null;
-  displayName: string;
-  email: string;
-  status: TeacherStatus;
-}
-
-/** `TeacherView` of contracts/http-api.md: teaching data only — no other role of the identity (FR-050). */
-export interface TeacherView {
-  userId: string;
-  displayName: string;
-  email: string;
-  status: RoleAssignmentStatus;
-  invitations: InvitationView[];
-}
+import { INVITATION_INCLUDE, toInvitationView } from "./invitation.view";
 
 const TEACHER_ASSIGNMENT_SELECT = {
   status: true,
@@ -52,6 +32,7 @@ export class TeachersService {
     private readonly lifecycle: RoleLifecycleService,
   ) {}
 
+  /** Teacher lifecycle as seen by MANAGER (FR-051, FR-007): INVITED is derived, never stored. */
   async list(status?: TeacherStatus): Promise<TeacherListItem[]> {
     const items: TeacherListItem[] = [];
 

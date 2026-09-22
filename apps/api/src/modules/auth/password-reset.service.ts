@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { MessageResponse, PublicAccepted } from "@repo/contracts";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { hashToken } from "../../platform/crypto/tokens";
@@ -13,7 +14,7 @@ import { PasswordPolicy } from "../identity/password-policy";
 import { UserRepository } from "../identity/user.repository";
 import { PublicRateLimit } from "./public-rate-limit";
 import { SessionService } from "./session.service";
-import { PUBLIC_ACCEPTED_MESSAGE, type PublicAccepted, webLinks } from "./signup.service";
+import { PUBLIC_ACCEPTED_MESSAGE, webLinks } from "./signup.service";
 import { UserTokenService } from "./user-token.service";
 
 export const PASSWORD_RESET_DONE_MESSAGE = "Senha redefinida. Entre com a nova senha.";
@@ -71,7 +72,7 @@ export class PasswordResetService {
     return { message: PUBLIC_ACCEPTED_MESSAGE };
   }
 
-  async confirm(token: string, password: string, ctx: RequestContext): Promise<{ message: string }> {
+  async confirm(token: string, password: string, ctx: RequestContext): Promise<MessageResponse> {
     await this.rateLimit.enforce("password_reset_confirm", hashToken(token), ctx);
     // Validated before the token is consumed: a weak password must not burn the link.
     this.passwordPolicy.validate(password);

@@ -1,5 +1,5 @@
+import type { RoleKey } from "@repo/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { RoleKey } from "../../src/modules/access-control/permissions";
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { concretePath, MATRIX, type MatrixEntry, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";

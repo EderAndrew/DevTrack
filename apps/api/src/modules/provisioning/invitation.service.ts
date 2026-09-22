@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { InvitableRole } from "@repo/contracts";
 import type { InvitationStatus } from "../../generated/prisma/client";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
@@ -15,7 +16,6 @@ import { InvitationStateMachine } from "./invitation.state-machine";
 import {
   effectiveStatus,
   INVITATION_INCLUDE,
-  type InvitableRole,
   type InvitationRow,
 } from "./invitation.view";
 

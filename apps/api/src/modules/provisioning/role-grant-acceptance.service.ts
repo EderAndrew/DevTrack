@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { AcceptanceMode, RoleKey } from "@repo/contracts";
 import type { GrantSource } from "../../generated/prisma/client";
 import type { Tx } from "../../platform/database/transaction";
 import {
@@ -8,7 +9,6 @@ import {
   tokenInvalid,
   wrongAccount,
 } from "../../platform/http/errors";
-import type { RoleKey } from "../access-control/permissions";
 import { RoleRepository } from "../access-control/role.repository";
 import { AuditService } from "../audit/audit.service";
 import { SessionService } from "../auth/session.service";
@@ -17,9 +17,6 @@ import { PasswordHasher } from "../identity/password-hasher";
 import { PasswordPolicy } from "../identity/password-policy";
 import { ProfileRepository } from "../identity/profile.repository";
 import { UserRepository } from "../identity/user.repository";
-
-/** Which branch of R15 applies to the invited e-mail. Told to the token bearer by the previews. */
-export type AcceptanceMode = "CREATE_ACCOUNT" | "SIGN_IN_REQUIRED" | "CLAIM_ACCOUNT";
 
 export interface AcceptInput {
   email: string;
@@ -175,6 +172,7 @@ export class RoleGrantAcceptance {
   }
 }
 
+/** Which branch of R15 applies to the invited e-mail. Told to the token bearer by the previews. */
 function modeFor(user: LockedUser | null): AcceptanceMode {
   if (!user) return "CREATE_ACCOUNT";
   return user.email_verified_at ? "SIGN_IN_REQUIRED" : "CLAIM_ACCOUNT";

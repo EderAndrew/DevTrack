@@ -1,19 +1,23 @@
 import { Controller, HttpCode, Post, Res } from "@nestjs/common";
+import {
+  type LoginRequest,
+  LoginRequestSchema,
+  type LoginResponse,
+  type MessageResponse,
+  type PasswordResetConfirmRequest,
+  PasswordResetConfirmRequestSchema,
+  type PasswordResetRequest,
+  PasswordResetRequestSchema,
+  type PublicAccepted,
+} from "@repo/contracts";
 import type { Response } from "express";
-import { z } from "zod";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
-import { emailSchema, passwordInputSchema, tokenSchema } from "../../platform/http/schemas";
 import { ZodBody } from "../../platform/http/zod-validation.pipe";
 import { AllowUnverified, Public } from "../access-control/decorators";
 import { LoginService } from "./login.service";
-import type { MeView } from "./me.service";
 import { PasswordResetService } from "./password-reset.service";
 import { SessionCookie } from "./session-cookie";
 import { SessionEndService } from "./session-end.service";
-
-const loginSchema = z.strictObject({ email: emailSchema, password: passwordInputSchema });
-const resetRequestSchema = z.strictObject({ email: emailSchema });
-const resetConfirmSchema = z.strictObject({ token: tokenSchema, password: passwordInputSchema });
 
 /** The response object is used only to set or clear the session cookie. */
 @Controller("auth")
@@ -28,10 +32,10 @@ export class AuthController {
   @Public()
   @HttpCode(200)
   async login(
-    @ZodBody(loginSchema) body: z.output<typeof loginSchema>,
+    @ZodBody(LoginRequestSchema) body: LoginRequest,
     @Ctx() ctx: RequestContext,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ user: MeView }> {
+  ): Promise<LoginResponse> {
     const { secret, absoluteExpiresAt, user } = await this.logins.login(body, ctx);
     SessionCookie.set(res, secret, absoluteExpiresAt);
     return { user };
@@ -58,7 +62,10 @@ export class AuthController {
   @Post("password-reset/request")
   @Public()
   @HttpCode(202)
-  requestPasswordReset(@ZodBody(resetRequestSchema) body: z.output<typeof resetRequestSchema>, @Ctx() ctx: RequestContext) {
+  requestPasswordReset(
+    @ZodBody(PasswordResetRequestSchema) body: PasswordResetRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<PublicAccepted> {
     return this.passwordReset.request(body.email, ctx);
   }
 
@@ -66,7 +73,10 @@ export class AuthController {
   @Post("password-reset/confirm")
   @Public()
   @HttpCode(200)
-  confirmPasswordReset(@ZodBody(resetConfirmSchema) body: z.output<typeof resetConfirmSchema>, @Ctx() ctx: RequestContext) {
+  confirmPasswordReset(
+    @ZodBody(PasswordResetConfirmRequestSchema) body: PasswordResetConfirmRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<MessageResponse> {
     return this.passwordReset.confirm(body.token, body.password, ctx);
   }
 }

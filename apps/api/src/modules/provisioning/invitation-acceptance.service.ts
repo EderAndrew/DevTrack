@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { InvitationAccepted, InvitationPreview } from "@repo/contracts";
 import { hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { AppException, tokenInvalid } from "../../platform/http/errors";
@@ -6,20 +7,7 @@ import type { RequestContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { PublicRateLimit } from "../auth/public-rate-limit";
 import { InvitationService } from "./invitation.service";
-import type { InvitableRole } from "./invitation.view";
-import { type AcceptanceMode, RoleGrantAcceptance } from "./role-grant-acceptance.service";
-
-export interface InvitationPreview {
-  role: InvitableRole;
-  email: string;
-  displayName: string;
-  mode: AcceptanceMode;
-}
-
-export interface AcceptedInvitation {
-  role: InvitableRole;
-  mode: AcceptanceMode;
-}
+import { RoleGrantAcceptance } from "./role-grant-acceptance.service";
 
 /** Refusals of `RoleGrantAcceptance` that are audited as `invitation.acceptance_refused` (FR-070). */
 const AUDITED_REFUSALS = {
@@ -29,7 +17,7 @@ const AUDITED_REFUSALS = {
 } as const;
 
 type Outcome =
-  | { kind: "accepted"; result: AcceptedInvitation }
+  | { kind: "accepted"; result: InvitationAccepted }
   /** Lazy expiry was written: commit it, then answer TOKEN_INVALID. */
   | { kind: "invalid" };
 
@@ -66,7 +54,7 @@ export class InvitationAcceptanceService {
     return preview;
   }
 
-  async accept(token: string, password: string | undefined, ctx: RequestContext): Promise<AcceptedInvitation> {
+  async accept(token: string, password: string | undefined, ctx: RequestContext): Promise<InvitationAccepted> {
     await this.rateLimit.enforce("invitation_accept", hashToken(token), ctx);
     const currentUserId = ctx.auth?.userId ?? null;
     let refused: { invitationId: string } | null = null;
