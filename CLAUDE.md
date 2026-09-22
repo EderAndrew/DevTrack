@@ -70,26 +70,12 @@ pnpm --filter web test                                  # Vitest + jsdom + Testi
 The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
 compiled code, so run `pnpm --filter api build` before them.
 
-API tests (`apps/api/vitest.config.mts`): the global setup loads `.env.test` (falling back to
-`.env.test.example`), generates the Prisma client if it's missing, and runs `migrate deploy` on the
-test DB. They refuse to run unless `NODE_ENV=test` and the DB name contains `test`. Test files run
-serially against one shared DB. Specs call `resetDb(t.prisma)` in `beforeEach`, which truncates
-everything except the seeded roles/permissions and bypasses the append-only audit trigger only
-inside that transaction. Build the app with `createTestApp()` from `test/helpers/test-app.ts`. It listens on
-127.0.0.1, swaps in an `InMemoryMailer` (`flushMail()` waits for after-commit emails), and lets you
-override config and providers. Use `test/helpers/factories.ts` for fixtures. The permission matrix
-lives in `test/security/authorization-matrix.ts`, and `route-declarations.spec.ts` fails for any
-route that has no access declaration.
+API test harness and API-only guards (test DB setup, `resetDb`, `createTestApp`, audit/secret
+scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `test/traceability.spec.ts` parses `spec.md`. Every `USn-k` scenario and every traceability row
   must appear in a `describe`/`it` title, so name new tests with their scenario or SC/FR id.
-- `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and
-  `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
-  type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
-- `test/security/no-academic-domain.spec.ts` pins the Prisma models to the `data-model.md` list.
-- `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
-  trail for every secret it produced.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 
@@ -102,18 +88,12 @@ the removal conditions are in `apps/api/DEPENDENCIES.md`.
 
 ## Architecture
 
-- `apps/api` (NestJS): `src/platform/` holds cross-cutting infra (config, database +
-  transaction/advisory-lock helpers, http error filter + `ZodValidationPipe` + origin guard, logging
-  with redaction, mail port, rate limit on PostgreSQL, crypto, maintenance, health);
-  `src/modules/` holds capabilities (`identity`, `auth`, `access-control`, `provisioning`,
-  `admin-bootstrap`, `accounts`, `retention`, `audit`); `src/cli/` holds operational commands run as
-  a Nest application context without HTTP. `AppModule.forRoot(config, …)` is built from the
+- `apps/api` (NestJS): `AppModule.forRoot(config, …)` is built from the
   Zod-validated config (`src/platform/config`); `app.setup.ts` applies the HTTP setup shared by
   `main.ts` and the tests.
 - `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`
   (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages).
-  `proxy.ts` only redirects for UX and never authorizes. API calls live in `lib/*-api.ts`. There's
-  no shared web↔API package yet (see the target stack below).
+  `proxy.ts` only redirects for UX and never authorizes.
 - Target stack (constitution v2.1.0, principle XXVI and "Stack oficial do frontend"), which Phase
   001 predates. A dedicated refactor feature, run before Phase 002, migrates the code to it; until
   then, new code must not extend the old patterns:
