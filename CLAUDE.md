@@ -2,17 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-22
+Last updated: 2026-09-22 (002/T089)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
 test names are in Portuguese). Phase 001 (`specs/001-foundation-identity-access`) is fully
-implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish phase. New work
-starts a new feature through `/speckit-specify`.
+implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish phase. Phase 002
+(`specs/002-stack-alignment`) refactored it onto the official stack without changing behavior:
+shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. New work starts a
+new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -65,10 +67,27 @@ pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
 pnpm --filter web test                                  # Vitest + jsdom + Testing Library + vitest-axe
+
+# packages/contracts
+pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
+pnpm --filter @repo/contracts test                      # boundary, duplication, zod-version guards
+
+# E2E (Playwright): own API :4100 + web :3100, DB devtrack_e2e reset each run, emails via Mailpit
+docker compose up -d postgres-test mailpit
+pnpm build                                              # the E2E API runs apps/api/dist
+pnpm --filter web exec playwright install chromium      # first time only
+pnpm --filter web test:e2e
 ```
 
 The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
-compiled code, so run `pnpm --filter api build` before them.
+compiled code, so run `pnpm --filter api build` before them. Root `pnpm check-types`/`pnpm test`
+build `packages/contracts` first (turbo `^build`); a filtered run (`pnpm --filter api check-types`)
+needs `pnpm build` beforehand.
+
+CI (`.github/workflows/ci.yml`, actions pinned by SHA) runs `pnpm lint`, `check-types`, `build` and
+`test` against a PostgreSQL 17 service on every push and pull request. E2E runs locally only.
+`prisma migrate reset` (used by the E2E `e2e/prepare-db.ts`) refuses to run under an AI agent
+unless the user consents; the E2E aborts unless the DB name contains `e2e`.
 
 API test harness and API-only guards (test DB setup, `resetDb`, `createTestApp`, audit/secret
 scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
@@ -78,13 +97,23 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   must appear in a `describe`/`it` title, so name new tests with their scenario or SC/FR id.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
+- Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
+  user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
+  web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
+- API: `test/contracts/endpoint-catalog.spec.ts` (every Nest route has exactly one entry in
+  `endpoints.ts` and vice versa), and `ContractConformanceInterceptor`
+  (`test/helpers/contract-conformance.interceptor.ts`), installed by `createTestApp()`, which turns a
+  response that doesn't parse against its contract into a 500, so the test fails on its status
+  assertion. A new route needs a catalog entry.
+- Web: `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and
+  `test/contrast.test.ts` checks the theme tokens for WCAG AA in both themes.
 
 Unsafe HTTP methods need both an allowed `Origin` and `Content-Type: application/json` (send
 `{}` if there's no body), even from curl or scripts. Otherwise the API returns
 `403 ORIGIN_NOT_ALLOWED` (`OriginGuard`, R6).
 
 Transitive vulnerabilities are patched via `overrides` in `pnpm-workspace.yaml`. The reasons and
-the removal conditions are in `apps/api/DEPENDENCIES.md`.
+the removal conditions are in `DEPENDENCIES.md`.
 
 ## Architecture
 
@@ -94,17 +123,22 @@ the removal conditions are in `apps/api/DEPENDENCIES.md`.
 - `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`
   (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages).
   `proxy.ts` only redirects for UX and never authorizes.
-- Target stack (constitution v2.1.0, principle XXVI and "Stack oficial do frontend"), which Phase
-  001 predates. A dedicated refactor feature, run before Phase 002, migrates the code to it; until
-  then, new code must not extend the old patterns:
-  - `packages/contracts` holds every API↔web contract as Zod schemas, with types derived through
-    `z.infer`. It contains no Prisma, service or UI-state types and no user-facing messages. One
-    Zod version comes from the pnpm catalog, and the API still validates every input.
-  - Web: Tailwind + shadcn/ui + Lucide; TanStack Query for server state; Redux Toolkit only for
-    real global client state, never authoritative over exam rules; React Hook Form +
-    `@hookform/resolvers`; native `fetch`; Playwright for E2E.
-  - Web code goes in `apps/web/features/<feature>/{api,components,hooks,schemas,store,types}`,
-    with `app/` kept at the root (no `src/`).
+- `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
+  contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
+  `provisioning`, `admin-activation`, `health`), with types derived through `z.infer`
+  (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
+  schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
+  Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
+  pnpm catalog. API controllers validate input with the contract schemas and services return the
+  contract types. The package builds to `dist/`, which api and web import.
+- Web (official stack): Tailwind + shadcn/ui (`components/ui`) + Lucide; TanStack Query for
+  server state; React Hook Form + `@hookform/resolvers`; native `fetch` only in
+  `lib/api/client.ts`. Redux Toolkit is not installed: add it only with the first spec that has
+  real global client state, and never make it authoritative over exam rules. Code goes in
+  `apps/web/features/<feature>/{api,components,hooks,schemas,store,types}`, with `app/` at the
+  root (no `src/`). Components call hooks, hooks call `features/*/api`, and only that layer
+  touches `lib/api` (ESLint-enforced). User-facing error text comes from the catalog in
+  `lib/messages/error-messages.ts`, keyed by the API error `code`.
 - Protected request pipeline: `OriginGuard → SessionGuard (401) → VerifiedGuard (403) →
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and

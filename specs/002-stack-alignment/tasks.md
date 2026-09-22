@@ -244,12 +244,12 @@ pipeline de CI com lint, tipos, build e testes.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T086 Remover `packages/ui/` e `"@repo/ui"` de `apps/web/package.json`; `pnpm install`; conferir por busca que não restam `components/form`, `lib/*-api.ts`, `lib/session.ts`, classes CSS antigas nem imports mortos (FR-040)
-- [ ] T087 Mover `apps/api/DEPENDENCIES.md` para `DEPENDENCIES.md` na raiz (`git mv`), acrescentar a tabela de S17 com licença e justificativa de cada dependência direta nova, e registrar a saída de `pnpm audit --prod --audit-level high` e `pnpm licenses list --prod` (0 altas/críticas); atualizar a referência em `CLAUDE.md` e em `pnpm-workspace.yaml` (comentário de `overrides`, se houver) (FR-041, `002/SC-008`)
-- [ ] T088 [P] Atualizar `README.md` e `apps/web/README.md` com a nova estrutura (`packages/contracts`, `features/`), `pnpm build` antes de `check-types`, E2E e CI (FR-042)
-- [ ] T089 [P] Atualizar `CLAUDE.md`: seção Architecture (remover "There's no shared web↔API package yet" e o bloco "Target stack… which Phase 001 predates" em favor da estrutura real), comandos de E2E, `packages/contracts` e guardas novas (`duplication`, `boundary`, `zod-version`, `endpoint-catalog`, interceptor de conformidade) (FR-042)
-- [ ] T090 Refazer, num worktree limpo, `specs/001-foundation-identity-access/quickstart.md` §2–§6 e `specs/002-stack-alignment/quickstart.md` §1–§8; corrigir os comandos que mudaram nos dois quickstarts (`002/US2-4`)
-- [ ] T091 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` final e conferir o teste de latência de login (001/SC-009) e a varredura de segredos (001/SC-005) verdes
+- [X] T086 Remover `packages/ui/` e `"@repo/ui"` de `apps/web/package.json`; `pnpm install`; conferir por busca que não restam `components/form`, `lib/*-api.ts`, `lib/session.ts`, classes CSS antigas nem imports mortos (FR-040)
+- [X] T087 Mover `apps/api/DEPENDENCIES.md` para `DEPENDENCIES.md` na raiz (`git mv`), acrescentar a tabela de S17 com licença e justificativa de cada dependência direta nova, e registrar a saída de `pnpm audit --prod --audit-level high` e `pnpm licenses list --prod` (0 altas/críticas); atualizar a referência em `CLAUDE.md` e em `pnpm-workspace.yaml` (comentário de `overrides`, se houver) (FR-041, `002/SC-008`)
+- [X] T088 [P] Atualizar `README.md` e `apps/web/README.md` com a nova estrutura (`packages/contracts`, `features/`), `pnpm build` antes de `check-types`, E2E e CI (FR-042)
+- [X] T089 [P] Atualizar `CLAUDE.md`: seção Architecture (remover "There's no shared web↔API package yet" e o bloco "Target stack… which Phase 001 predates" em favor da estrutura real), comandos de E2E, `packages/contracts` e guardas novas (`duplication`, `boundary`, `zod-version`, `endpoint-catalog`, interceptor de conformidade) (FR-042)
+- [X] T090 Refazer, num worktree limpo, `specs/001-foundation-identity-access/quickstart.md` §2–§6 e `specs/002-stack-alignment/quickstart.md` §1–§8; corrigir os comandos que mudaram nos dois quickstarts (`002/US2-4`)
+- [X] T091 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` final e conferir o teste de latência de login (001/SC-009) e a varredura de segredos (001/SC-005) verdes
 
 ---
 
