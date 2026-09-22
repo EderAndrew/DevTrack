@@ -1,11 +1,15 @@
 /**
  * Same-origin topology (R6): the browser calls /api/* on this app and Next.js proxies it to
  * the API, so the session cookie is first-party and the API's Origin check sees this origin.
+ * The rewrite target is read at build time; server components read API_ORIGIN at runtime.
  */
 const apiOrigin = (process.env.API_ORIGIN ?? "http://localhost:4000").replace(/\/+$/, "");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The E2E suite builds into its own directory (e2e/playwright.config.ts): the rewrite below is
+  // fixed at build time, and its build must not replace the one of `pnpm build`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   // Do not generate AGENTS.md/CLAUDE.md in this app: the repository keeps its own at the root.
   agentRules: false,

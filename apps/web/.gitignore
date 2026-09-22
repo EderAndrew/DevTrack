@@ -8,6 +8,8 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -37,3 +39,5 @@ next-env.d.ts
 
 # committed template of the variables above
 !.env.example
+# E2E configuration: example values only (specs/002-stack-alignment/contracts/ci-and-e2e.md)
+!/e2e/.env.e2e

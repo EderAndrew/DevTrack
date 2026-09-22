@@ -1,0 +1,63 @@
+# Continuous integration (specs/002-stack-alignment/contracts/ci-and-e2e.md, research S15).
+# Lint, types, build and tests of every workspace on each push and pull request; any failing step
+# fails the check (SC-009). No secrets: the tests use apps/api/.env.test.example and InMemoryMailer
+# (FR-037). The E2E suite runs locally only (clarification Q2 → C).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, tipos, build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Test database of the API suite (FR-036); same values as apps/api/.env.test.example.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: devtrack
+          POSTGRES_PASSWORD: devtrack
+          POSTGRES_DB: devtrack_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U devtrack -d devtrack_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      # Actions pinned by commit SHA (Constitution, Principle I: software supply chain).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # pnpm version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Also runs `prisma generate` (postinstall of apps/api).
+      - run: pnpm install --frozen-lockfile
+
+      - run: cp apps/api/.env.test.example apps/api/.env.test
+
+      - run: pnpm lint
+
+      - run: pnpm check-types
+
+      - run: pnpm build
+
+      - run: pnpm test
