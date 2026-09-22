@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { hostname, userInfo } from "node:os";
 import { NestFactory } from "@nestjs/core";
+import { EmailSchema } from "@repo/contracts";
 import { AppModule } from "../app.module";
 import { AdminBootstrapService } from "../modules/admin-bootstrap/admin-bootstrap.service";
 import { InvalidConfigError, loadConfig } from "../platform/config/config.schema";
-import { emailSchema } from "../platform/http/schemas";
 import type { Mailer } from "../platform/mail/mailer";
 import type { CliIo } from "./maintenance.command";
 
@@ -46,7 +46,7 @@ export function parseAdminBootstrapArgs(argv: readonly string[]): AdminBootstrap
     }
   }
   if (email === undefined) return { error: "O argumento --email é obrigatório." };
-  const parsed = emailSchema.safeParse(email);
+  const parsed = EmailSchema.safeParse(email);
   if (!parsed.success) return { error: "E-mail inválido." };
   return { email: parsed.data, printLink };
 }

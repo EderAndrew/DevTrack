@@ -1,16 +1,23 @@
 import { Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
-import { z } from "zod";
+import {
+  type InvitationListQuery,
+  InvitationListQuerySchema,
+  type InvitationListResponse,
+  type InvitationView,
+  type InviteRequest,
+  InviteRequestSchema,
+  type ManagerListResponse,
+  type ManagerView,
+  UuidSchema,
+} from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
-import { emailSchema, nameSchema, uuidSchema } from "../../platform/http/schemas";
 import { ZodBody, ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
-import type { InvitationView } from "./invitation.view";
-import { type ManagerView, ManagersService } from "./managers.service";
+import { ManagersService } from "./managers.service";
 
-const inviteSchema = z.strictObject({ email: emailSchema, displayName: nameSchema });
-export const invitationStatusQuerySchema = z.enum(["PENDING", "ACCEPTED", "EXPIRED", "REVOKED"]).optional();
-const idPipe = new ZodValidationPipe(uuidSchema);
-const statusPipe = new ZodValidationPipe(invitationStatusQuerySchema);
+const idPipe = new ZodValidationPipe(UuidSchema);
+/** Only `?status=` is read, as in Phase 001 (catalog note of contracts-package.md). */
+const statusPipe = new ZodValidationPipe(InvitationListQuerySchema.shape.status);
 
 @Controller()
 export class ManagersController {
@@ -18,7 +25,7 @@ export class ManagersController {
 
   @Get("managers")
   @RequirePermissions("managers.visualizar")
-  async list(): Promise<{ items: ManagerView[] }> {
+  async list(): Promise<ManagerListResponse> {
     return { items: await this.managers.list() };
   }
 
@@ -39,15 +46,15 @@ export class ManagersController {
   @Get("manager-invitations")
   @RequirePermissions("managers.visualizar")
   async listInvitations(
-    @Query("status", statusPipe) status: z.output<typeof invitationStatusQuerySchema>,
-  ): Promise<{ items: InvitationView[] }> {
+    @Query("status", statusPipe) status: InvitationListQuery["status"],
+  ): Promise<InvitationListResponse> {
     return { items: await this.managers.listInvitations(status) };
   }
 
   @Post("manager-invitations")
   @RequirePermissions("managers.convidar")
   @HttpCode(201)
-  invite(@ZodBody(inviteSchema) body: z.output<typeof inviteSchema>, @Ctx() ctx: RequestContext): Promise<InvitationView> {
+  invite(@ZodBody(InviteRequestSchema) body: InviteRequest, @Ctx() ctx: RequestContext): Promise<InvitationView> {
     return this.managers.invite(body, ctx.auth!, ctx.requestId);
   }
 

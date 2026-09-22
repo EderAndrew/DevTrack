@@ -1,0 +1,16 @@
+# Build context is the repository root (apps/api/Dockerfile). Dependencies and build
+# outputs are produced inside the image; local env files must never enter it.
+.git
+.specify
+.claude
+.turbo
+specs
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.env
+**/.env.*
+*.log
+.DS_Store

@@ -1,9 +1,9 @@
-import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { AppModule } from "../../src/app.module";
 import { IS_PUBLIC_KEY } from "../../src/modules/access-control/decorators";
+import { routeKey } from "./contract-conformance.interceptor";
 import { LogCapture } from "./log-capture";
 import { testConfig } from "./test-app";
 
@@ -31,9 +31,8 @@ export async function registeredRoutes(): Promise<RegisteredRoute[]> {
         const handler = prototype[name] as () => unknown;
         const path = Reflect.getMetadata(PATH_METADATA, handler) as string | undefined;
         if (path === undefined) continue;
-        const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod];
         routes.push({
-          route: `${method} /${base}/${path}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1"),
+          route: routeKey(Reflect.getMetadata(METHOD_METADATA, handler), base, path),
           isPublic: Boolean(reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler, metatype])),
         });
       }

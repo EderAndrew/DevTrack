@@ -12,6 +12,7 @@ import { PrismaService } from "../../src/platform/database/prisma.service";
 import { InMemoryMailer } from "../../src/platform/mail/in-memory.mailer";
 import { MailDispatcher } from "../../src/platform/mail/mail-dispatcher";
 import { Mailer } from "../../src/platform/mail/mailer";
+import { ContractConformanceInterceptor } from "./contract-conformance.interceptor";
 import { assertTestDatabase } from "./env";
 import { LogCapture } from "./log-capture";
 
@@ -68,6 +69,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
   configureApp(app, config);
+  // Test-only: every response of the app is checked against @repo/contracts (002 S6, FR-002).
+  app.useGlobalInterceptors(new ContractConformanceInterceptor(new Set(options.controllers ?? [])));
   await app.init();
   // Listen once on an explicit IPv4 loopback port. Handing the bare server to supertest makes it
   // listen(0) on "::" per request, and on macOS that port may already be taken on 127.0.0.1 by

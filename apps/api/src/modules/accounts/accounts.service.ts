@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import type { AccountStatus, Prisma, RoleAssignmentStatus } from "../../generated/prisma/client";
+import type { AccountPage, AccountStatus, RoleKey, UserAccountView } from "@repo/contracts";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import {
   AppException,
@@ -13,22 +14,6 @@ import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
 import { AuditService } from "../audit/audit.service";
 import { SessionService } from "../auth/session.service";
 import { UserRepository } from "../identity/user.repository";
-
-/** `UserAccountView` of contracts/http-api.md: identity only, never academic data (FR-056). */
-export interface UserAccountView {
-  id: string;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  status: AccountStatus;
-  roles: { key: string; status: RoleAssignmentStatus }[];
-  createdAt: Date;
-}
-
-export interface AccountPage {
-  items: UserAccountView[];
-  nextCursor: string | null;
-}
 
 export const ACCOUNTS_PAGE_SIZE = 50;
 
@@ -44,6 +29,7 @@ const SELECT = {
 
 type AccountRow = Prisma.UserGetPayload<{ select: typeof SELECT }>;
 
+/** `UserAccountView` of the contract: identity only, never academic data (FR-056); dates as ISO (002 S4). */
 function toView(row: AccountRow): UserAccountView {
   return {
     id: row.id,
@@ -52,9 +38,10 @@ function toView(row: AccountRow): UserAccountView {
     emailVerified: row.emailVerifiedAt !== null,
     status: row.status,
     roles: row.roles
-      .map((assignment) => ({ key: assignment.role.key, status: assignment.status }))
+      // Role keys are seeded from ROLE_KEYS (access-control/permissions.ts), so they are RoleKey values.
+      .map((assignment) => ({ key: assignment.role.key as RoleKey, status: assignment.status }))
       .sort((a, b) => a.key.localeCompare(b.key)),
-    createdAt: row.createdAt,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 

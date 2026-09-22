@@ -3,6 +3,7 @@
  * origin (rewritten to the API, R6); on the server pass `baseUrl` and the `cookie` to forward.
  * Every non-2xx answer becomes an `ApiError` carrying the API's `{statusCode, code, message}`.
  */
+import type { ErrorBody } from "@repo/contracts";
 
 export const NETWORK_ERROR = "NETWORK_ERROR";
 export const UNEXPECTED_RESPONSE = "UNEXPECTED_RESPONSE";
@@ -37,13 +38,10 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
 }
 
-interface ErrorBody {
-  statusCode: number;
-  code: string;
-  message: string;
-}
+/** The contract's error body, but with any `code`: an API newer than this web may send codes it does not know yet. */
+type ReceivedErrorBody = Omit<ErrorBody, "code"> & { code: string };
 
-function isErrorBody(value: unknown): value is ErrorBody {
+function isErrorBody(value: unknown): value is ReceivedErrorBody {
   if (typeof value !== "object" || value === null) return false;
   const body = value as Record<string, unknown>;
   return typeof body.statusCode === "number" && typeof body.code === "string" && typeof body.message === "string";

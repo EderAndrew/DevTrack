@@ -1,9 +1,9 @@
+import { RoleAssignmentStatusSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import type { RoleAssignmentStatus } from "../../generated/prisma/client";
 import { AppException } from "../../platform/http/errors";
 import { RoleAssignmentStateMachine } from "./role-assignment.state-machine";
 
-const STATUSES: RoleAssignmentStatus[] = ["ACTIVE", "SUSPENDED", "INACTIVE"];
+const STATUSES = RoleAssignmentStatusSchema.options;
 const VALID = new Set(["ACTIVE→SUSPENDED", "SUSPENDED→ACTIVE", "ACTIVE→INACTIVE", "SUSPENDED→INACTIVE", "INACTIVE→ACTIVE"]);
 
 describe("RoleAssignmentStateMachine", () => {

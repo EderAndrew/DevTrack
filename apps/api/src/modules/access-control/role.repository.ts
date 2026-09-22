@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
+import type { RoleKey } from "@repo/contracts";
 import type { GrantSource, Role, UserRole } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import type { RoleKey } from "./permissions";
 
 export type AssignmentWithRole = UserRole & { role: Role };
 

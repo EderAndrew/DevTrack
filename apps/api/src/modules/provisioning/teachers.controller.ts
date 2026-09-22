@@ -1,13 +1,19 @@
 import { Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
-import { z } from "zod";
+import {
+  type TeacherListQuery,
+  TeacherListQuerySchema,
+  type TeacherListResponse,
+  type TeacherView,
+  UuidSchema,
+} from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
-import { uuidSchema } from "../../platform/http/schemas";
 import { ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
-import { type TeacherListItem, TeachersService, type TeacherView } from "./teachers.service";
+import { TeachersService } from "./teachers.service";
 
-const statusSchema = z.enum(["INVITED", "ACTIVE", "SUSPENDED", "INACTIVE"]).optional();
-const idPipe = new ZodValidationPipe(uuidSchema);
+const idPipe = new ZodValidationPipe(UuidSchema);
+/** Only `?status=` is read, as in Phase 001 (catalog note of contracts-package.md). */
+const statusPipe = new ZodValidationPipe(TeacherListQuerySchema.shape.status);
 
 /** The teaching registry (FR-050, FR-051): MANAGER's scope, ADMIN too (FR-005). */
 @Controller("teachers")
@@ -17,8 +23,8 @@ export class TeachersController {
   @Get()
   @RequirePermissions("professores.visualizar")
   async list(
-    @Query("status", new ZodValidationPipe(statusSchema)) status: z.output<typeof statusSchema>,
-  ): Promise<{ items: TeacherListItem[] }> {
+    @Query("status", statusPipe) status: TeacherListQuery["status"],
+  ): Promise<TeacherListResponse> {
     return { items: await this.teachers.list(status) };
   }
 

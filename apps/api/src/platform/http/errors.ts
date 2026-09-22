@@ -1,3 +1,5 @@
+import type { ErrorBody, ErrorCode } from "@repo/contracts";
+
 /**
  * Error catalogue of contracts/http-api.md. Every error leaving the API has the shape
  * {statusCode, code, message}; messages are pt-BR and never carry data about the target.
@@ -39,15 +41,7 @@ export const ErrorCatalog = {
   BOOTSTRAP_ALREADY_DONE: { status: 409, message: "Bootstrap administrativo já realizado." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
-} as const satisfies Record<string, { status: number; message: string }>;
-
-export type ErrorCode = keyof typeof ErrorCatalog;
-
-export interface ErrorBody {
-  statusCode: number;
-  code: ErrorCode;
-  message: string;
-}
+} as const satisfies Record<ErrorCode, { status: number; message: string }>;
 
 export class AppException extends Error {
   readonly status: number;

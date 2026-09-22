@@ -1,13 +1,13 @@
 import { Controller, Delete, Get, HttpCode, Param, Res } from "@nestjs/common";
+import { type SessionListResponse, type SessionView, UuidSchema } from "@repo/contracts";
 import type { Response } from "express";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
-import { uuidSchema } from "../../platform/http/schemas";
 import { ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
-import { OwnSessionsService, type SessionView } from "./own-sessions.service";
+import { OwnSessionsService } from "./own-sessions.service";
 import { SessionCookie } from "./session-cookie";
 
-const idPipe = new ZodValidationPipe(uuidSchema);
+const idPipe = new ZodValidationPipe(UuidSchema);
 
 @Controller("me/sessions")
 export class OwnSessionsController {
@@ -15,7 +15,7 @@ export class OwnSessionsController {
 
   @Get()
   @RequirePermissions("sessoes.proprias.listar")
-  async list(@Ctx() ctx: RequestContext): Promise<{ items: SessionView[] }> {
+  async list(@Ctx() ctx: RequestContext): Promise<SessionListResponse> {
     return { items: await this.ownSessions.list(ctx.auth!) };
   }
 

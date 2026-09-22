@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { InvitationView, InviteRequest } from "@repo/contracts";
 import type { InvitationStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { alreadyTeacher, AppException, teacherReactivationRequired } from "../../platform/http/errors";
@@ -6,7 +7,7 @@ import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { type InvitationScope, InvitationService } from "./invitation.service";
-import { type InvitationView, toInvitationView } from "./invitation.view";
+import { toInvitationView } from "./invitation.view";
 
 /** The teaching registry is shared by everyone holding `professores.*` (MANAGER and ADMIN, FR-005). */
 const SCOPE: InvitationScope = { roleKey: "TEACHER" };
@@ -24,7 +25,7 @@ export class TeacherInvitationsService {
     private readonly audit: AuditService,
   ) {}
 
-  async invite(input: { email: string; displayName: string }, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
+  async invite(input: InviteRequest, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
     const issuer = await this.prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, email: true } });
     try {
       const { invitation, token } = await this.prisma.runInTransaction(async (tx) => {

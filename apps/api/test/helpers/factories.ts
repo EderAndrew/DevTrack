@@ -1,5 +1,5 @@
+import type { RoleKey } from "@repo/contracts";
 import type { AccountStatus, RoleAssignmentStatus } from "../../src/generated/prisma/client";
-import type { RoleKey } from "../../src/modules/access-control/permissions";
 import { RoleRepository } from "../../src/modules/access-control/role.repository";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { SessionService } from "../../src/modules/auth/session.service";

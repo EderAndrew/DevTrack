@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Single Zod version for api, web and @repo/contracts (002 S2, FR-007).
+catalog:
+  zod: ^4.6.5
 allowBuilds:
   '@prisma/engines': true
   '@swc/core': true

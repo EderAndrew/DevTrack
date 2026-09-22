@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { SessionView } from "@repo/contracts";
 import type { Session } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { AuthContext } from "../../platform/http/request-context";
@@ -6,24 +7,16 @@ import { findOwnedOrNotFound } from "../access-control/resource-context";
 import { AuditService } from "../audit/audit.service";
 import { SESSION_IDLE_TIMEOUT_MS, SessionService } from "./session.service";
 
-/** `SessionView` of contracts/http-api.md. `id` is the public identifier, never the secret. */
-export interface SessionView {
-  id: string;
-  createdAt: Date;
-  lastUsedAt: Date;
-  expiresAt: Date;
-  current: boolean;
-}
-
 type SessionRow = Pick<Session, "id" | "createdAt" | "lastUsedAt" | "absoluteExpiresAt">;
 
+/** `SessionView` of the contract: `id` is the public identifier, never the secret; dates as ISO (002 S4). */
 export function toSessionView(session: SessionRow, currentSessionId: string): SessionView {
   const idleExpiry = session.lastUsedAt.getTime() + SESSION_IDLE_TIMEOUT_MS;
   return {
     id: session.id,
-    createdAt: session.createdAt,
-    lastUsedAt: session.lastUsedAt,
-    expiresAt: new Date(Math.min(idleExpiry, session.absoluteExpiresAt.getTime())),
+    createdAt: session.createdAt.toISOString(),
+    lastUsedAt: session.lastUsedAt.toISOString(),
+    expiresAt: new Date(Math.min(idleExpiry, session.absoluteExpiresAt.getTime())).toISOString(),
     current: session.id === currentSessionId,
   };
 }

@@ -1,3 +1,5 @@
+import { RoleKeySchema } from "@repo/contracts";
+
 /**
  * Permission and role keys seeded by migration `seed_roles_permissions`
  * (contracts/permissions.md). Code checks permissions, never role names (Principle II);
@@ -26,6 +28,5 @@ export const PERMISSIONS = [
 
 export type PermissionKey = (typeof PERMISSIONS)[number];
 
-export const ROLE_KEYS = ["ADMIN", "MANAGER", "TEACHER", "STUDENT"] as const;
-
-export type RoleKey = (typeof ROLE_KEYS)[number];
+/** Seeded roles; the values and the `RoleKey` type come from the contract (002 T034). */
+export const ROLE_KEYS = RoleKeySchema.options;

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import type { PublicAccepted, SignupRequest } from "@repo/contracts";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
@@ -16,16 +17,6 @@ import { UserTokenService } from "./user-token.service";
 
 /** Body of every accepted public request about an e-mail (signup, resend): reveals nothing (SC-006). */
 export const PUBLIC_ACCEPTED_MESSAGE = "Se o e-mail puder ser usado, enviaremos as instruções para ele.";
-
-export interface PublicAccepted {
-  message: string;
-}
-
-export interface SignupInput {
-  name: string;
-  email: string;
-  password: string;
-}
 
 /** Links of the e-mails, pointing at the web app (R18). */
 export function webLinks(webOrigin: string) {
@@ -64,7 +55,7 @@ export class SignupService {
     this.links = webLinks(config.webOrigin);
   }
 
-  async signup(input: SignupInput, ctx: RequestContext): Promise<PublicAccepted> {
+  async signup(input: SignupRequest, ctx: RequestContext): Promise<PublicAccepted> {
     const email = normalizeEmail(input.email);
     await this.rateLimit.enforce("signup", email, ctx);
     this.passwordPolicy.validate(input.password);

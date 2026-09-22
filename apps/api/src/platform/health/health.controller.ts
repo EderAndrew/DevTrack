@@ -1,9 +1,8 @@
 import { Controller, Get, Res } from "@nestjs/common";
+import type { HealthStatus } from "@repo/contracts";
 import type { Response } from "express";
 import { Public } from "../../modules/access-control/decorators";
 import { HealthService } from "./health.service";
-
-type HealthStatus = { status: "ok" } | { status: "unavailable" };
 
 /** Liveness and readiness probes (R19). Responses never include internal details. */
 @Controller("health")
