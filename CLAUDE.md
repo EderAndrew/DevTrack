@@ -25,7 +25,7 @@ spec first.
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
 
-`.specify/memory/constitution.md` (v2.1.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.0.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -34,7 +34,7 @@ Amend it only via `/speckit-constitution`.
 hand-maintained.
 
 ## Active Technologies
-
+- No new dependencies; PostgreSQL tables `classes`, `class_invitations`, `class_invitation_deliveries` (mail outbox + in-process retry worker), `enrollments`; `student_profiles.ra`/`status`; `turmas.*` permissions (003-class-invitations-enrollment)
 - `@repo/contracts` (Zod 4 via pnpm catalog, ESM built with `tsc`); web: Tailwind CSS 4, shadcn/ui (Radix), Lucide, TanStack Query 5, React Hook Form 7 + `@hookform/resolvers`; E2E: Playwright; CI: GitHub Actions (002-stack-alignment)
 - TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19 (001-foundation-identity-access)
 
@@ -152,7 +152,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   resource context. Never check role names or `isAdmin`-style flags. Missing capability → `403`;
   has capability but resource outside the user's context → `404` (don't reveal existence).
 - One `User` identity with many roles via `User → UserRole → Role → RolePermission → Permission`;
-  never a `users.role` column. Public signup only ever creates `STUDENT` and rejects role fields.
+  never a `users.role` column. No public self-signup (constitution 3.0.0): student accounts come only from
+  accepting a teacher's class invitation (spec 003); the Phase 001 signup stays until 003 removes it.
   `TEACHER`/`MANAGER` come only from invitations; the first `ADMIN` only from the CLI (no endpoint,
   seed, default password or env credentials). The last active `ADMIN` can't be removed.
 - Workflows use explicit state enums, not boolean flags; invalid transitions → `409
@@ -172,7 +173,7 @@ the removal conditions are in `DEPENDENCIES.md`.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
 
 ## Recent Changes
-
+- 003-class-invitations-enrollment (planned): classes, class invitations by e-mail with retried delivery, enrollments; public student signup removed (constitution 3.0.0)
 - 002-stack-alignment: Added `@repo/contracts` shared Zod contracts, official frontend stack (Tailwind, shadcn/ui, TanStack Query, React Hook Form), Playwright E2E and GitHub Actions CI
 - 001-foundation-identity-access: Added TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19
 

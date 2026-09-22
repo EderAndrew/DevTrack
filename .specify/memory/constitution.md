@@ -1,47 +1,43 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.0.0 → 2.1.0
-Motivo (MINOR): novo princípio e expansão material da seção de stack, sem remover
-nem redefinir princípios existentes.
+Version change: 2.1.0 → 3.0.0
+Motivo (MAJOR): redefinição incompatível de uma regra do Princípio XXV — "Alunos
+PODEM ter autocadastro" passa a "NÃO existe autocadastro público". O código da Fase
+001 (cadastro público) deixa de estar em conformidade até a spec 003 removê-lo.
 
-Princípios adicionados:
-  XXVI. Contratos Compartilhados — packages/contracts como fonte única dos
-        contratos entre apps; Zod como fonte primária e tipos via z.infer;
-        duplicação manual proibida; só a fronteira (request/response, enums
-        públicos, paginação, filtros, eventos, formato de erro); nada de Prisma,
-        repositórios, services ou estado de UI; mensagens pt-BR ficam no web;
-        backend continua validando; uma versão de Zod via catalog; pacote
-        compilado para dist/ com tipos.
-
-Princípios modificados: nenhum.
-Princípios removidos: nenhum.
+Princípios modificados:
+  XXIV. Isolamento por Contexto Acadêmico — "Conta ≠ matrícula": a conta do aluno
+        nasce do aceite de convite de turma, com a primeira matrícula, mas continua
+        distinta dela.
+  XXV.  Provisionamento Controlado de Professores e Privilégios — sem autocadastro
+        público; contas de aluno só pelo aceite de convite de turma do professor
+        responsável; papel, turma e e-mail vêm do convite; convites de turma com as
+        mesmas regras dos demais convites; o professor nunca cria, conhece, recebe,
+        envia nem redefine a senha do aluno; contas do autocadastro antigo continuam
+        válidas; transição até a spec 003; identidade única e idempotência do aceite
+        generalizadas para convites de turma.
 
 Seções modificadas:
-  - Arquitetura e Stack Técnica — packages/contracts; stack oficial do frontend
-    (Next.js + TS, Tailwind CSS, shadcn/ui, Lucide React, TanStack Query, Redux
-    Toolkit, React Hook Form + Zod + @hookform/resolvers, fetch, ESLint, Prettier,
-    Vitest + RTL, Playwright); regra Server State → Query / Client State → Redux /
-    Validação → Zod / UI → shadcn; Redux só na primeira spec com estado global de
-    cliente real e nunca autoridade sobre prova; organização features/* sem src/;
-    Transição da Fase 001.
-  - Padrões por Camada / Frontend — chamadas à API em features/*/api via hooks do
-    TanStack Query; formulários com React Hook Form e schema do contrato.
-  - Roadmap — refatoração de alinhamento de stack antes da Fase 002.
+  - Arquitetura e Stack Técnica — descrição do papel STUDENT.
+  - Roadmap — Fase 001 (autocadastro substituído) e Fase 002 (primeira spec:
+    turmas, convites de turma e matrículas).
+
+Princípios adicionados: nenhum.
+Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gates XXVI e stack do frontend
+  ✅ .specify/templates/plan-template.md  — gate XXV atualizado
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — regras de contratos e stack do frontend
+  ✅ CLAUDE.md — regra de cadastro público atualizada
 
 Follow-ups:
-  - Especificar a feature de refatoração (packages/contracts, Tailwind/shadcn nas
-    páginas da 001, remoção de packages/ui, TanStack Query, React Hook Form,
-    Playwright) com /speckit-specify antes da Fase 002.
-  - As novas dependências entram no DEPENDENCIES.md com a auditoria de licença e
-    vulnerabilidades quando forem instaladas.
+  - Implementar a spec 003-class-invitations-enrollment, que remove /cadastro e a
+    operação pública de cadastro (FR-048) e adapta os testes e o E2E da Fase 001.
+  - A spec 001 (FR-010, FR-012) fica superada pela 003 nesse ponto; o registro
+    histórico da 001 não é reescrito.
 -->
 
 # DevTrack Constitution
@@ -107,7 +103,8 @@ compromete diretamente a integridade acadêmica.
   - `ADMIN` — administra a plataforma e provisiona `MANAGER`s;
   - `MANAGER` — garante **quem pode ser professor** (provisionamento cadastral);
   - `TEACHER` — administra todo o seu processo pedagógico;
-  - `STUDENT` — autocadastro e participação nas turmas em que foi admitido.
+  - `STUDENT` — conta criada pelo aceite de convite de turma e participação nas
+    turmas em que foi admitido.
   Nomes exibidos na interface PODEM ser personalizados (ex.: "Gestor de Cadastros").
   No início, `ADMIN` PODE acumular as funções de `MANAGER`. Necessidades futuras
   (coordenação, secretaria, gestão acadêmica) DEVEM gerar papéis novos, nunca
@@ -455,9 +452,10 @@ análise de evolução.
   - **com a capacidade, mas fora do contexto** (ex.: prova de outra turma) → o
     recurso DEVERIA ser respondido como inexistente (`404`), sem revelar sua
     existência.
-- **Conta ≠ matrícula**: o aluno cria a própria conta (autocadastro, quando permitido
-  pela configuração da plataforma — XXV); a conta sozinha não dá acesso a nenhuma
-  turma.
+- **Conta ≠ matrícula**: a conta do aluno nasce do aceite de um convite de turma
+  (XXV), junto com a primeira matrícula, mas é um conceito distinto dela: remover
+  uma matrícula nunca apaga a conta, e a conta sem matrícula ativa não dá acesso a
+  nenhuma turma.
 - O ingresso em turma DEVE ocorrer por mecanismo controlado — código de ingresso,
   convite, solicitação com aprovação do professor ou mecanismo institucional futuro.
   Códigos de ingresso são credenciais: imprevisíveis, com limite de tentativas,
@@ -479,24 +477,33 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
 
 **Provisionamento**
 
-- `TEACHER` é papel privilegiado e NUNCA pode ser obtido por autocadastro público.
+- `TEACHER` é papel privilegiado e NUNCA pode ser obtido por fluxo público nem por
+  convite de turma.
   Professores DEVEM ser provisionados exclusivamente por usuário administrativo com a
   permissão correspondente (`MANAGER`, ou `ADMIN` enquanto acumular a função),
   preferencialmente por **convite** com validade limitada. `MANAGER`s são
   provisionados por `ADMIN`.
-- O fluxo público de cadastro DEVE criar exclusivamente contas permitidas para
-  autocadastro (`STUDENT`) e NUNCA permite atribuir `TEACHER`, `MANAGER` ou `ADMIN`.
-  Roles não são parâmetro confiável do cadastro público — um payload com
-  `"role": "TEACHER"` é ignorado ou rejeitado, mesmo que a interface não ofereça
-  essa opção.
+- NÃO existe autocadastro público. Contas de aluno DEVEM ser criadas exclusivamente
+  pelo aceite de um convite de turma enviado pelo professor responsável pela turma;
+  o aceite concede apenas `STUDENT` e a matrícula nessa turma. Nenhum fluxo público
+  permite atribuir `TEACHER`, `MANAGER` ou `ADMIN`. Papel, turma e e-mail vêm do
+  convite, nunca do pedido — um payload com `"role": "TEACHER"` ou outro e-mail é
+  rejeitado, mesmo que a interface não ofereça essa opção.
 - O administrador autoriza a existência da conta, mas NÃO DEVE conhecer nem definir
   a credencial pessoal do professor. Convites DEVEM ser de uso único, vinculados ao
   e-mail convidado, com expiração, armazenados como hash (`tokenHash`) e revogáveis.
 - Contas de professor DEVEM ter ciclo de vida explícito (XVI) — ex.: `INVITED`,
   `ACTIVE`, `SUSPENDED`, `INACTIVE`.
-- Alunos PODEM ter autocadastro quando permitido pela configuração da plataforma. O
-  autocadastro concede apenas `STUDENT` e nenhum acesso acadêmico — este depende de
-  matrícula válida (XXIV). O e-mail DEVE ser verificado.
+- Convites de turma seguem as mesmas regras dos demais convites: uso único,
+  vinculados ao e-mail convidado, com expiração, armazenados como hash e revogáveis;
+  o aceite comprova a posse do e-mail, que passa a verificado.
+- O professor autoriza o ingresso, mas NÃO DEVE criar, conhecer, receber, enviar nem
+  redefinir a senha do aluno: o aluno define a própria credencial.
+- Contas criadas pelo antigo autocadastro da Fase 001 continuam válidas e entram em
+  turmas pelo mesmo convite, como conta existente.
+- **Transição**: o autocadastro da Fase 001 permanece no código até a implementação
+  da spec `003-class-invitations-enrollment` removê-lo; código novo NÃO DEVE
+  depender dele nem estendê-lo.
 - Toda atribuição, remoção ou alteração de privilégio (incluindo `TEACHER`) DEVE
   exigir autorização no backend e ser auditada, registrando o responsável, data e
   hora e o papel/permissão concedido ou removido. Nenhum usuário concede a si
@@ -540,8 +547,10 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
   `User → UserRole → Role → RolePermission → Permission`), nunca como coluna única
   (`users.role`). Perfis são opcionais por papel (`TeacherProfile` 0..1,
   `StudentProfile` 0..1).
-- Se o convite for para um e-mail que já pertence a um `User`, a aceitação DEVE
-  reutilizar essa identidade e adicionar `TEACHER` e `TeacherProfile`. Para impedir
+- Se o convite (de professor ou de turma) for para um e-mail que já pertence a um
+  `User`, a aceitação DEVE reutilizar essa identidade e adicionar o papel e o perfil
+  do convite (`TEACHER` e `TeacherProfile`, ou `STUDENT` e `StudentProfile` com a
+  matrícula). Para impedir
   sequestro de conta e pré-registro malicioso:
   - privilégios só são vinculados a um `User` existente cujo e-mail esteja
     verificado e mediante autenticação nessa conta; o convite NUNCA redefine a
@@ -550,8 +559,8 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
     portanto, controla o e-mail) assume a conta com redefinição de credencial e
     revogação de todas as sessões ativas.
 - A aceitação de convites DEVE ser transacional e idempotente (XVII): aceitar o
-  mesmo convite duas vezes nunca cria dois `TeacherProfile` nem atribuições
-  duplicadas de papel.
+  mesmo convite duas vezes nunca cria perfis duplicados, atribuições duplicadas de
+  papel nem duas matrículas ativas.
 
 **Desativação**
 
@@ -722,7 +731,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
    `ADMIN`, `MANAGER`, `TEACHER`, `STUDENT`), provisionamento de `MANAGER` por
    `ADMIN`, convite de professor por `MANAGER` (`TeacherInvitation`), bootstrap do
    primeiro `ADMIN` por comando operacional, autocadastro de aluno com e-mail
-   verificado, sessões, auditoria de privilégios, health check, logs,
+   verificado (substituído pelo convite de turma na Fase 002), sessões, auditoria de privilégios, health check, logs,
    Docker e testes. A arquitetura de autorização DEVE nascer preparada para checagem
    por contexto de recurso (XXIV), para que a Fase 002 não exija refazer a fundação.
    - **Refatoração de alinhamento de stack** (antes da Fase 002): migração da Fase
@@ -730,7 +739,9 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
      *Transição* em Arquitetura e Stack Técnica), sem mudança de comportamento.
 2. **Fase 002 — Academic Domain**: perfis de professor e aluno, disciplinas/ofertas
    do professor (tipo de oferta e período), turmas (turno e modalidade) e matrículas
-   com ingresso controlado.
+   com ingresso controlado. A primeira spec da fase
+   (`003-class-invitations-enrollment`) cria turmas, convites de turma por e-mail e
+   matrículas; o convite passa a ser a única forma de criar conta de aluno.
 3. **Fase 003 — Syllabus & Learning Plan**: ementa (versionada), plano de ensino por
    turma, módulos, aulas, conteúdos e objetivos de aprendizagem.
 4. **Fase 004 — Question Bank**: questões com níveis, tipos, tags e vínculo com
@@ -757,7 +768,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-22
+**Version**: 3.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-22
 
 Histórico:
 
@@ -774,3 +785,6 @@ Histórico:
 - **2.1.0** — Contratos compartilhados em `packages/contracts` (Princípio XXVI) e
   stack oficial do frontend (Tailwind/shadcn, TanStack Query, Redux Toolkit, React
   Hook Form, `fetch`, Playwright), com refatoração da Fase 001 antes da Fase 002.
+- **3.0.0** — Fim do autocadastro público de aluno: contas de aluno nascem somente do
+  aceite de convite de turma do professor, que nunca define nem conhece a senha do
+  aluno; contas do autocadastro antigo continuam válidas (XXIV, XXV, roadmap).
