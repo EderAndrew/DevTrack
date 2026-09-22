@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NoAccess } from "../../../components/no-access";
+import { NoAccess } from "../../../components/shared/no-access";
 import type { AccountPage } from "../../../lib/admin-api";
 import { serverGet } from "../../../lib/server-api";
 import { getMe } from "../../../lib/session";
@@ -19,7 +19,7 @@ export default async function UsersPage() {
   if (!page) redirect(LOGIN);
 
   return (
-    <section className="page page--wide">
+    <section className="mx-auto max-w-256 px-4 py-8">
       <h1>Contas de usuário</h1>
       <p>Somente dados de identidade: nome, e-mail, situação da conta e papéis.</p>
       <UsersAdmin initialPage={page} currentUserId={me.id} />

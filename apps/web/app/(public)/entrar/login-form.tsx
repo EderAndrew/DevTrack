@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
 import { authApi, errorMessage } from "../../../lib/auth-api";
 
 export interface LoginFormProps {

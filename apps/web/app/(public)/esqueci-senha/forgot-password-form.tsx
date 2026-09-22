@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { authApi, errorMessage } from "../../../lib/auth-api";
 
 export function ForgotPasswordForm() {
@@ -35,11 +35,11 @@ export function ForgotPasswordForm() {
 
   if (done) {
     return (
-      <div ref={doneRef} className="notice" role="status" tabIndex={-1}>
+      <Notice ref={doneRef} role="status" tabIndex={-1}>
         <h2>Verifique seu e-mail</h2>
         <p>{done}</p>
         <p>O link vale por 1 hora. Se pedir de novo, só o link mais recente funcionará.</p>
-      </div>
+      </Notice>
     );
   }
 

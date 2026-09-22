@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Esqueci minha senha" };
 
 export default function ForgotPasswordPage() {
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Esqueci minha senha</h1>
       <p>Informe o e-mail da sua conta. Se ele estiver cadastrado, enviaremos um link para definir uma nova senha.</p>
       <ForgotPasswordForm />

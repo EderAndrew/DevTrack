@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NoAccess } from "../../components/no-access";
+import { NoAccess } from "../../components/shared/no-access";
 import type { TeacherListItem } from "../../lib/admin-api";
 import { serverGet } from "../../lib/server-api";
 import { getMe } from "../../lib/session";
@@ -19,7 +19,7 @@ export default async function TeachersPage() {
   if (!teachers) redirect(LOGIN);
 
   return (
-    <section className="page page--wide">
+    <section className="mx-auto max-w-256 px-4 py-8">
       <h1>Professores</h1>
       <TeachersAdmin initialTeachers={teachers.items} />
     </section>

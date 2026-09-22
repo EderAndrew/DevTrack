@@ -11,7 +11,7 @@ export default async function VerifyEmailPage({
 }) {
   const { token } = await searchParams;
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Verificar e-mail</h1>
       <VerifyEmail token={typeof token === "string" ? token : null} />
     </section>

@@ -64,7 +64,7 @@ describe("UsersAdmin (FR-056, FR-075)", () => {
     fetchMock
       .mockResolvedValueOnce(json(200, { ...ANA, status: "SUSPENDED" }))
       .mockResolvedValueOnce(
-        json(409, { statusCode: 409, code: "LAST_ADMIN_PROTECTED", message: "O último administrador ativo não pode ser removido." }),
+        json(409, { statusCode: 409, code: "LAST_ADMIN_PROTECTED", message: "Não é possível remover o último administrador ativo." }),
       );
     const other = account("dddddddd-dddd-4ddd-8ddd-dddddddddddd", "Outro Admin", { roles: [{ key: "ADMIN", status: "ACTIVE" }] });
     render(<UsersAdmin initialPage={{ items: [ANA, other], nextCursor: null }} currentUserId={ME.id} />);
@@ -75,7 +75,7 @@ describe("UsersAdmin (FR-056, FR-075)", () => {
     expect(await screen.findByRole("button", { name: "Reativar conta de Ana Aluna" })).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Suspender conta de Outro Admin" }));
-    expect((await screen.findByRole("group")).textContent).toContain("O último administrador ativo");
+    expect((await screen.findByRole("group")).textContent).toContain("Não é possível remover o último administrador ativo.");
   });
 });
 

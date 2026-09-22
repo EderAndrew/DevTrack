@@ -66,13 +66,13 @@ describe("SignupForm (US1, FR-010, FR-075)", () => {
 
   it("WEAK_PASSWORD da API aparece no resumo com foco", async () => {
     fetchMock.mockResolvedValue(
-      json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha não atende aos requisitos." }),
+      json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum." }),
     );
     render(<SignupForm />);
     await fill();
 
     const summary = await screen.findByRole("group", { name: "Corrija os itens abaixo" });
-    expect(summary.textContent).toContain("A senha não atende aos requisitos.");
+    expect(summary.textContent).toContain("A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum.");
     expect(document.activeElement).toBe(summary);
     expect(screen.getByLabelText(/^Senha/).getAttribute("aria-invalid")).toBe("true");
   });

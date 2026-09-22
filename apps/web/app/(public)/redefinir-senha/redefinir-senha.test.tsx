@@ -48,7 +48,7 @@ describe("ResetPasswordForm (US8-2, US8-4, FR-075)", () => {
   });
 
   it("WEAK_PASSWORD fica ligado ao campo, com foco no resumo", async () => {
-    fetchMock.mockResolvedValue(json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha não atende aos requisitos." }));
+    fetchMock.mockResolvedValue(json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum." }));
     render(<ResetPasswordForm token={TOKEN} />);
     await fill("senha-comum-demais");
     const summary = await screen.findByRole("group", { name: "Não foi possível redefinir" });

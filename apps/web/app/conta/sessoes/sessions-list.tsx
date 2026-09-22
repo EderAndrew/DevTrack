@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ErrorSummary, type FormError } from "../../../components/form";
+import { ErrorSummary, type FormError } from "@/components/shared";
 import { authApi, errorMessage, type SessionView } from "../../../lib/auth-api";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -60,46 +62,46 @@ export function SessionsList({ initialSessions }: SessionsListProps) {
   return (
     <div>
       <ErrorSummary errors={errors} title="Não foi possível concluir" />
-      <p className="visually-hidden" aria-live="polite">
+      <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
-      <table className="table">
-        <caption className="visually-hidden">Sessões ativas</caption>
-        <thead>
-          <tr>
-            <th scope="col">Iniciada em</th>
-            <th scope="col">Último uso</th>
-            <th scope="col">Expira em</th>
-            <th scope="col">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="mb-6">
+        <TableCaption className="sr-only">Sessões ativas</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Iniciada em</TableHead>
+            <TableHead scope="col">Último uso</TableHead>
+            <TableHead scope="col">Expira em</TableHead>
+            <TableHead scope="col">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sessions.map((session) => (
-            <tr key={session.id}>
-              <td>
+            <TableRow key={session.id}>
+              <TableCell>
                 {format(session.createdAt)}
                 {session.current ? <strong> (esta sessão)</strong> : null}
-              </td>
-              <td>{format(session.lastUsedAt)}</td>
-              <td>{format(session.expiresAt)}</td>
-              <td>
-                <button
+              </TableCell>
+              <TableCell>{format(session.lastUsedAt)}</TableCell>
+              <TableCell>{format(session.expiresAt)}</TableCell>
+              <TableCell>
+                <Button
                   type="button"
-                  className="button button--secondary"
+                  variant="secondary"
                   aria-busy={busy === session.id || undefined}
                   aria-label={`Encerrar sessão iniciada em ${format(session.createdAt)}${session.current ? " (esta sessão)" : ""}`}
                   onClick={() => void revoke(session)}
                 >
                   Encerrar
-                </button>
-              </td>
-            </tr>
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <button type="button" className="button" aria-busy={busy === "all" || undefined} onClick={() => void logoutAll()}>
+        </TableBody>
+      </Table>
+      <Button type="button" aria-busy={busy === "all" || undefined} onClick={() => void logoutAll()}>
         Sair de todos os dispositivos
-      </button>
+      </Button>
     </div>
   );
 }

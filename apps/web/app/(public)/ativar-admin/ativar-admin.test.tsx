@@ -58,7 +58,7 @@ describe("AdminActivation (US3, FR-075)", () => {
   it("SIGN_IN_REQUIRED: link para entrar sem o token e conclusão enviando só {token}", async () => {
     fetchMock
       .mockResolvedValueOnce(preview("SIGN_IN_REQUIRED"))
-      .mockResolvedValueOnce(json(401, { statusCode: 401, code: "SIGN_IN_REQUIRED", message: "Entre na conta para continuar." }))
+      .mockResolvedValueOnce(json(401, { statusCode: 401, code: "SIGN_IN_REQUIRED", message: "Entre na sua conta para continuar." }))
       .mockResolvedValueOnce(json(200, { role: "ADMIN" }));
     const { container } = render(<AdminActivation token={TOKEN} />);
 
@@ -69,7 +69,7 @@ describe("AdminActivation (US3, FR-075)", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Concluir ativação" }));
-    expect((await screen.findByRole("group")).textContent).toContain("Entre na conta para continuar.");
+    expect((await screen.findByRole("group")).textContent).toContain("Entre na sua conta para continuar.");
     expect(bodyOf(1)).toEqual({ token: TOKEN });
 
     await user.click(screen.getByRole("button", { name: "Concluir ativação" }));

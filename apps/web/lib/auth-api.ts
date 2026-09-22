@@ -15,7 +15,7 @@ import type {
   TokenRequest,
   VerifyEmailRequest,
 } from "@repo/contracts";
-import { ApiError, apiClient } from "./api-client";
+import { apiClient } from "./api-client";
 
 /** Types of @repo/contracts still imported from here by the screens (moved to features/ in US4). */
 export type { AdminActivationPreview, SessionView } from "@repo/contracts";
@@ -64,14 +64,5 @@ export function safeNextPath(next: string | null | undefined, fallback = "/conta
   return next;
 }
 
-/** User-facing text for an API failure; API messages are already generic and in Portuguese. */
-export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "RATE_LIMITED" && error.retryAfterSeconds) {
-      const minutes = Math.max(1, Math.ceil(error.retryAfterSeconds / 60));
-      return `Muitas tentativas. Tente novamente em ${minutes} minuto${minutes > 1 ? "s" : ""}.`;
-    }
-    return error.message;
-  }
-  return "Erro inesperado. Tente novamente mais tarde.";
-}
+/** User-facing text for a failure, from the web's own catalogue (002 S8); kept here for the screens' imports. */
+export { messageForError as errorMessage } from "./messages/error-messages";

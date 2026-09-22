@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { ApiError } from "../../../lib/api-client";
 import {
   authApi,
@@ -21,14 +21,14 @@ export interface ResetPasswordFormProps {
 
 function InvalidLink({ message }: { message: string }) {
   return (
-    <div className="notice" role="status">
+    <Notice role="status">
       <h2>Não foi possível usar este link</h2>
       <p>{message}</p>
       <p>
         O link pode ter expirado, já ter sido usado ou sido substituído por um mais recente.{" "}
         <Link href="/esqueci-senha">Pedir um novo link</Link>
       </p>
-    </div>
+    </Notice>
   );
 }
 
@@ -71,7 +71,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       setState({ step: "done", message });
     } catch (error) {
       if (error instanceof ApiError && error.code === "TOKEN_INVALID") {
-        setState({ step: "invalid", message: error.message });
+        setState({ step: "invalid", message: errorMessage(error) });
         return;
       }
       const fieldId = error instanceof ApiError && error.code === "WEAK_PASSWORD" ? "senha" : undefined;
@@ -85,13 +85,13 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
 
   if (state.step === "done") {
     return (
-      <div ref={doneRef} className="notice" role="status" tabIndex={-1}>
+      <Notice ref={doneRef} role="status" tabIndex={-1}>
         <h2>Senha redefinida</h2>
         <p>{state.message}</p>
         <p>
           <Link href="/entrar">Entrar</Link>
         </p>
-      </div>
+      </Notice>
     );
   }
 

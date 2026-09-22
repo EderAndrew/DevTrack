@@ -2,6 +2,7 @@
 
 import type { MouseEvent, ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/button";
 
 export interface SubmitButtonProps {
   children: ReactNode;
@@ -12,8 +13,8 @@ export interface SubmitButtonProps {
 }
 
 /**
- * Submit button whose busy state is announced (FR-075, R22). It stays focusable while busy
- * (`aria-disabled` instead of `disabled`) and ignores repeated activation.
+ * Submit button whose busy state is announced (FR-075, R22), on shadcn `Button`. It stays
+ * focusable while busy (`aria-disabled` instead of `disabled`) and ignores repeated activation.
  */
 export function SubmitButton({ children, pendingLabel = "Enviando…", pending: pendingProp = false }: SubmitButtonProps) {
   const status = useFormStatus();
@@ -25,16 +26,10 @@ export function SubmitButton({ children, pendingLabel = "Enviando…", pending: 
 
   return (
     <>
-      <button
-        type="submit"
-        className="button"
-        aria-disabled={pending || undefined}
-        aria-busy={pending || undefined}
-        onClick={blockWhilePending}
-      >
+      <Button type="submit" aria-disabled={pending || undefined} aria-busy={pending || undefined} onClick={blockWhilePending}>
         {pending ? pendingLabel : children}
-      </button>
-      <span className="visually-hidden" role="status">
+      </Button>
+      <span className="sr-only" role="status">
         {pending ? pendingLabel : ""}
       </span>
     </>

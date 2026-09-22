@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { authApi, errorMessage } from "../../../lib/auth-api";
 
 type State = "verifying" | "verified" | "invalid";
@@ -38,12 +38,12 @@ export function VerifyEmail({ token }: VerifyEmailProps) {
     <div aria-live="polite">
       {state === "verifying" ? <p role="status">Verificando seu e-mail…</p> : null}
       {state === "verified" ? (
-        <div className="notice" role="status">
+        <Notice role="status">
           <h2>E-mail verificado</h2>
           <p>
             Seu e-mail foi confirmado. <Link href="/entrar">Entrar</Link>
           </p>
-        </div>
+        </Notice>
       ) : null}
       {state === "invalid" ? <ResendVerification problem={problem} /> : null}
     </div>
@@ -80,9 +80,9 @@ function ResendVerification({ problem }: { problem: string | null }) {
       {problem ? <p>{problem}</p> : null}
       <p>O link pode ter expirado ou sido substituído por um mais recente. Peça um novo link abaixo.</p>
       {done ? (
-        <p className="notice" role="status">
-          {done}
-        </p>
+        <Notice role="status">
+          <p className="m-0">{done}</p>
+        </Notice>
       ) : (
         <form noValidate onSubmit={onSubmit} aria-labelledby="reenvio-titulo">
           <h3 id="reenvio-titulo">Receber novo link</h3>

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Entrar" };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
   const { next } = await searchParams;
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Entrar</h1>
       <LoginForm next={safeNextPath(typeof next === "string" ? next : null)} />
       <p>

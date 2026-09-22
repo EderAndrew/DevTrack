@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiClient, apiRequest, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "./api-client";
+import { messageForError } from "./messages/error-messages";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -98,6 +99,24 @@ describe("apiClient error mapping", () => {
     fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
     const error = await caught(apiClient.get("/me"));
     expect(error).toMatchObject({ status: 0, code: NETWORK_ERROR });
+  });
+
+  it("002/US2-3 a known code with a different server message shows the web catalogue text", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(401, { statusCode: 401, code: "INVALID_CREDENTIALS", message: "Invalid credentials (server text)." }),
+    );
+    const error = await caught(apiClient.post("/auth/login", {}));
+    expect(error.message).toBe("Invalid credentials (server text).");
+    expect(messageForError(error)).toBe("E-mail ou senha incorretos.");
+  });
+
+  it("002/US2-3 network and unexpected failures show the web catalogue texts", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect(messageForError(await caught(apiClient.get("/me")))).toBe(
+      "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+    );
+    fetchMock.mockResolvedValueOnce(new Response("<html>Bad Gateway</html>", { status: 502 }));
+    expect(messageForError(await caught(apiClient.get("/me")))).toBe("Erro inesperado. Tente novamente mais tarde.");
   });
 
   it("aborts propagate untouched", async () => {

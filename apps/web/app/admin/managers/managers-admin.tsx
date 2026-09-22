@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
 import { ApiError } from "../../../lib/api-client";
 import {
   adminApi,
@@ -11,6 +11,8 @@ import {
   STATUS_LABELS,
 } from "../../../lib/admin-api";
 import { errorMessage } from "../../../lib/auth-api";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export interface ManagersAdminProps {
   initialManagers: ManagerView[];
@@ -98,7 +100,7 @@ export function ManagersAdmin({ initialManagers, initialInvitations }: ManagersA
 
   return (
     <div>
-      <p className="visually-hidden" aria-live="polite">
+      <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
       <ErrorSummary errors={actionErrors} title="Não foi possível concluir" />
@@ -107,37 +109,37 @@ export function ManagersAdmin({ initialManagers, initialInvitations }: ManagersA
       {managers.length === 0 ? (
         <p>Nenhum gestor cadastrado.</p>
       ) : (
-        <table className="table">
-          <caption className="visually-hidden">Gestores de cadastros</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nome</th>
-              <th scope="col">E-mail</th>
-              <th scope="col">Situação</th>
-              <th scope="col">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="mb-6">
+          <TableCaption className="sr-only">Gestores de cadastros</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Nome</TableHead>
+              <TableHead scope="col">E-mail</TableHead>
+              <TableHead scope="col">Situação</TableHead>
+              <TableHead scope="col">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {managers.map((manager) => (
-              <tr key={manager.userId}>
-                <td>{manager.name}</td>
-                <td>{manager.email}</td>
-                <td>{STATUS_LABELS[manager.status]}</td>
-                <td>
-                  <button
+              <TableRow key={manager.userId}>
+                <TableCell>{manager.name}</TableCell>
+                <TableCell>{manager.email}</TableCell>
+                <TableCell>{STATUS_LABELS[manager.status]}</TableCell>
+                <TableCell>
+                  <Button
                     type="button"
-                    className="button button--secondary"
+                    variant="secondary"
                     aria-busy={busy === manager.userId || undefined}
                     aria-label={`${manager.status === "INACTIVE" ? "Reativar" : "Desativar"} ${manager.name}`}
                     onClick={() => void toggleManager(manager)}
                   >
                     {manager.status === "INACTIVE" ? "Reativar" : "Desativar"}
-                  </button>
-                </td>
-              </tr>
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
       <h2 id="convidar-titulo">Convidar gestor</h2>
@@ -154,56 +156,56 @@ export function ManagersAdmin({ initialManagers, initialInvitations }: ManagersA
       {invitations.length === 0 ? (
         <p>Nenhum convite.</p>
       ) : (
-        <table className="table">
-          <caption className="visually-hidden">Convites de gestor</caption>
-          <thead>
-            <tr>
-              <th scope="col">Convidado</th>
-              <th scope="col">Situação</th>
-              <th scope="col">Válido até</th>
-              <th scope="col">Envios</th>
-              <th scope="col">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="mb-6">
+          <TableCaption className="sr-only">Convites de gestor</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Convidado</TableHead>
+              <TableHead scope="col">Situação</TableHead>
+              <TableHead scope="col">Válido até</TableHead>
+              <TableHead scope="col">Envios</TableHead>
+              <TableHead scope="col">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {invitations.map((invitation) => (
-              <tr key={invitation.id}>
-                <td>
+              <TableRow key={invitation.id}>
+                <TableCell>
                   {invitation.displayName}
                   <br />
                   {invitation.email}
-                </td>
-                <td>{STATUS_LABELS[invitation.status]}</td>
-                <td>{formatDateTime(invitation.expiresAt)}</td>
-                <td>{invitation.sendCount}</td>
-                <td>
+                </TableCell>
+                <TableCell>{STATUS_LABELS[invitation.status]}</TableCell>
+                <TableCell>{formatDateTime(invitation.expiresAt)}</TableCell>
+                <TableCell>{invitation.sendCount}</TableCell>
+                <TableCell>
                   {invitation.status === "PENDING" ? (
-                    <span className="actions">
-                      <button
+                    <span className="flex flex-wrap gap-2">
+                      <Button
                         type="button"
-                        className="button button--secondary"
+                        variant="secondary"
                         aria-busy={busy === invitation.id || undefined}
                         aria-label={`Reenviar convite para ${invitation.email}`}
                         onClick={() => void resend(invitation)}
                       >
                         Reenviar
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="button button--secondary"
+                        variant="secondary"
                         aria-busy={busy === invitation.id || undefined}
                         aria-label={`Revogar convite para ${invitation.email}`}
                         onClick={() => void revoke(invitation)}
                       >
                         Revogar
-                      </button>
+                      </Button>
                     </span>
                   ) : null}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </div>
   );

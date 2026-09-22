@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { ApiError } from "../../../lib/api-client";
 import {
   type AdminActivationPreview,
@@ -80,7 +80,7 @@ export function AdminActivation({ token: tokenFromUrl }: AdminActivationProps) {
     } catch (error) {
       if (error instanceof ApiError && (error.code === "TOKEN_INVALID" || error.code === "BOOTSTRAP_ALREADY_DONE")) {
         storage()?.removeItem(ACTIVATION_TOKEN_KEY);
-        setState({ step: "invalid", message: error.message });
+        setState({ step: "invalid", message: errorMessage(error) });
         return;
       }
       const fieldId = error instanceof ApiError && error.code === "WEAK_PASSWORD" ? "senha" : undefined;
@@ -114,22 +114,22 @@ export function AdminActivation({ token: tokenFromUrl }: AdminActivationProps) {
 
   if (state.step === "invalid") {
     return (
-      <div className="notice" role="status">
+      <Notice role="status">
         <h2>Não foi possível usar este link</h2>
         <p>{state.message}</p>
         <p>Peça ao responsável pela instalação que execute o comando de bootstrap novamente para gerar um novo link.</p>
-      </div>
+      </Notice>
     );
   }
 
   if (state.step === "done") {
     return (
-      <div className="notice" role="status">
+      <Notice role="status">
         <h2>Conta de administrador ativada</h2>
         <p>
           O papel de administrador foi concedido. <Link href="/entrar">Entrar</Link>
         </p>
-      </div>
+      </Notice>
     );
   }
 

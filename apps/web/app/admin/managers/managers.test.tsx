@@ -58,7 +58,7 @@ describe("ManagersAdmin (US4, FR-075)", () => {
 
   it("erro de negócio vai para o resumo, ligado ao e-mail", async () => {
     fetchMock.mockResolvedValue(
-      json(403, { statusCode: 403, code: "SELF_INVITE_FORBIDDEN", message: "Você não pode convidar o próprio e-mail." }),
+      json(403, { statusCode: 403, code: "SELF_INVITE_FORBIDDEN", message: "Não é possível convidar a si mesmo." }),
     );
     render(<ManagersAdmin initialManagers={[]} initialInvitations={[]} />);
     const user = userEvent.setup();
@@ -67,7 +67,7 @@ describe("ManagersAdmin (US4, FR-075)", () => {
     await user.click(screen.getByRole("button", { name: "Enviar convite" }));
 
     const summary = await screen.findByRole("group", { name: "Não foi possível convidar" });
-    expect(summary.textContent).toContain("Você não pode convidar o próprio e-mail.");
+    expect(summary.textContent).toContain("Não é possível convidar a si mesmo.");
     expect(document.activeElement).toBe(summary);
     expect(screen.getByLabelText(/^E-mail/).getAttribute("aria-invalid")).toBe("true");
   });

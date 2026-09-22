@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { ApiError } from "../../../lib/api-client";
 import { authApi, errorMessage, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordLength } from "../../../lib/auth-api";
 
@@ -56,11 +56,11 @@ export function SignupForm() {
 
   if (done) {
     return (
-      <div ref={doneRef} className="notice" role="status" tabIndex={-1}>
+      <Notice ref={doneRef} role="status" tabIndex={-1}>
         <h2>Verifique seu e-mail</h2>
         <p>{done}</p>
         <p>O link de confirmação vale por 24 horas.</p>
-      </div>
+      </Notice>
     );
   }
 
@@ -68,7 +68,7 @@ export function SignupForm() {
 
   return (
     <form noValidate onSubmit={onSubmit} aria-labelledby="cadastro-titulo">
-      <h2 id="cadastro-titulo" className="visually-hidden">
+      <h2 id="cadastro-titulo" className="sr-only">
         Dados da conta
       </h2>
       <ErrorSummary errors={errors} />
