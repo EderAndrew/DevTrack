@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NoAccess } from "../../components/shared/no-access";
-import type { TeacherListItem } from "../../lib/admin-api";
-import { serverGet } from "../../lib/server-api";
-import { getMe } from "../../lib/session";
-import { TeachersAdmin } from "./teachers-admin";
+import { NoAccess } from "@/components/shared/no-access";
+import { getMe } from "@/features/auth/api/server";
+import { fetchTeachers } from "@/features/teachers/api/server";
+import { TeachersAdmin } from "@/features/teachers/components/teachers-admin";
 
 export const metadata: Metadata = { title: "Professores" };
 
@@ -15,13 +14,13 @@ export default async function TeachersPage() {
   if (!me) redirect(LOGIN);
   if (!me.permissions.includes("professores.visualizar")) return <NoAccess title="Professores" />;
 
-  const teachers = await serverGet<{ items: TeacherListItem[] }>("/teachers");
+  const teachers = await fetchTeachers();
   if (!teachers) redirect(LOGIN);
 
   return (
     <section className="mx-auto max-w-256 px-4 py-8">
       <h1>Professores</h1>
-      <TeachersAdmin initialTeachers={teachers.items} />
+      <TeachersAdmin initialTeachers={teachers} />
     </section>
   );
 }

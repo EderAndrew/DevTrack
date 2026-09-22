@@ -1,7 +1,7 @@
 import { ErrorCodeSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api-client";
-import { ERROR_MESSAGES, messageForError } from "./error-messages";
+import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
+import { apiErrorCode, ERROR_MESSAGES, messageForError } from "./error-messages";
 
 // Phase 001 texts, copied literally from the API's ErrorCatalog and the web's generic messages:
 // moving the texts into the web must not change a single character on screen (FR-012, FR-013).
@@ -66,5 +66,13 @@ describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
   it("RATE_LIMITED sem Retry-After → texto do catálogo", () => {
     expect(messageForError(apiError("RATE_LIMITED"))).toBe(PHASE_001_TEXTS.RATE_LIMITED);
     expect(messageForError(apiError("RATE_LIMITED", 0))).toBe(PHASE_001_TEXTS.RATE_LIMITED);
+  });
+});
+
+describe("apiErrorCode", () => {
+  it("devolve o código de um ApiError e undefined para o resto", () => {
+    expect(apiErrorCode(new ApiError(400, "WEAK_PASSWORD", "x"))).toBe("WEAK_PASSWORD");
+    expect(apiErrorCode(new Error("x"))).toBeUndefined();
+    expect(apiErrorCode(undefined)).toBeUndefined();
   });
 });

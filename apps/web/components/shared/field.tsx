@@ -1,9 +1,9 @@
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "name"> {
+export interface FieldProps extends Omit<ComponentProps<"input">, "id" | "name"> {
   /** Also the target of ErrorSummary links (`#id`). */
   id: string;
   name: string;
@@ -19,7 +19,8 @@ export const fieldErrorId = (id: string) => `${id}-erro`;
 
 /**
  * Labelled input (FR-075, R22) on shadcn `Label`/`Input`: `<label for>`, `aria-describedby`
- * pointing to the hint and the error, and `aria-invalid` while there is an error.
+ * pointing to the hint and the error, and `aria-invalid` while there is an error. Takes the
+ * props of React Hook Form's `register()` (name, ref, handlers).
  */
 export function Field({ id, name, label, hint, error, required, className, ...inputProps }: FieldProps) {
   const describedBy = [hint && fieldHintId(id), error && fieldErrorId(id)].filter(Boolean).join(" ") || undefined;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getMe } from "../../../lib/session";
-import { InvitationAcceptance } from "./invitation-acceptance";
+import { getMe } from "@/features/auth/api/server";
+import { InvitationAcceptance } from "@/features/invitations/components/invitation-acceptance";
 
 /** The token must not leak to other sites through the Referer header (R7). */
 export const metadata: Metadata = { title: "Convite", referrer: "no-referrer" };

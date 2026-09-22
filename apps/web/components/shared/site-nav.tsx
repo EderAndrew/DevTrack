@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { MeView } from "@/lib/session";
+import type { MeView } from "@repo/contracts";
 import { LogoutButton } from "./logout-button";
 
 /** Links keep a 44px target size (FR-075). */
