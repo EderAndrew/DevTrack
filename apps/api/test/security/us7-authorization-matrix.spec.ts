@@ -11,7 +11,7 @@ const PRINCIPALS: Principal[] = ["anônimo", "STUDENT", "TEACHER", "MANAGER", "A
  * US7-1, US7-2, SC-003: every protected route × every principal, straight at the API.
  * Bodies are `{}` and ids random, so the guards decide and nothing is written.
  */
-describe("US7 — matriz de autorização (contracts/permissions.md)", () => {
+describe("US7-1/US7-2 — matriz de autorização (contracts/permissions.md)", () => {
   let t: TestApp;
   const users = new Map<Principal, TestUser>();
 

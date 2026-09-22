@@ -6,3 +6,9 @@ allowBuilds:
   '@swc/core': true
   argon2: true
   prisma: true
+# Security overrides of transitive dependencies (T110, apps/api/DEPENDENCIES.md).
+overrides:
+  multer: ^2.4.0
+  nanoid@3: ^3.3.19
+  mysql2: ^3.23.1
+  deepmerge-ts: ^8.0.0

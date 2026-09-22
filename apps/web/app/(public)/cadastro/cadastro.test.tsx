@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { SignupForm } from "./signup-form";
 
 const GENERIC = "Se o e-mail puder ser usado, enviaremos as instruções para ele.";
@@ -86,5 +87,48 @@ describe("SignupForm (US1, FR-010, FR-075)", () => {
     render(<SignupForm />);
     await fill();
     expect((await screen.findByRole("group")).textContent).toContain("Tente novamente em 10 minutos.");
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("só com teclado: ordem dos campos, erros ligados, foco no resumo e envio", async () => {
+    fetchMock.mockResolvedValue(reply(202, { message: GENERIC }));
+    const { container } = render(<SignupForm />);
+    const user = userEvent.setup();
+    const [nome, email, senha] = [/Nome/, /E-mail/, /^Senha/].map((name) => screen.getByLabelText(name));
+    const button = screen.getByRole("button", { name: "Criar conta" });
+    await expectTabOrder(user, [nome!, email!, senha!, button]);
+    await expectNoA11yViolations(container);
+
+    await tabTo(user, button);
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("group", { name: "Corrija os itens abaixo" }));
+    for (const field of [nome!, email!, senha!]) expectFieldErrorLinked(field);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expectNoA11yViolations(container);
+
+    await tabTo(user, nome!);
+    await user.keyboard("Aluna Teste");
+    await tabTo(user, email!);
+    await user.keyboard("aluna@example.test");
+    await tabTo(user, senha!);
+    await user.keyboard("senha-forte-do-aluno{Enter}");
+    const done = await screen.findByText(GENERIC);
+    expect(document.activeElement).toBe(done.closest('[role="status"]'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

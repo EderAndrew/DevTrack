@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
 const GENERIC = "Se o e-mail puder ser usado, enviaremos as instruções para ele.";
@@ -42,5 +43,41 @@ describe("ForgotPasswordForm (US8-1, FR-075)", () => {
     await user.type(screen.getByLabelText(/E-mail/), "pessoa@example.test");
     await user.click(screen.getByRole("button", { name: "Enviar link" }));
     expect((await screen.findByRole("group")).textContent).toContain("Tente novamente em 15 minutos.");
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("só com teclado: erro ligado ao campo, foco no resumo e confirmação com foco", async () => {
+    fetchMock.mockResolvedValue(reply(202, { message: GENERIC }));
+    const { container } = render(<ForgotPasswordForm />);
+    const user = userEvent.setup();
+    const email = screen.getByLabelText(/E-mail/);
+    const button = screen.getByRole("button", { name: "Enviar link" });
+    await expectTabOrder(user, [email, button]);
+
+    await tabTo(user, button);
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível enviar" }));
+    expectFieldErrorLinked(email);
+    await expectNoA11yViolations(container);
+
+    await tabTo(user, email);
+    await user.keyboard("pessoa@example.test{Enter}");
+    const done = await screen.findByText(GENERIC);
+    expect(document.activeElement).toBe(done.closest('[role="status"]'));
   });
 });

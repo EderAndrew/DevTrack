@@ -198,7 +198,7 @@ describe("US4 — ADMIN provisiona MANAGER (FR-040–FR-056)", () => {
     });
   });
 
-  describe("US4-4 desativar e reativar MANAGER", () => {
+  describe("US4-4 desativar e reativar MANAGER (SC-007)", () => {
     it("revoga sessões, remove capacidades e preserva histórico", async () => {
       const admin = await newAdmin();
       const manager = await createUser(t, { roles: ["MANAGER"], name: "Gestor" });

@@ -167,7 +167,7 @@ describe("US3 — bootstrap do primeiro ADMIN (FR-030–FR-036, R14)", () => {
     });
   });
 
-  it("US3-6 execuções simultâneas → um único PENDING", async () => {
+  it("US3-6 execuções simultâneas → um único PENDING (SC-004)", async () => {
     const results: BootstrapResult[] = await Promise.all([run(uniqueEmail("a")), run(uniqueEmail("b"))]);
     expect(results.map((r) => r.outcome)).toEqual(["PENDING", "PENDING"]);
     const rows = await t.prisma.adminBootstrap.findMany();

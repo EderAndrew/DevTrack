@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { ResetPasswordForm } from "./reset-password-form";
 
 const TOKEN = "p".repeat(43);
@@ -66,5 +67,43 @@ describe("ResetPasswordForm (US8-2, US8-4, FR-075)", () => {
 
     render(<ResetPasswordForm token={null} />);
     expect(screen.getByText("O link de redefinição está incompleto.")).toBeTruthy();
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("só com teclado: confirmação divergente ligada ao campo, foco no resumo e redefinição", async () => {
+    fetchMock.mockResolvedValue(reply(200, { message: "Senha redefinida. Entre com a nova senha." }));
+    const { container } = render(<ResetPasswordForm token={TOKEN} />);
+    const user = userEvent.setup();
+    const senha = screen.getByLabelText(/^Nova senha/);
+    const confirmacao = screen.getByLabelText(/^Confirme a nova senha/);
+    const button = screen.getByRole("button", { name: "Redefinir senha" });
+    await expectTabOrder(user, [senha, confirmacao, button]);
+
+    await tabTo(user, senha);
+    await user.keyboard("nova-senha-muito-segura{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível redefinir" }));
+    expectFieldErrorLinked(confirmacao);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expectNoA11yViolations(container);
+
+    await tabTo(user, confirmacao);
+    await user.keyboard("nova-senha-muito-segura{Enter}");
+    const heading = await screen.findByRole("heading", { name: "Senha redefinida" });
+    expect(document.activeElement).toBe(heading.closest('[role="status"]'));
   });
 });

@@ -677,19 +677,53 @@ link e pode trocar a senha, mas continua `SUSPENDED` (login → `403 ACCOUNT_SUS
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-**Purpose**: garantias transversais, rastreabilidade e documentação
+**Purpose**: garantias transversais (SC-005, SC-008, SC-009, SC-010, SC-012, FR-080), falha de
+e-mail, rastreabilidade, documentação e validação final. Não altera comportamento: se algum teste
+desta fase revelar divergência da spec, corrigir o código (ou a spec primeiro, se a spec estiver
+errada) na mesma tarefa.
 
-- [ ] T100 [P] Teste de varredura de segredos SC-005: executa os fluxos de US1–US8 com `captureLogs()` e, ao fim, procura cada senha, token e segredo de sessão gerados nos logs capturados e em `audit_events` (inclusive `metadata`) em `apps/api/test/security/secret-leak-scan.spec.ts`
-- [ ] T101 [P] Teste de auditoria SC-008: para cada tipo de `contracts/audit-events.md` acionado nos fluxos, verifica existência com ator, alvo, `occurredAt` e `requestId` (exceto eventos do CLI) e que `UPDATE`/`DELETE` em `audit_events` falha (trigger) em `apps/api/test/security/audit-coverage.spec.ts`
-- [ ] T102 [P] Teste de guarda de escopo FR-080: falha se `schema.prisma` contiver modelos fora da lista de data-model.md em `apps/api/test/security/no-academic-domain.spec.ts`
-- [ ] T103 Criar `apps/api/test/traceability.spec.ts` que mapeia os 28 critérios de aceite da spec (tabela de rastreabilidade) aos arquivos/nomes de teste e falha se algum critério não tiver teste correspondente (SC-010)
-- [ ] T104 [P] Teste de desempenho leve SC-009: 20 logins sequenciais no ambiente de teste com p95 ≤ 2 s em `apps/api/test/security/login-latency.spec.ts`
-- [ ] T105 [P] Testes de acessibilidade SC-012: para cada página com formulário (`cadastro`, `verificar-email`, `entrar`, `esqueci-senha`, `redefinir-senha`, `convite`, `ativar-admin`, `conta/sessoes`, `professores`, `admin/managers`, `admin/usuarios`), `expectNoA11yViolations` em estado inicial e com erros de validação, e fluxo completo só com teclado (`user.tab()`, `{Enter}`) verificando foco no `ErrorSummary`, em `apps/web/app/**/*.a11y.test.tsx` (FR-075)
-- [ ] T106 [P] Substituir `README.md` da raiz (template create-turbo) por visão geral do DevTrack, pré-requisitos (Node 24, pnpm, Docker), comandos de `quickstart.md` e link para a constituição e specs
-- [ ] T107 Revisar `apps/api/src/**/*.controller.ts` garantindo ausência de Prisma e de regra de negócio (Constituição VIII) e rodar `pnpm lint`, `pnpm check-types`, `pnpm --filter api test`, `pnpm --filter web test`
-- [ ] T108 Executar o roteiro completo de `specs/001-foundation-identity-access/quickstart.md` em ambiente limpo (docker compose + migrations + bootstrap + convites + sessões) e corrigir divergências no próprio quickstart
-- [ ] T109 [P] Teste de falha de e-mail: com `FailingMailer`, cadastro, criação de convite, reenvio de verificação e pedido de recuperação respondem como no caso normal, o estado permanece consistente (token vigente, convite `PENDING`) e o reenvio posterior com o mailer normal entrega link válido, em `apps/api/test/integration/mail-failure.spec.ts` (edge case "Falha no envio de e-mail")
-- [ ] T110 Auditar dependências (Constituição I — Supply Chain — e seção Dependências): `pnpm audit --prod --audit-level high` sem achados high/critical; `pnpm licenses list --prod` conferido contra allowlist (MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD, BlueOak-1.0.0); registrar resultado e justificativa de cada dependência direta em `apps/api/DEPENDENCIES.md`
+**Pré-requisitos**: US1–US8 concluídas (T001–T099); `docker compose up -d postgres-test` para os
+testes da API.
+
+**Convenções já existentes a reutilizar** (não recriar):
+
+- `createTestApp({ logs, mailer, overrides })`, `resetDb`, `api(t)` e `flushMail()` em
+  `apps/api/test/helpers/test-app.ts`; `captureLogs()`/`LogCapture` (`text()`, `lines()`) em
+  `apps/api/test/helpers/log-capture.ts`; `createUser`, `loginAs`, `uniqueEmail`,
+  `DEFAULT_PASSWORD` em `apps/api/test/helpers/factories.ts`; `registeredRoutes()` em
+  `apps/api/test/helpers/routes.ts`
+- `InMemoryMailer` e `FailingMailer` em `apps/api/src/platform/mail/in-memory.mailer.ts`
+- Web: `expectNoA11yViolations(container)` em `apps/web/test/a11y.ts`; componentes `ErrorSummary`,
+  `Field`, `SubmitButton` em `apps/web/components/form/`; padrão de teclado de referência em
+  `apps/web/components/form/form.test.tsx` (`user.tab()`, `user.keyboard("{Enter}")`)
+- Os ids de cenário `USn-k` aparecem nos títulos de `describe`/`it` (inclusive compostos, como
+  `"US2-3/US2-4: …"`); títulos dos testes em português
+
+### Testes transversais da API
+
+- [X] T100 [P] Criar `apps/api/test/security/secret-leak-scan.spec.ts` (SC-005, FR-071, FR-072, critério 24): um único `createTestApp({ logs: captureLogs() })` executa, em sequência, cadastro + verificação de e-mail (US1), login, `GET /api/me`, logout e "sair de todos" (US2), aceite de convite de MANAGER e de TEACHER (US4–US6, convites criados com `createUser` + `loginAs`), pedido e conclusão de recuperação de senha (US8) e um bootstrap de ADMIN via `runAdminBootstrapCli` (`apps/api/src/cli/admin-bootstrap.command.ts`, como em `us3-admin-bootstrap-cli.spec.ts`); coleta num `Set<string>` cada segredo gerado — senhas enviadas, tokens brutos extraídos dos links em `t.mailer`, valores do cookie `__Host-devtrack_session` de cada `Set-Cookie`, `APP_HMAC_SECRET` — e verifica que nenhum aparece em `logs.text()` nem em `JSON.stringify` de todas as linhas de `audit_events` (inclusive `metadata`) e de `access_records`; verifica também que nenhuma linha de log tem chaves `password`, `token`, `cookie` ou `authorization` com valor não redigido. Para a mensagem de falha, mostrar só o tipo do segredo e onde apareceu, nunca o valor
+- [X] T101 [P] Criar `apps/api/test/security/audit-coverage.spec.ts` (SC-008, FR-070, critério 25): (a) extrai de `specs/001-foundation-identity-access/contracts/audit-events.md` a lista de `type` da tabela (expandindo `account.suspended` / `account.reactivated` em dois) e falha se algum tipo não estiver no catálogo `apps/api/src/modules/audit/audit-event-types.ts` (ou vice-versa); (b) dispara os fluxos que geram cada tipo acionável por HTTP, CLI (`runAdminBootstrapCli`) ou job (`MaintenanceService` com relógio adiantado, como em `apps/api/test/integration/maintenance.spec.ts`) e verifica para cada tipo ao menos uma linha com `actorType`, alvo (`targetType`/`targetId` conforme a coluna "Alvo" do contrato; `—` = nulo), `occurredAt` e `requestId` não nulo, exceto para origem CLI/SYSTEM; (c) verifica que `metadata` só contém as chaves permitidas pelo contrato para o tipo; (d) verifica que `UPDATE` e `DELETE` em `audit_events` via `prisma.$executeRawUnsafe` falham com o erro do trigger de append-only. Tipos que dependem de corrida ou alerta difíceis de disparar (ex.: `auth.rate_limit.alert`) podem reutilizar o cenário existente em `apps/api/test/security/us2-rate-limit.spec.ts` chamando-o via helper local, mas nenhum tipo do contrato pode ficar sem asserção
+- [X] T102 [P] Criar `apps/api/test/security/no-academic-domain.spec.ts` (FR-080, critério 27): lê `apps/api/prisma/schema.prisma` e falha se o conjunto de `model` for diferente de exatamente `User, Role, Permission, RolePermission, UserRole, TeacherProfile, StudentProfile, Invitation, UserToken, AdminBootstrap, Session, AuditEvent, AccessRecord, RateLimitCounter` (os de `data-model.md`); falha também se algum nome de modelo, enum, tabela (`@@map`), rota de `registeredRoutes()` ou permissão do seed contiver termos do domínio acadêmico (`disciplin`, `ementa`, `turma`, `periodo`, `matricul`, `aula`, `questao`, `exercicio`, `trabalho`, `prova`, `nota`/`grade`, `submiss`, `course`, `class`, `enrollment`, `lesson`, `exam`, `homework`), comparando sem acentos e sem diferenciar maiúsculas/minúsculas; use `class` apenas como palavra inteira para não casar `classification`; `assignment` fica de fora por ser vocabulário de RBAC (atribuição de papel)
+- [X] T109 [P] Criar `apps/api/test/integration/mail-failure.spec.ts` (edge case "Falha no envio de e-mail"): com `createTestApp({ mailer: new FailingMailer() })`, verifica que `POST /api/auth/signup`, reenvio de verificação, `POST` de convite (MANAGER por ADMIN e TEACHER por MANAGER) e pedido de recuperação de senha respondem com o mesmo status e corpo do caso normal; após `flushMail()`, o estado permanece consistente (usuário `PENDING_VERIFICATION` com um `UserToken` vigente, convite `PENDING`, token de reset vigente) e a falha foi logada sem o link nem o token. Em seguida, num app com `InMemoryMailer` sobre o mesmo banco, o reenvio entrega um link que funciona e o token anterior deixa de valer (sem tokens vigentes duplicados)
+- [X] T104 [P] Criar `apps/api/test/security/login-latency.spec.ts` (SC-009): com o `LOGIN_DELAY` real (sem override), cria um usuário verificado e mede 20 `POST /api/auth/login` sequenciais bem-sucedidos com `performance.now()`, descartando o primeiro como aquecimento; falha se o p95 for maior que 2000 ms. Anotar no arquivo que o teste mede o servidor na mesma máquina (limite inferior do SC-009) e usa o custo argon2 de produção
+
+### Rastreabilidade
+
+- [X] T103 Criar `apps/api/test/traceability.spec.ts` (SC-010, critério 28) — depende de T100, T101, T102, T104, T109: (a) lê `specs/001-foundation-identity-access/spec.md` e enumera todos os cenários de aceite `USn-k` (lista numerada após `**Acceptance Scenarios**:` de cada `### User Story n`; hoje 66: US1 7, US2 10, US3 10, US4 6, US5 12, US6 10, US7 5, US8 6); (b) lê todos os `*.spec.ts` de `apps/api/test/` e `*.test.tsx`/`*.test.ts` de `apps/web/` (fora de `node_modules`) e extrai os ids que aparecem em títulos de `describe`/`it`/`test` (inclusive compostos como `US5-6/US5-7`); falha listando cada cenário sem teste; (c) lê a tabela "Acceptance Criteria Traceability" (28 linhas) e, para cada linha, exige que todos os `USn-k` da coluna "Verificado por" estejam cobertos e que as linhas sem cenário (25, 27, 28) tenham os ids `SC-`/`FR-` citados presentes em títulos de testes (ex.: `SC-008` em `audit-coverage.spec.ts`, `FR-080` em `no-academic-domain.spec.ts`); (d) exige que SC-003…SC-012 apareçam em algum título. Hoje `US7-1`/`US7-2` só estão no comentário de `apps/api/test/security/us7-authorization-matrix.spec.ts`: renomear o `describe` para `"US7-1/US7-2 — matriz de autorização (contracts/permissions.md)"`; conferir e ajustar os títulos de T100–T104/T109 para citarem seus SC/FR
+
+### Acessibilidade (web)
+
+- [X] T105 [P] Completar SC-012/FR-075 nos testes existentes de cada página com formulário, adicionando em cada arquivo um `describe("SC-012 — acessibilidade e teclado", …)`: `apps/web/app/(public)/{cadastro,verificar-email,entrar,esqueci-senha,redefinir-senha,convite,ativar-admin}/*.test.tsx`, `apps/web/app/conta/sessoes/sessoes.test.tsx`, `apps/web/app/professores/professores.test.tsx`, `apps/web/app/admin/{managers,usuarios}/*.test.tsx`. Para cada um: (1) `expectNoA11yViolations` no estado inicial **e** após um envio inválido (onde faltar); (2) fluxo completo só com teclado usando `userEvent.setup()` — alcançar cada campo e o botão com `user.tab()` na ordem visual, digitar, enviar com `user.keyboard("{Enter}")`, e no erro verificar que o foco vai para o `ErrorSummary` e que cada campo inválido tem `aria-invalid="true"` e `aria-describedby` apontando para a mensagem; (3) nas listas com ações (sessões, professores, managers, usuários), acionar uma ação de linha só com teclado. Usar o `fetch` simulado já presente em cada arquivo. Se um teste revelar violação, corrigir o componente da página ou `apps/web/components/form/` na mesma tarefa
+
+### Revisão, documentação e validação final
+
+- [X] T107 Revisar `apps/api/src/**/*.controller.ts` (Constituição VIII): nenhum import de Prisma (já garantido pelo ESLint em `apps/api/eslint.config.mjs`) e nenhuma regra de negócio — o controller só lê parâmetros validados por `ZodValidationPipe`, chama um serviço e mapeia a resposta; mover para o serviço qualquer condicional de domínio, consulta ou montagem de auditoria encontrada. Revisar também `apps/web/app/**` para lógica de negócio em componentes React (deve ficar na API). Depois rodar `pnpm lint`, `pnpm check-types`, `pnpm --filter api test` e `pnpm --filter web test`, todos verdes
+- [X] T108 Executar o roteiro de `specs/001-foundation-identity-access/quickstart.md` do zero, num ambiente isolado que não toque nos dados de desenvolvimento (git worktree limpo + `docker compose -p <outro-projeto>` com portas próprias; `docker compose up -d postgres postgres-test mailpit`, `pnpm install`, `apps/api/.env` a partir de `.env.example`, `pnpm --filter api prisma migrate deploy`, `pnpm build`, `pnpm dev`, `pnpm admin:bootstrap --email … --print-link`, convites de MANAGER e TEACHER com links do Mailpit em `:8025`, 403 do MANAGER em rotas de aluno, sessões/logout, recuperação de senha); corrigir no próprio `quickstart.md` qualquer passo divergente (ex.: `admin:bootstrap` e `maintenance:run` exigem `pnpm --filter api build` antes, pois executam `dist/`; o Prisma CLI precisa de `DATABASE_URL` exportada) — depende de T107. Resultado: dois defeitos de setup corrigidos no código (`prisma.config.ts` carrega `apps/api/.env`; `postinstall` de `apps/api` roda `prisma generate`) e quickstart atualizado
+- [X] T106 Substituir `README.md` da raiz (hoje o template create-turbo) por: visão geral do DevTrack e escopo da fase 001; pré-requisitos (Node 24 LTS, pnpm 11 via corepack, Docker); estrutura (`apps/api`, `apps/web`, `packages/*`, `specs/`, `.specify/`); comandos de setup, dev, testes e CLI validados em T108; variáveis de ambiente (apontando para `apps/api/.env.example` e `apps/web/.env.example`); links para `.specify/memory/constitution.md` e `specs/001-foundation-identity-access/` — depende de T108
+- [X] T110 [P] Auditar dependências (Constituição I — Supply Chain — e seção Dependências): `pnpm audit --prod --audit-level high` sem achados high/critical (corrigir com atualização de versão; se não houver correção, documentar o aviso e a mitigação); `pnpm licenses list --prod` conferido contra a allowlist (MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD, BlueOak-1.0.0); criar `apps/api/DEPENDENCIES.md` com o resultado das duas verificações (data e versões) e, para cada dependência direta de `apps/api/package.json` e `apps/web/package.json`, uma linha com a justificativa e a decisão de `research.md` (R1–R23) que a exige
+
+**Checkpoint**: `turbo run lint check-types test` verde; `traceability.spec.ts` sem cenário
+descoberto; quickstart executado do zero sem divergências; README e `DEPENDENCIES.md` publicados
 
 ---
 
@@ -730,6 +764,8 @@ Setup → Foundational ─┬─ US1 (MVP) ── US8
 - Foundational: T017–T020, T022–T029, T035, T040, T041, T043, T044, T046–T049 em paralelo (arquivos distintos); T013→T014→T015→T016 em sequência; T030→T031→T032→T033→T034→T036 em sequência; T037→T038 após T016 e T026
 - Após a Foundational: US1, US2, US3 e US4 em paralelo por pessoas diferentes
 - Em cada história, os testes [P] e as páginas web [P] em paralelo com os serviços
+- Polish: T100, T101, T102, T104, T109 (arquivos distintos em `apps/api/test/`), T105 (web) e
+  T110 em paralelo; T103 depois deles; T107 → T108 → T106 em sequência
 
 ---
 
@@ -751,6 +787,21 @@ Task: "T058 Páginas de cadastro e verificação em apps/web/app/(public)/"
 Task: "T069 Testes US3-1…US3-9 em apps/api/test/integration/us3-admin-bootstrap.spec.ts"
 Task: "T070 Nenhuma rota pública produz ADMIN em apps/api/test/security/us3-no-public-admin.spec.ts"
 Task: "T071 Teste do CLI em apps/api/test/integration/us3-admin-bootstrap-cli.spec.ts"
+```
+
+## Parallel Example: Polish
+
+```bash
+# Em paralelo:
+Task: "T100 Varredura de segredos em apps/api/test/security/secret-leak-scan.spec.ts"
+Task: "T101 Cobertura de auditoria em apps/api/test/security/audit-coverage.spec.ts"
+Task: "T102 Guarda de escopo em apps/api/test/security/no-academic-domain.spec.ts"
+Task: "T109 Falha de e-mail em apps/api/test/integration/mail-failure.spec.ts"
+Task: "T105 Acessibilidade e teclado nos testes de apps/web/app/**"
+
+# Depois:
+Task: "T103 Rastreabilidade em apps/api/test/traceability.spec.ts"
+Task: "T107 → T108 → T106 revisão, quickstart do zero, README"
 ```
 
 ---

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { INVITATION_TOKEN_KEY, InvitationAcceptance } from "./invitation-acceptance";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
@@ -102,5 +103,57 @@ describe("InvitationAcceptance (US4-2, FR-075)", () => {
     expect(await screen.findByText("Link inválido ou expirado.")).toBeTruthy();
     expect(screen.getByText(/Peça um novo convite/)).toBeTruthy();
     await expectNoA11yViolations(container);
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const invitationPreview = (mode: string) =>
+    reply(200, { role: "TEACHER", email: "prof@example.test", displayName: "Prof Caio", mode });
+
+  it("definir senha só com teclado: erro ligado ao campo, foco no resumo e aceite", async () => {
+    fetchMock
+      .mockResolvedValueOnce(invitationPreview("CREATE_ACCOUNT"))
+      .mockResolvedValueOnce(reply(200, { role: "TEACHER", mode: "CREATE_ACCOUNT" }));
+    const { container } = render(<InvitationAcceptance token={TOKEN} />);
+    const user = userEvent.setup();
+    const senha = await screen.findByLabelText(/Nova senha/);
+    const button = screen.getByRole("button", { name: "Aceitar convite" });
+    await expectTabOrder(user, [senha, button]);
+
+    await tabTo(user, button);
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível aceitar" }));
+    expectFieldErrorLinked(senha);
+    await expectNoA11yViolations(container);
+
+    await tabTo(user, senha);
+    await user.keyboard("senha-forte-do-docente{Enter}");
+    expect(await screen.findByRole("heading", { name: "Convite aceito" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("conta existente, já conectada: aceita só com teclado", async () => {
+    fetchMock
+      .mockResolvedValueOnce(invitationPreview("SIGN_IN_REQUIRED"))
+      .mockResolvedValueOnce(reply(200, { role: "TEACHER", mode: "EXISTING_ACCOUNT" }));
+    render(<InvitationAcceptance token={TOKEN} signedInAs={{ name: "Prof Caio", email: "prof@example.test" }} />);
+    const user = userEvent.setup();
+    await tabTo(user, await screen.findByRole("button", { name: "Aceitar convite" }));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { name: "Convite aceito" })).toBeTruthy();
   });
 });

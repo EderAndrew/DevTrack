@@ -36,6 +36,10 @@ export default [
               group: ["@prisma/client", "@prisma/client/*", "**/generated/prisma", "**/generated/prisma/*"],
               message: "Controllers must not import Prisma; delegate to a service.",
             },
+            {
+              group: ["**/database/prisma.service", "**/database/transaction"],
+              message: "Controllers must not query the database; delegate to a service.",
+            },
           ],
         },
       ],

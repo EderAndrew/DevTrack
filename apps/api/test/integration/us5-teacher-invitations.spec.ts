@@ -153,7 +153,7 @@ describe("US5 — MANAGER convida e gerencia professores (FR-040–FR-051)", () 
       );
     });
 
-    it("suspender revoga sessões; reativar de SUSPENDED volta a ACTIVE", async () => {
+    it("suspender revoga sessões; reativar de SUSPENDED volta a ACTIVE (SC-007)", async () => {
       const client = await asUser(await newManager());
       const teacher = await createUser(t, { roles: ["TEACHER"] });
       const cookie = await loginAs(t, teacher);

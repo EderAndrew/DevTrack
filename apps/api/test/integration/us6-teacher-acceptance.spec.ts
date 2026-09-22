@@ -141,7 +141,7 @@ describe("US6 — aceite de convite de professor com identidade única (FR-044�
     });
   });
 
-  it("US6-5 replay: idempotente só para a conta aceitante", async () => {
+  it("US6-5 replay: idempotente só para a conta aceitante (SC-004)", async () => {
     const owner = await createUser(t);
     const cookie = await loginAs(t, owner);
     const otherCookie = await loginAs(t, await createUser(t));
@@ -163,7 +163,7 @@ describe("US6 — aceite de convite de professor com identidade única (FR-044�
     expect(await teacherAssignments()).toBe(1);
   });
 
-  describe("US6-6 concorrência", () => {
+  describe("US6-6 concorrência (SC-004)", () => {
     it("5 aceites CREATE_ACCOUNT simultâneos → um User, um perfil, uma atribuição", async () => {
       const email = uniqueEmail("corrida");
       const { token } = await invite(email);

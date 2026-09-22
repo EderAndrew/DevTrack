@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "pnpm build && (swc src -d dist --strip-leading-paths --ignore \"**/*.spec.ts\" -q -w & node --env-file-if-exists=.env --watch-path=dist dist/main.js)",
     "build": "swc src -d dist --strip-leading-paths --ignore \"**/*.spec.ts\" --delete-dir-on-start -q",
     "start": "node --env-file-if-exists=.env dist/main.js",

@@ -167,7 +167,7 @@ describe("US1 — cadastro de aluno e verificação de e-mail (FR-010–FR-016)"
     });
   });
 
-  describe("US1-4 verificação e replay", () => {
+  describe("US1-4 verificação e replay (SC-004)", () => {
     it("marca verificado uma vez; replay → 200 sem efeito", async () => {
       const email = uniqueEmail("aluna");
       const token = await signupAndGetToken(email);
@@ -273,7 +273,7 @@ describe("US1 — cadastro de aluno e verificação de e-mail (FR-010–FR-016)"
     });
   });
 
-  describe("US1-7 concorrência", () => {
+  describe("US1-7 concorrência (SC-004)", () => {
     it("dois cadastros simultâneos → um User", async () => {
       const email = uniqueEmail("corrida");
       const body = { name: "Corrida", email, password: PASSWORD };

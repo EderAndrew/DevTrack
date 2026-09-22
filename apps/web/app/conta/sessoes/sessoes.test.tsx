@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionView } from "../../../lib/auth-api";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectTabOrder, tabTo } from "../../../test/keyboard";
 import { SessionsList } from "./sessions-list";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
@@ -80,5 +81,47 @@ describe("SessionsList (US2-7, FR-075)", () => {
     render(<SessionsList initialSessions={SESSIONS} />);
     await userEvent.setup().click(screen.getByRole("button", { name: /20\/09\/2026/ }));
     expect((await screen.findByRole("group")).textContent).toContain("Recurso não encontrado.");
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("encerrar sessão e sair de todos só com teclado; falha vai para o resumo com foco", async () => {
+    const { container } = render(<SessionsList initialSessions={SESSIONS} />);
+    const user = userEvent.setup();
+    const current = screen.getByRole("button", { name: /esta sessão/ });
+    const other = screen.getByRole("button", { name: /Encerrar sessão iniciada em 20\/09\/2026/ });
+    const all = screen.getByRole("button", { name: "Sair de todos os dispositivos" });
+    await expectTabOrder(user, [current, other, all]);
+
+    fetchMock.mockResolvedValueOnce(apiError(500, "INTERNAL_ERROR", "Erro inesperado."));
+    await tabTo(user, other);
+    await user.keyboard("{Enter}");
+    const summary = await screen.findByRole("group", { name: "Não foi possível concluir" });
+    expect(document.activeElement).toBe(summary);
+    await expectNoA11yViolations(container);
+
+    fetchMock.mockResolvedValueOnce(reply(204));
+    await tabTo(user, other);
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
+
+    fetchMock.mockResolvedValueOnce(reply(204));
+    await tabTo(user, all);
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith("/entrar"));
   });
 });

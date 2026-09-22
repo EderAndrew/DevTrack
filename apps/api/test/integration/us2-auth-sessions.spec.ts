@@ -140,7 +140,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
     expect(await status(otherCookie)).toBe(200);
   });
 
-  describe("US2-5 logout", () => {
+  describe("US2-5 logout (SC-007)", () => {
     it("invalida só a sessão atual e limpa o cookie", async () => {
       const user = await createUser(t);
       const first = await loginCookie(user);
@@ -169,7 +169,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
     });
   });
 
-  it("US2-6 logout-all invalida todas, inclusive a atual", async () => {
+  it("US2-6 logout-all invalida todas, inclusive a atual (SC-007)", async () => {
     const user = await createUser(t);
     const cookies = [await loginCookie(user), await loginCookie(user), await loginCookie(user)];
 
@@ -281,7 +281,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
     });
   });
 
-  describe("US2-10 conta suspensa", () => {
+  describe("US2-10 conta suspensa (SC-007)", () => {
     it("senha correta → 403 ACCOUNT_SUSPENDED sem sessão; senha errada → 401", async () => {
       const user = await createUser(t, { status: "SUSPENDED" });
       const right = await login(user.email, user.password);

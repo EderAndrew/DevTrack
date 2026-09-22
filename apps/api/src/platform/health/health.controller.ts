@@ -1,7 +1,7 @@
 import { Controller, Get, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { Public } from "../../modules/access-control/decorators";
-import { PrismaService } from "../database/prisma.service";
+import { HealthService } from "./health.service";
 
 type HealthStatus = { status: "ok" } | { status: "unavailable" };
 
@@ -9,7 +9,7 @@ type HealthStatus = { status: "ok" } | { status: "unavailable" };
 @Controller("health")
 @Public()
 export class HealthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly health: HealthService) {}
 
   @Get("live")
   live(): HealthStatus {
@@ -18,12 +18,8 @@ export class HealthController {
 
   @Get("ready")
   async ready(@Res({ passthrough: true }) res: Response): Promise<HealthStatus> {
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return { status: "ok" };
-    } catch {
-      res.status(503);
-      return { status: "unavailable" };
-    }
+    if (await this.health.isDatabaseReady()) return { status: "ok" };
+    res.status(503);
+    return { status: "unavailable" };
   }
 }

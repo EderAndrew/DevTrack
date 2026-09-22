@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvitationView, ManagerView } from "../../../lib/admin-api";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { ManagersAdmin } from "./managers-admin";
 
 const json = (status: number, body: unknown) =>
@@ -86,5 +87,62 @@ describe("ManagersAdmin (US4, FR-075)", () => {
     expect(fetchMock.mock.calls[1]![0]).toBe(`/api/manager-invitations/${invitation().id}/revoke`);
     const row = (await screen.findByText("Revogado")).closest("tr")!;
     expect(within(row).queryByRole("button")).toBeNull();
+  });
+});
+
+describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const reply = (status: number, body?: unknown) =>
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    });
+  const apiError = (status: number, code: string, message: string) => reply(status, { statusCode: status, code, message });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("convite só com teclado: ordem, erros ligados e foco no resumo", async () => {
+    const { container } = render(<ManagersAdmin initialManagers={MANAGERS} initialInvitations={[invitation()]} />);
+    const user = userEvent.setup();
+    const nome = screen.getByLabelText(/^Nome/);
+    const email = screen.getByLabelText(/^E-mail/);
+    const button = screen.getByRole("button", { name: "Enviar convite" });
+    await expectTabOrder(user, [
+      screen.getByRole("button", { name: "Desativar Gestora Ana" }),
+      nome,
+      email,
+      button,
+      screen.getByRole("button", { name: "Reenviar convite para bia@example.test" }),
+      screen.getByRole("button", { name: "Revogar convite para bia@example.test" }),
+    ]);
+
+    await tabTo(user, button);
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível convidar" }));
+    expectFieldErrorLinked(nome);
+    expectFieldErrorLinked(email);
+    await expectNoA11yViolations(container);
+  });
+
+  it("ações de linha só com teclado: falha com foco no resumo, depois reenvio", async () => {
+    const { container } = render(<ManagersAdmin initialManagers={MANAGERS} initialInvitations={[invitation()]} />);
+    const user = userEvent.setup();
+
+    fetchMock.mockResolvedValueOnce(apiError(409, "INVALID_STATE_TRANSITION", "Transição de estado inválida."));
+    await tabTo(user, screen.getByRole("button", { name: "Desativar Gestora Ana" }));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("group", { name: "Não foi possível concluir" })).toBe(document.activeElement);
+    await expectNoA11yViolations(container);
+
+    fetchMock.mockResolvedValueOnce(reply(200, invitation({ sendCount: 2 })));
+    await tabTo(user, screen.getByRole("button", { name: "Reenviar convite para bia@example.test" }));
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls[1]![0]).toBe("/api/manager-invitations/22222222-2222-4222-8222-222222222222/resend"),
+    );
   });
 });

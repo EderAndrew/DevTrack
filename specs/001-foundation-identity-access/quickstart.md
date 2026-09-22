@@ -1,8 +1,7 @@
 # Quickstart: 001 — Foundation, Identity & Access
 
 Roteiro para subir o ambiente e validar os fluxos principais da feature ponta a
-ponta. Os comandos refletem o desenho do [plan.md](./plan.md); serão confirmados na
-implementação.
+ponta. Executado do zero (clone limpo, bancos vazios) em 2026-09-22 (T108).
 
 ## Pré-requisitos
 
@@ -15,10 +14,15 @@ implementação.
 docker compose up -d postgres postgres-test mailpit
 cp apps/api/.env.example apps/api/.env      # preencher APP_HMAC_SECRET (openssl rand -base64 48)
 cp apps/web/.env.example apps/web/.env.local
-pnpm install
+pnpm install                                # também gera o Prisma Client (postinstall de apps/api)
 pnpm --filter api prisma migrate deploy     # cria tabelas + papéis/permissões de referência
 pnpm dev                                    # web em :3000, api em :4000 (via /api no web)
 ```
+
+Portas ocupadas no host? O compose aceita `POSTGRES_PORT`, `POSTGRES_TEST_PORT`,
+`MAILPIT_SMTP_PORT` e `MAILPIT_UI_PORT` (ex.: `POSTGRES_PORT=5434 docker compose up -d …`);
+ajuste `DATABASE_URL`/`SMTP_URL` em `apps/api/.env` para as mesmas portas. O Prisma CLI lê
+`apps/api/.env` (via `prisma.config.ts`); variáveis já exportadas têm precedência.
 
 Mailpit (caixa de entrada local): <http://localhost:8025>.
 
@@ -27,6 +31,9 @@ A API deve **recusar subir** se faltar variável obrigatória (FR-074):
 ```bash
 APP_HMAC_SECRET= pnpm --filter api start   # → erro listando APP_HMAC_SECRET, exit ≠ 0
 ```
+
+`start`, `admin:bootstrap` e `maintenance:run` executam o código compilado em
+`apps/api/dist/`: `pnpm dev` já o gera; sem ele, rode `pnpm --filter api build` antes.
 
 ## 2. Bootstrap do primeiro ADMIN (US3)
 
@@ -53,6 +60,11 @@ Entre como ADMIN em <http://localhost:3000/entrar> → **Managers** → convidar
 4. Reabra o mesmo link → convite inválido, nada muda.
 
 ## 5. MANAGER não acessa alunos (critério 8)
+
+Chamadas diretas à API com métodos não seguros (`POST`, `PATCH`, `DELETE`) precisam de
+`Origin: http://localhost:3000` **e** `Content-Type: application/json` (corpo `{}` quando não
+há dados); sem isso a resposta é `403 ORIGIN_NOT_ALLOWED` (proteção CSRF, R6). O web já envia
+os dois.
 
 ```bash
 # com o cookie de sessão do MANAGER

@@ -2,17 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Project state
 
-DevTrack is a teaching/assessment platform configurable per teacher (docs, specs and UI copy are in
-Portuguese). The repo is still at the **spec stage** of Phase 001: what exists today is the
-create-turbo scaffold (`apps/web`, `apps/docs`, `packages/ui`, `packages/eslint-config`,
-`packages/typescript-config`) plus the Spec Kit artifacts. `apps/api`, `docker-compose.yml`,
-Prisma and the test setup do not exist yet — they are created by the tasks in
-`specs/001-foundation-identity-access/tasks.md` (T001 removes `apps/docs`; `README.md` is still the
-Turborepo starter README and is not authoritative).
+DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
+test names are in Portuguese). Phase 001 (`specs/001-foundation-identity-access`) is fully
+implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish phase. New work
+starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23), `data-model.md`,
@@ -47,45 +44,79 @@ If TS 7 rejects Nest decorators, the documented fallback (R1) is pinning `typesc
 
 ## Commands
 
-Available now:
-
 ```bash
-pnpm dev | pnpm build | pnpm lint | pnpm check-types   # turbo across all workspaces
+docker compose up -d postgres postgres-test mailpit     # dev DB :5432, test DB :5433 (tmpfs), Mailpit SMTP :1025 / UI :8025
+                                                        # ports overridable: POSTGRES_PORT, POSTGRES_TEST_PORT, MAILPIT_*_PORT
+pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # turbo across workspaces
 pnpm format                                             # prettier on ts/tsx/md
-pnpm --filter web dev                                   # single app (web on :3000)
+
+# apps/api (port 4000) — copy .env.example to .env first
+pnpm --filter api prisma generate                       # client -> src/generated/prisma (gitignored); also runs on `pnpm install`
+pnpm --filter api prisma migrate deploy                 # migrations also seed roles/permissions; prisma.config.ts loads apps/api/.env
+pnpm --filter api dev                                   # swc watch into dist/ + node --watch
+pnpm --filter api test                                  # all unit + integration + security (needs postgres-test up)
+pnpm --filter api test -- test/integration/us1-signup.spec.ts   # single file
+pnpm --filter api test -- -t "<test name>"                       # single test
+pnpm --filter api test:security                         # test/security only
+pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
+pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
+
+# apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
+pnpm --filter web dev
+pnpm --filter web test                                  # Vitest + jsdom + Testing Library + vitest-axe
 ```
 
-Planned by 001 (confirm once `apps/api` exists):
+The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
+compiled code, so run `pnpm --filter api build` before them.
 
-```bash
-docker compose up -d postgres postgres-test mailpit     # dev DB :5432, test DB :5433, Mailpit UI :8025
-pnpm --filter api prisma migrate deploy                 # also seeds roles/permissions
-pnpm --filter api test                                  # unit + integration (postgres-test)
-pnpm --filter api test -- test/integration/us1-signup.spec.ts   # single file (Vitest)
-pnpm --filter api test:security                         # authz matrix, replay, concurrency, secret scan
-pnpm --filter web test                                  # includes axe (WCAG 2.2 AA)
-pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN
-pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs
-```
+API tests (`apps/api/vitest.config.mts`): the global setup loads `.env.test` (falling back to
+`.env.test.example`), generates the Prisma client if it's missing, and runs `migrate deploy` on the
+test DB. They refuse to run unless `NODE_ENV=test` and the DB name contains `test`. Test files run
+serially against one shared DB. Specs call `resetDb(t.prisma)` in `beforeEach`, which truncates
+everything except the seeded roles/permissions and bypasses the append-only audit trigger only
+inside that transaction. Build the app with `createTestApp()` from `test/helpers/test-app.ts`. It listens on
+127.0.0.1, swaps in an `InMemoryMailer` (`flushMail()` waits for after-commit emails), and lets you
+override config and providers. Use `test/helpers/factories.ts` for fixtures. The permission matrix
+lives in `test/security/authorization-matrix.ts`, and `route-declarations.spec.ts` fails for any
+route that has no access declaration.
 
-The API must refuse to start when a required env var is missing (Zod-validated config).
+Cross-cutting guards that fail when the spec and the code drift apart:
+- `test/traceability.spec.ts` parses `spec.md`. Every `USn-k` scenario and every traceability row
+  must appear in a `describe`/`it` title, so name new tests with their scenario or SC/FR id.
+- `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and
+  `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
+  type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
+- `test/security/no-academic-domain.spec.ts` pins the Prisma models to the `data-model.md` list.
+- `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
+  trail for every secret it produced.
+- Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
+  the `SC-012` keyboard tests in each page's test file.
 
-## Architecture (as planned in 001)
+Unsafe HTTP methods need both an allowed `Origin` and `Content-Type: application/json` (send
+`{}` if there's no body), even from curl or scripts. Otherwise the API returns
+`403 ORIGIN_NOT_ALLOWED` (`OriginGuard`, R6).
 
-- `apps/api` (NestJS, port 4000): `src/platform/` holds cross-cutting infra (config, database +
+Transitive vulnerabilities are patched via `overrides` in `pnpm-workspace.yaml`. The reasons and
+the removal conditions are in `apps/api/DEPENDENCIES.md`.
+
+## Architecture
+
+- `apps/api` (NestJS): `src/platform/` holds cross-cutting infra (config, database +
   transaction/advisory-lock helpers, http error filter + `ZodValidationPipe` + origin guard, logging
   with redaction, mail port, rate limit on PostgreSQL, crypto, maintenance, health);
   `src/modules/` holds capabilities (`identity`, `auth`, `access-control`, `provisioning`,
   `admin-bootstrap`, `accounts`, `retention`, `audit`); `src/cli/` holds operational commands run as
-  a Nest application context without HTTP. Tests live in `test/{helpers,integration,security}` plus
-  `test/traceability.spec.ts` mapping every spec criterion to a test.
-- `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`;
-  `proxy.ts` only redirects for UX and never authorizes. No shared web↔API package.
+  a Nest application context without HTTP. `AppModule.forRoot(config, …)` is built from the
+  Zod-validated config (`src/platform/config`); `app.setup.ts` applies the HTTP setup shared by
+  `main.ts` and the tests.
+- `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`
+  (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages).
+  `proxy.ts` only redirects for UX and never authorizes. API calls live in `lib/*-api.ts`. There's
+  no shared web↔API package.
 - Protected request pipeline: `OriginGuard → SessionGuard (401) → VerifiedGuard (403) →
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
-  deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`,
-  and a test enforces this.
+  deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 
@@ -106,8 +137,9 @@ The API must refuse to start when a required env var is missing (Zod-validated c
   are sent after commit, off the response path.
 - Audit events are written in the same transaction and the table is append-only (DB trigger).
   Never log passwords, tokens, cookies or secrets; tokens are stored only as hashes.
-- Layering: thin controllers → services → Prisma repositories; no Prisma imports in
-  `*.controller.ts` (ESLint-enforced). No business rules in React components.
+- Layering: thin controllers → services → Prisma repositories. `*.controller.ts` can't import
+  Prisma, `PrismaService` or the transaction helpers (ESLint-enforced). No business rules in
+  React components.
 - Errors are always `{statusCode, code, message}` with no stack traces or internals.
 - Schema changes only via Prisma migrations. Subjects/languages/technologies are data, never enums
   or conditionals in code.
