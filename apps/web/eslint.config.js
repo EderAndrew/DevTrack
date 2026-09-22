@@ -90,4 +90,10 @@ export default [
     files: TESTS,
     rules: restrictImports(),
   },
+  {
+    // `pnpm --filter web test:e2e` is not a Turborepo task; global-setup.ts hands the bootstrap
+    // ADMIN to the workers through the environment.
+    files: ["e2e/**"],
+    rules: { "turbo/no-undeclared-env-vars": "off" },
+  },
 ];

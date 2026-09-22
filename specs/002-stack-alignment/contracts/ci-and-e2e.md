@@ -36,14 +36,14 @@ status de verificação em falha.
 
 | Item | Valor |
 |------|-------|
-| Local | `apps/web/e2e/` (`playwright.config.ts`, `global-setup.ts`, `fixtures/`, `*.spec.ts`) |
+| Local | `apps/web/e2e/` (`playwright.config.ts`, `env.ts`, `prepare-db.ts`, `global-setup.ts`, `fixtures/`, `*.spec.ts`) |
 | Navegador | Chromium (instalado com `pnpm --filter web exec playwright install chromium`) |
 | Pré-requisitos | `docker compose up -d postgres-test mailpit`; `pnpm build` |
-| Banco | `devtrack_e2e` no contêiner `postgres-test`, recriado por `prisma migrate reset --force` no *global setup* |
-| API | `webServer`: `node dist/main.js` em `apps/api` com `apps/web/e2e/.env.e2e` (PORT=4100, `WEB_ORIGIN=http://localhost:3100`, `DATABASE_URL` do banco E2E, SMTP do Mailpit) |
-| Web | `webServer`: `next start --port 3100` com `API_ORIGIN=http://localhost:4100` |
+| Banco | `devtrack_e2e` no contêiner `postgres-test`, recriado por `prisma migrate reset --force` em `prepare-db.ts`, que roda no comando do `webServer` da API, antes dela subir (o Playwright sobe o `webServer` antes do *global setup*). Aborta antes de qualquer comando se o nome do banco não contiver `e2e` |
+| API | `webServer`: `node e2e/prepare-db.ts && node ../api/dist/main.js` com `apps/web/e2e/.env.e2e` (PORT=4100, `WEB_ORIGIN=http://localhost:3100`, `DATABASE_URL` do banco E2E, SMTP do Mailpit); pronto quando `/api/health/ready` responde |
+| Web | `webServer`: `next build && next start --port 3100` com `API_ORIGIN=http://localhost:4100` e `NEXT_DIST_DIR=.next/e2e`. O Next.js grava o destino do rewrite `/api/*` no build (`routes-manifest.json`), então o E2E faz um build próprio, num diretório à parte, sem tocar no `.next` de `pnpm build`/`pnpm dev` |
 | E-mail | API HTTP do Mailpit (`http://localhost:8025/api/v1/…`), filtrando pelo destinatário único da jornada |
-| Primeiro ADMIN | criado uma vez no *global setup* com `pnpm --filter api admin:bootstrap --email <único> --print-link` (variáveis do `.env.e2e` no ambiente do processo, que têm precedência sobre `apps/api/.env`) e ativado pela tela; as jornadas que precisam de ADMIN ou MANAGER partem dele |
+| Primeiro ADMIN | criado uma vez no *global setup* com `pnpm --filter api admin:bootstrap --email <único> --print-link` (variáveis do `.env.e2e` no ambiente do processo, que têm precedência sobre `apps/api/.env`) e ativado pela tela em `admin-manager.spec.ts`; `teacher-invitation.spec.ts` parte desse ADMIN (projeto `manager` depende do projeto `admin`), as demais jornadas não dependem dele |
 | Tempo | ≤ 10 minutos no total (SC-006) |
 
 `.env.e2e` é versionado e contém só valores de exemplo (nenhum segredo real), com
