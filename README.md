@@ -1,159 +1,71 @@
-# Turborepo starter
+# DevTrack
 
-This Turborepo starter is maintained by the Turborepo core team.
+Plataforma de ensino e avaliação configurável por professor. Este repositório está na
+**fase 001 — Foundation, Identity & Access**: identidade única com múltiplos papéis
+(`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), cadastro de alunos com verificação de e-mail,
+sessões revogáveis, bootstrap seguro do primeiro administrador, convites de gestores e
+professores, recuperação de senha, autorização por permissão explícita + contexto, trilha
+de auditoria e retenção de dados. Ainda não há domínio acadêmico (disciplinas, turmas,
+atividades) — ele vem nas próximas fases.
 
-## Using this example
+## Pré-requisitos
 
-Run the following command:
+- Node.js 24 LTS
+- pnpm 11 (`corepack enable`)
+- Docker (PostgreSQL 17 e Mailpit)
 
-```sh
-npx create-turbo@latest
+## Estrutura
+
+| Caminho | Conteúdo |
+|---------|----------|
+| `apps/api` | API NestJS 11 (porta 4000): Prisma 7 + PostgreSQL, sessões opacas em cookie, CLI operacional |
+| `apps/web` | Next.js 16 / React 19 (porta 3000); chama a API pelo rewrite same-origin `/api/*` |
+| `packages/*` | Configurações compartilhadas de ESLint e TypeScript e componentes de UI |
+| `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase |
+| `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
+
+## Primeiros passos
+
+```bash
+docker compose up -d postgres postgres-test mailpit   # banco :5432, banco de testes :5433, Mailpit :8025
+cp apps/api/.env.example apps/api/.env                # preencher APP_HMAC_SECRET (openssl rand -base64 48)
+cp apps/web/.env.example apps/web/.env.local
+pnpm install                                          # também gera o Prisma Client
+pnpm --filter api prisma migrate deploy               # tabelas + papéis/permissões de referência
+pnpm dev                                              # web em http://localhost:3000
+pnpm admin:bootstrap --email <e-mail> --print-link    # único jeito de criar o primeiro ADMIN
 ```
 
-## What's inside?
+Portas ocupadas no host podem ser trocadas com `POSTGRES_PORT`, `POSTGRES_TEST_PORT`,
+`MAILPIT_SMTP_PORT` e `MAILPIT_UI_PORT` no `docker compose` (ajuste `apps/api/.env` junto).
+Os e-mails de desenvolvimento ficam no Mailpit: <http://localhost:8025>.
 
-This Turborepo includes the following packages/apps:
+O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
+[`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md).
 
-### Apps and Packages
+## Comandos
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+```bash
+pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # todos os workspaces (Turborepo)
+pnpm format                                                         # Prettier
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+pnpm --filter api test                          # unitários, integração e segurança (usa postgres-test)
+pnpm --filter api test -- test/integration/us1-signup.spec.ts
+pnpm --filter api test:security                 # matriz de autorização, replay, concorrência, segredos
+pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
+pnpm --filter api maintenance:run [--job <nome>] # jobs de retenção (executam apps/api/dist)
 ```
 
-Without global `turbo`, use your package manager:
+## Configuração
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
-```
+- API: [`apps/api/.env.example`](apps/api/.env.example). A API **não sobe** se faltar uma
+  variável obrigatória.
+- Web: [`apps/web/.env.example`](apps/web/.env.example) (`API_ORIGIN`, destino do rewrite).
+- Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
+  fora de um banco cujo nome contenha `test`.
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Como o projeto evolui
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+O desenvolvimento segue o fluxo Spec Kit — `SPEC → PLAN → TASKS → IMPLEMENTATION → TESTS →
+REVIEW` — e a [constituição](.specify/memory/constitution.md), que prevalece sobre qualquer
+outra orientação. Mudança de comportamento começa pela spec da fase em `specs/`.

@@ -1,0 +1,80 @@
+import { Injectable } from "@nestjs/common";
+import { CryptoService } from "../crypto/crypto.service";
+import { PrismaService } from "../database/prisma.service";
+
+export interface RateLimitWindow {
+  limit: number;
+  windowSec: number;
+}
+
+export interface RateLimitState {
+  count: number;
+  /** true when the counter is above `limit` after this hit. */
+  blocked: boolean;
+  retryAfterSec: number;
+}
+
+/** Progressive delay for login failures against one e-mail across origins (R8): min(250·2^(n−5), 8000) ms. */
+export function progressiveDelayMs(failures: number): number {
+  if (failures < 5) return 0;
+  return Math.min(250 * 2 ** (failures - 5), 8_000);
+}
+
+const CLEANUP_PROBABILITY = 0.01;
+
+/**
+ * Fixed-window counters in PostgreSQL (R8, FR-022). Keys are HMACs of `scope:value`, so the
+ * table never holds e-mails or IPs in clear.
+ */
+@Injectable()
+export class RateLimitService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+  ) {}
+
+  /** Counts one event and returns the updated state. Atomic under concurrency. */
+  async hit(scope: string, value: string, { limit, windowSec }: RateLimitWindow): Promise<RateLimitState> {
+    const key = this.crypto.hmacKey(scope, value);
+    const rows = await this.prisma.$queryRaw<{ count: number; expires_at: Date }[]>`
+      INSERT INTO rate_limit_counters (key, window_start, count, expires_at)
+      VALUES (${key}, now(), 1, now() + make_interval(secs => ${windowSec}))
+      ON CONFLICT (key) DO UPDATE SET
+        count        = CASE WHEN rate_limit_counters.expires_at <= now() THEN 1 ELSE rate_limit_counters.count + 1 END,
+        window_start = CASE WHEN rate_limit_counters.expires_at <= now() THEN now() ELSE rate_limit_counters.window_start END,
+        expires_at   = CASE WHEN rate_limit_counters.expires_at <= now()
+                            THEN now() + make_interval(secs => ${windowSec})
+                            ELSE rate_limit_counters.expires_at END
+      RETURNING count, expires_at`;
+    if (Math.random() < CLEANUP_PROBABILITY) void this.cleanupExpired().catch(() => undefined);
+
+    const row = rows[0]!;
+    return { count: row.count, blocked: row.count > limit, retryAfterSec: secondsUntil(row.expires_at) };
+  }
+
+  /** Current state without counting; `blocked` once `limit` events are already recorded. */
+  async peek(scope: string, value: string, limit: number): Promise<RateLimitState> {
+    const key = this.crypto.hmacKey(scope, value);
+    const row = await this.prisma.rateLimitCounter.findFirst({
+      where: { key, expiresAt: { gt: new Date() } },
+      select: { count: true, expiresAt: true },
+    });
+    if (!row) return { count: 0, blocked: false, retryAfterSec: 0 };
+    return { count: row.count, blocked: row.count >= limit, retryAfterSec: secondsUntil(row.expiresAt) };
+  }
+
+  async isBlocked(scope: string, value: string, limit: number): Promise<boolean> {
+    return (await this.peek(scope, value, limit)).blocked;
+  }
+
+  /** Removes expired counters in a bounded batch; returns how many were removed. */
+  async cleanupExpired(batchSize = 1_000): Promise<number> {
+    return this.prisma.$executeRaw`
+      DELETE FROM rate_limit_counters
+      WHERE key IN (SELECT key FROM rate_limit_counters WHERE expires_at < now() LIMIT ${batchSize})`;
+  }
+}
+
+function secondsUntil(date: Date): number {
+  return Math.max(1, Math.ceil((date.getTime() - Date.now()) / 1000));
+}
