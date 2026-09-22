@@ -7,7 +7,7 @@ describe("002/US1-6 versão única de Zod no workspace (FR-007)", () => {
 
   it("o pnpm-lock.yaml resolve exatamente uma versão de zod", () => {
     const versions = new Set([...lockfile.matchAll(/^ {2}'?zod@(\d[^:'(\s]*)/gm)].map((match) => match[1]));
-    expect([...versions]).toHaveLength(2); // T085: quebra temporária
+    expect([...versions]).toHaveLength(1);
   });
 
   it("api, web e contratos pedem zod pelo catálogo", () => {
