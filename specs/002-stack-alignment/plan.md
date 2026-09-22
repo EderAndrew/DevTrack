@@ -124,7 +124,7 @@ specs/002-stack-alignment/
 │   ├── web-architecture.md      # pastas, camadas, cache, formulários, componentes
 │   └── ci-and-e2e.md            # workflow da CI e suíte Playwright
 ├── checklists/requirements.md
-└── tasks.md                     # /speckit-tasks (ainda não criado)
+└── tasks.md                     # /speckit-tasks (T001–T091)
 ```
 
 ### Source Code (repository root)
@@ -188,21 +188,30 @@ Na ordem abaixo, cada etapa termina com a suíte inteira verde:
    - guardas.
 
    Critério de saída: a suíte de API da Fase 001 passa com as asserções intactas.
-2. **Web, fundação (US3/US4)**:
-   - Tailwind, tokens, shadcn e `components/shared`;
-   - `lib/api`, `lib/query`, `lib/messages` e `providers`;
-   - `renderWithProviders`;
-   - testes de contraste e do catálogo de mensagens;
-   - regras de lint.
-3. **Web, telas por feature (US3/US4)**, uma feature por vez, cada uma com os seus
-   testes migrados:
-   - `auth`, `sessions`, `admin-activation` e `invitations`;
-   - depois `managers`, `accounts` e `teachers`.
+2. **Mensagens (US2)**: catálogo `lib/messages` indexado por `ErrorCode`, com os textos
+   atuais, no lugar do `message` da API.
+3. **Web, sistema visual (US3)**, com as telas ainda em `app/`:
+   - Tailwind, tokens e teste de contraste;
+   - shadcn e `components/shared`;
+   - as 11 telas, a navegação e a home estilizadas no lugar, só trocando imports nos
+     testes;
+   - remover `components/form`.
 
-   Ao final, remover `lib/*-api.ts`, `components/form` e `packages/ui`.
-4. **E2E (US5)**: configuração do Playwright, *global setup* e as 7 jornadas.
-5. **CI (US5-5)**: workflow, uma primeira execução verde e uma falha provocada.
-6. **Encerramento**:
+   Estilizar antes de mover mantém cada diff pequeno: US3 muda a aparência sem mover
+   arquivos, e US4 move os arquivos sem mudar a aparência.
+4. **Web, padrões e features (US4)**:
+   - fundação: `lib/api`, `lib/query`, `providers`, `renderWithProviders` e regras de
+     lint;
+   - features uma por vez, com os seus testes movidos com `git mv`: primeiro `auth` (e
+     logout), depois `sessions`, `admin-activation`, `invitations`, `managers`,
+     `accounts` e `teachers`;
+   - remover `lib/*-api.ts` e `lib/session.ts`.
+
+   `packages/ui` sai no encerramento, depois da busca final por código morto.
+5. **E2E (US5)**: configuração do Playwright, *global setup* e as 7 jornadas.
+6. **CI (US5-5)**: workflow, uma primeira execução verde e uma falha provocada.
+7. **Encerramento**:
+   - remover `packages/ui`;
    - `DEPENDENCIES.md` (auditoria e licenças);
    - README, CLAUDE.md e quickstart;
    - quickstart da Fase 001 refeito num worktree limpo.

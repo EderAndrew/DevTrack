@@ -227,8 +227,9 @@ Versões verificadas no registro npm em 2026-09-22: `tailwindcss` 4.3.3,
   `ApiError`); `lib/server-api.ts` vira `lib/api/server.ts`. Funções de chamada ficam em
   `features/<f>/api/*.ts`, tipadas com os tipos do contrato (sem parse das respostas
   em runtime — a conformidade é garantida por S6). ESLint em `apps/web`:
-  `no-restricted-imports` impede `lib/api/*` fora de `features/*/api/**`,
-  `lib/api/**` e das páginas Server Component (`app/**/page.tsx`, `app/layout.tsx`),
+  `no-restricted-imports` impede `lib/api/*` fora de `features/*/api/**` e `lib/**`,
+  inclusive nas páginas Server Component, que buscam dados iniciais por
+  `features/<f>/api/server.ts` (Constituição, Padrões por Camada),
   e `no-restricted-globals`/`no-restricted-syntax` impede chamar `fetch` fora de
   `lib/api/**`.
 - **Rationale**: FR-025; a regra de lint é o que impede a próxima feature de chamar a
