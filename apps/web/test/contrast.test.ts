@@ -44,6 +44,12 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ["--destructive", "--danger-surface", 4.5],
   ["--border", "--background", 3],
   ["--ring", "--background", 3],
+  ["--sidebar-foreground", "--sidebar", 4.5],
+  ["--sidebar-accent-foreground", "--sidebar-accent", 4.5],
+  ["--sidebar-primary-foreground", "--sidebar-primary", 4.5],
+  ["--sidebar-border", "--sidebar", 3],
+  ["--sidebar-ring", "--sidebar", 3],
+  ["--sidebar-ring", "--sidebar-accent", 3],
 ];
 
 describe.each(Object.entries(THEMES))("002/US3-3 002/US3-4 contraste AA dos tokens do tema %s", (_theme, tokens) => {

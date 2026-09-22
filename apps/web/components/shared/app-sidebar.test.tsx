@@ -1,0 +1,83 @@
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { expectNoA11yViolations } from "../../test/a11y";
+import { renderWithProviders } from "../../test/render";
+import { AppSidebar, type AppSidebarProps } from "./app-sidebar";
+
+const navigation = vi.hoisted(() => ({ pathname: "/conta/perfil" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigation.pathname,
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+/** Same sets as apps/api/test/security/authorization-matrix.ts (contracts/permissions.md). */
+const SESSOES = ["sessoes.proprias.listar", "sessoes.proprias.revogar"];
+const PERMISSIONS = {
+  STUDENT: SESSOES,
+  MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
+  ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar"],
+};
+
+const me = (permissions: string[], emailVerified = true): AppSidebarProps["me"] => ({ name: "Ana Souza", emailVerified, permissions });
+
+function renderSidebar(props: AppSidebarProps) {
+  return renderWithProviders(
+    <SidebarProvider>
+      <AppSidebar {...props} />
+    </SidebarProvider>,
+  );
+}
+
+const menuLinks = () =>
+  within(screen.getByRole("navigation", { name: "Menu principal" }))
+    .queryAllByRole("link")
+    .map((link) => link.textContent);
+
+describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
+  beforeEach(() => {
+    navigation.pathname = "/conta/perfil";
+    // jsdom has no matchMedia; the desktop layout is enough here.
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ["STUDENT", ["Meu perfil"]],
+    ["MANAGER", ["Professores", "Meu perfil"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
+  ] as const)("%s vê exatamente %j", async (role, expected) => {
+    const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
+    expect(menuLinks()).toEqual(expected);
+    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
+    expect(screen.getByText("Ana Souza")).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("sem área administrativa, não há o grupo Usuários", () => {
+    renderSidebar({ me: me(PERMISSIONS.STUDENT) });
+    expect(screen.queryByRole("button", { name: "Usuários" })).toBeNull();
+  });
+
+  it("e-mail não verificado não vê áreas administrativas, mesmo com permissões", () => {
+    renderSidebar({ me: me(PERMISSIONS.ADMIN, false) });
+    expect(menuLinks()).toEqual(["Meu perfil"]);
+  });
+
+  it("o grupo Usuários abre e fecha", async () => {
+    renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    const group = screen.getByRole("button", { name: "Usuários" });
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.setup().click(group);
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    expect(menuLinks()).toEqual(["Meu perfil"]);
+  });
+
+  it("marca a tela atual", () => {
+    navigation.pathname = "/admin/managers";
+    renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    expect(screen.getByRole("link", { name: "Gestores" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBeNull();
+  });
+});

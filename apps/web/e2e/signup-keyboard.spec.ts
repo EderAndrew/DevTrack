@@ -37,6 +37,6 @@ test("002/US5-2 cadastro, verificação e login só com o teclado", async ({ pag
   await typeInto(page, page.locator("#senha"), account.password);
   await page.keyboard.press("Enter");
 
-  await expect(page).toHaveURL("/conta/sessoes");
-  await expect(page.getByRole("heading", { level: 1, name: "Minhas sessões" })).toBeVisible();
+  await expect(page).toHaveURL("/conta/perfil");
+  await expect(page.getByRole("heading", { level: 1, name: "Meu perfil" })).toBeVisible();
 });

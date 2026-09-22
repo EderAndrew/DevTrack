@@ -10,7 +10,7 @@ conveniência e nunca autoriza: quem decide é a API.
 
 | Caminho | Conteúdo |
 |---------|----------|
-| `app/` | Rotas e layouts (sem `src/`) |
+| `app/` | Rotas e layouts (sem `src/`), em grupos que não mudam a URL: `(auth)` login e recuperação de senha, sem cabeçalho; `(public)` telas abertas por links de e-mail, com cabeçalho; `(app)` telas internas, com o menu lateral |
 | `features/<feature>/api` | Chamadas à API com os tipos de `@repo/contracts` |
 | `features/<feature>/hooks` | Queries e mutations do TanStack Query |
 | `features/<feature>/components` | Telas e formulários (React Hook Form); não importam `@/lib/api/*` (regra de lint) |
@@ -23,7 +23,7 @@ conveniência e nunca autoriza: quem decide é a API.
 | `test/` | Utilitários de teste (`keyboard.ts` para os testes de teclado `SC-012`, contraste) |
 | `e2e/` | Jornadas Playwright, configuração e fixtures |
 
-Features: `auth`, `accounts`, `admin-activation`, `invitations`, `managers`, `sessions`,
+Features: `auth`, `accounts`, `admin-activation`, `invitations`, `managers`, `profile`, `sessions`,
 `teachers`.
 
 ## Comandos

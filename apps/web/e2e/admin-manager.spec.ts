@@ -18,7 +18,7 @@ test("002/US5-1 bootstrap do ADMIN → ativação → convite de MANAGER → ace
   const managerPage = await (await browser.newContext()).newPage();
   await acceptInvitationWithPassword(managerPage, manager);
   await logIn(managerPage, manager);
-  await managerPage.getByRole("navigation", { name: "Conta" }).getByRole("link", { name: "Professores" }).click();
+  await managerPage.getByRole("navigation", { name: "Menu principal" }).getByRole("link", { name: "Professores" }).click();
   await expect(managerPage.getByRole("heading", { level: 1, name: "Professores" })).toBeVisible();
 
   await adminPage.reload();
