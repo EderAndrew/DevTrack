@@ -38,14 +38,22 @@ Esperado:
 
 ## 3. Um contrato alterado quebra o outro lado (US1-3, SC-003)
 
+Faça uma alteração por vez, rode o comando abaixo e desfaça antes da próxima:
+
 ```bash
-# Renomeie um campo de resposta, por exemplo name → fullName em ManagerViewSchema
-# (packages/contracts/src/provisioning/managers.ts), e rode:
 pnpm build --filter @repo/contracts && pnpm check-types
 ```
 
-Esperado: `check-types` falha em `apps/api` (mapeador de view) e em `apps/web`
-(tela de gestores). Desfaça a alteração.
+| # | Contrato | Alteração | Esperado: `check-types` falha em |
+|---|----------|-----------|----------------------------------|
+| 1 | `ManagerViewSchema` (resposta, `src/provisioning/managers.ts`) | renomear `name → fullName` | `apps/api` (mapeador) e `apps/web` (tela de gestores) |
+| 2 | `ManagerViewSchema` (resposta) | remover `name` | `apps/web` (tela de gestores lê o campo) |
+| 3 | `ManagerViewSchema` (resposta) | trocar `name` para `z.number()` | `apps/api` (mapeador) e `apps/web` |
+| 4 | `InviteRequestSchema` (requisição) | renomear `email → address` | `apps/api` (service lê o campo) e `apps/web` (hook de convite) |
+| 5 | `InviteRequestSchema` (requisição) | remover `email` | `apps/api` (service lê o campo) e `apps/web` (objeto com propriedade a mais) |
+| 6 | `InviteRequestSchema` (requisição) | trocar `email` para `z.number()` | `apps/api` e `apps/web` |
+
+Esperado: 6 de 6 falham no lado que usa a forma antiga (SC-003).
 
 ## 4. Lint impede componente chamando a API (US4-5)
 
@@ -65,7 +73,11 @@ Percorra o roteiro §2–§6 do quickstart da Fase 001 (bootstrap do ADMIN, conv
 MANAGER, convite de professor para aluno existente, bloqueio do MANAGER em
 `/api/users`, sessões). Confira também:
 
-- textos, rótulos e mensagens iguais aos da Fase 001; tema escuro do sistema aplicado;
+- textos, rótulos e mensagens iguais aos da Fase 001 nas 11 telas (`/entrar`,
+  `/cadastro`, `/verificar-email`, `/esqueci-senha`, `/redefinir-senha`, `/convite`,
+  `/ativar-admin`, `/conta/sessoes`, `/admin/managers`, `/admin/usuarios`,
+  `/professores`), com as mesmas rotas e redirecionamentos (US2-2, SC-004); tema
+  escuro do sistema aplicado;
 - em `/conta/sessoes`, revogar outra sessão remove a linha sem recarregar a página;
 - em `/admin/managers`, convidar, reenviar e revogar atualizam as tabelas sem
   recarregar;

@@ -11,9 +11,9 @@ apps/web/
 │   ├── layout.tsx            # Server Component: sessão para a navegação, <Providers>
 │   ├── providers.tsx         # "use client": QueryClientProvider
 │   ├── globals.css           # Tailwind + tokens do tema (paleta da Fase 001)
-│   └── <rotas>/page.tsx      # Server Components: checam sessão, buscam dados iniciais, compõem features
+│   └── <rotas>/page.tsx      # Server Components: checam sessão e buscam dados iniciais via features/<f>/api, compõem features
 ├── features/<feature>/
-│   ├── api/                  # funções que chamam a API (únicas com acesso a lib/api/client)
+│   ├── api/                  # funções que chamam a API (únicas com acesso a lib/api/*); server.ts = leituras do Server Component (usa next/headers; só app/ importa, nunca por barrel)
 │   ├── components/           # "use client": telas e formulários da feature + testes
 │   ├── hooks/                # useQuery/useMutation da feature, chaves de query
 │   ├── schemas/              # schemas de formulário derivados do contrato + mensagens
@@ -57,17 +57,19 @@ páginas com token não mudam.
 
 | Regra | Onde vale | Efeito |
 |-------|-----------|--------|
-| `no-restricted-imports` de `@/lib/api/*` | tudo, exceto `features/*/api/**`, `lib/**`, `app/**/page.tsx`, `app/layout.tsx` | componentes não chamam a API diretamente (FR-025) |
+| `no-restricted-imports` de `@/lib/api/*` | tudo, exceto `features/*/api/**` e `lib/**` | nem componentes nem rotas (`page.tsx`, `layout.tsx`) chamam a API diretamente (FR-025; Constituição, Padrões por Camada) |
+| `no-restricted-imports` de `@/features/*/api/server` | `features/*/components/**`, `features/*/hooks/**`, `components/**` | código de cliente não importa leituras de servidor (`next/headers` quebraria o bundle do cliente) |
 | `no-restricted-globals` `fetch` | tudo, exceto `lib/api/**`, `e2e/**`, testes | só o wrapper usa `fetch` |
 | `no-restricted-imports` de `@reduxjs/*`, `axios` | tudo | stack oficial |
 | `no-restricted-imports` de `@repo/contracts` como valor em `components/shared/**` | `components/shared/**` | componentes compartilhados não conhecem contratos de domínio |
 
 ## Servidor e cliente
 
-- A página (Server Component) chama `getMe()`; sem sessão → `redirect("/entrar?next=…")`;
+- A página (Server Component) chama `getMe()` de `features/auth/api`; sem sessão → `redirect("/entrar?next=…")`;
   sem permissão (para UX) → `<NoAccess>`. A API continua sendo quem autoriza.
-- A página busca os dados iniciais com `serverGet` e passa para o componente da feature
-  como `initialData`.
+- A página busca os dados iniciais por uma função de `features/<f>/api/server.ts` (ex.:
+  `fetchOwnSessions()`, que usa `serverGet` por dentro) e passa para o componente da
+  feature como `initialData`. A página nunca importa `@/lib/api/*`.
 - O componente usa os hooks da feature (`useManagers(initialData)`), que chamam
   `features/<f>/api`.
 - Mutações: `useMutation` → em sucesso, `setQueryData` com a entidade devolvida e

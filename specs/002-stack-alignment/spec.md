@@ -382,9 +382,14 @@ suíte E2E e ver todas as jornadas passarem.
 - **SC-002**: 100% das rotas da API da Fase 001 têm entradas e respostas descritas uma
   única vez no pacote de contratos, e 0 definições equivalentes fora dele, verificado
   por teste de guarda.
-- **SC-003**: Alterar a forma de qualquer contrato faz a verificação automática falhar
-  no lado desatualizado em 100% dos casos testados.
-- **SC-004**: 0 diferenças nos textos exibidos nas 11 telas em relação à Fase 001.
+- **SC-003**: Nos 6 casos do roteiro (renomear, remover e trocar o tipo de um campo,
+  num contrato de requisição e num de resposta), a verificação de tipos do monorepo
+  falha no lado que ainda usa a forma antiga; 6 de 6 casos falham como esperado.
+- **SC-004**: 0 diferenças nos textos exibidos nas 11 telas em relação à Fase 001,
+  medidas por três verificações: os testes de tela da Fase 001 passam sem mudar os
+  textos que consultam (rótulos, títulos, mensagens); a tabela de mensagens de erro do
+  web confere os textos de todos os códigos; e o roteiro manual do quickstart percorre
+  as 11 telas.
 - **SC-005**: 0 violações de acessibilidade de nível A/AA nas 11 telas, nos estados
   inicial e de erro, e 100% dos fluxos concluíveis apenas com teclado.
 - **SC-006**: A suíte E2E cobre as 5 jornadas críticas de US5-1 e passa num ambiente
