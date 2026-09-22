@@ -23,7 +23,7 @@ spec first.
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
 
-`.specify/memory/constitution.md` (v2.0.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v2.1.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -112,7 +112,18 @@ the removal conditions are in `apps/api/DEPENDENCIES.md`.
 - `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`
   (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages).
   `proxy.ts` only redirects for UX and never authorizes. API calls live in `lib/*-api.ts`. There's
-  no shared web↔API package.
+  no shared web↔API package yet (see the target stack below).
+- Target stack (constitution v2.1.0, principle XXVI and "Stack oficial do frontend"), which Phase
+  001 predates. A dedicated refactor feature, run before Phase 002, migrates the code to it; until
+  then, new code must not extend the old patterns:
+  - `packages/contracts` holds every API↔web contract as Zod schemas, with types derived through
+    `z.infer`. It contains no Prisma, service or UI-state types and no user-facing messages. One
+    Zod version comes from the pnpm catalog, and the API still validates every input.
+  - Web: Tailwind + shadcn/ui + Lucide; TanStack Query for server state; Redux Toolkit only for
+    real global client state, never authoritative over exam rules; React Hook Form +
+    `@hookform/resolvers`; native `fetch`; Playwright for E2E.
+  - Web code goes in `apps/web/features/<feature>/{api,components,hooks,schemas,store,types}`,
+    with `app/` kept at the root (no `src/`).
 - Protected request pipeline: `OriginGuard → SessionGuard (401) → VerifiedGuard (403) →
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and

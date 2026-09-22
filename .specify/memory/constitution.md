@@ -1,58 +1,47 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.2.0 → 2.0.0
-Motivo (MAJOR): redefinição incompatível de papéis e responsabilidades —
-ACADEMIC_MANAGER é substituído por MANAGER, restrito ao provisionamento cadastral de
-professores e sem autoridade pedagógica; disciplinas, períodos e ementas deixam de
-ser institucionais e passam ao contexto do professor. Nada foi implementado ainda,
-portanto não há migração de código ou dados.
+Version change: 2.0.0 → 2.1.0
+Motivo (MINOR): novo princípio e expansão material da seção de stack, sem remover
+nem redefinir princípios existentes.
 
-Princípios modificados:
-  II. Autenticação e Autorização — papéis ADMIN / MANAGER / TEACHER / STUDENT;
-      cadastro público nunca aceita role como parâmetro; permissões de exemplo
-      ajustadas (professores.convidar, professores.reenviar_convite; removido
-      periodos.gerenciar)
-  XXI. Domínio Educacional Configurável — professor cria disciplinas/ofertas,
-       períodos da oferta, ementa, turmas, aulas e atividades; removida a gestão
-       institucional de disciplinas e períodos
-  XXIII. Referência Curricular — ementa recebida pelo professor e importada para a
-         disciplina dele (não mais referência institucional compartilhada)
-  XXIV. Isolamento por Contexto Acadêmico — MANAGER no lugar de ACADEMIC_MANAGER;
-        distinção 403 (sem capacidade) × 404 (fora do contexto)
-  XXV. Provisionamento de Usuários e Privilégios → Provisionamento Controlado de
-       Professores e Privilégios, reorganizado em Provisionamento, Escopo do
-       MANAGER, Identidade única e Desativação: MANAGER sem acesso a alunos e dados
-       pedagógicos (negado no backend com 403); User único com múltiplos papéis
-       via UserRole (nunca users.role); convite para e-mail existente reutiliza a
-       identidade com e-mail verificado e autenticação, sem redefinir credencial;
-       aceite transacional e idempotente; desativação preserva o histórico e não
-       deixa recursos sem responsável; bootstrap do primeiro ADMIN apenas por
-       comando operacional (sem endpoint público, senha padrão ou seed)
+Princípios adicionados:
+  XXVI. Contratos Compartilhados — packages/contracts como fonte única dos
+        contratos entre apps; Zod como fonte primária e tipos via z.infer;
+        duplicação manual proibida; só a fronteira (request/response, enums
+        públicos, paginação, filtros, eventos, formato de erro); nada de Prisma,
+        repositórios, services ou estado de UI; mensagens pt-BR ficam no web;
+        backend continua validando; uma versão de Zod via catalog; pacote
+        compilado para dist/ com tipos.
 
-Princípios adicionados: nenhum.
+Princípios modificados: nenhum.
 Princípios removidos: nenhum.
 
 Seções modificadas:
-  - Fluxo de Desenvolvimento e Roadmap de Fases — Fases 001 e 002 ajustadas aos
-    novos papéis (sem períodos letivos e disciplinas institucionais)
+  - Arquitetura e Stack Técnica — packages/contracts; stack oficial do frontend
+    (Next.js + TS, Tailwind CSS, shadcn/ui, Lucide React, TanStack Query, Redux
+    Toolkit, React Hook Form + Zod + @hookform/resolvers, fetch, ESLint, Prettier,
+    Vitest + RTL, Playwright); regra Server State → Query / Client State → Redux /
+    Validação → Zod / UI → shadcn; Redux só na primeira spec com estado global de
+    cliente real e nunca autoridade sobre prova; organização features/* sem src/;
+    Transição da Fase 001.
+  - Padrões por Camada / Frontend — chamadas à API em features/*/api via hooks do
+    TanStack Query; formulários com React Hook Form e schema do contrato.
+  - Roadmap — refatoração de alinhamento de stack antes da Fase 002.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXV atualizado
+  ✅ .specify/templates/plan-template.md  — gates XXVI e stack do frontend
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ⚠ README.md — ainda é o README do starter do Turborepo; reescrever na Fase 001
+  ✅ CLAUDE.md — regras de contratos e stack do frontend
 
-Follow-ups (decisões para specs 001/002):
-  - Detalhes do comando de bootstrap e do fluxo de prova de posse de e-mail
-    (spec 001); fluxo autenticado para novos ADMINs.
-  - Política para turmas/provas em andamento quando um professor é desativado
-    (transferência, congelamento, somente leitura; afastamento × desligamento ×
-    suspensão) — spec do ciclo de vida de professores e turmas.
-  - apps/docs (starter do create-turbo) não faz parte da arquitetura definida;
-    remover ou justificar na spec da Fase 001.
-  - apps/api (NestJS) ainda não existe; será criado na Fase 001.
+Follow-ups:
+  - Especificar a feature de refatoração (packages/contracts, Tailwind/shadcn nas
+    páginas da 001, remoção de packages/ui, TanStack Query, React Hook Form,
+    Playwright) com /speckit-specify antes da Fase 002.
+  - As novas dependências entram no DEPENDENCIES.md com a auditoria de licença e
+    vulnerabilidades quando forem instaladas.
 -->
 
 # DevTrack Constitution
@@ -584,18 +573,85 @@ ambiente pedagógico. Uma pessoa tem uma identidade e pode acumular papéis ao l
 da vida do sistema — projetar a autenticação como "aluno **ou** professor" seria um
 erro caro de corrigir depois.
 
+### XXVI. Contratos Compartilhados
+
+- Todo contrato entre aplicações do monorepo DEVE ser definido em
+  `packages/contracts` e consumido de lá pela API e pelo web.
+- Schemas Zod são a fonte primária dos contratos que exigem validação em runtime; os
+  tipos TypeScript correspondentes DEVEM ser derivados com `z.infer`. É PROIBIDA a
+  duplicação manual de tipos equivalentes entre API e web (ex.: `CreateExamDto` na
+  API e `CreateExamRequest` no web descrevendo a mesma coisa).
+- O pacote contém apenas a fronteira entre aplicações: schemas de request e
+  response, enums públicos, paginação, filtros, eventos trocados entre apps e o
+  formato de erro `{statusCode, code, message}`.
+- NUNCA vão para o pacote: modelos ou tipos do Prisma, repositórios, services, tipos
+  de persistência ou de domínio privado, nem estado de UI/Redux.
+- O contrato define forma e códigos; mensagens exibidas ao usuário (textos pt-BR)
+  NÃO ficam no contrato — pertencem ao web, que as associa aos códigos.
+- Compartilhar o schema NÃO substitui a validação definitiva no backend (Princípio
+  I): a API DEVE validar toda entrada com o schema do contrato, independentemente do
+  que o frontend já validou.
+- Há uma única versão de Zod no workspace, fixada pelo `catalog` do pnpm; nenhum app
+  ou pacote declara outra.
+- O pacote é compilado para `dist/` com declarações de tipo, de forma que a API (build
+  com SWC) e o web o consumam como qualquer dependência de workspace.
+
+**Rationale**: API e web descrevendo a mesma estrutura em dois lugares divergem em
+silêncio; uma definição única com validação em runtime faz a divergência falhar no
+build ou no teste. Limitar o pacote à fronteira mantém a implementação interna livre
+para mudar sem quebrar o outro lado.
+
 ## Arquitetura e Stack Técnica
 
 Monorepo com:
 
 - `apps/api` — backend NestJS.
 - `apps/web` — frontend Next.js.
-- `packages/*` — bibliotecas e configurações compartilhadas, somente com necessidade
-  real de reutilização.
+- `packages/contracts` — contratos compartilhados entre API e web (Princípio XXVI).
+- `packages/*` — demais bibliotecas e configurações compartilhadas, somente com
+  necessidade real de reutilização.
 - `specs/*` — especificações funcionais e técnicas produzidas pelo Spec Kit.
 
 Stack obrigatória: pnpm, Turborepo, TypeScript, PostgreSQL e Prisma ORM. A arquitetura
 DEVE favorecer modularidade, baixo acoplamento e alta coesão.
+
+**Stack oficial do frontend** (`apps/web`) — cada responsabilidade tem uma única
+solução; specs NÃO DEVEM introduzir alternativas sem emendar esta constituição:
+
+| Responsabilidade | Tecnologia |
+|------------------|------------|
+| Framework | Next.js (App Router) + TypeScript |
+| Estilização / componentes / ícones | Tailwind CSS, shadcn/ui, Lucide React |
+| Server state (tudo que vem da API) | TanStack Query |
+| Client/application state global | Redux Toolkit |
+| Formulários | React Hook Form + Zod + `@hookform/resolvers` |
+| Validação e schemas | Zod, a partir de `packages/contracts` |
+| HTTP | `fetch` nativo, via rewrite same-origin `/api/*` (sem Axios) |
+| Qualidade | ESLint, Prettier, Vitest + React Testing Library (com `vitest-axe` e testes de teclado), Playwright (E2E) |
+
+Regra de divisão: **Server State → TanStack Query. Client State → Redux Toolkit.
+Validação → Zod. UI → shadcn/ui.**
+
+- Dados vindos da API (provas, questões, tentativas, respostas, resultados, usuários
+  etc.) vivem no cache do TanStack Query e NÃO DEVEM ser copiados para store global.
+- Redux Toolkit guarda só estado de cliente que não é cópia do backend (ex.: sessão de
+  prova em andamento no navegador, sinais de segurança da prova, UI global). Ele entra
+  como dependência apenas na primeira spec que tenha estado global de cliente real
+  (Princípio IX), e NUNCA é autoridade sobre violações, tempo ou submissão de prova:
+  esses eventos DEVEM chegar ao backend e gerar auditoria (Princípios III e VI); o
+  estado local serve à UX.
+- Código do web é organizado por feature em
+  `apps/web/features/<feature>/{api,components,hooks,schemas,store,types}`; `app/`
+  fica na raiz de `apps/web` (sem `src/`) e contém rotas, compondo as features.
+  Componentes shadcn ficam em `apps/web/components/ui`.
+- Testes E2E com Playwright rodam contra API e PostgreSQL reais.
+
+**Transição**: a Fase 001 foi entregue antes desta stack. Sua migração — criar
+`packages/contracts` e mover para ele os schemas da 001; adotar Tailwind/shadcn nas
+páginas existentes preservando os testes de acessibilidade e teclado; remover
+`packages/ui`; adicionar TanStack Query, React Hook Form e Playwright — é uma feature
+de refatoração própria, executada antes da Fase 002. Até lá, código novo NÃO DEVE
+ampliar os padrões antigos.
 
 Componentes futuros (Code Runner, eventos/auditoria, workers, serviços de IA) DEVEM se
 conectar ao domínio por interfaces explícitas (`Web → API → Domain → componentes`),
@@ -614,6 +670,10 @@ sem que a fundação precise implementá-los antecipadamente.
 
 - Componentes React priorizam apresentação e interação. UI, estado, comunicação com a
   API, validação e regras de domínio DEVEM ficar separados.
+- Chamadas à API ficam em `features/<feature>/api` e são expostas por hooks do
+  TanStack Query; componentes não chamam `fetch` diretamente.
+- Formulários usam React Hook Form com o schema do contrato via `@hookform/resolvers`.
+  A validação no cliente é UX; a autoridade é o backend (Princípio I).
 
 **Tratamento de erros**
 
@@ -665,6 +725,9 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
    verificado, sessões, auditoria de privilégios, health check, logs,
    Docker e testes. A arquitetura de autorização DEVE nascer preparada para checagem
    por contexto de recurso (XXIV), para que a Fase 002 não exija refazer a fundação.
+   - **Refatoração de alinhamento de stack** (antes da Fase 002): migração da Fase
+     001 para `packages/contracts` e para a stack oficial do frontend (ver
+     *Transição* em Arquitetura e Stack Técnica), sem mudança de comportamento.
 2. **Fase 002 — Academic Domain**: perfis de professor e aluno, disciplinas/ofertas
    do professor (tipo de oferta e período), turmas (turno e modalidade) e matrículas
    com ingresso controlado.
@@ -694,7 +757,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-21
+**Version**: 2.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-22
 
 Histórico:
 
@@ -708,3 +771,6 @@ Histórico:
   provisionamento de professores e sem autoridade pedagógica; disciplinas, períodos
   e ementas passam ao contexto do professor; identidade única com múltiplos papéis;
   403 × 404; desativação preserva o histórico; bootstrap administrativo.
+- **2.1.0** — Contratos compartilhados em `packages/contracts` (Princípio XXVI) e
+  stack oficial do frontend (Tailwind/shadcn, TanStack Query, Redux Toolkit, React
+  Hook Form, `fetch`, Playwright), com refatoração da Fase 001 antes da Fase 002.
