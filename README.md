@@ -5,8 +5,11 @@ Plataforma de ensino e avaliação configurável por professor. Este repositóri
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), cadastro de alunos com verificação de e-mail,
 sessões revogáveis, bootstrap seguro do primeiro administrador, convites de gestores e
 professores, recuperação de senha, autorização por permissão explícita + contexto, trilha
-de auditoria e retenção de dados. Ainda não há domínio acadêmico (disciplinas, turmas,
-atividades) — ele vem nas próximas fases.
+de auditoria e retenção de dados. A **fase 002 — alinhamento de stack** refatorou essa base
+sem mudar o comportamento: contratos API↔web compartilhados em `packages/contracts`, stack
+oficial do frontend (Tailwind, shadcn/ui, TanStack Query, React Hook Form), E2E com Playwright
+e CI no GitHub Actions. Ainda não há domínio acadêmico (disciplinas, turmas, atividades) — ele
+vem nas próximas fases.
 
 ## Pré-requisitos
 
@@ -19,9 +22,13 @@ atividades) — ele vem nas próximas fases.
 | Caminho | Conteúdo |
 |---------|----------|
 | `apps/api` | API NestJS 11 (porta 4000): Prisma 7 + PostgreSQL, sessões opacas em cookie, CLI operacional |
-| `apps/web` | Next.js 16 / React 19 (porta 3000); chama a API pelo rewrite same-origin `/api/*` |
-| `packages/*` | Configurações compartilhadas de ESLint e TypeScript e componentes de UI |
-| `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase |
+| `apps/web` | Next.js 16 / React 19 (porta 3000); chama a API pelo rewrite same-origin `/api/*`. Código por domínio em `features/<feature>/{api,components,hooks,schemas}`; E2E em `e2e/` |
+| `packages/contracts` | `@repo/contracts`: todo contrato API↔web como schema Zod, com tipos derivados por `z.infer` |
+| `packages/eslint-config`, `packages/typescript-config` | Configurações compartilhadas de ESLint e TypeScript |
+| `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
+| `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
+| `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
+| `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
 | `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
 
 ## Primeiros passos
@@ -31,6 +38,7 @@ docker compose up -d postgres postgres-test mailpit   # banco :5432, banco de te
 cp apps/api/.env.example apps/api/.env                # preencher APP_HMAC_SECRET (openssl rand -base64 48)
 cp apps/web/.env.example apps/web/.env.local
 pnpm install                                          # também gera o Prisma Client
+pnpm build                                            # compila packages/contracts (api e web importam o dist/)
 pnpm --filter api prisma migrate deploy               # tabelas + papéis/permissões de referência
 pnpm dev                                              # web em http://localhost:3000
 pnpm admin:bootstrap --email <e-mail> --print-link    # único jeito de criar o primeiro ADMIN
@@ -41,7 +49,8 @@ Portas ocupadas no host podem ser trocadas com `POSTGRES_PORT`, `POSTGRES_TEST_P
 Os e-mails de desenvolvimento ficam no Mailpit: <http://localhost:8025>.
 
 O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
-[`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md).
+[`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md);
+o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md).
 
 ## Comandos
 
@@ -53,8 +62,25 @@ pnpm --filter api test                          # unitários, integração e seg
 pnpm --filter api test -- test/integration/us1-signup.spec.ts
 pnpm --filter api test:security                 # matriz de autorização, replay, concorrência, segredos
 pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
+pnpm --filter @repo/contracts test              # guardas de fronteira, duplicação e versão única de Zod
 pnpm --filter api maintenance:run [--job <nome>] # jobs de retenção (executam apps/api/dist)
+
+# E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
+docker compose up -d postgres-test mailpit
+pnpm build
+pnpm --filter web exec playwright install chromium   # só na primeira vez
+pnpm --filter web test:e2e
 ```
+
+`pnpm check-types` e `pnpm test` pela raiz compilam `packages/contracts` antes (Turborepo).
+Ao rodar um workspace isolado (`pnpm --filter api check-types`), rode `pnpm build` antes:
+api e web importam o `dist/` do pacote de contratos.
+
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda `pnpm lint`, `pnpm check-types`,
+`pnpm build` e `pnpm test` (com PostgreSQL 17 de serviço) a cada push e pull request. As
+actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e`).
 
 ## Configuração
 

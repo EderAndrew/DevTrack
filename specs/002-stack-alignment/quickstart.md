@@ -3,7 +3,11 @@
 Roteiro para validar a feature depois da implementação. Pré-requisitos e ambiente:
 os mesmos da Fase 001 (`specs/001-foundation-identity-access/quickstart.md`) — Node 24,
 pnpm 11, Docker. Portas ocupadas no host podem ser trocadas com `POSTGRES_PORT`,
-`POSTGRES_TEST_PORT` e `MAILPIT_*_PORT`.
+`POSTGRES_TEST_PORT` e `MAILPIT_*_PORT`. Executado do zero num worktree limpo, com bancos e
+Mailpit próprios, em 2026-09-22 (T090).
+
+Comandos filtrados (`pnpm --filter api|web …`) importam o `dist/` de `packages/contracts`: rode
+`pnpm build` antes deles. Os comandos da raiz compilam o pacote sozinhos.
 
 ## 1. Clone limpo compila sem passo extra
 
@@ -98,9 +102,10 @@ num `pnpm dev` aberto nem no banco de desenvolvimento.
 
 ## 7. CI (SC-009)
 
-Abra um pull request da branch `002-stack-alignment`. Esperado: o workflow **CI**
-roda lint, tipos, build e testes e fica verde. Para conferir a falha, um commit que
-quebre um teste deixa o status vermelho.
+Faça push da branch ou abra um pull request: o workflow **CI** roda a cada push e pull
+request. Esperado: lint, tipos, build e testes verdes. Para conferir a falha, um commit que
+quebre um teste deixa o status vermelho. Registro de T085: verde em `850f8fc`, vermelho no
+commit temporário `3a77ba3` (etapa `pnpm test`), verde de novo no revert `0a4acb6`.
 
 ## 8. Dependências (SC-008)
 

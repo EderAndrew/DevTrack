@@ -1,16 +1,19 @@
-# Dependências — auditoria da fase 001
+# Dependências — auditoria do monorepo
 
 Registro exigido pela Constituição (I — *Software Supply Chain Failures*; seção
-**Dependências**) e pela tarefa T110. Cobre as dependências diretas de `apps/api` e
-`apps/web`. Refazer a cada dependência nova ou atualização de versão maior.
+**Dependências**). Criado na fase 001 (T110) em `apps/api/`; desde a fase 002 (T087) fica na
+raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
+cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-09-22**, Node 24.12, pnpm 11.25, lockfile do commit desta tarefa.
+Última verificação: **2026-09-22** (fase 002, T087), Node 24.12, pnpm 11.25, lockfile do
+commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
 
-**Resultado: `No known vulnerabilities found`.**
+**Resultado: `No known vulnerabilities found`** (0 altas/críticas), na fase 001 e de novo na
+fase 002 depois das dependências novas da seção 5.
 
-A primeira execução apontou 8 achados (6 high, 1 moderate, 1 low), todos em dependências
+Na fase 001, a primeira execução apontou 8 achados (6 high, 1 moderate, 1 low), todos em dependências
 **transitivas**. Nenhuma dependência direta era vulnerável. Foram corrigidos com `overrides` em
 `pnpm-workspace.yaml`, sem trocar versões maiores das dependências diretas:
 
@@ -31,9 +34,11 @@ versões corrigidas.
 
 Allowlist: MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD, BlueOak-1.0.0.
 
-317 pacotes de produção: 245 MIT, 30 ISC, 27 Apache-2.0, 5 BSD-3-Clause, 1 BSD-2-Clause,
-1 0BSD, 1 BlueOak-1.0.0. Todas as dependências **diretas** estão na allowlist, exceto
-`nodemailer` (MIT-0, mais permissiva que MIT).
+Fase 002: 394 pacotes de produção: 317 MIT, 31 ISC, 31 Apache-2.0, 5 BSD-3-Clause,
+1 BSD-2-Clause, 1 0BSD, 1 BlueOak-1.0.0 e os 7 da tabela abaixo (na fase 001 eram 317). Todas
+as dependências **diretas** estão na allowlist, exceto `nodemailer` (MIT-0, mais permissiva que
+MIT). As dependências novas da fase 002 não trouxeram nenhuma licença fora da allowlist: a
+tabela abaixo é a mesma da fase 001.
 
 Fora da allowlist, todos **transitivos**:
 
@@ -77,13 +82,37 @@ Desenvolvimento: `prisma` (CLI de migrations e geração do client — R3); `@sw
 |--------|---------|---------|---------|
 | `next` | MIT | App Router, rewrite same-origin `/api/*` e `proxy.ts` | R6, R18 |
 | `react`, `react-dom` | MIT | Base do Next.js | R18 |
-| `@repo/ui` | — (workspace) | Componentes compartilhados do monorepo | — |
 
 Desenvolvimento: `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/dom`,
 `@testing-library/user-event` (testes de componentes e de teclado — R17, R22); `vitest-axe`
 (verificação automatizada de WCAG 2.2 AA — R22); `eslint`, `typescript`, `@types/*`,
 `@repo/*`.
 
-Nenhuma dependência nova foi adicionada nesta fase além das previstas no plano. As
+Na fase 001 nenhuma dependência foi adicionada além das previstas no plano. As
 correções de T108 (`postinstall` com `prisma generate`; `.env` carregado com
 `process.loadEnvFile` no `prisma.config.ts`) usam só ferramentas já presentes.
+
+## 5. Dependências novas — fase 002 (`specs/002-stack-alignment`, S17)
+
+Cada uma corresponde a uma linha da tabela de stack da Constituição ou é exigida pelos
+componentes shadcn. Licenças conferidas no `pnpm licenses list --prod` (produção) e no
+`package.json` de cada pacote (desenvolvimento).
+
+| Pacote | Onde | Tipo | Licença | Por quê |
+|--------|------|------|---------|---------|
+| `zod` (catálogo do pnpm) | contracts, web | prod | MIT | Schemas do contrato; uma só versão no workspace (XXVI, S2) |
+| `@repo/contracts` | api, web | prod (workspace) | — | Contratos API↔web compartilhados (XXVI) |
+| `@tanstack/react-query` | web | prod | MIT | Server state (stack oficial) |
+| `react-hook-form` | web | prod | MIT | Formulários (stack oficial) |
+| `@hookform/resolvers` | web | prod | MIT | Integra React Hook Form e Zod |
+| `lucide-react` | web | prod | ISC | Ícones (stack oficial) |
+| `radix-ui` | web | prod | MIT | Primitivas usadas pelos componentes shadcn |
+| `class-variance-authority` | web | prod | Apache-2.0 | Variantes dos componentes shadcn |
+| `clsx`, `tailwind-merge` | web | prod | MIT | Utilitário `cn()` do shadcn |
+| `tailwindcss`, `@tailwindcss/postcss` | web | dev | MIT | Estilos (stack oficial) |
+| `@playwright/test` | web | dev | Apache-2.0 | E2E no navegador (stack oficial) |
+
+Removido: `@repo/ui` (e o diretório `packages/ui`), o pacote de exemplo do template do
+Turborepo, que o web não usava. A CLI `shadcn` roda por `pnpm dlx` com versão fixa e não entra
+em nenhum `package.json`. `packages/contracts` não tem outras dependências de produção além de
+`zod`.

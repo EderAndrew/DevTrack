@@ -1,7 +1,8 @@
 # Quickstart: 001 — Foundation, Identity & Access
 
 Roteiro para subir o ambiente e validar os fluxos principais da feature ponta a
-ponta. Executado do zero (clone limpo, bancos vazios) em 2026-09-22 (T108).
+ponta. Executado do zero (clone limpo, bancos vazios) em 2026-09-22 (T108) e refeito depois da
+refatoração de stack, num worktree limpo, em 2026-09-22 (002/T090).
 
 ## Pré-requisitos
 
@@ -15,6 +16,7 @@ docker compose up -d postgres postgres-test mailpit
 cp apps/api/.env.example apps/api/.env      # preencher APP_HMAC_SECRET (openssl rand -base64 48)
 cp apps/web/.env.example apps/web/.env.local
 pnpm install                                # também gera o Prisma Client (postinstall de apps/api)
+pnpm build                                  # compila packages/contracts (api e web importam o dist/)
 pnpm --filter api prisma migrate deploy     # cria tabelas + papéis/permissões de referência
 pnpm dev                                    # web em :3000, api em :4000 (via /api no web)
 ```
@@ -33,7 +35,12 @@ APP_HMAC_SECRET= pnpm --filter api start   # → erro listando APP_HMAC_SECRET, 
 ```
 
 `start`, `admin:bootstrap` e `maintenance:run` executam o código compilado em
-`apps/api/dist/`: `pnpm dev` já o gera; sem ele, rode `pnpm --filter api build` antes.
+`apps/api/dist/`: `pnpm build` e `pnpm dev` já o geram.
+
+Comandos filtrados (`pnpm --filter api …`, `pnpm --filter web …`) usam o `dist/` de
+`packages/contracts`; sem o `pnpm build` acima, falham com `Failed to resolve import
+"@repo/contracts"`. Os comandos da raiz (`pnpm dev`, `pnpm check-types`, `pnpm test`) compilam o
+pacote antes.
 
 ## 2. Bootstrap do primeiro ADMIN (US3)
 
@@ -95,6 +102,7 @@ pnpm --filter api maintenance:run --job unverified-accounts
 pnpm --filter api test            # unit + integração (usa postgres-test)
 pnpm --filter api test:security   # matriz de autorização, replay, concorrência, varredura de segredos
 pnpm --filter web test            # inclui axe (WCAG 2.2 AA) e navegação por teclado
+pnpm --filter @repo/contracts test  # guardas do pacote de contratos (fase 002)
 pnpm check-types && pnpm lint
 ```
 
