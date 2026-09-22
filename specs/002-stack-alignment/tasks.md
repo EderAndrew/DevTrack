@@ -200,7 +200,7 @@ recarregar; troca de conta não mostra dados anteriores).
 - [X] T067 [P] [US4] Feature `accounts`: `apps/web/features/accounts/{api,hooks,schemas,components}/` (`["accounts","list",query,cursor]`, suspender/reativar), `apps/web/features/accounts/api/server.ts` para os dados iniciais; mover `users-admin.tsx` + `usuarios.test.tsx`; `apps/web/app/admin/usuarios/page.tsx` com `initialData` dessa função; novo caso: suspender atualiza a linha (`002/US4-2`)
 - [X] T068 [P] [US4] Feature `teachers`: `apps/web/features/teachers/{api,hooks,schemas,components}/` (chaves de data-model §6; convidar, reenviar, revogar, suspender, desativar, reativar), `apps/web/features/teachers/api/server.ts` para os dados iniciais; mover `teachers-admin.tsx` + `professores.test.tsx`; `apps/web/app/professores/page.tsx` com `initialData` dessa função; novos casos: ação atualiza a lista (`002/US4-2`); dois cliques em convidar fazem uma só requisição (`002/US4-3`)
 - [X] T069 [US4] Remover `apps/web/lib/auth-api.ts`, `apps/web/lib/admin-api.ts`, `apps/web/lib/session.ts` e quaisquer restos fora de `features/`; `app/` contém só `page.tsx`, `layout.tsx`, `providers.tsx`, `globals.css`, fontes e ícone, e nenhum arquivo de `app/` importa `@/lib/api/*` (FR-025, FR-026); rodar `pnpm lint`, `pnpm check-types`, `pnpm test` (inclui `duplication.spec.ts` e `traceability.spec.ts` da 001)
-- [ ] T070 [US4] Rodar quickstart §4 e §5 manualmente (lint com import proibido; revogar/convidar sem recarregar; troca de conta na mesma aba; percorrer as 11 telas conferindo rótulos, textos, rotas e redirecionamentos) e registrar no PR (`002/US2-2`)
+- [X] T070 [US4] Rodar quickstart §4 e §5 manualmente (lint com import proibido; revogar/convidar sem recarregar; troca de conta na mesma aba; percorrer as 11 telas conferindo rótulos, textos, rotas e redirecionamentos) e registrar no PR (`002/US2-2`)
 
 **Checkpoint**: US4 — web no padrão oficial; nenhum componente chama a API.
 
@@ -236,7 +236,7 @@ pipeline de CI com lint, tipos, build e testes.
 ### Integração contínua
 
 - [X] T084 [US5] Criar `.github/workflows/ci.yml` conforme `contracts/ci-and-e2e.md` (gatilhos `push`/`pull_request`, `permissions: contents: read`, `concurrency`, `ubuntu-latest`, `timeout-minutes: 20`, serviço `postgres:17` em `5433:5432` com `devtrack_test` e *healthcheck*, `actions/checkout`, `pnpm/action-setup`, `actions/setup-node` Node 24 com cache pnpm — todas fixadas por SHA com a versão em comentário; passos `pnpm install --frozen-lockfile`, `cp apps/api/.env.test.example apps/api/.env.test`, `pnpm lint`, `pnpm check-types`, `pnpm build`, `pnpm test`; sem segredos, sem E2E) (FR-035–FR-037)
-- [ ] T085 [US5] Após push, confirmar a primeira execução verde e, num commit temporário que quebra um teste, o status vermelho; reverter o commit e registrar os links das execuções no PR (`002/US5-5`, `002/SC-009`)
+- [X] T085 [US5] Após push, confirmar a primeira execução verde e, num commit temporário que quebra um teste, o status vermelho; reverter o commit e registrar os links das execuções no PR (`002/US5-5`, `002/SC-009`)
 
 **Checkpoint**: US5 — jornadas críticas cobertas no navegador e CI obrigatória.
 
