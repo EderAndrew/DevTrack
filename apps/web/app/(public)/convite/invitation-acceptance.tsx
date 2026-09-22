@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../../../lib/api-client";
 import { type InvitationPreview, invitationApi, ROLE_LABELS } from "../../../lib/admin-api";
 import { authApi, errorMessage, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordLength } from "../../../lib/auth-api";
+import { Button } from "@/components/ui/button";
 
 /** Keeps the token across the login detour of SIGN_IN_REQUIRED without putting it in `?next=`. */
 export const INVITATION_TOKEN_KEY = "devtrack.invitation-token";
@@ -77,7 +78,7 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
     } catch (error) {
       if (error instanceof ApiError && error.code === "TOKEN_INVALID") {
         storage()?.removeItem(INVITATION_TOKEN_KEY);
-        setState({ step: "invalid", message: error.message });
+        setState({ step: "invalid", message: errorMessage(error) });
         return;
       }
       const fieldId = error instanceof ApiError && error.code === "WEAK_PASSWORD" ? "senha" : undefined;
@@ -122,23 +123,23 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
 
   if (state.step === "invalid") {
     return (
-      <div className="notice" role="status">
+      <Notice role="status">
         <h2>Não foi possível usar este convite</h2>
         <p>{state.message}</p>
         <p>O convite pode ter expirado, sido revogado ou substituído. Peça um novo convite a quem o enviou.</p>
-      </div>
+      </Notice>
     );
   }
 
   if (state.step === "done") {
     return (
-      <div className="notice" role="status">
+      <Notice role="status">
         <h2>Convite aceito</h2>
         <p>
           Boas-vindas! Você agora tem o papel de {ROLE_LABELS[state.role] ?? state.role}.{" "}
           {signedInAs ? <Link href="/">Ir para o início</Link> : <Link href="/entrar">Entrar</Link>}
         </p>
-      </div>
+      </Notice>
     );
   }
 
@@ -165,12 +166,12 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
           </p>
         ) : null}
         {signedInAs && !rightAccount ? (
-          <div className="notice" role="status">
+          <Notice role="status">
             <p>Para aceitar, é preciso entrar com a conta {email}.</p>
-            <button type="button" className="button" onClick={() => void switchAccount()}>
+            <Button type="button" onClick={() => void switchAccount()}>
               Sair e entrar com outra conta
-            </button>
-          </div>
+            </Button>
+          </Notice>
         ) : null}
         {rightAccount ? (
           <form noValidate onSubmit={onSubmitSignedIn} aria-label="Aceitar convite">
@@ -191,10 +192,12 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
         <strong>{email}</strong>.
       </p>
       {mode === "CLAIM_ACCOUNT" ? (
-        <p className="notice">
-          Este e-mail já tinha um cadastro não confirmado. Ao aceitar, a senha anterior deixa de funcionar e todas as
-          sessões abertas dessa conta serão encerradas.
-        </p>
+        <Notice>
+          <p className="m-0">
+            Este e-mail já tinha um cadastro não confirmado. Ao aceitar, a senha anterior deixa de funcionar e todas as
+            sessões abertas dessa conta serão encerradas.
+          </p>
+        </Notice>
       ) : null}
       <ErrorSummary errors={errors} title="Não foi possível aceitar" />
       <Field

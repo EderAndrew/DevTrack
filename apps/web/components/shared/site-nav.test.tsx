@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { expectNoA11yViolations } from "../test/a11y";
+import { expectNoA11yViolations } from "../../test/a11y";
 import { SiteNav } from "./site-nav";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }) }));

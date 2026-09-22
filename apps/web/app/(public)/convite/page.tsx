@@ -14,7 +14,7 @@ export default async function InvitationPage({
   // Only to tailor the SIGN_IN_REQUIRED screen; the API decides who may accept.
   const me = await getMe().catch(() => null);
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Aceitar convite</h1>
       <InvitationAcceptance
         token={typeof token === "string" ? token : null}

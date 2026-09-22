@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../../components/form";
+import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
 import {
   type AccountPage,
   adminApi,
@@ -10,6 +10,8 @@ import {
   type UserAccountView,
 } from "../../../lib/admin-api";
 import { errorMessage } from "../../../lib/auth-api";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export interface UsersAdminProps {
   initialPage: AccountPage;
@@ -82,11 +84,18 @@ export function UsersAdmin({ initialPage, currentUserId }: UsersAdminProps) {
 
   return (
     <div>
-      <p className="visually-hidden" aria-live="polite">
+      <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
-      <form noValidate onSubmit={search} aria-label="Buscar contas" className="search">
-        <Field id="busca" name="busca" type="search" label="Buscar por nome ou e-mail" autoComplete="off" />
+      <form noValidate onSubmit={search} aria-label="Buscar contas" className="mb-4 flex flex-wrap items-end gap-4">
+        <Field
+          id="busca"
+          name="busca"
+          type="search"
+          label="Buscar por nome ou e-mail"
+          autoComplete="off"
+          className="mb-0 flex-[1_1_16rem]"
+        />
         <SubmitButton pending={loading} pendingLabel="Buscando…">
           Buscar
         </SubmitButton>
@@ -96,51 +105,51 @@ export function UsersAdmin({ initialPage, currentUserId }: UsersAdminProps) {
       {accounts.length === 0 ? (
         <p>Nenhuma conta encontrada.</p>
       ) : (
-        <table className="table">
-          <caption className="visually-hidden">Contas de usuário</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nome</th>
-              <th scope="col">E-mail</th>
-              <th scope="col">Conta</th>
-              <th scope="col">Papéis</th>
-              <th scope="col">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="mb-6">
+          <TableCaption className="sr-only">Contas de usuário</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Nome</TableHead>
+              <TableHead scope="col">E-mail</TableHead>
+              <TableHead scope="col">Conta</TableHead>
+              <TableHead scope="col">Papéis</TableHead>
+              <TableHead scope="col">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {accounts.map((account) => (
-              <tr key={account.id}>
-                <td>{account.name}</td>
-                <td>
+              <TableRow key={account.id}>
+                <TableCell>{account.name}</TableCell>
+                <TableCell>
                   {account.email}
                   {account.emailVerified ? null : <span> (e-mail não verificado)</span>}
-                </td>
-                <td>{STATUS_LABELS[account.status]}</td>
-                <td>{describeRoles(account)}</td>
-                <td>
+                </TableCell>
+                <TableCell>{STATUS_LABELS[account.status]}</TableCell>
+                <TableCell>{describeRoles(account)}</TableCell>
+                <TableCell>
                   {account.id === currentUserId ? (
                     <span>Sua conta</span>
                   ) : (
-                    <button
+                    <Button
                       type="button"
-                      className="button button--secondary"
+                      variant="secondary"
                       aria-busy={busy === account.id || undefined}
                       aria-label={`${account.status === "SUSPENDED" ? "Reativar" : "Suspender"} conta de ${account.name}`}
                       onClick={() => void toggle(account)}
                     >
                       {account.status === "SUSPENDED" ? "Reativar" : "Suspender"}
-                    </button>
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
       {cursor ? (
-        <button type="button" className="button" aria-busy={loading || undefined} onClick={() => void loadMore()}>
+        <Button type="button" aria-busy={loading || undefined} onClick={() => void loadMore()}>
           Carregar mais
-        </button>
+        </Button>
       ) : null}
     </div>
   );

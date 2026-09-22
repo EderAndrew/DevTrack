@@ -1,7 +1,10 @@
 "use client";
 
 import { type ChangeEvent, type FormEvent, useState } from "react";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "../../components/form";
+import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "../../lib/api-client";
 import { adminApi, STATUS_LABELS, type TeacherListItem, type TeacherStatus } from "../../lib/admin-api";
 import { errorMessage } from "../../lib/auth-api";
@@ -126,7 +129,7 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
 
   return (
     <div>
-      <p className="visually-hidden" aria-live="polite">
+      <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
 
@@ -141,9 +144,14 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
       </form>
 
       <h2>Cadastro docente</h2>
-      <div className="field">
-        <label htmlFor="filtro">Situação</label>
-        <select id="filtro" value={filter} onChange={(event) => void onFilter(event)}>
+      <div className="mb-4 flex flex-col gap-1">
+        <Label htmlFor="filtro">Situação</Label>
+        <select
+          id="filtro"
+          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground"
+          value={filter}
+          onChange={(event) => void onFilter(event)}
+        >
           {FILTERS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -156,45 +164,45 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
       {teachers.length === 0 ? (
         <p>Nenhum professor encontrado.</p>
       ) : (
-        <table className="table">
-          <caption className="visually-hidden">Professores</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nome</th>
-              <th scope="col">E-mail</th>
-              <th scope="col">Situação</th>
-              <th scope="col">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="mb-6">
+          <TableCaption className="sr-only">Professores</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Nome</TableHead>
+              <TableHead scope="col">E-mail</TableHead>
+              <TableHead scope="col">Situação</TableHead>
+              <TableHead scope="col">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {teachers.map((item) => {
               const key = item.userId ?? item.invitationId ?? item.email;
               return (
-                <tr key={key}>
-                  <td>{item.displayName}</td>
-                  <td>{item.email}</td>
-                  <td>{STATUS_LABELS[item.status]}</td>
-                  <td>
-                    <span className="actions">
+                <TableRow key={key}>
+                  <TableCell>{item.displayName}</TableCell>
+                  <TableCell>{item.email}</TableCell>
+                  <TableCell>{STATUS_LABELS[item.status]}</TableCell>
+                  <TableCell>
+                    <span className="flex flex-wrap gap-2">
                       {actionsFor(item).map((action) => (
-                        <button
+                        <Button
                           key={action.label}
                           type="button"
-                          className="button button--secondary"
+                          variant="secondary"
                           aria-busy={busy === key || undefined}
                           aria-label={`${action.label}: ${item.displayName}`}
                           onClick={() => void runAction(item, action)}
                         >
                           {action.label}
-                        </button>
+                        </Button>
                       ))}
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </div>
   );

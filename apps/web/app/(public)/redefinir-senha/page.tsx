@@ -11,7 +11,7 @@ export default async function ResetPasswordPage({
 }) {
   const { token } = await searchParams;
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Redefinir senha</h1>
       <ResetPasswordForm token={typeof token === "string" ? token : null} />
     </section>

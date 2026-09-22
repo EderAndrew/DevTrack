@@ -49,13 +49,13 @@ describe("LoginForm (US2, FR-021, FR-075)", () => {
 
   it("401 mostra a mensagem genérica no resumo, com foco, sem apontar campo", async () => {
     fetchMock.mockResolvedValue(
-      json(401, { statusCode: 401, code: "INVALID_CREDENTIALS", message: "E-mail ou senha inválidos." }),
+      json(401, { statusCode: 401, code: "INVALID_CREDENTIALS", message: "E-mail ou senha incorretos." }),
     );
     const { container } = render(<LoginForm next="/conta/sessoes" />);
     await submit();
 
     const summary = await screen.findByRole("group", { name: "Não foi possível entrar" });
-    expect(summary.textContent).toContain("E-mail ou senha inválidos.");
+    expect(summary.textContent).toContain("E-mail ou senha incorretos.");
     expect(document.activeElement).toBe(summary);
     expect(screen.getByLabelText(/E-mail/).hasAttribute("aria-invalid")).toBe(false);
     expect(screen.getByLabelText(/^Senha/).hasAttribute("aria-invalid")).toBe(false);
@@ -133,7 +133,7 @@ describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
   });
 
   it("só com teclado: recusa da API vai para o resumo com foco, sem apontar campo", async () => {
-    fetchMock.mockResolvedValue(apiError(401, "INVALID_CREDENTIALS", "E-mail ou senha inválidos."));
+    fetchMock.mockResolvedValue(apiError(401, "INVALID_CREDENTIALS", "E-mail ou senha incorretos."));
     const { container } = render(<LoginForm next="/conta/sessoes" />);
     const user = userEvent.setup();
     await tabTo(user, screen.getByLabelText(/E-mail/));

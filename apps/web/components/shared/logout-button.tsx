@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authApi } from "../lib/auth-api";
+import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { authApi } from "@/lib/auth-api";
 
 /** Ends the current session. Whatever the API answers, the user ends up on the login page. */
 export function LogoutButton() {
@@ -22,8 +24,9 @@ export function LogoutButton() {
   };
 
   return (
-    <button type="button" className="link-button" aria-busy={pending || undefined} onClick={() => void logout()}>
+    <Button type="button" variant="link" aria-busy={pending || undefined} onClick={() => void logout()}>
+      <LogOut aria-hidden="true" />
       Sair
-    </button>
+    </Button>
   );
 }

@@ -1,4 +1,7 @@
 import type { InputHTMLAttributes } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "name"> {
   /** Also the target of ErrorSummary links (`#id`). */
@@ -15,24 +18,24 @@ export const fieldHintId = (id: string) => `${id}-dica`;
 export const fieldErrorId = (id: string) => `${id}-erro`;
 
 /**
- * Labelled input (FR-075, R22): `<label for>`, `aria-describedby` pointing to the hint and
- * the error, and `aria-invalid` while there is an error.
+ * Labelled input (FR-075, R22) on shadcn `Label`/`Input`: `<label for>`, `aria-describedby`
+ * pointing to the hint and the error, and `aria-invalid` while there is an error.
  */
 export function Field({ id, name, label, hint, error, required, className, ...inputProps }: FieldProps) {
   const describedBy = [hint && fieldHintId(id), error && fieldErrorId(id)].filter(Boolean).join(" ") || undefined;
 
   return (
-    <div className={["field", error ? "field--invalid" : "", className ?? ""].filter(Boolean).join(" ")}>
-      <label htmlFor={id}>
+    <div className={cn("mb-4 flex flex-col gap-1", className)}>
+      <Label htmlFor={id}>
         {label}
-        {required ? <span className="field__required"> (obrigatório)</span> : null}
-      </label>
+        {required ? <span className="font-normal text-muted-foreground"> (obrigatório)</span> : null}
+      </Label>
       {hint ? (
-        <p id={fieldHintId(id)} className="field__hint">
+        <p id={fieldHintId(id)} className="m-0 text-[0.9rem] text-muted-foreground">
           {hint}
         </p>
       ) : null}
-      <input
+      <Input
         id={id}
         name={name}
         required={required}
@@ -41,7 +44,7 @@ export function Field({ id, name, label, hint, error, required, className, ...in
         {...inputProps}
       />
       {error ? (
-        <p id={fieldErrorId(id)} className="field__error">
+        <p id={fieldErrorId(id)} className="m-0 font-semibold text-destructive">
           {error}
         </p>
       ) : null}

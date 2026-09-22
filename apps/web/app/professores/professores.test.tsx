@@ -57,7 +57,7 @@ describe("TeachersAdmin (US5, FR-075)", () => {
   });
 
   it.each([
-    ["ALREADY_TEACHER", "Esta pessoa já é professora."],
+    ["ALREADY_TEACHER", "Esta pessoa já é professor."],
     ["TEACHER_REACTIVATION_REQUIRED", "Use a reativação."],
   ])("%s aparece ligado ao e-mail, com foco no resumo", async (code, message) => {
     fetchMock.mockResolvedValueOnce(json(409, { statusCode: 409, code, message }));

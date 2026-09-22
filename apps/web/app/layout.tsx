@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import localFont from "next/font/local";
-import { SiteNav } from "../components/site-nav";
+import { SiteNav } from "@/components/shared/site-nav";
 import { getMe, type MeView } from "../lib/session";
 import "./globals.css";
 
@@ -36,8 +36,8 @@ export default async function RootLayout({
         <a className="skip-link" href="#conteudo">
           Pular para o conteúdo
         </a>
-        <header className="site-header">
-          <Link href="/" className="brand">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4">
+          <Link href="/" className="font-bold text-foreground no-underline">
             DevTrack
           </Link>
           <SiteNav me={me} />

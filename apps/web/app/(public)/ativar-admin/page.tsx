@@ -11,7 +11,7 @@ export default async function AdminActivationPage({
 }) {
   const { token } = await searchParams;
   return (
-    <section className="page">
+    <section className="mx-auto max-w-160 px-4 py-8">
       <h1>Ativar conta de administrador</h1>
       <AdminActivation token={typeof token === "string" ? token : null} />
     </section>

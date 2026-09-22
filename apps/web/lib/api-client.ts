@@ -1,17 +1,14 @@
 /**
  * Thin fetch wrapper for the DevTrack API (R18). In the browser it calls `/api/*` on this
  * origin (rewritten to the API, R6); on the server pass `baseUrl` and the `cookie` to forward.
- * Every non-2xx answer becomes an `ApiError` carrying the API's `{statusCode, code, message}`.
+ * Every non-2xx answer becomes an `ApiError` carrying the API's `{statusCode, code, message}`;
+ * screens show `messageForError(error)` (web catalogue by code), not `error.message`.
  */
 import type { ErrorBody } from "@repo/contracts";
 
+/** Client-side codes, outside the contract; their texts live in `lib/messages/error-messages.ts`. */
 export const NETWORK_ERROR = "NETWORK_ERROR";
 export const UNEXPECTED_RESPONSE = "UNEXPECTED_RESPONSE";
-
-const GENERIC_MESSAGES: Record<string, string> = {
-  [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
-  [UNEXPECTED_RESPONSE]: "Erro inesperado. Tente novamente mais tarde.",
-};
 
 export class ApiError extends Error {
   constructor(
@@ -81,7 +78,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new ApiError(0, NETWORK_ERROR, GENERIC_MESSAGES[NETWORK_ERROR]!);
+    throw new ApiError(0, NETWORK_ERROR, "Network request failed");
   }
 
   const payload = await readJson(response);
@@ -90,7 +87,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (isErrorBody(payload)) {
     throw new ApiError(payload.statusCode, payload.code, payload.message, retryAfter(response));
   }
-  throw new ApiError(response.status, UNEXPECTED_RESPONSE, GENERIC_MESSAGES[UNEXPECTED_RESPONSE]!, retryAfter(response));
+  throw new ApiError(response.status, UNEXPECTED_RESPONSE, `Unexpected response (${response.status})`, retryAfter(response));
 }
 
 type Options = Omit<ApiRequestOptions, "method" | "body">;
