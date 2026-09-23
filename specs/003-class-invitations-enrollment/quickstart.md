@@ -48,10 +48,12 @@ turmas; nenhuma conta nova (confira em `/admin/usuarios` como ADMIN: um só
 - Cancele o convite: o link → "Este convite não é mais válido.".
 - Expiração: no banco de dev, `UPDATE class_invitations SET expires_at = now() -
   interval '1 minute' WHERE email = 'aluno2@example.test' AND status = 'PENDING';` → o
-  link mostra "Este convite expirou." e a lista mostra "Expirado".
+  link mostra "Este convite expirou." e o convite sai de "Pendentes" e aparece no
+  filtro "Expirados".
 - Falha de envio: `docker compose stop mailpit`, convide `aluno3@example.test` →
-  convite criado, selo "Enviando"; `docker compose start mailpit`; em até ~1 min
-  (worker) o e-mail chega e o link funciona.
+  convite criado, selo "Enviando"; `docker compose start mailpit`; em até ~2 min (nova
+  tentativa 1 min depois da falha, worker a cada `MAIL_RETRY_INTERVAL_SECONDS` = 30 s) o
+  e-mail chega com um link novo, que funciona.
 
 ## 6. Remover aluno e convidar de novo (US6)
 
@@ -62,8 +64,8 @@ continua registrada.
 
 ## 7. Isolamento (US8)
 
-Com um segundo professor, abra `/turmas/<id da turma do primeiro>` → página não
-encontrada; `GET /api/classes/<id>` → `404`. Como ADMIN sem papel de professor,
+Com um segundo professor, abra `/turmas/<id da turma do primeiro>` → "Recurso não
+encontrado." (igual a um id inexistente); `GET /api/classes/<id>` → `404`. Como ADMIN sem papel de professor,
 `GET /api/classes` → `403`. Como aluno, `GET /api/classes` → `403` e
 `GET /api/me/classes` → `200`.
 

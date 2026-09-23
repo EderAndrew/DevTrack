@@ -7,7 +7,7 @@ const request = (path: string, cookie?: string) =>
 
 describe("proxy (UX only)", () => {
   it("covers only the signed-in areas", () => {
-    expect(config.matcher).toEqual(["/conta/:path*", "/admin/:path*", "/professores/:path*", "/turmas/:path*"]);
+    expect(config.matcher).toEqual(["/conta/:path*", "/admin/:path*", "/professores/:path*", "/turmas/:path*", "/minhas-turmas"]);
   });
 
   it("without the session cookie redirects to /entrar with next", () => {

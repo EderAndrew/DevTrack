@@ -45,7 +45,7 @@ const WITH_UNKNOWN_FIELD: Record<string, { body?: object; query?: string } | nul
 
 const MISSING_ID = "00000000-0000-4000-8000-000000000001";
 
-describe("003/US8 — autorização por turma (FR-050–FR-056)", () => {
+describe("003/US8 003/SC-003 — autorização por turma (FR-050–FR-056)", () => {
   let t: TestApp;
   let owner: TestUser;
   let ownerClass: SchoolClass;

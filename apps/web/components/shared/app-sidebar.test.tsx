@@ -45,7 +45,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each([
-    ["STUDENT", ["Meu perfil"]],
+    ["STUDENT", ["Minhas turmas", "Meu perfil"]],
     ["TEACHER", ["Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
     ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
@@ -79,6 +79,16 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it("e-mail não verificado não vê Turmas", () => {
     renderSidebar({ me: me(PERMISSIONS.TEACHER, false) });
     expect(menuLinks()).toEqual(["Meu perfil"]);
+  });
+
+  it("003/US7-1 Minhas turmas (turmas.proprias.listar) marca a página atual; professor que também é aluno vê as duas", () => {
+    navigation.pathname = "/minhas-turmas";
+    renderSidebar({ me: me([...PERMISSIONS.TEACHER, ...PERMISSIONS.STUDENT]) });
+    expect(menuLinks()).toEqual(["Turmas", "Minhas turmas", "Meu perfil"]);
+    const link = screen.getByRole("link", { name: "Minhas turmas" });
+    expect(link.getAttribute("href")).toBe("/minhas-turmas");
+    expect(link.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("Turmas fica ativa nas telas de turma", () => {

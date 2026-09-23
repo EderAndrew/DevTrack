@@ -20,11 +20,15 @@ conveniência e nunca autoriza: quem decide é a API.
 | `lib/api` | Cliente `fetch` nativo (`client.ts`) e chamadas do lado do servidor (`server.ts`) |
 | `lib/messages` | Catálogo de mensagens de erro por código, datas e rótulos de status |
 | `lib/query`, `lib/forms` | `QueryClient` e ligação dos erros da API aos campos do formulário |
-| `test/` | Utilitários de teste (`keyboard.ts` para os testes de teclado `SC-012`, contraste) |
+| `test/` | Utilitários de teste (`keyboard.ts` para os testes de teclado `SC-012` e `003/SC-011`, contraste) |
 | `e2e/` | Jornadas Playwright, configuração e fixtures |
 
 Features: `auth`, `accounts`, `admin-activation`, `invitations`, `managers`, `profile`, `sessions`,
-`teachers`.
+`teachers` e, da fase 003, `classes` (turmas do professor: lista, formulário, detalhes com as abas
+"Alunos" e "Convites", convidar, reenviar, cancelar e remover), `class-invitations` (aceite público
+em `/convite-turma`, nos modos criar conta, entrar e assumir cadastro não confirmado) e
+`my-classes` ("Minhas turmas" do aluno, em `/minhas-turmas`). Não há mais `/cadastro`: conta de
+aluno só nasce do convite de turma.
 
 ## Comandos
 

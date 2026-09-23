@@ -14,13 +14,6 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
 ];
 
-/**
- * 003 types the journey does not emit yet (transitional). They are still checked against the
- * catalogue and, when emitted, for actor/target/metadata; only "emitted by the journey" is waived.
- * Each story removes its types when test/helpers/journey.ts starts emitting them (T073 deletes it).
- */
-const PENDING_003_TYPES = new Set<string>([]);
-
 interface ContractRow {
   type: string;
   actors: string[];
@@ -94,9 +87,9 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.map((row) => [row.type, row] as const))("%s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
-      if (!PENDING_003_TYPES.has(type)) expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
+      expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
@@ -109,14 +102,6 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
         if (event.actorType === "USER" || event.actorType === "ANONYMOUS") expect(event.requestId).not.toBeNull();
         if (event.actorType === "OPERATOR") expect(event.requestId).toBeNull();
         for (const key of Object.keys(event.metadata as object)) expect(row.metadata).toContain(key);
-      }
-    });
-
-    it("003/D13 todo tipo pendente da 003 está no catálogo e ainda não é emitido pela jornada", () => {
-      const types = new Set(rows.map((r) => r.type));
-      for (const type of PENDING_003_TYPES) {
-        expect(types.has(type), type).toBe(true);
-        expect(events.some((e) => e.type === type), `${type} já é emitido: retire-o de PENDING_003_TYPES`).toBe(false);
       }
     });
 

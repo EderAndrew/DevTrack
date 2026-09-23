@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { hashToken } from "../../src/platform/crypto/tokens";
-import { createClass, createClassInvitation, createUser, uniqueEmail } from "../helpers/factories";
+import { createClass, createClassInvitation, createUser, loginAs, uniqueEmail } from "../helpers/factories";
 import { LogCapture } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
@@ -32,7 +32,7 @@ describe("003/US8-5 — limite de tentativas no convite público (FR-038)", () =
   it.each([
     ["preview", "/api/class-invitations/preview", {}],
     ["aceite", "/api/class-invitations/accept", { name: "Aluna", ra: "RA-1", password: PASSWORD }],
-  ] as const)("%s: muitos tokens inválidos da mesma origem → 429; logs e auditoria sem token", async (_label, path, extra) => {
+  ] as const)("003/FR-062 %s: muitos tokens inválidos da mesma origem → 429; logs e auditoria sem token", async (_label, path, extra) => {
     const tokens = Array.from({ length: 6 }, randomToken);
     const results = [];
     for (const token of tokens) {
@@ -70,7 +70,7 @@ describe("003/FR-039 — respostas de tokens inválidos não revelam nada", () =
   afterAll(() => t.close());
   beforeEach(() => resetDb(t.prisma));
 
-  it("desconhecido, cancelado e já aceito: preview e aceite respondem igual, com ou sem conta no e-mail", async () => {
+  it("003/SC-005 desconhecido, cancelado, usado, substituído e adulterado respondem igual, com ou sem conta no e-mail; vencido → TOKEN_EXPIRED", async () => {
     const teacher = await createUser(t, { roles: ["TEACHER"] });
     const schoolClass = await createClass(t, teacher.id);
     const withAccount = await createUser(t, { email: uniqueEmail("tem-conta") });
@@ -82,7 +82,24 @@ describe("003/FR-039 — respostas de tokens inválidos não revelam nada", () =
     const acceptBody = { name: "Aluna", ra: "RA-FR039", password: PASSWORD };
     expect((await api(t).post("/api/class-invitations/accept", { token: accepted.token, ...acceptBody })).status).toBe(200);
 
-    const tokens = [randomToken(), cancelled.token, cancelledNoAccount.token, accepted.token];
+    const expired = await createClassInvitation(t, schoolClass.id, uniqueEmail("vencido"), {
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    const resent = await createClassInvitation(t, schoolClass.id, uniqueEmail("reenviado"));
+    const teacherClient = api(t, { cookie: await loginAs(t, teacher) });
+    expect((await teacherClient.post(`/api/classes/${schoolClass.id}/invitations/${resent.invitation.id}/resend`, {})).status).toBe(200);
+    await t.flushMail();
+    const pending = await createClassInvitation(t, schoolClass.id, uniqueEmail("adulterado"));
+    const tampered = `${pending.token.slice(0, -1)}${pending.token.endsWith("A") ? "B" : "A"}`;
+
+    const tokens = [
+      randomToken(),
+      cancelled.token,
+      cancelledNoAccount.token,
+      accepted.token,
+      resent.token,
+      tampered,
+    ];
     for (const path of ["/api/class-invitations/preview", "/api/class-invitations/accept"]) {
       const responses = [];
       for (const token of tokens) {
@@ -93,6 +110,13 @@ describe("003/FR-039 — respostas de tokens inválidos não revelam nada", () =
       for (const response of responses.slice(1)) expect(response).toEqual(responses[0]);
       // Nothing about the invited e-mail, its account or the class leaks.
       expect(JSON.stringify(responses)).not.toMatch(/@example\.test|mode|raRequired|teacherName/);
+
+      // An expired link is refused with its own message (contracts/http-api.md), revealing nothing else.
+      const body = path.endsWith("accept") ? { token: expired.token, ...acceptBody, ra: "RA-OUTRO" } : { token: expired.token };
+      const res = await api(t).post(path, body);
+      expect({ status: res.status, code: res.body.code }).toEqual({ status: 400, code: "TOKEN_EXPIRED" });
+      expect(JSON.stringify(res.body)).not.toMatch(/@example\.test|mode|raRequired|teacherName/);
     }
+    expect(await t.prisma.enrollment.count()).toBe(1);
   });
 });

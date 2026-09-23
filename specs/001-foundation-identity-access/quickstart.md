@@ -59,10 +59,17 @@ Entre como ADMIN em <http://localhost:3000/entrar> → **Managers** → convidar
 
 ## 4. MANAGER convida professor (US5, US6)
 
-1. Crie uma conta de aluno em `/cadastro` com `prof@example.test` e verifique o e-mail.
-2. Como MANAGER → **Professores** → convidar `prof@example.test`. A resposta é igual à
-   de um e-mail novo (não revela o aluno).
-3. Abra o convite: o modo é "entre na sua conta". Entre como `prof@example.test` e
+Desde a fase 003 não há autocadastro (`/cadastro` foi removido, 003 FR-048): conta de aluno
+só nasce de um convite de turma.
+
+1. Como MANAGER → **Professores** → convidar `prof@example.test`. Abra o convite no Mailpit
+   e defina a senha → conta nova com `TEACHER`.
+2. Para ver o aceite por uma conta que já existe: com esse professor, convide
+   `aluno@example.test` para uma turma e aceite criando a conta
+   ([quickstart da 003](../003-class-invitations-enrollment/quickstart.md), §2–§3). Depois,
+   como MANAGER, convide `aluno@example.test` como professor. A resposta é igual à de um
+   e-mail novo (não revela o aluno).
+3. Abra o convite: o modo é "entre na sua conta". Entre como `aluno@example.test` e
    aceite → a mesma conta passa a ter `STUDENT` + `TEACHER`; a senha não mudou.
 4. Reabra o mesmo link → convite inválido, nada muda.
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-23 (003 planned)
+Last updated: 2026-09-23 (003 implemented)
 
 ## Project state
 
@@ -10,9 +10,10 @@ DevTrack is a teaching/assessment platform configurable per teacher (docs, specs
 test names are in Portuguese). Phase 001 (`specs/001-foundation-identity-access`) is fully
 implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish phase. Phase 002
 (`specs/002-stack-alignment`) refactored it onto the official stack without changing behavior:
-shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. The active feature
-is 003 (`specs/003-class-invitations-enrollment`): spec, plan and tasks are written, and
-implementation has not started. Later work starts a new feature through `/speckit-specify`.
+shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. Phase 003
+(`specs/003-class-invitations-enrollment`) is implemented: teachers' classes, class invitations
+by e-mail (the only way a student account is created), enrollments and "Minhas turmas". Later
+work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002), `data-model.md`,
@@ -61,7 +62,7 @@ pnpm --filter api prisma generate                       # client -> src/generate
 pnpm --filter api prisma migrate deploy                 # migrations also seed roles/permissions; prisma.config.ts loads apps/api/.env
 pnpm --filter api dev                                   # swc watch into dist/ + node --watch
 pnpm --filter api test                                  # all unit + integration + security (needs postgres-test up)
-pnpm --filter api test -- test/integration/us1-signup.spec.ts   # single file
+pnpm --filter api test -- test/integration/003-us6-enrollments.spec.ts   # single file
 pnpm --filter api test -- -t "<test name>"                       # single test
 pnpm --filter api test:security                         # test/security only
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
@@ -96,11 +97,12 @@ API test harness and API-only guards (test DB setup, `resetDb`, `createTestApp`,
 scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
-- `apps/api/test/traceability.spec.ts` parses a spec's `spec.md`. Every `USn-k` scenario and every
-  traceability row must appear in a `describe`/`it` title, so name new tests with their scenario or
-  SC/FR id. The spec path is hardcoded to `specs/001-foundation-identity-access/spec.md`, so a new
-  feature's scenarios aren't checked until the test is extended to cover that spec. Ids of other
-  features carry their number (`003/US1-1`, `002/US1-1`) and never cover the bare 001 id.
+- `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
+  (001 and 003). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
+  in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
+  their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
+  `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
+  `SPECS`.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -131,7 +133,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `proxy.ts` only redirects for UX and never authorizes.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
   contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
-  `provisioning`, `admin-activation`, `health`), with types derived through `z.infer`
+  `provisioning`, `admin-activation`, `health`, and `classes` for classes, class invitations,
+  enrollments and "Minhas turmas"), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
@@ -149,6 +152,15 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
+- 003 modules (`apps/api/src/modules`): `classes` (`ClassContextPolicy` scopes every lookup to the
+  session teacher's own classes → 404 otherwise), `class-invitations` (invite, list, resend, cancel;
+  public preview/accept through `RoleGrantAcceptance`, which grants `STUDENT` and creates the
+  enrollment) and `enrollments` (the teacher's student list and removal, plus the student's
+  `GET /me/classes`). Invitation e-mails go through the `class_invitation_deliveries` outbox: the
+  first attempt runs after the commit, then the in-process `ClassInvitationDeliveryWorker` (`FOR
+  UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS` (0 disables the timer; tests
+  call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7 attempts; a retry issues a
+  fresh token and supersedes the old link.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 
@@ -179,7 +191,7 @@ the removal conditions are in `DEPENDENCIES.md`.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
 
 ## Recent Changes
-- 003-class-invitations-enrollment (planned): classes, class invitations by e-mail with retried delivery, enrollments; public student signup removed (constitution 3.0.0)
+- 003-class-invitations-enrollment: classes, class invitations by e-mail with retried delivery, enrollments; public student signup removed (constitution 3.0.0)
 - 002-stack-alignment: Added `@repo/contracts` shared Zod contracts, official frontend stack (Tailwind, shadcn/ui, TanStack Query, React Hook Form), Playwright E2E and GitHub Actions CI
 - 001-foundation-identity-access: Added TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19
 

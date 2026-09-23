@@ -36,6 +36,7 @@ import {
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
+import { MyClassListSchema } from "./classes/my-classes.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
@@ -339,6 +340,7 @@ export const endpoints = {
     response: EnrollmentViewSchema,
     status: 200,
   },
+  "myClasses.list": { method: "GET", path: "/me/classes", response: MyClassListSchema, status: 200 },
   "classInvitations.preview": {
     method: "POST",
     path: "/class-invitations/preview",
