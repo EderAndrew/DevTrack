@@ -31,6 +31,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
 
   beforeEach(() => {
     fetchMock.mockReset();
+    router.replace.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     window.sessionStorage.clear();
     window.history.replaceState(null, "", `/convite-turma?token=${TOKEN}`);
@@ -45,7 +46,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
     await user.type(screen.getByLabelText(/^Confirmar senha/), confirmation);
   };
 
-  it("mostra turma, professor e e-mail só leitura; conclui e mostra \"Você agora faz parte da turma.\"", async () => {
+  it("mostra turma, professor e e-mail só leitura; conclui, mostra \"Você agora faz parte da turma.\" e leva a Minhas turmas (FR-038)", async () => {
     fetchMock.mockResolvedValueOnce(json(200, PREVIEW)).mockResolvedValueOnce(json(200, ACCEPTED));
     const { container, queryClient } = renderWithProviders(<ClassInvitationPage token={TOKEN} />);
 
@@ -66,6 +67,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
     await user.click(screen.getByRole("button", { name: "Entrar na turma" }));
 
     expect(await screen.findByText("Você agora faz parte da turma.")).toBeTruthy();
+    expect(router.replace).toHaveBeenCalledWith("/minhas-turmas?bem-vindo=1");
     expect(fetchMock.mock.calls[1]![0]).toBe("/api/class-invitations/accept");
     expect(bodyOf(1)).toEqual({ token: TOKEN, name: "Aluna Nova", ra: "RA-2026.001", password: PASSWORD });
     await expectTokenNotKept(queryClient, TOKEN);
@@ -141,7 +143,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
   });
 });
 
-describe("SC-012 — ClassInvitationPage só com teclado", () => {
+describe("003/SC-011 SC-012 — ClassInvitationPage só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
@@ -221,6 +223,7 @@ describe("003/US4-1 003/US4-2 003/US4-3 003/US4-5 003/US4-6 ClassInvitationPage 
     await user.type(screen.getByLabelText(/^RA/), "RA-77");
     await user.click(button);
     expect(await screen.findByText("Você agora faz parte da turma.")).toBeTruthy();
+    expect(router.replace).toHaveBeenCalledWith("/minhas-turmas?bem-vindo=1");
     expect(bodyOf(1)).toEqual({ token: TOKEN, ra: "RA-77" });
   });
 
@@ -231,6 +234,8 @@ describe("003/US4-1 003/US4-2 003/US4-3 003/US4-5 003/US4-6 ClassInvitationPage 
     renderWithProviders(<ClassInvitationPage token={TOKEN} signedInAs={{ name: "Aluna", email: EMAIL }} />);
     await userEvent.setup().click(await screen.findByRole("button", { name: "Aceitar convite" }));
     expect(await screen.findByText("Você já faz parte desta turma.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ver minhas turmas" }).getAttribute("href")).toBe("/minhas-turmas");
+    expect(router.replace).not.toHaveBeenCalled();
     expect(bodyOf(1)).toEqual({ token: TOKEN });
     expect(screen.queryByLabelText(/^RA/)).toBeNull();
   });

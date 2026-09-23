@@ -102,17 +102,35 @@ export async function createEnrolledStudent(page: Page, journey: string, name?: 
   return account;
 }
 
-/** The teacher of the run invites `account` to its class ("Convidar aluno"), in its own context. */
-export async function inviteToClass(browser: Browser, account: Pick<Account, "email">): Promise<void> {
+/**
+ * The teacher of the run invites `account` to one of its classes ("Convidar aluno"; the class of
+ * the run by default), in its own context.
+ */
+export async function inviteToClass(
+  browser: Browser,
+  account: Pick<Account, "email">,
+  classId = classTeacher().classId,
+): Promise<void> {
   const teacher = classTeacher();
   const teacherPage = await (await browser.newContext()).newPage();
-  await logIn(teacherPage, teacher, `/turmas/${teacher.classId}`);
+  await logIn(teacherPage, teacher, `/turmas/${classId}`);
   await teacherPage.getByRole("button", { name: "Convidar aluno" }).click();
   const dialog = teacherPage.getByRole("dialog", { name: "Convidar aluno" });
   await field(dialog, "E-mail").fill(account.email);
   await dialog.getByRole("button", { name: "Enviar convite" }).click();
   await expect(teacherPage.getByText("Convite enviado.")).toBeVisible();
   await teacherPage.context().close();
+}
+
+/** Creates a class through "Nova turma" (the page must be signed in as a teacher); returns its id. */
+export async function createClassThroughForm(page: Page, name: string): Promise<string> {
+  await page.goto("/turmas/nova");
+  await field(page, "Nome").fill(name);
+  await field(page, "Código").fill(`E2E-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
+  await page.getByRole("button", { name: "Criar turma" }).click();
+  await expect(page).toHaveURL(/\/turmas\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  return new URL(page.url()).pathname.split("/").at(-1)!;
 }
 
 /** Opens the class invitation link of the e-mail and creates the account (name, RA, password). */
@@ -123,6 +141,7 @@ export async function acceptClassInvitation(page: Page, account: Account): Promi
   await field(page, "Senha").fill(account.password);
   await field(page, "Confirmar senha").fill(account.password);
   await page.getByRole("button", { name: "Entrar na turma" }).click();
+  await expect(page).toHaveURL("/minhas-turmas?bem-vindo=1");
   await expect(page.getByRole("heading", { name: "Você agora faz parte da turma." })).toBeVisible();
 }
 

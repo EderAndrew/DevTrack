@@ -155,7 +155,7 @@ história começa antes desta fase.
 - [X] T046 [US8] Migrar para `createUser` (fábrica, `verified: false` quando preciso) os testes da API que criavam aluno por `POST /auth/signup`: `test/security/{us1-enumeration,us2-rate-limit,us6-account-takeover}.spec.ts`, `test/security/us3-no-public-admin.spec.ts` (o caso "cadastro com %s não cria ADMIN" passa a mirar `POST /class-invitations/accept` com `role`/`roleKey: "ADMIN"` extras → 400 e nenhum papel além de `STUDENT`), `test/integration/{us8-password-reset,maintenance,mail-failure,us1-unverified-purge,us5-teacher-invitations,us6-teacher-acceptance}.spec.ts` e `test/helpers/journey.ts` (a etapa de cadastro vira conta não verificada + verificação por link), sem mudar as asserções
 - [X] T047 [US8] Reescrever `apps/api/test/integration/us1-signup.spec.ts` como `us1-email-verification.spec.ts` mantendo só os cenários de verificação e reenvio da 001 (US1-3, US1-4, US1-5 e os demais que não são autocadastro) com contas criadas por fábrica
 - [X] T048 [US8] Remover `apps/api/src/modules/auth/signup.controller.ts` e o método `signup` de `signup.service.ts` (o que restar de verificação vai para `email-verification.service.ts`), o fluxo `signup` de `public-rate-limit.ts`, `auth.signup` de `audit-event-types.ts` e de `endpoints.ts` (e `audit-coverage.spec.ts` passa a descontar os "Tipos aposentados" da 003), `SignupRequestSchema` de `packages/contracts/src/auth/requests.ts`; atualizar `route-declarations.spec.ts` e `MATRIX`; o job `unverified-accounts` passa a ignorar contas com matrícula
-- [ ] T049 [US8] E2E sem cadastro público: projeto `teacher` em `apps/web/e2e/playwright.config.ts` (depende de `admin`; `e2e/class-teacher-setup.spec.ts` faz o ADMIN convidar um professor, que aceita e cria uma turma, e grava as credenciais para os demais projetos); `createEnrolledStudent(page, turma)` em `e2e/fixtures/journeys.ts` (professor convida, aluno aceita pelo link do Mailpit) substituindo `signUp`/`verifyEmail`/`createVerifiedStudent` em `sessions`, `account-switch`, `password-reset`, `teacher-invitation` e `signup-keyboard` (vira jornada de aceite por teclado); remover `e2e/signup.spec.ts`; `journeys` passa a depender de `teacher`
+- [X] T049 [US8] E2E sem cadastro público: projeto `teacher` em `apps/web/e2e/playwright.config.ts` (depende de `admin`; `e2e/class-teacher-setup.spec.ts` faz o ADMIN convidar um professor, que aceita e cria uma turma, e grava as credenciais para os demais projetos); `createEnrolledStudent(page, turma)` em `e2e/fixtures/journeys.ts` (professor convida, aluno aceita pelo link do Mailpit) substituindo `signUp`/`verifyEmail`/`createVerifiedStudent` em `sessions`, `account-switch`, `password-reset`, `teacher-invitation` e `signup-keyboard` (vira jornada de aceite por teclado); remover `e2e/signup.spec.ts`; `journeys` passa a depender de `teacher`
 - [X] T050 [US8] Remover do web `apps/web/app/(public)/cadastro/`, `features/auth/components/{signup-form.tsx,cadastro.test.tsx}`, `signup` de `features/auth/api/auth.ts` e `useSignup` de `hooks/use-auth.ts`, `SignupFormSchema`/`signupMessages` de `schemas/forms.ts` e dos testes de mensagens; conferir que nenhuma tela linka `/cadastro`
 
 **Checkpoint**: nenhum caminho cria conta de aluno sem convite; matriz completa; E2E verde.
@@ -232,13 +232,13 @@ história começa antes desta fase.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T065 [P] [US7] Teste de integração `apps/api/test/integration/003-us7-my-classes.spec.ts`: `003/US7-1` (só matrículas `ACTIVE`, com nome do professor, sem outros alunos), `003/US7-2` (aluno em `GET /classes/:id` → 403; professor-aluno em turma alheia → 404)
-- [ ] T066 [P] [US7] Teste do web `apps/web/features/my-classes/components/my-classes.test.tsx`: lista, estado vazio, mensagem "Você agora faz parte da turma." quando vem do aceite, axe
+- [X] T065 [P] [US7] Teste de integração `apps/api/test/integration/003-us7-my-classes.spec.ts`: `003/US7-1` (só matrículas `ACTIVE`, com nome do professor, sem outros alunos), `003/US7-2` (aluno em `GET /classes/:id` → 403; professor-aluno em turma alheia → 404)
+- [X] T066 [P] [US7] Teste do web `apps/web/features/my-classes/components/my-classes.test.tsx`: lista, estado vazio, mensagem "Você agora faz parte da turma." quando vem do aceite, axe
 
 ### Implementation for User Story 7
 
-- [ ] T067 [US7] `apps/api/src/modules/enrollments/my-classes.service.ts` e `my-classes.controller.ts` com `GET /me/classes`, entrada `me.classes` em `endpoints.ts`, linha no `MATRIX`
-- [ ] T068 [US7] `apps/web/features/my-classes/{api,hooks,components}` e `apps/web/app/(app)/minhas-turmas/page.tsx`; `/minhas-turmas` em `proxy.ts`; item "Minhas turmas" (`BookOpen`, `turmas.proprias.listar`) no menu lateral e no teste; o aceite (US3/US4) passa a levar para `/minhas-turmas?bem-vindo=1`
+- [X] T067 [US7] `apps/api/src/modules/enrollments/my-classes.service.ts` e `my-classes.controller.ts` com `GET /me/classes`, entrada `me.classes` em `endpoints.ts`, linha no `MATRIX`
+- [X] T068 [US7] `apps/web/features/my-classes/{api,hooks,components}` e `apps/web/app/(app)/minhas-turmas/page.tsx`; `/minhas-turmas` em `proxy.ts`; item "Minhas turmas" (`BookOpen`, `turmas.proprias.listar`) no menu lateral e no teste; o aceite (US3/US4) passa a levar para `/minhas-turmas?bem-vindo=1`
 
 **Checkpoint**: todas as histórias funcionam de forma independente.
 
@@ -246,14 +246,14 @@ história começa antes desta fase.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T069 E2E das jornadas de §41 em `apps/web/e2e/`: `class-teacher.spec.ts` (`003/SC-010` fluxo 1: login, cria turma, abre, convida, convite pendente), `class-new-student.spec.ts` (fluxo 2), `class-existing-student.spec.ts` (fluxo 3: segunda turma, login, aceite) e `class-remove-student.spec.ts` (fluxo 4: remove, matrícula removida, aluno ainda entra no sistema)
-- [ ] T070 [P] Varredura de segredos na jornada 003: estender `apps/api/test/security/secret-leak-scan.spec.ts` para incluir tokens de convite de turma, senhas do aceite e hashes (`003/SC-006`)
-- [ ] T071 [P] Teste de concorrência consolidado `apps/api/test/security/003-concurrency.spec.ts` (`003/SC-004`: convites, aceites e remoções simultâneos sem duplicatas nem estado parcial)
-- [ ] T072 [P] Teste de desempenho `apps/api/test/security/003-list-performance.spec.ts` (`003/SC-008`: professor com 100 turmas e turma com 200 alunos; listas em ≤ 1 s)
-- [ ] T073 Esvaziar e remover `PENDING_003_TYPES` de `audit-coverage.spec.ts` (`003/SC-009`) e `PENDING_003_PERMISSIONS` de `us7-matrix-completeness.spec.ts` e estender `apps/api/test/traceability.spec.ts` para a spec 003 (chaves `003/…` do namespacing de T016a, todos os cenários `USn-k` e a tabela "Acceptance Criteria Traceability")
-- [ ] T074 [P] Documentação: `CLAUDE.md` (contratos `classes/`, módulos novos, worker de entregas e `MAIL_RETRY_INTERVAL_SECONDS`, guardas `domain-boundary` e rastreabilidade 003, fim do autocadastro), `README.md`, `apps/web/README.md` (features novas) e a seção de cadastro de `specs/001-foundation-identity-access/quickstart.md` (substituída pelo convite de turma)
-- [ ] T075 Percorrer `specs/003-class-invitations-enrollment/quickstart.md` §1–§8 num worktree limpo e corrigir o que divergir
-- [ ] T076 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e` finais; `pnpm audit --prod --audit-level high` sem altas (nenhuma dependência nova)
+- [X] T069 E2E das jornadas de §41 em `apps/web/e2e/`: `class-teacher.spec.ts` (`003/SC-010` fluxo 1: login, cria turma, abre, convida, convite pendente), `class-new-student.spec.ts` (fluxo 2), `class-existing-student.spec.ts` (fluxo 3: segunda turma, login, aceite) e `class-remove-student.spec.ts` (fluxo 4: remove, matrícula removida, aluno ainda entra no sistema)
+- [X] T070 [P] Varredura de segredos na jornada 003: estender `apps/api/test/security/secret-leak-scan.spec.ts` para incluir tokens de convite de turma, senhas do aceite e hashes (`003/SC-006`)
+- [X] T071 [P] Teste de concorrência consolidado `apps/api/test/security/003-concurrency.spec.ts` (`003/SC-004`: convites, aceites e remoções simultâneos sem duplicatas nem estado parcial)
+- [X] T072 [P] Teste de desempenho `apps/api/test/security/003-list-performance.spec.ts` (`003/SC-008`: professor com 100 turmas e turma com 200 alunos; listas em ≤ 1 s)
+- [X] T073 Esvaziar e remover `PENDING_003_TYPES` de `audit-coverage.spec.ts` (`003/SC-009`) e `PENDING_003_PERMISSIONS` de `us7-matrix-completeness.spec.ts` e estender `apps/api/test/traceability.spec.ts` para a spec 003 (chaves `003/…` do namespacing de T016a, todos os cenários `USn-k` e a tabela "Acceptance Criteria Traceability")
+- [X] T074 [P] Documentação: `CLAUDE.md` (contratos `classes/`, módulos novos, worker de entregas e `MAIL_RETRY_INTERVAL_SECONDS`, guardas `domain-boundary` e rastreabilidade 003, fim do autocadastro), `README.md`, `apps/web/README.md` (features novas) e a seção de cadastro de `specs/001-foundation-identity-access/quickstart.md` (substituída pelo convite de turma)
+- [X] T075 Percorrer `specs/003-class-invitations-enrollment/quickstart.md` §1–§8 num worktree limpo e corrigir o que divergir
+- [X] T076 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e` finais; `pnpm audit --prod --audit-level high` sem altas (nenhuma dependência nova)
 
 ---
 

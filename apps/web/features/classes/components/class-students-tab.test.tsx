@@ -82,7 +82,7 @@ describe("003/US6-1 003/US6-2 003/US6-3 ClassStudentsTab (FR-044, FR-045)", () =
     expect(fetchMock.mock.calls[2]![0]).toBe(`/api/classes/${CLASS_ID}/enrollments?query=bruno&status=REMOVED&cursor=c1`);
   });
 
-  it("remover pede confirmação; Voltar devolve o foco; confirmar remove, anuncia e atualiza a turma", async () => {
+  it("003/FR-053 remover pede confirmação; Voltar devolve o foco; confirmar remove, anuncia e atualiza a turma", async () => {
     const ana = enrollment("Ana Souza");
     fetchMock
       .mockResolvedValueOnce(page([ana]))
@@ -131,7 +131,7 @@ describe("003/US6-1 003/US6-2 003/US6-3 ClassStudentsTab (FR-044, FR-045)", () =
   });
 });
 
-describe("SC-012 — ClassStudentsTab só com teclado", () => {
+describe("003/SC-011 SC-012 — ClassStudentsTab só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {

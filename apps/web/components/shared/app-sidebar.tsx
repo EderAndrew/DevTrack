@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { ChevronRight, School, UserRound, Users } from "lucide-react";
+import { BookOpen, ChevronRight, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -19,7 +19,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { HOME_PATH, USER_AREAS } from "@/lib/navigation";
+import { HOME_PATH, MY_CLASSES_PATH, USER_AREAS } from "@/lib/navigation";
 import { LogoutButton } from "./logout-button";
 
 const LINK = "text-sidebar-foreground no-underline";
@@ -30,7 +30,7 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open and "Turmas" the teacher's classes (UX only; the API authorizes). An unverified e-mail sees
+ * open, "Turmas" the teacher's classes and "Minhas turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016).
  */
 export function AppSidebar({ me }: AppSidebarProps) {
@@ -38,6 +38,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const areas = me?.emailVerified ? USER_AREAS.filter((area) => me.permissions.includes(area.permission)) : [];
   const classes = Boolean(me?.emailVerified && me.permissions.includes("turmas.visualizar"));
   const inClasses = pathname === "/turmas" || pathname.startsWith("/turmas/");
+  const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
 
   return (
     <Sidebar>
@@ -86,6 +87,20 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       <Link href="/turmas" className={LINK} aria-current={pathname === "/turmas" ? "page" : undefined}>
                         <School aria-hidden="true" />
                         Turmas
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : null}
+                {ownClasses ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === MY_CLASSES_PATH}>
+                      <Link
+                        href={MY_CLASSES_PATH}
+                        className={LINK}
+                        aria-current={pathname === MY_CLASSES_PATH ? "page" : undefined}
+                      >
+                        <BookOpen aria-hidden="true" />
+                        Minhas turmas
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

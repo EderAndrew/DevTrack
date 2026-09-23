@@ -4,19 +4,56 @@ import { describe, expect, it } from "vitest";
 import { API_ROOT } from "./helpers/env";
 
 /**
- * SC-010 / criterion 28: every acceptance scenario of spec.md and every row of its
- * "Acceptance Criteria Traceability" table is covered by an automated test. A test covers an
- * id when the id appears in the title of a `describe`/`it`/`test` (composites such as
- * `US5-6/US5-7` count for both). Ids of other features carry their number (`003/US1-1`,
- * 003/D13) and never cover the bare 001 id of the same name.
+ * SC-010 / criterion 28 (001) and 003/D13: every acceptance scenario of each feature's spec.md
+ * and every row of its "Acceptance Criteria Traceability" table is covered by an automated test.
+ * A test covers an id when the id appears in the title of a `describe`/`it`/`test` (composites
+ * such as `US5-6/US5-7` count for both). Ids of other features carry their number (`003/US1-1`)
+ * and never cover the bare 001 id of the same name; the ids of the 003 spec are read as `003/…`.
  */
 const REPO_ROOT = resolve(API_ROOT, "../..");
-const SPEC = join(REPO_ROOT, "specs/001-foundation-identity-access/spec.md");
 const TEST_ROOTS = [
   { dir: join(REPO_ROOT, "apps/api/test"), pattern: /\.spec\.ts$/ },
   { dir: join(REPO_ROOT, "apps/api/src"), pattern: /\.spec\.ts$/ },
   { dir: join(REPO_ROOT, "apps/web"), pattern: /\.test\.tsx?$/ },
+  { dir: join(REPO_ROOT, "apps/web/e2e"), pattern: /\.spec\.ts$/ },
 ];
+
+interface FeatureSpec {
+  feature: string;
+  path: string;
+  scenarios: number;
+  rows: number;
+  /** Rows verified by review only: their "Verificado por" cites no id (e.g. "Assumptions"). */
+  rowsWithoutIds: number[];
+  /** Success criteria that must appear in test titles. */
+  successCriteria: string[];
+}
+
+const sc = (from: number, to: number) =>
+  Array.from({ length: to - from + 1 }, (_, i) => `SC-${String(from + i).padStart(3, "0")}`);
+
+const SPECS: FeatureSpec[] = [
+  {
+    feature: "001",
+    path: "specs/001-foundation-identity-access/spec.md",
+    scenarios: 66,
+    rows: 28,
+    rowsWithoutIds: [],
+    successCriteria: sc(3, 12),
+  },
+  {
+    feature: "003",
+    path: "specs/003-class-invitations-enrollment/spec.md",
+    scenarios: 52,
+    rows: 36,
+    rowsWithoutIds: [30],
+    // SC-001/SC-002 are timings of a person using the screens: the E2E journeys (SC-010) cover the flows.
+    successCriteria: sc(3, 11),
+  },
+];
+
+/** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
+const keyFor = (feature: string) => (id: string) => (feature === "001" || id.includes("/") ? id : `${feature}/${id}`);
 const SKIPPED_DIRS = new Set(["node_modules", ".next", "dist", "generated", ".turbo"]);
 /** Optional feature prefix (`003/`) and the bare id. */
 const ID = /\b(?:(\d{3})\/)?(US\d+-\d+|SC-\d{3}|FR-\d{3}[a-z]?)\b/g;
@@ -35,10 +72,28 @@ function testFiles(dir: string, pattern: RegExp): string[] {
   });
 }
 
-/** `describe`/`it`/`test` titles (string, template or `.each` forms) of a test file. */
+/**
+ * `describe`/`it`/`test` titles (string, template or `.each` forms) of a test file. The table of
+ * `.each(…)` is skipped by balancing parentheses, so tables built with `.map((x) => …)` and titles
+ * on the next line are read too.
+ */
 export function testTitles(source: string): string[] {
-  const title = /\b(?:describe|it|test)(?:\.(?:each|skip|only|todo|concurrent)(?:\([^)]*\))?)?\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
-  return [...source.matchAll(title)].map((m) => m[2]!);
+  const titles: string[] = [];
+  for (const match of source.matchAll(/\b(?:describe|it|test)(?:\.(each|skip|only|todo|concurrent))?\(/g)) {
+    let i = match.index + match[0].length;
+    if (match[1] === "each") {
+      for (let depth = 1; i < source.length && depth > 0; i += 1) {
+        if (source[i] === "(") depth += 1;
+        else if (source[i] === ")") depth -= 1;
+      }
+      const open = /^\s*\(/.exec(source.slice(i));
+      if (!open) continue;
+      i += open[0].length;
+    }
+    const literal = /^\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/.exec(source.slice(i));
+    if (literal) titles.push(literal[2]!);
+  }
+  return titles;
 }
 
 /** id → files whose test titles mention it. */
@@ -103,36 +158,42 @@ export function traceabilityRows(spec: string): TraceabilityRow[] {
     });
 }
 
-describe("SC-010 — rastreabilidade dos critérios de aceite (critério 28)", () => {
-  const spec = readFileSync(SPEC, "utf8");
+describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério 28)", () => {
   const covered = coverage();
   const missing = (ids: string[]) => ids.filter((id) => !covered.has(id));
 
-  it("os parsers leem a spec inteira (66 cenários em 8 histórias, 28 critérios)", () => {
-    const scenarios = acceptanceScenarios(spec);
-    expect(scenarios).toHaveLength(66);
-    expect(new Set(scenarios.map((id) => id.split("-")[0]))).toEqual(
-      new Set(["US1", "US2", "US3", "US4", "US5", "US6", "US7", "US8"]),
+  describe.each(SPECS.map((spec) => [spec.feature, spec] as const))("feature %s", (_feature, spec) => {
+    const text = readFileSync(join(REPO_ROOT, spec.path), "utf8");
+    const key = keyFor(spec.feature);
+    const rows = traceabilityRows(text).map((row) => ({ ...row, ids: row.ids.map(key) }));
+
+    it("os parsers leem a spec inteira (8 histórias, todos os cenários e critérios)", () => {
+      const scenarios = acceptanceScenarios(text);
+      expect(scenarios).toHaveLength(spec.scenarios);
+      expect(new Set(scenarios.map((id) => id.split("-")[0]))).toEqual(
+        new Set(["US1", "US2", "US3", "US4", "US5", "US6", "US7", "US8"]),
+      );
+      expect(rows.map((row) => row.number)).toEqual(Array.from({ length: spec.rows }, (_, i) => i + 1));
+      expect(rows.filter((row) => row.ids.length === 0).map((row) => row.number)).toEqual(spec.rowsWithoutIds);
+    });
+
+    it("todo cenário de aceite USn-k tem teste", () => {
+      expect(missing(acceptanceScenarios(text).map(key))).toEqual([]);
+    });
+
+    it.each(rows.filter((row) => row.ids.length > 0).map((row) => [row.number, row] as const))(
+      "critério %i coberto",
+      (_n, row) => {
+        const scenarioIds = row.ids.filter((id) => /(^|\/)US/.test(id));
+        // Rows with scenarios are covered by them; rows without need their SC/FR ids.
+        const required = scenarioIds.length > 0 ? scenarioIds : row.ids;
+        expect(missing(required), `critério ${row.number}: ${row.criterion}`).toEqual([]);
+      },
     );
-    const rows = traceabilityRows(spec);
-    expect(rows.map((row) => row.number)).toEqual(Array.from({ length: 28 }, (_, i) => i + 1));
-    expect(rows.every((row) => row.ids.length > 0)).toBe(true);
-  });
 
-  it("todo cenário de aceite USn-k tem teste", () => {
-    expect(missing(acceptanceScenarios(spec))).toEqual([]);
-  });
-
-  it.each(traceabilityRows(spec).map((row) => [row.number, row] as const))("critério %i coberto", (_n, row) => {
-    const scenarioIds = row.ids.filter((id) => id.startsWith("US"));
-    // Rows with scenarios are covered by them; rows without (25, 27, 28) need their SC/FR ids.
-    const required = scenarioIds.length > 0 ? scenarioIds : row.ids;
-    expect(missing(required), `critério ${row.number}: ${row.criterion}`).toEqual([]);
-  });
-
-  it("SC-003 a SC-012 aparecem em títulos de teste", () => {
-    const ids = Array.from({ length: 10 }, (_, i) => `SC-${String(i + 3).padStart(3, "0")}`);
-    expect(missing(ids)).toEqual([]);
+    it("os critérios de sucesso verificáveis aparecem em títulos de teste", () => {
+      expect(missing(spec.successCriteria.map(key))).toEqual([]);
+    });
   });
 
   it("o extrator de títulos reconhece as formas usadas nos testes", () => {
@@ -140,11 +201,14 @@ describe("SC-010 — rastreabilidade dos critérios de aceite (critério 28)", (
       'describe("US5-6/US5-7 ciclo", () => {',
       "  it(`US2-3: bloqueio`, async () => {});",
       '  it.each(["a"])("SC-008 %s", () => {});',
+      "  it.each(rows.map((row) => [row.id, row] as const))(",
+      '    "US4-1 %s multilinha",',
+      "  );",
       "  // US9-9 em comentário não conta",
       "});",
     ].join("\n");
     const ids = testTitles(source).flatMap(idKeys);
-    expect(ids).toEqual(["US5-6", "US5-7", "US2-3", "SC-008"]);
+    expect(ids).toEqual(["US5-6", "US5-7", "US2-3", "SC-008", "US4-1"]);
   });
 
   it("003/D13 ids com prefixo de outra feature não cobrem a 001", () => {

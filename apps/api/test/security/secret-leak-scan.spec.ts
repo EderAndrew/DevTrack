@@ -43,7 +43,16 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
 
   it("a jornada gerou os segredos esperados", () => {
     const kinds = new Set(secrets.map((s) => s.kind));
-    for (const kind of ["cookie de sessão", "token de verificação", "token de convite", "token de recuperação", "senha do ADMIN"]) {
+    for (const kind of [
+      "cookie de sessão",
+      "token de verificação",
+      "token de convite",
+      "token de recuperação",
+      "senha do ADMIN",
+      "token de convite de turma",
+      "hash de token de convite de turma",
+      "senha do aluno convidado",
+    ]) {
       expect(kinds.has(kind), kind).toBe(true);
     }
     expect(logs.lines().length).toBeGreaterThan(0);
@@ -56,6 +65,39 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
       access_records: serialize(await t.prisma.accessRecord.findMany()),
     };
     expect(leaks(secrets, sources)).toEqual([]);
+  });
+
+  it("003/SC-006 nenhum hash de senha nos logs, na auditoria ou nos e-mails; e-mails sem senhas nem hashes de token", async () => {
+    const users = await t.prisma.user.findMany({ select: { passwordHash: true } });
+    const passwordHashes = users.flatMap(({ passwordHash }, i) =>
+      passwordHash ? [{ kind: `hash de senha #${i}`, value: passwordHash }] : [],
+    );
+    expect(passwordHashes.length).toBeGreaterThan(0);
+    // A token travels in its own e-mail link by design; passwords and hashes never do.
+    const notInMail = [...passwordHashes, ...secrets.filter(({ kind }) => /senha|hash/.test(kind))];
+    const mails = serialize([...t.mailer.outbox, ...t.mailer.failed]);
+    expect(t.mailer.outbox.some((mail) => mail.template === "class-invitation")).toBe(true);
+    expect(
+      leaks(passwordHashes, {
+        logs: logs.text(),
+        audit_events: serialize(await t.prisma.auditEvent.findMany()),
+        access_records: serialize(await t.prisma.accessRecord.findMany()),
+      }),
+    ).toEqual([]);
+    expect(leaks(notInMail, { "e-mails": mails })).toEqual([]);
+  });
+
+  it("003/SC-006 003/FR-016 tokens brutos de convite de turma não são gravados (só o hash)", async () => {
+    const raw = secrets.filter(({ kind }) => kind.startsWith("token de convite de turma"));
+    expect(raw.length).toBeGreaterThan(0);
+    const sources = {
+      class_invitations: serialize(await t.prisma.classInvitation.findMany()),
+      class_invitation_deliveries: serialize(await t.prisma.classInvitationDelivery.findMany()),
+      enrollments: serialize(await t.prisma.enrollment.findMany()),
+    };
+    expect(leaks(raw, sources)).toEqual([]);
+    const hashes = secrets.filter(({ kind }) => kind.startsWith("hash de token de convite de turma"));
+    expect(hashes.some(({ value }) => sources.class_invitations.includes(value))).toBe(true);
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

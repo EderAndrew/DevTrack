@@ -2,14 +2,17 @@
 
 Plataforma de ensino e avaliação configurável por professor. Este repositório está na
 **fase 001 — Foundation, Identity & Access**: identidade única com múltiplos papéis
-(`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), cadastro de alunos com verificação de e-mail,
+(`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
 sessões revogáveis, bootstrap seguro do primeiro administrador, convites de gestores e
 professores, recuperação de senha, autorização por permissão explícita + contexto, trilha
 de auditoria e retenção de dados. A **fase 002 — alinhamento de stack** refatorou essa base
 sem mudar o comportamento: contratos API↔web compartilhados em `packages/contracts`, stack
 oficial do frontend (Tailwind, shadcn/ui, TanStack Query, React Hook Form), E2E com Playwright
-e CI no GitHub Actions. Ainda não há domínio acadêmico (disciplinas, turmas, atividades) — ele
-vem nas próximas fases.
+e CI no GitHub Actions. A **fase 003 — turmas, convites e matrículas** trouxe as turmas do
+professor, o convite de aluno por e-mail (com envio em segundo plano e novas tentativas), o
+aceite que cria a conta ou usa a conta existente, as matrículas e a tela "Minhas turmas" do
+aluno. O autocadastro público de alunos foi removido: conta de aluno só nasce de convite de
+turma. Disciplinas, atividades e avaliações vêm nas próximas fases.
 
 ## Pré-requisitos
 
@@ -27,6 +30,7 @@ vem nas próximas fases.
 | `packages/eslint-config`, `packages/typescript-config` | Configurações compartilhadas de ESLint e TypeScript |
 | `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
 | `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
+| `specs/003-class-invitations-enrollment/` | O mesmo para a fase 003 (turmas, convites de turma e matrículas) |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
 | `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
@@ -59,7 +63,7 @@ pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # todos os wo
 pnpm format                                                         # Prettier
 
 pnpm --filter api test                          # unitários, integração e segurança (usa postgres-test)
-pnpm --filter api test -- test/integration/us1-signup.spec.ts
+pnpm --filter api test -- test/integration/003-us6-enrollments.spec.ts
 pnpm --filter api test:security                 # matriz de autorização, replay, concorrência, segredos
 pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
 pnpm --filter @repo/contracts test              # guardas de fronteira, duplicação e versão única de Zod

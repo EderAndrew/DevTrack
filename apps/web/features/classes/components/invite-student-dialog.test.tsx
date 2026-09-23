@@ -104,7 +104,7 @@ describe("003/US2-1 003/US2-2 003/US2-3 003/US2-4 InviteStudentDialog (FR-010, F
   });
 });
 
-describe("SC-012 — InviteStudentDialog só com teclado", () => {
+describe("003/SC-011 SC-012 — InviteStudentDialog só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {

@@ -135,7 +135,7 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     expect(t.mailer.messagesFor(EMAIL)).toHaveLength(1);
   });
 
-  it("7 falhas → FAILED, sem nova tentativa, com log delivery_exhausted", async () => {
+  it("003/FR-062 7 falhas → FAILED, sem nova tentativa, com log delivery_exhausted", async () => {
     t.mailer.setFailing(true);
     const id = await invite();
 
@@ -155,7 +155,7 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     expect((await invitationRow(id)).status).toBe("PENDING");
   });
 
-  it("nenhuma linha de entrega, log ou auditoria contém token, hash ou link", async () => {
+  it("003/FR-016 nenhuma linha de entrega, log ou auditoria contém token, hash ou link", async () => {
     t.mailer.failNext(1);
     const id = await invite();
     await worker.runOnce(later(2 * MINUTE));

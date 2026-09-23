@@ -74,6 +74,7 @@ dica de tamanho da 001 (`PASSWORD_MIN_LENGTH`).
 | `WRONG_ACCOUNT` | "Este convite é para outra conta. Saia e entre com o e-mail convidado." |
 | Aceite concluído | "Você agora faz parte da turma." |
 | Aceite repetido (`alreadyEnrolled`) | "Você já faz parte desta turma." |
+| Entrega pendente (`delivery = SENDING`) | selo "Enviando" na linha do convite pendente (primeira tentativa ou nova tentativa agendada) |
 | Entrega falhou (`delivery = FAILED`) | selo "Envio falhou" na linha do convite, com "Reenviar" |
 | Listas vazias | "Nenhuma turma encontrada.", "Nenhum aluno nesta turma.", "Nenhum convite pendente." |
 

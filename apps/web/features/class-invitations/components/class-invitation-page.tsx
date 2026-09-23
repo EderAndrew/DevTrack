@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useLogout } from "@/features/auth/hooks/use-auth";
 import { PASSWORD_HINT } from "@/features/auth/schemas/password";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
+import { MY_CLASSES_PATH } from "@/lib/navigation";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { useAcceptClassInvitation, usePreviewClassInvitation } from "../hooks/use-class-invitation";
 import {
@@ -64,6 +65,7 @@ export interface ClassInvitationPageProps {
  * in memory.
  */
 export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitationPageProps) {
+  const router = useRouter();
   const [state, setState] = useState<State>({ step: "loading" });
   const started = useRef(false);
   const { mutate: preview } = usePreviewClassInvitation();
@@ -101,7 +103,7 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
       <Notice role="status">
         <h2>{state.alreadyEnrolled ? "Você já faz parte desta turma." : "Você agora faz parte da turma."}</h2>
         <p className="mb-0">
-          <Link href="/">Ir para o início</Link>
+          <Link href={MY_CLASSES_PATH}>Ver minhas turmas</Link>
         </p>
       </Notice>
     );
@@ -113,6 +115,8 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
     onSubmit: async (fields: AcceptFields) => {
       const result = await accept.mutateAsync({ token: acceptedToken, ...fields });
       setState({ step: "done", alreadyEnrolled: result.alreadyEnrolled });
+      // FR-038: a new enrollment goes on to "Minhas turmas", which repeats the confirmation.
+      if (!result.alreadyEnrolled) router.replace(`${MY_CLASSES_PATH}?bem-vindo=1`);
     },
     onUnusable: (error: unknown) => setState({ step: "unusable", message: unusableMessage(error) }),
   };

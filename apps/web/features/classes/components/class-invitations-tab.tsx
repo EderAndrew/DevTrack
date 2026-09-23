@@ -76,7 +76,8 @@ export interface ClassInvitationsTabProps {
 /**
  * "Convites" tab of a class (FR-020–FR-023): search by e-mail and status filter applied by the
  * API (pending by default), 20 at a time; pending invitations can be resent or, after a
- * confirmation, cancelled. A failed delivery shows "Envio falhou" next to the status.
+ * confirmation, cancelled. Next to the status, "Enviando" while the e-mail waits for its (next)
+ * attempt and "Envio falhou" once the attempts ran out (FR-019).
  */
 export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvitationsTabProps) {
   const [filters, setFilters] = useState<ClassInvitationFilters>(DEFAULT_INVITATION_FILTERS);
@@ -198,6 +199,8 @@ export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvi
                     <Badge variant={STATUS_VARIANT[item.status]}>{CLASS_INVITATION_STATUS_LABELS[item.status]}</Badge>
                     {item.status === "PENDING" && item.delivery === "FAILED" ? (
                       <Badge variant="destructive">Envio falhou</Badge>
+                    ) : item.status === "PENDING" && item.delivery === "SENDING" ? (
+                      <Badge variant="outline">Enviando</Badge>
                     ) : null}
                   </span>
                 </TableCell>

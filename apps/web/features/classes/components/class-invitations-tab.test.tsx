@@ -45,10 +45,11 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("lista os pendentes com situação, validade, envios e \"Envio falhou\"", async () => {
+  it("lista os pendentes com situação, validade, envios, \"Enviando\" e \"Envio falhou\" (003/FR-019)", async () => {
     const ok = invitation("ana@example.test", { sendCount: 2 });
     const failed = invitation("bruno@example.test", { delivery: "FAILED" });
-    fetchMock.mockResolvedValueOnce(page([ok, failed]));
+    const sending = invitation("carla@example.test", { delivery: "SENDING" });
+    fetchMock.mockResolvedValueOnce(page([ok, failed, sending]));
     const { container } = render();
 
     const row = (await screen.findByText("ana@example.test")).closest("tr")!;
@@ -59,6 +60,9 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     const failedRow = screen.getByText("bruno@example.test").closest("tr")!;
     expect(within(failedRow).getByText("Envio falhou")).toBeTruthy();
     expect(within(failedRow).getByRole("button", { name: "Reenviar convite para bruno@example.test" })).toBeTruthy();
+    const sendingRow = screen.getByText("carla@example.test").closest("tr")!;
+    expect(within(sendingRow).getByText("Enviando")).toBeTruthy();
+    expect(within(row).queryByText(/Enviando|Envio falhou/)).toBeNull();
     await expectNoA11yViolations(container);
   });
 
@@ -92,7 +96,7 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     expect(fetchMock.mock.calls[2]![0]).toBe(`/api/classes/${CLASS_ID}/invitations?query=carl&status=CANCELLED&cursor=c1`);
   });
 
-  it("reenviar: chama a API, anuncia e recarrega a lista", async () => {
+  it("003/FR-053 reenviar: chama a API, anuncia e recarrega a lista", async () => {
     const pending = invitation("ana@example.test");
     fetchMock
       .mockResolvedValueOnce(page([pending]))
@@ -169,7 +173,7 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
   });
 });
 
-describe("SC-012 — ClassInvitationsTab só com teclado", () => {
+describe("003/SC-011 SC-012 — ClassInvitationsTab só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {

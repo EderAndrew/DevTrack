@@ -1,6 +1,9 @@
 /** Start page of a signed-in user: the profile, which also lists the user's sessions. */
 export const HOME_PATH = "/conta/perfil";
 
+/** "Minhas turmas" of a student (003 US7); an accepted class invitation lands here with `?bem-vindo=1`. */
+export const MY_CLASSES_PATH = "/minhas-turmas";
+
 /** User administration areas, each behind the permission its page needs (UX only; the API authorizes). */
 export const USER_AREAS = [
   { href: "/professores", label: "Professores", permission: "professores.visualizar" },

@@ -119,7 +119,7 @@ describe("003/US1-1 003/US1-3 ClassForm (FR-001, FR-003)", () => {
   });
 });
 
-describe("SC-012 — ClassForm só com teclado", () => {
+describe("003/SC-011 SC-012 — ClassForm só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {

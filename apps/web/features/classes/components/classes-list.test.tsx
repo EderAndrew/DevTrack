@@ -125,7 +125,7 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
   });
 });
 
-describe("SC-012 — ClassesList só com teclado", () => {
+describe("003/SC-011 SC-012 — ClassesList só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
