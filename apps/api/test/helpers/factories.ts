@@ -1,10 +1,19 @@
 import type { RoleKey } from "@repo/contracts";
-import type { AccountStatus, RoleAssignmentStatus } from "../../src/generated/prisma/client";
+import type {
+  AccountStatus,
+  ClassInvitation,
+  Enrollment,
+  RoleAssignmentStatus,
+  SchoolClass,
+} from "../../src/generated/prisma/client";
 import { RoleRepository } from "../../src/modules/access-control/role.repository";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { SessionService } from "../../src/modules/auth/session.service";
 import { PasswordHasher } from "../../src/modules/identity/password-hasher";
 import { ProfileRepository } from "../../src/modules/identity/profile.repository";
+import { normalizeRa } from "../../src/modules/identity/ra";
+import { generateToken, hashToken } from "../../src/platform/crypto/tokens";
+import { searchKey } from "../../src/platform/text/search-key";
 import type { TestApp } from "./test-app";
 
 export const DEFAULT_PASSWORD = "cavalo-correto-bateria-grampo";
@@ -24,6 +33,8 @@ export interface CreateUserOptions {
   /** Default ["STUDENT"]; profiles are created for STUDENT and TEACHER. */
   roles?: (RoleKey | RoleSpec)[];
   createdAt?: Date;
+  /** RA of the student profile (003); requires the STUDENT role. Stored normalized. */
+  ra?: string;
 }
 
 export interface TestUser {
@@ -71,7 +82,12 @@ export async function createUser(t: TestApp, options: CreateUserOptions = {}): P
       if (role.status && role.status !== "ACTIVE") {
         await tx.userRole.update({ where: { id: assignment.id }, data: { status: role.status } });
       }
-      if (role.key === "STUDENT") await profiles.ensureStudentProfile(tx, created.id, name);
+      if (role.key === "STUDENT") {
+        await profiles.ensureStudentProfile(tx, created.id, name);
+        if (options.ra !== undefined) {
+          await tx.studentProfile.update({ where: { userId: created.id }, data: { ra: normalizeRa(options.ra) } });
+        }
+      }
       if (role.key === "TEACHER") await profiles.ensureTeacherProfile(tx, created.id, name);
     }
     return created;
@@ -85,4 +101,82 @@ export async function loginAs(t: TestApp, user: Pick<TestUser, "id">): Promise<s
   const sessions = t.get(SessionService);
   const { secret } = await t.prisma.runInTransaction((tx) => sessions.create(tx, user.id));
   return `${SESSION_COOKIE_NAME}=${secret}`;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+let classSequence = 0;
+
+export type ClassOverrides = Partial<
+  Pick<SchoolClass, "name" | "code" | "academicYear" | "period" | "description" | "status" | "createdAt">
+>;
+
+/** Creates a class of `teacherId` directly in the database (003). */
+export async function createClass(t: TestApp, teacherId: string, overrides: ClassOverrides = {}): Promise<SchoolClass> {
+  classSequence += 1;
+  const name = overrides.name ?? `Turma de Teste ${classSequence}`;
+  const code = overrides.code ?? `T-${Date.now().toString(36)}-${classSequence}`;
+  return t.prisma.schoolClass.create({
+    data: {
+      teacherId,
+      name,
+      code,
+      academicYear: overrides.academicYear ?? 2026,
+      period: overrides.period ?? null,
+      description: overrides.description ?? null,
+      status: overrides.status ?? "ACTIVE",
+      statusChangedAt: overrides.status && overrides.status !== "ACTIVE" ? new Date() : null,
+      searchKey: searchKey(name, code),
+      ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
+    },
+  });
+}
+
+export type ClassInvitationOverrides = Partial<
+  Pick<
+    ClassInvitation,
+    "status" | "expiresAt" | "sendCount" | "lastSentAt" | "invitedById" | "cancelReason" | "createdAt"
+  >
+>;
+
+/**
+ * Creates a class invitation directly in the database with a real token (only its hash is
+ * stored) and returns both. Defaults: PENDING, sent now, valid for 7 days, invited by the
+ * class's teacher. A CANCELLED invitation gets `cancelReason` TEACHER unless given.
+ */
+export async function createClassInvitation(
+  t: TestApp,
+  classId: string,
+  email: string,
+  overrides: ClassInvitationOverrides = {},
+): Promise<{ invitation: ClassInvitation; token: string }> {
+  const token = generateToken();
+  const now = new Date();
+  const lastSentAt = overrides.lastSentAt ?? now;
+  const status = overrides.status ?? "PENDING";
+  const invitedById =
+    overrides.invitedById ?? (await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId } })).teacherId;
+  const invitation = await t.prisma.classInvitation.create({
+    data: {
+      classId,
+      email: email.trim().toLowerCase(),
+      tokenHash: hashToken(token),
+      status,
+      expiresAt: overrides.expiresAt ?? new Date(lastSentAt.getTime() + 7 * DAY_MS),
+      sendCount: overrides.sendCount ?? 1,
+      lastSentAt,
+      invitedById,
+      ...(status === "CANCELLED"
+        ? { cancelledAt: now, cancelledById: invitedById, cancelReason: overrides.cancelReason ?? "TEACHER" }
+        : {}),
+      ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
+    },
+  });
+  return { invitation, token };
+}
+
+/** Creates an ACTIVE enrollment directly in the database; the student needs a StudentProfile (003). */
+export async function createEnrollment(t: TestApp, classId: string, studentUserId: string): Promise<Enrollment> {
+  return t.prisma.enrollment.create({
+    data: { classId, studentUserId, status: "ACTIVE", enrolledAt: new Date() },
+  });
 }

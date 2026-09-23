@@ -16,6 +16,7 @@ root CLAUDE.md):
 - `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and
   `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
   type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
-- `test/security/no-academic-domain.spec.ts` pins the Prisma models to the `data-model.md` list.
+- `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001 + 003)
+  and forbids academic terms of later phases (classes and enrollments are allowed since 003).
 - `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
   trail for every secret it produced.

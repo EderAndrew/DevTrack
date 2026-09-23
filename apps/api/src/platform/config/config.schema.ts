@@ -51,7 +51,11 @@ export const configSchema = z.object({
   RATE_LIMIT_PUBLIC_ORIGIN: positiveInt(300),
   RATE_LIMIT_PUBLIC_TARGET: positiveInt(5),
   RATE_LIMIT_WINDOW_SECONDS: positiveInt(900),
+  RATE_LIMIT_CLASS_INVITE_RESEND_SECONDS: positiveInt(60),
+  RATE_LIMIT_CLASS_INVITE_DAILY_SENDS: positiveInt(5),
+  RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY: positiveInt(50),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
+  MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -73,8 +77,14 @@ export interface AppConfig {
     publicOrigin: number;
     publicTarget: number;
     windowSeconds: number;
+    /** Class invitations (FR-021, D6): resend spacing per invitation, sends per invitation per 24 h, sends per teacher per hour. */
+    classInviteResendSeconds: number;
+    classInviteDailySends: number;
+    classInviteTeacherHourly: number;
   };
   maintenanceIntervalSeconds: number;
+  /** Class invitation delivery retry worker interval (FR-019, D5); 0 disables it. */
+  mailRetryIntervalSeconds: number;
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
 }
@@ -117,8 +127,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       publicOrigin: e.RATE_LIMIT_PUBLIC_ORIGIN,
       publicTarget: e.RATE_LIMIT_PUBLIC_TARGET,
       windowSeconds: e.RATE_LIMIT_WINDOW_SECONDS,
+      classInviteResendSeconds: e.RATE_LIMIT_CLASS_INVITE_RESEND_SECONDS,
+      classInviteDailySends: e.RATE_LIMIT_CLASS_INVITE_DAILY_SENDS,
+      classInviteTeacherHourly: e.RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,
+    mailRetryIntervalSeconds: e.MAIL_RETRY_INTERVAL_SECONDS,
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };
 }

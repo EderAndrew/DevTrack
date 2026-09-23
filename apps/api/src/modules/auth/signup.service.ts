@@ -4,6 +4,7 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { RequestContext } from "../../platform/http/request-context";
+import { webLinks } from "../../platform/mail/links";
 import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
 import { RoleRepository } from "../access-control/role.repository";
 import { AuditService } from "../audit/audit.service";
@@ -17,18 +18,6 @@ import { UserTokenService } from "./user-token.service";
 
 /** Body of every accepted public request about an e-mail (signup, resend): reveals nothing (SC-006). */
 export const PUBLIC_ACCEPTED_MESSAGE = "Se o e-mail puder ser usado, enviaremos as instruções para ele.";
-
-/** Links of the e-mails, pointing at the web app (R18). */
-export function webLinks(webOrigin: string) {
-  return {
-    verifyEmail: (token: string) => `${webOrigin}/verificar-email?token=${encodeURIComponent(token)}`,
-    login: `${webOrigin}/entrar`,
-    passwordReset: `${webOrigin}/esqueci-senha`,
-    passwordResetConfirm: (token: string) => `${webOrigin}/redefinir-senha?token=${encodeURIComponent(token)}`,
-    invitation: (token: string) => `${webOrigin}/convite?token=${encodeURIComponent(token)}`,
-    adminActivation: (token: string) => `${webOrigin}/ativar-admin?token=${encodeURIComponent(token)}`,
-  };
-}
 
 /**
  * Public self-signup (FR-010–FR-013, R16). Creates only `User` + `STUDENT` + `StudentProfile`

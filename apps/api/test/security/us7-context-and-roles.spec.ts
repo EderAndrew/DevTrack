@@ -7,7 +7,7 @@ import { Ctx, type RequestContext } from "../../src/platform/http/request-contex
 import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
-import { concretePath } from "./authorization-matrix";
+import { concretePath, ROLE_PERMISSIONS } from "./authorization-matrix";
 
 /** A context policy written the way Spec 002 policies must be: scoped query, null when out of context. */
 @Injectable()
@@ -48,9 +48,11 @@ describe("US7 — contexto, papéis e origem (FR-060–FR-063)", () => {
     ((await (await asUser(user)).get("/api/me")).body as { permissions: string[] }).permissions;
 
   describe("US7-4 união das permissões dos papéis ativos", () => {
-    it("STUDENT + TEACHER → só sessões; STUDENT + MANAGER → professores.*", async () => {
+    it("STUDENT + TEACHER → sessões e turmas.*; STUDENT + MANAGER → professores.*", async () => {
       const studentTeacher = await createUser(t, { roles: ["STUDENT", "TEACHER"] });
-      expect(await permissionsOf(studentTeacher)).toEqual(["sessoes.proprias.listar", "sessoes.proprias.revogar"]);
+      expect(await permissionsOf(studentTeacher)).toEqual(
+        [...new Set([...ROLE_PERMISSIONS.STUDENT, ...ROLE_PERMISSIONS.TEACHER])].sort(),
+      );
 
       const studentManager = await createUser(t, { roles: ["STUDENT", "MANAGER"] });
       expect((await permissionsOf(studentManager)).filter((p) => p.startsWith("professores."))).toHaveLength(7);

@@ -4,10 +4,10 @@ import type { AppConfig } from "../../platform/config/config.schema";
 import { generateToken, hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey, type Tx } from "../../platform/database/transaction";
+import { webLinks } from "../../platform/mail/links";
 import { Mailer } from "../../platform/mail/mailer";
 import { RoleRepository } from "../access-control/role.repository";
 import { AuditService } from "../audit/audit.service";
-import { webLinks } from "../auth/signup.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
 

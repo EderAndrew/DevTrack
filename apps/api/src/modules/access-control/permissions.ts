@@ -1,8 +1,8 @@
 import { RoleKeySchema } from "@repo/contracts";
 
 /**
- * Permission and role keys seeded by migration `seed_roles_permissions`
- * (contracts/permissions.md). Code checks permissions, never role names (Principle II);
+ * Permission and role keys seeded by migrations `seed_roles_permissions` (001) and
+ * `classes_invitations_enrollments` (003) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
  * role keys are used only to grant, change or count assignments.
  */
 export const PERMISSIONS = [
@@ -24,6 +24,16 @@ export const PERMISSIONS = [
   "usuarios.reativar",
   "sessoes.proprias.listar",
   "sessoes.proprias.revogar",
+  "turmas.criar",
+  "turmas.visualizar",
+  "turmas.editar",
+  "turmas.alterar_situacao",
+  "turmas.convidar_aluno",
+  "turmas.reenviar_convite",
+  "turmas.cancelar_convite",
+  "turmas.visualizar_alunos",
+  "turmas.remover_aluno",
+  "turmas.proprias.listar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

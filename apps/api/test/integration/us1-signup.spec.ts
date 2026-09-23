@@ -138,7 +138,7 @@ describe("US1 — cadastro de aluno e verificação de e-mail (FR-010–FR-016)"
         email,
         emailVerified: false,
         roles: [{ key: "STUDENT", status: "ACTIVE" }],
-        permissions: ["sessoes.proprias.listar", "sessoes.proprias.revogar"],
+        permissions: ["sessoes.proprias.listar", "sessoes.proprias.revogar", "turmas.proprias.listar"],
       });
 
       const blocked = await api(t, { cookie }).get("/api/fixture-us1/sessions");

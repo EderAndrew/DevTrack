@@ -7,10 +7,10 @@ import { generateToken, hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { invitationAlreadyPending, notFound, selfInviteForbidden } from "../../platform/http/errors";
+import { webLinks } from "../../platform/mail/links";
 import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
 import { RoleRepository } from "../access-control/role.repository";
 import { AuditService } from "../audit/audit.service";
-import { webLinks } from "../auth/signup.service";
 import { normalizeEmail } from "../identity/email";
 import { InvitationStateMachine } from "./invitation.state-machine";
 import {

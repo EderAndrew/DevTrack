@@ -1,6 +1,8 @@
 /**
- * Audit catalogue of contracts/audit-events.md: event type → metadata keys allowed.
- * Anything outside this list is a programming error (FR-071: no secrets in the trail).
+ * Audit catalogue of contracts/audit-events.md (specs 001 and 003): event type → metadata keys
+ * allowed. Anything outside this list is a programming error (FR-071: no secrets in the trail).
+ * `via` of `role.granted`/`account.claimed` is a `GrantSource`: INVITATION, ADMIN_BOOTSTRAP or,
+ * since 003, CLASS_INVITATION.
  */
 export const AUDIT_EVENT_METADATA = {
   "admin.bootstrap.requested": ["email", "mode", "operatorHost", "operatorUser"],
@@ -32,6 +34,18 @@ export const AUDIT_EVENT_METADATA = {
   "account.unverified_purged": [],
   "audit.purged": ["count", "olderThan"],
   "access_records.purged": ["count", "olderThan"],
+  // 003 — classes, class invitations and enrollments
+  "class.created": ["code", "academicYear"],
+  "class.updated": ["fields"],
+  "class.status_changed": ["from", "to", "cancelledInvitations"],
+  "class_invitation.created": ["classId", "email"],
+  "class_invitation.resent": ["classId", "sendCount"],
+  "class_invitation.cancelled": ["classId", "reason"],
+  "class_invitation.accepted": ["classId", "userId", "mode", "alreadyEnrolled"],
+  "class_invitation.acceptance_refused": ["reason"],
+  "student.registered": ["userId", "via"],
+  "enrollment.created": ["classId", "userId", "invitationId"],
+  "enrollment.removed": ["classId", "userId"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -40,4 +54,13 @@ export type AuditMetadata<T extends AuditEventType> = Partial<
   Record<(typeof AUDIT_EVENT_METADATA)[T][number], string | number | boolean | null>
 >;
 
-export type AuditTargetType = "USER" | "INVITATION" | "SESSION" | "ADMIN_BOOTSTRAP" | "USER_ROLE";
+export type AuditTargetType =
+  | "USER"
+  | "INVITATION"
+  | "SESSION"
+  | "ADMIN_BOOTSTRAP"
+  | "USER_ROLE"
+  | "CLASS"
+  | "CLASS_INVITATION"
+  | "STUDENT_PROFILE"
+  | "ENROLLMENT";

@@ -5,13 +5,16 @@ type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
- * The texts belong to the web, not to the API's `message`; they are the Phase 001 texts (FR-012).
+ * The texts belong to the web, not to the API's `message`; they are the Phase 001 texts (FR-012)
+ * plus the codes added by 003 (specs/003-class-invitations-enrollment/contracts/web-ui.md).
  */
 export const ERROR_MESSAGES = {
   VALIDATION_ERROR: "Dados inválidos.",
   WEAK_PASSWORD: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum.",
   PASSWORD_REQUIRED: "Defina uma senha para continuar.",
   TOKEN_INVALID: "Link inválido ou expirado.",
+  TOKEN_EXPIRED: "Este convite expirou.",
+  RA_REQUIRED: "Informe o RA.",
   UNAUTHENTICATED: "Autenticação necessária.",
   INVALID_CREDENTIALS: "E-mail ou senha incorretos.",
   SIGN_IN_REQUIRED: "Entre na sua conta para continuar.",
@@ -30,6 +33,10 @@ export const ERROR_MESSAGES = {
   INVITATION_ALREADY_PENDING: "Já existe um convite pendente para este e-mail. Reenvie o convite existente.",
   LAST_ADMIN_PROTECTED: "Não é possível remover o último administrador ativo.",
   BOOTSTRAP_ALREADY_DONE: "Bootstrap administrativo já realizado.",
+  CLASS_CODE_TAKEN: "Você já tem uma turma com este código.",
+  CLASS_NOT_OPEN: "Esta turma não aceita novos alunos.",
+  ALREADY_ENROLLED: "Este aluno já está matriculado nesta turma.",
+  RA_TAKEN: "Este RA já está em uso.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

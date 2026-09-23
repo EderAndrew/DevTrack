@@ -6,7 +6,7 @@ import type { Tx } from "../../platform/database/transaction";
  * (→ 403); a policy answers "is this particular resource inside the user's context?" and
  * its absence is indistinguishable from non-existence (→ 404).
  *
- * Contract for implementations (Spec 002: classes, enrollments, assessments):
+ * Contract for implementations (003: `ClassContextPolicy`; later specs: assessments…):
  * - load the resource with a query already scoped to the principal (e.g. `WHERE id = $1
  *   AND owner_id = $2`), never "load then compare", so an out-of-context resource is simply
  *   not found;
@@ -15,7 +15,7 @@ import type { Tx } from "../../platform/database/transaction";
  * - carry no role-name checks: capability checks belong to `@RequirePermissions()`.
  *
  * Spec 001 has no implementation of this interface: its only scoped resource (own sessions)
- * uses `findOwnedOrNotFound` directly.
+ * uses `findOwnedOrNotFound` directly. 003 adds `ClassContextPolicy` (classes/class-context.policy.ts).
  */
 export interface ResourceContextPolicy<TResource, TId = string> {
   findInContext(userId: string, resourceId: TId, db?: Tx): Promise<TResource | null>;

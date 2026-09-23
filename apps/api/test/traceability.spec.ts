@@ -7,7 +7,8 @@ import { API_ROOT } from "./helpers/env";
  * SC-010 / criterion 28: every acceptance scenario of spec.md and every row of its
  * "Acceptance Criteria Traceability" table is covered by an automated test. A test covers an
  * id when the id appears in the title of a `describe`/`it`/`test` (composites such as
- * `US5-6/US5-7` count for both).
+ * `US5-6/US5-7` count for both). Ids of other features carry their number (`003/US1-1`,
+ * 003/D13) and never cover the bare 001 id of the same name.
  */
 const REPO_ROOT = resolve(API_ROOT, "../..");
 const SPEC = join(REPO_ROOT, "specs/001-foundation-identity-access/spec.md");
@@ -17,7 +18,15 @@ const TEST_ROOTS = [
   { dir: join(REPO_ROOT, "apps/web"), pattern: /\.test\.tsx?$/ },
 ];
 const SKIPPED_DIRS = new Set(["node_modules", ".next", "dist", "generated", ".turbo"]);
-const ID = /\b(?:US\d+-\d+|SC-\d{3}|FR-\d{3}[a-z]?)\b/g;
+/** Optional feature prefix (`003/`) and the bare id. */
+const ID = /\b(?:(\d{3})\/)?(US\d+-\d+|SC-\d{3}|FR-\d{3}[a-z]?)\b/g;
+
+/** Coverage keys of a title: the bare id for 001 (no prefix or `001/`), `NNN/id` otherwise. */
+export function idKeys(title: string): string[] {
+  return [...title.matchAll(ID)].map(([, feature, bare]) =>
+    !feature || feature === "001" ? bare! : `${feature}/${bare}`,
+  );
+}
 
 function testFiles(dir: string, pattern: RegExp): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -38,7 +47,7 @@ function coverage(): Map<string, Set<string>> {
   for (const { dir, pattern } of TEST_ROOTS) {
     for (const file of testFiles(dir, pattern)) {
       for (const title of testTitles(readFileSync(file, "utf8"))) {
-        for (const [id] of title.matchAll(ID)) {
+        for (const id of idKeys(title)) {
           if (!covered.has(id)) covered.set(id, new Set());
           covered.get(id)!.add(relative(REPO_ROOT, file));
         }
@@ -90,7 +99,7 @@ export function traceabilityRows(spec: string): TraceabilityRow[] {
     .filter((line) => /^\| \d+ \|/.test(line))
     .map((line) => {
       const [number, criterion, verifiedBy] = line.split("|").slice(1, 4).map((cell) => cell.trim());
-      return { number: Number(number), criterion: criterion!, ids: [...verifiedBy!.matchAll(ID)].map((m) => m[0]) };
+      return { number: Number(number), criterion: criterion!, ids: idKeys(verifiedBy!) };
     });
 }
 
@@ -134,7 +143,16 @@ describe("SC-010 — rastreabilidade dos critérios de aceite (critério 28)", (
       "  // US9-9 em comentário não conta",
       "});",
     ].join("\n");
-    const ids = testTitles(source).flatMap((title) => [...title.matchAll(ID)].map((m) => m[0]));
+    const ids = testTitles(source).flatMap(idKeys);
     expect(ids).toEqual(["US5-6", "US5-7", "US2-3", "SC-008"]);
+  });
+
+  it("003/D13 ids com prefixo de outra feature não cobrem a 001", () => {
+    const source = [
+      'describe("003/US1-1 professor cria turma", () => {',
+      '  it("003/FR-048 e 001/US2-3 e SC-004", () => {});',
+      "});",
+    ].join("\n");
+    expect(testTitles(source).flatMap(idKeys)).toEqual(["003/US1-1", "003/FR-048", "US2-3", "SC-004"]);
   });
 });
