@@ -26,12 +26,26 @@ const CLASS: ClassView = {
 const render = (overrides: Partial<{ canEdit: boolean; canChangeStatus: boolean; canInvite: boolean }> = {}) =>
   renderWithProviders(<ClassDetails id={CLASS.id} canEdit canChangeStatus canInvite {...overrides} />);
 
+/** GETs of the tabs' lists (students, invitations): answered here with an empty page, and recorded. */
+const LIST = /\/classes\/[^/]+\/(enrollments|invitations)(\?|$)/;
+
 describe("003/US1-5 ClassDetails — dados, situação e abas (FR-004, FR-005, FR-008)", () => {
   const fetchMock = vi.fn<typeof fetch>();
+  const listCalls: string[] = [];
 
   beforeEach(() => {
     fetchMock.mockReset();
-    vi.stubGlobal("fetch", fetchMock);
+    listCalls.length = 0;
+    // The class and its actions go through fetchMock (their call order is asserted); the tabs'
+    // lists are answered separately.
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (LIST.test(url) && (init?.method ?? "GET") === "GET") {
+        listCalls.push(url);
+        return Promise.resolve(json(200, { items: [], nextCursor: null }));
+      }
+      return fetchMock(input, init);
+    });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -48,12 +62,13 @@ describe("003/US1-5 ClassDetails — dados, situação e abas (FR-004, FR-005, F
     expect(screen.getByRole("button", { name: "Inativar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Convidar aluno" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Alunos", selected: true })).toBeTruthy();
-    expect(screen.getByText("Nenhum aluno nesta turma.")).toBeTruthy();
+    expect(await screen.findByText("Nenhum aluno nesta turma.")).toBeTruthy();
+    expect(listCalls).toContain(`/api/classes/${CLASS.id}/enrollments?status=ACTIVE`);
     await expectNoA11yViolations(container);
   });
 
   it("abas com setas do teclado; a aba Convites carrega os convites da turma", async () => {
-    fetchMock.mockResolvedValueOnce(json(200, CLASS)).mockResolvedValueOnce(json(200, { items: [], nextCursor: null }));
+    fetchMock.mockResolvedValueOnce(json(200, CLASS));
     render();
     const user = userEvent.setup();
     const alunos = await screen.findByRole("tab", { name: "Alunos" });
@@ -63,7 +78,7 @@ describe("003/US1-5 ClassDetails — dados, situação e abas (FR-004, FR-005, F
     expect(document.activeElement).toBe(convites);
     const panel = screen.getByRole("tabpanel", { name: "Convites" });
     await vi.waitFor(() => expect(panel.textContent).toContain("Nenhum convite pendente."));
-    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/classes/${CLASS.id}/invitations?status=PENDING`);
+    expect(listCalls).toContain(`/api/classes/${CLASS.id}/invitations?status=PENDING`);
     await user.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(alunos);
   });

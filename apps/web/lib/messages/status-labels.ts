@@ -2,6 +2,7 @@ import type {
   AccountStatus,
   ClassInvitationStatus,
   ClassStatus,
+  EnrollmentStatus,
   InvitationStatus,
   RoleAssignmentStatus,
   RoleKey,
@@ -41,4 +42,10 @@ export const CLASS_INVITATION_STATUS_LABELS: Record<ClassInvitationStatus, strin
   ACCEPTED: "Aceito",
   EXPIRED: "Expirado",
   CANCELLED: "Cancelado",
+};
+
+/** Status of an enrollment ("matrícula" is feminine). */
+export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
+  ACTIVE: "Ativa",
+  REMOVED: "Removida",
 };

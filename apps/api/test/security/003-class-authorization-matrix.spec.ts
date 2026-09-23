@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createClass, createClassInvitation, createUser, loginAs, type TestUser } from "../helpers/factories";
+import { createClass, createClassInvitation, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, type MatrixEntry, routeKey } from "./authorization-matrix";
 
@@ -21,6 +21,8 @@ const VALID_BODY: Record<string, object> = {
   "GET /classes/:id/invitations": {},
   "POST /classes/:id/invitations/:invitationId/resend": {},
   "POST /classes/:id/invitations/:invitationId/cancel": {},
+  "GET /classes/:id/enrollments": {},
+  "POST /classes/:id/enrollments/:enrollmentId/remove": {},
 };
 
 /**
@@ -37,6 +39,8 @@ const WITH_UNKNOWN_FIELD: Record<string, { body?: object; query?: string } | nul
   "GET /classes/:id/invitations": { query: "email=aluno@example.test" },
   "POST /classes/:id/invitations/:invitationId/resend": { body: { email: "outro@example.test" } },
   "POST /classes/:id/invitations/:invitationId/cancel": { body: { reason: "ALREADY_ENROLLED" } },
+  "GET /classes/:id/enrollments": { query: "email=aluno@example.test" },
+  "POST /classes/:id/enrollments/:enrollmentId/remove": { body: { studentUserId: "00000000-0000-4000-8000-000000000000" } },
 };
 
 const MISSING_ID = "00000000-0000-4000-8000-000000000001";
@@ -46,6 +50,7 @@ describe("003/US8 — autorização por turma (FR-050–FR-056)", () => {
   let owner: TestUser;
   let ownerClass: SchoolClass;
   let ownerInvitationId: string;
+  let ownerEnrollmentId: string;
   const users = new Map<string, TestUser>();
 
   beforeAll(async () => {
@@ -54,6 +59,8 @@ describe("003/US8 — autorização por turma (FR-050–FR-056)", () => {
     owner = await createUser(t, { roles: ["TEACHER"], name: "Professora Dona" });
     ownerClass = await createClass(t, owner.id, { code: "DONA-1" });
     ownerInvitationId = (await createClassInvitation(t, ownerClass.id, "convidado@example.test")).invitation.id;
+    const enrolled = await createUser(t, { name: "Aluno Matriculado" });
+    ownerEnrollmentId = (await createEnrollment(t, ownerClass.id, enrolled.id)).id;
     users.set("STUDENT", await createUser(t, { roles: ["STUDENT"] }));
     users.set("MANAGER", await createUser(t, { roles: ["MANAGER"] }));
     users.set("ADMIN", await createUser(t, { roles: ["ADMIN"] }));
@@ -64,7 +71,10 @@ describe("003/US8 — autorização por turma (FR-050–FR-056)", () => {
   afterAll(() => t.close());
 
   const pathFor = (entry: MatrixEntry, classId: string) =>
-    `/api${entry.path.replace(":invitationId", ownerInvitationId).replace(":id", classId)}`;
+    `/api${entry.path
+      .replace(":invitationId", ownerInvitationId)
+      .replace(":enrollmentId", ownerEnrollmentId)
+      .replace(":id", classId)}`;
 
   async function call(entry: MatrixEntry, user: TestUser | null, options: { classId?: string; body?: object; query?: string } = {}) {
     const client = api(t, { cookie: user ? await loginAs(t, user) : undefined });
