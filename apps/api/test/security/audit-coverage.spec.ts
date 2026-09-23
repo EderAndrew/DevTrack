@@ -20,10 +20,6 @@ const CONTRACTS = [
  * Each story removes its types when test/helpers/journey.ts starts emitting them (T073 deletes it).
  */
 const PENDING_003_TYPES = new Set([
-  "class.created",
-  "class.updated",
-  "class.status_changed",
-  "class_invitation.created",
   "class_invitation.resent",
   "class_invitation.cancelled",
   "class_invitation.accepted",

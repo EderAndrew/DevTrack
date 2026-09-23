@@ -1,13 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import type { AccountPage, AccountStatus, RoleKey, UserAccountView } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
+import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import {
   AppException,
   invalidStateTransition,
   notFound,
   selfActionForbidden,
-  validationError,
 } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
@@ -45,32 +45,6 @@ function toView(row: AccountRow): UserAccountView {
   };
 }
 
-interface Cursor {
-  createdAt: Date;
-  id: string;
-}
-
-/** Opaque keyset cursor: base64url of `{createdAt, id}` of the last item of the page. */
-export function encodeCursor(row: Cursor): string {
-  return Buffer.from(JSON.stringify({ c: row.createdAt.toISOString(), i: row.id })).toString("base64url");
-}
-
-export function decodeCursor(cursor: string): Cursor {
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { c?: unknown; i?: unknown };
-    const createdAt = new Date(String(parsed.c));
-    if (typeof parsed.i !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.i) || Number.isNaN(createdAt.getTime())) {
-      throw new Error("bad cursor");
-    }
-    return { createdAt, id: parsed.i };
-  } catch {
-    throw validationError();
-  }
-}
-
-/** Escapes LIKE wildcards so a search for "100%" means the literal text. */
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
-
 /**
  * ADMIN's identity-level view and control of accounts (FR-052, FR-054, FR-056). Suspension
  * revokes every session; the last active ADMIN account can never be suspended, and nobody
@@ -97,18 +71,7 @@ export class AccountsService {
             ],
           }
         : {}),
-      ...(after
-        ? {
-            AND: [
-              {
-                OR: [
-                  { createdAt: { lt: after.createdAt } },
-                  { createdAt: after.createdAt, id: { lt: after.id } },
-                ],
-              },
-            ],
-          }
-        : {}),
+      ...(after ? { AND: [afterCursor(after)] } : {}),
     };
     const rows = await this.prisma.user.findMany({
       where,

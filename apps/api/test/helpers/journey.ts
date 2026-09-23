@@ -24,8 +24,9 @@ export interface JourneyResult {
  * Runs every flow of feature 001 once against `t`, in order, on an empty database: admin
  * bootstrap (CLI service), signup + verification, login and sessions, manager and teacher
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
- * password reset, rate limit, last-ADMIN protection and the maintenance jobs. Together they
- * emit every audit event type of contracts/audit-events.md.
+ * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
+ * implemented so far (classes, class invitations). Together they emit every audit event type of the
+ * contracts/audit-events.md of 001 and 003 (except those still pending in audit-coverage.spec.ts).
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
  * Used by the SC-005 secret scan and the SC-008 audit coverage tests.
@@ -147,6 +148,20 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   expect((await api(t).post("/api/invitations/accept", { token: claimToken, password: claimPassword })).body.mode).toBe(
     "CLAIM_ACCOUNT",
   );
+
+  // 003/US1 — classes: create, edit, inactivate, archive (before the teacher is deactivated below).
+  // 003/US2 — while the class is active, a student is invited by e-mail (archiving cancels it).
+  const teacherClient = api(t, { cookie: await login(teacherEmail, teacherPassword) });
+  const created = await teacherClient.post("/api/classes", { name: "Turma da Jornada", code: "JOR-1", academicYear: 2026 });
+  expect(created.status).toBe(201);
+  const classId = created.body.id as string;
+  expect((await teacherClient.patch(`/api/classes/${classId}`, { period: "1º semestre" })).status).toBe(200);
+  const invitedStudentEmail = "aluno-convidado-jornada@example.test";
+  expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email: invitedStudentEmail })).status).toBe(201);
+  await t.flushMail();
+  keepToken("token de convite de turma", t.mailer.lastTokenFor(invitedStudentEmail, "class-invitation"));
+  expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "INACTIVE" })).status).toBe(200);
+  expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "ARCHIVED" })).status).toBe(200);
 
   // US5 — teacher lifecycle; US4/FR-052 — account suspension and reactivation.
   const teacher = await t.prisma.user.findUniqueOrThrow({ where: { email: teacherEmail } });

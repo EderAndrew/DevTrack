@@ -20,9 +20,11 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     expect(catalog.filter((route) => !routes.includes(route))).toEqual([]);
   });
 
-  it("cobre as 38 rotas da Fase 001, sem entradas repetidas", () => {
+  it("cobre as 38 rotas da Fase 001 e as da 003, sem entradas repetidas", () => {
+    // 003 domains (classes, class invitations, enrollments, own classes); each story adds its routes.
+    const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
-    expect(catalog).toHaveLength(38);
-    expect(routes).toHaveLength(38);
+    expect(catalog).toHaveLength(38 + phase003.length);
+    expect(routes).toHaveLength(38 + phase003.length);
   });
 });

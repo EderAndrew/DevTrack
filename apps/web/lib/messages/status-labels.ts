@@ -1,4 +1,11 @@
-import type { AccountStatus, InvitationStatus, RoleAssignmentStatus, RoleKey, TeacherStatus } from "@repo/contracts";
+import type {
+  AccountStatus,
+  ClassStatus,
+  InvitationStatus,
+  RoleAssignmentStatus,
+  RoleKey,
+  TeacherStatus,
+} from "@repo/contracts";
 
 /** Web texts for the contract's role keys (the API sends keys, never labels). */
 export const ROLE_LABELS: Record<RoleKey, string> = {
@@ -18,4 +25,11 @@ export const STATUS_LABELS: Record<AccountStatus | RoleAssignmentStatus | Teache
   ACCEPTED: "Aceito",
   EXPIRED: "Expirado",
   REVOKED: "Revogado",
+};
+
+/** Status of a class ("turma" is feminine in Portuguese, hence its own texts). */
+export const CLASS_STATUS_LABELS: Record<ClassStatus, string> = {
+  ACTIVE: "Ativa",
+  INACTIVE: "Inativa",
+  ARCHIVED: "Arquivada",
 };

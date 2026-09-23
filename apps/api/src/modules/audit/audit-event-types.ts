@@ -50,8 +50,11 @@ export const AUDIT_EVENT_METADATA = {
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
 
+/** A list is only for names (e.g. the changed fields of `class.updated`), never for values. */
+export type AuditMetadataValue = string | number | boolean | null | readonly string[];
+
 export type AuditMetadata<T extends AuditEventType> = Partial<
-  Record<(typeof AUDIT_EVENT_METADATA)[T][number], string | number | boolean | null>
+  Record<(typeof AUDIT_EVENT_METADATA)[T][number], AuditMetadataValue>
 >;
 
 export type AuditTargetType =

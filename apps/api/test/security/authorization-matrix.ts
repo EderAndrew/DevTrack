@@ -9,7 +9,7 @@ import type { PermissionKey } from "../../src/modules/access-control/permissions
 export type Access = "session" | PermissionKey;
 
 export interface MatrixEntry {
-  method: "GET" | "POST" | "DELETE";
+  method: "GET" | "POST" | "PATCH" | "DELETE";
   /** Route pattern as registered (without the `/api` prefix). */
   path: string;
   access: Access;
@@ -89,6 +89,13 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/users/:id", access: "usuarios.visualizar" },
   { method: "POST", path: "/users/:id/suspend", access: "usuarios.suspender" },
   { method: "POST", path: "/users/:id/reactivate", access: "usuarios.reativar" },
+
+  { method: "GET", path: "/classes", access: "turmas.visualizar" },
+  { method: "POST", path: "/classes", access: "turmas.criar" },
+  { method: "GET", path: "/classes/:id", access: "turmas.visualizar" },
+  { method: "PATCH", path: "/classes/:id", access: "turmas.editar" },
+  { method: "POST", path: "/classes/:id/status", access: "turmas.alterar_situacao" },
+  { method: "POST", path: "/classes/:id/invitations", access: "turmas.convidar_aluno" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

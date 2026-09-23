@@ -19,6 +19,15 @@ import {
   MessageResponseSchema,
   PublicAcceptedSchema,
 } from "./auth/responses.js";
+import { ClassInvitationViewSchema, InviteStudentRequestSchema } from "./classes/class-invitations.js";
+import {
+  ChangeClassStatusRequestSchema,
+  ClassListQuerySchema,
+  ClassPageSchema,
+  ClassViewSchema,
+  CreateClassRequestSchema,
+  UpdateClassRequestSchema,
+} from "./classes/classes.js";
 import { UuidSchema } from "./common/primitives.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
@@ -246,6 +255,34 @@ export const endpoints = {
     params: IdParamsSchema,
     response: UserAccountViewSchema,
     status: 200,
+  },
+
+  "classes.list": { method: "GET", path: "/classes", query: ClassListQuerySchema, response: ClassPageSchema, status: 200 },
+  "classes.create": { method: "POST", path: "/classes", body: CreateClassRequestSchema, response: ClassViewSchema, status: 201 },
+  "classes.get": { method: "GET", path: "/classes/:id", params: IdParamsSchema, response: ClassViewSchema, status: 200 },
+  "classes.update": {
+    method: "PATCH",
+    path: "/classes/:id",
+    params: IdParamsSchema,
+    body: UpdateClassRequestSchema,
+    response: ClassViewSchema,
+    status: 200,
+  },
+  "classes.changeStatus": {
+    method: "POST",
+    path: "/classes/:id/status",
+    params: IdParamsSchema,
+    body: ChangeClassStatusRequestSchema,
+    response: ClassViewSchema,
+    status: 200,
+  },
+  "classInvitations.create": {
+    method: "POST",
+    path: "/classes/:id/invitations",
+    params: IdParamsSchema,
+    body: InviteStudentRequestSchema,
+    response: ClassInvitationViewSchema,
+    status: 201,
   },
 } as const satisfies Record<string, EndpointContract>;
 

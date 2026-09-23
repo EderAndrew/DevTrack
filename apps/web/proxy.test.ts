@@ -6,8 +6,8 @@ const request = (path: string, cookie?: string) =>
   new NextRequest(new URL(path, "http://localhost:3000"), cookie ? { headers: { cookie } } : undefined);
 
 describe("proxy (UX only)", () => {
-  it("covers only the account area", () => {
-    expect(config.matcher).toEqual(["/conta/:path*", "/admin/:path*", "/professores/:path*"]);
+  it("covers only the signed-in areas", () => {
+    expect(config.matcher).toEqual(["/conta/:path*", "/admin/:path*", "/professores/:path*", "/turmas/:path*"]);
   });
 
   it("without the session cookie redirects to /entrar with next", () => {

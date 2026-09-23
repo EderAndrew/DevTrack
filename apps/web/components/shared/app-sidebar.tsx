@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { ChevronRight, UserRound, Users } from "lucide-react";
+import { ChevronRight, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -30,12 +30,14 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open (UX only; the API authorizes). An unverified e-mail sees none: every such route would
- * answer EMAIL_NOT_VERIFIED (FR-016).
+ * open and "Turmas" the teacher's classes (UX only; the API authorizes). An unverified e-mail sees
+ * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016).
  */
 export function AppSidebar({ me }: AppSidebarProps) {
   const pathname = usePathname();
   const areas = me?.emailVerified ? USER_AREAS.filter((area) => me.permissions.includes(area.permission)) : [];
+  const classes = Boolean(me?.emailVerified && me.permissions.includes("turmas.visualizar"));
+  const inClasses = pathname === "/turmas" || pathname.startsWith("/turmas/");
 
   return (
     <Sidebar>
@@ -77,6 +79,16 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
+                ) : null}
+                {classes ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inClasses}>
+                      <Link href="/turmas" className={LINK} aria-current={pathname === "/turmas" ? "page" : undefined}>
+                        <School aria-hidden="true" />
+                        Turmas
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 ) : null}
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === HOME_PATH}>
