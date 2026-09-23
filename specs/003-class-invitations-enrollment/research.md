@@ -96,7 +96,8 @@ constituição v3.0.0. Nenhuma dependência npm nova.
 
 - **Decision**: `RateLimitService` (contadores no banco, R8) com três chaves: reenvio
   por convite (1 por 60 s), envios por convite (5 por 24 h, contando criação e
-  reenvios) e convites criados ou reenviados por professor (50 por hora). Valores em
+  reenvios pelo professor; novas tentativas automáticas do worker não contam) e
+  convites criados ou reenviados por professor (50 por hora). Valores em
   `RATE_LIMIT_CLASS_INVITE_*` (config Zod). Acima do limite → `429 RATE_LIMITED` com
   `Retry-After`, sem gravar nada. Preview e aceite público usam `PublicRateLimit` com
   os fluxos novos `class_invitation_preview` e `class_invitation_accept` (por origem e

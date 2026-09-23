@@ -72,7 +72,7 @@ Contas antigas do autocadastro ficam com `ra = NULL` até o primeiro aceite (US4
 | `status` | `ClassInvitationStatus` | |
 | `expiresAt` | timestamptz | `lastSentAt + 7 d` |
 | `sendCount` | int | padrão 1; +1 a cada reenvio |
-| `lastSentAt` | timestamptz | |
+| `lastSentAt` | timestamptz | criação ou reenvio manual; tentativas automáticas de entrega não alteram (FR-015) |
 | `invitedById` | uuid FK → `users.id` | professor que convidou |
 | `acceptedAt` | timestamptz? | só com `ACCEPTED` |
 | `acceptedByUserId` | uuid? FK → `users.id` | |
