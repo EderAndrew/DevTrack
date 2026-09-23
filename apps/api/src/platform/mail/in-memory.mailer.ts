@@ -8,13 +8,46 @@ export interface SentMail extends RenderedMail {
 
 const LINK = /https?:\/\/\S+/g;
 
-/** Test double: keeps every message in memory. */
+/** What an unavailable SMTP server raises: `code` is what delivery rows record. */
+export class MailUnavailableError extends Error {
+  readonly code = "ECONNREFUSED";
+
+  constructor() {
+    super("SMTP unavailable");
+    this.name = "MailUnavailableError";
+  }
+}
+
+/**
+ * Test double: keeps every message in memory. It can also fail on demand (`failNext`,
+ * `setFailing`); failed messages go to `failed` instead of `outbox`. Off by default.
+ */
 export class InMemoryMailer extends Mailer {
   readonly outbox: SentMail[] = [];
+  readonly failed: SentMail[] = [];
+  private failuresLeft = 0;
+  private failing = false;
 
   async send(message: MailMessage): Promise<void> {
     const rendered = renderTemplate(message.template, message.params as never);
-    this.outbox.push({ to: message.to, template: message.template, ...rendered });
+    const mail = { to: message.to, template: message.template, ...rendered };
+    if (this.failing || this.failuresLeft > 0) {
+      if (this.failuresLeft > 0) this.failuresLeft -= 1;
+      this.failed.push(mail);
+      throw new MailUnavailableError();
+    }
+    this.outbox.push(mail);
+  }
+
+  /** The next `count` sends fail. */
+  failNext(count: number): void {
+    this.failuresLeft = count;
+  }
+
+  /** Every send fails until called with `false`. */
+  setFailing(failing: boolean): void {
+    this.failing = failing;
+    if (!failing) this.failuresLeft = 0;
   }
 
   messagesFor(email: string): SentMail[] {
@@ -37,6 +70,7 @@ export class InMemoryMailer extends Mailer {
 
   clear(): void {
     this.outbox.length = 0;
+    this.failed.length = 0;
   }
 }
 

@@ -15,8 +15,8 @@ export class SmtpMailer extends Mailer implements OnModuleDestroy {
   }
 
   async send(message: MailMessage): Promise<void> {
-    const { subject, text } = renderTemplate(message.template, message.params as never);
-    await this.transport.sendMail({ from: this.config.mailFrom, to: message.to, subject, text });
+    const { subject, text, html } = renderTemplate(message.template, message.params as never);
+    await this.transport.sendMail({ from: this.config.mailFrom, to: message.to, subject, text, ...(html ? { html } : {}) });
   }
 
   onModuleDestroy(): void {

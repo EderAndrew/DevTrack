@@ -32,6 +32,7 @@ describe("US7-1/US7-2 — matriz de autorização (contracts/permissions.md)", (
     const url = concretePath(entry.path);
     if (entry.method === "GET") return client.get(url);
     if (entry.method === "DELETE") return client.delete(url);
+    if (entry.method === "PATCH") return client.patch(url, {});
     return client.post(url, {});
   };
 

@@ -126,27 +126,33 @@ describe("US7 — contexto, papéis e origem (FR-060–FR-063)", () => {
   });
 
   describe("CSRF: Origin obrigatório em todo método inseguro", () => {
-    it("POST/DELETE sem Origin ou de outro site → 403 ORIGIN_NOT_ALLOWED sem efeito", async () => {
+    it("POST/PATCH/DELETE sem Origin ou de outro site → 403 ORIGIN_NOT_ALLOWED sem efeito", async () => {
       const admin = await createUser(t, { roles: ["ADMIN"] });
       const cookie = await loginAs(t, admin);
-      const unsafe = (await registeredRoutes()).filter((r) => /^(POST|DELETE) /.test(r.route));
+      const unsafe = (await registeredRoutes()).filter((r) => /^(POST|PATCH|DELETE) /.test(r.route));
       expect(unsafe.length).toBeGreaterThan(20);
 
       const snapshot = async () => ({
         users: await t.prisma.user.count(),
         invitations: await t.prisma.invitation.count(),
         revoked: await t.prisma.session.count({ where: { revokedAt: { not: null } } }),
+        classes: await t.prisma.schoolClass.count(),
         audit: await t.prisma.auditEvent.count(),
       });
       const before = await snapshot();
 
       for (const { route } of unsafe) {
-        const [method, path] = route.split(" ") as ["POST" | "DELETE", string];
+        const [method, path] = route.split(" ") as ["POST" | "PATCH" | "DELETE", string];
         for (const origin of [null, "https://evil.example"]) {
           const client = api(t, { cookie, origin });
           const url = concretePath(path);
           const body = { email: uniqueEmail("csrf"), displayName: "X", name: "X", password: "senha-forte-do-teste" };
-          const res = method === "DELETE" ? await client.delete(url) : await client.post(url, body);
+          const res =
+            method === "DELETE"
+              ? await client.delete(url)
+              : method === "PATCH"
+                ? await client.patch(url, body)
+                : await client.post(url, body);
           expect({ route, origin, status: res.status, code: res.body?.code }).toEqual({
             route,
             origin,

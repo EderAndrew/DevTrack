@@ -15,7 +15,8 @@ vi.mock("next/navigation", () => ({
 /** Same sets as apps/api/test/security/authorization-matrix.ts (contracts/permissions.md). */
 const SESSOES = ["sessoes.proprias.listar", "sessoes.proprias.revogar"];
 const PERMISSIONS = {
-  STUDENT: SESSOES,
+  STUDENT: [...SESSOES, "turmas.proprias.listar"],
+  TEACHER: [...SESSOES, "turmas.criar", "turmas.visualizar", "turmas.editar", "turmas.alterar_situacao"],
   MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
   ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar"],
 };
@@ -45,6 +46,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
 
   it.each([
     ["STUDENT", ["Meu perfil"]],
+    ["TEACHER", ["Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
     ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
@@ -72,6 +74,21 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await userEvent.setup().click(group);
     expect(group.getAttribute("aria-expanded")).toBe("false");
     expect(menuLinks()).toEqual(["Meu perfil"]);
+  });
+
+  it("e-mail não verificado não vê Turmas", () => {
+    renderSidebar({ me: me(PERMISSIONS.TEACHER, false) });
+    expect(menuLinks()).toEqual(["Meu perfil"]);
+  });
+
+  it("Turmas fica ativa nas telas de turma", () => {
+    navigation.pathname = "/turmas";
+    const { unmount } = renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("aria-current")).toBe("page");
+    unmount();
+    navigation.pathname = "/turmas/abc/editar";
+    renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("data-active")).toBe("true");
   });
 
   it("marca a tela atual", () => {
