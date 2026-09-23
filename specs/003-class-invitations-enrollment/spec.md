@@ -282,9 +282,10 @@ outros alunos.
 1. **Given** um aluno com matrículas ativas em duas turmas e uma matrícula removida,
    **When** abre "Minhas turmas", **Then** vê somente as duas turmas ativas, com
    nome, código, ano, período e nome do professor.
-2. **Given** um aluno, **When** tenta abrir a página administrativa de uma turma
-   (inclusive uma em que está matriculado), **Then** a resposta é a mesma de um
-   recurso inexistente.
+2. **Given** um aluno sem a capacidade de gerir turmas, **When** tenta abrir a página
+   administrativa de uma turma (inclusive uma em que está matriculado), **Then**
+   recebe 403; um professor que também é aluno recebe, para turma de outro
+   professor, a mesma resposta de um recurso inexistente (404).
 
 ---
 
@@ -416,8 +417,9 @@ convites; tentar muitos tokens inválidos em sequência.
   matrícula ativa já existente no reenvio) e `PENDING → EXPIRED` (fim do prazo).
   Transições a partir de estados finais DEVEM ser recusadas como transição
   inválida.
-- **FR-015**: O convite DEVE valer por 7 dias a partir do último envio. Depois
-  disso, NÃO PODE ser aceito, e a validade é decidida pelo servidor. O convite DEVE
+- **FR-015**: O convite DEVE valer por 7 dias a partir da criação ou do último reenvio
+  pelo professor; novas tentativas automáticas de entrega não renovam o prazo.
+  Depois disso, NÃO PODE ser aceito, e a validade é decidida pelo servidor. O convite DEVE
   aparecer como expirado para o professor sem depender de ação do aluno.
 - **FR-016**: O link do convite DEVE conter um token criptograficamente seguro, com
   alta entropia, imprevisível e de uso único, guardado apenas na forma de hash e
@@ -442,7 +444,8 @@ convites; tentar muitos tokens inválidos em sequência.
 - **FR-021**: Reenvios e criação de convites DEVEM ter limites contra abuso: no máximo
   1 reenvio por convite a cada 60 segundos e 5 envios por convite por dia, e no
   máximo 50 convites criados ou reenviados por professor por hora. Ao ultrapassar,
-  o pedido é recusado informando quanto esperar, sem enviar e-mail.
+  o pedido é recusado informando quanto esperar, sem enviar e-mail. Novas tentativas
+  automáticas de entrega (FR-019) não contam para esses limites.
 - **FR-022**: O professor DEVE poder cancelar um convite pendente, com confirmação na
   interface; o token deixa de valer imediatamente. Convites aceitos NÃO PODEM ser
   cancelados: a saída de um aluno é feita pela remoção da matrícula.

@@ -21,6 +21,8 @@ Entrega assíncrona do e-mail de convite com novas tentativas (FR-019, D5), sem 
      `SUPERSEDED`, sem enviar;
    - senão: gera token novo, grava o hash no convite (o link anterior deixa de valer),
      commit, envia. Sucesso → `SENT`. Falha → próxima espera da tabela ou `FAILED`.
+     A nova tentativa **não** altera `expires_at`, `send_count` nem `last_sent_at`: só
+     a criação e o reenvio manual contam como envio (FR-015, FR-021).
 4. Reinício da API no meio: entregas `PENDING` continuam na tabela e são retomadas pelo
    worker (a 1ª tentativa perdida conta como falha).
 
