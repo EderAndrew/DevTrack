@@ -63,7 +63,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
           email: user.email,
           emailVerified: true,
           roles: [{ key: "STUDENT", status: "ACTIVE" }],
-          permissions: ["sessoes.proprias.listar", "sessoes.proprias.revogar"],
+          permissions: ["sessoes.proprias.listar", "sessoes.proprias.revogar", "turmas.proprias.listar"],
         },
       });
 

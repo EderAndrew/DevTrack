@@ -1,9 +1,26 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PERMISSIONS, ROLE_KEYS } from "../../src/modules/access-control/permissions";
+import { type PermissionKey, PERMISSIONS, ROLE_KEYS } from "../../src/modules/access-control/permissions";
 import { createUser, loginAs } from "../helpers/factories";
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
+
+/**
+ * 003 permissions whose routes are not implemented yet (transitional): each story removes its
+ * permissions as its routes land in MATRIX, and the set is deleted when it is empty.
+ */
+const PENDING_003_PERMISSIONS = new Set<PermissionKey>([
+  "turmas.criar",
+  "turmas.visualizar",
+  "turmas.editar",
+  "turmas.alterar_situacao",
+  "turmas.convidar_aluno",
+  "turmas.reenviar_convite",
+  "turmas.cancelar_convite",
+  "turmas.visualizar_alunos",
+  "turmas.remover_aluno",
+  "turmas.proprias.listar",
+]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {
@@ -18,7 +35,12 @@ describe("US7 — completude da matriz e do seed", () => {
 
   it("toda permissão do catálogo é exigida por pelo menos uma rota", () => {
     const required = new Set(MATRIX.map((entry) => entry.access));
-    expect(PERMISSIONS.filter((key) => !required.has(key))).toEqual([]);
+    expect(PERMISSIONS.filter((key) => !required.has(key) && !PENDING_003_PERMISSIONS.has(key))).toEqual([]);
+  });
+
+  it("nenhuma permissão pendente da 003 já tem rota na matriz", () => {
+    const required = new Set(MATRIX.map((entry) => entry.access));
+    expect([...PENDING_003_PERMISSIONS].filter((key) => required.has(key))).toEqual([]);
   });
 
   describe("seed × contrato", () => {

@@ -2,7 +2,7 @@ import type { RoleKey } from "@repo/contracts";
 import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
- * Transcribed by hand from contracts/permissions.md (not derived from the seed), so a drift
+ * Transcribed by hand from contracts/permissions.md of specs 001 and 003 (not derived from the seed), so a drift
  * between the contract and the database breaks the tests.
  */
 
@@ -36,12 +36,25 @@ const MANAGERS = [
 
 const SESSOES = ["sessoes.proprias.listar", "sessoes.proprias.revogar"] as const satisfies PermissionKey[];
 
+/** 003: the teacher's class permissions (MANAGER and ADMIN get none). */
+const TURMAS = [
+  "turmas.criar",
+  "turmas.visualizar",
+  "turmas.editar",
+  "turmas.alterar_situacao",
+  "turmas.convidar_aluno",
+  "turmas.reenviar_convite",
+  "turmas.cancelar_convite",
+  "turmas.visualizar_alunos",
+  "turmas.remover_aluno",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [...SESSOES, ...PROFESSORES, ...MANAGERS, "usuarios.visualizar", "usuarios.suspender", "usuarios.reativar"],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES],
-  STUDENT: [...SESSOES],
+  TEACHER: [...SESSOES, ...TURMAS],
+  STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */

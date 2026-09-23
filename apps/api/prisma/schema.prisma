@@ -1,6 +1,7 @@
-// Data model of spec 001 — Foundation, Identity & Access (see specs/001-foundation-identity-access/data-model.md).
+// Data model of spec 001 — Foundation, Identity & Access (see specs/001-foundation-identity-access/data-model.md)
+// and spec 003 — classes, class invitations and enrollments (specs/003-class-invitations-enrollment/data-model.md).
 // Rules Prisma cannot express (partial unique indexes, CHECK, append-only trigger, reference data)
-// live as SQL in the migrations. No academic-domain model belongs here (FR-080).
+// live as SQL in the migrations. No other academic-domain model belongs here (FR-080, 003/D13).
 
 generator client {
   provider     = "prisma-client"
@@ -31,6 +32,7 @@ enum GrantSource {
   SELF_SIGNUP
   INVITATION
   ADMIN_BOOTSTRAP
+  CLASS_INVITATION
 
   @@map("grant_source")
 }
@@ -80,6 +82,54 @@ enum ActorType {
   @@map("actor_type")
 }
 
+enum ClassStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+
+  @@map("class_status")
+}
+
+enum ClassInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+
+  @@map("class_invitation_status")
+}
+
+enum ClassInvitationCancelReason {
+  TEACHER
+  CLASS_ARCHIVED
+  ALREADY_ENROLLED
+
+  @@map("class_invitation_cancel_reason")
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SUPERSEDED
+
+  @@map("delivery_status")
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("student_status")
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  REMOVED
+
+  @@map("enrollment_status")
+}
+
 model User {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email           String        @unique
@@ -102,6 +152,12 @@ model User {
   invitationsAccepted Invitation[]     @relation("InvitationAcceptedBy")
   invitationsRevoked  Invitation[]     @relation("InvitationRevokedBy")
   adminBootstraps     AdminBootstrap[]
+
+  classesTaught             SchoolClass[]
+  classInvitationsSent      ClassInvitation[] @relation("ClassInvitationInvitedBy")
+  classInvitationsAccepted  ClassInvitation[] @relation("ClassInvitationAcceptedBy")
+  classInvitationsCancelled ClassInvitation[] @relation("ClassInvitationCancelledBy")
+  enrollmentsRemoved        Enrollment[]      @relation("EnrollmentRemovedBy")
 
   @@map("users")
 }
@@ -173,14 +229,113 @@ model TeacherProfile {
 }
 
 model StudentProfile {
-  userId      String   @id @map("user_id") @db.Uuid
-  displayName String   @map("display_name")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userId      String        @id @map("user_id") @db.Uuid
+  displayName String        @map("display_name")
+  /// Stored normalized (trim + uppercase, normalizeRa); unique ignoring case (SQL partial index).
+  ra          String?
+  status      StudentStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
 
   @@map("student_profiles")
+}
+
+model SchoolClass {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId       String      @map("teacher_id") @db.Uuid
+  name            String
+  code            String
+  academicYear    Int         @map("academic_year")
+  period          String?
+  description     String?
+  status          ClassStatus @default(ACTIVE)
+  statusChangedAt DateTime?   @map("status_changed_at") @db.Timestamptz(6)
+  /// Name + code, lowercase, without accents (searchKey, D10); written by the application.
+  searchKey       String      @map("search_key")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher     User              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  invitations ClassInvitation[]
+  enrollments Enrollment[]
+
+  @@index([teacherId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([teacherId, academicYear])
+  @@map("classes")
+}
+
+model ClassInvitation {
+  id               String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId          String                       @map("class_id") @db.Uuid
+  email            String
+  tokenHash        String                       @unique @map("token_hash")
+  status           ClassInvitationStatus
+  expiresAt        DateTime                     @map("expires_at") @db.Timestamptz(6)
+  sendCount        Int                          @default(1) @map("send_count")
+  lastSentAt       DateTime                     @map("last_sent_at") @db.Timestamptz(6)
+  invitedById      String                       @map("invited_by_id") @db.Uuid
+  acceptedAt       DateTime?                    @map("accepted_at") @db.Timestamptz(6)
+  acceptedByUserId String?                      @map("accepted_by_user_id") @db.Uuid
+  cancelledAt      DateTime?                    @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById    String?                      @map("cancelled_by_id") @db.Uuid
+  cancelReason     ClassInvitationCancelReason? @map("cancel_reason")
+  createdAt        DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schoolClass SchoolClass               @relation(fields: [classId], references: [id], onDelete: Restrict)
+  invitedBy   User                      @relation("ClassInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy  User?                     @relation("ClassInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+  cancelledBy User?                     @relation("ClassInvitationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  deliveries  ClassInvitationDelivery[]
+  enrollments Enrollment[]
+
+  @@index([classId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([email])
+  @@map("class_invitations")
+}
+
+/// One row per requested send (creation or resend). Never holds the token, the link or the body (D5).
+model ClassInvitationDelivery {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invitationId  String         @map("invitation_id") @db.Uuid
+  status        DeliveryStatus
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime?      @map("next_attempt_at") @db.Timestamptz(6)
+  lastErrorCode String?        @map("last_error_code")
+  sentAt        DateTime?      @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  invitation ClassInvitation @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([invitationId, createdAt(sort: Desc)])
+  @@map("class_invitation_deliveries")
+}
+
+model Enrollment {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId       String           @map("class_id") @db.Uuid
+  studentUserId String           @map("student_user_id") @db.Uuid
+  status        EnrollmentStatus
+  enrolledAt    DateTime         @map("enrolled_at") @db.Timestamptz(6)
+  invitationId  String?          @map("invitation_id") @db.Uuid
+  removedAt     DateTime?        @map("removed_at") @db.Timestamptz(6)
+  removedById   String?          @map("removed_by_id") @db.Uuid
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schoolClass SchoolClass      @relation(fields: [classId], references: [id], onDelete: Restrict)
+  student     StudentProfile   @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  invitation  ClassInvitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  removedBy   User?            @relation("EnrollmentRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+
+  @@index([classId, status])
+  @@index([studentUserId, status])
+  @@map("enrollments")
 }
 
 model Invitation {

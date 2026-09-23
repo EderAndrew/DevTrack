@@ -34,17 +34,29 @@ const PHASE_001_TEXTS = {
   [UNEXPECTED_RESPONSE]: "Erro inesperado. Tente novamente mais tarde.",
 };
 
+// Codes added by 003, with the texts of specs/003-class-invitations-enrollment/contracts/web-ui.md.
+const PHASE_003_TEXTS = {
+  TOKEN_EXPIRED: "Este convite expirou.",
+  RA_REQUIRED: "Informe o RA.",
+  CLASS_CODE_TAKEN: "Você já tem uma turma com este código.",
+  CLASS_NOT_OPEN: "Esta turma não aceita novos alunos.",
+  ALREADY_ENROLLED: "Este aluno já está matriculado nesta turma.",
+  RA_TAKEN: "Este RA já está em uso.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS };
+
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("cobre os 24 códigos do contrato e os 2 códigos do web, com os textos da Fase 001", () => {
-    expect(ERROR_MESSAGES).toEqual(PHASE_001_TEXTS);
+  it("cobre os 30 códigos do contrato e os 2 códigos do web, com os textos da Fase 001 e da 003", () => {
+    expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(26);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(32);
   });
 
-  it.each(Object.entries(PHASE_001_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {
+  it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {
     expect(messageForError(apiError(code))).toBe(text);
   });
 

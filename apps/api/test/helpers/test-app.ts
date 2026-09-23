@@ -49,7 +49,7 @@ export interface TestApp {
 }
 
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return { ...loadConfig(process.env), maintenanceIntervalSeconds: 0, ...overrides };
+  return { ...loadConfig(process.env), maintenanceIntervalSeconds: 0, mailRetryIntervalSeconds: 0, ...overrides };
 }
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {

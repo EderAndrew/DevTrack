@@ -25,6 +25,21 @@ describe("AuditService metadata allowlist (FR-071)", () => {
     }
   });
 
+  it("003/FR-061 accepts the 003 metadata keys and rejects anything else", () => {
+    expect(sanitizeMetadata("class.updated", { fields: "name,period" })).toEqual({ fields: "name,period" });
+    expect(
+      sanitizeMetadata("class_invitation.accepted", { classId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false }),
+    ).toEqual({ classId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false });
+    expect(sanitizeMetadata("role.granted", { userId: "u1", role: "STUDENT", via: "CLASS_INVITATION" })).toEqual({
+      userId: "u1",
+      role: "STUDENT",
+      via: "CLASS_INVITATION",
+    });
+    expect(() => sanitizeMetadata("class_invitation.created", { classId: "c1", token: "x" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("student.registered", { ra: "2026A-01" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("enrollment.removed", { name: "Aluno" })).toThrow(AuditMetadataError);
+  });
+
   it("record() refuses before writing", async () => {
     const writes: unknown[] = [];
     const fakeTx = { auditEvent: { create: async (args: unknown) => void writes.push(args) } };

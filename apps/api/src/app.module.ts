@@ -8,6 +8,9 @@ import { PermissionsGuard } from "./modules/access-control/guards/permissions.gu
 import { SessionGuard } from "./modules/access-control/guards/session.guard";
 import { VerifiedGuard } from "./modules/access-control/guards/verified.guard";
 import { AuditModule } from "./modules/audit/audit.module";
+import { ClassInvitationsModule } from "./modules/class-invitations/class-invitations.module";
+import { ClassesModule } from "./modules/classes/classes.module";
+import { EnrollmentsModule } from "./modules/enrollments/enrollments.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { ProvisioningModule } from "./modules/provisioning/provisioning.module";
 import { RetentionModule } from "./modules/retention/retention.module";
@@ -50,6 +53,9 @@ export class AppModule {
         ProvisioningModule,
         AdminBootstrapModule,
         AccountsModule,
+        ClassesModule,
+        ClassInvitationsModule,
+        EnrollmentsModule,
         RetentionModule,
         HealthModule,
       ],

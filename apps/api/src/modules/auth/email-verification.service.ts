@@ -5,12 +5,13 @@ import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { tokenInvalid } from "../../platform/http/errors";
 import type { RequestContext } from "../../platform/http/request-context";
+import { webLinks } from "../../platform/mail/links";
 import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
 import { PublicRateLimit } from "./public-rate-limit";
-import { PUBLIC_ACCEPTED_MESSAGE, webLinks } from "./signup.service";
+import { PUBLIC_ACCEPTED_MESSAGE } from "./signup.service";
 import { UserTokenService } from "./user-token.service";
 
 /**

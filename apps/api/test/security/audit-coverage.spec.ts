@@ -8,7 +8,30 @@ import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
 import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const CONTRACT = resolve(API_ROOT, "../../specs/001-foundation-identity-access/contracts/audit-events.md");
+/** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
+const CONTRACTS = [
+  resolve(API_ROOT, "../../specs/001-foundation-identity-access/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
+];
+
+/**
+ * 003 types the journey does not emit yet (transitional). They are still checked against the
+ * catalogue and, when emitted, for actor/target/metadata; only "emitted by the journey" is waived.
+ * Each story removes its types when test/helpers/journey.ts starts emitting them (T073 deletes it).
+ */
+const PENDING_003_TYPES = new Set([
+  "class.created",
+  "class.updated",
+  "class.status_changed",
+  "class_invitation.created",
+  "class_invitation.resent",
+  "class_invitation.cancelled",
+  "class_invitation.accepted",
+  "class_invitation.acceptance_refused",
+  "student.registered",
+  "enrollment.created",
+  "enrollment.removed",
+]);
 
 interface ContractRow {
   type: string;
@@ -20,10 +43,14 @@ interface ContractRow {
 
 const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
 
-/** Rows of the table in contracts/audit-events.md; `a` / `b` in the type column expands to two rows. */
-function contractRows(): ContractRow[] {
-  const lines = readFileSync(CONTRACT, "utf8").split("\n");
-  return lines
+/**
+ * Rows of the event table of one contracts/audit-events.md; `a` / `b` in the type column expands
+ * to two rows. The "Tipos aposentados" table (003) is not part of the catalogue.
+ */
+function contractRows(file: string): ContractRow[] {
+  const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
+  return text
+    .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
     .flatMap((line) => {
       const [typeCell, actorCell, targetCell, metadataCell] = line
@@ -39,10 +66,11 @@ function contractRows(): ContractRow[] {
 }
 
 describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => {
-  const rows = contractRows();
+  const rows = CONTRACTS.flatMap(contractRows);
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(29);
+    expect(rows.length).toBeGreaterThanOrEqual(29 + 11);
+    expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
       Object.entries(AUDIT_EVENT_METADATA).map(([type, keys]) => [type, [...keys].sort()]),
@@ -64,7 +92,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
 
     it.each(rows.map((row) => [row.type, row] as const))("%s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
-      expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
+      if (!PENDING_003_TYPES.has(type)) expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
@@ -77,6 +105,14 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
         if (event.actorType === "USER" || event.actorType === "ANONYMOUS") expect(event.requestId).not.toBeNull();
         if (event.actorType === "OPERATOR") expect(event.requestId).toBeNull();
         for (const key of Object.keys(event.metadata as object)) expect(row.metadata).toContain(key);
+      }
+    });
+
+    it("003/D13 todo tipo pendente da 003 está no catálogo e ainda não é emitido pela jornada", () => {
+      const types = new Set(rows.map((r) => r.type));
+      for (const type of PENDING_003_TYPES) {
+        expect(types.has(type), type).toBe(true);
+        expect(events.some((e) => e.type === type), `${type} já é emitido: retire-o de PENDING_003_TYPES`).toBe(false);
       }
     });
 

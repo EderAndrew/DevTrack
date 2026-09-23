@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md — feature 001 creates nothing else. */
+/** The entities of data-model.md (001 plus 003) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -21,18 +21,22 @@ const EXPECTED_MODELS = [
   "AuditEvent",
   "AccessRecord",
   "RateLimitCounter",
+  "SchoolClass",
+  "ClassInvitation",
+  "ClassInvitationDelivery",
+  "Enrollment",
 ];
 
 /**
- * Word prefixes of the academic domain (FR-080), without accents, pt-BR and English.
+ * Word prefixes of the academic domain not built yet (FR-080), without accents, pt-BR and English.
+ * 003 brought classes and enrollments in on purpose (`turma`, `matricul`, `class`, `classes`,
+ * `enrollment` are allowed, 003/D13); the later phases' terms stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
   "disciplin",
   "ementa",
-  "turma",
   "periodo",
-  "matricul",
   "aula",
   "questao",
   "questoes",
@@ -43,14 +47,13 @@ const ACADEMIC_PREFIXES = [
   "grade",
   "submiss",
   "course",
-  "enrollment",
   "lesson",
   "exam",
   "homework",
   "curricul",
 ];
 /** Matched only as whole words, so `classification` or `subjectId`-free names like `subjective` do not count. */
-const ACADEMIC_WORDS = ["class", "classe", "classes", "subject"];
+const ACADEMIC_WORDS = ["classe", "subject"];
 
 const stripAccents = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
@@ -86,7 +89,7 @@ function schemaNames() {
   return { models, names: [...models, ...enums, ...maps, ...fields] };
 }
 
-describe("FR-080 — sem domínio acadêmico prematuro (critério 27)", () => {
+describe("003/D13 fronteira do domínio (FR-080, critério 27)", () => {
   let routes: string[];
 
   beforeAll(async () => {
@@ -97,17 +100,28 @@ describe("FR-080 — sem domínio acadêmico prematuro (critério 27)", () => {
     expect([...schemaNames().models].sort()).toEqual([...EXPECTED_MODELS].sort());
   });
 
-  it("nenhum modelo, enum, tabela, coluna, rota ou permissão usa termo acadêmico", () => {
+  it("nenhum modelo, enum, tabela, coluna, rota ou permissão usa termo acadêmico de fase futura", () => {
     const candidates = [...schemaNames().names, ...routes, ...PERMISSIONS];
     const offenders = candidates.flatMap((name) => academicTerms(name).map((term) => `${name} (${term})`));
     expect(offenders).toEqual([]);
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["Turma", "course_enrollments", "GET /disciplinas/:id", "notas.lancar", "QuestãoProva", "class"]) {
+    for (const name of ["course_enrollments", "GET /disciplinas/:id", "notas.lancar", "QuestãoProva", "classe", "subject"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
-    for (const name of ["classification", "provisioning", "RateLimitCounter", "notificationSentAt", "sessoes.proprias.listar"]) {
+    for (const name of [
+      "classification",
+      "provisioning",
+      "RateLimitCounter",
+      "notificationSentAt",
+      "sessoes.proprias.listar",
+      "SchoolClass",
+      "turmas.remover_aluno",
+      "enrollment_status",
+      "GET /classes/:id/enrollments",
+      "matriculas",
+    ]) {
       expect(academicTerms(name), name).toEqual([]);
     }
   });

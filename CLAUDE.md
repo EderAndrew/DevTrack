@@ -99,7 +99,8 @@ Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses a spec's `spec.md`. Every `USn-k` scenario and every
   traceability row must appear in a `describe`/`it` title, so name new tests with their scenario or
   SC/FR id. The spec path is hardcoded to `specs/001-foundation-identity-access/spec.md`, so a new
-  feature's scenarios aren't checked until the test is extended to cover that spec.
+  feature's scenarios aren't checked until the test is extended to cover that spec. Ids of other
+  features carry their number (`003/US1-1`, `002/US1-1`) and never cover the bare 001 id.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no

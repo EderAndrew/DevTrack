@@ -12,6 +12,8 @@ export const ErrorCatalog = {
   },
   PASSWORD_REQUIRED: { status: 400, message: "Defina uma senha para continuar." },
   TOKEN_INVALID: { status: 400, message: "Link inválido ou expirado." },
+  TOKEN_EXPIRED: { status: 400, message: "Este convite expirou." },
+  RA_REQUIRED: { status: 400, message: "Informe o RA." },
   UNAUTHENTICATED: { status: 401, message: "Autenticação necessária." },
   INVALID_CREDENTIALS: { status: 401, message: "E-mail ou senha incorretos." },
   SIGN_IN_REQUIRED: { status: 401, message: "Entre na sua conta para continuar." },
@@ -39,6 +41,10 @@ export const ErrorCatalog = {
   },
   LAST_ADMIN_PROTECTED: { status: 409, message: "Não é possível remover o último administrador ativo." },
   BOOTSTRAP_ALREADY_DONE: { status: 409, message: "Bootstrap administrativo já realizado." },
+  CLASS_CODE_TAKEN: { status: 409, message: "Você já tem uma turma com este código." },
+  CLASS_NOT_OPEN: { status: 409, message: "Esta turma não aceita novos alunos." },
+  ALREADY_ENROLLED: { status: 409, message: "Este aluno já está matriculado nesta turma." },
+  RA_TAKEN: { status: 409, message: "Este RA já está em uso." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;
@@ -66,6 +72,8 @@ export const validationError = () => new AppException("VALIDATION_ERROR");
 export const weakPassword = () => new AppException("WEAK_PASSWORD");
 export const passwordRequired = () => new AppException("PASSWORD_REQUIRED");
 export const tokenInvalid = () => new AppException("TOKEN_INVALID");
+export const tokenExpired = () => new AppException("TOKEN_EXPIRED");
+export const raRequired = () => new AppException("RA_REQUIRED");
 export const unauthenticated = () => new AppException("UNAUTHENTICATED");
 export const invalidCredentials = () => new AppException("INVALID_CREDENTIALS");
 export const signInRequired = () => new AppException("SIGN_IN_REQUIRED");
@@ -84,6 +92,10 @@ export const teacherReactivationRequired = () => new AppException("TEACHER_REACT
 export const invitationAlreadyPending = () => new AppException("INVITATION_ALREADY_PENDING");
 export const lastAdminProtected = () => new AppException("LAST_ADMIN_PROTECTED");
 export const bootstrapAlreadyDone = () => new AppException("BOOTSTRAP_ALREADY_DONE");
+export const classCodeTaken = () => new AppException("CLASS_CODE_TAKEN");
+export const classNotOpen = () => new AppException("CLASS_NOT_OPEN");
+export const alreadyEnrolled = () => new AppException("ALREADY_ENROLLED");
+export const raTaken = () => new AppException("RA_TAKEN");
 export const rateLimited = (retryAfterSeconds: number) =>
   new AppException("RATE_LIMITED", undefined, {
     "Retry-After": String(Math.max(1, Math.ceil(retryAfterSeconds))),

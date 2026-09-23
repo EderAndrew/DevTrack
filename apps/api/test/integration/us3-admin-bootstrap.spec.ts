@@ -3,11 +3,11 @@ import {
   AdminBootstrapService,
   type BootstrapResult,
 } from "../../src/modules/admin-bootstrap/admin-bootstrap.service";
-import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { createUser, loginAs, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { ROLE_PERMISSIONS } from "../security/authorization-matrix";
 
 const OPERATOR = { host: "host-teste", user: "operador" };
 const OPERATOR_META = { operatorHost: "host-teste", operatorUser: "operador" };
@@ -81,7 +81,7 @@ describe("US3 — bootstrap do primeiro ADMIN (FR-030–FR-036, R14)", () => {
 
       const login = await api(t).post("/api/auth/login", { email, password: PASSWORD });
       expect(login.status).toBe(200);
-      expect(login.body.user.permissions).toEqual([...PERMISSIONS].sort());
+      expect(login.body.user.permissions).toEqual([...ROLE_PERMISSIONS.ADMIN].sort());
     });
   });
 
