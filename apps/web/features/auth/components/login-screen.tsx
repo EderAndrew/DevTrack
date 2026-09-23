@@ -29,7 +29,7 @@ export function LoginScreen({ next }: LoginScreenProps) {
           <CardContent className="[&_button[type=submit]]:w-full">
             <LoginForm next={next} />
           </CardContent>
-          {/* No signup link: students will be invited by their teacher (future spec); /cadastro stays reachable. */}
+          {/* No signup link: students join through their teacher's class invitation (003 FR-048). */}
           <CardFooter className="text-sm">
             <Link href="/esqueci-senha">Esqueci minha senha</Link>
           </CardFooter>

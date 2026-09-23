@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
-import { createUser, DEFAULT_PASSWORD, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
+import { createUser, DEFAULT_PASSWORD, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const PASSWORD = "senha-nova-do-professor";
@@ -235,11 +235,8 @@ describe("US6 — aceite de convite de professor com identidade única (FR-044�
   it("US6-10 atacante com pré-registro perde a conta para o dono do e-mail", async () => {
     const email = uniqueEmail("alvo");
     const attackerPassword = "senha-escolhida-pelo-atacante";
-    expect(
-      (await api(t).post("/api/auth/signup", { name: "Atacante", email, password: attackerPassword })).status,
-    ).toBe(202);
-    await t.flushMail();
-    const attackerVerifyToken = t.mailer.lastTokenFor(email, "verify-email")!;
+    await createUser(t, { name: "Atacante", email, password: attackerPassword, verified: false });
+    const attackerVerifyToken = await requestVerificationToken(t, email);
     const attackerLogin = await login(email, attackerPassword);
     const attackerCookie = sessionCookie(attackerLogin)!.split(";")[0]!;
     expect((await api(t, { cookie: attackerCookie }).get("/api/me")).status).toBe(200);

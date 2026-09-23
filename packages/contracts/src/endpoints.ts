@@ -10,7 +10,6 @@ import {
   PasswordResetConfirmRequestSchema,
   PasswordResetRequestSchema,
   ResendVerificationRequestSchema,
-  SignupRequestSchema,
   VerifyEmailRequestSchema,
 } from "./auth/requests.js";
 import {
@@ -19,7 +18,15 @@ import {
   MessageResponseSchema,
   PublicAcceptedSchema,
 } from "./auth/responses.js";
-import { ClassInvitationViewSchema, InviteStudentRequestSchema } from "./classes/class-invitations.js";
+import {
+  AcceptClassInvitationRequestSchema,
+  ClassInvitationAcceptedSchema,
+  ClassInvitationListQuerySchema,
+  ClassInvitationPageSchema,
+  ClassInvitationPreviewSchema,
+  ClassInvitationViewSchema,
+  InviteStudentRequestSchema,
+} from "./classes/class-invitations.js";
 import {
   ChangeClassStatusRequestSchema,
   ClassListQuerySchema,
@@ -28,7 +35,7 @@ import {
   CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
-import { UuidSchema } from "./common/primitives.js";
+import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -61,6 +68,10 @@ export interface EndpointContract {
 export const IdParamsSchema = z.strictObject({ id: UuidSchema });
 export type IdParams = z.infer<typeof IdParamsSchema>;
 
+/** A class invitation under its class (003). */
+export const ClassInvitationParamsSchema = z.strictObject({ id: UuidSchema, invitationId: UuidSchema });
+export type ClassInvitationParams = z.infer<typeof ClassInvitationParamsSchema>;
+
 export const UserIdParamsSchema = z.strictObject({ userId: UuidSchema });
 export type UserIdParams = z.infer<typeof UserIdParamsSchema>;
 
@@ -74,7 +85,6 @@ export const endpoints = {
   /** 503 with `{status: "unavailable"}` when the database does not answer. */
   "health.ready": { method: "GET", path: "/health/ready", response: HealthStatusSchema, status: 200 },
 
-  "auth.signup": { method: "POST", path: "/auth/signup", body: SignupRequestSchema, response: PublicAcceptedSchema, status: 202 },
   "auth.verifyEmail": {
     method: "POST",
     path: "/auth/verify-email",
@@ -283,6 +293,44 @@ export const endpoints = {
     body: InviteStudentRequestSchema,
     response: ClassInvitationViewSchema,
     status: 201,
+  },
+  "classInvitations.list": {
+    method: "GET",
+    path: "/classes/:id/invitations",
+    params: IdParamsSchema,
+    query: ClassInvitationListQuerySchema,
+    response: ClassInvitationPageSchema,
+    status: 200,
+  },
+  "classInvitations.resend": {
+    method: "POST",
+    path: "/classes/:id/invitations/:invitationId/resend",
+    params: ClassInvitationParamsSchema,
+    body: EmptyBodySchema,
+    response: ClassInvitationViewSchema,
+    status: 200,
+  },
+  "classInvitations.cancel": {
+    method: "POST",
+    path: "/classes/:id/invitations/:invitationId/cancel",
+    params: ClassInvitationParamsSchema,
+    body: EmptyBodySchema,
+    response: ClassInvitationViewSchema,
+    status: 200,
+  },
+  "classInvitations.preview": {
+    method: "POST",
+    path: "/class-invitations/preview",
+    body: TokenRequestSchema,
+    response: ClassInvitationPreviewSchema,
+    status: 200,
+  },
+  "classInvitations.accept": {
+    method: "POST",
+    path: "/class-invitations/accept",
+    body: AcceptClassInvitationRequestSchema,
+    response: ClassInvitationAcceptedSchema,
+    status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
 

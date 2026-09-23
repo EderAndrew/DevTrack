@@ -7,6 +7,7 @@ import {
   selfInviteForbidden,
   signInRequired,
   tokenInvalid,
+  validationError,
   wrongAccount,
 } from "../../platform/http/errors";
 import { RoleRepository } from "../access-control/role.repository";
@@ -20,15 +21,19 @@ import { UserRepository } from "../identity/user.repository";
 
 export interface AcceptInput {
   email: string;
-  roleKey: Extract<RoleKey, "ADMIN" | "MANAGER" | "TEACHER">;
-  /** Display name chosen by the issuer; becomes `User.name` and `TeacherProfile.displayName`. */
+  roleKey: RoleKey;
+  /**
+   * Name of the account when it is created or claimed: chosen by the issuer for TEACHER/MANAGER
+   * (also `TeacherProfile.displayName`), typed by the student for STUDENT (003). Required in
+   * those two modes; SIGN_IN_REQUIRED keeps the account's name.
+   */
   displayName: string;
   password?: string | null;
   /** User of the request's session, when there is one. */
   currentUserId?: string | null;
   /** Who issued the invitation; null for the operator-issued ADMIN bootstrap. */
   issuerUserId?: string | null;
-  via: Extract<GrantSource, "INVITATION" | "ADMIN_BOOTSTRAP">;
+  via: Extract<GrantSource, "INVITATION" | "ADMIN_BOOTSTRAP" | "CLASS_INVITATION">;
   requestId?: string | null;
 }
 
@@ -41,6 +46,8 @@ export interface AcceptResult {
   revokedSessions: number;
   /** CLAIM_ACCOUNT only: pending verification/reset tokens of the claimed account that were invalidated. */
   invalidatedTokens: number;
+  /** STUDENT only: true when this acceptance created the student profile. */
+  studentProfileCreated: boolean;
 }
 
 interface LockedUser {
@@ -49,8 +56,8 @@ interface LockedUser {
 }
 
 /**
- * Single acceptance path for TEACHER/MANAGER invitations and ADMIN activation (R15,
- * FR-044–FR-048, FR-035). Runs inside the caller's transaction, which has already locked the
+ * Single acceptance path for TEACHER/MANAGER invitations, ADMIN activation (R15,
+ * FR-044–FR-048, FR-035) and class invitations, which grant STUDENT (003 D4). Runs inside the caller's transaction, which has already locked the
  * invitation/bootstrap row (`SELECT … FOR UPDATE`) and validated its token; this service
  * owns everything that concerns the identity receiving the role.
  *
@@ -81,8 +88,10 @@ export class RoleGrantAcceptance {
     const existing = await this.lockUserByEmail(tx, email);
     const mode = modeFor(existing);
 
-    // FR-040a / FR-055: nobody grants a role to themselves, whatever the branch.
-    if (existing && input.issuerUserId && existing.id === input.issuerUserId) throw selfInviteForbidden();
+    // FR-040a / FR-055: nobody grants a privileged role to themselves, whatever the branch. A
+    // teacher may invite their own e-mail to a class (003 D4).
+    const privileged = input.roleKey !== "STUDENT";
+    if (privileged && existing && input.issuerUserId && existing.id === input.issuerUserId) throw selfInviteForbidden();
 
     let userId: string;
     let revokedSessions = 0;
@@ -90,6 +99,7 @@ export class RoleGrantAcceptance {
 
     switch (mode) {
       case "CREATE_ACCOUNT": {
+        if (!input.displayName) throw validationError();
         const passwordHash = await this.validatedHash(input.password);
         // A concurrent acceptance may have created the identity after our lookup: ON CONFLICT
         // DO NOTHING waits for it, and the loser is refused like a replayed token (FR-044, FR-049).
@@ -112,6 +122,7 @@ export class RoleGrantAcceptance {
 
       case "CLAIM_ACCOUNT": {
         // FR-048: same identity, new password, e-mail proven by the link, old sessions revoked.
+        if (!input.displayName) throw validationError();
         const passwordHash = await this.validatedHash(input.password);
         userId = existing!.id;
         await this.users.setPassword(tx, userId, passwordHash);
@@ -155,7 +166,23 @@ export class RoleGrantAcceptance {
 
     if (input.roleKey === "TEACHER") await this.profiles.ensureTeacherProfile(tx, userId, input.displayName);
 
-    return { mode, userId, userRoleId: grant.assignment.id, roleGranted: grant.created, revokedSessions, invalidatedTokens };
+    let studentProfileCreated = false;
+    if (input.roleKey === "STUDENT") {
+      const hadProfile = (await tx.studentProfile.count({ where: { userId } })) > 0;
+      const { name } = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
+      await this.profiles.ensureStudentProfile(tx, userId, name);
+      studentProfileCreated = !hadProfile;
+    }
+
+    return {
+      mode,
+      userId,
+      userRoleId: grant.assignment.id,
+      roleGranted: grant.created,
+      revokedSessions,
+      invalidatedTokens,
+      studentProfileCreated,
+    };
   }
 
   /** Serializes concurrent acceptances for the same identity (claim vs. claim, claim vs. grant). */

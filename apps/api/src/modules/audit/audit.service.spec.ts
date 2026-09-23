@@ -45,7 +45,7 @@ describe("AuditService metadata allowlist (FR-071)", () => {
     const fakeTx = { auditEvent: { create: async (args: unknown) => void writes.push(args) } };
     await expect(
       new AuditService().record(fakeTx as never, {
-        type: "auth.signup",
+        type: "auth.email_verified",
         actorType: "ANONYMOUS",
         metadata: { password: "x" } as never,
       }),

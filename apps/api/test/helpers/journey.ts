@@ -4,7 +4,7 @@ import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverified-accounts.job";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
-import { createUser, DEFAULT_PASSWORD, loginAs, uniqueEmail } from "./factories";
+import { createUser, DEFAULT_PASSWORD, loginAs, requestVerificationToken, uniqueEmail } from "./factories";
 import { api, type TestApp } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -22,11 +22,12 @@ export interface JourneyResult {
 
 /**
  * Runs every flow of feature 001 once against `t`, in order, on an empty database: admin
- * bootstrap (CLI service), signup + verification, login and sessions, manager and teacher
+ * bootstrap (CLI service), e-mail verification, login and sessions, manager and teacher
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
- * implemented so far (classes, class invitations). Together they emit every audit event type of the
- * contracts/audit-events.md of 001 and 003 (except those still pending in audit-coverage.spec.ts).
+ * implemented so far (classes, class invitations, their management and acceptance). Together they emit
+ * every audit event type of the contracts/audit-events.md of 001 and 003, except the retired
+ * ones and those still pending in audit-coverage.spec.ts.
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
  * Used by the SC-005 secret scan and the SC-008 audit coverage tests.
@@ -83,15 +84,11 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   const admin = await login(adminEmail, adminPassword);
   const adminClient = api(t, { cookie: admin });
 
-  // US1 — signup, e-mail verification.
+  // US1 — e-mail verification of an unverified account (public signup is gone, 003 FR-048).
   const studentEmail = uniqueEmail("aluno");
   const studentPassword = keep("senha do aluno", "senha-do-aluno-da-jornada");
-  expect(
-    (await api(t).post("/api/auth/signup", { name: "Aluna da Jornada", email: studentEmail, password: studentPassword }))
-      .status,
-  ).toBe(202);
-  await t.flushMail();
-  const verifyToken = keepToken("token de verificação", t.mailer.lastTokenFor(studentEmail, "verify-email"));
+  await createUser(t, { name: "Aluna da Jornada", email: studentEmail, password: studentPassword, verified: false });
+  const verifyToken = keepToken("token de verificação", await requestVerificationToken(t, studentEmail));
   expect((await api(t).post("/api/auth/verify-email", { token: verifyToken })).status).toBe(200);
 
   // US2 — login, own sessions, logout, logout-all.
@@ -150,17 +147,49 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   );
 
   // 003/US1 — classes: create, edit, inactivate, archive (before the teacher is deactivated below).
-  // 003/US2 — while the class is active, a student is invited by e-mail (archiving cancels it).
+  // 003/US2 — while the class is active, students are invited by e-mail.
+  // 003/US3 — the first one accepts by creating an account; the second is refused once the
+  // class is inactive, and archiving then cancels it.
   const teacherClient = api(t, { cookie: await login(teacherEmail, teacherPassword) });
   const created = await teacherClient.post("/api/classes", { name: "Turma da Jornada", code: "JOR-1", academicYear: 2026 });
   expect(created.status).toBe(201);
   const classId = created.body.id as string;
   expect((await teacherClient.patch(`/api/classes/${classId}`, { period: "1º semestre" })).status).toBe(200);
-  const invitedStudentEmail = "aluno-convidado-jornada@example.test";
-  expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email: invitedStudentEmail })).status).toBe(201);
+  const inviteToClass = async (email: string) => {
+    expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);
+    await t.flushMail();
+    return keepToken("token de convite de turma", t.mailer.lastTokenFor(email, "class-invitation"));
+  };
+  const classToken = await inviteToClass("aluno-convidado-jornada@example.test");
+  const classStudentPassword = keep("senha do aluno convidado", "aluno-convidado-da-jornada");
+  const classAccepted = await api(t).post("/api/class-invitations/accept", {
+    token: classToken,
+    name: "Aluno Convidado",
+    ra: "JOR-0001",
+    password: classStudentPassword,
+  });
+  expect(classAccepted.status).toBe(200);
+  keepCookie(classAccepted);
+  const lateToken = await inviteToClass("aluno-atrasado-jornada@example.test");
+  // 003/US5 — the teacher lists, resends and cancels an invitation.
+  const resentEmail = "aluno-reenvio-jornada@example.test";
+  const resentId = (await teacherClient.post(`/api/classes/${classId}/invitations`, { email: resentEmail })).body.id as string;
   await t.flushMail();
-  keepToken("token de convite de turma", t.mailer.lastTokenFor(invitedStudentEmail, "class-invitation"));
+  keepToken("token de convite de turma", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
+  expect((await teacherClient.get(`/api/classes/${classId}/invitations?query=reenvio`)).body.items).toHaveLength(1);
+  expect((await teacherClient.post(`/api/classes/${classId}/invitations/${resentId}/resend`, {})).status).toBe(200);
+  await t.flushMail();
+  keepToken("token de convite de turma reenviado", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
+  expect((await teacherClient.post(`/api/classes/${classId}/invitations/${resentId}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "INACTIVE" })).status).toBe(200);
+  expect((await api(t).post("/api/class-invitations/preview", { token: lateToken })).status).toBe(400);
+  const refused = await api(t).post("/api/class-invitations/accept", {
+    token: lateToken,
+    name: "Aluno Atrasado",
+    ra: "JOR-0002",
+    password: classStudentPassword,
+  });
+  expect(refused.body.code).toBe("TOKEN_INVALID");
   expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "ARCHIVED" })).status).toBe(200);
 
   // US5 — teacher lifecycle; US4/FR-052 — account suspension and reactivation.

@@ -10,11 +10,10 @@ import {
   resendVerificationMessages,
   ResetPasswordFormSchema,
   resetPasswordMessages,
-  SignupFormSchema,
-  signupMessages,
 } from "./forms";
 import { AccountSearchFormSchema, accountSearchMessages } from "@/features/accounts/schemas/search-form";
 import { ActivationPasswordFormSchema, activationPasswordMessages } from "@/features/admin-activation/schemas/activation-form";
+import { CreateAccountFormSchema, createAccountMessages } from "@/features/class-invitations/schemas/acceptance-form";
 import { AcceptancePasswordFormSchema, acceptancePasswordMessages } from "@/features/invitations/schemas/acceptance-form";
 import { InviteManagerFormSchema, inviteManagerMessages } from "@/features/managers/schemas/invite-form";
 import { InviteTeacherFormSchema, inviteTeacherMessages } from "@/features/teachers/schemas/invite-form";
@@ -38,11 +37,16 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
     ["login", LoginFormSchema, loginMessages, { email: "", password: "" }, { email: "Informe seu e-mail.", password: "Informe sua senha." }],
     ["login", LoginFormSchema, loginMessages, { email: "  ", password: PASSWORD }, { email: "Informe seu e-mail." }],
     [
-      "cadastro",
-      SignupFormSchema,
-      signupMessages,
-      { name: " ", email: "", password: "" },
-      { name: "Informe seu nome.", email: "Informe seu e-mail.", password: PASSWORD_LENGTH_MESSAGE },
+      "conta pelo convite de turma",
+      CreateAccountFormSchema,
+      createAccountMessages,
+      { name: " ", ra: "", password: "", passwordConfirmation: "" },
+      {
+        name: "Informe seu nome completo.",
+        ra: "Informe o RA.",
+        password: PASSWORD_LENGTH_MESSAGE,
+        passwordConfirmation: "Confirme a senha.",
+      },
     ],
     ["reenvio de verificação", ResendVerificationFormSchema, resendVerificationMessages, { email: "" }, { email: "Informe seu e-mail." }],
     ["esqueci a senha", ForgotPasswordFormSchema, forgotPasswordMessages, { email: "" }, { email: "Informe seu e-mail." }],
@@ -60,9 +64,27 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
   it.each([
     ["login", LoginFormSchema, loginMessages, { email: "sem-arroba", password: PASSWORD }, { email: INVALID_DATA }],
     ["login", LoginFormSchema, loginMessages, { email: EMAIL, password: TOO_LONG_INPUT }, { password: INVALID_DATA }],
-    ["cadastro", SignupFormSchema, signupMessages, { name: LONG_NAME, email: "x@", password: PASSWORD }, { name: INVALID_DATA, email: INVALID_DATA }],
-    ["cadastro", SignupFormSchema, signupMessages, { name: "Ana\u0007", email: EMAIL, password: PASSWORD }, { name: INVALID_DATA }],
-    ["cadastro", SignupFormSchema, signupMessages, { name: "Ana", email: EMAIL, password: TOO_LONG_INPUT }, { password: INVALID_DATA }],
+    [
+      "conta pelo convite de turma",
+      CreateAccountFormSchema,
+      createAccountMessages,
+      { name: LONG_NAME, ra: "RA 1", password: PASSWORD, passwordConfirmation: PASSWORD },
+      { name: INVALID_DATA, ra: INVALID_DATA },
+    ],
+    [
+      "conta pelo convite de turma",
+      CreateAccountFormSchema,
+      createAccountMessages,
+      { name: "Ana\u0007", ra: "RA-1", password: PASSWORD, passwordConfirmation: PASSWORD },
+      { name: INVALID_DATA },
+    ],
+    [
+      "conta pelo convite de turma",
+      CreateAccountFormSchema,
+      createAccountMessages,
+      { name: "Ana", ra: "RA-1", password: TOO_LONG_INPUT, passwordConfirmation: TOO_LONG_INPUT },
+      { password: INVALID_DATA },
+    ],
     ["reenvio de verificação", ResendVerificationFormSchema, resendVerificationMessages, { email: "a@b" }, { email: INVALID_DATA }],
     ["esqueci a senha", ForgotPasswordFormSchema, forgotPasswordMessages, { email: `${"a".repeat(250)}@b.co` }, { email: INVALID_DATA }],
   ])("%s: e-mail, nome ou tamanho inválido → \"Dados inválidos.\"", (_form, schema, map, values, expected) => {
@@ -70,10 +92,11 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
   });
 
   it("senha fora de 12–128 caracteres mantém o texto da dica", () => {
-    expect(messages(SignupFormSchema, signupMessages, { name: "Ana", email: EMAIL, password: "curta" })).toEqual({
+    const account = (password: string) => ({ name: "Ana", ra: "RA-1", password, passwordConfirmation: password });
+    expect(messages(CreateAccountFormSchema, createAccountMessages, account("curta"))).toEqual({
       password: PASSWORD_LENGTH_MESSAGE,
     });
-    expect(messages(SignupFormSchema, signupMessages, { name: "Ana", email: EMAIL, password: "x".repeat(129) })).toEqual({
+    expect(messages(CreateAccountFormSchema, createAccountMessages, account("x".repeat(129)))).toEqual({
       password: PASSWORD_LENGTH_MESSAGE,
     });
   });
@@ -90,13 +113,15 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
 
   it("valores válidos passam e saem normalizados como o contrato define", () => {
     expect(LoginFormSchema.parse({ email: "  Aluna@Example.TEST ", password: PASSWORD })).toEqual({ email: EMAIL, password: PASSWORD });
-    expect(SignupFormSchema.parse({ name: " Ana ", email: EMAIL, password: PASSWORD })).toEqual({ name: "Ana", email: EMAIL, password: PASSWORD });
+    expect(
+      CreateAccountFormSchema.parse({ name: " Ana ", ra: " RA-1 ", password: PASSWORD, passwordConfirmation: PASSWORD }),
+    ).toEqual({ name: "Ana", ra: "RA-1", password: PASSWORD, passwordConfirmation: PASSWORD });
   });
 
   it("nenhuma mensagem em inglês (padrão do Zod)", () => {
     const invalid: [z.ZodType, z.core.$ZodErrorMap, Record<string, unknown>][] = [
       [LoginFormSchema, loginMessages, { email: 3, password: null, extra: true }],
-      [SignupFormSchema, signupMessages, { name: 1, email: [], password: {} }],
+      [CreateAccountFormSchema, createAccountMessages, { name: 1, ra: [], password: {}, passwordConfirmation: 2 }],
       [ResendVerificationFormSchema, resendVerificationMessages, { email: "@" }],
       [ForgotPasswordFormSchema, forgotPasswordMessages, {}],
       [ResetPasswordFormSchema, resetPasswordMessages, { password: 5, confirmation: 6 }],

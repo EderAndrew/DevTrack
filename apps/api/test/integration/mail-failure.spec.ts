@@ -49,14 +49,13 @@ describe("falha no envio de e-mail (edge case; FR-016, FR-041, FR-029a)", () => 
     expect(logs.text()).not.toMatch(/token=|https?:\/\/localhost:3000\//);
   };
 
-  it("cadastro e reenvio de verificação: mesma resposta, token vigente, reenvio posterior funciona", async () => {
-    const signup = (t: TestApp, email: string) =>
-      api(t).post("/api/auth/signup", { name: "Aluna Sem E-mail", email, password: PASSWORD });
+  it("reenvio de verificação: mesma resposta, token vigente, reenvio posterior funciona", async () => {
     const resend = (t: TestApp, email: string) => api(t).post("/api/auth/verify-email/resend", { email });
 
     const email = uniqueEmail("sem-smtp");
     const reference = uniqueEmail("com-smtp");
-    expect(shape(await signup(failing, email))).toEqual(shape(await signup(normal, reference)));
+    await createUser(normal, { name: "Aluna Sem E-mail", email, password: PASSWORD, verified: false });
+    await createUser(normal, { name: "Aluna Com E-mail", email: reference, password: PASSWORD, verified: false });
     expect(shape(await resend(failing, email))).toEqual(shape(await resend(normal, reference)));
     await expectFailureLoggedWithoutSecrets(failing);
 

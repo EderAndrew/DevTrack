@@ -1,11 +1,8 @@
 import { z } from "zod";
-import { EmailSchema, NameSchema, PasswordInputSchema, TokenSchema } from "../common/primitives.js";
+import { EmailSchema, PasswordInputSchema, TokenSchema } from "../common/primitives.js";
 
 // Public account requests (001/FR-010–FR-029). Strict: role, roles, permissions, isAdmin or any
 // other unknown field is rejected with 400 VALIDATION_ERROR.
-
-export const SignupRequestSchema = z.strictObject({ name: NameSchema, email: EmailSchema, password: PasswordInputSchema });
-export type SignupRequest = z.infer<typeof SignupRequestSchema>;
 
 export const VerifyEmailRequestSchema = z.strictObject({ token: TokenSchema });
 export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequestSchema>;

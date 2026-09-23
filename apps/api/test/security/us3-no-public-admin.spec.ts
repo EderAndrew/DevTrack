@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { uniqueEmail } from "../helpers/factories";
+import { createClass, createClassInvitation, createUser, uniqueEmail } from "../helpers/factories";
 import { type RegisteredRoute, registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
@@ -33,16 +33,22 @@ describe("US3-8 — nenhuma rota pública produz ADMIN", () => {
   it.each([
     ["role", { role: "ADMIN" }],
     ["roles", { roles: ["ADMIN"] }],
+    ["roleKey", { roleKey: "ADMIN" }],
     ["isAdmin", { isAdmin: true }],
-  ])("cadastro com %s é rejeitado e não cria ADMIN", async (_label, extra) => {
-    const res = await api(t).post("/api/auth/signup", {
+  ])("aceite de convite de turma com %s é rejeitado e não cria ADMIN (003/FR-048)", async (_label, extra) => {
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    const schoolClass = await createClass(t, teacher.id);
+    const email = uniqueEmail("invasor");
+    const { token } = await createClassInvitation(t, schoolClass.id, email);
+    const res = await api(t).post("/api/class-invitations/accept", {
+      token,
       name: "Invasor",
-      email: uniqueEmail("invasor"),
+      ra: "RA-INVASOR",
       password: "senha-forte-do-invasor",
       ...extra,
     });
     expect(res.status).toBe(400);
-    expect(await t.prisma.user.count()).toBe(0);
+    expect(await t.prisma.user.count({ where: { email } })).toBe(0);
     expect(await adminAssignments()).toBe(0);
   });
 

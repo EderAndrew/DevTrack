@@ -4,8 +4,6 @@ import {
   type PublicAccepted,
   type ResendVerificationRequest,
   ResendVerificationRequestSchema,
-  type SignupRequest,
-  SignupRequestSchema,
   type VerifyEmailRequest,
   VerifyEmailRequestSchema,
 } from "@repo/contracts";
@@ -13,22 +11,15 @@ import { type RequestContext, Ctx } from "../../platform/http/request-context";
 import { ZodBody } from "../../platform/http/zod-validation.pipe";
 import { Public } from "../access-control/decorators";
 import { EmailVerificationService } from "./email-verification.service";
-import { SignupService } from "./signup.service";
 
+/**
+ * E-mail verification links and their resend (FR-014, FR-015). Public self-signup is gone
+ * (003 FR-048): `POST /auth/signup` is not registered and answers 404.
+ */
 @Controller("auth")
 @Public()
-export class SignupController {
-  constructor(
-    private readonly signups: SignupService,
-    private readonly verification: EmailVerificationService,
-  ) {}
-
-  @Post("signup")
-  @HttpCode(202)
-  /** Strict: role, roles, permissions, isAdmin or any other field → 400 (FR-010). */
-  signup(@ZodBody(SignupRequestSchema) body: SignupRequest, @Ctx() ctx: RequestContext): Promise<PublicAccepted> {
-    return this.signups.signup(body, ctx);
-  }
+export class EmailVerificationController {
+  constructor(private readonly verification: EmailVerificationService) {}
 
   @Post("verify-email")
   @HttpCode(200)

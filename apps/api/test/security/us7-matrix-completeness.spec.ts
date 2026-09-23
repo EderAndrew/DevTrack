@@ -10,8 +10,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  * permissions as its routes land in MATRIX, and the set is deleted when it is empty.
  */
 const PENDING_003_PERMISSIONS = new Set<PermissionKey>([
-  "turmas.reenviar_convite",
-  "turmas.cancelar_convite",
   "turmas.visualizar_alunos",
   "turmas.remover_aluno",
   "turmas.proprias.listar",

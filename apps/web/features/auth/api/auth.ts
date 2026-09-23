@@ -7,7 +7,6 @@ import type {
   PasswordResetRequest,
   PublicAccepted,
   ResendVerificationRequest,
-  SignupRequest,
   VerifyEmailRequest,
 } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
@@ -17,9 +16,6 @@ import { apiClient } from "@/lib/api/client";
  * Every body `satisfies` its request contract, so a contract change breaks the type-check here (SC-003).
  */
 export const authApi = {
-  /** Sends exactly `{name, email, password}`: extra fields are rejected by the API (FR-010). */
-  signup: ({ name, email, password }: SignupRequest) =>
-    apiClient.post<PublicAccepted>("/auth/signup", { name, email, password } satisfies SignupRequest),
   verifyEmail: (token: string) =>
     apiClient.post<EmailVerifiedResponse>("/auth/verify-email", { token } satisfies VerifyEmailRequest),
   resendVerification: ({ email }: ResendVerificationRequest) =>

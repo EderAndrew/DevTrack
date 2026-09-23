@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   acceptInvitationWithPassword,
   bootstrapAdmin,
-  createVerifiedStudent,
+  createEnrolledStudent,
   field,
   invite,
   logIn,
@@ -11,14 +11,14 @@ import {
 import { waitForLink } from "./fixtures/mailpit.ts";
 
 // Starts from the ADMIN activated by admin-manager.spec.ts (project dependency in playwright.config.ts).
-test("002/US5-1 aluno cadastrado → MANAGER convida → aceite com a sessão do aluno → mesma conta com STUDENT + TEACHER", async ({
+test("002/US5-1 aluno matriculado por convite de turma → MANAGER convida → aceite com a sessão do aluno → mesma conta com STUDENT + TEACHER", async ({
   browser,
 }) => {
   const admin = bootstrapAdmin();
   const manager = newAccount("gestor-professor", "Gestor E2E");
 
   const studentPage = await (await browser.newContext()).newPage();
-  const student = await createVerifiedStudent(studentPage, "aluno-professor", "Aluna Futura Professora");
+  const student = await createEnrolledStudent(studentPage, "aluno-professor", "Aluna Futura Professora");
   await logIn(studentPage, student);
 
   const adminPage = await (await browser.newContext()).newPage();

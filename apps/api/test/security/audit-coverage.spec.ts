@@ -20,12 +20,6 @@ const CONTRACTS = [
  * Each story removes its types when test/helpers/journey.ts starts emitting them (T073 deletes it).
  */
 const PENDING_003_TYPES = new Set([
-  "class_invitation.resent",
-  "class_invitation.cancelled",
-  "class_invitation.accepted",
-  "class_invitation.acceptance_refused",
-  "student.registered",
-  "enrollment.created",
   "enrollment.removed",
 ]);
 
@@ -61,11 +55,27 @@ function contractRows(file: string): ContractRow[] {
     });
 }
 
+/** Types of the "Tipos aposentados" tables: no longer written, so outside the catalogue (003 D13). */
+function retiredTypes(file: string): string[] {
+  const [, retired = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m);
+  const table = retired.split(/^## /m)[0]!;
+  return table
+    .split("\n")
+    .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
+    .flatMap((line) => backticked(line.split("|")[1]!));
+}
+
 describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => {
-  const rows = CONTRACTS.flatMap(contractRows);
+  const retired = new Set(CONTRACTS.flatMap(retiredTypes));
+  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type));
+
+  it("003/FR-048 os tipos aposentados saem do catálogo", () => {
+    expect([...retired]).toEqual(["auth.signup"]);
+    for (const type of retired) expect(Object.keys(AUDIT_EVENT_METADATA)).not.toContain(type);
+  });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(29 + 11);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(

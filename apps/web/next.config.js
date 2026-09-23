@@ -42,6 +42,9 @@ const nextConfig = {
       { source: "/verificar-email", headers: noReferrer },
       { source: "/ativar-admin", headers: noReferrer },
       { source: "/convite", headers: noReferrer },
+      { source: "/convite-turma", headers: noReferrer },
+      // The way back to a class invitation carries its token in `?next=` (003 US4).
+      { source: "/entrar", headers: noReferrer },
       { source: "/redefinir-senha", headers: noReferrer },
     ];
   },

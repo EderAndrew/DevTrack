@@ -32,3 +32,7 @@ export type Uuid = z.infer<typeof UuidSchema>;
 /** Dates in responses travel as ISO 8601 strings, as JSON carries them (002 S4). */
 export const IsoDateTimeSchema = z.iso.datetime();
 export type IsoDateTime = z.infer<typeof IsoDateTimeSchema>;
+
+/** Body of an action without input (`{}`): any field is rejected with 400 (003 US8-6). */
+export const EmptyBodySchema = z.strictObject({});
+export type EmptyBody = z.infer<typeof EmptyBodySchema>;

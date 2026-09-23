@@ -20,7 +20,6 @@ export function useLogin() {
   return useMutation({ mutationFn: authApi.login, ...PUBLIC, onSuccess: () => queryClient.clear() });
 }
 
-export const useSignup = () => useMutation({ mutationFn: authApi.signup, ...PUBLIC });
 export const useResendVerification = () => useMutation({ mutationFn: authApi.resendVerification, ...PUBLIC });
 export const useRequestPasswordReset = () => useMutation({ mutationFn: authApi.requestPasswordReset, ...PUBLIC });
 export const useVerifyEmail = () => useMutation({ mutationFn: authApi.verifyEmail, ...WITH_TOKEN });

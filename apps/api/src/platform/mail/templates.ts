@@ -12,7 +12,6 @@ const formatDate = (date: Date) => dateFormat.format(date);
 
 export interface TemplateParams {
   "verify-email": { name: string; link: string };
-  "signup-existing-account": { name: string; loginLink: string; resetLink: string };
   "password-reset": { name: string; link: string };
   "invitation-teacher": { displayName: string; link: string; expiresAt: Date };
   "invitation-manager": { displayName: string; link: string; expiresAt: Date };
@@ -45,12 +44,6 @@ const renderers: { [K in TemplateName]: (params: TemplateParams[K]) => RenderedM
   "verify-email": ({ name, link }) => ({
     subject: "Confirme seu e-mail no DevTrack",
     text: `Olá, ${name}.\n\nPara confirmar seu e-mail, acesse o link abaixo (válido por 24 horas):\n\n${link}${footer}`,
-  }),
-  "signup-existing-account": ({ name, loginLink, resetLink }) => ({
-    subject: "Tentativa de cadastro no DevTrack",
-    text:
-      `Olá, ${name}.\n\nAlguém tentou criar uma conta no DevTrack com este e-mail, mas ele já possui uma conta.\n\n` +
-      `Para entrar: ${loginLink}\nSe esqueceu a senha: ${resetLink}${footer}`,
   }),
   "password-reset": ({ name, link }) => ({
     subject: "Redefinição de senha do DevTrack",

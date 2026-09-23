@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { hashToken } from "../../src/platform/crypto/tokens";
-import { createUser, uniqueEmail } from "../helpers/factories";
+import { createUser, requestVerificationToken, uniqueEmail } from "../helpers/factories";
 import { LogCapture } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
@@ -13,11 +13,6 @@ const PASSWORD = "senha-forte-do-aluno-2026";
 function publicShape(res: { status: number; body: unknown; headers: Record<string, string> }) {
   const { "x-request-id": _id, date: _date, etag: _etag, ...headers } = res.headers;
   return { status: res.status, body: res.body, headers };
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)]!;
 }
 
 describe("US1 — anti-enumeração, reenvio e segredos (SC-006, FR-015)", () => {
@@ -33,43 +28,7 @@ describe("US1 — anti-enumeração, reenvio e segredos (SC-006, FR-015)", () =>
     t.mailer.clear();
   });
 
-  const signup = (email: string) => api(t).post("/api/auth/signup", { name: "Pessoa", email, password: PASSWORD });
   const resend = (email: string) => api(t).post("/api/auth/verify-email/resend", { email });
-
-  it("cadastro: e-mail novo × existente (verificado e não verificado) são indistinguíveis", async () => {
-    const verified = await createUser(t);
-    const unverified = await createUser(t, { verified: false });
-    const responses = [
-      await signup(uniqueEmail("nova")),
-      await signup(verified.email),
-      await signup(unverified.email),
-    ].map(publicShape);
-    expect(responses[0]!.status).toBe(202);
-    expect(responses[1]).toEqual(responses[0]);
-    expect(responses[2]).toEqual(responses[0]);
-  });
-
-  it("cadastro: mediana de latência na mesma ordem de grandeza (hash também no caminho existente)", async () => {
-    const existing = await Promise.all(Array.from({ length: 5 }, () => createUser(t)));
-    const timed = async (email: string) => {
-      const start = performance.now();
-      const res = await signup(email);
-      expect(res.status).toBe(202);
-      return performance.now() - start;
-    };
-    // Warm-up so JIT/connection setup does not skew the first sample.
-    await timed(uniqueEmail("aquecimento"));
-
-    const fresh: number[] = [];
-    const taken: number[] = [];
-    for (const user of existing) {
-      fresh.push(await timed(uniqueEmail("nova")));
-      taken.push(await timed(user.email));
-    }
-    const ratio = median(fresh) / median(taken);
-    expect(ratio).toBeGreaterThan(1 / 3);
-    expect(ratio).toBeLessThan(3);
-  });
 
   it("reenvio: resposta idêntica; só a conta não verificada recebe link e o anterior é invalidado", async () => {
     const verified = await createUser(t);
@@ -106,13 +65,11 @@ describe("US1 — anti-enumeração, reenvio e segredos (SC-006, FR-015)", () =>
 
   it("logs e auditoria não contêm senha, token do link nem hash do token (SC-005)", async () => {
     logs.clear();
-    const email = uniqueEmail("segredo");
-    await signup(email);
-    await t.flushMail();
-    const token = t.mailer.lastTokenFor(email, "verify-email")!;
+    const { email } = await createUser(t, { email: uniqueEmail("segredo"), password: PASSWORD, verified: false });
+    const token = await requestVerificationToken(t, email);
     await api(t).post("/api/auth/verify-email", { token });
     await resend(email);
-    await signup(email);
+    await api(t).post("/api/auth/login", { email, password: PASSWORD });
     await t.flushMail();
 
     const audit = serialize(await t.prisma.auditEvent.findMany());
@@ -125,7 +82,7 @@ describe("US1 — anti-enumeração, reenvio e segredos (SC-006, FR-015)", () =>
   });
 });
 
-describe("US1 — rate limit de cadastro e reenvio (FR-022)", () => {
+describe("US1 — rate limit do reenvio de verificação (FR-022)", () => {
   let t: TestApp;
 
   beforeAll(async () => {
@@ -138,7 +95,6 @@ describe("US1 — rate limit de cadastro e reenvio (FR-022)", () => {
     t.mailer.clear();
   });
 
-  const signup = (email: string) => api(t).post("/api/auth/signup", { name: "Pessoa", email, password: PASSWORD });
   const resend = (email: string) => api(t).post("/api/auth/verify-email/resend", { email });
 
   const expectRateLimited = (res: { status: number; body: { code?: string }; headers: Record<string, string> }) => {
@@ -149,11 +105,8 @@ describe("US1 — rate limit de cadastro e reenvio (FR-022)", () => {
     expect(retryAfter).toBeGreaterThanOrEqual(1);
   };
 
-  it.each([
-    ["cadastro", "signup"],
-    ["reenvio", "resend"],
-  ])("%s: 3ª solicitação ao mesmo e-mail → 429, igual para existente e inexistente", async (_label, route) => {
-    const call = route === "signup" ? signup : resend;
+  it("reenvio: 3ª solicitação ao mesmo e-mail → 429, igual para existente e inexistente", async () => {
+    const call = resend;
     const owner = await createUser(t, { verified: false });
     const nobody = uniqueEmail("ninguem");
 
@@ -173,19 +126,20 @@ describe("US1 — rate limit de cadastro e reenvio (FR-022)", () => {
     expect(withoutRetry(blockedNobody)).toEqual(withoutRetry(blockedOwner));
     expect(Math.abs(Number(blockedNobody.headers["retry-after"]) - Number(blockedOwner.headers["retry-after"]))).toBeLessThanOrEqual(1);
 
-    // Nothing is created after the block: only the owner and, for signup, the first `nobody`.
-    expect(await t.prisma.user.count()).toBe(route === "signup" ? 2 : 1);
+    // Nothing is created: only the owner exists.
+    expect(await t.prisma.user.count()).toBe(1);
   });
 
   it("limite por origem com e-mails distintos → 429 e auditoria sem dados pessoais", async () => {
-    for (let i = 0; i < 6; i += 1) expect((await signup(uniqueEmail(`origem${i}`))).status).toBe(202);
-    const email = uniqueEmail("bloqueada");
-    expectRateLimited(await signup(email));
-    expect(await t.prisma.user.count({ where: { email } })).toBe(0);
+    for (let i = 0; i < 6; i += 1) expect((await resend(uniqueEmail(`origem${i}`))).status).toBe(202);
+    const { email } = await createUser(t, { email: uniqueEmail("bloqueada"), verified: false });
+    expectRateLimited(await resend(email));
+    await t.flushMail();
+    expect(t.mailer.messagesFor(email)).toHaveLength(0);
 
     const events = await t.prisma.auditEvent.findMany({ where: { type: "auth.rate_limit.blocked" } });
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0]).toMatchObject({ actorType: "ANONYMOUS", metadata: { scope: "signup_origin" } });
+    expect(events[0]).toMatchObject({ actorType: "ANONYMOUS", metadata: { scope: "resend_origin" } });
     const serialized = serialize(events);
     expect(serialized).not.toContain(email);
     expect(serialized).not.toMatch(/127\.0\.0\.1|::1/);

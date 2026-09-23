@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MeViewSchema } from "../me/me.js";
 
-/** Generic answer of public e-mail flows (signup, resend, reset request): reveals nothing (001/SC-006). */
+/** Generic answer of public e-mail flows (verification resend, reset request): reveals nothing (001/SC-006). */
 export const PublicAcceptedSchema = z.strictObject({ message: z.string() });
 export type PublicAccepted = z.infer<typeof PublicAcceptedSchema>;
 

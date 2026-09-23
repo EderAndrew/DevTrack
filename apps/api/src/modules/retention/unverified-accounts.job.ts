@@ -18,7 +18,7 @@ export function unverifiedAccountCutoff(now: Date): Date {
 /**
  * Deletes accounts whose e-mail was never verified (FR-017, R23). Eligible: unverified,
  * created before the cutoff, whose only role assignment is `STUDENT` (any status), that never
- * accepted an invitation and that no other row points at as actor. Each batch locks its rows
+ * accepted an invitation, has no enrollment (003) and that no other row points at as actor. Each batch locks its rows
  * (`FOR UPDATE SKIP LOCKED`, so concurrent runs split the work), deletes sessions, tokens,
  * profile, role and user, and records one `account.unverified_purged` per id — no name or
  * e-mail. `admin_bootstraps.target_user_id` is cleared by its `ON DELETE SET NULL`.
@@ -51,6 +51,9 @@ export class UnverifiedAccountsJob implements MaintenanceJob, OnModuleInit {
                             WHERE i.accepted_by_user_id = u.id OR i.invited_by_id = u.id OR i.revoked_by_id = u.id)
             AND NOT EXISTS (SELECT 1 FROM user_roles ur
                             WHERE ur.user_id <> u.id AND (ur.granted_by_id = u.id OR ur.status_changed_by_id = u.id))
+            AND NOT EXISTS (SELECT 1 FROM enrollments e WHERE e.student_user_id = u.id OR e.removed_by_id = u.id)
+            AND NOT EXISTS (SELECT 1 FROM class_invitations ci
+                            WHERE ci.accepted_by_user_id = u.id OR ci.invited_by_id = u.id OR ci.cancelled_by_id = u.id)
           ORDER BY u.created_at, u.id
           LIMIT ${batchSize}
           FOR UPDATE OF u SKIP LOCKED`;

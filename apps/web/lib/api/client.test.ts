@@ -42,12 +42,12 @@ describe("apiClient requests", () => {
 
   it("POST sends JSON", async () => {
     fetchMock.mockResolvedValueOnce(json(202, { message: "ok" }));
-    await apiClient.post("/auth/signup", { name: "Ana", email: "ana@example.com", password: "x" });
+    await apiClient.post("/auth/login", { email: "ana@example.com", password: "x" });
 
     const [, init] = fetchMock.mock.calls[0]!;
     expect(init?.method).toBe("POST");
     expect(init?.headers).toMatchObject({ "Content-Type": "application/json" });
-    expect(JSON.parse(init?.body as string)).toEqual({ name: "Ana", email: "ana@example.com", password: "x" });
+    expect(JSON.parse(init?.body as string)).toEqual({ email: "ana@example.com", password: "x" });
   });
 
   it("unsafe methods without body still send a JSON body (API CSRF rule)", async () => {

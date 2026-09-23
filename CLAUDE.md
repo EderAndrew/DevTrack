@@ -159,7 +159,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   has capability but resource outside the user's context → `404` (don't reveal existence).
 - One `User` identity with many roles via `User → UserRole → Role → RolePermission → Permission`;
   never a `users.role` column. No public self-signup (constitution 3.0.0): student accounts come only from
-  accepting a teacher's class invitation (spec 003); the Phase 001 signup stays until 003 removes it.
+  accepting a teacher's class invitation (spec 003); `POST /auth/signup` and `/cadastro` are gone (FR-048).
   `TEACHER`/`MANAGER` come only from invitations; the first `ADMIN` only from the CLI (no endpoint,
   seed, default password or env credentials). The last active `ADMIN` can't be removed.
 - Workflows use explicit state enums, not boolean flags; invalid transitions → `409
