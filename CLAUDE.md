@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-22 (002/T089)
+Last updated: 2026-09-23 (003 planned)
 
 ## Project state
 
@@ -10,8 +10,9 @@ DevTrack is a teaching/assessment platform configurable per teacher (docs, specs
 test names are in Portuguese). Phase 001 (`specs/001-foundation-identity-access`) is fully
 implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish phase. Phase 002
 (`specs/002-stack-alignment`) refactored it onto the official stack without changing behavior:
-shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. New work starts a
-new feature through `/speckit-specify`.
+shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. The active feature
+is 003 (`specs/003-class-invitations-enrollment`): spec, plan and tasks are written, and
+implementation has not started. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002), `data-model.md`,
@@ -53,7 +54,9 @@ docker compose up -d postgres postgres-test mailpit     # dev DB :5432, test DB 
 pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # turbo across workspaces
 pnpm format                                             # prettier on ts/tsx/md
 
-# apps/api (port 4000) — copy .env.example to .env first
+# apps/api (port 4000) — copy .env.example to .env first (fill APP_HMAC_SECRET: openssl rand -base64 48;
+# the API refuses to start if a required var is missing); tests use .env.test.example and refuse
+# any DB whose name lacks "test". Web: copy apps/web/.env.example to .env.local
 pnpm --filter api prisma generate                       # client -> src/generated/prisma (gitignored); also runs on `pnpm install`
 pnpm --filter api prisma migrate deploy                 # migrations also seed roles/permissions; prisma.config.ts loads apps/api/.env
 pnpm --filter api dev                                   # swc watch into dist/ + node --watch
@@ -93,8 +96,10 @@ API test harness and API-only guards (test DB setup, `resetDb`, `createTestApp`,
 scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
-- `test/traceability.spec.ts` parses `spec.md`. Every `USn-k` scenario and every traceability row
-  must appear in a `describe`/`it` title, so name new tests with their scenario or SC/FR id.
+- `apps/api/test/traceability.spec.ts` parses a spec's `spec.md`. Every `USn-k` scenario and every
+  traceability row must appear in a `describe`/`it` title, so name new tests with their scenario or
+  SC/FR id. The spec path is hardcoded to `specs/001-foundation-identity-access/spec.md`, so a new
+  feature's scenarios aren't checked until the test is extended to cover that spec.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
