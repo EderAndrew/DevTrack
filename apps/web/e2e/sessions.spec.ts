@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { createVerifiedStudent, logIn, sessionRows } from "./fixtures/journeys.ts";
+import { createEnrolledStudent, logIn, sessionRows } from "./fixtures/journeys.ts";
 
 test("002/US5-1 dois logins → revogar o outro → sair de todos → sessões recusadas", async ({ browser }) => {
   const first = await (await browser.newContext()).newPage();
   const second = await (await browser.newContext()).newPage();
-  const account = await createVerifiedStudent(first, "sessoes");
+  const account = await createEnrolledStudent(first, "sessoes");
 
   await logIn(first, account);
   await logIn(second, account);

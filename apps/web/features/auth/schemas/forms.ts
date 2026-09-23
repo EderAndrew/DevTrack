@@ -4,7 +4,6 @@ import {
   PasswordResetConfirmRequestSchema,
   PasswordResetRequestSchema,
   ResendVerificationRequestSchema,
-  SignupRequestSchema,
 } from "@repo/contracts";
 import { z } from "zod";
 import { fieldMessages } from "@/lib/forms/field-messages";
@@ -18,9 +17,6 @@ export const LoginFormSchema = LoginRequestSchema.extend({ password: PasswordInp
 export type LoginFormInput = z.input<typeof LoginFormSchema>;
 export const loginMessages = fieldMessages({ email: "Informe seu e-mail.", password: "Informe sua senha." });
 
-export const SignupFormSchema = SignupRequestSchema.extend({ password: NewPasswordSchema });
-export type SignupFormInput = z.input<typeof SignupFormSchema>;
-export const signupMessages = fieldMessages({ name: "Informe seu nome.", email: "Informe seu e-mail." });
 
 export const ResendVerificationFormSchema = ResendVerificationRequestSchema;
 export type ResendVerificationFormInput = z.input<typeof ResendVerificationFormSchema>;

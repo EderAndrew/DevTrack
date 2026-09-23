@@ -52,8 +52,8 @@ describe("003/US1-5 ClassDetails — dados, situação e abas (FR-004, FR-005, F
     await expectNoA11yViolations(container);
   });
 
-  it("abas com setas do teclado", async () => {
-    fetchMock.mockResolvedValueOnce(json(200, CLASS));
+  it("abas com setas do teclado; a aba Convites carrega os convites da turma", async () => {
+    fetchMock.mockResolvedValueOnce(json(200, CLASS)).mockResolvedValueOnce(json(200, { items: [], nextCursor: null }));
     render();
     const user = userEvent.setup();
     const alunos = await screen.findByRole("tab", { name: "Alunos" });
@@ -61,7 +61,9 @@ describe("003/US1-5 ClassDetails — dados, situação e abas (FR-004, FR-005, F
     await user.keyboard("{ArrowRight}");
     const convites = screen.getByRole("tab", { name: "Convites", selected: true });
     expect(document.activeElement).toBe(convites);
-    expect(screen.getByRole("tabpanel", { name: "Convites" }).textContent).toContain("Nenhum convite pendente.");
+    const panel = screen.getByRole("tabpanel", { name: "Convites" });
+    await vi.waitFor(() => expect(panel.textContent).toContain("Nenhum convite pendente."));
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/classes/${CLASS.id}/invitations?status=PENDING`);
     await user.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(alunos);
   });

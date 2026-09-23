@@ -24,10 +24,19 @@ export default defineConfig({
   projects: [
     // Activates the bootstrap ADMIN through the screens; teacher-invitation starts from that ADMIN.
     { name: "admin", testMatch: "admin-manager.spec.ts", use: devices["Desktop Chrome"] },
-    { name: "manager", testMatch: "teacher-invitation.spec.ts", dependencies: ["admin"], use: devices["Desktop Chrome"] },
+    // Students come only from class invitations (003 FR-048): the ADMIN invites the teacher of
+    // the run, who creates the class every student journey is invited to.
+    { name: "teacher", testMatch: "class-teacher-setup.spec.ts", dependencies: ["admin"], use: devices["Desktop Chrome"] },
+    {
+      name: "manager",
+      testMatch: "teacher-invitation.spec.ts",
+      dependencies: ["teacher"],
+      use: devices["Desktop Chrome"],
+    },
     {
       name: "journeys",
-      testIgnore: ["admin-manager.spec.ts", "teacher-invitation.spec.ts"],
+      testIgnore: ["admin-manager.spec.ts", "class-teacher-setup.spec.ts", "teacher-invitation.spec.ts"],
+      dependencies: ["teacher"],
       use: devices["Desktop Chrome"],
     },
   ],

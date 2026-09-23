@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { hashToken } from "../../src/platform/crypto/tokens";
-import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
+import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const OWNER_PASSWORD = "senha-do-dono-do-email";
@@ -43,8 +43,8 @@ describe("SC-011 — nenhuma tomada de conta pelo fluxo de convite", () => {
 
   /** The attacker pre-registers the victim's e-mail and keeps a session open. */
   const preRegister = async (email: string) => {
-    expect((await api(t).post("/api/auth/signup", { name: "Atacante", email, password: ATTACKER_PASSWORD })).status).toBe(202);
-    await t.flushMail();
+    await createUser(t, { name: "Atacante", email, password: ATTACKER_PASSWORD, verified: false });
+    await requestVerificationToken(t, email);
     return cookieOf(await login(email, ATTACKER_PASSWORD));
   };
 

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-bootstrap.service";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { hashToken } from "../../src/platform/crypto/tokens";
-import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
+import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
@@ -250,9 +250,8 @@ describe("US5 — MANAGER convida e gerencia professores (FR-040–FR-051)", () 
     const secrets = [t.mailer.lastTokenFor(email, "invitation-teacher")!];
 
     const studentEmail = uniqueEmail("aluno");
-    await api(t).post("/api/auth/signup", { name: "Aluno", email: studentEmail, password: PASSWORD });
-    await t.flushMail();
-    secrets.push(t.mailer.lastTokenFor(studentEmail, "verify-email")!);
+    await createUser(t, { name: "Aluno", email: studentEmail, password: PASSWORD, verified: false });
+    secrets.push(await requestVerificationToken(t, studentEmail));
 
     const login = await api(t).post("/api/auth/login", { email: studentEmail, password: PASSWORD });
     const setCookie = ([] as string[]).concat(login.headers["set-cookie"] ?? []).find((c) => c.startsWith(SESSION_COOKIE_NAME))!;

@@ -9,18 +9,18 @@ import { AuditService } from "../audit/audit.service";
 
 /** Public flows limited per origin and per target e-mail or token (FR-022). */
 export type PublicFlow =
-  | "signup"
   | "resend"
   | "admin_activation"
   | "admin_activation_preview"
   | "invitation_accept"
   | "invitation_preview"
   | "password_reset"
-  | "password_reset_confirm";
+  | "password_reset_confirm"
+  | "class_invitation_preview"
+  | "class_invitation_accept";
 
 /** What the per-target counter is keyed on, as named in the audit scope. */
 const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
-  signup: "email",
   resend: "email",
   admin_activation: "token",
   admin_activation_preview: "token",
@@ -28,6 +28,8 @@ const TARGET_KIND: Record<PublicFlow, "email" | "token"> = {
   invitation_preview: "token",
   password_reset: "email",
   password_reset_confirm: "token",
+  class_invitation_preview: "token",
+  class_invitation_accept: "token",
 };
 
 /**

@@ -74,7 +74,6 @@ describe("route access declarations", () => {
     expect(routes.map((r) => r.route)).toEqual(expect.arrayContaining([
         "GET /health/live",
         "GET /health/ready",
-        "POST /auth/signup",
         "POST /auth/verify-email",
         "POST /auth/verify-email/resend",
         "GET /me",
@@ -90,6 +89,8 @@ describe("route access declarations", () => {
         "POST /admin-activation/preview",
         "POST /invitations/preview",
         "POST /invitations/accept",
+  "POST /class-invitations/preview",
+  "POST /class-invitations/accept",
         "GET /managers",
         "POST /managers/:userId/deactivate",
         "POST /managers/:userId/reactivate",

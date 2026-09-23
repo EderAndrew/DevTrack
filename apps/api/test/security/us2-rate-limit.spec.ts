@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { progressiveDelayMs } from "../../src/platform/rate-limit/rate-limit.service";
-import { createUser, DEFAULT_PASSWORD, uniqueEmail } from "../helpers/factories";
+import { createClass, createClassInvitation, createUser, DEFAULT_PASSWORD, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
 const WRONG = "senha-errada-mas-longa";
@@ -81,16 +81,19 @@ describe("US2 — rate limit de autenticação (FR-022, R8)", () => {
     expect((await login(owner.email, owner.password, "198.51.100.200")).status).toBe(200);
   });
 
-  it("turma atrás do mesmo IP (NAT): 40 logins e 40 cadastros sem 429", async () => {
+  it("turma atrás do mesmo IP (NAT): 40 logins e 40 aceites de convite de turma sem 429", async () => {
     const students = await Promise.all(Array.from({ length: 40 }, () => createUser(t)));
     for (const student of students) {
       expect((await login(student.email, student.password, IP_A)).status).toBe(200);
     }
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    const schoolClass = await createClass(t, teacher.id);
     for (let i = 0; i < 40; i += 1) {
+      const { token } = await createClassInvitation(t, schoolClass.id, uniqueEmail("turma"));
       const res = await api(t)
-        .post("/api/auth/signup", { name: `Aluno ${i}`, email: uniqueEmail("turma"), password: DEFAULT_PASSWORD })
+        .post("/api/class-invitations/accept", { token, name: `Aluno ${i}`, ra: `RA-NAT-${i}`, password: DEFAULT_PASSWORD })
         .set("X-Forwarded-For", IP_A);
-      expect(res.status).toBe(202);
+      expect(res.status).toBe(200);
     }
   });
 

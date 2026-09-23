@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { createVerifiedStudent, logIn, sessionRows } from "./fixtures/journeys.ts";
+import { createEnrolledStudent, logIn, sessionRows } from "./fixtures/journeys.ts";
 
 test("002/US5-3 002/SC-007 A vê suas sessões → sai → B entra no mesmo navegador → nenhum dado de A na tela", async ({
   page,
   browser,
 }) => {
-  const a = await createVerifiedStudent(page, "troca-a", "Pessoa A da Troca");
-  const b = await createVerifiedStudent(page, "troca-b", "Pessoa B da Troca");
+  const a = await createEnrolledStudent(page, "troca-a", "Pessoa A da Troca");
+  const b = await createEnrolledStudent(page, "troca-b", "Pessoa B da Troca");
 
   // A second session of A elsewhere, so A's list differs from B's.
   await logIn(await (await browser.newContext()).newPage(), a);

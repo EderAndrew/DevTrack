@@ -22,7 +22,6 @@ export const AUDIT_EVENT_METADATA = {
   "account.reactivated": [],
   "account.claimed": ["via", "revokedSessions"],
   "account.last_admin_protected": ["operation"],
-  "auth.signup": [],
   "auth.email_verified": [],
   "auth.login.succeeded": ["sessionId"],
   "auth.rate_limit.blocked": ["scope"],

@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { createVerifiedStudent, field, logIn } from "./fixtures/journeys.ts";
+import { createEnrolledStudent, field, logIn } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 
 test("002/US5-1 esqueci a senha → e-mail → redefinir → login com a nova senha; link reaberto é recusado", async ({ page }) => {
-  const account = await createVerifiedStudent(page, "senha");
+  const account = await createEnrolledStudent(page, "senha");
   const newPassword = "Trilha-E2E-nova-senha-2026";
 
   await page.goto("/esqueci-senha");

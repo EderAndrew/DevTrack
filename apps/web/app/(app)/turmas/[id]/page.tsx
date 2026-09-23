@@ -19,6 +19,8 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
         canEdit={me.permissions.includes("turmas.editar")}
         canChangeStatus={me.permissions.includes("turmas.alterar_situacao")}
         canInvite={me.permissions.includes("turmas.convidar_aluno")}
+        canResendInvitation={me.permissions.includes("turmas.reenviar_convite")}
+        canCancelInvitation={me.permissions.includes("turmas.cancelar_convite")}
       />
     </section>
   );

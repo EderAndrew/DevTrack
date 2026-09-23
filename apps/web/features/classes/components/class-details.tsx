@@ -2,18 +2,19 @@
 
 import { Pencil } from "lucide-react";
 import Link from "next/link";
-import { type KeyboardEvent, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClass } from "../hooks/use-classes";
+import { ClassInvitationsTab } from "./class-invitations-tab";
 import { ClassStatusActions } from "./class-status-actions";
 import { ClassStatusBadge } from "./class-status-badge";
 import { InviteStudentDialog } from "./invite-student-dialog";
 
 const TABS = [
-  { id: "alunos", label: "Alunos", empty: "Nenhum aluno nesta turma." },
-  { id: "convites", label: "Convites", empty: "Nenhum convite pendente." },
+  { id: "alunos", label: "Alunos" },
+  { id: "convites", label: "Convites" },
 ] as const;
 
 export interface ClassDetailsProps {
@@ -23,6 +24,9 @@ export interface ClassDetailsProps {
   canChangeStatus: boolean;
   /** "Convidar aluno", offered only while the class is ACTIVE (FR-010). */
   canInvite: boolean;
+  /** Actions on pending invitations in the "Convites" tab (FR-020, FR-022). */
+  canResendInvitation?: boolean;
+  canCancelInvitation?: boolean;
 }
 
 /**
@@ -30,7 +34,14 @@ export interface ClassDetailsProps {
  * aluno", Editar, status changes), then the "Alunos" and "Convites" tabs (filled by the
  * following stories).
  */
-export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassDetailsProps) {
+export function ClassDetails({
+  id,
+  canEdit,
+  canChangeStatus,
+  canInvite,
+  canResendInvitation = false,
+  canCancelInvitation = false,
+}: ClassDetailsProps) {
   const query = useClass(id);
 
   if (query.isPending) {
@@ -88,13 +99,24 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
         {canChangeStatus ? <ClassStatusActions schoolClass={schoolClass} /> : null}
       </div>
 
-      <ClassTabs />
+      <ClassTabs
+        panels={{
+          alunos: <p>Nenhum aluno nesta turma.</p>,
+          convites: (
+            <ClassInvitationsTab
+              classId={schoolClass.id}
+              canResend={canResendInvitation && schoolClass.status === "ACTIVE"}
+              canCancel={canCancelInvitation}
+            />
+          ),
+        }}
+      />
     </div>
   );
 }
 
 /** WAI-ARIA tabs: arrows, Home and End move between tabs; only the selected one is in the Tab order. */
-function ClassTabs() {
+function ClassTabs({ panels }: { panels: Record<(typeof TABS)[number]["id"], ReactNode> }) {
   const [selected, setSelected] = useState(0);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -144,7 +166,7 @@ function ClassTabs() {
           hidden={selected !== index}
           tabIndex={0}
         >
-          <p>{tab.empty}</p>
+          {selected === index ? panels[tab.id] : null}
         </div>
       ))}
     </div>

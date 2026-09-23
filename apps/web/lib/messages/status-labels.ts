@@ -1,5 +1,6 @@
 import type {
   AccountStatus,
+  ClassInvitationStatus,
   ClassStatus,
   InvitationStatus,
   RoleAssignmentStatus,
@@ -32,4 +33,12 @@ export const CLASS_STATUS_LABELS: Record<ClassStatus, string> = {
   ACTIVE: "Ativa",
   INACTIVE: "Inativa",
   ARCHIVED: "Arquivada",
+};
+
+/** Status of a class invitation ("convite" is masculine). */
+export const CLASS_INVITATION_STATUS_LABELS: Record<ClassInvitationStatus, string> = {
+  PENDING: "Pendente",
+  ACCEPTED: "Aceito",
+  EXPIRED: "Expirado",
+  CANCELLED: "Cancelado",
 };

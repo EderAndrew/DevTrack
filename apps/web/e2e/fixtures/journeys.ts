@@ -1,4 +1,7 @@
-import { type Page, expect } from "@playwright/test";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { type Browser, type Locator, type Page, expect } from "@playwright/test";
+import { WEB_DIR } from "../env.ts";
 import { uniqueEmail } from "./emails.ts";
 import { waitForLink } from "./mailpit.ts";
 
@@ -18,22 +21,7 @@ export function newAccount(journey: string, name = `Pessoa ${journey}`): Account
 }
 
 /** Labels end with " (obrigatório)"; anchoring keeps "Nova senha" apart from "Confirme a nova senha". */
-export const field = (page: Page, label: string) => page.getByLabel(new RegExp(`^${label}`));
-
-export async function signUp(page: Page, account: Account): Promise<void> {
-  await page.goto("/cadastro");
-  await field(page, "Nome").fill(account.name);
-  await field(page, "E-mail").fill(account.email);
-  await field(page, "Senha").fill(account.password);
-  await page.getByRole("button", { name: "Criar conta" }).click();
-  await expect(page.getByRole("heading", { name: "Verifique seu e-mail" })).toBeVisible();
-}
-
-/** Opens the verification link of the e-mail, as the user would. */
-export async function verifyEmail(page: Page, account: Account): Promise<void> {
-  await page.goto(await waitForLink(account.email, { path: "/verificar-email" }));
-  await expect(page.getByRole("heading", { name: "E-mail verificado" })).toBeVisible();
-}
+export const field = (scope: Page | Locator, label: string) => scope.getByLabel(new RegExp(`^${label}`));
 
 /** Signs in through the login page and waits for `next` (default: the page's own fallback). */
 export async function logIn(page: Page, account: Pick<Account, "email" | "password">, next = "/conta/perfil"): Promise<void> {
@@ -42,14 +30,6 @@ export async function logIn(page: Page, account: Pick<Account, "email" | "passwo
   await field(page, "Senha").fill(account.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page).toHaveURL(next);
-}
-
-/** Student account with a verified e-mail (signup → e-mail → link). */
-export async function createVerifiedStudent(page: Page, journey: string, name?: string): Promise<Account> {
-  const account = newAccount(journey, name);
-  await signUp(page, account);
-  await verifyEmail(page, account);
-  return account;
 }
 
 /** Sends an invitation from the page of `path` ("/admin/managers" or "/professores"), signed in with permission. */
@@ -79,3 +59,73 @@ export function bootstrapAdmin(): { email: string; link: string; password: strin
   if (!email || !link) throw new Error("global-setup.ts não registrou o bootstrap do ADMIN.");
   return { email, link, password: ADMIN_PASSWORD };
 }
+
+/** Teacher and class created by class-teacher-setup.spec.ts (project `teacher`), shared through a file. */
+export interface ClassTeacher extends Account {
+  classId: string;
+}
+
+/** Under outputDir, which Playwright empties at the start of each run: never a stale teacher. */
+const CLASS_TEACHER_FILE = join(WEB_DIR, "test-results", "e2e-class-teacher.json");
+
+export function saveClassTeacher(teacher: ClassTeacher): void {
+  mkdirSync(dirname(CLASS_TEACHER_FILE), { recursive: true });
+  writeFileSync(CLASS_TEACHER_FILE, JSON.stringify(teacher));
+}
+
+export function classTeacher(): ClassTeacher {
+  try {
+    return JSON.parse(readFileSync(CLASS_TEACHER_FILE, "utf8")) as ClassTeacher;
+  } catch {
+    throw new Error("class-teacher-setup.spec.ts não registrou o professor da turma (projeto teacher).");
+  }
+}
+
+/**
+ * Student account with a verified e-mail, the only way one exists since 003 (FR-048): the
+ * teacher of the run invites the e-mail to its class and the student accepts through the link
+ * of the e-mail, creating the account. Both happen in their own browser contexts, and the
+ * session opened by the acceptance is ended there, so the caller's pages start signed out and
+ * with no extra session in "Minhas sessões".
+ */
+export async function createEnrolledStudent(page: Page, journey: string, name?: string): Promise<Account> {
+  const browser = page.context().browser() as Browser;
+  const account = newAccount(journey, name);
+  await inviteToClass(browser, account);
+
+  const studentPage = await (await browser.newContext()).newPage();
+  await acceptClassInvitation(studentPage, account);
+  await studentPage.goto("/conta/perfil");
+  await studentPage.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(studentPage).toHaveURL("/entrar");
+  await studentPage.context().close();
+  return account;
+}
+
+/** The teacher of the run invites `account` to its class ("Convidar aluno"), in its own context. */
+export async function inviteToClass(browser: Browser, account: Pick<Account, "email">): Promise<void> {
+  const teacher = classTeacher();
+  const teacherPage = await (await browser.newContext()).newPage();
+  await logIn(teacherPage, teacher, `/turmas/${teacher.classId}`);
+  await teacherPage.getByRole("button", { name: "Convidar aluno" }).click();
+  const dialog = teacherPage.getByRole("dialog", { name: "Convidar aluno" });
+  await field(dialog, "E-mail").fill(account.email);
+  await dialog.getByRole("button", { name: "Enviar convite" }).click();
+  await expect(teacherPage.getByText("Convite enviado.")).toBeVisible();
+  await teacherPage.context().close();
+}
+
+/** Opens the class invitation link of the e-mail and creates the account (name, RA, password). */
+export async function acceptClassInvitation(page: Page, account: Account): Promise<void> {
+  await page.goto(await waitForLink(account.email, { path: "/convite-turma" }));
+  await field(page, "Nome completo").fill(account.name);
+  await field(page, "RA").fill(raFor(account));
+  await field(page, "Senha").fill(account.password);
+  await field(page, "Confirmar senha").fill(account.password);
+  await page.getByRole("button", { name: "Entrar na turma" }).click();
+  await expect(page.getByRole("heading", { name: "Você agora faz parte da turma." })).toBeVisible();
+}
+
+/** A unique RA per account (the RA is unique across students). */
+export const raFor = (account: Pick<Account, "email">) =>
+  `RA-${account.email.split("@")[0]!.replace(/[^A-Za-z0-9]/g, "").slice(-16)}`;

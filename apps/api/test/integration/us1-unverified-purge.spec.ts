@@ -3,7 +3,7 @@ import { UnverifiedAccountsJob } from "../../src/modules/retention/unverified-ac
 import { RoleGrantAcceptance } from "../../src/modules/provisioning/role-grant-acceptance.service";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
-import { createUser, loginAs, type TestUser } from "../helpers/factories";
+import { createClass, createClassInvitation, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 /** Audit ids are BigInt. */
@@ -98,13 +98,17 @@ describe("job unverified-accounts (FR-017, contracts/maintenance-jobs.md)", () =
     });
     const withAcceptedInvite = await staleStudent(30);
     await createInvitation(withAcceptedInvite.email, { acceptedByUserId: withAcceptedInvite.id });
+    // 003: an enrolled student is never purged, even if its e-mail was never verified.
+    const enrolled = await staleStudent(30);
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    await createEnrollment(t, (await createClass(t, teacher.id)).id, enrolled.id);
 
     expect(await purge()).toBe(0);
-    for (const user of [young, verified, withTeacher, withAcceptedInvite]) expect(await exists(user)).toBe(true);
+    for (const user of [young, verified, withTeacher, withAcceptedInvite, enrolled]) expect(await exists(user)).toBe(true);
     expect(await t.prisma.auditEvent.count({ where: { type: "account.unverified_purged" } })).toBe(0);
   });
 
-  it("depois da remoção: link antigo inválido e o e-mail fica livre para novo cadastro", async () => {
+  it("depois da remoção: link antigo inválido e o e-mail fica livre para uma conta nova (convite de turma)", async () => {
     const user = await staleStudent();
     await addToken(user.id, "x".repeat(43));
 
@@ -114,8 +118,11 @@ describe("job unverified-accounts (FR-017, contracts/maintenance-jobs.md)", () =
     expect(verify.status).toBe(400);
     expect(verify.body.code).toBe("TOKEN_INVALID");
 
-    const signup = await api(t).post("/api/auth/signup", { name: "De Novo", email: user.email, password: PASSWORD });
-    expect(signup.status).toBe(202);
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    const schoolClass = await createClass(t, teacher.id);
+    const { token } = await createClassInvitation(t, schoolClass.id, user.email);
+    const accepted = await api(t).post("/api/class-invitations/accept", { token, name: "De Novo", ra: "RA-NOVO", password: PASSWORD });
+    expect(accepted.status).toBe(200);
     const recreated = await t.prisma.user.findUniqueOrThrow({ where: { email: user.email } });
     expect(recreated.id).not.toBe(user.id);
   });

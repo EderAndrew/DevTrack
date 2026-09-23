@@ -11,8 +11,10 @@ import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
 import { PublicRateLimit } from "./public-rate-limit";
-import { PUBLIC_ACCEPTED_MESSAGE } from "./signup.service";
 import { UserTokenService } from "./user-token.service";
+
+/** Body of every accepted public request about an e-mail (resend, reset request): reveals nothing (SC-006). */
+export const PUBLIC_ACCEPTED_MESSAGE = "Se o e-mail puder ser usado, enviaremos as instruções para ele.";
 
 /**
  * E-mail verification (FR-014, FR-015). `verify` is idempotent: replaying a link that already

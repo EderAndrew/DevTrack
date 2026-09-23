@@ -75,15 +75,20 @@ export class DeliveryService {
    * its result before that); earlier pending deliveries of the invitation become `SUPERSEDED`.
    */
   async schedule(tx: Tx, invitationId: string, now = new Date()): Promise<string> {
-    await tx.classInvitationDelivery.updateMany({
-      where: { invitationId, status: "PENDING" },
-      data: { status: "SUPERSEDED", nextAttemptAt: null },
-    });
+    await this.supersedePending(tx, invitationId);
     const delivery = await tx.classInvitationDelivery.create({
       data: { invitationId, status: "PENDING", attempts: 0, nextAttemptAt: new Date(now.getTime() + FIRST_ATTEMPT_GRACE_MS) },
       select: { id: true },
     });
     return delivery.id;
+  }
+
+  /** Retires the invitation's pending deliveries (resend, cancel): they will never be sent. */
+  async supersedePending(tx: Tx, invitationId: string): Promise<void> {
+    await tx.classInvitationDelivery.updateMany({
+      where: { invitationId, status: "PENDING" },
+      data: { status: "SUPERSEDED", nextAttemptAt: null },
+    });
   }
 
   /**

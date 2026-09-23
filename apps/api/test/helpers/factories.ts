@@ -14,7 +14,7 @@ import { ProfileRepository } from "../../src/modules/identity/profile.repository
 import { normalizeRa } from "../../src/modules/identity/ra";
 import { generateToken, hashToken } from "../../src/platform/crypto/tokens";
 import { searchKey } from "../../src/platform/text/search-key";
-import type { TestApp } from "./test-app";
+import { api, type TestApp } from "./test-app";
 
 export const DEFAULT_PASSWORD = "cavalo-correto-bateria-grampo";
 
@@ -179,4 +179,17 @@ export async function createEnrollment(t: TestApp, classId: string, studentUserI
   return t.prisma.enrollment.create({
     data: { classId, studentUserId, status: "ACTIVE", enrolledAt: new Date() },
   });
+}
+
+/**
+ * Verification link of an unverified account through the public resend (FR-015): what public
+ * signup used to hand out, now that accounts come from invitations only (003 FR-048).
+ */
+export async function requestVerificationToken(t: TestApp, email: string): Promise<string> {
+  const res = await api(t).post("/api/auth/verify-email/resend", { email });
+  if (res.status !== 202) throw new Error(`resend answered ${res.status}`);
+  await t.flushMail();
+  const token = t.mailer.lastTokenFor(email, "verify-email");
+  if (!token) throw new Error(`no verification e-mail for ${email}`);
+  return token;
 }

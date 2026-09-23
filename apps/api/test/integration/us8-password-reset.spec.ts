@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { hashToken } from "../../src/platform/crypto/tokens";
-import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
+import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const NEW_PASSWORD = "nova-senha-muito-segura";
@@ -93,9 +93,8 @@ describe("US8 — esqueci minha senha (FR-029a–e)", () => {
 
   it("US8-3 conta não verificada passa a verificada e o link de verificação pendente morre", async () => {
     const email = uniqueEmail("nao-verificada");
-    await api(t).post("/api/auth/signup", { name: "Pessoa", email, password: "senha-inicial-segura" });
-    await t.flushMail();
-    const verifyToken = t.mailer.lastTokenFor(email, "verify-email")!;
+    await createUser(t, { name: "Pessoa", email, password: "senha-inicial-segura", verified: false });
+    const verifyToken = await requestVerificationToken(t, email);
     const token = await resetToken({ email });
 
     expect((await confirm(token)).status).toBe(200);
