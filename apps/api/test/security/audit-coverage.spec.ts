@@ -19,9 +19,7 @@ const CONTRACTS = [
  * catalogue and, when emitted, for actor/target/metadata; only "emitted by the journey" is waived.
  * Each story removes its types when test/helpers/journey.ts starts emitting them (T073 deletes it).
  */
-const PENDING_003_TYPES = new Set([
-  "enrollment.removed",
-]);
+const PENDING_003_TYPES = new Set<string>([]);
 
 interface ContractRow {
   type: string;

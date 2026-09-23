@@ -99,6 +99,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:id/invitations", access: "turmas.convidar_aluno" },
   { method: "POST", path: "/classes/:id/invitations/:invitationId/resend", access: "turmas.reenviar_convite" },
   { method: "POST", path: "/classes/:id/invitations/:invitationId/cancel", access: "turmas.cancelar_convite" },
+  { method: "GET", path: "/classes/:id/enrollments", access: "turmas.visualizar_alunos" },
+  { method: "POST", path: "/classes/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

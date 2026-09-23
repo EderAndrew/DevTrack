@@ -211,14 +211,14 @@ história começa antes desta fase.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T060 [P] [US6] Teste de integração `apps/api/test/integration/003-us6-enrollments.spec.ts`: `003/US6-1` (detalhe com `activeStudentCount`), `003/US6-2` (lista por nome, pesquisa por nome e prefixo de RA, filtro de situação, padrão `ACTIVE`, cursor; sem dados de autenticação), `003/US6-3` (remover → `REMOVED`, `removedAt`, `removedById`, `enrollment.removed`; `User`, papel, perfil e outras matrículas intactos), `003/US6-4` (remover de novo → 200 sem nova auditoria), `003/US6-5` (novo convite e aceite → nova matrícula ativa; a removida continua), `003/US6-6` (matrícula de turma alheia → 404), turma arquivada → remoção 409, duas remoções simultâneas → um efeito
-- [ ] T061 [P] [US6] Teste do web `apps/web/features/classes/components/class-students-tab.test.tsx`: lista, pesquisa, filtro, estado vazio "Nenhum aluno nesta turma.", remoção com `alert-dialog` e contagem atualizada, axe
+- [X] T060 [P] [US6] Teste de integração `apps/api/test/integration/003-us6-enrollments.spec.ts`: `003/US6-1` (detalhe com `activeStudentCount`), `003/US6-2` (lista por nome, pesquisa por nome e prefixo de RA, filtro de situação, padrão `ACTIVE`, cursor; sem dados de autenticação), `003/US6-3` (remover → `REMOVED`, `removedAt`, `removedById`, `enrollment.removed`; `User`, papel, perfil e outras matrículas intactos), `003/US6-4` (remover de novo → 200 sem nova auditoria), `003/US6-5` (novo convite e aceite → nova matrícula ativa; a removida continua), `003/US6-6` (matrícula de turma alheia → 404), turma arquivada → remoção 409, duas remoções simultâneas → um efeito
+- [X] T061 [P] [US6] Teste do web `apps/web/features/classes/components/class-students-tab.test.tsx`: lista, pesquisa, filtro, estado vazio "Nenhum aluno nesta turma.", remoção com `alert-dialog` e contagem atualizada, axe
 
 ### Implementation for User Story 6
 
-- [ ] T062 [US6] `apps/api/src/modules/enrollments/enrollments.service.ts` (`list` keyset por `lower(users.name), id`, pesquisa em nome e `ra LIKE termo%`; `remove` com `UPDATE … WHERE status = 'ACTIVE' RETURNING`, idempotente, bloqueado em turma `ARCHIVED`) e mapper `enrollment.view.ts`
-- [ ] T063 [US6] `apps/api/src/modules/enrollments/enrollments.controller.ts` com `GET /classes/:id/enrollments` e `POST /classes/:id/enrollments/:enrollmentId/remove`, entradas `enrollments.list|remove` em `endpoints.ts`, linhas no `MATRIX`; emitir `enrollment.removed` na jornada e retirá-lo de `PENDING_003_TYPES`
-- [ ] T064 [US6] `apps/web/features/classes/components/class-students-tab.tsx` e hooks de lista/remoção (invalidam `["classes", id]` e `["classes", id, "enrollments"]`), ligados à aba "Alunos" de `/turmas/[id]`
+- [X] T062 [US6] `apps/api/src/modules/enrollments/enrollments.service.ts` (`list` keyset por `lower(users.name), id`, pesquisa em nome e `ra LIKE termo%`; `remove` com `UPDATE … WHERE status = 'ACTIVE' RETURNING`, idempotente, bloqueado em turma `ARCHIVED`) e mapper `enrollment.view.ts`
+- [X] T063 [US6] `apps/api/src/modules/enrollments/enrollments.controller.ts` com `GET /classes/:id/enrollments` e `POST /classes/:id/enrollments/:enrollmentId/remove`, entradas `enrollments.list|remove` em `endpoints.ts`, linhas no `MATRIX`; emitir `enrollment.removed` na jornada e retirá-lo de `PENDING_003_TYPES`
+- [X] T064 [US6] `apps/web/features/classes/components/class-students-tab.tsx` e hooks de lista/remoção (invalidam `["classes", id]` e `["classes", id, "enrollments"]`), ligados à aba "Alunos" de `/turmas/[id]`
 
 **Checkpoint**: o professor sabe quem está na turma e corrige matrículas.
 

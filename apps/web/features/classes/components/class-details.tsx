@@ -10,6 +10,7 @@ import { useClass } from "../hooks/use-classes";
 import { ClassInvitationsTab } from "./class-invitations-tab";
 import { ClassStatusActions } from "./class-status-actions";
 import { ClassStatusBadge } from "./class-status-badge";
+import { ClassStudentsTab } from "./class-students-tab";
 import { InviteStudentDialog } from "./invite-student-dialog";
 
 const TABS = [
@@ -27,6 +28,8 @@ export interface ClassDetailsProps {
   /** Actions on pending invitations in the "Convites" tab (FR-020, FR-022). */
   canResendInvitation?: boolean;
   canCancelInvitation?: boolean;
+  /** "Remover" in the "Alunos" tab (FR-044); never in an archived class. */
+  canRemoveStudent?: boolean;
 }
 
 /**
@@ -41,6 +44,7 @@ export function ClassDetails({
   canInvite,
   canResendInvitation = false,
   canCancelInvitation = false,
+  canRemoveStudent = false,
 }: ClassDetailsProps) {
   const query = useClass(id);
 
@@ -101,7 +105,7 @@ export function ClassDetails({
 
       <ClassTabs
         panels={{
-          alunos: <p>Nenhum aluno nesta turma.</p>,
+          alunos: <ClassStudentsTab classId={schoolClass.id} canRemove={canRemoveStudent && !archived} />,
           convites: (
             <ClassInvitationsTab
               classId={schoolClass.id}

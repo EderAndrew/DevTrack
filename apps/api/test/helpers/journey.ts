@@ -25,7 +25,7 @@ export interface JourneyResult {
  * bootstrap (CLI service), e-mail verification, login and sessions, manager and teacher
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
- * implemented so far (classes, class invitations, their management and acceptance). Together they emit
+ * implemented so far (classes, class invitations, their management and acceptance, enrollments). Together they emit
  * every audit event type of the contracts/audit-events.md of 001 and 003, except the retired
  * ones and those still pending in audit-coverage.spec.ts.
  *
@@ -170,6 +170,11 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   });
   expect(classAccepted.status).toBe(200);
   keepCookie(classAccepted);
+  // 003/US6 — the teacher lists the class's students and removes the one who joined.
+  const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
+  expect(students.body.items).toHaveLength(1);
+  const enrollmentId = students.body.items[0].id as string;
+  expect((await teacherClient.post(`/api/classes/${classId}/enrollments/${enrollmentId}/remove`, {})).status).toBe(200);
   const lateToken = await inviteToClass("aluno-atrasado-jornada@example.test");
   // 003/US5 — the teacher lists, resends and cancels an invitation.
   const resentEmail = "aluno-reenvio-jornada@example.test";

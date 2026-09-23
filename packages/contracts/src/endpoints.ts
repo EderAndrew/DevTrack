@@ -35,6 +35,7 @@ import {
   CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
+import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
@@ -71,6 +72,10 @@ export type IdParams = z.infer<typeof IdParamsSchema>;
 /** A class invitation under its class (003). */
 export const ClassInvitationParamsSchema = z.strictObject({ id: UuidSchema, invitationId: UuidSchema });
 export type ClassInvitationParams = z.infer<typeof ClassInvitationParamsSchema>;
+
+/** An enrollment under its class (003). */
+export const EnrollmentParamsSchema = z.strictObject({ id: UuidSchema, enrollmentId: UuidSchema });
+export type EnrollmentParams = z.infer<typeof EnrollmentParamsSchema>;
 
 export const UserIdParamsSchema = z.strictObject({ userId: UuidSchema });
 export type UserIdParams = z.infer<typeof UserIdParamsSchema>;
@@ -316,6 +321,22 @@ export const endpoints = {
     params: ClassInvitationParamsSchema,
     body: EmptyBodySchema,
     response: ClassInvitationViewSchema,
+    status: 200,
+  },
+  "enrollments.list": {
+    method: "GET",
+    path: "/classes/:id/enrollments",
+    params: IdParamsSchema,
+    query: EnrollmentListQuerySchema,
+    response: EnrollmentPageSchema,
+    status: 200,
+  },
+  "enrollments.remove": {
+    method: "POST",
+    path: "/classes/:id/enrollments/:enrollmentId/remove",
+    params: EnrollmentParamsSchema,
+    body: EmptyBodySchema,
+    response: EnrollmentViewSchema,
     status: 200,
   },
   "classInvitations.preview": {
