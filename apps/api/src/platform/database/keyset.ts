@@ -32,3 +32,26 @@ export const afterCursor = (after: Cursor) => ({
 
 /** Escapes LIKE wildcards so a search for "100%" means the literal text. */
 export const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+
+/** Position of the last item of a page ordered by a text key (e.g. a lowercase name), then `id`. */
+export interface NameCursor {
+  name: string;
+  id: string;
+}
+
+/** Opaque keyset cursor: base64url of `{name, id}` of the last item of the page. */
+export const encodeNameCursor = (cursor: NameCursor) =>
+  Buffer.from(JSON.stringify({ n: cursor.name, i: cursor.id })).toString("base64url");
+
+/** Throws `400 VALIDATION_ERROR` for anything `encodeNameCursor` did not produce. */
+export function decodeNameCursor(cursor: string): NameCursor {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { n?: unknown; i?: unknown };
+    if (typeof parsed.n !== "string" || typeof parsed.i !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.i)) {
+      throw new Error("bad cursor");
+    }
+    return { name: parsed.n, id: parsed.i };
+  } catch {
+    throw validationError();
+  }
+}

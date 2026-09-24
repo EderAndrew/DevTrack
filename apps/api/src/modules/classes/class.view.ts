@@ -22,7 +22,7 @@ export const CLASS_VIEW_SELECT = {
 export type ClassViewRow = Prisma.SchoolClassGetPayload<{ select: typeof CLASS_VIEW_SELECT }>;
 
 /** A `@db.Date` column as the contract's "YYYY-MM-DD". */
-const isoDate = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : null);
+export const isoDate = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : null);
 
 /** `ClassView` of the contract; dates as ISO (002 S4). The teacher is implied by the session. */
 export function toClassView(row: ClassViewRow): ClassView {

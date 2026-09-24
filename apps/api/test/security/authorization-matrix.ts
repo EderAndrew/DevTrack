@@ -116,6 +116,12 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:id/enrollments", access: "turmas.visualizar_alunos" },
   { method: "POST", path: "/classes/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
   { method: "GET", path: "/me/classes", access: "turmas.proprias.listar" },
+
+  { method: "GET", path: "/subjects", access: "disciplinas.visualizar" },
+  { method: "POST", path: "/subjects", access: "disciplinas.criar" },
+  { method: "GET", path: "/subjects/:id", access: "disciplinas.visualizar" },
+  { method: "PATCH", path: "/subjects/:id", access: "disciplinas.editar" },
+  { method: "POST", path: "/subjects/:id/status", access: "disciplinas.editar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

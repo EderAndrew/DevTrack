@@ -35,13 +35,43 @@ const CLASS: ClassView = {
 const sentBody = (call: number, fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) =>
   JSON.parse(String(fetchMock.mock.calls[call]![1]!.body)) as unknown;
 
+const POO_SUBJECT = { id: "33333333-3333-4333-8333-333333333333", name: "Programação Orientada a Objetos" };
+const SUBJECTS = [
+  {
+    ...POO_SUBJECT,
+    description: null,
+    status: "ACTIVE",
+    classCount: 0,
+    documentCount: 0,
+    createdAt: "2026-09-21T12:00:00.000Z",
+    updatedAt: "2026-09-21T12:00:00.000Z",
+  },
+];
+
+/**
+ * The form loads the active subjects for the Disciplina select: those GETs are answered here and
+ * kept out of `fetchMock`, whose calls are the form's own requests.
+ */
+function stubFetch(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, subjects: unknown[] = SUBJECTS) {
+  const subjectCalls: string[] = [];
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith("/api/subjects")) {
+      subjectCalls.push(url);
+      return Promise.resolve(json(200, { items: subjects, nextCursor: null }));
+    }
+    return fetchMock(input, init);
+  });
+  return subjectCalls;
+}
+
 describe("003/US1-1 003/US1-3 ClassForm (FR-001, FR-003)", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
     fetchMock.mockReset();
     router.push.mockReset();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -66,6 +96,9 @@ describe("003/US1-1 003/US1-3 ClassForm (FR-001, FR-003)", () => {
       academicYear: 2026,
       period: null,
       description: null,
+      subjectId: null,
+      startsOn: null,
+      endsOn: null,
     });
   });
 
@@ -119,8 +152,123 @@ describe("003/US1-1 003/US1-3 ClassForm (FR-001, FR-003)", () => {
       academicYear: 2026,
       period: "2º semestre",
       description: null,
+      subjectId: null,
+      startsOn: null,
+      endsOn: null,
     });
     expect(screen.getByRole("link", { name: "Cancelar" }).getAttribute("href")).toBe(`/turmas/${CLASS.id}`);
+  });
+});
+
+describe("004/US1-3 004/US1-4 004/US1-5 ClassForm — disciplina e datas da oferta", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    router.push.mockReset();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const fill = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(screen.getByLabelText(/^Nome/), "POO — Turma A");
+    await user.type(screen.getByLabelText(/^Código/), "POO-A");
+  };
+
+  it("cria com disciplina (só ativas), período e datas", async () => {
+    const subjectCalls = stubFetch(fetchMock);
+    fetchMock.mockResolvedValueOnce(json(201, CLASS));
+    const { container } = renderWithProviders(<ClassForm />);
+    const user = userEvent.setup();
+    await fill(user);
+
+    await user.click(screen.getByRole("combobox", { name: "Disciplina" }));
+    expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual([
+      "Sem disciplina",
+      POO_SUBJECT.name,
+    ]);
+    await user.click(screen.getByRole("option", { name: POO_SUBJECT.name }));
+    await user.type(screen.getByLabelText(/^Período/), "2026.1");
+    await user.type(screen.getByLabelText(/^Data de início/), "2026-02-02");
+    await user.type(screen.getByLabelText(/^Data de término/), "2026-06-30");
+    await user.click(screen.getByRole("button", { name: "Criar turma" }));
+
+    await vi.waitFor(() => expect(router.push).toHaveBeenCalled());
+    expect(subjectCalls).toEqual(["/api/subjects?status=ACTIVE"]);
+    expect(sentBody(0, fetchMock)).toMatchObject({
+      subjectId: POO_SUBJECT.id,
+      period: "2026.1",
+      startsOn: "2026-02-02",
+      endsOn: "2026-06-30",
+    });
+    await expectNoA11yViolations(container);
+  });
+
+  it("vem com a disciplina escolhida pela página da disciplina (?disciplina=)", async () => {
+    stubFetch(fetchMock);
+    renderWithProviders(<ClassForm defaultSubjectId={POO_SUBJECT.id} />);
+    const select = screen.getByRole("combobox", { name: "Disciplina" });
+    await vi.waitFor(() => expect(select.textContent).toBe(POO_SUBJECT.name));
+  });
+
+  it("edita turma com disciplina desativada: ela continua como opção e é mantida", async () => {
+    stubFetch(fetchMock, []);
+    fetchMock.mockResolvedValueOnce(json(200, CLASS));
+    const offering: ClassView = {
+      ...CLASS,
+      subject: POO_SUBJECT,
+      startsOn: "2027-02-01",
+      endsOn: "2027-06-30",
+      plannable: true,
+    };
+    renderWithProviders(<ClassForm initial={offering} />);
+    const user = userEvent.setup();
+
+    expect((screen.getByLabelText(/^Data de início/) as HTMLInputElement).value).toBe("2027-02-01");
+    await vi.waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Disciplina" }).textContent).toBe(`${POO_SUBJECT.name} (inativa)`),
+    );
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await vi.waitFor(() => expect(router.push).toHaveBeenCalled());
+    expect(sentBody(0, fetchMock)).toMatchObject({
+      subjectId: POO_SUBJECT.id,
+      startsOn: "2027-02-01",
+      endsOn: "2027-06-30",
+    });
+  });
+
+  it.each([
+    ["término antes do início", "2026-06-30", "2026-02-02", /^Data de término/, "A data de término não pode ser anterior à de início."],
+    ["só a data de início", "2026-02-02", "", /^Data de término/, "Informe as datas de início e de término, ou deixe as duas em branco."],
+    ["só a data de término", "", "2026-06-30", /^Data de início/, "Informe as datas de início e de término, ou deixe as duas em branco."],
+  ])("%s: erro junto ao campo, sem chamar a API", async (_case, startsOn, endsOn, field, message) => {
+    stubFetch(fetchMock);
+    renderWithProviders(<ClassForm />);
+    const user = userEvent.setup();
+    await fill(user);
+    if (startsOn) await user.type(screen.getByLabelText(/^Data de início/), startsOn);
+    if (endsOn) await user.type(screen.getByLabelText(/^Data de término/), endsOn);
+    await user.click(screen.getByRole("button", { name: "Criar turma" }));
+
+    const input = screen.getByLabelText(field);
+    await vi.waitFor(() => expectFieldErrorLinked(input));
+    expect(screen.getByRole("group", { name: "Não foi possível criar a turma" }).textContent).toContain(message);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("SUBJECT_INACTIVE aparece no campo Disciplina", async () => {
+    stubFetch(fetchMock);
+    fetchMock.mockResolvedValueOnce(
+      apiError(409, "SUBJECT_INACTIVE", "Esta disciplina está desativada. Reative-a para usá-la."),
+    );
+    renderWithProviders(<ClassForm defaultSubjectId={POO_SUBJECT.id} />);
+    const user = userEvent.setup();
+    await fill(user);
+    await user.click(screen.getByRole("button", { name: "Criar turma" }));
+
+    await vi.waitFor(() => expectFieldErrorLinked(screen.getByRole("combobox", { name: "Disciplina" })));
+    expect(document.getElementById("disciplina-erro")!.textContent).toBe(
+      "Esta disciplina está desativada. Reative-a para usá-la.",
+    );
   });
 });
 
@@ -130,7 +278,7 @@ describe("003/SC-011 SC-012 — ClassForm só com teclado", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     router.push.mockReset();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -144,7 +292,10 @@ describe("003/SC-011 SC-012 — ClassForm só com teclado", () => {
       name,
       screen.getByLabelText(/^Código/),
       screen.getByLabelText(/^Ano letivo/),
+      screen.getByRole("combobox", { name: "Disciplina" }),
       screen.getByLabelText(/^Período/),
+      screen.getByLabelText(/^Data de início/),
+      screen.getByLabelText(/^Data de término/),
       screen.getByLabelText("Descrição"),
       screen.getByRole("button", { name: "Criar turma" }),
       screen.getByRole("link", { name: "Cancelar" }),

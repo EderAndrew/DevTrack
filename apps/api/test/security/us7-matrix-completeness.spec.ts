@@ -9,7 +9,9 @@ import { CURRICULUM, MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-
  * 004 permissions whose routes are not in `MATRIX` yet. Each task that adds routes to the matrix
  * removes its permissions from here; the set must be empty when 004 is done.
  */
-const PENDING_004_PERMISSIONS = new Set<PermissionKey>(CURRICULUM);
+const PENDING_004_PERMISSIONS = new Set<PermissionKey>(
+  CURRICULUM.filter((key) => !["disciplinas.visualizar", "disciplinas.criar", "disciplinas.editar"].includes(key)),
+);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {
