@@ -12,7 +12,12 @@ e CI no GitHub Actions. A **fase 003 — turmas, convites e matrículas** trouxe
 professor, o convite de aluno por e-mail (com envio em segundo plano e novas tentativas), o
 aceite que cria a conta ou usa a conta existente, as matrículas e a tela "Minhas turmas" do
 aluno. O autocadastro público de alunos foi removido: conta de aluno só nasce de convite de
-turma. Disciplinas, atividades e avaliações vêm nas próximas fases.
+turma. A **fase 004 — ementa e planejamento** trouxe a área privada do professor: disciplinas,
+turmas como oferta da disciplina (período e datas), envio da ementa em PDF, DOCX, PNG ou JPG com
+validação do arquivo e extração de texto em segundo plano (sem OCR), revisão e confirmação do
+conteúdo, calendário de aulas da turma e planejamento com tópicos manuais ligados aos itens da
+ementa (juntar, dividir, arquivar, reordenar), cobertura da ementa e situações do planejamento.
+Banco de questões, atividades e avaliações vêm nas próximas fases.
 
 ## Pré-requisitos
 
@@ -31,6 +36,7 @@ turma. Disciplinas, atividades e avaliações vêm nas próximas fases.
 | `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
 | `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
 | `specs/003-class-invitations-enrollment/` | O mesmo para a fase 003 (turmas, convites de turma e matrículas) |
+| `specs/004-syllabus-planning/` | O mesmo para a fase 004 (disciplinas, ementa, calendário e planejamento; decisões E1–E22) |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
 | `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
@@ -54,7 +60,9 @@ Os e-mails de desenvolvimento ficam no Mailpit: <http://localhost:8025>.
 
 O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
 [`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md);
-o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md).
+o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md); o da
+área do professor (disciplina → ementa → calendário → planejamento), em
+[`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md).
 
 ## Comandos
 
@@ -91,6 +99,9 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
 - API: [`apps/api/.env.example`](apps/api/.env.example). A API **não sobe** se faltar uma
   variável obrigatória.
 - Web: [`apps/web/.env.example`](apps/web/.env.example) (`API_ORIGIN`, destino do rewrite).
+- Ementas (004): tamanho máximo do arquivo (`SYLLABUS_MAX_FILE_MB`, 10), intervalo do
+  processamento em segundo plano (`SYLLABUS_PROCESSING_INTERVAL_SECONDS`; `0` desliga) e limites
+  por professor de envios e novas tentativas por hora; o arquivo original fica no próprio banco.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

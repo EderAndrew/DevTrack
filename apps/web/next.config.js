@@ -48,6 +48,11 @@ const nextConfig = {
       { source: "/redefinir-senha", headers: noReferrer },
     ];
   },
+  experimental: {
+    // Syllabus uploads go through the rewrite (004 research E5): its default body limit (10 MiB)
+    // would cut a 10 MB file plus the multipart envelope. The API still enforces 10 MB (413).
+    proxyClientMaxBodySize: "11mb",
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
   },

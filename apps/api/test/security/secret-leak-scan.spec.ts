@@ -33,11 +33,12 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   let t: TestApp;
   const logs = captureLogs();
   let secrets: JourneySecret[];
+  let content: JourneySecret[];
 
   beforeAll(async () => {
     t = await createTestApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
     await resetDb(t.prisma);
-    ({ secrets } = await runFullJourney(t));
+    ({ secrets, content } = await runFullJourney(t));
   });
   afterAll(() => t.close());
 
@@ -98,6 +99,27 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(leaks(raw, sources)).toEqual([]);
     const hashes = secrets.filter(({ kind }) => kind.startsWith("hash de token de convite de turma"));
     expect(hashes.some(({ value }) => sources.class_invitations.includes(value))).toBe(true);
+  });
+
+  it("004/SC-010 004/FR-047 004/FR-048 texto da ementa, títulos e descrições de tópicos, nome da disciplina e do arquivo fora dos logs e da metadata de auditoria", async () => {
+    expect(new Set(content.map(({ kind }) => kind))).toEqual(
+      new Set([
+        "texto da ementa (marcador)",
+        "nome da disciplina",
+        "descrição da disciplina",
+        "nome do arquivo",
+        "título de tópico",
+        "descrição de tópico",
+      ]),
+    );
+    const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
+    expect(events.some(({ type }) => type.startsWith("topic."))).toBe(true);
+    expect(leaks(content, { logs: logs.text(), "metadata de auditoria": serialize(events) })).toEqual([]);
+    // The content itself was stored where it belongs (the scan is not vacuous).
+    expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
+    expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
+      "MARCADOR-EMENTA-004",
+    );
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

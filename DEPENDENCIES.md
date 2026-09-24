@@ -5,13 +5,14 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-09-23** (fase 004, T001), Node 24.12, pnpm 11.25, lockfile do
+Última verificação: **2026-09-24** (fase 004, T087), Node 24.12, pnpm 11.25, lockfile do
 commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
 
 **Resultado: `No known vulnerabilities found`** (0 altas/críticas), na fase 001, de novo na
-fase 002 depois das dependências novas da seção 5 e na fase 004 depois das da seção 6.
+fase 002 depois das dependências novas da seção 5 e na fase 004 depois das da seção 6 (T001) e
+ao fim da fase (T087).
 
 Na fase 001, a primeira execução apontou 8 achados (6 high, 1 moderate, 1 low), todos em dependências
 **transitivas**. Nenhuma dependência direta era vulnerável. Foram corrigidos com `overrides` em
@@ -19,7 +20,7 @@ Na fase 001, a primeira execução apontou 8 achados (6 high, 1 moderate, 1 low)
 
 | Pacote | De → para | Trazido por | Avisos | Exposição antes da correção |
 |--------|-----------|-------------|--------|------------------------------|
-| `multer` | 2.2.0 → 2.4.x | `@nestjs/platform-express` 11.2.5 (último 11.x) | GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4, GHSA-qfvm-cv95-jqjf (high); GHSA-qvfw-j98x-7q72 (low) | Nenhuma rota usa `FileInterceptor`/multipart, e o `OriginGuard` recusa métodos não seguros sem `application/json` |
+| `multer` | 2.2.0 → 2.4.x | `@nestjs/platform-express` 11.2.5 (último 11.x) | GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4, GHSA-qfvm-cv95-jqjf (high); GHSA-qvfw-j98x-7q72 (low) | Nenhuma rota usava `FileInterceptor`/multipart na fase 001. Desde a fase 004, o envio de ementa usa o multer (já na 2.4.x corrigida) só nas rotas `@AcceptsMultipart()`, com limites de tamanho, uma parte e nenhum campo extra (E5) |
 | `nanoid` | 3.3.17 → 3.3.19 | `next` → `postcss` | GHSA-2v37-7h3g-55p8 (high) | Uso interno do PostCSS no build do web |
 | `mysql2` | 3.15.3 → 3.24.x | `prisma` (CLI) | GHSA-3f6p-5ww8-9rcr (high), GHSA-rgwj-5xj2-c3m3 (moderate) | O projeto usa só PostgreSQL; o driver MySQL nunca é carregado |
 | `deepmerge-ts` | 7.1.5 → 8.x | `@prisma/config` (CLI) | GHSA-ggr8-5vv4-36mx (high) | Só a CLI do Prisma, mesclando a configuração do próprio repositório |

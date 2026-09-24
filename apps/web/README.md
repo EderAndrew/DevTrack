@@ -30,6 +30,17 @@ em `/convite-turma`, nos modos criar conta, entrar e assumir cadastro não confi
 `my-classes` ("Minhas turmas" do aluno, em `/minhas-turmas`). Não há mais `/cadastro`: conta de
 aluno só nasce do convite de turma.
 
+Da fase 004: `subjects` ("Minhas disciplinas" em `/disciplinas`, formulário, página da disciplina
+com as turmas e as versões da ementa), `syllabus` (envio com arrastar e soltar e barra de
+progresso, situação do processamento atualizada a cada 2 s, texto extraído ao lado da revisão,
+editor de grupos e itens, confirmação e "Usar esta ementa na turma"), `class-calendar`
+(calendário do período em `/turmas/[id]/calendario`, com a escolha do que fazer com os tópicos da
+aula desmarcada) e `class-plan` (planejamento em `/turmas/[id]/planejamento`: aulas com os
+tópicos, "Sem data", cobertura da ementa, editar, juntar, dividir, arquivar, restaurar,
+reordenar e a situação do planejamento; a ementa usada pela turma em `/turmas/[id]/ementa`).
+Toda gravação no planejamento envia o `revision` do cache; um 409 de conflito mostra
+"Atualizar" sem descartar o formulário.
+
 ## Comandos
 
 ```bash
