@@ -77,6 +77,35 @@ describe("004/US5 PlanSyllabusPicker — ementa usada pela turma (FR-031, FR-042
     await waitFor(() => expect(puts()).toEqual([{ planRevision: 6, revisionId: v2.confirmedRevision!.id }]));
   });
 
+  it("004/FR-042 nova revisão confirmada da mesma versão: a revisão em uso segue na lista e a nova pode ser escolhida", async () => {
+    const user = userEvent.setup();
+    const oldRevisionId = uuid();
+    const current = planView({
+      revision: 3,
+      syllabus: { subjectId: SUBJECT_ID, documentId: v2.id, documentVersion: 2, revisionId: oldRevisionId, revisionNumber: 1 },
+    });
+    serve(current, planView({ revision: 4 }));
+    renderWithProviders(<PlanSyllabusPicker classId={CLASS_ID} subjectId={SUBJECT_ID} canEdit />);
+
+    const select = (await screen.findByLabelText("Versão confirmada")) as HTMLSelectElement;
+    await waitFor(() =>
+      expect([...select.options].map((option) => option.textContent)).toEqual([
+        "Versão 2 — revisão 2",
+        "Versão 1 — revisão 1",
+        "Versão 2 — revisão 1 (em uso)",
+      ]),
+    );
+    expect(select.value).toBe(oldRevisionId);
+    const button = screen.getByRole("button", { name: "Usar esta versão" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    await user.selectOptions(select, "Versão 2 — revisão 2");
+    expect(button.disabled).toBe(false);
+    await user.click(button);
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Trocar ementa" }));
+    await waitFor(() => expect(puts()).toEqual([{ planRevision: 3, revisionId: v2.confirmedRevision!.id }]));
+  });
+
   it("004/US7-6 planejamento arquivado: a ementa usada não pode mais ser trocada", async () => {
     serve(planView({ status: "ARCHIVED" }), planView());
     renderWithProviders(<PlanSyllabusPicker classId={CLASS_ID} subjectId={SUBJECT_ID} canEdit />);

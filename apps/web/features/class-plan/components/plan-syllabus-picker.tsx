@@ -48,11 +48,21 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
   const plan = planQuery.data?.plan ?? null;
   // An archived plan keeps the syllabus it used (004/US7-6).
   const editable = canEdit && plan?.status !== "ARCHIVED";
-  const options = (documents.data?.items ?? []).flatMap((document) =>
+  const latest = (documents.data?.items ?? []).flatMap((document) =>
     document.confirmedRevision
       ? [{ id: document.confirmedRevision.id, label: `Versão ${document.version} — revisão ${document.confirmedRevision.number}` }]
       : [],
   );
+  // Each document lists only its latest confirmed revision; the one in use stays an option even
+  // when a later revision of it was confirmed, so the select never shows a value it does not hold.
+  const inUse = plan?.syllabus;
+  const options =
+    inUse && latest.length > 0 && !latest.some((option) => option.id === inUse.revisionId)
+      ? [
+          ...latest,
+          { id: inUse.revisionId, label: `Versão ${inUse.documentVersion} — revisão ${inUse.revisionNumber} (em uso)` },
+        ]
+      : latest;
   const selected = chosen || plan?.syllabus.revisionId || options[0]?.id || "";
 
   const save = async () => {
