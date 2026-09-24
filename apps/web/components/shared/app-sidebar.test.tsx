@@ -54,9 +54,9 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     vi.stubGlobal(
       "ResizeObserver",
       class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
+        observe = () => undefined;
+        unobserve = () => undefined;
+        disconnect = () => undefined;
       },
     );
   });
