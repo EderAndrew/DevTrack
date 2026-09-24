@@ -130,6 +130,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/syllabus-documents/:id", access: "ementas.visualizar" },
   { method: "GET", path: "/syllabus-documents/:id/file", access: "ementas.visualizar" },
   { method: "POST", path: "/syllabus-documents/:id/retry", access: "ementas.enviar" },
+  { method: "POST", path: "/syllabus-documents/:id/revisions", access: "ementas.revisar" },
+  { method: "GET", path: "/syllabus-revisions/:id", access: "ementas.visualizar" },
+  { method: "PUT", path: "/syllabus-revisions/:id", access: "ementas.revisar" },
+  { method: "POST", path: "/syllabus-revisions/:id/confirm", access: "ementas.revisar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

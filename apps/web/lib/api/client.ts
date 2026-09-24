@@ -28,7 +28,7 @@ export class ApiError extends Error {
 }
 
 export interface ApiRequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON-serialized, except a `FormData`, sent as is (the browser sets the multipart `Content-Type`). */
   body?: unknown;
   /** Absolute API base for server-side calls (e.g. `http://api:4000/api`); defaults to `/api`. */
@@ -144,6 +144,8 @@ export const apiClient = {
   get: <T>(path: string, options?: Options) => apiRequest<T>(path, { ...options, method: "GET" }),
   post: <T>(path: string, body?: unknown, options?: Options) =>
     apiRequest<T>(path, { ...options, method: "POST", body }),
+  put: <T>(path: string, body?: unknown, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: Options) =>
     apiRequest<T>(path, { ...options, method: "PATCH", body }),
   delete: <T>(path: string, options?: Options) => apiRequest<T>(path, { ...options, method: "DELETE" }),

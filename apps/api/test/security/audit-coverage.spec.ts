@@ -21,7 +21,6 @@ const CONTRACTS = [
  * them, and the set must be empty when 004 is done.
  */
 const PENDING_004_TYPES = new Set([
-  "syllabus.revision_confirmed",
   "class_meetings.updated",
   "topic.created",
   "topic.updated",

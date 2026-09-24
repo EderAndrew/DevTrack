@@ -116,7 +116,10 @@ export const SyllabusRevisionViewSchema = z.strictObject({
 });
 export type SyllabusRevisionView = z.infer<typeof SyllabusRevisionViewSchema>;
 
-/** The whole draft content; positions come from the array order. */
+/**
+ * The whole draft content; positions come from the array order. An item may carry the `id` it has
+ * in this draft, so an item copied from a confirmed revision keeps its origin (research E16).
+ */
 export const SaveSyllabusRevisionRequestSchema = z
   .strictObject({
     title: z.string().trim().max(200).nullable().optional(),
@@ -126,12 +129,21 @@ export const SaveSyllabusRevisionRequestSchema = z
       .array(
         z.strictObject({
           title: z.string().trim().max(300).nullable().optional(),
-          items: z.array(z.strictObject({ text: z.string().trim().min(1).max(1000) })).max(MAX_ITEMS_PER_REVISION),
+          items: z
+            .array(z.strictObject({ id: UuidSchema.optional(), text: z.string().trim().min(1).max(1000) }))
+            .max(MAX_ITEMS_PER_REVISION),
         }),
       )
       .max(MAX_ITEMS_PER_REVISION),
   })
   .refine((value) => value.groups.reduce((sum, group) => sum + group.items.length, 0) <= MAX_ITEMS_PER_REVISION, {
     path: ["groups"],
-  });
+  })
+  .refine(
+    (value) => {
+      const ids = value.groups.flatMap((group) => group.items.flatMap((item) => (item.id ? [item.id] : [])));
+      return new Set(ids).size === ids.length;
+    },
+    { path: ["groups"] },
+  );
 export type SaveSyllabusRevisionRequest = z.infer<typeof SaveSyllabusRevisionRequestSchema>;

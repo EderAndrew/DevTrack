@@ -25,7 +25,7 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     // 003 domains (classes, class invitations, enrollments, own classes) and 004 domains
     // (subjects, …); each story adds its routes.
     const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
-    const phase004 = Object.keys(endpoints).filter((key) => /^(subjects|syllabusDocuments)\./.test(key));
+    const phase004 = Object.keys(endpoints).filter((key) => /^(subjects|syllabusDocuments|syllabusRevisions)\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
     expect(catalog).toHaveLength(37 + phase003.length + phase004.length);
     expect(routes).toHaveLength(37 + phase003.length + phase004.length);

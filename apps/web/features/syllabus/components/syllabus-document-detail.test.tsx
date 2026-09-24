@@ -22,7 +22,7 @@ describe("004/US2-5 SyllabusDocumentDetail — versão da ementa, original e tex
     const view = documentView(SUBJECT_ID, { version: 2, pageCount: 3, processingStatus: "PROCESSED", extractionResult: "TEXT" });
     fetchMock.mockResolvedValue(json(200, documentDetail(view, { extraction: POO_EXTRACTION })));
     const { container } = renderWithProviders(
-      <SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry />,
+      <SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry canReview />,
     );
 
     expect(await screen.findByRole("heading", { level: 1, name: "Ementa — versão 2" })).toBeTruthy();
@@ -45,7 +45,7 @@ describe("004/US2-5 SyllabusDocumentDetail — versão da ementa, original e tex
   it("004/FR-020 imagem é mostrada inline; vindo da turma, volta para a turma", async () => {
     const view = documentView(SUBJECT_ID, { mediaType: "PNG", pageCount: null, originalFilename: "foto.png" });
     fetchMock.mockResolvedValue(json(200, documentDetail(view)));
-    renderWithProviders(<SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} classId={CLASS_ID} canRetry />);
+    renderWithProviders(<SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} classId={CLASS_ID} canRetry canReview />);
 
     const image = await screen.findByRole("img", { name: "Ementa enviada: foto.png" });
     expect(image.getAttribute("src")).toBe(`/api/syllabus-documents/${view.id}/file?view=inline`);
@@ -56,7 +56,7 @@ describe("004/US2-5 SyllabusDocumentDetail — versão da ementa, original e tex
   it("documento de outra disciplina na URL → não encontrado", async () => {
     const view = documentView("00000000-0000-4000-8000-000000000999");
     fetchMock.mockResolvedValue(json(200, documentDetail(view)));
-    renderWithProviders(<SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry />);
+    renderWithProviders(<SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry canReview />);
     expect((await screen.findByRole("alert")).textContent).toContain("Recurso não encontrado.");
   });
 
