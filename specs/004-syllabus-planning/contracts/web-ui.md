@@ -42,8 +42,9 @@ ativas), Data de início e Data de término. Menu lateral: "Minhas disciplinas" 
   18/03/2027") com seus tópicos; seção "Sem data"; por tópico: Editar, Subir, Descer,
   Aula (select), Dividir, Arquivar, e seleção para "Juntar tópicos"; "Novo tópico";
   "Cobertura da ementa" com itens cobertos/não cobertos e "Criar tópico com este item";
-  "Concluir aula" (planejamento em andamento, aula de hoje ou passada) e, no tópico concluído,
-  a marca verde "Aula concluída" com só "Arquivar" e "Reabrir aula" habilitados (US9);
+  ao lado do título, "Concluir aula" (planejamento em andamento, aula de hoje ou passada) ou, no
+  tópico concluído, a marca verde "Aula concluída" com "Reabrir aula"; no tópico concluído só
+  "Arquivar" fica habilitado entre as ações abaixo dos itens (US9);
   "Tópicos arquivados" com "Restaurar" (o tópico concluído mostra "Aula concluída em
   <data>" e não tem "Restaurar"); barra de situação com "Confirmar planejamento",
   "Reabrir", "Iniciar", "Arquivar planejamento" (confirmação em `alert-dialog`).
