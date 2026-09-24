@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SyllabusForClassDialog } from "@/features/class-plan/components/syllabus-for-class-dialog";
 import { formatDateTime } from "@/lib/messages/dates";
 import { ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { syllabusDocumentsApi } from "../api/syllabus-documents";
@@ -46,6 +47,8 @@ export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetr
   const create = useCreateSyllabusRevision(subjectId, documentId);
   const [createError, setCreateError] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  /** The revision confirmed on this page, offered to the class the teacher came from (FR-006). */
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const back = classId ? (
     <Link href={`/turmas/${classId}/ementa`}>Voltar para a turma</Link>
   ) : (
@@ -144,8 +147,12 @@ export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetr
             canReview={canReview}
             creating={create.isPending}
             onCreate={startRevision}
-            onConfirmed={() => setAnnouncement("Conteúdo confirmado.")}
+            onConfirmed={(revision) => {
+              setAnnouncement("Conteúdo confirmado.");
+              setConfirmedId(revision.id);
+            }}
           />
+          {classId && confirmedId ? <SyllabusForClassDialog classId={classId} revisionId={confirmedId} /> : null}
         </section>
       </div>
     </div>

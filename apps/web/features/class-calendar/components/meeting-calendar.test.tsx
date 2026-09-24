@@ -256,9 +256,13 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
 
   it("erro da API aparece com o texto do catálogo", async () => {
     const user = userEvent.setup();
-    const { container } = renderCalendar(meetingList([], 3));
+    const list = meetingList([], 3);
+    const { container } = renderCalendar(list, { plan: planEnvelope([], [], 3) });
     await screen.findByText("Total de aulas selecionadas: 0");
-    fetchMock.mockResolvedValueOnce(apiError(409, "PLAN_REVISION_CONFLICT", "x"));
+    // The calendar also reads the plan (it has one): only the save fails.
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "PUT" ? apiError(409, "PLAN_REVISION_CONFLICT", "x") : json(200, list),
+    );
 
     await user.click(dayButton(container, "2027-02-03"));
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));

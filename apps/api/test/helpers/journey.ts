@@ -6,9 +6,7 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
-  createPlan,
   createSyllabusDocument,
-  createTopic,
   createUser,
   DEFAULT_PASSWORD,
   loginAs,
@@ -217,14 +215,24 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
     resolutions: [],
   });
   expect(calendar.body.total).toBe(2);
-  // Until 004/US5 creates plans and topics through the API, the factories do.
-  const plan = await createPlan(t, classId, draft.body.id as string);
-  const topic = await createTopic(t, plan.id, { meetingId: calendar.body.items[1].id as string });
+  // 004/US5 — the class uses the confirmed syllabus, and a topic is planned on the second day.
+  const plan = await teacherClient.put(`/api/classes/${classId}/plan/syllabus`, {
+    planRevision: null,
+    revisionId: draft.body.id,
+  });
+  expect(plan.status).toBe(200);
+  const planned = await teacherClient.post(`/api/classes/${classId}/plan/topics`, {
+    planRevision: plan.body.revision,
+    title: "Classes, objetos e métodos",
+    meetingId: calendar.body.items[1].id,
+    itemIds: [reviewed.body.groups[0].items[0].id],
+  });
+  expect(planned.status).toBe(201);
   const unmarked = await teacherClient.put(meetingsPath, {
-    planRevision: plan.revision,
+    planRevision: planned.body.revision,
     add: [],
     remove: ["2026-03-11"],
-    resolutions: [{ topicId: topic.id, action: "ARCHIVE" }],
+    resolutions: [{ topicId: planned.body.topics[0].id, action: "ARCHIVE" }],
   });
   expect(unmarked.body.total).toBe(1);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);

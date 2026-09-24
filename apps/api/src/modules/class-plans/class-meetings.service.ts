@@ -1,12 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import {
   type ClassMeetingList,
-  type ClassMeetingStatus,
   MAX_MEETINGS_PER_CLASS,
   type TopicResolution,
   type UpdateClassMeetingsRequest,
 } from "@repo/contracts";
-import type { ClassPlan, SchoolClass, Topic } from "../../generated/prisma/client";
+import type { ClassPlan, Topic } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
@@ -22,18 +21,12 @@ import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { isoDate } from "../classes/class.view";
 import { requirePlannable } from "../classes/plannable-class";
+import { meetingViews } from "./class-plan.view";
+import { lockOwnedClass } from "./owned-class-lock";
 import { bumpRevision } from "./plan-revision.guard";
 import { type TopicActor, TopicMutations } from "./topic-mutations";
 
 type ResolutionAction = TopicResolution["action"];
-
-interface MeetingRow {
-  id: string;
-  date: string;
-  number: number;
-  status: ClassMeetingStatus;
-  topicCount: number;
-}
 
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
@@ -68,7 +61,7 @@ export class ClassMeetingsService {
     if (add.some((date) => remove.includes(date))) throw validationError();
 
     return this.prisma.runInTransaction(async (tx) => {
-      const schoolClass = requirePlannable(await this.lockOwned(tx, auth.userId, classId), "write");
+      const schoolClass = requirePlannable(await lockOwnedClass(tx, this.context, auth.userId, classId), "write");
       const plan = await tx.classPlan.findUnique({ where: { classId } });
       // With a plan, `planRevision` is required (null never matches); without one it must be null.
       if (plan) await bumpRevision(tx, plan.id, input.planRevision ?? 0);
@@ -193,24 +186,8 @@ export class ClassMeetingsService {
 
   /** The list with numbers by date order (`row_number()`, E12) and each meeting's non-archived topics. */
   private async view(db: Tx | PrismaService, classId: string): Promise<ClassMeetingList> {
-    const items = await db.$queryRaw<MeetingRow[]>`
-      SELECT m.id,
-             to_char(m.meeting_date, 'YYYY-MM-DD') AS date,
-             (row_number() OVER (ORDER BY m.meeting_date))::int AS number,
-             m.status::text AS status,
-             (SELECT count(*)::int FROM topics t WHERE t.meeting_id = m.id AND t.status <> 'ARCHIVED') AS "topicCount"
-      FROM class_meetings m
-      WHERE m.class_id = ${classId}::uuid
-      ORDER BY m.meeting_date`;
+    const items = await meetingViews(db, classId);
     const plan = await db.classPlan.findUnique({ where: { classId }, select: { revision: true } });
     return { items, total: items.length, planRevision: plan?.revision ?? null };
-  }
-
-  /** Locks the teacher's class row for the rest of the transaction; 404 outside the teacher's context. */
-  private async lockOwned(tx: Tx, teacherId: string, classId: string): Promise<SchoolClass> {
-    const [locked] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR UPDATE`;
-    if (!locked) throw notFound();
-    return this.context.findOwnedOrNotFound(teacherId, classId, tx);
   }
 }

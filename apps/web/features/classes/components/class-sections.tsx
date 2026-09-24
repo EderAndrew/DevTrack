@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeetingCalendar } from "@/features/class-calendar/components/meeting-calendar";
+import { ClassPlanPage } from "@/features/class-plan/components/class-plan-view";
+import { PlanSyllabusPicker } from "@/features/class-plan/components/plan-syllabus-picker";
 import { SyllabusSection } from "@/features/syllabus/components/syllabus-section";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClass } from "../hooks/use-classes";
@@ -53,26 +55,29 @@ export function ClassInvitationsSection({ classId, canResend, canCancel }: Class
   );
 }
 
-export interface ClassPlanningSectionProps {
+export interface ClassPlanSectionProps {
   classId: string;
-  /** Section heading: Ementa, Calendário or Planejamento. */
-  title: string;
-  /** What the section shows once the class is plannable, until its story fills it. */
-  empty: string;
   canEditClass: boolean;
+  /** UX only (`planejamento.editar`): creating topics; the API decides. */
+  canEdit: boolean;
 }
 
-/** Ementa, Calendário and Planejamento: `ClassOfferingRequired` until the class is plannable. */
-export function ClassPlanningSection({ classId, title, empty, canEditClass }: ClassPlanningSectionProps) {
+/**
+ * Planejamento of a class (004/US5): its class days with topics, "Sem data" and the coverage.
+ * Read-only without `planejamento.editar` or once the class is archived.
+ */
+export function ClassPlanSection({ classId, canEditClass, canEdit }: ClassPlanSectionProps) {
   const { schoolClass, fallback } = useLoadedClass(classId);
   if (!schoolClass) return fallback;
+  const archived = schoolClass.status === "ARCHIVED";
   return (
     <section aria-labelledby="secao-titulo">
-      <h2 id="secao-titulo">{title}</h2>
-      {schoolClass.plannable ? (
-        <p>{empty}</p>
+      <h2 id="secao-titulo">Planejamento</h2>
+      {/* `plannable` is false once archived, but an archived class still shows its plan. */}
+      {schoolClass.subject && schoolClass.startsOn && schoolClass.endsOn ? (
+        <ClassPlanPage classId={classId} canEdit={canEdit && !archived} />
       ) : (
-        <ClassOfferingRequired classId={classId} canEdit={canEditClass && schoolClass.status !== "ARCHIVED"} />
+        <ClassOfferingRequired classId={classId} canEdit={canEditClass && !archived} />
       )}
     </section>
   );
@@ -116,13 +121,16 @@ export interface ClassSyllabusSectionProps {
   canEditClass: boolean;
   /** UX only (`ementas.enviar`): "Enviar ementa", which sends to the class's subject. */
   canUpload: boolean;
+  /** UX only (`planejamento.editar`): choosing the confirmed version the class uses. */
+  canSelect: boolean;
 }
 
 /**
- * Ementa of a class (004/US2, FR-006): the versions of its subject's syllabus and "Enviar
- * ementa", sent through the subject; version links carry `?turma=` to come back here.
+ * Ementa of a class (004/US2, US5, FR-006): the version its plan uses and the choice among the
+ * confirmed ones, the versions of its subject's syllabus and "Enviar ementa", sent through the
+ * subject; version links carry `?turma=` to come back here.
  */
-export function ClassSyllabusSection({ classId, canEditClass, canUpload }: ClassSyllabusSectionProps) {
+export function ClassSyllabusSection({ classId, canEditClass, canUpload, canSelect }: ClassSyllabusSectionProps) {
   const { schoolClass, fallback } = useLoadedClass(classId);
   if (!schoolClass) return fallback;
   if (!schoolClass.plannable || !schoolClass.subject) {
@@ -138,6 +146,12 @@ export function ClassSyllabusSection({ classId, canEditClass, canUpload }: Class
       subjectId={schoolClass.subject.id}
       classId={classId}
       canUpload={canUpload && schoolClass.status !== "ARCHIVED"}
-    />
+    >
+      <PlanSyllabusPicker
+        classId={classId}
+        subjectId={schoolClass.subject.id}
+        canEdit={canSelect && schoolClass.status !== "ARCHIVED"}
+      />
+    </SyllabusSection>
   );
 }
