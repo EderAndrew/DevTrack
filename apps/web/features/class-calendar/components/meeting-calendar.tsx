@@ -80,6 +80,8 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   const [error, setError] = useState("");
   // The topics of a day being unmarked (FR-029); a class without a plan has none.
   const plan = useClassPlan(classId, { enabled: list.planRevision !== null }).data?.plan ?? null;
+  // An archived plan is read-only (004/US7-6): its days cannot change either.
+  const editable = canEdit && plan?.status !== "ARCHIVED";
   const update = useUpdateClassMeetings(classId);
 
   const start = fromIsoDate(startsOn);
@@ -160,8 +162,8 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
         <Calendar
           mode="multiple"
           selected={dates.map(fromIsoDate)}
-          onSelect={(_all, day) => (canEdit ? toggle(toIsoDate(day)) : undefined)}
-          disabled={canEdit ? [{ before: start }, { after: end }] : true}
+          onSelect={(_all, day) => (editable ? toggle(toIsoDate(day)) : undefined)}
+          disabled={editable ? [{ before: start }, { after: end }] : true}
           startMonth={start}
           endMonth={end}
           defaultMonth={start}
@@ -175,7 +177,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
           <MeetingList dates={dates} />
         </div>
       </div>
-      {canEdit ? (
+      {editable ? (
         <div>
           <Button
             type="button"

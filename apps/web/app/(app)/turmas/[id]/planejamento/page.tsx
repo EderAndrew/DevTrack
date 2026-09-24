@@ -16,6 +16,7 @@ export default async function ClassPlanPage({ params }: { params: Promise<{ id: 
       classId={id}
       canEditClass={me.permissions.includes("turmas.editar")}
       canEdit={me.permissions.includes("planejamento.editar")}
+      canChangeStatus={me.permissions.includes("planejamento.alterar_situacao")}
     />
   );
 }

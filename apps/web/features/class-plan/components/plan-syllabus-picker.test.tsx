@@ -77,6 +77,13 @@ describe("004/US5 PlanSyllabusPicker — ementa usada pela turma (FR-031, FR-042
     await waitFor(() => expect(puts()).toEqual([{ planRevision: 6, revisionId: v2.confirmedRevision!.id }]));
   });
 
+  it("004/US7-6 planejamento arquivado: a ementa usada não pode mais ser trocada", async () => {
+    serve(planView({ status: "ARCHIVED" }), planView());
+    renderWithProviders(<PlanSyllabusPicker classId={CLASS_ID} subjectId={SUBJECT_ID} canEdit />);
+    expect(await screen.findByText("Versão 2, revisão 1.")).toBeTruthy();
+    expect(screen.queryByLabelText("Versão confirmada")).toBeNull();
+  });
+
   it("sem planejamento.editar: só mostra a ementa usada", async () => {
     serve(planView(), planView());
     renderWithProviders(<PlanSyllabusPicker classId={CLASS_ID} subjectId={SUBJECT_ID} canEdit={false} />);

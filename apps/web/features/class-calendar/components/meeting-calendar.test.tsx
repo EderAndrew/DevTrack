@@ -272,6 +272,15 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     );
   });
 
+  it("004/US7-6 planejamento arquivado: calendário somente leitura", async () => {
+    const days = [meeting("2027-02-03", 1)];
+    const archived = planEnvelope(days, [], 4);
+    const { container } = renderCalendar(meetingList(days, 4), { plan: { plan: { ...archived.plan!, status: "ARCHIVED" } } });
+    await screen.findByText("Total de aulas selecionadas: 1");
+    expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
+    expect(dayButton(container, "2027-02-10").disabled).toBe(true);
+  });
+
   it("sem calendario.gerenciar: somente leitura", async () => {
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1)]), { canEdit: false });
     await screen.findByText("Total de aulas selecionadas: 1");

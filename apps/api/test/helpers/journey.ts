@@ -255,6 +255,8 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   });
   await planWrite("post", `/topics/${inheritance.id}/archive`);
   await planWrite("post", `/topics/${inheritance.id}/restore`);
+  // 004/US7 — the teacher confirms the plan.
+  await planWrite("post", "/status", { action: "CONFIRM" });
   await planWrite("put", "/topic-order", {
     items: [...split.topics].reverse().map((topic) => ({ topicId: topic.id, meetingId: null })),
   });

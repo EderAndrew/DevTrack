@@ -40,6 +40,7 @@ import { MyClassListSchema } from "./classes/my-classes.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
+  ChangePlanStatusRequestSchema,
   ClassPlanEnvelopeSchema,
   ClassPlanViewSchema,
   CreateTopicRequestSchema,
@@ -526,6 +527,14 @@ export const endpoints = {
     path: "/classes/:id/plan/syllabus",
     params: IdParamsSchema,
     body: SelectPlanSyllabusRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "classPlans.changeStatus": {
+    method: "POST",
+    path: "/classes/:id/plan/status",
+    params: IdParamsSchema,
+    body: ChangePlanStatusRequestSchema,
     response: ClassPlanViewSchema,
     status: 200,
   },

@@ -46,6 +46,8 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
   const [error, setError] = useState("");
 
   const plan = planQuery.data?.plan ?? null;
+  // An archived plan keeps the syllabus it used (004/US7-6).
+  const editable = canEdit && plan?.status !== "ARCHIVED";
   const options = (documents.data?.items ?? []).flatMap((document) =>
     document.confirmedRevision
       ? [{ id: document.confirmedRevision.id, label: `Versão ${document.version} — revisão ${document.confirmedRevision.number}` }]
@@ -90,7 +92,7 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
           {error}
         </p>
       ) : null}
-      {canEdit && options.length > 0 ? (
+      {editable && options.length > 0 ? (
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <Label htmlFor="versao-confirmada">Versão confirmada</Label>
@@ -116,7 +118,7 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
           </Button>
         </div>
       ) : null}
-      {canEdit && !planQuery.isPending && !documents.isPending && options.length === 0 ? (
+      {editable && !planQuery.isPending && !documents.isPending && options.length === 0 ? (
         <p className="m-0">Nenhuma versão da ementa foi confirmada ainda.</p>
       ) : null}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>

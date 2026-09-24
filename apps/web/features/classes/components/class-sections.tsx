@@ -58,15 +58,17 @@ export function ClassInvitationsSection({ classId, canResend, canCancel }: Class
 export interface ClassPlanSectionProps {
   classId: string;
   canEditClass: boolean;
-  /** UX only (`planejamento.editar`): creating topics; the API decides. */
+  /** UX only (`planejamento.editar`): creating and editing topics; the API decides. */
   canEdit: boolean;
+  /** UX only (`planejamento.alterar_situacao`): confirm, reopen, start and archive the plan. */
+  canChangeStatus?: boolean;
 }
 
 /**
  * Planejamento of a class (004/US5): its class days with topics, "Sem data" and the coverage.
  * Read-only without `planejamento.editar` or once the class is archived.
  */
-export function ClassPlanSection({ classId, canEditClass, canEdit }: ClassPlanSectionProps) {
+export function ClassPlanSection({ classId, canEditClass, canEdit, canChangeStatus = false }: ClassPlanSectionProps) {
   const { schoolClass, fallback } = useLoadedClass(classId);
   if (!schoolClass) return fallback;
   const archived = schoolClass.status === "ARCHIVED";
@@ -75,7 +77,7 @@ export function ClassPlanSection({ classId, canEditClass, canEdit }: ClassPlanSe
       <h2 id="secao-titulo">Planejamento</h2>
       {/* `plannable` is false once archived, but an archived class still shows its plan. */}
       {schoolClass.subject && schoolClass.startsOn && schoolClass.endsOn ? (
-        <ClassPlanPage classId={classId} canEdit={canEdit && !archived} />
+        <ClassPlanPage classId={classId} canEdit={canEdit && !archived} canChangeStatus={canChangeStatus && !archived} />
       ) : (
         <ClassOfferingRequired classId={classId} canEdit={canEditClass && !archived} />
       )}
