@@ -154,6 +154,32 @@ export class ClassPlansController {
     return this.topics.restore(ctx.auth!, classId, topicId, body.planRevision, ctx.requestId);
   }
 
+  /** "Concluir aula" (004/US9): the plan is ACTIVE and the topic's meeting date has come. */
+  @Post("topics/:topicId/complete")
+  @HttpCode(200)
+  @RequirePermissions("planejamento.editar")
+  completeTopic(
+    @Param("id", idPipe) classId: string,
+    @Param("topicId", idPipe) topicId: string,
+    @ZodBody(TopicActionRequestSchema) body: TopicActionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ClassPlanView> {
+    return this.topics.complete(ctx.auth!, classId, topicId, body.planRevision, ctx.requestId);
+  }
+
+  /** "Reabrir aula": a completed topic that is not archived goes back to active. */
+  @Post("topics/:topicId/reopen")
+  @HttpCode(200)
+  @RequirePermissions("planejamento.editar")
+  reopenTopic(
+    @Param("id", idPipe) classId: string,
+    @Param("topicId", idPipe) topicId: string,
+    @ZodBody(TopicActionRequestSchema) body: TopicActionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ClassPlanView> {
+    return this.topics.reopen(ctx.auth!, classId, topicId, body.planRevision, ctx.requestId);
+  }
+
   /** Order and meetings of every non-archived topic, saved in one write. */
   @Put("topic-order")
   @RequirePermissions("planejamento.editar")

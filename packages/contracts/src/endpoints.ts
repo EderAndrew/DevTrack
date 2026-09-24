@@ -602,6 +602,22 @@ export const endpoints = {
     response: ClassPlanViewSchema,
     status: 200,
   },
+  "topics.complete": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/:topicId/complete",
+    params: ClassTopicParamsSchema,
+    body: TopicActionRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.reopen": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/:topicId/reopen",
+    params: ClassTopicParamsSchema,
+    body: TopicActionRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
   "topics.reorder": {
     method: "PUT",
     path: "/classes/:id/plan/topic-order",

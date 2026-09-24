@@ -403,7 +403,10 @@ export interface TopicOptions {
   meetingId?: string | null;
   /** Items of the plan's revision. */
   itemIds?: string[];
-  /** Default: DRAFT in a DRAFT plan, ACTIVE otherwise. ARCHIVED keeps ACTIVE as the previous status. */
+  /**
+   * Default: DRAFT in a DRAFT plan, ACTIVE otherwise. ARCHIVED keeps ACTIVE as the previous status;
+   * COMPLETED needs `meetingId` and takes that meeting's date as `completedOn`.
+   */
   status?: TopicStatus;
   /** Default: after the last topic of the plan. */
   position?: number;
@@ -415,6 +418,10 @@ export async function createTopic(t: TestApp, planId: string, options: TopicOpti
   const teacherId = plan.schoolClass.teacherId;
   const status = options.status ?? (plan.status === "DRAFT" ? "DRAFT" : "ACTIVE");
   const last = await t.prisma.topic.aggregate({ where: { planId }, _max: { position: true } });
+  const completedOn =
+    status === "COMPLETED"
+      ? (await t.prisma.classMeeting.findUniqueOrThrow({ where: { id: options.meetingId! } })).meetingDate
+      : null;
   return t.prisma.topic.create({
     data: {
       planId,
@@ -425,6 +432,7 @@ export async function createTopic(t: TestApp, planId: string, options: TopicOpti
       origin: "MANUAL",
       status,
       ...(status === "ARCHIVED" ? { statusBeforeArchive: "ACTIVE", archivedAt: new Date() } : {}),
+      completedOn,
       createdById: teacherId,
       updatedById: teacherId,
       items: { create: (options.itemIds ?? []).map((itemId) => ({ itemId })) },

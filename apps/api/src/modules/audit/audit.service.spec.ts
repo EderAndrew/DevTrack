@@ -71,7 +71,7 @@ describe("AuditService metadata allowlist (FR-071)", () => {
     const types = Object.keys(AUDIT_EVENT_METADATA).filter((type) =>
       /^(subject\.|syllabus\.|class\.offering_updated$|class_meetings\.|topics?\.|class_plan\.)/.test(type),
     );
-    expect(types).toHaveLength(17);
+    expect(types).toHaveLength(19);
     for (const type of types) {
       for (const key of AUDIT_EVENT_METADATA[type as keyof typeof AUDIT_EVENT_METADATA]) {
         expect(text.test(key), `${type}.${key}`).toBe(false);

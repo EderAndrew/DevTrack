@@ -61,6 +61,8 @@ export const AUDIT_EVENT_METADATA = {
   "topic.split": ["planId", "newTopicIds"],
   "topic.archived": ["planId", "reason"],
   "topic.restored": ["planId", "status"],
+  "topic.completed": ["planId"],
+  "topic.reopened": ["planId"],
   "topics.reordered": ["topicCount", "movedCount"],
   "class_plan.syllabus_selected": ["classId", "revisionId", "previousRevisionId", "outsideRevisionLinks"],
   "class_plan.status_changed": ["classId", "from", "to", "activatedTopics"],

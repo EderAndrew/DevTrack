@@ -37,12 +37,15 @@ ativas), Data de início e Data de término. Menu lateral: "Minhas disciplinas" 
   pt-BR), "Total de aulas selecionadas: N", lista dos encontros numerados; "Salvar
   calendário" envia acrescentadas e removidas. Desmarcar data com tópicos abre o diálogo
   "Esta aula tem tópicos planejados" com, por tópico, as escolhas "Mover para outra aula",
-  "Deixar sem data", "Juntar com outro tópico" e "Arquivar".
+  "Deixar sem data", "Juntar com outro tópico" e "Arquivar" (tópico concluído: só "Arquivar").
 - **Planejamento** (`features/class-plan/components/…`): cada encontro ("Aula 05 —
   18/03/2027") com seus tópicos; seção "Sem data"; por tópico: Editar, Subir, Descer,
   Aula (select), Dividir, Arquivar, e seleção para "Juntar tópicos"; "Novo tópico";
   "Cobertura da ementa" com itens cobertos/não cobertos e "Criar tópico com este item";
-  "Tópicos arquivados" com "Restaurar"; barra de situação com "Confirmar planejamento",
+  "Concluir aula" (planejamento em andamento, aula de hoje ou passada) e, no tópico concluído,
+  a marca verde "Aula concluída" com só "Arquivar" e "Reabrir aula" habilitados (US9);
+  "Tópicos arquivados" com "Restaurar" (o tópico concluído mostra "Aula concluída em
+  <data>" e não tem "Restaurar"); barra de situação com "Confirmar planejamento",
   "Reabrir", "Iniciar", "Arquivar planejamento" (confirmação em `alert-dialog`).
 - **Formulário de tópico** (diálogo): Título, Descrição, Aula (select com "Sem data"),
   Itens da ementa (lista de caixas de seleção por grupo, com busca).
@@ -68,6 +71,8 @@ ativas), Data de início e Data de término. Menu lateral: "Minhas disciplinas" 
 | Conflito | "O planejamento foi alterado depois que você o abriu. Atualize a página antes de continuar." |
 | Planejamento confirmado / sem tópicos | "Planejamento confirmado." / "Crie ao menos um tópico antes de confirmar." |
 | Planejamento arquivado | "Este planejamento está arquivado e não pode ser alterado." |
+| Aula concluída / reaberta | "Aula concluída." / "Aula reaberta." |
+| Aula que ainda não aconteceu | "Só é possível concluir uma aula a partir da data dela." |
 | Tópico criado / salvo / juntado / dividido / arquivado / restaurado | "Tópico criado." / "Tópico salvo." / "Tópicos juntados." / "Tópico dividido." / "Tópico arquivado." / "Tópico restaurado." |
 | Item fora da versão | "Este item não existe na versão da ementa usada agora." |
 

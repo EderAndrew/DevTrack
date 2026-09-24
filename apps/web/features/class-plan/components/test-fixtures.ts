@@ -24,6 +24,7 @@ export const topicView = (title: string, overrides: Partial<TopicView> = {}): To
   items: [],
   mergedIntoTopicId: null,
   splitFromTopicId: null,
+  completedOn: null,
   createdAt: "2027-01-10T12:00:00.000Z",
   updatedAt: "2027-01-10T12:00:00.000Z",
   ...overrides,

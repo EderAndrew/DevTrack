@@ -75,8 +75,8 @@ describe("002/US1-4 nenhum tipo do contrato definido fora do pacote (FR-006)", (
   it("004 enums contidos em outro não são conferidos (ambíguos), os demais continuam", () => {
     const names = ENUMS.map((candidate) => candidate.name);
     expect(names).not.toContain("SubjectStatus");
-    expect(names).not.toContain("TopicStatus");
-    expect(names).toEqual(expect.arrayContaining(["ClassStatus", "ClassPlanStatus", "SyllabusMediaType"]));
+    // TopicStatus gained COMPLETED (004/US9), so it no longer fits inside ClassPlanStatus and is checked.
+    expect(names).toEqual(expect.arrayContaining(["ClassStatus", "ClassPlanStatus", "TopicStatus", "SyllabusMediaType"]));
     expect(duplicatesIn("x.ts", 'const statuses = ["ACTIVE", "INACTIVE"];')).toEqual([]);
     expect(duplicatesIn("x.ts", 'const types = ["PDF", "DOCX", "PNG", "JPEG"];')).toEqual([
       "x.ts:1 repete os valores de SyllabusMediaType",

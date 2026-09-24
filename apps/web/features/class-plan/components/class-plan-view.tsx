@@ -8,12 +8,15 @@ import { Notice } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
+import { todayIsoDate } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import {
   useArchiveTopic,
   useClassPlan,
   useClassPlanCoverage,
+  useCompleteTopic,
   useRefreshPlan,
+  useReopenTopic,
   useReorderTopics,
   useRestoreTopic,
 } from "../hooks/use-class-plan";
@@ -100,6 +103,8 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
   const reorder = useReorderTopics(classId);
   const archive = useArchiveTopic(classId);
   const restore = useRestoreTopic(classId);
+  const complete = useCompleteTopic(classId);
+  const reopen = useReopenTopic(classId);
   const refresh = useRefreshPlan(classId);
   /** `key` remounts the dialog, so each opening starts from its own values. */
   const [dialog, setDialog] = useState<{ key: number; open: boolean; state: DialogState }>({
@@ -112,7 +117,7 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   /** After "Subir"/"Descer", focus stays on the moved topic once the list is redrawn. */
   const pendingFocus = useRef<{ topicId: string; direction: "up" | "down" } | null>(null);
-  const busy = reorder.isPending || archive.isPending || restore.isPending;
+  const busy = reorder.isPending || archive.isPending || restore.isPending || complete.isPending || reopen.isPending;
 
   useEffect(() => {
     const pending = pendingFocus.current;
@@ -181,7 +186,19 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
     else next.delete(topicId);
     setSelected(next);
   };
-  const selectedTopics = plan.topics.filter((topic) => selected.has(topic.id));
+  const selectedTopics = plan.topics.filter((topic) => selected.has(topic.id) && topic.status !== "COMPLETED");
+
+  /** "Concluir aula" (004/US9): an active topic of a plan in progress whose class day has come (the API decides). */
+  const today = todayIsoDate();
+  const completable = (topic: TopicView) => {
+    const meeting = plan.meetings.find((entry) => entry.id === topic.meetingId);
+    return plan.status === "ACTIVE" && topic.status === "ACTIVE" && meeting !== undefined && meeting.date <= today;
+  };
+  /** Whether the neighbour in the topic's list (its meeting or "Sem data") is completed, so they cannot swap (FR-057). */
+  const neighbourCompleted = (topic: TopicView, offset: -1 | 1) => {
+    const group = plan.topics.filter((other) => other.meetingId === topic.meetingId);
+    return group[group.findIndex((other) => other.id === topic.id) + offset]?.status === "COMPLETED";
+  };
 
   const renderActions: RenderTopicActions | undefined = canEdit
     ? (topic, index, count) => (
@@ -192,6 +209,11 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
           count={count}
           selected={selected.has(topic.id)}
           busy={busy}
+          completable={completable(topic)}
+          lockedUp={neighbourCompleted(topic, -1)}
+          lockedDown={neighbourCompleted(topic, 1)}
+          onComplete={() => void run(() => complete.mutateAsync(topic.id), "Aula concluída.")}
+          onReopen={() => void run(() => reopen.mutateAsync(topic.id), "Aula reaberta.")}
           onEdit={() => open({ kind: "edit", topic })}
           onSplit={() => open({ kind: "split", topic })}
           onArchive={() => void run(() => archive.mutateAsync(topic.id), "Tópico arquivado.")}

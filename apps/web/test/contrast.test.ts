@@ -42,6 +42,8 @@ const PAIRS: [foreground: string, background: string, minimum: number][] = [
   ["--primary-foreground", "--primary", 4.5],
   ["--destructive", "--background", 4.5],
   ["--destructive", "--danger-surface", 4.5],
+  ["--success", "--background", 4.5],
+  ["--success", "--success-surface", 4.5],
   ["--border", "--background", 3],
   ["--ring", "--background", 3],
   ["--sidebar-foreground", "--sidebar", 4.5],

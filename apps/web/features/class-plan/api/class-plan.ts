@@ -34,6 +34,10 @@ export const classPlanApi = {
     apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/archive`, { planRevision }),
   restoreTopic: (classId: string, topicId: string, planRevision: number) =>
     apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/restore`, { planRevision }),
+  completeTopic: (classId: string, topicId: string, planRevision: number) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/complete`, { planRevision }),
+  reopenTopic: (classId: string, topicId: string, planRevision: number) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/reopen`, { planRevision }),
   reorderTopics: (classId: string, body: ReorderTopicsRequest) =>
     apiClient.put<ClassPlanView>(`/classes/${classId}/plan/topic-order`, body),
 };

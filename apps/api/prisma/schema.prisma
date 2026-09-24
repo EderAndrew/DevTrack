@@ -206,6 +206,8 @@ enum ClassPlanStatus {
 enum TopicStatus {
   DRAFT
   ACTIVE
+  /// "Aula concluída" (004/US9): locked except for archive and reopen.
+  COMPLETED
   ARCHIVED
 
   @@map("topic_status")
@@ -629,6 +631,8 @@ model Topic {
   origin              TopicOrigin
   status              TopicStatus
   statusBeforeArchive TopicStatus? @map("status_before_archive")
+  /// Date of the meeting when the topic was completed (004/US9); kept once archived.
+  completedOn         DateTime?    @map("completed_on") @db.Date
   mergedIntoTopicId   String?      @map("merged_into_topic_id") @db.Uuid
   splitFromTopicId    String?      @map("split_from_topic_id") @db.Uuid
   archivedAt          DateTime?    @map("archived_at") @db.Timestamptz(6)

@@ -15,6 +15,7 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
   invalidStateTransition,
+  meetingNotHeldYet,
   notFound,
   syllabusItemNotInPlan,
   syllabusRequired,
@@ -25,9 +26,11 @@ import type { AuthContext } from "../../platform/http/request-context";
 import type { AuditEventType, AuditMetadata } from "../audit/audit-event-types";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
+import { isoDate } from "../classes/class.view";
 import { requirePlannable } from "../classes/plannable-class";
 import { classPlanView, topicViews } from "./class-plan.view";
 import { bumpRevision } from "./plan-revision.guard";
+import { planningToday } from "./planning-date";
 import { type TopicActor, TopicMutations } from "./topic-mutations";
 import { TopicStateMachine } from "./topic.state-machine";
 
@@ -93,12 +96,12 @@ export class TopicsService {
   }
 
   /**
-   * Edits title, description, meeting and items (FR-035). An archived topic → 409; items must be
+   * Edits title, description, meeting and items (FR-035). An archived or completed topic → 409; items must be
    * in the revision in use, except those the topic already has (kept after a switch, E16).
    */
   update(auth: AuthContext, classId: string, topicId: string, input: UpdateTopicRequest, requestId: string | null): Promise<ClassPlanView> {
     return this.write(auth, classId, input.planRevision, requestId, async (ctx) => {
-      const topic = await this.activeTopic(ctx, topicId);
+      const topic = await this.editableTopic(ctx, topicId);
       const links = await this.itemIdsOf(ctx.tx, [topic.id]);
       const next = {
         title: input.title ?? topic.title,
@@ -124,13 +127,14 @@ export class TopicsService {
 
   /**
    * "Juntar tópicos" (FR-036): the first topic stays with the reviewed fields and items; the
-   * others (non-archived, same plan) are archived pointing at it. One `topic.merged`.
+   * others (non-archived, same plan) are archived pointing at it. One `topic.merged`. A completed
+   * topic takes no part in a merge (FR-057).
    */
   merge(auth: AuthContext, classId: string, input: MergeTopicsRequest, requestId: string | null): Promise<ClassPlanView> {
     return this.write(auth, classId, input.planRevision, requestId, async (ctx) => {
       const topics = await ctx.tx.topic.findMany({ where: { planId: ctx.plan.id, id: { in: input.topicIds } } });
       if (topics.length !== input.topicIds.length) throw notFound();
-      if (topics.some((topic) => topic.status === "ARCHIVED")) throw invalidStateTransition();
+      if (topics.some((topic) => topic.status === "ARCHIVED" || topic.status === "COMPLETED")) throw invalidStateTransition();
       const byId = new Map(topics.map((topic) => [topic.id, topic]));
       const [target, ...sources] = input.topicIds.map((id) => byId.get(id)!);
 
@@ -152,7 +156,7 @@ export class TopicsService {
    */
   split(auth: AuthContext, classId: string, topicId: string, input: SplitTopicRequest, requestId: string | null): Promise<ClassPlanView> {
     return this.write(auth, classId, input.planRevision, requestId, async (ctx) => {
-      const topic = await this.activeTopic(ctx, topicId);
+      const topic = await this.editableTopic(ctx, topicId);
       const [first, ...rest] = input.parts;
       await this.assertRoomFor(ctx, rest.length);
       const links = await this.itemIdsOf(ctx.tx, [topic.id]);
@@ -195,12 +199,15 @@ export class TopicsService {
 
   /**
    * Restores an archived topic to the status it had, or ACTIVE once the plan was confirmed (E14).
-   * Not archived → 409; the plan already has 300 non-archived topics → 422.
+   * Not archived, or archived after it was completed (FR-058) → 409; the plan already has 300
+   * non-archived topics → 422.
    */
   restore(auth: AuthContext, classId: string, topicId: string, planRevision: number, requestId: string | null): Promise<ClassPlanView> {
     return this.write(auth, classId, planRevision, requestId, async (ctx) => {
       const topic = await this.topicOf(ctx, topicId);
-      if (topic.status !== "ARCHIVED") throw invalidStateTransition();
+      if (topic.status !== "ARCHIVED" || !TopicStateMachine.canRestore(topic.statusBeforeArchive)) {
+        throw invalidStateTransition();
+      }
       await this.assertRoomFor(ctx, 1);
       const status = TopicStateMachine.restoredStatus(topic.statusBeforeArchive, ctx.plan.status);
       await ctx.tx.topic.update({
@@ -212,9 +219,48 @@ export class TopicsService {
   }
 
   /**
+   * "Concluir aula" (FR-056): an ACTIVE topic of an ACTIVE plan (else 409) whose meeting date is
+   * today or earlier in the planning time zone (else, or without a meeting, 422
+   * MEETING_NOT_HELD_YET). The topic keeps the meeting date. Already completed → no effect.
+   */
+  complete(auth: AuthContext, classId: string, topicId: string, planRevision: number, requestId: string | null): Promise<ClassPlanView> {
+    return this.write(auth, classId, planRevision, requestId, async (ctx) => {
+      const topic = await this.topicOf(ctx, topicId);
+      if (topic.status === "COMPLETED") return;
+      if (ctx.plan.status !== "ACTIVE") throw invalidStateTransition();
+      TopicStateMachine.transition(topic.status, "COMPLETED");
+      const meeting = topic.meetingId
+        ? await ctx.tx.classMeeting.findUnique({ where: { id: topic.meetingId }, select: { meetingDate: true } })
+        : null;
+      if (!meeting || isoDate(meeting.meetingDate)! > planningToday()) throw meetingNotHeldYet();
+      await ctx.tx.topic.update({
+        where: { id: topic.id },
+        data: { status: "COMPLETED", completedOn: meeting.meetingDate, updatedById: ctx.teacherId },
+      });
+      await this.record(ctx, "topic.completed", topic.id, { planId: ctx.plan.id });
+    });
+  }
+
+  /** "Reabrir aula" (FR-058): a completed topic that is not archived goes back to ACTIVE; ACTIVE → no effect. */
+  reopen(auth: AuthContext, classId: string, topicId: string, planRevision: number, requestId: string | null): Promise<ClassPlanView> {
+    return this.write(auth, classId, planRevision, requestId, async (ctx) => {
+      const topic = await this.topicOf(ctx, topicId);
+      if (topic.status === "ACTIVE") return;
+      if (topic.status !== "COMPLETED") throw invalidStateTransition();
+      await ctx.tx.topic.update({
+        where: { id: topic.id },
+        data: { status: "ACTIVE", completedOn: null, updatedById: ctx.teacherId },
+      });
+      await this.record(ctx, "topic.reopened", topic.id, { planId: ctx.plan.id });
+    });
+  }
+
+  /**
    * Saves the order and the meetings of every non-archived topic in one write (FR-035, E14):
    * positions 1..N as sent, archived topics after, in the order they had. The list must hold each
-   * non-archived topic exactly once (else 400); a meeting of another class → 404.
+   * non-archived topic exactly once (else 400); a meeting of another class → 404. A completed
+   * topic keeps its meeting and its place among the topics that stay in that meeting (FR-057,
+   * else 409).
    */
   reorder(auth: AuthContext, classId: string, input: ReorderTopicsRequest, requestId: string | null): Promise<ClassPlanView> {
     return this.write(auth, classId, input.planRevision, requestId, async (ctx) => {
@@ -227,6 +273,7 @@ export class TopicsService {
       const meetingIds = [...new Set(input.items.flatMap((item) => (item.meetingId ? [item.meetingId] : [])))];
       const found = await ctx.tx.classMeeting.count({ where: { classId: ctx.classId, id: { in: meetingIds } } });
       if (found !== meetingIds.length) throw notFound();
+      assertCompletedTopicsStay(active, input.items);
 
       const order = [
         ...input.items.map((item) => ({ topic: byId.get(item.topicId)!, meetingId: item.meetingId })),
@@ -302,10 +349,10 @@ export class TopicsService {
     return topic;
   }
 
-  /** A non-archived topic of the plan; archived → 409 INVALID_STATE_TRANSITION. */
-  private async activeTopic(ctx: WriteContext, topicId: string): Promise<Topic> {
+  /** A topic the teacher may still change; archived or completed (FR-057) → 409 INVALID_STATE_TRANSITION. */
+  private async editableTopic(ctx: WriteContext, topicId: string): Promise<Topic> {
     const topic = await this.topicOf(ctx, topicId);
-    if (topic.status === "ARCHIVED") throw invalidStateTransition();
+    if (topic.status === "ARCHIVED" || topic.status === "COMPLETED") throw invalidStateTransition();
     return topic;
   }
 
@@ -351,6 +398,30 @@ export class TopicsService {
   private async replaceItems(tx: Tx, topicId: string, itemIds: string[]): Promise<void> {
     await tx.topicSyllabusItem.deleteMany({ where: { topicId, itemId: { notIn: itemIds } } });
     await tx.topicSyllabusItem.createMany({ data: itemIds.map((itemId) => ({ topicId, itemId })), skipDuplicates: true });
+  }
+}
+
+/**
+ * A reorder may not move a completed topic (FR-057): it keeps its meeting, and among the topics
+ * that are in that meeting before and after the write it keeps its place, so no neighbour swaps
+ * with it. Topics moving in or out of the meeting do not count.
+ */
+function assertCompletedTopicsStay(before: readonly Topic[], items: ReorderTopicsRequest["items"]): void {
+  const after = new Map(items.map((item) => [item.topicId, item.meetingId]));
+  for (const topic of before) {
+    if (topic.status === "COMPLETED" && after.get(topic.id) !== topic.meetingId) throw invalidStateTransition();
+  }
+  const meetings = new Set(before.filter((topic) => topic.status === "COMPLETED").map((topic) => topic.meetingId));
+  for (const meetingId of meetings) {
+    const staying = (topicId: string) => {
+      const topic = before.find((entry) => entry.id === topicId);
+      return topic?.meetingId === meetingId && after.get(topicId) === meetingId;
+    };
+    const oldOrder = before.filter((topic) => staying(topic.id));
+    const newOrder = items.filter((item) => staying(item.topicId));
+    oldOrder.forEach((topic, index) => {
+      if (topic.status === "COMPLETED" && newOrder[index]?.topicId !== topic.id) throw invalidStateTransition();
+    });
   }
 }
 

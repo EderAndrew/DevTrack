@@ -145,8 +145,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
       .filter((resolution) => resolution.action === "MERGE" || resolution.action === "ARCHIVE")
       .map((resolution) => resolution.topicId),
   );
+  // Nothing is merged into a completed topic (004/FR-057).
   const mergeCandidates = (plan?.topics ?? []).filter(
-    (topic) => topic.meetingId !== resolving?.id && !leaving.has(topic.id),
+    (topic) => topic.meetingId !== resolving?.id && !leaving.has(topic.id) && topic.status !== "COMPLETED",
   );
   const remaining = dates.filter((date) => date !== resolving?.date);
   const moveTargets = remaining.map((date, index) => ({ date, label: meetingLabel(index + 1, date) }));

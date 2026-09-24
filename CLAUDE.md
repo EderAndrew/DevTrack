@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-24 (004 implemented)
+Last updated: 2026-09-24 (004 implemented, plus the US9 amendment)
 
 ## Project state
 
@@ -16,10 +16,10 @@ by e-mail (the only way a student account is created), enrollments and "Minhas t
 (`specs/004-syllabus-planning`) is implemented: all tasks in `tasks.md` are checked: subjects,
 syllabus upload and extraction, syllabus review, the class calendar, the class plan with manual
 topics and coverage, topic editing, plan status (US1–US7), the isolation of the teacher's area
-(US8) and the Polish phase. A teacher starts on "Minhas disciplinas" after login. Later work starts a new feature through `/speckit-specify`.
+(US8), the Polish phase and the 2026-09-24 amendment US9 (a topic's class marked completed). A teacher starts on "Minhas disciplinas" after login. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E22 in 004), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -71,6 +71,7 @@ pnpm --filter api test -- -t "<test name>"                       # single test
 pnpm --filter api test:security                         # test/security only
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
+pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -187,7 +188,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `class-plans` (the class calendar, where the meeting number comes from `row_number()` and is never
   stored; plan and topic state machines; `bumpRevision` in `plan-revision.guard.ts` starts every plan
   write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the
-  topics use).
+  topics use; a `COMPLETED` topic (US9) is locked except for archive and "Reabrir aula", can't be
+  restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 

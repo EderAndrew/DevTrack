@@ -149,6 +149,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:id/plan/topics/:topicId/split", access: "planejamento.editar" },
   { method: "POST", path: "/classes/:id/plan/topics/:topicId/archive", access: "planejamento.editar" },
   { method: "POST", path: "/classes/:id/plan/topics/:topicId/restore", access: "planejamento.editar" },
+  { method: "POST", path: "/classes/:id/plan/topics/:topicId/complete", access: "planejamento.editar" },
+  { method: "POST", path: "/classes/:id/plan/topics/:topicId/reopen", access: "planejamento.editar" },
   { method: "PUT", path: "/classes/:id/plan/topic-order", access: "planejamento.editar" },
 ];
 

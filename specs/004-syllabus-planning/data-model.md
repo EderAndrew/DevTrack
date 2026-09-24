@@ -26,7 +26,7 @@ Models in the schema after this feature (pinned by `domain-boundary.spec.ts`, E2
 | `SyllabusRevisionSource` → `syllabus_revision_source` | `EXTRACTION`, `MANUAL`, `REVISION` |
 | `ClassMeetingStatus` → `class_meeting_status` | `PLANNED`, `COMPLETED`, `CANCELLED` (only `PLANNED` is used in this feature) |
 | `ClassPlanStatus` → `class_plan_status` | `DRAFT`, `READY`, `ACTIVE`, `ARCHIVED` |
-| `TopicStatus` → `topic_status` | `DRAFT`, `ACTIVE`, `ARCHIVED` |
+| `TopicStatus` → `topic_status` | `DRAFT`, `ACTIVE`, `COMPLETED`, `ARCHIVED` (`COMPLETED`: aula concluída, US9) |
 | `TopicOrigin` → `topic_origin` | `MANUAL`, `GENERATED` (reserved for AI in the next phase) |
 
 ## Subject (`subjects`)
@@ -199,6 +199,7 @@ meetings returns `409 PLAN_ARCHIVED`.
 | `origin` | `TopicOrigin` | `MANUAL` in this feature |
 | `status` | `TopicStatus` | |
 | `statusBeforeArchive` | `TopicStatus`? | set when archived |
+| `completedOn` | date? | date of the meeting when the topic was completed (US9); set iff `status = 'COMPLETED'` or (`status = 'ARCHIVED'` and `statusBeforeArchive = 'COMPLETED'`) (`CHECK`); kept when the meeting is later removed |
 | `mergedIntoTopicId` | uuid? FK → `topics.id` | merge (E14); same plan |
 | `splitFromTopicId` | uuid? FK → `topics.id` | split (E14); same plan |
 | `archivedAt` | timestamptz? | set iff `status = 'ARCHIVED'` (`CHECK`) |
@@ -213,8 +214,13 @@ Indexes:
 
 Transitions (`TopicStateMachine`):
 - `DRAFT → ACTIVE`: when the plan is confirmed.
-- `DRAFT | ACTIVE → ARCHIVED`: archive, merge or "remove".
-- `ARCHIVED → statusBeforeArchive`: restore, or `ACTIVE` if the plan is already `READY` or `ACTIVE`.
+- `ACTIVE → COMPLETED`: "Concluir aula" (FR-056), only while the plan is `ACTIVE` and the topic's
+  meeting date is today or earlier (America/Sao_Paulo); sets `completedOn`.
+- `COMPLETED → ACTIVE`: "Reabrir aula" (FR-058); clears `completedOn`.
+- `DRAFT | ACTIVE | COMPLETED → ARCHIVED`: archive, merge or "remove" (a `COMPLETED` topic is only
+  archived, never merged).
+- `ARCHIVED → statusBeforeArchive`: restore, or `ACTIVE` if the plan is already `READY` or `ACTIVE`;
+  refused when `statusBeforeArchive = 'COMPLETED'` (FR-058).
 
 Topics created while the plan is `READY` or `ACTIVE` start as `ACTIVE`.
 

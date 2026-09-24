@@ -1,15 +1,28 @@
 import type { ClassMeetingView, TopicView } from "@repo/contracts";
+import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 
 /** The actions of the topic at `index` of a list of `count` (the plan's editing controls, US6). */
 export type RenderTopicActions = (topic: TopicView, index: number, count: number) => ReactNode;
 
-/** One topic: its title, description and the syllabus items it covers (flagged when outside the revision, E16). */
+/**
+ * One topic: its title, description and the syllabus items it covers (flagged when outside the
+ * revision, E16); a completed topic carries the green "Aula concluída" mark (004/US9).
+ */
 export function TopicSummary({ topic, actions }: { topic: TopicView; actions?: ReactNode }) {
+  const completed = topic.status === "COMPLETED";
   return (
-    <li className="rounded-md border border-border p-3">
-      <h4 className="m-0 text-base">{topic.title}</h4>
+    <li className={`rounded-md border p-3 ${completed ? "border-2 border-success" : "border-border"}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h4 className="m-0 text-base">{topic.title}</h4>
+        {completed ? (
+          <span className="inline-flex items-center gap-1 rounded-md bg-success-surface px-2 py-0.5 text-sm font-semibold text-success">
+            <CircleCheck aria-hidden="true" className="size-4" />
+            Aula concluída
+          </span>
+        ) : null}
+      </div>
       {topic.description ? <p className="m-0 mt-1 whitespace-pre-line">{topic.description}</p> : null}
       {topic.items.length > 0 ? (
         <ul aria-label="Itens da ementa" className="m-0 mt-2 pl-5">
