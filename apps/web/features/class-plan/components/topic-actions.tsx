@@ -1,0 +1,120 @@
+"use client";
+
+import type { ClassMeetingView, TopicView } from "@repo/contracts";
+import { ArrowDown, ArrowUp, Archive, Pencil, Split } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
+import { NO_MEETING } from "../schemas/topic-form";
+import { SELECT_CLASS } from "./topic-form-dialog";
+
+/** Ids of a topic's buttons, so focus can come back to them after the list is redrawn. */
+export const moveButtonId = (direction: "up" | "down", topicId: string) => `${direction === "up" ? "subir" : "descer"}-${topicId}`;
+
+export interface TopicActionsProps {
+  topic: TopicView;
+  meetings: readonly ClassMeetingView[];
+  /** Position of the topic in its list (its meeting or "Sem data") and the list's length. */
+  index: number;
+  count: number;
+  selected: boolean;
+  busy: boolean;
+  onEdit: () => void;
+  onSplit: () => void;
+  onArchive: () => void;
+  onMove: (direction: "up" | "down") => void;
+  onMeetingChange: (meetingId: string | null) => void;
+  onSelect: (selected: boolean) => void;
+}
+
+/**
+ * What the teacher can do with a topic (004/US6, FR-035 – FR-038, contracts/web-ui.md): Editar,
+ * Subir, Descer, Aula, Dividir, Arquivar and the selection for "Juntar tópicos". Every change goes
+ * to the API; nothing is decided here.
+ */
+export function TopicActions({
+  topic,
+  meetings,
+  index,
+  count,
+  selected,
+  busy,
+  onEdit,
+  onSplit,
+  onArchive,
+  onMove,
+  onMeetingChange,
+  onSelect,
+}: TopicActionsProps) {
+  const selectId = `aula-${topic.id}`;
+  const checkId = `juntar-${topic.id}`;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <Button type="button" variant="secondary" onClick={onEdit} aria-label={`Editar ${topic.title}`}>
+        <Pencil aria-hidden="true" />
+        Editar
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        id={moveButtonId("up", topic.id)}
+        disabled={busy || index === 0}
+        onClick={() => onMove("up")}
+        aria-label={`Subir ${topic.title}`}
+      >
+        <ArrowUp aria-hidden="true" />
+        Subir
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        id={moveButtonId("down", topic.id)}
+        disabled={busy || index === count - 1}
+        onClick={() => onMove("down")}
+        aria-label={`Descer ${topic.title}`}
+      >
+        <ArrowDown aria-hidden="true" />
+        Descer
+      </Button>
+      <div className="flex items-center gap-2">
+        <Label htmlFor={selectId}>Aula</Label>
+        <select
+          id={selectId}
+          aria-label={`Aula de ${topic.title}`}
+          className={SELECT_CLASS}
+          value={topic.meetingId ?? NO_MEETING}
+          disabled={busy}
+          onChange={(event) => onMeetingChange(event.target.value || null)}
+        >
+          <option value={NO_MEETING}>Sem data</option>
+          {meetings.map((meeting) => (
+            <option key={meeting.id} value={meeting.id}>
+              {meetingLabel(meeting.number, meeting.date)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="button" variant="secondary" onClick={onSplit} aria-label={`Dividir ${topic.title}`}>
+        <Split aria-hidden="true" />
+        Dividir
+      </Button>
+      <Button type="button" variant="secondary" disabled={busy} onClick={onArchive} aria-label={`Arquivar ${topic.title}`}>
+        <Archive aria-hidden="true" />
+        Arquivar
+      </Button>
+      <div className="flex min-h-11 items-center gap-2">
+        <input
+          type="checkbox"
+          id={checkId}
+          aria-label={`Juntar ${topic.title}`}
+          checked={selected}
+          onChange={(event) => onSelect(event.target.checked)}
+          className="size-5"
+        />
+        <Label htmlFor={checkId} className="font-normal">
+          Juntar
+        </Label>
+      </div>
+    </div>
+  );
+}

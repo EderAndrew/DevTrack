@@ -41,14 +41,17 @@ export class TopicMutations {
   }
 
   /**
-   * Merges `sources` into `target` (FR-036): the target gains the union of their syllabus items,
-   * and each source is archived pointing at it. One `topic.merged` for the target; the merged
-   * topics get no `topic.archived` of their own (SC-010).
+   * Merges `sources` into `target` (FR-036): each source is archived pointing at it. With
+   * `unionItems` (the calendar's MERGE), the target also gains their syllabus items; the "Juntar
+   * tópicos" form sends the items the teacher reviewed instead. One `topic.merged` for the target;
+   * the merged topics get no `topic.archived` of their own (SC-010).
    */
-  async mergeInto(tx: Tx, actor: TopicActor, target: Topic, sources: Topic[]): Promise<void> {
+  async mergeInto(tx: Tx, actor: TopicActor, target: Topic, sources: Topic[], unionItems = true): Promise<void> {
     if (sources.length === 0) return;
     const sourceIds = sources.map((source) => source.id);
-    const links = await tx.topicSyllabusItem.findMany({ where: { topicId: { in: sourceIds } }, select: { itemId: true } });
+    const links = unionItems
+      ? await tx.topicSyllabusItem.findMany({ where: { topicId: { in: sourceIds } }, select: { itemId: true } })
+      : [];
     const itemIds = [...new Set(links.map((link) => link.itemId))];
     if (itemIds.length > 0) {
       await tx.topicSyllabusItem.createMany({

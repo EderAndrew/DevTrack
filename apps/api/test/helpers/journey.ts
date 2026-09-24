@@ -235,6 +235,29 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
     resolutions: [{ topicId: planned.body.topics[0].id, action: "ARCHIVE" }],
   });
   expect(unmarked.body.total).toBe(1);
+  // 004/US6 — the teacher edits, merges, splits, archives, restores and reorders topics.
+  let planRevision = unmarked.body.planRevision as number;
+  const planWrite = async (method: "post" | "patch" | "put", path: string, body: object = {}) => {
+    const res = await teacherClient[method](`/api/classes/${classId}/plan${path}`, { planRevision, ...body });
+    expect(res.status, `${method} ${path}`).toBeLessThan(300);
+    planRevision = res.body.revision;
+    return res.body as { topics: { id: string; title: string }[] };
+  };
+  const inheritance = (await planWrite("post", "/topics", { title: "Herança", itemIds: [] })).topics.at(-1)!;
+  const modifiers = (await planWrite("post", "/topics", { title: "Modificadores de acesso", itemIds: [] })).topics.at(-1)!;
+  await planWrite("patch", `/topics/${inheritance.id}`, { description: "Revisada." });
+  await planWrite("post", "/topics/merge", { topicIds: [inheritance.id, modifiers.id], title: "Herança + Modificadores", itemIds: [] });
+  const split = await planWrite("post", `/topics/${inheritance.id}/split`, {
+    parts: [
+      { title: "Herança", itemIds: [] },
+      { title: "Modificadores", itemIds: [] },
+    ],
+  });
+  await planWrite("post", `/topics/${inheritance.id}/archive`);
+  await planWrite("post", `/topics/${inheritance.id}/restore`);
+  await planWrite("put", "/topic-order", {
+    items: [...split.topics].reverse().map((topic) => ({ topicId: topic.id, meetingId: null })),
+  });
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

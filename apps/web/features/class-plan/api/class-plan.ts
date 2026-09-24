@@ -2,8 +2,13 @@ import type {
   ClassPlanEnvelope,
   ClassPlanView,
   CreateTopicRequest,
+  MergeTopicsRequest,
   PlanCoverage,
+  ReorderTopicsRequest,
   SelectPlanSyllabusRequest,
+  SplitTopicRequest,
+  TopicList,
+  UpdateTopicRequest,
 } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
 
@@ -15,4 +20,17 @@ export const classPlanApi = {
   coverage: (classId: string) => apiClient.get<PlanCoverage>(`/classes/${classId}/plan/coverage`),
   createTopic: (classId: string, body: CreateTopicRequest) =>
     apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics`, body),
+  archivedTopics: (classId: string) => apiClient.get<TopicList>(`/classes/${classId}/plan/topics?status=ARCHIVED`),
+  updateTopic: (classId: string, topicId: string, body: UpdateTopicRequest) =>
+    apiClient.patch<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}`, body),
+  mergeTopics: (classId: string, body: MergeTopicsRequest) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/merge`, body),
+  splitTopic: (classId: string, topicId: string, body: SplitTopicRequest) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/split`, body),
+  archiveTopic: (classId: string, topicId: string, planRevision: number) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/archive`, { planRevision }),
+  restoreTopic: (classId: string, topicId: string, planRevision: number) =>
+    apiClient.post<ClassPlanView>(`/classes/${classId}/plan/topics/${topicId}/restore`, { planRevision }),
+  reorderTopics: (classId: string, body: ReorderTopicsRequest) =>
+    apiClient.put<ClassPlanView>(`/classes/${classId}/plan/topic-order`, body),
 };

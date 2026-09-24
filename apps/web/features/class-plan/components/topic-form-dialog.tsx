@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ClassMeetingView, PlanCoverage } from "@repo/contracts";
+import type { ClassMeetingView, PlanCoverage, TopicFields, TopicView } from "@repo/contracts";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { ErrorSummary, Field, fieldErrorId, SubmitButton } from "@/components/shared";
@@ -15,13 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { useCreateTopic } from "../hooks/use-class-plan";
+import { useCreateTopic, useMergeTopics, useRefreshPlan, useUpdateTopic } from "../hooks/use-class-plan";
 import {
   ITEM_ERROR_CODES,
   NO_MEETING,
@@ -31,17 +30,37 @@ import {
   topicFormMessages,
   toTopicFields,
 } from "../schemas/topic-form";
+import { ItemPicker, withLinkedItems } from "./item-picker";
 
 const FIELD_IDS = { title: "titulo-topico", description: "descricao-topico", meetingId: "aula-topico", itemIds: "busca-item" } as const;
 
-const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground";
+export const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground";
 
-/** Lower case without accents, so "padroes" finds "Padrões". */
-const normalize = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
+type Kind = "create" | "edit" | "merge";
+
+const TEXTS: Record<Kind, { title: string; submit: string; pending: string; saved: string; failed: string }> = {
+  create: {
+    title: "Novo tópico",
+    submit: "Criar tópico",
+    pending: "Criando…",
+    saved: "Tópico criado.",
+    failed: "Não foi possível criar o tópico",
+  },
+  edit: {
+    title: "Editar tópico",
+    submit: "Salvar tópico",
+    pending: "Salvando…",
+    saved: "Tópico salvo.",
+    failed: "Não foi possível salvar o tópico",
+  },
+  merge: {
+    title: "Juntar tópicos",
+    submit: "Juntar tópicos",
+    pending: "Juntando…",
+    saved: "Tópicos juntados.",
+    failed: "Não foi possível juntar os tópicos",
+  },
+};
 
 export interface TopicFormDialogProps {
   classId: string;
@@ -51,62 +70,120 @@ export interface TopicFormDialogProps {
   meetings: readonly ClassMeetingView[];
   /** The groups and items of the syllabus revision the plan uses. */
   groups: PlanCoverage["groups"];
-  /** "Criar tópico com este item" (FR-033): the item already chosen and its text as the title. */
+  /** New topic from "Criar tópico com este item" (FR-033): the item already chosen and its text as the title. */
   initial?: { title: string; itemIds: string[] };
-  /** Called with the message to announce once the topic is saved. */
+  /** Editing this topic (FR-035). */
+  topic?: TopicView;
+  /** "Juntar tópicos" (FR-036): the first one stays; fields start from it, items from the union. */
+  mergeTopics?: readonly TopicView[];
+  /** Called with the message to announce once saved. */
   onSaved: (message: string) => void;
 }
 
+function defaults(props: TopicFormDialogProps): TopicFormInput {
+  const [first] = props.mergeTopics ?? [];
+  if (props.mergeTopics && first) {
+    return {
+      title: props.mergeTopics.map((topic) => topic.title).join(" + ").slice(0, 200),
+      description: first.description ?? "",
+      meetingId: first.meetingId ?? NO_MEETING,
+      itemIds: [...new Set(props.mergeTopics.flatMap((topic) => topic.items.map((item) => item.id)))],
+    };
+  }
+  if (props.topic) {
+    return {
+      title: props.topic.title,
+      description: props.topic.description ?? "",
+      meetingId: props.topic.meetingId ?? NO_MEETING,
+      itemIds: props.topic.items.map((item) => item.id),
+    };
+  }
+  return { title: props.initial?.title ?? "", description: "", meetingId: NO_MEETING, itemIds: props.initial?.itemIds ?? [] };
+}
+
 /**
- * "Novo tópico" (004/US5, FR-034, FR-035): title, description, the class day ("Sem data" by
- * default) and the syllabus items it covers, as checkboxes by group with a search. Nothing here
- * decides whether an item belongs to the plan: the API answers SYLLABUS_ITEM_NOT_IN_PLAN.
+ * The topic form (004/US5, US6; FR-034 – FR-036): title, description, the class day ("Sem data"
+ * by default) and the syllabus items it covers. It creates a topic, edits one or reviews a merge.
+ * Nothing here decides whether an item belongs to the plan: the API answers SYLLABUS_ITEM_NOT_IN_PLAN.
+ * On 409 PLAN_REVISION_CONFLICT the form stays open and "Atualizar" fetches the plan again.
  */
-export function TopicFormDialog({ classId, open, onOpenChange, meetings, groups, initial, onSaved }: TopicFormDialogProps) {
+export function TopicFormDialog(props: TopicFormDialogProps) {
+  const { classId, open, onOpenChange, meetings, groups, topic, mergeTopics, onSaved } = props;
+  const kind: Kind = mergeTopics ? "merge" : topic ? "edit" : "create";
+  const texts = TEXTS[kind];
   const create = useCreateTopic(classId);
-  const [search, setSearch] = useState("");
+  const update = useUpdateTopic(classId);
+  const merge = useMergeTopics(classId);
+  const refresh = useRefreshPlan(classId);
   const { errors, setErrors, onInvalid, errorFor } = useErrorSummary<TopicFormInput>(FIELD_IDS);
   const { register, control, handleSubmit, formState } = useForm<TopicFormInput, unknown, TopicFormOutput>({
     shouldFocusError: false,
     resolver: zodResolver(TopicFormSchema, { error: topicFormMessages }),
-    defaultValues: { title: initial?.title ?? "", description: "", meetingId: NO_MEETING, itemIds: initial?.itemIds ?? [] },
+    defaultValues: defaults(props),
   });
+  /** 409 PLAN_REVISION_CONFLICT: "Atualizar" fetches the plan again and keeps what was typed. */
+  const [conflict, setConflict] = useState(false);
+
+  const send = (fields: TopicFields) => {
+    if (kind === "merge") return merge.mutateAsync({ topicIds: mergeTopics!.map((entry) => entry.id), fields });
+    if (kind === "edit") return update.mutateAsync({ topicId: topic!.id, fields });
+    return create.mutateAsync(fields);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setErrors([]);
+    setConflict(false);
     try {
-      await create.mutateAsync(toTopicFields(values));
+      await send(toTopicFields(values));
       onOpenChange(false);
-      onSaved("Tópico criado.");
+      onSaved(texts.saved);
     } catch (error) {
       const code = apiErrorCode(error);
-      setErrors([
-        { fieldId: code && ITEM_ERROR_CODES.includes(code) ? FIELD_IDS.itemIds : undefined, message: messageForError(error) },
-      ]);
+      setConflict(code === "PLAN_REVISION_CONFLICT");
+      setErrors([{ fieldId: code && ITEM_ERROR_CODES.includes(code) ? FIELD_IDS.itemIds : undefined, message: messageForError(error) }]);
     }
   }, onInvalid);
 
-  const query = normalize(search.trim());
-  const shownGroups = groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => normalize(item.text).includes(query)) }))
-    .filter((group) => group.items.length > 0);
   const titleError = errorFor(FIELD_IDS.title);
   const descriptionError = errorFor(FIELD_IDS.description);
-  const itemsError = errorFor(FIELD_IDS.itemIds);
+  const linked = [...(topic?.items ?? []), ...(mergeTopics ?? []).flatMap((entry) => entry.items)];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Novo tópico</DialogTitle>
-          <DialogDescription>Escolha a aula e os itens da ementa que o tópico cobre. Os dois podem ficar em branco.</DialogDescription>
+          <DialogTitle>{texts.title}</DialogTitle>
+          <DialogDescription>
+            {mergeTopics
+              ? `Fica o tópico “${mergeTopics[0]?.title}”; os outros são arquivados indicando em qual foram juntados. Revise os dados antes de confirmar.`
+              : "Escolha a aula e os itens da ementa que o tópico cobre. Os dois podem ficar em branco."}
+          </DialogDescription>
         </DialogHeader>
+        {mergeTopics ? (
+          <ul aria-label="Tópicos que serão juntados" className="m-0 pl-5">
+            {mergeTopics.map((entry) => (
+              <li key={entry.id}>{entry.title}</li>
+            ))}
+          </ul>
+        ) : null}
         <form
           noValidate
-          aria-label="Novo tópico"
+          aria-label={texts.title}
           onSubmit={(event) => (formState.isSubmitting ? event.preventDefault() : void onSubmit(event))}
         >
-          <ErrorSummary errors={errors} title="Não foi possível criar o tópico" />
+          <ErrorSummary errors={errors} title={texts.failed} />
+          {conflict ? (
+            <div className="mb-4">
+              <Button type="button" variant="secondary" onClick={() =>
+                  void refresh().then(() => {
+                    setErrors([]);
+                    setConflict(false);
+                  })
+                }>
+                Atualizar
+              </Button>
+            </div>
+          ) : null}
           <Field id={FIELD_IDS.title} label="Título" required error={titleError} {...register("title")} />
           <div className="mb-4 flex flex-col gap-1">
             <Label htmlFor={FIELD_IDS.description}>Descrição</Label>
@@ -137,61 +214,19 @@ export function TopicFormDialog({ classId, open, onOpenChange, meetings, groups,
           <Controller
             control={control}
             name="itemIds"
-            render={({ field }) => {
-              const toggle = (id: string, checked: boolean) =>
-                field.onChange(checked ? [...field.value, id] : field.value.filter((value) => value !== id));
-              return (
-                <fieldset className="m-0 mb-4 flex flex-col gap-2 rounded-md border border-border p-3">
-                  <legend className="px-1 font-semibold">Itens da ementa</legend>
-                  <Label htmlFor={FIELD_IDS.itemIds}>Buscar item da ementa</Label>
-                  <Input
-                    id={FIELD_IDS.itemIds}
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    aria-invalid={itemsError ? true : undefined}
-                    aria-describedby={itemsError ? fieldErrorId(FIELD_IDS.itemIds) : undefined}
-                  />
-                  {itemsError ? (
-                    <p id={fieldErrorId(FIELD_IDS.itemIds)} className="m-0 font-semibold text-destructive">
-                      {itemsError}
-                    </p>
-                  ) : null}
-                  <p aria-live="polite" className="m-0 text-muted-foreground">
-                    {field.value.length === 1 ? "1 item marcado." : `${field.value.length} itens marcados.`}
-                  </p>
-                  {shownGroups.length === 0 ? <p className="m-0">Nenhum item encontrado.</p> : null}
-                  <div className="flex max-h-72 flex-col gap-3 overflow-y-auto">
-                    {shownGroups.map((group) => (
-                      <fieldset key={group.id} className="m-0 border-0 p-0">
-                        <legend className="font-semibold">{group.title ?? "Itens"}</legend>
-                        {group.items.map((item) => {
-                          const id = `item-${item.id}`;
-                          return (
-                            <div key={item.id} className="flex min-h-11 items-center gap-2">
-                              <input
-                                type="checkbox"
-                                id={id}
-                                checked={field.value.includes(item.id)}
-                                onChange={(event) => toggle(item.id, event.target.checked)}
-                                className="size-5 shrink-0"
-                              />
-                              <Label htmlFor={id} className="font-normal">
-                                {item.text}
-                              </Label>
-                            </div>
-                          );
-                        })}
-                      </fieldset>
-                    ))}
-                  </div>
-                </fieldset>
-              );
-            }}
+            render={({ field }) => (
+              <ItemPicker
+                idPrefix={FIELD_IDS.itemIds}
+                groups={withLinkedItems(groups, linked)}
+                value={field.value}
+                onChange={field.onChange}
+                error={errorFor(FIELD_IDS.itemIds)}
+              />
+            )}
           />
           <DialogFooter>
-            <SubmitButton pending={formState.isSubmitting} pendingLabel="Criando…">
-              Criar tópico
+            <SubmitButton pending={formState.isSubmitting} pendingLabel={texts.pending}>
+              {texts.submit}
             </SubmitButton>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
