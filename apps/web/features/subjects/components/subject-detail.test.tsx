@@ -159,6 +159,106 @@ describe("004/US1-3 004/US1-6 SubjectDetail — dados, turmas da disciplina e si
   });
 });
 
+describe("004/US1-7 004/FR-004 SubjectDetail — vincular turma existente", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const ALGORITMOS = { id: "00000000-0000-4000-8000-00000000abcd", name: "Algoritmos" };
+  const SEM_DISCIPLINA = classView("Turma antiga 2025");
+  const DE_OUTRA = classView("Algoritmos — Turma C", { subject: ALGORITMOS, startsOn: "2026-02-02", endsOn: "2026-06-30" });
+
+  /** The subject's offerings, every class of the teacher, and the PATCH that links one of them. */
+  function serve(patch: () => Response = () => json(200, {})) {
+    let linked: string[] = [];
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const all = [TURMA_A, SEM_DISCIPLINA, DE_OUTRA];
+      const offerings = () => all.filter((item) => item.subject?.id === POO.id || linked.includes(item.id));
+      if (url.startsWith("/api/classes?subjectId=")) return Promise.resolve(json(200, { items: offerings(), nextCursor: null }));
+      if (url === "/api/classes") return Promise.resolve(json(200, { items: all, nextCursor: null }));
+      if (url.startsWith("/api/classes/") && init?.method === "PATCH") {
+        const response = patch();
+        if (response.ok) {
+          const id = url.slice("/api/classes/".length);
+          linked = [...linked, id];
+          const item = all.find((entry) => entry.id === id)!;
+          return Promise.resolve(json(200, { ...item, subject: { id: POO.id, name: POO.name } }));
+        }
+        return Promise.resolve(response);
+      }
+      if (url === `/api/subjects/${POO.id}`) return Promise.resolve(json(200, POO));
+      return Promise.resolve(apiError(404, "NOT_FOUND", "Recurso não encontrado."));
+    });
+  }
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("004/US1-7 oferece Nova turma e Vincular turma existente; escolher uma turma a liga à disciplina", async () => {
+    serve();
+    renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass canLinkClass />);
+    const user = userEvent.setup();
+    expect(await screen.findByRole("link", { name: TURMA_A.name })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Nova turma" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Vincular turma existente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Vincular turma existente" });
+    const select = within(dialog).getByLabelText("Turma");
+    await within(dialog).findByRole("option", { name: SEM_DISCIPLINA.name });
+    expect(within(dialog).queryByRole("option", { name: TURMA_A.name })).toBeNull();
+    expect(within(dialog).getByRole("option", { name: `${DE_OUTRA.name} (disciplina atual: Algoritmos)` })).toBeTruthy();
+    await expectNoA11yViolations(dialog);
+
+    await user.click(within(dialog).getByRole("button", { name: "Vincular turma" }));
+    expect(await within(dialog).findByText("Escolha uma turma.", { selector: "p" })).toBeTruthy();
+    expect(select.getAttribute("aria-invalid")).toBe("true");
+
+    await user.selectOptions(select, SEM_DISCIPLINA.id);
+    await user.click(within(dialog).getByRole("button", { name: "Vincular turma" }));
+
+    expect((await screen.findByRole("status")).textContent).toBe(
+      `Turma ${SEM_DISCIPLINA.name} vinculada à disciplina. Informe as datas de início e término da turma para usar ementa, calendário e planejamento.`,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await screen.findByRole("link", { name: SEM_DISCIPLINA.name })).toBeTruthy();
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH")!;
+    expect(String(patch[0])).toBe(`/api/classes/${SEM_DISCIPLINA.id}`);
+    expect(JSON.parse(String(patch[1]!.body))).toEqual({ subjectId: POO.id });
+  });
+
+  it("004/FR-004 turma com planejamento em outra disciplina é recusada com a mensagem da API", async () => {
+    serve(() => apiError(409, "CLASS_SUBJECT_LOCKED", "locked"));
+    renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass canLinkClass />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Vincular turma existente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Vincular turma existente" });
+    await within(dialog).findByRole("option", { name: SEM_DISCIPLINA.name });
+    await user.selectOptions(within(dialog).getByLabelText("Turma"), DE_OUTRA.id);
+    await user.click(within(dialog).getByRole("button", { name: "Vincular turma" }));
+
+    expect(await within(dialog).findByText(/A disciplina da turma não pode mais ser trocada/)).toBeTruthy();
+  });
+
+  it("sem turmas.editar ou com a disciplina inativa não oferece o vínculo", async () => {
+    serve();
+    const { unmount } = renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass canLinkClass={false} />);
+    await screen.findByRole("link", { name: TURMA_A.name });
+    expect(screen.queryByRole("button", { name: "Vincular turma existente" })).toBeNull();
+    unmount();
+
+    fetchMock.mockImplementation((input) =>
+      Promise.resolve(
+        String(input).startsWith("/api/classes") ? json(200, { items: [], nextCursor: null }) : json(200, { ...POO, status: "INACTIVE" }),
+      ),
+    );
+    renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass canLinkClass />);
+    await screen.findByText("Nenhuma turma ligada a esta disciplina.");
+    expect(screen.queryByRole("button", { name: "Vincular turma existente" })).toBeNull();
+  });
+});
+
 describe("004/SC-012 — SubjectDetail só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
@@ -168,11 +268,11 @@ describe("004/SC-012 — SubjectDetail só com teclado", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("ordem de tabulação: ações, Nova turma e turmas", async () => {
+  it("ordem de tabulação: ações, Nova turma, Vincular turma existente e turmas", async () => {
     fetchMock.mockImplementation((input) =>
       Promise.resolve(String(input).startsWith("/api/classes") ? json(200, { items: [TURMA_A], nextCursor: null }) : json(200, POO)),
     );
-    renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass />);
+    renderWithProviders(<SubjectDetail id={POO.id} canEdit canCreateClass canLinkClass />);
     const user = userEvent.setup();
     const turma = await screen.findByRole("link", { name: TURMA_A.name });
 
@@ -180,6 +280,7 @@ describe("004/SC-012 — SubjectDetail só com teclado", () => {
       screen.getByRole("button", { name: "Editar" }),
       screen.getByRole("button", { name: "Desativar" }),
       screen.getByRole("link", { name: "Nova turma" }),
+      screen.getByRole("button", { name: "Vincular turma existente" }),
       turma,
     ]);
   });

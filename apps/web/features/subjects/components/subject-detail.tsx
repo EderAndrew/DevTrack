@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { CLASS_PLAN_STATUS_LABELS } from "@/lib/messages/status-labels";
 import { useSubject } from "../hooks/use-subjects";
+import { LinkClassDialog } from "./link-class-dialog";
 import { SubjectForm } from "./subject-form";
 import { SubjectStatusActions } from "./subject-status-actions";
 import { SubjectStatusBadge } from "./subject-status-badge";
@@ -26,6 +27,8 @@ export interface SubjectDetailProps {
   canEdit: boolean;
   /** "Nova turma" with this subject chosen, while the subject is active. */
   canCreateClass: boolean;
+  /** "Vincular turma existente" (`turmas.editar`), while the subject is active. */
+  canLinkClass?: boolean;
   /** UX only: the syllabus versions (`ementas.visualizar`) and "Enviar ementa" (`ementas.enviar`). */
   canViewSyllabus?: boolean;
   canUploadSyllabus?: boolean;
@@ -33,13 +36,14 @@ export interface SubjectDetailProps {
 
 /**
  * Subject page (004/US1): data with Editar and Desativar/Reativar, the classes that offer it
- * (period, dates and plan status) with "Nova turma", and the syllabus versions with "Enviar ementa" (US2).
+ * (period, dates and plan status) with "Nova turma" and "Vincular turma existente", and the syllabus versions with "Enviar ementa" (US2).
  */
 export function SubjectDetail({
   id,
   created = false,
   canEdit,
   canCreateClass,
+  canLinkClass = false,
   canViewSyllabus = false,
   canUploadSyllabus = false,
 }: SubjectDetailProps) {
@@ -108,7 +112,7 @@ export function SubjectDetail({
         </>
       )}
 
-      <SubjectClasses subject={subject} canCreateClass={canCreateClass} />
+      <SubjectClasses subject={subject} canCreateClass={canCreateClass} canLinkClass={canLinkClass} onLinked={setNotice} />
 
       {canViewSyllabus ? (
         <SyllabusSection subjectId={subject.id} canUpload={canUploadSyllabus && subject.status === "ACTIVE"} />
@@ -118,20 +122,36 @@ export function SubjectDetail({
 }
 
 /** "Turmas da disciplina": the offerings of the subject, with their period, dates and plan status. */
-function SubjectClasses({ subject, canCreateClass }: { subject: SubjectView; canCreateClass: boolean }) {
+function SubjectClasses({
+  subject,
+  canCreateClass,
+  canLinkClass,
+  onLinked,
+}: {
+  subject: SubjectView;
+  canCreateClass: boolean;
+  canLinkClass: boolean;
+  onLinked: (message: string) => void;
+}) {
+  const active = subject.status === "ACTIVE";
   const classes = useClasses({ subjectId: subject.id });
   const items = classes.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <section aria-labelledby="turmas-titulo" className="mt-8">
       <h2 id="turmas-titulo">Turmas da disciplina</h2>
-      {canCreateClass && subject.status === "ACTIVE" ? (
-        <Button asChild className="mb-4">
-          <Link href={`/turmas/nova?disciplina=${subject.id}`}>
-            <Plus aria-hidden="true" />
-            Nova turma
-          </Link>
-        </Button>
+      {active && (canCreateClass || canLinkClass) ? (
+        <div className="flex flex-wrap gap-2">
+          {canCreateClass ? (
+            <Button asChild className="mb-4">
+              <Link href={`/turmas/nova?disciplina=${subject.id}`}>
+                <Plus aria-hidden="true" />
+                Nova turma
+              </Link>
+            </Button>
+          ) : null}
+          {canLinkClass ? <LinkClassDialog subject={subject} onLinked={onLinked} /> : null}
+        </div>
       ) : null}
       {classes.isPending ? (
         <div aria-busy="true">
