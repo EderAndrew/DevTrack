@@ -50,6 +50,15 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     navigation.pathname = "/conta/perfil";
     // jsdom has no matchMedia; the desktop layout is enough here.
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    // jsdom has no ResizeObserver either; collapsed, a tooltip may open under the pointer and Radix measures it.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
   });
   afterEach(() => vi.unstubAllGlobals());
 
