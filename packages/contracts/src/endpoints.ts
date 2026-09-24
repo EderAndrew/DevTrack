@@ -46,6 +46,13 @@ import {
   SubjectViewSchema,
   UpdateSubjectRequestSchema,
 } from "./curriculum/subjects.js";
+import {
+  SyllabusDocumentDetailSchema,
+  SyllabusDocumentListSchema,
+  SyllabusDocumentViewSchema,
+  SyllabusFileQuerySchema,
+  SyllabusUploadResultSchema,
+} from "./curriculum/syllabus.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -393,6 +400,46 @@ export const endpoints = {
     body: ChangeSubjectStatusRequestSchema,
     response: SubjectViewSchema,
     status: 200,
+  },
+
+  "syllabusDocuments.list": {
+    method: "GET",
+    path: "/subjects/:id/syllabus-documents",
+    params: IdParamsSchema,
+    response: SyllabusDocumentListSchema,
+    status: 200,
+  },
+  /** 201 with a new version; 200 with `duplicate: true` when the same file was already sent. */
+  "syllabusDocuments.upload": {
+    method: "POST",
+    path: "/subjects/:id/syllabus-documents",
+    params: IdParamsSchema,
+    upload: true,
+    response: SyllabusUploadResultSchema,
+    status: 201,
+  },
+  "syllabusDocuments.get": {
+    method: "GET",
+    path: "/syllabus-documents/:id",
+    params: IdParamsSchema,
+    response: SyllabusDocumentDetailSchema,
+    status: 200,
+  },
+  "syllabusDocuments.download": {
+    method: "GET",
+    path: "/syllabus-documents/:id/file",
+    params: IdParamsSchema,
+    query: SyllabusFileQuerySchema,
+    response: "binary",
+    status: 200,
+  },
+  "syllabusDocuments.retry": {
+    method: "POST",
+    path: "/syllabus-documents/:id/retry",
+    params: IdParamsSchema,
+    body: EmptyBodySchema,
+    response: SyllabusDocumentViewSchema,
+    status: 202,
   },
 } as const satisfies Record<string, EndpointContract>;
 

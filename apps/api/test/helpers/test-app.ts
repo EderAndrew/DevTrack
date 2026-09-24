@@ -12,9 +12,11 @@ import { PrismaService } from "../../src/platform/database/prisma.service";
 import { InMemoryMailer } from "../../src/platform/mail/in-memory.mailer";
 import { MailDispatcher } from "../../src/platform/mail/mail-dispatcher";
 import { Mailer } from "../../src/platform/mail/mailer";
+import { SYLLABUS_WORKER_PATH } from "../../src/modules/syllabus/syllabus-worker-runner";
 import { ContractConformanceInterceptor } from "./contract-conformance.interceptor";
 import { assertTestDatabase } from "./env";
 import { LogCapture } from "./log-capture";
+import { TEST_WORKER_PATH } from "./syllabus-worker";
 
 /** Reference data seeded by migration: never truncated. */
 const PRESERVED_TABLES = new Set(["roles", "permissions", "role_permissions", "_prisma_migrations"]);
@@ -50,7 +52,15 @@ export interface TestApp {
 }
 
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return { ...loadConfig(process.env), maintenanceIntervalSeconds: 0, mailRetryIntervalSeconds: 0, ...overrides };
+  const base = loadConfig(process.env);
+  // Timers off: tests drive the maintenance, mail retry and syllabus workers with `runOnce`.
+  return {
+    ...base,
+    maintenanceIntervalSeconds: 0,
+    mailRetryIntervalSeconds: 0,
+    ...overrides,
+    syllabus: { ...base.syllabus, processingIntervalSeconds: 0, ...overrides.syllabus },
+  };
 }
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
@@ -62,7 +72,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     controllers: options.controllers ?? [],
   })
     .overrideProvider(Mailer)
-    .useValue(mailer);
+    .useValue(mailer)
+    // The reading worker compiled by the global setup (test/helpers/syllabus-worker.ts).
+    .overrideProvider(SYLLABUS_WORKER_PATH)
+    .useValue(TEST_WORKER_PATH);
   for (const { provide, useValue } of options.overrides ?? []) {
     builder = builder.overrideProvider(provide).useValue(useValue);
   }

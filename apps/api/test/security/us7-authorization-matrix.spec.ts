@@ -1,6 +1,6 @@
 import type { RoleKey } from "@repo/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createUser, loginAs, type TestUser } from "../helpers/factories";
+import { createUser, loginAs, syllabusFixture, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { concretePath, MATRIX, type MatrixEntry, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 
@@ -30,6 +30,8 @@ describe("US7-1/US7-2 SC-003 — matriz de autorização (contracts/permissions.
     const user = users.get(principal);
     const client = api(t, { cookie: user ? await loginAs(t, user) : undefined });
     const url = concretePath(entry.path);
+    // 004 uploads are multipart: a real (tiny) file, so only the guards and the context decide.
+    if (entry.upload) return client.upload(url, { bytes: syllabusFixture("ementa.png"), filename: "ementa.png", contentType: "image/png" });
     if (entry.method === "GET") return client.get(url);
     if (entry.method === "DELETE") return client.delete(url);
     if (entry.method === "PATCH") return client.patch(url, {});

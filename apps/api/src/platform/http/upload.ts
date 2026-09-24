@@ -51,6 +51,8 @@ export class SyllabusFileInterceptor implements NestInterceptor {
     // Without `storage` or `dest`, multer keeps the file in memory (a Buffer).
     const Multer = FileInterceptor("file", {
       limits: { fileSize: config.syllabus.maxFileMb * MIB, files: 1, fields: 0, parts: 1 },
+      // Browsers send the file name as raw UTF-8; busboy's default (latin1) would garble accents.
+      defParamCharset: "utf8",
     });
     this.multer = new Multer();
   }

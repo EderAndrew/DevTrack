@@ -1,3 +1,4 @@
 .env.test
 src/generated/
 .vitest/
+test/.tmp/

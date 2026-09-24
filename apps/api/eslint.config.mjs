@@ -5,7 +5,7 @@ import { config as baseConfig } from "@repo/eslint-config/base";
 export default [
   ...baseConfig,
   {
-    ignores: ["dist/**", "coverage/**", "src/generated/**"],
+    ignores: ["dist/**", "coverage/**", "src/generated/**", "test/.tmp/**"],
   },
   {
     languageOptions: {

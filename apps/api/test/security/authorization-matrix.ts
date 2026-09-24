@@ -13,6 +13,8 @@ export interface MatrixEntry {
   /** Route pattern as registered (without the `/api` prefix). */
   path: string;
   access: Access;
+  /** `multipart/form-data` route (004): the matrix sends a small file instead of a JSON body. */
+  upload?: true;
 }
 
 const PROFESSORES = [
@@ -122,6 +124,12 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/subjects/:id", access: "disciplinas.visualizar" },
   { method: "PATCH", path: "/subjects/:id", access: "disciplinas.editar" },
   { method: "POST", path: "/subjects/:id/status", access: "disciplinas.editar" },
+
+  { method: "GET", path: "/subjects/:id/syllabus-documents", access: "ementas.visualizar" },
+  { method: "POST", path: "/subjects/:id/syllabus-documents", access: "ementas.enviar", upload: true },
+  { method: "GET", path: "/syllabus-documents/:id", access: "ementas.visualizar" },
+  { method: "GET", path: "/syllabus-documents/:id/file", access: "ementas.visualizar" },
+  { method: "POST", path: "/syllabus-documents/:id/retry", access: "ementas.enviar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;
