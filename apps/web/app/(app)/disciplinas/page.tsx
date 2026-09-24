@@ -12,7 +12,7 @@ export default async function SubjectsPage() {
   if (!me.permissions.includes("disciplinas.visualizar")) return <NoAccess title="Minhas disciplinas" />;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Minhas disciplinas</h1>
       <SubjectsList canCreate={me.permissions.includes("disciplinas.criar")} />
     </section>

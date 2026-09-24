@@ -18,7 +18,7 @@ export default async function UsersPage() {
   if (!page) redirect(LOGIN);
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Contas de usuário</h1>
       <p>Somente dados de identidade: nome, e-mail, situação da conta e papéis.</p>
       <UsersAdmin initialPage={page} currentUserId={me.id} />

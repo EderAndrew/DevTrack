@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { safeNextPath } from "../../../lib/navigation";
+import { safeNextPath, startPathFor } from "../../../lib/navigation";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { makeTestQueryClient, renderWithProviders } from "../../../test/render";
 import { pendingResponse } from "../../../test/tokens";
@@ -86,13 +86,21 @@ describe("safeNextPath", () => {
   it.each([
     ["/conta/sessoes", "/conta/sessoes"],
     ["/conta/sessoes?x=1", "/conta/sessoes?x=1"],
-    ["https://evil.example", "/conta/perfil"],
-    ["//evil.example", "/conta/perfil"],
-    ["/\\evil.example", "/conta/perfil"],
-    ["", "/conta/perfil"],
-    [null, "/conta/perfil"],
+    ["https://evil.example", "/"],
+    ["//evil.example", "/"],
+    ["/\\evil.example", "/"],
+    ["", "/"],
+    [null, "/"],
   ])("%s → %s", (input, expected) => {
     expect(safeNextPath(input)).toBe(expected);
+  });
+});
+
+describe("004/FR-001 página inicial depois do login", () => {
+  it("professor (disciplinas.visualizar) começa em Minhas disciplinas; os demais no perfil", () => {
+    expect(startPathFor(["disciplinas.visualizar", "turmas.visualizar"])).toBe("/disciplinas");
+    expect(startPathFor(["turmas_do_aluno.visualizar"])).toBe("/conta/perfil");
+    expect(startPathFor([])).toBe("/conta/perfil");
   });
 });
 

@@ -18,7 +18,7 @@ export default async function TeachersPage() {
   if (!teachers) redirect(LOGIN);
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Professores</h1>
       <TeachersAdmin initialTeachers={teachers} />
     </section>

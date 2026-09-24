@@ -14,7 +14,7 @@ export default async function NewClassPage({ searchParams }: { searchParams: Pro
   if (!me.permissions.includes("turmas.criar")) return <NoAccess title="Nova turma" />;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Nova turma</h1>
       {/* "Nova turma" of a subject page (004/US1-3) arrives with the subject chosen. */}
       <ClassForm defaultSubjectId={UuidSchema.safeParse(disciplina).success ? disciplina : undefined} />

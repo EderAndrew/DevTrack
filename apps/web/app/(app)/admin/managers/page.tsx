@@ -18,7 +18,7 @@ export default async function ManagersPage() {
   if (!initial) redirect(LOGIN);
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Gestores de cadastros</h1>
       <ManagersAdmin initialManagers={initial.managers} initialInvitations={initial.invitations} />
     </section>

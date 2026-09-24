@@ -13,7 +13,7 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
   const { "bem-vindo": welcome } = await searchParams;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Minhas turmas</h1>
       <MyClasses welcome={welcome === "1"} />
     </section>

@@ -12,7 +12,7 @@ export default async function NewSubjectPage() {
   if (!me.permissions.includes("disciplinas.criar")) return <NoAccess title="Nova disciplina" />;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Nova disciplina</h1>
       <SubjectForm />
     </section>

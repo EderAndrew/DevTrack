@@ -403,8 +403,9 @@ inclusive no download do documento.
 
 - **FR-001**: O sistema DEVE oferecer ao professor uma área privada ("Minha área"
   ou equivalente) com suas disciplinas, e em cada disciplina as turmas (ofertas),
-  a ementa e os planejamentos. Todo recurso desta feature pertence ao professor que
-  o criou; o dono vem sempre da sessão, nunca do pedido.
+  a ementa e os planejamentos. "Minhas disciplinas" é a primeira tela do professor
+  depois do login (sem destino pedido). Todo recurso desta feature pertence ao
+  professor que o criou; o dono vem sempre da sessão, nunca do pedido.
 - **FR-002**: O professor DEVE poder criar disciplinas com nome (1 a 120
   caracteres, único entre as dele sem diferenciar maiúsculas e ignorando espaços
   nas pontas) e descrição opcional, editar, desativar e reativar. Não há exclusão.
