@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
 import { getMe } from "@/features/auth/api/server";
-import { HOME_PATH } from "@/lib/navigation";
+import { startPathFor } from "@/lib/navigation";
 
-/** Home and login are one screen (`/entrar`); with a session, the start page is the account's. UX only. */
+/**
+ * Home and login are one screen (`/entrar`); with a session, the start page comes from the
+ * account's permissions: "Minhas disciplinas" for a teacher, the profile otherwise. UX only.
+ */
 export default async function Home() {
   const me = await getMe().catch(() => null);
-  redirect(me ? HOME_PATH : "/entrar");
+  redirect(me ? startPathFor(me.permissions) : "/entrar");
 }

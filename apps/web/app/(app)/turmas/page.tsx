@@ -12,7 +12,7 @@ export default async function ClassesPage() {
   if (!me.permissions.includes("turmas.visualizar")) return <NoAccess title="Turmas" />;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <h1>Turmas</h1>
       <ClassesList canCreate={me.permissions.includes("turmas.criar")} />
     </section>

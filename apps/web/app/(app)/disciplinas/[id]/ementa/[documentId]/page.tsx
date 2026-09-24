@@ -21,7 +21,7 @@ export default async function SyllabusDocumentPage({
   if (!me.permissions.includes("ementas.visualizar")) return <NoAccess title="Ementa" />;
 
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
+    <section className="mx-auto w-full max-w-256 px-4 py-8">
       <SyllabusDocumentDetail
         subjectId={id}
         documentId={documentId}
