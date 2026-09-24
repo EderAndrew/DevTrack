@@ -3,14 +3,21 @@ import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 
-/** The actions of the topic at `index` of a list of `count` (the plan's editing controls, US6). */
-export type RenderTopicActions = (topic: TopicView, index: number, count: number) => ReactNode;
+/**
+ * The controls of the topic at `index` of a list of `count` (the plan's editing controls, US6):
+ * `header` sits beside the title ("Concluir aula" / "Reabrir aula", US9), `actions` below the items.
+ */
+export type RenderTopicActions = (
+  topic: TopicView,
+  index: number,
+  count: number,
+) => { header?: ReactNode; actions: ReactNode };
 
 /**
  * One topic: its title, description and the syllabus items it covers (flagged when outside the
  * revision, E16); a completed topic carries the green "Aula concluída" mark (004/US9).
  */
-export function TopicSummary({ topic, actions }: { topic: TopicView; actions?: ReactNode }) {
+export function TopicSummary({ topic, header, actions }: { topic: TopicView; header?: ReactNode; actions?: ReactNode }) {
   const completed = topic.status === "COMPLETED";
   return (
     <li className={`rounded-md border p-3 ${completed ? "border-2 border-success" : "border-border"}`}>
@@ -22,6 +29,7 @@ export function TopicSummary({ topic, actions }: { topic: TopicView; actions?: R
             Aula concluída
           </span>
         ) : null}
+        {header ? <div className="ml-auto">{header}</div> : null}
       </div>
       {topic.description ? <p className="m-0 mt-1 whitespace-pre-line">{topic.description}</p> : null}
       {topic.items.length > 0 ? (
@@ -56,9 +64,10 @@ export function TopicList({
   if (topics.length === 0) return <p className="m-0">{empty}</p>;
   return (
     <ol className="m-0 flex list-none flex-col gap-2 p-0">
-      {topics.map((topic, index) => (
-        <TopicSummary key={topic.id} topic={topic} actions={renderActions?.(topic, index, topics.length)} />
-      ))}
+      {topics.map((topic, index) => {
+        const controls = renderActions?.(topic, index, topics.length);
+        return <TopicSummary key={topic.id} topic={topic} header={controls?.header} actions={controls?.actions} />;
+      })}
     </ol>
   );
 }

@@ -70,6 +70,9 @@ describe("004/US9 aula concluída no planejamento (FR-056 – FR-058)", () => {
     ]);
     const card = screen.getByRole("heading", { name: "Conceitos de classes" }).closest("li")!;
     expect(within(card).getByText("Aula concluída")).toBeTruthy();
+    // "Reabrir aula" sits beside the title, not in the row of actions below the items.
+    const header = screen.getByRole("heading", { name: "Conceitos de classes" }).parentElement!;
+    expect(within(header).getByRole("button", { name: "Reabrir aula de Conceitos de classes" })).toBeTruthy();
   });
 
   it("004/US9-2 004/FR-057 tópico concluído: só Arquivar e Reabrir aula habilitados; o vizinho não troca de lugar com ele", async () => {

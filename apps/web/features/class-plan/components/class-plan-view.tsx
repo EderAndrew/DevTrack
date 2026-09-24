@@ -26,7 +26,7 @@ import { MeetingTopics, type RenderTopicActions } from "./meeting-topics";
 import { MergeTopicsDialog } from "./merge-topics-dialog";
 import { PlanStatusBar } from "./plan-status-bar";
 import { SplitTopicDialog } from "./split-topic-dialog";
-import { moveButtonId, TopicActions } from "./topic-actions";
+import { moveButtonId, TopicActions, TopicClassToggle } from "./topic-actions";
 import { TopicFormDialog } from "./topic-form-dialog";
 import { UnscheduledTopics } from "./unscheduled-topics";
 
@@ -201,27 +201,35 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
   };
 
   const renderActions: RenderTopicActions | undefined = canEdit
-    ? (topic, index, count) => (
-        <TopicActions
-          topic={topic}
-          meetings={plan.meetings}
-          index={index}
-          count={count}
-          selected={selected.has(topic.id)}
-          busy={busy}
-          completable={completable(topic)}
-          lockedUp={neighbourCompleted(topic, -1)}
-          lockedDown={neighbourCompleted(topic, 1)}
-          onComplete={() => void run(() => complete.mutateAsync(topic.id), "Aula concluída.")}
-          onReopen={() => void run(() => reopen.mutateAsync(topic.id), "Aula reaberta.")}
-          onEdit={() => open({ kind: "edit", topic })}
-          onSplit={() => open({ kind: "split", topic })}
-          onArchive={() => void run(() => archive.mutateAsync(topic.id), "Tópico arquivado.")}
-          onMove={(direction) => void move(topic, direction)}
-          onMeetingChange={(meetingId) => changeMeeting(topic, meetingId)}
-          onSelect={(on) => toggleSelected(topic.id, on)}
-        />
-      )
+    ? (topic, index, count) => ({
+        header: (
+          <TopicClassToggle
+            topic={topic}
+            busy={busy}
+            completable={completable(topic)}
+            onComplete={() => void run(() => complete.mutateAsync(topic.id), "Aula concluída.")}
+            onReopen={() => void run(() => reopen.mutateAsync(topic.id), "Aula reaberta.")}
+          />
+        ),
+        actions: (
+          <TopicActions
+            topic={topic}
+            meetings={plan.meetings}
+            index={index}
+            count={count}
+            selected={selected.has(topic.id)}
+            busy={busy}
+            lockedUp={neighbourCompleted(topic, -1)}
+            lockedDown={neighbourCompleted(topic, 1)}
+            onEdit={() => open({ kind: "edit", topic })}
+            onSplit={() => open({ kind: "split", topic })}
+            onArchive={() => void run(() => archive.mutateAsync(topic.id), "Tópico arquivado.")}
+            onMove={(direction) => void move(topic, direction)}
+            onMeetingChange={(meetingId) => changeMeeting(topic, meetingId)}
+            onSelect={(on) => toggleSelected(topic.id, on)}
+          />
+        ),
+      })
     : undefined;
 
   const unscheduled = plan.topics.filter((topic) => topic.meetingId === null);
