@@ -53,7 +53,7 @@ const SPECS: FeatureSpec[] = [
   {
     feature: "004",
     path: "specs/004-syllabus-planning/spec.md",
-    scenarios: 53,
+    scenarios: 54,
     rows: 25,
     rowsWithoutIds: [],
     // SC-001 is the time of a person using the screens, checked on the quickstart walk-through.

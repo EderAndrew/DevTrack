@@ -59,6 +59,11 @@ nada disso.
 6. **Given** uma disciplina com turmas, **When** o professor a desativa, **Then** ela
    deixa de ser oferecida para turmas novas, e as turmas e planejamentos existentes
    continuam intactos; reativá-la a devolve às opções.
+7. **Given** uma disciplina ativa e turmas do professor já criadas na tela Turmas,
+   **When** ele abre "Turmas da disciplina", **Then** pode criar uma turma nova já
+   ligada à disciplina ou escolher uma das suas turmas existentes para ligá-la a
+   ela; uma turma que já tem ementa selecionada ou tópicos não arquivados em outra
+   disciplina é recusada (FR-004).
 
 ---
 
@@ -413,7 +418,9 @@ inclusive no download do documento.
 - **FR-004**: A disciplina de uma turma só PODE ser trocada enquanto a turma não
   tiver ementa selecionada nem tópicos não arquivados.
 - **FR-005**: A página da disciplina DEVE listar suas turmas (ofertas) com período,
-  datas, situação da turma e situação do planejamento.
+  datas, situação da turma e situação do planejamento, e oferecer "Nova turma" e
+  "Vincular turma existente" (uma das turmas do professor que ainda não é desta
+  disciplina).
 
 **Ementa: documento original**
 

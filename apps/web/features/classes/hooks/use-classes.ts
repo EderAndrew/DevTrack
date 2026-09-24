@@ -49,3 +49,12 @@ export function useChangeClassStatus(id: string) {
   const afterChange = useAfterChange();
   return useMutation({ mutationFn: (status: ClassStatus) => classesApi.changeStatus(id, status), onSuccess: afterChange });
 }
+
+/** Links one of the teacher's classes to a subject (004/US1-7); the API refuses a locked one (FR-004). */
+export function useLinkClassToSubject() {
+  const afterChange = useAfterChange();
+  return useMutation({
+    mutationFn: ({ classId, subjectId }: { classId: string; subjectId: string }) => classesApi.update(classId, { subjectId }),
+    onSuccess: afterChange,
+  });
+}
