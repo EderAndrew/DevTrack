@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-23 (003 implemented)
+Last updated: 2026-09-24 (004 in progress: US1–US4 done)
 
 ## Project state
 
@@ -12,11 +12,13 @@ implemented: all 110 tasks in `tasks.md` are checked, US1–US8 plus the Polish 
 (`specs/002-stack-alignment`) refactored it onto the official stack without changing behavior:
 shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. Phase 003
 (`specs/003-class-invitations-enrollment`) is implemented: teachers' classes, class invitations
-by e-mail (the only way a student account is created), enrollments and "Minhas turmas". Later
-work starts a new feature through `/speckit-specify`.
+by e-mail (the only way a student account is created), enrollments and "Minhas turmas". Phase 004
+(`specs/004-syllabus-planning`, the active feature) is in progress: subjects, syllabus upload and
+extraction, syllabus review and the class calendar (US1–US4) are done; topics and the class plan
+(US5–US8) and Polish remain. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E22 in 004), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -134,8 +136,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `proxy.ts` only redirects for UX and never authorizes.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
   contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
-  `provisioning`, `admin-activation`, `health`, and `classes` for classes, class invitations,
-  enrollments and "Minhas turmas"), with types derived through `z.infer`
+  `provisioning`, `admin-activation`, `health`, `classes` for classes, class invitations,
+  enrollments and "Minhas turmas", and `curriculum` for 004 subjects, syllabus, class meetings and
+  class plans), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
@@ -162,6 +165,15 @@ the removal conditions are in `DEPENDENCIES.md`.
   UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS` (0 disables the timer; tests
   call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7 attempts; a retry issues a
   fresh token and supersedes the old link.
+- 004 modules: `subjects` (`SubjectContextPolicy`, same 404 scoping as classes; syllabus documents
+  and revisions are reached through their subject), `syllabus` (upload into `stored_files`, then
+  `SyllabusProcessingWorker` claims `UPLOADED` documents and runs extraction in a `worker_threads`
+  worker via `SyllabusWorkerRunner`, with the state machine in
+  `syllabus-processing.state-machine.ts`; worker test setup is in `apps/api/CLAUDE.md`) and
+  `class-plans` (the class calendar, where the meeting number comes from `row_number()` and is never
+  stored; plan and topic state machines; `bumpRevision` in `plan-revision.guard.ts` starts every plan
+  write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the
+  topics use).
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 
