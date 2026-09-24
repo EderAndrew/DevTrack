@@ -25,8 +25,9 @@ export interface JourneyResult {
  * bootstrap (CLI service), e-mail verification, login and sessions, manager and teacher
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
- * implemented so far (classes, class invitations, their management and acceptance, enrollments, own classes). Together they emit
- * every audit event type of the contracts/audit-events.md of 001 and 003, except the retired
+ * implemented so far (classes, class invitations, their management and acceptance, enrollments, own classes), and the 004
+ * flows implemented so far (subjects, classes as offerings). Together they emit every audit event
+ * type of the contracts/audit-events.md of 001, 003 and 004, except the retired
  * ones and those still pending in audit-coverage.spec.ts.
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
@@ -155,6 +156,14 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   expect(created.status).toBe(201);
   const classId = created.body.id as string;
   expect((await teacherClient.patch(`/api/classes/${classId}`, { period: "1º semestre" })).status).toBe(200);
+  // 004/US1 — the teacher creates, renames and deactivates a subject, and links the class to it.
+  const subject = await teacherClient.post("/api/subjects", { name: "Disciplina da Jornada" });
+  expect(subject.status).toBe(201);
+  const subjectId = subject.body.id as string;
+  const offering = { subjectId, startsOn: "2026-02-02", endsOn: "2026-06-30" };
+  expect((await teacherClient.patch(`/api/classes/${classId}`, offering)).body.plannable).toBe(true);
+  expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: "Ementa da jornada" })).status).toBe(200);
+  expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);
     await t.flushMail();

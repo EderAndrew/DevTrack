@@ -1,38 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import type { EnrollmentListQuery, EnrollmentPage, EnrollmentView } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
-import { escapeLike } from "../../platform/database/keyset";
+import { decodeNameCursor, encodeNameCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { invalidStateTransition, notFound, validationError } from "../../platform/http/errors";
+import { invalidStateTransition, notFound } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { type EnrollmentRow, toEnrollmentView } from "./enrollment.view";
 
 export const ENROLLMENTS_PAGE_SIZE = 20;
-
-/** Position of the last item of a page ordered by `lower(users.name), enrollments.id`. */
-interface NameCursor {
-  name: string;
-  id: string;
-}
-
-const encodeNameCursor = (cursor: NameCursor) =>
-  Buffer.from(JSON.stringify({ n: cursor.name, i: cursor.id })).toString("base64url");
-
-/** Throws `400 VALIDATION_ERROR` for anything `encodeNameCursor` did not produce. */
-function decodeNameCursor(cursor: string): NameCursor {
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { n?: unknown; i?: unknown };
-    if (typeof parsed.n !== "string" || typeof parsed.i !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.i)) {
-      throw new Error("bad cursor");
-    }
-    return { name: parsed.n, id: parsed.i };
-  } catch {
-    throw validationError();
-  }
-}
 
 const SELECT_ROW = Prisma.sql`
   SELECT e.id, e.status, e.enrolled_at, e.removed_at, u.id AS user_id, u.name, u.email, sp.ra

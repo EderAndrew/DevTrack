@@ -16,7 +16,16 @@ vi.mock("next/navigation", () => ({
 const SESSOES = ["sessoes.proprias.listar", "sessoes.proprias.revogar"];
 const PERMISSIONS = {
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
-  TEACHER: [...SESSOES, "turmas.criar", "turmas.visualizar", "turmas.editar", "turmas.alterar_situacao"],
+  TEACHER: [
+    ...SESSOES,
+    "turmas.criar",
+    "turmas.visualizar",
+    "turmas.editar",
+    "turmas.alterar_situacao",
+    "disciplinas.visualizar",
+    "disciplinas.criar",
+    "disciplinas.editar",
+  ],
   MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
   ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar"],
 };
@@ -46,7 +55,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
 
   it.each([
     ["STUDENT", ["Minhas turmas", "Meu perfil"]],
-    ["TEACHER", ["Turmas", "Meu perfil"]],
+    ["TEACHER", ["Minhas disciplinas", "Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
     ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
@@ -84,7 +93,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it("003/US7-1 Minhas turmas (turmas.proprias.listar) marca a página atual; professor que também é aluno vê as duas", () => {
     navigation.pathname = "/minhas-turmas";
     renderSidebar({ me: me([...PERMISSIONS.TEACHER, ...PERMISSIONS.STUDENT]) });
-    expect(menuLinks()).toEqual(["Turmas", "Minhas turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Minhas turmas", "Meu perfil"]);
     const link = screen.getByRole("link", { name: "Minhas turmas" });
     expect(link.getAttribute("href")).toBe("/minhas-turmas");
     expect(link.getAttribute("aria-current")).toBe("page");
@@ -99,6 +108,25 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     navigation.pathname = "/turmas/abc/editar";
     renderSidebar({ me: me(PERMISSIONS.TEACHER) });
     expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("data-active")).toBe("true");
+  });
+
+  it("004/US1 Minhas disciplinas (disciplinas.visualizar) fica ativa nas telas de disciplina", () => {
+    navigation.pathname = "/disciplinas";
+    const { unmount } = renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    const link = screen.getByRole("link", { name: "Minhas disciplinas" });
+    expect(link.getAttribute("href")).toBe("/disciplinas");
+    expect(link.getAttribute("aria-current")).toBe("page");
+    unmount();
+    navigation.pathname = "/disciplinas/abc";
+    renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.getByRole("link", { name: "Minhas disciplinas" }).getAttribute("data-active")).toBe("true");
+  });
+
+  it("004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
+    renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();
+    renderSidebar({ me: me(PERMISSIONS.TEACHER, false) });
+    expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();
   });
 
   it("marca a tela atual", () => {

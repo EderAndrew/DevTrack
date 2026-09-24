@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { BookOpen, ChevronRight, School, UserRound, Users } from "lucide-react";
+import { BookOpen, ChevronRight, Library, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -30,7 +30,8 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open, "Turmas" the teacher's classes and "Minhas turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
+ * open, "Minhas disciplinas" and "Turmas" are the teacher's subjects and classes, and "Minhas
+ * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016).
  */
 export function AppSidebar({ me }: AppSidebarProps) {
@@ -39,6 +40,8 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const classes = Boolean(me?.emailVerified && me.permissions.includes("turmas.visualizar"));
   const inClasses = pathname === "/turmas" || pathname.startsWith("/turmas/");
   const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
+  const subjects = Boolean(me?.emailVerified && me.permissions.includes("disciplinas.visualizar"));
+  const inSubjects = pathname === "/disciplinas" || pathname.startsWith("/disciplinas/");
 
   return (
     <Sidebar>
@@ -80,6 +83,20 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
+                ) : null}
+                {subjects ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inSubjects}>
+                      <Link
+                        href="/disciplinas"
+                        className={LINK}
+                        aria-current={pathname === "/disciplinas" ? "page" : undefined}
+                      >
+                        <Library aria-hidden="true" />
+                        Minhas disciplinas
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 ) : null}
                 {classes ? (
                   <SidebarMenuItem>

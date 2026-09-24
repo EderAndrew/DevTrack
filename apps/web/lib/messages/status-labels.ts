@@ -1,11 +1,13 @@
 import type {
   AccountStatus,
+  ClassPlanStatus,
   ClassInvitationStatus,
   ClassStatus,
   EnrollmentStatus,
   InvitationStatus,
   RoleAssignmentStatus,
   RoleKey,
+  SubjectStatus,
   TeacherStatus,
 } from "@repo/contracts";
 
@@ -48,4 +50,18 @@ export const CLASS_INVITATION_STATUS_LABELS: Record<ClassInvitationStatus, strin
 export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
   ACTIVE: "Ativa",
   REMOVED: "Removida",
+};
+
+/** Status of a subject ("disciplina" is feminine). */
+export const SUBJECT_STATUS_LABELS: Record<SubjectStatus, string> = {
+  ACTIVE: "Ativa",
+  INACTIVE: "Inativa",
+};
+
+/** Status of a class plan ("planejamento" is masculine). */
+export const CLASS_PLAN_STATUS_LABELS: Record<ClassPlanStatus, string> = {
+  DRAFT: "Rascunho",
+  READY: "Pronto",
+  ACTIVE: "Em andamento",
+  ARCHIVED: "Arquivado",
 };

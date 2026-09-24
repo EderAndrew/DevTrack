@@ -12,9 +12,10 @@ export default async function EditClassPage({ params }: { params: Promise<{ id: 
   if (!me) redirect(`/entrar?next=${encodeURIComponent(`/turmas/${id}/editar`)}`);
   if (!me.permissions.includes("turmas.editar")) return <NoAccess title="Editar turma" />;
 
+  // Inside the class layout, below the class header and its sections.
   return (
-    <section className="mx-auto max-w-256 px-4 py-8">
-      <h1>Editar turma</h1>
+    <section aria-labelledby="editar-titulo">
+      <h2 id="editar-titulo">Editar turma</h2>
       <ClassEdit id={id} />
     </section>
   );

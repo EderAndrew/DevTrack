@@ -21,12 +21,14 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     expect(catalog.filter((route) => !routes.includes(route))).toEqual([]);
   });
 
-  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048) e as da 003, sem entradas repetidas", () => {
-    // 003 domains (classes, class invitations, enrollments, own classes); each story adds its routes.
+  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048), as da 003 e as da 004, sem entradas repetidas", () => {
+    // 003 domains (classes, class invitations, enrollments, own classes) and 004 domains
+    // (subjects, …); each story adds its routes.
     const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
+    const phase004 = Object.keys(endpoints).filter((key) => /^(subjects)\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
-    expect(catalog).toHaveLength(37 + phase003.length);
-    expect(routes).toHaveLength(37 + phase003.length);
+    expect(catalog).toHaveLength(37 + phase003.length + phase004.length);
+    expect(routes).toHaveLength(37 + phase003.length + phase004.length);
   });
 });
 

@@ -38,6 +38,14 @@ import {
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
+import {
+  ChangeSubjectStatusRequestSchema,
+  CreateSubjectRequestSchema,
+  SubjectListQuerySchema,
+  SubjectPageSchema,
+  SubjectViewSchema,
+  UpdateSubjectRequestSchema,
+} from "./curriculum/subjects.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -359,6 +367,31 @@ export const endpoints = {
     path: "/class-invitations/accept",
     body: AcceptClassInvitationRequestSchema,
     response: ClassInvitationAcceptedSchema,
+    status: 200,
+  },
+  "subjects.list": { method: "GET", path: "/subjects", query: SubjectListQuerySchema, response: SubjectPageSchema, status: 200 },
+  "subjects.create": {
+    method: "POST",
+    path: "/subjects",
+    body: CreateSubjectRequestSchema,
+    response: SubjectViewSchema,
+    status: 201,
+  },
+  "subjects.get": { method: "GET", path: "/subjects/:id", params: IdParamsSchema, response: SubjectViewSchema, status: 200 },
+  "subjects.update": {
+    method: "PATCH",
+    path: "/subjects/:id",
+    params: IdParamsSchema,
+    body: UpdateSubjectRequestSchema,
+    response: SubjectViewSchema,
+    status: 200,
+  },
+  "subjects.changeStatus": {
+    method: "POST",
+    path: "/subjects/:id/status",
+    params: IdParamsSchema,
+    body: ChangeSubjectStatusRequestSchema,
+    response: SubjectViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
