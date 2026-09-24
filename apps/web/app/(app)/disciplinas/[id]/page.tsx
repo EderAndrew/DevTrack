@@ -26,6 +26,8 @@ export default async function SubjectPage({
         created={criada === "1"}
         canEdit={me.permissions.includes("disciplinas.editar")}
         canCreateClass={me.permissions.includes("turmas.criar")}
+        canViewSyllabus={me.permissions.includes("ementas.visualizar")}
+        canUploadSyllabus={me.permissions.includes("ementas.enviar")}
       />
     </section>
   );

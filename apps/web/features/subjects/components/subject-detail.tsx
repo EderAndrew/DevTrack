@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClasses } from "@/features/classes/hooks/use-classes";
+import { SyllabusSection } from "@/features/syllabus/components/syllabus-section";
 import { formatDate } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { CLASS_PLAN_STATUS_LABELS } from "@/lib/messages/status-labels";
@@ -25,13 +26,23 @@ export interface SubjectDetailProps {
   canEdit: boolean;
   /** "Nova turma" with this subject chosen, while the subject is active. */
   canCreateClass: boolean;
+  /** UX only: the syllabus versions (`ementas.visualizar`) and "Enviar ementa" (`ementas.enviar`). */
+  canViewSyllabus?: boolean;
+  canUploadSyllabus?: boolean;
 }
 
 /**
  * Subject page (004/US1): data with Editar and Desativar/Reativar, the classes that offer it
- * (period, dates and plan status) with "Nova turma", and the syllabus section (filled by US2).
+ * (period, dates and plan status) with "Nova turma", and the syllabus versions with "Enviar ementa" (US2).
  */
-export function SubjectDetail({ id, created = false, canEdit, canCreateClass }: SubjectDetailProps) {
+export function SubjectDetail({
+  id,
+  created = false,
+  canEdit,
+  canCreateClass,
+  canViewSyllabus = false,
+  canUploadSyllabus = false,
+}: SubjectDetailProps) {
   const query = useSubject(id);
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState(created ? "Disciplina criada." : "");
@@ -99,10 +110,9 @@ export function SubjectDetail({ id, created = false, canEdit, canCreateClass }: 
 
       <SubjectClasses subject={subject} canCreateClass={canCreateClass} />
 
-      <section aria-labelledby="ementa-titulo" className="mt-8">
-        <h2 id="ementa-titulo">Ementa</h2>
-        <p>Nenhuma ementa enviada.</p>
-      </section>
+      {canViewSyllabus ? (
+        <SyllabusSection subjectId={subject.id} canUpload={canUploadSyllabus && subject.status === "ACTIVE"} />
+      ) : null}
     </div>
   );
 }

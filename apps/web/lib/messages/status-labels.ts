@@ -8,6 +8,8 @@ import type {
   RoleAssignmentStatus,
   RoleKey,
   SubjectStatus,
+  SyllabusFailureCategory,
+  SyllabusProcessingStatus,
   TeacherStatus,
 } from "@repo/contracts";
 
@@ -64,4 +66,19 @@ export const CLASS_PLAN_STATUS_LABELS: Record<ClassPlanStatus, string> = {
   READY: "Pronto",
   ACTIVE: "Em andamento",
   ARCHIVED: "Arquivado",
+};
+
+/** Processing of a syllabus document (004 contracts/web-ui.md, "Situação"). */
+export const SYLLABUS_PROCESSING_STATUS_LABELS: Record<SyllabusProcessingStatus, string> = {
+  UPLOADED: "Enviado",
+  PROCESSING: "Processando",
+  PROCESSED: "Processado",
+  FAILED: "Falhou",
+};
+
+/** Why processing failed, completing "O processamento falhou: …". */
+export const SYLLABUS_FAILURE_LABELS: Record<SyllabusFailureCategory, string> = {
+  UNREADABLE: "arquivo ilegível",
+  TIMEOUT: "tempo esgotado",
+  INTERNAL: "erro interno",
 };

@@ -11,6 +11,17 @@ override config and providers. Use `test/helpers/factories.ts` for fixtures. The
 lives in `test/security/authorization-matrix.ts`, and `route-declarations.spec.ts` fails for any
 route that has no access declaration.
 
+Syllabus files (004) are read in a `worker_threads` worker (`src/modules/syllabus/extraction/extract.worker.ts`,
+research E8). The runner gets the compiled entry's path through `SYLLABUS_WORKER_PATH` (production:
+`dist/modules/syllabus/extraction/extract.worker.js`). A worker thread loads plain JavaScript, so the
+global setup compiles `extraction/` and `syllabus-file-inspector.ts` with `@swc/core` into
+`test/.tmp/syllabus/` (gitignored), and `createTestApp` injects that path. Code imported by the worker must
+stay free of Nest, Prisma, config and loggers. `writeFakeWorker()` (`test/helpers/syllabus-worker.ts`)
+writes stand-in workers that hang, fail or crash. Tests run with the processing timer off
+(`processingIntervalSeconds: 0`, which also turns off `kick()`); call `SyllabusProcessingWorker.runOnce(now)`.
+nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
+spec that creates several apps and checks those logs should give them all the same `LogCapture`.
+
 API-only guards that fail when the spec and the code drift apart (the traceability guard is in the
 root CLAUDE.md):
 - `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and

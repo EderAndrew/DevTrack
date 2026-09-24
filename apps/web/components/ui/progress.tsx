@@ -16,6 +16,8 @@ function Progress({
         "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
         className
       )}
+      // Radix needs the value for aria-valuenow; the generated component only used it for the bar.
+      value={value}
       {...props}
     >
       <ProgressPrimitive.Indicator

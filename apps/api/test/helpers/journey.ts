@@ -3,8 +3,17 @@ import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-b
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverified-accounts.job";
 import { hashToken } from "../../src/platform/crypto/tokens";
+import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
-import { createUser, DEFAULT_PASSWORD, loginAs, requestVerificationToken, uniqueEmail } from "./factories";
+import {
+  createSyllabusDocument,
+  createUser,
+  DEFAULT_PASSWORD,
+  loginAs,
+  requestVerificationToken,
+  syllabusFixture,
+  uniqueEmail,
+} from "./factories";
 import { api, type TestApp } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -26,7 +35,7 @@ export interface JourneyResult {
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
  * implemented so far (classes, class invitations, their management and acceptance, enrollments, own classes), and the 004
- * flows implemented so far (subjects, classes as offerings). Together they emit every audit event
+ * flows implemented so far (subjects, classes as offerings, syllabus upload and processing). Together they emit every audit event
  * type of the contracts/audit-events.md of 001, 003 and 004, except the retired
  * ones and those still pending in audit-coverage.spec.ts.
  *
@@ -163,6 +172,22 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   const offering = { subjectId, startsOn: "2026-02-02", endsOn: "2026-06-30" };
   expect((await teacherClient.patch(`/api/classes/${classId}`, offering)).body.plannable).toBe(true);
   expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: "Ementa da jornada" })).status).toBe(200);
+  // 004/US2 — syllabus upload and processing: one readable PDF, and an unreadable file stored
+  // directly (the upload inspection would refuse it) so that processing fails for good.
+  const syllabus = await teacherClient.upload(`/api/subjects/${subjectId}/syllabus-documents`, {
+    bytes: syllabusFixture("poo.pdf"),
+    filename: "ementa-jornada.pdf",
+    contentType: "application/pdf",
+  });
+  expect(syllabus.status).toBe(201);
+  const unreadable = await createSyllabusDocument(t, subjectId, { fixture: "corrompido.pdf" });
+  expect(await t.get(SyllabusProcessingWorker).runOnce()).toBe(2);
+  expect((await teacherClient.get(`/api/syllabus-documents/${syllabus.body.document.id}`)).body.processingStatus).toBe(
+    "PROCESSED",
+  );
+  expect((await t.prisma.syllabusDocument.findUniqueOrThrow({ where: { id: unreadable.id } })).processingStatus).toBe(
+    "FAILED",
+  );
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);
