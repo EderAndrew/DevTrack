@@ -43,6 +43,7 @@ hand-maintained.
 - `@repo/contracts` (Zod 4 via pnpm catalog, ESM built with `tsc`); web: Tailwind CSS 4, shadcn/ui (Radix), Lucide, TanStack Query 5, React Hook Form 7 + `@hookform/resolvers`; E2E: Playwright; CI: GitHub Actions (002-stack-alignment)
 - TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19 (001-foundation-identity-access)
 - New deps `pdfjs-dist`, `fflate`, `fast-xml-parser` (api) and `react-day-picker` (web, shadcn Calendar); PostgreSQL tables `subjects`, `stored_files` (bytea), `syllabus_documents` (processing queue + in-process worker, extraction in `worker_threads`), `syllabus_revisions`/`groups`/`items`, `class_meetings`, `class_plans`, `topics`, `topic_syllabus_items`; `classes.subject_id`/`starts_on`/`ends_on`; `disciplinas.*`, `ementas.*`, `calendario.gerenciar`, `planejamento.*` permissions (004-syllabus-planning)
+- No new dependencies; design tokens in `apps/web/design-system/tokens.css` (Tailwind 4 default scales reset), Inter + JetBrains Mono as local fonts (Geist removed), new shadcn components from the installed `radix-ui`; no API, schema or contract changes (005-design-system)
 
 ## Stack notes
 
@@ -220,9 +221,9 @@ the removal conditions are in `DEPENDENCIES.md`.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
 
 ## Recent Changes
+- 005-design-system (planned): design system and visual identity — tokens, typography, base components, AppShell/student layouts, in-app catalog, docs and guards; exam components specified only
 - 004-syllabus-planning: teacher's subjects, syllabus upload with deterministic extraction and review, class calendar, class plan with manual topics linked to syllabus items (AI topic generation deferred)
 - 003-class-invitations-enrollment: classes, class invitations by e-mail with retried delivery, enrollments; public student signup removed (constitution 3.0.0)
-- 002-stack-alignment: Added `@repo/contracts` shared Zod contracts, official frontend stack (Tailwind, shadcn/ui, TanStack Query, React Hook Form), Playwright E2E and GitHub Actions CI
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
