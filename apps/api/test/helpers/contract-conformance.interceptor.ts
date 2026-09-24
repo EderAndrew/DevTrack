@@ -14,9 +14,23 @@ export function routeKey(method: RequestMethod, controllerPath: string, handlerP
   return `${RequestMethod[method]} /${controllerPath}/${handlerPath}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1");
 }
 
-const CATALOG = new Map<string, { key: string; contract: EndpointContract }>(
-  Object.entries(endpoints).map(([key, contract]) => [`${contract.method} ${contract.path}`, { key, contract }]),
-);
+type Catalog = Map<string, { key: string; contract: EndpointContract }>;
+
+const catalogOf = (entries: Readonly<Record<string, EndpointContract>>): Catalog =>
+  new Map(Object.entries(entries).map(([key, contract]) => [`${contract.method} ${contract.path}`, { key, contract }]));
+
+/**
+ * Why `value`, returned by the handler of catalog entry `key`, breaks its contract; `null` when it
+ * conforms. Binary responses (file downloads, 004 E18) have no schema and are not checked.
+ */
+export function responseViolation(key: string, contract: EndpointContract, value: unknown): string | null {
+  if (contract.response === "binary") return null;
+  if (contract.response === null) return value === undefined ? null : `${key}: resposta sem corpo esperada (204)`;
+  const result = contract.response.safeParse(value);
+  if (result.success) return null;
+  const paths = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "(raiz)"))];
+  return `${key}: resposta fora do contrato em ${paths.join(", ")}`;
+}
 
 export class ContractViolationError extends Error {
   override readonly name = "ContractViolationError";
@@ -30,7 +44,14 @@ export class ContractViolationError extends Error {
  */
 export class ContractConformanceInterceptor implements NestInterceptor {
   /** `ignored`: controllers mounted only by a test (`createTestApp({ controllers })`), outside the catalog. */
-  constructor(private readonly ignored: ReadonlySet<Type> = new Set()) {}
+  private readonly catalog: Catalog;
+
+  constructor(
+    private readonly ignored: ReadonlySet<Type> = new Set(),
+    entries: Readonly<Record<string, EndpointContract>> = endpoints,
+  ) {
+    this.catalog = catalogOf(entries);
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const controller = context.getClass();
@@ -42,21 +63,13 @@ export class ContractConformanceInterceptor implements NestInterceptor {
       Reflect.getMetadata(PATH_METADATA, controller) as string,
       Reflect.getMetadata(PATH_METADATA, handler) as string,
     );
-    const entry = CATALOG.get(route);
+    const entry = this.catalog.get(route);
     if (!entry) throw violation(`${route}: rota sem contrato em @repo/contracts`);
 
     return next.handle().pipe(
       map((value: unknown) => {
-        const { key, contract } = entry;
-        if (contract.response === null) {
-          if (value !== undefined) throw violation(`${key}: resposta sem corpo esperada (204)`);
-          return value;
-        }
-        const result = contract.response.safeParse(value);
-        if (!result.success) {
-          const paths = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "(raiz)"))];
-          throw violation(`${key}: resposta fora do contrato em ${paths.join(", ")}`);
-        }
+        const problem = responseViolation(entry.key, entry.contract, value);
+        if (problem) throw violation(problem);
         return value;
       }),
     );

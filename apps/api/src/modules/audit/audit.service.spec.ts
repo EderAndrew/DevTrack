@@ -40,6 +40,45 @@ describe("AuditService metadata allowlist (FR-071)", () => {
     expect(() => sanitizeMetadata("enrollment.removed", { name: "Aluno" })).toThrow(AuditMetadataError);
   });
 
+  it("004/FR-047 accepts the 004 metadata keys and rejects texts, names and file names", () => {
+    expect(sanitizeMetadata("subject.created", {})).toEqual({});
+    expect(sanitizeMetadata("subject.updated", { fields: ["name"], status: "INACTIVE" })).toEqual({
+      fields: ["name"],
+      status: "INACTIVE",
+    });
+    expect(
+      sanitizeMetadata("syllabus.uploaded", { subjectId: "s1", version: 2, mediaType: "PDF", sizeBytes: 3058 }),
+    ).toEqual({ subjectId: "s1", version: 2, mediaType: "PDF", sizeBytes: 3058 });
+    expect(sanitizeMetadata("class_meetings.updated", { added: 2, removed: 1, total: 18, resolutions: { MOVE: 1 } })).toEqual({
+      added: 2,
+      removed: 1,
+      total: 18,
+      resolutions: { MOVE: 1 },
+    });
+    expect(sanitizeMetadata("topic.merged", { planId: "p1", mergedTopicIds: ["t2", "t3"] })).toEqual({
+      planId: "p1",
+      mergedTopicIds: ["t2", "t3"],
+    });
+    expect(() => sanitizeMetadata("subject.created", { name: "POO" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("syllabus.uploaded", { originalFilename: "ementa.pdf" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("syllabus.processed", { syllabusText: "Exploração…" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("topic.created", { planId: "p1", title: "Classes" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("topic.updated", { planId: "p1", description: "x" })).toThrow(AuditMetadataError);
+  });
+
+  it("004/FR-047 no 004 event type allows a text-bearing key", () => {
+    const text = /^(name|title|description|text|filename|originalFilename|syllabusText|competencyText|content)$/i;
+    const types = Object.keys(AUDIT_EVENT_METADATA).filter((type) =>
+      /^(subject\.|syllabus\.|class\.offering_updated$|class_meetings\.|topics?\.|class_plan\.)/.test(type),
+    );
+    expect(types).toHaveLength(17);
+    for (const type of types) {
+      for (const key of AUDIT_EVENT_METADATA[type as keyof typeof AUDIT_EVENT_METADATA]) {
+        expect(text.test(key), `${type}.${key}`).toBe(false);
+      }
+    }
+  });
+
   it("record() refuses before writing", async () => {
     const writes: unknown[] = [];
     const fakeTx = { auditEvent: { create: async (args: unknown) => void writes.push(args) } };

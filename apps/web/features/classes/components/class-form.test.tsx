@@ -23,6 +23,11 @@ const CLASS: ClassView = {
   description: null,
   status: "ACTIVE",
   activeStudentCount: 0,
+  subject: null,
+  startsOn: null,
+  endsOn: null,
+  plannable: false,
+  planStatus: null,
   createdAt: "2026-09-21T12:00:00.000Z",
   updatedAt: "2026-09-21T12:00:00.000Z",
 };

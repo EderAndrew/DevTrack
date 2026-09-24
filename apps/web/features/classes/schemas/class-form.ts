@@ -1,15 +1,15 @@
-import { CreateClassRequestSchema, type CreateClassRequest } from "@repo/contracts";
+import { ClassFieldsSchema, type CreateClassRequest } from "@repo/contracts";
 import { z } from "zod";
 import { fieldMessages } from "@/lib/forms/field-messages";
 
-const { shape } = CreateClassRequestSchema;
+const { shape } = ClassFieldsSchema;
 
 /**
- * Class form (003 contracts/web-ui.md), derived from `CreateClassRequestSchema`: the year is
+ * Class form (003 contracts/web-ui.md), derived from the fields of `CreateClassRequestSchema`: the year is
  * typed as text and becomes the contract's integer; blank period and description are sent as
  * null. Used for creating and editing (the edit sends every field; the API records what changed).
  */
-export const ClassFormSchema = CreateClassRequestSchema.extend({
+export const ClassFormSchema = ClassFieldsSchema.extend({
   academicYear: z.string().trim().min(1).transform(Number).pipe(shape.academicYear),
   period: z.string().trim().max(60),
   description: z.string().trim().max(1000),

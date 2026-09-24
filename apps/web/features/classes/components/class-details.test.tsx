@@ -19,6 +19,11 @@ const CLASS: ClassView = {
   description: "Listas, pilhas e filas.",
   status: "ACTIVE",
   activeStudentCount: 3,
+  subject: null,
+  startsOn: null,
+  endsOn: null,
+  plannable: false,
+  planStatus: null,
   createdAt: "2026-09-21T12:00:00.000Z",
   updatedAt: "2026-09-21T12:00:00.000Z",
 };

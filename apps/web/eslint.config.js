@@ -25,7 +25,7 @@ const restrictImports = (...patterns) => ({
   "no-restricted-imports": ["error", { paths: [], patterns: [...STACK, ...patterns] }],
 });
 
-const FETCH_MESSAGE = "Só lib/api/client.ts usa fetch; chame as funções de features/*/api (FR-025).";
+const FETCH_MESSAGE = "Só lib/api/client.ts usa fetch e XMLHttpRequest; chame as funções de features/*/api (FR-025).";
 const TESTS = ["**/*.test.{ts,tsx}", "test/**", "e2e/**"];
 
 /** @type {import("eslint").Linter.Config[]} */
@@ -56,11 +56,17 @@ export default [
     files: ["**/*.{js,mjs,ts,tsx}"],
     rules: {
       ...restrictImports(API_LAYER),
-      "no-restricted-globals": ["error", { name: "fetch", message: FETCH_MESSAGE }],
+      "no-restricted-globals": [
+        "error",
+        { name: "fetch", message: FETCH_MESSAGE },
+        { name: "XMLHttpRequest", message: FETCH_MESSAGE },
+      ],
       "no-restricted-properties": [
         "error",
         { object: "window", property: "fetch", message: FETCH_MESSAGE },
         { object: "globalThis", property: "fetch", message: FETCH_MESSAGE },
+        { object: "window", property: "XMLHttpRequest", message: FETCH_MESSAGE },
+        { object: "globalThis", property: "XMLHttpRequest", message: FETCH_MESSAGE },
       ],
     },
   },

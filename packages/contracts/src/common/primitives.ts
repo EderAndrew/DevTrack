@@ -33,6 +33,13 @@ export type Uuid = z.infer<typeof UuidSchema>;
 export const IsoDateTimeSchema = z.iso.datetime();
 export type IsoDateTime = z.infer<typeof IsoDateTimeSchema>;
 
+/**
+ * Calendar date without time, "YYYY-MM-DD" (004: class period and meetings). Only real dates
+ * pass: 2027-02-30 and 2027-02-29 are refused, 2028-02-29 is accepted.
+ */
+export const IsoDateSchema = z.iso.date();
+export type IsoDate = z.infer<typeof IsoDateSchema>;
+
 /** Body of an action without input (`{}`): any field is rejected with 400 (003 US8-6). */
 export const EmptyBodySchema = z.strictObject({});
 export type EmptyBody = z.infer<typeof EmptyBodySchema>;

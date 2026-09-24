@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiClient, apiRequest, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "./client";
+import { ApiError, apiClient, apiRequest, apiUpload, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "./client";
 import { messageForError } from "../messages/error-messages";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -65,6 +65,18 @@ describe("apiClient requests", () => {
     expect(url).toBe("http://api:4000/api/me");
     expect(init?.headers).toMatchObject({ Cookie: "__Host-devtrack_session=abc" });
   });
+
+  it("004/E5 a FormData body goes as is, without a manual Content-Type", async () => {
+    fetchMock.mockResolvedValueOnce(json(201, { id: "doc" }));
+    const form = new FormData();
+    form.append("file", new File(["%PDF-1.7"], "ementa.pdf", { type: "application/pdf" }));
+    await expect(apiRequest("/subjects/s/syllabus-documents", { method: "POST", body: form })).resolves.toEqual({ id: "doc" });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.body).toBe(form);
+    expect(init?.headers).not.toHaveProperty("Content-Type");
+    expect(init?.headers).toMatchObject({ Accept: "application/json" });
+  });
 });
 
 describe("apiClient error mapping", () => {
@@ -122,5 +134,146 @@ describe("apiClient error mapping", () => {
   it("aborts propagate untouched", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(apiClient.get("/me")).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+/** Stands in for the browser's XMLHttpRequest; each test drives the last instance. */
+class FakeXhr {
+  static last: FakeXhr;
+  method = "";
+  url = "";
+  headers: Record<string, string> = {};
+  body: unknown;
+  status = 0;
+  responseText = "";
+  responseHeaders: Record<string, string> = {};
+  upload: { onprogress: ((event: ProgressEvent) => void) | null } = { onprogress: null };
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  onloadend: (() => void) | null = null;
+  aborted = false;
+
+  constructor() {
+    FakeXhr.last = this;
+  }
+  open(method: string, url: string) {
+    this.method = method;
+    this.url = url;
+  }
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value;
+  }
+  getResponseHeader(name: string) {
+    return this.responseHeaders[name] ?? null;
+  }
+  send(body: unknown) {
+    this.body = body;
+  }
+  abort() {
+    this.aborted = true;
+    this.onabort?.();
+    this.onloadend?.();
+  }
+  progress(loaded: number, total: number, lengthComputable = true) {
+    this.upload.onprogress?.({ loaded, total, lengthComputable } as ProgressEvent);
+  }
+  respond(status: number, body: string, headers: Record<string, string> = {}) {
+    this.status = status;
+    this.responseText = body;
+    this.responseHeaders = headers;
+    this.onload?.();
+    this.onloadend?.();
+  }
+  fail() {
+    this.onerror?.();
+    this.onloadend?.();
+  }
+}
+
+describe("apiUpload", () => {
+  beforeEach(() => {
+    vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  });
+
+  const form = () => {
+    const data = new FormData();
+    data.append("file", new File(["%PDF-1.7"], "ementa.pdf", { type: "application/pdf" }));
+    return data;
+  };
+
+  it("004/E5 POSTs the FormData to /api/<path> with no manual Content-Type and resolves the JSON body", async () => {
+    const data = form();
+    const promise = apiUpload("/subjects/s/syllabus-documents", data);
+    const xhr = FakeXhr.last;
+    expect(xhr).toMatchObject({ method: "POST", url: "/api/subjects/s/syllabus-documents" });
+    expect(xhr.body).toBe(data);
+    expect(xhr.headers).toEqual({ Accept: "application/json" });
+
+    xhr.respond(201, JSON.stringify({ id: "doc" }));
+    await expect(promise).resolves.toEqual({ id: "doc" });
+  });
+
+  it("uses the given base URL, like apiRequest", async () => {
+    const promise = apiClient.upload("/x", form(), { baseUrl: "http://api:4000/api" });
+    expect(FakeXhr.last.url).toBe("http://api:4000/api/x");
+    FakeXhr.last.respond(201, "{}");
+    await promise;
+  });
+
+  it("004/E5 reports real upload progress as a percentage, and nothing when the size is unknown", async () => {
+    const onProgress = vi.fn();
+    const promise = apiUpload("/x", form(), { onProgress });
+    const xhr = FakeXhr.last;
+    xhr.progress(0, 400);
+    xhr.progress(100, 400);
+    xhr.progress(400, 400);
+    xhr.progress(10, 0, false);
+    expect(onProgress.mock.calls).toEqual([[0], [25], [100]]);
+
+    xhr.respond(201, "{}");
+    await promise;
+  });
+
+  it("004/E5 a 413 FILE_TOO_LARGE body → ApiError with status, code and message", async () => {
+    const promise = apiUpload("/x", form());
+    FakeXhr.last.respond(413, JSON.stringify({ statusCode: 413, code: "FILE_TOO_LARGE", message: "File too large" }));
+    const error = await caught(promise);
+    expect(error).toMatchObject({ status: 413, code: "FILE_TOO_LARGE", message: "File too large", retryAfterSeconds: null });
+  });
+
+  it("429 carries Retry-After; a non-catalogue body → UNEXPECTED_RESPONSE", async () => {
+    let promise = apiUpload("/x", form());
+    FakeXhr.last.respond(429, JSON.stringify({ statusCode: 429, code: "RATE_LIMITED", message: "x" }), { "Retry-After": "60" });
+    expect(await caught(promise)).toMatchObject({ status: 429, code: "RATE_LIMITED", retryAfterSeconds: 60 });
+
+    promise = apiUpload("/x", form());
+    FakeXhr.last.respond(502, "<html>Bad Gateway</html>");
+    const error = await caught(promise);
+    expect(error).toMatchObject({ status: 502, code: UNEXPECTED_RESPONSE });
+    expect(error.message).not.toContain("Bad Gateway");
+  });
+
+  it("a network failure → status 0, NETWORK_ERROR", async () => {
+    const promise = apiUpload("/x", form());
+    FakeXhr.last.fail();
+    expect(await caught(promise)).toMatchObject({ status: 0, code: NETWORK_ERROR });
+  });
+
+  it("004/E5 aborting the signal cancels the request and rejects with AbortError", async () => {
+    const controller = new AbortController();
+    const promise = apiUpload("/x", form(), { signal: controller.signal });
+    const xhr = FakeXhr.last;
+    controller.abort();
+    expect(xhr.aborted).toBe(true);
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("an already aborted signal rejects without sending anything", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const before = FakeXhr.last;
+    await expect(apiUpload("/x", form(), { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(FakeXhr.last).toBe(before);
   });
 });

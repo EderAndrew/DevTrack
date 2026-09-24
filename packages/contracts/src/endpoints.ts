@@ -56,13 +56,19 @@ import { TeacherListQuerySchema, TeacherListResponseSchema, TeacherViewSchema } 
 
 /** One route of the API (002 data-model §5). `path` is in Nest format, relative to `/api`. */
 export interface EndpointContract {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   params?: z.ZodType;
   query?: z.ZodType;
+  /** JSON body. Never set on an `upload` route. */
   body?: z.ZodType;
-  /** `null`: success without a body (204). */
-  response: z.ZodType | null;
+  /**
+   * `multipart/form-data` route (004 E5): the file is checked by the API's upload interceptor and
+   * inspector, so there is no Zod `body`; the response is still validated.
+   */
+  upload?: true;
+  /** `null`: success without a body (204). `"binary"`: file bytes (004 E18), no schema. */
+  response: z.ZodType | null | "binary";
   /** Success status. */
   status: number;
 }

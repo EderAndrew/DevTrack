@@ -1,5 +1,5 @@
 /**
- * Audit catalogue of contracts/audit-events.md (specs 001 and 003): event type → metadata keys
+ * Audit catalogue of contracts/audit-events.md (specs 001, 003 and 004): event type → metadata keys
  * allowed. Anything outside this list is a programming error (FR-071: no secrets in the trail).
  * `via` of `role.granted`/`account.claimed` is a `GrantSource`: INVITATION, ADMIN_BOOTSTRAP or,
  * since 003, CLASS_INVITATION.
@@ -45,12 +45,41 @@ export const AUDIT_EVENT_METADATA = {
   "student.registered": ["userId", "via"],
   "enrollment.created": ["classId", "userId", "invitationId"],
   "enrollment.removed": ["classId", "userId"],
+  // 004 — subjects, syllabus, class calendar and plan. Never syllabus texts, topic titles or
+  // descriptions, subject names, file names nor document content (FR-047).
+  "subject.created": [],
+  "subject.updated": ["fields", "status"],
+  "class.offering_updated": ["fields", "subjectId"],
+  "syllabus.uploaded": ["subjectId", "version", "mediaType", "sizeBytes"],
+  "syllabus.processed": ["result", "groupCount", "itemCount", "attempts", "extractorVersion"],
+  "syllabus.processing_failed": ["category", "attempts"],
+  "syllabus.revision_confirmed": ["documentId", "number", "source", "groupCount", "itemCount"],
+  "class_meetings.updated": ["added", "removed", "total", "resolutions"],
+  "topic.created": ["planId", "itemCount", "hasMeeting"],
+  "topic.updated": ["planId", "fields"],
+  "topic.merged": ["planId", "mergedTopicIds"],
+  "topic.split": ["planId", "newTopicIds"],
+  "topic.archived": ["planId", "reason"],
+  "topic.restored": ["planId", "status"],
+  "topics.reordered": ["topicCount", "movedCount"],
+  "class_plan.syllabus_selected": ["classId", "revisionId", "previousRevisionId", "outsideRevisionLinks"],
+  "class_plan.status_changed": ["classId", "from", "to", "activatedTopics"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
 
-/** A list is only for names (e.g. the changed fields of `class.updated`), never for values. */
-export type AuditMetadataValue = string | number | boolean | null | readonly string[];
+/**
+ * A list is only for names or ids (the changed fields of `class.updated`, the topics merged by
+ * `topic.merged`), never for values; a record only for counts per kind (the resolutions of
+ * `class_meetings.updated`).
+ */
+export type AuditMetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly string[]
+  | Readonly<Record<string, number>>;
 
 export type AuditMetadata<T extends AuditEventType> = Partial<
   Record<(typeof AUDIT_EVENT_METADATA)[T][number], AuditMetadataValue>
@@ -65,4 +94,9 @@ export type AuditTargetType =
   | "CLASS"
   | "CLASS_INVITATION"
   | "STUDENT_PROFILE"
-  | "ENROLLMENT";
+  | "ENROLLMENT"
+  | "SUBJECT"
+  | "SYLLABUS_DOCUMENT"
+  | "SYLLABUS_REVISION"
+  | "CLASS_PLAN"
+  | "TOPIC";

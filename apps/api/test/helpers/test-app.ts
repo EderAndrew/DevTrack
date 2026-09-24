@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { Type } from "@nestjs/common";
+import type { Abstract, Type } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
@@ -42,7 +42,8 @@ export interface TestApp {
   mailer: InMemoryMailer;
   /** Allowed Origin sent by `api()` on every request. */
   origin: string;
-  get<T>(token: Type<T> | string | symbol): T;
+  /** Also takes an abstract class used as a provider token (e.g. `FileStorage`). */
+  get<T>(token: Type<T> | Abstract<T> | string | symbol): T;
   /** Waits for after-commit e-mails. */
   flushMail(): Promise<void>;
   close(): Promise<void>;
@@ -87,7 +88,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     config,
     mailer: mailer as InMemoryMailer,
     origin: config.allowedOrigins[0]!,
-    get: <T>(token: Type<T> | string | symbol) => app.get<T>(token as Type<T>),
+    get: <T>(token: Type<T> | Abstract<T> | string | symbol) => app.get<T>(token as Type<T>),
     flushMail: () => dispatcher.flush(),
     close: () => app.close(),
   };
@@ -131,7 +132,14 @@ export function api(t: TestApp, options: ApiClientOptions = {}) {
   return {
     get: (path: string) => decorate(request(t.baseUrl).get(path)),
     post: (path: string, body: object = {}) => withBody(request(t.baseUrl).post(path), body),
+    put: (path: string, body: object = {}) => withBody(request(t.baseUrl).put(path), body),
     patch: (path: string, body: object = {}) => withBody(request(t.baseUrl).patch(path), body),
     delete: (path: string) => withBody(request(t.baseUrl).delete(path), {}),
+    /** `multipart/form-data` POST with one file (004 uploads); supertest sets the boundary. */
+    upload: (path: string, file: { bytes: Buffer; filename: string; contentType?: string }, field = "file") =>
+      decorate(request(t.baseUrl).post(path)).attach(field, file.bytes, {
+        filename: file.filename,
+        contentType: file.contentType ?? "application/octet-stream",
+      }),
   };
 }
