@@ -1,5 +1,7 @@
 import { Controller, Get, HttpCode, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import {
+  type ChangePlanStatusRequest,
+  ChangePlanStatusRequestSchema,
   type ClassPlanEnvelope,
   type ClassPlanView,
   type CreateTopicRequest,
@@ -52,6 +54,18 @@ export class ClassPlansController {
     @Ctx() ctx: RequestContext,
   ): Promise<ClassPlanView> {
     return this.plans.selectSyllabus(ctx.auth!, classId, body, ctx.requestId);
+  }
+
+  /** Confirm, reopen, start or archive (FR-031). */
+  @Post("status")
+  @HttpCode(200)
+  @RequirePermissions("planejamento.alterar_situacao")
+  changeStatus(
+    @Param("id", idPipe) classId: string,
+    @ZodBody(ChangePlanStatusRequestSchema) body: ChangePlanStatusRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ClassPlanView> {
+    return this.plans.changeStatus(ctx.auth!, classId, body, ctx.requestId);
   }
 
   @Get("coverage")

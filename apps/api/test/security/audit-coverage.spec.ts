@@ -15,15 +15,6 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
 ];
 
-/**
- * 004 types that `journey.ts` does not emit yet. They are only exempt from "the journey writes
- * it"; the catalogue checks still apply. Each story removes its types once the journey emits
- * them, and the set must be empty when 004 is done.
- */
-const PENDING_004_TYPES = new Set([
-  "class_plan.status_changed",
-]);
-
 interface ContractRow {
   type: string;
   actors: string[];
@@ -99,7 +90,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
 
     it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
-      if (!PENDING_004_TYPES.has(type)) expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
+      expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
@@ -113,12 +104,6 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
         if (event.actorType === "OPERATOR") expect(event.requestId).toBeNull();
         for (const key of Object.keys(event.metadata as object)) expect(row.metadata).toContain(key);
       }
-    });
-
-    it("004 um tipo pendente sai da lista assim que a jornada passa a gravá-lo", () => {
-      const catalogued = new Set(rows.map((row) => row.type));
-      expect([...PENDING_004_TYPES].filter((type) => !catalogued.has(type))).toEqual([]);
-      expect([...PENDING_004_TYPES].filter((type) => events.some((e) => e.type === type))).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

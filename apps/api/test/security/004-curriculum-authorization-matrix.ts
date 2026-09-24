@@ -88,6 +88,7 @@ export const VALID_BODY: Record<string, (area: TeacherArea) => object> = {
   "GET /classes/:id/plan": () => ({}),
   "PUT /classes/:id/plan/syllabus": (area) => ({ planRevision: 1, revisionId: area.confirmedRevisionId }),
   "GET /classes/:id/plan/coverage": () => ({}),
+  "POST /classes/:id/plan/status": () => ({ planRevision: 1, action: "CONFIRM" }),
   "POST /classes/:id/plan/topics": (area) => ({ planRevision: 1, title: "Tópico", itemIds: [area.itemIds[1]] }),
   "GET /classes/:id/plan/topics": () => ({}),
   "PATCH /classes/:id/plan/topics/:topicId": () => ({ planRevision: 1, title: "Outro título" }),

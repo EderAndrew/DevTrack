@@ -1,6 +1,13 @@
 "use client";
 
-import type { ClassPlanEnvelope, ClassPlanView, ReorderTopicsRequest, TopicFields, UpdateTopicRequest } from "@repo/contracts";
+import type {
+  ClassPlanEnvelope,
+  ClassPlanView,
+  PlanStatusAction,
+  ReorderTopicsRequest,
+  TopicFields,
+  UpdateTopicRequest,
+} from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { classMeetingsKeys } from "@/features/class-calendar/hooks/use-class-meetings";
 import { classesKeys } from "@/features/classes/hooks/use-classes";
@@ -101,4 +108,12 @@ export const useRestoreTopic = (classId: string) =>
 export const useReorderTopics = (classId: string) =>
   usePlanWrite(classId, (items: ReorderTopicsRequest["items"], planRevision) =>
     classPlanApi.reorderTopics(classId, { planRevision: current(planRevision), items }),
+  );
+
+/** Confirm, reopen, start or archive (FR-031); the class shows the plan status. */
+export const useChangePlanStatus = (classId: string) =>
+  usePlanWrite(
+    classId,
+    (action: PlanStatusAction, planRevision) => classPlanApi.changeStatus(classId, { planRevision: current(planRevision), action }),
+    (queryClient) => queryClient.invalidateQueries({ queryKey: classesKeys.detail(classId), exact: true }),
   );

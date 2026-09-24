@@ -140,6 +140,7 @@ export const MATRIX: readonly MatrixEntry[] = [
 
   { method: "GET", path: "/classes/:id/plan", access: "planejamento.visualizar" },
   { method: "PUT", path: "/classes/:id/plan/syllabus", access: "planejamento.editar" },
+  { method: "POST", path: "/classes/:id/plan/status", access: "planejamento.alterar_situacao" },
   { method: "GET", path: "/classes/:id/plan/coverage", access: "planejamento.visualizar" },
   { method: "POST", path: "/classes/:id/plan/topics", access: "planejamento.editar" },
   { method: "GET", path: "/classes/:id/plan/topics", access: "planejamento.visualizar" },

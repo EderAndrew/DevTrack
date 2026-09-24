@@ -1,12 +1,25 @@
 import { Injectable } from "@nestjs/common";
-import type { ClassPlanEnvelope, ClassPlanView, PlanCoverage, SelectPlanSyllabusRequest } from "@repo/contracts";
+import type {
+  ChangePlanStatusRequest,
+  ClassPlanEnvelope,
+  ClassPlanView,
+  PlanCoverage,
+  SelectPlanSyllabusRequest,
+} from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { notFound, planRevisionConflict, revisionNotConfirmed } from "../../platform/http/errors";
+import {
+  notFound,
+  planArchived,
+  planHasNoTopics,
+  planRevisionConflict,
+  revisionNotConfirmed,
+} from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { requirePlannable } from "../classes/plannable-class";
+import { ClassPlanStateMachine } from "./class-plan.state-machine";
 import { classPlanView } from "./class-plan.view";
 import { planCoverage } from "./coverage";
 import { lockOwnedClass } from "./owned-class-lock";
@@ -66,6 +79,8 @@ export class ClassPlansService {
         if (input.planRevision !== null) throw planRevisionConflict();
         planId = (await tx.classPlan.create({ data: { classId, syllabusRevisionId: revision.id } })).id;
       } else {
+        // Read-only once archived, even when nothing would change.
+        if (current.status === "ARCHIVED") throw planArchived();
         if (current.syllabusRevisionId === revision.id && current.revision === input.planRevision) {
           return (await classPlanView(tx, classId))!;
         }
@@ -91,6 +106,47 @@ export class ClassPlansService {
           previousRevisionId: current?.syllabusRevisionId ?? null,
           outsideRevisionLinks,
         },
+      });
+      return (await classPlanView(tx, classId))!;
+    });
+  }
+
+  /**
+   * Confirms, reopens, starts or archives the plan (FR-031, FR-039). Repeating the applied action
+   * changes nothing (no new revision, no audit); any other invalid move, archived included, →
+   * 409 INVALID_STATE_TRANSITION. Confirming needs a non-archived topic (422 PLAN_HAS_NO_TOPICS)
+   * and turns every DRAFT topic ACTIVE. An archived class keeps its plan read-only (409 PLAN_ARCHIVED).
+   */
+  async changeStatus(
+    auth: AuthContext,
+    classId: string,
+    input: ChangePlanStatusRequest,
+    requestId: string | null,
+  ): Promise<ClassPlanView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      requirePlannable(await lockOwnedClass(tx, this.context, auth.userId, classId), "write");
+      const plan = await tx.classPlan.findUnique({ where: { classId } });
+      if (!plan) throw notFound();
+      const to = ClassPlanStateMachine.apply(plan.status, input.action);
+      if (to === null) return (await classPlanView(tx, classId))!;
+
+      await bumpRevision(tx, plan.id, input.planRevision);
+      let activatedTopics = 0;
+      if (to === "READY" && plan.status === "DRAFT") {
+        const topics = await tx.topic.count({ where: { planId: plan.id, status: { not: "ARCHIVED" } } });
+        if (topics === 0) throw planHasNoTopics();
+        activatedTopics = (await tx.topic.updateMany({ where: { planId: plan.id, status: "DRAFT" }, data: { status: "ACTIVE" } }))
+          .count;
+      }
+      await tx.classPlan.update({ where: { id: plan.id }, data: { status: to, statusChangedAt: new Date() } });
+      await this.audit.record(tx, {
+        type: "class_plan.status_changed",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "CLASS_PLAN",
+        targetId: plan.id,
+        requestId,
+        metadata: { classId, from: plan.status, to, activatedTopics },
       });
       return (await classPlanView(tx, classId))!;
     });

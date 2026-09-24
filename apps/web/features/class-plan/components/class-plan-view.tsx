@@ -1,6 +1,6 @@
 "use client";
 
-import type { ClassPlanStatus, ClassPlanView, TopicView } from "@repo/contracts";
+import type { ClassPlanView, TopicView } from "@repo/contracts";
 import { Merge, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -21,17 +21,11 @@ import { ArchivedTopics } from "./archived-topics";
 import { CoveragePanel } from "./coverage-panel";
 import { MeetingTopics, type RenderTopicActions } from "./meeting-topics";
 import { MergeTopicsDialog } from "./merge-topics-dialog";
+import { PlanStatusBar } from "./plan-status-bar";
 import { SplitTopicDialog } from "./split-topic-dialog";
 import { moveButtonId, TopicActions } from "./topic-actions";
 import { TopicFormDialog } from "./topic-form-dialog";
 import { UnscheduledTopics } from "./unscheduled-topics";
-
-export const PLAN_STATUS_LABELS: Record<ClassPlanStatus, string> = {
-  DRAFT: "Rascunho",
-  READY: "Pronto",
-  ACTIVE: "Em andamento",
-  ARCHIVED: "Arquivado",
-};
 
 function Loading({ label }: { label: string }) {
   return (
@@ -46,6 +40,8 @@ export interface ClassPlanPageProps {
   classId: string;
   /** UX only (`planejamento.editar` and a class that is not archived); the API decides. */
   canEdit: boolean;
+  /** UX only (`planejamento.alterar_situacao` and a class that is not archived). */
+  canChangeStatus?: boolean;
 }
 
 /**
@@ -53,7 +49,7 @@ export interface ClassPlanPageProps {
  * data", "Novo tópico" and the coverage of the syllabus. Without a selected syllabus there is no
  * plan, and the page leads to the class's Ementa (FR-032).
  */
-export function ClassPlanPage({ classId, canEdit }: ClassPlanPageProps) {
+export function ClassPlanPage({ classId, canEdit, canChangeStatus = false }: ClassPlanPageProps) {
   const query = useClassPlan(classId);
 
   if (query.isPending) return <Loading label="Carregando planejamento…" />;
@@ -76,7 +72,14 @@ export function ClassPlanPage({ classId, canEdit }: ClassPlanPageProps) {
       </Notice>
     );
   }
-  return <PlanBoard classId={classId} plan={plan} canEdit={canEdit && plan.status !== "ARCHIVED"} />;
+  return (
+    <PlanBoard
+      classId={classId}
+      plan={plan}
+      canEdit={canEdit && plan.status !== "ARCHIVED"}
+      canChangeStatus={canChangeStatus}
+    />
+  );
 }
 
 type DialogState =
@@ -85,7 +88,14 @@ type DialogState =
   | { kind: "merge"; topics: TopicView[] }
   | { kind: "split"; topic: TopicView };
 
-function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPlanView; canEdit: boolean }) {
+interface PlanBoardProps {
+  classId: string;
+  plan: ClassPlanView;
+  canEdit: boolean;
+  canChangeStatus: boolean;
+}
+
+function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) {
   const coverage = useClassPlanCoverage(classId, true);
   const reorder = useReorderTopics(classId);
   const archive = useArchiveTopic(classId);
@@ -212,9 +222,9 @@ function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPla
         <p className="m-0">
           Ementa usada: versão {plan.syllabus.documentVersion}, revisão {plan.syllabus.revisionNumber}.
         </p>
-        <p className="m-0 font-semibold">Situação: {PLAN_STATUS_LABELS[plan.status]}</p>
         {plan.archivedTopicCount > 0 ? <p className="m-0">Tópicos arquivados: {plan.archivedTopicCount}</p> : null}
       </div>
+      <PlanStatusBar classId={classId} plan={plan} canChange={canChangeStatus} />
       <p role="status" className="m-0 font-semibold empty:hidden">
         {announcement}
       </p>

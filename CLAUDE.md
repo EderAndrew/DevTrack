@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-24 (004 in progress: US1–US6 and US8 done)
+Last updated: 2026-09-24 (004 in progress: all user stories done, Polish remains)
 
 ## Project state
 
@@ -15,8 +15,8 @@ shared Zod contracts, the frontend stack, Playwright E2E and GitHub Actions CI. 
 by e-mail (the only way a student account is created), enrollments and "Minhas turmas". Phase 004
 (`specs/004-syllabus-planning`, the active feature) is in progress: subjects, syllabus upload and
 extraction, syllabus review, the class calendar, the class plan with manual topics and coverage,
-topic editing (US1–US6) and the isolation of the teacher's area (US8) are done; plan status (US7)
-and Polish remain. Later work starts a new feature through `/speckit-specify`.
+topic editing, plan status (US1–US7) and the isolation of the teacher's area (US8) are done; the
+Polish phase remains. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E22 in 004), `data-model.md`,
