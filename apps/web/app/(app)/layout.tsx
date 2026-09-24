@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/shared/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { getMeForNavigation } from "@/features/auth/api/server";
 
-/** Signed-in screens: side menu that opens and closes (the choice is kept in a cookie), no header. */
+/** Signed-in screens: side menu that expands or collapses to its icons (the choice is kept in a cookie), no header. */
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [me, cookieStore] = await Promise.all([getMeForNavigation(), cookies()]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
