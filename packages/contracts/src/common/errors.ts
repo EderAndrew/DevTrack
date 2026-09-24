@@ -57,6 +57,7 @@ export const ErrorCodeSchema = z.enum([
   "SYLLABUS_ITEM_NOT_IN_PLAN",
   "PLAN_HAS_NO_TOPICS",
   "TOO_MANY_TOPICS",
+  "MEETING_NOT_HELD_YET",
   "RATE_LIMITED",
   "INTERNAL_ERROR",
 ]);

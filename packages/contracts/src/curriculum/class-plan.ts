@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ClassMeetingViewSchema, PlanRevisionSchema } from "./class-meetings.js";
 import { MAX_ITEMS_PER_TOPIC, MAX_TOPICS_PER_PLAN } from "./limits.js";
 
@@ -9,7 +9,8 @@ import { MAX_ITEMS_PER_TOPIC, MAX_TOPICS_PER_PLAN } from "./limits.js";
 export const ClassPlanStatusSchema = z.enum(["DRAFT", "READY", "ACTIVE", "ARCHIVED"]);
 export type ClassPlanStatus = z.infer<typeof ClassPlanStatusSchema>;
 
-export const TopicStatusSchema = z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]);
+/** `COMPLETED`: "Aula concluída" (004/US9). */
+export const TopicStatusSchema = z.enum(["DRAFT", "ACTIVE", "COMPLETED", "ARCHIVED"]);
 export type TopicStatus = z.infer<typeof TopicStatusSchema>;
 
 /** `GENERATED` is reserved for AI topic generation (next phase). */
@@ -30,6 +31,8 @@ export const TopicViewSchema = z.strictObject({
   items: z.array(z.strictObject({ id: UuidSchema, text: z.string(), outsideRevision: z.boolean() })),
   mergedIntoTopicId: UuidSchema.nullable(),
   splitFromTopicId: UuidSchema.nullable(),
+  /** Date of the meeting the topic was completed in; kept once a completed topic is archived. */
+  completedOn: IsoDateSchema.nullable(),
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });
@@ -110,7 +113,7 @@ export const SplitTopicRequestSchema = z.strictObject({
 });
 export type SplitTopicRequest = z.infer<typeof SplitTopicRequestSchema>;
 
-/** Archive and restore. */
+/** Archive, restore, complete and reopen. */
 export const TopicActionRequestSchema = z.strictObject({ planRevision: PlanRevisionSchema });
 export type TopicActionRequest = z.infer<typeof TopicActionRequestSchema>;
 

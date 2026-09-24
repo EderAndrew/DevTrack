@@ -72,6 +72,7 @@ const PHASE_004_TEXTS = {
   SYLLABUS_ITEM_NOT_IN_PLAN: "Este item não existe na versão da ementa usada agora.",
   PLAN_HAS_NO_TOPICS: "Crie ao menos um tópico antes de confirmar.",
   TOO_MANY_TOPICS: "O planejamento pode ter no máximo 300 tópicos.",
+  MEETING_NOT_HELD_YET: "Só é possível concluir uma aula a partir da data dela.",
 };
 
 const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS };
@@ -80,10 +81,10 @@ const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("cobre os 55 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003 e da 004", () => {
+  it("cobre os 56 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003 e da 004", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(57);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(58);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

@@ -21,6 +21,8 @@ const TEST_ROOTS = [
 interface FeatureSpec {
   feature: string;
   path: string;
+  /** User stories US1..USn. */
+  stories: number;
   scenarios: number;
   rows: number;
   /** Rows verified by review only: their "Verificado por" cites no id (e.g. "Assumptions"). */
@@ -36,6 +38,7 @@ const SPECS: FeatureSpec[] = [
   {
     feature: "001",
     path: "specs/001-foundation-identity-access/spec.md",
+    stories: 8,
     scenarios: 66,
     rows: 28,
     rowsWithoutIds: [],
@@ -44,6 +47,7 @@ const SPECS: FeatureSpec[] = [
   {
     feature: "003",
     path: "specs/003-class-invitations-enrollment/spec.md",
+    stories: 8,
     scenarios: 52,
     rows: 36,
     rowsWithoutIds: [30],
@@ -53,8 +57,9 @@ const SPECS: FeatureSpec[] = [
   {
     feature: "004",
     path: "specs/004-syllabus-planning/spec.md",
-    scenarios: 54,
-    rows: 25,
+    stories: 9,
+    scenarios: 60,
+    rows: 26,
     rowsWithoutIds: [],
     // SC-001 is the time of a person using the screens, checked on the quickstart walk-through.
     successCriteria: sc(2, 12),
@@ -176,11 +181,11 @@ describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério
     const key = keyFor(spec.feature);
     const rows = traceabilityRows(text).map((row) => ({ ...row, ids: row.ids.map(key) }));
 
-    it("os parsers leem a spec inteira (8 histórias, todos os cenários e critérios)", () => {
+    it(`os parsers leem a spec inteira (${spec.stories} histórias, todos os cenários e critérios)`, () => {
       const scenarios = acceptanceScenarios(text);
       expect(scenarios).toHaveLength(spec.scenarios);
       expect(new Set(scenarios.map((id) => id.split("-")[0]))).toEqual(
-        new Set(["US1", "US2", "US3", "US4", "US5", "US6", "US7", "US8"]),
+        new Set(Array.from({ length: spec.stories }, (_, i) => `US${i + 1}`)),
       );
       expect(rows.map((row) => row.number)).toEqual(Array.from({ length: spec.rows }, (_, i) => i + 1));
       expect(rows.filter((row) => row.ids.length === 0).map((row) => row.number)).toEqual(spec.rowsWithoutIds);

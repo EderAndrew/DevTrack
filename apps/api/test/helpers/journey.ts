@@ -272,6 +272,17 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   await planWrite("put", "/topic-order", {
     items: [...split.topics].reverse().map((topic) => ({ topicId: topic.id, meetingId: null })),
   });
+  // 004/US9 — the teacher starts the plan, completes the class of a topic and reopens it.
+  const [taught, ...rest] = [...split.topics].reverse();
+  await planWrite("post", "/status", { action: "START" });
+  await planWrite("put", "/topic-order", {
+    items: [
+      { topicId: taught!.id, meetingId: unmarked.body.items[0].id as string },
+      ...rest.map((other) => ({ topicId: other.id, meetingId: null })),
+    ],
+  });
+  await planWrite("post", `/topics/${taught!.id}/complete`);
+  await planWrite("post", `/topics/${taught!.id}/reopen`);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

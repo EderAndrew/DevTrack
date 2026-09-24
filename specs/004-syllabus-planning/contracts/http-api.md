@@ -45,8 +45,8 @@ NOT_FOUND` (E3). Toda operação que altera o planejamento recebe `planRevision`
 | `TopicResolutionSchema` | `{topicId, action: "MOVE", meetingDate: IsoDate} \| {topicId, action: "UNSCHEDULE"} \| {topicId, action: "MERGE", intoTopicId: uuid} \| {topicId, action: "ARCHIVE"}` |
 | `UpdateClassMeetingsRequestSchema` | `{planRevision: int\|null, add: IsoDate[] (≤ 200), remove: IsoDate[] (≤ 200), resolutions: TopicResolution[]}` |
 | `ClassPlanStatusSchema` | `"DRAFT" \| "READY" \| "ACTIVE" \| "ARCHIVED"` |
-| `TopicStatusSchema` / `TopicOriginSchema` | `"DRAFT" \| "ACTIVE" \| "ARCHIVED"` / `"MANUAL" \| "GENERATED"` |
-| `TopicViewSchema` | `{id, title, description, position, meetingId: uuid\|null, origin, status, items: {id, text, outsideRevision: boolean}[], mergedIntoTopicId, splitFromTopicId, createdAt, updatedAt}` |
+| `TopicStatusSchema` / `TopicOriginSchema` | `"DRAFT" \| "ACTIVE" \| "COMPLETED" \| "ARCHIVED"` / `"MANUAL" \| "GENERATED"` |
+| `TopicViewSchema` | `{id, title, description, position, meetingId: uuid\|null, origin, status, items: {id, text, outsideRevision: boolean}[], mergedIntoTopicId, splitFromTopicId, completedOn: IsoDate\|null, createdAt, updatedAt}` |
 | `ClassPlanViewSchema` | `{id, classId, status, revision: int, syllabus: {subjectId, documentId, documentVersion, revisionId, revisionNumber}, meetings: ClassMeetingView[], topics: TopicView[] (não arquivados, por posição), archivedTopicCount: int}` |
 | `ClassPlanEnvelopeSchema` | `{plan: ClassPlanView\|null}` |
 | `SelectPlanSyllabusRequestSchema` | `{planRevision: int\|null, revisionId: uuid}` |
@@ -69,7 +69,7 @@ Códigos de erro novos em `ErrorCodeSchema` (textos no catálogo do web):
 `REVISION_DRAFT_EXISTS`, `REVISION_CONFIRMED`, `REVISION_EMPTY`, `REVISION_NOT_CONFIRMED`,
 `MEETING_OUT_OF_PERIOD`, `MEETING_HAS_TOPICS`, `TOO_MANY_MEETINGS`, `SYLLABUS_REQUIRED`,
 `SYLLABUS_ITEM_NOT_IN_PLAN`, `PLAN_REVISION_CONFLICT`, `PLAN_ARCHIVED`,
-`PLAN_HAS_NO_TOPICS`, `TOO_MANY_TOPICS`. Reutilizados: `VALIDATION_ERROR`, `NOT_FOUND`,
+`PLAN_HAS_NO_TOPICS`, `TOO_MANY_TOPICS`, `MEETING_NOT_HELD_YET` (US9). Reutilizados: `VALIDATION_ERROR`, `NOT_FOUND`,
 `INVALID_STATE_TRANSITION`, `RATE_LIMITED`.
 
 ## Disciplinas
@@ -143,12 +143,16 @@ Rotas em `/classes/:id/plan…`; `:topicId` é buscado dentro do planejamento da
 | POST | `/classes/:id/plan/topics/merge` | `planejamento.editar` | `MergeTopicsRequest` | `200 ClassPlanView` | 400 (ids repetidos), 404, 409, 422 |
 | POST | `/classes/:id/plan/topics/:topicId/split` | `planejamento.editar` | `SplitTopicRequest` | `200 ClassPlanView` | 400, 404, 409, 422 |
 | POST | `/classes/:id/plan/topics/:topicId/archive` | `planejamento.editar` | `TopicActionRequest` | `200 ClassPlanView` | 404, 409 |
-| POST | `/classes/:id/plan/topics/:topicId/restore` | `planejamento.editar` | `TopicActionRequest` | `200 ClassPlanView` | 404, 409 `INVALID_STATE_TRANSITION` (não arquivado), 422 `TOO_MANY_TOPICS` |
-| PUT | `/classes/:id/plan/topic-order` | `planejamento.editar` | `ReorderTopicsRequest` | `200 ClassPlanView` | 400 (lista não bate com os não arquivados), 404, 409 |
+| POST | `/classes/:id/plan/topics/:topicId/restore` | `planejamento.editar` | `TopicActionRequest` | `200 ClassPlanView` | 404, 409 `INVALID_STATE_TRANSITION` (não arquivado, ou arquivado depois de concluído), 422 `TOO_MANY_TOPICS` |
+| POST | `/classes/:id/plan/topics/:topicId/complete` | `planejamento.editar` | `TopicActionRequest` | `200 ClassPlanView` | 404, 409 `INVALID_STATE_TRANSITION` (tópico não ativo ou planejamento não `ACTIVE`), 422 `MEETING_NOT_HELD_YET` (sem aula ou aula futura) |
+| POST | `/classes/:id/plan/topics/:topicId/reopen` | `planejamento.editar` | `TopicActionRequest` | `200 ClassPlanView` | 404, 409 `INVALID_STATE_TRANSITION` (não concluído) |
+| PUT | `/classes/:id/plan/topic-order` | `planejamento.editar` | `ReorderTopicsRequest` | `200 ClassPlanView` | 400 (lista não bate com os não arquivados), 404, 409 (inclui `INVALID_STATE_TRANSITION` ao mudar a aula de um tópico concluído) |
 
 `meetingId` e `itemIds` são conferidos contra a turma e a revisão do planejamento; ids de
 outro professor ou de outra turma → `404`. Em planejamento `ARCHIVED` ou turma arquivada,
-toda escrita → `409 PLAN_ARCHIVED`.
+toda escrita → `409 PLAN_ARCHIVED`. Tópico concluído (US9): editar, dividir, juntar (como
+tópico que fica ou que sai), mudar de aula ou resolvê-lo no calendário de outro jeito que não
+`ARCHIVE` → `409 INVALID_STATE_TRANSITION`.
 
 Não existem rotas de exclusão de disciplinas, documentos, revisões nem tópicos (FR-013,
 FR-038).

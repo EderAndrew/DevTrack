@@ -20,6 +20,19 @@
   tópicos manuais se ligam aos itens, com resumo de cobertura. A IA, que interpreta
   melhor e gera os tópicos, vem na próxima fase.
 
+### Session 2026-09-24
+
+- Q: O professor pode registrar que uma aula já foi dada? → A: Sim, por tópico: "Concluir
+  aula" marca o tópico como concluído (situação `COMPLETED`), com a marca verde "Aula
+  concluída". Só vale para tópico ativo, ligado a uma aula cuja data já chegou, com o
+  planejamento "Em andamento".
+- Q: O que muda num tópico concluído? → A: Ele fica travado: não pode ser editado,
+  subir ou descer, trocar de aula, ser dividido nem entrar numa junção. Só "Arquivar" e
+  "Reabrir aula" ficam disponíveis.
+- Q: A conclusão pode ser desfeita? → A: Sim, com "Reabrir aula", enquanto o tópico não
+  for arquivado. Arquivado, o tópico concluído mostra "Aula concluída" com a data da aula e
+  não pode ser restaurado.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Professor organiza disciplinas e liga turmas a elas (Priority: P1)
@@ -365,6 +378,47 @@ inclusive no download do documento.
 
 ---
 
+### User Story 9 - Professor marca a aula do tópico como concluída (Priority: P2)
+
+Com o planejamento em andamento, o professor registra, tópico a tópico, o que já passou
+para os alunos. O tópico concluído fica com a marca verde "Aula concluída" e travado,
+para que o registro do que foi dado não mude por engano; ele ainda pode reabrir a aula
+(clique errado) ou arquivar o tópico, e o tópico concluído arquivado fica no arquivo para
+sempre.
+
+**Why this priority**: o planejamento em andamento precisa mostrar o que já foi dado e
+o que falta, sem que reorganizações posteriores alterem o que já aconteceu.
+
+**Independent Test**: num planejamento em andamento, concluir um tópico de uma aula
+passada, conferir a marca e os controles travados, reabrir, concluir de novo, arquivar e
+conferir que ele aparece como "Aula concluída" e não pode ser restaurado.
+
+**Acceptance Scenarios**:
+
+1. **Given** um planejamento "Em andamento" e um tópico ativo ligado a uma aula cuja data
+   já chegou, **When** o professor escolhe "Concluir aula", **Then** o tópico passa a
+   concluído, com a marca "Aula concluída" e a data da aula, e a operação é auditada.
+2. **Given** um tópico concluído, **When** o professor tenta editá-lo, subir ou descer,
+   trocar a aula, dividi-lo ou juntá-lo com outro, **Then** a operação é recusada (409)
+   sem efeito; na tela esses controles ficam desabilitados e só "Arquivar" e "Reabrir
+   aula" ficam habilitados.
+3. **Given** um tópico ligado a uma aula futura, um tópico sem aula ou um planejamento que
+   não está "Em andamento", **When** o professor tenta concluí-lo, **Then** a conclusão
+   é recusada (422 para a aula que ainda não aconteceu ou sem aula; 409 para o
+   planejamento), e a tela não oferece "Concluir aula".
+4. **Given** um tópico concluído e não arquivado, **When** o professor escolhe "Reabrir
+   aula", **Then** o tópico volta a ativo, sem a marca, com os controles liberados, e a
+   operação é auditada.
+5. **Given** um tópico concluído, **When** o professor o arquiva, **Then** ele vai para
+   "Tópicos arquivados" com "Aula concluída" e a data da aula, e não pode ser restaurado
+   (409 `INVALID_STATE_TRANSITION`); a tela não oferece "Restaurar" para ele.
+6. **Given** uma aula com tópico concluído, **When** o professor desmarca essa data no
+   calendário, **Then** o único destino aceito para o tópico concluído é "Arquivar";
+   mover, deixar sem data ou juntar (inclusive juntar outro tópico a ele) é recusado
+   (409), e o tópico arquivado mantém a data da aula concluída.
+
+---
+
 ### Edge Cases
 
 - Turma arquivada (003): a turma e o planejamento ficam somente leitura; o
@@ -389,6 +443,10 @@ inclusive no download do documento.
 - Calendário com mais de 200 datas marcadas: recusado acima do limite.
 - Datas passadas: podem ser marcadas (planejamento iniciado no meio do semestre).
 - Juntar tópicos de turmas diferentes ou tópico arquivado: recusado.
+- Tópico concluído: não entra em junção (nem como tópico que fica), não se divide, não
+  muda de aula; o professor pode reordenar os outros tópicos, mas não trocar a posição de
+  um tópico com a de um concluído na mesma aula. A data de "hoje" é a de
+  America/Sao_Paulo.
 - Dividir um tópico sem itens da ementa: permitido; as partes ficam sem itens.
 - Encontro removido enquanto outra aba move um tópico para ele: uma das operações
   recebe conflito; nenhum tópico fica ligado a encontro inexistente.
@@ -523,7 +581,8 @@ inclusive no download do documento.
 - **FR-029**: Remover um encontro (desmarcando a data ou mudando o período da turma)
   que tenha tópicos ligados DEVE ser recusado (409) até o professor resolver cada tópico; a interface identifica os tópicos ligados antes de salvar: mover para outro encontro, deixar sem data, juntar
   com outro tópico ou arquivar. A interface oferece essas escolhas e aplica tudo
-  numa única operação. Nenhum tópico é apagado automaticamente.
+  numa única operação. Nenhum tópico é apagado automaticamente. Um tópico concluído
+  só aceita "arquivar" (FR-057).
 - **FR-030**: As alterações do calendário DEVEM ser salvas numa única operação por
   gravação (acrescentar e remover várias datas de uma vez).
 
@@ -549,7 +608,7 @@ inclusive no download do documento.
   mesma turma), itens da ementa de origem (zero ou mais, do conteúdo confirmado usado
   pelo planejamento), origem (`MANUAL` "Manual"; `GENERATED` "Gerado" fica
   reservado à geração por IA da próxima fase) e situação (`DRAFT`, `ACTIVE`,
-  `ARCHIVED`). Um encontro pode ter zero, um ou vários tópicos
+  `COMPLETED`, `ARCHIVED`). Um encontro pode ter zero, um ou vários tópicos
   ordenados.
 - **FR-035**: O professor DEVE poder criar tópicos manuais, editar título,
   descrição, itens de origem e encontro, reordenar e mover tópicos entre encontros
@@ -564,7 +623,8 @@ inclusive no download do documento.
   primeira parte, e as demais registram de qual tópico vieram.
 - **FR-038**: Tópicos NÃO DEVEM ser excluídos: o professor arquiva e restaura. Um
   tópico arquivado continua existindo e identificável, para que referências futuras
-  (questões, exercícios, provas) nunca fiquem órfãs.
+  (questões, exercícios, provas) nunca fiquem órfãs. Um tópico arquivado depois de
+  concluído NÃO PODE ser restaurado (FR-058).
 - **FR-039**: Ao confirmar o planejamento, todos os tópicos em rascunho DEVEM passar
   a ativos; tópicos criados, divididos ou restaurados com o planejamento pronto ou em
   andamento já ficam ativos.
@@ -581,9 +641,28 @@ inclusive no download do documento.
   DEVE exigir confirmação, manter os tópicos e indicar os itens de origem que não
   existem na nova versão.
 
+**Aulas concluídas**
+
+- **FR-056**: O professor DEVE poder marcar um tópico como concluído ("Concluir aula",
+  `ACTIVE → COMPLETED`) quando o planejamento está "Em andamento" (senão 409
+  `INVALID_STATE_TRANSITION`) e o tópico está ligado a uma aula cuja data é hoje ou
+  anterior, na data de America/Sao_Paulo (senão, ou sem aula, 422
+  `MEETING_NOT_HELD_YET`). O tópico guarda a data da aula concluída. Concluir de novo não
+  tem efeito.
+- **FR-057**: Um tópico concluído NÃO DEVE ser editado, dividido, juntado (como tópico
+  que fica ou que sai), movido para outra aula ou para "Sem data", nem resolvido na
+  remoção da aula de outro jeito que não arquivar: essas operações são recusadas (409
+  `INVALID_STATE_TRANSITION`) sem efeito. A interface mostra a marca verde "Aula
+  concluída" e desabilita Editar, Subir, Descer, Aula, Dividir e Juntar do tópico
+  concluído, e Subir/Descer de um tópico vizinho que trocaria de lugar com ele.
+- **FR-058**: "Reabrir aula" (`COMPLETED → ACTIVE`) DEVE desfazer a conclusão enquanto
+  o tópico não é arquivado. Um tópico concluído PODE ser arquivado; arquivado, continua
+  com a data da aula concluída, aparece em "Tópicos arquivados" como "Aula concluída" e
+  NÃO PODE ser restaurado (409 `INVALID_STATE_TRANSITION`).
+
 **Base para as próximas features**
 
-- **FR-043**: Tópicos ativos de planejamentos prontos ou em andamento DEVEM ser
+- **FR-043**: Tópicos ativos ou concluídos de planejamentos prontos ou em andamento DEVEM ser
   identificáveis de forma estável pela turma, pela disciplina e pelo professor, para
   que as specs seguintes exijam que toda questão e todo exercício se liguem a pelo
   menos um tópico válido do mesmo professor (questões com um ou mais tópicos), e que
@@ -610,7 +689,8 @@ inclusive no download do documento.
   `CURRICULUM_UPLOADED`, `CURRICULUM_PROCESSED`, `CURRICULUM_PROCESS_FAILED`,
   `CURRICULUM_EXTRACTION_CONFIRMED`, `CLASS_MEETINGS_UPDATED` (uma por gravação do
   calendário, com as quantidades acrescentadas e removidas), `TOPIC_CREATED`, `TOPIC_UPDATED`, `TOPIC_MERGED`,
-  `TOPIC_SPLIT`, `TOPIC_ARCHIVED`, `TOPIC_RESTORED`, `TOPICS_REORDERED`,
+  `TOPIC_SPLIT`, `TOPIC_ARCHIVED`, `TOPIC_RESTORED`, `TOPIC_COMPLETED`,
+  `TOPIC_REOPENED`, `TOPICS_REORDERED`,
   `PLANNING_SYLLABUS_SELECTED` (ementa usada pelo planejamento) e
   `PLANNING_STATUS_CHANGED` (nomes finais na convenção do catálogo de auditoria). Os metadados contêm identificadores, versões,
   quantidades e situações — nunca textos da ementa, títulos ou descrições de tópicos,
@@ -622,8 +702,8 @@ inclusive no download do documento.
   detalhes internos), com códigos próprios para: nome de disciplina em uso; tipo de
   arquivo não aceito; arquivo grande demais; arquivo ilegível ou protegido; turma
   sem disciplina ou datas; data fora do período; encontro com tópicos ligados;
-  ementa obrigatória ou não confirmada; conflito de revisão; e
-  planejamento arquivado.
+  ementa obrigatória ou não confirmada; conflito de revisão; aula que ainda não
+  aconteceu; e planejamento arquivado.
 
 **Interface**
 
@@ -668,7 +748,9 @@ inclusive no download do documento.
   `FAILED → UPLOADED` (tentar de novo; o processamento recomeça); conteúdo da ementa `em revisão →
   confirmado` (imutável); encontro `PLANNED` (`COMPLETED`, `CANCELLED` reservados);
   planejamento `DRAFT ⇄ READY → ACTIVE`, qualquer → `ARCHIVED` (FR-031); tópico
-  `DRAFT → ACTIVE`, `DRAFT | ACTIVE → ARCHIVED → situação anterior`. Transições
+  `DRAFT → ACTIVE`, `ACTIVE ⇄ COMPLETED` (concluir e reabrir, FR-056 – FR-058),
+  `DRAFT | ACTIVE | COMPLETED → ARCHIVED`, `ARCHIVED → situação anterior` (exceto
+  depois de `COMPLETED`). Transições
   inválidas → 409 `INVALID_STATE_TRANSITION`.
 - **Idempotency**: envio do mesmo arquivo não cria versão (FR-011); uma data por
   encontro na turma; processamento de cada documento reservado por um único executor
@@ -714,8 +796,8 @@ inclusive no download do documento.
   confirmado usado, situação, revisão (para edições concorrentes), datas.
 - **Tópico**: conteúdo planejado. Planejamento, encontro opcional, título,
   descrição, posição, origem, situação, itens da ementa de origem (N:N), tópico em
-  que foi juntado ou de que foi dividido, datas de criação, atualização e
-  arquivamento.
+  que foi juntado ou de que foi dividido, data da aula concluída, datas de criação,
+  atualização e arquivamento.
 
 ## Success Criteria *(mandatory)*
 
@@ -787,6 +869,7 @@ inclusive no download do documento.
 | 23 | Remoção de data sem perda de conteúdo | US4-6, US4-7; FR-029; SC-008 |
 | 24 | Estados do planejamento com ajustes auditados | US7-1–US7-6; FR-031, FR-047 |
 | 25 | Auditoria sem conteúdo pedagógico | FR-047, FR-048; SC-010 |
+| 26 | Aula concluída trava o tópico e fica no arquivo | US9-1–US9-6; FR-056 – FR-058 |
 
 ## Assumptions
 
@@ -838,7 +921,8 @@ inclusive no download do documento.
 
 - Geração de tópicos e interpretação avançada da ementa por IA (próxima fase).
 - Reconhecimento de texto (OCR) em imagens e PDFs escaneados.
-- Presença, encontros realizados e cancelados (`COMPLETED`, `CANCELLED`).
+- Presença, encontros realizados e cancelados como situação do encontro (`COMPLETED`,
+  `CANCELLED`); a aula concluída desta feature é registrada por tópico (US9).
 - Coprofessores e compartilhamento de disciplinas ou planejamentos.
 - Copiar o planejamento de uma turma para outra da mesma disciplina.
 - Visão dos tópicos pelos alunos.

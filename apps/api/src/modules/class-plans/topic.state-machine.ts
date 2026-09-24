@@ -2,14 +2,16 @@ import type { ClassPlanStatus, TopicStatus } from "../../generated/prisma/client
 import { invalidStateTransition } from "../../platform/http/errors";
 
 /**
- * Topic lifecycle (004 data-model.md, FR-038):
+ * Topic lifecycle (004 data-model.md, FR-038, FR-056 – FR-058):
  *   DRAFT → ACTIVE (the plan is confirmed);
- *   DRAFT | ACTIVE → ARCHIVED (archive, merge or "remove");
- *   ARCHIVED → DRAFT | ACTIVE (restore). Topics are never deleted.
+ *   ACTIVE ⇄ COMPLETED ("Concluir aula" / "Reabrir aula");
+ *   DRAFT | ACTIVE | COMPLETED → ARCHIVED (archive, merge or "remove"; a COMPLETED topic is only archived);
+ *   ARCHIVED → DRAFT | ACTIVE (restore, never after COMPLETED). Topics are never deleted.
  */
 const TRANSITIONS: Readonly<Record<TopicStatus, readonly TopicStatus[]>> = {
   DRAFT: ["ACTIVE", "ARCHIVED"],
-  ACTIVE: ["ARCHIVED"],
+  ACTIVE: ["COMPLETED", "ARCHIVED"],
+  COMPLETED: ["ACTIVE", "ARCHIVED"],
   ARCHIVED: ["DRAFT", "ACTIVE"],
 };
 
@@ -31,6 +33,11 @@ export const TopicStateMachine = {
   /** Status of a new topic: DRAFT while the plan is a draft, ACTIVE once it is READY or ACTIVE. */
   initialStatus(planStatus: Exclude<ClassPlanStatus, "ARCHIVED">): TopicStatus {
     return planStatus === "DRAFT" ? "DRAFT" : "ACTIVE";
+  },
+
+  /** A topic archived after it was completed stays archived (FR-058). */
+  canRestore(statusBeforeArchive: TopicStatus | null): boolean {
+    return statusBeforeArchive !== "COMPLETED";
   },
 
   /**

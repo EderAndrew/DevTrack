@@ -1,6 +1,7 @@
 import type { ClassMeetingStatus, ClassMeetingView, ClassPlanView, TopicView } from "@repo/contracts";
 import type { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
+import { isoDate } from "../classes/class.view";
 
 type Db = Tx | PrismaService;
 
@@ -74,6 +75,7 @@ export async function topicViews(
     items: itemsByTopic.get(topic.id) ?? [],
     mergedIntoTopicId: topic.mergedIntoTopicId,
     splitFromTopicId: topic.splitFromTopicId,
+    completedOn: isoDate(topic.completedOn),
     createdAt: topic.createdAt.toISOString(),
     updatedAt: topic.updatedAt.toISOString(),
   }));

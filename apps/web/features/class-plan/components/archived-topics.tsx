@@ -4,6 +4,7 @@ import type { TopicView } from "@repo/contracts";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useArchivedTopics } from "../hooks/use-class-plan";
 
@@ -18,7 +19,10 @@ export interface ArchivedTopicsProps {
   onRestore: (topic: TopicView) => void;
 }
 
-/** "Tópicos arquivados" (004/US6-5, FR-038): archived topics are kept and can be restored. */
+/**
+ * "Tópicos arquivados" (004/US6-5, FR-038): archived topics are kept and can be restored, except
+ * one archived after its class was completed, which shows "Aula concluída" for good (004/US9-5).
+ */
 export function ArchivedTopics({ classId, count, topics, canEdit, busy, onRestore }: ArchivedTopicsProps) {
   const query = useArchivedTopics(classId, count > 0);
   const titles = new Map(topics.map((topic) => [topic.id, topic.title]));
@@ -48,7 +52,10 @@ export function ArchivedTopics({ classId, count, topics, canEdit, busy, onRestor
               {topic.mergedIntoTopicId ? (
                 <span className="text-muted-foreground">Juntado em: {titles.get(topic.mergedIntoTopicId) ?? "outro tópico"}.</span>
               ) : null}
-              {canEdit ? (
+              {topic.completedOn ? (
+                <span className="font-semibold text-success">Aula concluída em {formatDate(topic.completedOn)}.</span>
+              ) : null}
+              {canEdit && !topic.completedOn ? (
                 <Button
                   type="button"
                   variant="secondary"

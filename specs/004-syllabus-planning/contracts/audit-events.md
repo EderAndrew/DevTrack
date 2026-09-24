@@ -22,6 +22,8 @@ de tópicos, nomes de disciplina, nomes de arquivo nem conteúdo do documento (F
 | `topic.split` | USER | TOPIC | `planId`, `newTopicIds` | FR-037 |
 | `topic.archived` | USER | TOPIC | `planId`, `reason` (`TEACHER`\|`MEETING_REMOVED`) | FR-038 |
 | `topic.restored` | USER | TOPIC | `planId`, `status` | FR-038 |
+| `topic.completed` | USER | TOPIC | `planId` | FR-056 |
+| `topic.reopened` | USER | TOPIC | `planId` | FR-058 |
 | `topics.reordered` | USER | CLASS_PLAN | `topicCount`, `movedCount` | FR-035 |
 | `class_plan.syllabus_selected` | USER | CLASS_PLAN | `classId`, `revisionId`, `previousRevisionId`, `outsideRevisionLinks` | FR-031, FR-042 |
 | `class_plan.status_changed` | USER | CLASS_PLAN | `classId`, `from`, `to`, `activatedTopics` | FR-031, FR-039 |

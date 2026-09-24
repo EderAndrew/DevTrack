@@ -107,6 +107,8 @@ export const VALID_BODY: Record<string, (area: TeacherArea) => object> = {
   }),
   "POST /classes/:id/plan/topics/:topicId/archive": () => ({ planRevision: 1 }),
   "POST /classes/:id/plan/topics/:topicId/restore": () => ({ planRevision: 1 }),
+  "POST /classes/:id/plan/topics/:topicId/complete": () => ({ planRevision: 1 }),
+  "POST /classes/:id/plan/topics/:topicId/reopen": () => ({ planRevision: 1 }),
   "PUT /classes/:id/plan/topic-order": (area) => ({
     planRevision: 1,
     items: [

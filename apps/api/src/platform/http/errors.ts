@@ -88,6 +88,7 @@ export const ErrorCatalog = {
   SYLLABUS_ITEM_NOT_IN_PLAN: { status: 422, message: "Este item não existe na versão da ementa usada agora." },
   PLAN_HAS_NO_TOPICS: { status: 422, message: "Crie ao menos um tópico antes de confirmar." },
   TOO_MANY_TOPICS: { status: 422, message: "O planejamento pode ter no máximo 300 tópicos." },
+  MEETING_NOT_HELD_YET: { status: 422, message: "Só é possível concluir uma aula a partir da data dela." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;
@@ -164,6 +165,7 @@ export const syllabusRequired = () => new AppException("SYLLABUS_REQUIRED");
 export const syllabusItemNotInPlan = () => new AppException("SYLLABUS_ITEM_NOT_IN_PLAN");
 export const planHasNoTopics = () => new AppException("PLAN_HAS_NO_TOPICS");
 export const tooManyTopics = () => new AppException("TOO_MANY_TOPICS");
+export const meetingNotHeldYet = () => new AppException("MEETING_NOT_HELD_YET");
 export const rateLimited = (retryAfterSeconds: number) =>
   new AppException("RATE_LIMITED", undefined, {
     "Retry-After": String(Math.max(1, Math.ceil(retryAfterSeconds))),

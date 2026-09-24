@@ -48,7 +48,8 @@ export interface TopicResolutionDialogProps {
 /**
  * "Esta aula tem tópicos planejados" (004/US4-6, FR-029): before a class day with topics is
  * unmarked, the teacher chooses for each topic to move it, leave it without a date, merge it or
- * archive it. Nothing is sent here; the choices go with "Salvar calendário".
+ * archive it; a completed topic can only be archived (004/US9-6). Nothing is sent here; the
+ * choices go with "Salvar calendário".
  */
 export function TopicResolutionDialog({
   meetingDate,
@@ -113,12 +114,17 @@ export function TopicResolutionDialog({
             {topics.map((topic) => {
               const choice = choices[topic.id] ?? {};
               const name = `resolucao-${topic.id}`;
+              const completed = topic.status === "COMPLETED";
               return (
                 <fieldset key={topic.id} className="m-0 rounded-md border border-border p-3">
                   <legend className="px-1 font-semibold">{topic.title}</legend>
+                  {completed ? (
+                    <p className="m-0 font-semibold text-success">Aula concluída: este tópico só pode ser arquivado.</p>
+                  ) : null}
                   {ACTIONS.map((action) => {
                     const id = `${name}-${action.value}`;
                     const unavailable =
+                      (completed && action.value !== "ARCHIVE") ||
                       (action.value === "MOVE" && moveTargets.length === 0) ||
                       (action.value === "MERGE" && mergeCandidates.length === 0);
                     return (

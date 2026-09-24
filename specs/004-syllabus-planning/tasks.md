@@ -268,6 +268,28 @@ direto no banco, para que US4 teste a remoção de datas com tópicos antes de U
 
 ---
 
+## Phase 12: User Story 9 — Professor marca a aula do tópico como concluída (Priority: P2, emenda de 2026-09-24)
+
+**Goal**: "Concluir aula" por tópico com o planejamento em andamento; o tópico concluído fica
+travado (só "Arquivar" e "Reabrir aula"), e arquivado não volta (FR-056 – FR-058, E23).
+
+**Independent Test**: spec.md US9 (Independent Test).
+
+### Tests for User Story 9 ⚠️
+
+- [X] T088 [P] [US9] Unitário `topic.state-machine.spec.ts`: `ACTIVE ⇄ COMPLETED`, `COMPLETED → ARCHIVED`, restauração recusada depois de `COMPLETED`
+- [X] T089 [P] [US9] Integração `apps/api/test/integration/004-us9-completed-topics.spec.ts` (`004/US9-1` – `004/US9-6`): concluir, travas (editar, dividir, juntar, mudar de aula, calendário), recusas (aula futura, sem aula, planejamento não em andamento), reabrir, arquivar e não restaurar, auditoria
+- [X] T090 [P] [US9] Web: `topic-actions.test.tsx` e `archived-topics` (marca "Aula concluída", controles desabilitados, "Concluir aula"/"Reabrir aula", sem "Restaurar"), resolução do calendário só com "Arquivar"
+
+### Implementation for User Story 9
+
+- [X] T091 [US9] Migração `topic_status += COMPLETED` e `topics.completed_on` com `CHECK`; `schema.prisma`
+- [X] T092 [US9] Contratos: `TopicStatusSchema`, `TopicView.completedOn`, `MEETING_NOT_HELD_YET`, rotas `topics.complete`/`topics.reopen` em `endpoints.ts`
+- [X] T093 [US9] API: `TopicStateMachine`, `TopicsService.complete`/`reopen`, travas em `update`/`split`/`merge`/`reorder`/`restore` e na resolução do calendário; auditoria `topic.completed`/`topic.reopened` (catálogo, `journey.ts`, matriz de autorização)
+- [X] T094 [US9] Web: hooks e API, "Concluir aula", marca verde, travas e vizinhos, "Reabrir aula", arquivados com "Aula concluída em <data>", calendário só com "Arquivar"; mensagens no catálogo
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

@@ -9,6 +9,7 @@ import type { ClassPlan, Topic } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
+  invalidStateTransition,
   meetingHasTopics,
   meetingOutOfPeriod,
   notFound,
@@ -146,6 +147,11 @@ export class ClassMeetingsService {
         throw validationError();
       }
       if (resolution.action === "MOVE" && !keptByDate.has(resolution.meetingDate)) throw validationError();
+      // A completed topic is only archived, and nothing is merged into it (FR-057).
+      const into = resolution.action === "MERGE" ? byId.get(resolution.intoTopicId)! : null;
+      if ((topic.status === "COMPLETED" && resolution.action !== "ARCHIVE") || into?.status === "COMPLETED") {
+        throw invalidStateTransition();
+      }
     }
 
     const counts: Partial<Record<ResolutionAction, number>> = {};

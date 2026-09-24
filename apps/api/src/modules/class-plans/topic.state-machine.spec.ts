@@ -7,13 +7,16 @@ const ALL = TopicStatusSchema.options;
 const ALLOWED = [
   ["DRAFT", "ACTIVE"],
   ["DRAFT", "ARCHIVED"],
+  ["ACTIVE", "COMPLETED"],
   ["ACTIVE", "ARCHIVED"],
+  ["COMPLETED", "ACTIVE"],
+  ["COMPLETED", "ARCHIVED"],
   ["ARCHIVED", "DRAFT"],
   ["ARCHIVED", "ACTIVE"],
 ] as const;
 const isAllowed = (from: string, to: string) => ALLOWED.some(([f, t]) => f === from && t === to);
 
-describe("TopicStateMachine (004/FR-038, 004/FR-039)", () => {
+describe("TopicStateMachine (004/FR-038, 004/FR-039, 004/FR-056 – 004/FR-058)", () => {
   it.each(ALLOWED)("004/FR-038 %s → %s é permitido", (from, to) => {
     expect(machine.canTransition(from, to)).toBe(true);
     expect(machine.transition(from, to)).toBe(true);
@@ -36,6 +39,13 @@ describe("TopicStateMachine (004/FR-038, 004/FR-039)", () => {
     expect(machine.initialStatus("DRAFT")).toBe("DRAFT");
     expect(machine.initialStatus("READY")).toBe("ACTIVE");
     expect(machine.initialStatus("ACTIVE")).toBe("ACTIVE");
+  });
+
+  it("004/FR-058 tópico arquivado depois de concluído não pode ser restaurado", () => {
+    expect(machine.canRestore("COMPLETED")).toBe(false);
+    expect(machine.canRestore("ACTIVE")).toBe(true);
+    expect(machine.canRestore("DRAFT")).toBe(true);
+    expect(machine.canRestore(null)).toBe(true);
   });
 
   it("004/FR-038 restaurar volta à situação anterior, ou ACTIVE com o planejamento confirmado", () => {

@@ -336,6 +336,20 @@ Decisões técnicas da feature (E1–E22). Base: fases 001 (R1–R23), 002 (S1�
   [contracts/audit-events.md](./contracts/audit-events.md) (sem textos, títulos nem nomes
   de arquivo).
 
+## E23. Aula concluída por tópico (emenda de 2026-09-24, US9)
+
+- **Decision**: a conclusão é uma situação do tópico (`TopicStatus.COMPLETED`), não do
+  encontro: numa aula com vários tópicos o professor conclui cada um. `ACTIVE ⇄ COMPLETED`
+  por rotas próprias (`POST …/topics/:topicId/complete` e `…/reopen`, `planejamento.editar`,
+  auditadas como `topic.completed` e `topic.reopened`). O tópico guarda `completed_on`, a data
+  da aula no momento da conclusão, para que o arquivo continue mostrando "Aula concluída em
+  <data>" mesmo que a aula seja removida depois. "Hoje" é a data em America/Sao_Paulo.
+- **Rationale**: estado explícito em vez de indicador booleano (constituição); `ClassMeetingStatus`
+  continua reservado a realizar/cancelar o encontro inteiro, com presença, nas próximas specs.
+- **Alternatives considered**: `class_meetings.status = COMPLETED` (trava todos os tópicos da
+  aula juntos; o professor preferiu por tópico); reabrir sem limite (recusado: arquivado depois
+  de concluído é final).
+
 ## E22. Guardas, fixtures e testes
 
 - **Decision**:

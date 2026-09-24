@@ -1,7 +1,7 @@
 "use client";
 
 import type { ClassMeetingView, TopicView } from "@repo/contracts";
-import { ArrowDown, ArrowUp, Archive, Pencil, Split } from "lucide-react";
+import { ArrowDown, ArrowUp, Archive, CircleCheck, Pencil, RotateCcw, Split } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
@@ -19,18 +19,26 @@ export interface TopicActionsProps {
   count: number;
   selected: boolean;
   busy: boolean;
+  /** "Concluir aula" is offered: plan in progress and the topic's class day has come (UX only; the API decides). */
+  completable: boolean;
+  /** Subir/Descer would swap the topic with a completed one (FR-057). */
+  lockedUp: boolean;
+  lockedDown: boolean;
   onEdit: () => void;
   onSplit: () => void;
   onArchive: () => void;
   onMove: (direction: "up" | "down") => void;
   onMeetingChange: (meetingId: string | null) => void;
   onSelect: (selected: boolean) => void;
+  onComplete: () => void;
+  onReopen: () => void;
 }
 
 /**
  * What the teacher can do with a topic (004/US6, FR-035 – FR-038, contracts/web-ui.md): Editar,
- * Subir, Descer, Aula, Dividir, Arquivar and the selection for "Juntar tópicos". Every change goes
- * to the API; nothing is decided here.
+ * Subir, Descer, Aula, Dividir, Arquivar, "Concluir aula" and the selection for "Juntar tópicos".
+ * A completed topic keeps only Arquivar and "Reabrir aula" (004/US9, FR-057). Every change goes to
+ * the API; nothing is decided here.
  */
 export function TopicActions({
   topic,
@@ -39,18 +47,24 @@ export function TopicActions({
   count,
   selected,
   busy,
+  completable,
+  lockedUp,
+  lockedDown,
   onEdit,
   onSplit,
   onArchive,
   onMove,
   onMeetingChange,
   onSelect,
+  onComplete,
+  onReopen,
 }: TopicActionsProps) {
   const selectId = `aula-${topic.id}`;
   const checkId = `juntar-${topic.id}`;
+  const completed = topic.status === "COMPLETED";
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <Button type="button" variant="secondary" onClick={onEdit} aria-label={`Editar ${topic.title}`}>
+      <Button type="button" variant="secondary" disabled={completed} onClick={onEdit} aria-label={`Editar ${topic.title}`}>
         <Pencil aria-hidden="true" />
         Editar
       </Button>
@@ -58,7 +72,7 @@ export function TopicActions({
         type="button"
         variant="secondary"
         id={moveButtonId("up", topic.id)}
-        disabled={busy || index === 0}
+        disabled={busy || completed || lockedUp || index === 0}
         onClick={() => onMove("up")}
         aria-label={`Subir ${topic.title}`}
       >
@@ -69,7 +83,7 @@ export function TopicActions({
         type="button"
         variant="secondary"
         id={moveButtonId("down", topic.id)}
-        disabled={busy || index === count - 1}
+        disabled={busy || completed || lockedDown || index === count - 1}
         onClick={() => onMove("down")}
         aria-label={`Descer ${topic.title}`}
       >
@@ -83,7 +97,7 @@ export function TopicActions({
           aria-label={`Aula de ${topic.title}`}
           className={SELECT_CLASS}
           value={topic.meetingId ?? NO_MEETING}
-          disabled={busy}
+          disabled={busy || completed}
           onChange={(event) => onMeetingChange(event.target.value || null)}
         >
           <option value={NO_MEETING}>Sem data</option>
@@ -94,7 +108,7 @@ export function TopicActions({
           ))}
         </select>
       </div>
-      <Button type="button" variant="secondary" onClick={onSplit} aria-label={`Dividir ${topic.title}`}>
+      <Button type="button" variant="secondary" disabled={completed} onClick={onSplit} aria-label={`Dividir ${topic.title}`}>
         <Split aria-hidden="true" />
         Dividir
       </Button>
@@ -102,12 +116,25 @@ export function TopicActions({
         <Archive aria-hidden="true" />
         Arquivar
       </Button>
+      {completable ? (
+        <Button type="button" variant="secondary" disabled={busy} onClick={onComplete} aria-label={`Concluir aula de ${topic.title}`}>
+          <CircleCheck aria-hidden="true" />
+          Concluir aula
+        </Button>
+      ) : null}
+      {completed ? (
+        <Button type="button" variant="secondary" disabled={busy} onClick={onReopen} aria-label={`Reabrir aula de ${topic.title}`}>
+          <RotateCcw aria-hidden="true" />
+          Reabrir aula
+        </Button>
+      ) : null}
       <div className="flex min-h-11 items-center gap-2">
         <input
           type="checkbox"
           id={checkId}
           aria-label={`Juntar ${topic.title}`}
-          checked={selected}
+          checked={selected && !completed}
+          disabled={completed}
           onChange={(event) => onSelect(event.target.checked)}
           className="size-5"
         />

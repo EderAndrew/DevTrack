@@ -63,6 +63,7 @@ export const ERROR_MESSAGES = {
   SYLLABUS_ITEM_NOT_IN_PLAN: "Este item não existe na versão da ementa usada agora.",
   PLAN_HAS_NO_TOPICS: "Crie ao menos um tópico antes de confirmar.",
   TOO_MANY_TOPICS: "O planejamento pode ter no máximo 300 tópicos.",
+  MEETING_NOT_HELD_YET: "Só é possível concluir uma aula a partir da data dela.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

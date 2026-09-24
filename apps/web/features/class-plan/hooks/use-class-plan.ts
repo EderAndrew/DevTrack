@@ -104,6 +104,13 @@ export const useArchiveTopic = (classId: string) =>
 export const useRestoreTopic = (classId: string) =>
   usePlanWrite(classId, (topicId: string, planRevision) => classPlanApi.restoreTopic(classId, topicId, current(planRevision)));
 
+/** "Concluir aula" and "Reabrir aula" (004/US9). */
+export const useCompleteTopic = (classId: string) =>
+  usePlanWrite(classId, (topicId: string, planRevision) => classPlanApi.completeTopic(classId, topicId, current(planRevision)));
+
+export const useReopenTopic = (classId: string) =>
+  usePlanWrite(classId, (topicId: string, planRevision) => classPlanApi.reopenTopic(classId, topicId, current(planRevision)));
+
 /** Order and meetings of every non-archived topic in one write (FR-035). */
 export const useReorderTopics = (classId: string) =>
   usePlanWrite(classId, (items: ReorderTopicsRequest["items"], planRevision) =>
