@@ -2,14 +2,14 @@ import type { RoleKey } from "@repo/contracts";
 import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
- * Transcribed by hand from contracts/permissions.md of specs 001 and 003 (not derived from the seed), so a drift
+ * Transcribed by hand from contracts/permissions.md of specs 001, 003 and 004 (not derived from the seed), so a drift
  * between the contract and the database breaks the tests.
  */
 
 export type Access = "session" | PermissionKey;
 
 export interface MatrixEntry {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Route pattern as registered (without the `/api` prefix). */
   path: string;
   access: Access;
@@ -49,11 +49,25 @@ const TURMAS = [
   "turmas.remover_aluno",
 ] as const satisfies PermissionKey[];
 
+/** 004: subjects, syllabus, calendar and class plan — TEACHER only (MANAGER and ADMIN get none). */
+export const CURRICULUM = [
+  "disciplinas.visualizar",
+  "disciplinas.criar",
+  "disciplinas.editar",
+  "ementas.enviar",
+  "ementas.visualizar",
+  "ementas.revisar",
+  "calendario.gerenciar",
+  "planejamento.visualizar",
+  "planejamento.editar",
+  "planejamento.alterar_situacao",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [...SESSOES, ...PROFESSORES, ...MANAGERS, "usuarios.visualizar", "usuarios.suspender", "usuarios.reativar"],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 

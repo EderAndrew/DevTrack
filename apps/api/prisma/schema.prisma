@@ -130,6 +130,95 @@ enum EnrollmentStatus {
   @@map("enrollment_status")
 }
 
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("subject_status")
+}
+
+enum SyllabusMediaType {
+  PDF
+  DOCX
+  PNG
+  JPEG
+
+  @@map("syllabus_media_type")
+}
+
+enum SyllabusProcessingStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+
+  @@map("syllabus_processing_status")
+}
+
+enum SyllabusFailureCategory {
+  UNREADABLE
+  TIMEOUT
+  INTERNAL
+
+  @@map("syllabus_failure_category")
+}
+
+enum SyllabusExtractionResult {
+  TEXT
+  NO_TEXT
+
+  @@map("syllabus_extraction_result")
+}
+
+enum SyllabusRevisionStatus {
+  DRAFT
+  CONFIRMED
+
+  @@map("syllabus_revision_status")
+}
+
+enum SyllabusRevisionSource {
+  EXTRACTION
+  MANUAL
+  REVISION
+
+  @@map("syllabus_revision_source")
+}
+
+/// Only PLANNED is used in 004.
+enum ClassMeetingStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+
+  @@map("class_meeting_status")
+}
+
+enum ClassPlanStatus {
+  DRAFT
+  READY
+  ACTIVE
+  ARCHIVED
+
+  @@map("class_plan_status")
+}
+
+enum TopicStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+
+  @@map("topic_status")
+}
+
+/// GENERATED is reserved for AI topic generation (next phase).
+enum TopicOrigin {
+  MANUAL
+  GENERATED
+
+  @@map("topic_origin")
+}
+
 model User {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email           String        @unique
@@ -158,6 +247,12 @@ model User {
   classInvitationsAccepted  ClassInvitation[] @relation("ClassInvitationAcceptedBy")
   classInvitationsCancelled ClassInvitation[] @relation("ClassInvitationCancelledBy")
   enrollmentsRemoved        Enrollment[]      @relation("EnrollmentRemovedBy")
+
+  subjects                   Subject[]
+  syllabusUploads            SyllabusDocument[]
+  syllabusRevisionsConfirmed SyllabusRevision[]
+  topicsCreated              Topic[]            @relation("TopicCreatedBy")
+  topicsUpdated              Topic[]            @relation("TopicUpdatedBy")
 
   @@map("users")
 }
@@ -255,15 +350,24 @@ model SchoolClass {
   statusChangedAt DateTime?   @map("status_changed_at") @db.Timestamptz(6)
   /// Name + code, lowercase, without accents (searchKey, D10); written by the application.
   searchKey       String      @map("search_key")
+  /// The class is the offering of this subject (004 E2); same teacher, checked by the service.
+  subjectId       String?     @map("subject_id") @db.Uuid
+  /// Both or neither, endsOn >= startsOn (SQL CHECK).
+  startsOn        DateTime?   @map("starts_on") @db.Date
+  endsOn          DateTime?   @map("ends_on") @db.Date
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   teacher     User              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject     Subject?          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   invitations ClassInvitation[]
   enrollments Enrollment[]
+  meetings    ClassMeeting[]
+  plan        ClassPlan?
 
   @@index([teacherId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([teacherId, academicYear])
+  @@index([subjectId])
   @@map("classes")
 }
 
@@ -336,6 +440,231 @@ model Enrollment {
   @@index([classId, status])
   @@index([studentUserId, status])
   @@map("enrollments")
+}
+
+// ── 004: subjects, syllabus documents and revisions, class calendar and plan ─────────────
+
+model Subject {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId   String        @map("teacher_id") @db.Uuid
+  /// Stored trimmed; unique per teacher ignoring case (SQL index on lower(name)).
+  name        String
+  description String?
+  status      SubjectStatus @default(ACTIVE)
+  /// Name, lowercase, without accents (003 D10); written by the application.
+  searchKey   String        @map("search_key")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher           User               @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  classes           SchoolClass[]
+  syllabusDocuments SyllabusDocument[]
+
+  @@index([teacherId, status, name])
+  @@map("subjects")
+}
+
+/// Original files, immutable (trigger rejects UPDATE and DELETE). Only PostgresFileStorage touches it (E4).
+model StoredFile {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bytes     Bytes    @db.ByteA
+  /// CHECK size_bytes = octet_length(bytes).
+  sizeBytes Int      @map("size_bytes")
+  sha256    Bytes    @db.ByteA
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  document SyllabusDocument?
+
+  @@map("stored_files")
+}
+
+/// One uploaded syllabus version of a subject; also the processing queue (E7).
+model SyllabusDocument {
+  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId        String                    @map("subject_id") @db.Uuid
+  version          Int
+  fileId           String                    @unique @map("file_id") @db.Uuid
+  originalFilename String                    @map("original_filename")
+  mediaType        SyllabusMediaType         @map("media_type")
+  sizeBytes        Int                       @map("size_bytes")
+  sha256           Bytes                     @db.ByteA
+  pageCount        Int?                      @map("page_count")
+  processingStatus SyllabusProcessingStatus  @default(UPLOADED) @map("processing_status")
+  attempts         Int                       @default(0)
+  nextAttemptAt    DateTime                  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseExpiresAt   DateTime?                 @map("lease_expires_at") @db.Timestamptz(6)
+  failureCategory  SyllabusFailureCategory?  @map("failure_category")
+  extractionResult SyllabusExtractionResult? @map("extraction_result")
+  /// SyllabusExtraction (E10); written once, in the PROCESSING → PROCESSED transition.
+  extraction       Json?
+  extractorVersion Int?                      @map("extractor_version")
+  processedAt      DateTime?                 @map("processed_at") @db.Timestamptz(6)
+  uploadedById     String                    @map("uploaded_by_id") @db.Uuid
+  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subject    Subject            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  file       StoredFile         @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  uploadedBy User               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  revisions  SyllabusRevision[]
+
+  /// Also serves the subject listing (newest version first) with a backward scan.
+  @@unique([subjectId, version])
+  /// The same file does not create a new version (FR-011).
+  @@unique([subjectId, sha256])
+  @@index([processingStatus, nextAttemptAt])
+  @@map("syllabus_documents")
+}
+
+/// Reviewed content of a document. At most one DRAFT per document; CONFIRMED is immutable (triggers).
+model SyllabusRevision {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId        String                 @map("document_id") @db.Uuid
+  number            Int
+  status            SyllabusRevisionStatus
+  source            SyllabusRevisionSource
+  /// Required iff source = REVISION (CHECK).
+  basedOnRevisionId String?                @map("based_on_revision_id") @db.Uuid
+  title             String?
+  syllabusText      String?                @map("syllabus_text")
+  competencyText    String?                @map("competency_text")
+  /// Set together (CHECK).
+  confirmedAt       DateTime?              @map("confirmed_at") @db.Timestamptz(6)
+  confirmedById     String?                @map("confirmed_by_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  document    SyllabusDocument   @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  basedOn     SyllabusRevision?  @relation("SyllabusRevisionBasedOn", fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
+  derived     SyllabusRevision[] @relation("SyllabusRevisionBasedOn")
+  confirmedBy User?              @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
+  groups      SyllabusGroup[]
+  items       SyllabusItem[]
+  plans       ClassPlan[]
+
+  @@unique([documentId, number])
+  @@map("syllabus_revisions")
+}
+
+model SyllabusGroup {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  revisionId String  @map("revision_id") @db.Uuid
+  position   Int
+  title      String?
+
+  revision SyllabusRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  items    SyllabusItem[]
+
+  @@unique([revisionId, position])
+  /// Target of the items' composite FK: an item's group belongs to the item's revision.
+  @@unique([id, revisionId])
+  @@map("syllabus_groups")
+}
+
+model SyllabusItem {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  revisionId   String  @map("revision_id") @db.Uuid
+  groupId      String  @map("group_id") @db.Uuid
+  position     Int
+  text         String
+  /// The item of the revision this one was copied from (source REVISION); lets a plan remap links (E16).
+  originItemId String? @map("origin_item_id") @db.Uuid
+
+  revision   SyllabusRevision    @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  group      SyllabusGroup       @relation(fields: [groupId, revisionId], references: [id, revisionId], onDelete: Restrict)
+  originItem SyllabusItem?       @relation("SyllabusItemOrigin", fields: [originItemId], references: [id], onDelete: Restrict)
+  copies     SyllabusItem[]      @relation("SyllabusItemOrigin")
+  topicLinks TopicSyllabusItem[]
+
+  @@unique([groupId, position])
+  @@index([revisionId])
+  @@map("syllabus_items")
+}
+
+/// A class date. The meeting number is derived on read (row_number by date, E12).
+model ClassMeeting {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId     String             @map("class_id") @db.Uuid
+  meetingDate DateTime           @map("meeting_date") @db.Date
+  status      ClassMeetingStatus @default(PLANNED)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+  topics      Topic[]
+
+  @@unique([classId, meetingDate])
+  @@map("class_meetings")
+}
+
+/// One per class, created when the class first selects a confirmed syllabus revision.
+model ClassPlan {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId            String          @unique @map("class_id") @db.Uuid
+  syllabusRevisionId String          @map("syllabus_revision_id") @db.Uuid
+  status             ClassPlanStatus @default(DRAFT)
+  /// Optimistic concurrency counter (E13).
+  revision           Int             @default(1)
+  statusChangedAt    DateTime?       @map("status_changed_at") @db.Timestamptz(6)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schoolClass      SchoolClass      @relation(fields: [classId], references: [id], onDelete: Restrict)
+  syllabusRevision SyllabusRevision @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  topics           Topic[]
+
+  @@index([syllabusRevisionId])
+  @@map("class_plans")
+}
+
+/// Never deleted. `archivedAt` is set iff status = ARCHIVED (CHECK).
+model Topic {
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId              String       @map("plan_id") @db.Uuid
+  /// Restrict: a meeting with topics cannot be deleted (SC-008).
+  meetingId           String?      @map("meeting_id") @db.Uuid
+  title               String
+  description         String?
+  position            Int
+  origin              TopicOrigin
+  status              TopicStatus
+  statusBeforeArchive TopicStatus? @map("status_before_archive")
+  mergedIntoTopicId   String?      @map("merged_into_topic_id") @db.Uuid
+  splitFromTopicId    String?      @map("split_from_topic_id") @db.Uuid
+  archivedAt          DateTime?    @map("archived_at") @db.Timestamptz(6)
+  createdById         String       @map("created_by_id") @db.Uuid
+  updatedById         String       @map("updated_by_id") @db.Uuid
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  plan       ClassPlan           @relation(fields: [planId], references: [id], onDelete: Restrict)
+  meeting    ClassMeeting?       @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  mergedInto Topic?              @relation("TopicMergedInto", fields: [mergedIntoTopicId], references: [id], onDelete: Restrict)
+  mergedFrom Topic[]             @relation("TopicMergedInto")
+  splitFrom  Topic?              @relation("TopicSplitFrom", fields: [splitFromTopicId], references: [id], onDelete: Restrict)
+  splitInto  Topic[]             @relation("TopicSplitFrom")
+  createdBy  User                @relation("TopicCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy  User                @relation("TopicUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  items      TopicSyllabusItem[]
+
+  /// DEFERRABLE INITIALLY DEFERRED in SQL, so reordering can swap positions in one transaction.
+  @@unique([planId, position])
+  @@index([planId, status, position])
+  @@index([meetingId])
+  @@map("topics")
+}
+
+model TopicSyllabusItem {
+  topicId   String   @map("topic_id") @db.Uuid
+  itemId    String   @map("item_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  topic Topic        @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  item  SyllabusItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([topicId, itemId])
+  @@index([itemId])
+  @@map("topic_syllabus_items")
 }
 
 model Invitation {

@@ -54,8 +54,13 @@ export const configSchema = z.object({
   RATE_LIMIT_CLASS_INVITE_RESEND_SECONDS: positiveInt(60),
   RATE_LIMIT_CLASS_INVITE_DAILY_SENDS: positiveInt(5),
   RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY: positiveInt(50),
+  RATE_LIMIT_SYLLABUS_UPLOADS_HOURLY: positiveInt(20),
+  RATE_LIMIT_SYLLABUS_RETRIES_HOURLY: positiveInt(10),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
+  SYLLABUS_MAX_FILE_MB: positiveInt(10),
+  SYLLABUS_PROCESSING_INTERVAL_SECONDS: nonNegativeInt(10),
+  SYLLABUS_PROCESSING_TIMEOUT_SECONDS: positiveInt(120),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -81,10 +86,15 @@ export interface AppConfig {
     classInviteResendSeconds: number;
     classInviteDailySends: number;
     classInviteTeacherHourly: number;
+    /** Syllabus (E20): uploads and "Tentar novamente" per teacher per hour. */
+    syllabusUploadsHourly: number;
+    syllabusRetriesHourly: number;
   };
   maintenanceIntervalSeconds: number;
   /** Class invitation delivery retry worker interval (FR-019, D5); 0 disables it. */
   mailRetryIntervalSeconds: number;
+  /** Syllabus documents (E20): upload size limit, processing worker interval (0 disables it, kick() included) and per-attempt extraction timeout. */
+  syllabus: { maxFileMb: number; processingIntervalSeconds: number; processingTimeoutSeconds: number };
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
 }
@@ -130,9 +140,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       classInviteResendSeconds: e.RATE_LIMIT_CLASS_INVITE_RESEND_SECONDS,
       classInviteDailySends: e.RATE_LIMIT_CLASS_INVITE_DAILY_SENDS,
       classInviteTeacherHourly: e.RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY,
+      syllabusUploadsHourly: e.RATE_LIMIT_SYLLABUS_UPLOADS_HOURLY,
+      syllabusRetriesHourly: e.RATE_LIMIT_SYLLABUS_RETRIES_HOURLY,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,
     mailRetryIntervalSeconds: e.MAIL_RETRY_INTERVAL_SECONDS,
+    syllabus: {
+      maxFileMb: e.SYLLABUS_MAX_FILE_MB,
+      processingIntervalSeconds: e.SYLLABUS_PROCESSING_INTERVAL_SECONDS,
+      processingTimeoutSeconds: e.SYLLABUS_PROCESSING_TIMEOUT_SECONDS,
+    },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };
 }

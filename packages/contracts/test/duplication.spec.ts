@@ -11,9 +11,17 @@ import { lineOf, listFiles, readRepoFile, scanSource } from "./helpers/source-sc
 
 const exported = Object.entries(contracts as Record<string, unknown>).filter(([name]) => name.endsWith("Schema"));
 const TYPE_NAMES = new Set(exported.map(([name]) => name.slice(0, -"Schema".length)));
-const ENUMS = exported
+const ALL_ENUMS = exported
   .filter((entry): entry is [string, z.ZodEnum] => entry[1] instanceof z.ZodEnum)
   .map(([name, schema]) => ({ name: name.slice(0, -"Schema".length), options: schema.options.map(String) }));
+/**
+ * An enum whose values are a strict subset of another enum's (SubjectStatus ⊂ ClassStatus,
+ * TopicStatus ⊂ ClassPlanStatus) is ambiguous: `["ACTIVE", "INACTIVE"]` in the API is as likely
+ * a list of class statuses as a copy of SubjectStatus. Only unambiguous enums are checked.
+ */
+const isStrictSubset = (small: string[], large: string[]) =>
+  small.length < large.length && small.every((option) => large.includes(option));
+const ENUMS = ALL_ENUMS.filter((candidate) => !ALL_ENUMS.some((other) => isStrictSubset(candidate.options, other.options)));
 
 const DECLARATION = /\binterface\s+([A-Za-z_$][\w$]*)|\btype\s+([A-Za-z_$][\w$]*)\s*(?:<[^=;]*>)?\s*=/g;
 const QUOTED = `(?:"[^"\\n]*"|'[^'\\n]*')`;
@@ -62,6 +70,17 @@ describe("002/US1-4 nenhum tipo do contrato definido fora do pacote (FR-006)", (
   it("a API e o web não redefinem tipos, enums públicos nem códigos de erro do contrato", () => {
     const offenders = SCANNED.flatMap((path) => duplicatesIn(path, readRepoFile(path)));
     expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("004 enums contidos em outro não são conferidos (ambíguos), os demais continuam", () => {
+    const names = ENUMS.map((candidate) => candidate.name);
+    expect(names).not.toContain("SubjectStatus");
+    expect(names).not.toContain("TopicStatus");
+    expect(names).toEqual(expect.arrayContaining(["ClassStatus", "ClassPlanStatus", "SyllabusMediaType"]));
+    expect(duplicatesIn("x.ts", 'const statuses = ["ACTIVE", "INACTIVE"];')).toEqual([]);
+    expect(duplicatesIn("x.ts", 'const types = ["PDF", "DOCX", "PNG", "JPEG"];')).toEqual([
+      "x.ts:1 repete os valores de SyllabusMediaType",
+    ]);
   });
 
   it("a heurística detecta interface, alias, união e array com os valores de um enum", () => {

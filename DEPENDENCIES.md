@@ -5,13 +5,13 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-09-22** (fase 002, T087), Node 24.12, pnpm 11.25, lockfile do
+Última verificação: **2026-09-23** (fase 004, T001), Node 24.12, pnpm 11.25, lockfile do
 commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
 
-**Resultado: `No known vulnerabilities found`** (0 altas/críticas), na fase 001 e de novo na
-fase 002 depois das dependências novas da seção 5.
+**Resultado: `No known vulnerabilities found`** (0 altas/críticas), na fase 001, de novo na
+fase 002 depois das dependências novas da seção 5 e na fase 004 depois das da seção 6.
 
 Na fase 001, a primeira execução apontou 8 achados (6 high, 1 moderate, 1 low), todos em dependências
 **transitivas**. Nenhuma dependência direta era vulnerável. Foram corrigidos com `overrides` em
@@ -33,6 +33,10 @@ versões corrigidas.
 ## 2. Licenças — `pnpm licenses list --prod`
 
 Allowlist: MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD, BlueOak-1.0.0.
+
+Fase 004: 409 pacotes de produção (331 MIT, 32 Apache-2.0, os demais iguais aos da fase 002).
+As 15 entradas novas são todas MIT, exceto `pdfjs-dist` (Apache-2.0); a tabela de exceções
+abaixo não mudou (seção 6).
 
 Fase 002: 394 pacotes de produção: 317 MIT, 31 ISC, 31 Apache-2.0, 5 BSD-3-Clause,
 1 BSD-2-Clause, 1 0BSD, 1 BlueOak-1.0.0 e os 7 da tabela abaixo (na fase 001 eram 317). Todas
@@ -116,3 +120,28 @@ Removido: `@repo/ui` (e o diretório `packages/ui`), o pacote de exemplo do temp
 Turborepo, que o web não usava. A CLI `shadcn` roda por `pnpm dlx` com versão fixa e não entra
 em nenhum `package.json`. `packages/contracts` não tem outras dependências de produção além de
 `zod`.
+
+## 6. Dependências novas — fase 004 (`specs/004-syllabus-planning`, E9)
+
+Leitura de ementas enviadas em PDF e DOCX e o calendário de aulas. Instaladas com versão exata
+(`pnpm add -E`). `pnpm audit --prod --audit-level high`: nenhum achado.
+
+| Pacote | Onde | Versão | Licença | Para quê | Alternativa descartada |
+|--------|------|--------|---------|----------|------------------------|
+| `pdfjs-dist` (build `legacy`) | api | 6.3.289 | Apache-2.0 | Texto com posição, número de páginas e detecção de PDF criptografado. Exige ≥ 4.2.67, que corrige a CVE-2024-4367 (execução de código por fonte maliciosa); roda com `isEvalSupported: false` num worker thread (E8) | `pdf-parse` (sem manutenção, sem posição do texto); `unpdf` (embrulha o próprio pdfjs) |
+| `fflate` | api | 0.8.3 | MIT | Descompactar o DOCX com limite por entrada e contagem durante a descompressão (zip bomb); também gera as amostras de teste | `jszip` (sem controle da descompressão progressiva); `mammoth` (desempacota sem os nossos limites e traz jszip + xmldom) |
+| `fast-xml-parser` | api | 5.11.1 | MIT | Ler `word/document.xml` e `numbering.xml` com `processEntities: false` e sem DTD | analisador manual de XML (frágil); `@xmldom/xmldom` (DOM completo desnecessário) |
+| `react-day-picker` | web | 10.0.1 | MIT | Base do componente `Calendar` do shadcn/ui (seleção de várias datas, grade navegável por teclado com ARIA) | calendário próprio (reimplementar navegação por teclado e ARIA de grade) |
+
+Transitivas novas, todas MIT: `fast-xml-parser` traz `@nodable/entities`, `fast-xml-builder`,
+`is-unsafe`, `path-expression-matcher`, `strnum` e `xml-naming`; `react-day-picker` traz
+`date-fns` (que também fornece o locale pt-BR) e `@date-fns/tz`. `pdfjs-dist` declara
+`@napi-rs/canvas` (com o binário nativo da plataforma, por exemplo
+`@napi-rs/canvas-darwin-arm64`) como dependência **opcional**: serve para desenhar páginas, o
+que a API não faz (só extrai texto). O componente `Calendar` do shadcn lista `date-fns` como
+dependência, mas o código não o importa diretamente, então ele não entrou no `package.json` do
+web.
+
+`fflate` também gera as amostras de `apps/api/test/fixtures/syllabus/`. O `protegido.pdf` de lá
+foi criptografado uma única vez com o pikepdf num ambiente virtual temporário, que não é
+dependência do projeto (README da pasta).

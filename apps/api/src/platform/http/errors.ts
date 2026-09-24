@@ -1,7 +1,7 @@
 import type { ErrorBody, ErrorCode } from "@repo/contracts";
 
 /**
- * Error catalogue of contracts/http-api.md. Every error leaving the API has the shape
+ * Error catalogue of contracts/http-api.md (001, 003 and 004). Every error leaving the API has the shape
  * {statusCode, code, message}; messages are pt-BR and never carry data about the target.
  */
 export const ErrorCatalog = {
@@ -14,6 +14,11 @@ export const ErrorCatalog = {
   TOKEN_INVALID: { status: 400, message: "Link inválido ou expirado." },
   TOKEN_EXPIRED: { status: 400, message: "Este convite expirou." },
   RA_REQUIRED: { status: 400, message: "Informe o RA." },
+  FILE_TYPE_NOT_ALLOWED: { status: 400, message: "Envie um arquivo PDF, DOCX, PNG ou JPG." },
+  FILE_UNREADABLE: { status: 400, message: "Não foi possível abrir este arquivo." },
+  FILE_PROTECTED: { status: 400, message: "Este arquivo está protegido por senha." },
+  FILE_MACROS: { status: 400, message: "Arquivos com macros não são aceitos." },
+  FILE_TOO_COMPLEX: { status: 400, message: "O arquivo tem páginas ou conteúdo demais para processar." },
   UNAUTHENTICATED: { status: 401, message: "Autenticação necessária." },
   INVALID_CREDENTIALS: { status: 401, message: "E-mail ou senha incorretos." },
   SIGN_IN_REQUIRED: { status: 401, message: "Entre na sua conta para continuar." },
@@ -45,6 +50,44 @@ export const ErrorCatalog = {
   CLASS_NOT_OPEN: { status: 409, message: "Esta turma não aceita novos alunos." },
   ALREADY_ENROLLED: { status: 409, message: "Este aluno já está matriculado nesta turma." },
   RA_TAKEN: { status: 409, message: "Este RA já está em uso." },
+  SUBJECT_NAME_TAKEN: { status: 409, message: "Você já tem uma disciplina com este nome." },
+  SUBJECT_INACTIVE: { status: 409, message: "Esta disciplina está desativada. Reative-a para usá-la." },
+  CLASS_SUBJECT_LOCKED: {
+    status: 409,
+    message: "A disciplina da turma não pode mais ser trocada: o planejamento já usa a ementa dela.",
+  },
+  MEETINGS_OUTSIDE_PERIOD: {
+    status: 409,
+    message: "Há aulas marcadas fora das novas datas. Desmarque-as no calendário antes de mudar o período.",
+  },
+  REVISION_DRAFT_EXISTS: { status: 409, message: "Já existe uma revisão em andamento para esta versão da ementa." },
+  REVISION_CONFIRMED: { status: 409, message: "Este conteúdo já foi confirmado e não pode ser alterado." },
+  MEETING_HAS_TOPICS: {
+    status: 409,
+    message: "Esta aula tem tópicos planejados. Escolha o que fazer com eles antes de desmarcá-la.",
+  },
+  PLAN_REVISION_CONFLICT: {
+    status: 409,
+    message: "O planejamento foi alterado depois que você o abriu. Atualize a página antes de continuar.",
+  },
+  PLAN_ARCHIVED: { status: 409, message: "Este planejamento está arquivado e não pode ser alterado." },
+  FILE_TOO_LARGE: { status: 413, message: "O arquivo passa de 10 MB." },
+  CLASS_NOT_PLANNABLE: {
+    status: 422,
+    message: "Informe a disciplina e as datas de início e término da turma para planejar.",
+  },
+  EXTRACTION_UNAVAILABLE: {
+    status: 422,
+    message: "Não foi possível ler o texto deste arquivo. Preencha o conteúdo manualmente.",
+  },
+  REVISION_EMPTY: { status: 422, message: "Inclua ao menos um item antes de confirmar." },
+  REVISION_NOT_CONFIRMED: { status: 422, message: "Confirme o conteúdo da ementa antes de usá-lo." },
+  MEETING_OUT_OF_PERIOD: { status: 422, message: "A data está fora do período da turma." },
+  TOO_MANY_MEETINGS: { status: 422, message: "A turma pode ter no máximo 200 aulas." },
+  SYLLABUS_REQUIRED: { status: 422, message: "Envie e confirme a ementa antes de criar tópicos." },
+  SYLLABUS_ITEM_NOT_IN_PLAN: { status: 422, message: "Este item não existe na versão da ementa usada agora." },
+  PLAN_HAS_NO_TOPICS: { status: 422, message: "Crie ao menos um tópico antes de confirmar." },
+  TOO_MANY_TOPICS: { status: 422, message: "O planejamento pode ter no máximo 300 tópicos." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;
@@ -74,6 +117,11 @@ export const passwordRequired = () => new AppException("PASSWORD_REQUIRED");
 export const tokenInvalid = () => new AppException("TOKEN_INVALID");
 export const tokenExpired = () => new AppException("TOKEN_EXPIRED");
 export const raRequired = () => new AppException("RA_REQUIRED");
+export const fileTypeNotAllowed = () => new AppException("FILE_TYPE_NOT_ALLOWED");
+export const fileUnreadable = () => new AppException("FILE_UNREADABLE");
+export const fileProtected = () => new AppException("FILE_PROTECTED");
+export const fileMacros = () => new AppException("FILE_MACROS");
+export const fileTooComplex = () => new AppException("FILE_TOO_COMPLEX");
 export const unauthenticated = () => new AppException("UNAUTHENTICATED");
 export const invalidCredentials = () => new AppException("INVALID_CREDENTIALS");
 export const signInRequired = () => new AppException("SIGN_IN_REQUIRED");
@@ -96,6 +144,26 @@ export const classCodeTaken = () => new AppException("CLASS_CODE_TAKEN");
 export const classNotOpen = () => new AppException("CLASS_NOT_OPEN");
 export const alreadyEnrolled = () => new AppException("ALREADY_ENROLLED");
 export const raTaken = () => new AppException("RA_TAKEN");
+export const subjectNameTaken = () => new AppException("SUBJECT_NAME_TAKEN");
+export const subjectInactive = () => new AppException("SUBJECT_INACTIVE");
+export const classSubjectLocked = () => new AppException("CLASS_SUBJECT_LOCKED");
+export const meetingsOutsidePeriod = () => new AppException("MEETINGS_OUTSIDE_PERIOD");
+export const revisionDraftExists = () => new AppException("REVISION_DRAFT_EXISTS");
+export const revisionConfirmed = () => new AppException("REVISION_CONFIRMED");
+export const meetingHasTopics = () => new AppException("MEETING_HAS_TOPICS");
+export const planRevisionConflict = () => new AppException("PLAN_REVISION_CONFLICT");
+export const planArchived = () => new AppException("PLAN_ARCHIVED");
+export const fileTooLarge = () => new AppException("FILE_TOO_LARGE");
+export const classNotPlannable = () => new AppException("CLASS_NOT_PLANNABLE");
+export const extractionUnavailable = () => new AppException("EXTRACTION_UNAVAILABLE");
+export const revisionEmpty = () => new AppException("REVISION_EMPTY");
+export const revisionNotConfirmed = () => new AppException("REVISION_NOT_CONFIRMED");
+export const meetingOutOfPeriod = () => new AppException("MEETING_OUT_OF_PERIOD");
+export const tooManyMeetings = () => new AppException("TOO_MANY_MEETINGS");
+export const syllabusRequired = () => new AppException("SYLLABUS_REQUIRED");
+export const syllabusItemNotInPlan = () => new AppException("SYLLABUS_ITEM_NOT_IN_PLAN");
+export const planHasNoTopics = () => new AppException("PLAN_HAS_NO_TOPICS");
+export const tooManyTopics = () => new AppException("TOO_MANY_TOPICS");
 export const rateLimited = (retryAfterSeconds: number) =>
   new AppException("RATE_LIMITED", undefined, {
     "Retry-After": String(Math.max(1, Math.ceil(retryAfterSeconds))),

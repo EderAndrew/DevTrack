@@ -24,7 +24,8 @@ export const CLASSES_PAGE_SIZE = 20;
 /** Statuses listed when the filter is absent (FR-007): archived classes only on request. */
 const DEFAULT_STATUSES: ClassStatus[] = ["ACTIVE", "INACTIVE"];
 
-type EditableField = keyof UpdateClassRequest;
+/** The 003 fields (`class.updated`); the 004 offering fields have their own audit event. */
+type EditableField = Exclude<keyof UpdateClassRequest, "subjectId" | "startsOn" | "endsOn">;
 const EDITABLE_FIELDS: readonly EditableField[] = ["name", "code", "academicYear", "period", "description"];
 
 /** The only unique index an insert or update of `classes` can hit is `(teacher_id, upper(code))`. */

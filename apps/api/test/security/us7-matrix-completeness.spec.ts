@@ -1,9 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PERMISSIONS, ROLE_KEYS } from "../../src/modules/access-control/permissions";
+import { PERMISSIONS, ROLE_KEYS, type PermissionKey } from "../../src/modules/access-control/permissions";
 import { createUser, loginAs } from "../helpers/factories";
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
-import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
+import { CURRICULUM, MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
+
+/**
+ * 004 permissions whose routes are not in `MATRIX` yet. Each task that adds routes to the matrix
+ * removes its permissions from here; the set must be empty when 004 is done.
+ */
+const PENDING_004_PERMISSIONS = new Set<PermissionKey>(CURRICULUM);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {
@@ -18,7 +24,12 @@ describe("US7 — completude da matriz e do seed", () => {
 
   it("toda permissão do catálogo é exigida por pelo menos uma rota", () => {
     const required = new Set(MATRIX.map((entry) => entry.access));
-    expect(PERMISSIONS.filter((key) => !required.has(key))).toEqual([]);
+    expect(PERMISSIONS.filter((key) => !required.has(key) && !PENDING_004_PERMISSIONS.has(key))).toEqual([]);
+  });
+
+  it("uma permissão pendente da 004 sai da lista assim que alguma rota da matriz a exige", () => {
+    const required = new Set(MATRIX.map((entry) => entry.access));
+    expect([...PENDING_004_PERMISSIONS].filter((key) => required.has(key))).toEqual([]);
   });
 
   describe("seed × contrato", () => {

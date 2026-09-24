@@ -12,7 +12,33 @@ import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 const CONTRACTS = [
   resolve(API_ROOT, "../../specs/001-foundation-identity-access/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
 ];
+
+/**
+ * 004 types that `journey.ts` does not emit yet. They are only exempt from "the journey writes
+ * it"; the catalogue checks still apply. Each story removes its types once the journey emits
+ * them, and the set must be empty when 004 is done.
+ */
+const PENDING_004_TYPES = new Set([
+  "subject.created",
+  "subject.updated",
+  "class.offering_updated",
+  "syllabus.uploaded",
+  "syllabus.processed",
+  "syllabus.processing_failed",
+  "syllabus.revision_confirmed",
+  "class_meetings.updated",
+  "topic.created",
+  "topic.updated",
+  "topic.merged",
+  "topic.split",
+  "topic.archived",
+  "topic.restored",
+  "topics.reordered",
+  "class_plan.syllabus_selected",
+  "class_plan.status_changed",
+]);
 
 interface ContractRow {
   type: string;
@@ -66,7 +92,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(28 + 11);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
@@ -89,7 +115,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
 
     it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
-      expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
+      if (!PENDING_004_TYPES.has(type)) expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
@@ -103,6 +129,12 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
         if (event.actorType === "OPERATOR") expect(event.requestId).toBeNull();
         for (const key of Object.keys(event.metadata as object)) expect(row.metadata).toContain(key);
       }
+    });
+
+    it("004 um tipo pendente sai da lista assim que a jornada passa a gravá-lo", () => {
+      const catalogued = new Set(rows.map((row) => row.type));
+      expect([...PENDING_004_TYPES].filter((type) => !catalogued.has(type))).toEqual([]);
+      expect([...PENDING_004_TYPES].filter((type) => events.some((e) => e.type === type))).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

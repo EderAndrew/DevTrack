@@ -44,6 +44,12 @@ describe("003/US1 — professor cria e administra as próprias turmas (FR-001–
         description: "Turma da manhã",
         status: "ACTIVE",
         activeStudentCount: 0,
+        // 004: a class created without the offering fields is not plannable.
+        subject: null,
+        startsOn: null,
+        endsOn: null,
+        plannable: false,
+        planStatus: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
       });

@@ -6,7 +6,8 @@ type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
  * The texts belong to the web, not to the API's `message`; they are the Phase 001 texts (FR-012)
- * plus the codes added by 003 (specs/003-class-invitations-enrollment/contracts/web-ui.md).
+ * plus the codes added by 003 (specs/003-class-invitations-enrollment/contracts/web-ui.md) and
+ * 004 (specs/004-syllabus-planning/contracts/web-ui.md).
  */
 export const ERROR_MESSAGES = {
   VALIDATION_ERROR: "Dados inválidos.",
@@ -15,6 +16,11 @@ export const ERROR_MESSAGES = {
   TOKEN_INVALID: "Link inválido ou expirado.",
   TOKEN_EXPIRED: "Este convite expirou.",
   RA_REQUIRED: "Informe o RA.",
+  FILE_TYPE_NOT_ALLOWED: "Envie um arquivo PDF, DOCX, PNG ou JPG.",
+  FILE_UNREADABLE: "Não foi possível abrir este arquivo.",
+  FILE_PROTECTED: "Este arquivo está protegido por senha.",
+  FILE_MACROS: "Arquivos com macros não são aceitos.",
+  FILE_TOO_COMPLEX: "O arquivo tem páginas ou conteúdo demais para processar.",
   UNAUTHENTICATED: "Autenticação necessária.",
   INVALID_CREDENTIALS: "E-mail ou senha incorretos.",
   SIGN_IN_REQUIRED: "Entre na sua conta para continuar.",
@@ -37,6 +43,26 @@ export const ERROR_MESSAGES = {
   CLASS_NOT_OPEN: "Esta turma não aceita novos alunos.",
   ALREADY_ENROLLED: "Este aluno já está matriculado nesta turma.",
   RA_TAKEN: "Este RA já está em uso.",
+  SUBJECT_NAME_TAKEN: "Você já tem uma disciplina com este nome.",
+  SUBJECT_INACTIVE: "Esta disciplina está desativada. Reative-a para usá-la.",
+  CLASS_SUBJECT_LOCKED: "A disciplina da turma não pode mais ser trocada: o planejamento já usa a ementa dela.",
+  MEETINGS_OUTSIDE_PERIOD: "Há aulas marcadas fora das novas datas. Desmarque-as no calendário antes de mudar o período.",
+  REVISION_DRAFT_EXISTS: "Já existe uma revisão em andamento para esta versão da ementa.",
+  REVISION_CONFIRMED: "Este conteúdo já foi confirmado e não pode ser alterado.",
+  MEETING_HAS_TOPICS: "Esta aula tem tópicos planejados. Escolha o que fazer com eles antes de desmarcá-la.",
+  PLAN_REVISION_CONFLICT: "O planejamento foi alterado depois que você o abriu. Atualize a página antes de continuar.",
+  PLAN_ARCHIVED: "Este planejamento está arquivado e não pode ser alterado.",
+  FILE_TOO_LARGE: "O arquivo passa de 10 MB.",
+  CLASS_NOT_PLANNABLE: "Informe a disciplina e as datas de início e término da turma para planejar.",
+  EXTRACTION_UNAVAILABLE: "Não foi possível ler o texto deste arquivo. Preencha o conteúdo manualmente.",
+  REVISION_EMPTY: "Inclua ao menos um item antes de confirmar.",
+  REVISION_NOT_CONFIRMED: "Confirme o conteúdo da ementa antes de usá-lo.",
+  MEETING_OUT_OF_PERIOD: "A data está fora do período da turma.",
+  TOO_MANY_MEETINGS: "A turma pode ter no máximo 200 aulas.",
+  SYLLABUS_REQUIRED: "Envie e confirme a ementa antes de criar tópicos.",
+  SYLLABUS_ITEM_NOT_IN_PLAN: "Este item não existe na versão da ementa usada agora.",
+  PLAN_HAS_NO_TOPICS: "Crie ao menos um tópico antes de confirmar.",
+  TOO_MANY_TOPICS: "O planejamento pode ter no máximo 300 tópicos.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

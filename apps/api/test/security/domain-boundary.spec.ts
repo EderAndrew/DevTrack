@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001 plus 003) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003 and 004) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -25,17 +25,27 @@ const EXPECTED_MODELS = [
   "ClassInvitation",
   "ClassInvitationDelivery",
   "Enrollment",
+  "Subject",
+  "StoredFile",
+  "SyllabusDocument",
+  "SyllabusRevision",
+  "SyllabusGroup",
+  "SyllabusItem",
+  "ClassMeeting",
+  "ClassPlan",
+  "Topic",
+  "TopicSyllabusItem",
 ];
 
 /**
  * Word prefixes of the academic domain not built yet (FR-080), without accents, pt-BR and English.
  * 003 brought classes and enrollments in on purpose (`turma`, `matricul`, `class`, `classes`,
- * `enrollment` are allowed, 003/D13); the later phases' terms stay forbidden.
+ * `enrollment` are allowed, 003/D13) and 004 subjects, syllabi, meetings, plans and topics
+ * (`subject`, `syllabus`, `ementa`, `disciplina`, `topic`, `tópico`, `meeting`, `plan`, 004/E22);
+ * the later phases' terms (questions, exercises, exams, assignments, grades, attempts) stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
-  "disciplin",
-  "ementa",
   "periodo",
   "aula",
   "questao",
@@ -51,9 +61,11 @@ const ACADEMIC_PREFIXES = [
   "exam",
   "homework",
   "curricul",
+  // Attempts at an exam; delivery and processing `attempts` (003, 004) are not academic.
+  "tentativa",
 ];
-/** Matched only as whole words, so `classification` or `subjectId`-free names like `subjective` do not count. */
-const ACADEMIC_WORDS = ["classe", "subject"];
+/** Matched only as whole words, so `classification` does not count. */
+const ACADEMIC_WORDS = ["classe"];
 
 const stripAccents = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
@@ -89,7 +101,7 @@ function schemaNames() {
   return { models, names: [...models, ...enums, ...maps, ...fields] };
 }
 
-describe("003/D13 fronteira do domínio (FR-080, critério 27)", () => {
+describe("004/E22 fronteira do domínio (FR-080, critério 27)", () => {
   let routes: string[];
 
   beforeAll(async () => {
@@ -107,7 +119,7 @@ describe("003/D13 fronteira do domínio (FR-080, critério 27)", () => {
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["course_enrollments", "GET /disciplinas/:id", "notas.lancar", "QuestãoProva", "classe", "subject"]) {
+    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "exercicios.criar", "tentativas_prova", "exam_attempts"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
     for (const name of [
@@ -121,6 +133,16 @@ describe("003/D13 fronteira do domínio (FR-080, critério 27)", () => {
       "enrollment_status",
       "GET /classes/:id/enrollments",
       "matriculas",
+      "subjects",
+      "GET /subjects/:id",
+      "disciplinas.visualizar",
+      "ementas.revisar",
+      "SyllabusDocument",
+      "topic_syllabus_items",
+      "TópicoDaEmenta",
+      "class_meetings",
+      "planejamento.alterar_situacao",
+      "ClassPlan",
     ]) {
       expect(academicTerms(name), name).toEqual([]);
     }

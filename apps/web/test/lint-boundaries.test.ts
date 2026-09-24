@@ -48,11 +48,14 @@ describe("002/US4-5 lint impede componente de chamar a API (FR-025)", () => {
     async (path) => {
       expect(await violations(path, 'export const x = () => fetch("/api/me");\n')).not.toEqual([]);
       expect(await violations(path, 'export const x = () => window.fetch("/api/me");\n')).not.toEqual([]);
+      expect(await violations(path, "export const x = () => new XMLHttpRequest();\n")).not.toEqual([]);
+      expect(await violations(path, "export const x = () => new window.XMLHttpRequest();\n")).not.toEqual([]);
     },
   );
 
   it.each(["lib/api/client.ts", "e2e/a.spec.ts", "features/x/components/a.test.tsx"])("fetch(...) em %s é permitido", async (path) => {
     expect(await violations(path, 'export const x = () => fetch("/api/me");\n')).toEqual([]);
+    expect(await violations(path, "export const x = () => new XMLHttpRequest();\n")).toEqual([]);
   });
 
   it.each([

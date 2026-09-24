@@ -8,12 +8,15 @@ import { PermissionsGuard } from "./modules/access-control/guards/permissions.gu
 import { SessionGuard } from "./modules/access-control/guards/session.guard";
 import { VerifiedGuard } from "./modules/access-control/guards/verified.guard";
 import { AuditModule } from "./modules/audit/audit.module";
+import { ClassPlansModule } from "./modules/class-plans/class-plans.module";
 import { ClassInvitationsModule } from "./modules/class-invitations/class-invitations.module";
 import { ClassesModule } from "./modules/classes/classes.module";
 import { EnrollmentsModule } from "./modules/enrollments/enrollments.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { ProvisioningModule } from "./modules/provisioning/provisioning.module";
 import { RetentionModule } from "./modules/retention/retention.module";
+import { SubjectsModule } from "./modules/subjects/subjects.module";
+import { SyllabusModule } from "./modules/syllabus/syllabus.module";
 import { ConfigModule } from "./platform/config/config.module";
 import type { AppConfig } from "./platform/config/config.schema";
 import { CryptoModule } from "./platform/crypto/crypto.module";
@@ -26,6 +29,7 @@ import { MailModule } from "./platform/mail/mail.module";
 import type { Mailer } from "./platform/mail/mailer";
 import { MaintenanceModule } from "./platform/maintenance/maintenance.module";
 import { RateLimitModule } from "./platform/rate-limit/rate-limit.module";
+import { StorageModule } from "./platform/storage/storage.module";
 
 export interface AppModuleOptions {
   /** Tests capture logs through this stream. */
@@ -43,6 +47,7 @@ export class AppModule {
         ConfigModule.forRoot(config),
         LoggingModule.forRoot(config, options.logDestination),
         DatabaseModule,
+        StorageModule,
         CryptoModule,
         MailModule.forRoot(options.mailer),
         MaintenanceModule,
@@ -56,6 +61,9 @@ export class AppModule {
         ClassesModule,
         ClassInvitationsModule,
         EnrollmentsModule,
+        SubjectsModule,
+        SyllabusModule,
+        ClassPlansModule,
         RetentionModule,
         HealthModule,
       ],

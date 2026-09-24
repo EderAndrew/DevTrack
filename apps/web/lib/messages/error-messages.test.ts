@@ -44,16 +44,46 @@ const PHASE_003_TEXTS = {
   RA_TAKEN: "Este RA já está em uso.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS };
+// Codes added by 004, with the texts of specs/004-syllabus-planning/contracts/web-ui.md (and, for
+// the codes the table leaves out, the API's own messages).
+const PHASE_004_TEXTS = {
+  FILE_TYPE_NOT_ALLOWED: "Envie um arquivo PDF, DOCX, PNG ou JPG.",
+  FILE_UNREADABLE: "Não foi possível abrir este arquivo.",
+  FILE_PROTECTED: "Este arquivo está protegido por senha.",
+  FILE_MACROS: "Arquivos com macros não são aceitos.",
+  FILE_TOO_COMPLEX: "O arquivo tem páginas ou conteúdo demais para processar.",
+  SUBJECT_NAME_TAKEN: "Você já tem uma disciplina com este nome.",
+  SUBJECT_INACTIVE: "Esta disciplina está desativada. Reative-a para usá-la.",
+  CLASS_SUBJECT_LOCKED: "A disciplina da turma não pode mais ser trocada: o planejamento já usa a ementa dela.",
+  MEETINGS_OUTSIDE_PERIOD: "Há aulas marcadas fora das novas datas. Desmarque-as no calendário antes de mudar o período.",
+  REVISION_DRAFT_EXISTS: "Já existe uma revisão em andamento para esta versão da ementa.",
+  REVISION_CONFIRMED: "Este conteúdo já foi confirmado e não pode ser alterado.",
+  MEETING_HAS_TOPICS: "Esta aula tem tópicos planejados. Escolha o que fazer com eles antes de desmarcá-la.",
+  PLAN_REVISION_CONFLICT: "O planejamento foi alterado depois que você o abriu. Atualize a página antes de continuar.",
+  PLAN_ARCHIVED: "Este planejamento está arquivado e não pode ser alterado.",
+  FILE_TOO_LARGE: "O arquivo passa de 10 MB.",
+  CLASS_NOT_PLANNABLE: "Informe a disciplina e as datas de início e término da turma para planejar.",
+  EXTRACTION_UNAVAILABLE: "Não foi possível ler o texto deste arquivo. Preencha o conteúdo manualmente.",
+  REVISION_EMPTY: "Inclua ao menos um item antes de confirmar.",
+  REVISION_NOT_CONFIRMED: "Confirme o conteúdo da ementa antes de usá-lo.",
+  MEETING_OUT_OF_PERIOD: "A data está fora do período da turma.",
+  TOO_MANY_MEETINGS: "A turma pode ter no máximo 200 aulas.",
+  SYLLABUS_REQUIRED: "Envie e confirme a ementa antes de criar tópicos.",
+  SYLLABUS_ITEM_NOT_IN_PLAN: "Este item não existe na versão da ementa usada agora.",
+  PLAN_HAS_NO_TOPICS: "Crie ao menos um tópico antes de confirmar.",
+  TOO_MANY_TOPICS: "O planejamento pode ter no máximo 300 tópicos.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("cobre os 30 códigos do contrato e os 2 códigos do web, com os textos da Fase 001 e da 003", () => {
+  it("cobre os 55 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003 e da 004", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(32);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(57);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

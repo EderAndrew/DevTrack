@@ -1,0 +1,44 @@
+{
+  "extractorVersion": 1,
+  "title": "Object-Oriented Programming",
+  "syllabusText": "Exploração dos princípios da programação orientada a objetos, com ênfase em classes, objetos, encapsulamento, herança e polimorfismo, e na aplicação desses conceitos no projeto e na implementação de sistemas de software modulares, reutilizáveis e de fácil manutenção. Frase de controle MARCADOR-EMENTA-004.",
+  "competencyText": "Capacitar os alunos a projetar e implementar soluções de software com os princípios da programação orientada a objetos, aplicando boas práticas de design, padrões de projeto e testes unitários na construção de sistemas robustos e extensíveis.",
+  "groups": [
+    {
+      "title": "Fundamentos de POO",
+      "items": [
+        "Conceitos de classes, objetos e métodos",
+        "Encapsulamento, herança e polimorfismo",
+        "Associações e composição de objetos",
+        "Diferença entre programação estruturada e orientada a objetos"
+      ]
+    },
+    {
+      "title": "Padrões de Design em POO",
+      "items": [
+        "Princípios de design orientado a objetos (SOLID)",
+        "Aplicação de padrões de projeto em POO",
+        "Design para reutilização e extensibilidade",
+        "Refatoração de código orientado a objetos"
+      ]
+    },
+    {
+      "title": "POO em Ambientes Reais",
+      "items": [
+        "Persistência de objetos com ORM",
+        "Gerenciamento de exceções e erros",
+        "Introdução a bibliotecas para POO",
+        "Integração de testes unitários"
+      ]
+    },
+    {
+      "title": "Práticas de Implementação",
+      "items": [
+        "Modularização e organização de código",
+        "Controle de acesso com modificadores",
+        "Desenvolvimento de hierarquias de classes",
+        "Manutenção e documentação"
+      ]
+    }
+  ]
+}
