@@ -35,6 +35,7 @@ describe("US7-1/US7-2 SC-003 — matriz de autorização (contracts/permissions.
     if (entry.method === "GET") return client.get(url);
     if (entry.method === "DELETE") return client.delete(url);
     if (entry.method === "PATCH") return client.patch(url, {});
+    if (entry.method === "PUT") return client.put(url, {});
     return client.post(url, {});
   };
 

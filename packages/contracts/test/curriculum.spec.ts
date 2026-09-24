@@ -45,7 +45,7 @@ describe("004/FR-045 contratos recusam campos desconhecidos e controlados pelo s
     [
       "SaveSyllabusRevisionRequest (item)",
       SaveSyllabusRevisionRequestSchema,
-      { groups: [{ items: [{ text: "Item", id: ID }] }] },
+      { groups: [{ items: [{ text: "Item", id: ID, originItemId: ID }] }] },
     ],
     ["UpdateClassMeetingsRequest", UpdateClassMeetingsRequestSchema, { planRevision: null, add: [], remove: [], resolutions: [], number: 1 }],
     ["CreateTopicRequest", CreateTopicRequestSchema, { planRevision: 1, title: "T", itemIds: [], status: "ACTIVE" }],

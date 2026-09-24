@@ -139,7 +139,8 @@ Constraints:
 
 - A revision holds at most 500 items. Confirming requires at least one.
 - Triggers reject `INSERT`, `UPDATE` and `DELETE` on groups and items of a `CONFIRMED` revision.
-- Saving a draft (`PUT`) deletes and recreates that draft's groups and items. Draft items are never
+- Saving a draft (`PUT`) deletes and recreates that draft's groups and items; an item sent with its
+  current `id` keeps its `originItemId`. Draft items are never
   referenced.
 
 ## ClassMeeting (`class_meetings`)

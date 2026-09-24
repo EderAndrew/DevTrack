@@ -1,4 +1,9 @@
-import type { SyllabusDocumentDetail, SyllabusDocumentView, SyllabusExtraction } from "@repo/contracts";
+import type {
+  SyllabusDocumentDetail,
+  SyllabusDocumentView,
+  SyllabusExtraction,
+  SyllabusRevisionView,
+} from "@repo/contracts";
 
 let sequence = 0;
 
@@ -41,3 +46,37 @@ export const documentDetail = (
   view: SyllabusDocumentView,
   overrides: Partial<Pick<SyllabusDocumentDetail, "extraction" | "revisions">> = {},
 ): SyllabusDocumentDetail => ({ ...view, extraction: null, revisions: [], ...overrides });
+
+/** A `SyllabusRevisionView` built from `{title, items}` groups; ids follow the group and item positions. */
+export const revisionView = (
+  documentId: string,
+  groups: { title: string | null; items: string[] }[] = [],
+  overrides: Partial<SyllabusRevisionView> = {},
+): SyllabusRevisionView => {
+  sequence += 1;
+  const id = `00000000-0000-4000-b000-${String(sequence).padStart(12, "0")}`;
+  const built = groups.map((group, groupIndex) => ({
+    id: `00000000-0000-4001-8${String(sequence).padStart(3, "0")}-${String(groupIndex + 1).padStart(12, "0")}`,
+    position: groupIndex + 1,
+    title: group.title,
+    items: group.items.map((text, itemIndex) => ({
+      id: `00000000-0000-4002-8${String(sequence).padStart(3, "0")}-${String((groupIndex + 1) * 1000 + itemIndex + 1).padStart(12, "0")}`,
+      position: itemIndex + 1,
+      text,
+    })),
+  }));
+  return {
+    id,
+    documentId,
+    number: 1,
+    status: "DRAFT",
+    source: "EXTRACTION",
+    title: null,
+    syllabusText: null,
+    competencyText: null,
+    groups: built,
+    itemCount: built.reduce((sum, group) => sum + group.items.length, 0),
+    confirmedAt: null,
+    ...overrides,
+  };
+};

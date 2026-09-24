@@ -47,10 +47,13 @@ import {
   UpdateSubjectRequestSchema,
 } from "./curriculum/subjects.js";
 import {
+  CreateSyllabusRevisionRequestSchema,
+  SaveSyllabusRevisionRequestSchema,
   SyllabusDocumentDetailSchema,
   SyllabusDocumentListSchema,
   SyllabusDocumentViewSchema,
   SyllabusFileQuerySchema,
+  SyllabusRevisionViewSchema,
   SyllabusUploadResultSchema,
 } from "./curriculum/syllabus.js";
 import { HealthStatusSchema } from "./health/health.js";
@@ -440,6 +443,39 @@ export const endpoints = {
     body: EmptyBodySchema,
     response: SyllabusDocumentViewSchema,
     status: 202,
+  },
+
+  "syllabusRevisions.create": {
+    method: "POST",
+    path: "/syllabus-documents/:id/revisions",
+    params: IdParamsSchema,
+    body: CreateSyllabusRevisionRequestSchema,
+    response: SyllabusRevisionViewSchema,
+    status: 201,
+  },
+  "syllabusRevisions.get": {
+    method: "GET",
+    path: "/syllabus-revisions/:id",
+    params: IdParamsSchema,
+    response: SyllabusRevisionViewSchema,
+    status: 200,
+  },
+  "syllabusRevisions.save": {
+    method: "PUT",
+    path: "/syllabus-revisions/:id",
+    params: IdParamsSchema,
+    body: SaveSyllabusRevisionRequestSchema,
+    response: SyllabusRevisionViewSchema,
+    status: 200,
+  },
+  /** Confirming a confirmed revision again answers 200 without a change. */
+  "syllabusRevisions.confirm": {
+    method: "POST",
+    path: "/syllabus-revisions/:id/confirm",
+    params: IdParamsSchema,
+    body: EmptyBodySchema,
+    response: SyllabusRevisionViewSchema,
+    status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
 

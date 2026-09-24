@@ -188,6 +188,24 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   expect((await t.prisma.syllabusDocument.findUniqueOrThrow({ where: { id: unreadable.id } })).processingStatus).toBe(
     "FAILED",
   );
+  // 004/US3 — the teacher reviews the extracted content, fixes an item and confirms it.
+  const draft = await teacherClient.post(`/api/syllabus-documents/${syllabus.body.document.id}/revisions`, {
+    source: "EXTRACTION",
+  });
+  expect(draft.status).toBe(201);
+  const groups = (draft.body.groups as { title: string | null; items: { id: string; text: string }[] }[]).map((group) => ({
+    title: group.title,
+    items: group.items.map((item) => ({ id: item.id, text: item.text })),
+  }));
+  groups[0]!.items[0]!.text = "Classes, objetos e métodos";
+  const reviewed = await teacherClient.put(`/api/syllabus-revisions/${draft.body.id}`, {
+    title: draft.body.title,
+    syllabusText: draft.body.syllabusText,
+    competencyText: draft.body.competencyText,
+    groups,
+  });
+  expect(reviewed.status).toBe(200);
+  expect((await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {})).body.status).toBe("CONFIRMED");
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

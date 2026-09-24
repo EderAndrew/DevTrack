@@ -39,7 +39,7 @@ NOT_FOUND` (E3). Toda operação que altera o planejamento recebe `planRevision`
 | `SyllabusRevisionSourceSchema` | `"EXTRACTION" \| "MANUAL" \| "REVISION"` |
 | `CreateSyllabusRevisionRequestSchema` | `{source, basedOnRevisionId?: uuid}` (`basedOnRevisionId` obrigatório se e só se `source = "REVISION"`) |
 | `SyllabusRevisionViewSchema` | `{id, documentId, number, status: "DRAFT"\|"CONFIRMED", source, title, syllabusText, competencyText, groups: {id, position, title, items: {id, position, text}[]}[], itemCount, confirmedAt: string\|null}` |
-| `SaveSyllabusRevisionRequestSchema` | `{title?: string(200)\|null, syllabusText?: string(10000)\|null, competencyText?: string(10000)\|null, groups: {title?: string(300)\|null, items: {text: string trim 1–1000}[]}[]}` — até 500 itens no total |
+| `SaveSyllabusRevisionRequestSchema` | `{title?: string(200)\|null, syllabusText?: string(10000)\|null, competencyText?: string(10000)\|null, groups: {title?: string(300)\|null, items: {id?: uuid, text: string trim 1–1000}[]}[]}` — até 500 itens no total; `id` (opcional, sem repetição) é o do item neste rascunho e preserva a origem do item copiado (E16) |
 | `ClassMeetingViewSchema` | `{id, date: IsoDate, number: int, status: "PLANNED"\|"COMPLETED"\|"CANCELLED", topicCount: int}` |
 | `ClassMeetingListSchema` | `{items: ClassMeetingView[], total: int, planRevision: int\|null}` |
 | `TopicResolutionSchema` | `{topicId, action: "MOVE", meetingDate: IsoDate} \| {topicId, action: "UNSCHEDULE"} \| {topicId, action: "MERGE", intoTopicId: uuid} \| {topicId, action: "ARCHIVE"}` |
