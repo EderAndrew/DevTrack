@@ -29,8 +29,9 @@ disciplina e datas; ligue-a à disciplina e informe as datas.
 Na turma `POO-2027-A` → Ementa → "Enviar ementa" → `poo.pdf`. A situação passa de
 "Enviado" a "Processando" e "Processado" sem recarregar. Envie de novo o mesmo arquivo →
 "Este arquivo já foi enviado (versão 1).". Tente, um por vez: `executavel.pdf`,
-`grande.pdf` (> 10 MB), `macro.docx`, `bomba.docx`, `protegido.pdf`, `truncado.jpg` →
-cada um recusado com a mensagem do contrato e nenhuma versão nova. "Baixar original" e
+um arquivo acima de 10 MB (`head -c 10485761 /dev/zero > /tmp/grande.pdf`; recusado já no
+navegador com "O arquivo passa de 10 MB."), `macro.docx`, `bomba.docx`, `protegido.pdf`,
+`truncado.jpg` → cada um recusado com a mensagem do contrato e nenhuma versão nova. "Baixar original" e
 compare: `shasum -a 256 poo.pdf ~/Downloads/poo.pdf` iguais.
 
 ## 4. Revisão e confirmação (US3)
@@ -38,7 +39,8 @@ compare: `shasum -a 256 poo.pdf ~/Downloads/poo.pdf` iguais.
 Abra a versão 1: 4 grupos e 16 itens da ementa de POO, título, ementa e competência
 (contracts/syllabus-processing.md). Corrija um item, mova outro para outro grupo, salve,
 saia e volte (rascunho mantido). "Confirmar conteúdo" → "Conteúdo confirmado." → "Usar
-esta ementa na turma POO-2027-A?" → Sim. Tente editar a revisão confirmada → não é
+esta ementa na turma <nome da turma POO-2027-A>?" → "Usar ementa" (o diálogo aparece quando a
+versão foi aberta a partir da turma, que ainda não usa ementa). Tente editar a revisão confirmada → não é
 editável; "Nova revisão" cria rascunho a partir dela.
 
 Imagem: envie `ementa.png` → "Não foi possível ler o texto deste arquivo. Preencha o
@@ -49,8 +51,8 @@ Kill switch: reinicie a API com `SYLLABUS_PROCESSING_INTERVAL_SECONDS=0`, envie
 
 ## 5. Calendário (US4)
 
-Turma → Calendário: marque as quartas-feiras de fevereiro a junho, deixando 18/03 de
-fora → "Total de aulas selecionadas: 18" e encontros 1–18. Acrescente uma data no meio →
+Turma → Calendário: marque as quartas-feiras de 03/02 a 09/06/2027 (19 datas), deixando
+17/03 de fora → "Total de aulas selecionadas: 18" e encontros 1–18. Acrescente uma data no meio →
 renumeração.
 
 ## 6. Tópicos (US5, US6)
@@ -87,5 +89,5 @@ Com o administrador (sem papel de professor): `/disciplinas` e as rotas da API �
 pnpm --filter api test -- test/integration/004-      # histórias 004
 pnpm --filter api test:security                     # matriz, isolamento, uploads hostis, segredos, auditoria
 pnpm --filter web test
-pnpm --filter web test:e2e                          # syllabus-plan, syllabus-manual (+ jornadas anteriores)
+pnpm --filter web test:e2e                          # syllabus-plan, syllabus-manual, syllabus-upload-limit (+ jornadas anteriores)
 ```

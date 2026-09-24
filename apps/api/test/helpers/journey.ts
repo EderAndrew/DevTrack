@@ -14,6 +14,7 @@ import {
   syllabusFixture,
   uniqueEmail,
 } from "./factories";
+import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { api, type TestApp } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -27,6 +28,8 @@ export interface JourneySecret {
 
 export interface JourneyResult {
   secrets: JourneySecret[];
+  /** 004 pedagogical content (FR-047, FR-048): never in logs nor in audit metadata. */
+  content: JourneySecret[];
 }
 
 /**
@@ -44,6 +47,12 @@ export interface JourneyResult {
  */
 export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   const secrets: JourneySecret[] = [];
+  const content: JourneySecret[] = [{ kind: "texto da ementa (marcador)", value: SYLLABUS_MARKER }];
+  /** Pedagogical text sent by the journey; `kind` names it in failure messages. */
+  const text = (kind: string, value: string) => {
+    content.push({ kind, value });
+    return value;
+  };
   const keep = (kind: string, value: string | undefined) => {
     expect(value, `${kind} ausente`).toBeTruthy();
     secrets.push({ kind, value: value! });
@@ -166,17 +175,17 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   const classId = created.body.id as string;
   expect((await teacherClient.patch(`/api/classes/${classId}`, { period: "1º semestre" })).status).toBe(200);
   // 004/US1 — the teacher creates, renames and deactivates a subject, and links the class to it.
-  const subject = await teacherClient.post("/api/subjects", { name: "Disciplina da Jornada" });
+  const subject = await teacherClient.post("/api/subjects", { name: text("nome da disciplina", "Disciplina da Jornada Quatro") });
   expect(subject.status).toBe(201);
   const subjectId = subject.body.id as string;
   const offering = { subjectId, startsOn: "2026-02-02", endsOn: "2026-06-30" };
   expect((await teacherClient.patch(`/api/classes/${classId}`, offering)).body.plannable).toBe(true);
-  expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: "Ementa da jornada" })).status).toBe(200);
+  expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: text("descrição da disciplina", "Descrição da disciplina da jornada") })).status).toBe(200);
   // 004/US2 — syllabus upload and processing: one readable PDF, and an unreadable file stored
   // directly (the upload inspection would refuse it) so that processing fails for good.
   const syllabus = await teacherClient.upload(`/api/subjects/${subjectId}/syllabus-documents`, {
     bytes: syllabusFixture("poo.pdf"),
-    filename: "ementa-jornada.pdf",
+    filename: text("nome do arquivo", "ementa-jornada-004.pdf"),
     contentType: "application/pdf",
   });
   expect(syllabus.status).toBe(201);
@@ -223,7 +232,7 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   expect(plan.status).toBe(200);
   const planned = await teacherClient.post(`/api/classes/${classId}/plan/topics`, {
     planRevision: plan.body.revision,
-    title: "Classes, objetos e métodos",
+    title: text("título de tópico", "Tópico da jornada: classes"),
     meetingId: calendar.body.items[1].id,
     itemIds: [reviewed.body.groups[0].items[0].id],
   });
@@ -243,15 +252,18 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
     planRevision = res.body.revision;
     return res.body as { topics: { id: string; title: string }[] };
   };
-  const inheritance = (await planWrite("post", "/topics", { title: "Herança", itemIds: [] })).topics.at(-1)!;
-  const modifiers = (await planWrite("post", "/topics", { title: "Modificadores de acesso", itemIds: [] })).topics.at(-1)!;
-  await planWrite("patch", `/topics/${inheritance.id}`, { description: "Revisada." });
-  await planWrite("post", "/topics/merge", { topicIds: [inheritance.id, modifiers.id], title: "Herança + Modificadores", itemIds: [] });
+  const topic = (title: string) => ({ title: text("título de tópico", title), itemIds: [] });
+  const inheritance = (await planWrite("post", "/topics", topic("Tópico da jornada: herança"))).topics.at(-1)!;
+  const modifiers = (await planWrite("post", "/topics", topic("Tópico da jornada: modificadores"))).topics.at(-1)!;
+  await planWrite("patch", `/topics/${inheritance.id}`, {
+    description: text("descrição de tópico", "Descrição revisada do tópico da jornada"),
+  });
+  await planWrite("post", "/topics/merge", {
+    topicIds: [inheritance.id, modifiers.id],
+    ...topic("Tópico da jornada: herança e modificadores"),
+  });
   const split = await planWrite("post", `/topics/${inheritance.id}/split`, {
-    parts: [
-      { title: "Herança", itemIds: [] },
-      { title: "Modificadores", itemIds: [] },
-    ],
+    parts: [topic("Tópico da jornada: herança, parte 1"), topic("Tópico da jornada: herança, parte 2")],
   });
   await planWrite("post", `/topics/${inheritance.id}/archive`);
   await planWrite("post", `/topics/${inheritance.id}/restore`);
@@ -353,5 +365,5 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   expect((await t.get(MaintenanceService).run()).status).toBe("completed");
 
   await t.flushMail();
-  return { secrets };
+  return { secrets, content };
 }

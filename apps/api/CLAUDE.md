@@ -19,6 +19,11 @@ global setup compiles `extraction/` and `syllabus-file-inspector.ts` with `@swc/
 stay free of Nest, Prisma, config and loggers. `writeFakeWorker()` (`test/helpers/syllabus-worker.ts`)
 writes stand-in workers that hang, fail or crash. Tests run with the processing timer off
 (`processingIntervalSeconds: 0`, which also turns off `kick()`); call `SyllabusProcessingWorker.runOnce(now)`.
+Syllabus fixtures live in `test/fixtures/syllabus/` (built by `build-fixtures.ts`, documented in
+its README); `poo.pdf`/`poo.docx` carry the marker `MARCADOR-EMENTA-004` that the content scan looks
+for. Factories build 004 data directly (`createSubject`, `createSyllabusDocument` with a
+`status`, `createConfirmedRevision`, `createMeetings`, `createPlan`, `createTopic`); a plan write
+through the API must send the plan's current `revision` as `planRevision`.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

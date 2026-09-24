@@ -102,11 +102,17 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001 and 003). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
+  (001, 003 and 004). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
   `SPECS`.
+- 004 security suite (`apps/api/test/security/004-*`): the curriculum authorization matrix
+  (`004-curriculum-authorization-matrix.ts` builds a complete teacher area; a new 004 route needs a
+  `VALID_BODY` entry and a `MATRIX` row), cross links, server-controlled fields, rate limits,
+  immutability of originals and confirmed revisions, concurrency and performance. The journey
+  (`test/helpers/journey.ts`) also returns the 004 pedagogical `content`, which the secret scan keeps
+  out of logs and audit metadata.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -133,7 +139,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   Zod-validated config (`src/platform/config`); `app.setup.ts` applies the HTTP setup shared by
   `main.ts` and the tests.
 - `apps/web` (Next.js App Router) calls the API through a same-origin rewrite `/api/* → API`
-  (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages).
+  (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages, and
+  raises the rewrite's body limit, `experimental.proxyClientMaxBodySize`, so a 10 MB syllabus
+  upload is not cut; the API enforces the real limit).
   `proxy.ts` only redirects for UX and never authorizes.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
   contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
@@ -167,10 +175,15 @@ the removal conditions are in `DEPENDENCIES.md`.
   call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7 attempts; a retry issues a
   fresh token and supersedes the old link.
 - 004 modules: `subjects` (`SubjectContextPolicy`, same 404 scoping as classes; syllabus documents
-  and revisions are reached through their subject), `syllabus` (upload into `stored_files`, then
-  `SyllabusProcessingWorker` claims `UPLOADED` documents and runs extraction in a `worker_threads`
-  worker via `SyllabusWorkerRunner`, with the state machine in
-  `syllabus-processing.state-machine.ts`; worker test setup is in `apps/api/CLAUDE.md`) and
+  and revisions are reached through their subject), `syllabus` (multipart upload through
+  `SyllabusFileInterceptor` in `platform/http/upload.ts`, on routes marked `@AcceptsMultipart()` so
+  `OriginGuard` lets `multipart/form-data` through; the file is inspected in a worker thread before
+  anything is written, then the original goes into `stored_files` (bytea, immutable by trigger)
+  through `FileStorage` in `platform/storage`; `SyllabusProcessingWorker` claims `UPLOADED`
+  documents every `SYLLABUS_PROCESSING_INTERVAL_SECONDS` (0 disables the timer) with a lease and
+  runs extraction in a `worker_threads` worker via `SyllabusWorkerRunner`, with the state machine in
+  `syllabus-processing.state-machine.ts`; confirmed revisions are immutable by trigger; worker test
+  setup is in `apps/api/CLAUDE.md`) and
   `class-plans` (the class calendar, where the meeting number comes from `row_number()` and is never
   stored; plan and topic state machines; `bumpRevision` in `plan-revision.guard.ts` starts every plan
   write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the

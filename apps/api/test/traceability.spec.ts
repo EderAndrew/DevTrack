@@ -50,6 +50,15 @@ const SPECS: FeatureSpec[] = [
     // SC-001/SC-002 are timings of a person using the screens: the E2E journeys (SC-010) cover the flows.
     successCriteria: sc(3, 11),
   },
+  {
+    feature: "004",
+    path: "specs/004-syllabus-planning/spec.md",
+    scenarios: 53,
+    rows: 25,
+    rowsWithoutIds: [],
+    // SC-001 is the time of a person using the screens, checked on the quickstart walk-through.
+    successCriteria: sc(2, 12),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
