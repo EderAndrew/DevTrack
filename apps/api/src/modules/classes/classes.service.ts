@@ -13,6 +13,7 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
   classCodeTaken,
+  classSubjectLocked,
   invalidStateTransition,
   meetingsOutsidePeriod,
   notFound,
@@ -171,9 +172,11 @@ export class ClassesService {
         const offeringFields = OFFERING_FIELDS.filter((field) => offering[field] !== currentOffering[field]);
         if (fields.length === 0 && offeringFields.length === 0) return this.get(auth.userId, classId, tx);
 
-        // SUBJECT_INACTIVE only when the subject changes: a class keeps its inactive subject.
-        if (offering.subjectId && offeringFields.includes("subjectId")) {
-          await this.assertSubjectOffered(tx, auth.userId, offering.subjectId);
+        if (offeringFields.includes("subjectId")) {
+          // FR-004: once the class selected a syllabus (it has a plan, so possibly topics), its subject stays.
+          if (await tx.classPlan.count({ where: { classId } })) throw classSubjectLocked();
+          // SUBJECT_INACTIVE only when the subject changes: a class keeps its inactive subject.
+          if (offering.subjectId) await this.assertSubjectOffered(tx, auth.userId, offering.subjectId);
         }
         if (offeringFields.includes("startsOn") || offeringFields.includes("endsOn")) {
           await this.assertMeetingsInside(tx, classId, offering.startsOn, offering.endsOn);

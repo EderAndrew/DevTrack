@@ -1,6 +1,6 @@
 "use client";
 
-import type { ClassPlanEnvelope, ClassPlanView, UpdateClassMeetingsRequest } from "@repo/contracts";
+import type { UpdateClassMeetingsRequest } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { classesKeys } from "@/features/classes/hooks/use-classes";
 import { classMeetingsApi } from "../api/class-meetings";
@@ -13,15 +13,6 @@ export const classMeetingsKeys = {
 
 export const useClassMeetings = (classId: string) =>
   useQuery({ queryKey: classMeetingsKeys.meetings(classId), queryFn: () => classMeetingsApi.list(classId) });
-
-/**
- * The plan already in the cache, if any: the calendar lists a meeting's topics from it before
- * saving (FR-029), without fetching anything else.
- */
-export function useCachedClassPlan(classId: string): ClassPlanView | null {
-  const queryClient = useQueryClient();
-  return queryClient.getQueryData<ClassPlanEnvelope>(classMeetingsKeys.plan(classId))?.plan ?? null;
-}
 
 /** Saves the calendar; the plan shows meetings and topics, so it is stale afterwards. */
 export function useUpdateClassMeetings(classId: string) {

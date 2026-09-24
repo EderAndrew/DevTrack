@@ -7,7 +7,7 @@ import { documentView } from "../../syllabus/components/test-fixtures";
 import {
   ClassCalendarSection,
   ClassInvitationsSection,
-  ClassPlanningSection,
+  ClassPlanSection,
   ClassStudentsSection,
   ClassSyllabusSection,
 } from "./class-sections";
@@ -67,30 +67,32 @@ describe("004/US1-4 seções da turma", () => {
   it("turma sem disciplina ou datas: o que falta preencher e o link para editar", async () => {
     serve(CLASS);
     const { container } = renderWithProviders(
-      <ClassPlanningSection classId={CLASS.id} title="Calendário" empty="Nenhuma aula marcada." canEditClass />,
+      <ClassPlanSection classId={CLASS.id} canEditClass canEdit />,
     );
     expect(
       await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar."),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Editar turma" }).getAttribute("href")).toBe(`/turmas/${CLASS.id}/editar`);
-    expect(screen.queryByText("Nenhuma aula marcada.")).toBeNull();
+    expect(screen.queryByText("Envie e confirme a ementa antes de criar tópicos.")).toBeNull();
     await expectNoA11yViolations(container);
   });
 
   it("sem turmas.editar, ou turma arquivada, não oferece o link", async () => {
     serve({ ...CLASS, status: "ARCHIVED" });
-    renderWithProviders(<ClassPlanningSection classId={CLASS.id} title="Ementa" empty="—" canEditClass />);
+    renderWithProviders(<ClassPlanSection classId={CLASS.id} canEditClass canEdit />);
     await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar.");
     expect(screen.queryByRole("link", { name: "Editar turma" })).toBeNull();
   });
 
-  it("turma planejável mostra a seção", async () => {
-    serve({ ...CLASS, plannable: true });
-    renderWithProviders(
-      <ClassPlanningSection classId={CLASS.id} title="Calendário" empty="Nenhuma aula marcada." canEditClass />,
+  it("004/US5 Planejamento de turma planejável sem ementa escolhida leva à ementa da turma", async () => {
+    const planned = { ...CLASS, subject: { id: "33333333-3333-4333-8333-333333333333", name: "POO" }, startsOn: "2027-02-01", endsOn: "2027-06-30", plannable: true };
+    fetchMock.mockImplementation((input) =>
+      Promise.resolve(String(input) === `/api/classes/${CLASS.id}` ? json(200, planned) : json(200, { plan: null })),
     );
-    expect(await screen.findByText("Nenhuma aula marcada.")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "Calendário" })).toBeTruthy();
+    renderWithProviders(<ClassPlanSection classId={CLASS.id} canEditClass canEdit />);
+    expect(await screen.findByText("Envie e confirme a ementa antes de criar tópicos.")).toBeTruthy();
+    expect(urls()).toContain(`/api/classes/${CLASS.id}/plan`);
+    expect(screen.getByRole("heading", { level: 2, name: "Planejamento" })).toBeTruthy();
   });
 
   it("004/US4 Calendário da turma: encontros do período; turma arquivada fica só para leitura", async () => {
@@ -130,10 +132,12 @@ describe("004/US1-4 seções da turma", () => {
           ? json(200, planned)
           : String(input) === `/api/subjects/${subject.id}/syllabus-documents`
             ? json(200, { items: [version] })
-            : json(404, { statusCode: 404, code: "NOT_FOUND", message: "x" }),
+            : String(input) === `/api/classes/${CLASS.id}/plan`
+              ? json(200, { plan: null })
+              : json(404, { statusCode: 404, code: "NOT_FOUND", message: "x" }),
       ),
     );
-    const { container } = renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload />);
+    const { container } = renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload canSelect />);
 
     const link = await screen.findByRole("link", { name: "ementa-poo.pdf" });
     expect(link.getAttribute("href")).toBe(`/disciplinas/${subject.id}/ementa/${version.id}?turma=${CLASS.id}`);
@@ -144,7 +148,7 @@ describe("004/US1-4 seções da turma", () => {
 
   it("Ementa de turma não planejável pede disciplina e datas; arquivada não oferece envio", async () => {
     serve(CLASS);
-    const { unmount } = renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload />);
+    const { unmount } = renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload canSelect />);
     expect(
       await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar."),
     ).toBeTruthy();
@@ -159,7 +163,7 @@ describe("004/US1-4 seções da turma", () => {
           : json(200, { items: [] }),
       ),
     );
-    renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload />);
+    renderWithProviders(<ClassSyllabusSection classId={CLASS.id} canEditClass canUpload canSelect />);
     expect(await screen.findByText("Nenhuma ementa enviada.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Enviar ementa" })).toBeNull();
   });

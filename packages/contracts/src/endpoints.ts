@@ -40,6 +40,13 @@ import { MyClassListSchema } from "./classes/my-classes.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
+  ClassPlanEnvelopeSchema,
+  ClassPlanViewSchema,
+  CreateTopicRequestSchema,
+  PlanCoverageSchema,
+  SelectPlanSyllabusRequestSchema,
+} from "./curriculum/class-plan.js";
+import {
   ChangeSubjectStatusRequestSchema,
   CreateSubjectRequestSchema,
   SubjectListQuerySchema,
@@ -494,6 +501,38 @@ export const endpoints = {
     body: UpdateClassMeetingsRequestSchema,
     response: ClassMeetingListSchema,
     status: 200,
+  },
+
+  "classPlans.get": {
+    method: "GET",
+    path: "/classes/:id/plan",
+    params: IdParamsSchema,
+    response: ClassPlanEnvelopeSchema,
+    status: 200,
+  },
+  /** Creates the DRAFT plan when the class has none (`planRevision: null`). */
+  "classPlans.selectSyllabus": {
+    method: "PUT",
+    path: "/classes/:id/plan/syllabus",
+    params: IdParamsSchema,
+    body: SelectPlanSyllabusRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "classPlans.coverage": {
+    method: "GET",
+    path: "/classes/:id/plan/coverage",
+    params: IdParamsSchema,
+    response: PlanCoverageSchema,
+    status: 200,
+  },
+  "topics.create": {
+    method: "POST",
+    path: "/classes/:id/plan/topics",
+    params: IdParamsSchema,
+    body: CreateTopicRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 201,
   },
 } as const satisfies Record<string, EndpointContract>;
 

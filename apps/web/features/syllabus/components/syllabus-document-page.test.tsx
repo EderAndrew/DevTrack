@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
-import { json } from "../../subjects/components/test-fixtures";
+import { classView, json } from "../../subjects/components/test-fixtures";
 import { SyllabusDocumentDetail } from "./syllabus-document-detail";
 import { documentDetail, documentView, POO_EXTRACTION, revisionView } from "./test-fixtures";
 
@@ -126,6 +126,45 @@ describe("004/US3 página da versão da ementa — revisão ao lado do original"
     expect(await screen.findByText("Conteúdo confirmado.")).toBeTruthy();
     expect(await screen.findByText(/Conteúdo confirmado — revisão 1\./)).toBeTruthy();
     expect(screen.queryByRole("form")).toBeNull();
+  });
+
+  it("004/US2-1 004/FR-006 vindo de uma turma sem ementa: \"Usar esta ementa na turma <nome>?\" escolhe o conteúdo confirmado", async () => {
+    const classId = "00000000-0000-4000-9000-000000000777";
+    const view = documentView(SUBJECT_ID, { processingStatus: "PROCESSED", extractionResult: "TEXT" });
+    fakeApi(fetchMock, documentDetail(view, { extraction: POO_EXTRACTION }));
+    const document = fetchMock.getMockImplementation()!;
+    const selected: unknown[] = [];
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === `/api/classes/${classId}`) return Promise.resolve(json(200, classView("POO — Manhã", { id: classId })));
+      if (url === `/api/classes/${classId}/plan`) return Promise.resolve(json(200, { plan: null }));
+      if (url === `/api/classes/${classId}/plan/syllabus`) {
+        selected.push(JSON.parse(String(init!.body)));
+        return Promise.resolve(json(200, { id: "00000000-0000-4000-8000-000000000778", classId, topics: [] }));
+      }
+      return document(input, init);
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} classId={classId} canRetry canReview />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Revisar conteúdo" }));
+    const form = await screen.findByRole("form", { name: "Revisão 1 do conteúdo" });
+    await user.click(within(form).getByRole("button", { name: "Confirmar conteúdo" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Confirmar conteúdo" }));
+
+    const offer = await screen.findByRole("alertdialog", { name: "Usar esta ementa na turma POO — Manhã?" });
+    await user.click(within(offer).getByRole("button", { name: "Usar ementa" }));
+
+    expect(await screen.findByText(/A turma POO — Manhã agora usa esta ementa\./)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ir para o planejamento" }).getAttribute("href")).toBe(
+      `/turmas/${classId}/planejamento`,
+    );
+    // The id of the revision just confirmed, from "/api/syllabus-revisions/<id>/confirm".
+    const confirmUrl = fetchMock.mock.calls.map(([url]) => String(url)).find((url) => url.endsWith("/confirm"))!;
+    const revisionId = confirmUrl.split("/")[3];
+    expect(selected).toEqual([{ planRevision: null, revisionId }]);
   });
 
   it("004/US3-6 confirmado somente leitura, com \"Nova revisão\" a partir dele", async () => {

@@ -16,6 +16,7 @@ export default async function ClassSyllabusPage({ params }: { params: Promise<{ 
       classId={id}
       canEditClass={me.permissions.includes("turmas.editar")}
       canUpload={me.permissions.includes("ementas.enviar")}
+      canSelect={me.permissions.includes("planejamento.editar")}
     />
   );
 }

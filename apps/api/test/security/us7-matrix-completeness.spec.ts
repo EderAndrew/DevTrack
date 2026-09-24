@@ -21,6 +21,7 @@ const PENDING_004_PERMISSIONS = new Set<PermissionKey>(
         "ementas.revisar",
         "calendario.gerenciar",
         "planejamento.visualizar",
+        "planejamento.editar",
       ].includes(key),
   ),
 );

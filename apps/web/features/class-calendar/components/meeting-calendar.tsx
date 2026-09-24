@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { messageForError } from "@/lib/messages/error-messages";
-import { useCachedClassPlan, useClassMeetings, useUpdateClassMeetings } from "../hooks/use-class-meetings";
+import { useClassPlan } from "@/features/class-plan/hooks/use-class-plan";
+import { useClassMeetings, useUpdateClassMeetings } from "../hooks/use-class-meetings";
 import { fromIsoDate, meetingLabel, toIsoDate } from "./calendar-dates";
 import { MeetingList } from "./meeting-list";
 import { TopicResolutionDialog } from "./topic-resolution-dialog";
@@ -77,7 +78,8 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   const [resolutions, setResolutions] = useState<Record<string, TopicResolution[]>>({});
   const [resolving, setResolving] = useState<ClassMeetingView | null>(null);
   const [error, setError] = useState("");
-  const plan = useCachedClassPlan(classId);
+  // The topics of a day being unmarked (FR-029); a class without a plan has none.
+  const plan = useClassPlan(classId, { enabled: list.planRevision !== null }).data?.plan ?? null;
   const update = useUpdateClassMeetings(classId);
 
   const start = fromIsoDate(startsOn);
