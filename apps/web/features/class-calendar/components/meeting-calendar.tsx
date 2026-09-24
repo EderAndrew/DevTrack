@@ -158,7 +158,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-start gap-6">
+      <div className="flex flex-wrap items-start gap-10">
         <Calendar
           mode="multiple"
           selected={dates.map(fromIsoDate)}
@@ -168,9 +168,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
           endMonth={end}
           defaultMonth={start}
           weekStartsOn={0}
-          className="rounded-md border border-border"
+          className="rounded-md border border-border p-5 [--cell-size:--spacing(12)] [&_th]:text-sm [&_td[data-day]]:p-0.5"
         />
-        <div className="flex min-w-60 flex-col gap-3">
+        <div className="flex min-w-60 flex-1 flex-col gap-3">
           <p aria-live="polite" className="m-0 font-semibold">
             Total de aulas selecionadas: {dates.length}
           </p>

@@ -9,9 +9,9 @@ export interface MeetingListProps {
 export function MeetingList({ dates }: MeetingListProps) {
   if (dates.length === 0) return <p>Nenhuma aula marcada.</p>;
   return (
-    <ol aria-label="Aulas selecionadas" className="m-0 list-none p-0">
+    <ol aria-label="Aulas selecionadas" className="m-0 list-none gap-x-10 p-0 sm:columns-2">
       {dates.map((date, index) => (
-        <li key={date} className="py-1">
+        <li key={date} className="break-inside-avoid py-1.5">
           {meetingLabel(index + 1, date)}
         </li>
       ))}
