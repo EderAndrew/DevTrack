@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { documentView } from "../../syllabus/components/test-fixtures";
-import { ClassInvitationsSection, ClassPlanningSection, ClassStudentsSection, ClassSyllabusSection } from "./class-sections";
+import {
+  ClassCalendarSection,
+  ClassInvitationsSection,
+  ClassPlanningSection,
+  ClassStudentsSection,
+  ClassSyllabusSection,
+} from "./class-sections";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -85,6 +91,33 @@ describe("004/US1-4 seções da turma", () => {
     );
     expect(await screen.findByText("Nenhuma aula marcada.")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Calendário" })).toBeTruthy();
+  });
+
+  it("004/US4 Calendário da turma: encontros do período; turma arquivada fica só para leitura", async () => {
+    const planned = { ...CLASS, subject: { id: "33333333-3333-4333-8333-333333333333", name: "POO" }, startsOn: "2027-02-01", endsOn: "2027-06-30", plannable: true };
+    const meetings = { items: [{ id: "44444444-4444-4444-8444-444444444444", date: "2027-03-04", number: 1, status: "PLANNED", topicCount: 0 }], total: 1, planRevision: null };
+    const answer = (schoolClass: ClassView) =>
+      fetchMock.mockImplementation((input) =>
+        Promise.resolve(String(input) === `/api/classes/${CLASS.id}` ? json(200, schoolClass) : json(200, meetings)),
+      );
+    answer(planned);
+    const { unmount } = renderWithProviders(<ClassCalendarSection classId={CLASS.id} canEditClass canManage />);
+
+    expect(await screen.findByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(urls()).toContain(`/api/classes/${CLASS.id}/meetings`);
+    expect(screen.getByRole("heading", { level: 2, name: "Calendário" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Salvar calendário" })).toBeTruthy();
+    unmount();
+
+    answer({ ...planned, status: "ARCHIVED", plannable: false });
+    const archived = renderWithProviders(<ClassCalendarSection classId={CLASS.id} canEditClass canManage />);
+    expect(await screen.findByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
+    archived.unmount();
+
+    answer(CLASS);
+    renderWithProviders(<ClassCalendarSection classId={CLASS.id} canEditClass canManage />);
+    expect(await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar.")).toBeTruthy();
   });
 
   it("004/US2 004/FR-006 Ementa da turma: versões da disciplina com volta para a turma, e o envio pela disciplina", async () => {

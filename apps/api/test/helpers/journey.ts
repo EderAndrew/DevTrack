@@ -6,7 +6,9 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
+  createPlan,
   createSyllabusDocument,
+  createTopic,
   createUser,
   DEFAULT_PASSWORD,
   loginAs,
@@ -35,7 +37,7 @@ export interface JourneyResult {
  * invitations (accept, refuse, claim, revoke, self-invite), teacher and account lifecycle,
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
  * implemented so far (classes, class invitations, their management and acceptance, enrollments, own classes), and the 004
- * flows implemented so far (subjects, classes as offerings, syllabus upload and processing). Together they emit every audit event
+ * flows implemented so far (subjects, classes as offerings, syllabus upload, processing and review, the class calendar). Together they emit every audit event
  * type of the contracts/audit-events.md of 001, 003 and 004, except the retired
  * ones and those still pending in audit-coverage.spec.ts.
  *
@@ -206,6 +208,25 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
   });
   expect(reviewed.status).toBe(200);
   expect((await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {})).body.status).toBe("CONFIRMED");
+  // 004/US4 — the teacher marks two class days, then unmarks one whose topic is archived there.
+  const meetingsPath = `/api/classes/${classId}/meetings`;
+  const calendar = await teacherClient.put(meetingsPath, {
+    planRevision: null,
+    add: ["2026-03-04", "2026-03-11"],
+    remove: [],
+    resolutions: [],
+  });
+  expect(calendar.body.total).toBe(2);
+  // Until 004/US5 creates plans and topics through the API, the factories do.
+  const plan = await createPlan(t, classId, draft.body.id as string);
+  const topic = await createTopic(t, plan.id, { meetingId: calendar.body.items[1].id as string });
+  const unmarked = await teacherClient.put(meetingsPath, {
+    planRevision: plan.revision,
+    add: [],
+    remove: ["2026-03-11"],
+    resolutions: [{ topicId: topic.id, action: "ARCHIVE" }],
+  });
+  expect(unmarked.body.total).toBe(1);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

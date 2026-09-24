@@ -38,6 +38,7 @@ import {
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
+import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
   ChangeSubjectStatusRequestSchema,
   CreateSubjectRequestSchema,
@@ -475,6 +476,23 @@ export const endpoints = {
     params: IdParamsSchema,
     body: EmptyBodySchema,
     response: SyllabusRevisionViewSchema,
+    status: 200,
+  },
+
+  "classMeetings.list": {
+    method: "GET",
+    path: "/classes/:id/meetings",
+    params: IdParamsSchema,
+    response: ClassMeetingListSchema,
+    status: 200,
+  },
+  /** Adds and removes dates in one save; `planRevision` is null while the class has no plan. */
+  "classMeetings.update": {
+    method: "PUT",
+    path: "/classes/:id/meetings",
+    params: IdParamsSchema,
+    body: UpdateClassMeetingsRequestSchema,
+    response: ClassMeetingListSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

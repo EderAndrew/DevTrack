@@ -2,10 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
 import { createClass, createClassInvitation, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
-import { MATRIX, type MatrixEntry, routeKey } from "./authorization-matrix";
+import { CURRICULUM, MATRIX, type MatrixEntry, routeKey } from "./authorization-matrix";
 
-/** The 003 rows of the matrix: every route of a teacher's classes and what hangs off them. */
-const CLASS_ROUTES = MATRIX.filter((entry) => entry.path.startsWith("/classes"));
+/**
+ * The 003 rows of the matrix: every route of a teacher's classes and what hangs off them. The
+ * 004 routes under a class (calendar, plan) need a plannable class and belong to the 004 matrix.
+ */
+const CLASS_ROUTES = MATRIX.filter(
+  (entry) => entry.path.startsWith("/classes") && !(CURRICULUM as readonly string[]).includes(entry.access),
+);
 
 /**
  * A body that passes validation for each route, so the context check (404) is what answers.

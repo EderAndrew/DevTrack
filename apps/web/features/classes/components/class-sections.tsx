@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MeetingCalendar } from "@/features/class-calendar/components/meeting-calendar";
 import { SyllabusSection } from "@/features/syllabus/components/syllabus-section";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClass } from "../hooks/use-classes";
@@ -72,6 +73,39 @@ export function ClassPlanningSection({ classId, title, empty, canEditClass }: Cl
         <p>{empty}</p>
       ) : (
         <ClassOfferingRequired classId={classId} canEdit={canEditClass && schoolClass.status !== "ARCHIVED"} />
+      )}
+    </section>
+  );
+}
+
+export interface ClassCalendarSectionProps {
+  classId: string;
+  canEditClass: boolean;
+  /** UX only (`calendario.gerenciar`): marking and unmarking days; the API decides. */
+  canManage: boolean;
+}
+
+/**
+ * Calendário of a class (004/US4): the days of its period with a class. Read-only without
+ * `calendario.gerenciar` or once the class is archived.
+ */
+export function ClassCalendarSection({ classId, canEditClass, canManage }: ClassCalendarSectionProps) {
+  const { schoolClass, fallback } = useLoadedClass(classId);
+  if (!schoolClass) return fallback;
+  const archived = schoolClass.status === "ARCHIVED";
+  return (
+    <section aria-labelledby="secao-titulo">
+      <h2 id="secao-titulo">Calendário</h2>
+      {/* `plannable` is false once archived, but an archived class still shows its days. */}
+      {schoolClass.subject && schoolClass.startsOn && schoolClass.endsOn ? (
+        <MeetingCalendar
+          classId={classId}
+          startsOn={schoolClass.startsOn}
+          endsOn={schoolClass.endsOn}
+          canEdit={canManage && !archived}
+        />
+      ) : (
+        <ClassOfferingRequired classId={classId} canEdit={canEditClass && !archived} />
       )}
     </section>
   );

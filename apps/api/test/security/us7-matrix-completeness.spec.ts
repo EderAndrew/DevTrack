@@ -12,9 +12,16 @@ import { CURRICULUM, MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-
 const PENDING_004_PERMISSIONS = new Set<PermissionKey>(
   CURRICULUM.filter(
     (key) =>
-      !["disciplinas.visualizar", "disciplinas.criar", "disciplinas.editar", "ementas.enviar", "ementas.visualizar", "ementas.revisar"].includes(
-        key,
-      ),
+      ![
+        "disciplinas.visualizar",
+        "disciplinas.criar",
+        "disciplinas.editar",
+        "ementas.enviar",
+        "ementas.visualizar",
+        "ementas.revisar",
+        "calendario.gerenciar",
+        "planejamento.visualizar",
+      ].includes(key),
   ),
 );
 

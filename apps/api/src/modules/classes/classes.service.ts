@@ -11,7 +11,13 @@ import { Prisma } from "../../generated/prisma/client";
 import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { classCodeTaken, invalidStateTransition, notFound, subjectInactive } from "../../platform/http/errors";
+import {
+  classCodeTaken,
+  invalidStateTransition,
+  meetingsOutsidePeriod,
+  notFound,
+  subjectInactive,
+} from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
@@ -169,6 +175,9 @@ export class ClassesService {
         if (offering.subjectId && offeringFields.includes("subjectId")) {
           await this.assertSubjectOffered(tx, auth.userId, offering.subjectId);
         }
+        if (offeringFields.includes("startsOn") || offeringFields.includes("endsOn")) {
+          await this.assertMeetingsInside(tx, classId, offering.startsOn, offering.endsOn);
+        }
 
         await tx.schoolClass.update({
           where: { id: classId },
@@ -256,6 +265,21 @@ export class ClassesService {
   private async assertSubjectOffered(tx: Tx, teacherId: string, subjectId: string): Promise<void> {
     const subject = await this.subjects.findOwnedOrNotFound(teacherId, subjectId, tx);
     if (subject.status !== "ACTIVE") throw subjectInactive();
+  }
+
+  /**
+   * New dates must keep every meeting of the class inside the period (004/US4-7, research E12):
+   * otherwise `409 MEETINGS_OUTSIDE_PERIOD`, and the teacher removes those meetings through the
+   * calendar first, resolving their topics there. Clearing the dates counts every meeting.
+   */
+  private async assertMeetingsInside(tx: Tx, classId: string, startsOn: string | null, endsOn: string | null) {
+    const outside = await tx.classMeeting.count({
+      where: {
+        classId,
+        ...(startsOn && endsOn ? { OR: [{ meetingDate: { lt: toDbDate(startsOn)! } }, { meetingDate: { gt: toDbDate(endsOn)! } }] } : {}),
+      },
+    });
+    if (outside > 0) throw meetingsOutsidePeriod();
   }
 
   /** Locks the teacher's class row for the rest of the transaction; 404 outside the teacher's context. */
