@@ -37,9 +37,9 @@ daí US2 (componentes), US3 (AppShell), US5 (aluno), US4 (catálogo e documenta�
 
 **Purpose**: arquivos de fonte, pastas e o utilitário de varredura das guardas.
 
-- [ ] T001 Copiar as fontes variáveis (subconjuntos latin e latin-ext, peso variável, estilo normal) dos pacotes npm `@fontsource-variable/inter` e `@fontsource-variable/jetbrains-mono` (baixados com `npm pack`, sem virar dependência) para `apps/web/app/fonts/`: `inter-latin-wght-normal.woff2`, `inter-latin-ext-wght-normal.woff2`, `jetbrains-mono-latin-wght-normal.woff2`, `jetbrains-mono-latin-ext-wght-normal.woff2`, e o texto da licença em `apps/web/app/fonts/OFL.txt` (research V5)
-- [ ] T002 [P] Criar `apps/web/design-system/` com `README.md` (títulos: Princípios, Cores e a regra 80/15/5, Regras contra UI genérica, Arquitetura em camadas, Como usar), `tokens.md`, `components.md`, `layouts.md` e `exceptions.md` (tabela vazia com colunas Arquivo, Trecho, Motivo), só com títulos por enquanto (research V19)
-- [ ] T003 [P] Criar `apps/web/test/design-system/scan.ts`: lista os arquivos `.ts`/`.tsx` de `apps/web/app`, `apps/web/features` e `apps/web/components` (fora `*.test.*`), devolve linhas com número e o texto sem comentários de bloco, e lê os marcadores `ds-exception: <motivo>` da linha e da linha anterior (base de T009, T010 e T044)
+- [X] T001 Copiar as fontes variáveis (subconjuntos latin e latin-ext, peso variável, estilo normal) dos pacotes npm `@fontsource-variable/inter` e `@fontsource-variable/jetbrains-mono` (baixados com `npm pack`, sem virar dependência) para `apps/web/app/fonts/`: `inter-latin-wght-normal.woff2`, `inter-latin-ext-wght-normal.woff2`, `jetbrains-mono-latin-wght-normal.woff2`, `jetbrains-mono-latin-ext-wght-normal.woff2`, e o texto da licença em `apps/web/app/fonts/OFL.txt` (research V5)
+- [X] T002 [P] Criar `apps/web/design-system/` com `README.md` (títulos: Princípios, Cores e a regra 80/15/5, Regras contra UI genérica, Arquitetura em camadas, Como usar), `tokens.md`, `components.md`, `layouts.md` e `exceptions.md` (tabela vazia com colunas Arquivo, Trecho, Motivo), só com títulos por enquanto (research V19)
+- [X] T003 [P] Criar `apps/web/test/design-system/scan.ts`: lista os arquivos `.ts`/`.tsx` de `apps/web/app`, `apps/web/features` e `apps/web/components` (fora `*.test.*`), devolve linhas com número e o texto sem comentários de bloco, e lê os marcadores `ds-exception: <motivo>` da linha e da linha anterior (base de T009, T010 e T044)
 
 ---
 
