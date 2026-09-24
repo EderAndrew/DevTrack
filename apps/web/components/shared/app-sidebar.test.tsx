@@ -134,6 +134,35 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(screen.getByRole("link", { name: "Minhas disciplinas" })).toBeTruthy();
   });
 
+  it("recolhido, mostra só os ícones e os itens mantêm o nome acessível", async () => {
+    const { container } = renderWithProviders(
+      <SidebarProvider defaultOpen={false}>
+        <AppSidebar me={me([...PERMISSIONS.ADMIN, ...PERMISSIONS.TEACHER])} />
+      </SidebarProvider>,
+    );
+    const sidebar = container.querySelector('[data-slot="sidebar"][data-state]');
+    expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
+    expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(screen.getByRole("link", { name: "Turmas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("recolhido, o grupo Usuários expande o menu e abre o grupo", async () => {
+    const { container } = renderWithProviders(
+      <SidebarProvider defaultOpen={false}>
+        <AppSidebar me={me(PERMISSIONS.ADMIN)} />
+      </SidebarProvider>,
+    );
+    const group = screen.getByRole("button", { name: "Usuários" });
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.setup().click(group);
+    expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Meu perfil"]);
+  });
+
   it("marca a tela atual", () => {
     navigation.pathname = "/admin/managers";
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });

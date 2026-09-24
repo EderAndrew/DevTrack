@@ -4,6 +4,7 @@ import type { MeView } from "@repo/contracts";
 import { BookOpen, ChevronRight, Library, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -18,6 +19,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { HOME_PATH, MY_CLASSES_PATH, USER_AREAS } from "@/lib/navigation";
 import { LogoutButton } from "./logout-button";
@@ -32,7 +34,9 @@ export interface AppSidebarProps {
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
  * open, "Minhas disciplinas" and "Turmas" are the teacher's subjects and classes, and "Minhas
  * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
- * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016).
+ * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
+ * the icons (labels stay as accessible names and show as tooltips); opening "Usuários" there
+ * expands the menu, since its sub-items have no icon.
  */
 export function AppSidebar({ me }: AppSidebarProps) {
   const pathname = usePathname();
@@ -42,12 +46,27 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
   const subjects = Boolean(me?.emailVerified && me.permissions.includes("disciplinas.visualizar"));
   const inSubjects = pathname === "/disciplinas" || pathname.startsWith("/disciplinas/");
+  const { state, isMobile, setOpen } = useSidebar();
+  const iconsOnly = state === "collapsed" && !isMobile;
+  const [usersOpen, setUsersOpen] = useState(true);
+
+  const toggleUsers = (next: boolean) => {
+    if (iconsOnly) {
+      setOpen(true);
+      setUsersOpen(true);
+    } else {
+      setUsersOpen(next);
+    }
+  };
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/" className={`${LINK} px-2 py-1 text-xl font-bold`}>
-          DevTrack
+          <span className="group-data-[collapsible=icon]:sr-only">DevTrack</span>
+          <span aria-hidden="true" className="hidden group-data-[collapsible=icon]:inline">
+            D
+          </span>
         </Link>
       </SidebarHeader>
       <SidebarContent>
@@ -56,12 +75,17 @@ export function AppSidebar({ me }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {areas.length > 0 ? (
-                  <Collapsible asChild defaultOpen className="group/usuarios">
+                  <Collapsible
+                    asChild
+                    open={usersOpen && !iconsOnly}
+                    onOpenChange={toggleUsers}
+                    className="group/usuarios"
+                  >
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton tooltip="Usuários">
                           <Users aria-hidden="true" />
-                          Usuários
+                          <span>Usuários</span>
                           <ChevronRight
                             aria-hidden="true"
                             className="ml-auto transition-transform group-data-[state=open]/usuarios:rotate-90"
@@ -86,47 +110,47 @@ export function AppSidebar({ me }: AppSidebarProps) {
                 ) : null}
                 {subjects ? (
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={inSubjects}>
+                    <SidebarMenuButton asChild isActive={inSubjects} tooltip="Minhas disciplinas">
                       <Link
                         href="/disciplinas"
                         className={LINK}
                         aria-current={pathname === "/disciplinas" ? "page" : undefined}
                       >
                         <Library aria-hidden="true" />
-                        Minhas disciplinas
+                        <span>Minhas disciplinas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ) : null}
                 {classes ? (
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={inClasses}>
+                    <SidebarMenuButton asChild isActive={inClasses} tooltip="Turmas">
                       <Link href="/turmas" className={LINK} aria-current={pathname === "/turmas" ? "page" : undefined}>
                         <School aria-hidden="true" />
-                        Turmas
+                        <span>Turmas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ) : null}
                 {ownClasses ? (
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === MY_CLASSES_PATH}>
+                    <SidebarMenuButton asChild isActive={pathname === MY_CLASSES_PATH} tooltip="Minhas turmas">
                       <Link
                         href={MY_CLASSES_PATH}
                         className={LINK}
                         aria-current={pathname === MY_CLASSES_PATH ? "page" : undefined}
                       >
                         <BookOpen aria-hidden="true" />
-                        Minhas turmas
+                        <span>Minhas turmas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ) : null}
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === HOME_PATH}>
+                  <SidebarMenuButton asChild isActive={pathname === HOME_PATH} tooltip="Meu perfil">
                     <Link href={HOME_PATH} className={LINK} aria-current={pathname === HOME_PATH ? "page" : undefined}>
                       <UserRound aria-hidden="true" />
-                      Meu perfil
+                      <span>Meu perfil</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -136,9 +160,9 @@ export function AppSidebar({ me }: AppSidebarProps) {
         </nav>
       </SidebarContent>
       <SidebarFooter>
-        {me ? <p className="m-0 truncate px-2 text-sm">{me.name}</p> : null}
-        <div className="px-2">
-          <LogoutButton />
+        {me ? <p className="m-0 truncate px-2 text-sm group-data-[collapsible=icon]:sr-only">{me.name}</p> : null}
+        <div className="px-2 group-data-[collapsible=icon]:px-0">
+          <LogoutButton className="group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:[&>span]:sr-only" />
         </div>
       </SidebarFooter>
     </Sidebar>
