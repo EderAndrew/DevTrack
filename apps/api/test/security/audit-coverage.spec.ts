@@ -21,11 +21,6 @@ const CONTRACTS = [
  * them, and the set must be empty when 004 is done.
  */
 const PENDING_004_TYPES = new Set([
-  "topic.updated",
-  "topic.merged",
-  "topic.split",
-  "topic.restored",
-  "topics.reordered",
   "class_plan.status_changed",
 ]);
 

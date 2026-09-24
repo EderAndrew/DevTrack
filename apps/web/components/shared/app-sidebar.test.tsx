@@ -122,11 +122,16 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(screen.getByRole("link", { name: "Minhas disciplinas" }).getAttribute("data-active")).toBe("true");
   });
 
-  it("004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
+  it("004/US8-1 004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();
     renderSidebar({ me: me(PERMISSIONS.TEACHER, false) });
     expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();
+  });
+
+  it("004/US8-6 administrador que também é professor vê Minhas disciplinas", () => {
+    renderSidebar({ me: me([...PERMISSIONS.ADMIN, ...PERMISSIONS.TEACHER]) });
+    expect(screen.getByRole("link", { name: "Minhas disciplinas" })).toBeTruthy();
   });
 
   it("marca a tela atual", () => {

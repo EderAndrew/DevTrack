@@ -43,8 +43,15 @@ import {
   ClassPlanEnvelopeSchema,
   ClassPlanViewSchema,
   CreateTopicRequestSchema,
+  MergeTopicsRequestSchema,
   PlanCoverageSchema,
+  ReorderTopicsRequestSchema,
   SelectPlanSyllabusRequestSchema,
+  SplitTopicRequestSchema,
+  TopicActionRequestSchema,
+  TopicListQuerySchema,
+  TopicListSchema,
+  UpdateTopicRequestSchema,
 } from "./curriculum/class-plan.js";
 import {
   ChangeSubjectStatusRequestSchema,
@@ -108,6 +115,9 @@ export type ClassInvitationParams = z.infer<typeof ClassInvitationParamsSchema>;
 
 /** An enrollment under its class (003). */
 export const EnrollmentParamsSchema = z.strictObject({ id: UuidSchema, enrollmentId: UuidSchema });
+/** A topic of a class's plan (004). */
+export const ClassTopicParamsSchema = z.strictObject({ id: UuidSchema, topicId: UuidSchema });
+export type ClassTopicParams = z.infer<typeof ClassTopicParamsSchema>;
 export type EnrollmentParams = z.infer<typeof EnrollmentParamsSchema>;
 
 export const UserIdParamsSchema = z.strictObject({ userId: UuidSchema });
@@ -533,6 +543,63 @@ export const endpoints = {
     body: CreateTopicRequestSchema,
     response: ClassPlanViewSchema,
     status: 201,
+  },
+  /** Archived topics only (`?status=ARCHIVED`). */
+  "topics.listArchived": {
+    method: "GET",
+    path: "/classes/:id/plan/topics",
+    params: IdParamsSchema,
+    query: TopicListQuerySchema,
+    response: TopicListSchema,
+    status: 200,
+  },
+  "topics.update": {
+    method: "PATCH",
+    path: "/classes/:id/plan/topics/:topicId",
+    params: ClassTopicParamsSchema,
+    body: UpdateTopicRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.merge": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/merge",
+    params: IdParamsSchema,
+    body: MergeTopicsRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.split": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/:topicId/split",
+    params: ClassTopicParamsSchema,
+    body: SplitTopicRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.archive": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/:topicId/archive",
+    params: ClassTopicParamsSchema,
+    body: TopicActionRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.restore": {
+    method: "POST",
+    path: "/classes/:id/plan/topics/:topicId/restore",
+    params: ClassTopicParamsSchema,
+    body: TopicActionRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
+  },
+  "topics.reorder": {
+    method: "PUT",
+    path: "/classes/:id/plan/topic-order",
+    params: IdParamsSchema,
+    body: ReorderTopicsRequestSchema,
+    response: ClassPlanViewSchema,
+    status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
 

@@ -1,16 +1,28 @@
 "use client";
 
-import type { ClassPlanStatus, ClassPlanView } from "@repo/contracts";
-import { Plus } from "lucide-react";
+import type { ClassPlanStatus, ClassPlanView, TopicView } from "@repo/contracts";
+import { Merge, Plus } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Notice } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { messageForError } from "@/lib/messages/error-messages";
-import { useClassPlan, useClassPlanCoverage } from "../hooks/use-class-plan";
+import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
+import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
+import {
+  useArchiveTopic,
+  useClassPlan,
+  useClassPlanCoverage,
+  useRefreshPlan,
+  useReorderTopics,
+  useRestoreTopic,
+} from "../hooks/use-class-plan";
+import { ArchivedTopics } from "./archived-topics";
 import { CoveragePanel } from "./coverage-panel";
-import { MeetingTopics } from "./meeting-topics";
+import { MeetingTopics, type RenderTopicActions } from "./meeting-topics";
+import { MergeTopicsDialog } from "./merge-topics-dialog";
+import { SplitTopicDialog } from "./split-topic-dialog";
+import { moveButtonId, TopicActions } from "./topic-actions";
 import { TopicFormDialog } from "./topic-form-dialog";
 import { UnscheduledTopics } from "./unscheduled-topics";
 
@@ -67,23 +79,132 @@ export function ClassPlanPage({ classId, canEdit }: ClassPlanPageProps) {
   return <PlanBoard classId={classId} plan={plan} canEdit={canEdit && plan.status !== "ARCHIVED"} />;
 }
 
-interface TopicDialogState {
-  /** Remounts the form, so each opening starts from its own values. */
-  key: number;
-  open: boolean;
-  initial?: { title: string; itemIds: string[] };
-}
+type DialogState =
+  | { kind: "create"; initial?: { title: string; itemIds: string[] } }
+  | { kind: "edit"; topic: TopicView }
+  | { kind: "merge"; topics: TopicView[] }
+  | { kind: "split"; topic: TopicView };
 
 function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPlanView; canEdit: boolean }) {
   const coverage = useClassPlanCoverage(classId, true);
-  const [dialog, setDialog] = useState<TopicDialogState>({ key: 0, open: false });
+  const reorder = useReorderTopics(classId);
+  const archive = useArchiveTopic(classId);
+  const restore = useRestoreTopic(classId);
+  const refresh = useRefreshPlan(classId);
+  /** `key` remounts the dialog, so each opening starts from its own values. */
+  const [dialog, setDialog] = useState<{ key: number; open: boolean; state: DialogState }>({
+    key: 0,
+    open: false,
+    state: { kind: "create" },
+  });
   const [announcement, setAnnouncement] = useState("");
+  const [failure, setFailure] = useState<{ message: string; conflict: boolean } | null>(null);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  /** After "Subir"/"Descer", focus stays on the moved topic once the list is redrawn. */
+  const pendingFocus = useRef<{ topicId: string; direction: "up" | "down" } | null>(null);
+  const busy = reorder.isPending || archive.isPending || restore.isPending;
 
-  const openForm = (initial?: TopicDialogState["initial"]) => {
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    pendingFocus.current = null;
+    const wanted = document.getElementById(moveButtonId(pending.direction, pending.topicId)) as HTMLButtonElement | null;
+    const other = document.getElementById(
+      moveButtonId(pending.direction === "up" ? "down" : "up", pending.topicId),
+    ) as HTMLButtonElement | null;
+    (wanted && !wanted.disabled ? wanted : other)?.focus();
+  }, [plan]);
+
+  const open = (state: DialogState) => {
     setAnnouncement("");
-    setDialog({ key: dialog.key + 1, open: true, initial });
+    setFailure(null);
+    setDialog({ key: dialog.key + 1, open: true, state });
   };
+
+  /** Runs a plan write from the page; errors show above the list with "Atualizar" on a conflict. */
+  const run = async (write: () => Promise<unknown>, message: string) => {
+    setAnnouncement("");
+    setFailure(null);
+    try {
+      await write();
+      setAnnouncement(message);
+      return true;
+    } catch (error) {
+      setFailure({ message: messageForError(error), conflict: apiErrorCode(error) === "PLAN_REVISION_CONFLICT" });
+      return false;
+    }
+  };
+
+  const order = (change: (topics: TopicView[]) => TopicView[]) =>
+    change([...plan.topics]).map((topic) => ({ topicId: topic.id, meetingId: topic.meetingId }));
+
+  /** Swaps the topic with its neighbour in the same list (its meeting or "Sem data"). */
+  const move = async (topic: TopicView, direction: "up" | "down") => {
+    const group = plan.topics.filter((other) => other.meetingId === topic.meetingId);
+    const index = group.findIndex((other) => other.id === topic.id);
+    const neighbour = group[direction === "up" ? index - 1 : index + 1];
+    if (!neighbour) return;
+    const items = order((topics) => {
+      const a = topics.findIndex((other) => other.id === topic.id);
+      const b = topics.findIndex((other) => other.id === neighbour.id);
+      [topics[a], topics[b]] = [topics[b]!, topics[a]!];
+      return topics;
+    });
+    const position = (direction === "up" ? index - 1 : index + 1) + 1;
+    // Set before the write: the plan in the cache changes as soon as it succeeds.
+    pendingFocus.current = { topicId: topic.id, direction };
+    if (!(await run(() => reorder.mutateAsync(items), `Tópico movido para a posição ${position}.`))) pendingFocus.current = null;
+  };
+
+  const changeMeeting = (topic: TopicView, meetingId: string | null) => {
+    const meeting = plan.meetings.find((entry) => entry.id === meetingId);
+    const items = order((topics) => topics.map((other) => (other.id === topic.id ? { ...other, meetingId } : other)));
+    void run(
+      () => reorder.mutateAsync(items),
+      meeting ? `Tópico movido para a ${meetingLabel(meeting.number, meeting.date)}.` : "Tópico movido para Sem data.",
+    );
+  };
+
+  const toggleSelected = (topicId: string, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(topicId);
+    else next.delete(topicId);
+    setSelected(next);
+  };
+  const selectedTopics = plan.topics.filter((topic) => selected.has(topic.id));
+
+  const renderActions: RenderTopicActions | undefined = canEdit
+    ? (topic, index, count) => (
+        <TopicActions
+          topic={topic}
+          meetings={plan.meetings}
+          index={index}
+          count={count}
+          selected={selected.has(topic.id)}
+          busy={busy}
+          onEdit={() => open({ kind: "edit", topic })}
+          onSplit={() => open({ kind: "split", topic })}
+          onArchive={() => void run(() => archive.mutateAsync(topic.id), "Tópico arquivado.")}
+          onMove={(direction) => void move(topic, direction)}
+          onMeetingChange={(meetingId) => changeMeeting(topic, meetingId)}
+          onSelect={(on) => toggleSelected(topic.id, on)}
+        />
+      )
+    : undefined;
+
   const unscheduled = plan.topics.filter((topic) => topic.meetingId === null);
+  const groups = coverage.data?.groups ?? [];
+  const common = {
+    classId,
+    open: dialog.open,
+    onOpenChange: (next: boolean) => setDialog({ ...dialog, open: next }),
+    meetings: plan.meetings,
+    groups,
+    onSaved: (message: string) => {
+      setAnnouncement(message);
+      if (dialog.state.kind === "merge") setSelected(new Set());
+    },
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,11 +218,30 @@ function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPla
       <p role="status" className="m-0 font-semibold empty:hidden">
         {announcement}
       </p>
+      {failure ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3">
+          <p className="m-0 font-semibold text-destructive">{failure.message}</p>
+          {failure.conflict ? (
+            <Button type="button" variant="secondary" onClick={() => void refresh().then(() => setFailure(null))}>
+              Atualizar
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {canEdit ? (
-        <div>
-          <Button type="button" onClick={() => openForm()}>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => open({ kind: "create" })}>
             <Plus aria-hidden="true" />
             Novo tópico
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={selectedTopics.length < 2}
+            onClick={() => open({ kind: "merge", topics: selectedTopics })}
+          >
+            <Merge aria-hidden="true" />
+            Juntar tópicos ({selectedTopics.length})
           </Button>
         </div>
       ) : null}
@@ -118,11 +258,12 @@ function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPla
               key={meeting.id}
               meeting={meeting}
               topics={plan.topics.filter((topic) => topic.meetingId === meeting.id)}
+              renderActions={renderActions}
             />
           ))
         )}
       </section>
-      <UnscheduledTopics topics={unscheduled} />
+      <UnscheduledTopics topics={unscheduled} renderActions={renderActions} />
 
       {coverage.isPending ? (
         <Loading label="Carregando cobertura da ementa…" />
@@ -138,20 +279,29 @@ function PlanBoard({ classId, plan, canEdit }: { classId: string; plan: ClassPla
           coverage={coverage.data}
           topics={plan.topics}
           canEdit={canEdit}
-          onCreateFromItem={(item) => openForm({ title: item.text, itemIds: [item.id] })}
+          onCreateFromItem={(item) => open({ kind: "create", initial: { title: item.text, itemIds: [item.id] } })}
         />
       )}
 
-      {dialog.key > 0 ? (
+      <ArchivedTopics
+        classId={classId}
+        count={plan.archivedTopicCount}
+        topics={plan.topics}
+        canEdit={canEdit}
+        busy={busy}
+        onRestore={(topic) => void run(() => restore.mutateAsync(topic.id), "Tópico restaurado.")}
+      />
+
+      {dialog.key > 0 && dialog.state.kind === "split" ? (
+        <SplitTopicDialog key={dialog.key} {...common} topic={dialog.state.topic} />
+      ) : dialog.key > 0 && dialog.state.kind === "merge" ? (
+        <MergeTopicsDialog key={dialog.key} {...common} topics={dialog.state.topics} />
+      ) : dialog.key > 0 ? (
         <TopicFormDialog
           key={dialog.key}
-          classId={classId}
-          open={dialog.open}
-          onOpenChange={(open) => setDialog({ ...dialog, open })}
-          meetings={plan.meetings}
-          groups={coverage.data?.groups ?? []}
-          initial={dialog.initial}
-          onSaved={setAnnouncement}
+          {...common}
+          initial={dialog.state.kind === "create" ? dialog.state.initial : undefined}
+          topic={dialog.state.kind === "edit" ? dialog.state.topic : undefined}
         />
       ) : null}
     </div>
