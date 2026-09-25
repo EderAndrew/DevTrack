@@ -57,6 +57,7 @@ hand-maintained.
 - New deps `pdfjs-dist`, `fflate`, `fast-xml-parser` (api) and `react-day-picker` (web, shadcn Calendar); PostgreSQL tables `subjects`, `stored_files` (bytea), `syllabus_documents` (processing queue + in-process worker, extraction in `worker_threads`), `syllabus_revisions`/`groups`/`items`, `class_meetings`, `class_plans`, `topics`, `topic_syllabus_items`; `classes.subject_id`/`starts_on`/`ends_on`; `disciplinas.*`, `ementas.*`, `calendario.gerenciar`, `planejamento.*` permissions (004-syllabus-planning)
 - No new dependencies; design tokens in `apps/web/design-system/tokens.css` (Tailwind 4 default scales reset), Inter + JetBrains Mono as local fonts (Geist removed), new shadcn components from the installed `radix-ui`; no API, schema or contract changes (005-design-system)
 - No new dependencies and no provider SDK; `modules/ai` (registry synced from code, model gateway, tool executor, structured output, proposals, worker on the `ai_executions` table); 15 `ai_*` PostgreSQL tables; `ia.*` permissions; reference agent and fake provider only in `apps/api/test/fixtures/ai` (006-ai-foundation)
+- New dep `@anthropic-ai/sdk` (api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
 
 ## Stack notes
 
@@ -285,9 +286,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
+- 007-curriculum-agent: Curriculum Agent — "Preencher com IA" on a syllabus document with text: L2 proposal grounded in the document (read tool, deterministic grounding check, source refs), teacher accepts fields/groups and applying creates an `AI_ASSISTED` 004 draft; first real provider (Anthropic); golden-set eval in CI (recorded) and on demand
 - 006-ai-foundation: AI foundation — agent/prompt/schema/tool/model-config registry, provider-independent gateway, deny-by-default tools, validated structured output, L2 proposals with teacher review, bounded async execution, usage/cost, audit and the admin "Operação de IA" screen; no domain agent, no real provider
 - 005-design-system: design system and visual identity — tokens, typography, base components, AppShell/student layouts, in-app catalog, docs and guards; exam components specified only
-- 004-syllabus-planning: teacher's subjects, syllabus upload with deterministic extraction and review, class calendar, class plan with manual topics linked to syllabus items (AI topic generation deferred)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
