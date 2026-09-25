@@ -11,7 +11,7 @@ const ERROR_KEYS = ["code", "message", "statusCode"];
  * 006/SC-001 (contracts/permissions.md): every AI execution route as each subject of the matrix.
  * A refusal carries only the standard error body and changes nothing.
  */
-describe("006/SC-001 matriz de autorização das rotas de IA do professor", () => {
+describe("006/SC-001 006/US5 matriz de autorização das rotas de IA do professor", () => {
   let t: AiTestApp;
   let owner: TestUser;
   let area: AiArea;
@@ -30,7 +30,7 @@ describe("006/SC-001 matriz de autorização das rotas de IA do professor", () =
 
   const routes = AI_TEACHER_ROUTES.map((entry) => [routeKey(entry), entry] as const);
 
-  it("toda rota de IA do professor tem corpo válido, e a matriz cobre as 5 rotas de execução", () => {
+  it("toda rota de IA do professor tem corpo válido, e a matriz cobre as rotas de execução e de proposta", () => {
     expect(AI_TEACHER_ROUTES.map(routeKey)).toEqual(expect.arrayContaining(Object.keys(VALID_BODY)));
     for (const entry of AI_TEACHER_ROUTES) expect(VALID_BODY, routeKey(entry)).toHaveProperty([routeKey(entry)]);
   });

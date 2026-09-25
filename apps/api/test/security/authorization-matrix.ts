@@ -173,6 +173,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/ai/executions/:id", access: "ia.execucoes.visualizar" },
   { method: "GET", path: "/ai/executions/:id/result", access: "ia.execucoes.visualizar" },
   { method: "POST", path: "/ai/executions/:id/cancel", access: "ia.execucoes.visualizar" },
+  // 006 — proposals of L2 agents, reviewed by the session teacher.
+  { method: "GET", path: "/ai/proposals", access: "ia.propostas.revisar" },
+  { method: "GET", path: "/ai/proposals/:id", access: "ia.propostas.revisar" },
+  { method: "POST", path: "/ai/proposals/:id/decision", access: "ia.propostas.revisar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

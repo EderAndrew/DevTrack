@@ -24,6 +24,14 @@ its README); `poo.pdf`/`poo.docx` carry the marker `MARCADOR-EMENTA-004` that th
 for. Factories build 004 data directly (`createSubject`, `createSyllabusDocument` with a
 `status`, `createConfirmedRevision`, `createMeetings`, `createPlan`, `createTopic`); a plan write
 through the API must send the plan's current `revision` as `planRevision`.
+AI executions (006) run in `AiExecutionWorker` on the `ai_executions` table. Tests run with its
+timer off (`ai.intervalSeconds: 0`, which also turns off `kick()`): call `runOnce(now)` or `drain(t)`
+from `test/helpers/ai.ts`. Build the app with `createAiTestApp()` and reset with `resetAiDb(t)`, which
+syncs the reference agents, tools and the fake provider of `test/fixtures/ai` (production registers
+none). Kill switches: `AI_EXECUTION_INTERVAL_SECONDS=0` stops all AI processing (global); disabling an
+agent (`AiOperationsService.changeAgentStatus`) refuses new requests and cancels its QUEUED
+executions in the same transaction; a disabled model config refuses new requests and fails queued
+ones at start, without calling the model. Stub `ModelGateway.timing` to skip retry waits.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

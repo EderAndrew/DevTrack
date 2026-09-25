@@ -522,12 +522,12 @@ e resposta vazia, e conferir o resultado de cada um.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T041 [P] [US4] Completar
+- [X] T041 [P] [US4] Completar
   `apps/api/src/modules/ai/output/structured-output.validator.spec.ts`: vazio, só espaços,
   JSON truncado, campo ausente, tipo errado, campo a mais (strict) e tamanho acima de
   `maxBytes` → código certo; os detalhes (caminhos, sem valores) ficam só no retorno de
   diagnóstico.
-- [ ] T042 [P] [US4] Teste de integração
+- [X] T042 [P] [US4] Teste de integração
   `apps/api/test/integration/006-us4-structured-output.spec.ts`:
   - `006/US4-1`: válida → `COMPLETED` com o resultado;
   - `006/US4-2`: texto não JSON → `FAILED` `AI_OUTPUT_PARSE_FAILED`;
@@ -542,7 +542,7 @@ e resposta vazia, e conferir o resultado de cada um.
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] Ligar o validador completo no runner (etapa `VALIDATING_OUTPUT`,
+- [X] T043 [US4] Ligar o validador completo no runner (etapa `VALIDATING_OUTPUT`,
   `step: OUTPUT_VALIDATION`), com log `ai.output_invalid` (caminhos sem valores, via
   `aiLog`). Garantir que nenhuma gravação de saída ou proposta ocorra fora da transação de
   conclusão.
@@ -562,7 +562,7 @@ como outro professor e como administrador.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T044 [P] [US5] Teste de integração
+- [X] T044 [P] [US5] Teste de integração
   `apps/api/test/integration/006-us5-proposals.spec.ts`:
   - `006/US5-1`: `reference-l2` concluída → uma proposta `READY_FOR_REVIEW` ligada à
     execução, ao agente, ao tipo e ao alvo; `proposalId` na execução; `ai_proposal.created`
@@ -581,31 +581,31 @@ como outro professor e como administrador.
   - B e ADMIN → 404 e 403;
   - `payload` não pode ser alterado (trigger, `006/FR-047`);
   - 31ª decisão no minuto → 429.
-- [ ] T045 [P] [US5] Teste `apps/api/test/security/006-ai-concurrency.spec.ts`
+- [X] T045 [P] [US5] Teste `apps/api/test/security/006-ai-concurrency.spec.ts`
   (`006/FR-045`, `006/SC-010`): duas decisões diferentes simultâneas → uma vence e a outra
   recebe 409; duas iguais simultâneas → mesma resposta e um evento; conclusão concorrente
   com dois claims → uma proposta (`UNIQUE (execution_id)`).
 
 ### Implementation for User Story 5
 
-- [ ] T046 [US5] Criação da proposta na transação de conclusão do runner (research A13):
+- [X] T046 [US5] Criação da proposta na transação de conclusão do runner (research A13):
   `item_ids` por `proposal.itemIds(output)`, `expires_at`, `step: PROPOSAL_CREATED` e
   `ai_proposal.created`; L2 não grava `ai_execution_outputs`.
-- [ ] T047 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.service.ts`:
+- [X] T047 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.service.ts`:
   - `list` (keyset), `get` e `decide`, com limite de taxa, `UPDATE` condicional com vencedor
     único e releitura para a mesma decisão ou 409, validação dos itens, auditoria e a
     máquina de estado;
   - `getApproved(workspaceId, id)` para os módulos de domínio futuros;
   - `expireDue(now)`, chamado no início de `runOnce`;
   - mapper `ai-proposal.view.ts`.
-- [ ] T048 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.controller.ts`, com as 3
+- [X] T048 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.controller.ts`, com as 3
   rotas (`ia.propostas.revisar`):
   - entradas `aiProposals.list|get|decide` em `endpoints.ts`;
   - linhas na matriz 006 e no `MATRIX`;
   - retirar `ia.propostas.revisar` de `PENDING_006_PERMISSIONS`.
-- [ ] T049 [US5] Emitir `ai_proposal.created`, `.approved`, `.partially_approved`,
+- [X] T049 [US5] Emitir `ai_proposal.created`, `.approved`, `.partially_approved`,
   `.rejected` e `.expired` em `journey.ts` e retirá-los de `PENDING_006_TYPES`.
-- [ ] T050 [P] [US5] `apps/web/features/ai/api/ai-proposals.ts` e
+- [X] T050 [P] [US5] `apps/web/features/ai/api/ai-proposals.ts` e
   `hooks/{use-ai-proposal,use-decide-ai-proposal}.ts`, com testes em
   `use-decide-ai-proposal.test.tsx` (invalidações; 409 exibido pelo catálogo).
 
@@ -625,7 +625,7 @@ erro de cada caso.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T051 [P] [US6] Teste de integração `apps/api/test/integration/006-us6-limits.spec.ts`:
+- [X] T051 [P] [US6] Teste de integração `apps/api/test/integration/006-us6-limits.spec.ts`:
   - `006/US6-1`: `error(UNAVAILABLE)` duas vezes e depois `output` → `COMPLETED` com
     `attempts: 3`; três falhas → `FAILED` `AI_PROVIDER_ERROR`; `RATE_LIMITED` →
     `AI_RATE_LIMITED`; `INVALID_REQUEST` não é repetido (`attempts: 1`);
@@ -642,18 +642,18 @@ erro de cada caso.
     execução não final depois de prazo + 1 min;
   - limites menores declarados pelo agente valem, e um maior é recusado na sincronização
     (`006/FR-048`).
-- [ ] T052 [P] [US6] Teste `apps/api/test/security/006-ai-resilience.spec.ts` (`006/SC-009`):
+- [X] T052 [P] [US6] Teste `apps/api/test/security/006-ai-resilience.spec.ts` (`006/SC-009`):
   os 10 cenários em tabela (`it.each`), cada um terminando em estado final com código
   normalizado e sem mensagem do provedor na resposta; 11º pedido de execução no minuto →
   429 (`006/FR-052`).
 
 ### Implementation for User Story 6
 
-- [ ] T053 [US6] Limites efetivos `min(global, agente)` em
+- [X] T053 [US6] Limites efetivos `min(global, agente)` em
   `apps/api/src/modules/ai/execution/ai-limits.ts`, aplicados no runner (contadores de modelo
   e ferramenta, tamanho de saída, prazo) e no pedido (tamanho de entrada), com teste
   unitário.
-- [ ] T054 [US6] Kill switch: em `AiOperationsService.changeAgentStatus` (base para a US7),
+- [X] T054 [US6] Kill switch: em `AiOperationsService.changeAgentStatus` (base para a US7),
   a mesma transação que desabilita o agente cancela as `QUEUED` dele (com transições e
   `ai_execution.cancelled` ator SYSTEM). O runner cancela no início se o agente não estiver
   `ACTIVE`. Documentar no `apps/api/CLAUDE.md` o kill switch global

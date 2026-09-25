@@ -44,8 +44,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
+    // Errors of the body parser (malformed JSON, body above the limit) carry an exposed 4xx status.
+    const parserStatus = bodyParserStatus(exception);
+    const parserCode = parserStatus === null ? undefined : HTTP_STATUS_TO_CODE[parserStatus];
+    if (parserCode) {
+      const { status, message } = ErrorCatalog[parserCode];
+      return { body: { statusCode: status, code: parserCode, message }, headers: {} };
+    }
+
     this.logger.error({ err: exception }, "Unhandled error");
     const { status, message } = ErrorCatalog.INTERNAL_ERROR;
     return { body: { statusCode: status, code: "INTERNAL_ERROR", message }, headers: {} };
   }
+}
+
+function bodyParserStatus(exception: unknown): number | null {
+  if (!(exception instanceof Error)) return null;
+  const { status, expose, type } = exception as Error & { status?: unknown; expose?: unknown; type?: unknown };
+  return typeof status === "number" && status >= 400 && status < 500 && expose === true && typeof type === "string" ? status : null;
 }

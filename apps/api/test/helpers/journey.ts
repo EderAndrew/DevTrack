@@ -335,6 +335,20 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   for (let i = 0; i < 100 && t.provider.requests.length <= aiSeen; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
   expect((await teacherClient.post(`/api/ai/executions/${aiRunning.body.id}/cancel`)).body.cancelRequested).toBe(true);
   await aiCycle;
+  // 006/US5 — proposals of the L2 agent: approved, partially approved, rejected and one expired
+  // by a worker cycle past its validity. The items carry the model's output marker.
+  const proposeAi = async () => {
+    t.provider.script(fakeOutput({ items: [{ id: "i1", label: aiOutput }, { id: "i2", label: "Item 2" }] }));
+    const res = await requestAi({ agentKey: "reference-l2", input: {} });
+    expect(res.status).toBe(202);
+    expect(await aiWorker.runOnce()).toBe(1);
+    return (await teacherClient.get(`/api/ai/executions/${res.body.id}`)).body.proposalId as string;
+  };
+  for (const body of [{ decision: "APPROVE" }, { decision: "APPROVE_PARTIALLY", acceptedItemIds: ["i1"] }, { decision: "REJECT" }]) {
+    expect((await teacherClient.post(`/api/ai/proposals/${await proposeAi()}/decision`, body)).status).toBe(200);
+  }
+  await proposeAi();
+  await aiWorker.runOnce(new Date(Date.now() + (t.config.ai.proposalTtlDays + 1) * 86_400_000));
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
     if ((await requestAi()).status === 429) break;
   }

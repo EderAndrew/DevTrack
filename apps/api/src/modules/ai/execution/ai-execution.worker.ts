@@ -3,6 +3,7 @@ import { APP_CONFIG } from "../../../platform/config/config.module";
 import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { AuditService } from "../../audit/audit.service";
+import { AiProposalsService } from "../proposals/ai-proposals.service";
 import { AiExecutionStore } from "./ai-execution.store";
 import { AiExecutionRunner, type ClaimedExecution } from "./ai-execution.runner";
 
@@ -12,7 +13,7 @@ const NON_FINAL = ["QUEUED", "RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as 
 
 /**
  * Processes queued AI executions (006 research A6, A9), in the shape of the 004 syllabus worker.
- * The `ai_executions` table is the queue: a cycle first ends every execution past its deadline as
+ * The `ai_executions` table is the queue: a cycle first expires overdue proposals, ends every execution past its deadline as
  * TIMED_OUT (including one whose process died mid-run), then claims up to 2 QUEUED executions with
  * `FOR UPDATE SKIP LOCKED` and a fresh `claim_token` (each is processed once, FR-024) and runs them.
  * `AI_EXECUTION_INTERVAL_SECONDS=0` turns everything off, `kick()` included (global kill switch);
@@ -31,10 +32,12 @@ export class AiExecutionWorker implements OnApplicationBootstrap, OnApplicationS
     private readonly runner: AiExecutionRunner,
     private readonly store: AiExecutionStore,
     private readonly audit: AuditService,
+    private readonly proposals: AiProposalsService,
   ) {}
 
   /** One cycle at `now`; returns how many executions it claimed. */
   async runOnce(now = new Date()): Promise<number> {
+    await this.proposals.expireDue(now);
     await this.sweepDeadlines(now);
     const claimed = await this.claim(now);
     await Promise.all(

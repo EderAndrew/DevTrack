@@ -18,6 +18,8 @@ export interface FinishRequest {
   requireNoCancel?: boolean;
   actor: { type: "USER"; userId: string; requestId: string | null } | { type: "SYSTEM" };
   proposalId?: string | null;
+  /** Diagnostic step kept on the final row (e.g. PROPOSAL_CREATED); cleared otherwise. */
+  step?: AiExecutionStep | null;
 }
 
 export interface FinishedExecution {
@@ -71,7 +73,7 @@ export class AiExecutionStore {
       UPDATE ai_executions e
       SET status = ${request.to}::ai_execution_status,
           error_code = ${request.errorCode},
-          step = NULL,
+          step = ${request.step ?? null}::ai_execution_step,
           lease_expires_at = NULL,
           finished_at = ${request.now}::timestamptz,
           duration_ms = GREATEST(0, (EXTRACT(EPOCH FROM (${request.now}::timestamptz - e.created_at)) * 1000)::int)

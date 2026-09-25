@@ -6,6 +6,9 @@ import { AiExecutionRunner } from "./execution/ai-execution.runner";
 import { AiExecutionStore } from "./execution/ai-execution.store";
 import { AiExecutionWorker } from "./execution/ai-execution.worker";
 import { AiExecutionsController } from "./execution/ai-executions.controller";
+import { AiOperationsService } from "./operations/ai-operations.service";
+import { AiProposalsController } from "./proposals/ai-proposals.controller";
+import { AiProposalsService } from "./proposals/ai-proposals.service";
 import { AiToolExecutor } from "./tools/ai-tool-executor";
 import { AiResourceResolver } from "./execution/ai-resource.resolver";
 import { AiExecutionsService } from "./execution/ai-executions.service";
@@ -23,7 +26,7 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
  * operations, evaluation and retention. Domain modules use `AiExecutionsService` only.
  */
 @Module({
-  controllers: [AiExecutionsController],
+  controllers: [AiExecutionsController, AiProposalsController],
   providers: [
     { provide: AI_DEFINITIONS, useValue: PRODUCTION_AI_DEFINITIONS },
     AiRegistrySync,
@@ -40,7 +43,9 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiExecutionRunner,
     AiExecutionWorker,
     AiExecutionsService,
+    AiProposalsService,
+    AiOperationsService,
   ],
-  exports: [AI_DEFINITIONS, AiExecutionsService],
+  exports: [AI_DEFINITIONS, AiExecutionsService, AiProposalsService],
 })
 export class AiModule {}

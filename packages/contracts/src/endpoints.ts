@@ -44,6 +44,7 @@ import {
   AiExecutionViewSchema,
   RequestAiExecutionRequestSchema,
 } from "./ai/executions.js";
+import { AiProposalListQuerySchema, AiProposalPageSchema, AiProposalViewSchema, DecideAiProposalRequestSchema } from "./ai/proposals.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -651,6 +652,18 @@ export const endpoints = {
     params: IdParamsSchema,
     body: EmptyBodySchema,
     response: AiExecutionViewSchema,
+    status: 200,
+  },
+
+  // 006 — proposals of L2 agents, reviewed by their teacher.
+  "aiProposals.list": { method: "GET", path: "/ai/proposals", query: AiProposalListQuerySchema, response: AiProposalPageSchema, status: 200 },
+  "aiProposals.get": { method: "GET", path: "/ai/proposals/:id", params: IdParamsSchema, response: AiProposalViewSchema, status: 200 },
+  "aiProposals.decide": {
+    method: "POST",
+    path: "/ai/proposals/:id/decision",
+    params: IdParamsSchema,
+    body: DecideAiProposalRequestSchema,
+    response: AiProposalViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

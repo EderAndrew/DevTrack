@@ -21,11 +21,6 @@ const CONTRACTS = [
  * writing them, and the list ends empty (006 T073). They still pass the contract × catalogue check.
  */
 const PENDING_006_TYPES = new Set<string>([
-  "ai_proposal.created",
-  "ai_proposal.approved",
-  "ai_proposal.partially_approved",
-  "ai_proposal.rejected",
-  "ai_proposal.expired",
   "ai_agent.enabled",
   "ai_agent.disabled",
   "ai_model_config.enabled",

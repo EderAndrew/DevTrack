@@ -117,6 +117,9 @@ describe("route access declarations", () => {
         "GET /ai/executions/:id",
         "GET /ai/executions/:id/result",
         "POST /ai/executions/:id/cancel",
+        "GET /ai/proposals",
+        "GET /ai/proposals/:id",
+        "POST /ai/proposals/:id/decision",
       ]),
     );
   });

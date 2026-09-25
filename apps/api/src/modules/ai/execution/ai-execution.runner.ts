@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { AiErrorCode } from "@repo/contracts";
 import type { Prisma } from "../../../generated/prisma/client";
@@ -5,6 +6,7 @@ import { APP_CONFIG } from "../../../platform/config/config.module";
 import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { PermissionResolver } from "../../access-control/permission-resolver";
+import { AuditService } from "../../audit/audit.service";
 import {
   AI_DEFINITIONS,
   type AgentDefinition,
@@ -55,7 +57,7 @@ const RUNNING_STATES = ["RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as const
  * re-authorizes against the database, freezes the context, calls the model through the gateway,
  * validates the output and completes in one transaction — every write conditional on the claim,
  * and the completion also on no cancellation, so a late or duplicate writer changes nothing.
- * Loop limits (US6) and proposals (US5) plug into this cycle.
+ * Loop limits (US6) plug into this cycle.
  */
 @Injectable()
 export class AiExecutionRunner {
@@ -74,6 +76,7 @@ export class AiExecutionRunner {
     private readonly aborts: AiExecutionAborts,
     private readonly resources: AiResourceResolver,
     private readonly toolExecutor: AiToolExecutor,
+    private readonly audit: AuditService,
   ) {}
 
   async run(claimed: ClaimedExecution): Promise<void> {
@@ -117,7 +120,7 @@ export class AiExecutionRunner {
       aiLog(this.logger, "ai.output_invalid", { ...this.logBase(execution), errorCode: validation.code, issuePaths: validation.issues.map((i) => i.path) }, "warn");
       throw new Stop("FAILED", validation.code);
     }
-    await this.complete(claimed, execution, validation.output);
+    await this.complete(claimed, execution, definition, validation.output);
   }
 
   /**
@@ -276,20 +279,60 @@ export class AiExecutionRunner {
     if (row.cancelRequestedAt) throw new Stop("CANCELLED", "AI_EXECUTION_CANCELLED");
   }
 
-  private async complete(claimed: ClaimedExecution, execution: Loaded, output: unknown): Promise<void> {
+  /**
+   * COMPLETED and its result in one transaction, only under the claim and with no cancellation:
+   * an L1 result goes to `ai_execution_outputs`; an L2 result becomes a READY_FOR_REVIEW proposal
+   * (research A13), never a domain write (FR-044).
+   */
+  private async complete(claimed: ClaimedExecution, execution: Loaded, definition: AgentDefinition, output: unknown): Promise<void> {
+    const proposal = execution.riskLevel === "L2_PROPOSAL" ? definition.proposal : undefined;
+    if (execution.riskLevel === "L2_PROPOSAL" && !proposal) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+    let itemIds: string[] = [];
+    if (proposal) {
+      itemIds = proposal.itemIds(output);
+      if (itemIds.length === 0 || new Set(itemIds).size !== itemIds.length) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+    }
+    const proposalId = proposal ? randomUUID() : null;
     const done = await this.prisma.runInTransaction(async (tx) => {
+      const now = new Date();
       const finished = await this.store.finish(tx, {
         executionId: claimed.id,
         from: ["VALIDATING_OUTPUT"],
         to: "COMPLETED",
         errorCode: null,
-        now: new Date(),
+        now,
         claimToken: claimed.claimToken,
         requireNoCancel: true,
         actor: { type: "SYSTEM" },
+        proposalId,
+        step: proposal ? "PROPOSAL_CREATED" : null,
       });
       if (!finished) return null;
-      if (execution.outputSchemaVersionId) {
+      if (proposal && proposalId) {
+        await tx.aiProposal.create({
+          data: {
+            id: proposalId,
+            workspaceId: execution.workspaceId,
+            executionId: claimed.id,
+            agentVersionId: execution.agentVersionId,
+            agentKey: execution.agentKey,
+            proposalType: proposal.type,
+            targetResourceType: execution.resourceType ?? "NONE",
+            targetResourceId: execution.resourceId,
+            payload: output as Prisma.InputJsonValue,
+            itemIds,
+            expiresAt: new Date(now.getTime() + this.config.ai.proposalTtlDays * 86_400_000),
+            createdAt: now,
+          },
+        });
+        await this.audit.record(tx, {
+          type: "ai_proposal.created",
+          actorType: "SYSTEM",
+          targetType: "AI_PROPOSAL",
+          targetId: proposalId,
+          metadata: { executionId: claimed.id, agentKey: execution.agentKey, proposalType: proposal.type, itemCount: itemIds.length },
+        });
+      } else if (execution.outputSchemaVersionId) {
         await tx.aiExecutionOutput.create({
           data: { executionId: claimed.id, outputSchemaVersionId: execution.outputSchemaVersionId, output: output as Prisma.InputJsonValue },
         });
