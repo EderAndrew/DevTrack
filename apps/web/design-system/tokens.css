@@ -1,0 +1,294 @@
+/*
+ * DevTrack design tokens — the single source of every visual value (spec 005, research V1–V8,
+ * contracts/tokens.md). Pairs meet WCAG 2.2 AA in both themes (text ≥ 4.5:1; state colors,
+ * control borders and the focus ring ≥ 3:1), checked by test/contrast.test.ts. Semantic colors
+ * (`--success`, `--warning`, `--danger`, `--info`) are for icons, borders and graphics; text uses
+ * the `-text` variant.
+ */
+
+:root {
+  /* Colors, light theme */
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --foreground: #0f172a;
+  --text-secondary: #64748b;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;
+  --primary-strong: #172554;
+  --primary-subtle: #eff6ff;
+  --border: #e2e8f0;
+  --border-control: #64748b;
+  --ring: #2563eb;
+  --success: #16a34a;
+  --success-text: #15803d;
+  --success-surface: #f0fdf4;
+  --warning: #d97706;
+  --warning-text: #b45309;
+  --warning-surface: #fffbeb;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --danger-surface: #fef2f2;
+  --danger-foreground: #ffffff;
+  --info: #0284c7;
+  --info-text: #0369a1;
+  --info-surface: #f0f9ff;
+  --disabled-bg: #f1f5f9;
+  --disabled-fg: #64748b;
+  --disabled-border: #cbd5e1;
+  --overlay: rgb(15 23 42 / 0.5);
+
+  /* shadcn/ui aliases: no value of their own */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted: var(--background);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--background);
+  --accent-foreground: var(--foreground);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--primary);
+  --input: var(--border-control);
+  --destructive: var(--danger);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--primary-subtle);
+  --sidebar-accent-foreground: var(--primary-strong);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Layers */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --z-tooltip: 60;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  /* Focus */
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+
+  /* Icons (Lucide, stroke 2): size-4, size-5, size-6 */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* Layout */
+  --content-max: 1280px;
+  --reading-max: 72ch;
+  --gutter: 16px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1120;
+    --surface: #111827;
+    --foreground: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --primary: #60a5fa;
+    --primary-foreground: #0b1120;
+    --primary-hover: #93c5fd;
+    --primary-strong: #bfdbfe;
+    --primary-subtle: #172554;
+    --border: #334155;
+    --border-control: #7c8aa0;
+    --ring: #60a5fa;
+    --success: #4ade80;
+    --success-text: #4ade80;
+    --success-surface: #052e16;
+    --warning: #fbbf24;
+    --warning-text: #fbbf24;
+    --warning-surface: #451a03;
+    --danger: #f87171;
+    --danger-text: #f87171;
+    --danger-surface: #450a0a;
+    --danger-foreground: #0b1120;
+    --info: #38bdf8;
+    --info-text: #38bdf8;
+    --info-surface: #082f49;
+    --disabled-bg: #1e293b;
+    --disabled-fg: #94a3b8;
+    --disabled-border: #334155;
+    --overlay: rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+/* Manual dark theme (FR-013): same values as the system one, for a future theme switcher. */
+:root[data-theme="dark"] {
+  --background: #0b1120;
+  --surface: #111827;
+  --foreground: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --primary: #60a5fa;
+  --primary-foreground: #0b1120;
+  --primary-hover: #93c5fd;
+  --primary-strong: #bfdbfe;
+  --primary-subtle: #172554;
+  --border: #334155;
+  --border-control: #7c8aa0;
+  --ring: #60a5fa;
+  --success: #4ade80;
+  --success-text: #4ade80;
+  --success-surface: #052e16;
+  --warning: #fbbf24;
+  --warning-text: #fbbf24;
+  --warning-surface: #451a03;
+  --danger: #f87171;
+  --danger-text: #f87171;
+  --danger-surface: #450a0a;
+  --danger-foreground: #0b1120;
+  --info: #38bdf8;
+  --info-text: #38bdf8;
+  --info-surface: #082f49;
+  --disabled-bg: #1e293b;
+  --disabled-fg: #94a3b8;
+  --disabled-border: #334155;
+  --overlay: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+/*
+ * Only the official tokens become utilities: the Tailwind default scales the design system
+ * replaces are reset (research V2), so `bg-red-500`, `text-2xl`, `rounded-xl` or `shadow-lg`
+ * generate no CSS. Spacing keeps the 4 px unit; the allowed steps are enforced by the guard.
+ */
+@theme inline {
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --font-*: initial;
+  --breakpoint-*: initial;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-text-secondary: var(--text-secondary);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-border: var(--border);
+  --color-border-control: var(--border-control);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-success-surface: var(--success-surface);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-surface: var(--warning-surface);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-info-surface: var(--info-surface);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-fg: var(--disabled-fg);
+  --color-disabled-border: var(--disabled-border);
+  --color-overlay: var(--overlay);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography (research V6): size / line height / weight */
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-display--font-weight: 700;
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 2.25rem;
+  --text-h1--font-weight: 700;
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.875rem;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.625rem;
+  --text-h3--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body-sm--font-weight: 400;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.125rem;
+  --text-label--font-weight: 500;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 400;
+  --text-code: 0.875rem;
+  --text-code--line-height: 1.375rem;
+  --text-code--font-weight: 400;
+
+  --font-sans:
+    var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  /* `--font-*: initial` also clears the weights; only these four are allowed. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
+  --shadow-overlay: 0 12px 32px rgb(15 23 42 / 0.16);
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Long texts and question statements: Body with a 1.6 line height, at most 72 characters wide. */
+@utility text-reading {
+  font-size: --theme(--text-body);
+  line-height: 1.6;
+  font-weight: --theme(--text-body--font-weight);
+  max-width: var(--reading-max);
+}
