@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AiExecutionStatus, AiProposalStatus } from "@repo/contracts";
 import type { Prisma } from "../../src/generated/prisma/client";
 import { AI_DEFINITIONS } from "../../src/modules/ai/definitions/types";
+import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import type { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
@@ -31,6 +32,17 @@ export async function resetAiDb(t: AiTestApp): Promise<void> {
   await resetDb(t.prisma);
   await t.get(AiRegistrySync).sync();
   t.provider.reset();
+}
+
+/** Runs worker cycles at `now` until nothing is left to claim; returns how many ran. */
+export async function drain(t: TestApp, now?: Date): Promise<number> {
+  const worker = t.get(AiExecutionWorker);
+  let total = 0;
+  for (;;) {
+    const claimed = await worker.runOnce(now);
+    if (claimed === 0) return total;
+    total += claimed;
+  }
 }
 
 /** `POST /api/ai/executions` as the given session, with a fresh idempotency key by default. */

@@ -110,7 +110,7 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
       for (const m of text.matchAll(/\b(?:tx|prisma|db)\.(\w+)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/g)) {
         if (!m[1]!.startsWith("ai")) offenders.push(`${rel}: ${m[1]}.${m[2]}`);
       }
-      for (const m of text.matchAll(/\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+"?(\w+)"?/gi)) {
+      for (const m of text.matchAll(/(?<!FOR\s)\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+"?(\w+)"?/gi)) {
         if (!m[1]!.startsWith("ai_")) offenders.push(`${rel}: SQL em ${m[1]}`);
       }
     }

@@ -6,7 +6,7 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types";
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
-import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -21,13 +21,6 @@ const CONTRACTS = [
  * writing them, and the list ends empty (006 T073). They still pass the contract × catalogue check.
  */
 const PENDING_006_TYPES = new Set<string>([
-  "ai_execution.requested",
-  "ai_execution.started",
-  "ai_execution.completed",
-  "ai_execution.failed",
-  "ai_execution.cancelled",
-  "ai_execution.cancel_requested",
-  "ai_execution.rate_limited",
   "ai_tool.called",
   "ai_tool.failed",
   "ai_proposal.created",
@@ -39,7 +32,6 @@ const PENDING_006_TYPES = new Set<string>([
   "ai_agent.disabled",
   "ai_model_config.enabled",
   "ai_model_config.disabled",
-  "ai_registry.synced",
 ]);
 
 interface ContractRow {
@@ -107,12 +99,12 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   describe("cada tipo do contrato é gravado pelos fluxos da feature", () => {
-    let t: TestApp;
+    let t: AiTestApp;
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
-      await resetDb(t.prisma);
+      t = await createAiTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });
     });

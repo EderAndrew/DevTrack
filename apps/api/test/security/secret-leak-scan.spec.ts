@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
-import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
 
 const SENSITIVE_KEY = /password|token|cookie|authorization|secret/i;
 const REDACTED = "[REDACTED]";
@@ -30,14 +30,14 @@ function leaks(secrets: JourneySecret[], sources: Record<string, string>): strin
 }
 
 describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, critério 24)", () => {
-  let t: TestApp;
+  let t: AiTestApp;
   const logs = captureLogs();
   let secrets: JourneySecret[];
   let content: JourneySecret[];
 
   beforeAll(async () => {
-    t = await createTestApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
-    await resetDb(t.prisma);
+    t = await createAiTestApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+    await resetAiDb(t);
     ({ secrets, content } = await runFullJourney(t));
   });
   afterAll(() => t.close());
@@ -110,6 +110,10 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "nome do arquivo",
         "título de tópico",
         "descrição de tópico",
+        // 006: the AI execution's input, the agent's instructions and the model's output.
+        "entrada da execução de IA",
+        "instruções do agente de IA",
+        "saída do modelo",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -120,6 +124,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );
+    expect(serialize(await t.prisma.aiExecution.findMany({ select: { input: true } }))).toContain("MARCADOR-ENTRADA-006");
+    expect(serialize(await t.prisma.aiExecutionOutput.findMany({ select: { output: true } }))).toContain("MARCADOR-SAIDA-006");
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

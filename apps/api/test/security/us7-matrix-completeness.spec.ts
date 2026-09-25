@@ -10,7 +10,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  * own, and the list ends empty (006 T059).
  */
 const PENDING_006_PERMISSIONS: readonly string[] = [
-  "ia.execucoes.visualizar",
   "ia.propostas.revisar",
   "ia.operacao.visualizar",
   "ia.agentes.gerenciar",

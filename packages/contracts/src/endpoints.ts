@@ -37,6 +37,13 @@ import {
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
+import {
+  AiExecutionListQuerySchema,
+  AiExecutionPageSchema,
+  AiExecutionResultSchema,
+  AiExecutionViewSchema,
+  RequestAiExecutionRequestSchema,
+} from "./ai/executions.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -624,6 +631,26 @@ export const endpoints = {
     params: IdParamsSchema,
     body: ReorderTopicsRequestSchema,
     response: ClassPlanViewSchema,
+    status: 200,
+  },
+  // 006 — AI executions of the session teacher.
+  /** 202 with a new execution; 200 when the idempotency key returns an existing one. */
+  "aiExecutions.request": {
+    method: "POST",
+    path: "/ai/executions",
+    body: RequestAiExecutionRequestSchema,
+    response: AiExecutionViewSchema,
+    status: 202,
+  },
+  "aiExecutions.list": { method: "GET", path: "/ai/executions", query: AiExecutionListQuerySchema, response: AiExecutionPageSchema, status: 200 },
+  "aiExecutions.get": { method: "GET", path: "/ai/executions/:id", params: IdParamsSchema, response: AiExecutionViewSchema, status: 200 },
+  "aiExecutions.result": { method: "GET", path: "/ai/executions/:id/result", params: IdParamsSchema, response: AiExecutionResultSchema, status: 200 },
+  "aiExecutions.cancel": {
+    method: "POST",
+    path: "/ai/executions/:id/cancel",
+    params: IdParamsSchema,
+    body: EmptyBodySchema,
+    response: AiExecutionViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

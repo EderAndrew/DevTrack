@@ -277,7 +277,7 @@ na fila.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T019 [P] [US1] Teste de integração `apps/api/test/integration/006-us1-executions.spec.ts`:
+- [X] T019 [P] [US1] Teste de integração `apps/api/test/integration/006-us1-executions.spec.ts`:
   - `006/US1-1` e `006/SC-006`: `POST /ai/executions` → 202 `QUEUED` em < 1 s com o
     provedor programado para `delay(30000)` e o worker desligado; auditoria
     `ai_execution.requested` sem entrada nem instruções;
@@ -295,14 +295,14 @@ na fila.
     → 409 `AI_AGENT_DISABLED`; nenhuma execução criada;
   - lista própria com filtro e cursor;
   - professor pedindo `reference-restricted` (permissão que não tem) → 403.
-- [ ] T020 [P] [US1] Teste de integração
+- [X] T020 [P] [US1] Teste de integração
   `apps/api/test/integration/006-us1-worker.spec.ts`:
   - `006/FR-024`: duas `runOnce` simultâneas processam cada execução uma vez, e uma
     gravação tardia com `claim_token` antigo não muda nada;
   - `006/FR-022`: `kick()` depois do commit, sem efeito com intervalo `0`;
   - lote de 2 por ciclo;
   - `ai_execution.started` e `ai_execution.completed` com ator SYSTEM.
-- [ ] T021 [P] [US1] Testes do web `apps/web/features/ai/hooks/use-ai-execution.test.tsx`:
+- [X] T021 [P] [US1] Testes do web `apps/web/features/ai/hooks/use-ai-execution.test.tsx`:
   - `refetchInterval` de 2 s até o estado final, e para ao chegar nele;
   - `useRequestAiExecution` reusa a `idempotencyKey` numa nova tentativa e gera outra num
     novo clique;
@@ -310,14 +310,14 @@ na fila.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] `apps/api/src/modules/ai/output/structured-output.validator.ts`, no
+- [X] T022 [US1] `apps/api/src/modules/ai/output/structured-output.validator.ts`, no
   mínimo exigido pela US1: `validate(text, schema, maxBytes)` com as quatro etapas de
   research A18, devolvendo `{ok, output} | {ok: false, code}`. Testes unitários
   `structured-output.validator.spec.ts`; os casos de falha completos são da US4.
-- [ ] T023 [US1] `apps/api/src/modules/ai/execution/ai-log.ts`: helper `aiLog(logger, event,
+- [X] T023 [US1] `apps/api/src/modules/ai/execution/ai-log.ts`: helper `aiLog(logger, event,
   fields)` que aceita só os campos da allowlist de research A20 (tipado) e descarta o
   resto. Teste unitário.
-- [ ] T024 [US1] `apps/api/src/modules/ai/execution/ai-executions.service.ts`:
+- [X] T024 [US1] `apps/api/src/modules/ai/execution/ai-executions.service.ts`:
   - `request(auth, body, requestId)`: limite de taxa `ai-execution` por usuário, e a
     recusa grava `ai_execution.rate_limited`; em seguida as checagens na ordem de
     `contracts/http-api.md`:
@@ -336,13 +336,13 @@ na fila.
     A10, condicionais e com auditoria), todos por `(id, workspace_id)` → 404;
   - mapper `ai-execution.view.ts` sem provedor, modelo, instruções nem entrada, com
     `completedAt` e `failedAt` derivados.
-- [ ] T025 [US1] `apps/api/src/modules/ai/execution/prompt-envelope.ts`: monta o
+- [X] T025 [US1] `apps/api/src/modules/ai/execution/prompt-envelope.ts`: monta o
   `ModelRequest` com as partes `system` (instruções + política comum da fundação),
   `context` (de `buildContext`) e `untrusted` (entrada e resultados de ferramentas, com
   delimitadores escapados), conforme research A19. Teste unitário
   `prompt-envelope.spec.ts`: delimitador dentro do conteúdo é escapado; nada de `untrusted`
   vai para `system`.
-- [ ] T026 [US1] `apps/api/src/modules/ai/execution/ai-execution-context.ts` (objeto
+- [X] T026 [US1] `apps/api/src/modules/ai/execution/ai-execution-context.ts` (objeto
   congelado de research A7) e `ai-execution.runner.ts`, na versão da US1:
   - reautorização no início (agente `ACTIVE`, configuração habilitada, permissão atual do
     usuário lida do banco, posse do recurso);
@@ -356,12 +356,12 @@ na fila.
     execução registrado num mapa local.
 
   As ferramentas (US3), os limites de laço (US6) e a proposta (US5) entram depois.
-- [ ] T027 [US1] `apps/api/src/modules/ai/usage/{ai-usage.recorder,cost}.ts`: grava
+- [X] T027 [US1] `apps/api/src/modules/ai/usage/{ai-usage.recorder,cost}.ts`: grava
   `ai_model_calls` por chamada (sucesso ou falha, `attempts`, tokens só se informados). O
   custo é `(in × pIn + out × pOut) / 1e6`, com `numeric` em string e nulo sem tokens ou
   preço. Teste unitário `cost.spec.ts` (`006/FR-059`: sem uso informado → nulos; sem preço
   → custo nulo).
-- [ ] T028 [US1] `apps/api/src/modules/ai/execution/ai-execution.worker.ts`, no formato do
+- [X] T028 [US1] `apps/api/src/modules/ai/execution/ai-execution.worker.ts`, no formato do
   `SyllabusProcessingWorker`:
   - `runOnce(now)` faz:
     1. a varredura de prazo (`TIMED_OUT`/`AI_TIMEOUT` com auditoria);
@@ -372,20 +372,20 @@ na fila.
   - timer de `ai.intervalSeconds` no bootstrap (nada com `0`), parado no shutdown.
 
   Acrescentar `drain(t, now)` (`runOnce` até não haver trabalho) em `apps/api/test/helpers/ai.ts`.
-- [ ] T029 [US1] `apps/api/src/modules/ai/execution/ai-executions.controller.ts`, com as 5
+- [X] T029 [US1] `apps/api/src/modules/ai/execution/ai-executions.controller.ts`, com as 5
   rotas de execução de `contracts/http-api.md` (`@RequirePermissions("ia.execucoes.visualizar")`,
   202 ou 200 no pedido):
   - entradas `aiExecutions.request|list|get|result|cancel` em
     `packages/contracts/src/endpoints.ts`;
   - linhas no `MATRIX` de `apps/api/test/security/authorization-matrix.ts`;
   - retirar `ia.execucoes.visualizar` de `PENDING_006_PERMISSIONS`.
-- [ ] T030 [US1] Emitir `ai_execution.requested`, `.started`, `.completed`, `.failed`
+- [X] T030 [US1] Emitir `ai_execution.requested`, `.started`, `.completed`, `.failed`
   (uma segunda execução com o provedor programado para saída inválida), `.cancelled`,
   `.cancel_requested`, `.rate_limited` e `ai_registry.synced` em
   `apps/api/test/helpers/journey.ts`, com o agente de referência e o provedor simulado, e
   retirá-los de `PENDING_006_TYPES`. Acrescentar ao `content` da jornada a frase marcadora
   da entrada (`MARCADOR-ENTRADA-006`) e da saída do provedor (`MARCADOR-SAIDA-006`).
-- [ ] T031 [P] [US1] `apps/web/features/ai/api/ai-executions.ts` (`requestAiExecution`,
+- [X] T031 [P] [US1] `apps/web/features/ai/api/ai-executions.ts` (`requestAiExecution`,
   `getAiExecution`, `listAiExecutions`, `getAiExecutionResult`, `cancelAiExecution`) e
   `apps/web/features/ai/hooks/{use-ai-execution,use-request-ai-execution,use-cancel-ai-execution}.ts`
   (`["ai", "executions", id]`, `refetchInterval` enquanto não final).

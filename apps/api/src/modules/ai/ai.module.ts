@@ -1,18 +1,27 @@
 import { Module } from "@nestjs/common";
 import { PRODUCTION_AI_DEFINITIONS } from "./definitions";
 import { AI_DEFINITIONS } from "./definitions/types";
+import { AiExecutionAborts } from "./execution/ai-execution-aborts";
+import { AiExecutionRunner } from "./execution/ai-execution.runner";
+import { AiExecutionStore } from "./execution/ai-execution.store";
+import { AiExecutionWorker } from "./execution/ai-execution.worker";
+import { AiExecutionsController } from "./execution/ai-executions.controller";
+import { AiExecutionsService } from "./execution/ai-executions.service";
 import { ModelGateway } from "./gateway/model-gateway";
+import { StructuredOutputValidator } from "./output/structured-output.validator";
 import { AiAgentRegistry } from "./registry/ai-agent.registry";
 import { AiModelConfigRegistry } from "./registry/ai-model-config.registry";
 import { AiRegistrySync } from "./registry/ai-registry.sync";
 import { AiToolRegistry } from "./registry/ai-tool.registry";
+import { AiUsageRecorder } from "./usage/ai-usage.recorder";
 
 /**
  * The AI foundation (spec 006): the only way to a model. Folders by responsibility
  * (research A3): definitions, registry, gateway, tools, output, execution, proposals, usage,
- * operations, evaluation and retention.
+ * operations, evaluation and retention. Domain modules use `AiExecutionsService` only.
  */
 @Module({
+  controllers: [AiExecutionsController],
   providers: [
     { provide: AI_DEFINITIONS, useValue: PRODUCTION_AI_DEFINITIONS },
     AiRegistrySync,
@@ -20,7 +29,14 @@ import { AiToolRegistry } from "./registry/ai-tool.registry";
     AiToolRegistry,
     AiModelConfigRegistry,
     ModelGateway,
+    StructuredOutputValidator,
+    AiUsageRecorder,
+    AiExecutionStore,
+    AiExecutionAborts,
+    AiExecutionRunner,
+    AiExecutionWorker,
+    AiExecutionsService,
   ],
-  exports: [AI_DEFINITIONS],
+  exports: [AI_DEFINITIONS, AiExecutionsService],
 })
 export class AiModule {}
