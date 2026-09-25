@@ -77,7 +77,7 @@ export function PlanStatusBar({ classId, plan, canChange }: PlanStatusBarProps) 
         {canChange && !archived ? (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="destructive" disabled={change.isPending}>
+              <Button type="button" variant="danger" disabled={change.isPending}>
                 Arquivar planejamento
               </Button>
             </AlertDialogTrigger>
@@ -91,7 +91,7 @@ export function PlanStatusBar({ classId, plan, canChange }: PlanStatusBarProps) 
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void run("ARCHIVE")}>Arquivar planejamento</AlertDialogAction>
+                <AlertDialogAction variant="danger" onClick={() => void run("ARCHIVE")}>Arquivar planejamento</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

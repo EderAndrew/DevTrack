@@ -1,7 +1,8 @@
 import type { ComponentProps } from "react";
+import { FormField, fieldErrorId, fieldHintId } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+
+export { fieldErrorId, fieldHintId };
 
 export interface FieldProps extends Omit<ComponentProps<"input">, "id" | "name"> {
   /** Also the target of ErrorSummary links (`#id`). */
@@ -14,41 +15,15 @@ export interface FieldProps extends Omit<ComponentProps<"input">, "id" | "name">
   error?: string;
 }
 
-export const fieldHintId = (id: string) => `${id}-dica`;
-export const fieldErrorId = (id: string) => `${id}-erro`;
-
 /**
- * Labelled input (FR-075, R22) on shadcn `Label`/`Input`: `<label for>`, `aria-describedby`
- * pointing to the hint and the error, and `aria-invalid` while there is an error. Takes the
- * props of React Hook Form's `register()` (name, ref, handlers).
+ * Labelled text input (FR-075, R22) on the design system's `FormField` and `Input`: `<label
+ * for>`, `aria-describedby` pointing to the hint and the error, and `aria-invalid` while there
+ * is an error. Takes the props of React Hook Form's `register()` (name, ref, handlers).
  */
 export function Field({ id, name, label, hint, error, required, className, ...inputProps }: FieldProps) {
-  const describedBy = [hint && fieldHintId(id), error && fieldErrorId(id)].filter(Boolean).join(" ") || undefined;
-
   return (
-    <div className={cn("mb-4 flex flex-col gap-1", className)}>
-      <Label htmlFor={id}>
-        {label}
-        {required ? <span className="font-normal text-muted-foreground"> (obrigatório)</span> : null}
-      </Label>
-      {hint ? (
-        <p id={fieldHintId(id)} className="m-0 text-body-sm text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-      <Input
-        id={id}
-        name={name}
-        required={required}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...inputProps}
-      />
-      {error ? (
-        <p id={fieldErrorId(id)} className="m-0 font-semibold text-danger-text">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <FormField id={id} label={label} description={hint} error={error} required={required} className={className}>
+      {(control) => <Input name={name} {...control} {...inputProps} />}
+    </FormField>
   );
 }

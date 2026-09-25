@@ -12,7 +12,7 @@ import { useRetrySyllabus, useSyllabusDocument } from "../hooks/use-syllabus-doc
 
 /** Processing status as a badge; the text carries the meaning, the color only repeats it. */
 export function SyllabusStatusBadge({ status }: { status: SyllabusProcessingStatus }) {
-  const variant = status === "FAILED" ? "destructive" : status === "PROCESSED" ? "default" : "secondary";
+  const variant = status === "FAILED" ? "danger" : status === "PROCESSED" ? "success" : "info";
   return <Badge variant={variant}>{SYLLABUS_PROCESSING_STATUS_LABELS[status]}</Badge>;
 }
 

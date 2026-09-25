@@ -14,11 +14,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useSubjectDocuments } from "@/features/syllabus/hooks/use-syllabus-documents";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClassPlan, useSelectPlanSyllabus } from "../hooks/use-class-plan";
-
-const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 /** Links of non-archived topics to items that are not in the revision the plan uses (E16). */
 export const outsideLinks = (plan: ClassPlanView) =>
@@ -106,9 +105,8 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <Label htmlFor="versao-confirmada">Versão confirmada</Label>
-            <select
+            <NativeSelect
               id="versao-confirmada"
-              className={SELECT_CLASS}
               value={selected}
               onChange={(event) => setChosen(event.target.value)}
             >
@@ -117,7 +115,7 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
                   {option.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <Button
             type="button"

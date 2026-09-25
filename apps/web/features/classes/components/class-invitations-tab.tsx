@@ -60,11 +60,11 @@ const EMPTY: Record<ClassInvitationStatus, string> = {
 };
 
 const STATUS_VARIANT = {
-  PENDING: "default",
-  ACCEPTED: "secondary",
-  EXPIRED: "outline",
-  CANCELLED: "outline",
-} as const satisfies Record<ClassInvitationStatus, "default" | "secondary" | "outline">;
+  PENDING: "info",
+  ACCEPTED: "success",
+  EXPIRED: "neutral",
+  CANCELLED: "neutral",
+} as const satisfies Record<ClassInvitationStatus, "info" | "success" | "neutral">;
 
 export interface ClassInvitationsTabProps {
   classId: string;
@@ -198,9 +198,9 @@ export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvi
                   <span className="flex flex-wrap gap-1">
                     <Badge variant={STATUS_VARIANT[item.status]}>{CLASS_INVITATION_STATUS_LABELS[item.status]}</Badge>
                     {item.status === "PENDING" && item.delivery === "FAILED" ? (
-                      <Badge variant="destructive">Envio falhou</Badge>
+                      <Badge variant="danger">Envio falhou</Badge>
                     ) : item.status === "PENDING" && item.delivery === "SENDING" ? (
-                      <Badge variant="outline">Enviando</Badge>
+                      <Badge variant="neutral">Enviando</Badge>
                     ) : null}
                   </span>
                 </TableCell>
@@ -249,7 +249,7 @@ function CancelInvitation({ invitation, onConfirm }: { invitation: ClassInvitati
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button type="button" variant="destructive" aria-label={`Cancelar convite para ${invitation.email}`}>
+        <Button type="button" variant="danger" aria-label={`Cancelar convite para ${invitation.email}`}>
           Cancelar
         </Button>
       </AlertDialogTrigger>
@@ -262,7 +262,7 @@ function CancelInvitation({ invitation, onConfirm }: { invitation: ClassInvitati
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Voltar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Cancelar convite</AlertDialogAction>
+          <AlertDialogAction variant="danger" onClick={onConfirm}>Cancelar convite</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -16,12 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { useRefreshPlan, useSplitTopic } from "../hooks/use-class-plan";
 import { NO_MEETING } from "../schemas/topic-form";
 import { ItemPicker, withLinkedItems } from "./item-picker";
-import { SELECT_CLASS } from "./topic-form-dialog";
 
 const MIN_PARTS = 2;
 const MAX_PARTS = 10;
@@ -153,9 +153,8 @@ export function SplitTopicDialog({ classId, topic, open, onOpenChange, meetings,
                 </div>
                 <div className="mb-4 flex flex-col gap-1">
                   <Label htmlFor={`aula-parte-${index + 1}`}>Aula</Label>
-                  <select
+                  <NativeSelect
                     id={`aula-parte-${index + 1}`}
-                    className={SELECT_CLASS}
                     value={part.meetingId}
                     onChange={(event) => change(part.key, { meetingId: event.target.value })}
                   >
@@ -165,7 +164,7 @@ export function SplitTopicDialog({ classId, topic, open, onOpenChange, meetings,
                         {meetingLabel(meeting.number, meeting.date)}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
                 <ItemPicker
                   idPrefix={`busca-parte-${index + 1}`}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { fieldErrorId } from "@/components/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /** Groups of syllabus items to choose from (the coverage's groups, or the items of one topic). */
 export type ItemGroups = readonly { id: string; title: string | null; items: readonly { id: string; text: string }[] }[];
@@ -78,12 +79,10 @@ export function ItemPicker({ idPrefix, groups, value, onChange, error, legend = 
               const id = `${idPrefix}-${item.id}`;
               return (
                 <div key={item.id} className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id={id}
                     checked={value.includes(item.id)}
                     onChange={(event) => toggle(item.id, event.target.checked)}
-                    className="size-5 shrink-0"
                   />
                   <Label htmlFor={id} className="font-normal">
                     {item.text}

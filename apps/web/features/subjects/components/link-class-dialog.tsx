@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SELECT_CLASS } from "@/features/class-plan/components/topic-form-dialog";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useClasses, useLinkClassToSubject } from "@/features/classes/hooks/use-classes";
 import { messageForError } from "@/lib/messages/error-messages";
 
@@ -125,9 +125,8 @@ function LinkClassForm({ subject, onLinked }: LinkClassDialogProps) {
       <ErrorSummary errors={errors} title="Não foi possível vincular a turma" />
       <div className="mb-4 flex flex-col gap-1">
         <Label htmlFor={SELECT_ID}>Turma</Label>
-        <select
+        <NativeSelect
           id={SELECT_ID}
-          className={SELECT_CLASS}
           value={classId}
           aria-invalid={fieldError ? true : undefined}
           aria-describedby={fieldError ? fieldErrorId(SELECT_ID) : undefined}
@@ -139,7 +138,7 @@ function LinkClassForm({ subject, onLinked }: LinkClassDialogProps) {
               {optionLabel(item)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         {fieldError ? (
           <p id={fieldErrorId(SELECT_ID)} className="m-0 font-semibold text-danger-text">
             {fieldError}

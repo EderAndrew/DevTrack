@@ -176,7 +176,7 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
                 <TableCell>{item.student.ra ?? "—"}</TableCell>
                 <TableCell>{item.student.email}</TableCell>
                 <TableCell>
-                  <Badge variant={item.status === "ACTIVE" ? "default" : "outline"}>
+                  <Badge variant={item.status === "ACTIVE" ? "success" : "neutral"}>
                     {ENROLLMENT_STATUS_LABELS[item.status]}
                   </Badge>
                 </TableCell>
@@ -213,7 +213,7 @@ function RemoveStudent({ enrollment, onConfirm }: { enrollment: EnrollmentView; 
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button type="button" variant="destructive" aria-label={`Remover ${name} da turma`}>
+        <Button type="button" variant="danger" aria-label={`Remover ${name} da turma`}>
           Remover
         </Button>
       </AlertDialogTrigger>
@@ -227,7 +227,7 @@ function RemoveStudent({ enrollment, onConfirm }: { enrollment: EnrollmentView; 
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Voltar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Remover aluno</AlertDialogAction>
+          <AlertDialogAction variant="danger" onClick={onConfirm}>Remover aluno</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

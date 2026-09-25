@@ -3,31 +3,28 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
+// 005 contracts/components.md "Badge": the variant names the meaning; the text always says it.
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-1 text-caption font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-4",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border px-2 py-1 text-label whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary:
-          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive:
-          "bg-destructive text-danger-foreground focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90",
-        outline:
-          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 [a&]:hover:underline",
+        neutral: "border-border bg-background text-foreground",
+        info: "border-info bg-info-surface text-info-text",
+        success: "border-success bg-success-surface text-success-text",
+        warning: "border-warning bg-warning-surface text-warning-text",
+        danger: "border-danger bg-danger-surface text-danger-text",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "neutral",
     },
   }
 )
 
 function Badge({
   className,
-  variant = "default",
+  variant = "neutral",
   asChild = false,
   ...props
 }: React.ComponentProps<"span"> &
