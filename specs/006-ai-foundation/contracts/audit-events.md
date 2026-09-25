@@ -21,7 +21,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_execution.started` | `AI_EXECUTION_STARTED` | SYSTEM | AI_EXECUTION | `claim` |
 | `ai_execution.completed` | `AI_EXECUTION_COMPLETED` | SYSTEM | AI_EXECUTION | `durationMs`, `modelCalls`, `toolCalls`, `proposalId` |
 | `ai_execution.failed` | `AI_EXECUTION_FAILED` | SYSTEM | AI_EXECUTION | `status` (`FAILED`\|`TIMED_OUT`), `errorCode`, `durationMs`, `modelCalls`, `toolCalls` |
-| `ai_execution.cancelled` | `AI_EXECUTION_CANCELLED` | USER (request) / SYSTEM (disabled agent) | AI_EXECUTION | `from`, `errorCode` |
+| `ai_execution.cancelled` | `AI_EXECUTION_CANCELLED` | USER \| SYSTEM | AI_EXECUTION | `from`, `errorCode` |
 | `ai_execution.cancel_requested` | — | USER | AI_EXECUTION | `from` |
 | `ai_tool.called` | `AI_TOOL_CALLED` | SYSTEM | AI_EXECUTION | `toolKey`, `sequence`, `durationMs` |
 | `ai_tool.failed` | `AI_TOOL_FAILED` | SYSTEM | AI_EXECUTION | `toolKey`, `sequence`, `status` (`DENIED`\|`FAILED`\|`TIMED_OUT`), `errorCode` |
@@ -38,6 +38,8 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_execution.rate_limited` | — | USER | — | `scope` |
 
 Notes:
+- `ai_execution.cancelled`: USER when the teacher cancels, SYSTEM when a disabled agent's queued
+  executions are cancelled.
 - `ai_execution.requested` is written in the request's transaction, and the worker's
   events in the transaction that changes the status.
 - An idempotent repetition (same key, same decision, same status) writes no new event.

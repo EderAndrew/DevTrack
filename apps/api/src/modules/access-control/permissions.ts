@@ -2,7 +2,7 @@ import { RoleKeySchema } from "@repo/contracts";
 
 /**
  * Permission and role keys seeded by migrations `seed_roles_permissions` (001),
- * `classes_invitations_enrollments` (003) and `curriculum_planning` (004) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
+ * `classes_invitations_enrollments` (003) and `curriculum_planning` (004) and `ai_foundation` (006) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
  * role keys are used only to grant, change or count assignments.
  */
 export const PERMISSIONS = [
@@ -44,6 +44,10 @@ export const PERMISSIONS = [
   "planejamento.visualizar",
   "planejamento.editar",
   "planejamento.alterar_situacao",
+  "ia.execucoes.visualizar",
+  "ia.propostas.revisar",
+  "ia.operacao.visualizar",
+  "ia.agentes.gerenciar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

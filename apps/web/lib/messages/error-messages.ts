@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@repo/contracts";
+import type { AiErrorCode, ErrorCode } from "@repo/contracts";
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
@@ -7,7 +7,7 @@ type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
  * The texts belong to the web, not to the API's `message`; they are the Phase 001 texts (FR-012)
  * plus the codes added by 003 (specs/003-class-invitations-enrollment/contracts/web-ui.md) and
- * 004 (specs/004-syllabus-planning/contracts/web-ui.md).
+ * 004 (specs/004-syllabus-planning/contracts/web-ui.md) and 006 (specs/006-ai-foundation/contracts/web-ui.md).
  */
 export const ERROR_MESSAGES = {
   VALIDATION_ERROR: "Dados inválidos.",
@@ -64,6 +64,13 @@ export const ERROR_MESSAGES = {
   PLAN_HAS_NO_TOPICS: "Crie ao menos um tópico antes de confirmar.",
   TOO_MANY_TOPICS: "O planejamento pode ter no máximo 300 tópicos.",
   MEETING_NOT_HELD_YET: "Só é possível concluir uma aula a partir da data dela.",
+  AI_AGENT_NOT_FOUND: "Este recurso de IA não está disponível.",
+  AI_AGENT_DISABLED: "Este recurso de IA está desativado no momento.",
+  AI_MODEL_UNAVAILABLE: "A IA está indisponível no momento. Tente de novo mais tarde.",
+  AI_EXECUTION_LIMIT_EXCEEDED: "O conteúdo enviado para a IA é grande demais.",
+  AI_IDEMPOTENCY_KEY_REUSED: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo.",
+  AI_PROPOSAL_ITEMS_INVALID: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte.",
+  AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
@@ -94,3 +101,62 @@ export function messageForError(error: unknown): string {
 export function apiErrorCode(error: unknown): string | undefined {
   return error instanceof ApiError ? error.code : undefined;
 }
+
+/**
+ * What happened and what the teacher can do, for each normalized code of a failed AI execution
+ * (006/FR-066, contracts/web-ui.md). Never mentions the provider or the model.
+ */
+export const AI_ERROR_GUIDANCE = {
+  AI_AGENT_NOT_FOUND: {
+    title: "Este recurso de IA não está disponível.",
+    guidance: "Ele pode ter sido retirado. Continue sem a IA ou fale com a administração.",
+  },
+  AI_AGENT_DISABLED: {
+    title: "Este recurso de IA foi desativado.",
+    guidance: "Tente de novo mais tarde ou continue sem a IA.",
+  },
+  AI_MODEL_UNAVAILABLE: {
+    title: "A IA está indisponível no momento.",
+    guidance: "Tente de novo mais tarde.",
+  },
+  AI_PROVIDER_ERROR: {
+    title: "A IA não conseguiu responder.",
+    guidance: "Tente de novo em alguns minutos.",
+  },
+  AI_TIMEOUT: {
+    title: "A IA demorou demais para responder.",
+    guidance: "Tente de novo em alguns minutos.",
+  },
+  AI_RATE_LIMITED: {
+    title: "A IA está recebendo muitos pedidos agora.",
+    guidance: "Espere alguns minutos e tente de novo.",
+  },
+  AI_TOOL_NOT_ALLOWED: {
+    title: "A IA tentou uma consulta que não é permitida.",
+    guidance: "Nada foi alterado. Tente de novo; se continuar, fale com a administração.",
+  },
+  AI_TOOL_EXECUTION_FAILED: {
+    title: "A IA não conseguiu consultar os dados de que precisava.",
+    guidance: "Tente de novo em alguns minutos.",
+  },
+  AI_OUTPUT_PARSE_FAILED: {
+    title: "A resposta da IA veio em um formato inválido.",
+    guidance: "Nada foi salvo. Tente de novo.",
+  },
+  AI_OUTPUT_VALIDATION_FAILED: {
+    title: "A resposta da IA não pôde ser aproveitada.",
+    guidance: "Nada foi salvo. Tente de novo.",
+  },
+  AI_CONTEXT_ACCESS_DENIED: {
+    title: "A IA não pôde acessar este conteúdo.",
+    guidance: "Confira se ele ainda existe e se você ainda tem acesso a ele.",
+  },
+  AI_EXECUTION_CANCELLED: {
+    title: "O pedido à IA foi cancelado.",
+    guidance: "Faça um novo pedido quando quiser.",
+  },
+  AI_EXECUTION_LIMIT_EXCEEDED: {
+    title: "O pedido passou do limite da IA.",
+    guidance: "Tente com um conteúdo menor.",
+  },
+} as const satisfies Record<AiErrorCode, { title: string; guidance: string }>;

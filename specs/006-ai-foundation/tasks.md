@@ -40,7 +40,7 @@ verde.
 
 **Purpose**: configuração, estrutura de pastas e o esqueleto das fixtures de teste.
 
-- [ ] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
+- [X] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
   - as variáveis de research A17: `AI_EXECUTION_INTERVAL_SECONDS` (`nonNegativeInt(5)`, `0`
     desliga), `AI_EXECUTION_TOTAL_TIMEOUT_SECONDS` (120), `AI_MODEL_CALL_TIMEOUT_SECONDS`
     (60), `AI_TOOL_TIMEOUT_SECONDS` (10), `AI_MAX_MODEL_CALLS` (5), `AI_MAX_TOOL_CALLS` (10),
@@ -54,12 +54,12 @@ verde.
   - a documentação em `apps/api/.env.example`, `apps/api/.env.test.example`
     (`AI_EXECUTION_INTERVAL_SECONDS=0`) e `apps/web/e2e/.env.e2e`
     (`AI_EXECUTION_INTERVAL_SECONDS=1`).
-- [ ] T002 [P] Criar a estrutura vazia de `apps/api/src/modules/ai/` (`definitions/`,
+- [X] T002 [P] Criar a estrutura vazia de `apps/api/src/modules/ai/` (`definitions/`,
   `registry/`, `gateway/providers/`, `tools/`, `output/`, `execution/`, `proposals/`, `usage/`,
   `operations/`, `evaluation/`, `retention/`) com `ai.module.ts` registrado em
   `apps/api/src/app.module.ts`. Acrescentar `LockKey.AI_REGISTRY` e
   `LockKey.AI_PROPOSAL_EXPIRY` em `apps/api/src/platform/database/transaction.ts`.
-- [ ] T003 [P] Criar `apps/api/src/modules/ai/definitions/types.ts` com os tipos de
+- [X] T003 [P] Criar `apps/api/src/modules/ai/definitions/types.ts` com os tipos de
   `contracts/agent-runtime.md`:
   - `AgentDefinition`, `ToolDefinition`, `ModelConfigDefinition`, `ModelProvider`,
     `ModelRequest`, `ModelResponse`, `ResourceOwnership`, `AiDefinitions`, `AiLimits` e
@@ -79,13 +79,13 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
 
 **⚠️ CRITICAL**: bloqueia todas as histórias.
 
-- [ ] T004 Atualizar `apps/api/prisma/schema.prisma` com os 11 enums e os 15 modelos `Ai*` de
+- [X] T004 Atualizar `apps/api/prisma/schema.prisma` com os 11 enums e os 15 modelos `Ai*` de
   `data-model.md`:
   - `@@map` em snake_case e FKs `Restrict`, exceto as filhas da execução, que usam
     `Cascade`;
   - `@@unique` e os índices comuns;
   - `requiredPermission` como FK para `Permission.key`.
-- [ ] T005 Gerar a migração
+- [X] T005 Gerar a migração
   `apps/api/prisma/migrations/<ts>_ai_foundation/migration.sql` (`prisma migrate dev
   --create-only`) e acrescentar à mão:
   - os `CHECK`s de `data-model.md`:
@@ -113,13 +113,13 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   Aplicar com `pnpm --filter api prisma migrate deploy` no banco de teste e conferir que
   `resetDb` limpa as tabelas novas, inclusive as do registro; os testes de IA voltam a
   sincronizar o registro com `resetAiDb` (T016, research A4).
-- [ ] T006 [P] Acrescentar as 4 permissões em
+- [X] T006 [P] Acrescentar as 4 permissões em
   `apps/api/src/modules/access-control/permissions.ts` e em `ROLE_PERMISSIONS` de
   `apps/api/test/security/authorization-matrix.ts` (TEACHER: `ia.execucoes.visualizar`,
   `ia.propostas.revisar`; ADMIN: `ia.operacao.visualizar`, `ia.agentes.gerenciar`). Criar
   `PENDING_006_PERMISSIONS` em `apps/api/test/security/us7-matrix-completeness.spec.ts` com as
   quatro; cada tarefa que põe rotas no `MATRIX` retira as suas.
-- [ ] T007 [P] Criar os contratos em
+- [X] T007 [P] Criar os contratos em
   `packages/contracts/src/ai/{enums,executions,proposals,operations}.ts`:
   - todos os schemas da tabela "Shared types" de `contracts/http-api.md`, strict e com
     tipos via `z.infer`;
@@ -138,34 +138,34 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   códigos de FR-050, usados no `errorCode` da execução) fica em `ai/enums.ts`, separado. Testes em
   `packages/contracts/test/ai.spec.ts`, cobrindo `006/FR-029` (campo de área, professor ou
   dono recusado; campo desconhecido recusado), decisão parcial e enums.
-- [ ] T008 [P] Acrescentar os erros em `apps/api/src/platform/http/errors.ts`, com os status
+- [X] T008 [P] Acrescentar os erros em `apps/api/src/platform/http/errors.ts`, com os status
   de `contracts/http-api.md` e na ordem do `ErrorCatalog`: só os 7 códigos HTTP de T007 (a
   paridade com `ErrorCodeSchema` se mantém; os códigos só de execução não entram no
   `ErrorCatalog`). Acrescentar os títulos e orientações de `contracts/web-ui.md` em
   `apps/web/lib/messages/error-messages.ts`, sem citar provedor nem modelo. A paridade é
   conferida por `apps/api/test/contracts/error-catalog.spec.ts` e pelo teste do web.
-- [ ] T009 [P] Acrescentar os 19 tipos de `contracts/audit-events.md`, com as allowlists de
+- [X] T009 [P] Acrescentar os 19 tipos de `contracts/audit-events.md`, com as allowlists de
   `metadata`, em `apps/api/src/modules/audit/audit-event-types.ts`:
   - alvos `AI_EXECUTION`, `AI_PROPOSAL`, `AI_AGENT` e `AI_MODEL_CONFIG`;
   - ator `SYSTEM` para os eventos do worker.
 
   Testar a allowlist em `apps/api/src/modules/audit/audit.service.spec.ts` (chave de
   conteúdo como `prompt`, `output` ou `payload` é recusada).
-- [ ] T010 Evoluir `apps/api/test/security/audit-coverage.spec.ts` para ler também
+- [X] T010 Evoluir `apps/api/test/security/audit-coverage.spec.ts` para ler também
   `specs/006-ai-foundation/contracts/audit-events.md`. Criar `PENDING_006_TYPES` com todos os
   tipos 006; cada história retira os seus quando `apps/api/test/helpers/journey.ts` passar a
   emiti-los.
-- [ ] T011 [P] Atualizar `apps/api/test/security/domain-boundary.spec.ts`:
+- [X] T011 [P] Atualizar `apps/api/test/security/domain-boundary.spec.ts`:
   - `EXPECTED_MODELS` com os 15 modelos `Ai*`;
   - conferir que nenhum nome novo usa termo acadêmico proibido;
   - título com `006/FR-003`.
-- [ ] T012 [P] Criar as máquinas de estado
+- [X] T012 [P] Criar as máquinas de estado
   `apps/api/src/modules/ai/execution/ai-execution.state-machine.ts` e
   `apps/api/src/modules/ai/proposals/ai-proposal.state-machine.ts`, no formato de
   `classes/class.state-machine.ts`, com testes `*.state-machine.spec.ts` ao lado. Os testes
   cobrem `006/FR-021` e `006/FR-042`: todas as transições válidas e inválidas de
   `data-model.md`, e os estados finais sem saída.
-- [ ] T013 [P] Gateway em `apps/api/src/modules/ai/gateway/`:
+- [X] T013 [P] Gateway em `apps/api/src/modules/ai/gateway/`:
   - `provider-errors.ts`: `ProviderError(category)` e o mapeamento categoria → `AiErrorCode`
     de research A12;
   - `retry-policy.ts`: transitórios `UNAVAILABLE`, `RATE_LIMITED` e `TIMEOUT`; espera `500
@@ -180,7 +180,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
 
   Testes unitários `retry-policy.spec.ts` e `model-gateway.spec.ts` (`006/FR-014`,
   `006/FR-049`) com um provedor de teste em memória.
-- [ ] T014 [P] Criar o provedor simulado
+- [X] T014 [P] Criar o provedor simulado
   `apps/api/test/fixtures/ai/fake-model-provider.ts` (`key: "fake"`):
   - roteiro por execução (`script(executionId | "*", steps)`);
   - passos: `output(json)`, `text(raw)`, `empty()`, `toolCalls([...])`, `error(category)`,
@@ -190,7 +190,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   - `reset()`.
 
   Nunca faz rede.
-- [ ] T015 [P] Criar as fixtures de definição em `apps/api/test/fixtures/ai/`:
+- [X] T015 [P] Criar as fixtures de definição em `apps/api/test/fixtures/ai/`:
   - `model-configs.ts`: `fake-default` e `fake-alt` com provedor `fake`, preço `1.00`/`2.00`
     `USD`, e `fake-no-price`;
   - `reference-tools.ts`:
@@ -213,17 +213,17 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
       instruções com a frase marcadora `MARCADOR-INSTRUCOES-006`;
   - `resources.ts`: `SUBJECT` → `SubjectContextPolicy`;
   - `definitions.ts`: `REFERENCE_AI_DEFINITIONS` (tudo acima + `FakeModelProvider`).
-- [ ] T016 Criar `apps/api/test/helpers/ai.ts`:
+- [X] T016 Criar `apps/api/test/helpers/ai.ts`:
   - `createAiTestApp(options)`: `createTestApp` com o override de `AI_DEFINITIONS` e do
     provedor simulado; não cria permissão nem altera papel (as tabelas preservadas por
     `resetDb` ficam iguais às da migração, então os testes da 001–005 não mudam);
   - `resetAiDb(t)`: `resetDb` seguido de `AiRegistrySync.sync()`, porque `resetDb` também
     apaga as tabelas do registro; todo teste de IA usa este em vez de `resetDb`;
   - `requestExecution(t, agent, cookie, body)`;
-  - `drain(t, now)`: `runOnce` até não haver trabalho;
+  - `drain(t, now)`: entra com o worker, na T028;
   - fábricas `createAiExecution` e `createAiProposal` direto no banco, dentro das regras do
     schema.
-- [ ] T017 Registro sincronizado em `apps/api/src/modules/ai/registry/`:
+- [X] T017 Registro sincronizado em `apps/api/src/modules/ai/registry/`:
   - `ai-registry.sync.ts`: `onApplicationBootstrap` sob `pg_advisory_xact_lock(AI_REGISTRY)`;
     é o upsert idempotente de research A4 e A5:
     - configurações, ferramentas, agentes, versões de agente, instruções, esquemas (via
@@ -245,7 +245,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   `006/SC-013` e `006/FR-067`: com `PRODUCTION_AI_DEFINITIONS`, a API sobe, o catálogo de
   rotas da 001–005 continua igual (mesmas entradas, só as `ai*` novas) e as permissões de
   cada papel da 001–005 continuam as mesmas.
-- [ ] T018 [P] Fronteira de provedores (research A15):
+- [X] T018 [P] Fronteira de provedores (research A15):
   - `no-restricted-imports` em `apps/api/eslint.config.*` para os SDKs listados em A15 em
     todo `src/**`, exceto `src/modules/ai/gateway/providers/**`;
   - proibição de importar `modules/ai/{gateway,tools,output,registry}/**` fora de
@@ -370,6 +370,8 @@ na fila.
     3. o runner, com erros isolados por execução;
   - `kick()` sem sobreposição;
   - timer de `ai.intervalSeconds` no bootstrap (nada com `0`), parado no shutdown.
+
+  Acrescentar `drain(t, now)` (`runOnce` até não haver trabalho) em `apps/api/test/helpers/ai.ts`.
 - [ ] T029 [US1] `apps/api/src/modules/ai/execution/ai-executions.controller.ts`, com as 5
   rotas de execução de `contracts/http-api.md` (`@RequirePermissions("ia.execucoes.visualizar")`,
   202 ou 200 no pedido):

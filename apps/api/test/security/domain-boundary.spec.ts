@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001, 003 and 004) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003, 004 and 006) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -35,6 +35,22 @@ const EXPECTED_MODELS = [
   "ClassPlan",
   "Topic",
   "TopicSyllabusItem",
+  // 006 — AI foundation: generic infrastructure, no agent of any domain (006/FR-003).
+  "AiModelConfig",
+  "AiAgent",
+  "AiAgentVersion",
+  "AiPromptVersion",
+  "AiOutputSchemaVersion",
+  "AiTool",
+  "AiAgentTool",
+  "AiExecution",
+  "AiExecutionTransition",
+  "AiExecutionOutput",
+  "AiModelCall",
+  "AiToolCall",
+  "AiProposal",
+  "AiEvaluationCase",
+  "AiEvaluationResult",
 ];
 
 /**
@@ -101,7 +117,7 @@ function schemaNames() {
   return { models, names: [...models, ...enums, ...maps, ...fields] };
 }
 
-describe("004/E22 fronteira do domínio (FR-080, critério 27)", () => {
+describe("004/E22 006/FR-003 fronteira do domínio (FR-080, critério 27)", () => {
   let routes: string[];
 
   beforeAll(async () => {

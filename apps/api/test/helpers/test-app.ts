@@ -53,13 +53,14 @@ export interface TestApp {
 
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const base = loadConfig(process.env);
-  // Timers off: tests drive the maintenance, mail retry and syllabus workers with `runOnce`.
+  // Timers off: tests drive the maintenance, mail retry, syllabus and AI workers with `runOnce`.
   return {
     ...base,
     maintenanceIntervalSeconds: 0,
     mailRetryIntervalSeconds: 0,
     ...overrides,
     syllabus: { ...base.syllabus, processingIntervalSeconds: 0, ...overrides.syllabus },
+    ai: { ...base.ai, intervalSeconds: 0, ...overrides.ai },
   };
 }
 

@@ -79,6 +79,27 @@ describe("AuditService metadata allowlist (FR-071)", () => {
     }
   });
 
+  it("006/FR-062 no AI event type allows a content-bearing key, and content keys are refused", () => {
+    const content = /^(prompt|instructions|systemInstructions|input|output|payload|content|arguments|args|result|name|title|text|message|apiKey|credential|secret|token)$/i;
+    const types = Object.keys(AUDIT_EVENT_METADATA).filter((type) => type.startsWith("ai_"));
+    expect(types).toHaveLength(19);
+    for (const type of types) {
+      for (const key of AUDIT_EVENT_METADATA[type as keyof typeof AUDIT_EVENT_METADATA]) {
+        expect(content.test(key), `${type}.${key}`).toBe(false);
+      }
+    }
+    expect(() => sanitizeMetadata("ai_execution.requested", { prompt: "x" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("ai_execution.completed", { output: "x" })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("ai_proposal.created", { payload: {} as never })).toThrow(AuditMetadataError);
+    expect(() => sanitizeMetadata("ai_tool.called", { arguments: "x" })).toThrow(AuditMetadataError);
+    expect(sanitizeMetadata("ai_tool.failed", { toolKey: "t", sequence: 1, status: "DENIED", errorCode: "AI_TOOL_NOT_ALLOWED" })).toEqual({
+      toolKey: "t",
+      sequence: 1,
+      status: "DENIED",
+      errorCode: "AI_TOOL_NOT_ALLOWED",
+    });
+  });
+
   it("record() refuses before writing", async () => {
     const writes: unknown[] = [];
     const fakeTx = { auditEvent: { create: async (args: unknown) => void writes.push(args) } };

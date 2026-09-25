@@ -56,11 +56,24 @@ export const configSchema = z.object({
   RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY: positiveInt(50),
   RATE_LIMIT_SYLLABUS_UPLOADS_HOURLY: positiveInt(20),
   RATE_LIMIT_SYLLABUS_RETRIES_HOURLY: positiveInt(10),
+  RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE: positiveInt(10),
+  RATE_LIMIT_AI_DECISIONS_PER_MINUTE: positiveInt(30),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
   SYLLABUS_MAX_FILE_MB: positiveInt(10),
   SYLLABUS_PROCESSING_INTERVAL_SECONDS: nonNegativeInt(10),
   SYLLABUS_PROCESSING_TIMEOUT_SECONDS: positiveInt(120),
+  AI_EXECUTION_INTERVAL_SECONDS: nonNegativeInt(5),
+  AI_EXECUTION_TOTAL_TIMEOUT_SECONDS: positiveInt(120),
+  AI_MODEL_CALL_TIMEOUT_SECONDS: positiveInt(60),
+  AI_TOOL_TIMEOUT_SECONDS: positiveInt(10),
+  AI_MAX_MODEL_CALLS: positiveInt(5),
+  AI_MAX_TOOL_CALLS: positiveInt(10),
+  AI_MAX_RETRIES: nonNegativeInt(2),
+  AI_MAX_INPUT_KB: positiveInt(200),
+  AI_MAX_OUTPUT_KB: positiveInt(200),
+  AI_PROPOSAL_TTL_DAYS: positiveInt(30),
+  AI_RECORD_RETENTION_DAYS: positiveInt(365),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -89,14 +102,39 @@ export interface AppConfig {
     /** Syllabus (E20): uploads and "Tentar novamente" per teacher per hour. */
     syllabusUploadsHourly: number;
     syllabusRetriesHourly: number;
+    /** AI (006 research A17): execution requests and proposal decisions per user per minute. */
+    aiExecutionsPerMinute: number;
+    aiDecisionsPerMinute: number;
   };
   maintenanceIntervalSeconds: number;
   /** Class invitation delivery retry worker interval (FR-019, D5); 0 disables it. */
   mailRetryIntervalSeconds: number;
   /** Syllabus documents (E20): upload size limit, processing worker interval (0 disables it, kick() included) and per-attempt extraction timeout. */
   syllabus: { maxFileMb: number; processingIntervalSeconds: number; processingTimeoutSeconds: number };
+  /**
+   * AI foundation (006 research A17): execution worker interval (0 disables it, kick() included —
+   * the global kill switch), per-execution limits, proposal validity and record retention.
+   */
+  ai: {
+    intervalSeconds: number;
+    limits: AiExecutionLimits;
+    proposalTtlDays: number;
+    retentionDays: number;
+  };
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
+}
+
+/** Global limits of an AI execution; an agent may only lower them (006 research A17). */
+export interface AiExecutionLimits {
+  totalTimeoutMs: number;
+  modelCallTimeoutMs: number;
+  toolTimeoutMs: number;
+  maxModelCalls: number;
+  maxToolCalls: number;
+  maxRetries: number;
+  maxInputBytes: number;
+  maxOutputBytes: number;
 }
 
 export class InvalidConfigError extends Error {
@@ -142,6 +180,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       classInviteTeacherHourly: e.RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY,
       syllabusUploadsHourly: e.RATE_LIMIT_SYLLABUS_UPLOADS_HOURLY,
       syllabusRetriesHourly: e.RATE_LIMIT_SYLLABUS_RETRIES_HOURLY,
+      aiExecutionsPerMinute: e.RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE,
+      aiDecisionsPerMinute: e.RATE_LIMIT_AI_DECISIONS_PER_MINUTE,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,
     mailRetryIntervalSeconds: e.MAIL_RETRY_INTERVAL_SECONDS,
@@ -149,6 +189,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       maxFileMb: e.SYLLABUS_MAX_FILE_MB,
       processingIntervalSeconds: e.SYLLABUS_PROCESSING_INTERVAL_SECONDS,
       processingTimeoutSeconds: e.SYLLABUS_PROCESSING_TIMEOUT_SECONDS,
+    },
+    ai: {
+      intervalSeconds: e.AI_EXECUTION_INTERVAL_SECONDS,
+      limits: {
+        totalTimeoutMs: e.AI_EXECUTION_TOTAL_TIMEOUT_SECONDS * 1000,
+        modelCallTimeoutMs: e.AI_MODEL_CALL_TIMEOUT_SECONDS * 1000,
+        toolTimeoutMs: e.AI_TOOL_TIMEOUT_SECONDS * 1000,
+        maxModelCalls: e.AI_MAX_MODEL_CALLS,
+        maxToolCalls: e.AI_MAX_TOOL_CALLS,
+        maxRetries: e.AI_MAX_RETRIES,
+        maxInputBytes: e.AI_MAX_INPUT_KB * 1024,
+        maxOutputBytes: e.AI_MAX_OUTPUT_KB * 1024,
+      },
+      proposalTtlDays: e.AI_PROPOSAL_TTL_DAYS,
+      retentionDays: e.AI_RECORD_RETENTION_DAYS,
     },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };

@@ -89,6 +89,13 @@ export const ErrorCatalog = {
   PLAN_HAS_NO_TOPICS: { status: 422, message: "Crie ao menos um tópico antes de confirmar." },
   TOO_MANY_TOPICS: { status: 422, message: "O planejamento pode ter no máximo 300 tópicos." },
   MEETING_NOT_HELD_YET: { status: 422, message: "Só é possível concluir uma aula a partir da data dela." },
+  AI_AGENT_NOT_FOUND: { status: 404, message: "Este recurso de IA não está disponível." },
+  AI_AGENT_DISABLED: { status: 409, message: "Este recurso de IA está desativado no momento." },
+  AI_MODEL_UNAVAILABLE: { status: 503, message: "A IA está indisponível no momento. Tente de novo mais tarde." },
+  AI_EXECUTION_LIMIT_EXCEEDED: { status: 422, message: "O conteúdo enviado para a IA é grande demais." },
+  AI_IDEMPOTENCY_KEY_REUSED: { status: 409, message: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo." },
+  AI_PROPOSAL_ITEMS_INVALID: { status: 422, message: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte." },
+  AI_RESOURCE_TYPE_NOT_ACCEPTED: { status: 422, message: "Este recurso de IA não pode ser usado aqui." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

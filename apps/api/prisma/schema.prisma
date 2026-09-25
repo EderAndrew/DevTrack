@@ -256,6 +256,11 @@ model User {
   topicsCreated              Topic[]            @relation("TopicCreatedBy")
   topicsUpdated              Topic[]            @relation("TopicUpdatedBy")
 
+  aiExecutionsOwned     AiExecution[] @relation("AiExecutionWorkspace")
+  aiExecutionsRequested AiExecution[] @relation("AiExecutionRequestedBy")
+  aiProposalsOwned      AiProposal[]  @relation("AiProposalWorkspace")
+  aiProposalsDecided    AiProposal[]  @relation("AiProposalDecidedBy")
+
   @@map("users")
 }
 
@@ -278,6 +283,9 @@ model Permission {
   description String
 
   roles RolePermission[]
+
+  aiAgentVersions AiAgentVersion[]
+  aiTools         AiTool[]
 
   @@map("permissions")
 }
@@ -786,4 +794,462 @@ model RateLimitCounter {
 
   @@index([expiresAt])
   @@map("rate_limit_counters")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Spec 006 — AI foundation (specs/006-ai-foundation/data-model.md). Definitions come from code
+// and are synced at startup (research A4); used versions are immutable (triggers, A5). CHECKs,
+// partial indexes, triggers and the ia.* permissions live in the `ai_foundation` migration.
+// ---------------------------------------------------------------------------------------------
+
+enum AiAgentStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+  DEPRECATED
+
+  @@map("ai_agent_status")
+}
+
+/// L3_ACTION exists for the future and is refused by CHECK in this feature (006 FR-006).
+enum AiRiskLevel {
+  L1_READ_ONLY
+  L2_PROPOSAL
+  L3_ACTION
+
+  @@map("ai_risk_level")
+}
+
+enum AiExecutionMode {
+  ASYNC
+
+  @@map("ai_execution_mode")
+}
+
+enum AiPromptStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+
+  @@map("ai_prompt_status")
+}
+
+enum AiModelConfigStatus {
+  ENABLED
+  DISABLED
+
+  @@map("ai_model_config_status")
+}
+
+enum AiToolStatus {
+  ENABLED
+  DISABLED
+
+  @@map("ai_tool_status")
+}
+
+enum AiExecutionStatus {
+  QUEUED
+  RUNNING
+  WAITING_TOOL
+  VALIDATING_OUTPUT
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+
+  @@map("ai_execution_status")
+}
+
+/// Diagnostic step within RUNNING (research A8); the workflow is AiExecutionStatus.
+enum AiExecutionStep {
+  CONTEXT_RESOLVED
+  MODEL_CALL
+  TOOL_CALL
+  OUTPUT_VALIDATION
+  PROPOSAL_CREATED
+
+  @@map("ai_execution_step")
+}
+
+/// DENIED only for tool calls.
+enum AiCallStatus {
+  SUCCEEDED
+  DENIED
+  FAILED
+  TIMED_OUT
+
+  @@map("ai_call_status")
+}
+
+enum AiProposalStatus {
+  READY_FOR_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  EXPIRED
+
+  @@map("ai_proposal_status")
+}
+
+enum AiEvaluationCaseStatus {
+  ACTIVE
+  RETIRED
+
+  @@map("ai_evaluation_case_status")
+}
+
+/// Model configuration; never a credential (FR-018). Status is operational after the first sync.
+model AiModelConfig {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String              @unique
+  provider           String
+  model              String
+  status             AiModelConfigStatus
+  parameters         Json                @default("{}")
+  maxOutputTokens    Int                 @map("max_output_tokens")
+  timeoutMs          Int                 @map("timeout_ms")
+  inputPricePerMTok  Decimal?            @map("input_price_per_mtok") @db.Decimal(12, 6)
+  outputPricePerMTok Decimal?            @map("output_price_per_mtok") @db.Decimal(12, 6)
+  currency           String?             @db.Char(3)
+  definitionHash     String              @map("definition_hash")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  agentVersions     AiAgentVersion[]
+  executions        AiExecution[]
+  modelCalls        AiModelCall[]
+  evaluationResults AiEvaluationResult[]
+
+  @@map("ai_model_configs")
+}
+
+/// Stable identity of an agent; its behavior lives in the versions.
+model AiAgent {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key              String        @unique
+  name             String
+  description      String
+  status           AiAgentStatus
+  currentVersionId String?       @map("current_version_id") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currentVersion  AiAgentVersion?         @relation("AiAgentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  versions        AiAgentVersion[]        @relation("AiAgentVersions")
+  prompts         AiPromptVersion[]
+  outputSchemas   AiOutputSchemaVersion[]
+  evaluationCases AiEvaluationCase[]
+
+  @@map("ai_agents")
+}
+
+/// Snapshot of an agent definition; content immutable once `used_at` is set (trigger).
+model AiAgentVersion {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId               String          @map("agent_id") @db.Uuid
+  version               Int
+  riskLevel             AiRiskLevel     @map("risk_level")
+  executionMode         AiExecutionMode @default(ASYNC) @map("execution_mode")
+  requiredPermission    String          @map("required_permission")
+  promptVersionId       String          @map("prompt_version_id") @db.Uuid
+  outputSchemaVersionId String?         @map("output_schema_version_id") @db.Uuid
+  modelConfigId         String          @map("model_config_id") @db.Uuid
+  resourceTypes         String[]        @map("resource_types")
+  proposalType          String?         @map("proposal_type")
+  limits                Json            @default("{}")
+  onToolDenied          String          @default("fail") @map("on_tool_denied")
+  definitionHash        String          @map("definition_hash")
+  usedAt                DateTime?       @map("used_at") @db.Timestamptz(6)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  agent             AiAgent                @relation("AiAgentVersions", fields: [agentId], references: [id], onDelete: Restrict)
+  permission        Permission             @relation(fields: [requiredPermission], references: [key], onDelete: Restrict)
+  promptVersion     AiPromptVersion        @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  outputSchema      AiOutputSchemaVersion? @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
+  modelConfig       AiModelConfig          @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  currentOf         AiAgent[]              @relation("AiAgentCurrentVersion")
+  tools             AiAgentTool[]
+  executions        AiExecution[]
+  proposals         AiProposal[]
+  evaluationResults AiEvaluationResult[]
+
+  @@unique([agentId, version])
+  @@map("ai_agent_versions")
+}
+
+/// System instructions from code; never returned by an endpoint nor logged.
+model AiPromptVersion {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId            String         @map("agent_id") @db.Uuid
+  key                String
+  version            Int
+  systemInstructions String         @map("system_instructions")
+  contentHash        String         @map("content_hash")
+  status             AiPromptStatus
+  usedAt             DateTime?      @map("used_at") @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  agent             AiAgent              @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  agentVersions     AiAgentVersion[]
+  executions        AiExecution[]
+  evaluationResults AiEvaluationResult[]
+
+  @@unique([agentId, key, version])
+  @@map("ai_prompt_versions")
+}
+
+model AiOutputSchemaVersion {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId    String    @map("agent_id") @db.Uuid
+  version    Int
+  jsonSchema Json      @map("json_schema")
+  schemaHash String    @map("schema_hash")
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  agent         AiAgent             @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  agentVersions AiAgentVersion[]
+  executions    AiExecution[]
+  outputs       AiExecutionOutput[]
+
+  @@unique([agentId, version])
+  @@map("ai_output_schema_versions")
+}
+
+model AiTool {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String       @unique
+  name               String
+  description        String
+  riskLevel          AiRiskLevel  @map("risk_level")
+  timeoutMs          Int          @map("timeout_ms")
+  status             AiToolStatus
+  requiredPermission String       @map("required_permission")
+  resourceType       String?      @map("resource_type")
+  inputJsonSchema    Json         @map("input_json_schema")
+  outputFields       String[]     @map("output_fields")
+  definitionHash     String       @map("definition_hash")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  permission Permission    @relation(fields: [requiredPermission], references: [key], onDelete: Restrict)
+  agents     AiAgentTool[]
+  calls      AiToolCall[]
+
+  @@map("ai_tools")
+}
+
+/// Explicit tool allowlist of an agent version (FR-034); no wildcard.
+model AiAgentTool {
+  agentVersionId String @map("agent_version_id") @db.Uuid
+  toolId         String @map("tool_id") @db.Uuid
+
+  agentVersion AiAgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  tool         AiTool         @relation(fields: [toolId], references: [id], onDelete: Restrict)
+
+  @@id([agentVersionId, toolId])
+  @@map("ai_agent_tools")
+}
+
+/// One agent execution; the table is also the worker's queue (research A6).
+model AiExecution {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The session teacher (research A2).
+  workspaceId           String            @map("workspace_id") @db.Uuid
+  requestedByUserId     String            @map("requested_by_user_id") @db.Uuid
+  agentVersionId        String            @map("agent_version_id") @db.Uuid
+  agentKey              String            @map("agent_key")
+  agentVersion          Int               @map("agent_version")
+  promptVersionId       String            @map("prompt_version_id") @db.Uuid
+  promptVersion         Int               @map("prompt_version")
+  outputSchemaVersionId String?           @map("output_schema_version_id") @db.Uuid
+  modelConfigId         String            @map("model_config_id") @db.Uuid
+  provider              String
+  model                 String
+  riskLevel             AiRiskLevel       @map("risk_level")
+  resourceType          String?           @map("resource_type")
+  resourceId            String?           @map("resource_id") @db.Uuid
+  /// Request input; pedagogical, owner-only, never logged.
+  input                 Json              @default("{}")
+  status                AiExecutionStatus @default(QUEUED)
+  step                  AiExecutionStep?
+  errorCode             String?           @map("error_code")
+  modelCalls            Int               @default(0) @map("model_calls")
+  toolCalls             Int               @default(0) @map("tool_calls")
+  /// Times the worker took the execution; model call retries are in ai_model_calls.attempts.
+  claims                Int               @default(0)
+  claimToken            String?           @map("claim_token") @db.Uuid
+  leaseExpiresAt        DateTime?         @map("lease_expires_at") @db.Timestamptz(6)
+  deadlineAt            DateTime          @map("deadline_at") @db.Timestamptz(6)
+  cancelRequestedAt     DateTime?         @map("cancel_requested_at") @db.Timestamptz(6)
+  correlationId         String            @map("correlation_id")
+  idempotencyKey        String            @map("idempotency_key") @db.Uuid
+  requestHash           String            @map("request_hash")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt             DateTime?         @map("started_at") @db.Timestamptz(6)
+  finishedAt            DateTime?         @map("finished_at") @db.Timestamptz(6)
+  durationMs            Int?              @map("duration_ms")
+
+  workspace        User                    @relation("AiExecutionWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  requestedBy      User                    @relation("AiExecutionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  agentVersionRef  AiAgentVersion          @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  promptVersionRef AiPromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  outputSchema     AiOutputSchemaVersion?  @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
+  modelConfig      AiModelConfig           @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  transitions      AiExecutionTransition[]
+  output           AiExecutionOutput?
+  modelCallRows    AiModelCall[]
+  toolCallRows     AiToolCall[]
+  proposal         AiProposal?
+
+  @@unique([requestedByUserId, idempotencyKey])
+  @@index([workspaceId, createdAt(sort: Desc), id])
+  @@index([agentVersionId, createdAt])
+  @@index([createdAt])
+  @@map("ai_executions")
+}
+
+/// Append-only trail of status changes (US1-2).
+model AiExecutionTransition {
+  id          BigInt             @id @default(autoincrement())
+  executionId String             @map("execution_id") @db.Uuid
+  fromStatus  AiExecutionStatus? @map("from_status")
+  toStatus    AiExecutionStatus  @map("to_status")
+  occurredAt  DateTime           @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  execution AiExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, id])
+  @@map("ai_execution_transitions")
+}
+
+/// Validated result of an L1 agent; owner-only.
+model AiExecutionOutput {
+  executionId           String   @id @map("execution_id") @db.Uuid
+  outputSchemaVersionId String   @map("output_schema_version_id") @db.Uuid
+  output                Json
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  execution    AiExecution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  outputSchema AiOutputSchemaVersion @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
+
+  @@map("ai_execution_outputs")
+}
+
+/// One call to the model: the "Uso de IA" of the spec (research A16).
+model AiModelCall {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  executionId   String       @map("execution_id") @db.Uuid
+  sequence      Int
+  modelConfigId String       @map("model_config_id") @db.Uuid
+  provider      String
+  model         String
+  status        AiCallStatus
+  attempts      Int
+  errorCode     String?      @map("error_code")
+  startedAt     DateTime     @map("started_at") @db.Timestamptz(6)
+  durationMs    Int          @map("duration_ms")
+  inputTokens   Int?         @map("input_tokens")
+  outputTokens  Int?         @map("output_tokens")
+  totalTokens   Int?         @map("total_tokens")
+  estimatedCost Decimal?     @map("estimated_cost") @db.Decimal(14, 6)
+  currency      String?      @db.Char(3)
+
+  execution   AiExecution   @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  modelConfig AiModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+
+  @@unique([executionId, sequence])
+  @@index([startedAt])
+  @@map("ai_model_calls")
+}
+
+/// One tool call; never its arguments or result (FR-037).
+model AiToolCall {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  executionId String       @map("execution_id") @db.Uuid
+  sequence    Int
+  /// The key the model asked for, even if unknown.
+  toolKey     String       @map("tool_key")
+  toolId      String?      @map("tool_id") @db.Uuid
+  status      AiCallStatus
+  errorCode   String?      @map("error_code")
+  startedAt   DateTime     @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime     @map("completed_at") @db.Timestamptz(6)
+  durationMs  Int          @map("duration_ms")
+
+  execution AiExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  tool      AiTool?     @relation(fields: [toolId], references: [id], onDelete: Restrict)
+
+  @@unique([executionId, sequence])
+  @@map("ai_tool_calls")
+}
+
+/// Proposal of an L2 agent for the teacher's review; `payload` is immutable (trigger, FR-047).
+model AiProposal {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String           @map("workspace_id") @db.Uuid
+  executionId        String           @unique @map("execution_id") @db.Uuid
+  agentVersionId     String           @map("agent_version_id") @db.Uuid
+  agentKey           String           @map("agent_key")
+  proposalType       String           @map("proposal_type")
+  targetResourceType String           @map("target_resource_type")
+  targetResourceId   String?          @map("target_resource_id") @db.Uuid
+  payload            Json
+  itemIds            String[]         @map("item_ids")
+  acceptedItemIds    String[]         @default([]) @map("accepted_item_ids")
+  status             AiProposalStatus @default(READY_FOR_REVIEW)
+  expiresAt          DateTime         @map("expires_at") @db.Timestamptz(6)
+  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(6)
+  decidedByUserId    String?          @map("decided_by_user_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace    User           @relation("AiProposalWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  execution    AiExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  agentVersion AiAgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  decidedBy    User?          @relation("AiProposalDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, status, createdAt(sort: Desc), id])
+  @@map("ai_proposals")
+}
+
+model AiEvaluationCase {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId   String                 @map("agent_id") @db.Uuid
+  key       String
+  version   Int
+  /// A fixture path or an id, never content copied from a teacher.
+  inputRef  String                 @map("input_ref")
+  expected  Json
+  status    AiEvaluationCaseStatus
+  createdAt DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  agent   AiAgent              @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  results AiEvaluationResult[]
+
+  @@unique([agentId, key, version])
+  @@map("ai_evaluation_cases")
+}
+
+model AiEvaluationResult {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId          String   @map("case_id") @db.Uuid
+  agentVersionId  String   @map("agent_version_id") @db.Uuid
+  promptVersionId String   @map("prompt_version_id") @db.Uuid
+  modelConfigId   String   @map("model_config_id") @db.Uuid
+  provider        String
+  model           String
+  passed          Boolean
+  /// Numbers only.
+  metrics         Json     @default("{}")
+  ranAt           DateTime @default(now()) @map("ran_at") @db.Timestamptz(6)
+
+  evaluationCase AiEvaluationCase @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  agentVersion   AiAgentVersion   @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  promptVersion  AiPromptVersion  @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  modelConfig    AiModelConfig    @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+
+  @@map("ai_evaluation_results")
 }

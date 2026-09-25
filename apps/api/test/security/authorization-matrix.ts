@@ -65,11 +65,25 @@ export const CURRICULUM = [
   "planejamento.alterar_situacao",
 ] as const satisfies PermissionKey[];
 
+/** 006: the teacher's own AI executions and proposals. */
+export const AI_TEACHER = ["ia.execucoes.visualizar", "ia.propostas.revisar"] as const satisfies PermissionKey[];
+
+/** 006: AI operations — ADMIN only, never pedagogical content. */
+export const AI_OPERATIONS = ["ia.operacao.visualizar", "ia.agentes.gerenciar"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
-  ADMIN: [...SESSOES, ...PROFESSORES, ...MANAGERS, "usuarios.visualizar", "usuarios.suspender", "usuarios.reativar"],
+  ADMIN: [
+    ...SESSOES,
+    ...PROFESSORES,
+    ...MANAGERS,
+    "usuarios.visualizar",
+    "usuarios.suspender",
+    "usuarios.reativar",
+    ...AI_OPERATIONS,
+  ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 

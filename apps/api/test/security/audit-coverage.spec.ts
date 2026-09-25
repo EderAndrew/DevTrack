@@ -13,7 +13,34 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/001-foundation-identity-access/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
 ];
+
+/**
+ * 006 types not emitted by the journey yet; each story removes its own as `journey.ts` starts
+ * writing them, and the list ends empty (006 T073). They still pass the contract × catalogue check.
+ */
+const PENDING_006_TYPES = new Set<string>([
+  "ai_execution.requested",
+  "ai_execution.started",
+  "ai_execution.completed",
+  "ai_execution.failed",
+  "ai_execution.cancelled",
+  "ai_execution.cancel_requested",
+  "ai_execution.rate_limited",
+  "ai_tool.called",
+  "ai_tool.failed",
+  "ai_proposal.created",
+  "ai_proposal.approved",
+  "ai_proposal.partially_approved",
+  "ai_proposal.rejected",
+  "ai_proposal.expired",
+  "ai_agent.enabled",
+  "ai_agent.disabled",
+  "ai_model_config.enabled",
+  "ai_model_config.disabled",
+  "ai_registry.synced",
+]);
 
 interface ContractRow {
   type: string;
@@ -27,18 +54,21 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
 
 /**
  * Rows of the event table of one contracts/audit-events.md; `a` / `b` in the type column expands
- * to two rows. The "Tipos aposentados" table (003) is not part of the catalogue.
+ * to two rows. The "Tipos aposentados" table (003) is not part of the catalogue. 006 has an extra
+ * "Spec name" column after the type, dropped here.
  */
 function contractRows(file: string): ContractRow[] {
   const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
+  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text);
   return text
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
     .flatMap((line) => {
-      const [typeCell, actorCell, targetCell, metadataCell] = line
+      const cells = line
         .split(/(?<!\\)\|/)
         .slice(1, -1)
         .map((cell) => cell.trim());
+      const [typeCell, actorCell, targetCell, metadataCell] = hasSpecName ? [cells[0], ...cells.slice(2)] : cells;
       const actors = actorCell!.split(/\\\|/).map((a) => a.trim());
       const target = targetCell === "—" ? null : targetCell!;
       // Allowed keys are the backticked words outside parentheses (those list values).
@@ -67,7 +97,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
@@ -88,7 +118,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.filter((row) => !PENDING_006_TYPES.has(row.type)).map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
       expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 

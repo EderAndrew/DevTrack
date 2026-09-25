@@ -12,6 +12,10 @@ export const LockKey = {
   ADMIN_GUARD_LOCK: 7_001_002n,
   /** Session-level (pg_try_advisory_lock): one maintenance run at a time (R21). */
   MAINTENANCE_LOCK: 7_001_003n,
+  /** Registry sync of the AI definitions at startup, one instance at a time (006 research A4). */
+  AI_REGISTRY: 7_006_001n,
+  /** Expiry sweep of AI proposals by the execution worker (006 research A13). */
+  AI_PROPOSAL_EXPIRY: 7_006_002n,
 } as const;
 
 export type LockKey = (typeof LockKey)[keyof typeof LockKey];
