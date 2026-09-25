@@ -158,10 +158,17 @@ reviewed:
 - **Spec adjustments made during planning** (the spec was updated first, per CLAUDE.md):
   - FR-038: the pending proposal is **rejected** (a teacher decision) before the new
     execution, not in the same transaction;
-  - FR-045: the spec events map to the 006 events instead of being duplicated.
-- **FR-036 "erros por campo"**: the API error body has no field paths (project convention),
-  so the web validates the selection with the same contract schema and flags the field; the
-  API's `422 CURRICULUM_PROPOSAL_INVALID` is the guard.
+  - FR-045: the spec events map to the 006 events instead of being duplicated;
+  - FR-036: the API error body has no field paths (project convention), so the web validates
+    the selection with the same contract schema and flags the field; the API's
+    `422 CURRICULUM_PROPOSAL_INVALID` is the guard;
+  - FR-004: warnings carry no free text; the message comes from the catalog by code;
+  - FR-001/FR-051 (after `/speckit-analyze`): the agent is registered `DISABLED`, and the
+    admin enables it after the on-demand eval passes, so the release gate is enforced by the
+    registry, not only by a checklist.
+- **Audit in the same transaction** (after `/speckit-analyze`): `AiExecutionsService.request`
+  gains an `onCreated(tx, executionId)` hook (C12.4), so `curriculum_ai.analysis_requested`
+  shares the execution's transaction.
 
 ## Project Structure
 
@@ -216,8 +223,9 @@ apps/api/
 │   └── syllabus-revision-drafts.ts                # shared "write draft content" used by save and apply
 ├── src/modules/audit/audit-event-types.ts         # + 2 types
 ├── src/platform/config/config.schema.ts           # + ANTHROPIC_API_KEY?, ANTHROPIC_BASE_URL?, RATE_LIMIT_CURRICULUM_AI_PER_HOUR
-├── scripts/eval-curriculum.ts                     # on-demand eval (compiled)
+├── vitest.eval.config.ts                          # on-demand eval config, outside the default suite (C17)
 └── test/
+    ├── eval/curriculum-agent.eval.ts              # on-demand eval against the real provider
     ├── fixtures/curriculum-agent/{golden/<case>/{document, expected.json, recorded.json}, build-golden.ts, README.md}
     ├── helpers/curriculum-ai.ts                   # createCurriculumAiApp (real curriculum definitions + fake provider), script helpers
     ├── integration/007-us{1..7}-*.spec.ts, 007-us6-evaluation.spec.ts

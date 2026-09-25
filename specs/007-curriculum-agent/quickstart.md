@@ -31,6 +31,8 @@ pnpm --filter api build && pnpm --filter api dev
 pnpm --filter web dev
 ```
 
+0. As ADMIN, enable `curriculum-agent` in "Operação de IA" (it is registered disabled). Before
+   that, the teacher sees "Preencher com IA" unavailable.
 1. Log in as a teacher and open a subject. Upload `apps/api/test/fixtures/syllabus/poo.pdf`
    and wait for "Processado".
 2. Click "Preencher com IA". The stages change without a reload, and "Proposta pronta para
@@ -50,11 +52,12 @@ pnpm --filter web dev
 ## 3. Release gate (constitution XIX, FR-051)
 
 ```bash
-ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum            # real provider, prints per-case metrics, stores results
-ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum --record   # also rewrites recorded.json for review (commit after review)
+ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum                 # real provider, prints per-case metrics, stores results
+ANTHROPIC_API_KEY=... EVAL_RECORD=1 pnpm --filter api eval:curriculum   # also rewrites recorded.json for review (commit after review)
 ```
 
-The agent stays enabled in production only if the run meets:
+The agent is registered disabled. The admin enables `curriculum-agent` in "Operação de IA"
+only after the run meets:
 - 0 unsupported items accepted without a warning;
 - 0 invented fields;
 - ≥ 95 % of expected items found in order;

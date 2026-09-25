@@ -92,7 +92,9 @@ changes are recorded here.
 ## C4. Agent definition
 
 - **Decision**: `curriculum-agent` v1:
-  - `L2_PROPOSAL`, `ASYNC`, `initialStatus: ACTIVE`;
+  - `L2_PROPOSAL`, `ASYNC`, `initialStatus: DISABLED`: the admin enables it in "Operação de
+    IA" after the on-demand eval passes (C17, FR-051). The registry sync writes the status
+    only when it creates the agent, so a later startup never overrides the admin's choice;
   - `requiredPermission: "ementas.revisar"` (existing, so there is no new permission);
   - `resourceTypes: ["SYLLABUS_DOCUMENT"]`;
   - `toolKeys: ["read-curriculum-document"]`;
@@ -149,6 +151,9 @@ changes are recorded here.
   - `null` means there is nothing to propose: the execution ends `COMPLETED` with no proposal
     (`proposal_id` stays null, which the 006 schema allows). The view shows
     `proposalId: null`.
+  - An exception thrown by `build` counts as invalid output: the execution ends `FAILED` with
+    `AI_OUTPUT_VALIDATION_FAILED` and no proposal. The 006 error-code list (FR-050) does not
+    change.
   - Without the hook, the current behavior stays (`content = output`, `itemIds(output)`).
   - For the Curriculum Agent, `build`:
     1. takes the read tool's last successful result;
@@ -255,8 +260,9 @@ changes are recorded here.
      proposal was decided another way, or the accepted set differs, answer
      `409 INVALID_STATE_TRANSITION`.
   4. Build the draft content from `extraction`, keeping only the accepted fields and groups,
-     and validate it with `SaveSyllabusRevisionRequestSchema`. Failure: `422 VALIDATION_ERROR`
-     with the paths, and nothing written (FR-036).
+     and validate it with `SaveSyllabusRevisionRequestSchema`. Failure:
+     `422 CURRICULUM_PROPOSAL_INVALID` (no field paths, per the project's error convention),
+     and nothing written (FR-036). The web runs the same schema first and points to the field.
   5. Draft slot:
      - if there is no draft, create a revision `DRAFT` with source `AI_ASSISTED` and
        `ai_proposal_id`;
@@ -319,7 +325,10 @@ changes are recorded here.
    `AI_EXECUTION_INTERVAL_SECONDS = 0`. It is used by the domain status route (FR-040) and
    never exposes the provider or the model.
 4. `AiExecutionsService.request` accepts an optional `idempotencyKey` derived by the domain
-   (C13); the HTTP contract of `POST /ai/executions` stays unchanged.
+   (C13) and an optional hook `onCreated(tx, executionId)`, which runs inside the
+   transaction that creates the execution, after `ai_execution.requested`. The domain writes
+   its own audit there (C15), so both rows share the transaction; an exception in the hook
+   rolls everything back. The HTTP contract of `POST /ai/executions` stays unchanged.
 5. `AiAgentMetricsSchema` gains, generically for every agent:
    - `outputInvalid` (failed with `AI_OUTPUT_PARSE_FAILED` or `AI_OUTPUT_VALIDATION_FAILED`);
    - `proposals: {created, approved, partiallyApproved, rejected, expired}`;
@@ -435,11 +444,16 @@ changes are recorded here.
   - **CI mode**: `test/integration/007-us6-evaluation.spec.ts` runs every case through the
     real runner with the fake provider replaying `recorded.json`, stores the results through
     `AiEvaluationStore` and asserts the scorer's thresholds.
-  - **On-demand mode**: `pnpm --filter api eval:curriculum [--record]` (compiled script, needs
-    `ANTHROPIC_API_KEY`) runs the same cases against the real provider, prints the metrics,
-    stores them, and with `--record` rewrites `recorded.json` for review. The agent may only
-    be `ACTIVE` in production after this run passes the SC-005 and SC-006 thresholds. This is
-    a release checklist item in `quickstart.md`.
+  - **On-demand mode**: `pnpm --filter api eval:curriculum` (a separate Vitest config,
+    `vitest.eval.config.ts`, outside the default suite; needs `ANTHROPIC_API_KEY`) runs the
+    same cases against the real provider, prints the metrics, stores them, and with
+    `EVAL_RECORD=1` rewrites `recorded.json` for review. It runs under Vitest rather than as a
+    compiled script because the golden fixtures live in `test/`, outside `dist/`, and the Nest
+    app needs the decorator transform.
+  - **Production gate**: the agent is registered `DISABLED` (C4). The admin enables it in
+    "Operação de IA" only after this run passes the SC-005 and SC-006 thresholds. A later
+    change of model config, prompt or schema is evaluated on demand before it is deployed.
+    Both are release steps in `quickstart.md` §3.
 - **Rationale**: CI never calls a real model (006 SC-011), yet the scorer, the grounding check
   and the proposal building are exercised against realistic outputs. The on-demand run is the
   regression gate for model, prompt or schema changes.

@@ -184,8 +184,8 @@ rejeitar e verificar que nada mudou.
    o mesmo da primeira vez, com o mesmo rascunho e nenhum grupo ou item duplicado; uma
    decisão diferente sobre a proposta já decidida é recusada como transição inválida.
 8. **Given** o conteúdo aceito viola uma regra do rascunho da 004 (texto acima do limite,
-   por exemplo), **When** o professor aplica, **Then** a aplicação é recusada com a razão
-   apontada no campo, nada é gravado parcialmente e a proposta continua `READY_FOR_REVIEW`
+   por exemplo), **When** o professor aplica, **Then** a aplicação é recusada com o campo com
+   problema apontado pela interface, nada é gravado parcialmente e a proposta continua `READY_FOR_REVIEW`
    (o professor pode desmarcar o campo e aplicar o resto).
 9. **Given** o documento já tem um rascunho de revisão, **When** o professor aplica a
    proposta, **Then** o sistema avisa que o rascunho existente será substituído e só
@@ -290,8 +290,9 @@ a versão antiga, se usada, não foi sobrescrita.
 
 1. **Given** o Curriculum Agent `curriculum-agent` v1 registrado com nível `L2_PROPOSAL`,
    modo assíncrono, instruções `curriculum-extraction` v1 e esquema de saída v1, **When** a
-   aplicação inicia, **Then** o registro da fundação contém exatamente essas versões e a
-   lista de permissão tem só a ferramenta de leitura do documento.
+   aplicação inicia, **Then** o registro da fundação contém exatamente essas versões, o
+   agente fica desabilitado até o administrador habilitá-lo, e a lista de permissão tem só a
+   ferramenta de leitura do documento.
 2. **Given** instruções v1 já usadas por uma execução, **When** seu conteúdo muda sem nova
    versão, **Then** a inicialização é interrompida pela regra da 006 e é preciso publicar a
    v2.
@@ -385,7 +386,8 @@ execução e uma nova proposta, com a execução e a proposta anteriores intacta
 - **FR-001**: O sistema DEVE registrar na fundação o agente `curriculum-agent` ("Curriculum
   Agent", "Assistente responsável por extrair e estruturar informações existentes em
   documentos institucionais de ementa."), versão 1, nível `L2_PROPOSAL`, modo assíncrono,
-  situação ativa, com a permissão exigida `ementas.revisar`.
+  situação inicial desabilitada (habilitado pelo administrador depois da avaliação,
+  FR-051), com a permissão exigida `ementas.revisar`.
 - **FR-002**: O agente DEVE ter uma única responsabilidade: interpretar um documento de
   ementa e propor o preenchimento dos campos da revisão da ementa. Ele NÃO DEVE planejar o
   semestre, distribuir conteúdo entre encontros, analisar o calendário, decidir quantidade
@@ -402,8 +404,9 @@ execução e uma nova proposta, com a execução e a proposta anteriores intacta
   ordenados, cada um com título opcional e itens ordenados, cada item com texto e origem
   opcional no documento; e avisos, cada um com código de uma lista fechada
   (`FIELD_NOT_FOUND`, `AMBIGUOUS_STRUCTURE`, `LOW_DOCUMENT_QUALITY`, `INCOMPLETE_SECTION`,
-  `UNREADABLE_CONTENT`, `POSSIBLE_DUPLICATE_CONTENT`), campo a que se refere (opcional) e
-  mensagem. Os limites de tamanho de cada campo DEVEM ser os mesmos da revisão da ementa
+  `UNREADABLE_CONTENT`, `POSSIBLE_DUPLICATE_CONTENT`) e campo e grupo a que se refere
+  (opcionais). O aviso não tem texto livre do modelo: a mensagem mostrada ao professor vem do
+  catálogo, pelo código. Os limites de tamanho de cada campo DEVEM ser os mesmos da revisão da ementa
   (004). O esquema NÃO DEVE ter pontuação de confiança.
 - **FR-005**: Mudanças de comportamento DEVEM gerar nova versão do agente, das instruções ou
   do esquema; uma versão usada nunca é sobrescrita (regra da 006). Cada execução registra a
@@ -531,10 +534,12 @@ execução e uma nova proposta, com a execução e a proposta anteriores intacta
   itens; aplicações concorrentes resultam em uma só.
 - **FR-035**: Documento-alvo diferente do analisado ou soma de verificação diferente da
   registrada na proposta DEVE recusar a aplicação com `CURRICULUM_SOURCE_CHANGED`.
-- **FR-036**: Conteúdo que não passe na validação do rascunho da 004 DEVE ser recusado com os
-  erros por campo, sem gravação parcial, e a proposta continua `READY_FOR_REVIEW`. As regras
-  de confirmação da 004 (por exemplo, ao menos um item) valem na confirmação do rascunho,
-  não na aplicação.
+- **FR-036**: Conteúdo aceito que não passe na validação do rascunho da 004 DEVE ser recusado
+  (`422 CURRICULUM_PROPOSAL_INVALID`), sem gravação parcial, e a proposta continua
+  `READY_FOR_REVIEW`. A interface valida a seleção com as mesmas regras antes de enviar e
+  aponta o campo com problema; a recusa do servidor é a proteção final e, como todo erro da
+  API, não traz caminhos de campo. As regras de confirmação da 004 (por exemplo, ao menos um
+  item) valem na confirmação do rascunho, não na aplicação.
 
 **Nova análise**
 
@@ -612,9 +617,9 @@ execução e uma nova proposta, com a execução e a proposta anteriores intacta
   avaliação da 006.
 - **FR-051**: A avaliação DEVE rodar em dois modos: nos testes automatizados, sobre respostas
   gravadas do modelo (sem provedor real); e sob demanda, contra o provedor real, antes de
-  habilitar o agente em produção ou de mudar modelo, instruções ou esquema. O agente só
-  PODE ficar ativo em produção com a avaliação sob demanda aprovada nos limiares de
-  SC-005 e SC-006.
+  habilitar o agente em produção ou de mudar modelo, instruções ou esquema. O agente DEVE ser
+  registrado desabilitado; o administrador só o habilita (tela "Operação de IA" da 006)
+  depois que a avaliação sob demanda for aprovada nos limiares de SC-005 e SC-006.
 
 ### Security, Permissions & Audit *(mandatory if feature has protected operations)*
 

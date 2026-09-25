@@ -10,7 +10,7 @@ The code lives in `apps/api/src/modules/curriculum-ai/definitions/`. The provide
 export function curriculumAiDefinitions(): Pick<AiDefinitions, "agents" | "tools" | "modelConfigs" | "resources"> {
   return {
     agents: [{
-      key: "curriculum-agent", version: 1, initialStatus: "ACTIVE",
+      key: "curriculum-agent", version: 1, initialStatus: "DISABLED",   // enabled by the admin after the eval (FR-051)
       name: "Curriculum Agent",
       description: "Assistente responsável por extrair e estruturar informações existentes em documentos institucionais de ementa.",
       riskLevel: "L2_PROPOSAL",
