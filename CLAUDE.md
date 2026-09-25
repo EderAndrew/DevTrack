@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-24 (004 implemented, plus the US9 amendment)
+Last updated: 2026-09-25 (004 implemented, plus the US9 amendment; 005 in progress)
 
 ## Project state
 
@@ -16,7 +16,11 @@ by e-mail (the only way a student account is created), enrollments and "Minhas t
 (`specs/004-syllabus-planning`) is implemented: all tasks in `tasks.md` are checked: subjects,
 syllabus upload and extraction, syllabus review, the class calendar, the class plan with manual
 topics and coverage, topic editing, plan status (US1–US7), the isolation of the teacher's area
-(US8), the Polish phase and the 2026-09-24 amendment US9 (a topic's class marked completed). A teacher starts on "Minhas disciplinas" after login. Later work starts a new feature through `/speckit-specify`.
+(US8), the Polish phase and the 2026-09-24 amendment US9 (a topic's class marked completed). A teacher starts on "Minhas disciplinas" after login. Phase 005 (`specs/005-design-system`, the active
+feature) is in progress: only the setup tasks T001–T003 are done (local fonts, the
+`apps/web/design-system/` docs skeleton, `apps/web/test/design-system/scan.ts`). Tokens, Geist removal
+and the rest are still pending, so the 005 line under *Active Technologies* describes the plan, not
+the current code. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004), `data-model.md`,
