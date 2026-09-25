@@ -4,15 +4,8 @@ import { nextJsConfig } from "@repo/eslint-config/next-js";
 // config object replaces the whole option list of a rule, so each scope repeats the lists it keeps.
 
 const STACK = [
-  {
-    group: ["@reduxjs/*"],
-    message:
-      "Redux está fora do escopo (FR-028); estado do servidor fica no TanStack Query.",
-  },
-  {
-    group: ["axios", "axios/*"],
-    message: "Use o wrapper de fetch em lib/api (Constituição, stack oficial).",
-  },
+  { group: ["@reduxjs/*"], message: "Redux está fora do escopo (FR-028); estado do servidor fica no TanStack Query." },
+  { group: ["axios", "axios/*"], message: "Use o wrapper de fetch em lib/api (Constituição, stack oficial)." },
   {
     group: [
       "react-icons",
@@ -25,8 +18,7 @@ const STACK = [
       "@phosphor-icons/react",
       "@phosphor-icons/react/*",
     ],
-    message:
-      "Use Lucide (lucide-react), a biblioteca oficial de ícones (005/FR-012).",
+    message: "Use Lucide (lucide-react), a biblioteca oficial de ícones (005/FR-012).",
   },
   {
     group: [
@@ -46,25 +38,21 @@ const STACK = [
 ];
 const API_LAYER = {
   group: ["@/lib/api", "@/lib/api/*", "**/lib/api", "**/lib/api/*"],
-  message:
-    "Só features/*/api e lib/ chamam a API; use as funções da feature (FR-025).",
+  message: "Só features/*/api e lib/ chamam a API; use as funções da feature (FR-025).",
 };
 const SERVER_READS = {
   group: ["@/features/*/api/server", "**/api/server"],
-  message:
-    "Leituras de servidor (next/headers) só em Server Components de app/; aqui o código roda no cliente.",
+  message: "Leituras de servidor (next/headers) só em Server Components de app/; aqui o código roda no cliente.",
 };
 const CONTRACTS_AS_VALUE = {
   name: "@repo/contracts",
   allowTypeImports: true,
-  message:
-    "Componentes compartilhados não conhecem contratos de domínio; só `import type`.",
+  message: "Componentes compartilhados não conhecem contratos de domínio; só `import type`.",
 };
 
 // Design-system layers (005/FR-034): tokens → ui → layout → features → app, each importing only
 // the layers below it.
-const LAYERS_MESSAGE =
-  "Camadas do Design System: tokens → ui → layout → features → app (005/FR-034).";
+const LAYERS_MESSAGE = "Camadas do Design System: tokens → ui → layout → features → app (005/FR-034).";
 const UI_LAYER = {
   group: [
     "@/components/layout",
@@ -84,25 +72,15 @@ const UI_LAYER = {
   message: LAYERS_MESSAGE,
 };
 const LAYOUT_LAYER = {
-  group: [
-    "@/features/*/components",
-    "**/features/*/components",
-    "@/app",
-    "@/app/*",
-    "**/app/*",
-  ],
+  group: ["@/features/*/components", "**/features/*/components", "@/app", "@/app/*", "**/app/*"],
   message: LAYERS_MESSAGE,
 };
 
 const restrictImports = (...patterns) => ({
-  "no-restricted-imports": [
-    "error",
-    { paths: [], patterns: [...STACK, ...patterns] },
-  ],
+  "no-restricted-imports": ["error", { paths: [], patterns: [...STACK, ...patterns] }],
 });
 
-const FETCH_MESSAGE =
-  "Só lib/api/client.ts usa fetch e XMLHttpRequest; chame as funções de features/*/api (FR-025).";
+const FETCH_MESSAGE = "Só lib/api/client.ts usa fetch e XMLHttpRequest; chame as funções de features/*/api (FR-025).";
 const TESTS = ["**/*.test.{ts,tsx}", "test/**", "e2e/**"];
 
 /** @type {import("eslint").Linter.Config[]} */
@@ -122,12 +100,7 @@ export default [
         },
       },
     },
-    rules: {
-      "no-undef": "off",
-      "no-unused-vars": "off",
-      "no-redeclare": "off",
-      "no-dupe-args": "off",
-    },
+    rules: { "no-undef": "off", "no-unused-vars": "off", "no-redeclare": "off", "no-dupe-args": "off" },
   },
   {
     // Evaluated by Node.js at build/start time.
@@ -147,16 +120,8 @@ export default [
         "error",
         { object: "window", property: "fetch", message: FETCH_MESSAGE },
         { object: "globalThis", property: "fetch", message: FETCH_MESSAGE },
-        {
-          object: "window",
-          property: "XMLHttpRequest",
-          message: FETCH_MESSAGE,
-        },
-        {
-          object: "globalThis",
-          property: "XMLHttpRequest",
-          message: FETCH_MESSAGE,
-        },
+        { object: "window", property: "XMLHttpRequest", message: FETCH_MESSAGE },
+        { object: "globalThis", property: "XMLHttpRequest", message: FETCH_MESSAGE },
       ],
     },
   },
@@ -173,10 +138,7 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [CONTRACTS_AS_VALUE],
-          patterns: [...STACK, API_LAYER, SERVER_READS],
-        },
+        { paths: [CONTRACTS_AS_VALUE], patterns: [...STACK, API_LAYER, SERVER_READS] },
       ],
     },
   },
@@ -190,10 +152,7 @@ export default [
   },
   {
     files: ["lib/api/**", ...TESTS],
-    rules: {
-      "no-restricted-globals": "off",
-      "no-restricted-properties": "off",
-    },
+    rules: { "no-restricted-globals": "off", "no-restricted-properties": "off" },
   },
   {
     // Tests stub fetch and may build ApiError; the stack rules still apply.

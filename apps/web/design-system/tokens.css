@@ -257,12 +257,8 @@
   --text-code--line-height: 1.375rem;
   --text-code--font-weight: 400;
 
-  --font-sans:
-    var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, Arial,
-    sans-serif;
-  --font-mono:
-    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* `--font-*: initial` also clears the weights; only these four are allowed. */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
