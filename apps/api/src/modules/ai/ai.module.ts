@@ -6,6 +6,8 @@ import { AiExecutionRunner } from "./execution/ai-execution.runner";
 import { AiExecutionStore } from "./execution/ai-execution.store";
 import { AiExecutionWorker } from "./execution/ai-execution.worker";
 import { AiExecutionsController } from "./execution/ai-executions.controller";
+import { AiToolExecutor } from "./tools/ai-tool-executor";
+import { AiResourceResolver } from "./execution/ai-resource.resolver";
 import { AiExecutionsService } from "./execution/ai-executions.service";
 import { ModelGateway } from "./gateway/model-gateway";
 import { StructuredOutputValidator } from "./output/structured-output.validator";
@@ -33,6 +35,8 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiUsageRecorder,
     AiExecutionStore,
     AiExecutionAborts,
+    AiResourceResolver,
+    AiToolExecutor,
     AiExecutionRunner,
     AiExecutionWorker,
     AiExecutionsService,

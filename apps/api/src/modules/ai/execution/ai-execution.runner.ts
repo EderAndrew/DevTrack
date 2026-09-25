@@ -5,18 +5,29 @@ import { APP_CONFIG } from "../../../platform/config/config.module";
 import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { PermissionResolver } from "../../access-control/permission-resolver";
-import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions, type AiExecutionContext, type UntrustedContent } from "../definitions/types";
+import {
+  AI_DEFINITIONS,
+  type AgentDefinition,
+  type AiDefinitions,
+  type AiExecutionContext,
+  type ModelHistoryEntry,
+  type ModelResponse,
+  type ModelToolSpec,
+  type UntrustedContent,
+} from "../definitions/types";
 import { ModelGateway } from "../gateway/model-gateway";
 import { AiFailure } from "../gateway/provider-errors";
 import { StructuredOutputValidator } from "../output/structured-output.validator";
 import { jsonSchemaOf } from "../registry/ai-definitions.check";
 import { AiModelConfigRegistry, type RegisteredModelConfig } from "../registry/ai-model-config.registry";
+import { AiToolExecutor, type ToolCallOutcome } from "../tools/ai-tool-executor";
 import { AiUsageRecorder } from "../usage/ai-usage.recorder";
 import { AiExecutionAborts } from "./ai-execution-aborts";
 import { createExecutionContext } from "./ai-execution-context";
 import { AiExecutionStore } from "./ai-execution.store";
 import { aiLog } from "./ai-log";
 import { effectiveLimits } from "./ai-limits";
+import { AiResourceResolver } from "./ai-resource.resolver";
 import { buildEnvelope } from "./prompt-envelope";
 
 /** An execution as claimed by the worker. */
@@ -44,7 +55,7 @@ const RUNNING_STATES = ["RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as const
  * re-authorizes against the database, freezes the context, calls the model through the gateway,
  * validates the output and completes in one transaction — every write conditional on the claim,
  * and the completion also on no cancellation, so a late or duplicate writer changes nothing.
- * Tools (US3), loop limits (US6) and proposals (US5) plug into this cycle.
+ * Loop limits (US6) and proposals (US5) plug into this cycle.
  */
 @Injectable()
 export class AiExecutionRunner {
@@ -61,6 +72,8 @@ export class AiExecutionRunner {
     private readonly usage: AiUsageRecorder,
     private readonly store: AiExecutionStore,
     private readonly aborts: AiExecutionAborts,
+    private readonly resources: AiResourceResolver,
+    private readonly toolExecutor: AiToolExecutor,
   ) {}
 
   async run(claimed: ClaimedExecution): Promise<void> {
@@ -91,15 +104,7 @@ export class AiExecutionRunner {
     const limits = effectiveLimits(this.config.ai.limits, definition);
     await this.checkCancel(claimed);
 
-    const request = buildEnvelope({
-      systemInstructions: definition.prompt.systemInstructions,
-      context: definition.buildContext?.(context) ?? {},
-      untrusted: untrustedInput(execution.input),
-      tools: [],
-      history: [],
-    });
-    await this.store.setStep(this.prisma, claimed.id, claimed.claimToken, "MODEL_CALL");
-    const text = await this.callModel(claimed, execution, config, limits, request, definition, signal, 1);
+    const text = await this.converse(claimed, execution, definition, config, context, limits, signal);
     await this.checkCancel(claimed);
 
     const moved = await this.prisma.runInTransaction((tx) =>
@@ -115,6 +120,70 @@ export class AiExecutionRunner {
     await this.complete(claimed, execution, validation.output);
   }
 
+  /**
+   * The model ⇄ tools loop (FR-033–FR-035, contracts/agent-runtime.md step b): each tool call of
+   * the model goes through `AiToolExecutor` in WAITING_TOOL and its result comes back as untrusted
+   * content. A denied call ends the execution unless the agent says `onToolDenied: "continue"`; a
+   * tool that fails (e.g. returns undeclared fields) ends it; a tool timeout goes back to the model.
+   */
+  private async converse(
+    claimed: ClaimedExecution,
+    execution: Loaded,
+    definition: AgentDefinition,
+    config: RegisteredModelConfig,
+    context: AiExecutionContext,
+    limits: ReturnType<typeof effectiveLimits>,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const history: ModelHistoryEntry[] = [];
+    const tools = this.toolSpecs(execution);
+    let modelCalls = 0;
+    let toolCalls = 0;
+    for (;;) {
+      if (modelCalls >= limits.maxModelCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
+      const request = buildEnvelope({
+        systemInstructions: definition.prompt.systemInstructions,
+        context: definition.buildContext?.(context) ?? {},
+        untrusted: untrustedInput(execution.input),
+        tools,
+        history,
+      });
+      await this.store.setStep(this.prisma, claimed.id, claimed.claimToken, "MODEL_CALL");
+      modelCalls += 1;
+      const response = await this.callModel(claimed, execution, config, limits, request, definition, signal, modelCalls);
+      await this.checkCancel(claimed);
+      if (response.kind === "output") return response.text;
+
+      if (!(await this.moveOrStop(claimed, "RUNNING", "WAITING_TOOL", "TOOL_CALL"))) throw new Stop("CANCELLED", "AI_EXECUTION_CANCELLED");
+      history.push({ role: "assistant", toolCalls: response.calls });
+      for (const call of response.calls) {
+        if (toolCalls >= limits.maxToolCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
+        toolCalls += 1;
+        const outcome = await this.toolExecutor.call(context, call, toolCalls, limits);
+        await this.checkCancel(claimed);
+        if (!outcome.ok) {
+          if (outcome.code === "AI_EXECUTION_CANCELLED") throw new Stop("CANCELLED", outcome.code);
+          if (outcome.status === "FAILED") throw new Stop("FAILED", outcome.code);
+          if (outcome.status === "DENIED" && (definition.onToolDenied ?? "fail") === "fail") throw new Stop("FAILED", outcome.code);
+        }
+        history.push({ role: "tool", toolKey: String(call.toolKey), content: toolContent(call.toolKey, outcome) });
+      }
+      if (!(await this.moveOrStop(claimed, "WAITING_TOOL", "RUNNING", "MODEL_CALL"))) throw new Stop("CANCELLED", "AI_EXECUTION_CANCELLED");
+    }
+  }
+
+  /** Only the enabled tools of the allowlist go to the provider: key, description and input JSON Schema (FR-034). */
+  private toolSpecs(execution: Loaded): ModelToolSpec[] {
+    return execution.agentVersionRef.tools.flatMap(({ tool: row }) => {
+      const tool = row.status === "ENABLED" ? this.definitions.tools.find((candidate) => candidate.key === row.key) : undefined;
+      return tool ? [{ key: tool.key, description: tool.description, inputJsonSchema: jsonSchemaOf(tool.inputSchema) }] : [];
+    }).sort((x, y) => x.key.localeCompare(y.key));
+  }
+
+  private moveOrStop(claimed: ClaimedExecution, from: "RUNNING" | "WAITING_TOOL", to: "RUNNING" | "WAITING_TOOL", step: "MODEL_CALL" | "TOOL_CALL") {
+    return this.prisma.runInTransaction((tx) => this.store.move(tx, claimed.id, claimed.claimToken, from, to, new Date(), step));
+  }
+
   /** Permission, agent, config and resource checked again at start (FR-032), from the database. */
   private async reauthorize(execution: Loaded, definition: AgentDefinition, signal: AbortSignal) {
     const agent = execution.agentVersionRef.agent;
@@ -124,11 +193,8 @@ export class AiExecutionRunner {
     const permissions = await this.permissions.effectivePermissions(execution.requestedByUserId);
     if (!permissions.has(execution.agentVersionRef.requiredPermission)) throw new Stop("FAILED", "AI_CONTEXT_ACCESS_DENIED");
     const resource = execution.resourceType && execution.resourceId ? { type: execution.resourceType, id: execution.resourceId } : null;
-    if (resource) {
-      const ownership = this.definitions.resources[resource.type];
-      if (!ownership || !(await ownership.ownedBy(this.prisma, execution.workspaceId, resource.id))) {
-        throw new Stop("FAILED", "AI_CONTEXT_ACCESS_DENIED");
-      }
+    if (resource && (await this.resources.owns(execution.workspaceId, execution.agentVersionRef.resourceTypes, resource)) !== "owned") {
+      throw new Stop("FAILED", "AI_CONTEXT_ACCESS_DENIED");
     }
     const context: AiExecutionContext = createExecutionContext({
       executionId: execution.id,
@@ -157,7 +223,7 @@ export class AiExecutionRunner {
     definition: AgentDefinition,
     signal: AbortSignal,
     sequence: number,
-  ): Promise<string> {
+  ): Promise<ModelResponse> {
     const startedAt = new Date();
     try {
       const result = await this.gateway.call({
@@ -176,8 +242,7 @@ export class AiExecutionRunner {
         inputTokens: result.response.usage?.inputTokens ?? null,
         outputTokens: result.response.usage?.outputTokens ?? null,
       });
-      if (result.response.kind !== "output") throw new Stop("FAILED", "AI_TOOL_NOT_ALLOWED");
-      return result.response.text;
+      return result.response;
     } catch (error) {
       if (error instanceof AiFailure) {
         await this.recordCall(claimed, config, sequence, startedAt, {
@@ -286,4 +351,15 @@ export class AiExecutionRunner {
 function untrustedInput(input: Prisma.JsonValue): UntrustedContent[] {
   if (input === null || (typeof input === "object" && !Array.isArray(input) && Object.keys(input).length === 0)) return [];
   return [{ source: "input", text: JSON.stringify(input) }];
+}
+
+/**
+ * A tool result as the model sees it: untrusted data. A resource outside the workspace reads as
+ * "not found" with no detail (US2-6, US3-5); other refusals carry only their code.
+ */
+function toolContent(toolKey: unknown, outcome: ToolCallOutcome): UntrustedContent {
+  const source = `tool:${String(toolKey).slice(0, 63)}`;
+  if (outcome.ok) return { source, text: JSON.stringify(outcome.result) };
+  const error = outcome.code === "AI_CONTEXT_ACCESS_DENIED" ? "NOT_FOUND" : outcome.code;
+  return { source, text: JSON.stringify({ error }) };
 }

@@ -5,7 +5,7 @@ import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverif
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
-import { fakeDelay, fakeOutput, fakeText, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
+import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import type { AiTestApp } from "./ai";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
@@ -304,8 +304,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     password: classStudentPassword,
   });
   expect(classAccepted.status).toBe(200);
-  // 006/US1 — AI executions: one completed, one failed on an invalid output, one cancelled in the
-  // queue, one cancelled while running, and the rate limit. The input, the instructions, the
+  // 006/US1, US3 — AI executions: one completed after a tool call, one failed on an invalid output,
+  // one failed on a tool outside the allowlist, one cancelled in the queue, one cancelled while
+  // running, and the rate limit. The input, the instructions, the
   // model's output and the provider's credential are content/secrets the scans look for.
   secrets.push({ kind: "credencial do provedor de IA", value: FAKE_PROVIDER_CREDENTIAL });
   content.push({ kind: "instruções do agente de IA", value: INSTRUCTIONS_MARKER });
@@ -315,19 +316,23 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const requestAi = (extra: object = {}) =>
     teacherClient.post("/api/ai/executions", { agentKey: "reference-l1", resource: aiResource, input: aiInput, idempotencyKey: crypto.randomUUID(), ...extra });
   const aiWorker = t.get(AiExecutionWorker);
-  t.provider.script(fakeOutput({ summary: aiOutput }));
+  t.provider.script(fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
   const aiDone = await requestAi();
   expect(aiDone.status).toBe(202);
   expect(await aiWorker.runOnce()).toBe(1);
   t.provider.script(fakeText(`não é JSON ${aiOutput}`));
   expect((await requestAi()).status).toBe(202);
   expect(await aiWorker.runOnce()).toBe(1);
+  t.provider.script(fakeToolCall("reference.slow", { subjectId }));
+  expect((await requestAi()).status).toBe(202);
+  expect(await aiWorker.runOnce()).toBe(1);
   const aiQueued = await requestAi();
   expect((await teacherClient.post(`/api/ai/executions/${aiQueued.body.id}/cancel`)).body.status).toBe("CANCELLED");
   t.provider.script(fakeDelay(2_000, fakeOutput({ summary: aiOutput })));
   const aiRunning = await requestAi();
+  const aiSeen = t.provider.requests.length;
   const aiCycle = aiWorker.runOnce();
-  for (let i = 0; i < 100 && t.provider.requests.length < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+  for (let i = 0; i < 100 && t.provider.requests.length <= aiSeen; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
   expect((await teacherClient.post(`/api/ai/executions/${aiRunning.body.id}/cancel`)).body.cancelRequested).toBe(true);
   await aiCycle;
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {

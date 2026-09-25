@@ -111,6 +111,12 @@ describe("route access declarations", () => {
         "POST /teacher-invitations",
         "POST /teacher-invitations/:id/resend",
         "POST /teacher-invitations/:id/revoke",
+        // 006
+        "POST /ai/executions",
+        "GET /ai/executions",
+        "GET /ai/executions/:id",
+        "GET /ai/executions/:id/result",
+        "POST /ai/executions/:id/cancel",
       ]),
     );
   });

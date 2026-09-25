@@ -406,7 +406,7 @@ existência do recurso.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T032 [P] [US2] Teste de integração
+- [X] T032 [P] [US2] Teste de integração
   `apps/api/test/integration/006-us2-isolation.spec.ts`:
   - `006/US2-1`: A e B executam cada um na própria área, e `workspace_id` = usuário da
     sessão;
@@ -421,7 +421,7 @@ existência do recurso.
     `FAILED` `AI_CONTEXT_ACCESS_DENIED` sem chamar o provedor; disciplina de A transferida
     ou inexistente no início → idem;
   - usuário que é professor e aluno → permissões de aluno não abrem nada.
-- [ ] T033 [P] [US2] Matriz `apps/api/test/security/006-ai-authorization-matrix.ts` e
+- [X] T033 [P] [US2] Matriz `apps/api/test/security/006-ai-authorization-matrix.ts` e
   `.spec.ts` (`006/SC-001`, `contracts/permissions.md`): 401, 403 (e-mail não verificado,
   STUDENT, MANAGER, ADMIN nas rotas de professor, TEACHER nas de operação) e 404 (A × B) em
   cada rota de execução, com `VALID_BODY` por rota; as rotas de proposta e operação entram
@@ -429,13 +429,13 @@ existência do recurso.
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Resolver de posse em
+- [X] T034 [US2] Resolver de posse em
   `apps/api/src/modules/ai/execution/ai-resource.resolver.ts`:
   `assertOwned(workspaceId, resource, tx)` via `AI_DEFINITIONS.resources`; tipo desconhecido
   para o agente → 422 `AI_RESOURCE_TYPE_NOT_ACCEPTED`; não possuído → 404 `NOT_FOUND`. Usá-lo
   no pedido (T024) e na reautorização do runner (T026), que mapeia para
   `AI_CONTEXT_ACCESS_DENIED`.
-- [ ] T035 [US2] Revisar todas as consultas de `ai-executions.service.ts` para buscar por
+- [X] T035 [US2] Revisar todas as consultas de `ai-executions.service.ts` para buscar por
   `(id, workspace_id)`, e o mapper para nunca devolver `workspace_id` nem ids de usuário.
   Somar a matriz 006 à `authorization-matrix.ts` geral e a `route-declarations.spec.ts`.
 
@@ -455,11 +455,11 @@ ferramenta lenta, e conferir cada resultado.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T036 [P] [US3] Teste unitário
+- [X] T036 [P] [US3] Teste unitário
   `apps/api/src/modules/ai/tools/ai-tool-executor.spec.ts` (`006/FR-035`: ordem das
   checagens), com espiões que provam que nenhuma leitura de dados acontece antes do
   passo 5 de research A14.
-- [ ] T037 [P] [US3] Teste de integração `apps/api/test/integration/006-us3-tools.spec.ts`:
+- [X] T037 [P] [US3] Teste de integração `apps/api/test/integration/006-us3-tools.spec.ts`:
   - `006/US3-1`: `reference.read-subject` válido → executa e o modelo recebe só `{id,
     name}` em `untrusted`; `ai_tool_calls` `SUCCEEDED` sem argumentos; `ai_tool.called`;
   - `006/US3-2`: `reference.slow` fora da allowlist de `reference-l1` → `DENIED`
@@ -487,7 +487,7 @@ ferramenta lenta, e conferir cada resultado.
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] `apps/api/src/modules/ai/tools/ai-tool-executor.ts`:
+- [X] T038 [US3] `apps/api/src/modules/ai/tools/ai-tool-executor.ts`:
   - `call(ctx, {toolKey, arguments}, sequence)`, com as 7 etapas de research A14 e
     `AbortSignal.any([timeout da ferramenta, prazo, cancelamento])`;
   - `ToolContext` sem nada além de `{workspaceId, userId, executionId, correlationId,
@@ -496,7 +496,7 @@ ferramenta lenta, e conferir cada resultado.
     curta;
   - devolve ao runner `{ok, result} | {ok: false, code}`;
   - o resultado vai ao modelo só como `untrusted`.
-- [ ] T039 [US3] Estender `ai-execution.runner.ts` com o laço modelo ⇄ ferramentas:
+- [X] T039 [US3] Estender `ai-execution.runner.ts` com o laço modelo ⇄ ferramentas:
   - `tool_calls` → `WAITING_TOOL`, que executa cada chamada e volta a `RUNNING` com os
     resultados no histórico;
   - regra `onToolDenied`;
@@ -505,7 +505,7 @@ ferramenta lenta, e conferir cada resultado.
 
   Enviar ao provedor só as ferramentas da allowlist (chave, descrição, JSON Schema de
   entrada).
-- [ ] T040 [US3] Emitir `ai_tool.called` e `ai_tool.failed` em
+- [X] T040 [US3] Emitir `ai_tool.called` e `ai_tool.failed` em
   `apps/api/test/helpers/journey.ts` e retirá-los de `PENDING_006_TYPES`.
 
 **Checkpoint**: ferramentas negadas por padrão e verificadas em ordem; suíte verde.

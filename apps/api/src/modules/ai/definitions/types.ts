@@ -2,6 +2,7 @@ import type { AiModelConfigStatus, AiProviderStatus, AiResourceRef } from "@repo
 import type { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
 import type { PrismaService } from "../../../platform/database/prisma.service";
+import type { Tx } from "../../../platform/database/transaction";
 
 /**
  * How the next AI specs declare agents, tools, model configs and providers
@@ -174,7 +175,8 @@ export interface ModelProvider {
 
 /** Ownership check of a resource type inside a teacher's workspace (research A7). */
 export interface ResourceOwnership {
-  ownedBy(db: PrismaService, workspaceId: string, resourceId: string): Promise<boolean>;
+  /** `db` is the client or the caller's transaction. */
+  ownedBy(db: Tx, workspaceId: string, resourceId: string): Promise<boolean>;
 }
 
 /** A tool of any input and output types, as the registry holds them. */

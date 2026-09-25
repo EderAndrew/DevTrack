@@ -17,7 +17,6 @@ import type { AuthContext } from "../../../platform/http/request-context";
 import { RateLimitService } from "../../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../../audit/audit.service";
 import { PermissionResolver } from "../../access-control/permission-resolver";
-import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
 import { ModelGateway } from "../gateway/model-gateway";
 import { AiAgentRegistry, type RegisteredAgent } from "../registry/ai-agent.registry";
 import { stableHash } from "../registry/ai-definitions.check";
@@ -27,6 +26,7 @@ import { AiExecutionStore } from "./ai-execution.store";
 import { EXECUTION_SUMMARY_INCLUDE, EXECUTION_VIEW_INCLUDE, toExecutionSummary, toExecutionView } from "./ai-execution.view";
 import { AiExecutionWorker } from "./ai-execution.worker";
 import { effectiveLimits } from "./ai-limits";
+import { AiResourceResolver } from "./ai-resource.resolver";
 
 const PAGE_SIZE = 50;
 const RUNNING = ["RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as const;
@@ -49,7 +49,6 @@ export interface RequestedExecution {
 export class AiExecutionsService {
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
-    @Inject(AI_DEFINITIONS) private readonly definitions: AiDefinitions,
     private readonly prisma: PrismaService,
     private readonly rateLimit: RateLimitService,
     private readonly permissions: PermissionResolver,
@@ -60,6 +59,7 @@ export class AiExecutionsService {
     private readonly store: AiExecutionStore,
     private readonly aborts: AiExecutionAborts,
     private readonly worker: AiExecutionWorker,
+    private readonly resources: AiResourceResolver,
   ) {}
 
   async request(auth: AuthContext, body: RequestAiExecutionRequest, requestId: string | null): Promise<RequestedExecution> {
@@ -84,11 +84,7 @@ export class AiExecutionsService {
     if (!permissions.has(agent.requiredPermission)) throw forbidden();
 
     const resource = body.resource ?? null;
-    if (resource) {
-      const ownership = this.definitions.resources[resource.type];
-      if (!agent.resourceTypes.includes(resource.type) || !ownership) throw new AppException("AI_RESOURCE_TYPE_NOT_ACCEPTED");
-      if (!(await ownership.ownedBy(this.prisma, workspaceId, resource.id))) throw notFound();
-    }
+    if (resource) await this.resources.assertOwned(workspaceId, agent.resourceTypes, resource);
 
     const config = await this.modelConfigs.byId(agent.modelConfigId);
     if (!config || config.status !== "ENABLED" || !this.gateway.providerFor(config.provider)) {
