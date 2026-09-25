@@ -210,11 +210,11 @@ research V15).
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T048 [US6] Em `apps/web/test/design-system/docs.test.ts`, para `apps/web/design-system/exam-mode.md`: `005/US6-1` seção "Layout" com as regiões e a ordem de prioridade; `005/US6-2 005/FR-027` tabela de estados com as seis linhas (atual, não respondida, respondida, marcada para revisão, bloqueada, invalidada) e as colunas Cor, Forma, Ícone, Texto visível e Anúncio preenchidas; `005/US6-3 005/FR-028` tabela do `SaveStatus` com salvando, salvo e erro ao salvar; `005/US6-4 005/FR-029` tabela de avisos com as seis situações e as colunas Registro e O que fazer; `005/US6-5` seção do `CodeAnswer` com enunciado, editor, saída, erros e resultado; `005/US6-6 005/FR-030` seção "Atualizações frequentes"; `005/FR-026 005/SC-007` uma seção por componente de FR-026; todo `--token` citado existe em `tokens.css` e todo ícone citado é export de `lucide-react`
+- [X] T048 [US6] Em `apps/web/test/design-system/docs.test.ts`, para `apps/web/design-system/exam-mode.md`: `005/US6-1` seção "Layout" com as regiões e a ordem de prioridade; `005/US6-2 005/FR-027` tabela de estados com as seis linhas (atual, não respondida, respondida, marcada para revisão, bloqueada, invalidada) e as colunas Cor, Forma, Ícone, Texto visível e Anúncio preenchidas; `005/US6-3 005/FR-028` tabela do `SaveStatus` com salvando, salvo e erro ao salvar; `005/US6-4 005/FR-029` tabela de avisos com as seis situações e as colunas Registro e O que fazer; `005/US6-5` seção do `CodeAnswer` com enunciado, editor, saída, erros e resultado; `005/US6-6 005/FR-030` seção "Atualizações frequentes"; `005/FR-026 005/SC-007` uma seção por componente de FR-026; todo `--token` citado existe em `tokens.css` e todo ícone citado é export de `lucide-react`
 
 ### Implementation for User Story 6
 
-- [ ] T049 [US6] Publicar `specs/005-design-system/contracts/exam-mode.md` em `apps/web/design-system/exam-mode.md` (mesmo conteúdo; links relativos apontando para `tokens.md` e `components.md` da pasta) e citá-lo no `README.md`; T048 verde
+- [X] T049 [US6] Publicar `specs/005-design-system/contracts/exam-mode.md` em `apps/web/design-system/exam-mode.md` (mesmo conteúdo; links relativos apontando para `tokens.md` e `components.md` da pasta) e citá-lo no `README.md`; T048 verde
 
 **Checkpoint**: contrato do modo avaliação pronto para a feature de avaliações.
 
