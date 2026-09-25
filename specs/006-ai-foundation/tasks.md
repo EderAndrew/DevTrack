@@ -750,7 +750,7 @@ agente.
 
 ### Tests for User Story 8 ⚠️
 
-- [ ] T063 [P] [US8] Teste de integração
+- [X] T063 [P] [US8] Teste de integração
   `apps/api/test/integration/006-us8-versioning.spec.ts`:
   - `006/US8-1` e `006/SC-008`: execução com as instruções v1 e `fake-default`; reiniciar
     o app com as instruções v2 e `fake-alt` na mesma definição de agente (só a referência
@@ -767,10 +767,10 @@ agente.
 
 ### Implementation for User Story 8
 
-- [ ] T064 [US8] Garantir no pedido (T024) a marcação de `used_at` nas versões de agente,
+- [X] T064 [US8] Garantir no pedido (T024) a marcação de `used_at` nas versões de agente,
   instruções e esquema, e a cópia de `provider`/`model` da configuração corrente.
   Confirmar a regra de hash com `used_at` em `ai-registry.sync.ts` (T017).
-- [ ] T065 [US8] `apps/api/src/modules/ai/evaluation/ai-evaluation.store.ts`
+- [X] T065 [US8] `apps/api/src/modules/ai/evaluation/ai-evaluation.store.ts`
   (`recordCase(agentKey, {key, version, inputRef, expected, status})` idempotente por
   `(agent, key, version)`; `recordResult(caseId, {agentVersionId, promptVersionId,
   modelConfigId, passed, metrics})`) e sua exportação pelo `AiModule`, para as specs dos
@@ -789,7 +789,7 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 
 ### Tests for User Story 9 ⚠️
 
-- [ ] T066 [P] [US9] Testes
+- [X] T066 [P] [US9] Testes
   `apps/web/components/shared/ai/{ai-execution-status,ai-proposal-status,ai-processing-indicator,ai-error-state,ai-proposal-review}.test.tsx`:
   - `006/US9-1`: cada estado com texto, ícone e `role="status"` `aria-live="polite"`, sem
     mover o foco; "Cancelando…";
@@ -802,12 +802,12 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 
 ### Implementation for User Story 9
 
-- [ ] T067 [US9] Componentes em `apps/web/components/shared/ai/` conforme
+- [X] T067 [US9] Componentes em `apps/web/components/shared/ai/` conforme
   `contracts/web-ui.md` (Lucide `Clock`, `Loader`, `CircleCheck`, `CircleX`, `Ban` e
   `TimerOff`; animação desligada com `prefers-reduced-motion`), exportados em `index.ts`.
   Ajustar `apps/web/eslint.config.js` e `apps/web/test/lint-boundaries.test.ts`, se a
   camada `components/shared/ai` precisar.
-- [ ] T068 [US9] Grupo "Inteligência artificial" (`ai`) em
+- [X] T068 [US9] Grupo "Inteligência artificial" (`ai`) em
   `apps/web/features/design-system/registry.ts`, com as 5 entradas (variantes e estados), o
   mostruário `apps/web/features/design-system/components/ai-showcase.tsx` e as 5 seções (6
   subseções cada) em `apps/web/design-system/components.md`. As guardas `docs.test.ts`,

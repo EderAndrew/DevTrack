@@ -1211,3 +1211,185 @@ Para títulos de seção (`h2`); mais de uma vez na mesma página.
 
 O `<h1>` tem só o título (a situação fica fora dele); a ordem de foco é trilha, ações e
 conteúdo.
+
+## AiExecutionStatus
+
+`components/shared/ai/ai-execution-status.tsx` (006, grupo "Inteligência artificial")
+
+### Variantes
+
+Uma por situação da execução, sempre com ícone Lucide e texto:
+- Na fila (`Clock`, `neutral`);
+- Processando (`Loader`, `info`), para `RUNNING`, `WAITING_TOOL` e `VALIDATING_OUTPUT`;
+- Concluída (`CircleCheck`, `success`);
+- Falhou (`CircleX`, `danger`);
+- Cancelada (`Ban`, `neutral`);
+- Tempo esgotado (`TimerOff`, `warning`).
+
+### Estados
+
+"Cancelando…" (`Ban`, `warning`) quando `cancelRequested` e a execução ainda não chegou a
+uma situação final; a situação final vence.
+
+### Quando usar
+
+Em toda tela de agente que mostra o andamento de uma execução, e nas listas de execuções.
+
+### Quando não usar
+
+Para situações que não são de uma execução de IA (use `Status` ou `Badge`); com texto
+próprio no lugar do rótulo padrão.
+
+### Exemplo
+
+```tsx
+<AiExecutionStatus status={execution.status} cancelRequested={execution.cancelRequested} />
+```
+
+### Acessibilidade
+
+`role="status"` com `aria-live="polite"`: a troca de situação é anunciada sem mover o foco.
+O ícone é `aria-hidden`; o texto é o que conta. O ícone de Processando só gira com
+movimento permitido (`motion-safe`).
+
+## AiProposalStatus
+
+`components/shared/ai/ai-proposal-status.tsx` (006, grupo "Inteligência artificial")
+
+### Variantes
+
+Pronta para revisão (`Clock`, `info`), Aprovada (`CircleCheck`, `success`), Aprovada em
+parte (`CircleDashed`, `success`), Rejeitada (`CircleX`, `neutral`) e Expirada (`TimerOff`,
+`warning`).
+
+### Estados
+
+Estático.
+
+### Quando usar
+
+Para a situação de uma proposta de agente (L2), em listas e na revisão.
+
+### Quando não usar
+
+Para a situação da execução que gerou a proposta (use `AiExecutionStatus`).
+
+### Exemplo
+
+```tsx
+<AiProposalStatus status={proposal.status} />
+```
+
+### Acessibilidade
+
+`role="status"` com `aria-live="polite"`; ícone `aria-hidden` e situação sempre em texto.
+
+## AiProcessingIndicator
+
+`components/shared/ai/ai-processing-indicator.tsx` (006, grupo "Inteligência artificial")
+
+### Variantes
+
+Uma aparência: ícone `Loader` na cor `--primary` e texto visível em `text-body-sm`.
+
+### Estados
+
+Padrão ("Processando com IA…") e texto próprio (`label`).
+
+### Quando usar
+
+Enquanto a tela espera uma execução de IA que não informa progresso.
+
+### Quando não usar
+
+Com porcentagem ou etapas (a IA não informa progresso; use `Progress` só quando houver um
+valor real); para carregamentos comuns de dados (use `Spinner` ou `Skeleton`).
+
+### Exemplo
+
+```tsx
+{isRunning ? <AiProcessingIndicator label="Lendo a ementa…" /> : null}
+```
+
+### Acessibilidade
+
+`role="status"`, `aria-live="polite"` e `aria-busy="true"`, sem `aria-valuenow`. O ícone só
+gira com movimento permitido; o texto fica sempre visível.
+
+## AiErrorState
+
+`components/shared/ai/ai-error-state.tsx` (006, grupo "Inteligência artificial")
+
+### Variantes
+
+Uma: `Alert variant="danger"` com título (o que aconteceu) e orientação (o que o professor
+pode fazer), tirados de `AI_ERROR_GUIDANCE` em `lib/messages/error-messages.ts` pelo código
+normalizado.
+
+### Estados
+
+Sem nova tentativa, e com o botão "Tentar de novo" quando há `onRetry`.
+
+### Quando usar
+
+Quando uma execução de IA termina com `errorCode`, ou quando o pedido é recusado com um
+código `AI_*`.
+
+### Quando não usar
+
+Com texto vindo da API, do provedor ou do modelo; para erros que não são de IA (use `Alert`
+com `messageForError`).
+
+### Exemplo
+
+```tsx
+<AiErrorState code={execution.errorCode} onRetry={() => request.mutate(input)} />
+```
+
+### Acessibilidade
+
+`role="alert"` do `Alert` de perigo; o código nunca aparece no texto; "Tentar de novo" é
+um `Button` comum, alcançado por Tab.
+
+## AiProposalReview
+
+`components/shared/ai/ai-proposal-review.tsx` (006, grupo "Inteligência artificial")
+
+### Variantes
+
+Uma base: título "Proposta da IA", a `AiProposalStatus`, a lista de itens (`label` e
+`description` opcional) e as ações "Aprovar tudo" (`primary`), "Aprovar selecionados"
+(`secondary`) e "Rejeitar" (`danger`).
+
+### Estados
+
+Em revisão (todos os itens marcados; "Aprovar selecionados" só aparece com um subconjunto
+próprio marcado), enviando (`pending`: caixas e ações desabilitadas) e decidida (somente
+leitura, sem caixas nem ações).
+
+### Quando usar
+
+Como base da revisão de uma proposta L2 na tela de cada agente, que decide com
+`useDecideAiProposal`.
+
+### Quando não usar
+
+Para aplicar a proposta ao domínio: aprovar só registra a decisão do professor; a aplicação
+é um fluxo do módulo de domínio.
+
+### Exemplo
+
+```tsx
+<AiProposalReview
+  items={proposal.payload.items}
+  status={proposal.status}
+  pending={decide.isPending}
+  onDecide={(decision, acceptedIds) => decide.mutate({ decision, acceptedIds })}
+/>
+```
+
+### Acessibilidade
+
+Cada caixa tem `Label` e a descrição ligada por `aria-describedby`. Toda ação abre um
+`AlertDialog` que prende o foco e o devolve ao botão. O conteúdo vem de um modelo e é
+mostrado só como texto, nunca como HTML.

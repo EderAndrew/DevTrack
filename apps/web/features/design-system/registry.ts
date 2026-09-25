@@ -1,6 +1,15 @@
 import type { ComponentType } from "react";
 import { ButtonShowcase } from "./components/actions-showcase";
 import {
+  AI_EXECUTION_VARIANTS,
+  AI_PROPOSAL_VARIANTS,
+  AiErrorStateShowcase,
+  AiExecutionStatusShowcase,
+  AiProcessingIndicatorShowcase,
+  AiProposalReviewShowcase,
+  AiProposalStatusShowcase,
+} from "./components/ai-showcase";
+import {
   AlertDialogShowcase,
   CardShowcase,
   DialogShowcase,
@@ -44,7 +53,7 @@ import {
   TopbarShowcase,
 } from "./components/navigation-showcase";
 
-export type CatalogGroup = "actions" | "forms" | "feedback" | "containers" | "data" | "navigation" | "layouts";
+export type CatalogGroup = "actions" | "forms" | "feedback" | "containers" | "data" | "navigation" | "layouts" | "ai";
 
 /** Groups of the catalog, in the order of the index (contracts/layouts.md "Catálogo"). */
 export const GROUPS: readonly { id: CatalogGroup; name: string }[] = [
@@ -55,6 +64,7 @@ export const GROUPS: readonly { id: CatalogGroup; name: string }[] = [
   { id: "data", name: "Dados" },
   { id: "navigation", name: "Navegação" },
   { id: "layouts", name: "Layouts" },
+  { id: "ai", name: "Inteligência artificial" },
 ];
 
 /**
@@ -390,5 +400,51 @@ export const REGISTRY: readonly CatalogEntry[] = [
     showcase: StudentLayoutShowcase,
     variants: [],
     states: ["aluno", "largura de tablet"],
+  },
+  // 006 US9: the AI states of future agent screens (006 contracts/web-ui.md).
+  {
+    id: "ai-execution-status",
+    name: "AiExecutionStatus",
+    group: "ai",
+    source: "components/shared/ai/ai-execution-status.tsx",
+    showcase: AiExecutionStatusShowcase,
+    variants: AI_EXECUTION_VARIANTS,
+    states: ["cancelando"],
+  },
+  {
+    id: "ai-proposal-status",
+    name: "AiProposalStatus",
+    group: "ai",
+    source: "components/shared/ai/ai-proposal-status.tsx",
+    showcase: AiProposalStatusShowcase,
+    variants: AI_PROPOSAL_VARIANTS,
+    states: [],
+  },
+  {
+    id: "ai-processing-indicator",
+    name: "AiProcessingIndicator",
+    group: "ai",
+    source: "components/shared/ai/ai-processing-indicator.tsx",
+    showcase: AiProcessingIndicatorShowcase,
+    variants: [],
+    states: ["padrão", "texto próprio"],
+  },
+  {
+    id: "ai-error-state",
+    name: "AiErrorState",
+    group: "ai",
+    source: "components/shared/ai/ai-error-state.tsx",
+    showcase: AiErrorStateShowcase,
+    variants: [],
+    states: ["sem nova tentativa", "com Tentar de novo"],
+  },
+  {
+    id: "ai-proposal-review",
+    name: "AiProposalReview",
+    group: "ai",
+    source: "components/shared/ai/ai-proposal-review.tsx",
+    showcase: AiProposalReviewShowcase,
+    variants: [],
+    states: ["em revisão", "enviando", "decidida"],
   },
 ];

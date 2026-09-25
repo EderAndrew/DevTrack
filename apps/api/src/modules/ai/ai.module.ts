@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { PRODUCTION_AI_DEFINITIONS } from "./definitions";
 import { AI_DEFINITIONS } from "./definitions/types";
+import { AiEvaluationStore } from "./evaluation/ai-evaluation.store";
 import { AiExecutionAborts } from "./execution/ai-execution-aborts";
 import { AiExecutionRunner } from "./execution/ai-execution.runner";
 import { AiExecutionStore } from "./execution/ai-execution.store";
@@ -24,7 +25,8 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
 /**
  * The AI foundation (spec 006): the only way to a model. Folders by responsibility
  * (research A3): definitions, registry, gateway, tools, output, execution, proposals, usage,
- * operations, evaluation and retention. Domain modules use `AiExecutionsService` only.
+ * operations, evaluation and retention. Domain modules use `AiExecutionsService`,
+ * `AiProposalsService` and, for their evaluation cases, `AiEvaluationStore`.
  */
 @Module({
   controllers: [AiExecutionsController, AiProposalsController, AiOperationsController],
@@ -46,7 +48,8 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiExecutionsService,
     AiProposalsService,
     AiOperationsService,
+    AiEvaluationStore,
   ],
-  exports: [AI_DEFINITIONS, AiExecutionsService, AiProposalsService],
+  exports: [AI_DEFINITIONS, AiExecutionsService, AiProposalsService, AiEvaluationStore],
 })
 export class AiModule {}
