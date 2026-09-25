@@ -9,6 +9,7 @@ decoração.
 | [tokens.md](./tokens.md) | cada token de `tokens.css`, valores nos temas claro e escuro e uso permitido |
 | [components.md](./components.md) | cada componente fundamental: variantes, estados, quando usar, quando não usar, exemplo e acessibilidade |
 | [layouts.md](./layouts.md) | AppShell e layout do aluno, e como a tela de conta escolhe entre eles |
+| [exam-mode.md](./exam-mode.md) | contrato visual do modo avaliação e dos componentes de avaliação (construídos pela feature de avaliações) |
 | [exceptions.md](./exceptions.md) | valores fora da escala aceitos no código, com o motivo |
 | `/design-system` | catálogo visual (só em desenvolvimento e nos testes), montado de `features/design-system/registry.ts` |
 
