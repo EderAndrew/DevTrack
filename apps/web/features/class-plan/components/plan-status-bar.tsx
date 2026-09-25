@@ -102,7 +102,7 @@ export function PlanStatusBar({ classId, plan, canChange }: PlanStatusBarProps) 
         {status}
       </p>
       {error ? (
-        <p role="alert" className="m-0 font-semibold text-destructive">
+        <p role="alert" className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}

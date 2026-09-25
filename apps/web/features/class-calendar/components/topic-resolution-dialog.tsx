@@ -30,7 +30,7 @@ interface Choice {
   intoTopicId?: string;
 }
 
-const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground";
+const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 export interface TopicResolutionDialogProps {
   /** The date being unmarked ("YYYY-MM-DD"); `null` keeps the dialog closed. */
@@ -101,7 +101,7 @@ export function TopicResolutionDialog({
           </DialogDescription>
         </DialogHeader>
         {error ? (
-          <p role="alert" className="m-0 font-semibold text-destructive">
+          <p role="alert" className="m-0 font-semibold text-danger-text">
             {error}
           </p>
         ) : null}
@@ -119,7 +119,7 @@ export function TopicResolutionDialog({
                 <fieldset key={topic.id} className="m-0 rounded-md border border-border p-3">
                   <legend className="px-1 font-semibold">{topic.title}</legend>
                   {completed ? (
-                    <p className="m-0 font-semibold text-success">Aula concluída: este tópico só pode ser arquivado.</p>
+                    <p className="m-0 font-semibold text-success-text">Aula concluída: este tópico só pode ser arquivado.</p>
                   ) : null}
                   {ACTIONS.map((action) => {
                     const id = `${name}-${action.value}`;

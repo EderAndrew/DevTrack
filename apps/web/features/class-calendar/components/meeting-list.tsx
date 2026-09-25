@@ -11,7 +11,7 @@ export function MeetingList({ dates }: MeetingListProps) {
   return (
     <ol aria-label="Aulas selecionadas" className="m-0 list-none gap-x-10 p-0 sm:columns-2">
       {dates.map((date, index) => (
-        <li key={date} className="break-inside-avoid py-1.5">
+        <li key={date} className="break-inside-avoid py-2">
           {meetingLabel(index + 1, date)}
         </li>
       ))}

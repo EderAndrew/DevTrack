@@ -155,7 +155,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   return (
     <div className="flex flex-col gap-4">
       {error ? (
-        <p role="alert" className="m-0 font-semibold text-destructive">
+        <p role="alert" className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}
@@ -169,7 +169,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
           endMonth={end}
           defaultMonth={start}
           weekStartsOn={0}
-          className="rounded-md border border-border p-5 [--cell-size:--spacing(12)] [&_th]:text-sm [&_td[data-day]]:p-0.5"
+          className="rounded-md border border-border p-5 [--cell-size:--spacing(12)] [&_th]:text-body-sm [&_td[data-day]]:p-1"
         />
         <div className="flex min-w-60 flex-1 flex-col gap-3">
           <p aria-live="polite" className="m-0 font-semibold">

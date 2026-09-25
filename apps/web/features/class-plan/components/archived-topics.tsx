@@ -53,7 +53,7 @@ export function ArchivedTopics({ classId, count, topics, canEdit, busy, onRestor
                 <span className="text-muted-foreground">Juntado em: {titles.get(topic.mergedIntoTopicId) ?? "outro tópico"}.</span>
               ) : null}
               {topic.completedOn ? (
-                <span className="font-semibold text-success">Aula concluída em {formatDate(topic.completedOn)}.</span>
+                <span className="font-semibold text-success-text">Aula concluída em {formatDate(topic.completedOn)}.</span>
               ) : null}
               {canEdit && !topic.completedOn ? (
                 <Button

@@ -25,7 +25,7 @@ export function CoveragePanel({ coverage, topics, canEdit, onCreateFromItem }: C
       </p>
       {coverage.groups.map((group) => (
         <div key={group.id} role="group" aria-labelledby={`grupo-${group.id}`}>
-          <h3 id={`grupo-${group.id}`} className="m-0 mb-2 text-base">
+          <h3 id={`grupo-${group.id}`} className="m-0 mb-2 text-body font-semibold">
             {group.title ?? "Itens"}
           </h3>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">

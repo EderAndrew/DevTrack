@@ -152,7 +152,7 @@ export function ClassForm({ initial, defaultSubjectId }: ClassFormProps) {
           )}
         />
         {subjectError ? (
-          <p id={fieldErrorId(FIELD_IDS.subjectId)} className="m-0 font-semibold text-destructive">
+          <p id={fieldErrorId(FIELD_IDS.subjectId)} className="m-0 font-semibold text-danger-text">
             {subjectError}
           </p>
         ) : null}
@@ -190,7 +190,7 @@ export function ClassForm({ initial, defaultSubjectId }: ClassFormProps) {
           {...register("description")}
         />
         {descriptionError ? (
-          <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-destructive">
+          <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-danger-text">
             {descriptionError}
           </p>
         ) : null}

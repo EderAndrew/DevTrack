@@ -85,7 +85,7 @@ export function SyllabusUpload({ subjectId, onUploaded }: SyllabusUploadProps) {
     <div className="flex flex-col gap-3">
       {notice ? <Notice role="status">{notice}</Notice> : null}
       {error ? (
-        <p role="alert" className="m-0 font-semibold text-destructive">
+        <p role="alert" className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}
@@ -103,7 +103,7 @@ export function SyllabusUpload({ subjectId, onUploaded }: SyllabusUploadProps) {
         )}
       >
         <Label htmlFor={inputId}>Arquivo da ementa</Label>
-        <p id={hintId} className="m-0 text-sm text-muted-foreground">
+        <p id={hintId} className="m-0 text-body-sm text-muted-foreground">
           PDF, DOCX, PNG ou JPG, até 10 MB. Você também pode soltar o arquivo aqui.
         </p>
         <input
@@ -114,9 +114,9 @@ export function SyllabusUpload({ subjectId, onUploaded }: SyllabusUploadProps) {
           aria-describedby={hintId}
           disabled={upload.isPending}
           onChange={(event) => choose(event.target.files?.[0])}
-          className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:font-medium"
+          className="text-body-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:font-medium"
         />
-        {file ? <p className="m-0 text-sm">Arquivo escolhido: {file.name}</p> : null}
+        {file ? <p className="m-0 text-body-sm">Arquivo escolhido: {file.name}</p> : null}
       </div>
       {progress !== null ? (
         <Progress value={progress} aria-label="Progresso do envio" aria-valuetext={`${progress}%`} />

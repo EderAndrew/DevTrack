@@ -22,9 +22,9 @@ export function TopicSummary({ topic, header, actions }: { topic: TopicView; hea
   return (
     <li className={`rounded-md border p-3 ${completed ? "border-2 border-success" : "border-border"}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h4 className="m-0 text-base">{topic.title}</h4>
+        <h4 className="m-0 text-body">{topic.title}</h4>
         {completed ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-success-surface px-2 py-0.5 text-sm font-semibold text-success">
+          <span className="inline-flex items-center gap-1 rounded-md bg-success-surface px-2 py-1 text-body-sm font-semibold text-success-text">
             <CircleCheck aria-hidden="true" className="size-4" />
             Aula concluída
           </span>
@@ -38,7 +38,7 @@ export function TopicSummary({ topic, header, actions }: { topic: TopicView; hea
             <li key={item.id}>
               {item.text}
               {item.outsideRevision ? (
-                <span className="font-semibold text-destructive"> — Este item não existe na versão da ementa usada agora.</span>
+                <span className="font-semibold text-danger-text"> — Este item não existe na versão da ementa usada agora.</span>
               ) : null}
             </li>
           ))}

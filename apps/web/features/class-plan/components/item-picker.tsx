@@ -62,7 +62,7 @@ export function ItemPicker({ idPrefix, groups, value, onChange, error, legend = 
         aria-describedby={error ? fieldErrorId(idPrefix) : undefined}
       />
       {error ? (
-        <p id={fieldErrorId(idPrefix)} className="m-0 font-semibold text-destructive">
+        <p id={fieldErrorId(idPrefix)} className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}
