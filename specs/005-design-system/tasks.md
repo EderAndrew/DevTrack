@@ -222,11 +222,11 @@ research V15).
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T050 [P] `apps/api/test/traceability.spec.ts`: acrescentar a 005 a `SPECS` (`path: "specs/005-design-system/spec.md"`, `stories: 7`, `scenarios: 34`, `rows: 26`, `rowsWithoutIds: []`, `successCriteria` com SC-001 – SC-005 e SC-010; SC-006 é a suíte inteira, SC-007 e SC-009 por revisão, SC-008 medido no quickstart §4) e ajustar os títulos que faltarem
-- [ ] T051 [P] `DEPENDENCIES.md`: seção de fontes (Inter e JetBrains Mono, SIL OFL 1.1, origem Fontsource, arquivos em `apps/web/app/fonts`, sem dependência npm); remover a menção à Geist se houver
-- [ ] T052 [P] `CLAUDE.md`: estado do projeto com a 005; em Architecture, os tokens em `apps/web/design-system/tokens.css` (escalas padrão do Tailwind zeradas), a documentação e o catálogo `/design-system`, `components/layout` (AppShell, `Topbar`, `PageHeader`, `StudentLayout`, escolha de layout de conta), e as guardas `token-usage`, `docs`, `identity` e o contraste nos dois temas; em "Rules that are easy to get wrong", "UI só com tokens e componentes do Design System; exceção só com `ds-exception` listada em `exceptions.md`"
-- [ ] T053 Percorrer `specs/005-design-system/quickstart.md` §1–§7 (inclusive tema escuro, zoom de 200%, 768 px, movimento reduzido e a verificação do SC-008 com a fonte bloqueada em §4) e corrigir o que aparecer
-- [ ] T054 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`; tudo verde
+- [X] T050 [P] `apps/api/test/traceability.spec.ts`: acrescentar a 005 a `SPECS` (`path: "specs/005-design-system/spec.md"`, `stories: 7`, `scenarios: 34`, `rows: 26`, `rowsWithoutIds: []`, `successCriteria` com SC-001 – SC-005 e SC-010; SC-006 é a suíte inteira, SC-007 e SC-009 por revisão, SC-008 medido no quickstart §4) e ajustar os títulos que faltarem
+- [X] T051 [P] `DEPENDENCIES.md`: seção de fontes (Inter e JetBrains Mono, SIL OFL 1.1, origem Fontsource, arquivos em `apps/web/app/fonts`, sem dependência npm); remover a menção à Geist se houver
+- [X] T052 [P] `CLAUDE.md`: estado do projeto com a 005; em Architecture, os tokens em `apps/web/design-system/tokens.css` (escalas padrão do Tailwind zeradas), a documentação e o catálogo `/design-system`, `components/layout` (AppShell, `Topbar`, `PageHeader`, `StudentLayout`, escolha de layout de conta), e as guardas `token-usage`, `docs`, `identity` e o contraste nos dois temas; em "Rules that are easy to get wrong", "UI só com tokens e componentes do Design System; exceção só com `ds-exception` listada em `exceptions.md`"
+- [X] T053 Percorrer `specs/005-design-system/quickstart.md` §1–§7 (inclusive tema escuro, zoom de 200%, 768 px, movimento reduzido e a verificação do SC-008 com a fonte bloqueada em §4) e corrigir o que aparecer
+- [X] T054 Rodar `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`; tudo verde
 
 ---
 
