@@ -62,7 +62,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link href="/" className={`${LINK} px-2 py-1 text-xl font-bold`}>
+        <Link href="/" className={`${LINK} px-2 py-1 text-h3 font-bold`}>
           <span className="group-data-[collapsible=icon]:sr-only">DevTrack</span>
           <span aria-hidden="true" className="hidden group-data-[collapsible=icon]:inline">
             D
@@ -160,7 +160,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
         </nav>
       </SidebarContent>
       <SidebarFooter>
-        {me ? <p className="m-0 truncate px-2 text-sm group-data-[collapsible=icon]:sr-only">{me.name}</p> : null}
+        {me ? <p className="m-0 truncate px-2 text-body-sm group-data-[collapsible=icon]:sr-only">{me.name}</p> : null}
         <div className="px-2 group-data-[collapsible=icon]:px-0">
           <LogoutButton className="group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:[&>span]:sr-only" />
         </div>

@@ -46,7 +46,7 @@ export function ErrorSummary({ errors, title = "Corrija os itens abaixo" }: Erro
           role="group"
           aria-labelledby="resumo-erros-titulo"
         >
-          <h2 id="resumo-erros-titulo" className="col-start-2 mt-0 mb-2 text-[1.1rem]">
+          <h2 id="resumo-erros-titulo" className="col-start-2 mt-0 mb-2 text-h3">
             {title}
           </h2>
           <AlertDescription>
@@ -56,7 +56,7 @@ export function ErrorSummary({ errors, title = "Corrija os itens abaixo" }: Erro
                   {error.fieldId ? (
                     <a
                       href={`#${error.fieldId}`}
-                      className="font-semibold text-destructive"
+                      className="font-semibold text-danger-text"
                       onClick={(event) => focusField(event, error.fieldId!)}
                     >
                       {error.message}

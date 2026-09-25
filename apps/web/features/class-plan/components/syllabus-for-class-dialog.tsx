@@ -58,7 +58,7 @@ export function SyllabusForClassDialog({ classId, revisionId }: SyllabusForClass
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="font-semibold text-destructive">
+        <p role="alert" className="font-semibold text-danger-text">
           {error}
         </p>
       ) : null}

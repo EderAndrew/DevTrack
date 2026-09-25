@@ -137,7 +137,7 @@ export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetr
         <section aria-labelledby="revisao-conteudo-titulo">
           <h2 id="revisao-conteudo-titulo">Conteúdo revisado</h2>
           {createError ? (
-            <p role="alert" className="font-semibold text-destructive">
+            <p role="alert" className="font-semibold text-danger-text">
               {createError}
             </p>
           ) : null}

@@ -260,7 +260,7 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
       </p>
       {failure ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
-          <p className="m-0 font-semibold text-destructive">{failure.message}</p>
+          <p className="m-0 font-semibold text-danger-text">{failure.message}</p>
           {failure.conflict ? (
             <Button type="button" variant="secondary" onClick={() => void refresh().then(() => setFailure(null))}>
               Atualizar

@@ -32,7 +32,7 @@ export function Field({ id, name, label, hint, error, required, className, ...in
         {required ? <span className="font-normal text-muted-foreground"> (obrigatório)</span> : null}
       </Label>
       {hint ? (
-        <p id={fieldHintId(id)} className="m-0 text-[0.9rem] text-muted-foreground">
+        <p id={fieldHintId(id)} className="m-0 text-body-sm text-muted-foreground">
           {hint}
         </p>
       ) : null}
@@ -45,7 +45,7 @@ export function Field({ id, name, label, hint, error, required, className, ...in
         {...inputProps}
       />
       {error ? (
-        <p id={fieldErrorId(id)} className="m-0 font-semibold text-destructive">
+        <p id={fieldErrorId(id)} className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}

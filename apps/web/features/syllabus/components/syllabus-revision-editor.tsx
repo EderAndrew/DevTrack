@@ -288,7 +288,7 @@ function TextField({ id, label, error, multiline, ...props }: TextFieldProps) {
         <Input id={id} aria-invalid={error ? true : undefined} aria-describedby={describedBy} {...props} />
       )}
       {error ? (
-        <p id={fieldErrorId(id)} className="m-0 font-semibold text-destructive">
+        <p id={fieldErrorId(id)} className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}
@@ -392,7 +392,7 @@ function GroupFields({
                 {...register(`groups.${index}.items.${item}.text`)}
               />
               {error ? (
-                <p id={fieldErrorId(id)} className="m-0 font-semibold text-destructive">
+                <p id={fieldErrorId(id)} className="m-0 font-semibold text-danger-text">
                   {error}
                 </p>
               ) : null}

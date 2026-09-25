@@ -18,7 +18,7 @@ import { useSubjectDocuments } from "@/features/syllabus/hooks/use-syllabus-docu
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClassPlan, useSelectPlanSyllabus } from "../hooks/use-class-plan";
 
-const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground";
+const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 /** Links of non-archived topics to items that are not in the revision the plan uses (E16). */
 export const outsideLinks = (plan: ClassPlanView) =>
@@ -98,7 +98,7 @@ export function PlanSyllabusPicker({ classId, subjectId, canEdit }: PlanSyllabus
         {status}
       </p>
       {error ? (
-        <p role="alert" className="m-0 font-semibold text-destructive">
+        <p role="alert" className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}

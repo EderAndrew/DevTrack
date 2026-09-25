@@ -98,7 +98,7 @@ export function SubjectForm({ initial, onSaved, onCancel }: SubjectFormProps) {
           {...register("description")}
         />
         {descriptionError ? (
-          <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-destructive">
+          <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-danger-text">
             {descriptionError}
           </p>
         ) : null}

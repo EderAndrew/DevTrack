@@ -34,7 +34,7 @@ import { ItemPicker, withLinkedItems } from "./item-picker";
 
 const FIELD_IDS = { title: "titulo-topico", description: "descricao-topico", meetingId: "aula-topico", itemIds: "busca-item" } as const;
 
-export const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground";
+export const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 type Kind = "create" | "edit" | "merge";
 
@@ -195,7 +195,7 @@ export function TopicFormDialog(props: TopicFormDialogProps) {
               {...register("description")}
             />
             {descriptionError ? (
-              <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-destructive">
+              <p id={fieldErrorId(FIELD_IDS.description)} className="m-0 font-semibold text-danger-text">
                 {descriptionError}
               </p>
             ) : null}

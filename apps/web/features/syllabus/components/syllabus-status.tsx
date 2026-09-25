@@ -75,7 +75,7 @@ export function SyllabusStatus({ documentId, subjectId, canRetry, onFillManually
             O processamento falhou: {SYLLABUS_FAILURE_LABELS[document.failureCategory ?? "INTERNAL"]}.
           </p>
           {retryError ? (
-            <p role="alert" className="m-0 font-semibold text-destructive">
+            <p role="alert" className="m-0 font-semibold text-danger-text">
               {retryError}
             </p>
           ) : null}

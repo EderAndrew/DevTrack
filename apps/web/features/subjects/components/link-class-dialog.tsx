@@ -141,7 +141,7 @@ function LinkClassForm({ subject, onLinked }: LinkClassDialogProps) {
           ))}
         </select>
         {fieldError ? (
-          <p id={fieldErrorId(SELECT_ID)} className="m-0 font-semibold text-destructive">
+          <p id={fieldErrorId(SELECT_ID)} className="m-0 font-semibold text-danger-text">
             {fieldError}
           </p>
         ) : null}

@@ -16,13 +16,13 @@ export function LoginScreen({ next }: LoginScreenProps) {
         aria-label="Sobre o DevTrack"
         className="flex flex-col justify-center gap-3 bg-primary px-6 py-10 text-primary-foreground md:px-12"
       >
-        <p className="m-0 text-4xl font-bold tracking-tight md:text-5xl">DevTrack</p>
-        <p className="m-0 max-w-md text-lg md:text-xl">Plataforma de ensino e avaliação configurável por professor.</p>
+        <p className="m-0 text-display tracking-tight">DevTrack</p>
+        <p className="m-0 max-w-md text-h3 font-normal">Plataforma de ensino e avaliação configurável por professor.</p>
       </section>
       <div className="flex flex-col items-center justify-center gap-4 px-4 py-10">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <h1 data-slot="card-title" className="m-0 text-2xl leading-none font-semibold">
+            <h1 data-slot="card-title" className="m-0 text-h2">
               Entrar
             </h1>
           </CardHeader>
@@ -30,11 +30,11 @@ export function LoginScreen({ next }: LoginScreenProps) {
             <LoginForm next={next} />
           </CardContent>
           {/* No signup link: students join through their teacher's class invitation (003 FR-048). */}
-          <CardFooter className="text-sm">
+          <CardFooter className="text-body-sm">
             <Link href="/esqueci-senha">Esqueci minha senha</Link>
           </CardFooter>
         </Card>
-        <p className="m-0 text-xs text-muted-foreground">Versão {appVersion()}</p>
+        <p className="m-0 text-caption text-muted-foreground">Versão {appVersion()}</p>
       </div>
     </div>
   );

@@ -148,7 +148,7 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
         <Label htmlFor="filtro">Situação</Label>
         <select
           id="filtro"
-          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground"
+          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground"
           value={filter}
           onChange={(event) => void onFilter(event)}
         >
