@@ -7,9 +7,7 @@ import { describe, expect, it } from "vitest";
 // ring (002 S12, 005 contracts/tokens.md).
 
 const TOKENS_URL = new URL("../design-system/tokens.css", import.meta.url);
-const css = existsSync(TOKENS_URL)
-  ? readFileSync(TOKENS_URL, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
-  : "";
+const css = existsSync(TOKENS_URL) ? readFileSync(TOKENS_URL, "utf8").replace(/\/\*[\s\S]*?\*\//g, "") : "";
 
 type Tokens = Record<string, string>;
 
@@ -19,21 +17,12 @@ function blockTokens(source: string, selector: RegExp): Tokens {
   if (start < 0) return {};
   const open = source.indexOf("{", start);
   const body = source.slice(open + 1, source.indexOf("}", open));
-  return Object.fromEntries(
-    [...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [
-      m[1]!,
-      m[2]!.trim(),
-    ]),
-  );
+  return Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }
 
 const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
-const light = blockTokens(
-  darkStart >= 0 ? css.slice(0, darkStart) : css,
-  /:root\s*\{/,
-);
-const dark =
-  darkStart >= 0 ? blockTokens(css.slice(darkStart), /:root\s*\{/) : {};
+const light = blockTokens(darkStart >= 0 ? css.slice(0, darkStart) : css, /:root\s*\{/);
+const dark = darkStart >= 0 ? blockTokens(css.slice(darkStart), /:root\s*\{/) : {};
 const manualDark = blockTokens(css, /:root\[data-theme="dark"\]\s*\{/);
 
 // The dark blocks only override values; aliases (`--card: var(--surface)`) live in `:root`.
@@ -58,9 +47,7 @@ function luminance(hex: string): number {
   if (!match) throw new Error(`cor não é #rrggbb: ${hex}`);
   const [r, g, b] = [0, 2, 4].map((i) => {
     const channel = Number.parseInt(match[1]!.slice(i, i + 2), 16) / 255;
-    return channel <= 0.03928
-      ? channel / 12.92
-      : ((channel + 0.055) / 1.055) ** 2.4;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 }
@@ -74,18 +61,11 @@ type Pair = [foreground: string, background: string, minimum: number];
 
 const SURFACES = ["--background", "--surface"];
 const STATES = ["success", "warning", "danger", "info"];
-const TEXTS = [
-  "--foreground",
-  "--text-secondary",
-  "--primary",
-  ...STATES.map((s) => `--${s}-text`),
-];
+const TEXTS = ["--foreground", "--text-secondary", "--primary", ...STATES.map((s) => `--${s}-text`)];
 const GRAPHICS = [...STATES.map((s) => `--${s}`), "--border-control", "--ring"];
 
 const PAIRS: Pair[] = [
-  ...TEXTS.flatMap((text) =>
-    SURFACES.map((surface): Pair => [text, surface, 4.5]),
-  ),
+  ...TEXTS.flatMap((text) => SURFACES.map((surface): Pair => [text, surface, 4.5])),
   ...STATES.map((s): Pair => [`--${s}-text`, `--${s}-surface`, 4.5]),
   ["--primary-foreground", "--primary", 4.5],
   ["--primary-foreground", "--primary-hover", 4.5],
@@ -94,9 +74,7 @@ const PAIRS: Pair[] = [
   // shadcn aliases the screens still use until the Phase 4 migration.
   ["--muted-foreground", "--card", 4.5],
   ["--sidebar-accent-foreground", "--sidebar-accent", 4.5],
-  ...GRAPHICS.flatMap((graphic) =>
-    SURFACES.map((surface): Pair => [graphic, surface, 3]),
-  ),
+  ...GRAPHICS.flatMap((graphic) => SURFACES.map((surface): Pair => [graphic, surface, 3])),
 ];
 
 describe.each(Object.entries(THEMES))(

@@ -2,14 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  WEB_ROOT,
-  checkRepository,
-  checkText,
-  describeViolation,
-  exceptionMarkers,
-  type Rule,
-} from "./scan";
+import { WEB_ROOT, checkRepository, checkText, describeViolation, exceptionMarkers, type Rule } from "./scan";
 
 // 005 research V9 (FR-033): only the official tokens reach the screens. The heuristic is checked
 // on sample snippets; the repository tests then list every occurrence left to migrate (US1 for
@@ -34,16 +27,12 @@ describe("005/US7-1 005/FR-033 regra valores: recusa valores fora dos tokens", (
     expect(found(code)).toContain(literal);
   });
 
-  it.each([
-    "bg-red-500",
-    "text-white",
-    "bg-black",
-    "border-slate-200",
-    "hover:bg-blue-600/50",
-    "ring-sky-300",
-  ])("classe da paleta padrão %s", (cls) => {
-    expect(found(`<div className="p-2 ${cls}">`)).toEqual([cls]);
-  });
+  it.each(["bg-red-500", "text-white", "bg-black", "border-slate-200", "hover:bg-blue-600/50", "ring-sky-300"])(
+    "classe da paleta padrão %s",
+    (cls) => {
+      expect(found(`<div className="p-2 ${cls}">`)).toEqual([cls]);
+    },
+  );
 
   it.each([
     "text-[13px]",
@@ -89,19 +78,13 @@ describe("005/US7-1 005/FR-033 regra valores: recusa valores fora dos tokens", (
     expect(found(code)).toEqual([what]);
   });
 
-  it.each(["2xl:p-4", "max-sm:hidden", "min-[900px]:flex", "max-md:p-2"])(
-    "ponto de quebra inexistente %s",
-    (cls) => {
-      expect(found(`<div className="${cls}">`)).toEqual([cls]);
-    },
-  );
+  it.each(["2xl:p-4", "max-sm:hidden", "min-[900px]:flex", "max-md:p-2"])("ponto de quebra inexistente %s", (cls) => {
+    expect(found(`<div className="${cls}">`)).toEqual([cls]);
+  });
 
-  it.each(["sm:p-4", "md:flex", "lg:grid-cols-2", "xl:px-6"])(
-    "ponto de quebra oficial %s é aceito",
-    (cls) => {
-      expect(found(`<div className="${cls}">`)).toEqual([]);
-    },
-  );
+  it.each(["sm:p-4", "md:flex", "lg:grid-cols-2", "xl:px-6"])("ponto de quebra oficial %s é aceito", (cls) => {
+    expect(found(`<div className="${cls}">`)).toEqual([]);
+  });
 
   it("ícone Lucide fora de size-4, size-5 e size-6", () => {
     const code = [
@@ -113,14 +96,8 @@ describe("005/US7-1 005/FR-033 regra valores: recusa valores fora dos tokens", (
       "/>",
       '<Check className="size-5" />',
     ].join("\n");
-    expect(found(code)).toEqual([
-      "<Check> size-3",
-      "<Close> size-8",
-      "<Check> size-3.5",
-    ]);
-    expect(found('<span className="[&_svg]:size-3">')).toEqual([
-      "[&_svg]:size-3",
-    ]);
+    expect(found(code)).toEqual(["<Check> size-3", "<Close> size-8", "<Check> size-3.5"]);
+    expect(found('<span className="[&_svg]:size-3">')).toEqual(["[&_svg]:size-3"]);
   });
 
   it("aceita tamanho e posição, tokens e utilitários sem escala", () => {
@@ -130,31 +107,14 @@ describe("005/US7-1 005/FR-033 regra valores: recusa valores fora dos tokens", (
   });
 
   it("005/US7-3 aceita a linha com ds-exception: <motivo> na própria linha ou na anterior", () => {
-    expect(
-      found(
-        '<div className="p-7" /> {/* ds-exception: alinhamento com a régua */}',
-      ),
-    ).toEqual([]);
-    expect(
-      found(
-        '// ds-exception: alinhamento com a régua\n<div className="p-7" />',
-      ),
-    ).toEqual([]);
-    expect(
-      found(
-        '// ds-exception: alinhamento com a régua\n\n<div className="p-7" />',
-      ),
-    ).toEqual(["p-7"]);
+    expect(found('<div className="p-7" /> {/* ds-exception: alinhamento com a régua */}')).toEqual([]);
+    expect(found('// ds-exception: alinhamento com a régua\n<div className="p-7" />')).toEqual([]);
+    expect(found('// ds-exception: alinhamento com a régua\n\n<div className="p-7" />')).toEqual(["p-7"]);
   });
 
   it("falha com arquivo:linha na mensagem", () => {
-    const [violation] = checkText(
-      FEATURE,
-      'export const a = 1;\n<div className="bg-red-500" />',
-    );
-    expect(describeViolation(violation!)).toMatch(
-      /^features\/x\/components\/a\.tsx:2 bg-red-500 — /,
-    );
+    const [violation] = checkText(FEATURE, 'export const a = 1;\n<div className="bg-red-500" />');
+    expect(describeViolation(violation!)).toMatch(/^features\/x\/components\/a\.tsx:2 bg-red-500 — /);
   });
 });
 
@@ -171,16 +131,10 @@ describe("005/US7-1 005/FR-033 regra controles: recusa controles recriados fora 
   });
 
   it("aceita os mesmos elementos em components/ui e o <input> de texto em qualquer lugar", () => {
-    expect(
-      found(
-        '<button type="button"><table><input type="checkbox" />',
-        "controles",
-        "components/ui/a.tsx",
-      ),
-    ).toEqual([]);
-    expect(
-      found('<input type="email" onChange={() => x} />', "controles"),
-    ).toEqual([]);
+    expect(found('<button type="button"><table><input type="checkbox" />', "controles", "components/ui/a.tsx")).toEqual(
+      [],
+    );
+    expect(found('<input type="email" onChange={() => x} />', "controles")).toEqual([]);
   });
 });
 
@@ -202,10 +156,7 @@ function documentedExceptions(): {
   snippet: string;
   reason: string;
 }[] {
-  const doc = readFileSync(
-    join(WEB_ROOT, "design-system/exceptions.md"),
-    "utf8",
-  );
+  const doc = readFileSync(join(WEB_ROOT, "design-system/exceptions.md"), "utf8");
   return doc
     .split("\n")
     .filter((row) => row.startsWith("|") && !/^\|\s*(Arquivo|-)/.test(row))
@@ -233,10 +184,7 @@ describe("005/US7-3 exceções do código = design-system/exceptions.md", () => 
     const markers = exceptionMarkers();
     for (const row of documentedExceptions()) {
       const covered = markers.some(
-        (marker) =>
-          marker.file === row.file &&
-          marker.reason === row.reason &&
-          marker.covers.includes(row.snippet),
+        (marker) => marker.file === row.file && marker.reason === row.reason && marker.covers.includes(row.snippet),
       );
       expect(covered, `${row.file}: ${row.snippet}`).toBe(true);
     }
