@@ -27,7 +27,7 @@ const PERMISSIONS = {
     "disciplinas.editar",
   ],
   MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
-  ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar"],
+  ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar", "ia.operacao.visualizar", "ia.agentes.gerenciar"],
 };
 
 const me = (permissions: string[], emailVerified = true): AppSidebarProps["me"] => ({ name: "Ana Souza", emailVerified, permissions });
@@ -66,7 +66,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     ["STUDENT", ["Minhas turmas", "Meu perfil"]],
     ["TEACHER", ["Minhas disciplinas", "Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
-    ["ADMIN", ["Professores", "Gestores", "Usuários", "Meu perfil"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Operação de IA", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
     expect(menuLinks()).toEqual(expected);
@@ -91,7 +91,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(group.getAttribute("aria-expanded")).toBe("true");
     await userEvent.setup().click(group);
     expect(group.getAttribute("aria-expanded")).toBe("false");
-    expect(menuLinks()).toEqual(["Meu perfil"]);
+    expect(menuLinks()).toEqual(["Operação de IA", "Meu perfil"]);
   });
 
   it("e-mail não verificado não vê Turmas", () => {
@@ -152,7 +152,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     const sidebar = container.querySelector('[data-slot="sidebar"][data-state]');
     expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Operação de IA", "Minhas disciplinas", "Turmas", "Meu perfil"]);
     expect(screen.getByRole("link", { name: "Turmas" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
     await expectNoA11yViolations(container);
@@ -169,7 +169,23 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await userEvent.setup().click(group);
     expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
     expect(group.getAttribute("aria-expanded")).toBe("true");
-    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Operação de IA", "Meu perfil"]);
+  });
+
+  it("006/US7-7 Operação de IA só com ia.operacao.visualizar, e marca a página atual", () => {
+    navigation.pathname = "/admin/ia";
+    const { unmount } = renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    const link = screen.getByRole("link", { name: "Operação de IA" });
+    expect(link.getAttribute("href")).toBe("/admin/ia");
+    expect(link.getAttribute("aria-current")).toBe("page");
+    unmount();
+    for (const role of ["TEACHER", "MANAGER", "STUDENT"] as const) {
+      const view = renderSidebar({ me: me(PERMISSIONS[role]) });
+      expect(screen.queryByRole("link", { name: "Operação de IA" })).toBeNull();
+      view.unmount();
+    }
+    renderSidebar({ me: me(PERMISSIONS.ADMIN, false) });
+    expect(screen.queryByRole("link", { name: "Operação de IA" })).toBeNull();
   });
 
   it("marca a tela atual", () => {

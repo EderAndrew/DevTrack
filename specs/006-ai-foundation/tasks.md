@@ -675,7 +675,7 @@ pedagógico e credenciais.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T055 [P] [US7] Teste de integração
+- [X] T055 [P] [US7] Teste de integração
   `apps/api/test/integration/006-us7-operations.spec.ts`:
   - `006/US7-1`: indicadores por agente, versão, instruções, provedor e modelo nos períodos
     `24h`, `7d` e `30d`, com os totais conferidos contra execuções criadas por fábrica; uso
@@ -688,14 +688,14 @@ pedagógico e credenciais.
   - `006/US7-5`: saúde com `UP`, `DOWN` e `NOT_CONFIGURED` do provedor simulado, sem
     credencial;
   - `006/US7-7`: TEACHER, MANAGER e STUDENT → 403 nas rotas de operação.
-- [ ] T056 [P] [US7] Teste `apps/api/test/security/006-ai-admin-scan.spec.ts` (`006/US7-4`,
+- [X] T056 [P] [US7] Teste `apps/api/test/security/006-ai-admin-scan.spec.ts` (`006/US7-4`,
   `006/SC-007`, `006/FR-031`):
   - cria execuções L1 e L2 de A e B com as marcadoras de instruções, entrada, saída e
     conteúdo de disciplina, e uma credencial falsa na config do provedor simulado
     (`FAKE_PROVIDER_API_KEY=sk-fake-006-…`);
   - varre todas as respostas de `/ai/operations/*`: nenhuma marcadora, credencial, `userId`,
     `workspaceId` ou `resourceId`.
-- [ ] T057 [P] [US7] Testes do web
+- [X] T057 [P] [US7] Testes do web
   `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
   - `006/US7-6`: as 5 seções com dados e vazias; `Select` de período refaz a consulta;
     "Desabilitar" com `AlertDialog` e texto das consequências; ações escondidas sem
@@ -707,26 +707,26 @@ pedagógico e credenciais.
 
 ### Implementation for User Story 7
 
-- [ ] T058 [US7] `apps/api/src/modules/ai/operations/ai-metrics.query.ts`: SQL agregado de
+- [X] T058 [US7] `apps/api/src/modules/ai/operations/ai-metrics.query.ts`: SQL agregado de
   research A20 sobre `ai_executions`, `ai_model_calls` e `ai_tool_calls` (nunca `input`,
   `output`, `payload`, `workspace_id` nem `resource_id`), com custo somado em `numeric` e
   devolvido como string. `ai-operations.service.ts` com `health` (`healthCheck` em
   paralelo, 5 s cada, erro → `DOWN`), `metrics`, `listAgents`, `listModelConfigs`,
   `changeAgentStatus` e `changeModelConfigStatus`, com auditoria e invalidação do cache dos
   registros.
-- [ ] T059 [US7] `apps/api/src/modules/ai/operations/ai-operations.controller.ts`, com as 6
+- [X] T059 [US7] `apps/api/src/modules/ai/operations/ai-operations.controller.ts`, com as 6
   rotas de `contracts/http-api.md`:
   - entradas `aiOperations.health|metrics|agents|modelConfigs|changeAgentStatus|changeModelConfigStatus`
     em `endpoints.ts`;
   - linhas na matriz 006 e no `MATRIX`;
   - retirar `ia.operacao.visualizar` e `ia.agentes.gerenciar` de
     `PENDING_006_PERMISSIONS` (que fica vazio).
-- [ ] T060 [US7] Emitir `ai_agent.enabled`, `ai_agent.disabled`, `ai_model_config.enabled`
+- [X] T060 [US7] Emitir `ai_agent.enabled`, `ai_agent.disabled`, `ai_model_config.enabled`
   e `ai_model_config.disabled` em `journey.ts` e retirá-los de `PENDING_006_TYPES`.
-- [ ] T061 [P] [US7] `apps/web/features/ai-operations/api/ai-operations.ts` e
+- [X] T061 [P] [US7] `apps/web/features/ai-operations/api/ai-operations.ts` e
   `hooks/use-ai-operations.ts` (`useAiHealth`, `useAiMetrics(period)`, `useAiAgents`,
   `useAiModelConfigs`, mutations de situação com `invalidateQueries` e `toast`).
-- [ ] T062 [US7] Componentes
+- [X] T062 [US7] Componentes
   `apps/web/features/ai-operations/components/{ai-operations-page,ai-health-table,ai-metrics-table,ai-usage-table,ai-agents-table,ai-model-configs-table,ai-status-toggle}.tsx`,
   conforme `contracts/web-ui.md`. Rota `apps/web/app/(app)/admin/ia/page.tsx` com
   `PageHeader` e `NoAccess` sem permissão. Em `apps/web/lib/navigation.ts`, acrescentar o

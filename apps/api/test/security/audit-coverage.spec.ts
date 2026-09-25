@@ -16,16 +16,6 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
 ];
 
-/**
- * 006 types not emitted by the journey yet; each story removes its own as `journey.ts` starts
- * writing them, and the list ends empty (006 T073). They still pass the contract × catalogue check.
- */
-const PENDING_006_TYPES = new Set<string>([
-  "ai_agent.enabled",
-  "ai_agent.disabled",
-  "ai_model_config.enabled",
-  "ai_model_config.disabled",
-]);
 
 interface ContractRow {
   type: string;
@@ -103,7 +93,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.filter((row) => !PENDING_006_TYPES.has(row.type)).map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
       expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 

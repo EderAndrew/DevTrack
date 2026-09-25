@@ -349,6 +349,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   }
   await proposeAi();
   await aiWorker.runOnce(new Date(Date.now() + (t.config.ai.proposalTtlDays + 1) * 86_400_000));
+  // 006/US7 — the administrator turns an agent and a model config off and on again.
+  for (const [path, off, on] of [
+    ["/api/ai/operations/agents/reference-l1/status", "DISABLED", "ACTIVE"],
+    ["/api/ai/operations/model-configs/fake-alt/status", "DISABLED", "ENABLED"],
+  ] as const) {
+    expect((await adminClient.post(path, { status: off })).status).toBe(200);
+    expect((await adminClient.post(path, { status: on })).status).toBe(200);
+  }
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
     if ((await requestAi()).status === 429) break;
   }

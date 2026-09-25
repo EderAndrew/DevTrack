@@ -96,6 +96,9 @@ export const AiModelConfigViewSchema = z.strictObject({
 });
 export type AiModelConfigView = z.infer<typeof AiModelConfigViewSchema>;
 
+/** Key of an agent or model config in the registry (a code identifier such as `reference-l1`). */
+export const AiRegistryKeySchema = z.string().regex(/^[a-z0-9][a-z0-9.-]{0,62}$/);
+
 /** Only ACTIVE ⇄ DISABLED through the API; DRAFT and DEPRECATED come from code. */
 export const ChangeAiAgentStatusRequestSchema = z.strictObject({ status: z.enum(["ACTIVE", "DISABLED"]) });
 export type ChangeAiAgentStatusRequest = z.infer<typeof ChangeAiAgentStatusRequestSchema>;

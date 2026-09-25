@@ -5,15 +5,6 @@ import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 
-/**
- * 006 permissions whose routes are not in the matrix yet; each task that adds routes removes its
- * own, and the list ends empty (006 T059).
- */
-const PENDING_006_PERMISSIONS: readonly string[] = [
-  "ia.operacao.visualizar",
-  "ia.agentes.gerenciar",
-];
-
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {
   it("toda rota não pública está na matriz exatamente uma vez, e vice-versa", async () => {
@@ -27,7 +18,7 @@ describe("US7 — completude da matriz e do seed", () => {
 
   it("toda permissão do catálogo é exigida por pelo menos uma rota", () => {
     const required = new Set(MATRIX.map((entry) => entry.access));
-    expect(PERMISSIONS.filter((key) => !required.has(key) && !PENDING_006_PERMISSIONS.includes(key))).toEqual([]);
+    expect(PERMISSIONS.filter((key) => !required.has(key))).toEqual([]);
   });
 
   describe("seed × contrato", () => {

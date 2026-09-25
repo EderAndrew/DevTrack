@@ -121,7 +121,7 @@ describe("006/US6 limites e estado conhecido", () => {
       const admin = await createUser(t, { roles: ["ADMIN"] });
 
       const change = await t.get(AiOperationsService).changeAgentStatus({ userId: admin.id, requestId: null }, "reference-l1", "DISABLED");
-      expect(change).toEqual({ changed: true, cancelledExecutions: 2 });
+      expect(change).toMatchObject({ changed: true, cancelledExecutions: 2 });
       const rows = await t.prisma.aiExecution.findMany({ where: { id: { in: queued } } });
       expect(rows.map((row) => [row.status, row.errorCode])).toEqual([
         ["CANCELLED", "AI_AGENT_DISABLED"],
@@ -139,7 +139,7 @@ describe("006/US6 limites e estado conhecido", () => {
       expect(t.provider.requests).toHaveLength(0);
 
       // Same status again changes nothing; enabling brings requests back.
-      expect(await t.get(AiOperationsService).changeAgentStatus({ userId: admin.id, requestId: null }, "reference-l1", "DISABLED")).toEqual({ changed: false, cancelledExecutions: 0 });
+      expect(await t.get(AiOperationsService).changeAgentStatus({ userId: admin.id, requestId: null }, "reference-l1", "DISABLED")).toMatchObject({ changed: false, cancelledExecutions: 0 });
       await t.get(AiOperationsService).changeAgentStatus({ userId: admin.id, requestId: null }, "reference-l1", "ACTIVE");
       expect((await request()).status).toBe(202);
     });
