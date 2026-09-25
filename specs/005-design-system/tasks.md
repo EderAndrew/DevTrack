@@ -165,14 +165,14 @@ permissões do menu (FR-024; research V13).
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T037 [P] [US5] `apps/web/components/layout/student-layout.test.tsx`: `005/US5-1` `banner` com a marca, `nav` "Menu do aluno" com "Minhas turmas" e "Meu perfil" (`aria-current` na atual) e "Sair", `main#conteudo`; nenhum item de professor ou administração nem menu lateral; axe e teclado
-- [ ] T038 [P] [US5] `apps/web/components/layout/account-layout.test.ts`: `005/US5-2 005/US5-3` a função pura `accountLayoutFor(me)` devolve `"app-shell"` com qualquer permissão de `STAFF_AREA_PERMISSIONS` (professor, gestor, administrador, professor que também é aluno) e `"student"` para quem só tem permissões de aluno ou e-mail não verificado
+- [X] T037 [P] [US5] `apps/web/components/layout/student-layout.test.tsx`: `005/US5-1` `banner` com a marca, `nav` "Menu do aluno" com "Minhas turmas" e "Meu perfil" (`aria-current` na atual) e "Sair", `main#conteudo`; nenhum item de professor ou administração nem menu lateral; axe e teclado
+- [X] T038 [P] [US5] `apps/web/components/layout/account-layout.test.ts`: `005/US5-2 005/US5-3` a função pura `accountLayoutFor(me)` devolve `"app-shell"` com qualquer permissão de `STAFF_AREA_PERMISSIONS` (professor, gestor, administrador, professor que também é aluno) e `"student"` para quem só tem permissões de aluno ou e-mail não verificado
 
 ### Implementation for User Story 5
 
-- [ ] T039 [US5] `apps/web/components/layout/student-layout.tsx` (barra superior com a marca, navegação do aluno, `LogoutButton`, conteúdo até `--reading-max`/960 px) e `apps/web/components/layout/account-layout.ts` (`accountLayoutFor`); T037 e T038 verdes
-- [ ] T040 [US5] Mover `apps/web/app/(app)/minhas-turmas/` para `apps/web/app/(student)/minhas-turmas/` com `apps/web/app/(student)/layout.tsx` (`StudentLayout`, lendo `getMeForNavigation()`), e `apps/web/app/(app)/conta/` para `apps/web/app/(account)/conta/` com `apps/web/app/(account)/layout.tsx` (escolhe `AppShell` ou `StudentLayout` por `accountLayoutFor`); URLs e `proxy.ts` inalterados; `PageHeader` nessas páginas
-- [ ] T041 [US5] Rodar `pnpm --filter web test` e `pnpm --filter web test:e2e` (jornadas de aluno e troca de conta verdes)
+- [X] T039 [US5] `apps/web/components/layout/student-layout.tsx` (barra superior com a marca, navegação do aluno, `LogoutButton`, conteúdo até `--reading-max`/960 px) e `apps/web/components/layout/account-layout.ts` (`accountLayoutFor`); T037 e T038 verdes
+- [X] T040 [US5] Mover `apps/web/app/(app)/minhas-turmas/` para `apps/web/app/(student)/minhas-turmas/` com `apps/web/app/(student)/layout.tsx` (`StudentLayout`, lendo `getMeForNavigation()`), e `apps/web/app/(app)/conta/` para `apps/web/app/(account)/conta/` com `apps/web/app/(account)/layout.tsx` (escolhe `AppShell` ou `StudentLayout` por `accountLayoutFor`); URLs e `proxy.ts` inalterados; `PageHeader` nessas páginas
+- [X] T041 [US5] Rodar `pnpm --filter web test` e `pnpm --filter web test:e2e` (jornadas de aluno e troca de conta verdes)
 
 **Checkpoint**: aluno no layout próprio.
 
@@ -187,15 +187,15 @@ FR-032; research V14, V19).
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T042 [P] [US4] `apps/web/features/design-system/components/catalog.test.tsx`: `005/US4-1 005/SC-005` cada entrada de `registry.ts` aparece com seu nome e mostruário, e o registro tem todos os componentes de contracts/components.md e os layouts `AppShell` e `StudentLayout`; `005/US4-2` cada mostruário declara e renderiza variantes e estados (incluindo erro, carregando e desabilitado quando se aplicam) e há uma faixa de 768 px; `005/SC-003 005/SC-004` axe sem violações e todos os controles alcançáveis por Tab com foco visível
-- [ ] T043 [P] [US4] `apps/web/app/(catalog)/design-system/page.test.tsx`: `005/US4-4` com `NODE_ENV=production` a página chama `notFound()`; em desenvolvimento renderiza o índice por grupo
-- [ ] T044 [P] [US4] `apps/web/test/design-system/docs.test.ts`: `005/US4-3 005/FR-032` `README.md` tem as seções de T002; `tokens.md` cita cada token de `tokens.css`; cada entrada do registro tem seção com o mesmo nome em `components.md` ou `layouts.md`, com os subtítulos "Variantes", "Estados", "Quando usar", "Quando não usar", "Exemplo" e "Acessibilidade"
+- [X] T042 [P] [US4] `apps/web/features/design-system/components/catalog.test.tsx`: `005/US4-1 005/SC-005` cada entrada de `registry.ts` aparece com seu nome e mostruário, e o registro tem todos os componentes de contracts/components.md e os layouts `AppShell` e `StudentLayout`; `005/US4-2` cada mostruário declara e renderiza variantes e estados (incluindo erro, carregando e desabilitado quando se aplicam) e há uma faixa de 768 px; `005/SC-003 005/SC-004` axe sem violações e todos os controles alcançáveis por Tab com foco visível
+- [X] T043 [P] [US4] `apps/web/app/(catalog)/design-system/page.test.tsx`: `005/US4-4` com `NODE_ENV=production` a página chama `notFound()`; em desenvolvimento renderiza o índice por grupo
+- [X] T044 [P] [US4] `apps/web/test/design-system/docs.test.ts`: `005/US4-3 005/FR-032` `README.md` tem as seções de T002; `tokens.md` cita cada token de `tokens.css`; cada entrada do registro tem seção com o mesmo nome em `components.md` ou `layouts.md`, com os subtítulos "Variantes", "Estados", "Quando usar", "Quando não usar", "Exemplo" e "Acessibilidade"
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] `apps/web/features/design-system/registry.ts` (tipo `CatalogEntry`: `id`, `name`, `group`, `source`, `showcase`, `variants`, `states`) e os mostruários em `apps/web/features/design-system/components/`: `actions-showcase.tsx`, `forms-showcase.tsx`, `feedback-showcase.tsx`, `containers-showcase.tsx`, `data-showcase.tsx`, `navigation-showcase.tsx`, `layouts-showcase.tsx` (AppShell e StudentLayout em moldura reduzida com dados fixos) e `tablet-frame.tsx` (768 px); T042 verde
-- [ ] T046 [US4] `apps/web/app/(catalog)/layout.tsx` (moldura simples com `main#conteudo`) e `apps/web/app/(catalog)/design-system/page.tsx` (`notFound()` em produção, índice por grupo com âncoras, mostruários do registro); nada no `proxy.ts`; T043 verde
-- [ ] T047 [US4] Escrever a documentação em `apps/web/design-system/`: `README.md` (princípios da spec, regra 80/15/5, regras contra UI genérica, camadas tokens → ui → layout → features → app, como usar), `tokens.md` (cada token, valor claro/escuro e uso permitido, incluindo pontos de quebra e tamanhos de ícone), `components.md` e `layouts.md` (seção por entrada do registro com os subtítulos de T044) e `exceptions.md` (igual às exceções do código); T044 e T010 (sincronia) verdes
+- [X] T045 [US4] `apps/web/features/design-system/registry.ts` (tipo `CatalogEntry`: `id`, `name`, `group`, `source`, `showcase`, `variants`, `states`) e os mostruários em `apps/web/features/design-system/components/`: `actions-showcase.tsx`, `forms-showcase.tsx`, `feedback-showcase.tsx`, `containers-showcase.tsx`, `data-showcase.tsx`, `navigation-showcase.tsx`, `layouts-showcase.tsx` (AppShell e StudentLayout em moldura reduzida com dados fixos) e `tablet-frame.tsx` (768 px); T042 verde
+- [X] T046 [US4] `apps/web/app/(catalog)/layout.tsx` (moldura simples com `main#conteudo`) e `apps/web/app/(catalog)/design-system/page.tsx` (`notFound()` em produção, índice por grupo com âncoras, mostruários do registro); nada no `proxy.ts`; T043 verde
+- [X] T047 [US4] Escrever a documentação em `apps/web/design-system/`: `README.md` (princípios da spec, regra 80/15/5, regras contra UI genérica, camadas tokens → ui → layout → features → app, como usar), `tokens.md` (cada token, valor claro/escuro e uso permitido, incluindo pontos de quebra e tamanhos de ícone), `components.md` e `layouts.md` (seção por entrada do registro com os subtítulos de T044) e `exceptions.md` (igual às exceções do código); T044 e T010 (sincronia) verdes
 
 **Checkpoint**: catálogo e documentação completos.
 

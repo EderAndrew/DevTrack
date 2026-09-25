@@ -50,7 +50,8 @@ export const metadata: Metadata = {
 
 /**
  * Shell shared by every screen. Each route group brings its own frame and `<main id="conteudo">`:
- * `(auth)` none, `(public)` the site header, `(app)` the side menu.
+ * `(auth)` none, `(public)` the site header, `(app)` the side menu (AppShell), `(student)` the
+ * student layout and `(account)` either one, by the menu's permissions.
  */
 export default function RootLayout({
   children,
