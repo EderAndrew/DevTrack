@@ -71,6 +71,14 @@ export const ERROR_MESSAGES = {
   AI_IDEMPOTENCY_KEY_REUSED: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo.",
   AI_PROPOSAL_ITEMS_INVALID: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte.",
   AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
+  AI_PROPOSAL_APPLY_REQUIRED: "Esta proposta é aprovada ao aplicá-la na ementa.",
+  SYLLABUS_NOT_READY_FOR_AI:
+    "O preenchimento com IA precisa de um documento com texto (PDF com texto ou DOCX). Preencha o conteúdo manualmente.",
+  CURRICULUM_PROPOSAL_PENDING:
+    "Já existe uma proposta aguardando revisão. Revise-a ou descarte-a para pedir uma nova análise.",
+  CURRICULUM_SOURCE_CHANGED: "O documento analisado não corresponde mais a esta proposta. Peça uma nova análise.",
+  CURRICULUM_PROPOSAL_INVALID:
+    "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

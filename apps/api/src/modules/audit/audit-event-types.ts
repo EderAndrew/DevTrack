@@ -1,5 +1,5 @@
 /**
- * Audit catalogue of contracts/audit-events.md (specs 001, 003, 004 and 006): event type → metadata keys
+ * Audit catalogue of contracts/audit-events.md (specs 001, 003, 004, 006 and 007): event type → metadata keys
  * allowed. Anything outside this list is a programming error (FR-071: no secrets in the trail).
  * `via` of `role.granted`/`account.claimed` is a `GrantSource`: INVITATION, ADMIN_BOOTSTRAP or,
  * since 003, CLASS_INVITATION.
@@ -88,6 +88,19 @@ export const AUDIT_EVENT_METADATA = {
   "ai_model_config.enabled": ["configKey", "provider", "model"],
   "ai_model_config.disabled": ["configKey", "provider", "model"],
   "ai_registry.synced": ["agents", "tools", "modelConfigs", "newVersions", "deprecated"],
+  // 007 — Curriculum Agent. Never the document, the ementa text or the proposal content (FR-045).
+  "curriculum_ai.analysis_requested": ["executionId", "created", "discardedProposal"],
+  "curriculum_ai.proposal_applied": [
+    "proposalId",
+    "revisionId",
+    "revisionNumber",
+    "replacedDraft",
+    "acceptedFields",
+    "acceptedGroups",
+    "groupCount",
+    "itemCount",
+    "unsupportedCount",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

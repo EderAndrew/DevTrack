@@ -93,11 +93,12 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(offenders).toEqual([]);
   });
 
-  it("nenhum package.json da API ou do web depende de um SDK de provedor (006/FR-016)", () => {
-    for (const pkg of ["apps/api/package.json", "apps/web/package.json"]) {
+  it("006/FR-016 007/FR-042 o web não depende de SDK de provedor, e a API só do @anthropic-ai/sdk", () => {
+    const allowed = { "apps/api/package.json": ["@anthropic-ai/sdk"], "apps/web/package.json": [] };
+    for (const [pkg, expected] of Object.entries(allowed)) {
       const json = JSON.parse(readFileSync(resolve(REPO, pkg), "utf8")) as Record<string, Record<string, string> | undefined>;
       const deps = Object.keys({ ...json.dependencies, ...json.devDependencies });
-      expect(deps.filter((name) => SDK_NAME.test(name)), pkg).toEqual([]);
+      expect(deps.filter((name) => SDK_NAME.test(name)), pkg).toEqual(expected);
     }
   });
 

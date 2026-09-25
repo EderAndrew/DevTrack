@@ -90,6 +90,13 @@ import {
   SyllabusRevisionViewSchema,
   SyllabusUploadResultSchema,
 } from "./curriculum/syllabus.js";
+import {
+  ApplyCurriculumProposalRequestSchema,
+  ApplyCurriculumProposalResponseSchema,
+  CurriculumAiStatusSchema,
+  RequestCurriculumAnalysisRequestSchema,
+  RequestCurriculumAnalysisResponseSchema,
+} from "./curriculum/curriculum-ai.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -141,6 +148,10 @@ export type EnrollmentParams = z.infer<typeof EnrollmentParamsSchema>;
 
 export const UserIdParamsSchema = z.strictObject({ userId: UuidSchema });
 export type UserIdParams = z.infer<typeof UserIdParamsSchema>;
+
+/** A Curriculum Agent proposal under the syllabus document it targets (007). */
+export const CurriculumProposalParamsSchema = z.strictObject({ id: UuidSchema, proposalId: UuidSchema });
+export type CurriculumProposalParams = z.infer<typeof CurriculumProposalParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -696,6 +707,33 @@ export const endpoints = {
     params: z.strictObject({ key: AiRegistryKeySchema }),
     body: ChangeAiModelConfigStatusRequestSchema,
     response: AiModelConfigViewSchema,
+    status: 200,
+  },
+
+  // 007 — Curriculum Agent: "Preencher com IA" on a syllabus document.
+  "curriculumAi.status": {
+    method: "GET",
+    path: "/syllabus-documents/:id/ai",
+    params: IdParamsSchema,
+    response: CurriculumAiStatusSchema,
+    status: 200,
+  },
+  /** 202 with `created: true`; 200 with `created: false` when an active execution already existed. */
+  "curriculumAi.requestAnalysis": {
+    method: "POST",
+    path: "/syllabus-documents/:id/ai-analyses",
+    params: IdParamsSchema,
+    body: RequestCurriculumAnalysisRequestSchema,
+    response: RequestCurriculumAnalysisResponseSchema,
+    status: 202,
+  },
+  /** Repeating the same request after success answers the same body (FR-034). */
+  "curriculumAi.applyProposal": {
+    method: "POST",
+    path: "/syllabus-documents/:id/ai-proposals/:proposalId/apply",
+    params: CurriculumProposalParamsSchema,
+    body: ApplyCurriculumProposalRequestSchema,
+    response: ApplyCurriculumProposalResponseSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

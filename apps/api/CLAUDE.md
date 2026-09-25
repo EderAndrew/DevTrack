@@ -27,8 +27,9 @@ through the API must send the plan's current `revision` as `planRevision`.
 AI executions (006) run in `AiExecutionWorker` on the `ai_executions` table. Tests run with its
 timer off (`ai.intervalSeconds: 0`, which also turns off `kick()`): call `runOnce(now)` or `drain(t)`
 from `test/helpers/ai.ts`. Build the app with `createAiTestApp()` and reset with `resetAiDb(t)`, which
-syncs the reference agents, tools and the fake provider of `test/fixtures/ai` (production registers
-none). Kill switches: `AI_EXECUTION_INTERVAL_SECONDS=0` stops all AI processing (global); disabling an
+syncs the reference agents, tools and the fake provider of `test/fixtures/ai` (production,
+`productionAiDefinitions(config)`, registers only `curriculum-agent`, DISABLED, and no provider without
+`ANTHROPIC_API_KEY`; `testConfig()` always sets that key to null). Kill switches: `AI_EXECUTION_INTERVAL_SECONDS=0` stops all AI processing (global); disabling an
 agent (`AiOperationsService.changeAgentStatus`) refuses new requests and cancels its QUEUED
 executions in the same transaction; a disabled model config refuses new requests and fails queued
 ones at start, without calling the model. Stub `ModelGateway.timing` to skip retry waits.
@@ -41,8 +42,17 @@ scans look for. A test that changes the definitions (a new prompt version, anoth
 another app over the same database with `overrides: [{ provide: AI_DEFINITIONS, useValue }]`,
 whose startup syncs them (see `006-us8-versioning.spec.ts`). The reference agents are
 `reference-l1`, `reference-l1-continue`, `reference-l2`, `reference-draft` and
-`reference-restricted`. The factories `createAiExecution` and `createAiProposal` write rows
-straight to the database.
+`reference-restricted`; `REFERENCE_L2_BUILD` (with a `proposal.build` hook) and other extra
+definitions join through `createAiTestApp({agents, tools, modelConfigs, resources})`. The factories
+`createAiExecution` and `createAiProposal` write rows straight to the database.
+Curriculum Agent (007) tests use `test/helpers/curriculum-ai.ts`: `createCurriculumAiApp()` registers
+the real `curriculum-agent` (ACTIVE, where production starts it DISABLED; availability tests disable
+it through the admin route) and its read tool, with only its model config moved to the fake provider;
+`seedProcessedDocument(t, teacherId, fixture)` creates a subject and a PROCESSED document with the
+original stored (`TEXT` for PDF/DOCX, `NO_TEXT` for images); `pooOutput()` is a valid agent output for
+the POO sample; `scriptCurriculumRun(t.provider, documentId, output)` programs the read call then the
+output; `requestAnalysis`, `getCurriculumAiStatus` and `applyProposal` call the 007 routes. The read
+tool normalizes the file in the test build of the syllabus worker.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -51,7 +61,7 @@ root CLAUDE.md):
 - `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and
   `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
   type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
-- `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001, 003 and 004)
+- `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001, 003, 004 and 006; 007 adds only a column)
   and forbids academic terms of later phases (classes and enrollments are allowed since 003).
 - `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
   trail for every secret it produced.

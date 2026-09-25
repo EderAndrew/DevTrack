@@ -48,13 +48,13 @@ description: "Task list for 007 — Curriculum Agent: Leitura e Preenchimento As
 
 **Purpose**: dependência nova, configuração e estrutura do módulo.
 
-- [ ] T001 Acrescentar `@anthropic-ai/sdk` (versão atual, exata) às `dependencies` de
+- [X] T001 Acrescentar `@anthropic-ai/sdk` (versão atual, exata) às `dependencies` de
   `apps/api/package.json` e rodar `pnpm install`.
   - Registrar em `DEPENDENCIES.md` o motivo (FR-042, research C2) e a regra de fronteira: só
     em `apps/api/src/modules/ai/gateway/providers/**`.
   - Conferir que `pnpm lint` continua verde: a regra ESLint da 006 já restringe
     `@anthropic-ai/*`.
-- [ ] T002 [P] Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
+- [X] T002 [P] Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
   - `ANTHROPIC_API_KEY` (opcional; string vazia vira ausente);
   - `ANTHROPIC_BASE_URL` (opcional, URL; usado só pelo E2E local);
   - `RATE_LIMIT_CURRICULUM_AI_PER_HOUR` (`positiveInt(10)`).
@@ -64,7 +64,7 @@ description: "Task list for 007 — Curriculum Agent: Leitura e Preenchimento As
   do logger, se houver uma. Documentar em `apps/api/.env.example` (`ANTHROPIC_API_KEY=`
   vazio = IA desligada) e em `apps/api/.env.test.example` (sem chave). O `testConfig` de
   `apps/api/test/helpers/test-app.ts` fica com `apiKey: null`.
-- [ ] T003 [P] Criar a estrutura vazia de `apps/api/src/modules/curriculum-ai/`:
+- [X] T003 [P] Criar a estrutura vazia de `apps/api/src/modules/curriculum-ai/`:
   - `curriculum-ai.module.ts`, registrado em `apps/api/src/app.module.ts`, importando o
     módulo `ai` e o `syllabus`;
   - as pastas `definitions/` e `proposal/`.
@@ -80,7 +80,7 @@ agente, gancho `build` da fundação e o app de teste.
 
 **⚠️ CRITICAL**: bloqueia todas as histórias.
 
-- [ ] T004 Atualizar `apps/api/prisma/schema.prisma`:
+- [X] T004 Atualizar `apps/api/prisma/schema.prisma`:
   - `AI_ASSISTED` no enum `SyllabusRevisionSource`;
   - `SyllabusRevision.aiProposalId String? @unique @db.Uuid @map("ai_proposal_id")` com a
     relação para `AiProposal` (`onDelete: Restrict`), e o lado inverso opcional em
@@ -96,7 +96,7 @@ agente, gancho `build` da fundação e o app de teste.
   Aplicar com `pnpm --filter api prisma migrate deploy` no banco de teste. Acrescentar o
   item 007 em `apps/api/test/security/domain-boundary.spec.ts`: a coluna, o valor do enum e
   a relação, sem modelo novo.
-- [ ] T005 [P] Criar `packages/contracts/src/curriculum/curriculum-ai.ts` e exportar em
+- [X] T005 [P] Criar `packages/contracts/src/curriculum/curriculum-ai.ts` e exportar em
   `packages/contracts/src/index.ts`. Todos os schemas são strict, com tipos via `z.infer`:
   - `CurriculumWarningCodeSchema` (os 6 códigos do modelo) e
     `CurriculumReviewWarningCodeSchema` (os 6 mais `UNSUPPORTED_CONTENT`);
@@ -116,7 +116,7 @@ agente, gancho `build` da fundação e o app de teste.
   - `007/US4-6`: `workspaceId`, `teacherId`, `agentKey`, `toolKeys` e `riskLevel` recusados
     no pedido e na aplicação;
   - ids aceitos repetidos recusados.
-- [ ] T006 [P] Atualizar os contratos existentes:
+- [X] T006 [P] Atualizar os contratos existentes:
   - `packages/contracts/src/curriculum/syllabus.ts`:
     - `AI_ASSISTED` em `SyllabusRevisionSourceSchema`;
     - `aiProposalId: uuid | null` em `SyllabusRevisionViewSchema` e em
@@ -130,12 +130,12 @@ agente, gancho `build` da fundação e o app de teste.
 
   Mensagens pt-BR dos 5 códigos em `apps/web/lib/messages/error-messages.ts`. Atualizar
   `apps/api/src/modules/syllabus/syllabus-revision.view.ts` para devolver `aiProposalId`.
-- [ ] T007 [P] Acrescentar em `apps/api/src/modules/audit/audit-event-types.ts` os tipos
+- [X] T007 [P] Acrescentar em `apps/api/src/modules/audit/audit-event-types.ts` os tipos
   `curriculum_ai.analysis_requested` e `curriculum_ai.proposal_applied`, com as allowlists de
   `metadata` de `contracts/audit-events.md`. Acrescentar o catálogo 007 à lista de
   `apps/api/test/security/audit-coverage.spec.ts`, com os dois tipos em `PENDING_007_TYPES`;
   cada história retira os seus.
-- [ ] T008 Camada de leitura normalizada (research C11) em
+- [X] T008 Camada de leitura normalizada (research C11) em
   `apps/api/src/modules/syllabus/extraction/`:
   - `source-line.ts`: `ref?: string` opcional em `SourceLine`;
   - `pdf-lines.ts`: preenche `p<página>.<linha>`;
@@ -153,7 +153,7 @@ agente, gancho `build` da fundação e o app de teste.
 
   Testes unitários `normalize.spec.ts` sobre `poo.pdf` e `poo.docx`: ordem, `kind`, `ref` e
   junção de linhas.
-- [ ] T009 `apps/api/src/modules/syllabus/syllabus-worker-runner.ts`:
+- [X] T009 `apps/api/src/modules/syllabus/syllabus-worker-runner.ts`:
   `normalize(fileBytes, mediaType, signal)` no mesmo worker thread, com o tempo da chamada.
   Falha do worker vira `WorkerCrashed` e o tempo esgotado vira `WorkerTimeout`, mapeados
   pela ferramenta. Teste em `apps/api/test/integration/007-normalize-worker.spec.ts` (compila o
@@ -161,7 +161,7 @@ agente, gancho `build` da fundação e o app de teste.
   - 10 páginas (`dez-paginas.pdf`) em < 3 s;
   - `writeFakeWorker("hang")` → tempo esgotado;
   - `writeFakeWorker("crash")` → falha.
-- [ ] T010 [P] Funções puras em `apps/api/src/modules/curriculum-ai/proposal/`, cada uma com
+- [X] T010 [P] Funções puras em `apps/api/src/modules/curriculum-ai/proposal/`, cada uma com
   `.spec.ts`:
   - `derived-uuid.ts`: `derivedUuid(name)` = SHA-256 com o layout de UUID v5, via
     `node:crypto`. Testes: determinístico e formato válido.
@@ -183,7 +183,7 @@ agente, gancho `build` da fundação e o app de teste.
     - nada identificado → `null` (`007/FR-017`);
     - `content.source` com `documentId`, `sha256` e `readerVersion`;
     - o conteúdo passa em `CurriculumProposalContentSchema`.
-- [ ] T011 Gancho `proposal.build` na fundação (research C6, C12.1):
+- [X] T011 Gancho `proposal.build` na fundação (research C6, C12.1):
   - `apps/api/src/modules/ai/definitions/types.ts`: `proposal.build?` e
     `proposal.approveThroughDomain?` em `AgentDefinition`; `ToolContext` expõe `executionId`,
     se ainda não expuser;
@@ -202,7 +202,7 @@ agente, gancho `build` da fundação e o app de teste.
   - `null` → sem proposta;
   - exceção → `FAILED` com `AI_OUTPUT_VALIDATION_FAILED`;
   - os agentes de referência sem gancho continuam iguais.
-- [ ] T012 Definições do agente em `apps/api/src/modules/curriculum-ai/definitions/`:
+- [X] T012 Definições do agente em `apps/api/src/modules/curriculum-ai/definitions/`:
   - `curriculum-extraction.prompt.ts`: `CURRICULUM_EXTRACTION_V1` com o texto exato de
     `contracts/curriculum-agent.md`;
   - `syllabus-document.ownership.ts`: `ResourceOwnership` de `SYLLABUS_DOCUMENT` (documento →
@@ -221,7 +221,7 @@ agente, gancho `build` da fundação e o app de teste.
     `contracts/curriculum-agent.md` (agente, ferramenta, `curriculum-extraction-default`,
     recursos), com `build: buildCurriculumProposal`, `approveThroughDomain: true` e
     `initialStatus: "DISABLED"` (FR-051: o administrador habilita depois da avaliação).
-- [ ] T013 `apps/api/src/modules/ai/definitions/index.ts`: trocar `PRODUCTION_AI_DEFINITIONS`
+- [X] T013 `apps/api/src/modules/ai/definitions/index.ts`: trocar `PRODUCTION_AI_DEFINITIONS`
   por `productionAiDefinitions(config)`, que devolve `curriculumAiDefinitions()` e
   `providers: []`. O provedor real entra na US2 (T030). Prover por fábrica em
   `apps/api/src/modules/ai/ai.module.ts`.
@@ -230,7 +230,7 @@ agente, gancho `build` da fundação e o app de teste.
     administrador habilitá-lo, uma nova sincronização mantém `ACTIVE`.
   - Atualizar `apps/api/test/security/006-ai-no-real-provider.spec.ts`: sem chave, produção
     não registra provedor; os testes só registram `fake*`.
-- [ ] T014 Helper `apps/api/test/helpers/curriculum-ai.ts`:
+- [X] T014 Helper `apps/api/test/helpers/curriculum-ai.ts`:
   - `createCurriculumAiApp(options)`: `createAiTestApp` com
     `curriculumAiDefinitions()` + um `modelConfig` de teste apontando para o provedor
     simulado. O agente é o real e só o provedor é trocado; o helper o registra `ACTIVE`
@@ -830,8 +830,9 @@ rastreabilidade e documentação.
   arquivo fora de `gateway/providers/**` cita o SDK ou o host.
 - [ ] T067 Rastreabilidade: acrescentar `007-curriculum-agent` aos `SPECS` de
   `apps/api/test/traceability.spec.ts`, com os SC listados (SC-001–SC-009). Conferir que
-  todo `007/USn-k` (US1-1…US7-3) aparece num título. Conferir que `PENDING_007_TYPES` está
-  vazio e removê-lo.
+  todo `007/USn-k` (US1-1…US7-3) aparece num título. Conferir que `PENDING_007_TYPES` e
+  `PENDING_007_ROUTES` (`test/helpers/routes.ts`, rotas do catálogo ainda sem controller) estão
+  vazios e removê-los.
 - [ ] T068 [P] Documentação:
   - `CLAUDE.md`: o módulo `curriculum-ai` na seção Architecture, o provedor Anthropic, o
     comando `eval:curriculum`, `fixtures:curriculum` (se criado) e as decisões C1–C20 na

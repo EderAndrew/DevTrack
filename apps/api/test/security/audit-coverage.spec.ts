@@ -14,7 +14,14 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
 ];
+
+/**
+ * 007 types the journey does not emit yet. Transitional: each user story removes its own when its
+ * flow joins the journey, and T067 removes the empty list.
+ */
+const PENDING_007_TYPES = new Set(["curriculum_ai.analysis_requested", "curriculum_ai.proposal_applied"]);
 
 
 interface ContractRow {
@@ -72,7 +79,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19 + 2);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
@@ -93,7 +100,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.filter((row) => !PENDING_007_TYPES.has(row.type)).map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
       expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 

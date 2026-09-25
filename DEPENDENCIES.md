@@ -5,7 +5,7 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-09-24** (fase 004, T087), Node 24.12, pnpm 11.25, lockfile do
+Última verificação: **2026-09-25** (fase 007, T001), Node 24.12, pnpm 11.25, lockfile do
 commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
@@ -56,6 +56,7 @@ Fora da allowlist, todos **transitivos**:
 | MIT AND ISC | `@visx/vendor` | `prisma` → `@prisma/studio-core` | Ambas permissivas; só no Prisma Studio |
 | Unlicense | `robust-predicates` | `prisma` → `@prisma/studio-core` | Domínio público; só no Prisma Studio |
 | Unlicense | `postgres` | `prisma` (CLI, servidor de dev `prisma dev`) | Domínio público; a API usa `pg` + `@prisma/adapter-pg` |
+| Unlicense | `fast-sha256` | `@anthropic-ai/sdk` → `standardwebhooks` (fase 007, seção 9) | Domínio público; só na verificação de webhooks do SDK, que a API não usa |
 
 **Pendente de decisão do mantenedor:** aceitar essas exceções, sendo que nenhuma exige
 alterar ou abrir o código do DevTrack, ou ajustar a allowlist (MIT-0, Unlicense e CC-BY-4.0
@@ -171,3 +172,24 @@ própria spec, em `apps/api/src/modules/ai/gateway/providers/`. É o único luga
 e `test/security/006-ai-boundary.spec.ts` aceitam importar um SDK de provedor (`openai`,
 `@anthropic-ai/*`, `@google/genai` e afins). A dependência ganha então uma linha nesta tabela,
 com versão exata, licença e alternativa descartada.
+
+## 9. Provedor de IA — fase 007 (`specs/007-curriculum-agent`, C2)
+
+Primeiro provedor real de modelos (FR-042). Instalado com versão exata (`pnpm add -E`) só em
+`apps/api`. `pnpm audit --prod --audit-level high`: nenhum achado.
+
+| Pacote | Onde | Versão | Licença | Para quê | Alternativa descartada |
+|--------|------|--------|---------|----------|------------------------|
+| `@anthropic-ai/sdk` | api | 0.128.0 | MIT | Cliente oficial da Messages API da Anthropic, com erros tipados que viram as categorias do gateway (`ProviderErrorCategory`) e tipos de requisição e resposta | `fetch` direto na API HTTP (reimplementar erros, retries e tipos); SDKs multi-provedor como `@ai-sdk/*` ou LangChain (camada extra sobre a abstração que o gateway da 006 já é) |
+
+Regra de fronteira (006 A15): o SDK só pode ser importado em
+`apps/api/src/modules/ai/gateway/providers/**`. O ESLint de `apps/api` e
+`test/security/006-ai-boundary.spec.ts` recusam qualquer outro lugar, na API e no web. O
+cliente é criado com `maxRetries: 0` (quem repete é o gateway) e só quando `ANTHROPIC_API_KEY`
+está definida; sem a chave, o provedor não é registrado e a IA fica indisponível, sem impedir
+o startup (FR-043).
+
+Transitivas novas: `json-schema-to-ts` e `ts-algebra` (tipos), `standardwebhooks`,
+`@stablelib/base64` e `@babel/runtime` (MIT) e `fast-sha256` (Unlicense, tabela da seção 2).
+`zod` é *peer dependency* opcional do SDK e resolve para a versão do catálogo, então o
+`zod-version.spec.ts` continua com uma única versão.

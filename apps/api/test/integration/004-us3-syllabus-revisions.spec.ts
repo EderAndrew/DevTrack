@@ -96,7 +96,7 @@ describe("004/US3 — revisão e confirmação do conteúdo extraído (FR-017, F
     const detail = await client.get(`/api/syllabus-documents/${document.id}`);
     expect(detail.body.draftRevisionId).toBe(revision.id);
     expect(detail.body.revisions).toEqual([
-      { id: revision.id, number: 1, status: "DRAFT", source: "EXTRACTION", confirmedAt: null },
+      { id: revision.id, number: 1, status: "DRAFT", source: "EXTRACTION", aiProposalId: null, confirmedAt: null },
     ]);
     expect((await client.get(`/api/syllabus-revisions/${revision.id}`)).body).toEqual(revision);
   });

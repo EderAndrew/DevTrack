@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { PRODUCTION_AI_DEFINITIONS } from "../../src/modules/ai/definitions";
+import { productionAiDefinitions } from "../../src/modules/ai/definitions";
 import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
 import { fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
@@ -23,8 +23,13 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
   });
   afterAll(() => t.close());
 
-  it("PRODUCTION_AI_DEFINITIONS não registra provedor, agente nem configuração", () => {
-    expect(PRODUCTION_AI_DEFINITIONS).toMatchObject({ providers: [], agents: [], modelConfigs: [], tools: [] });
+  it("007/FR-043 sem chave, a produção não registra provedor; só o curriculum-agent e sua configuração", () => {
+    const production = productionAiDefinitions(t.config);
+    expect(t.config.ai.anthropic.apiKey).toBeNull();
+    expect(production.providers).toEqual([]);
+    expect(production.agents.map((a) => [a.key, a.initialStatus])).toEqual([["curriculum-agent", "DISABLED"]]);
+    expect(production.modelConfigs.map((c) => c.provider)).toEqual(["anthropic"]);
+    expect(production.tools.map((tool) => tool.key)).toEqual(["read-curriculum-document"]);
   });
 
   it("o app de teste só tem provedores simulados (chaves fake*), e toda configuração aponta para eles", () => {
@@ -34,11 +39,13 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
     expect(definitions.modelConfigs.map((c) => c.provider).filter((key) => !key.startsWith("fake"))).toEqual([]);
   });
 
-  it("config.schema.ts não declara credencial de provedor (AI_*_API_KEY, *_API_KEY de IA)", () => {
+  it("007/FR-043 config.schema.ts só declara a credencial da Anthropic, e o teste roda sem ela", () => {
     const schema = readFileSync(join(__dirname, "../../src/platform/config/config.schema.ts"), "utf8");
     expect(schema.match(/\bAI_\w*(API_KEY|SECRET|TOKEN)\w*/g) ?? []).toEqual([]);
-    expect(schema.match(/\b(OPENAI|ANTHROPIC|GEMINI|GOOGLE_AI|MISTRAL|AZURE_OPENAI)\w*/g) ?? []).toEqual([]);
+    expect(schema.match(/\b(OPENAI|GEMINI|GOOGLE_AI|MISTRAL|AZURE_OPENAI)\w*/g) ?? []).toEqual([]);
+    expect([...new Set(schema.match(/\bANTHROPIC_\w+/g))].sort()).toEqual(["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"]);
     expect(Object.keys(t.config.ai).filter((key) => /key|secret|token|credential/i.test(key))).toEqual([]);
+    expect(t.config.ai.anthropic).toEqual({ apiKey: null, baseUrl: null });
   });
 
   describe("um fluxo completo de IA não sai da máquina", () => {

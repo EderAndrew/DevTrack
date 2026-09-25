@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import type { AiErrorCode } from "@repo/contracts";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { AuditService } from "../../audit/audit.service";
-import type { AiExecutionContext, ModelToolCall, ToolContext } from "../definitions/types";
+import { type AiExecutionContext, type ModelToolCall, type ToolContext, ToolRefusal } from "../definitions/types";
 import { aiLog } from "../execution/ai-log";
 import { AiResourceResolver } from "../execution/ai-resource.resolver";
 import { AiToolRegistry } from "../registry/ai-tool.registry";
@@ -15,6 +16,13 @@ export type ToolCallOutcome =
 
 /** A model-chosen key is recorded as given, but never longer than a registry key. */
 const MAX_KEY = 63;
+
+/** How a tool's own refusal ends the call (the runner treats DENIED and TIMED_OUT as it does the executor's). */
+const REFUSAL_STATUS: Record<ToolRefusal["code"], ToolCallStatus> = {
+  AI_CONTEXT_ACCESS_DENIED: "DENIED",
+  AI_TIMEOUT: "TIMED_OUT",
+  AI_TOOL_EXECUTION_FAILED: "FAILED",
+};
 
 class Refused {
   constructor(
@@ -46,6 +54,7 @@ export class AiToolExecutor {
     private readonly audit: AuditService,
     private readonly tools: AiToolRegistry,
     private readonly resources: AiResourceResolver,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async call(ctx: AiExecutionContext, request: ModelToolCall, sequence: number, limits: { toolTimeoutMs: number }): Promise<ToolCallOutcome> {
@@ -78,6 +87,7 @@ export class AiToolExecutor {
       outcome = { ok: true, result: output.data };
     } catch (error) {
       if (error instanceof Refused) outcome = { ok: false, status: error.status, code: error.code, ...(error.reason ? { reason: error.reason } : {}) };
+      else if (error instanceof ToolRefusal) outcome = { ok: false, status: REFUSAL_STATUS[error.code], code: error.code };
       else {
         aiLog(this.logger, "ai.tool_error", { executionId: ctx.executionId, correlationId: ctx.correlationId, toolKey, errorName: error instanceof Error ? error.name : "unknown" }, "warn");
         outcome = { ok: false, status: "FAILED", code: "AI_TOOL_EXECUTION_FAILED" };
@@ -96,6 +106,7 @@ export class AiToolExecutor {
       correlationId: ctx.correlationId,
       signal,
       db: this.prisma,
+      get: (token) => this.moduleRef.get(token, { strict: false }),
     };
   }
 

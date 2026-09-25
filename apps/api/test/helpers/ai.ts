@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { AiExecutionStatus, AiProposalStatus } from "@repo/contracts";
 import type { Prisma } from "../../src/generated/prisma/client";
-import { AI_DEFINITIONS } from "../../src/modules/ai/definitions/types";
+import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import type { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
 import { api, createTestApp, resetDb, type TestApp, type TestAppOptions } from "./test-app";
+
+/** Extra definitions a suite registers next to the reference ones. */
+export type AiExtraDefinitions = Partial<Pick<AiDefinitions, "agents" | "tools" | "modelConfigs" | "resources">>;
 
 export interface AiTestApp extends TestApp {
   /** The fake provider of this app; reset it between tests (006 FR-015). */
@@ -18,8 +21,13 @@ export interface AiTestApp extends TestApp {
  * reference agents, tools and fake configs at startup. It creates no permission and changes no
  * role — the reference agents require permissions the migrations already seed.
  */
-export async function createAiTestApp(options: TestAppOptions = {}): Promise<AiTestApp> {
+export async function createAiTestApp(options: TestAppOptions & AiExtraDefinitions = {}): Promise<AiTestApp> {
   const definitions = referenceAiDefinitions();
+  // Definitions only some suites register (e.g. REFERENCE_L2_BUILD, the 007 agent), next to the reference ones.
+  definitions.agents = [...definitions.agents, ...(options.agents ?? [])];
+  definitions.tools = [...definitions.tools, ...(options.tools ?? [])];
+  definitions.modelConfigs = [...definitions.modelConfigs, ...(options.modelConfigs ?? [])];
+  definitions.resources = { ...definitions.resources, ...options.resources };
   const t = await createTestApp({
     ...options,
     overrides: [{ provide: AI_DEFINITIONS, useValue: definitions }, ...(options.overrides ?? [])],

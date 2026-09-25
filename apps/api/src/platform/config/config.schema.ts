@@ -34,6 +34,9 @@ const hmacSecret = z
 
 const nonNegativeInt = (fallback: number) => z.coerce.number().int().min(0).default(fallback);
 const positiveInt = (fallback: number) => z.coerce.number().int().min(1).default(fallback);
+/** An optional variable where an empty string (`KEY=` in .env) means "not set". */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
@@ -58,6 +61,7 @@ export const configSchema = z.object({
   RATE_LIMIT_SYLLABUS_RETRIES_HOURLY: positiveInt(10),
   RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE: positiveInt(10),
   RATE_LIMIT_AI_DECISIONS_PER_MINUTE: positiveInt(30),
+  RATE_LIMIT_CURRICULUM_AI_PER_HOUR: positiveInt(10),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
   SYLLABUS_MAX_FILE_MB: positiveInt(10),
@@ -74,6 +78,8 @@ export const configSchema = z.object({
   AI_MAX_OUTPUT_KB: positiveInt(200),
   AI_PROPOSAL_TTL_DAYS: positiveInt(30),
   AI_RECORD_RETENTION_DAYS: positiveInt(365),
+  ANTHROPIC_API_KEY: optional(z.string().trim().min(1)),
+  ANTHROPIC_BASE_URL: optional(z.url({ protocol: /^https?$/ })),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -105,6 +111,8 @@ export interface AppConfig {
     /** AI (006 research A17): execution requests and proposal decisions per user per minute. */
     aiExecutionsPerMinute: number;
     aiDecisionsPerMinute: number;
+    /** Curriculum Agent (007 research C13): "Preencher com IA" requests per teacher per hour. */
+    curriculumAiPerHour: number;
   };
   maintenanceIntervalSeconds: number;
   /** Class invitation delivery retry worker interval (FR-019, D5); 0 disables it. */
@@ -120,6 +128,12 @@ export interface AppConfig {
     limits: AiExecutionLimits;
     proposalTtlDays: number;
     retentionDays: number;
+    /**
+     * Anthropic provider (007 research C2). Without `apiKey` the provider is not registered and
+     * AI is unavailable, while the app starts normally (FR-043). `baseUrl` is only for the local
+     * E2E mock. The key is never logged.
+     */
+    anthropic: { apiKey: string | null; baseUrl: string | null };
   };
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
@@ -182,6 +196,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       syllabusRetriesHourly: e.RATE_LIMIT_SYLLABUS_RETRIES_HOURLY,
       aiExecutionsPerMinute: e.RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE,
       aiDecisionsPerMinute: e.RATE_LIMIT_AI_DECISIONS_PER_MINUTE,
+      curriculumAiPerHour: e.RATE_LIMIT_CURRICULUM_AI_PER_HOUR,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,
     mailRetryIntervalSeconds: e.MAIL_RETRY_INTERVAL_SECONDS,
@@ -204,6 +219,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       },
       proposalTtlDays: e.AI_PROPOSAL_TTL_DAYS,
       retentionDays: e.AI_RECORD_RETENTION_DAYS,
+      anthropic: { apiKey: e.ANTHROPIC_API_KEY ?? null, baseUrl: e.ANTHROPIC_BASE_URL ?? null },
     },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };

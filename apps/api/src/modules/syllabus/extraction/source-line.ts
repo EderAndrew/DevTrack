@@ -14,4 +14,9 @@ export interface SourceLine {
    * continues the previous one. A DOCX paragraph never does.
    */
   wraps: boolean;
+  /**
+   * Where the line is (007 research C9): `p<page>.<line>` from the PDF reader, `par<n>` from the
+   * DOCX reader. Only the normalized content uses it; the extractor ignores it.
+   */
+  ref?: string;
 }

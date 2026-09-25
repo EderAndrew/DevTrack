@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { fakeOutput } from "../fixtures/ai/fake-model-provider";
+import { Logger } from "@nestjs/common";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
+import { REFERENCE_L2_BUILD } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiProposal, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
 import { createClass, createSubject, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api } from "../helpers/test-app";
@@ -239,5 +241,87 @@ describe("006/US5 o professor revisa propostas de agentes", () => {
     expect({ status: blocked.status, code: blocked.body.code }).toEqual({ status: 429, code: "RATE_LIMITED" });
     const event = await t.prisma.auditEvent.findFirstOrThrow({ where: { type: "ai_execution.rate_limited" } });
     expect(event.metadata).toEqual({ scope: "ai-decision" });
+  });
+});
+
+/**
+ * 007 research C6: the optional `proposal.build` hook of an L2 agent turns the validated output and
+ * the successful tool results into the proposal; `null` means nothing to propose, and a throw is an
+ * output that could not become a proposal. The 006 error codes do not change.
+ */
+describe("007/FR-017 006/US5 gancho proposal.build", () => {
+  let t: AiTestApp;
+  let cookie: string;
+  let subjectId: string;
+
+  beforeAll(async () => {
+    t = await createAiTestApp({ agents: [REFERENCE_L2_BUILD] });
+  });
+  afterAll(() => t.close());
+
+  beforeEach(async () => {
+    await resetAiDb(t);
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    cookie = await loginAs(t, teacher);
+    subjectId = (await createSubject(t, teacher.id, { name: "Disciplina do build" })).id;
+  });
+
+  async function run(agentKey: string, items: { id: string; label: string }[]) {
+    t.provider.script(fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ items }));
+    const res = await requestExecution(t, cookie, { agentKey, resource: { type: "SUBJECT", id: subjectId } });
+    expect(res.status).toBe(202);
+    await drain(t);
+    return t.prisma.aiExecution.findUniqueOrThrow({ where: { id: res.body.id } });
+  }
+
+  it("o conteúdo e os itemIds vêm do gancho, que recebe os resultados das ferramentas em ordem", async () => {
+    const execution = await run("reference-l2-build", [
+      { id: "i1", label: "Primeiro" },
+      { id: "i2", label: "Segundo" },
+    ]);
+    expect(execution).toMatchObject({ status: "COMPLETED", errorCode: null });
+    const proposal = await t.prisma.aiProposal.findUniqueOrThrow({ where: { executionId: execution.id } });
+    const view = await api(t, { cookie }).get(`/api/ai/executions/${execution.id}`);
+    expect(view.body.proposalId).toBe(proposal.id);
+    expect(proposal).toMatchObject({ proposalType: "REFERENCE_BUILT", status: "READY_FOR_REVIEW", itemIds: ["b:i1", "b:i2"] });
+    expect(proposal.payload).toEqual({
+      built: true,
+      labels: ["Primeiro", "Segundo"],
+      tools: [{ toolKey: "reference.read-subject", output: { id: subjectId, name: "Disciplina do build" } }],
+    });
+    const created = await t.prisma.auditEvent.findFirstOrThrow({ where: { type: "ai_proposal.created" } });
+    expect(created.metadata).toMatchObject({ proposalType: "REFERENCE_BUILT", itemCount: 2 });
+  });
+
+  it("null → COMPLETED sem proposta e sem resultado guardado", async () => {
+    const execution = await run("reference-l2-build", [{ id: "nothing", label: "Nada" }]);
+    expect(execution).toMatchObject({ status: "COMPLETED", errorCode: null });
+    expect(await t.prisma.aiProposal.count()).toBe(0);
+    expect(await t.prisma.aiExecutionOutput.count()).toBe(0);
+    const view = await api(t, { cookie }).get(`/api/ai/executions/${execution.id}`);
+    expect(view.body).toMatchObject({ status: "COMPLETED", proposalId: null });
+    const completed = await t.prisma.auditEvent.findFirstOrThrow({ where: { type: "ai_execution.completed" } });
+    expect(completed.metadata).toMatchObject({ proposalId: null });
+  });
+
+  it("exceção no gancho → FAILED AI_OUTPUT_VALIDATION_FAILED, sem proposta, e log sem conteúdo", async () => {
+    // Several apps in one file share Nest's static logger, so the call is checked, not the stream.
+    const warn = vi.spyOn(Logger.prototype, "warn");
+    const execution = await run("reference-l2-build", [{ id: "throw", label: "MARCADOR-BUILD-007" }]);
+    const calls = warn.mock.calls.filter((call) => call[1] === "ai.output_invalid");
+    warn.mockRestore();
+    expect(execution).toMatchObject({ status: "FAILED", errorCode: "AI_OUTPUT_VALIDATION_FAILED" });
+    expect(await t.prisma.aiProposal.count()).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toMatchObject({ executionId: execution.id, errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: "Error" });
+    expect(JSON.stringify(calls)).not.toContain("MARCADOR-BUILD-007");
+    expect(JSON.stringify(calls)).not.toContain("falha simulada no build");
+  });
+
+  it("os agentes de referência sem gancho continuam iguais: o conteúdo é a saída", async () => {
+    const items = [{ id: "i1", label: "Item" }];
+    const execution = await run("reference-l2", items);
+    const proposal = await t.prisma.aiProposal.findUniqueOrThrow({ where: { executionId: execution.id } });
+    expect(proposal).toMatchObject({ proposalType: "REFERENCE_ITEMS", itemIds: ["i1"], payload: { items } });
   });
 });

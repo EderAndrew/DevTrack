@@ -54,13 +54,14 @@ export interface TestApp {
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const base = loadConfig(process.env);
   // Timers off: tests drive the maintenance, mail retry, syllabus and AI workers with `runOnce`.
+  // No real AI provider, even if the shell exports ANTHROPIC_API_KEY (006/SC-011, 007/FR-043).
   return {
     ...base,
     maintenanceIntervalSeconds: 0,
     mailRetryIntervalSeconds: 0,
     ...overrides,
     syllabus: { ...base.syllabus, processingIntervalSeconds: 0, ...overrides.syllabus },
-    ai: { ...base.ai, intervalSeconds: 0, ...overrides.ai },
+    ai: { ...base.ai, intervalSeconds: 0, anthropic: { apiKey: null, baseUrl: null }, ...overrides.ai },
   };
 }
 

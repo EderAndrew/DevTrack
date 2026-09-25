@@ -71,6 +71,7 @@ export const revisionView = (
     number: 1,
     status: "DRAFT",
     source: "EXTRACTION",
+    aiProposalId: null,
     title: null,
     syllabusText: null,
     competencyText: null,

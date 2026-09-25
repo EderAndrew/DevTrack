@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
-import { PRODUCTION_AI_DEFINITIONS } from "./definitions";
+import { APP_CONFIG } from "../../platform/config/config.module";
+import { productionAiDefinitions } from "./definitions";
 import { AI_DEFINITIONS } from "./definitions/types";
 import { AiEvaluationStore } from "./evaluation/ai-evaluation.store";
 import { AiExecutionAborts } from "./execution/ai-execution-aborts";
@@ -32,7 +33,7 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
 @Module({
   controllers: [AiExecutionsController, AiProposalsController, AiOperationsController],
   providers: [
-    { provide: AI_DEFINITIONS, useValue: PRODUCTION_AI_DEFINITIONS },
+    { provide: AI_DEFINITIONS, useFactory: productionAiDefinitions, inject: [APP_CONFIG] },
     AiRegistrySync,
     AiAgentRegistry,
     AiToolRegistry,

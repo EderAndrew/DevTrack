@@ -236,7 +236,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
 - 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
   `definitions` (agents, prompts, output schemas, tools and model configs are code, research A4;
-  `PRODUCTION_AI_DEFINITIONS` is empty until the first agent's spec), `registry` (`AiRegistrySync`
+  `productionAiDefinitions(config)` registers the 007 `curriculum-agent`, DISABLED until the admin
+  enables it), `registry` (`AiRegistrySync`
   writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
   whose content changed stops the startup, and a trigger refuses the update: publish a new
   version), `gateway` (`ModelGateway` picks the provider by the model config, applies the timeout,

@@ -42,3 +42,13 @@ export async function registeredRoutes(): Promise<RegisteredRoute[]> {
     await app.close();
   }
 }
+
+/**
+ * 007 routes already in the contract catalog (T006) whose controllers are not written yet.
+ * Transitional: each user story removes the routes it implements, and T067 removes the empty set.
+ */
+export const PENDING_007_ROUTES: ReadonlySet<string> = new Set([
+  "curriculumAi.status",
+  "curriculumAi.requestAnalysis",
+  "curriculumAi.applyProposal",
+]);

@@ -105,7 +105,8 @@ const ITEM_FORMATS = new Set(["bullet", "lowerLetter", "none"]);
 
 /**
  * Paragraphs of `word/document.xml` in reading order (tables included), research E10: the list
- * level comes from `w:numPr/w:ilvl` and `numbering.xml`, headings from `w:pStyle`.
+ * level comes from `w:numPr/w:ilvl` and `numbering.xml`, headings from `w:pStyle`. `par<n>` counts
+ * the paragraphs with text, from 1.
  */
 export function docxLines(docx: DocxPackage): SourceLine[] {
   const document = docx.parts["word/document.xml"];
@@ -139,6 +140,7 @@ export function docxLines(docx: DocxPackage): SourceLine[] {
       emphasis: Boolean(style?.heading) || allBold,
       list: listKind(pPr, numbering),
       wraps: false,
+      ref: `par${lines.length + 1}`,
     });
   }
   return lines;
