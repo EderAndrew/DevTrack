@@ -64,6 +64,16 @@ const SPECS: FeatureSpec[] = [
     // SC-001 is the time of a person using the screens, checked on the quickstart walk-through.
     successCriteria: sc(2, 12),
   },
+  {
+    feature: "005",
+    path: "specs/005-design-system/spec.md",
+    stories: 7,
+    scenarios: 34,
+    rows: 26,
+    rowsWithoutIds: [],
+    // SC-006 is the whole suite, SC-007 and SC-009 are checked by review, SC-008 on the quickstart (§4).
+    successCriteria: [...sc(1, 5), ...sc(10, 10)],
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

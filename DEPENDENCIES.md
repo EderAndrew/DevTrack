@@ -146,3 +146,18 @@ web.
 `fflate` também gera as amostras de `apps/api/test/fixtures/syllabus/`. O `protegido.pdf` de lá
 foi criptografado uma única vez com o pikepdf num ambiente virtual temporário, que não é
 dependência do projeto (README da pasta).
+
+## 7. Fontes — fase 005 (`specs/005-design-system`, V5)
+
+Nenhuma dependência npm nova. As fontes são arquivos locais, carregados com `next/font/local`
+em `apps/web/app/layout.tsx` (`display: swap`; só a Inter é pré-carregada). A Geist, que vinha
+do template, foi removida.
+
+| Fonte | Arquivos (`apps/web/app/fonts`) | Licença | Origem | Uso |
+|-------|---------------------------------|---------|--------|-----|
+| Inter (variável, 100–900) | `inter-latin-wght-normal.woff2`, `inter-latin-ext-wght-normal.woff2` | SIL OFL 1.1 | Fontsource 5.3.0 | texto (`font-sans`) |
+| JetBrains Mono (variável, 100–800) | `jetbrains-mono-latin-wght-normal.woff2`, `jetbrains-mono-latin-ext-wght-normal.woff2` | SIL OFL 1.1 | Fontsource 5.3.0 | código, saída e console (`font-mono`) |
+
+A licença acompanha os arquivos em `apps/web/app/fonts/OFL.txt`. Para atualizar, baixe os
+subconjuntos `latin` e `latin-ext` de peso variável do Fontsource e substitua os arquivos com
+os mesmos nomes.

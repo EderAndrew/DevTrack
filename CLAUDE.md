@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-25 (004 implemented, plus the US9 amendment; 005 in progress)
+Last updated: 2026-09-25 (005 implemented)
 
 ## Project state
 
@@ -16,14 +16,15 @@ by e-mail (the only way a student account is created), enrollments and "Minhas t
 (`specs/004-syllabus-planning`) is implemented: all tasks in `tasks.md` are checked: subjects,
 syllabus upload and extraction, syllabus review, the class calendar, the class plan with manual
 topics and coverage, topic editing, plan status (US1–US7), the isolation of the teacher's area
-(US8), the Polish phase and the 2026-09-24 amendment US9 (a topic's class marked completed). A teacher starts on "Minhas disciplinas" after login. Phase 005 (`specs/005-design-system`, the active
-feature) is in progress: only the setup tasks T001–T003 are done (local fonts, the
-`apps/web/design-system/` docs skeleton, `apps/web/test/design-system/scan.ts`). Tokens, Geist removal
-and the rest are still pending, so the 005 line under *Active Technologies* describes the plan, not
-the current code. Later work starts a new feature through `/speckit-specify`.
+(US8), the Polish phase and the 2026-09-24 amendment US9 (a topic's class marked completed). A teacher starts on "Minhas disciplinas" after login. Phase 005 (`specs/005-design-system`) is
+implemented: design tokens, Inter + JetBrains Mono, the foundational components with standard
+variants and states, the AppShell and the student layout, the `/design-system` catalog, the
+documentation in `apps/web/design-system/` and the Exam Mode visual contract (exam components are
+specified only, built by the assessments feature). Later work starts a new feature through
+`/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004, V1–V20 in 005), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -108,7 +109,7 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003 and 004). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
+  (001, 003, 004 and 005). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
@@ -130,7 +131,16 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   response that doesn't parse against its contract into a 500, so the test fails on its status
   assertion. A new route needs a catalog entry.
 - Web: `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and
-  `test/contrast.test.ts` checks the theme tokens for WCAG AA in both themes.
+  `test/contrast.test.ts` checks the token pairs of `tokens.css` for WCAG AA in both themes.
+- Web design system (`apps/web/test/design-system/`): `token-usage.test.ts` fails with file:line
+  on any color, font size, spacing step, radius, shadow, font family, breakpoint or icon size
+  outside the tokens (rule `valores`) and on a `<button>`, `<select>`, `<textarea>`, `<table>`,
+  checkbox or radio recreated outside `components/ui` (rule `controles`), and keeps the
+  `ds-exception` markers equal to `exceptions.md`; `identity.test.ts` pins fonts and icons (Lucide
+  only, `font-mono` only in `components/ui`); `docs.test.ts` checks that every token, catalog
+  entry and Exam Mode component is documented; `features/design-system/components/catalog.test.tsx`
+  runs axe and Tab over the whole catalog. A new foundational component needs a registry entry,
+  a showcase and a `components.md` section.
 
 Unsafe HTTP methods need both an allowed `Origin` and `Content-Type: application/json` (send
 `{}` if there's no body), even from curl or scripts. Otherwise the API returns
@@ -159,6 +169,18 @@ the removal conditions are in `DEPENDENCIES.md`.
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
   pnpm catalog. API controllers validate input with the contract schemas and services return the
   contract types. The package builds to `dist/`, which api and web import.
+- Web design system (005): every visual value comes from `apps/web/design-system/tokens.css`
+  (semantic colors with light and dark values, type scale, radii, shadows, layers, breakpoints,
+  motion, focus); the Tailwind default scales are reset there, so `bg-red-500`, `text-2xl` or
+  `shadow-lg` generate no CSS. Layers: tokens → `components/ui` (foundational components) →
+  `components/layout` → `features` → `app` (ESLint-enforced). `components/layout` holds `AppShell`
+  (side menu, `Topbar`, `main#conteudo`), `PageHeader` (every page's `<h1>`), `StudentLayout` and
+  `accountLayoutFor`. Route groups only choose the frame, never the URL: `app/(app)` AppShell,
+  `app/(student)` student layout, `app/(account)` either one by `STAFF_AREA_PERMISSIONS` (menu
+  permissions, never role names), `app/(catalog)/design-system` the visual catalog (built from
+  `features/design-system/registry.ts`; `notFound()` in production). Docs: `README.md`,
+  `tokens.md`, `components.md`, `layouts.md`, `exam-mode.md` and `exceptions.md` in
+  `apps/web/design-system/`.
 - Web (official stack): Tailwind + shadcn/ui (`components/ui`) + Lucide; TanStack Query for
   server state; React Hook Form + `@hookform/resolvers`; native `fetch` only in
   `lib/api/client.ts`. Redux Toolkit is not installed: add it only with the first spec that has
@@ -223,9 +245,14 @@ the removal conditions are in `DEPENDENCIES.md`.
 - Schema changes only via Prisma migrations. Subjects/languages/technologies are data, never enums
   or conditionals in code.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
+- UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
+  radii, shadows or fonts, and no recreated controls. An exception needs a
+  `ds-exception: <reason>` marker on (or just above) the line and a row in
+  `apps/web/design-system/exceptions.md`. Destructive actions use `variant="danger"` with explicit
+  text; states never rely on color alone.
 
 ## Recent Changes
-- 005-design-system (planned): design system and visual identity — tokens, typography, base components, AppShell/student layouts, in-app catalog, docs and guards; exam components specified only
+- 005-design-system: design system and visual identity — tokens, typography, base components, AppShell/student layouts, in-app catalog, docs and guards; exam components specified only
 - 004-syllabus-planning: teacher's subjects, syllabus upload with deterministic extraction and review, class calendar, class plan with manual topics linked to syllabus items (AI topic generation deferred)
 - 003-class-invitations-enrollment: classes, class invitations by e-mail with retried delivery, enrollments; public student signup removed (constitution 3.0.0)
 
