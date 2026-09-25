@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { SubjectForm } from "@/features/subjects/components/subject-form";
@@ -12,8 +13,8 @@ export default async function NewSubjectPage() {
   if (!me.permissions.includes("disciplinas.criar")) return <NoAccess title="Nova disciplina" />;
 
   return (
-    <section className="mx-auto w-full max-w-256 px-4 py-8">
-      <h1>Nova disciplina</h1>
+    <section className="mx-auto w-full max-w-256">
+      <PageHeader title="Nova disciplina" breadcrumb={[{ label: "Minhas disciplinas", href: "/disciplinas" }, { label: "Nova disciplina" }]} />
       <SubjectForm />
     </section>
   );

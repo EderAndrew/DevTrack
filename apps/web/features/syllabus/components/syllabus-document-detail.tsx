@@ -4,6 +4,7 @@ import type { CreateSyllabusRevisionRequest, SyllabusExtraction } from "@repo/co
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SyllabusForClassDialog } from "@/features/class-plan/components/syllabus-for-class-dialog";
@@ -90,7 +91,7 @@ export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetr
   return (
     <div>
       <p className="mt-0">{back}</p>
-      <h1>Ementa — versão {document.version}</h1>
+      <PageHeader title={`Ementa — versão ${document.version}`} />
       <dl className="mb-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt className="font-semibold">Arquivo</dt>
         <dd className="m-0 break-all">{document.originalFilename}</dd>

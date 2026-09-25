@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { Notice } from "@/components/shared";
 import { getMe } from "@/features/auth/api/server";
 import { ProfileDetails } from "@/features/profile/components/profile-details";
@@ -19,8 +20,8 @@ export default async function ProfilePage() {
   if (me.emailVerified && !sessions) redirect(LOGIN);
 
   return (
-    <section className="mx-auto w-full max-w-160 px-4 pb-8">
-      <h1>Meu perfil</h1>
+    <section className="mx-auto w-full max-w-160">
+      <PageHeader title="Meu perfil" />
       <ProfileDetails me={me} />
       <section aria-labelledby="minhas-sessoes">
         <h2 id="minhas-sessoes">Minhas sessões</h2>

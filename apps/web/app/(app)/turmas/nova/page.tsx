@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { UuidSchema } from "@repo/contracts";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { ClassForm } from "@/features/classes/components/class-form";
@@ -14,8 +15,8 @@ export default async function NewClassPage({ searchParams }: { searchParams: Pro
   if (!me.permissions.includes("turmas.criar")) return <NoAccess title="Nova turma" />;
 
   return (
-    <section className="mx-auto w-full max-w-256 px-4 py-8">
-      <h1>Nova turma</h1>
+    <section className="mx-auto w-full max-w-256">
+      <PageHeader title="Nova turma" breadcrumb={[{ label: "Turmas", href: "/turmas" }, { label: "Nova turma" }]} />
       {/* "Nova turma" of a subject page (004/US1-3) arrives with the subject chosen. */}
       <ClassForm defaultSubjectId={UuidSchema.safeParse(disciplina).success ? disciplina : undefined} />
     </section>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/layout/page-header";
 import { getMe } from "@/features/auth/api/server";
 import { InvitationAcceptance } from "@/features/invitations/components/invitation-acceptance";
 
@@ -15,7 +16,7 @@ export default async function InvitationPage({
   const me = await getMe().catch(() => null);
   return (
     <section className="mx-auto max-w-160 px-4 py-8">
-      <h1>Aceitar convite</h1>
+      <PageHeader title="Aceitar convite" />
       <InvitationAcceptance
         token={typeof token === "string" ? token : null}
         signedInAs={me ? { name: me.name, email: me.email } : null}
