@@ -8,6 +8,8 @@ import { Topbar } from "./topbar";
 export interface AppShellProps extends AppSidebarProps {
   /** From the `sidebar_state` cookie, so the menu opens as the user left it. */
   defaultOpen: boolean;
+  /** Catalog only: the content goes in a `div` (the page already has its `main#conteudo`). */
+  preview?: boolean;
   children: ReactNode;
 }
 
@@ -16,15 +18,20 @@ export interface AppShellProps extends AppSidebarProps {
  * (collapsible to icons; a panel on narrow screens), Topbar and `<main id="conteudo">` up to
  * `--content-max`, with the `--gutter` padding.
  */
-export function AppShell({ me, defaultOpen, children }: AppShellProps) {
+export function AppShell({ me, defaultOpen, preview = false, children }: AppShellProps) {
+  const content = "mx-auto w-full max-w-(--content-max) flex-1 px-(--gutter) py-6";
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
+    <SidebarProvider defaultOpen={defaultOpen} className={preview ? "min-h-0" : undefined}>
       <AppSidebar me={me} />
       <SidebarInset>
         <Topbar />
-        <main id="conteudo" tabIndex={-1} className="mx-auto w-full max-w-(--content-max) flex-1 px-(--gutter) py-6">
-          {children}
-        </main>
+        {preview ? (
+          <div className={content}>{children}</div>
+        ) : (
+          <main id="conteudo" tabIndex={-1} className={content}>
+            {children}
+          </main>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

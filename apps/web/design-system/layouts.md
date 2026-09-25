@@ -1,3 +1,119 @@
 # Layouts
 
-Uma seção por layout construído (AppShell, StudentLayout). Conteúdo em T047.
+Uma seção por layout construído (entradas do grupo "Layouts" do catálogo). Nenhuma URL muda
+por causa do layout: os grupos de rota só escolhem a moldura.
+
+| Grupo de rota | Layout | Rotas |
+|---------------|--------|-------|
+| `app/(app)` | `AppShell` | `/turmas/**`, `/disciplinas/**`, `/professores`, `/admin/**` |
+| `app/(student)` | `StudentLayout` | `/minhas-turmas` |
+| `app/(account)` | `AppShell` ou `StudentLayout`, por `accountLayoutFor` | `/conta/perfil`, `/conta/sessoes` |
+| `app/(catalog)` | moldura simples | `/design-system` (fora de produção) |
+| `app/(auth)`, `app/(public)` | molduras próprias | entrar, esqueci a senha, links de e-mail |
+
+O layout de avaliação (Exam Mode) é só contrato nesta fase e será construído com a feature
+de avaliações.
+
+## AppShell
+
+`components/layout/app-shell.tsx`
+
+```text
+┌──────────────┬──────────────────────────────────────────────┐
+│ DevTrack     │ [≡]  Turmas                         (Topbar)  │
+│              ├──────────────────────────────────────────────┤
+│ ▸ Minhas     │  Turmas › ADS3                    (Breadcrumb)│
+│   disciplinas│  ADS3                                   (h1)  │
+│ ▸ Turmas     │  2026.2 · Programação Orientada…  [Editar]    │
+│ ▸ Meu perfil │  ─────────────────────────────── (PageHeader) │
+│              │  conteúdo da página (largura ≤ --content-max) │
+│ Ana Souza    │                                               │
+│ [Sair]       │                                               │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+### Variantes
+
+Menu expandido ou recolhido para ícones; abaixo de `md` o menu vira painel (`Sheet`).
+`preview` só no catálogo (a área de conteúdo vira `div`).
+
+### Estados
+
+Menu expandido, recolhido (lembrado no cookie `sidebar_state`) e aberto como painel em
+telas estreitas; item da área atual ativo.
+
+### Quando usar
+
+Em toda tela do professor, do gestor e do administrador, e nas telas de conta de quem tem
+alguma dessas áreas. As páginas começam com `PageHeader`.
+
+### Quando não usar
+
+Na área do aluno (`StudentLayout`); nas telas públicas e de entrada; na avaliação (Exam
+Mode).
+
+### Exemplo
+
+```tsx
+// app/(app)/layout.tsx
+const [me, cookieStore] = await Promise.all([getMeForNavigation(), cookies()]);
+return (
+  <AppShell me={me} defaultOpen={cookieStore.get("sidebar_state")?.value !== "false"}>
+    {children}
+  </AppShell>
+);
+```
+
+### Acessibilidade
+
+Regiões: `nav` "Menu principal", `banner` (`Topbar`) e `<main id="conteudo" tabIndex={-1}>`,
+alvo do link "Pular para o conteúdo" (primeiro item de foco). O menu mostra só as áreas que
+existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu.
+
+## StudentLayout
+
+`components/layout/student-layout.tsx`
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ DevTrack      Minhas turmas   Meu perfil          [Sair]    │
+├────────────────────────────────────────────────────────────┤
+│        Minhas turmas                                  (h1) │
+│        conteúdo (largura ≤ 960 px)                         │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Variantes
+
+Uma estrutura: barra superior com a marca, o menu do aluno e "Sair", e o conteúdo até
+960 px. `preview` só no catálogo.
+
+### Estados
+
+Item atual do menu com `aria-current="page"` e sublinhado; em telas estreitas os itens
+quebram linha, sem menu escondido. Sem e-mail confirmado, só "Meu perfil" aparece.
+
+### Quando usar
+
+Nas telas do aluno ("Minhas turmas") e nas telas de conta de quem não tem nenhuma área do
+professor ou da administração (`accountLayoutFor(me) === "student"`, pelas permissões de
+`STAFF_AREA_PERMISSIONS`, nunca pelo nome do papel).
+
+### Quando não usar
+
+Nas telas do professor e da administração (`AppShell`); na avaliação (Exam Mode, com
+moldura própria sem navegação).
+
+### Exemplo
+
+```tsx
+// app/(student)/layout.tsx
+const me = await getMeForNavigation();
+return <StudentLayout me={me}>{children}</StudentLayout>;
+```
+
+### Acessibilidade
+
+Regiões: `banner` com `nav` "Menu do aluno" e `<main id="conteudo" tabIndex={-1}>`; ordem
+de foco: marca, itens do menu, "Sair" e conteúdo. Nenhum item de professor ou
+administração, nem menu lateral.
