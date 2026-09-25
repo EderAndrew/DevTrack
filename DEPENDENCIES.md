@@ -161,3 +161,13 @@ do template, foi removida.
 A licença acompanha os arquivos em `apps/web/app/fonts/OFL.txt`. Para atualizar, baixe os
 subconjuntos `latin` e `latin-ext` de peso variável do Fontsource e substitua os arquivos com
 os mesmos nomes.
+
+## 8. IA — fase 006 (`specs/006-ai-foundation`, A12, A15)
+
+Nenhuma dependência npm nova e nenhum SDK de provedor de modelos. O gateway fala com a
+interface `ModelProvider` (`apps/api/src/modules/ai/definitions/types.ts`), e os testes usam
+só o provedor simulado de `apps/api/test/fixtures/ai`. O primeiro provedor real entra com a
+própria spec, em `apps/api/src/modules/ai/gateway/providers/`. É o único lugar onde o ESLint
+e `test/security/006-ai-boundary.spec.ts` aceitam importar um SDK de provedor (`openai`,
+`@anthropic-ai/*`, `@google/genai` e afins). A dependência ganha então uma linha nesta tabela,
+com versão exata, licença e alternativa descartada.

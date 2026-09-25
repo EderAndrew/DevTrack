@@ -112,7 +112,7 @@ describe("006/US6 limites e estado conhecido", () => {
     // Exactly at the limit is accepted by the size check (the agent's own schema caps `text` lower).
   });
 
-  // 006/US6-5 (cancelamento) é coberto por 006/US1-4 em 006-us1-executions.spec.ts.
+  // 006/US6-5 (o mesmo trabalho assumido duas vezes) é coberto em 006-us1-worker.spec.ts.
 
   describe("006/US6-6 chaves de interrupção", () => {
     it("agente desabilitado → pedido novo 409, e as QUEUED viram CANCELLED AI_AGENT_DISABLED sem chamar o provedor", async () => {

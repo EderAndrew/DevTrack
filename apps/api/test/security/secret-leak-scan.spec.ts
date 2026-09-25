@@ -3,6 +3,8 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
+import { createUser, loginAs } from "../helpers/factories";
+import { api } from "../helpers/test-app";
 
 const SENSITIVE_KEY = /password|token|cookie|authorization|secret/i;
 const REDACTED = "[REDACTED]";
@@ -53,6 +55,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
       "token de convite de turma",
       "hash de token de convite de turma",
       "senha do aluno convidado",
+      "credencial do provedor de IA",
     ]) {
       expect(kinds.has(kind), kind).toBe(true);
     }
@@ -126,6 +129,24 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     );
     expect(serialize(await t.prisma.aiExecution.findMany({ select: { input: true } }))).toContain("MARCADOR-ENTRADA-006");
     expect(serialize(await t.prisma.aiExecutionOutput.findMany({ select: { output: true } }))).toContain("MARCADOR-SAIDA-006");
+  });
+
+  it("006/SC-007 006/FR-061 006/FR-018 instruções, entrada, saída, nome da disciplina e credencial do provedor fora dos logs, da auditoria e das respostas operacionais", async () => {
+    const aiKinds = ["instruções do agente de IA", "entrada da execução de IA", "saída do modelo", "nome da disciplina", "credencial do provedor de IA"];
+    const scanned = [...content, ...secrets].filter(({ kind }) => aiKinds.includes(kind));
+    expect(scanned.map(({ kind }) => kind).sort()).toEqual([...aiKinds].sort());
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const operations: Record<string, string> = {};
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs"]) {
+      const res = await client.get(`/api/ai/operations/${path}`);
+      expect(res.status, path).toBe(200);
+      operations[`resposta de /ai/operations/${path}`] = serialize(res.body);
+    }
+    expect(operations["resposta de /ai/operations/metrics?period=30d"]).toContain("reference-l1");
+    const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
+    expect(leaks(scanned, { logs: logs.text(), auditoria: serialize(events), ...operations })).toEqual([]);
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

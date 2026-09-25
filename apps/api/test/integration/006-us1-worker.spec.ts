@@ -33,7 +33,7 @@ describe("006/US1 worker de execuções", () => {
     expect(await t.prisma.aiExecution.count({ where: { status: "COMPLETED" } })).toBe(3);
   });
 
-  it("006/FR-024 dois ciclos simultâneos processam cada execução uma vez", async () => {
+  it("006/US6-5 006/FR-024 dois ciclos simultâneos processam cada execução uma vez, e o resultado é gravado uma vez", async () => {
     for (let i = 0; i < 4; i += 1) await request();
     const worker = t.get(AiExecutionWorker);
     const counts = await Promise.all([worker.runOnce(), worker.runOnce(), worker.runOnce()]);

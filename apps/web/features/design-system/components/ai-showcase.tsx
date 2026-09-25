@@ -1,6 +1,6 @@
 "use client";
 
-import type { AiExecutionStatus as ExecutionStatus, AiProposalStatus as ProposalStatus } from "@repo/contracts";
+import type { AiExecutionStatus as ExecutionStatus, AiProposalDecision, AiProposalStatus as ProposalStatus } from "@repo/contracts";
 import { useState } from "react";
 import {
   AiErrorState,
@@ -92,7 +92,7 @@ const ITEMS: AiProposalReviewItem[] = [
   { id: "t3", label: "Interfaces e classes abstratas" },
 ];
 
-const DECIDED: Record<"APPROVE" | "APPROVE_PARTIALLY" | "REJECT", ProposalStatus> = {
+const DECIDED: Record<AiProposalDecision, ProposalStatus> = {
   APPROVE: "APPROVED",
   APPROVE_PARTIALLY: "PARTIALLY_APPROVED",
   REJECT: "REJECTED",

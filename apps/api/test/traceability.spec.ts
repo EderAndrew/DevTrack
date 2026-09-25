@@ -74,6 +74,15 @@ const SPECS: FeatureSpec[] = [
     // SC-006 is the whole suite, SC-007 and SC-009 are checked by review, SC-008 on the quickstart (§4).
     successCriteria: [...sc(1, 5), ...sc(10, 10)],
   },
+  {
+    feature: "006",
+    path: "specs/006-ai-foundation/spec.md",
+    stories: 9,
+    scenarios: 53,
+    rows: 29,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 13),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

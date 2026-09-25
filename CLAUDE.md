@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-25 (005 implemented)
+Last updated: 2026-09-25 (006 implemented)
 
 ## Project state
 
@@ -20,11 +20,18 @@ topics and coverage, topic editing, plan status (US1–US7), the isolation of th
 implemented: design tokens, Inter + JetBrains Mono, the foundational components with standard
 variants and states, the AppShell and the student layout, the `/design-system` catalog, the
 documentation in `apps/web/design-system/` and the Exam Mode visual contract (exam components are
-specified only, built by the assessments feature). Later work starts a new feature through
+specified only, built by the assessments feature). Phase 006 (`specs/006-ai-foundation`) is
+implemented: the AI foundation (US1–US9 plus the Polish phase), with the registry of agents,
+prompts, output schemas, tools and model configs synced from code, the provider-independent
+gateway, deny-by-default tools, validated structured output, L2 proposals reviewed by the
+teacher, bounded async execution with usage and cost, audit, the admin "Operação de IA" screen
+and the AI state components of the design system. It ships no domain agent and no real
+provider: production registers nothing, and the tests use the reference agents and the fake
+provider of `apps/api/test/fixtures/ai`. Later work starts a new feature through
 `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004, V1–V20 in 005), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -110,7 +117,7 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004 and 005). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
+  (001, 003, 004, 005 and 006). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
@@ -121,6 +128,14 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   immutability of originals and confirmed revisions, concurrency and performance. The journey
   (`test/helpers/journey.ts`) also returns the 004 pedagogical `content`, which the secret scan keeps
   out of logs and audit metadata.
+- 006 security suite (`apps/api/test/security/006-*`): the AI authorization matrix
+  (`006-ai-authorization-matrix.ts`: teachers A and B and an ADMIN over every AI route), the
+  provider boundary (`006-ai-boundary.spec.ts`: provider SDKs and provider hosts only under
+  `src/modules/ai/gateway/providers/**`, enforced by ESLint and a scan of api and web), concurrency,
+  resilience, the admin scan (no teacher content, credential or ids in the operations responses) and
+  `006-ai-no-real-provider.spec.ts` (production registers no provider, the tests only `fake*` ones).
+  The journey also runs the 006 flows, and the secret scan looks for the instructions, input and
+  output markers and the fake provider's credential in logs, audit and operations responses.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -218,6 +233,23 @@ the removal conditions are in `DEPENDENCIES.md`.
   write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the
   topics use; a `COMPLETED` topic (US9) is locked except for archive and "Reabrir aula", can't be
   restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
+- 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
+  `definitions` (agents, prompts, output schemas, tools and model configs are code, research A4;
+  `PRODUCTION_AI_DEFINITIONS` is empty until the first agent's spec), `registry` (`AiRegistrySync`
+  writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
+  whose content changed stops the startup, and a trigger refuses the update: publish a new
+  version), `gateway` (`ModelGateway` picks the provider by the model config, applies the timeout,
+  retries only transient failures and normalizes errors; real providers will live in
+  `gateway/providers/**`, the only place a provider SDK may be imported), `tools`
+  (`AiToolExecutor`: allowlist, enabled, permission, strict input, resource owned by the workspace,
+  timeout, strict output), `output` (structured output validated by the agent's Zod schema),
+  `execution` (`POST /ai/executions` queues; `AiExecutionWorker` claims `QUEUED` rows with
+  `SKIP LOCKED` every `AI_EXECUTION_INTERVAL_SECONDS`, `0` = global kill switch; the runner
+  re-authorizes at start and checks cancellation between steps; the workspace is always the
+  session user), `proposals` (L2 output becomes a proposal the teacher approves, partially
+  approves or rejects; approving never writes domain data), `usage` (tokens and cost in
+  `ai_model_calls`), `operations` (admin health, metrics, agents and configs, never content),
+  `evaluation` (`AiEvaluationStore`, no routes) and `retention` (maintenance job `ai-records`).
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 

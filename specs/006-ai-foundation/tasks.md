@@ -822,13 +822,13 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 **Purpose**: retenção, varreduras, provedor real ausente, E2E, rastreabilidade, documentação
 e validação final.
 
-- [ ] T069 [P] Job `ai-records` em `apps/api/src/modules/ai/retention/ai-records.job.ts`,
+- [X] T069 [P] Job `ai-records` em `apps/api/src/modules/ai/retention/ai-records.job.ts`,
   registrado em `MAINTENANCE_JOB_NAMES` (research, "Retenção"), com lotes de
   `MAINTENANCE_BATCH_SIZE`, e documentado em
   `specs/001-foundation-identity-access/contracts/maintenance-jobs.md`. Teste
   `apps/api/test/integration/006-retention.spec.ts`: apaga finais antigas em cascata;
   preserva as que têm proposta `READY_FOR_REVIEW`; preserva a avaliação.
-- [ ] T070 [P] Ampliar `apps/api/test/security/secret-leak-scan.spec.ts` (`006/SC-007`,
+- [X] T070 [P] Ampliar `apps/api/test/security/secret-leak-scan.spec.ts` (`006/SC-007`,
   `006/FR-061`, `006/FR-018`) para procurar, nos logs, na auditoria e nas respostas
   operacionais da jornada:
   - `MARCADOR-INSTRUCOES-006`;
@@ -836,22 +836,22 @@ e validação final.
   - `MARCADOR-SAIDA-006`;
   - o nome da disciplina;
   - a credencial falsa do provedor.
-- [ ] T071 [P] Teste `apps/api/test/security/006-ai-no-real-provider.spec.ts`
+- [X] T071 [P] Teste `apps/api/test/security/006-ai-no-real-provider.spec.ts`
   (`006/SC-011`, `006/FR-015`, `006/FR-016`):
   - `PRODUCTION_AI_DEFINITIONS.providers` vazio;
   - os provedores do app de teste são só simulados (chaves `fake*`);
   - nenhuma variável `AI_*_API_KEY` no `config.schema.ts`;
   - `globalThis.fetch` espionado durante a suíte de IA sem chamadas para fora do localhost.
-- [ ] T072 [P] E2E `apps/web/e2e/ai-operations.spec.ts` (`006/US7-6`, `006/US7-7`):
+- [X] T072 [P] E2E `apps/web/e2e/ai-operations.spec.ts` (`006/US7-6`, `006/US7-7`):
   - o ADMIN abre "Operação de IA" pelo menu; estados vazios e saúde; o `Select` de período
     pelo teclado;
   - o professor não vê o item, e `/admin/ia` mostra "sem acesso".
-- [ ] T073 Acrescentar a 006 em `SPECS` de `apps/api/test/traceability.spec.ts` (9
+- [X] T073 Acrescentar a 006 em `SPECS` de `apps/api/test/traceability.spec.ts` (9
   histórias, 53 cenários, 29 linhas, `sc(1, 13)`). Conferir que `PENDING_006_TYPES` e
   `PENDING_006_PERMISSIONS` foram removidos e cobrir com testes nomeados qualquer id ainda
   sem teste. Para `006/SC-013`, a suíte da 001–005 deve passar sem mudança nos testes
   existentes.
-- [ ] T074 [P] Documentação:
+- [X] T074 [P] Documentação:
   - `CLAUDE.md`: estado do projeto com a 006 implementada; arquitetura do `modules/ai`
     (registro sincronizado, gateway, ferramentas, worker, propostas); fronteira de
     provedores e guardas 006; fixtures `test/fixtures/ai`; decisões A1–A22;
@@ -861,7 +861,7 @@ e validação final.
   - `DEPENDENCIES.md`: nota de que nenhum SDK de provedor foi adicionado e onde o primeiro
     entrará;
   - `README.md`: variáveis `AI_*`.
-- [ ] T075 Validação final: `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T075 Validação final: `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` (com consentimento para resetar só o `devtrack_e2e`);
   roteiro de `specs/006-ai-foundation/quickstart.md` §1–§7; marcar os `[X]`.
 

@@ -20,6 +20,7 @@ import { AiAgentRegistry } from "./registry/ai-agent.registry";
 import { AiModelConfigRegistry } from "./registry/ai-model-config.registry";
 import { AiRegistrySync } from "./registry/ai-registry.sync";
 import { AiToolRegistry } from "./registry/ai-tool.registry";
+import { AiRecordsJob } from "./retention/ai-records.job";
 import { AiUsageRecorder } from "./usage/ai-usage.recorder";
 
 /**
@@ -49,6 +50,7 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiProposalsService,
     AiOperationsService,
     AiEvaluationStore,
+    AiRecordsJob,
   ],
   exports: [AI_DEFINITIONS, AiExecutionsService, AiProposalsService, AiEvaluationStore],
 })

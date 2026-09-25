@@ -32,6 +32,17 @@ none). Kill switches: `AI_EXECUTION_INTERVAL_SECONDS=0` stops all AI processing 
 agent (`AiOperationsService.changeAgentStatus`) refuses new requests and cancels its QUEUED
 executions in the same transaction; a disabled model config refuses new requests and fails queued
 ones at start, without calling the model. Stub `ModelGateway.timing` to skip retry waits.
+The fake provider (`test/fixtures/ai/fake-model-provider.ts`, one per app, `t.provider`) answers a
+queue of steps: `script(...)` for every request (its last step repeats) and `scriptWhen(match,
+...)` for matching ones, with `fakeOutput`, `fakeText`, `fakeEmpty`, `fakeToolCall`,
+`fakeError(category)` and `fakeDelay(ms, step)`. `provider.requests` keeps what the model got,
+`provider.health` sets the health answer, and `FAKE_PROVIDER_CREDENTIAL` is the credential the
+scans look for. A test that changes the definitions (a new prompt version, another config) uses
+another app over the same database with `overrides: [{ provide: AI_DEFINITIONS, useValue }]`,
+whose startup syncs them (see `006-us8-versioning.spec.ts`). The reference agents are
+`reference-l1`, `reference-l1-continue`, `reference-l2`, `reference-draft` and
+`reference-restricted`. The factories `createAiExecution` and `createAiProposal` write rows
+straight to the database.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

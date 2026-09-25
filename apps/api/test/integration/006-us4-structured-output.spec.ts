@@ -70,7 +70,7 @@ describe("006/US4 só resultados válidos pelo esquema do agente são aceitos", 
     ["006/US4-4", "vazia", () => fakeEmpty(), "AI_OUTPUT_VALIDATION_FAILED"],
   ];
 
-  describe.each(["reference-l1", "reference-l2"])("006/US4-5 006/SC-003 006/FR-039 com %s", (agentKey) => {
+  describe.each(["reference-l1", "reference-l2"])("006/US4-2 006/US4-3 006/US4-4 006/US4-5 006/SC-003 006/FR-039 com %s", (agentKey) => {
     it.each(failures)("%s %s → FAILED com o código certo, sem resultado, proposta nem escrita de domínio", async (_id, _label, step, code) => {
       const before = await domainSnapshot();
       const execution = await run(agentKey, step());
