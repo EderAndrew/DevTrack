@@ -16,7 +16,7 @@ export interface ErrorSummaryProps {
 }
 
 /**
- * Error summary (FR-075, R22) on the destructive shadcn `Alert`: an always-present
+ * Error summary (FR-075, R22) on the `danger` `Alert`: an always-present
  * `aria-live="polite"` region, focused after an invalid submission, with links that move
  * focus to each field in error.
  */
@@ -40,7 +40,7 @@ export function ErrorSummary({ errors, title = "Corrija os itens abaixo" }: Erro
       {errors.length > 0 ? (
         <Alert
           ref={ref}
-          variant="destructive"
+          variant="danger"
           className="mb-6"
           tabIndex={-1}
           role="group"

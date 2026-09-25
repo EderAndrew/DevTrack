@@ -8,6 +8,7 @@ import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { STATUS_LABELS } from "@/lib/messages/status-labels";
@@ -146,9 +147,8 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
       <h2>Cadastro docente</h2>
       <div className="mb-4 flex flex-col gap-1">
         <Label htmlFor="filtro">Situação</Label>
-        <select
+        <NativeSelect
           id="filtro"
-          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground"
           value={filter}
           onChange={(event) => void onFilter(event)}
         >
@@ -157,7 +157,7 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
               {option.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <ErrorSummary errors={actionErrors} title="Não foi possível concluir" />
 

@@ -4,9 +4,10 @@ import type { ClassMeetingView, TopicView } from "@repo/contracts";
 import { ArrowDown, ArrowUp, Archive, CircleCheck, Pencil, RotateCcw, Split } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 import { NO_MEETING } from "../schemas/topic-form";
-import { SELECT_CLASS } from "./topic-form-dialog";
 
 /** Ids of a topic's buttons, so focus can come back to them after the list is redrawn. */
 export const moveButtonId = (direction: "up" | "down", topicId: string) => `${direction === "up" ? "subir" : "descer"}-${topicId}`;
@@ -85,10 +86,9 @@ export function TopicActions({
       </Button>
       <div className="flex items-center gap-2">
         <Label htmlFor={selectId}>Aula</Label>
-        <select
+        <NativeSelect
           id={selectId}
           aria-label={`Aula de ${topic.title}`}
-          className={SELECT_CLASS}
           value={topic.meetingId ?? NO_MEETING}
           disabled={busy || completed}
           onChange={(event) => onMeetingChange(event.target.value || null)}
@@ -99,7 +99,7 @@ export function TopicActions({
               {meetingLabel(meeting.number, meeting.date)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <Button type="button" variant="secondary" disabled={completed} onClick={onSplit} aria-label={`Dividir ${topic.title}`}>
         <Split aria-hidden="true" />
@@ -110,14 +110,12 @@ export function TopicActions({
         Arquivar
       </Button>
       <div className="flex min-h-11 items-center gap-2">
-        <input
-          type="checkbox"
+        <Checkbox
           id={checkId}
           aria-label={`Juntar ${topic.title}`}
           checked={selected && !completed}
           disabled={completed}
           onChange={(event) => onSelect(event.target.checked)}
-          className="size-5"
         />
         <Label htmlFor={checkId} className="font-normal">
           Juntar

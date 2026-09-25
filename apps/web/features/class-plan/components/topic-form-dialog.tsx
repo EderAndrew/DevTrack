@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
@@ -33,8 +34,6 @@ import {
 import { ItemPicker, withLinkedItems } from "./item-picker";
 
 const FIELD_IDS = { title: "titulo-topico", description: "descricao-topico", meetingId: "aula-topico", itemIds: "busca-item" } as const;
-
-export const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 type Kind = "create" | "edit" | "merge";
 
@@ -202,14 +201,14 @@ export function TopicFormDialog(props: TopicFormDialogProps) {
           </div>
           <div className="mb-4 flex flex-col gap-1">
             <Label htmlFor={FIELD_IDS.meetingId}>Aula</Label>
-            <select id={FIELD_IDS.meetingId} className={SELECT_CLASS} {...register("meetingId")}>
+            <NativeSelect id={FIELD_IDS.meetingId} {...register("meetingId")}>
               <option value={NO_MEETING}>Sem data</option>
               {meetings.map((meeting) => (
                 <option key={meeting.id} value={meeting.id}>
                   {meetingLabel(meeting.number, meeting.date)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <Controller
             control={control}

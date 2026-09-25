@@ -61,7 +61,7 @@ export function ClassStatusActions({ schoolClass }: { schoolClass: ClassView }) 
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="destructive">
+            <Button type="button" variant="danger">
               Arquivar
             </Button>
           </AlertDialogTrigger>
@@ -75,7 +75,7 @@ export function ClassStatusActions({ schoolClass }: { schoolClass: ClassView }) 
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => void run("ARCHIVED")}>Arquivar turma</AlertDialogAction>
+              <AlertDialogAction variant="danger" onClick={() => void run("ARCHIVED")}>Arquivar turma</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

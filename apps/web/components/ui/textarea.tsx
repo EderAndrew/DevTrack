@@ -1,14 +1,13 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { fieldClasses } from "@/components/ui/input"
 
+/** Multi-line field with the `Input` tokens and states; at least three lines tall. */
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea
       data-slot="textarea"
-      className={cn(
-        "flex field-sizing-content min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-body shadow-sm transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40",
-        className
-      )}
+      className={cn(fieldClasses, "flex field-sizing-content min-h-24", className)}
       {...props}
     />
   )

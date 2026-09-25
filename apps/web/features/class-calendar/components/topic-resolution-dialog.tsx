@@ -13,6 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Radio } from "@/components/ui/radio";
 import { formatIsoDate } from "./calendar-dates";
 
 type Action = TopicResolution["action"];
@@ -29,8 +31,6 @@ interface Choice {
   meetingDate?: string;
   intoTopicId?: string;
 }
-
-const SELECT_CLASS = "min-h-11 rounded-md border border-input bg-background px-3 py-2 text-body text-foreground";
 
 export interface TopicResolutionDialogProps {
   /** The date being unmarked ("YYYY-MM-DD"); `null` keeps the dialog closed. */
@@ -129,15 +129,13 @@ export function TopicResolutionDialog({
                       (action.value === "MERGE" && mergeCandidates.length === 0);
                     return (
                       <div key={action.value} className="flex min-h-11 items-center gap-2">
-                        <input
-                          type="radio"
+                        <Radio
                           id={id}
                           name={name}
                           value={action.value}
                           checked={choice.action === action.value}
                           disabled={unavailable}
                           onChange={() => onAction(topic.id, action.value)}
-                          className="size-5"
                         />
                         <Label htmlFor={id}>{action.label}</Label>
                       </div>
@@ -146,9 +144,8 @@ export function TopicResolutionDialog({
                   {choice.action === "MOVE" ? (
                     <div className="mt-2 flex flex-col gap-1">
                       <Label htmlFor={`${name}-aula`}>Aula de destino</Label>
-                      <select
+                      <NativeSelect
                         id={`${name}-aula`}
-                        className={SELECT_CLASS}
                         value={choice.meetingDate}
                         onChange={(event) => choose(topic.id, { meetingDate: event.target.value })}
                       >
@@ -157,15 +154,14 @@ export function TopicResolutionDialog({
                             {target.label}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </div>
                   ) : null}
                   {choice.action === "MERGE" ? (
                     <div className="mt-2 flex flex-col gap-1">
                       <Label htmlFor={`${name}-topico`}>Juntar com</Label>
-                      <select
+                      <NativeSelect
                         id={`${name}-topico`}
-                        className={SELECT_CLASS}
                         value={choice.intoTopicId}
                         onChange={(event) => choose(topic.id, { intoTopicId: event.target.value })}
                       >
@@ -174,7 +170,7 @@ export function TopicResolutionDialog({
                             {candidate.title}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </div>
                   ) : null}
                 </fieldset>
