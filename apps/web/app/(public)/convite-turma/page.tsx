@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/layout/page-header";
 import { getMe } from "@/features/auth/api/server";
 import { ClassInvitationPage } from "@/features/class-invitations/components/class-invitation-page";
 
@@ -15,7 +16,7 @@ export default async function ClassInvitationRoute({
   const me = await getMe().catch(() => null);
   return (
     <section className="mx-auto max-w-160 px-4 py-8">
-      <h1>Convite para turma</h1>
+      <PageHeader title="Convite para turma" />
       <ClassInvitationPage
         token={typeof token === "string" ? token : null}
         signedInAs={me ? { name: me.name, email: me.email } : null}

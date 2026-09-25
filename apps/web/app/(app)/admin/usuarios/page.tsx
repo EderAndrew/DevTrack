@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { fetchFirstAccountsPage } from "@/features/accounts/api/server";
 import { UsersAdmin } from "@/features/accounts/components/users-admin";
@@ -18,8 +19,8 @@ export default async function UsersPage() {
   if (!page) redirect(LOGIN);
 
   return (
-    <section className="mx-auto w-full max-w-256 px-4 py-8">
-      <h1>Contas de usuário</h1>
+    <section className="mx-auto w-full max-w-256">
+      <PageHeader title="Contas de usuário" />
       <p>Somente dados de identidade: nome, e-mail, situação da conta e papéis.</p>
       <UsersAdmin initialPage={page} currentUserId={me.id} />
     </section>

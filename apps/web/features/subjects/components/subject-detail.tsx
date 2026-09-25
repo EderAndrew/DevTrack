@@ -4,6 +4,7 @@ import type { SubjectView } from "@repo/contracts";
 import { Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Notice } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,10 +80,12 @@ export function SubjectDetail({
 
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-center gap-3">
-        <h1 className="m-0">{subject.name}</h1>
-        <SubjectStatusBadge status={subject.status} />
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: "Minhas disciplinas", href: "/disciplinas" }, { label: subject.name }]}
+        title={subject.name}
+        status={<SubjectStatusBadge status={subject.status} />}
+        className="mb-4"
+      />
       {notice ? <Notice role="status">{notice}</Notice> : null}
 
       {editing ? (

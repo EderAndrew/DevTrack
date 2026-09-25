@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { MyClasses } from "@/features/my-classes/components/my-classes";
@@ -13,8 +14,8 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
   const { "bem-vindo": welcome } = await searchParams;
 
   return (
-    <section className="mx-auto w-full max-w-256 px-4 py-8">
-      <h1>Minhas turmas</h1>
+    <section className="mx-auto w-full max-w-256">
+      <PageHeader title="Minhas turmas" />
       <MyClasses welcome={welcome === "1"} />
     </section>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { fetchTeachers } from "@/features/teachers/api/server";
@@ -18,8 +19,8 @@ export default async function TeachersPage() {
   if (!teachers) redirect(LOGIN);
 
   return (
-    <section className="mx-auto w-full max-w-256 px-4 py-8">
-      <h1>Professores</h1>
+    <section className="mx-auto w-full max-w-256">
+      <PageHeader title="Professores" />
       <TeachersAdmin initialTeachers={teachers} />
     </section>
   );

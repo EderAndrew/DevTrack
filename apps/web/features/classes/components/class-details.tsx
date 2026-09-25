@@ -2,6 +2,7 @@
 
 import { Pencil } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/messages/dates";
@@ -50,14 +51,32 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
 
   const schoolClass = query.data;
   const archived = schoolClass.status === "ARCHIVED";
+  const actions =
+    (canInvite && schoolClass.status === "ACTIVE") || (canEdit && !archived) || canChangeStatus ? (
+      <>
+        {canInvite && schoolClass.status === "ACTIVE" ? <InviteStudentDialog classId={schoolClass.id} /> : null}
+        {canEdit && !archived ? (
+          <Button asChild variant="secondary">
+            <Link href={`/turmas/${schoolClass.id}/editar`}>
+              <Pencil aria-hidden="true" />
+              Editar
+            </Link>
+          </Button>
+        ) : null}
+        {canChangeStatus ? <ClassStatusActions schoolClass={schoolClass} /> : null}
+      </>
+    ) : null;
 
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-center gap-3">
-        <h1 className="m-0">{schoolClass.name}</h1>
-        <ClassStatusBadge status={schoolClass.status} />
-      </div>
-      <dl className="mb-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+      <PageHeader
+        breadcrumb={[{ label: "Turmas", href: "/turmas" }, { label: schoolClass.name }]}
+        title={schoolClass.name}
+        status={<ClassStatusBadge status={schoolClass.status} />}
+        actions={actions}
+        className="mb-4"
+      />
+      <dl className="mb-6 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt className="font-semibold">Código</dt>
         <dd className="m-0">{schoolClass.code}</dd>
         <dt className="font-semibold">Ano letivo</dt>
@@ -83,19 +102,6 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
         <dt className="font-semibold">Descrição</dt>
         <dd className="m-0 whitespace-pre-line">{schoolClass.description ?? "Sem descrição"}</dd>
       </dl>
-
-      <div className="mb-6 flex flex-wrap items-start gap-2">
-        {canInvite && schoolClass.status === "ACTIVE" ? <InviteStudentDialog classId={schoolClass.id} /> : null}
-        {canEdit && !archived ? (
-          <Button asChild variant="secondary">
-            <Link href={`/turmas/${schoolClass.id}/editar`}>
-              <Pencil aria-hidden="true" />
-              Editar
-            </Link>
-          </Button>
-        ) : null}
-        {canChangeStatus ? <ClassStatusActions schoolClass={schoolClass} /> : null}
-      </div>
     </div>
   );
 }
