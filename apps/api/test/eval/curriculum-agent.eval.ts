@@ -3,11 +3,11 @@ import { AI_DEFINITIONS, type AiDefinitions, type ModelProvider, type ModelReque
 import { AiEvaluationStore } from "../../src/modules/ai/evaluation/ai-evaluation.store";
 import { AnthropicProvider } from "../../src/modules/ai/gateway/providers/anthropic.provider";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
-import { CURRICULUM_MODEL_CONFIG, curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { loadGoldenCases, seedEvaluationCases, toRecordedRun, writeRecordedRun } from "../fixtures/curriculum-agent/load-golden";
 import { type CaseRun, printScores, runGoldenCase } from "../fixtures/curriculum-agent/run-case";
 import { MIN_ITEM_RECALL } from "../fixtures/curriculum-agent/score";
-import { TEST_CURRICULUM_AGENT } from "../helpers/curriculum-ai";
+import { TEST_CURRICULUM_AGENT, TEST_CURRICULUM_MODEL_CONFIG } from "../helpers/curriculum-ai";
 import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 /** Keeps the real provider's answers of the current case, for `EVAL_RECORD=1`. */
@@ -64,7 +64,9 @@ describe("007/FR-051 avaliação sob demanda do curriculum-agent com o provedor 
     const definitions: AiDefinitions = {
       agents: [TEST_CURRICULUM_AGENT],
       tools: curriculum.tools,
-      modelConfigs: [CURRICULUM_MODEL_CONFIG],
+      // Until 008/T027 moves this run to OpenRouter: the 007 model on the Anthropic provider.
+      modelConfigs: [{ ...TEST_CURRICULUM_MODEL_CONFIG, provider: "anthropic", model: "claude-opus-5" }],
+      tasks: curriculum.tasks,
       providers: [provider],
       resources: curriculum.resources,
     };

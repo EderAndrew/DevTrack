@@ -4,7 +4,7 @@ import type { AiCallStatus } from "../../../generated/prisma/client";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ModelUsage } from "../definitions/types";
 import type { RegisteredModelConfig } from "../registry/ai-model-config.registry";
-import { estimateCost } from "./cost";
+import { callCost } from "./cost";
 
 export interface ModelCallRecord {
   executionId: string;
@@ -16,16 +16,21 @@ export interface ModelCallRecord {
   startedAt: Date;
   durationMs: number;
   usage: ModelUsage | null;
+  /** What the provider says it served (008 research G12). */
+  servedModel: string | null;
+  /** A leg of the route's fallback (008 research G6). */
+  isFallback: boolean;
 }
 
 /**
  * One row of `ai_model_calls` per call to the model, failed ones included (006 FR-059, research
- * A16). Tokens only as the provider reported them; cost only with tokens and a price.
+ * A16), and per leg of a route since 008. Tokens only as the provider reported them; the cost the
+ * provider reported, else the estimate by the config's price, else none (008 research G17).
  */
 @Injectable()
 export class AiUsageRecorder {
   async record(tx: Tx, call: ModelCallRecord): Promise<void> {
-    const cost = estimateCost(call.usage, call.config.price);
+    const cost = callCost(call.usage, call.config.price);
     await tx.aiModelCall.create({
       data: {
         executionId: call.executionId,
@@ -43,6 +48,9 @@ export class AiUsageRecorder {
         totalTokens: call.usage?.totalTokens ?? null,
         estimatedCost: cost?.amount ?? null,
         currency: cost?.currency ?? null,
+        costSource: cost?.source ?? null,
+        servedModel: call.servedModel,
+        isFallback: call.isFallback,
       },
     });
   }

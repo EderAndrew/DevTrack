@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiOperationsService } from "../../src/modules/ai/operations/ai-operations.service";
-import { CURRICULUM_AGENT_KEY, CURRICULUM_MODEL_CONFIG_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { CURRICULUM_AGENT_KEY, OPENROUTER_DEFAULT_CONFIG_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { SYLLABUS_WORKER_PATH } from "../../src/modules/syllabus/syllabus-worker-runner";
 import { docxFromBody, paragraph } from "../fixtures/syllabus/build-fixtures.ts";
@@ -95,7 +95,7 @@ describe("007 resiliência do Curriculum Agent", () => {
 
   it("configuração de modelo desabilitada com a execução na fila → FAILED AI_MODEL_UNAVAILABLE no início", async () => {
     const { body } = await requestAnalysis(t, cookie, document.id);
-    await t.prisma.aiModelConfig.update({ where: { key: CURRICULUM_MODEL_CONFIG_KEY }, data: { status: "DISABLED" } });
+    await t.prisma.aiModelConfig.update({ where: { key: OPENROUTER_DEFAULT_CONFIG_KEY }, data: { status: "DISABLED" } });
     await drain(t);
 
     const row = await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: body.execution.id }, include: { proposal: true } });

@@ -5,7 +5,7 @@ import { type GoldenCase, loadGoldenCases, recordedSteps, seedEvaluationCases } 
 import { type CaseRun, printScores, runGoldenCase } from "../fixtures/curriculum-agent/run-case";
 import { MIN_ITEM_RECALL } from "../fixtures/curriculum-agent/score";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createCurriculumAiApp } from "../helpers/curriculum-ai";
+import { createCurriculumAiApp, CURRICULUM_TEST_MODEL } from "../helpers/curriculum-ai";
 
 const CASES = loadGoldenCases();
 
@@ -61,7 +61,7 @@ describe("007/US6-3 007/FR-049 007/FR-050 avaliação do conjunto de referência
       promptVersionId: execution.promptVersionId,
       modelConfigId: execution.modelConfigId,
       provider: "fake",
-      model: "claude-opus-5",
+      model: CURRICULUM_TEST_MODEL,
       passed: true,
     });
     expect(result.metrics).toEqual(run.score.metrics);

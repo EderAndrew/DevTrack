@@ -27,6 +27,7 @@ const AGENT_INCLUDE = {
   currentVersion: {
     include: {
       modelConfig: { select: { key: true } },
+      task: { select: { primaryModelConfig: { select: { key: true } } } },
       promptVersion: { select: { version: true } },
       outputSchema: { select: { version: true } },
       tools: { select: { tool: { select: { key: true } } } },
@@ -190,14 +191,19 @@ export class AiOperationsService {
     return counts;
   }
 
-  /** Keys of the agents whose current version uses each model config. */
+  /** Keys of the agents whose current version uses each model config, through its task (008) or directly. */
   private async configUsers(db: Tx): Promise<Map<string, string[]>> {
     const versions = await db.aiAgentVersion.findMany({
       where: { currentOf: { some: {} } },
-      select: { modelConfigId: true, agent: { select: { key: true } } },
+      select: { modelConfigId: true, task: { select: { primaryModelConfigId: true, fallbackModelConfigId: true } }, agent: { select: { key: true } } },
     });
     const users = new Map<string, string[]>();
-    for (const version of versions) users.set(version.modelConfigId, [...(users.get(version.modelConfigId) ?? []), version.agent.key].sort());
+    for (const version of versions) {
+      const configIds = [version.modelConfigId, version.task?.primaryModelConfigId, version.task?.fallbackModelConfigId];
+      for (const id of new Set(configIds.filter((value): value is string => typeof value === "string"))) {
+        users.set(id, [...(users.get(id) ?? []), version.agent.key].sort());
+      }
+    }
     return users;
   }
 
@@ -210,7 +216,8 @@ export class AiOperationsService {
       status: agent.status,
       version: version.version,
       riskLevel: version.riskLevel,
-      modelConfigKey: version.modelConfig.key,
+      // The primary of the task (008); the view gets the whole route with US5.
+      modelConfigKey: version.task?.primaryModelConfig.key ?? version.modelConfig!.key,
       promptVersion: version.promptVersion.version,
       outputSchemaVersion: version.outputSchema?.version ?? null,
       toolKeys: version.tools.map((item) => item.tool.key).sort(),

@@ -11,6 +11,7 @@ import {
   requestAnalysis,
   scriptCurriculumRun,
   seedProcessedDocument,
+  TEST_CURRICULUM_MODEL_CONFIG,
 } from "../helpers/curriculum-ai";
 import { createSyllabusDocument, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
@@ -102,7 +103,7 @@ describe("007/US2 o preenchimento manual continua funcionando, com ou sem IA", (
     });
 
     it("modelo desabilitado pelo administrador → MODEL_UNAVAILABLE e 503 AI_MODEL_UNAVAILABLE", async () => {
-      const res = await (await adminClient()).post("/api/ai/operations/model-configs/curriculum-extraction-default/status", { status: "DISABLED" });
+      const res = await (await adminClient()).post(`/api/ai/operations/model-configs/${TEST_CURRICULUM_MODEL_CONFIG.key}/status`, { status: "DISABLED" });
       expect(res.status).toBe(200);
       expect((await getCurriculumAiStatus(t, cookie, document.id)).body.availability).toBe("MODEL_UNAVAILABLE");
       const request = await requestAnalysis(t, cookie, document.id);

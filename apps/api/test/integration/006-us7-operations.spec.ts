@@ -50,6 +50,7 @@ describe("006/US7 o administrador opera a IA", () => {
         totalTokens: usage.input === null || usage.output === null ? null : usage.input + usage.output,
         estimatedCost: usage.cost === null ? null : new Prisma.Decimal(usage.cost),
         currency: usage.cost === null ? null : "USD",
+        costSource: usage.cost === null ? null : "PRICE",
       },
     });
   }

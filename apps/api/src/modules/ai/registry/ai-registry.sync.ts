@@ -14,6 +14,7 @@ import {
   modelConfigHash,
   outputSchemaHash,
   promptHash,
+  taskHash,
   toolHash,
 } from "./ai-definitions.check";
 
@@ -21,6 +22,7 @@ export interface AiRegistrySummary {
   agents: number;
   tools: number;
   modelConfigs: number;
+  tasks: number;
   newVersions: number;
   deprecated: number;
   changed: boolean;
@@ -55,8 +57,9 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         await advisoryXactLock(tx, LockKey.AI_REGISTRY);
         const changes = { count: 0, newVersions: 0, deprecated: 0 };
         const configIds = await this.syncModelConfigs(tx, changes);
+        const taskIds = await this.syncTasks(tx, configIds, changes);
         const toolIds = await this.syncTools(tx, changes);
-        for (const agent of this.definitions.agents) await this.syncAgent(tx, agent, configIds, toolIds, changes);
+        for (const agent of this.definitions.agents) await this.syncAgent(tx, agent, taskIds, toolIds, changes);
         changes.deprecated = await this.deprecateMissing(tx);
         changes.count += changes.deprecated;
 
@@ -64,6 +67,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
           agents: this.definitions.agents.length,
           tools: this.definitions.tools.length,
           modelConfigs: this.definitions.modelConfigs.length,
+          tasks: this.definitions.tasks.length,
           newVersions: changes.newVersions,
           deprecated: changes.deprecated,
           changed: changes.count > 0,
@@ -111,6 +115,35 @@ export class AiRegistrySync implements OnApplicationBootstrap {
     return ids;
   }
 
+  /** Tasks after the configs they route to (008 research G2); mutable rows, like the configs. */
+  private async syncTasks(tx: Tx, configIds: Map<string, string>, changes: { count: number }): Promise<Map<string, string>> {
+    const ids = new Map<string, string>();
+    for (const task of this.definitions.tasks) {
+      const hash = taskHash(task);
+      const fields = {
+        primaryModelConfigId: configIds.get(task.primaryModelConfigKey)!,
+        fallbackModelConfigId: task.fallbackModelConfigKey ? configIds.get(task.fallbackModelConfigKey)! : null,
+        parameters: (task.parameters ?? {}) as Prisma.InputJsonObject,
+        maxOutputTokens: task.maxOutputTokens,
+        timeoutMs: task.timeoutMs,
+        definitionHash: hash,
+      };
+      const existing = await tx.aiTask.findUnique({ where: { key: task.key }, select: { id: true, definitionHash: true } });
+      if (!existing) {
+        const created = await tx.aiTask.create({ data: { key: task.key, ...fields }, select: { id: true } });
+        ids.set(task.key, created.id);
+        changes.count += 1;
+      } else {
+        if (existing.definitionHash !== hash) {
+          await tx.aiTask.update({ where: { id: existing.id }, data: fields });
+          changes.count += 1;
+        }
+        ids.set(task.key, existing.id);
+      }
+    }
+    return ids;
+  }
+
   private async syncTools(tx: Tx, changes: { count: number }): Promise<Map<string, string>> {
     const ids = new Map<string, string>();
     for (const tool of this.definitions.tools) {
@@ -145,7 +178,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
   private async syncAgent(
     tx: Tx,
     agent: AgentDefinition,
-    configIds: Map<string, string>,
+    taskIds: Map<string, string>,
     toolIds: Map<string, string>,
     changes: { count: number; newVersions: number },
   ): Promise<void> {
@@ -220,7 +253,9 @@ export class AiRegistrySync implements OnApplicationBootstrap {
       requiredPermission: agent.requiredPermission,
       promptVersionId: promptId,
       outputSchemaVersionId: outputId,
-      modelConfigId: configIds.get(agent.modelConfigKey)!,
+      // Versions synced since 008 route through their task; `model_config_id` stays for older ones.
+      taskId: taskIds.get(agent.taskKey)!,
+      modelConfigId: null,
       resourceTypes: agent.resourceTypes,
       proposalType: agent.proposal?.type ?? null,
       limits: (agent.limits ?? {}) as Prisma.InputJsonObject,

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
-import type { AgentDefinition, AiDefinitions, AnyToolDefinition, ModelConfigDefinition } from "../definitions/types";
+import type { AgentDefinition, AiDefinitions, AnyToolDefinition, ModelConfigDefinition, TaskDefinition } from "../definitions/types";
 
 /** A definition in code the foundation refuses; startup stops (006 FR-006, research A4, A5). */
 export class AiRegistryError extends Error {
@@ -35,6 +35,11 @@ export const outputSchemaHash = (agent: AgentDefinition) => (agent.output ? stab
 
 export const modelConfigHash = (config: ModelConfigDefinition) => stableHash(config);
 
+export const taskHash = (task: TaskDefinition) => stableHash(task);
+
+/** Generation parameters a task may set (008 research G11); the provider ignores the rest. */
+export const TASK_PARAMETERS: ReadonlySet<string> = new Set(["temperature", "top_p", "effort"]);
+
 export function toolHash(tool: AnyToolDefinition): string {
   return stableHash({ ...tool, inputSchema: jsonSchemaOf(tool.inputSchema), outputSchema: jsonSchemaOf(tool.outputSchema) });
 }
@@ -47,7 +52,7 @@ export function agentVersionHash(agent: AgentDefinition): string {
     prompt: { key: agent.prompt.key, version: agent.prompt.version, hash: promptHash(agent) },
     output: agent.output ? { version: agent.output.version, hash: outputSchemaHash(agent) } : null,
     input: agent.input ? jsonSchemaOf(agent.input) : null,
-    modelConfigKey: agent.modelConfigKey,
+    taskKey: agent.taskKey,
     toolKeys: [...agent.toolKeys].sort(),
     resourceTypes: [...agent.resourceTypes].sort(),
     onToolDenied: agent.onToolDenied ?? "fail",
@@ -72,10 +77,29 @@ export function checkDefinitions(definitions: AiDefinitions, limits: AiExecution
     }
   };
   unique("model config", definitions.modelConfigs.map((c) => c.key));
+  unique("task", definitions.tasks.map((t) => t.key));
   unique("tool", definitions.tools.map((t) => t.key));
   unique("agent", definitions.agents.map((a) => a.key));
 
   const configs = new Set(definitions.modelConfigs.map((c) => c.key));
+  for (const config of definitions.modelConfigs) {
+    // A model that picks other models by itself would hide the fallback from the gateway (008 FR-004).
+    if (config.model.startsWith("openrouter/")) throw new AiRegistryError(`model config "${config.key}": model "${config.model}" is not accepted`);
+  }
+  const tasks = new Set(definitions.tasks.map((t) => t.key));
+  for (const task of definitions.tasks) {
+    const where = `task "${task.key}"`;
+    if (!configs.has(task.primaryModelConfigKey)) throw new AiRegistryError(`${where}: unknown model config "${task.primaryModelConfigKey}"`);
+    if (task.fallbackModelConfigKey !== undefined) {
+      if (!configs.has(task.fallbackModelConfigKey)) throw new AiRegistryError(`${where}: unknown model config "${task.fallbackModelConfigKey}"`);
+      if (task.fallbackModelConfigKey === task.primaryModelConfigKey) throw new AiRegistryError(`${where}: the fallback is the primary`);
+    }
+    for (const name of Object.keys(task.parameters ?? {})) {
+      if (!TASK_PARAMETERS.has(name)) throw new AiRegistryError(`${where}: parameter "${name}" is not accepted`);
+    }
+    if (!Number.isInteger(task.maxOutputTokens) || task.maxOutputTokens < 1) throw new AiRegistryError(`${where}: invalid max output tokens`);
+    if (!Number.isInteger(task.timeoutMs) || task.timeoutMs < 1000 || task.timeoutMs > 600_000) throw new AiRegistryError(`${where}: invalid timeout`);
+  }
   const tools = new Set(definitions.tools.map((t) => t.key));
   for (const tool of definitions.tools) {
     if ((tool.riskLevel as string) !== "L1_READ_ONLY") throw new AiRegistryError(`tool "${tool.key}" must be L1_READ_ONLY`);
@@ -86,7 +110,7 @@ export function checkDefinitions(definitions: AiDefinitions, limits: AiExecution
       throw new AiRegistryError(`${where}: risk level ${agent.riskLevel} is not accepted in this feature`);
     }
     if (!Number.isInteger(agent.version) || agent.version < 1) throw new AiRegistryError(`${where}: invalid version`);
-    if (!configs.has(agent.modelConfigKey)) throw new AiRegistryError(`${where}: unknown model config "${agent.modelConfigKey}"`);
+    if (!tasks.has(agent.taskKey)) throw new AiRegistryError(`${where}: unknown task "${agent.taskKey}"`);
     for (const key of agent.toolKeys) {
       if (!tools.has(key)) throw new AiRegistryError(`${where}: unknown tool "${key}"`);
     }

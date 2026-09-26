@@ -17,7 +17,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 
 | `type` | Spec name | Actor | Target | `metadata` allowed |
 |--------|-----------|-------|--------|--------------------|
-| `ai_execution.requested` | `AI_EXECUTION_REQUESTED` | USER | AI_EXECUTION | `agentKey`, `agentVersion`, `promptVersion`, `modelConfigKey`, `resourceType`, `riskLevel` |
+| `ai_execution.requested` | `AI_EXECUTION_REQUESTED` | USER | AI_EXECUTION | `agentKey`, `agentVersion`, `promptVersion`, `modelConfigKey`, `taskKey`, `fallbackModelConfigKey` (008), `resourceType`, `riskLevel` |
 | `ai_execution.started` | `AI_EXECUTION_STARTED` | SYSTEM | AI_EXECUTION | `claim` |
 | `ai_execution.completed` | `AI_EXECUTION_COMPLETED` | SYSTEM | AI_EXECUTION | `durationMs`, `modelCalls`, `toolCalls`, `proposalId` |
 | `ai_execution.failed` | `AI_EXECUTION_FAILED` | SYSTEM | AI_EXECUTION | `status` (`FAILED`\|`TIMED_OUT`), `errorCode`, `durationMs`, `modelCalls`, `toolCalls` |
@@ -34,7 +34,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_agent.disabled` | `AI_AGENT_DISABLED` | USER | AI_AGENT | `agentKey`, `version`, `cancelledExecutions` |
 | `ai_model_config.enabled` | equivalent of the model config (FR-062) | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
 | `ai_model_config.disabled` | idem | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
-| `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `newVersions`, `deprecated` (only when something changed) |
+| `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `tasks` (008), `newVersions`, `deprecated` (only when something changed) |
 | `ai_execution.rate_limited` | — | USER | — | `scope` |
 
 Notes:

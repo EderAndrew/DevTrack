@@ -1,4 +1,5 @@
 import type { AiErrorCode } from "@repo/contracts";
+import type { GatewayLeg } from "./model-gateway";
 
 /**
  * Categories a provider maps its own failures to (research A12). A provider throws
@@ -32,6 +33,8 @@ export class AiFailure extends Error {
     readonly code: AiErrorCode,
     readonly attempts = 0,
     readonly durationMs = 0,
+    /** The configs the gateway tried, for the runner to record (008 research G6). */
+    readonly legs: readonly GatewayLeg[] = [],
   ) {
     super(code);
     this.name = "AiFailure";

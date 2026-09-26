@@ -9,7 +9,7 @@ import type { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
 import { api, createTestApp, resetDb, type TestApp, type TestAppOptions } from "./test-app";
 
 /** Extra definitions a suite registers next to the reference ones. */
-export type AiExtraDefinitions = Partial<Pick<AiDefinitions, "agents" | "tools" | "modelConfigs" | "resources">>;
+export type AiExtraDefinitions = Partial<Pick<AiDefinitions, "agents" | "tools" | "modelConfigs" | "tasks" | "resources">>;
 
 export interface AiTestApp extends TestApp {
   /** The fake provider of this app; reset it between tests (006 FR-015). */
@@ -27,6 +27,7 @@ export async function createAiTestApp(options: TestAppOptions & AiExtraDefinitio
   definitions.agents = [...definitions.agents, ...(options.agents ?? [])];
   definitions.tools = [...definitions.tools, ...(options.tools ?? [])];
   definitions.modelConfigs = [...definitions.modelConfigs, ...(options.modelConfigs ?? [])];
+  definitions.tasks = [...definitions.tasks, ...(options.tasks ?? [])];
   definitions.resources = { ...definitions.resources, ...options.resources };
   const t = await createTestApp({
     ...options,
@@ -61,7 +62,7 @@ export function requestExecution(t: TestApp, cookie: string, body: Record<string
 async function currentVersion(t: TestApp, agentKey: string) {
   const agent = await t.prisma.aiAgent.findUniqueOrThrow({
     where: { key: agentKey },
-    include: { currentVersion: { include: { promptVersion: true, modelConfig: true } } },
+    include: { currentVersion: { include: { promptVersion: true, task: { include: { primaryModelConfig: true, fallbackModelConfig: true } } } } },
   });
   return agent.currentVersion!;
 }
@@ -96,9 +97,11 @@ export async function createAiExecution(t: TestApp, workspaceId: string, agentKe
       promptVersionId: version.promptVersionId,
       promptVersion: version.promptVersion.version,
       outputSchemaVersionId: version.outputSchemaVersionId,
-      modelConfigId: version.modelConfigId,
-      provider: version.modelConfig.provider,
-      model: version.modelConfig.model,
+      modelConfigId: version.task!.primaryModelConfigId,
+      fallbackModelConfigId: version.task!.fallbackModelConfigId,
+      taskKey: version.task!.key,
+      provider: version.task!.primaryModelConfig.provider,
+      model: version.task!.primaryModelConfig.model,
       riskLevel: version.riskLevel,
       resourceType: options.resource?.type ?? null,
       resourceId: options.resource?.id ?? null,

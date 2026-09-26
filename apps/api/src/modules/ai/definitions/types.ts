@@ -63,7 +63,8 @@ export interface AgentDefinition {
   output?: { version: number; schema: z.ZodType };
   /** Validates the `input` of an execution request (400 on failure). */
   input?: z.ZodType;
-  modelConfigKey: string;
+  /** The task the agent runs (008 research G2); the task picks the models, never the agent. */
+  taskKey: string;
   /** Explicit allowlist; `[]` means no tools (FR-034). */
   toolKeys: string[];
   /** Accepted `resource.type` values. */
@@ -153,8 +154,22 @@ export interface ModelConfigDefinition {
   timeoutMs: number;
   /** Prices per million tokens as decimal strings; without them the cost stays empty. */
   price?: { inputPerMTok: string; outputPerMTok: string; currency: string };
-  /** Declared only: automatic fallback is not implemented in this feature (FR-017). */
-  fallbackKeys?: string[];
+}
+
+/**
+ * What an agent asks the gateway for, and how it is routed (008 research G2,
+ * contracts/gateway-routing.md): the primary model config and an optional fallback, plus the
+ * generation settings. The config's own tokens and timeout act as ceilings.
+ */
+export interface TaskDefinition {
+  key: string;
+  primaryModelConfigKey: string;
+  /** Another config, tried once after a recoverable failure of the primary (008 FR-010). */
+  fallbackModelConfigKey?: string;
+  /** Only `temperature`, `top_p` and `effort` (checked at startup). */
+  parameters?: Record<string, number | string | boolean>;
+  maxOutputTokens: number;
+  timeoutMs: number;
 }
 
 /** One piece of untrusted content (request input, tool result): data, never instructions. */
@@ -194,12 +209,18 @@ export interface ModelUsage {
   inputTokens: number | null;
   outputTokens: number | null;
   totalTokens: number | null;
+  /** What the provider says the call cost, when it reports it (008 research G17). */
+  cost?: { amount: string; currency: string } | null;
 }
 
 export type ModelResponse = (
   | { kind: "output"; text: string }
   | { kind: "tool_calls"; calls: ModelToolCall[] }
-) & { usage: ModelUsage | null };
+) & {
+  usage: ModelUsage | null;
+  /** The model the provider says it served; absent or null when it doesn't say (008 research G12). */
+  servedModel?: string | null;
+};
 
 export type ProviderHealth = AiProviderStatus;
 
@@ -228,6 +249,7 @@ export interface AiDefinitions {
   agents: AgentDefinition[];
   tools: AnyToolDefinition[];
   modelConfigs: ModelConfigDefinition[];
+  tasks: TaskDefinition[];
   providers: ModelProvider[];
   resources: Record<string, ResourceOwnership>;
 }
@@ -238,3 +260,4 @@ export const AI_DEFINITIONS = Symbol("AI_DEFINITIONS");
 export const defineAgent = (definition: AgentDefinition): AgentDefinition => definition;
 export const defineTool = <I, O>(definition: ToolDefinition<I, O>): ToolDefinition<I, O> => definition;
 export const defineModelConfig = (definition: ModelConfigDefinition): ModelConfigDefinition => definition;
+export const defineTask = (definition: TaskDefinition): TaskDefinition => definition;

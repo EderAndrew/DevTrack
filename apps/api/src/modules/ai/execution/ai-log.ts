@@ -23,6 +23,11 @@ export interface AiLogFields {
   /** Paths (never values) of an output that failed its schema. */
   issuePaths?: string[];
   errorName?: string;
+  /** The task of the execution and the config, served model and leg of one call (008 FR-019). */
+  task?: string | null;
+  configKey?: string;
+  servedModel?: string | null;
+  fallback?: boolean;
 }
 
 const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
@@ -43,6 +48,10 @@ const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
   "attempts",
   "issuePaths",
   "errorName",
+  "task",
+  "configKey",
+  "servedModel",
+  "fallback",
 ]);
 
 /** Keeps only the allowed fields, whatever the caller passes at runtime. */

@@ -30,7 +30,8 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
     expect(t.config.ai.anthropic.apiKey).toBeNull();
     expect(production.providers).toEqual([]);
     expect(production.agents.map((a) => [a.key, a.initialStatus])).toEqual([["curriculum-agent", "DISABLED"]]);
-    expect(production.modelConfigs.map((c) => c.provider)).toEqual(["anthropic"]);
+    // 008: the agent's task routes to the OpenRouter configs; the provider still needs its key.
+    expect(production.modelConfigs.map((c) => c.provider)).toEqual(["openrouter"]);
     expect(production.tools.map((tool) => tool.key)).toEqual(["read-curriculum-document"]);
   });
 

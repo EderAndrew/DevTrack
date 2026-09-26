@@ -18,11 +18,12 @@ import {
   type ProposalBuildContext,
   type UntrustedContent,
 } from "../definitions/types";
-import { ModelGateway } from "../gateway/model-gateway";
+import { type GatewayLeg, type GatewayRoute, type GatewayTask, ModelGateway } from "../gateway/model-gateway";
 import { AiFailure } from "../gateway/provider-errors";
 import { StructuredOutputValidator } from "../output/structured-output.validator";
 import { jsonSchemaOf } from "../registry/ai-definitions.check";
 import { AiModelConfigRegistry, type RegisteredModelConfig } from "../registry/ai-model-config.registry";
+import { AiTaskRegistry } from "../registry/ai-task.registry";
 import { AiToolExecutor, type ToolCallOutcome } from "../tools/ai-tool-executor";
 import { AiUsageRecorder } from "../usage/ai-usage.recorder";
 import { AiExecutionAborts } from "./ai-execution-aborts";
@@ -53,6 +54,13 @@ class Stop {
 
 const RUNNING_STATES = ["RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as const;
 
+/** The route of a running execution: its configs as registered now, and the task's settings. */
+interface ExecutionRoute extends GatewayRoute {
+  primary: RegisteredModelConfig;
+  fallback: RegisteredModelConfig | null;
+  task: GatewayTask;
+}
+
 /**
  * Runs one claimed execution (006 US1, contracts/agent-runtime.md "Execution cycle"):
  * re-authorizes against the database, freezes the context, calls the model through the gateway,
@@ -70,6 +78,7 @@ export class AiExecutionRunner {
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionResolver,
     private readonly modelConfigs: AiModelConfigRegistry,
+    private readonly tasks: AiTaskRegistry,
     private readonly gateway: ModelGateway,
     private readonly validator: StructuredOutputValidator,
     private readonly usage: AiUsageRecorder,
@@ -104,11 +113,11 @@ export class AiExecutionRunner {
   private async cycle(claimed: ClaimedExecution, execution: Loaded, signal: AbortSignal): Promise<void> {
     const definition = this.definitions.agents.find((agent) => agent.key === execution.agentKey);
     if (!definition || definition.version !== execution.agentVersion) throw new Stop("FAILED", "AI_AGENT_NOT_FOUND");
-    const { config, context } = await this.reauthorize(execution, definition, signal);
+    const { route, context } = await this.reauthorize(execution, definition, signal);
     const limits = effectiveLimits(this.config.ai.limits, definition);
     await this.checkCancel(claimed);
 
-    const { text, toolResults } = await this.converse(claimed, execution, definition, config, context, limits, signal);
+    const { text, toolResults } = await this.converse(claimed, execution, definition, route, context, limits, signal);
     await this.checkCancel(claimed);
 
     const moved = await this.prisma.runInTransaction((tx) =>
@@ -134,7 +143,7 @@ export class AiExecutionRunner {
     claimed: ClaimedExecution,
     execution: Loaded,
     definition: AgentDefinition,
-    config: RegisteredModelConfig,
+    route: ExecutionRoute,
     context: AiExecutionContext,
     limits: ReturnType<typeof effectiveLimits>,
     signal: AbortSignal,
@@ -144,6 +153,8 @@ export class AiExecutionRunner {
     const tools = this.toolSpecs(execution);
     let modelCalls = 0;
     let toolCalls = 0;
+    // One `ai_model_calls` row per leg: a logical call with a fallback writes two (008 research G6).
+    const rows = { next: 0 };
     for (;;) {
       if (modelCalls >= limits.maxModelCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
       const request = buildEnvelope({
@@ -155,7 +166,7 @@ export class AiExecutionRunner {
       });
       await this.store.setStep(this.prisma, claimed.id, claimed.claimToken, "MODEL_CALL");
       modelCalls += 1;
-      const response = await this.callModel(claimed, execution, config, limits, request, definition, signal, modelCalls);
+      const response = await this.callModel(claimed, execution, route, limits, request, definition, signal, rows);
       await this.checkCancel(claimed);
       if (response.kind === "output") return { text: response.text, toolResults };
 
@@ -194,8 +205,7 @@ export class AiExecutionRunner {
   private async reauthorize(execution: Loaded, definition: AgentDefinition, signal: AbortSignal) {
     const agent = execution.agentVersionRef.agent;
     if (agent.status !== "ACTIVE") throw new Stop("CANCELLED", "AI_AGENT_DISABLED");
-    const config = await this.modelConfigs.byId(execution.modelConfigId);
-    if (!config || config.status !== "ENABLED" || !this.gateway.providerFor(config.provider)) throw new Stop("FAILED", "AI_MODEL_UNAVAILABLE");
+    const route = await this.routeOf(execution);
     const permissions = await this.permissions.effectivePermissions(execution.requestedByUserId);
     if (!permissions.has(execution.agentVersionRef.requiredPermission)) throw new Stop("FAILED", "AI_CONTEXT_ACCESS_DENIED");
     const resource = execution.resourceType && execution.resourceId ? { type: execution.resourceType, id: execution.resourceId } : null;
@@ -216,63 +226,93 @@ export class AiExecutionRunner {
       deadline: execution.deadlineAt,
       signal,
     });
-    return { config, context };
+    return { route, context };
   }
 
-  /** One call to the model, always recorded in `ai_model_calls` (FR-059), success or not. */
+  /**
+   * The route fixed at request (008 research G5), read again: the primary and the fallback with
+   * their current status, and the task's settings (a pre-008 execution uses its config's). Neither
+   * usable → `AI_MODEL_UNAVAILABLE`.
+   */
+  private async routeOf(execution: Loaded): Promise<ExecutionRoute> {
+    const primary = await this.modelConfigs.byId(execution.modelConfigId);
+    const fallback = execution.fallbackModelConfigId ? await this.modelConfigs.byId(execution.fallbackModelConfigId) : null;
+    if (!primary || !(this.gateway.isUsable(primary) || (fallback !== null && this.gateway.isUsable(fallback)))) {
+      throw new Stop("FAILED", "AI_MODEL_UNAVAILABLE");
+    }
+    const task = execution.taskKey ? await this.tasks.byKey(execution.taskKey) : null;
+    const settings: GatewayTask = task ?? { parameters: primary.parameters, maxOutputTokens: primary.maxOutputTokens, timeoutMs: primary.timeoutMs };
+    return { primary, fallback, task: settings };
+  }
+
+  /**
+   * One logical call to the model: every leg the gateway reports is recorded in `ai_model_calls`
+   * (006 FR-059, 008 FR-016), success or not.
+   */
   private async callModel(
     claimed: ClaimedExecution,
     execution: Loaded,
-    config: RegisteredModelConfig,
+    route: ExecutionRoute,
     limits: ReturnType<typeof effectiveLimits>,
     request: ReturnType<typeof buildEnvelope>,
     definition: AgentDefinition,
     signal: AbortSignal,
-    sequence: number,
+    rows: { next: number },
   ): Promise<ModelResponse> {
-    const startedAt = new Date();
+    let legs: readonly GatewayLeg[] = [];
     try {
       const result = await this.gateway.call({
-        config,
+        route: { primary: route.primary, fallback: route.fallback },
+        task: route.task,
         request,
         limits,
         deadline: execution.deadlineAt,
         signal,
         structuredSchema: definition.output ? jsonSchemaOf(definition.output.schema) : undefined,
       });
-      await this.recordCall(claimed, config, sequence, startedAt, { status: "SUCCEEDED", attempts: result.attempts, errorCode: null, durationMs: result.durationMs, usage: result.response.usage });
-      aiLog(this.logger, "ai.model_call", {
-        ...this.logBase(execution),
-        durationMs: result.durationMs,
-        attempts: result.attempts,
-        inputTokens: result.response.usage?.inputTokens ?? null,
-        outputTokens: result.response.usage?.outputTokens ?? null,
-      });
+      legs = result.legs;
       return result.response;
     } catch (error) {
-      if (error instanceof AiFailure) {
-        await this.recordCall(claimed, config, sequence, startedAt, {
-          status: error.code === "AI_TIMEOUT" ? "TIMED_OUT" : "FAILED",
-          attempts: error.attempts,
-          errorCode: error.code,
-          durationMs: error.durationMs,
-          usage: null,
-        });
-      }
+      if (error instanceof AiFailure) legs = error.legs;
       throw error;
+    } finally {
+      for (const leg of legs) await this.recordLeg(claimed, execution, route, leg, (rows.next += 1));
     }
   }
 
-  private async recordCall(
-    claimed: ClaimedExecution,
-    config: RegisteredModelConfig,
-    sequence: number,
-    startedAt: Date,
-    call: { status: "SUCCEEDED" | "FAILED" | "TIMED_OUT"; attempts: number; errorCode: AiErrorCode | null; durationMs: number; usage: import("../definitions/types").ModelUsage | null },
-  ): Promise<void> {
+  /** One leg: its `ai_model_calls` row and the execution's counter in one transaction, then its log line. */
+  private async recordLeg(claimed: ClaimedExecution, execution: Loaded, route: ExecutionRoute, leg: GatewayLeg, sequence: number): Promise<void> {
+    const config = [route.primary, route.fallback].find((candidate) => candidate?.key === leg.config.key)!;
     await this.prisma.runInTransaction(async (tx) => {
-      await this.usage.record(tx, { executionId: claimed.id, sequence, config, startedAt, ...call });
+      await this.usage.record(tx, {
+        executionId: claimed.id,
+        sequence,
+        config,
+        startedAt: leg.startedAt,
+        status: leg.status,
+        attempts: leg.attempts,
+        errorCode: leg.errorCode,
+        durationMs: leg.durationMs,
+        usage: leg.usage,
+        servedModel: leg.servedModel,
+        isFallback: leg.isFallback,
+      });
       await tx.aiExecution.updateMany({ where: { id: claimed.id, claimToken: claimed.claimToken }, data: { modelCalls: { increment: 1 } } });
+    });
+    aiLog(this.logger, "ai.model_call", {
+      ...this.logBase(execution),
+      task: execution.taskKey,
+      configKey: config.key,
+      provider: config.provider,
+      model: config.model,
+      servedModel: leg.servedModel,
+      fallback: leg.isFallback,
+      status: leg.status,
+      durationMs: leg.durationMs,
+      attempts: leg.attempts,
+      inputTokens: leg.usage?.inputTokens ?? null,
+      outputTokens: leg.usage?.outputTokens ?? null,
+      errorCode: leg.errorCode ?? undefined,
     });
   }
 

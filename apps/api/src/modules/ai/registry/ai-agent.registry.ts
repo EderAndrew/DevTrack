@@ -17,7 +17,10 @@ export interface RegisteredAgent {
   promptVersion: number;
   outputSchemaVersionId: string | null;
   outputSchemaVersion: number | null;
-  modelConfigId: string;
+  /** The task of the version (008); null only for a version synced before 008. */
+  taskId: string | null;
+  /** The model config of a version synced before 008; null since then. */
+  modelConfigId: string | null;
   resourceTypes: string[];
   toolKeys: string[];
   /** Zod schemas, prompt text and hooks live in code (research A4). */
@@ -65,6 +68,7 @@ export class AiAgentRegistry {
       promptVersion: version.promptVersion.version,
       outputSchemaVersionId: version.outputSchemaVersionId,
       outputSchemaVersion: version.outputSchema?.version ?? null,
+      taskId: version.taskId,
       modelConfigId: version.modelConfigId,
       resourceTypes: version.resourceTypes,
       toolKeys: version.tools.map((t) => t.tool.key).sort(),

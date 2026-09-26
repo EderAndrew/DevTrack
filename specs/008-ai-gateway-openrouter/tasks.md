@@ -47,7 +47,7 @@ description: "Task list for 008 — AI Gateway com OpenRouter: Roteamento por Ta
 
 **Purpose**: configuração nova e redação de segredos, sem mudar comportamento.
 
-- [ ] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts` (contracts/configuration.md):
+- [X] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts` (contracts/configuration.md):
   - `OPENROUTER_API_KEY` (opcional; vazio = ausente), `OPENROUTER_BASE_URL` (opcional, URL
     http(s)), `OPENROUTER_DEFAULT_MODEL` (string, padrão `anthropic/claude-opus-5`, sem validar
     o formato aqui: a validação que deixa a tarefa indisponível é da T030),
@@ -57,12 +57,12 @@ description: "Task list for 008 — AI Gateway com OpenRouter: Roteamento por Ta
   - no `AppConfig`: `ai.openrouter { apiKey, baseUrl, defaultModel, fallbackModel, timeoutMs }`,
     `ai.circuit { failureThreshold, openSeconds }`, `rateLimit.aiAgentPerHour`.
   - Manter `ANTHROPIC_*` por enquanto (saem na T025).
-- [ ] T002 [P] Em `apps/api/src/platform/logging/logging.module.ts`, acrescentar o caminho de
+- [X] T002 [P] Em `apps/api/src/platform/logging/logging.module.ts`, acrescentar o caminho de
   redação `*.openrouter` (o `*.anthropic` sai na T025).
-- [ ] T003 [P] Em `apps/api/test/helpers/test-app.ts` (`testConfig`), fixar
+- [X] T003 [P] Em `apps/api/test/helpers/test-app.ts` (`testConfig`), fixar
   `ai.openrouter.apiKey: null` e `baseUrl: null` qualquer que seja o ambiente, como já é feito
   para a Anthropic (006/SC-011).
-- [ ] T004 [P] Em `apps/api/.env.example`, documentar as variáveis da T001 no bloco de IA (comentário
+- [X] T004 [P] Em `apps/api/.env.example`, documentar as variáveis da T001 no bloco de IA (comentário
   curto por variável, valores padrão comentados), trocar o placeholder solto
   `OPENROUTER_API_KEY=` por esse bloco e remover o placeholder `OPENAI_API_KEY=`
   (contracts/configuration.md).
@@ -78,7 +78,7 @@ termos de rota e pernas, Curriculum Agent v2. Sem fallback nem circuito ainda.
 
 ### Tests for Foundational ⚠️
 
-- [ ] T005 [P] Criar `apps/api/test/integration/008-registry-tasks.spec.ts` (`008/FR-006`,
+- [X] T005 [P] Criar `apps/api/test/integration/008-registry-tasks.spec.ts` (`008/FR-006`,
   `008/FR-007`):
   - o sync grava `ai_tasks` com principal, fallback, parâmetros, máximo de tokens e tempo
     limite; sincronizar duas vezes não muda nada;
@@ -86,14 +86,14 @@ termos de rota e pernas, Curriculum Agent v2. Sem fallback nem circuito ainda.
     continua com `model_config_id` (CHECK de exatamente um);
   - o CHECK recusa `fallback_model_config_id = primary_model_config_id` no banco;
   - a trigger de imutabilidade recusa mudar `task_id` de uma versão já usada.
-- [ ] T006 [P] Criar `apps/api/test/integration/008-execution-route.spec.ts` (`008/FR-006`):
+- [X] T006 [P] Criar `apps/api/test/integration/008-execution-route.spec.ts` (`008/FR-006`):
   - `POST /ai/executions` de um agente de referência com tarefa grava `task_key`,
     `model_config_id` (principal) e `fallback_model_config_id`; o evento
     `ai_execution.requested` traz `taskKey` e `fallbackModelConfigKey`;
   - cada chamada ao modelo grava `served_model`, `is_fallback = false` e `cost_source`;
   - custo informado pelo provedor tem precedência sobre o preço (`cost_source = 'PROVIDER'`),
     sem ele vale o preço (`'PRICE'`), sem nenhum fica nulo (`008/FR-017`).
-- [ ] T007 [P] Criar `apps/api/src/modules/ai/gateway/model-gateway.spec.ts` (ou estender o
+- [X] T007 [P] Criar `apps/api/src/modules/ai/gateway/model-gateway.spec.ts` (ou estender o
   existente) com o caso de uma rota sem fallback: resultado com uma perna (`isFallback:
   false`, tentativas, duração, uso, `servedModel`) e, na falha, `AiFailure` com a perna; os
   valores efetivos são `min(tarefa, config, limite)` para tokens e tempo e os parâmetros da
@@ -101,7 +101,7 @@ termos de rota e pernas, Curriculum Agent v2. Sem fallback nem circuito ainda.
 
 ### Implementation for Foundational
 
-- [ ] T008 Migração `apps/api/prisma/migrations/<timestamp>_008_ai_tasks_fallback/migration.sql`
+- [X] T008 Migração `apps/api/prisma/migrations/<timestamp>_008_ai_tasks_fallback/migration.sql`
   e `apps/api/prisma/schema.prisma` (data-model.md):
   - tabela `ai_tasks` (FKs `RESTRICT`, UNIQUE `key`, CHECK fallback ≠ principal, CHECKs de
     `max_output_tokens`/`timeout_ms` > 0);
@@ -112,45 +112,46 @@ termos de rota e pernas, Curriculum Agent v2. Sem fallback nem circuito ainda.
   - `ai_model_calls.served_model`, `is_fallback` (padrão `false`), `cost_source` com CHECK
     (`PROVIDER`, `PRICE`) e CHECK `cost_source IS NULL = estimated_cost IS NULL`;
   - rodar `pnpm --filter api prisma generate`.
-- [ ] T009 Em `apps/api/src/modules/ai/definitions/types.ts`:
+- [X] T009 Em `apps/api/src/modules/ai/definitions/types.ts`:
   - `TaskDefinition` e `defineTask`; `AiDefinitions.tasks`;
   - `AgentDefinition.taskKey` no lugar de `modelConfigKey`;
   - `ModelConfigDefinition` sem `fallbackKeys`;
   - `ModelUsage.cost: { amount: string; currency: string } | null`;
     `ModelResponse.servedModel: string | null`.
-- [ ] T010 Em `apps/api/src/modules/ai/registry/ai-definitions.check.ts`: todo `taskKey` de
+- [X] T010 Em `apps/api/src/modules/ai/registry/ai-definitions.check.ts`: todo `taskKey` de
   agente existe; chaves de configuração de uma tarefa existem; fallback ≠ principal;
-  parâmetros da tarefa só da lista `temperature`, `top_p`, `effort`. Uma configuração que falta
-  não para a inicialização: a tarefa é sincronizada sem ela e fica indisponível (T030 cobre o
-  log).
-- [ ] T011 Em `apps/api/src/modules/ai/registry/ai-registry.sync.ts`: sincronizar tarefas
+  parâmetros da tarefa só da lista `temperature`, `top_p`, `effort`; nenhum modelo `openrouter/*`.
+  Uma chave que falta nas definições é erro de código e para a inicialização, como já acontece
+  com os agentes; um modelo inválido vindo do ambiente não chega aqui: a T030 deixa a tarefa
+  indisponível sem derrubar a API (FR-008).
+- [X] T011 Em `apps/api/src/modules/ai/registry/ai-registry.sync.ts`: sincronizar tarefas
   (hash, criação, atualização) entre as configurações e os agentes; gravar `task_id` nas novas
   versões de agente; contar tarefas no evento `ai_registry.synced` (acrescentar `tasks` à
   metadata em `audit-event-types.ts` e no contrato de auditoria da 006).
-- [ ] T012 Criar `apps/api/src/modules/ai/registry/ai-task.registry.ts` (`AiTaskRegistry`):
+- [X] T012 Criar `apps/api/src/modules/ai/registry/ai-task.registry.ts` (`AiTaskRegistry`):
   resolve a rota de um agente (`byAgentVersion(id)` → tarefa, configuração principal e de
   fallback como `RegisteredModelConfig`) e registrar no `apps/api/src/modules/ai/ai.module.ts`.
-- [ ] T013 Em `apps/api/src/modules/ai/execution/ai-executions.service.ts`: ao pedir, resolver
+- [X] T013 Em `apps/api/src/modules/ai/execution/ai-executions.service.ts`: ao pedir, resolver
   a rota pela T012 e gravar `task_key`, `model_config_id` e `fallback_model_config_id`;
   metadata nova em `ai_execution.requested`; `availability` "AVAILABLE" quando o principal
   **ou** o fallback estiver habilitado e com provedor registrado (o circuito entra na T048).
-- [ ] T014 Em `apps/api/src/modules/ai/gateway/model-gateway.ts`: `GatewayCall.route` e
+- [X] T014 Em `apps/api/src/modules/ai/gateway/model-gateway.ts`: `GatewayCall.route` e
   `GatewayCall.task` no lugar de `config`; valores efetivos da perna; `GatewayResult.legs` e
   `AiFailure.legs` (contracts/gateway-routing.md). Só o principal é usado nesta fase.
-- [ ] T015 Em `apps/api/src/modules/ai/execution/ai-execution.runner.ts`: reautorização com a
+- [X] T015 Em `apps/api/src/modules/ai/execution/ai-execution.runner.ts`: reautorização com a
   rota (principal desabilitado ou sem provedor e fallback usável → segue; nenhum →
   `AI_MODEL_UNAVAILABLE`); gravar uma linha de `ai_model_calls` por perna, na mesma transação
   que incrementa `model_calls`; log `ai.model_call` por perna com `task`, `configKey`,
   `servedModel`, `fallback`.
-- [ ] T016 [P] Em `apps/api/src/modules/ai/usage/ai-usage.recorder.ts` e `usage/cost.ts`:
+- [X] T016 [P] Em `apps/api/src/modules/ai/usage/ai-usage.recorder.ts` e `usage/cost.ts`:
   `served_model`, `is_fallback`, custo do provedor com precedência e `cost_source`
   (research G17).
-- [ ] T017 [P] Em `apps/api/test/fixtures/ai/fake-model-provider.ts`: `scriptFor(model,
+- [X] T017 [P] Em `apps/api/test/fixtures/ai/fake-model-provider.ts`: `scriptFor(model,
   ...steps)` (passos por modelo, antes de `scriptWhen` e `script`), `fakeServedModel(model,
   step)` e `fakeCost(amount, step)`; `servedModel` padrão = o modelo pedido. Atualizar os
   agentes de referência de `apps/api/test/fixtures/ai/` para declarar tarefas (uma por
   configuração que usavam) e `createAiTestApp` para aceitar `tasks`.
-- [ ] T018 Em `apps/api/src/modules/curriculum-ai/definitions/curriculum-agent.ts` e
+- [X] T018 Em `apps/api/src/modules/curriculum-ai/definitions/curriculum-agent.ts` e
   `apps/api/src/modules/ai/definitions/index.ts`:
   - tarefa `curriculum-extraction` (parâmetros `{ effort: "low" }`, 16 000 tokens, 60 s) com
     principal `openrouter-default` e fallback `openrouter-fallback` quando configurado;
@@ -159,7 +160,7 @@ termos de rota e pernas, Curriculum Agent v2. Sem fallback nem circuito ainda.
   - `productionAiDefinitions(config)` monta as configurações `openrouter-*` (provedor
     `openrouter`, modelo das variáveis, tempo limite `OPENROUTER_TIMEOUT_MS`, sem preço) e
     ainda não registra provedor (T020).
-- [ ] T019 Ajustar `apps/api/test/helpers/curriculum-ai.ts` (`createCurriculumAiApp` roteia a
+- [X] T019 Ajustar `apps/api/test/helpers/curriculum-ai.ts` (`createCurriculumAiApp` roteia a
   tarefa `curriculum-extraction` para configurações do provedor simulado) e os testes da 007
   que fixam versão 1, `modelConfigKey` ou o provedor `anthropic`
   (`test/integration/007-us6-versioning.spec.ts`, `006-registry-sync.spec.ts` e outros que o
