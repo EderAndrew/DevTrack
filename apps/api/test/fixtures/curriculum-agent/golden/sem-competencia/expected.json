@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "Sem a seção Competência: competência vazia com FIELD_NOT_FOUND.",
+  "document": "curriculum-agent/golden/sem-competencia/document.docx",
+  "injection": false,
+  "title": "Estruturas de Dados",
+  "syllabusText": "Estudo das estruturas de dados lineares e hierárquicas, com análise de complexidade e implementação de listas, pilhas, filas e árvores.",
+  "competencyText": null,
+  "groups": [
+    {
+      "title": "Estruturas lineares",
+      "items": [
+        "Listas encadeadas",
+        "Pilhas e filas"
+      ]
+    },
+    {
+      "title": "Estruturas hierárquicas",
+      "items": [
+        "Árvores binárias de busca",
+        "Heaps e filas de prioridade"
+      ]
+    }
+  ],
+  "missingFields": [
+    "competencyText"
+  ]
+}

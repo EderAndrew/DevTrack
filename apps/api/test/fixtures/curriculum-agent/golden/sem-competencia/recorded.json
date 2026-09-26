@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-curriculum-document",
+          "arguments": {
+            "documentId": "{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Estruturas de Dados",
+        "syllabusText": "Estudo das estruturas de dados lineares e hierárquicas, com análise de complexidade e implementação de listas, pilhas, filas e árvores.",
+        "competencyText": null,
+        "groups": [
+          {
+            "title": "Estruturas lineares",
+            "items": [
+              {
+                "text": "Listas encadeadas",
+                "sourceRef": null
+              },
+              {
+                "text": "Pilhas e filas",
+                "sourceRef": null
+              }
+            ]
+          },
+          {
+            "title": "Estruturas hierárquicas",
+            "items": [
+              {
+                "text": "Árvores binárias de busca",
+                "sourceRef": null
+              },
+              {
+                "text": "Heaps e filas de prioridade",
+                "sourceRef": null
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "FIELD_NOT_FOUND",
+            "field": "competencyText",
+            "groupIndex": null
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-curriculum-document",
+          "arguments": {
+            "documentId": "{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Tópicos de Orientação a Objetos",
+        "syllabusText": "Encapsulamento e herança.",
+        "competencyText": null,
+        "groups": [
+          {
+            "title": "Conceitos",
+            "items": [
+              {
+                "text": "Encapsulamento",
+                "sourceRef": null
+              },
+              {
+                "text": "Herança",
+                "sourceRef": null
+              },
+              {
+                "text": "Polimorfismo",
+                "sourceRef": null
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "FIELD_NOT_FOUND",
+            "field": "competencyText",
+            "groupIndex": null
+          }
+        ]
+      }
+    }
+  ]
+}

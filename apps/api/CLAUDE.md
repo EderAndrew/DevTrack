@@ -51,7 +51,10 @@ it through the admin route) and its read tool, with only its model config moved 
 `seedProcessedDocument(t, teacherId, fixture)` creates a subject and a PROCESSED document with the
 original stored (`TEXT` for PDF/DOCX, `NO_TEXT` for images); `pooOutput()` is a valid agent output for
 the POO sample; `scriptCurriculumRun(t.provider, documentId, output)` programs the read call then the
-output; `requestAnalysis`, `getCurriculumAiStatus` and `applyProposal` call the 007 routes. The read
+output; `requestAnalysis`, `getCurriculumAiStatus` and `applyProposal` call the 007 routes.
+`seedGoldenDocument(t, teacherId, name)` stores a document of the golden set
+(`test/fixtures/curriculum-agent/golden/<name>/document.*`, rebuilt by `pnpm --filter api
+fixtures:curriculum`, which reuses the 004 PDF/DOCX writers; they carry `MARCADOR-EMENTA-007`). The read
 tool normalizes the file in the test build of the syllabus worker.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.

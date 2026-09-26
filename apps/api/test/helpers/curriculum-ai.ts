@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import type {
   ApplyCurriculumProposalRequest,
   AiProposalStatus,
@@ -6,7 +8,7 @@ import type {
   SyllabusExtraction,
 } from "@repo/contracts";
 import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
-import { defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
+import { type AgentDefinition, type AiDefinitions, defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
 import {
   CURRICULUM_AGENT,
   CURRICULUM_MODEL_CONFIG,
@@ -14,6 +16,7 @@ import {
 } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
+import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import { type FakeModelProvider, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { type AiTestApp, createAiExecution, createAiTestApp } from "./ai";
 import { createSubject, createSyllabusDocument, pooExtraction } from "./factories";
@@ -45,6 +48,22 @@ export function createCurriculumAiApp(options: TestAppOptions = {}): Promise<AiT
 }
 
 /**
+ * The definitions `createCurriculumAiApp` registers, on `provider`, with `agent` in place of the
+ * test agent: what a "restart" with a new agent version syncs (006-us8-versioning pattern).
+ */
+export function curriculumTestDefinitions(provider: FakeModelProvider, agent: AgentDefinition = TEST_CURRICULUM_AGENT): AiDefinitions {
+  const base = referenceAiDefinitions(provider);
+  const curriculum = curriculumAiDefinitions();
+  return {
+    agents: [...base.agents, agent],
+    tools: [...base.tools, ...curriculum.tools],
+    modelConfigs: [...base.modelConfigs, TEST_CURRICULUM_MODEL_CONFIG],
+    providers: base.providers,
+    resources: { ...base.resources, ...curriculum.resources },
+  };
+}
+
+/**
  * A subject of `teacherId` with a `PROCESSED` document of `fixture` (`poo.pdf` by default): `TEXT`
  * for PDF and DOCX, `NO_TEXT` for images. The original is really stored, so the read tool works.
  */
@@ -59,6 +78,37 @@ export async function seedProcessedDocument(
     fixture,
     status: "PROCESSED",
     extraction: withText ? pooExtraction() : null,
+  });
+  return { subject, document };
+}
+
+const GOLDEN = resolve(__dirname, "../fixtures/curriculum-agent/golden");
+
+/**
+ * A subject of `teacherId` with a `PROCESSED` document of the golden case `name`
+ * (`test/fixtures/curriculum-agent/golden/<name>/document.*`, built by `fixtures:curriculum`).
+ */
+export async function seedGoldenDocument(
+  t: TestApp,
+  teacherId: string,
+  name: string,
+): Promise<{ subject: Subject; document: SyllabusDocument }> {
+  const file = readdirSync(resolve(GOLDEN, name)).find((entry) => entry.startsWith("document."));
+  if (!file) throw new Error(`golden case without a document: ${name}`);
+  return seedDocumentFile(t, teacherId, resolve(GOLDEN, name, file));
+}
+
+/** A subject of `teacherId` with a `PROCESSED` document of the file at `path` (PDF or DOCX). */
+export async function seedDocumentFile(
+  t: TestApp,
+  teacherId: string,
+  path: string,
+): Promise<{ subject: Subject; document: SyllabusDocument }> {
+  const subject = await createSubject(t, teacherId);
+  const document = await createSyllabusDocument(t, subject.id, {
+    fixture: basename(path),
+    bytes: readFileSync(path),
+    status: "PROCESSED",
   });
   return { subject, document };
 }

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "description": "Documento mínimo \"Encapsulamento e herança.\": o que passar disso é sem apoio.",
+  "document": "curriculum-agent/golden/minimo/document.pdf",
+  "injection": false,
+  "title": "Tópicos de Orientação a Objetos",
+  "syllabusText": "Encapsulamento e herança.",
+  "competencyText": null,
+  "groups": [
+    {
+      "title": "Conceitos",
+      "items": [
+        "Encapsulamento",
+        "Herança"
+      ]
+    }
+  ],
+  "missingFields": [
+    "competencyText"
+  ]
+}

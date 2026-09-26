@@ -87,6 +87,8 @@ pnpm --filter api test:security                         # test/security only
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
 pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)
+pnpm --filter api fixtures:curriculum                   # rebuild test/fixtures/curriculum-agent/golden/*/document.* (007)
+ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval against the real provider (EVAL_RECORD=1 rewrites recorded.json)
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
