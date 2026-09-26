@@ -80,6 +80,10 @@ export class CurriculumAiRequestService {
     }
     const resource = resourceOf(documentId);
 
+    // Counted before the active check: a concurrent request that commits after the count is seen
+    // as active below, and one that commits after that check shares this key, so the unique index
+    // keeps a single execution. Counted after the check, a commit in between led to key n + 1.
+    const n = await this.executions.countForResource(workspaceId, CURRICULUM_AGENT_KEY, resource);
     const latest = await this.executions.findLatestForResource(workspaceId, CURRICULUM_AGENT_KEY, resource);
     if (latest && ACTIVE.has(latest.status)) return this.replayed(auth, documentId, latest, requestId);
 
@@ -90,7 +94,6 @@ export class CurriculumAiRequestService {
     if (pending) await this.proposals.decide(auth, pending, { decision: "REJECT" }, requestId);
     const discardedProposal = pending !== null;
 
-    const n = await this.executions.countForResource(workspaceId, CURRICULUM_AGENT_KEY, resource);
     const { view, created } = await this.executions
       .request(
         auth,

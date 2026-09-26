@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
+import { AiExecutionsService } from "../../src/modules/ai/execution/ai-executions.service";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
 import { applyProposal, createCurriculumAiApp, createCurriculumProposal, requestAnalysis, seedProcessedDocument } from "../helpers/curriculum-ai";
 import { createConfirmedRevision, createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -117,6 +118,39 @@ describe("007/SC-004 concorrência do Curriculum Agent", () => {
     expect(new Set(results.map((res) => res.body.execution.id)).size).toBe(1);
     expect(await t.prisma.aiExecution.count()).toBe(1);
     expect(await t.prisma.auditEvent.count({ where: { type: "ai_execution.requested" } })).toBe(1);
+  });
+
+  it("um pedido que cria a execução entre a checagem de ativa e a criação do outro → ainda uma execução", async () => {
+    // The interleaving that failed in CI, forced: the first request stops right after seeing no
+    // active execution, a second one runs to the end, then the first resumes.
+    const executions = t.app.get(AiExecutionsService);
+    const original = executions.findLatestForResource.bind(executions);
+    let reachedCheck!: () => void;
+    const paused = new Promise<void>((resolve) => (reachedCheck = resolve));
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let calls = 0;
+    executions.findLatestForResource = async (...args) => {
+      const latest = await original(...args);
+      if (++calls === 1) {
+        reachedCheck();
+        await released;
+      }
+      return latest;
+    };
+    try {
+      const first = requestAnalysis(t, cookie, document.id).then((res) => res);
+      await paused;
+      const second = await requestAnalysis(t, cookie, document.id);
+      release();
+
+      expect([(await first).status, second.status].sort()).toEqual([200, 202]);
+      expect((await first).body.execution.id).toBe(second.body.execution.id);
+      expect(await t.prisma.aiExecution.count()).toBe(1);
+    } finally {
+      release();
+      executions.findLatestForResource = original;
+    }
   });
 
   describe("aplicação durante a confirmação de um rascunho da 004 → estado da 004 consistente", () => {
