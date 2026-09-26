@@ -166,6 +166,11 @@ export class AiExecutionsService {
           },
           select: { id: true },
         });
+        // All teachers together, per agent (008 FR-015, research G9). Counted after the insert, so
+        // a concurrent duplicate that loses the unique index below never counts; a blocked
+        // request rolls its execution back.
+        const perAgent = await this.rateLimit.hit("ai-agent", agent.key, { limit: this.config.rateLimit.aiAgentPerHour, windowSec: 3600 });
+        if (perAgent.blocked) throw new AgentLimitReached(perAgent.retryAfterSec);
         await this.markUsed(tx, agent, now);
         await this.audit.record(tx, {
           type: "ai_execution.requested",
@@ -189,6 +194,16 @@ export class AiExecutionsService {
         return created.id;
       });
     } catch (error) {
+      if (error instanceof AgentLimitReached) {
+        await this.audit.record(this.prisma, {
+          type: "ai_execution.rate_limited",
+          actorType: "USER",
+          actorUserId: workspaceId,
+          requestId,
+          metadata: { scope: "agent" },
+        });
+        throw rateLimited(error.retryAfterSec);
+      }
       // A concurrent request with the same key won the unique index (FR-025).
       if (!isUniqueViolation(error)) throw error;
       const winner = await this.findByKey(workspaceId, body.idempotencyKey);
@@ -321,5 +336,12 @@ export class AiExecutionsService {
     if (agent.outputSchemaVersionId) {
       await tx.aiOutputSchemaVersion.updateMany({ where: { id: agent.outputSchemaVersionId, usedAt: null }, data: { usedAt: now } });
     }
+  }
+}
+
+/** Rolls back the execution of a request past the agent's hourly limit. */
+class AgentLimitReached extends Error {
+  constructor(readonly retryAfterSec: number) {
+    super("agent limit reached");
   }
 }

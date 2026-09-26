@@ -383,7 +383,7 @@ sem conteúdo nem identificadores.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T041 [P] [US5] Criar `apps/api/test/integration/008-us5-observability.spec.ts`:
+- [X] T041 [P] [US5] Criar `apps/api/test/integration/008-us5-observability.spec.ts`:
   - `008/US5-1`: `GET /ai/operations/metrics` traz, por agente, `taskKey` e `fallbacks`, e por
     modelo `calls`, tokens, `failedCalls`, `fallbackCalls`, `avgDurationMs` e custo, com o
     modelo servido;
@@ -392,23 +392,23 @@ sem conteúdo nem identificadores.
     fallback, código de erro, usuário e data;
   - `008/US5-3`: logs `ai.model_call` estruturados com `correlationId`, `task`, `servedModel`,
     `fallback` e sem conteúdo (usar `LogCapture`).
-- [ ] T042 [P] [US5] Estender a varredura administrativa da 006
+- [X] T042 [P] [US5] Estender a varredura administrativa da 006
   (`apps/api/test/security/006-ai-admin-scan.spec.ts`) às respostas novas:
   sem conteúdo, credencial, id de professor nem de execução (`008/FR-020`).
-- [ ] T043 [P] [US5] Em `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
+- [X] T043 [P] [US5] Em `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
   as tabelas mostram tarefa, principal e fallback do agente, fallbacks por agente e falhas,
   fallbacks e duração média por modelo; axe e ordem de Tab (`008/US5-1`).
 
 ### Implementation for User Story 5
 
-- [ ] T044 [US5] Em `packages/contracts/src/ai/operations.ts` (contracts/http-api.md):
+- [X] T044 [US5] Em `packages/contracts/src/ai/operations.ts` (contracts/http-api.md):
   `AiAgentMetricsSchema` + `taskKey`, `fallbacks`; `AiModelUsageSchema` + `failedCalls`,
   `fallbackCalls`, `avgDurationMs`; `AiAgentOperationsViewSchema` troca `modelConfigKey` por
   `taskKey`, `primaryModelConfigKey`, `fallbackModelConfigKey`.
-- [ ] T045 [US5] Em `apps/api/src/modules/ai/operations/ai-metrics.query.ts` e
+- [X] T045 [US5] Em `apps/api/src/modules/ai/operations/ai-metrics.query.ts` e
   `ai-operations.service.ts`: as agregações novas (modelo servido quando houver) e a visão do
   agente com a rota.
-- [ ] T046 [US5] Em `apps/web/features/ai-operations/components/ai-agents-table.tsx`,
+- [X] T046 [US5] Em `apps/web/features/ai-operations/components/ai-agents-table.tsx`,
   `ai-metrics-table.tsx` e `ai-usage-table.tsx`: as colunas novas com componentes do design
   system; textos em português; estados sem depender só de cor.
 
@@ -425,11 +425,11 @@ aberto, a chamada de teste fecha; o limite global barra o professor seguinte.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T047 [P] [US6] Criar `apps/api/src/modules/ai/gateway/circuit-breaker.spec.ts` com relógio
+- [X] T047 [P] [US6] Criar `apps/api/src/modules/ai/gateway/circuit-breaker.spec.ts` com relógio
   injetado: abre no limite de falhas recuperáveis seguidas; sucesso zera; falha não
   recuperável não conta; aberto recusa até vencer; vencido, só o primeiro recebe `PROBE`;
   sucesso fecha, falha reabre (`008/FR-013`).
-- [ ] T048 [P] [US6] Criar `apps/api/test/integration/008-us6-circuit.spec.ts`:
+- [X] T048 [P] [US6] Criar `apps/api/test/integration/008-us6-circuit.spec.ts`:
   - `008/US6-1`, `008/SC-007`: cinco análises com o principal fora do ar abrem o circuito
     (`ai_circuit.opened` uma vez); a sexta vai direto ao fallback sem chamar o principal
     (`reason: "CIRCUIT_OPEN"`) e, sem fallback, falha `AI_MODEL_UNAVAILABLE` sem chamada;
@@ -438,7 +438,7 @@ aberto, a chamada de teste fecha; o limite global barra o professor seguinte.
   - `GET /ai/operations/health` mostra `circuit` de cada configuração; a disponibilidade da
     007 considera o circuito;
   - edge case: fallback também com circuito aberto → `AI_MODEL_UNAVAILABLE` sem chamada.
-- [ ] T049 [P] [US6] Criar `apps/api/test/integration/008-us6-agent-limit.spec.ts`:
+- [X] T049 [P] [US6] Criar `apps/api/test/integration/008-us6-agent-limit.spec.ts`:
   - `008/US6-3`: com `AI_AGENT_EXECUTIONS_PER_HOUR` baixo, professores diferentes esgotam o
     limite; o seguinte recebe `429 RATE_LIMITED` com `Retry-After`, nenhuma execução é criada
     e `ai_execution.rate_limited` tem `scope: "agent"`;
@@ -447,18 +447,18 @@ aberto, a chamada de teste fecha; o limite global barra o professor seguinte.
 
 ### Implementation for User Story 6
 
-- [ ] T050 [US6] Criar `apps/api/src/modules/ai/gateway/circuit-breaker.ts` (research G8) com os
+- [X] T050 [US6] Criar `apps/api/src/modules/ai/gateway/circuit-breaker.ts` (research G8) com os
   limites de `ai.circuit`; auditar `ai_circuit.opened`/`ai_circuit.closed` em transação própria
   (ator SYSTEM, uma vez por transição); novos tipos em `audit-event-types.ts`, no contrato de
   auditoria da 006 e na `journey.ts`; registrar no `ai.module.ts`.
-- [ ] T051 [US6] Em `model-gateway.ts`: perguntar ao circuito antes de cada perna (`OPEN` → perna
+- [X] T051 [US6] Em `model-gateway.ts`: perguntar ao circuito antes de cada perna (`OPEN` → perna
   `SKIPPED_OPEN_CIRCUIT` e fallback direto), reportar o resultado final de cada perna; em
   `ai-executions.service.ts`, a disponibilidade considera o circuito.
-- [ ] T052 [US6] Em `packages/contracts/src/ai/operations.ts` (`AiCircuitStateSchema` e
+- [X] T052 [US6] Em `packages/contracts/src/ai/operations.ts` (`AiCircuitStateSchema` e
   `circuit` em `AiHealthSchema.modelConfigs[]`), em `ai-operations.service.ts` e em
   `apps/web/features/ai-operations/components/ai-health-table.tsx` (coluna "Circuito" com texto
   e ícone, não só cor) e no seu teste.
-- [ ] T053 [US6] Em `ai-executions.service.ts`: limite global por agente com
+- [X] T053 [US6] Em `ai-executions.service.ts`: limite global por agente com
   `RateLimitService.hit("ai-agent", agentKey, …)` depois dos limites por usuário e depois de
   responder a um pedido repetido; `429` com `Retry-After` e `ai_execution.rate_limited`
   (`scope: "agent"`) (research G9).

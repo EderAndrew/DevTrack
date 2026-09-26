@@ -76,6 +76,9 @@ export const AUDIT_EVENT_METADATA = {
   "ai_execution.cancelled": ["from", "errorCode"],
   "ai_execution.cancel_requested": ["from"],
   "ai_execution.rate_limited": ["scope"],
+  // 008 — a model config's circuit opened or closed (research G8).
+  "ai_circuit.opened": ["configKey", "provider", "model", "failures"],
+  "ai_circuit.closed": ["configKey", "provider", "model"],
   // 008 — a logical call went to the fallback model (research G6).
   "ai_execution.fallback_used": ["primaryConfigKey", "fallbackConfigKey", "reason", "primaryErrorCode"],
   "ai_tool.called": ["toolKey", "sequence", "durationMs"],

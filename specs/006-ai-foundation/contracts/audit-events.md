@@ -35,6 +35,8 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_model_config.enabled` | equivalent of the model config (FR-062) | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
 | `ai_model_config.disabled` | idem | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
 | `ai_model_config.changed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `previousModel`, `model` (registry sync, when a deploy changes the model of an existing config) |
+| `ai_circuit.opened` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `model`, `failures` (own transaction, once per CLOSED/HALF_OPEN → OPEN) |
+| `ai_circuit.closed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `model` (own transaction, once per HALF_OPEN → CLOSED) |
 | `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `tasks` (008), `newVersions`, `deprecated` (only when something changed) |
 | `ai_execution.rate_limited` | — | USER | — | `scope` |
 | `ai_execution.fallback_used` | — (008) | SYSTEM | AI_EXECUTION | `primaryConfigKey`, `fallbackConfigKey`, `reason` (`PROVIDER_FAILURE` \| `CIRCUIT_OPEN`), `primaryErrorCode` (same transaction as the fallback leg's `ai_model_calls` row) |

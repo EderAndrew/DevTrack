@@ -6,6 +6,7 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
+import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { fakeDelay, fakeError, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
@@ -389,6 +390,17 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   t.provider.scriptFor("fake-model-2");
   gateway.timing = timing;
   expect((await teacherClient.get(`/api/ai/executions/${aiDone.body.id}`)).body.status).toBe("COMPLETED");
+  // 008/US6 — failures in a row open a config's circuit; past the wait, a successful probe closes it.
+  const circuit = t.get(CircuitBreaker);
+  const altConfig = { key: "fake-alt", provider: "fake", model: "fake-model-2" };
+  for (let i = 0; i < t.config.ai.circuit.failureThreshold; i += 1) await circuit.recordTransientFailure(altConfig);
+  expect(circuit.state("fake-alt")).toBe("OPEN");
+  const clock = circuit.now;
+  circuit.now = () => clock() + t.config.ai.circuit.openSeconds * 1000;
+  expect(circuit.allow("fake-alt")).toBe("PROBE");
+  await circuit.recordSuccess(altConfig);
+  circuit.now = clock;
+  expect(circuit.state("fake-alt")).toBe("CLOSED");
   t.provider.script(fakeText(`não é JSON ${aiOutput}`));
   expect((await requestAi()).status).toBe(202);
   expect(await aiWorker.runOnce()).toBe(1);

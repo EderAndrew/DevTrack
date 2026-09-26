@@ -10,7 +10,8 @@ export const PERIOD_MS: Record<AiMetricsPeriod, number> = { "24h": 24 * HOUR, "7
  * statuses, counters, tokens and cost are read — never `input`, `output`, `payload`,
  * `workspace_id`, `resource_id` or user ids (FR-031). Cost is summed as `numeric` and returned as
  * a decimal string. Per agent (007 research C12.5, FR-048) also the output validation failures,
- * the proposals by status, and the average tokens and cost per execution.
+ * the proposals by status, and the average tokens and cost per execution; since 008 (FR-019) the
+ * task and the executions that used the fallback.
  */
 export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<AiAgentMetrics[]> {
   const rows = await db.$queryRaw<
@@ -20,11 +21,13 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
       prompt_version: number;
       provider: string;
       model: string;
+      task_key: string | null;
       executions: bigint;
       completed: bigint;
       failed: bigint;
       timed_out: bigint;
       cancelled: bigint;
+      fallbacks: bigint;
       avg_duration_ms: number | null;
       model_calls: bigint;
       tool_calls: bigint;
@@ -47,12 +50,13 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
       FROM ai_model_calls
       GROUP BY execution_id
     )
-    SELECT e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model,
+    SELECT e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model, e.task_key,
            COUNT(*) AS executions,
            COUNT(*) FILTER (WHERE e.status = 'COMPLETED') AS completed,
            COUNT(*) FILTER (WHERE e.status = 'FAILED') AS failed,
            COUNT(*) FILTER (WHERE e.status = 'TIMED_OUT') AS timed_out,
            COUNT(*) FILTER (WHERE e.status = 'CANCELLED') AS cancelled,
+           COUNT(*) FILTER (WHERE e.fallback_used) AS fallbacks,
            ROUND(AVG(e.duration_ms))::int AS avg_duration_ms,
            COALESCE(SUM(e.model_calls), 0) AS model_calls,
            COALESCE(SUM(e.tool_calls), 0) AS tool_calls,
@@ -69,19 +73,21 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
     LEFT JOIN usage u ON u.execution_id = e.id
     LEFT JOIN ai_proposals p ON p.execution_id = e.id
     WHERE e.created_at >= ${from}::timestamptz AND e.created_at < ${to}::timestamptz
-    GROUP BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model
-    ORDER BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model`;
+    GROUP BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model, e.task_key
+    ORDER BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model, e.task_key`;
   return rows.map((row) => ({
     agentKey: row.agent_key,
     agentVersion: row.agent_version,
     promptVersion: row.prompt_version,
     provider: row.provider,
     model: row.model,
+    taskKey: row.task_key,
     executions: Number(row.executions),
     completed: Number(row.completed),
     failed: Number(row.failed),
     timedOut: Number(row.timed_out),
     cancelled: Number(row.cancelled),
+    fallbacks: Number(row.fallbacks),
     avgDurationMs: row.avg_duration_ms,
     modelCalls: Number(row.model_calls),
     toolCalls: Number(row.tool_calls),
@@ -99,12 +105,19 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
   }));
 }
 
+/**
+ * Usage by provider and model (006), by the served model when the provider reported it (008
+ * FR-019), with the failed calls, the fallback calls and the average duration.
+ */
 export async function queryModelUsage(db: Tx, from: Date, to: Date): Promise<AiModelUsage[]> {
   const rows = await db.$queryRaw<
     {
       provider: string;
       model: string;
       calls: bigint;
+      failed_calls: bigint;
+      fallback_calls: bigint;
+      avg_duration_ms: number | null;
       input_tokens: bigint | null;
       output_tokens: bigint | null;
       total_tokens: bigint | null;
@@ -112,8 +125,11 @@ export async function queryModelUsage(db: Tx, from: Date, to: Date): Promise<AiM
       currency: string | null;
     }[]
   >`
-    SELECT provider, model,
+    SELECT provider, COALESCE(served_model, model) AS model,
            COUNT(*) AS calls,
+           COUNT(*) FILTER (WHERE status <> 'SUCCEEDED') AS failed_calls,
+           COUNT(*) FILTER (WHERE is_fallback) AS fallback_calls,
+           ROUND(AVG(duration_ms))::int AS avg_duration_ms,
            SUM(input_tokens) AS input_tokens,
            SUM(output_tokens) AS output_tokens,
            SUM(total_tokens) AS total_tokens,
@@ -121,13 +137,16 @@ export async function queryModelUsage(db: Tx, from: Date, to: Date): Promise<AiM
            CASE WHEN COUNT(DISTINCT currency) = 1 THEN MIN(currency) END AS currency
     FROM ai_model_calls
     WHERE started_at >= ${from}::timestamptz AND started_at < ${to}::timestamptz
-    GROUP BY provider, model
-    ORDER BY provider, model`;
+    GROUP BY provider, COALESCE(served_model, model)
+    ORDER BY provider, COALESCE(served_model, model)`;
   const toInt = (value: bigint | null) => (value === null ? null : Number(value));
   return rows.map((row) => ({
     provider: row.provider,
     model: row.model,
     calls: Number(row.calls),
+    failedCalls: Number(row.failed_calls),
+    fallbackCalls: Number(row.fallback_calls),
+    avgDurationMs: row.avg_duration_ms,
     inputTokens: toInt(row.input_tokens),
     outputTokens: toInt(row.output_tokens),
     totalTokens: toInt(row.total_tokens),

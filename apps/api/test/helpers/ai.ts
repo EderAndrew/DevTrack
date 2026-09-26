@@ -3,6 +3,7 @@ import type { AiExecutionStatus, AiProposalStatus } from "@repo/contracts";
 import type { Prisma } from "../../src/generated/prisma/client";
 import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import type { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
@@ -41,6 +42,8 @@ export async function resetAiDb(t: AiTestApp): Promise<void> {
   await resetDb(t.prisma);
   await t.get(AiRegistrySync).sync();
   t.provider.reset();
+  // The circuits live in memory (008 research G8): each test starts with them closed.
+  t.get(CircuitBreaker).reset();
 }
 
 /** Runs worker cycles at `now` until nothing is left to claim; returns how many ran. */

@@ -34,7 +34,11 @@ describe("008/SC-003 execuções simultâneas com o principal fora do ar", () =>
     t = await createAiTestApp({
       agents: [FALLBACK_AGENT],
       tasks: [FALLBACK_TASK],
-      config: { rateLimit: { ...base.rateLimit, aiExecutionsPerMinute: 1_000, aiAgentPerHour: 1_000 } },
+      // Every run reaches the primary: the circuit (008-us6-circuit.spec.ts) stays closed here.
+      config: {
+        rateLimit: { ...base.rateLimit, aiExecutionsPerMinute: 1_000, aiAgentPerHour: 1_000 },
+        ai: { ...base.ai, circuit: { ...base.ai.circuit, failureThreshold: 1_000 } },
+      },
     });
     t.get(ModelGateway).timing = { sleep: async () => {}, random: () => 0 };
   });

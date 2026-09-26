@@ -1,6 +1,6 @@
 "use client";
 
-import type { AiModelConfigStatus, AiProviderStatus } from "@repo/contracts";
+import type { AiCircuitState, AiModelConfigStatus, AiProviderStatus } from "@repo/contracts";
 import { CircleCheck, CircleX, type LucideIcon, ServerCog, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,13 @@ const PROVIDER: Record<AiProviderStatus, [string, StatusVariant, LucideIcon]> = 
   UP: ["Respondendo", "success", CircleCheck],
   DOWN: ["Sem resposta", "danger", CircleX],
   NOT_CONFIGURED: ["Não configurado", "warning", TriangleAlert],
+};
+
+/** The circuit of the config on this instance (008/US6): an open one isn't called. */
+const CIRCUIT: Record<AiCircuitState, [string, StatusVariant, LucideIcon]> = {
+  CLOSED: ["Fechado (normal)", "success", CircleCheck],
+  OPEN: ["Aberto (sem chamadas)", "danger", CircleX],
+  HALF_OPEN: ["Em teste", "warning", TriangleAlert],
 };
 
 export const CONFIG_STATUS: Record<AiModelConfigStatus, [string, StatusVariant, LucideIcon]> = {
@@ -33,7 +40,7 @@ export function IconStatus({ entry }: { entry: [string, StatusVariant, LucideIco
   );
 }
 
-/** "Saúde": each model config and whether its provider answers (006/US7-5). */
+/** "Saúde": each model config, whether its provider answers (006/US7-5) and its circuit (008/US6). */
 export function AiHealthTable() {
   const health = useAiHealth();
   return (
@@ -65,6 +72,7 @@ export function AiHealthTable() {
               <TableHead scope="col">Modelo</TableHead>
               <TableHead scope="col">Situação</TableHead>
               <TableHead scope="col">Provedor responde</TableHead>
+              <TableHead scope="col">Circuito</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -78,6 +86,9 @@ export function AiHealthTable() {
                 </TableCell>
                 <TableCell>
                   <IconStatus entry={PROVIDER[config.providerStatus]} />
+                </TableCell>
+                <TableCell>
+                  <IconStatus entry={CIRCUIT[config.circuit]} />
                 </TableCell>
               </TableRow>
             ))}

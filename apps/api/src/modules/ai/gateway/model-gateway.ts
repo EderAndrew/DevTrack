@@ -1,7 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import type { AiErrorCode, AiModelConfigStatus } from "@repo/contracts";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
 import { AI_DEFINITIONS, type AiDefinitions, type ModelProvider, type ModelRequest, type ModelResponse, type ModelUsage } from "../definitions/types";
+import { CircuitBreaker } from "./circuit-breaker";
 import { AiFailure, PROVIDER_ERROR_CODES, ProviderError, type ProviderErrorCategory } from "./provider-errors";
 import { backoffMs, isTransient } from "./retry-policy";
 
@@ -93,14 +94,30 @@ export class ModelGateway {
     random: Math.random,
   };
 
-  constructor(@Inject(AI_DEFINITIONS) private readonly definitions: AiDefinitions) {}
+  /** Without a circuit (unit tests of 006), one that never opens. */
+  private readonly circuit: CircuitBreaker;
+
+  constructor(
+    @Inject(AI_DEFINITIONS) private readonly definitions: AiDefinitions,
+    @Optional() circuit?: CircuitBreaker,
+  ) {
+    this.circuit = circuit ?? new CircuitBreaker({ failureThreshold: Number.POSITIVE_INFINITY, openSeconds: 0 });
+  }
 
   providerFor(key: string): ModelProvider | undefined {
     return this.definitions.providers.find((provider) => provider.key === key);
   }
 
-  /** Enabled, with its provider registered, and not refused by the routing policy (008 FR-008). */
+  /**
+   * Can take a call now: enabled, with its provider registered, not refused by the routing policy
+   * (008 FR-008) and not behind an open circuit (008 FR-013).
+   */
   isUsable(config: GatewayModelConfig): boolean {
+    return this.callable(config) && !this.circuit.blocks(config.key);
+  }
+
+  /** Everything `isUsable` checks but the circuit, which the gateway asks leg by leg. */
+  private callable(config: GatewayModelConfig): boolean {
     return config.status === "ENABLED" && this.providerFor(config.provider) !== undefined && !this.refused(config.key);
   }
 
@@ -109,10 +126,10 @@ export class ModelGateway {
   }
 
   /**
-   * One logical call (008 research G6, contracts/gateway-routing.md): the primary with its
-   * retries; after a transient failure, or when the primary can't be called, the fallback once,
-   * with its own retries, under the same deadline and signal. Never back to the primary, so at
-   * most two legs.
+   * One logical call (008 research G6, G8, contracts/gateway-routing.md): the primary with its
+   * retries; after a transient failure, when the primary can't be called or when its circuit is
+   * open, the fallback once, with its own retries, under the same deadline and signal. Never back
+   * to the primary, so at most two legs. Each leg's final outcome goes to its circuit.
    */
   async call(call: GatewayCall): Promise<GatewayResult> {
     const started = Date.now();
@@ -124,25 +141,41 @@ export class ModelGateway {
     };
 
     let trigger: FallbackTrigger;
-    if (this.isUsable(primary) || !fallback) {
+    const primaryCallable = this.callable(primary);
+    const decision = primaryCallable ? this.circuit.allow(primary.key) : null;
+    if (decision === "CALL" || decision === "PROBE" || !fallback) {
+      if (decision === "OPEN") return fail("AI_MODEL_UNAVAILABLE"); // open circuit, nowhere else to go
       const first = await this.leg(primary, false, call);
       legs.push(first.leg);
+      if (primaryCallable) await this.report(primary, first);
       if (first.ok) return finish(first.response);
       if (!fallback || !first.recoverable) return fail(first.leg.errorCode);
       trigger = { reason: "PROVIDER_FAILURE", primaryErrorCode: first.leg.errorCode };
+    } else if (decision === "OPEN") {
+      // The model isn't called while its circuit is open: straight to the fallback.
+      trigger = { reason: "CIRCUIT_OPEN", primaryErrorCode: null };
     } else {
       // Disabled by the admin or refused by the policy: nothing to call on the primary.
       trigger = { reason: "PROVIDER_FAILURE", primaryErrorCode: "AI_MODEL_UNAVAILABLE" };
     }
 
     const primaryCode = trigger.primaryErrorCode ?? "AI_MODEL_UNAVAILABLE";
-    if (!this.isUsable(fallback)) return fail(primaryCode);
+    if (!this.callable(fallback)) return fail(primaryCode);
     if (call.signal.aborted) return fail("AI_EXECUTION_CANCELLED");
     if (call.deadline.getTime() <= Date.now()) return fail(primaryCode);
+    if (this.circuit.allow(fallback.key) === "OPEN") return fail(primaryCode);
     const second = await this.leg(fallback, true, call);
     legs.push({ ...second.leg, trigger });
+    await this.report(fallback, second);
     if (second.ok) return finish(second.response);
     return fail(second.leg.errorCode);
+  }
+
+  /** The leg's final outcome, not each attempt, goes to the config's circuit (research G8). */
+  private async report(config: GatewayModelConfig, result: LegResult): Promise<void> {
+    if (result.ok) await this.circuit.recordSuccess(config);
+    else if (result.recoverable) await this.circuit.recordTransientFailure(config);
+    else this.circuit.recordOtherOutcome(config);
   }
 
   /** One config with its own retries, under the call's deadline and signal. */
