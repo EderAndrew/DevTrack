@@ -5,7 +5,7 @@ import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey, type Tx } from "../../../platform/database/transaction";
 import { AuditService } from "../../audit/audit.service";
-import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions } from "../definitions/types";
+import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions, type TaskUnavailableReason } from "../definitions/types";
 import {
   AiRegistryError,
   agentVersionHash,
@@ -81,7 +81,24 @@ export class AiRegistrySync implements OnApplicationBootstrap {
       { timeoutMs: 30_000 },
     );
     this.logger.log({ agents: summary.agents, newVersions: summary.newVersions, deprecated: summary.deprecated }, "ai.registry_synced");
+    this.reportUnavailableTasks();
     return summary;
+  }
+
+  /**
+   * One warning per task that can't run with this deploy's definitions (008 FR-008): the reason
+   * code only, never a model value, key or secret. The API keeps running.
+   */
+  private reportUnavailableTasks(): void {
+    const configs = new Map(this.definitions.modelConfigs.map((config) => [config.key, config]));
+    const providers = new Set(this.definitions.providers.map((provider) => provider.key));
+    for (const task of this.definitions.tasks) {
+      const route = [task.primaryModelConfigKey, task.fallbackModelConfigKey].flatMap((key) => (key ? [configs.get(key)!] : []));
+      const reason: TaskUnavailableReason | null =
+        route.find((config) => config.unavailableReason)?.unavailableReason ??
+        (route.some((config) => providers.has(config.provider)) ? null : "PROVIDER_NOT_REGISTERED");
+      if (reason) this.logger.warn({ task: task.key, reason }, "ai.task_unavailable");
+    }
   }
 
   private async syncModelConfigs(tx: Tx, changes: { count: number }): Promise<Map<string, string>> {
@@ -99,7 +116,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         currency: config.price?.currency ?? null,
         definitionHash: hash,
       };
-      const existing = await tx.aiModelConfig.findUnique({ where: { key: config.key }, select: { id: true, definitionHash: true } });
+      const existing = await tx.aiModelConfig.findUnique({ where: { key: config.key }, select: { id: true, definitionHash: true, model: true } });
       if (!existing) {
         const created = await tx.aiModelConfig.create({ data: { key: config.key, status: config.initialStatus, ...fields }, select: { id: true } });
         ids.set(config.key, created.id);
@@ -108,6 +125,16 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         if (existing.definitionHash !== hash) {
           await tx.aiModelConfig.update({ where: { id: existing.id }, data: fields });
           changes.count += 1;
+          // Each call keeps the model it used; this is the history of the config (008 research G3).
+          if (existing.model !== config.model) {
+            await this.audit.record(tx, {
+              type: "ai_model_config.changed",
+              actorType: "SYSTEM",
+              targetType: "AI_MODEL_CONFIG",
+              targetId: existing.id,
+              metadata: { configKey: config.key, provider: config.provider, previousModel: existing.model, model: config.model },
+            });
+          }
         }
         ids.set(config.key, existing.id);
       }

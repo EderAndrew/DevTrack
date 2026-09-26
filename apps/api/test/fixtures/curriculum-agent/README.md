@@ -23,9 +23,13 @@ instituição ou de um professor real. Os de POO são a amostra fictícia da 004
 ```bash
 pnpm --filter api fixtures:curriculum                                  # regrava golden/<caso>/document.*
 pnpm --filter api test -- test/integration/007-us6-evaluation.spec.ts  # CI: respostas gravadas
-ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum                # sob demanda: provedor real
-ANTHROPIC_API_KEY=... EVAL_RECORD=1 pnpm --filter api eval:curriculum  # também regrava recorded.json
+OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum                # sob demanda: OpenRouter, OPENROUTER_DEFAULT_MODEL
+OPENROUTER_API_KEY=... EVAL_RECORD=1 pnpm --filter api eval:curriculum  # também regrava recorded.json
 ```
+
+Desde a 008 (`008/US1-4`, `008/FR-022`), a avaliação sob demanda roda pelo OpenRouter contra o
+modelo principal de `OPENROUTER_DEFAULT_MODEL`, com os mesmos limiares da 007 (`007/SC-005`,
+`007/SC-006`). Trocar esse modelo exige rodá-la de novo antes de habilitar o agente com ele.
 
 Para regravar: rode com `EVAL_RECORD=1`, revise o diff de cada `recorded.json` (o CI passa a
 reproduzir essas respostas) e versione. Um caso novo ou um `expected.json` alterado é uma nova

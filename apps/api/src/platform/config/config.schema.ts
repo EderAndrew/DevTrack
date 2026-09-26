@@ -79,8 +79,6 @@ export const configSchema = z.object({
   AI_MAX_OUTPUT_KB: positiveInt(200),
   AI_PROPOSAL_TTL_DAYS: positiveInt(30),
   AI_RECORD_RETENTION_DAYS: positiveInt(365),
-  ANTHROPIC_API_KEY: optional(z.string().trim().min(1)),
-  ANTHROPIC_BASE_URL: optional(z.url({ protocol: /^https?$/ })),
   AI_CIRCUIT_FAILURE_THRESHOLD: positiveInt(5),
   AI_CIRCUIT_OPEN_SECONDS: positiveInt(60),
   OPENROUTER_API_KEY: optional(z.string().trim().min(1)),
@@ -143,12 +141,6 @@ export interface AppConfig {
     limits: AiExecutionLimits;
     proposalTtlDays: number;
     retentionDays: number;
-    /**
-     * Anthropic provider (007 research C2). Without `apiKey` the provider is not registered and
-     * AI is unavailable, while the app starts normally (FR-043). `baseUrl` is only for the local
-     * E2E mock. The key is never logged.
-     */
-    anthropic: { apiKey: string | null; baseUrl: string | null };
     /**
      * OpenRouter provider (008 research G10, G16). Without `apiKey` the provider is not
      * registered and AI is unavailable, while the app starts normally (FR-003). `baseUrl` is
@@ -250,7 +242,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       },
       proposalTtlDays: e.AI_PROPOSAL_TTL_DAYS,
       retentionDays: e.AI_RECORD_RETENTION_DAYS,
-      anthropic: { apiKey: e.ANTHROPIC_API_KEY ?? null, baseUrl: e.ANTHROPIC_BASE_URL ?? null },
       openrouter: {
         apiKey: e.OPENROUTER_API_KEY ?? null,
         baseUrl: e.OPENROUTER_BASE_URL ?? null,

@@ -84,7 +84,8 @@ export function checkDefinitions(definitions: AiDefinitions, limits: AiExecution
   const configs = new Set(definitions.modelConfigs.map((c) => c.key));
   for (const config of definitions.modelConfigs) {
     // A model that picks other models by itself would hide the fallback from the gateway (008 FR-004).
-    if (config.model.startsWith("openrouter/")) throw new AiRegistryError(`model config "${config.key}": model "${config.model}" is not accepted`);
+    // An environment model already refused by production reaches the sync as unavailable.
+    if (!config.unavailableReason && config.model.startsWith("openrouter/")) throw new AiRegistryError(`model config "${config.key}": model "${config.model}" is not accepted`);
   }
   const tasks = new Set(definitions.tasks.map((t) => t.key));
   for (const task of definitions.tasks) {

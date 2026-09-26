@@ -179,7 +179,7 @@ mudar asserções de comportamento.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T020 [P] [US1] Criar `apps/api/src/modules/ai/gateway/providers/openrouter.provider.spec.ts`
+- [X] T020 [P] [US1] Criar `apps/api/src/modules/ai/gateway/providers/openrouter.provider.spec.ts`
   com `fetch` injetado (contracts/openrouter-provider.md):
   - corpo: `system`, primeira mensagem `user` com contexto e blocos não confiáveis, histórico
     com `tool_calls`/`tool`, `max_tokens`, parâmetros permitidos, `tools` strict,
@@ -193,43 +193,43 @@ mudar asserções de comportamento.
     do erro nunca contém a chave, o corpo nem o pedido (`008/FR-005`);
   - `healthCheck`: 200 em `GET /key` → `UP`, outro → `DOWN`;
   - cabeçalhos: `Authorization`, `X-Title`, sem `HTTP-Referer`.
-- [ ] T021 [P] [US1] Criar `apps/api/test/integration/008-us1-curriculum-openrouter.spec.ts`:
+- [X] T021 [P] [US1] Criar `apps/api/test/integration/008-us1-curriculum-openrouter.spec.ts`:
   - `008/US1-1`: a análise conclui com a mesma proposta da 007 e a execução registra tarefa,
     provedor, modelo servido e versão das instruções;
   - `008/US1-3`: varredura de `apps/api/src/modules/curriculum-ai/**` sem nome de provedor,
     id de modelo, host, credencial nem `fetch`.
-- [ ] T022 [P] [US1] Atualizar `apps/api/test/security/006-ai-no-real-provider.spec.ts`: a
+- [X] T022 [P] [US1] Atualizar `apps/api/test/security/006-ai-no-real-provider.spec.ts`: a
   produção registra só `openrouter`, e só com a chave (`OpenRouterProvider`); `openrouter` é a
   única chave de provedor real no código; o E2E usa chave fictícia e `OPENROUTER_BASE_URL`
   local; `config.schema.ts` só declara `OPENROUTER_*` como credencial; nenhuma app de teste
   registra o provedor `openrouter` (a instância direta do `OpenRouterProvider` nos testes
   unitários e na T037 não é um registro) (`008/US1-2`).
-- [ ] T023 [P] [US1] Atualizar `apps/api/test/security/006-ai-boundary.spec.ts`: o host
+- [X] T023 [P] [US1] Atualizar `apps/api/test/security/006-ai-boundary.spec.ts`: o host
   `openrouter.ai` entra em `PROVIDER_HOSTS` e só aparece em `gateway/providers/**`; a API não
   depende de nenhum SDK de provedor (`allowed` vazio para `apps/api/package.json`);
   `@anthropic-ai/*` continua proibido pelo lint (`008/FR-024`).
 
 ### Implementation for User Story 1
 
-- [ ] T024 [US1] Criar `apps/api/src/modules/ai/gateway/providers/openrouter.provider.ts`
+- [X] T024 [US1] Criar `apps/api/src/modules/ai/gateway/providers/openrouter.provider.ts`
   (research G10–G14): `fetch` nativo com o `AbortSignal` do gateway, URL base padrão como
   constante do arquivo, `sanitizeJsonSchema` para ferramentas e saída, mapeamento de resposta e
   erros, `healthCheck`. Registrar em `productionAiDefinitions` só com `OPENROUTER_API_KEY`.
-- [ ] T025 [US1] Remover a Anthropic (research G15):
+- [X] T025 [US1] Remover a Anthropic (research G15):
   - apagar `apps/api/src/modules/ai/gateway/providers/anthropic.provider.ts` e o seu spec;
   - tirar `ANTHROPIC_API_KEY`/`ANTHROPIC_BASE_URL` de `config.schema.ts`, de `test-app.ts` e
     de `apps/api/.env.example`; trocar `*.anthropic` por nada em `logging.module.ts`;
   - `pnpm --filter api remove @anthropic-ai/sdk`; manter `@anthropic-ai/*` na lista proibida
     de `apps/api/eslint.config.mjs`;
   - atualizar `DEPENDENCIES.md` (remoção e motivo).
-- [ ] T026 [US1] E2E: criar `apps/web/e2e/openrouter-mock.ts` (servidor local de
+- [X] T026 [US1] E2E: criar `apps/web/e2e/openrouter-mock.ts` (servidor local de
   `/chat/completions` e `/key` no formato OpenAI, com as respostas gravadas do caso POO e
   `MOCK_PRIMARY_DOWN=1` para responder 503 ao modelo principal); apagar
   `apps/web/e2e/anthropic-mock.ts`; trocar as variáveis em `apps/web/e2e/.env.e2e`,
   `apps/web/e2e/env.ts` e `apps/web/e2e/playwright.config.ts`; ajustar
   `apps/web/e2e/curriculum-ai.spec.ts` e `apps/web/e2e/ai-operations.spec.ts` só no que cita
   o provedor.
-- [ ] T027 [US1] Avaliação sob demanda (research G20): `apps/api/test/eval/curriculum-agent.eval.ts`
+- [X] T027 [US1] Avaliação sob demanda (research G20): `apps/api/test/eval/curriculum-agent.eval.ts`
   e `apps/api/vitest.eval.config.ts` passam a usar `OPENROUTER_API_KEY` e
   `OpenRouterProvider` contra `OPENROUTER_DEFAULT_MODEL` (o fallback entra na T036); atualizar
   `apps/api/test/fixtures/curriculum-agent/README.md` (`008/US1-4`, `008/FR-022`).
@@ -247,7 +247,7 @@ antigas continuam com o anterior; configuração inválida deixa a tarefa indisp
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T028 [P] [US2] Criar `apps/api/test/integration/008-us2-model-by-config.spec.ts`:
+- [X] T028 [P] [US2] Criar `apps/api/test/integration/008-us2-model-by-config.spec.ts`:
   - `008/US2-1`: duas apps sobre o mesmo banco com `OPENROUTER_DEFAULT_MODEL` A e depois B (e o
     provedor simulado sob a chave `openrouter`): a execução nova usa B, a antiga continua com A
     em `ai_model_calls`; um evento `ai_model_config.changed` com `previousModel` A e `model` B;
@@ -260,11 +260,11 @@ antigas continuam com o anterior; configuração inválida deixa a tarefa indisp
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Em `ai-registry.sync.ts`: ao mudar o modelo de uma configuração existente,
+- [X] T029 [US2] Em `ai-registry.sync.ts`: ao mudar o modelo de uma configuração existente,
   gravar `ai_model_config.changed` (`configKey`, `provider`, `previousModel`, `model`) na
   transação do sync; novo tipo em `audit-event-types.ts`, no contrato de auditoria da 006 e
   emitido em `test/helpers/journey.ts` (contracts/audit-events.md).
-- [ ] T030 [US2] Em `apps/api/src/modules/ai/definitions/index.ts`: validar os modelos das
+- [X] T030 [US2] Em `apps/api/src/modules/ai/definitions/index.ts`: validar os modelos das
   variáveis (`^[a-z0-9-]+/[a-z0-9._:-]+$`, sem `openrouter/`, fallback ≠ principal); quando
   inválido, não registrar a configuração (a tarefa fica indisponível) e logar
   `ai.task_unavailable` com `reason` (`MODEL_INVALID`, `FALLBACK_EQUALS_PRIMARY`,

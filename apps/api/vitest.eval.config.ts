@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 /**
  * On-demand evaluation (007 research C17, FR-051): `pnpm --filter api eval:curriculum`. Only
  * `test/eval/**\/*.eval.ts`, never in the default suite nor in CI: it calls the real provider and
- * needs `ANTHROPIC_API_KEY`. Same database setup as the default suite (the test database).
+ * needs `OPENROUTER_API_KEY` (008 research G20). Same database setup as the default suite (the test database).
  */
 export default defineConfig({
   plugins: [swc.vite({ module: { type: "es6" } })],

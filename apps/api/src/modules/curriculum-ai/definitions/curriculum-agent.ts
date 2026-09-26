@@ -1,5 +1,6 @@
 import { CurriculumExtractionOutputSchema } from "@repo/contracts";
 import { z } from "zod";
+import { DEFAULT_MODEL_CONFIG_KEY } from "../../ai/definitions/model-config-keys";
 import { type AiDefinitions, defineAgent, defineTask } from "../../ai/definitions/types";
 import { buildCurriculumProposal } from "../proposal/build-proposal";
 import { itemIdsOf } from "../proposal/item-ids";
@@ -10,17 +11,13 @@ import { syllabusDocumentOwnership } from "./syllabus-document.ownership";
 export const CURRICULUM_AGENT_KEY = "curriculum-agent";
 export const CURRICULUM_PROPOSAL_TYPE = "CURRICULUM_EXTRACTION";
 
-/** Model configs the task routes to; production builds them from the environment (008 research G3). */
-export const OPENROUTER_DEFAULT_CONFIG_KEY = "openrouter-default";
-export const OPENROUTER_FALLBACK_CONFIG_KEY = "openrouter-fallback";
-
 /**
  * The task of the agent (008 research G2): the settings of the 007 model config, routed to the
- * default model. Production adds the fallback when `OPENROUTER_FALLBACK_MODEL` is set.
+ * default model config. Production adds the fallback when one is configured.
  */
 export const CURRICULUM_EXTRACTION_TASK = defineTask({
   key: "curriculum-extraction",
-  primaryModelConfigKey: OPENROUTER_DEFAULT_CONFIG_KEY,
+  primaryModelConfigKey: DEFAULT_MODEL_CONFIG_KEY,
   parameters: { effort: "low" },
   maxOutputTokens: 16_000,
   timeoutMs: 60_000,

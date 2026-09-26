@@ -20,7 +20,7 @@ async function enableCurriculumAgent(page: Page): Promise<void> {
 }
 
 // 007/SC-001: from "Preencher com IA" to a confirmed syllabus in under 3 minutes, against the real
-// Anthropic adapter talking to the local mock (e2e/anthropic-mock.ts), which replays the POO case.
+// OpenRouter adapter talking to the local mock (e2e/openrouter-mock.ts), which replays the POO case.
 test("007/SC-001 upload de poo.pdf → Preencher com IA → revisão → aplicar sem um grupo → editar → confirmar, em menos de 3 min", async ({ page }) => {
   test.setTimeout(180_000);
   await enableCurriculumAgent(page);

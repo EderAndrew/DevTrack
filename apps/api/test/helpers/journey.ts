@@ -5,6 +5,7 @@ import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverif
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import type { AiTestApp } from "./ai";
@@ -407,6 +408,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     expect((await adminClient.post(path, { status: off })).status).toBe(200);
     expect((await adminClient.post(path, { status: on })).status).toBe(200);
   }
+  // 008/US2 — a deploy with another model: the registry sync audits the change of the config.
+  await t.prisma.aiModelConfig.update({ where: { key: "fake-alt" }, data: { model: "fake-model-anterior", definitionHash: "deploy-anterior" } });
+  await t.get(AiRegistrySync).sync();
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
     if ((await requestAi()).status === 429) break;
   }

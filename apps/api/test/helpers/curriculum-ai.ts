@@ -9,11 +9,8 @@ import type {
 } from "@repo/contracts";
 import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
 import { type AgentDefinition, type AiDefinitions, defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
-import {
-  CURRICULUM_AGENT,
-  curriculumAiDefinitions,
-  OPENROUTER_DEFAULT_CONFIG_KEY,
-} from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
+import { CURRICULUM_AGENT, curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
@@ -33,7 +30,7 @@ export const CURRICULUM_TEST_MODEL = "anthropic/claude-opus-5";
  * production, with a reference price so the cost is computed (007/FR-047).
  */
 export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({
-  key: OPENROUTER_DEFAULT_CONFIG_KEY,
+  key: DEFAULT_MODEL_CONFIG_KEY,
   provider: "fake",
   model: CURRICULUM_TEST_MODEL,
   initialStatus: "ENABLED",

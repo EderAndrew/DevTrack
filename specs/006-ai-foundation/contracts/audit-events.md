@@ -34,6 +34,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_agent.disabled` | `AI_AGENT_DISABLED` | USER | AI_AGENT | `agentKey`, `version`, `cancelledExecutions` |
 | `ai_model_config.enabled` | equivalent of the model config (FR-062) | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
 | `ai_model_config.disabled` | idem | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
+| `ai_model_config.changed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `previousModel`, `model` (registry sync, when a deploy changes the model of an existing config) |
 | `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `tasks` (008), `newVersions`, `deprecated` (only when something changed) |
 | `ai_execution.rate_limited` | — | USER | — | `scope` |
 

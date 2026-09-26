@@ -154,7 +154,18 @@ export interface ModelConfigDefinition {
   timeoutMs: number;
   /** Prices per million tokens as decimal strings; without them the cost stays empty. */
   price?: { inputPerMTok: string; outputPerMTok: string; currency: string };
+  /**
+   * Set when the routing policy of the environment is invalid (008 FR-008): the config is synced,
+   * so the task keeps its route and the change is audited, but the gateway never calls it.
+   */
+  unavailableReason?: ModelConfigUnavailableReason;
 }
+
+/** Why a model config from the environment can't be called (008 contracts/configuration.md). */
+export type ModelConfigUnavailableReason = "MODEL_INVALID" | "FALLBACK_EQUALS_PRIMARY";
+
+/** Why a task can't run, logged once per startup as `ai.task_unavailable`. */
+export type TaskUnavailableReason = ModelConfigUnavailableReason | "PROVIDER_NOT_REGISTERED";
 
 /**
  * What an agent asks the gateway for, and how it is routed (008 research G2,

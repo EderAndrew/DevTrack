@@ -21,7 +21,6 @@ export const REDACT_PATHS = [
   "*.passwordHash",
   "*.tokenHash",
   "*.apiKey",
-  "*.anthropic",
   "*.openrouter",
 ];
 

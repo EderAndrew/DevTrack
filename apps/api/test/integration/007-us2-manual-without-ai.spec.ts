@@ -185,7 +185,7 @@ describe("007/US2 o preenchimento manual continua funcionando, com ou sem IA", (
 });
 
 /**
- * The production definitions without `ANTHROPIC_API_KEY` (007/FR-043): no provider is registered,
+ * The production definitions without `OPENROUTER_API_KEY` (007/FR-043, 008/FR-003): no provider is registered,
  * so even an enabled agent is MODEL_UNAVAILABLE, and the 004 flow is untouched.
  */
 describe("007/US2-1 007/US2-2 sem provedor registrado (produção sem a chave)", () => {

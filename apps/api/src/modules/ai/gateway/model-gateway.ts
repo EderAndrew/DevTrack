@@ -89,9 +89,13 @@ export class ModelGateway {
     return this.definitions.providers.find((provider) => provider.key === key);
   }
 
-  /** Enabled and with its provider registered. */
+  /** Enabled, with its provider registered, and not refused by the routing policy (008 FR-008). */
   isUsable(config: GatewayModelConfig): boolean {
-    return config.status === "ENABLED" && this.providerFor(config.provider) !== undefined;
+    return config.status === "ENABLED" && this.providerFor(config.provider) !== undefined && !this.refused(config.key);
+  }
+
+  private refused(configKey: string): boolean {
+    return this.definitions.modelConfigs.some((config) => config.key === configKey && config.unavailableReason !== undefined);
   }
 
   async call(call: GatewayCall): Promise<GatewayResult> {
@@ -120,7 +124,7 @@ export class ModelGateway {
       },
     });
     const provider = this.providerFor(config.provider);
-    if (config.status !== "ENABLED" || !provider) return done("AI_MODEL_UNAVAILABLE", 0);
+    if (config.status !== "ENABLED" || !provider || this.refused(config.key)) return done("AI_MODEL_UNAVAILABLE", 0);
 
     const request: ModelRequest = {
       ...call.request,

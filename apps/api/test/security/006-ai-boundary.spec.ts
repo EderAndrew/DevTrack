@@ -29,7 +29,7 @@ const SDKS = [
   "replicate",
 ];
 const SDK_NAME = /^(openai|@anthropic-ai\/.+|@google\/genai|@google\/generative-ai|ai|@ai-sdk\/.+|langchain|@langchain\/.+|ollama|cohere-ai|@mistralai\/.+|groq-sdk|replicate)(\/.*)?$/;
-const PROVIDER_HOSTS = /api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.cohere\.(ai|com)/;
+const PROVIDER_HOSTS = /openrouter\.ai|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.cohere\.(ai|com)/;
 const PROVIDERS_DIR = "src/modules/ai/gateway/providers/";
 
 async function restrictedImports(filePath: string, code: string): Promise<string[]> {
@@ -67,17 +67,22 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(await restrictedImports("src/modules/ai/gateway/providers/x/x.provider.ts", code)).toEqual([]);
   });
 
-  it("007/FR-042 o @anthropic-ai/sdk é importado só pelo adaptador, e o lint o recusa em outro arquivo", async () => {
+  it("008/FR-024 nenhum arquivo importa o @anthropic-ai/*, e o lint o recusa fora dos adaptadores", async () => {
     const code = 'import Anthropic from "@anthropic-ai/sdk";\nexport const y = Anthropic;\n';
-    expect(await restrictedImports(`${PROVIDERS_DIR}anthropic.provider.ts`, code)).toEqual([]);
     for (const path of ["src/modules/curriculum-ai/curriculum-ai-request.service.ts", "src/modules/ai/definitions/index.ts", "src/modules/ai/gateway/model-gateway.ts"]) {
       expect(await restrictedImports(path, code), path).not.toEqual([]);
     }
     const importers = sourceFiles(resolve(API_ROOT, "src"))
       .filter((file) => importsOf(readFileSync(file, "utf8")).some((specifier) => specifier.startsWith("@anthropic-ai/")))
-      .map((file) => relative(API_ROOT, file))
-      .sort();
-    expect(importers).toEqual([`${PROVIDERS_DIR}anthropic.provider.spec.ts`, `${PROVIDERS_DIR}anthropic.provider.ts`]);
+      .map((file) => relative(API_ROOT, file));
+    expect(importers).toEqual([]);
+  });
+
+  it("008/FR-024 o host do OpenRouter aparece só no adaptador openrouter.provider.ts", () => {
+    const citing = sourceFiles(resolve(API_ROOT, "src"))
+      .filter((file) => !file.endsWith(".spec.ts") && /openrouter\.ai/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(API_ROOT, file));
+    expect(citing).toEqual([`${PROVIDERS_DIR}openrouter.provider.ts`]);
   });
 
   it("fora de src/modules/ai, os internos (gateway, ferramentas, validador, registro) são recusados", async () => {
@@ -106,8 +111,8 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(offenders).toEqual([]);
   });
 
-  it("006/FR-016 007/FR-042 o web não depende de SDK de provedor, e a API só do @anthropic-ai/sdk", () => {
-    const allowed = { "apps/api/package.json": ["@anthropic-ai/sdk"], "apps/web/package.json": [] };
+  it("006/FR-016 008/FR-024 nem a API nem o web dependem de SDK de provedor (o OpenRouter usa fetch)", () => {
+    const allowed = { "apps/api/package.json": [], "apps/web/package.json": [] };
     for (const [pkg, expected] of Object.entries(allowed)) {
       const json = JSON.parse(readFileSync(resolve(REPO, pkg), "utf8")) as Record<string, Record<string, string> | undefined>;
       const deps = Object.keys({ ...json.dependencies, ...json.devDependencies });

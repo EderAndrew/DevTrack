@@ -1,0 +1,75 @@
+import { readFileSync } from "node:fs";
+import { createServer, type IncomingMessage, type Server } from "node:http";
+import { join } from "node:path";
+import { API_DIR, OPENROUTER_MOCK_PORT } from "./env.ts";
+
+/**
+ * A local stand-in for OpenRouter's chat completions API (008 T026): the E2E API points
+ * `OPENROUTER_BASE_URL` here, so "Preencher com IA" runs the real `OpenRouterProvider` without
+ * leaving the machine. It replays the POO case of the golden set (`recorded.json`): a request with
+ * no `tool` message asks for `read-curriculum-document` with the `documentId` of the context; one
+ * with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
+ * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`OPENROUTER_DEFAULT_MODEL`), so a
+ * run with a fallback model exercises the fallback. Playwright starts it as a `webServer`
+ * (`node e2e/openrouter-mock.ts`) before the API.
+ */
+
+interface RecordedRun {
+  steps: ({ toolCalls: { toolKey: string }[] } | { output: unknown })[];
+}
+
+const recorded = JSON.parse(
+  readFileSync(join(API_DIR, "test/fixtures/curriculum-agent/golden/poo-pdf/recorded.json"), "utf8"),
+) as RecordedRun;
+const toolKey = recorded.steps.flatMap((step) => ("toolCalls" in step ? step.toolCalls : []))[0]!.toolKey;
+const output = recorded.steps.flatMap((step) => ("output" in step ? [step.output] : []))[0];
+
+/** The API's default model when `OPENROUTER_DEFAULT_MODEL` is unset (apps/api config.schema.ts). */
+const PRIMARY_MODEL = process.env.OPENROUTER_DEFAULT_MODEL || "anthropic/claude-opus-5";
+const PRIMARY_DOWN = process.env.MOCK_PRIMARY_DOWN === "1";
+
+interface ChatBody {
+  model: string;
+  messages: { role: string; content: { type: string; text?: string }[] | string | null }[];
+}
+
+const readBody = (req: IncomingMessage) =>
+  new Promise<string>((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk: Buffer) => (data += chunk.toString("utf8")));
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+
+function answer(body: ChatBody) {
+  const usage = { prompt_tokens: 1_200, completion_tokens: 400, total_tokens: 1_600, cost: 0.016 };
+  const base = { id: `gen-e2e-${Date.now()}`, object: "chat.completion", model: body.model, usage };
+  if (!body.messages.some((message) => message.role === "tool")) {
+    const first = body.messages.find((message) => message.role === "user")!.content;
+    const context = JSON.parse(Array.isArray(first) ? (first[0]?.text ?? "{}") : (first ?? "{}")) as { documentId?: string };
+    const call = { id: "call_e2e_1", type: "function", function: { name: toolKey, arguments: JSON.stringify({ documentId: context.documentId }) } };
+    return { ...base, choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [call] } }] };
+  }
+  return { ...base, choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(output) } }] };
+}
+
+/** Starts the mock on `port`; resolves once it listens. */
+export function startOpenRouterMock(port: number): Promise<Server> {
+  const server = createServer(async (req, res) => {
+    const send = (status: number, payload: unknown) => {
+      res.writeHead(status, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(payload));
+    };
+    const path = new URL(req.url ?? "/", "http://mock").pathname;
+    if (req.method === "GET" && path === "/api/v1/key") return send(200, { data: { label: "e2e", limit: null, usage: 0 } });
+    if (req.method === "POST" && path === "/api/v1/chat/completions") {
+      const body = JSON.parse(await readBody(req)) as ChatBody;
+      if (PRIMARY_DOWN && body.model === PRIMARY_MODEL) return send(503, { error: { code: 503, message: "mock: primary down" } });
+      return send(200, answer(body));
+    }
+    send(404, { error: { code: 404, message: "mock" } });
+  });
+  return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));
+}
+
+if (process.argv[1]?.endsWith("openrouter-mock.ts")) void startOpenRouterMock(OPENROUTER_MOCK_PORT);
