@@ -21,6 +21,9 @@ export const USER_AREAS = [
   { href: "/admin/usuarios", label: "Usuários", permission: "usuarios.visualizar" },
 ] as const;
 
+/** "Operação de IA": health, usage and cost of the AI agents, for the administrator (006 US7). */
+export const AI_OPERATIONS_AREA = { href: "/admin/ia", label: "Operação de IA", permission: "ia.operacao.visualizar" } as const;
+
 /**
  * Permissions of the teacher and administration areas: a verified user with any of them works in
  * the AppShell, otherwise in the student layout (005 contracts/layouts.md). UX only.
@@ -29,6 +32,7 @@ export const STAFF_AREA_PERMISSIONS: readonly string[] = [
   "disciplinas.visualizar",
   "turmas.visualizar",
   ...USER_AREAS.map((area) => area.permission),
+  AI_OPERATIONS_AREA.permission,
 ];
 
 /** Route prefix → name of the area, shown in the Topbar (005 research V12, V20). */
@@ -38,6 +42,7 @@ export const AREAS = [
   { prefix: "/professores", name: "Professores" },
   { prefix: "/admin/managers", name: "Gestores" },
   { prefix: "/admin/usuarios", name: "Usuários" },
+  { prefix: AI_OPERATIONS_AREA.href, name: AI_OPERATIONS_AREA.label },
   { prefix: "/conta", name: "Minha conta" },
   { prefix: MY_CLASSES_PATH, name: "Minhas turmas" },
 ] as const;

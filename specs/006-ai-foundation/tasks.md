@@ -40,7 +40,7 @@ verde.
 
 **Purpose**: configuração, estrutura de pastas e o esqueleto das fixtures de teste.
 
-- [ ] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
+- [X] T001 Acrescentar em `apps/api/src/platform/config/config.schema.ts`:
   - as variáveis de research A17: `AI_EXECUTION_INTERVAL_SECONDS` (`nonNegativeInt(5)`, `0`
     desliga), `AI_EXECUTION_TOTAL_TIMEOUT_SECONDS` (120), `AI_MODEL_CALL_TIMEOUT_SECONDS`
     (60), `AI_TOOL_TIMEOUT_SECONDS` (10), `AI_MAX_MODEL_CALLS` (5), `AI_MAX_TOOL_CALLS` (10),
@@ -54,12 +54,12 @@ verde.
   - a documentação em `apps/api/.env.example`, `apps/api/.env.test.example`
     (`AI_EXECUTION_INTERVAL_SECONDS=0`) e `apps/web/e2e/.env.e2e`
     (`AI_EXECUTION_INTERVAL_SECONDS=1`).
-- [ ] T002 [P] Criar a estrutura vazia de `apps/api/src/modules/ai/` (`definitions/`,
+- [X] T002 [P] Criar a estrutura vazia de `apps/api/src/modules/ai/` (`definitions/`,
   `registry/`, `gateway/providers/`, `tools/`, `output/`, `execution/`, `proposals/`, `usage/`,
   `operations/`, `evaluation/`, `retention/`) com `ai.module.ts` registrado em
   `apps/api/src/app.module.ts`. Acrescentar `LockKey.AI_REGISTRY` e
   `LockKey.AI_PROPOSAL_EXPIRY` em `apps/api/src/platform/database/transaction.ts`.
-- [ ] T003 [P] Criar `apps/api/src/modules/ai/definitions/types.ts` com os tipos de
+- [X] T003 [P] Criar `apps/api/src/modules/ai/definitions/types.ts` com os tipos de
   `contracts/agent-runtime.md`:
   - `AgentDefinition`, `ToolDefinition`, `ModelConfigDefinition`, `ModelProvider`,
     `ModelRequest`, `ModelResponse`, `ResourceOwnership`, `AiDefinitions`, `AiLimits` e
@@ -79,13 +79,13 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
 
 **⚠️ CRITICAL**: bloqueia todas as histórias.
 
-- [ ] T004 Atualizar `apps/api/prisma/schema.prisma` com os 11 enums e os 15 modelos `Ai*` de
+- [X] T004 Atualizar `apps/api/prisma/schema.prisma` com os 11 enums e os 15 modelos `Ai*` de
   `data-model.md`:
   - `@@map` em snake_case e FKs `Restrict`, exceto as filhas da execução, que usam
     `Cascade`;
   - `@@unique` e os índices comuns;
   - `requiredPermission` como FK para `Permission.key`.
-- [ ] T005 Gerar a migração
+- [X] T005 Gerar a migração
   `apps/api/prisma/migrations/<ts>_ai_foundation/migration.sql` (`prisma migrate dev
   --create-only`) e acrescentar à mão:
   - os `CHECK`s de `data-model.md`:
@@ -113,13 +113,13 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   Aplicar com `pnpm --filter api prisma migrate deploy` no banco de teste e conferir que
   `resetDb` limpa as tabelas novas, inclusive as do registro; os testes de IA voltam a
   sincronizar o registro com `resetAiDb` (T016, research A4).
-- [ ] T006 [P] Acrescentar as 4 permissões em
+- [X] T006 [P] Acrescentar as 4 permissões em
   `apps/api/src/modules/access-control/permissions.ts` e em `ROLE_PERMISSIONS` de
   `apps/api/test/security/authorization-matrix.ts` (TEACHER: `ia.execucoes.visualizar`,
   `ia.propostas.revisar`; ADMIN: `ia.operacao.visualizar`, `ia.agentes.gerenciar`). Criar
   `PENDING_006_PERMISSIONS` em `apps/api/test/security/us7-matrix-completeness.spec.ts` com as
   quatro; cada tarefa que põe rotas no `MATRIX` retira as suas.
-- [ ] T007 [P] Criar os contratos em
+- [X] T007 [P] Criar os contratos em
   `packages/contracts/src/ai/{enums,executions,proposals,operations}.ts`:
   - todos os schemas da tabela "Shared types" de `contracts/http-api.md`, strict e com
     tipos via `z.infer`;
@@ -138,34 +138,34 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   códigos de FR-050, usados no `errorCode` da execução) fica em `ai/enums.ts`, separado. Testes em
   `packages/contracts/test/ai.spec.ts`, cobrindo `006/FR-029` (campo de área, professor ou
   dono recusado; campo desconhecido recusado), decisão parcial e enums.
-- [ ] T008 [P] Acrescentar os erros em `apps/api/src/platform/http/errors.ts`, com os status
+- [X] T008 [P] Acrescentar os erros em `apps/api/src/platform/http/errors.ts`, com os status
   de `contracts/http-api.md` e na ordem do `ErrorCatalog`: só os 7 códigos HTTP de T007 (a
   paridade com `ErrorCodeSchema` se mantém; os códigos só de execução não entram no
   `ErrorCatalog`). Acrescentar os títulos e orientações de `contracts/web-ui.md` em
   `apps/web/lib/messages/error-messages.ts`, sem citar provedor nem modelo. A paridade é
   conferida por `apps/api/test/contracts/error-catalog.spec.ts` e pelo teste do web.
-- [ ] T009 [P] Acrescentar os 19 tipos de `contracts/audit-events.md`, com as allowlists de
+- [X] T009 [P] Acrescentar os 19 tipos de `contracts/audit-events.md`, com as allowlists de
   `metadata`, em `apps/api/src/modules/audit/audit-event-types.ts`:
   - alvos `AI_EXECUTION`, `AI_PROPOSAL`, `AI_AGENT` e `AI_MODEL_CONFIG`;
   - ator `SYSTEM` para os eventos do worker.
 
   Testar a allowlist em `apps/api/src/modules/audit/audit.service.spec.ts` (chave de
   conteúdo como `prompt`, `output` ou `payload` é recusada).
-- [ ] T010 Evoluir `apps/api/test/security/audit-coverage.spec.ts` para ler também
+- [X] T010 Evoluir `apps/api/test/security/audit-coverage.spec.ts` para ler também
   `specs/006-ai-foundation/contracts/audit-events.md`. Criar `PENDING_006_TYPES` com todos os
   tipos 006; cada história retira os seus quando `apps/api/test/helpers/journey.ts` passar a
   emiti-los.
-- [ ] T011 [P] Atualizar `apps/api/test/security/domain-boundary.spec.ts`:
+- [X] T011 [P] Atualizar `apps/api/test/security/domain-boundary.spec.ts`:
   - `EXPECTED_MODELS` com os 15 modelos `Ai*`;
   - conferir que nenhum nome novo usa termo acadêmico proibido;
   - título com `006/FR-003`.
-- [ ] T012 [P] Criar as máquinas de estado
+- [X] T012 [P] Criar as máquinas de estado
   `apps/api/src/modules/ai/execution/ai-execution.state-machine.ts` e
   `apps/api/src/modules/ai/proposals/ai-proposal.state-machine.ts`, no formato de
   `classes/class.state-machine.ts`, com testes `*.state-machine.spec.ts` ao lado. Os testes
   cobrem `006/FR-021` e `006/FR-042`: todas as transições válidas e inválidas de
   `data-model.md`, e os estados finais sem saída.
-- [ ] T013 [P] Gateway em `apps/api/src/modules/ai/gateway/`:
+- [X] T013 [P] Gateway em `apps/api/src/modules/ai/gateway/`:
   - `provider-errors.ts`: `ProviderError(category)` e o mapeamento categoria → `AiErrorCode`
     de research A12;
   - `retry-policy.ts`: transitórios `UNAVAILABLE`, `RATE_LIMITED` e `TIMEOUT`; espera `500
@@ -180,7 +180,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
 
   Testes unitários `retry-policy.spec.ts` e `model-gateway.spec.ts` (`006/FR-014`,
   `006/FR-049`) com um provedor de teste em memória.
-- [ ] T014 [P] Criar o provedor simulado
+- [X] T014 [P] Criar o provedor simulado
   `apps/api/test/fixtures/ai/fake-model-provider.ts` (`key: "fake"`):
   - roteiro por execução (`script(executionId | "*", steps)`);
   - passos: `output(json)`, `text(raw)`, `empty()`, `toolCalls([...])`, `error(category)`,
@@ -190,7 +190,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   - `reset()`.
 
   Nunca faz rede.
-- [ ] T015 [P] Criar as fixtures de definição em `apps/api/test/fixtures/ai/`:
+- [X] T015 [P] Criar as fixtures de definição em `apps/api/test/fixtures/ai/`:
   - `model-configs.ts`: `fake-default` e `fake-alt` com provedor `fake`, preço `1.00`/`2.00`
     `USD`, e `fake-no-price`;
   - `reference-tools.ts`:
@@ -213,17 +213,17 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
       instruções com a frase marcadora `MARCADOR-INSTRUCOES-006`;
   - `resources.ts`: `SUBJECT` → `SubjectContextPolicy`;
   - `definitions.ts`: `REFERENCE_AI_DEFINITIONS` (tudo acima + `FakeModelProvider`).
-- [ ] T016 Criar `apps/api/test/helpers/ai.ts`:
+- [X] T016 Criar `apps/api/test/helpers/ai.ts`:
   - `createAiTestApp(options)`: `createTestApp` com o override de `AI_DEFINITIONS` e do
     provedor simulado; não cria permissão nem altera papel (as tabelas preservadas por
     `resetDb` ficam iguais às da migração, então os testes da 001–005 não mudam);
   - `resetAiDb(t)`: `resetDb` seguido de `AiRegistrySync.sync()`, porque `resetDb` também
     apaga as tabelas do registro; todo teste de IA usa este em vez de `resetDb`;
   - `requestExecution(t, agent, cookie, body)`;
-  - `drain(t, now)`: `runOnce` até não haver trabalho;
+  - `drain(t, now)`: entra com o worker, na T028;
   - fábricas `createAiExecution` e `createAiProposal` direto no banco, dentro das regras do
     schema.
-- [ ] T017 Registro sincronizado em `apps/api/src/modules/ai/registry/`:
+- [X] T017 Registro sincronizado em `apps/api/src/modules/ai/registry/`:
   - `ai-registry.sync.ts`: `onApplicationBootstrap` sob `pg_advisory_xact_lock(AI_REGISTRY)`;
     é o upsert idempotente de research A4 e A5:
     - configurações, ferramentas, agentes, versões de agente, instruções, esquemas (via
@@ -245,7 +245,7 @@ sincronizado, gateway com o provedor simulado, fixtures e a fronteira de provedo
   `006/SC-013` e `006/FR-067`: com `PRODUCTION_AI_DEFINITIONS`, a API sobe, o catálogo de
   rotas da 001–005 continua igual (mesmas entradas, só as `ai*` novas) e as permissões de
   cada papel da 001–005 continuam as mesmas.
-- [ ] T018 [P] Fronteira de provedores (research A15):
+- [X] T018 [P] Fronteira de provedores (research A15):
   - `no-restricted-imports` em `apps/api/eslint.config.*` para os SDKs listados em A15 em
     todo `src/**`, exceto `src/modules/ai/gateway/providers/**`;
   - proibição de importar `modules/ai/{gateway,tools,output,registry}/**` fora de
@@ -277,7 +277,7 @@ na fila.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T019 [P] [US1] Teste de integração `apps/api/test/integration/006-us1-executions.spec.ts`:
+- [X] T019 [P] [US1] Teste de integração `apps/api/test/integration/006-us1-executions.spec.ts`:
   - `006/US1-1` e `006/SC-006`: `POST /ai/executions` → 202 `QUEUED` em < 1 s com o
     provedor programado para `delay(30000)` e o worker desligado; auditoria
     `ai_execution.requested` sem entrada nem instruções;
@@ -295,14 +295,14 @@ na fila.
     → 409 `AI_AGENT_DISABLED`; nenhuma execução criada;
   - lista própria com filtro e cursor;
   - professor pedindo `reference-restricted` (permissão que não tem) → 403.
-- [ ] T020 [P] [US1] Teste de integração
+- [X] T020 [P] [US1] Teste de integração
   `apps/api/test/integration/006-us1-worker.spec.ts`:
   - `006/FR-024`: duas `runOnce` simultâneas processam cada execução uma vez, e uma
     gravação tardia com `claim_token` antigo não muda nada;
   - `006/FR-022`: `kick()` depois do commit, sem efeito com intervalo `0`;
   - lote de 2 por ciclo;
   - `ai_execution.started` e `ai_execution.completed` com ator SYSTEM.
-- [ ] T021 [P] [US1] Testes do web `apps/web/features/ai/hooks/use-ai-execution.test.tsx`:
+- [X] T021 [P] [US1] Testes do web `apps/web/features/ai/hooks/use-ai-execution.test.tsx`:
   - `refetchInterval` de 2 s até o estado final, e para ao chegar nele;
   - `useRequestAiExecution` reusa a `idempotencyKey` numa nova tentativa e gera outra num
     novo clique;
@@ -310,14 +310,14 @@ na fila.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] `apps/api/src/modules/ai/output/structured-output.validator.ts`, no
+- [X] T022 [US1] `apps/api/src/modules/ai/output/structured-output.validator.ts`, no
   mínimo exigido pela US1: `validate(text, schema, maxBytes)` com as quatro etapas de
   research A18, devolvendo `{ok, output} | {ok: false, code}`. Testes unitários
   `structured-output.validator.spec.ts`; os casos de falha completos são da US4.
-- [ ] T023 [US1] `apps/api/src/modules/ai/execution/ai-log.ts`: helper `aiLog(logger, event,
+- [X] T023 [US1] `apps/api/src/modules/ai/execution/ai-log.ts`: helper `aiLog(logger, event,
   fields)` que aceita só os campos da allowlist de research A20 (tipado) e descarta o
   resto. Teste unitário.
-- [ ] T024 [US1] `apps/api/src/modules/ai/execution/ai-executions.service.ts`:
+- [X] T024 [US1] `apps/api/src/modules/ai/execution/ai-executions.service.ts`:
   - `request(auth, body, requestId)`: limite de taxa `ai-execution` por usuário, e a
     recusa grava `ai_execution.rate_limited`; em seguida as checagens na ordem de
     `contracts/http-api.md`:
@@ -336,13 +336,13 @@ na fila.
     A10, condicionais e com auditoria), todos por `(id, workspace_id)` → 404;
   - mapper `ai-execution.view.ts` sem provedor, modelo, instruções nem entrada, com
     `completedAt` e `failedAt` derivados.
-- [ ] T025 [US1] `apps/api/src/modules/ai/execution/prompt-envelope.ts`: monta o
+- [X] T025 [US1] `apps/api/src/modules/ai/execution/prompt-envelope.ts`: monta o
   `ModelRequest` com as partes `system` (instruções + política comum da fundação),
   `context` (de `buildContext`) e `untrusted` (entrada e resultados de ferramentas, com
   delimitadores escapados), conforme research A19. Teste unitário
   `prompt-envelope.spec.ts`: delimitador dentro do conteúdo é escapado; nada de `untrusted`
   vai para `system`.
-- [ ] T026 [US1] `apps/api/src/modules/ai/execution/ai-execution-context.ts` (objeto
+- [X] T026 [US1] `apps/api/src/modules/ai/execution/ai-execution-context.ts` (objeto
   congelado de research A7) e `ai-execution.runner.ts`, na versão da US1:
   - reautorização no início (agente `ACTIVE`, configuração habilitada, permissão atual do
     usuário lida do banco, posse do recurso);
@@ -356,12 +356,12 @@ na fila.
     execução registrado num mapa local.
 
   As ferramentas (US3), os limites de laço (US6) e a proposta (US5) entram depois.
-- [ ] T027 [US1] `apps/api/src/modules/ai/usage/{ai-usage.recorder,cost}.ts`: grava
+- [X] T027 [US1] `apps/api/src/modules/ai/usage/{ai-usage.recorder,cost}.ts`: grava
   `ai_model_calls` por chamada (sucesso ou falha, `attempts`, tokens só se informados). O
   custo é `(in × pIn + out × pOut) / 1e6`, com `numeric` em string e nulo sem tokens ou
   preço. Teste unitário `cost.spec.ts` (`006/FR-059`: sem uso informado → nulos; sem preço
   → custo nulo).
-- [ ] T028 [US1] `apps/api/src/modules/ai/execution/ai-execution.worker.ts`, no formato do
+- [X] T028 [US1] `apps/api/src/modules/ai/execution/ai-execution.worker.ts`, no formato do
   `SyllabusProcessingWorker`:
   - `runOnce(now)` faz:
     1. a varredura de prazo (`TIMED_OUT`/`AI_TIMEOUT` com auditoria);
@@ -370,20 +370,22 @@ na fila.
     3. o runner, com erros isolados por execução;
   - `kick()` sem sobreposição;
   - timer de `ai.intervalSeconds` no bootstrap (nada com `0`), parado no shutdown.
-- [ ] T029 [US1] `apps/api/src/modules/ai/execution/ai-executions.controller.ts`, com as 5
+
+  Acrescentar `drain(t, now)` (`runOnce` até não haver trabalho) em `apps/api/test/helpers/ai.ts`.
+- [X] T029 [US1] `apps/api/src/modules/ai/execution/ai-executions.controller.ts`, com as 5
   rotas de execução de `contracts/http-api.md` (`@RequirePermissions("ia.execucoes.visualizar")`,
   202 ou 200 no pedido):
   - entradas `aiExecutions.request|list|get|result|cancel` em
     `packages/contracts/src/endpoints.ts`;
   - linhas no `MATRIX` de `apps/api/test/security/authorization-matrix.ts`;
   - retirar `ia.execucoes.visualizar` de `PENDING_006_PERMISSIONS`.
-- [ ] T030 [US1] Emitir `ai_execution.requested`, `.started`, `.completed`, `.failed`
+- [X] T030 [US1] Emitir `ai_execution.requested`, `.started`, `.completed`, `.failed`
   (uma segunda execução com o provedor programado para saída inválida), `.cancelled`,
   `.cancel_requested`, `.rate_limited` e `ai_registry.synced` em
   `apps/api/test/helpers/journey.ts`, com o agente de referência e o provedor simulado, e
   retirá-los de `PENDING_006_TYPES`. Acrescentar ao `content` da jornada a frase marcadora
   da entrada (`MARCADOR-ENTRADA-006`) e da saída do provedor (`MARCADOR-SAIDA-006`).
-- [ ] T031 [P] [US1] `apps/web/features/ai/api/ai-executions.ts` (`requestAiExecution`,
+- [X] T031 [P] [US1] `apps/web/features/ai/api/ai-executions.ts` (`requestAiExecution`,
   `getAiExecution`, `listAiExecutions`, `getAiExecutionResult`, `cancelAiExecution`) e
   `apps/web/features/ai/hooks/{use-ai-execution,use-request-ai-execution,use-cancel-ai-execution}.ts`
   (`["ai", "executions", id]`, `refetchInterval` enquanto não final).
@@ -404,7 +406,7 @@ existência do recurso.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T032 [P] [US2] Teste de integração
+- [X] T032 [P] [US2] Teste de integração
   `apps/api/test/integration/006-us2-isolation.spec.ts`:
   - `006/US2-1`: A e B executam cada um na própria área, e `workspace_id` = usuário da
     sessão;
@@ -419,7 +421,7 @@ existência do recurso.
     `FAILED` `AI_CONTEXT_ACCESS_DENIED` sem chamar o provedor; disciplina de A transferida
     ou inexistente no início → idem;
   - usuário que é professor e aluno → permissões de aluno não abrem nada.
-- [ ] T033 [P] [US2] Matriz `apps/api/test/security/006-ai-authorization-matrix.ts` e
+- [X] T033 [P] [US2] Matriz `apps/api/test/security/006-ai-authorization-matrix.ts` e
   `.spec.ts` (`006/SC-001`, `contracts/permissions.md`): 401, 403 (e-mail não verificado,
   STUDENT, MANAGER, ADMIN nas rotas de professor, TEACHER nas de operação) e 404 (A × B) em
   cada rota de execução, com `VALID_BODY` por rota; as rotas de proposta e operação entram
@@ -427,13 +429,13 @@ existência do recurso.
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Resolver de posse em
+- [X] T034 [US2] Resolver de posse em
   `apps/api/src/modules/ai/execution/ai-resource.resolver.ts`:
   `assertOwned(workspaceId, resource, tx)` via `AI_DEFINITIONS.resources`; tipo desconhecido
   para o agente → 422 `AI_RESOURCE_TYPE_NOT_ACCEPTED`; não possuído → 404 `NOT_FOUND`. Usá-lo
   no pedido (T024) e na reautorização do runner (T026), que mapeia para
   `AI_CONTEXT_ACCESS_DENIED`.
-- [ ] T035 [US2] Revisar todas as consultas de `ai-executions.service.ts` para buscar por
+- [X] T035 [US2] Revisar todas as consultas de `ai-executions.service.ts` para buscar por
   `(id, workspace_id)`, e o mapper para nunca devolver `workspace_id` nem ids de usuário.
   Somar a matriz 006 à `authorization-matrix.ts` geral e a `route-declarations.spec.ts`.
 
@@ -453,11 +455,11 @@ ferramenta lenta, e conferir cada resultado.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T036 [P] [US3] Teste unitário
+- [X] T036 [P] [US3] Teste unitário
   `apps/api/src/modules/ai/tools/ai-tool-executor.spec.ts` (`006/FR-035`: ordem das
   checagens), com espiões que provam que nenhuma leitura de dados acontece antes do
   passo 5 de research A14.
-- [ ] T037 [P] [US3] Teste de integração `apps/api/test/integration/006-us3-tools.spec.ts`:
+- [X] T037 [P] [US3] Teste de integração `apps/api/test/integration/006-us3-tools.spec.ts`:
   - `006/US3-1`: `reference.read-subject` válido → executa e o modelo recebe só `{id,
     name}` em `untrusted`; `ai_tool_calls` `SUCCEEDED` sem argumentos; `ai_tool.called`;
   - `006/US3-2`: `reference.slow` fora da allowlist de `reference-l1` → `DENIED`
@@ -485,7 +487,7 @@ ferramenta lenta, e conferir cada resultado.
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] `apps/api/src/modules/ai/tools/ai-tool-executor.ts`:
+- [X] T038 [US3] `apps/api/src/modules/ai/tools/ai-tool-executor.ts`:
   - `call(ctx, {toolKey, arguments}, sequence)`, com as 7 etapas de research A14 e
     `AbortSignal.any([timeout da ferramenta, prazo, cancelamento])`;
   - `ToolContext` sem nada além de `{workspaceId, userId, executionId, correlationId,
@@ -494,7 +496,7 @@ ferramenta lenta, e conferir cada resultado.
     curta;
   - devolve ao runner `{ok, result} | {ok: false, code}`;
   - o resultado vai ao modelo só como `untrusted`.
-- [ ] T039 [US3] Estender `ai-execution.runner.ts` com o laço modelo ⇄ ferramentas:
+- [X] T039 [US3] Estender `ai-execution.runner.ts` com o laço modelo ⇄ ferramentas:
   - `tool_calls` → `WAITING_TOOL`, que executa cada chamada e volta a `RUNNING` com os
     resultados no histórico;
   - regra `onToolDenied`;
@@ -503,7 +505,7 @@ ferramenta lenta, e conferir cada resultado.
 
   Enviar ao provedor só as ferramentas da allowlist (chave, descrição, JSON Schema de
   entrada).
-- [ ] T040 [US3] Emitir `ai_tool.called` e `ai_tool.failed` em
+- [X] T040 [US3] Emitir `ai_tool.called` e `ai_tool.failed` em
   `apps/api/test/helpers/journey.ts` e retirá-los de `PENDING_006_TYPES`.
 
 **Checkpoint**: ferramentas negadas por padrão e verificadas em ordem; suíte verde.
@@ -520,12 +522,12 @@ e resposta vazia, e conferir o resultado de cada um.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T041 [P] [US4] Completar
+- [X] T041 [P] [US4] Completar
   `apps/api/src/modules/ai/output/structured-output.validator.spec.ts`: vazio, só espaços,
   JSON truncado, campo ausente, tipo errado, campo a mais (strict) e tamanho acima de
   `maxBytes` → código certo; os detalhes (caminhos, sem valores) ficam só no retorno de
   diagnóstico.
-- [ ] T042 [P] [US4] Teste de integração
+- [X] T042 [P] [US4] Teste de integração
   `apps/api/test/integration/006-us4-structured-output.spec.ts`:
   - `006/US4-1`: válida → `COMPLETED` com o resultado;
   - `006/US4-2`: texto não JSON → `FAILED` `AI_OUTPUT_PARSE_FAILED`;
@@ -540,7 +542,7 @@ e resposta vazia, e conferir o resultado de cada um.
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] Ligar o validador completo no runner (etapa `VALIDATING_OUTPUT`,
+- [X] T043 [US4] Ligar o validador completo no runner (etapa `VALIDATING_OUTPUT`,
   `step: OUTPUT_VALIDATION`), com log `ai.output_invalid` (caminhos sem valores, via
   `aiLog`). Garantir que nenhuma gravação de saída ou proposta ocorra fora da transação de
   conclusão.
@@ -560,7 +562,7 @@ como outro professor e como administrador.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T044 [P] [US5] Teste de integração
+- [X] T044 [P] [US5] Teste de integração
   `apps/api/test/integration/006-us5-proposals.spec.ts`:
   - `006/US5-1`: `reference-l2` concluída → uma proposta `READY_FOR_REVIEW` ligada à
     execução, ao agente, ao tipo e ao alvo; `proposalId` na execução; `ai_proposal.created`
@@ -579,31 +581,31 @@ como outro professor e como administrador.
   - B e ADMIN → 404 e 403;
   - `payload` não pode ser alterado (trigger, `006/FR-047`);
   - 31ª decisão no minuto → 429.
-- [ ] T045 [P] [US5] Teste `apps/api/test/security/006-ai-concurrency.spec.ts`
+- [X] T045 [P] [US5] Teste `apps/api/test/security/006-ai-concurrency.spec.ts`
   (`006/FR-045`, `006/SC-010`): duas decisões diferentes simultâneas → uma vence e a outra
   recebe 409; duas iguais simultâneas → mesma resposta e um evento; conclusão concorrente
   com dois claims → uma proposta (`UNIQUE (execution_id)`).
 
 ### Implementation for User Story 5
 
-- [ ] T046 [US5] Criação da proposta na transação de conclusão do runner (research A13):
+- [X] T046 [US5] Criação da proposta na transação de conclusão do runner (research A13):
   `item_ids` por `proposal.itemIds(output)`, `expires_at`, `step: PROPOSAL_CREATED` e
   `ai_proposal.created`; L2 não grava `ai_execution_outputs`.
-- [ ] T047 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.service.ts`:
+- [X] T047 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.service.ts`:
   - `list` (keyset), `get` e `decide`, com limite de taxa, `UPDATE` condicional com vencedor
     único e releitura para a mesma decisão ou 409, validação dos itens, auditoria e a
     máquina de estado;
   - `getApproved(workspaceId, id)` para os módulos de domínio futuros;
   - `expireDue(now)`, chamado no início de `runOnce`;
   - mapper `ai-proposal.view.ts`.
-- [ ] T048 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.controller.ts`, com as 3
+- [X] T048 [US5] `apps/api/src/modules/ai/proposals/ai-proposals.controller.ts`, com as 3
   rotas (`ia.propostas.revisar`):
   - entradas `aiProposals.list|get|decide` em `endpoints.ts`;
   - linhas na matriz 006 e no `MATRIX`;
   - retirar `ia.propostas.revisar` de `PENDING_006_PERMISSIONS`.
-- [ ] T049 [US5] Emitir `ai_proposal.created`, `.approved`, `.partially_approved`,
+- [X] T049 [US5] Emitir `ai_proposal.created`, `.approved`, `.partially_approved`,
   `.rejected` e `.expired` em `journey.ts` e retirá-los de `PENDING_006_TYPES`.
-- [ ] T050 [P] [US5] `apps/web/features/ai/api/ai-proposals.ts` e
+- [X] T050 [P] [US5] `apps/web/features/ai/api/ai-proposals.ts` e
   `hooks/{use-ai-proposal,use-decide-ai-proposal}.ts`, com testes em
   `use-decide-ai-proposal.test.tsx` (invalidações; 409 exibido pelo catálogo).
 
@@ -623,7 +625,7 @@ erro de cada caso.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T051 [P] [US6] Teste de integração `apps/api/test/integration/006-us6-limits.spec.ts`:
+- [X] T051 [P] [US6] Teste de integração `apps/api/test/integration/006-us6-limits.spec.ts`:
   - `006/US6-1`: `error(UNAVAILABLE)` duas vezes e depois `output` → `COMPLETED` com
     `attempts: 3`; três falhas → `FAILED` `AI_PROVIDER_ERROR`; `RATE_LIMITED` →
     `AI_RATE_LIMITED`; `INVALID_REQUEST` não é repetido (`attempts: 1`);
@@ -640,18 +642,18 @@ erro de cada caso.
     execução não final depois de prazo + 1 min;
   - limites menores declarados pelo agente valem, e um maior é recusado na sincronização
     (`006/FR-048`).
-- [ ] T052 [P] [US6] Teste `apps/api/test/security/006-ai-resilience.spec.ts` (`006/SC-009`):
+- [X] T052 [P] [US6] Teste `apps/api/test/security/006-ai-resilience.spec.ts` (`006/SC-009`):
   os 10 cenários em tabela (`it.each`), cada um terminando em estado final com código
   normalizado e sem mensagem do provedor na resposta; 11º pedido de execução no minuto →
   429 (`006/FR-052`).
 
 ### Implementation for User Story 6
 
-- [ ] T053 [US6] Limites efetivos `min(global, agente)` em
+- [X] T053 [US6] Limites efetivos `min(global, agente)` em
   `apps/api/src/modules/ai/execution/ai-limits.ts`, aplicados no runner (contadores de modelo
   e ferramenta, tamanho de saída, prazo) e no pedido (tamanho de entrada), com teste
   unitário.
-- [ ] T054 [US6] Kill switch: em `AiOperationsService.changeAgentStatus` (base para a US7),
+- [X] T054 [US6] Kill switch: em `AiOperationsService.changeAgentStatus` (base para a US7),
   a mesma transação que desabilita o agente cancela as `QUEUED` dele (com transições e
   `ai_execution.cancelled` ator SYSTEM). O runner cancela no início se o agente não estiver
   `ACTIVE`. Documentar no `apps/api/CLAUDE.md` o kill switch global
@@ -673,7 +675,7 @@ pedagógico e credenciais.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T055 [P] [US7] Teste de integração
+- [X] T055 [P] [US7] Teste de integração
   `apps/api/test/integration/006-us7-operations.spec.ts`:
   - `006/US7-1`: indicadores por agente, versão, instruções, provedor e modelo nos períodos
     `24h`, `7d` e `30d`, com os totais conferidos contra execuções criadas por fábrica; uso
@@ -686,14 +688,14 @@ pedagógico e credenciais.
   - `006/US7-5`: saúde com `UP`, `DOWN` e `NOT_CONFIGURED` do provedor simulado, sem
     credencial;
   - `006/US7-7`: TEACHER, MANAGER e STUDENT → 403 nas rotas de operação.
-- [ ] T056 [P] [US7] Teste `apps/api/test/security/006-ai-admin-scan.spec.ts` (`006/US7-4`,
+- [X] T056 [P] [US7] Teste `apps/api/test/security/006-ai-admin-scan.spec.ts` (`006/US7-4`,
   `006/SC-007`, `006/FR-031`):
   - cria execuções L1 e L2 de A e B com as marcadoras de instruções, entrada, saída e
     conteúdo de disciplina, e uma credencial falsa na config do provedor simulado
     (`FAKE_PROVIDER_API_KEY=sk-fake-006-…`);
   - varre todas as respostas de `/ai/operations/*`: nenhuma marcadora, credencial, `userId`,
     `workspaceId` ou `resourceId`.
-- [ ] T057 [P] [US7] Testes do web
+- [X] T057 [P] [US7] Testes do web
   `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
   - `006/US7-6`: as 5 seções com dados e vazias; `Select` de período refaz a consulta;
     "Desabilitar" com `AlertDialog` e texto das consequências; ações escondidas sem
@@ -705,26 +707,26 @@ pedagógico e credenciais.
 
 ### Implementation for User Story 7
 
-- [ ] T058 [US7] `apps/api/src/modules/ai/operations/ai-metrics.query.ts`: SQL agregado de
+- [X] T058 [US7] `apps/api/src/modules/ai/operations/ai-metrics.query.ts`: SQL agregado de
   research A20 sobre `ai_executions`, `ai_model_calls` e `ai_tool_calls` (nunca `input`,
   `output`, `payload`, `workspace_id` nem `resource_id`), com custo somado em `numeric` e
   devolvido como string. `ai-operations.service.ts` com `health` (`healthCheck` em
   paralelo, 5 s cada, erro → `DOWN`), `metrics`, `listAgents`, `listModelConfigs`,
   `changeAgentStatus` e `changeModelConfigStatus`, com auditoria e invalidação do cache dos
   registros.
-- [ ] T059 [US7] `apps/api/src/modules/ai/operations/ai-operations.controller.ts`, com as 6
+- [X] T059 [US7] `apps/api/src/modules/ai/operations/ai-operations.controller.ts`, com as 6
   rotas de `contracts/http-api.md`:
   - entradas `aiOperations.health|metrics|agents|modelConfigs|changeAgentStatus|changeModelConfigStatus`
     em `endpoints.ts`;
   - linhas na matriz 006 e no `MATRIX`;
   - retirar `ia.operacao.visualizar` e `ia.agentes.gerenciar` de
     `PENDING_006_PERMISSIONS` (que fica vazio).
-- [ ] T060 [US7] Emitir `ai_agent.enabled`, `ai_agent.disabled`, `ai_model_config.enabled`
+- [X] T060 [US7] Emitir `ai_agent.enabled`, `ai_agent.disabled`, `ai_model_config.enabled`
   e `ai_model_config.disabled` em `journey.ts` e retirá-los de `PENDING_006_TYPES`.
-- [ ] T061 [P] [US7] `apps/web/features/ai-operations/api/ai-operations.ts` e
+- [X] T061 [P] [US7] `apps/web/features/ai-operations/api/ai-operations.ts` e
   `hooks/use-ai-operations.ts` (`useAiHealth`, `useAiMetrics(period)`, `useAiAgents`,
   `useAiModelConfigs`, mutations de situação com `invalidateQueries` e `toast`).
-- [ ] T062 [US7] Componentes
+- [X] T062 [US7] Componentes
   `apps/web/features/ai-operations/components/{ai-operations-page,ai-health-table,ai-metrics-table,ai-usage-table,ai-agents-table,ai-model-configs-table,ai-status-toggle}.tsx`,
   conforme `contracts/web-ui.md`. Rota `apps/web/app/(app)/admin/ia/page.tsx` com
   `PageHeader` e `NoAccess` sem permissão. Em `apps/web/lib/navigation.ts`, acrescentar o
@@ -748,7 +750,7 @@ agente.
 
 ### Tests for User Story 8 ⚠️
 
-- [ ] T063 [P] [US8] Teste de integração
+- [X] T063 [P] [US8] Teste de integração
   `apps/api/test/integration/006-us8-versioning.spec.ts`:
   - `006/US8-1` e `006/SC-008`: execução com as instruções v1 e `fake-default`; reiniciar
     o app com as instruções v2 e `fake-alt` na mesma definição de agente (só a referência
@@ -765,10 +767,10 @@ agente.
 
 ### Implementation for User Story 8
 
-- [ ] T064 [US8] Garantir no pedido (T024) a marcação de `used_at` nas versões de agente,
+- [X] T064 [US8] Garantir no pedido (T024) a marcação de `used_at` nas versões de agente,
   instruções e esquema, e a cópia de `provider`/`model` da configuração corrente.
   Confirmar a regra de hash com `used_at` em `ai-registry.sync.ts` (T017).
-- [ ] T065 [US8] `apps/api/src/modules/ai/evaluation/ai-evaluation.store.ts`
+- [X] T065 [US8] `apps/api/src/modules/ai/evaluation/ai-evaluation.store.ts`
   (`recordCase(agentKey, {key, version, inputRef, expected, status})` idempotente por
   `(agent, key, version)`; `recordResult(caseId, {agentVersionId, promptVersionId,
   modelConfigId, passed, metrics})`) e sua exportação pelo `AiModule`, para as specs dos
@@ -787,7 +789,7 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 
 ### Tests for User Story 9 ⚠️
 
-- [ ] T066 [P] [US9] Testes
+- [X] T066 [P] [US9] Testes
   `apps/web/components/shared/ai/{ai-execution-status,ai-proposal-status,ai-processing-indicator,ai-error-state,ai-proposal-review}.test.tsx`:
   - `006/US9-1`: cada estado com texto, ícone e `role="status"` `aria-live="polite"`, sem
     mover o foco; "Cancelando…";
@@ -800,12 +802,12 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 
 ### Implementation for User Story 9
 
-- [ ] T067 [US9] Componentes em `apps/web/components/shared/ai/` conforme
+- [X] T067 [US9] Componentes em `apps/web/components/shared/ai/` conforme
   `contracts/web-ui.md` (Lucide `Clock`, `Loader`, `CircleCheck`, `CircleX`, `Ban` e
   `TimerOff`; animação desligada com `prefers-reduced-motion`), exportados em `index.ts`.
   Ajustar `apps/web/eslint.config.js` e `apps/web/test/lint-boundaries.test.ts`, se a
   camada `components/shared/ai` precisar.
-- [ ] T068 [US9] Grupo "Inteligência artificial" (`ai`) em
+- [X] T068 [US9] Grupo "Inteligência artificial" (`ai`) em
   `apps/web/features/design-system/registry.ts`, com as 5 entradas (variantes e estados), o
   mostruário `apps/web/features/design-system/components/ai-showcase.tsx` e as 5 seções (6
   subseções cada) em `apps/web/design-system/components.md`. As guardas `docs.test.ts`,
@@ -820,13 +822,13 @@ acessível, operável pelo teclado e sem violações de acessibilidade.
 **Purpose**: retenção, varreduras, provedor real ausente, E2E, rastreabilidade, documentação
 e validação final.
 
-- [ ] T069 [P] Job `ai-records` em `apps/api/src/modules/ai/retention/ai-records.job.ts`,
+- [X] T069 [P] Job `ai-records` em `apps/api/src/modules/ai/retention/ai-records.job.ts`,
   registrado em `MAINTENANCE_JOB_NAMES` (research, "Retenção"), com lotes de
   `MAINTENANCE_BATCH_SIZE`, e documentado em
   `specs/001-foundation-identity-access/contracts/maintenance-jobs.md`. Teste
   `apps/api/test/integration/006-retention.spec.ts`: apaga finais antigas em cascata;
   preserva as que têm proposta `READY_FOR_REVIEW`; preserva a avaliação.
-- [ ] T070 [P] Ampliar `apps/api/test/security/secret-leak-scan.spec.ts` (`006/SC-007`,
+- [X] T070 [P] Ampliar `apps/api/test/security/secret-leak-scan.spec.ts` (`006/SC-007`,
   `006/FR-061`, `006/FR-018`) para procurar, nos logs, na auditoria e nas respostas
   operacionais da jornada:
   - `MARCADOR-INSTRUCOES-006`;
@@ -834,22 +836,22 @@ e validação final.
   - `MARCADOR-SAIDA-006`;
   - o nome da disciplina;
   - a credencial falsa do provedor.
-- [ ] T071 [P] Teste `apps/api/test/security/006-ai-no-real-provider.spec.ts`
+- [X] T071 [P] Teste `apps/api/test/security/006-ai-no-real-provider.spec.ts`
   (`006/SC-011`, `006/FR-015`, `006/FR-016`):
   - `PRODUCTION_AI_DEFINITIONS.providers` vazio;
   - os provedores do app de teste são só simulados (chaves `fake*`);
   - nenhuma variável `AI_*_API_KEY` no `config.schema.ts`;
   - `globalThis.fetch` espionado durante a suíte de IA sem chamadas para fora do localhost.
-- [ ] T072 [P] E2E `apps/web/e2e/ai-operations.spec.ts` (`006/US7-6`, `006/US7-7`):
+- [X] T072 [P] E2E `apps/web/e2e/ai-operations.spec.ts` (`006/US7-6`, `006/US7-7`):
   - o ADMIN abre "Operação de IA" pelo menu; estados vazios e saúde; o `Select` de período
     pelo teclado;
   - o professor não vê o item, e `/admin/ia` mostra "sem acesso".
-- [ ] T073 Acrescentar a 006 em `SPECS` de `apps/api/test/traceability.spec.ts` (9
+- [X] T073 Acrescentar a 006 em `SPECS` de `apps/api/test/traceability.spec.ts` (9
   histórias, 53 cenários, 29 linhas, `sc(1, 13)`). Conferir que `PENDING_006_TYPES` e
   `PENDING_006_PERMISSIONS` foram removidos e cobrir com testes nomeados qualquer id ainda
   sem teste. Para `006/SC-013`, a suíte da 001–005 deve passar sem mudança nos testes
   existentes.
-- [ ] T074 [P] Documentação:
+- [X] T074 [P] Documentação:
   - `CLAUDE.md`: estado do projeto com a 006 implementada; arquitetura do `modules/ai`
     (registro sincronizado, gateway, ferramentas, worker, propostas); fronteira de
     provedores e guardas 006; fixtures `test/fixtures/ai`; decisões A1–A22;
@@ -859,7 +861,7 @@ e validação final.
   - `DEPENDENCIES.md`: nota de que nenhum SDK de provedor foi adicionado e onde o primeiro
     entrará;
   - `README.md`: variáveis `AI_*`.
-- [ ] T075 Validação final: `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T075 Validação final: `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` (com consentimento para resetar só o `devtrack_e2e`);
   roteiro de `specs/006-ai-foundation/quickstart.md` §1–§7; marcar os `[X]`.
 

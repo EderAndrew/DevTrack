@@ -4,6 +4,10 @@ import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverified-accounts.job";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
+import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
+import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
+import type { AiTestApp } from "./ai";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
   createSyllabusDocument,
@@ -15,7 +19,7 @@ import {
   uniqueEmail,
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
-import { api, type TestApp } from "./test-app";
+import { api } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
 const OPERATOR = { host: "host-jornada", user: "operador-jornada" };
@@ -39,13 +43,15 @@ export interface JourneyResult {
  * password reset, rate limit, last-ADMIN protection, the maintenance jobs and the 003 flows
  * implemented so far (classes, class invitations, their management and acceptance, enrollments, own classes), and the 004
  * flows implemented so far (subjects, classes as offerings, syllabus upload, processing and review, the class calendar). Together they emit every audit event
- * type of the contracts/audit-events.md of 001, 003 and 004, except the retired
+ * type of the contracts/audit-events.md of 001, 003, 004 and 006, except the retired
  * ones and those still pending in audit-coverage.spec.ts.
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
- * Used by the SC-005 secret scan and the SC-008 audit coverage tests.
+ * Used by the SC-005 secret scan and the SC-008 audit coverage tests. `t` comes from
+ * `createAiTestApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
+ * flows run the reference agents on the fake provider.
  */
-export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
+export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const secrets: JourneySecret[] = [];
   const content: JourneySecret[] = [{ kind: "texto da ementa (marcador)", value: SYLLABUS_MARKER }];
   /** Pedagogical text sent by the journey; `kind` names it in failure messages. */
@@ -298,6 +304,63 @@ export async function runFullJourney(t: TestApp): Promise<JourneyResult> {
     password: classStudentPassword,
   });
   expect(classAccepted.status).toBe(200);
+  // 006/US1, US3 — AI executions: one completed after a tool call, one failed on an invalid output,
+  // one failed on a tool outside the allowlist, one cancelled in the queue, one cancelled while
+  // running, and the rate limit. The input, the instructions, the
+  // model's output and the provider's credential are content/secrets the scans look for.
+  secrets.push({ kind: "credencial do provedor de IA", value: FAKE_PROVIDER_CREDENTIAL });
+  content.push({ kind: "instruções do agente de IA", value: INSTRUCTIONS_MARKER });
+  const aiOutput = text("saída do modelo", "MARCADOR-SAIDA-006");
+  const aiInput = { text: text("entrada da execução de IA", "MARCADOR-ENTRADA-006") };
+  const aiResource = { type: "SUBJECT", id: subjectId };
+  const requestAi = (extra: object = {}) =>
+    teacherClient.post("/api/ai/executions", { agentKey: "reference-l1", resource: aiResource, input: aiInput, idempotencyKey: crypto.randomUUID(), ...extra });
+  const aiWorker = t.get(AiExecutionWorker);
+  t.provider.script(fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
+  const aiDone = await requestAi();
+  expect(aiDone.status).toBe(202);
+  expect(await aiWorker.runOnce()).toBe(1);
+  t.provider.script(fakeText(`não é JSON ${aiOutput}`));
+  expect((await requestAi()).status).toBe(202);
+  expect(await aiWorker.runOnce()).toBe(1);
+  t.provider.script(fakeToolCall("reference.slow", { subjectId }));
+  expect((await requestAi()).status).toBe(202);
+  expect(await aiWorker.runOnce()).toBe(1);
+  const aiQueued = await requestAi();
+  expect((await teacherClient.post(`/api/ai/executions/${aiQueued.body.id}/cancel`)).body.status).toBe("CANCELLED");
+  t.provider.script(fakeDelay(2_000, fakeOutput({ summary: aiOutput })));
+  const aiRunning = await requestAi();
+  const aiSeen = t.provider.requests.length;
+  const aiCycle = aiWorker.runOnce();
+  for (let i = 0; i < 100 && t.provider.requests.length <= aiSeen; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+  expect((await teacherClient.post(`/api/ai/executions/${aiRunning.body.id}/cancel`)).body.cancelRequested).toBe(true);
+  await aiCycle;
+  // 006/US5 — proposals of the L2 agent: approved, partially approved, rejected and one expired
+  // by a worker cycle past its validity. The items carry the model's output marker.
+  const proposeAi = async () => {
+    t.provider.script(fakeOutput({ items: [{ id: "i1", label: aiOutput }, { id: "i2", label: "Item 2" }] }));
+    const res = await requestAi({ agentKey: "reference-l2", input: {} });
+    expect(res.status).toBe(202);
+    expect(await aiWorker.runOnce()).toBe(1);
+    return (await teacherClient.get(`/api/ai/executions/${res.body.id}`)).body.proposalId as string;
+  };
+  for (const body of [{ decision: "APPROVE" }, { decision: "APPROVE_PARTIALLY", acceptedItemIds: ["i1"] }, { decision: "REJECT" }]) {
+    expect((await teacherClient.post(`/api/ai/proposals/${await proposeAi()}/decision`, body)).status).toBe(200);
+  }
+  await proposeAi();
+  await aiWorker.runOnce(new Date(Date.now() + (t.config.ai.proposalTtlDays + 1) * 86_400_000));
+  // 006/US7 — the administrator turns an agent and a model config off and on again.
+  for (const [path, off, on] of [
+    ["/api/ai/operations/agents/reference-l1/status", "DISABLED", "ACTIVE"],
+    ["/api/ai/operations/model-configs/fake-alt/status", "DISABLED", "ENABLED"],
+  ] as const) {
+    expect((await adminClient.post(path, { status: off })).status).toBe(200);
+    expect((await adminClient.post(path, { status: on })).status).toBe(200);
+  }
+  for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
+    if ((await requestAi()).status === 429) break;
+  }
+
   // 003/US7 — the new student sees the class in "Minhas turmas".
   const myClasses = await api(t, { cookie: keepCookie(classAccepted) }).get("/api/me/classes");
   expect(myClasses.body.items.map((c: { id: string }) => c.id)).toEqual([classId]);

@@ -102,6 +102,20 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
 - Ementas (004): tamanho máximo do arquivo (`SYLLABUS_MAX_FILE_MB`, 10), intervalo do
   processamento em segundo plano (`SYLLABUS_PROCESSING_INTERVAL_SECONDS`; `0` desliga) e limites
   por professor de envios e novas tentativas por hora; o arquivo original fica no próprio banco.
+- IA (006): nenhum provedor real vem configurado, então a API sobe sem agentes. As variáveis
+  `AI_*` são:
+  - `AI_EXECUTION_INTERVAL_SECONDS` (5; `0` desliga todo processamento de IA);
+  - os limites por execução: `AI_EXECUTION_TOTAL_TIMEOUT_SECONDS` (120),
+    `AI_MODEL_CALL_TIMEOUT_SECONDS` (60), `AI_TOOL_TIMEOUT_SECONDS` (10), `AI_MAX_MODEL_CALLS`
+    (5), `AI_MAX_TOOL_CALLS` (10), `AI_MAX_RETRIES` (2), `AI_MAX_INPUT_KB` (200) e
+    `AI_MAX_OUTPUT_KB` (200);
+  - a validade das propostas, `AI_PROPOSAL_TTL_DAYS` (30);
+  - a retenção das execuções, `AI_RECORD_RETENTION_DAYS` (365), aplicada pelo job
+    `ai-records`.
+
+  Os limites de pedidos são `RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE` (10) e
+  `RATE_LIMIT_AI_DECISIONS_PER_MINUTE` (30). A credencial de um provedor entrará com a spec
+  do primeiro provedor real, nunca no browser.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

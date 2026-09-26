@@ -65,11 +65,25 @@ export const CURRICULUM = [
   "planejamento.alterar_situacao",
 ] as const satisfies PermissionKey[];
 
+/** 006: the teacher's own AI executions and proposals. */
+export const AI_TEACHER = ["ia.execucoes.visualizar", "ia.propostas.revisar"] as const satisfies PermissionKey[];
+
+/** 006: AI operations — ADMIN only, never pedagogical content. */
+export const AI_OPERATIONS = ["ia.operacao.visualizar", "ia.agentes.gerenciar"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
-  ADMIN: [...SESSOES, ...PROFESSORES, ...MANAGERS, "usuarios.visualizar", "usuarios.suspender", "usuarios.reativar"],
+  ADMIN: [
+    ...SESSOES,
+    ...PROFESSORES,
+    ...MANAGERS,
+    "usuarios.visualizar",
+    "usuarios.suspender",
+    "usuarios.reativar",
+    ...AI_OPERATIONS,
+  ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 
@@ -152,6 +166,24 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:id/plan/topics/:topicId/complete", access: "planejamento.editar" },
   { method: "POST", path: "/classes/:id/plan/topics/:topicId/reopen", access: "planejamento.editar" },
   { method: "PUT", path: "/classes/:id/plan/topic-order", access: "planejamento.editar" },
+
+  // 006 — AI executions of the session teacher (the agent's own permission is checked in the service).
+  { method: "POST", path: "/ai/executions", access: "ia.execucoes.visualizar" },
+  { method: "GET", path: "/ai/executions", access: "ia.execucoes.visualizar" },
+  { method: "GET", path: "/ai/executions/:id", access: "ia.execucoes.visualizar" },
+  { method: "GET", path: "/ai/executions/:id/result", access: "ia.execucoes.visualizar" },
+  { method: "POST", path: "/ai/executions/:id/cancel", access: "ia.execucoes.visualizar" },
+  // 006 — proposals of L2 agents, reviewed by the session teacher.
+  { method: "GET", path: "/ai/proposals", access: "ia.propostas.revisar" },
+  { method: "GET", path: "/ai/proposals/:id", access: "ia.propostas.revisar" },
+  { method: "POST", path: "/ai/proposals/:id/decision", access: "ia.propostas.revisar" },
+  // 006 — AI operations of the administrator (never pedagogical content).
+  { method: "GET", path: "/ai/operations/health", access: "ia.operacao.visualizar" },
+  { method: "GET", path: "/ai/operations/metrics", access: "ia.operacao.visualizar" },
+  { method: "GET", path: "/ai/operations/agents", access: "ia.operacao.visualizar" },
+  { method: "GET", path: "/ai/operations/model-configs", access: "ia.operacao.visualizar" },
+  { method: "POST", path: "/ai/operations/agents/:key/status", access: "ia.agentes.gerenciar" },
+  { method: "POST", path: "/ai/operations/model-configs/:key/status", access: "ia.agentes.gerenciar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

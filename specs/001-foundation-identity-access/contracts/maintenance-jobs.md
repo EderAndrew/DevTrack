@@ -18,6 +18,7 @@ andamento em outra instância"). Remoções em lotes de 1000 linhas por transaç
 | `access-records` | `access_records.occurredAt < now() − 6 meses` | remove | `access_records.purged` (`count`, `olderThan`) quando `count > 0` | FR-076 |
 | `audit-events` | `audit_events.occurredAt < now() − 5 anos` | remove sob `SET LOCAL devtrack.audit_purge = 'on'` | `audit.purged` (`count`, `olderThan`) quando `count > 0` | FR-077 |
 | `rate-limit-counters` | `rate_limit_counters.expiresAt < now()` | remove | nenhuma | R8 |
+| `ai-records` (006) | `ai_executions` finais com `finished_at < now() − AI_RECORD_RETENTION_DAYS` (padrão 365), sem proposta `READY_FOR_REVIEW` | remove; transições, chamadas ao modelo e às ferramentas, saída e proposta saem em cascata; casos e resultados de avaliação ficam | nenhuma | 006 research "Retenção" |
 
 Sem `--job`, executa todos na ordem acima. Exit codes: `0` sucesso (inclusive sem
 remoções), `1` erro (mensagem genérica, sem dados pessoais). A saída informa apenas
@@ -30,4 +31,6 @@ Garantias testadas:
   continua aceitável (cria identidade nova);
 - nenhuma linha de auditoria com menos de 5 anos é removida, e `DELETE` fora do job
   continua falhando;
-- duas execuções simultâneas não removem nada em dobro nem falham.
+- duas execuções simultâneas não removem nada em dobro nem falham;
+- `ai-records` nunca remove execução em andamento, recente ou com proposta aguardando o
+  professor (`test/integration/006-retention.spec.ts`).

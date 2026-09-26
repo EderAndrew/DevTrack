@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { BookOpen, ChevronRight, Library, School, UserRound, Users } from "lucide-react";
+import { Activity, BookOpen, ChevronRight, Library, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -21,7 +21,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { HOME_PATH, MY_CLASSES_PATH, USER_AREAS } from "@/lib/navigation";
+import { AI_OPERATIONS_AREA, HOME_PATH, MY_CLASSES_PATH, USER_AREAS } from "@/lib/navigation";
 import { LogoutButton } from "./logout-button";
 
 const LINK = "text-sidebar-foreground no-underline";
@@ -32,7 +32,7 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open, "Minhas disciplinas" and "Turmas" are the teacher's subjects and classes, and "Minhas
+ * open, "Operação de IA" is the administrator's AI operation (006), "Minhas disciplinas" and "Turmas" are the teacher's subjects and classes, and "Minhas
  * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
  * the icons (labels stay as accessible names and show as tooltips); opening "Usuários" there
@@ -45,6 +45,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const inClasses = pathname === "/turmas" || pathname.startsWith("/turmas/");
   const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
   const subjects = Boolean(me?.emailVerified && me.permissions.includes("disciplinas.visualizar"));
+  const aiOperations = Boolean(me?.emailVerified && me.permissions.includes(AI_OPERATIONS_AREA.permission));
   const inSubjects = pathname === "/disciplinas" || pathname.startsWith("/disciplinas/");
   const { state, isMobile, setOpen } = useSidebar();
   const iconsOnly = state === "collapsed" && !isMobile;
@@ -107,6 +108,20 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
+                ) : null}
+                {aiOperations ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === AI_OPERATIONS_AREA.href} tooltip={AI_OPERATIONS_AREA.label}>
+                      <Link
+                        href={AI_OPERATIONS_AREA.href}
+                        className={LINK}
+                        aria-current={pathname === AI_OPERATIONS_AREA.href ? "page" : undefined}
+                      >
+                        <Activity aria-hidden="true" />
+                        <span>{AI_OPERATIONS_AREA.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 ) : null}
                 {subjects ? (
                   <SidebarMenuItem>

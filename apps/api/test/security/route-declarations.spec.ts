@@ -111,6 +111,21 @@ describe("route access declarations", () => {
         "POST /teacher-invitations",
         "POST /teacher-invitations/:id/resend",
         "POST /teacher-invitations/:id/revoke",
+        // 006
+        "POST /ai/executions",
+        "GET /ai/executions",
+        "GET /ai/executions/:id",
+        "GET /ai/executions/:id/result",
+        "POST /ai/executions/:id/cancel",
+        "GET /ai/proposals",
+        "GET /ai/proposals/:id",
+        "POST /ai/proposals/:id/decision",
+        "GET /ai/operations/health",
+        "GET /ai/operations/metrics",
+        "GET /ai/operations/agents",
+        "GET /ai/operations/model-configs",
+        "POST /ai/operations/agents/:key/status",
+        "POST /ai/operations/model-configs/:key/status",
       ]),
     );
   });

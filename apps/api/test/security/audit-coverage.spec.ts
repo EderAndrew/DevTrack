@@ -6,14 +6,16 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types";
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
-import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
   resolve(API_ROOT, "../../specs/001-foundation-identity-access/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
 ];
+
 
 interface ContractRow {
   type: string;
@@ -27,18 +29,21 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
 
 /**
  * Rows of the event table of one contracts/audit-events.md; `a` / `b` in the type column expands
- * to two rows. The "Tipos aposentados" table (003) is not part of the catalogue.
+ * to two rows. The "Tipos aposentados" table (003) is not part of the catalogue. 006 has an extra
+ * "Spec name" column after the type, dropped here.
  */
 function contractRows(file: string): ContractRow[] {
   const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
+  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text);
   return text
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
     .flatMap((line) => {
-      const [typeCell, actorCell, targetCell, metadataCell] = line
+      const cells = line
         .split(/(?<!\\)\|/)
         .slice(1, -1)
         .map((cell) => cell.trim());
+      const [typeCell, actorCell, targetCell, metadataCell] = hasSpecName ? [cells[0], ...cells.slice(2)] : cells;
       const actors = actorCell!.split(/\\\|/).map((a) => a.trim());
       const target = targetCell === "—" ? null : targetCell!;
       // Allowed keys are the backticked words outside parentheses (those list values).
@@ -67,7 +72,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
@@ -77,12 +82,12 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   describe("cada tipo do contrato é gravado pelos fluxos da feature", () => {
-    let t: TestApp;
+    let t: AiTestApp;
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
-      await resetDb(t.prisma);
+      t = await createAiTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });
     });

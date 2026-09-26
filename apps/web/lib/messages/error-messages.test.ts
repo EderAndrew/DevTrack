@@ -1,7 +1,7 @@
-import { ErrorCodeSchema } from "@repo/contracts";
+import { AiErrorCodeSchema, ErrorCodeSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
-import { apiErrorCode, ERROR_MESSAGES, messageForError } from "./error-messages";
+import { AI_ERROR_GUIDANCE, apiErrorCode, ERROR_MESSAGES, messageForError } from "./error-messages";
 
 // Phase 001 texts, copied literally from the API's ErrorCatalog and the web's generic messages:
 // moving the texts into the web must not change a single character on screen (FR-012, FR-013).
@@ -75,16 +75,26 @@ const PHASE_004_TEXTS = {
   MEETING_NOT_HELD_YET: "Só é possível concluir uma aula a partir da data dela.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS };
+const PHASE_006_TEXTS: Record<string, string> = {
+  AI_AGENT_NOT_FOUND: "Este recurso de IA não está disponível.",
+  AI_AGENT_DISABLED: "Este recurso de IA está desativado no momento.",
+  AI_MODEL_UNAVAILABLE: "A IA está indisponível no momento. Tente de novo mais tarde.",
+  AI_EXECUTION_LIMIT_EXCEEDED: "O conteúdo enviado para a IA é grande demais.",
+  AI_IDEMPOTENCY_KEY_REUSED: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo.",
+  AI_PROPOSAL_ITEMS_INVALID: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte.",
+  AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("cobre os 56 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003 e da 004", () => {
+  it("cobre os 63 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004 e da 006", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(58);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(65);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {
@@ -117,5 +127,16 @@ describe("apiErrorCode", () => {
     expect(apiErrorCode(new ApiError(400, "WEAK_PASSWORD", "x"))).toBe("WEAK_PASSWORD");
     expect(apiErrorCode(new Error("x"))).toBeUndefined();
     expect(apiErrorCode(undefined)).toBeUndefined();
+  });
+});
+
+describe("006/FR-066 orientação dos erros de execução de IA", () => {
+  it("cobre os 13 códigos normalizados, com título e orientação, sem citar provedor nem modelo", () => {
+    expect(Object.keys(AI_ERROR_GUIDANCE).sort()).toEqual([...AiErrorCodeSchema.options].sort());
+    for (const { title, guidance } of Object.values(AI_ERROR_GUIDANCE)) {
+      expect(title.length).toBeGreaterThan(0);
+      expect(guidance.length).toBeGreaterThan(0);
+      expect(`${title} ${guidance}`).not.toMatch(/provedor|modelo|provider|model/i);
+    }
   });
 });

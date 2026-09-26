@@ -37,6 +37,24 @@ import {
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
+import {
+  AiExecutionListQuerySchema,
+  AiExecutionPageSchema,
+  AiExecutionResultSchema,
+  AiExecutionViewSchema,
+  RequestAiExecutionRequestSchema,
+} from "./ai/executions.js";
+import {
+  AiAgentOperationsViewSchema,
+  AiHealthSchema,
+  AiMetricsQuerySchema,
+  AiMetricsSchema,
+  AiModelConfigViewSchema,
+  AiRegistryKeySchema,
+  ChangeAiAgentStatusRequestSchema,
+  ChangeAiModelConfigStatusRequestSchema,
+} from "./ai/operations.js";
+import { AiProposalListQuerySchema, AiProposalPageSchema, AiProposalViewSchema, DecideAiProposalRequestSchema } from "./ai/proposals.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -624,6 +642,60 @@ export const endpoints = {
     params: IdParamsSchema,
     body: ReorderTopicsRequestSchema,
     response: ClassPlanViewSchema,
+    status: 200,
+  },
+  // 006 — AI executions of the session teacher.
+  /** 202 with a new execution; 200 when the idempotency key returns an existing one. */
+  "aiExecutions.request": {
+    method: "POST",
+    path: "/ai/executions",
+    body: RequestAiExecutionRequestSchema,
+    response: AiExecutionViewSchema,
+    status: 202,
+  },
+  "aiExecutions.list": { method: "GET", path: "/ai/executions", query: AiExecutionListQuerySchema, response: AiExecutionPageSchema, status: 200 },
+  "aiExecutions.get": { method: "GET", path: "/ai/executions/:id", params: IdParamsSchema, response: AiExecutionViewSchema, status: 200 },
+  "aiExecutions.result": { method: "GET", path: "/ai/executions/:id/result", params: IdParamsSchema, response: AiExecutionResultSchema, status: 200 },
+  "aiExecutions.cancel": {
+    method: "POST",
+    path: "/ai/executions/:id/cancel",
+    params: IdParamsSchema,
+    body: EmptyBodySchema,
+    response: AiExecutionViewSchema,
+    status: 200,
+  },
+
+  // 006 — proposals of L2 agents, reviewed by their teacher.
+  "aiProposals.list": { method: "GET", path: "/ai/proposals", query: AiProposalListQuerySchema, response: AiProposalPageSchema, status: 200 },
+  "aiProposals.get": { method: "GET", path: "/ai/proposals/:id", params: IdParamsSchema, response: AiProposalViewSchema, status: 200 },
+  "aiProposals.decide": {
+    method: "POST",
+    path: "/ai/proposals/:id/decision",
+    params: IdParamsSchema,
+    body: DecideAiProposalRequestSchema,
+    response: AiProposalViewSchema,
+    status: 200,
+  },
+
+  // 006 — AI operations for the administrator: aggregates and configuration, never content.
+  "aiOperations.health": { method: "GET", path: "/ai/operations/health", response: AiHealthSchema, status: 200 },
+  "aiOperations.metrics": { method: "GET", path: "/ai/operations/metrics", query: AiMetricsQuerySchema, response: AiMetricsSchema, status: 200 },
+  "aiOperations.agents": { method: "GET", path: "/ai/operations/agents", response: z.array(AiAgentOperationsViewSchema), status: 200 },
+  "aiOperations.modelConfigs": { method: "GET", path: "/ai/operations/model-configs", response: z.array(AiModelConfigViewSchema), status: 200 },
+  "aiOperations.changeAgentStatus": {
+    method: "POST",
+    path: "/ai/operations/agents/:key/status",
+    params: z.strictObject({ key: AiRegistryKeySchema }),
+    body: ChangeAiAgentStatusRequestSchema,
+    response: AiAgentOperationsViewSchema,
+    status: 200,
+  },
+  "aiOperations.changeModelConfigStatus": {
+    method: "POST",
+    path: "/ai/operations/model-configs/:key/status",
+    params: z.strictObject({ key: AiRegistryKeySchema }),
+    body: ChangeAiModelConfigStatusRequestSchema,
+    response: AiModelConfigViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

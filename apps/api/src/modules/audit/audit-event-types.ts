@@ -1,5 +1,5 @@
 /**
- * Audit catalogue of contracts/audit-events.md (specs 001, 003 and 004): event type → metadata keys
+ * Audit catalogue of contracts/audit-events.md (specs 001, 003, 004 and 006): event type → metadata keys
  * allowed. Anything outside this list is a programming error (FR-071: no secrets in the trail).
  * `via` of `role.granted`/`account.claimed` is a `GrantSource`: INVITATION, ADMIN_BOOTSTRAP or,
  * since 003, CLASS_INVITATION.
@@ -66,6 +66,28 @@ export const AUDIT_EVENT_METADATA = {
   "topics.reordered": ["topicCount", "movedCount"],
   "class_plan.syllabus_selected": ["classId", "revisionId", "previousRevisionId", "outsideRevisionLinks"],
   "class_plan.status_changed": ["classId", "from", "to", "activatedTopics"],
+  // 006 — AI foundation (specs/006-ai-foundation/contracts/audit-events.md). Only ids, versions,
+  // codes and numbers: never prompts, request input, model output, proposal content, tool
+  // arguments or results, resource names nor credentials (FR-062).
+  "ai_execution.requested": ["agentKey", "agentVersion", "promptVersion", "modelConfigKey", "resourceType", "riskLevel"],
+  "ai_execution.started": ["claim"],
+  "ai_execution.completed": ["durationMs", "modelCalls", "toolCalls", "proposalId"],
+  "ai_execution.failed": ["status", "errorCode", "durationMs", "modelCalls", "toolCalls"],
+  "ai_execution.cancelled": ["from", "errorCode"],
+  "ai_execution.cancel_requested": ["from"],
+  "ai_execution.rate_limited": ["scope"],
+  "ai_tool.called": ["toolKey", "sequence", "durationMs"],
+  "ai_tool.failed": ["toolKey", "sequence", "status", "errorCode"],
+  "ai_proposal.created": ["executionId", "agentKey", "proposalType", "itemCount"],
+  "ai_proposal.approved": ["itemCount"],
+  "ai_proposal.partially_approved": ["itemCount", "acceptedCount"],
+  "ai_proposal.rejected": ["itemCount"],
+  "ai_proposal.expired": [],
+  "ai_agent.enabled": ["agentKey", "version"],
+  "ai_agent.disabled": ["agentKey", "version", "cancelledExecutions"],
+  "ai_model_config.enabled": ["configKey", "provider", "model"],
+  "ai_model_config.disabled": ["configKey", "provider", "model"],
+  "ai_registry.synced": ["agents", "tools", "modelConfigs", "newVersions", "deprecated"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -101,4 +123,8 @@ export type AuditTargetType =
   | "SYLLABUS_DOCUMENT"
   | "SYLLABUS_REVISION"
   | "CLASS_PLAN"
-  | "TOPIC";
+  | "TOPIC"
+  | "AI_EXECUTION"
+  | "AI_PROPOSAL"
+  | "AI_AGENT"
+  | "AI_MODEL_CONFIG";
