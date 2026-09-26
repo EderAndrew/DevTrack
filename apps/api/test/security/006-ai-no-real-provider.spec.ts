@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { productionAiDefinitions } from "../../src/modules/ai/definitions";
@@ -55,6 +56,12 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
       .filter((name) => name.endsWith(".provider.ts"))
       .flatMap((name) => [...readFileSync(join(dir, name), "utf8").matchAll(/readonly key = "([^"]+)"/g)].map((m) => m[1]));
     expect(keys).toEqual(["anthropic"]);
+  });
+
+  it("007/FR-043 a chave do E2E é fictícia e só aponta para o mock local (e2e/anthropic-mock.ts)", () => {
+    const env = parseEnv(readFileSync(join(__dirname, "../../../web/e2e/.env.e2e"), "utf8"));
+    expect(env.ANTHROPIC_API_KEY).toMatch(/ficticia/);
+    expect(new URL(env.ANTHROPIC_BASE_URL!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
   });
 
   it("o app de teste só tem provedores simulados (chaves fake*), e toda configuração aponta para eles", () => {

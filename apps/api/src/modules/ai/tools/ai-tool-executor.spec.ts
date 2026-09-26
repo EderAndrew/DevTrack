@@ -53,7 +53,7 @@ function setup(options: { enabled?: boolean; owned?: boolean; run?: AnyToolDefin
     deadline: new Date(Date.now() + 60_000),
     signal: new AbortController().signal,
   });
-  const call = (toolKey: string, args: unknown) => executor.call(context, { toolKey, arguments: args }, 1, { toolTimeoutMs: 10_000 });
+  const call = (toolKey: string, args: unknown) => executor.call(context, { toolKey, arguments: args }, 1, { toolTimeoutMs: 10_000, maxInputBytes: 1_000 });
   return { call, run, byKey, owns, recorded, audits, moduleRef };
 }
 
@@ -117,6 +117,12 @@ describe("006/FR-035 AiToolExecutor confere na ordem e para na primeira recusa",
     const outcome = await s.call("t.read", { subjectId: SUBJECT_ID });
     expect(outcome).toEqual({ ok: false, status: "FAILED", code: "AI_TOOL_EXECUTION_FAILED", reason: "INVALID_OUTPUT" });
     expect(JSON.stringify(s.audits)).not.toContain("vazou");
+  });
+
+  it("8. resultado acima do limite de entrada do modelo → FAILED AI_EXECUTION_LIMIT_EXCEEDED, e o resultado não volta (007)", async () => {
+    const s = setup({ run: async () => ({ id: SUBJECT_ID, name: "x".repeat(2_000) }) });
+    expect(await s.call("t.read", { subjectId: SUBJECT_ID })).toEqual({ ok: false, status: "FAILED", code: "AI_EXECUTION_LIMIT_EXCEEDED" });
+    expect(s.recorded[0]).toMatchObject({ status: "FAILED", errorCode: "AI_EXECUTION_LIMIT_EXCEEDED" });
   });
 
   it("erro inesperado da ferramenta → FAILED AI_TOOL_EXECUTION_FAILED", async () => {

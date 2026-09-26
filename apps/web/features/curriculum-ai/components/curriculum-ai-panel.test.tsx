@@ -268,4 +268,117 @@ describe("007/US1 CurriculumAiPanel — preencher a ementa com IA", () => {
       );
     });
   });
+
+  it("007/FR-040 documento que termina de processar → o status é buscado de novo e \"Preencher com IA\" fica disponível sem recarregar", async () => {
+    let processed = false;
+    fetchMock.mockImplementation(async () => json(200, status({ availability: processed ? "AVAILABLE" : "DOCUMENT_NOT_READY" })));
+    const view = renderWithProviders(<CurriculumAiPanel subjectId={SUBJECT_ID} documentId={DOCUMENT_ID} processingStatus="PROCESSING" />);
+    const button = await screen.findByRole("button", { name: "Preencher com IA" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+
+    processed = true;
+    view.rerender(<CurriculumAiPanel subjectId={SUBJECT_ID} documentId={DOCUMENT_ID} processingStatus="PROCESSED" />);
+
+    await waitFor(() => expect((screen.getByRole("button", { name: "Preencher com IA" }) as HTMLButtonElement).disabled).toBe(false));
+    expect(calls("GET", `/api/syllabus-documents/${DOCUMENT_ID}/ai`)).toHaveLength(2);
+  });
+
+  describe("007/US7 pedir nova análise", () => {
+    const requests = () => calls("POST", `/api/syllabus-documents/${DOCUMENT_ID}/ai-analyses`);
+    const bodyOf = (index: number) => JSON.parse(String(requests()[index]![1]!.body)) as unknown;
+
+    it("007/US7-1 \"Tentar novamente\" depois de falha pede uma análise nova, sem descartar nada", async () => {
+      fetchMock.mockImplementation(async (_url, init) =>
+        init?.method === "POST"
+          ? json(202, { execution: execution("QUEUED"), created: true })
+          : json(200, status({ lastExecution: execution("FAILED", { errorCode: "AI_PROVIDER_ERROR" }) })),
+      );
+      const user = userEvent.setup();
+      render();
+
+      await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+      await waitFor(() => expect(requests()).toHaveLength(1));
+      expect(bodyOf(0)).toEqual({});
+    });
+
+    it("007/US7-1 NOTHING_FOUND com \"Tentar novamente\" pede uma análise nova", async () => {
+      fetchMock.mockImplementation(async (_url, init) =>
+        init?.method === "POST"
+          ? json(202, { execution: execution("QUEUED"), created: true })
+          : json(200, status({ lastExecution: execution("COMPLETED"), lastOutcome: "NOTHING_FOUND" })),
+      );
+      const user = userEvent.setup();
+      render();
+
+      await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+      await waitFor(() => expect(requests()).toHaveLength(1));
+      expect(bodyOf(0)).toEqual({});
+    });
+
+    it("007/US7-2 com proposta pendente, \"Pedir nova análise\" confirma o descarte e só então pede com discardPendingProposal: true", async () => {
+      fetchMock.mockImplementation(async (_url, init) =>
+        init?.method === "POST"
+          ? json(202, { execution: execution("QUEUED"), created: true })
+          : json(200, status({ lastOutcome: "PROPOSAL", pendingProposalId: PROPOSAL_ID })),
+      );
+      const user = userEvent.setup();
+      const { container } = render();
+
+      const ask = await screen.findByRole("button", { name: "Pedir nova análise" });
+      await expectTabOrder(user, [screen.getByRole("link", { name: "Revisar proposta" }), ask]);
+      await expectNoA11yViolations(container);
+
+      // Backing out sends nothing.
+      await user.click(ask);
+      let dialog = await screen.findByRole("alertdialog");
+      expect(within(dialog).getByText("A proposta pendente será descartada. Continuar?")).toBeTruthy();
+      await user.click(within(dialog).getByRole("button", { name: "Manter proposta" }));
+      expect(requests()).toHaveLength(0);
+
+      await user.click(screen.getByRole("button", { name: "Pedir nova análise" }));
+      dialog = await screen.findByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Descartar e pedir nova análise" }));
+      await waitFor(() => expect(requests()).toHaveLength(1));
+      expect(bodyOf(0)).toEqual({ discardPendingProposal: true });
+    });
+
+    it("007/US7-2 \"Pedir nova análise\" fica desabilitado, com a razão, quando a IA está indisponível", async () => {
+      fetchMock.mockResolvedValue(json(200, status({ availability: "AGENT_DISABLED", lastOutcome: "PROPOSAL", pendingProposalId: PROPOSAL_ID })));
+      render();
+      const ask = await screen.findByRole("button", { name: "Pedir nova análise" });
+      expect((ask as HTMLButtonElement).disabled).toBe(true);
+      expect(document.getElementById(ask.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+        "O preenchimento com IA está indisponível no momento.",
+      );
+      // The pending proposal can still be reviewed.
+      expect(screen.getByRole("link", { name: "Revisar proposta" })).toBeTruthy();
+    });
+
+    it("007/US7-3 429 em \"Tentar novamente\" → \"Muitas análises solicitadas. Tente novamente em alguns minutos.\"", async () => {
+      fetchMock.mockImplementation(async (_url, init) =>
+        init?.method === "POST"
+          ? apiError(429, "RATE_LIMITED", "x")
+          : json(200, status({ lastExecution: execution("CANCELLED", { errorCode: "AI_EXECUTION_CANCELLED" }) })),
+      );
+      const user = userEvent.setup();
+      render();
+
+      await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+      // The AiErrorState of the cancelled run is an alert too: find the request's own by its text.
+      const message = await screen.findByText("Muitas análises solicitadas. Tente novamente em alguns minutos.");
+      expect(message.getAttribute("role")).toBe("alert");
+    });
+
+    it("007/US7-3 429 depois de confirmar o descarte → a mesma mensagem", async () => {
+      fetchMock.mockImplementation(async (_url, init) =>
+        init?.method === "POST" ? apiError(429, "RATE_LIMITED", "x") : json(200, status({ lastOutcome: "PROPOSAL", pendingProposalId: PROPOSAL_ID })),
+      );
+      const user = userEvent.setup();
+      render();
+
+      await user.click(await screen.findByRole("button", { name: "Pedir nova análise" }));
+      await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Descartar e pedir nova análise" }));
+      expect((await screen.findByRole("alert")).textContent).toBe("Muitas análises solicitadas. Tente novamente em alguns minutos.");
+    });
+  });
 });

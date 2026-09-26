@@ -187,6 +187,7 @@ export async function createCurriculumProposal(
   const extraction = options.extraction ?? pooOutput();
   const status = options.status ?? "READY_FOR_REVIEW";
   const decided = status !== "READY_FOR_REVIEW";
+  const itemIds = options.itemIds ?? itemIdsOf(extraction);
   return t.prisma.aiProposal.create({
     data: {
       workspaceId: teacherId,
@@ -206,8 +207,9 @@ export async function createCurriculumProposal(
           ...options.source,
         },
       } as unknown as Prisma.InputJsonObject,
-      itemIds: options.itemIds ?? itemIdsOf(extraction),
-      acceptedItemIds: [],
+      itemIds,
+      // PARTIALLY_APPROVED needs a non-empty accepted set (CHECK ai_proposals_partial_chk).
+      acceptedItemIds: status === "PARTIALLY_APPROVED" ? itemIds.slice(0, 1) : [],
       status,
       expiresAt: options.expiresAt ?? new Date(Date.now() + 30 * 86_400_000),
       decidedAt: decided ? new Date() : null,

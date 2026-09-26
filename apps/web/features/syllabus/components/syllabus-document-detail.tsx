@@ -125,7 +125,12 @@ export function SyllabusDocumentDetail({
             </a>
           </Button>
         </div>
-        {canReview && canUseAi ? <CurriculumAiPanel subjectId={subjectId} documentId={document.id} onFillManually={fillManually} /> : null}
+        {canReview && canUseAi ? <CurriculumAiPanel
+            subjectId={subjectId}
+            documentId={document.id}
+            processingStatus={document.processingStatus}
+            onFillManually={fillManually}
+          /> : null}
       </div>
 
       <p className="sr-only" aria-live="polite">

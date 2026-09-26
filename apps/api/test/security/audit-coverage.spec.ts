@@ -18,13 +18,6 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
 ];
 
-/**
- * 007 types the journey does not emit yet. Transitional: each user story removes its own when its
- * flow joins the journey, and T067 removes the empty list.
- */
-const PENDING_007_TYPES = new Set<string>([]);
-
-
 interface ContractRow {
   type: string;
   actors: string[];
@@ -101,7 +94,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.filter((row) => !PENDING_007_TYPES.has(row.type)).map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
       expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 

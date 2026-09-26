@@ -35,7 +35,8 @@ const ROUTES: Route[] = [
     key: "POST /syllabus-documents/:id/ai-analyses",
     method: "POST",
     path: (area) => `/api/syllabus-documents/${area.documentId}/ai-analyses`,
-    valid: {},
+    // The area has a pending proposal: the owner confirms discarding it (007/FR-038).
+    valid: { discardPendingProposal: true },
     invalid: { workspaceId: crypto.randomUUID() },
     ownStatus: 202,
   },

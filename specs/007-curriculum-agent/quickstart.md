@@ -23,6 +23,12 @@ What to expect:
   thresholds with the recorded responses;
 - the secret scan finds no `MARCADOR-EMENTA-007` or fake key in logs, audit or admin responses.
 
+Result on 2026-09-26 (T069), Node 24.12, PostgreSQL 17: `pnpm lint` and `pnpm check-types` pass;
+`pnpm test` passes — api 2708 tests (136 files, `test:security` 1341 of them), web 974, contracts
+107. `pnpm --filter web test:e2e` passes 17 journeys, among them `curriculum-ai.spec.ts` (upload →
+"Preencher com IA" → review → apply without a group → edit → confirm) against the local Anthropic
+mock (`apps/web/e2e/anthropic-mock.ts`, started by Playwright on port 4180).
+
 ## 2. Manual run with the real provider (optional, costs money)
 
 ```bash

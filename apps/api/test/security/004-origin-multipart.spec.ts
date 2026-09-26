@@ -5,7 +5,6 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Public } from "../../src/modules/access-control/decorators";
 import { AcceptsMultipart } from "../../src/platform/http/origin.guard";
-import { PENDING_007_ROUTES } from "../helpers/routes";
 import { api, createTestApp, type TestApp } from "../helpers/test-app";
 
 @Controller("fixture-multipart")
@@ -78,7 +77,7 @@ describe("004/FR-007 multipart só em rotas de envio marcadas, com Origin permit
 
   it("toda rota não marcada do catálogo recusa multipart com Origin permitido", async () => {
     const unmarked = Object.entries(endpoints)
-      .filter(([key, entry]) => UNSAFE.has(entry.method) && !("upload" in entry && entry.upload) && !PENDING_007_ROUTES.has(key))
+      .filter(([, entry]) => UNSAFE.has(entry.method) && !("upload" in entry && entry.upload))
       .map(([, entry]) => entry);
     expect(unmarked.length).toBeGreaterThan(30);
 

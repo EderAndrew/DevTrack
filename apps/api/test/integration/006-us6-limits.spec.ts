@@ -223,7 +223,8 @@ describe("006/FR-048 limites menores declarados pelo agente valem", () => {
     const tooBig = await requestExecution(app, cookie, { agentKey: "reference-lean", input: { text: "x".repeat(64) } });
     expect({ status: tooBig.status, code: tooBig.body.code }).toEqual({ status: 422, code: "AI_EXECUTION_LIMIT_EXCEEDED" });
 
-    definitions.provider.script(fakeToolCall("reference.read-subject", { subjectId }));
+    // A tool outside the allowlist, denied and continued (no result): only the model calls add up.
+    definitions.provider.script(fakeToolCall("nao.existe", {}));
     const res = await requestExecution(app, cookie, { agentKey: "reference-lean", resource: { type: "SUBJECT", id: subjectId } });
     expect(res.status).toBe(202);
     await drain(app);
@@ -232,5 +233,18 @@ describe("006/FR-048 limites menores declarados pelo agente valem", () => {
       errorCode: "AI_EXECUTION_LIMIT_EXCEEDED",
       modelCalls: 2,
     });
+  });
+
+  it("007 maxInputBytes 64 do agente também limita o resultado da ferramenta: acima dele, FAILED antes da 2ª chamada", async () => {
+    definitions.provider.script(fakeToolCall("reference.read-subject", { subjectId }));
+    const res = await requestExecution(app, cookie, { agentKey: "reference-lean", resource: { type: "SUBJECT", id: subjectId } });
+    await drain(app);
+    expect(await app.prisma.aiExecution.findUniqueOrThrow({ where: { id: res.body.id } })).toMatchObject({
+      status: "FAILED",
+      errorCode: "AI_EXECUTION_LIMIT_EXCEEDED",
+      modelCalls: 1,
+    });
+    const calls = await app.prisma.aiToolCall.findMany({ where: { executionId: res.body.id } });
+    expect(calls.map((call) => [call.status, call.errorCode])).toEqual([["FAILED", "AI_EXECUTION_LIMIT_EXCEEDED"]]);
   });
 });

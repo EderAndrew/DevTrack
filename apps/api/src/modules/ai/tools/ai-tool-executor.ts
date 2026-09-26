@@ -41,7 +41,9 @@ class Refused {
  *   4. the arguments pass the tool's strict schema, before any data access — AI_TOOL_EXECUTION_FAILED;
  *   5. the resource exists in the execution's workspace — AI_CONTEXT_ACCESS_DENIED;
  *   6. `run` under the tool timeout, the execution deadline and the cancellation — TIMED_OUT;
- *   7. the result passes the tool's strict output schema (minimal fields) — AI_TOOL_EXECUTION_FAILED.
+ *   7. the result passes the tool's strict output schema (minimal fields) — AI_TOOL_EXECUTION_FAILED;
+ *   8. the result fits the model's input limit (`maxInputBytes`, 007 spec Edge Cases) — FAILED
+ *      AI_EXECUTION_LIMIT_EXCEEDED, so an oversized document never reaches the model.
  * Each call writes `ai_tool_calls` (never the arguments nor the result, FR-037) and its audit event
  * in a short transaction. The result goes back to the model only as untrusted content.
  */
@@ -57,7 +59,12 @@ export class AiToolExecutor {
     private readonly moduleRef: ModuleRef,
   ) {}
 
-  async call(ctx: AiExecutionContext, request: ModelToolCall, sequence: number, limits: { toolTimeoutMs: number }): Promise<ToolCallOutcome> {
+  async call(
+    ctx: AiExecutionContext,
+    request: ModelToolCall,
+    sequence: number,
+    limits: { toolTimeoutMs: number; maxInputBytes: number },
+  ): Promise<ToolCallOutcome> {
     const startedAt = new Date();
     const toolKey = String(request.toolKey).slice(0, MAX_KEY);
     let toolId: string | null = null;
@@ -84,6 +91,7 @@ export class AiToolExecutor {
       );
       const output = definition.outputSchema.safeParse(result);
       if (!output.success) throw new Refused("FAILED", "AI_TOOL_EXECUTION_FAILED", "INVALID_OUTPUT");
+      if (Buffer.byteLength(JSON.stringify(output.data), "utf8") > limits.maxInputBytes) throw new Refused("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
       outcome = { ok: true, result: output.data };
     } catch (error) {
       if (error instanceof Refused) outcome = { ok: false, status: error.status, code: error.code, ...(error.reason ? { reason: error.reason } : {}) };

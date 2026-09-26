@@ -1,15 +1,13 @@
 import { type EndpointContract, endpoints, SyllabusUploadResultSchema } from "@repo/contracts";
 import { beforeAll, describe, expect, it } from "vitest";
 import { responseViolation } from "../helpers/contract-conformance.interceptor";
-import { PENDING_007_ROUTES, registeredRoutes } from "../helpers/routes";
+import { registeredRoutes } from "../helpers/routes";
 
 // FR-002 / SC-002: every route of the API has exactly one contract entry, and every entry is a
 // real route. Together with ContractConformanceInterceptor this keeps responses and contract in sync.
 describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
   let routes: string[];
-  const catalog = Object.entries(endpoints)
-    .filter(([key]) => !PENDING_007_ROUTES.has(key))
-    .map(([, entry]) => `${entry.method} ${entry.path}`);
+  const catalog = Object.values(endpoints).map((entry) => `${entry.method} ${entry.path}`);
 
   beforeAll(async () => {
     routes = (await registeredRoutes()).map((route) => route.route);
@@ -29,7 +27,7 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
     const phase004 = Object.keys(endpoints).filter((key) => /^(subjects|syllabusDocuments|syllabusRevisions|classMeetings|classPlans|topics)\./.test(key));
     const phase006 = Object.keys(endpoints).filter((key) => /^ai[A-Z]\w*\./.test(key));
-    const phase007 = Object.keys(endpoints).filter((key) => /^curriculumAi\./.test(key) && !PENDING_007_ROUTES.has(key));
+    const phase007 = Object.keys(endpoints).filter((key) => /^curriculumAi\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
     expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length);
     expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length);

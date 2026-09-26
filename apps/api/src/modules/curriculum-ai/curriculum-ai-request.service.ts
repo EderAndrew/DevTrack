@@ -1,13 +1,16 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import type {
   CurriculumAiAvailability,
   CurriculumAiStatus,
   RequestCurriculumAnalysisRequest,
   RequestCurriculumAnalysisResponse,
 } from "@repo/contracts";
+import { APP_CONFIG } from "../../platform/config/config.module";
+import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
-import { AppException, notFound } from "../../platform/http/errors";
+import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
+import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { AiExecutionsService } from "../ai/execution/ai-executions.service";
 import { AiProposalsService } from "../ai/proposals/ai-proposals.service";
@@ -29,7 +32,9 @@ export class CurriculumAiRequestService {
   private readonly logger = new Logger("CurriculumAi");
 
   constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly prisma: PrismaService,
+    private readonly rateLimit: RateLimitService,
     private readonly audit: AuditService,
     private readonly executions: AiExecutionsService,
     private readonly proposals: AiProposalsService,
@@ -57,16 +62,19 @@ export class CurriculumAiRequestService {
   /**
    * One active analysis per document (FR-014): an active execution is returned as is; otherwise the
    * idempotency key is derived from the count of this teacher's executions on the document, so
-   * concurrent first requests share it and the foundation's unique index lets one win.
+   * concurrent first requests share it and the foundation's unique index lets one win. Every other
+   * outcome is a new execution (FR-037); a pending proposal is discarded only when the teacher
+   * confirms (FR-038). Checks in the order of contracts/http-api.md.
    */
   async request(
     auth: AuthContext,
     documentId: string,
-    _body: RequestCurriculumAnalysisRequest,
+    body: RequestCurriculumAnalysisRequest,
     requestId: string | null,
   ): Promise<RequestCurriculumAnalysisResponse> {
     const workspaceId = auth.userId;
     const document = await this.findDocument(workspaceId, documentId);
+    await this.assertRequestRate(auth, requestId);
     if (document.processingStatus !== "PROCESSED" || document.extractionResult !== "TEXT") {
       throw new AppException("SYLLABUS_NOT_READY_FOR_AI");
     }
@@ -75,13 +83,20 @@ export class CurriculumAiRequestService {
     const latest = await this.executions.findLatestForResource(workspaceId, CURRICULUM_AGENT_KEY, resource);
     if (latest && ACTIVE.has(latest.status)) return this.replayed(auth, documentId, latest, requestId);
 
+    // The teacher's own decision (006 REJECT, audited `ai_proposal.rejected`), committed before the
+    // request: if the request then fails, the syllabus is untouched and asking again works.
+    const pending = await this.proposals.findPendingForTarget(workspaceId, CURRICULUM_PROPOSAL_TYPE, resource);
+    if (pending && !body.discardPendingProposal) throw new AppException("CURRICULUM_PROPOSAL_PENDING");
+    if (pending) await this.proposals.decide(auth, pending, { decision: "REJECT" }, requestId);
+    const discardedProposal = pending !== null;
+
     const n = await this.executions.countForResource(workspaceId, CURRICULUM_AGENT_KEY, resource);
     const { view, created } = await this.executions
       .request(
         auth,
         { agentKey: CURRICULUM_AGENT_KEY, resource, input: {}, idempotencyKey: derivedUuid(`curriculum-ai:${documentId}:${n}`) },
         requestId,
-        { onCreated: (tx, executionId) => this.recordRequested(tx, auth, documentId, executionId, true, requestId) },
+        { onCreated: (tx, executionId) => this.recordRequested(tx, auth, documentId, executionId, true, requestId, discardedProposal) },
       )
       .catch((error: unknown) => {
         // On this route 404 means only "document outside your subjects": an agent that isn't
@@ -91,7 +106,7 @@ export class CurriculumAiRequestService {
       });
     if (!created) return this.replayed(auth, documentId, view, requestId);
 
-    this.logger.log({ documentId, executionId: view.id }, "curriculum_ai.analysis_requested");
+    this.logger.log({ documentId, executionId: view.id, discardedProposal }, "curriculum_ai.analysis_requested");
     return { execution: view, created: true };
   }
 
@@ -106,6 +121,20 @@ export class CurriculumAiRequestService {
     return { execution, created: false };
   }
 
+  /** "Preencher com IA" requests per teacher per hour (FR-015, `curriculum-ai`), next to the 006 limit. */
+  private async assertRequestRate(auth: AuthContext, requestId: string | null): Promise<void> {
+    const limit = await this.rateLimit.hit("curriculum-ai", auth.userId, { limit: this.config.rateLimit.curriculumAiPerHour, windowSec: 3600 });
+    if (!limit.blocked) return;
+    await this.audit.record(this.prisma, {
+      type: "ai_execution.rate_limited",
+      actorType: "USER",
+      actorUserId: auth.userId,
+      requestId,
+      metadata: { scope: "curriculum-ai" },
+    });
+    throw rateLimited(limit.retryAfterSec);
+  }
+
   private recordRequested(
     db: Parameters<AuditService["record"]>[0],
     auth: AuthContext,
@@ -113,6 +142,7 @@ export class CurriculumAiRequestService {
     executionId: string,
     created: boolean,
     requestId: string | null,
+    discardedProposal = false,
   ): Promise<void> {
     return this.audit.record(db, {
       type: "curriculum_ai.analysis_requested",
@@ -121,7 +151,7 @@ export class CurriculumAiRequestService {
       targetType: "SYLLABUS_DOCUMENT",
       targetId: documentId,
       requestId,
-      metadata: { executionId, created, discardedProposal: false },
+      metadata: { executionId, created, discardedProposal },
     });
   }
 

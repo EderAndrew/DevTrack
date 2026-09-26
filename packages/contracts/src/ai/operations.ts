@@ -45,6 +45,20 @@ export const AiAgentMetricsSchema = z.strictObject({
   avgDurationMs: z.int().nullable(),
   modelCalls: z.int(),
   toolCalls: z.int(),
+  /** Failed because the model's output did not parse or did not fit the schema (007 research C12.5). */
+  outputInvalid: z.int(),
+  /** Proposals of these executions by status; an undecided one past its validity counts as expired. */
+  proposals: z.strictObject({
+    created: z.int(),
+    approved: z.int(),
+    partiallyApproved: z.int(),
+    rejected: z.int(),
+    expired: z.int(),
+  }),
+  /** Per execution with model calls: the sum of its calls' tokens, then the average. */
+  avgTotalTokens: z.int().nullable(),
+  avgEstimatedCost: DecimalStringSchema.nullable(),
+  currency: z.string().nullable(),
 });
 export type AiAgentMetrics = z.infer<typeof AiAgentMetricsSchema>;
 

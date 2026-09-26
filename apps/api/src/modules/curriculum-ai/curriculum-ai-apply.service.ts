@@ -127,8 +127,13 @@ export class CurriculumAiApplyService {
     };
 
     // 6. The draft slot: one DRAFT per document; a confirmed revision is never touched (FR-032, FR-033).
+    // The draft row is locked too: a 004 confirmation holds it, so the application waits for it
+    // and, the row no longer matching `status = 'DRAFT'`, starts the next draft instead.
     const origin = { source: "AI_ASSISTED" as const, aiProposalId: proposalId };
-    const existing = await tx.syllabusRevision.findFirst({ where: { documentId, status: "DRAFT" }, select: { id: true } });
+    const [existing] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM syllabus_revisions
+      WHERE document_id = ${documentId}::uuid AND status = 'DRAFT'
+      FOR UPDATE`;
     if (existing && !body.replaceDraft) throw revisionDraftExists();
     let revisionId: string;
     if (existing) {
@@ -168,9 +173,9 @@ export class CurriculumAiApplyService {
       targetType: "SYLLABUS_DOCUMENT",
       targetId: documentId,
       requestId,
-      metadata: { proposalId, revisionId, revisionNumber: revision.number, replacedDraft: existing !== null, ...counts },
+      metadata: { proposalId, revisionId, revisionNumber: revision.number, replacedDraft: existing !== undefined, ...counts },
     });
-    this.logger.log({ documentId, proposalId, revisionId, replacedDraft: existing !== null, ...counts }, "curriculum proposal applied");
+    this.logger.log({ documentId, proposalId, revisionId, replacedDraft: existing !== undefined, ...counts }, "curriculum proposal applied");
     return { revision, proposal: decided };
   }
 

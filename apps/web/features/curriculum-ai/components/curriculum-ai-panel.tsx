@@ -1,6 +1,6 @@
 "use client";
 
-import type { AiExecutionStatus as AiExecutionStatusValue, AiExecutionView } from "@repo/contracts";
+import type { AiExecutionStatus as AiExecutionStatusValue, AiExecutionView, SyllabusProcessingStatus } from "@repo/contracts";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useId } from "react";
@@ -52,6 +52,8 @@ export interface CurriculumAiPanelProps {
   documentId: string;
   /** The 004 manual fill, offered next to the AI while the page allows it (007/US2-1). */
   onFillManually?: () => void;
+  /** The document's processing status: the AI status is fetched again when it changes. */
+  processingStatus?: SyllabusProcessingStatus;
 }
 
 /**
@@ -60,10 +62,10 @@ export interface CurriculumAiPanelProps {
  * with `ementas.revisar` and `ia.execucoes.visualizar` (UX only; the API decides). Nothing here
  * changes the syllabus: the proposal is reviewed and applied on its own page.
  */
-export function CurriculumAiPanel({ subjectId, documentId, onFillManually }: CurriculumAiPanelProps) {
+export function CurriculumAiPanel({ subjectId, documentId, onFillManually, processingStatus }: CurriculumAiPanelProps) {
   const titleId = useId();
   const reasonId = useId();
-  const status = useCurriculumAiStatus(documentId);
+  const status = useCurriculumAiStatus(documentId, processingStatus);
   const request = useRequestCurriculumAnalysis(documentId);
 
   const requestError = request.isError
@@ -85,12 +87,50 @@ export function CurriculumAiPanel({ subjectId, documentId, onFillManually }: Cur
   } else if (status.data.activeExecution) {
     body = <ActiveAnalysis documentId={documentId} execution={status.data.activeExecution} />;
   } else if (status.data.pendingProposalId) {
+    const reason = status.data.availability === "AVAILABLE" ? null : CURRICULUM_AI_AVAILABILITY_MESSAGES[status.data.availability];
     body = (
       <div className="flex flex-col items-start gap-2">
         <p className="m-0">{CURRICULUM_AI_STAGE_TEXT.COMPLETED}</p>
-        <Button asChild>
-          <Link href={`/disciplinas/${subjectId}/ementa/${documentId}/proposta/${status.data.pendingProposalId}`}>Revisar proposta</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={`/disciplinas/${subjectId}/ementa/${documentId}/proposta/${status.data.pendingProposalId}`}>Revisar proposta</Link>
+          </Button>
+          {/* A new analysis discards the pending proposal only after the teacher confirms (007/FR-038). */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={reason !== null || request.isPending}
+                aria-describedby={reason ? reasonId : undefined}
+              >
+                Pedir nova análise
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Pedir nova análise?</AlertDialogTitle>
+                <AlertDialogDescription>A proposta pendente será descartada. Continuar?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Manter proposta</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="danger"
+                  onClick={() => {
+                    if (!request.isPending) request.mutate({ discardPendingProposal: true });
+                  }}
+                >
+                  Descartar e pedir nova análise
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+        {reason ? (
+          <p id={reasonId} className="m-0 text-body-sm text-text-secondary">
+            {reason}
+          </p>
+        ) : null}
       </div>
     );
   } else {

@@ -735,7 +735,7 @@ execução e uma nova proposta, com as anteriores intactas.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T055 [P] [US7] Teste de integração
+- [X] T055 [P] [US7] Teste de integração
   `apps/api/test/integration/007-us7-reanalysis.spec.ts`:
   - `007/US7-1` e `007/FR-037`: depois de `FAILED`, `TIMED_OUT`, `CANCELLED`, `REJECTED`,
     `EXPIRED`, `APPROVED` e `PARTIALLY_APPROVED` → nova execução (`created: true`, nova chave
@@ -748,7 +748,7 @@ execução e uma nova proposta, com as anteriores intactas.
     funciona;
   - `007/US7-3` e `007/FR-015`: a 11ª análise na hora → 429 `RATE_LIMITED` sem execução; o
     limite da 006 também se aplica.
-- [ ] T056 [P] [US7] Testes do web em `curriculum-ai-panel.test.tsx`:
+- [X] T056 [P] [US7] Testes do web em `curriculum-ai-panel.test.tsx`:
   - "Tentar novamente" depois de falha;
   - `NOTHING_FOUND` com "Tentar novamente";
   - "Pedir nova análise" com proposta pendente → `AlertDialog` "A proposta pendente será
@@ -757,13 +757,13 @@ execução e uma nova proposta, com as anteriores intactas.
 
 ### Implementation for User Story 7
 
-- [ ] T057 [US7] `curriculum-ai-request.service.ts`:
+- [X] T057 [US7] `curriculum-ai-request.service.ts`:
   - o limite `curriculum-ai` por hora (`rateLimit.curriculumAiPerHour`), antes das demais
     checagens;
   - proposta pendente → 409 sem `discardPendingProposal`;
   - com `true`, `AiProposalsService.decide(REJECT)` antes do pedido;
   - `discardedProposal` na auditoria.
-- [ ] T058 [US7] Web: "Tentar novamente", "Pedir nova análise" com o diálogo, e a mensagem de
+- [X] T058 [US7] Web: "Tentar novamente", "Pedir nova análise" com o diálogo, e a mensagem de
   429 em `curriculum-ai-panel.tsx` e no catálogo.
 
 **Checkpoint**: todas as histórias funcionais.
@@ -775,7 +775,7 @@ execução e uma nova proposta, com as anteriores intactas.
 **Purpose**: métricas do administrador, concorrência, resiliência, varreduras, E2E,
 rastreabilidade e documentação.
 
-- [ ] T059 [P] Métricas (research C12.5, `007/FR-048`):
+- [X] T059 [P] Métricas (research C12.5, `007/FR-048`):
   - `packages/contracts/src/ai/operations.ts`: em `AiAgentMetricsSchema`, `outputInvalid`,
     `proposals: {created, approved, partiallyApproved, rejected, expired}`,
     `avgTotalTokens` e `avgEstimatedCost` + `currency`;
@@ -789,29 +789,29 @@ rastreabilidade e documentação.
     `007/FR-048` com execuções e propostas do Curriculum Agent em cada situação;
   - `ai-operations-page.test.tsx` com as colunas novas;
   - a varredura `006-ai-admin-scan` continua sem conteúdo.
-- [ ] T060 [P] `apps/api/test/security/007-curriculum-ai-concurrency.spec.ts`:
+- [X] T060 [P] `apps/api/test/security/007-curriculum-ai-concurrency.spec.ts`:
   - `007/SC-004`: 5 aplicações simultâneas da mesma proposta → um rascunho, uma decisão, sem
     grupo ou item duplicado;
   - aplicação e rejeição concorrentes → um vencedor;
   - 5 pedidos de análise simultâneos → uma execução;
   - aplicação durante a confirmação de um rascunho → o estado da 004 fica consistente.
-- [ ] T061 [P] `apps/api/test/security/007-curriculum-ai-resilience.spec.ts`:
+- [X] T061 [P] `apps/api/test/security/007-curriculum-ai-resilience.spec.ts`:
   - reinício durante a análise (lease vencido) → retomada ou estado final, uma proposta no
     máximo;
   - ferramenta lenta (worker `hang`) → falha em estado conhecido;
   - agente desabilitado com execução na fila → `FAILED` no início;
   - documento acima de 200 KB normalizado → `AI_EXECUTION_LIMIT_EXCEEDED` antes da 2ª
     chamada.
-- [ ] T062 [P] Varredura `007/SC-009` e `007/FR-044` em
+- [X] T062 [P] Varredura `007/SC-009` e `007/FR-044` em
   `apps/api/test/security/secret-leak-scan.spec.ts`: o marcador `MARCADOR-EMENTA-007` e a
   chave falsa do teste do provedor não aparecem em logs, auditoria, respostas da operação do
   administrador nem mensagens de erro, depois da jornada completa (pedido, falha, proposta,
   aplicação, rejeição).
-- [ ] T063 Desempenho `007/SC-008`: um teste em
+- [X] T063 Desempenho `007/SC-008`: um teste em
   `apps/api/test/integration/007-us1-request-analysis.spec.ts` (ou `007-performance.spec.ts`)
   mede o pedido (< 1 s), a aplicação (< 1 s) e o ciclo de `dez-paginas.pdf` com o provedor
   simulado sem atraso, bem abaixo de 2 min. O p95 real fica com o eval sob demanda (T054).
-- [ ] T064 E2E local, `007/SC-001`:
+- [X] T064 E2E local, `007/SC-001`:
   - `apps/web/e2e/anthropic-mock.ts`: servidor HTTP que reproduz o `recorded.json` do caso
     POO, iniciado no `global-setup.ts`;
   - `apps/web/e2e/.env.e2e`: `ANTHROPIC_API_KEY` fictícia e `ANTHROPIC_BASE_URL` apontando
@@ -822,24 +822,24 @@ rastreabilidade e documentação.
     menos de 3 minutos.
 
   Nenhum código de teste vai para `dist/`.
-- [ ] T065 [P] Web de acessibilidade: `SC-012` (teclado) e axe nas duas telas novas já
+- [X] T065 [P] Web de acessibilidade: `SC-012` (teclado) e axe nas duas telas novas já
   cobertos em T016/T033; conferir `apps/web/test/design-system/token-usage.test.ts` sem
   `ds-exception` novo e sem controles recriados.
-- [ ] T066 [P] `apps/api/test/security/006-ai-no-real-provider.spec.ts` e
+- [X] T066 [P] `apps/api/test/security/006-ai-no-real-provider.spec.ts` e
   `006-ai-boundary.spec.ts` finais: produção com chave registra só `anthropic`; nenhum
   arquivo fora de `gateway/providers/**` cita o SDK ou o host.
-- [ ] T067 Rastreabilidade: acrescentar `007-curriculum-agent` aos `SPECS` de
+- [X] T067 Rastreabilidade: acrescentar `007-curriculum-agent` aos `SPECS` de
   `apps/api/test/traceability.spec.ts`, com os SC listados (SC-001–SC-009). Conferir que
   todo `007/USn-k` (US1-1…US7-3) aparece num título. Conferir que `PENDING_007_TYPES` e
   `PENDING_007_ROUTES` (`test/helpers/routes.ts`, rotas do catálogo ainda sem controller) estão
   vazios e removê-los.
-- [ ] T068 [P] Documentação:
+- [X] T068 [P] Documentação:
   - `CLAUDE.md`: o módulo `curriculum-ai` na seção Architecture, o provedor Anthropic, o
     comando `eval:curriculum`, `fixtures:curriculum` (se criado) e as decisões C1–C20 na
     lista de research; a 007 em `SPECS`, na seção de guardas; a linha "Project state";
   - `apps/api/CLAUDE.md`: `createCurriculumAiApp` e as fixtures do conjunto de referência;
   - `DEPENDENCIES.md` conferido (T001).
-- [ ] T069 Rodar `quickstart.md` §1 inteiro (`pnpm lint && pnpm check-types && pnpm test`,
+- [X] T069 Rodar `quickstart.md` §1 inteiro (`pnpm lint && pnpm check-types && pnpm test`,
   `test:security`, web) e registrar o resultado. §2 e §3 (provedor real) ficam com o
   usuário, porque custam dinheiro.
 

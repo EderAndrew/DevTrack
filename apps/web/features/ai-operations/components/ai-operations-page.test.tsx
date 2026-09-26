@@ -21,7 +21,8 @@ const METRICS: AiMetrics = {
   from: "2026-09-18T12:00:00.000Z",
   to: "2026-09-25T12:00:00.000Z",
   byAgent: [
-    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4 },
+    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4,
+      outputInvalid: 1, proposals: { created: 4, approved: 2, partiallyApproved: 1, rejected: 1, expired: 0 }, avgTotalTokens: 2400, avgEstimatedCost: "0.012500", currency: "USD" },
   ],
   byModel: [{ provider: "prov", model: "modelo-a", calls: 12, inputTokens: null, outputTokens: 300, totalTokens: null, estimatedCost: null, currency: null }],
 };
@@ -67,6 +68,24 @@ describe("006/US7-6 tela Operação de IA", () => {
     );
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("007/FR-048 indicadores por agente: falhas de validação e decisões das propostas com a taxa ao lado, tokens e custo médios", async () => {
+    serve();
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Indicadores por agente" });
+    const headers = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+    expect(headers).toEqual(expect.arrayContaining(["Falhas de validação", "Propostas", "Aprovadas", "Aprovadas em parte", "Rejeitadas", "Tokens médios", "Custo médio"]));
+    const cells = within(table).getAllByRole("cell").map((cell) => cell.textContent);
+    const at = (header: string) => cells[headers.indexOf(header)];
+    expect(at("Concluídas")).toBe("7 (70%)");
+    expect(at("Falhas de validação")).toBe("1 (10%)");
+    expect(at("Propostas")).toBe("4");
+    expect(at("Aprovadas")).toBe("2 (50%)");
+    expect(at("Aprovadas em parte")).toBe("1 (25%)");
+    expect(at("Rejeitadas")).toBe("1 (25%)");
+    expect(at("Tokens médios")).toBe("2.400");
+    expect(at("Custo médio")).toBe("USD 0,0125");
+  });
 
   it("mostra as 5 seções com dados, e as situações têm sempre texto e ícone", async () => {
     serve();

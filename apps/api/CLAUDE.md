@@ -54,8 +54,14 @@ the POO sample; `scriptCurriculumRun(t.provider, documentId, output)` programs t
 output; `requestAnalysis`, `getCurriculumAiStatus` and `applyProposal` call the 007 routes.
 `seedGoldenDocument(t, teacherId, name)` stores a document of the golden set
 (`test/fixtures/curriculum-agent/golden/<name>/document.*`, rebuilt by `pnpm --filter api
-fixtures:curriculum`, which reuses the 004 PDF/DOCX writers; they carry `MARCADOR-EMENTA-007`). The read
-tool normalizes the file in the test build of the syllabus worker.
+fixtures:curriculum`, which reuses the 004 PDF/DOCX writers; they carry `MARCADOR-EMENTA-007`), and
+`seedDocumentFile(t, teacherId, path)` any PDF/DOCX file; `curriculumTestDefinitions(provider, agent)`
+is what a "restart" with another agent version syncs. The read tool normalizes the file in the test
+build of the syllabus worker. The golden set (`test/fixtures/curriculum-agent/`): `loadGoldenCases()`,
+`recordedSteps(run, documentId)` for the fake provider, `runGoldenCase(t, case, caseId, prepare)` runs one
+case through the real runner and stores the score (`scoreCurriculumCase`) with `AiEvaluationStore`.
+`vitest.eval.config.ts` holds only `test/eval/**/*.eval.ts` (`pnpm --filter api eval:curriculum`, real
+provider, needs `ANTHROPIC_API_KEY`), never part of `pnpm test`.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

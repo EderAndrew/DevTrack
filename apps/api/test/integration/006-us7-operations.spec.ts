@@ -85,6 +85,12 @@ describe("006/US7 o administrador opera a IA", () => {
         avgDurationMs: 2_000,
         modelCalls: 3,
         toolCalls: 1,
+        // 007 research C12.5: none of these executions failed validation, proposed or has call rows.
+        outputInvalid: 0,
+        proposals: { created: 0, approved: 0, partiallyApproved: 0, rejected: 0, expired: 0 },
+        avgTotalTokens: null,
+        avgEstimatedCost: null,
+        currency: null,
       });
       expect(day.byAgent.map((row: { agentKey: string }) => row.agentKey).sort()).toEqual(["reference-l1", "reference-l2"]);
       expect(l1(await byPeriod("7d"))).toMatchObject({ executions: 3, timedOut: 1 });

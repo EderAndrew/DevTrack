@@ -83,6 +83,17 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 13),
   },
+  {
+    feature: "007",
+    path: "specs/007-curriculum-agent/spec.md",
+    stories: 7,
+    scenarios: 40,
+    // The spec has no traceability table: its scenarios, FRs and SCs are the ids.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-001 is covered by the local E2E journey (apps/web/e2e/curriculum-ai.spec.ts).
+    successCriteria: sc(1, 9),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
