@@ -67,7 +67,9 @@ export function SyllabusVersionsList({ subjectId, classId }: SyllabusVersionsLis
               <SyllabusStatusBadge status={document.processingStatus} />
             </TableCell>
             <TableCell>
-              {document.confirmedRevision ? `Confirmado (revisão ${document.confirmedRevision.number})` : "Não confirmado"}
+              {document.confirmedRevision
+                ? `Confirmado (revisão ${document.confirmedRevision.number})${document.confirmedRevision.source === "AI_ASSISTED" ? " — Preenchido com IA" : ""}`
+                : "Não confirmado"}
             </TableCell>
           </TableRow>
         ))}

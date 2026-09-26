@@ -50,7 +50,7 @@ export function toSyllabusDocumentView(row: SyllabusDocumentViewRow): SyllabusDo
     attempts: row.attempts,
     uploadedAt: row.createdAt.toISOString(),
     processedAt: row.processedAt?.toISOString() ?? null,
-    confirmedRevision: confirmed ? { id: confirmed.id, number: confirmed.number } : null,
+    confirmedRevision: confirmed ? { id: confirmed.id, number: confirmed.number, source: confirmed.source } : null,
     draftRevisionId: draft?.id ?? null,
   };
 }

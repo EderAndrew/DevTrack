@@ -10,18 +10,11 @@ import {
 } from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound } from "../../platform/http/errors";
+import { AppException, notFound, validationError } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
+import { createDraft, type DraftContent, rewriteDraft } from "./syllabus-revision-drafts";
 import { SYLLABUS_REVISION_VIEW_SELECT, toSyllabusRevisionView } from "./syllabus-revision.view";
-
-/** Content of a new draft: groups in order, each with its items in order. */
-interface DraftContent {
-  title: string | null;
-  syllabusText: string | null;
-  competencyText: string | null;
-  groups: { title: string | null; items: { text: string; originItemId: string | null }[] }[];
-}
 
 const EMPTY: DraftContent = { title: null, syllabusText: null, competencyText: null, groups: [] };
 
@@ -69,6 +62,9 @@ export class SyllabusRevisionsService {
   ) {}
 
   async create(auth: AuthContext, documentId: string, body: CreateSyllabusRevisionRequest): Promise<SyllabusRevisionView> {
+    // An AI_ASSISTED draft comes only from applying a proposal (007 research C10); the contract
+    // already refuses it, and this keeps any other caller from creating one.
+    if ((body.source as string) === "AI_ASSISTED") throw validationError();
     return this.prisma.runInTransaction(async (tx) => {
       // The document's row lock serializes the drafts and the numbers of one document.
       const [document] = await tx.$queryRaw<{ extraction_result: SyllabusExtractionResult | null; extraction: unknown }[]>`
@@ -108,21 +104,12 @@ export class SyllabusRevisionsService {
         content = fromExtraction(document.extraction as SyllabusExtraction);
       }
 
-      const last = await tx.syllabusRevision.aggregate({ where: { documentId }, _max: { number: true } });
-      const revision = await tx.syllabusRevision.create({
-        data: {
-          documentId,
-          number: (last._max.number ?? 0) + 1,
-          status: "DRAFT",
-          source: body.source,
-          basedOnRevisionId: body.source === "REVISION" ? body.basedOnRevisionId! : null,
-          title: content.title,
-          syllabusText: content.syllabusText,
-          competencyText: content.competencyText,
-        },
-        select: { id: true },
-      });
-      await this.writeGroups(tx, revision.id, content.groups);
+      const revision = await createDraft(
+        tx,
+        documentId,
+        { source: body.source, basedOnRevisionId: body.source === "REVISION" ? body.basedOnRevisionId! : null },
+        content,
+      );
       return this.view(tx, revision.id);
     });
   }
@@ -147,27 +134,18 @@ export class SyllabusRevisionsService {
 
       const current = await tx.syllabusItem.findMany({ where: { revisionId }, select: { id: true, originItemId: true } });
       const origins = new Map(current.map((item) => [item.id, item.originItemId]));
-      await tx.syllabusItem.deleteMany({ where: { revisionId } });
-      await tx.syllabusGroup.deleteMany({ where: { revisionId } });
-      await tx.syllabusRevision.update({
-        where: { id: revisionId },
-        data: {
-          title: body.title || null,
-          syllabusText: body.syllabusText || null,
-          competencyText: body.competencyText || null,
-        },
-      });
-      await this.writeGroups(
-        tx,
-        revisionId,
-        body.groups.map((group) => ({
+      await rewriteDraft(tx, revisionId, {
+        title: body.title || null,
+        syllabusText: body.syllabusText || null,
+        competencyText: body.competencyText || null,
+        groups: body.groups.map((group) => ({
           title: group.title || null,
           items: group.items.map((item) => ({
             text: item.text,
             originItemId: (item.id && origins.get(item.id)) ?? null,
           })),
         })),
-      );
+      });
       return this.view(tx, revisionId);
     });
   }
@@ -203,25 +181,6 @@ export class SyllabusRevisionsService {
       });
       return this.view(tx, revisionId);
     });
-  }
-
-  private async writeGroups(tx: Tx, revisionId: string, groups: DraftContent["groups"]): Promise<void> {
-    if (groups.length === 0) return;
-    const created = await tx.syllabusGroup.createManyAndReturn({
-      data: groups.map((group, index) => ({ revisionId, position: index + 1, title: group.title })),
-      select: { id: true, position: true },
-    });
-    const idByPosition = new Map(created.map((group) => [group.position, group.id]));
-    const items = groups.flatMap((group, groupIndex) =>
-      group.items.map((item, itemIndex) => ({
-        revisionId,
-        groupId: idByPosition.get(groupIndex + 1)!,
-        position: itemIndex + 1,
-        text: item.text,
-        originItemId: item.originItemId,
-      })),
-    );
-    if (items.length > 0) await tx.syllabusItem.createMany({ data: items });
   }
 
   private async view(tx: Tx, revisionId: string): Promise<SyllabusRevisionView> {

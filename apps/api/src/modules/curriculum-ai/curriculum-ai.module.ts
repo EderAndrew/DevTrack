@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AiModule } from "../ai/ai.module";
 import { SyllabusModule } from "../syllabus/syllabus.module";
+import { CurriculumAiApplyService } from "./curriculum-ai-apply.service";
 import { CurriculumAiRequestService } from "./curriculum-ai-request.service";
 import { CurriculumAiController } from "./curriculum-ai.controller";
 
@@ -12,6 +13,6 @@ import { CurriculumAiController } from "./curriculum-ai.controller";
 @Module({
   imports: [AiModule, SyllabusModule],
   controllers: [CurriculumAiController],
-  providers: [CurriculumAiRequestService],
+  providers: [CurriculumAiRequestService, CurriculumAiApplyService],
 })
 export class CurriculumAiModule {}

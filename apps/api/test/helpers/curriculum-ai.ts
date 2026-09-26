@@ -1,10 +1,11 @@
 import type {
   ApplyCurriculumProposalRequest,
+  AiProposalStatus,
   CurriculumExtractionOutput,
   RequestCurriculumAnalysisRequest,
   SyllabusExtraction,
 } from "@repo/contracts";
-import type { SyllabusDocument, Subject } from "../../src/generated/prisma/client";
+import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
 import { defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
 import {
   CURRICULUM_AGENT,
@@ -12,8 +13,9 @@ import {
   curriculumAiDefinitions,
 } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
+import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
 import { type FakeModelProvider, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
-import { type AiTestApp, createAiTestApp } from "./ai";
+import { type AiTestApp, createAiExecution, createAiTestApp } from "./ai";
 import { createSubject, createSyllabusDocument, pooExtraction } from "./factories";
 import { api, type TestApp, type TestAppOptions } from "./test-app";
 
@@ -106,4 +108,60 @@ export function applyProposal(
   body: ApplyCurriculumProposalRequest,
 ) {
   return api(t, { cookie }).post(`/api/syllabus-documents/${documentId}/ai-proposals/${proposalId}/apply`, body);
+}
+
+export interface CurriculumProposalOptions {
+  /** The extraction stored as is: the factory skips the output schema, so it can hold what a run never would. */
+  extraction?: CurriculumExtractionOutput;
+  itemIds?: string[];
+  status?: AiProposalStatus;
+  expiresAt?: Date;
+  /** Overrides `content.source` (a changed document, an unknown reader version). */
+  source?: Partial<{ documentId: string; sha256: string; readerVersion: number }>;
+}
+
+/**
+ * A completed `curriculum-agent` execution on `document` with its `CURRICULUM_EXTRACTION`
+ * proposal, written straight to the database (the POO output by default, no grounding flags).
+ */
+export async function createCurriculumProposal(
+  t: TestApp,
+  teacherId: string,
+  document: Pick<SyllabusDocument, "id" | "sha256">,
+  options: CurriculumProposalOptions = {},
+) {
+  const execution = await createAiExecution(t, teacherId, CURRICULUM_AGENT.key, {
+    status: "COMPLETED",
+    resource: { type: "SYLLABUS_DOCUMENT", id: document.id },
+  });
+  const extraction = options.extraction ?? pooOutput();
+  const status = options.status ?? "READY_FOR_REVIEW";
+  const decided = status !== "READY_FOR_REVIEW";
+  return t.prisma.aiProposal.create({
+    data: {
+      workspaceId: teacherId,
+      executionId: execution.id,
+      agentVersionId: execution.agentVersionId,
+      agentKey: CURRICULUM_AGENT.key,
+      proposalType: "CURRICULUM_EXTRACTION",
+      targetResourceType: "SYLLABUS_DOCUMENT",
+      targetResourceId: document.id,
+      payload: {
+        extraction,
+        grounding: { unsupported: [] },
+        source: {
+          documentId: document.id,
+          sha256: Buffer.from(document.sha256).toString("hex"),
+          readerVersion: 1,
+          ...options.source,
+        },
+      } as unknown as Prisma.InputJsonObject,
+      itemIds: options.itemIds ?? itemIdsOf(extraction),
+      acceptedItemIds: [],
+      status,
+      expiresAt: options.expiresAt ?? new Date(Date.now() + 30 * 86_400_000),
+      decidedAt: decided ? new Date() : null,
+      decidedByUserId: decided && status !== "EXPIRED" ? teacherId : null,
+    },
+  });
 }

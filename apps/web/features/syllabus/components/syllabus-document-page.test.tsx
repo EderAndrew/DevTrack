@@ -28,7 +28,7 @@ function fakeApi(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, initial: Det
       if (method === "POST") {
         const confirmed = { ...revision, status: "CONFIRMED" as const, confirmedAt: "2026-09-23T17:00:00.000Z" };
         state.revisions.set(revision.id, confirmed);
-        state.detail = { ...state.detail, draftRevisionId: null, confirmedRevision: { id: revision.id, number: revision.number } };
+        state.detail = { ...state.detail, draftRevisionId: null, confirmedRevision: { id: revision.id, number: revision.number, source: revision.source } };
         return Promise.resolve(json(200, confirmed));
       }
       return Promise.resolve(json(200, revision));
@@ -178,7 +178,7 @@ describe("004/US3 página da versão da ementa — revisão ao lado do original"
       id: confirmed.documentId,
       processingStatus: "FAILED",
       failureCategory: "TIMEOUT",
-      confirmedRevision: { id: confirmed.id, number: 1 },
+      confirmedRevision: { id: confirmed.id, number: 1, source: confirmed.source },
     });
     const { created } = fakeApi(fetchMock, documentDetail(view), [confirmed]);
     const user = userEvent.setup();

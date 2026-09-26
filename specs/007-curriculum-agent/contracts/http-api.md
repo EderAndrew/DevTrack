@@ -96,6 +96,7 @@ guard.
 |---|---|
 | `SyllabusRevisionSourceSchema` | + `"AI_ASSISTED"` |
 | `SyllabusRevisionViewSchema`, `SyllabusDocumentDetailSchema.revisions[]` | + `aiProposalId: uuid \| null` |
+| `SyllabusDocumentViewSchema.confirmedRevision` | + `source`, so the versions list labels an `AI_ASSISTED` revision "Preenchido com IA" (web-ui.md) |
 | `POST /syllabus-documents/:id/revisions` | `source: "AI_ASSISTED"` → `400 VALIDATION_ERROR` |
 | `POST /ai/proposals/:id/decision` (006) | `APPROVE` or `APPROVE_PARTIALLY` on a proposal whose agent declares `approveThroughDomain` → `409 AI_PROPOSAL_APPLY_REQUIRED`; `REJECT` unchanged |
 | `GET /admin/ai/metrics` (006) | `AiAgentMetrics` + `outputInvalid`, `proposals: {created, approved, partiallyApproved, rejected, expired}`, `avgTotalTokens: int \| null`, `avgEstimatedCost: DecimalString \| null`, `currency: string \| null` (research C12.5) |

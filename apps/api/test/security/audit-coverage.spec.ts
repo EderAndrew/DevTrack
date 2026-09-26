@@ -22,7 +22,7 @@ const CONTRACTS = [
  * 007 types the journey does not emit yet. Transitional: each user story removes its own when its
  * flow joins the journey, and T067 removes the empty list.
  */
-const PENDING_007_TYPES = new Set(["curriculum_ai.proposal_applied"]);
+const PENDING_007_TYPES = new Set<string>([]);
 
 
 interface ContractRow {

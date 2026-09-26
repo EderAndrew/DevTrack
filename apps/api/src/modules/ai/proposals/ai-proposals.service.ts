@@ -4,10 +4,12 @@ import { APP_CONFIG } from "../../../platform/config/config.module";
 import type { AppConfig } from "../../../platform/config/config.schema";
 import { afterCursor, decodeCursor, encodeCursor } from "../../../platform/database/keyset";
 import { PrismaService } from "../../../platform/database/prisma.service";
+import type { Tx } from "../../../platform/database/transaction";
 import { AppException, invalidStateTransition, notFound, rateLimited } from "../../../platform/http/errors";
 import type { AuthContext } from "../../../platform/http/request-context";
 import { RateLimitService } from "../../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../../audit/audit.service";
+import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
 import { AiProposalStateMachine } from "./ai-proposal.state-machine";
 import { PROPOSAL_INCLUDE, toProposalSummary, toProposalView } from "./ai-proposal.view";
 
@@ -40,6 +42,7 @@ export class AiProposalsService {
     private readonly prisma: PrismaService,
     private readonly rateLimit: RateLimitService,
     private readonly audit: AuditService,
+    @Inject(AI_DEFINITIONS) private readonly definitions: AiDefinitions,
   ) {}
 
   async list(workspaceId: string, query: AiProposalListQuery): Promise<AiProposalPage> {
@@ -94,19 +97,45 @@ export class AiProposalsService {
 
   async decide(auth: AuthContext, id: string, body: DecideAiProposalRequest, requestId: string | null, now = new Date()): Promise<AiProposalView> {
     const workspaceId = auth.userId;
-    const limit = await this.rateLimit.hit("ai-decision", workspaceId, { limit: this.config.rateLimit.aiDecisionsPerMinute, windowSec: 60 });
-    if (limit.blocked) {
-      await this.audit.record(this.prisma, {
-        type: "ai_execution.rate_limited",
-        actorType: "USER",
-        actorUserId: workspaceId,
-        requestId,
-        metadata: { scope: "ai-decision" },
-      });
-      throw rateLimited(limit.retryAfterSec);
-    }
+    await this.assertDecisionRate(auth, requestId);
 
-    const current = await this.prisma.aiProposal.findFirst({ where: { id, workspaceId }, select: { itemIds: true } });
+    const current = await this.prisma.aiProposal.findFirst({ where: { id, workspaceId }, select: { agentKey: true } });
+    if (!current) throw notFound();
+    // An agent that approves through its domain (007 research C12.6) is approved only by that flow.
+    const agent = this.definitions.agents.find((definition) => definition.key === current.agentKey);
+    if (body.decision !== "REJECT" && agent?.proposal?.approveThroughDomain) throw new AppException("AI_PROPOSAL_APPLY_REQUIRED");
+
+    return this.prisma.runInTransaction((tx) => this.decideWithin(tx, auth, id, body, requestId, now));
+  }
+
+  /** The decision limit per teacher (006 `ai-decision`), shared with the domain apply flows (007 contracts/http-api.md). */
+  async assertDecisionRate(auth: AuthContext, requestId: string | null): Promise<void> {
+    const limit = await this.rateLimit.hit("ai-decision", auth.userId, { limit: this.config.rateLimit.aiDecisionsPerMinute, windowSec: 60 });
+    if (!limit.blocked) return;
+    await this.audit.record(this.prisma, {
+      type: "ai_execution.rate_limited",
+      actorType: "USER",
+      actorUserId: auth.userId,
+      requestId,
+      metadata: { scope: "ai-decision" },
+    });
+    throw rateLimited(limit.retryAfterSec);
+  }
+
+  /**
+   * The transactional core of `decide` (007 research C12.2), for a domain that applies the
+   * proposal in the same transaction: no rate limit and no `approveThroughDomain` refusal.
+   */
+  async decideWithin(
+    tx: Tx,
+    auth: AuthContext,
+    id: string,
+    body: DecideAiProposalRequest,
+    requestId: string | null,
+    now = new Date(),
+  ): Promise<AiProposalView> {
+    const workspaceId = auth.userId;
+    const current = await tx.aiProposal.findFirst({ where: { id, workspaceId }, select: { itemIds: true } });
     if (!current) throw notFound();
     const to = STATUS_OF[body.decision];
     const accepted = body.acceptedItemIds ?? [];
@@ -114,29 +143,35 @@ export class AiProposalsService {
       throw new AppException("AI_PROPOSAL_ITEMS_INVALID");
     }
 
-    return this.prisma.runInTransaction(async (tx) => {
-      const updated = await tx.aiProposal.updateMany({
-        where: { id, workspaceId, status: "READY_FOR_REVIEW", expiresAt: { gt: now } },
-        data: { status: to, acceptedItemIds: accepted, decidedAt: now, decidedByUserId: workspaceId },
-      });
-      const row = await tx.aiProposal.findFirstOrThrow({ where: { id, workspaceId }, include: PROPOSAL_INCLUDE });
-      if (updated.count === 1) {
-        await this.audit.record(tx, {
-          type: AUDIT_OF[to],
-          actorType: "USER",
-          actorUserId: workspaceId,
-          targetType: "AI_PROPOSAL",
-          targetId: id,
-          requestId,
-          metadata: to === "PARTIALLY_APPROVED" ? { itemCount: row.itemIds.length, acceptedCount: accepted.length } : { itemCount: row.itemIds.length },
-        });
-        return toProposalView(row);
-      }
-      // Nothing changed: the same decision again is the same answer; anything else is a conflict.
-      if (row.status === to && sameSet(row.acceptedItemIds, accepted)) return toProposalView(row);
-      AiProposalStateMachine.assertTransition(row.status, to);
-      throw invalidStateTransition(); // READY_FOR_REVIEW but past its expiry
+    const updated = await tx.aiProposal.updateMany({
+      where: { id, workspaceId, status: "READY_FOR_REVIEW", expiresAt: { gt: now } },
+      data: { status: to, acceptedItemIds: accepted, decidedAt: now, decidedByUserId: workspaceId },
     });
+    const row = await tx.aiProposal.findFirstOrThrow({ where: { id, workspaceId }, include: PROPOSAL_INCLUDE });
+    if (updated.count === 1) {
+      await this.audit.record(tx, {
+        type: AUDIT_OF[to],
+        actorType: "USER",
+        actorUserId: workspaceId,
+        targetType: "AI_PROPOSAL",
+        targetId: id,
+        requestId,
+        metadata: to === "PARTIALLY_APPROVED" ? { itemCount: row.itemIds.length, acceptedCount: accepted.length } : { itemCount: row.itemIds.length },
+      });
+      return toProposalView(row);
+    }
+    // Nothing changed: the same decision again is the same answer; anything else is a conflict.
+    if (row.status === to && sameSet(row.acceptedItemIds, accepted)) return toProposalView(row);
+    AiProposalStateMachine.assertTransition(row.status, to);
+    throw invalidStateTransition(); // READY_FOR_REVIEW but past its expiry
+  }
+
+  /** For domain modules (007 research C12.2): the proposal of the workspace, locked until the transaction ends; 404 otherwise. */
+  async getForUpdate(tx: Tx, workspaceId: string, id: string): Promise<AiProposalView> {
+    const locked = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM ai_proposals WHERE id = ${id}::uuid AND workspace_id = ${workspaceId}::uuid FOR UPDATE`;
+    if (locked.length === 0) throw notFound();
+    return toProposalView(await tx.aiProposal.findUniqueOrThrow({ where: { id }, include: PROPOSAL_INCLUDE }));
   }
 
   /** Proposals past `expires_at` become EXPIRED (research A13); run at the start of each worker cycle. */

@@ -10,6 +10,8 @@ import {
   syllabusFixture,
   type TestUser,
 } from "../helpers/factories";
+import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
+import { createCurriculumProposal } from "../helpers/curriculum-ai";
 import { api, type TestApp } from "../helpers/test-app";
 import { CURRICULUM, MATRIX, type MatrixEntry, routeKey } from "./authorization-matrix";
 
@@ -33,6 +35,8 @@ export interface TeacherArea {
   topicId: string;
   /** A second topic, for merge and reorder. */
   secondTopicId: string;
+  /** A 007 proposal awaiting review on the document. */
+  proposalId: string;
 }
 
 export const PERIOD = { startsOn: "2027-02-01", endsOn: "2027-06-30" };
@@ -50,6 +54,9 @@ export async function buildTeacherArea(t: TestApp, teacher: TestUser): Promise<T
   const plan = await createPlan(t, schoolClass.id, confirmed.revision.id);
   const topic = await createTopic(t, plan.id, { meetingId: meetings[0]!.id, itemIds: [confirmed.itemIds[0]!] });
   const second = await createTopic(t, plan.id, { itemIds: [confirmed.itemIds[1]!] });
+  // The 007 proposal needs the AI registry, which `resetDb` empties; the sync is idempotent.
+  await t.get(AiRegistrySync).sync();
+  const proposal = await createCurriculumProposal(t, teacher.id, document);
   return {
     subjectId: subject.id,
     documentId: document.id,
@@ -61,6 +68,7 @@ export async function buildTeacherArea(t: TestApp, teacher: TestUser): Promise<T
     planId: plan.id,
     topicId: topic.id,
     secondTopicId: second.id,
+    proposalId: proposal.id,
   };
 }
 
@@ -82,6 +90,8 @@ export const VALID_BODY: Record<string, (area: TeacherArea) => object> = {
   // 007
   "GET /syllabus-documents/:id/ai": () => ({}),
   "POST /syllabus-documents/:id/ai-analyses": () => ({}),
+  // The area has a draft, so the owner gets 409 REVISION_DRAFT_EXISTS and nothing changes.
+  "POST /syllabus-documents/:id/ai-proposals/:proposalId/apply": () => ({ acceptedItemIds: ["title"], replaceDraft: false }),
   "POST /syllabus-documents/:id/revisions": () => ({ source: "MANUAL" }),
   "GET /syllabus-revisions/:id": () => ({}),
   "PUT /syllabus-revisions/:id": () => ({ groups: [{ title: "Grupo", items: [{ text: "Item" }] }] }),
@@ -144,7 +154,7 @@ export async function callRoute(t: TestApp, entry: MatrixEntry, user: TestUser |
   const client = api(t, { cookie: user ? await loginAs(t, user) : undefined });
   const id = options.id ?? (entry.path.includes(":id") ? resourceIdFor(entry, area) : "");
   const topicId = options.topicId ?? area.topicId;
-  const url = `/api${entry.path.replace(":id", id).replace(":topicId", topicId)}${options.query ? `?${options.query}` : ""}`;
+  const url = `/api${entry.path.replace(":id", id).replace(":topicId", topicId).replace(":proposalId", area.proposalId)}${options.query ? `?${options.query}` : ""}`;
   if (entry.upload) {
     return client.upload(url, { bytes: syllabusFixture("poo.docx"), filename: "ementa.docx" });
   }

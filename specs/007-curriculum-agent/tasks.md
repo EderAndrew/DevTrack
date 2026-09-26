@@ -455,7 +455,7 @@ mudou.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T032 [P] [US3] Teste de integração
+- [X] T032 [P] [US3] Teste de integração
   `apps/api/test/integration/007-us3-apply-proposal.spec.ts`:
   - `007/US3-3`: tudo aceito → rascunho `DRAFT`, `AI_ASSISTED`, `aiProposalId`, com o
     conteúdo proposto; proposta `APPROVED`; nenhuma revisão confirmada; auditoria
@@ -487,7 +487,7 @@ mudou.
   - `POST /syllabus-documents/:id/revisions` com `source: "AI_ASSISTED"` → 400;
   - no banco, o `CHECK` recusa `AI_ASSISTED` sem proposta e o `UNIQUE` recusa a segunda
     revisão da mesma proposta.
-- [ ] T033 [P] [US3] Testes do web
+- [X] T033 [P] [US3] Testes do web
   `apps/web/features/curriculum-ai/components/curriculum-proposal-review.test.tsx`:
   - `007/US3-1` e `007/FR-026`: documento e proposta lado a lado (abas em tela estreita),
     aviso de sugestão, avisos junto ao campo/item com ícone e texto, origem "página 3" /
@@ -502,26 +502,26 @@ mudou.
   - só leitura depois da decisão, com o link "Abrir rascunho";
   - conteúdo tipo `<script>` exibido como texto (`007/FR-027`, sem editor na página);
   - axe e teclado.
-- [ ] T034 [P] [US3] Testes do web da 004: em
+- [X] T034 [P] [US3] Testes do web da 004: em
   `apps/web/features/syllabus/components/syllabus-revision-editor.test.tsx`, o aviso
   "Preenchido com IA — revise o conteúdo antes de confirmar." com o link "Ver proposta" para
   `AI_ASSISTED`; na lista de versões, o rótulo "Preenchido com IA".
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] Fundação (research C12.2 e C12.6) em
+- [X] T035 [US3] Fundação (research C12.2 e C12.6) em
   `apps/api/src/modules/ai/proposals/ai-proposals.service.ts`:
   - extrair de `decide` o núcleo transacional `decideWithin(tx, auth, id, body, requestId,
     now)`; `decide` mantém o limite de taxa e o envolve. Os testes da 006 continuam verdes;
   - `getForUpdate(tx, workspaceId, id)`: `SELECT … FOR UPDATE` na área;
   - em `decide`, `APPROVE`/`APPROVE_PARTIALLY` de agente com `approveThroughDomain` → 409
     `AI_PROPOSAL_APPLY_REQUIRED`; `decideWithin` não tem essa recusa.
-- [ ] T036 [US3] `apps/api/src/modules/syllabus/syllabus-revision-drafts.ts`: extrair de
+- [X] T036 [US3] `apps/api/src/modules/syllabus/syllabus-revision-drafts.ts`: extrair de
   `syllabus-revisions.service.ts` a escrita do conteúdo do rascunho (apagar grupos e itens,
   gravar campos, grupos e itens), usada pelo `save` e pela aplicação. O comportamento não
   muda e os testes da 004 continuam verdes. Em `syllabus-revisions.service.ts`, recusar
   `AI_ASSISTED` na criação.
-- [ ] T037 [US3] `apps/api/src/modules/curriculum-ai/curriculum-ai-apply.service.ts`: os
+- [X] T037 [US3] `apps/api/src/modules/curriculum-ai/curriculum-ai-apply.service.ts`: os
   passos 1–7 de research C10, numa transação:
   1. documento `FOR UPDATE` na área;
   2. `getForUpdate`, tipo e alvo (404);
@@ -534,19 +534,19 @@ mudou.
 
   A violação do `UNIQUE (ai_proposal_id)` numa corrida vira a resposta idempotente. Logs só
   com ids e contagens.
-- [ ] T038 [US3] Rota `POST /syllabus-documents/:id/ai-proposals/:proposalId/apply`
+- [X] T038 [US3] Rota `POST /syllabus-documents/:id/ai-proposals/:proposalId/apply`
   (`ementas.revisar` + `ia.propostas.revisar`) no controller. Acrescentar ao catálogo de
   endpoints, à matriz de autorização, a `route-declarations` e ao `VALID_BODY` de
   `004-curriculum-authorization-matrix.ts`; acrescentar `APPROVE` de proposta
   `CURRICULUM_EXTRACTION` → 409 à `006-ai-authorization-matrix.ts`. Retirar
   `curriculum_ai.proposal_applied` de `PENDING_007_TYPES`; a jornada (T022) aplica a
   proposta.
-- [ ] T039 [P] [US3] Web:
+- [X] T039 [P] [US3] Web:
   - `applyProposal` em `features/curriculum-ai/api/curriculum-ai.ts`;
   - `use-curriculum-proposal.ts` (usa `useAiProposal` da 006 e faz o parse com
     `CurriculumProposalContentSchema`);
   - `use-apply-curriculum-proposal.ts`, que invalida o documento e as revisões.
-- [ ] T040 [US3] Componentes `curriculum-warning.tsx`, `source-ref.tsx` e
+- [X] T040 [US3] Componentes `curriculum-warning.tsx`, `source-ref.tsx` e
   `curriculum-proposal-review.tsx` em `apps/web/features/curriculum-ai/components/`, por
   `contracts/web-ui.md`:
   - `Checkbox`, `AlertDialog`, `Alert`, `Tabs` e `Badge` do design system, sem controle
@@ -555,7 +555,7 @@ mudou.
 
   Página `apps/web/app/(app)/disciplinas/[id]/ementa/[documentId]/proposta/[proposalId]/page.tsx`
   com `PageHeader` "Proposta da IA para a ementa" e o visualizador do original da 004.
-- [ ] T041 [US3] 004 web: aviso e link "Ver proposta" em
+- [X] T041 [US3] 004 web: aviso e link "Ver proposta" em
   `features/syllabus/components/syllabus-revision-editor.tsx` quando `source ===
   "AI_ASSISTED"`, e o rótulo em `syllabus-versions-list.tsx`.
 

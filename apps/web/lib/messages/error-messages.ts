@@ -1,4 +1,4 @@
-import type { AiErrorCode, CurriculumAiAvailability, ErrorCode } from "@repo/contracts";
+import type { AiErrorCode, CurriculumAiAvailability, CurriculumReviewWarningCode, ErrorCode } from "@repo/contracts";
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
@@ -189,3 +189,17 @@ export const CURRICULUM_AI_NOTHING_FOUND =
 
 /** A `429` on "Preencher com IA" (007 contracts/web-ui.md). */
 export const CURRICULUM_AI_RATE_LIMITED = "Muitas análises solicitadas. Tente novamente em alguns minutos.";
+
+/**
+ * What each warning of a curriculum proposal says next to its field, group or item (007
+ * contracts/web-ui.md). The model reports codes only; its prose never reaches the screen.
+ */
+export const CURRICULUM_WARNING_MESSAGES = {
+  UNSUPPORTED_CONTENT: "Não encontrado no documento — confira antes de aplicar.",
+  FIELD_NOT_FOUND: "Não identificado no documento.",
+  AMBIGUOUS_STRUCTURE: "A estrutura do documento é ambígua neste ponto.",
+  LOW_DOCUMENT_QUALITY: "Parte do documento está com baixa qualidade.",
+  INCOMPLETE_SECTION: "Esta seção parece incompleta no documento.",
+  UNREADABLE_CONTENT: "Parte do conteúdo não pôde ser lida.",
+  POSSIBLE_DUPLICATE_CONTENT: "Possível conteúdo repetido.",
+} as const satisfies Record<CurriculumReviewWarningCode, string>;

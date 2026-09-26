@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
-import { createUser, type TestUser } from "../helpers/factories";
+import { type AiTestApp, resetAiDb } from "../helpers/ai";
+import { createCurriculumAiApp, createCurriculumProposal, seedProcessedDocument } from "../helpers/curriculum-ai";
+import { createUser, loginAs, type TestUser } from "../helpers/factories";
+import { api } from "../helpers/test-app";
 import { AI_TEACHER_ROUTES, type AiArea, aiSnapshot, buildAiArea, callAiRoute, VALID_BODY } from "./006-ai-authorization-matrix";
 import { routeKey } from "./authorization-matrix";
 
@@ -18,7 +20,8 @@ describe("006/SC-001 006/US5 matriz de autorização das rotas de IA do professo
   const users = new Map<string, TestUser>();
 
   beforeAll(async () => {
-    t = await createAiTestApp();
+    // The reference agents plus the 007 one, whose proposals are approved only by applying them.
+    t = await createCurriculumAiApp();
     await resetAiDb(t);
     owner = await createUser(t, { roles: ["TEACHER"] });
     area = await buildAiArea(t, owner);
@@ -83,5 +86,19 @@ describe("006/SC-001 006/US5 matriz de autorização das rotas de IA do professo
       const res = await callAiRoute(t, entry, owner, area);
       expect([401, 403, 404], `${key} → ${res.status} ${res.body?.code}`).not.toContain(res.status);
     }
+  });
+
+  it("007/FR-030 APPROVE de proposta CURRICULUM_EXTRACTION pela rota da 006 → 409 AI_PROPOSAL_APPLY_REQUIRED; REJECT passa", async () => {
+    const entry = AI_TEACHER_ROUTES.find((route) => routeKey(route) === "POST /ai/proposals/:id/decision")!;
+    const { document } = await seedProcessedDocument(t, owner.id);
+    const proposal = await createCurriculumProposal(t, owner.id, document);
+    const cookie = await loginAs(t, owner);
+    for (const body of [{ decision: "APPROVE" }, { decision: "APPROVE_PARTIALLY", acceptedItemIds: ["title"] }]) {
+      const res = await api(t, { cookie }).post(`/api${entry.path.replace(":id", proposal.id)}`, body);
+      expect({ status: res.status, code: res.body.code }).toEqual({ status: 409, code: "AI_PROPOSAL_APPLY_REQUIRED" });
+    }
+    const reject = await api(t, { cookie }).post(`/api${entry.path.replace(":id", proposal.id)}`, { decision: "REJECT" });
+    expect(reject.status).toBe(200);
+    expect(reject.body.status).toBe("REJECTED");
   });
 });

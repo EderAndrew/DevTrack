@@ -235,6 +235,16 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     expect(event.metadata, type).toMatchObject({ agentKey: "curriculum-agent" });
   }
   expect(await t.prisma.auditEvent.count({ where: { type: "curriculum_ai.analysis_requested", targetId: aiDocumentId } })).toBe(1);
+  // 007/US3 — the teacher accepts the title and the first group: the next revision is an
+  // AI_ASSISTED draft, and the confirmed one stays as it was.
+  const proposalId = (await teacherClient.get(`/api/syllabus-documents/${aiDocumentId}/ai`)).body.pendingProposalId as string;
+  const applied = await teacherClient.post(`/api/syllabus-documents/${aiDocumentId}/ai-proposals/${proposalId}/apply`, {
+    acceptedItemIds: ["title", "group:0"],
+    replaceDraft: false,
+  });
+  expect(applied.status).toBe(200);
+  expect(applied.body.revision).toMatchObject({ number: 2, status: "DRAFT", source: "AI_ASSISTED", aiProposalId: proposalId });
+  expect(applied.body.proposal.status).toBe("PARTIALLY_APPROVED");
   // 004/US4 — the teacher marks two class days, then unmarks one whose topic is archived there.
   const meetingsPath = `/api/classes/${classId}/meetings`;
   const calendar = await teacherClient.put(meetingsPath, {

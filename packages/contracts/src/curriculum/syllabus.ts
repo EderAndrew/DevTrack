@@ -48,7 +48,8 @@ export const SyllabusDocumentViewSchema = z.strictObject({
   attempts: z.int(),
   uploadedAt: IsoDateTimeSchema,
   processedAt: IsoDateTimeSchema.nullable(),
-  confirmedRevision: z.strictObject({ id: UuidSchema, number: z.int() }).nullable(),
+  /** `source` labels the versions list ("Preenchido com IA", 007). */
+  confirmedRevision: z.strictObject({ id: UuidSchema, number: z.int(), source: SyllabusRevisionSourceSchema }).nullable(),
   draftRevisionId: UuidSchema.nullable(),
 });
 export type SyllabusDocumentView = z.infer<typeof SyllabusDocumentViewSchema>;
