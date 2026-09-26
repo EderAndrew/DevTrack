@@ -43,22 +43,34 @@ class RecordingProvider implements ModelProvider {
 const CASES = loadGoldenCases();
 const RECORD = process.env.EVAL_RECORD === "1";
 
+const OPENROUTER = loadConfig(process.env).ai.openrouter;
+
+/**
+ * The models the gate covers (008 research G20): the default, and the fallback when
+ * `OPENROUTER_FALLBACK_MODEL` is set, each as the only model of the route, since either may answer
+ * a teacher's analysis. Only the default model's answers are recorded for the CI replay.
+ */
+const MODELS = [
+  { role: "principal", model: OPENROUTER.defaultModel, record: RECORD },
+  ...(OPENROUTER.fallbackModel ? [{ role: "fallback", model: OPENROUTER.fallbackModel, record: false }] : []),
+];
+
 /**
  * On-demand release gate of the Curriculum Agent (007/FR-051, research C17, quickstart §3): the
- * golden set and the scorer of the CI run, against OpenRouter and the production model config of
- * `OPENROUTER_DEFAULT_MODEL` (008/FR-022, research G20). Run
- * `OPENROUTER_API_KEY=… pnpm --filter api eval:curriculum`; with `EVAL_RECORD=1` it also rewrites
- * each `recorded.json` for review. The agent is enabled in "Operação de IA" with that model only
- * after this passes the SC-005 and SC-006 thresholds.
+ * golden set and the scorer of the CI run, against OpenRouter and the production model configs of
+ * `OPENROUTER_DEFAULT_MODEL` and `OPENROUTER_FALLBACK_MODEL` (008/FR-022, 008/SC-009, research G20).
+ * Run `OPENROUTER_API_KEY=… pnpm --filter api eval:curriculum`; with `EVAL_RECORD=1` it also
+ * rewrites each `recorded.json` for review. The agent is enabled in "Operação de IA" with those
+ * models only after both pass the SC-005 and SC-006 thresholds.
  */
-describe("007/FR-051 008/US1-4 avaliação sob demanda do curriculum-agent com o provedor real", () => {
+describe.each(MODELS)("007/FR-051 008/US1-4 008/SC-009 avaliação sob demanda do curriculum-agent: modelo $role ($model)", ({ model, record }) => {
   let t: TestApp;
   let provider: RecordingProvider;
   let caseIds: Map<string, string>;
   const runs: { name: string; injection: boolean; run: CaseRun }[] = [];
 
   beforeAll(async () => {
-    const { openrouter } = loadConfig(process.env).ai;
+    const openrouter = OPENROUTER;
     if (!openrouter.apiKey) {
       throw new Error("eval:curriculum precisa de OPENROUTER_API_KEY: OPENROUTER_API_KEY=… pnpm --filter api eval:curriculum");
     }
@@ -67,8 +79,8 @@ describe("007/FR-051 008/US1-4 avaliação sob demanda do curriculum-agent com o
     const definitions: AiDefinitions = {
       agents: [TEST_CURRICULUM_AGENT],
       tools: curriculum.tools,
-      // The primary model only; the fallback run joins in 008/T036.
-      modelConfigs: openRouterModelConfigs({ ...openrouter, fallbackModel: null }),
+      // The model under evaluation as the only model of the route.
+      modelConfigs: openRouterModelConfigs({ ...openrouter, defaultModel: model, fallbackModel: null }),
       tasks: curriculum.tasks,
       providers: [provider],
       resources: curriculum.resources,
@@ -87,7 +99,7 @@ describe("007/FR-051 008/US1-4 avaliação sob demanda do curriculum-agent com o
     provider.responses.length = 0;
     const run = await runGoldenCase(t, golden, caseIds.get(name)!);
     runs.push({ name, injection: golden.expected.injection, run });
-    if (RECORD) writeRecordedRun(name, toRecordedRun(provider.responses, run.documentId));
+    if (record) writeRecordedRun(name, toRecordedRun(provider.responses, run.documentId));
 
     expect(run.status, `${name}: ${run.errorCode}`).toBe("COMPLETED");
     expect(run.score.passed, JSON.stringify(run.score.metrics)).toBe(true);

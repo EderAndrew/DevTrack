@@ -286,3 +286,152 @@ describe("008/FR-006 rota da tarefa e pernas da chamada", () => {
     expect(failure.legs).toEqual([expect.objectContaining({ status: "TIMED_OUT", errorCode: "AI_TIMEOUT" })]);
   });
 });
+
+describe("008/FR-010 008/FR-011 008/SC-003 fallback depois do principal (contracts/gateway-routing.md)", () => {
+  const PRIMARY: GatewayModelConfig = { ...CONFIG, key: "primary", model: "m-primary" };
+  const FALLBACK: GatewayModelConfig = { ...CONFIG, key: "fallback", model: "m-fallback" };
+  const task = { parameters: {}, maxOutputTokens: 1000, timeoutMs: 5_000 };
+
+  /** One script per model (the last step of each repeats); `order` keeps the models called. */
+  function byModel(scripts: Record<string, Step[]>) {
+    const order: string[] = [];
+    const counters = new Map<string, number>();
+    const run = (request: ModelRequest, signal: AbortSignal): Promise<ModelResponse> => {
+      order.push(request.model);
+      const steps = scripts[request.model]!;
+      const n = counters.get(request.model) ?? 0;
+      counters.set(request.model, n + 1);
+      const step = steps[Math.min(n, steps.length - 1)]!;
+      if ("output" in step) return Promise.resolve({ kind: "output", text: step.output, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } });
+      if ("error" in step) return Promise.reject(new ProviderError(step.error));
+      if ("throw" in step) return Promise.reject(step.throw);
+      return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
+    };
+    const provider: ModelProvider = { key: "test", generate: run, generateStructured: (r, _s, signal) => run(r, signal), healthCheck: async () => "UP" };
+    return { provider, order };
+  }
+
+  const call = (gateway: ModelGateway, limits: AiExecutionLimits, extra: { primary?: GatewayModelConfig; fallback?: GatewayModelConfig | null; deadline?: Date; signal?: AbortSignal } = {}) =>
+    gateway.call({
+      route: { primary: extra.primary ?? PRIMARY, fallback: extra.fallback === undefined ? FALLBACK : extra.fallback },
+      task,
+      request: REQUEST,
+      limits,
+      deadline: extra.deadline ?? future(),
+      signal: extra.signal ?? new AbortController().signal,
+    });
+
+  it.each([
+    ["UNAVAILABLE", "AI_PROVIDER_ERROR"],
+    ["RATE_LIMITED", "AI_RATE_LIMITED"],
+    ["TIMEOUT", "AI_TIMEOUT"],
+  ] as const)("%s do principal esgota as tentativas e chama o fallback uma vez, com as suas tentativas", async (category, code) => {
+    const { provider, order } = byModel({ "m-primary": [{ error: category }], "m-fallback": [{ error: "UNAVAILABLE" }, { output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await call(gateway, limits);
+
+    expect(result.response).toMatchObject({ kind: "output", text: "{}" });
+    expect(order).toEqual(["m-primary", "m-primary", "m-primary", "m-fallback", "m-fallback"]);
+    expect(result.legs).toHaveLength(2);
+    expect(result.legs[0]).toMatchObject({ config: { key: "primary" }, isFallback: false, status: category === "TIMEOUT" ? "TIMED_OUT" : "FAILED", attempts: 3, errorCode: code });
+    expect(result.legs[1]).toMatchObject({
+      config: { key: "fallback" },
+      isFallback: true,
+      status: "SUCCEEDED",
+      attempts: 2,
+      trigger: { reason: "PROVIDER_FAILURE", primaryErrorCode: code },
+    });
+    expect(result.attempts).toBe(5);
+  });
+
+  it.each(["INVALID_REQUEST", "AUTH", "UNKNOWN"] as const)("%s do principal → sem fallback", async (category) => {
+    const { provider, order } = byModel({ "m-primary": [{ error: category }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits).catch((e: unknown) => e)) as AiFailure;
+    expect(error).toBeInstanceOf(AiFailure);
+    expect(order).toEqual(["m-primary"]);
+    expect(error.legs.map((leg) => leg.isFallback)).toEqual([false]);
+  });
+
+  it("um erro fora de ProviderError no principal → UNKNOWN, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ throw: new Error("x") }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    await expect(call(gateway, limits)).rejects.toBeInstanceOf(AiFailure);
+    expect(order).toEqual(["m-primary"]);
+  });
+
+  it("cancelamento durante o principal → AI_EXECUTION_CANCELLED, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ hang: true }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const controller = new AbortController();
+    const pending = call(gateway, limits, { signal: controller.signal }).catch((e: unknown) => e);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+    expect(await pending).toMatchObject({ code: "AI_EXECUTION_CANCELLED" });
+    expect(order).toEqual(["m-primary"]);
+  });
+
+  it("prazo da execução esgotado no principal → AI_TIMEOUT, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ hang: true }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { deadline: future(50) }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_TIMEOUT");
+    expect(order).toEqual(["m-primary"]);
+    expect(error.legs).toHaveLength(1);
+  });
+
+  it("o fallback roda só no prazo que resta da execução, nunca além", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ hang: true }] });
+    const { gateway, limits } = gatewayWith(provider, { maxRetries: 0 });
+    const started = Date.now();
+    const error = (await call(gateway, limits, { deadline: future(100) }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_TIMEOUT");
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(order).toEqual(["m-primary", "m-fallback"]);
+    expect(error.legs.map((leg) => [leg.isFallback, leg.status])).toEqual([
+      [false, "FAILED"],
+      [true, "TIMED_OUT"],
+    ]);
+  });
+
+  it("principal e fallback falhando → AiFailure com o código do fallback e duas pernas, sem voltar ao principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ error: "RATE_LIMITED" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_RATE_LIMITED");
+    expect(error.legs.map((leg) => [leg.config.key, leg.isFallback])).toEqual([
+      ["primary", false],
+      ["fallback", true],
+    ]);
+    expect(order).toEqual(["m-primary", "m-primary", "m-primary", "m-fallback", "m-fallback", "m-fallback"]);
+    expect(error.attempts).toBe(6); // (1 + maxRetries) per leg, never more
+  });
+
+  it("fallback desabilitado → o código do principal, sem chamada ao fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { fallback: { ...FALLBACK, status: "DISABLED" } }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_PROVIDER_ERROR");
+    expect(order.every((model) => model === "m-primary")).toBe(true);
+    expect(error.legs).toHaveLength(1);
+  });
+
+  it("principal desabilitado pelo administrador → direto no fallback, sem perna do principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ output: "{}" }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await call(gateway, limits, { primary: { ...PRIMARY, status: "DISABLED" } });
+    expect(order).toEqual(["m-fallback"]);
+    expect(result.legs).toEqual([
+      expect.objectContaining({ isFallback: true, status: "SUCCEEDED", trigger: { reason: "PROVIDER_FAILURE", primaryErrorCode: "AI_MODEL_UNAVAILABLE" } }),
+    ]);
+  });
+
+  it("rota sem fallback → comportamento da 006: uma perna e o código do principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { fallback: null }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_PROVIDER_ERROR");
+    expect(error.legs).toHaveLength(1);
+    expect(order).toHaveLength(3);
+  });
+});

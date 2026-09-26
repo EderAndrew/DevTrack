@@ -27,9 +27,11 @@ OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum                # sob de
 OPENROUTER_API_KEY=... EVAL_RECORD=1 pnpm --filter api eval:curriculum  # também regrava recorded.json
 ```
 
-Desde a 008 (`008/US1-4`, `008/FR-022`), a avaliação sob demanda roda pelo OpenRouter contra o
-modelo principal de `OPENROUTER_DEFAULT_MODEL`, com os mesmos limiares da 007 (`007/SC-005`,
-`007/SC-006`). Trocar esse modelo exige rodá-la de novo antes de habilitar o agente com ele.
+Desde a 008 (`008/US1-4`, `008/FR-022`, `008/SC-009`), a avaliação sob demanda roda pelo
+OpenRouter contra o modelo principal de `OPENROUTER_DEFAULT_MODEL` e, quando definido, contra o de
+`OPENROUTER_FALLBACK_MODEL` (cada um como único modelo da rota), com os mesmos limiares da 007
+(`007/SC-005`, `007/SC-006`). Só as respostas do principal são gravadas em `recorded.json`.
+Trocar um desses modelos exige rodá-la de novo antes de habilitar o agente com ele.
 
 Para regravar: rode com `EVAL_RECORD=1`, revise o diff de cada `recorded.json` (o CI passa a
 reproduzir essas respostas) e versione. Um caso novo ou um `expected.json` alterado é uma nova

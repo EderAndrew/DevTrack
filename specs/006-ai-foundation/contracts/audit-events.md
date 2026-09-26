@@ -37,6 +37,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_model_config.changed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `previousModel`, `model` (registry sync, when a deploy changes the model of an existing config) |
 | `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `tasks` (008), `newVersions`, `deprecated` (only when something changed) |
 | `ai_execution.rate_limited` | — | USER | — | `scope` |
+| `ai_execution.fallback_used` | — (008) | SYSTEM | AI_EXECUTION | `primaryConfigKey`, `fallbackConfigKey`, `reason` (`PROVIDER_FAILURE` \| `CIRCUIT_OPEN`), `primaryErrorCode` (same transaction as the fallback leg's `ai_model_calls` row) |
 
 Notes:
 - `ai_execution.cancelled`: USER when the teacher cancels, SYSTEM when a disabled agent's queued

@@ -6,7 +6,8 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
-import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
+import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
+import { fakeDelay, fakeError, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import type { AiTestApp } from "./ai";
 import { pooOutput, scriptCurriculumRun, seedGoldenDocument } from "./curriculum-ai";
@@ -26,6 +27,9 @@ import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { api } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
+
+/** The OpenRouter key the scans look for (008/SC-005); never a real credential. */
+export const OPENROUTER_MARKER_KEY = "sk-or-teste-008-CHAVE-FALSA";
 const OPERATOR = { host: "host-jornada", user: "operador-jornada" };
 
 /** A secret produced during the journey; `kind` names it in failure messages, never the value. */
@@ -360,6 +364,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // running, and the rate limit. The input, the instructions, the
   // model's output and the provider's credential are content/secrets the scans look for.
   secrets.push({ kind: "credencial do provedor de IA", value: FAKE_PROVIDER_CREDENTIAL });
+  // 008/US4-1: the OpenRouter key in the configuration (the provider stays the simulated one).
+  if (t.config.ai.openrouter.apiKey) secrets.push({ kind: "chave do OpenRouter", value: t.config.ai.openrouter.apiKey });
   content.push({ kind: "instruções do agente de IA", value: INSTRUCTIONS_MARKER });
   const aiOutput = text("saída do modelo", "MARCADOR-SAIDA-006");
   const aiInput = { text: text("entrada da execução de IA", "MARCADOR-ENTRADA-006") };
@@ -367,10 +373,22 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const requestAi = (extra: object = {}) =>
     teacherClient.post("/api/ai/executions", { agentKey: "reference-l1", resource: aiResource, input: aiInput, idempotencyKey: crypto.randomUUID(), ...extra });
   const aiWorker = t.get(AiExecutionWorker);
-  t.provider.script(fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
   const aiDone = await requestAi();
   expect(aiDone.status).toBe(202);
+  // 008/US3 — the primary is down and each logical call goes to the fallback. The reference tasks
+  // have no fallback, so the route fixed on the execution gets one before it runs.
+  const fallbackConfig = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "fake-alt" }, select: { id: true } });
+  await t.prisma.aiExecution.update({ where: { id: aiDone.body.id }, data: { fallbackModelConfigId: fallbackConfig.id } });
+  const gateway = t.get(ModelGateway);
+  const timing = gateway.timing;
+  gateway.timing = { sleep: async () => {}, random: () => 0 };
+  t.provider.scriptFor("fake-model-1", fakeError("UNAVAILABLE"));
+  t.provider.scriptFor("fake-model-2", fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
   expect(await aiWorker.runOnce()).toBe(1);
+  t.provider.scriptFor("fake-model-1");
+  t.provider.scriptFor("fake-model-2");
+  gateway.timing = timing;
+  expect((await teacherClient.get(`/api/ai/executions/${aiDone.body.id}`)).body.status).toBe("COMPLETED");
   t.provider.script(fakeText(`não é JSON ${aiOutput}`));
   expect((await requestAi()).status).toBe(202);
   expect(await aiWorker.runOnce()).toBe(1);

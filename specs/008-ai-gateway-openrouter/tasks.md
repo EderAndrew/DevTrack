@@ -284,7 +284,7 @@ fallback é usado só quando permitido e o total de chamadas nunca passa do limi
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T031 [P] [US3] Em `apps/api/src/modules/ai/gateway/model-gateway.spec.ts`, a matriz de
+- [X] T031 [P] [US3] Em `apps/api/src/modules/ai/gateway/model-gateway.spec.ts`, a matriz de
   contracts/gateway-routing.md (`008/FR-010`, `008/FR-011`, `008/SC-003`):
   - `UNAVAILABLE`, `RATE_LIMITED` e `TIMEOUT` da chamada esgotam as novas tentativas do
     principal e chamam o fallback uma vez, com as suas tentativas; duas pernas no resultado;
@@ -293,7 +293,7 @@ fallback é usado só quando permitido e o total de chamadas nunca passa do limi
   - principal e fallback falhando → `AiFailure` com o código do fallback e duas pernas, sem
     voltar ao principal;
   - rota sem fallback → comportamento da 006.
-- [ ] T032 [P] [US3] Criar `apps/api/test/integration/008-us3-fallback.spec.ts` com o
+- [X] T032 [P] [US3] Criar `apps/api/test/integration/008-us3-fallback.spec.ts` com o
   Curriculum Agent e o provedor simulado por modelo (`scriptFor`):
   - `008/SC-004`: 20 análises (documentos diferentes, limite por professor alto na
     configuração do teste) com o principal fora do ar e o fallback saudável → pelo menos 19
@@ -310,20 +310,20 @@ fallback é usado só quando permitido e o total de chamadas nunca passa do limi
   - `008/FR-012`: a resposta do fallback passa pela validação de saída e pela fundamentação
     da 007 (saída sem apoio no documento vira aviso, como na 007);
   - edge case: principal desabilitado pelo administrador → a execução usa o fallback direto.
-- [ ] T033 [P] [US3] Criar `apps/api/test/security/008-fallback-concurrency.spec.ts`: várias
+- [X] T033 [P] [US3] Criar `apps/api/test/security/008-fallback-concurrency.spec.ts`: várias
   execuções simultâneas com o principal fora do ar → cada uma com no máximo duas pernas por
   chamada lógica, um evento de fallback por execução, nenhum laço (`008/SC-003`).
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Em `model-gateway.ts`: fallback depois do principal (research G6):
+- [X] T034 [US3] Em `model-gateway.ts`: fallback depois do principal (research G6):
   categorias transitórias após as tentativas, mesmo prazo e sinal, nunca de volta ao
   principal; pernas com `isFallback`.
-- [ ] T035 [US3] Em `ai-execution.runner.ts`: gravar a perna do fallback com `is_fallback`,
+- [X] T035 [US3] Em `ai-execution.runner.ts`: gravar a perna do fallback com `is_fallback`,
   marcar `fallback_used` e registrar `ai_execution.fallback_used` (`primaryConfigKey`,
   `fallbackConfigKey`, `reason`, `primaryErrorCode`) na mesma transação; novo tipo em
   `audit-event-types.ts`, no contrato de auditoria da 006 e na `journey.ts`.
-- [ ] T036 [US3] Avaliação do fallback (research G20): `curriculum-agent.eval.ts` roda o
+- [X] T036 [US3] Avaliação do fallback (research G20): `curriculum-agent.eval.ts` roda o
   conjunto de referência também contra `OPENROUTER_FALLBACK_MODEL` quando definido, como único
   modelo da rota, com os mesmos limiares (`008/SC-009`).
 
@@ -340,7 +340,7 @@ fora do ar durante uma análise.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T037 [P] [US4] Chave marcadora `sk-or-teste-008-CHAVE-FALSA` em duas frentes, sem
+- [X] T037 [P] [US4] Chave marcadora `sk-or-teste-008-CHAVE-FALSA` em duas frentes, sem
   registrar o provedor `openrouter` em nenhuma app de teste (T022) (`008/US4-1`,
   `008/SC-005`):
   - em `apps/api/test/security/secret-leak-scan.spec.ts` e `apps/api/test/helpers/journey.ts`,
@@ -353,20 +353,22 @@ fora do ar durante uma análise.
     responde sucesso, 401, 429, 503, erro de rede e demora além do sinal; nenhum erro
     lançado, `String(error)`, `JSON.stringify(error)` nem saída capturada do processo
     contém a chave.
-- [ ] T038 [P] [US4] Criar `apps/api/test/integration/008-us4-resilience.spec.ts`:
+- [X] T038 [P] [US4] Criar `apps/api/test/integration/008-us4-resilience.spec.ts`:
   - `008/US4-2`: app sem `OPENROUTER_API_KEY` → inicia, "Preencher com IA" indisponível,
     preenchimento manual da 004 funciona;
   - `008/US4-3`, `008/SC-006`: provedor simulado sem responder (atraso maior que o prazo) →
     análise termina com erro controlado dentro do prazo, e rotas sem IA (`/health`, `/me`,
     lista de disciplinas) respondem normalmente durante a chamada.
-- [ ] T039 [P] [US4] Em `apps/api/test/security/006-ai-boundary.spec.ts`, `008/US4-4`: o web
+- [X] T039 [P] [US4] Em `apps/api/test/security/006-ai-boundary.spec.ts`, `008/US4-4`: o web
   não tem host, chave nem chamada ao OpenRouter (varredura de `apps/web/**`, fora do mock do
   E2E) e o `.next` de produção não recebe variável `OPENROUTER_*`.
 
 ### Implementation for User Story 4
 
-- [ ] T040 [US4] Corrigir o que T037–T039 apontarem (redação, mensagens, variáveis do web); se
+- [X] T040 [US4] Corrigir o que T037–T039 apontarem (redação, mensagens, variáveis do web); se
   nada falhar, registrar no PR que a US4 é garantida pelas T001–T027.
+  Resultado (2026-09-26): nada falhou; a US4 é garantida pelas T001–T027 (provedor sem a chave
+  em erro nem serialização, redação `*.openrouter`, chave só no servidor). Citar no PR.
 
 **Checkpoint**: US4 completa.
 

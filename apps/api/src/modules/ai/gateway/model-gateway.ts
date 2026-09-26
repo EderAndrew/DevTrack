@@ -44,6 +44,13 @@ export interface GatewayCall {
   structuredSchema?: object;
 }
 
+/** Why a logical call went to the fallback (008 contracts/audit-events.md). */
+export interface FallbackTrigger {
+  reason: "PROVIDER_FAILURE" | "CIRCUIT_OPEN";
+  /** The primary leg's final code; `AI_MODEL_UNAVAILABLE` when the primary couldn't be called. */
+  primaryErrorCode: AiErrorCode | null;
+}
+
 /** What one config did within a logical call; the runner writes one `ai_model_calls` row per leg. */
 export interface GatewayLeg {
   config: GatewayModelConfig;
@@ -55,6 +62,8 @@ export interface GatewayLeg {
   errorCode: AiErrorCode | null;
   usage: ModelUsage | null;
   servedModel: string | null;
+  /** Only on a fallback leg. */
+  trigger?: FallbackTrigger;
 }
 
 export interface GatewayResult {
@@ -66,7 +75,8 @@ export interface GatewayResult {
 
 type Outcome = { ok: true; response: ModelResponse } | { ok: false; reason: "cancelled" | "deadline" } | { ok: false; category: ProviderErrorCategory };
 
-type LegResult = { ok: true; response: ModelResponse; leg: GatewayLeg } | { ok: false; leg: GatewayLeg & { errorCode: AiErrorCode } };
+/** `recoverable`: the leg ended on a transient provider failure, so the fallback may run (008 FR-010). */
+type LegResult = { ok: true; response: ModelResponse; leg: GatewayLeg } | { ok: false; recoverable: boolean; leg: GatewayLeg & { errorCode: AiErrorCode } };
 
 /**
  * The only way to a model (006 FR-001, FR-014, research A12): picks the provider of the config,
@@ -98,19 +108,50 @@ export class ModelGateway {
     return this.definitions.modelConfigs.some((config) => config.key === configKey && config.unavailableReason !== undefined);
   }
 
+  /**
+   * One logical call (008 research G6, contracts/gateway-routing.md): the primary with its
+   * retries; after a transient failure, or when the primary can't be called, the fallback once,
+   * with its own retries, under the same deadline and signal. Never back to the primary, so at
+   * most two legs.
+   */
   async call(call: GatewayCall): Promise<GatewayResult> {
     const started = Date.now();
-    const result = await this.leg(call.route.primary, false, call);
-    if (!result.ok) throw new AiFailure(result.leg.errorCode, result.leg.attempts, Date.now() - started, [result.leg]);
-    return { response: result.response, legs: [result.leg], attempts: result.leg.attempts, durationMs: Date.now() - started };
+    const { primary, fallback } = call.route;
+    const legs: GatewayLeg[] = [];
+    const finish = (response: ModelResponse): GatewayResult => ({ response, legs, attempts: attemptsOf(legs), durationMs: Date.now() - started });
+    const fail = (code: AiErrorCode): never => {
+      throw new AiFailure(code, attemptsOf(legs), Date.now() - started, legs);
+    };
+
+    let trigger: FallbackTrigger;
+    if (this.isUsable(primary) || !fallback) {
+      const first = await this.leg(primary, false, call);
+      legs.push(first.leg);
+      if (first.ok) return finish(first.response);
+      if (!fallback || !first.recoverable) return fail(first.leg.errorCode);
+      trigger = { reason: "PROVIDER_FAILURE", primaryErrorCode: first.leg.errorCode };
+    } else {
+      // Disabled by the admin or refused by the policy: nothing to call on the primary.
+      trigger = { reason: "PROVIDER_FAILURE", primaryErrorCode: "AI_MODEL_UNAVAILABLE" };
+    }
+
+    const primaryCode = trigger.primaryErrorCode ?? "AI_MODEL_UNAVAILABLE";
+    if (!this.isUsable(fallback)) return fail(primaryCode);
+    if (call.signal.aborted) return fail("AI_EXECUTION_CANCELLED");
+    if (call.deadline.getTime() <= Date.now()) return fail(primaryCode);
+    const second = await this.leg(fallback, true, call);
+    legs.push({ ...second.leg, trigger });
+    if (second.ok) return finish(second.response);
+    return fail(second.leg.errorCode);
   }
 
   /** One config with its own retries, under the call's deadline and signal. */
   private async leg(config: GatewayModelConfig, isFallback: boolean, call: GatewayCall): Promise<LegResult> {
     const startedAt = new Date();
     const started = startedAt.getTime();
-    const done = (errorCode: AiErrorCode, attempts: number): LegResult => ({
+    const done = (errorCode: AiErrorCode, attempts: number, recoverable = false): LegResult => ({
       ok: false,
+      recoverable,
       leg: {
         config,
         isFallback,
@@ -161,9 +202,11 @@ export class ModelGateway {
         };
       }
       if ("reason" in outcome) return done(outcome.reason === "cancelled" ? "AI_EXECUTION_CANCELLED" : "AI_TIMEOUT", attempts);
-      if (!isTransient(outcome.category) || attempts > call.limits.maxRetries) return done(PROVIDER_ERROR_CODES[outcome.category], attempts);
+      const code = PROVIDER_ERROR_CODES[outcome.category];
+      if (!isTransient(outcome.category)) return done(code, attempts);
+      if (attempts > call.limits.maxRetries) return done(code, attempts, true);
       const wait = backoffMs(attempts - 1, this.timing.random);
-      if (Date.now() + wait >= call.deadline.getTime()) return done(PROVIDER_ERROR_CODES[outcome.category], attempts);
+      if (Date.now() + wait >= call.deadline.getTime()) return done(code, attempts, true);
       await this.timing.sleep(wait);
     }
   }
@@ -195,3 +238,5 @@ export class ModelGateway {
     });
   }
 }
+
+const attemptsOf = (legs: readonly GatewayLeg[]) => legs.reduce((sum, leg) => sum + leg.attempts, 0);

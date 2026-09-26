@@ -280,7 +280,10 @@ export class AiExecutionRunner {
     }
   }
 
-  /** One leg: its `ai_model_calls` row and the execution's counter in one transaction, then its log line. */
+  /**
+   * One leg: its `ai_model_calls` row and the execution's counter in one transaction, and for a
+   * fallback leg `fallback_used` and its audit event too (008 FR-016); then its log line.
+   */
   private async recordLeg(claimed: ClaimedExecution, execution: Loaded, route: ExecutionRoute, leg: GatewayLeg, sequence: number): Promise<void> {
     const config = [route.primary, route.fallback].find((candidate) => candidate?.key === leg.config.key)!;
     await this.prisma.runInTransaction(async (tx) => {
@@ -297,7 +300,24 @@ export class AiExecutionRunner {
         servedModel: leg.servedModel,
         isFallback: leg.isFallback,
       });
-      await tx.aiExecution.updateMany({ where: { id: claimed.id, claimToken: claimed.claimToken }, data: { modelCalls: { increment: 1 } } });
+      await tx.aiExecution.updateMany({
+        where: { id: claimed.id, claimToken: claimed.claimToken },
+        data: { modelCalls: { increment: 1 }, ...(leg.isFallback ? { fallbackUsed: true } : {}) },
+      });
+      if (leg.isFallback && leg.trigger) {
+        await this.audit.record(tx, {
+          type: "ai_execution.fallback_used",
+          actorType: "SYSTEM",
+          targetType: "AI_EXECUTION",
+          targetId: claimed.id,
+          metadata: {
+            primaryConfigKey: route.primary.key,
+            fallbackConfigKey: config.key,
+            reason: leg.trigger.reason,
+            primaryErrorCode: leg.trigger.primaryErrorCode,
+          },
+        });
+      }
     });
     aiLog(this.logger, "ai.model_call", {
       ...this.logBase(execution),

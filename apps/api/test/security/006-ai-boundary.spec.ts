@@ -111,6 +111,53 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(offenders).toEqual([]);
   });
 
+  it("008/US4-4 o web não tem host, chave nem chamada ao OpenRouter, e o build do web não recebe OPENROUTER_*", () => {
+    // Only the E2E harness names OpenRouter: the mock and the configuration of the E2E API.
+    const E2E_HARNESS = ["e2e/openrouter-mock.ts", "e2e/env.ts", "e2e/playwright.config.ts", "e2e/.env.e2e"];
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        if (["node_modules", ".next", "playwright-report", "test-results", "coverage"].includes(name)) continue;
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.(ts|tsx|js|mjs|json)$|^\.env/.test(name)) {
+          const rel = relative(WEB, path);
+          if (E2E_HARNESS.includes(rel)) continue;
+          const text = readFileSync(path, "utf8");
+          // A comment naming the mock is fine; a host, a key variable, a key or a call is not.
+          if (/openrouter\.ai|OPENROUTER_|sk-or-|chat\/completions/i.test(text)) offenders.push(rel);
+        }
+      }
+    };
+    walk(WEB);
+    expect(offenders).toEqual([]);
+
+    // The web server of the E2E gets only its own variables, never the API's `.env.e2e`.
+    const playwright = readFileSync(resolve(WEB, "e2e/playwright.config.ts"), "utf8");
+    const webServer = playwright.slice(playwright.indexOf('command: "next build'));
+    expect(webServer.slice(0, webServer.indexOf("}") + 1), "webServer do web").toMatch(/env: \{ API_ORIGIN: API_URL, NEXT_DIST_DIR: "\.next\/e2e" \}/);
+    // `next.config.js` exposes only the app version to the bundle.
+    const nextConfig = readFileSync(resolve(WEB, "next.config.js"), "utf8");
+    expect(nextConfig).not.toMatch(/OPENROUTER/);
+    expect(nextConfig.match(/\benv\s*:.*$/gm)).toEqual(["env: { NEXT_PUBLIC_APP_VERSION: appVersion() },"]);
+    // A production build, when present, carries no OpenRouter variable, host or key.
+    const staticDir = resolve(WEB, ".next/static");
+    const bundles: string[] = [];
+    const collect = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) collect(path);
+        else if (name.endsWith(".js")) bundles.push(path);
+      }
+    };
+    try {
+      collect(staticDir);
+    } catch {
+      // No build in this checkout: the source scan above is the guard.
+    }
+    expect(bundles.filter((file) => /openrouter\.ai|OPENROUTER_|sk-or-/.test(readFileSync(file, "utf8"))).map((file) => relative(WEB, file))).toEqual([]);
+  });
+
   it("006/FR-016 008/FR-024 nem a API nem o web dependem de SDK de provedor (o OpenRouter usa fetch)", () => {
     const allowed = { "apps/api/package.json": [], "apps/web/package.json": [] };
     for (const [pkg, expected] of Object.entries(allowed)) {
