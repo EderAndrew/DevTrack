@@ -37,7 +37,7 @@ recorded answers, on demand against the real model) and the per-agent proposal a
 "Operação de IA". Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -196,8 +196,9 @@ the removal conditions are in `DEPENDENCIES.md`.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
   contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
   `provisioning`, `admin-activation`, `health`, `classes` for classes, class invitations,
-  enrollments and "Minhas turmas", and `curriculum` for 004 subjects, syllabus, class meetings and
-  class plans), with types derived through `z.infer`
+  enrollments and "Minhas turmas", `ai` for the 006 executions, proposals and operations, and
+  `curriculum` for 004 subjects, syllabus, class meetings and class plans plus the 007
+  `curriculum-ai.ts`), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
