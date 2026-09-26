@@ -8,6 +8,9 @@ import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.w
 import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import type { AiTestApp } from "./ai";
+import { pooOutput, scriptCurriculumRun, seedGoldenDocument } from "./curriculum-ai";
+import { GOLDEN_MARKER } from "../fixtures/curriculum-agent/build-golden";
+import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
   createSyllabusDocument,
@@ -48,8 +51,8 @@ export interface JourneyResult {
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
  * Used by the SC-005 secret scan and the SC-008 audit coverage tests. `t` comes from
- * `createAiTestApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
- * flows run the reference agents on the fake provider.
+ * `createCurriculumAiApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
+ * flows run the reference agents and the 007 flows the curriculum agent, all on the fake provider.
  */
 export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const secrets: JourneySecret[] = [];
@@ -221,6 +224,53 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   });
   expect(reviewed.status).toBe(200);
   expect((await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {})).body.status).toBe("CONFIRMED");
+  // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
+  // provider, reads the document and proposes its content without touching the syllabus.
+  const aiDocumentId = syllabus.body.document.id as string;
+  scriptCurriculumRun(t.provider, aiDocumentId, pooOutput());
+  const analysis = await teacherClient.post(`/api/syllabus-documents/${aiDocumentId}/ai-analyses`, {});
+  expect(analysis.status).toBe(202);
+  expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  expect((await teacherClient.get(`/api/syllabus-documents/${aiDocumentId}/ai`)).body.pendingProposalId).not.toBeNull();
+  for (const type of ["ai_execution.requested", "ai_proposal.created"]) {
+    const event = await t.prisma.auditEvent.findFirstOrThrow({ where: { type }, orderBy: { id: "desc" } });
+    expect(event.metadata, type).toMatchObject({ agentKey: "curriculum-agent" });
+  }
+  expect(await t.prisma.auditEvent.count({ where: { type: "curriculum_ai.analysis_requested", targetId: aiDocumentId } })).toBe(1);
+  // 007/US3 — the teacher accepts the title and the first group: the next revision is an
+  // AI_ASSISTED draft, and the confirmed one stays as it was.
+  const proposalId = (await teacherClient.get(`/api/syllabus-documents/${aiDocumentId}/ai`)).body.pendingProposalId as string;
+  const applied = await teacherClient.post(`/api/syllabus-documents/${aiDocumentId}/ai-proposals/${proposalId}/apply`, {
+    acceptedItemIds: ["title", "group:0"],
+    replaceDraft: false,
+  });
+  expect(applied.status).toBe(200);
+  expect(applied.body.revision).toMatchObject({ number: 2, status: "DRAFT", source: "AI_ASSISTED", aiProposalId: proposalId });
+  expect(applied.body.proposal.status).toBe("PARTIALLY_APPROVED");
+  // 007/SC-009 — a golden document carrying MARCADOR-EMENTA-007: an analysis that fails on an
+  // invalid output, then one whose proposal (echoing the marker) the teacher rejects. A second
+  // teacher, so the 006 per-teacher execution limit the flows below rely on is not spent here.
+  content.push({ kind: "texto do documento de referência (007)", value: GOLDEN_MARKER });
+  const goldenTeacher = await createUser(t, { roles: ["TEACHER"], name: "Professora do Documento de Referência" });
+  const goldenClient = api(t, { cookie: await loginAs(t, goldenTeacher) });
+  const { document: golden } = await seedGoldenDocument(t, goldenTeacher.id, "minimo");
+  t.provider.script(fakeToolCall(READ_CURRICULUM_DOCUMENT, { documentId: golden.id }), fakeText(`não é JSON ${GOLDEN_MARKER}`));
+  expect((await goldenClient.post(`/api/syllabus-documents/${golden.id}/ai-analyses`, {})).status).toBe(202);
+  expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  const failedAnalysis = (await goldenClient.get(`/api/syllabus-documents/${golden.id}/ai`)).body;
+  expect(failedAnalysis.lastExecution).toMatchObject({ status: "FAILED", errorCode: "AI_OUTPUT_PARSE_FAILED" });
+  scriptCurriculumRun(t.provider, golden.id, {
+    title: "Tópicos de Orientação a Objetos",
+    syllabusText: `Encapsulamento e herança. Documento fictício de teste ${GOLDEN_MARKER}.`,
+    competencyText: null,
+    groups: [{ title: "Conceitos", items: [{ text: "Encapsulamento", sourceRef: null }, { text: "Herança", sourceRef: null }] }],
+    warnings: [{ code: "FIELD_NOT_FOUND", field: "competencyText", groupIndex: null }],
+  });
+  expect((await goldenClient.post(`/api/syllabus-documents/${golden.id}/ai-analyses`, {})).status).toBe(202);
+  expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  const goldenProposalId = (await goldenClient.get(`/api/syllabus-documents/${golden.id}/ai`)).body.pendingProposalId as string;
+  const rejected = await goldenClient.post(`/api/ai/proposals/${goldenProposalId}/decision`, { decision: "REJECT" });
+  expect(rejected.body.status).toBe("REJECTED");
   // 004/US4 — the teacher marks two class days, then unmarks one whose topic is archived there.
   const meetingsPath = `/api/classes/${classId}/meetings`;
   const calendar = await teacherClient.put(meetingsPath, {

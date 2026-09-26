@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
-import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
+import { type AiTestApp, resetAiDb } from "../helpers/ai";
+import { createCurriculumAiApp } from "../helpers/curriculum-ai";
 import { createUser, loginAs } from "../helpers/factories";
 import { api } from "../helpers/test-app";
 
@@ -38,7 +39,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   let content: JourneySecret[];
 
   beforeAll(async () => {
-    t = await createAiTestApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+    t = await createCurriculumAiApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
     await resetAiDb(t);
     ({ secrets, content } = await runFullJourney(t));
   });
@@ -117,6 +118,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "entrada da execução de IA",
         "instruções do agente de IA",
         "saída do modelo",
+        // 007: the text of a golden syllabus document the curriculum agent read.
+        "texto do documento de referência (007)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -147,6 +150,31 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(operations["resposta de /ai/operations/metrics?period=30d"]).toContain("reference-l1");
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
     expect(leaks(scanned, { logs: logs.text(), auditoria: serialize(events), ...operations })).toEqual([]);
+  });
+
+  it("007/SC-009 007/FR-044 o texto do documento de referência e a credencial do provedor fora dos logs, da auditoria, das respostas da operação e das mensagens de erro", async () => {
+    const scanned = [...content, ...secrets].filter(({ kind }) => ["texto do documento de referência (007)", "credencial do provedor de IA"].includes(kind));
+    expect(scanned).toHaveLength(2);
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = {
+      logs: logs.text(),
+      auditoria: serialize(await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } })),
+    };
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs"]) {
+      sources[`resposta de /ai/operations/${path}`] = serialize((await client.get(`/api/ai/operations/${path}`)).body);
+    }
+    expect(sources["resposta de /ai/operations/metrics?period=30d"]).toContain("curriculum-agent");
+    // The failed analysis, as the teacher sees it: only the code, never the output that failed.
+    const failed = await t.prisma.aiExecution.findMany({ where: { agentKey: "curriculum-agent", status: "FAILED" }, select: { errorCode: true } });
+    expect(failed.map((row) => row.errorCode)).toContain("AI_OUTPUT_PARSE_FAILED");
+    sources["mensagens de erro das execuções"] = serialize(failed);
+    expect(leaks(scanned, sources)).toEqual([]);
+
+    // The marker was really read and proposed (the scan is not vacuous): in the model's context and the proposal.
+    expect(serialize(t.provider.requests)).toContain("MARCADOR-EMENTA-007");
+    expect(serialize(await t.prisma.aiProposal.findMany({ where: { status: "REJECTED" }, select: { payload: true } }))).toContain("MARCADOR-EMENTA-007");
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

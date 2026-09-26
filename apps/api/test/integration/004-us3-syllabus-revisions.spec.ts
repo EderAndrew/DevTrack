@@ -96,7 +96,7 @@ describe("004/US3 — revisão e confirmação do conteúdo extraído (FR-017, F
     const detail = await client.get(`/api/syllabus-documents/${document.id}`);
     expect(detail.body.draftRevisionId).toBe(revision.id);
     expect(detail.body.revisions).toEqual([
-      { id: revision.id, number: 1, status: "DRAFT", source: "EXTRACTION", confirmedAt: null },
+      { id: revision.id, number: 1, status: "DRAFT", source: "EXTRACTION", aiProposalId: null, confirmedAt: null },
     ]);
     expect((await client.get(`/api/syllabus-revisions/${revision.id}`)).body).toEqual(revision);
   });
@@ -176,7 +176,7 @@ describe("004/US3 — revisão e confirmação do conteúdo extraído (FR-017, F
     });
 
     const detail = await client.get(`/api/syllabus-documents/${document.id}`);
-    expect(detail.body.confirmedRevision).toEqual({ id: draft.id, number: 1 });
+    expect(detail.body.confirmedRevision).toEqual({ id: draft.id, number: 1, source: "EXTRACTION" });
     expect(detail.body.draftRevisionId).toBeNull();
 
     const put = await client.put(`/api/syllabus-revisions/${draft.id}`, { groups: [{ items: [{ text: "x" }] }] });
@@ -240,6 +240,7 @@ describe("004/US3 — revisão e confirmação do conteúdo extraído (FR-017, F
     expect((await client.get(`/api/syllabus-documents/${document.id}`)).body.confirmedRevision).toEqual({
       id: draft.body.id,
       number: 1,
+      source: "MANUAL",
     });
     expect(await originalHash(document.id)).toBe(hashBefore);
   });
@@ -280,7 +281,7 @@ describe("004/US3 — revisão e confirmação do conteúdo extraído (FR-017, F
 
     expect((await client.post(`/api/syllabus-revisions/${copy.id}/confirm`, {})).status).toBe(200);
     expect((await client.get(`/api/syllabus-revisions/${base.revision.id}`)).body).toEqual(baseBefore);
-    expect((await client.get(`/api/syllabus-documents/${document.id}`)).body.confirmedRevision).toEqual({ id: copy.id, number: 2 });
+    expect((await client.get(`/api/syllabus-documents/${document.id}`)).body.confirmedRevision).toEqual({ id: copy.id, number: 2, source: "REVISION" });
   });
 
   it("004/US3-6 base em rascunho → 422 REVISION_NOT_CONFIRMED; base de outro documento → 404", async () => {

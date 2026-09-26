@@ -85,16 +85,27 @@ const PHASE_006_TEXTS: Record<string, string> = {
   AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS };
+const PHASE_007_TEXTS: Record<string, string> = {
+  AI_PROPOSAL_APPLY_REQUIRED: "Esta proposta é aprovada ao aplicá-la na ementa.",
+  SYLLABUS_NOT_READY_FOR_AI:
+    "O preenchimento com IA precisa de um documento com texto (PDF com texto ou DOCX). Preencha o conteúdo manualmente.",
+  CURRICULUM_PROPOSAL_PENDING:
+    "Já existe uma proposta aguardando revisão. Revise-a ou descarte-a para pedir uma nova análise.",
+  CURRICULUM_SOURCE_CHANGED: "O documento analisado não corresponde mais a esta proposta. Peça uma nova análise.",
+  CURRICULUM_PROPOSAL_INVALID:
+    "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("cobre os 63 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004 e da 006", () => {
+  it("007/FR-040 cobre os 68 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006 e da 007", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(65);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(70);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

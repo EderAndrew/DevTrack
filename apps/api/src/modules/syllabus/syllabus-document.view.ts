@@ -17,7 +17,7 @@ export const SYLLABUS_DOCUMENT_VIEW_SELECT = {
   createdAt: true,
   processedAt: true,
   revisions: {
-    select: { id: true, number: true, status: true, source: true, confirmedAt: true },
+    select: { id: true, number: true, status: true, source: true, aiProposalId: true, confirmedAt: true },
     orderBy: { number: "desc" },
   },
 } as const satisfies Prisma.SyllabusDocumentSelect;
@@ -50,7 +50,7 @@ export function toSyllabusDocumentView(row: SyllabusDocumentViewRow): SyllabusDo
     attempts: row.attempts,
     uploadedAt: row.createdAt.toISOString(),
     processedAt: row.processedAt?.toISOString() ?? null,
-    confirmedRevision: confirmed ? { id: confirmed.id, number: confirmed.number } : null,
+    confirmedRevision: confirmed ? { id: confirmed.id, number: confirmed.number, source: confirmed.source } : null,
     draftRevisionId: draft?.id ?? null,
   };
 }
@@ -65,6 +65,7 @@ export function toSyllabusDocumentDetail(row: SyllabusDocumentDetailRow): Syllab
       number: revision.number,
       status: revision.status,
       source: revision.source,
+      aiProposalId: revision.aiProposalId,
       confirmedAt: revision.confirmedAt?.toISOString() ?? null,
     })),
   };

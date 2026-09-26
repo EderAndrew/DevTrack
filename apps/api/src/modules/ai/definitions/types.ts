@@ -1,3 +1,4 @@
+import type { Abstract, Type } from "@nestjs/common";
 import type { AiModelConfigStatus, AiProviderStatus, AiResourceRef } from "@repo/contracts";
 import type { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
@@ -44,7 +45,11 @@ export interface AgentDefinition {
   description: string;
   /** Bumped on any behavior change (FR-007). */
   version: number;
-  initialStatus: "DRAFT" | "ACTIVE";
+  /**
+   * Status of the agent's first registration; later syncs keep what the admin chose. `DISABLED`
+   * waits for the admin to enable it (007 FR-051: after the on-demand eval).
+   */
+  initialStatus: "DRAFT" | "ACTIVE" | "DISABLED";
   riskLevel: AiDeclarableRiskLevel;
   /** Permission that executes the agent; added to the catalog by the agent's own spec. */
   requiredPermission: string;
@@ -70,9 +75,26 @@ export interface AgentDefinition {
   proposal?: {
     type: string;
     itemIds(output: unknown): string[];
+    /**
+     * Builds the proposal from the validated output and the successful tool results, in order
+     * (007 research C6). Pure: no I/O. `null` → nothing to propose, and the execution ends
+     * COMPLETED without a proposal; a throw → FAILED `AI_OUTPUT_VALIDATION_FAILED`. Without it,
+     * the content is the output and the ids come from `itemIds`.
+     */
+    build?(output: unknown, context: ProposalBuildContext): { content: unknown; itemIds: string[] } | null;
+    /**
+     * Approval only through the agent's domain (007 research C12.6): `POST /ai/proposals/:id/decision`
+     * refuses `APPROVE` and `APPROVE_PARTIALLY` with `409 AI_PROPOSAL_APPLY_REQUIRED`.
+     */
+    approveThroughDomain?: boolean;
   };
   /** Authorized metadata sent to the model as `context` (FR-057). */
   buildContext?(context: AiExecutionContext): Record<string, unknown>;
+}
+
+/** What `proposal.build` gets besides the output: the successful tool results of the execution, in order. */
+export interface ProposalBuildContext {
+  toolResults: readonly { toolKey: string; output: unknown }[];
 }
 
 /** What a tool receives: never raw SQL, paths or network built by the model (FR-036, FR-056). */
@@ -83,6 +105,25 @@ export interface ToolContext {
   correlationId: string;
   signal: AbortSignal;
   db: PrismaService;
+  /**
+   * An application service the tool reads through, e.g. the file storage or the syllabus worker
+   * runner (007 research C7), so a tool definition stays a constant. Never a way around the checks
+   * above: the tool still reads only the resource the executor authorized.
+   */
+  get<T>(token: Type<T> | Abstract<T>): T;
+}
+
+/**
+ * Thrown by a tool's `run` to end the call with a specific code (007 research C7): an access
+ * refusal (`DENIED`, and the tool returns no content), a timeout (`TIMED_OUT`) or a failure
+ * (`FAILED`). Any other error is `FAILED` `AI_TOOL_EXECUTION_FAILED`. It carries no message.
+ */
+export class ToolRefusal extends Error {
+  override readonly name = "ToolRefusal";
+
+  constructor(readonly code: "AI_CONTEXT_ACCESS_DENIED" | "AI_TIMEOUT" | "AI_TOOL_EXECUTION_FAILED") {
+    super();
+  }
 }
 
 export interface ToolDefinition<I = unknown, O = unknown> {
@@ -191,7 +232,7 @@ export interface AiDefinitions {
   resources: Record<string, ResourceOwnership>;
 }
 
-/** DI token of the definitions; production uses `PRODUCTION_AI_DEFINITIONS`, tests override it. */
+/** DI token of the definitions; production uses `productionAiDefinitions(config)`, tests override it. */
 export const AI_DEFINITIONS = Symbol("AI_DEFINITIONS");
 
 export const defineAgent = (definition: AgentDefinition): AgentDefinition => definition;

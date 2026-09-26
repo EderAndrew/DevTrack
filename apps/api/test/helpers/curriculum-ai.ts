@@ -1,0 +1,219 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import type {
+  ApplyCurriculumProposalRequest,
+  AiProposalStatus,
+  CurriculumExtractionOutput,
+  RequestCurriculumAnalysisRequest,
+  SyllabusExtraction,
+} from "@repo/contracts";
+import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
+import { type AgentDefinition, type AiDefinitions, defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
+import {
+  CURRICULUM_AGENT,
+  CURRICULUM_MODEL_CONFIG,
+  curriculumAiDefinitions,
+} from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
+import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
+import { referenceAiDefinitions } from "../fixtures/ai/definitions";
+import { type FakeModelProvider, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
+import { type AiTestApp, createAiExecution, createAiTestApp } from "./ai";
+import { createSubject, createSyllabusDocument, pooExtraction } from "./factories";
+import { api, type TestApp, type TestAppOptions } from "./test-app";
+
+/** The real `curriculum-agent`, registered ACTIVE: its availability tests disable it through the admin route. */
+export const TEST_CURRICULUM_AGENT = defineAgent({ ...CURRICULUM_AGENT, initialStatus: "ACTIVE" });
+
+/**
+ * The agent's model config, on the fake provider: only the provider is swapped (006/SC-011), so the
+ * model name and the price stay the real ones (007/FR-047).
+ */
+export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({ ...CURRICULUM_MODEL_CONFIG, provider: "fake" });
+
+/**
+ * `createAiTestApp` with the 007 definitions (agent, tool, ownership of `SYLLABUS_DOCUMENT`) next to
+ * the reference ones. The tool reads through the real file storage and the test build of the
+ * syllabus worker.
+ */
+export function createCurriculumAiApp(options: TestAppOptions = {}): Promise<AiTestApp> {
+  const curriculum = curriculumAiDefinitions();
+  return createAiTestApp({
+    ...options,
+    agents: [TEST_CURRICULUM_AGENT],
+    tools: curriculum.tools,
+    modelConfigs: [TEST_CURRICULUM_MODEL_CONFIG],
+    resources: curriculum.resources,
+  });
+}
+
+/**
+ * The definitions `createCurriculumAiApp` registers, on `provider`, with `agent` in place of the
+ * test agent: what a "restart" with a new agent version syncs (006-us8-versioning pattern).
+ */
+export function curriculumTestDefinitions(provider: FakeModelProvider, agent: AgentDefinition = TEST_CURRICULUM_AGENT): AiDefinitions {
+  const base = referenceAiDefinitions(provider);
+  const curriculum = curriculumAiDefinitions();
+  return {
+    agents: [...base.agents, agent],
+    tools: [...base.tools, ...curriculum.tools],
+    modelConfigs: [...base.modelConfigs, TEST_CURRICULUM_MODEL_CONFIG],
+    providers: base.providers,
+    resources: { ...base.resources, ...curriculum.resources },
+  };
+}
+
+/**
+ * A subject of `teacherId` with a `PROCESSED` document of `fixture` (`poo.pdf` by default): `TEXT`
+ * for PDF and DOCX, `NO_TEXT` for images. The original is really stored, so the read tool works.
+ */
+export async function seedProcessedDocument(
+  t: TestApp,
+  teacherId: string,
+  fixture = "poo.pdf",
+): Promise<{ subject: Subject; document: SyllabusDocument }> {
+  const subject = await createSubject(t, teacherId);
+  const withText = fixture.endsWith(".pdf") || fixture.endsWith(".docx");
+  const document = await createSyllabusDocument(t, subject.id, {
+    fixture,
+    status: "PROCESSED",
+    extraction: withText ? pooExtraction() : null,
+  });
+  return { subject, document };
+}
+
+const GOLDEN = resolve(__dirname, "../fixtures/curriculum-agent/golden");
+
+/**
+ * A subject of `teacherId` with a `PROCESSED` document of the golden case `name`
+ * (`test/fixtures/curriculum-agent/golden/<name>/document.*`, built by `fixtures:curriculum`).
+ */
+export async function seedGoldenDocument(
+  t: TestApp,
+  teacherId: string,
+  name: string,
+): Promise<{ subject: Subject; document: SyllabusDocument }> {
+  const file = readdirSync(resolve(GOLDEN, name)).find((entry) => entry.startsWith("document."));
+  if (!file) throw new Error(`golden case without a document: ${name}`);
+  return seedDocumentFile(t, teacherId, resolve(GOLDEN, name, file));
+}
+
+/** A subject of `teacherId` with a `PROCESSED` document of the file at `path` (PDF or DOCX). */
+export async function seedDocumentFile(
+  t: TestApp,
+  teacherId: string,
+  path: string,
+): Promise<{ subject: Subject; document: SyllabusDocument }> {
+  const subject = await createSubject(t, teacherId);
+  const document = await createSyllabusDocument(t, subject.id, {
+    fixture: basename(path),
+    bytes: readFileSync(path),
+    status: "PROCESSED",
+  });
+  return { subject, document };
+}
+
+/**
+ * A valid agent output for the POO sample, as written in the document (4 groups, 16 items, no
+ * refs). Tests change it to exercise the grounding check and the refs.
+ */
+export function pooOutput(): CurriculumExtractionOutput {
+  const extraction = pooExtraction() as unknown as SyllabusExtraction;
+  return {
+    title: extraction.title,
+    syllabusText: extraction.syllabusText,
+    competencyText: extraction.competencyText,
+    groups: extraction.groups.map((group) => ({
+      title: group.title,
+      items: group.items.map((text) => ({ text, sourceRef: null })),
+    })),
+    warnings: [],
+  };
+}
+
+/**
+ * Programs the expected run on the fake provider: call 1 asks for the read tool with `documentId`
+ * (what the model finds in its context), call 2 answers `output`.
+ */
+export function scriptCurriculumRun(fake: FakeModelProvider, documentId: string, output: unknown): void {
+  fake.script(fakeToolCall(READ_CURRICULUM_DOCUMENT, { documentId }), fakeOutput(output));
+}
+
+/** `POST /api/syllabus-documents/:id/ai-analyses`. */
+export function requestAnalysis(t: TestApp, cookie: string, documentId: string, body: RequestCurriculumAnalysisRequest = {}) {
+  return api(t, { cookie }).post(`/api/syllabus-documents/${documentId}/ai-analyses`, body);
+}
+
+/** `GET /api/syllabus-documents/:id/ai`. */
+export function getCurriculumAiStatus(t: TestApp, cookie: string, documentId: string) {
+  return api(t, { cookie }).get(`/api/syllabus-documents/${documentId}/ai`);
+}
+
+/** `POST /api/syllabus-documents/:id/ai-proposals/:proposalId/apply`. */
+export function applyProposal(
+  t: TestApp,
+  cookie: string,
+  documentId: string,
+  proposalId: string,
+  body: ApplyCurriculumProposalRequest,
+) {
+  return api(t, { cookie }).post(`/api/syllabus-documents/${documentId}/ai-proposals/${proposalId}/apply`, body);
+}
+
+export interface CurriculumProposalOptions {
+  /** The extraction stored as is: the factory skips the output schema, so it can hold what a run never would. */
+  extraction?: CurriculumExtractionOutput;
+  itemIds?: string[];
+  status?: AiProposalStatus;
+  expiresAt?: Date;
+  /** Overrides `content.source` (a changed document, an unknown reader version). */
+  source?: Partial<{ documentId: string; sha256: string; readerVersion: number }>;
+}
+
+/**
+ * A completed `curriculum-agent` execution on `document` with its `CURRICULUM_EXTRACTION`
+ * proposal, written straight to the database (the POO output by default, no grounding flags).
+ */
+export async function createCurriculumProposal(
+  t: TestApp,
+  teacherId: string,
+  document: Pick<SyllabusDocument, "id" | "sha256">,
+  options: CurriculumProposalOptions = {},
+) {
+  const execution = await createAiExecution(t, teacherId, CURRICULUM_AGENT.key, {
+    status: "COMPLETED",
+    resource: { type: "SYLLABUS_DOCUMENT", id: document.id },
+  });
+  const extraction = options.extraction ?? pooOutput();
+  const status = options.status ?? "READY_FOR_REVIEW";
+  const decided = status !== "READY_FOR_REVIEW";
+  const itemIds = options.itemIds ?? itemIdsOf(extraction);
+  return t.prisma.aiProposal.create({
+    data: {
+      workspaceId: teacherId,
+      executionId: execution.id,
+      agentVersionId: execution.agentVersionId,
+      agentKey: CURRICULUM_AGENT.key,
+      proposalType: "CURRICULUM_EXTRACTION",
+      targetResourceType: "SYLLABUS_DOCUMENT",
+      targetResourceId: document.id,
+      payload: {
+        extraction,
+        grounding: { unsupported: [] },
+        source: {
+          documentId: document.id,
+          sha256: Buffer.from(document.sha256).toString("hex"),
+          readerVersion: 1,
+          ...options.source,
+        },
+      } as unknown as Prisma.InputJsonObject,
+      itemIds,
+      // PARTIALLY_APPROVED needs a non-empty accepted set (CHECK ai_proposals_partial_chk).
+      acceptedItemIds: status === "PARTIALLY_APPROVED" ? itemIds.slice(0, 1) : [],
+      status,
+      expiresAt: options.expiresAt ?? new Date(Date.now() + 30 * 86_400_000),
+      decidedAt: decided ? new Date() : null,
+      decidedByUserId: decided && status !== "EXPIRED" ? teacherId : null,
+    },
+  });
+}

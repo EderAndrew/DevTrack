@@ -170,7 +170,7 @@ export function pdfFile(objects: Uint8Array[]): Uint8Array {
   return concat(parts);
 }
 
-interface PdfLine {
+export interface PdfLine {
   text: string;
   bold?: boolean;
   size?: number;
@@ -180,7 +180,7 @@ interface PdfLine {
 }
 
 /** Splits a paragraph at spaces so that no line is longer than `width` characters. */
-function wrap(text: string, width = 88): string[] {
+export function wrap(text: string, width = 88): string[] {
   const lines: string[] = [];
   let current = "";
   for (const word of text.split(" ")) {
@@ -313,7 +313,7 @@ const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function paragraph(text: string, options: { style?: string; level?: number } = {}): string {
+export function paragraph(text: string, options: { style?: string; level?: number } = {}): string {
   const props: string[] = [];
   if (options.style) props.push(`<w:pStyle w:val="${options.style}"/>`);
   if (options.level !== undefined) props.push(`<w:numPr><w:ilvl w:val="${options.level}"/><w:numId w:val="1"/></w:numPr>`);
@@ -321,8 +321,8 @@ function paragraph(text: string, options: { style?: string; level?: number } = {
   return `<w:p>${pPr}<w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
 }
 
-function docxParts(syllabus: SampleSyllabus): Record<string, string> {
-  const body = [
+function syllabusBody(syllabus: SampleSyllabus): string {
+  return [
     paragraph(syllabus.title, { style: "Title" }),
     paragraph(SECTION.syllabus, { style: "Heading1" }),
     paragraph(syllabus.syllabusText),
@@ -334,6 +334,10 @@ function docxParts(syllabus: SampleSyllabus): Record<string, string> {
       ...group.items.map((item) => paragraph(item, { style: "ListParagraph", level: 1 })),
     ]),
   ].join("");
+}
+
+/** The package parts of a DOCX whose `word/document.xml` body is `body` (paragraphs from `paragraph`). */
+function docxParts(body: string): Record<string, string> {
   const style = (id: string, name: string, bold: boolean) =>
     `<w:style w:type="paragraph" w:styleId="${id}"><w:name w:val="${name}"/>` +
     `${bold ? "<w:rPr><w:b/></w:rPr>" : ""}</w:style>`;
@@ -375,8 +379,13 @@ const ZIP_MTIME = new Date("2026-01-01T00:00:00Z");
 
 /** A DOCX of `syllabus`, plus `extra` entries appended after the regular parts. */
 export function docx(syllabus: SampleSyllabus = POO, extra: Record<string, Uint8Array> = {}): Uint8Array {
+  return docxFromBody(syllabusBody(syllabus), extra);
+}
+
+/** A DOCX with any body built from `paragraph` (the 007 golden documents). */
+export function docxFromBody(body: string, extra: Record<string, Uint8Array> = {}): Uint8Array {
   const files: Zippable = {};
-  for (const [path, text] of Object.entries(docxParts(syllabus))) files[path] = strToU8(text);
+  for (const [path, text] of Object.entries(docxParts(body))) files[path] = strToU8(text);
   Object.assign(files, extra);
   return zipSync(files, { level: 6, mtime: ZIP_MTIME });
 }

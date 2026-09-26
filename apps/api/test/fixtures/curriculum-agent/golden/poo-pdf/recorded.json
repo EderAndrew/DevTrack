@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-curriculum-document",
+          "arguments": {
+            "documentId": "{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Object-Oriented Programming",
+        "syllabusText": "Exploração dos princípios da programação orientada a objetos, com ênfase em classes, objetos, encapsulamento, herança e polimorfismo, e na aplicação desses conceitos no projeto e na implementação de sistemas de software modulares, reutilizáveis e de fácil manutenção. Frase de controle MARCADOR-EMENTA-004.",
+        "competencyText": "Capacitar os alunos a projetar e implementar soluções de software com os princípios da programação orientada a objetos, aplicando boas práticas de design, padrões de projeto e testes unitários na construção de sistemas robustos e extensíveis.",
+        "groups": [
+          {
+            "title": "Fundamentos de POO",
+            "items": [
+              {
+                "text": "Conceitos de classes, objetos e métodos",
+                "sourceRef": null
+              },
+              {
+                "text": "Encapsulamento, herança e polimorfismo",
+                "sourceRef": null
+              },
+              {
+                "text": "Associações e composição de objetos",
+                "sourceRef": null
+              },
+              {
+                "text": "Diferença entre programação estruturada e orientada a objetos",
+                "sourceRef": null
+              }
+            ]
+          },
+          {
+            "title": "Padrões de Design em POO",
+            "items": [
+              {
+                "text": "Princípios de design orientado a objetos (SOLID)",
+                "sourceRef": null
+              },
+              {
+                "text": "Aplicação de padrões de projeto em POO",
+                "sourceRef": null
+              },
+              {
+                "text": "Design para reutilização e extensibilidade",
+                "sourceRef": null
+              },
+              {
+                "text": "Refatoração de código orientado a objetos",
+                "sourceRef": null
+              }
+            ]
+          },
+          {
+            "title": "POO em Ambientes Reais",
+            "items": [
+              {
+                "text": "Persistência de objetos com ORM",
+                "sourceRef": null
+              },
+              {
+                "text": "Gerenciamento de exceções e erros",
+                "sourceRef": null
+              },
+              {
+                "text": "Introdução a bibliotecas para POO",
+                "sourceRef": null
+              },
+              {
+                "text": "Integração de testes unitários",
+                "sourceRef": null
+              }
+            ]
+          },
+          {
+            "title": "Práticas de Implementação",
+            "items": [
+              {
+                "text": "Modularização e organização de código",
+                "sourceRef": null
+              },
+              {
+                "text": "Controle de acesso com modificadores",
+                "sourceRef": null
+              },
+              {
+                "text": "Desenvolvimento de hierarquias de classes",
+                "sourceRef": null
+              },
+              {
+                "text": "Manutenção e documentação",
+                "sourceRef": null
+              }
+            ]
+          }
+        ],
+        "warnings": []
+      }
+    }
+  ]
+}

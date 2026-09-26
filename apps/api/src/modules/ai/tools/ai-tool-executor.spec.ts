@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { PrismaService } from "../../../platform/database/prisma.service";
+import type { ModuleRef } from "@nestjs/core";
 import type { AuditService } from "../../audit/audit.service";
-import { type AiExecutionContext, type AnyToolDefinition, defineTool } from "../definitions/types";
+import { type AiExecutionContext, type AnyToolDefinition, defineTool, ToolRefusal } from "../definitions/types";
 import { createExecutionContext } from "../execution/ai-execution-context";
 import type { AiResourceResolver } from "../execution/ai-resource.resolver";
 import type { AiToolRegistry } from "../registry/ai-tool.registry";
@@ -36,7 +37,8 @@ function setup(options: { enabled?: boolean; owned?: boolean; run?: AnyToolDefin
   };
   const prisma = { runInTransaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) } as unknown as PrismaService;
   const audit = { record: vi.fn(async (_tx: unknown, event: { type: string; metadata: unknown }) => audits.push(event)) } as unknown as AuditService;
-  const executor = new AiToolExecutor(prisma, audit, { byKey } as unknown as AiToolRegistry, { owns } as unknown as AiResourceResolver);
+  const moduleRef = { get: vi.fn(() => "serviço") } as unknown as ModuleRef & { get: ReturnType<typeof vi.fn> };
+  const executor = new AiToolExecutor(prisma, audit, { byKey } as unknown as AiToolRegistry, { owns } as unknown as AiResourceResolver, moduleRef);
   const context: AiExecutionContext = createExecutionContext({
     executionId: "e1",
     userId: "u1",
@@ -51,8 +53,8 @@ function setup(options: { enabled?: boolean; owned?: boolean; run?: AnyToolDefin
     deadline: new Date(Date.now() + 60_000),
     signal: new AbortController().signal,
   });
-  const call = (toolKey: string, args: unknown) => executor.call(context, { toolKey, arguments: args }, 1, { toolTimeoutMs: 10_000 });
-  return { call, run, byKey, owns, recorded, audits };
+  const call = (toolKey: string, args: unknown) => executor.call(context, { toolKey, arguments: args }, 1, { toolTimeoutMs: 10_000, maxInputBytes: 1_000 });
+  return { call, run, byKey, owns, recorded, audits, moduleRef };
 }
 
 describe("006/FR-035 AiToolExecutor confere na ordem e para na primeira recusa", () => {
@@ -117,8 +119,31 @@ describe("006/FR-035 AiToolExecutor confere na ordem e para na primeira recusa",
     expect(JSON.stringify(s.audits)).not.toContain("vazou");
   });
 
+  it("8. resultado acima do limite de entrada do modelo → FAILED AI_EXECUTION_LIMIT_EXCEEDED, e o resultado não volta (007)", async () => {
+    const s = setup({ run: async () => ({ id: SUBJECT_ID, name: "x".repeat(2_000) }) });
+    expect(await s.call("t.read", { subjectId: SUBJECT_ID })).toEqual({ ok: false, status: "FAILED", code: "AI_EXECUTION_LIMIT_EXCEEDED" });
+    expect(s.recorded[0]).toMatchObject({ status: "FAILED", errorCode: "AI_EXECUTION_LIMIT_EXCEEDED" });
+  });
+
   it("erro inesperado da ferramenta → FAILED AI_TOOL_EXECUTION_FAILED", async () => {
     const s = setup({ run: async () => { throw new Error("boom"); } });
     expect(await s.call("t.read", { subjectId: SUBJECT_ID })).toMatchObject({ status: "FAILED", code: "AI_TOOL_EXECUTION_FAILED" });
+  });
+
+  it.each([
+    ["AI_CONTEXT_ACCESS_DENIED", "DENIED"],
+    ["AI_TIMEOUT", "TIMED_OUT"],
+    ["AI_TOOL_EXECUTION_FAILED", "FAILED"],
+  ] as const)("007 recusa da própria ferramenta %s → %s, sem resultado", async (code, status) => {
+    const s = setup({ run: async () => { throw new ToolRefusal(code); } });
+    expect(await s.call("t.read", { subjectId: SUBJECT_ID })).toEqual({ ok: false, status, code });
+  });
+
+  it("007 a ferramenta resolve serviços da aplicação pelo contexto", async () => {
+    let received: unknown;
+    const s = setup({ run: async (context) => { received = context.get(AiToolExecutor); return { id: SUBJECT_ID, name: "x" }; } });
+    await s.call("t.read", { subjectId: SUBJECT_ID });
+    expect(s.moduleRef.get).toHaveBeenCalledWith(AiToolExecutor, { strict: false });
+    expect(received).toBe("serviço");
   });
 });

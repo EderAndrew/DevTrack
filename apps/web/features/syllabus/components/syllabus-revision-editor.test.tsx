@@ -7,7 +7,8 @@ import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { json } from "../../subjects/components/test-fixtures";
 import { SyllabusRevisionEditor } from "./syllabus-revision-editor";
-import { revisionView } from "./test-fixtures";
+import { SyllabusVersionsList } from "./syllabus-versions-list";
+import { documentView, revisionView } from "./test-fixtures";
 
 const SUBJECT_ID = "00000000-0000-4000-8000-000000000321";
 const DOCUMENT_ID = "00000000-0000-4000-a000-000000000321";
@@ -221,5 +222,45 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
       screen.getByRole("button", { name: "Salvar" }),
       screen.getByRole("button", { name: "Confirmar conteúdo" }),
     ]);
+  });
+});
+
+describe("007/US3 rascunho preenchido com IA no editor e na lista de versões da 004", () => {
+  const PROPOSAL_ID = "5b1d7c2e-8a38-4c55-9d0b-2a4f5c0f6b22";
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("007/US3-5 AI_ASSISTED: aviso \"Preenchido com IA\" com o link \"Ver proposta\", sem mudar o editor", async () => {
+    const revision = revisionView(DOCUMENT_ID, GROUPS, { title: "POO", source: "AI_ASSISTED", aiProposalId: PROPOSAL_ID });
+    const { container } = renderWithProviders(<SyllabusRevisionEditor subjectId={SUBJECT_ID} revision={revision} />);
+
+    expect(screen.getByText(/Preenchido com IA — revise o conteúdo antes de confirmar\./)).toBeTruthy();
+    const link = screen.getByRole("link", { name: "Ver proposta" });
+    expect(link.getAttribute("href")).toBe(`/disciplinas/${SUBJECT_ID}/ementa/${DOCUMENT_ID}/proposta/${PROPOSAL_ID}`);
+    expect(input("Título").value).toBe("POO");
+    expect(screen.getByRole("button", { name: "Confirmar conteúdo" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("outras origens não mostram o aviso", () => {
+    renderWithProviders(<SyllabusRevisionEditor subjectId={SUBJECT_ID} revision={revisionView(DOCUMENT_ID, GROUPS, { source: "MANUAL" })} />);
+    expect(screen.queryByText(/Preenchido com IA/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ver proposta" })).toBeNull();
+  });
+
+  it("a lista de versões rotula a revisão confirmada AI_ASSISTED como \"Preenchido com IA\"", async () => {
+    const ai = documentView(SUBJECT_ID, { version: 2, confirmedRevision: { id: PROPOSAL_ID, number: 2, source: "AI_ASSISTED" } });
+    const manual = documentView(SUBJECT_ID, { version: 1, confirmedRevision: { id: DOCUMENT_ID, number: 1, source: "MANUAL" } });
+    fetchMock.mockResolvedValue(json(200, { items: [ai, manual] }));
+    renderWithProviders(<SyllabusVersionsList subjectId={SUBJECT_ID} />);
+
+    const rows = await screen.findAllByRole("row");
+    expect(within(rows[1]!).getByText("Confirmado (revisão 2) — Preenchido com IA")).toBeTruthy();
+    expect(within(rows[2]!).getByText("Confirmado (revisão 1)")).toBeTruthy();
   });
 });

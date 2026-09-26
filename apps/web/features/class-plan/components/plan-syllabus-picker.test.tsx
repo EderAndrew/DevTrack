@@ -19,8 +19,8 @@ describe("004/US5 PlanSyllabusPicker — ementa usada pela turma (FR-031, FR-042
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const v1 = documentView(SUBJECT_ID, { version: 1, confirmedRevision: { id: uuid(), number: 1 } });
-  const v2 = documentView(SUBJECT_ID, { version: 2, confirmedRevision: { id: uuid(), number: 2 } });
+  const v1 = documentView(SUBJECT_ID, { version: 1, confirmedRevision: { id: uuid(), number: 1, source: "EXTRACTION" } });
+  const v2 = documentView(SUBJECT_ID, { version: 2, confirmedRevision: { id: uuid(), number: 2, source: "EXTRACTION" } });
   const v3 = documentView(SUBJECT_ID, { version: 3, confirmedRevision: null });
 
   const puts = () =>

@@ -1,4 +1,4 @@
-import type { AiErrorCode, ErrorCode } from "@repo/contracts";
+import type { AiErrorCode, CurriculumAiAvailability, CurriculumReviewWarningCode, ErrorCode } from "@repo/contracts";
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
@@ -71,6 +71,14 @@ export const ERROR_MESSAGES = {
   AI_IDEMPOTENCY_KEY_REUSED: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo.",
   AI_PROPOSAL_ITEMS_INVALID: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte.",
   AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
+  AI_PROPOSAL_APPLY_REQUIRED: "Esta proposta é aprovada ao aplicá-la na ementa.",
+  SYLLABUS_NOT_READY_FOR_AI:
+    "O preenchimento com IA precisa de um documento com texto (PDF com texto ou DOCX). Preencha o conteúdo manualmente.",
+  CURRICULUM_PROPOSAL_PENDING:
+    "Já existe uma proposta aguardando revisão. Revise-a ou descarte-a para pedir uma nova análise.",
+  CURRICULUM_SOURCE_CHANGED: "O documento analisado não corresponde mais a esta proposta. Peça uma nova análise.",
+  CURRICULUM_PROPOSAL_INVALID:
+    "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
@@ -160,3 +168,38 @@ export const AI_ERROR_GUIDANCE = {
     guidance: "Tente com um conteúdo menor.",
   },
 } as const satisfies Record<AiErrorCode, { title: string; guidance: string }>;
+
+const AI_UNAVAILABLE = "O preenchimento com IA está indisponível no momento.";
+
+/**
+ * Why "Preencher com IA" can't be used on a document (007 contracts/http-api.md, web-only
+ * messages): never the provider or the model.
+ */
+export const CURRICULUM_AI_AVAILABILITY_MESSAGES = {
+  DOCUMENT_NOT_READY: "Aguarde o processamento do documento para usar a IA.",
+  DOCUMENT_WITHOUT_TEXT: ERROR_MESSAGES.SYLLABUS_NOT_READY_FOR_AI,
+  AGENT_DISABLED: AI_UNAVAILABLE,
+  MODEL_UNAVAILABLE: AI_UNAVAILABLE,
+  PAUSED: AI_UNAVAILABLE,
+} as const satisfies Record<Exclude<CurriculumAiAvailability, "AVAILABLE">, string>;
+
+/** The last analysis found nothing to propose (007/FR-017). */
+export const CURRICULUM_AI_NOTHING_FOUND =
+  "Não foi possível identificar conteúdo de ementa neste documento. Preencha manualmente.";
+
+/** A `429` on "Preencher com IA" (007 contracts/web-ui.md). */
+export const CURRICULUM_AI_RATE_LIMITED = "Muitas análises solicitadas. Tente novamente em alguns minutos.";
+
+/**
+ * What each warning of a curriculum proposal says next to its field, group or item (007
+ * contracts/web-ui.md). The model reports codes only; its prose never reaches the screen.
+ */
+export const CURRICULUM_WARNING_MESSAGES = {
+  UNSUPPORTED_CONTENT: "Não encontrado no documento — confira antes de aplicar.",
+  FIELD_NOT_FOUND: "Não identificado no documento.",
+  AMBIGUOUS_STRUCTURE: "A estrutura do documento é ambígua neste ponto.",
+  LOW_DOCUMENT_QUALITY: "Parte do documento está com baixa qualidade.",
+  INCOMPLETE_SECTION: "Esta seção parece incompleta no documento.",
+  UNREADABLE_CONTENT: "Parte do conteúdo não pôde ser lida.",
+  POSSIBLE_DUPLICATE_CONTENT: "Possível conteúdo repetido.",
+} as const satisfies Record<CurriculumReviewWarningCode, string>;

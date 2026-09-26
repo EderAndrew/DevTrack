@@ -15,6 +15,7 @@ import {
   type ModelHistoryEntry,
   type ModelResponse,
   type ModelToolSpec,
+  type ProposalBuildContext,
   type UntrustedContent,
 } from "../definitions/types";
 import { ModelGateway } from "../gateway/model-gateway";
@@ -107,7 +108,7 @@ export class AiExecutionRunner {
     const limits = effectiveLimits(this.config.ai.limits, definition);
     await this.checkCancel(claimed);
 
-    const text = await this.converse(claimed, execution, definition, config, context, limits, signal);
+    const { text, toolResults } = await this.converse(claimed, execution, definition, config, context, limits, signal);
     await this.checkCancel(claimed);
 
     const moved = await this.prisma.runInTransaction((tx) =>
@@ -120,7 +121,7 @@ export class AiExecutionRunner {
       aiLog(this.logger, "ai.output_invalid", { ...this.logBase(execution), errorCode: validation.code, issuePaths: validation.issues.map((i) => i.path) }, "warn");
       throw new Stop("FAILED", validation.code);
     }
-    await this.complete(claimed, execution, definition, validation.output);
+    await this.complete(claimed, execution, definition, validation.output, toolResults);
   }
 
   /**
@@ -137,8 +138,9 @@ export class AiExecutionRunner {
     context: AiExecutionContext,
     limits: ReturnType<typeof effectiveLimits>,
     signal: AbortSignal,
-  ): Promise<string> {
+  ): Promise<{ text: string; toolResults: ProposalBuildContext["toolResults"] }> {
     const history: ModelHistoryEntry[] = [];
+    const toolResults: { toolKey: string; output: unknown }[] = [];
     const tools = this.toolSpecs(execution);
     let modelCalls = 0;
     let toolCalls = 0;
@@ -155,7 +157,7 @@ export class AiExecutionRunner {
       modelCalls += 1;
       const response = await this.callModel(claimed, execution, config, limits, request, definition, signal, modelCalls);
       await this.checkCancel(claimed);
-      if (response.kind === "output") return response.text;
+      if (response.kind === "output") return { text: response.text, toolResults };
 
       if (!(await this.moveOrStop(claimed, "RUNNING", "WAITING_TOOL", "TOOL_CALL"))) throw new Stop("CANCELLED", "AI_EXECUTION_CANCELLED");
       history.push({ role: "assistant", toolCalls: response.calls });
@@ -164,6 +166,7 @@ export class AiExecutionRunner {
         toolCalls += 1;
         const outcome = await this.toolExecutor.call(context, call, toolCalls, limits);
         await this.checkCancel(claimed);
+        if (outcome.ok) toolResults.push({ toolKey: String(call.toolKey), output: outcome.result });
         if (!outcome.ok) {
           if (outcome.code === "AI_EXECUTION_CANCELLED") throw new Stop("CANCELLED", outcome.code);
           if (outcome.status === "FAILED") throw new Stop("FAILED", outcome.code);
@@ -284,15 +287,21 @@ export class AiExecutionRunner {
    * an L1 result goes to `ai_execution_outputs`; an L2 result becomes a READY_FOR_REVIEW proposal
    * (research A13), never a domain write (FR-044).
    */
-  private async complete(claimed: ClaimedExecution, execution: Loaded, definition: AgentDefinition, output: unknown): Promise<void> {
+  private async complete(
+    claimed: ClaimedExecution,
+    execution: Loaded,
+    definition: AgentDefinition,
+    output: unknown,
+    toolResults: ProposalBuildContext["toolResults"],
+  ): Promise<void> {
     const proposal = execution.riskLevel === "L2_PROPOSAL" ? definition.proposal : undefined;
     if (execution.riskLevel === "L2_PROPOSAL" && !proposal) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
-    let itemIds: string[] = [];
-    if (proposal) {
-      itemIds = proposal.itemIds(output);
-      if (itemIds.length === 0 || new Set(itemIds).size !== itemIds.length) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+    const built = proposal ? this.buildProposal(execution, proposal, output, toolResults) : null;
+    if (built && (built.itemIds.length === 0 || new Set(built.itemIds).size !== built.itemIds.length)) {
+      throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
     }
-    const proposalId = proposal ? randomUUID() : null;
+    const itemIds = built?.itemIds ?? [];
+    const proposalId = built ? randomUUID() : null;
     const done = await this.prisma.runInTransaction(async (tx) => {
       const now = new Date();
       const finished = await this.store.finish(tx, {
@@ -305,10 +314,10 @@ export class AiExecutionRunner {
         requireNoCancel: true,
         actor: { type: "SYSTEM" },
         proposalId,
-        step: proposal ? "PROPOSAL_CREATED" : null,
+        step: built ? "PROPOSAL_CREATED" : null,
       });
       if (!finished) return null;
-      if (proposal && proposalId) {
+      if (proposal && built && proposalId) {
         await tx.aiProposal.create({
           data: {
             id: proposalId,
@@ -319,7 +328,7 @@ export class AiExecutionRunner {
             proposalType: proposal.type,
             targetResourceType: execution.resourceType ?? "NONE",
             targetResourceId: execution.resourceId,
-            payload: output as Prisma.InputJsonValue,
+            payload: built.content as Prisma.InputJsonValue,
             itemIds,
             expiresAt: new Date(now.getTime() + this.config.ai.proposalTtlDays * 86_400_000),
             createdAt: now,
@@ -332,7 +341,7 @@ export class AiExecutionRunner {
           targetId: proposalId,
           metadata: { executionId: claimed.id, agentKey: execution.agentKey, proposalType: proposal.type, itemCount: itemIds.length },
         });
-      } else if (execution.outputSchemaVersionId) {
+      } else if (!proposal && execution.outputSchemaVersionId) {
         await tx.aiExecutionOutput.create({
           data: { executionId: claimed.id, outputSchemaVersionId: execution.outputSchemaVersionId, output: output as Prisma.InputJsonValue },
         });
@@ -345,6 +354,31 @@ export class AiExecutionRunner {
       return;
     }
     aiLog(this.logger, "ai.execution_completed", { ...this.logBase(execution), status: "COMPLETED", durationMs: done.durationMs });
+  }
+
+  /**
+   * The proposal of a validated L2 output: the agent's `build` hook when it has one (007 research
+   * C6), otherwise the output itself. `null` → nothing to propose. A throwing hook means the output
+   * could not become a proposal: FAILED `AI_OUTPUT_VALIDATION_FAILED`, logged without content.
+   */
+  private buildProposal(
+    execution: Loaded,
+    proposal: NonNullable<AgentDefinition["proposal"]>,
+    output: unknown,
+    toolResults: ProposalBuildContext["toolResults"],
+  ): { content: unknown; itemIds: string[] } | null {
+    if (!proposal.build) return { content: output, itemIds: proposal.itemIds(output) };
+    try {
+      return proposal.build(output, { toolResults });
+    } catch (error) {
+      aiLog(
+        this.logger,
+        "ai.output_invalid",
+        { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown" },
+        "warn",
+      );
+      throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+    }
   }
 
   /** Final status of a stopped run, still conditional on the claim. */

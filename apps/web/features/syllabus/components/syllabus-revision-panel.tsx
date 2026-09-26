@@ -19,6 +19,7 @@ const SOURCE_LABELS: Record<SyllabusRevisionSource, string> = {
   EXTRACTION: "A partir do texto extraído.",
   MANUAL: "Preenchido manualmente.",
   REVISION: "A partir de uma revisão confirmada.",
+  AI_ASSISTED: "Preenchido com IA.",
 };
 
 export interface SyllabusRevisionPanelProps {

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SyllabusForClassDialog } from "@/features/class-plan/components/syllabus-for-class-dialog";
+import { CurriculumAiPanel } from "@/features/curriculum-ai/components/curriculum-ai-panel";
 import { formatDateTime } from "@/lib/messages/dates";
 import { ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { syllabusDocumentsApi } from "../api/syllabus-documents";
@@ -36,6 +37,8 @@ export interface SyllabusDocumentDetailProps {
   canRetry: boolean;
   /** UX only (`ementas.revisar`): "Revisar conteúdo", "Preencher manualmente", the editor, "Nova revisão". */
   canReview: boolean;
+  /** UX only (`ementas.revisar` and `ia.execucoes.visualizar`): "Preencher com IA" (007). */
+  canUseAi?: boolean;
 }
 
 /**
@@ -43,7 +46,14 @@ export interface SyllabusDocumentDetailProps {
  * original" (always a download, never shown inline — research E18) and, side by side, what was
  * read (the image itself, or the text the extractor read, as stored) and the reviewed content.
  */
-export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetry, canReview }: SyllabusDocumentDetailProps) {
+export function SyllabusDocumentDetail({
+  subjectId,
+  documentId,
+  classId,
+  canRetry,
+  canReview,
+  canUseAi = false,
+}: SyllabusDocumentDetailProps) {
   const query = useSyllabusDocument(documentId);
   const create = useCreateSyllabusRevision(subjectId, documentId);
   const [createError, setCreateError] = useState("");
@@ -115,6 +125,12 @@ export function SyllabusDocumentDetail({ subjectId, documentId, classId, canRetr
             </a>
           </Button>
         </div>
+        {canReview && canUseAi ? <CurriculumAiPanel
+            subjectId={subjectId}
+            documentId={document.id}
+            processingStatus={document.processingStatus}
+            onFillManually={fillManually}
+          /> : null}
       </div>
 
       <p className="sr-only" aria-live="polite">

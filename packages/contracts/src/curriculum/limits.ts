@@ -15,6 +15,14 @@ export const MAX_MEETINGS_PER_CLASS = 200;
 export const MAX_TOPICS_PER_PLAN = 300;
 /** Learning-object items in one syllabus revision, across all its groups. */
 export const MAX_ITEMS_PER_REVISION = 500;
+/** Characters of a revision's title. */
+export const MAX_REVISION_TITLE_LENGTH = 200;
+/** Characters of a revision's syllabus text and of its competency text. */
+export const MAX_REVISION_TEXT_LENGTH = 10_000;
+/** Characters of a learning-object group's title. */
+export const MAX_GROUP_TITLE_LENGTH = 300;
+/** Characters of a learning-object item. */
+export const MAX_ITEM_TEXT_LENGTH = 1000;
 /** Syllabus items linked to one topic. */
 export const MAX_ITEMS_PER_TOPIC = 100;
 /** Processing attempts of a syllabus document before it becomes FAILED (1 min, then 5 min apart). */

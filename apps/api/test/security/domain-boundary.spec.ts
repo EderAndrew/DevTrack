@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001, 003, 004 and 006) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003, 004 and 006; 007 adds none) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -117,7 +117,7 @@ function schemaNames() {
   return { models, names: [...models, ...enums, ...maps, ...fields] };
 }
 
-describe("004/E22 006/FR-003 fronteira do domínio (FR-080, critério 27)", () => {
+describe("004/E22 006/FR-003 007/FR-031 fronteira do domínio (FR-080, critério 27)", () => {
   let routes: string[];
 
   beforeAll(async () => {
@@ -126,6 +126,20 @@ describe("004/E22 006/FR-003 fronteira do domínio (FR-080, critério 27)", () =
 
   it("schema.prisma tem exatamente os modelos de data-model.md", () => {
     expect([...schemaNames().models].sort()).toEqual([...EXPECTED_MODELS].sort());
+  });
+
+  it("007 acrescenta só a coluna ai_proposal_id, o valor AI_ASSISTED e a relação AiProposal ↔ SyllabusRevision", () => {
+    const schema = readFileSync(resolve(API_ROOT, "prisma/schema.prisma"), "utf8");
+    const block = (name: string) => schema.match(new RegExp(`^(?:model|enum) ${name} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+    expect(block("SyllabusRevisionSource").split(/\s+/).filter((v) => /^[A-Z_]+$/.test(v))).toEqual([
+      "EXTRACTION",
+      "MANUAL",
+      "REVISION",
+      "AI_ASSISTED",
+    ]);
+    expect(block("SyllabusRevision")).toMatch(/aiProposalId\s+String\?\s+@unique @map\("ai_proposal_id"\) @db\.Uuid/);
+    expect(block("SyllabusRevision")).toMatch(/aiProposal\s+AiProposal\?\s+@relation\(fields: \[aiProposalId\], references: \[id\], onDelete: Restrict\)/);
+    expect(block("AiProposal")).toMatch(/syllabusRevision\s+SyllabusRevision\?/);
   });
 
   it("nenhum modelo, enum, tabela, coluna, rota ou permissão usa termo acadêmico de fase futura", () => {

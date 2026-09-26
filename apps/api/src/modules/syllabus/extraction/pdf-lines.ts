@@ -31,7 +31,7 @@ export async function pdfLines(document: PdfDocument): Promise<SourceLine[]> {
       if (!("str" in item) || item.str.trim() === "") continue;
       pieces.push({ text: item.str, x: item.transform[4], y: item.transform[5], width: item.width, bold: isBold(item.fontName) });
     }
-    lines.push(...groupLines(pieces));
+    lines.push(...groupLines(pieces).map((line, index) => ({ ...line, ref: `p${number}.${index + 1}` })));
     page.cleanup();
   }
   return lines;

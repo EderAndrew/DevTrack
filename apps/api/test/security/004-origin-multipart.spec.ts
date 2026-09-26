@@ -76,9 +76,9 @@ describe("004/FR-007 multipart só em rotas de envio marcadas, com Origin permit
   });
 
   it("toda rota não marcada do catálogo recusa multipart com Origin permitido", async () => {
-    const unmarked = Object.values(endpoints).filter(
-      (entry) => UNSAFE.has(entry.method) && !("upload" in entry && entry.upload),
-    );
+    const unmarked = Object.entries(endpoints)
+      .filter(([, entry]) => UNSAFE.has(entry.method) && !("upload" in entry && entry.upload))
+      .map(([, entry]) => entry);
     expect(unmarked.length).toBeGreaterThan(30);
 
     const accepted: string[] = [];

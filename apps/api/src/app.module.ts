@@ -12,6 +12,7 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { ClassPlansModule } from "./modules/class-plans/class-plans.module";
 import { ClassInvitationsModule } from "./modules/class-invitations/class-invitations.module";
 import { ClassesModule } from "./modules/classes/classes.module";
+import { CurriculumAiModule } from "./modules/curriculum-ai/curriculum-ai.module";
 import { EnrollmentsModule } from "./modules/enrollments/enrollments.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { ProvisioningModule } from "./modules/provisioning/provisioning.module";
@@ -66,6 +67,7 @@ export class AppModule {
         SyllabusModule,
         ClassPlansModule,
         AiModule,
+        CurriculumAiModule,
         RetentionModule,
         HealthModule,
       ],

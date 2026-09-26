@@ -26,6 +26,8 @@ function required(name: string): string {
 export const WEB_URL = new URL(required("WEB_ORIGIN")).origin;
 export const API_URL = `http://localhost:${required("PORT")}`;
 export const MAILPIT_URL = required("MAILPIT_URL").replace(/\/+$/, "");
+/** Port of the Anthropic mock (e2e/anthropic-mock.ts), from the API's `ANTHROPIC_BASE_URL`. */
+export const ANTHROPIC_MOCK_PORT = Number(new URL(required("ANTHROPIC_BASE_URL")).port);
 
 /**
  * FR-031: the suite recreates its database, so it refuses to touch any database whose name does

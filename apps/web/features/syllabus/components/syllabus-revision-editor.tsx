@@ -3,6 +3,7 @@
 import type { SyllabusRevisionView } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
 import {
   type Control,
@@ -25,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Notice } from "@/components/shared/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +65,7 @@ export interface SyllabusRevisionEditorProps {
  * and the learning objects in groups and items, which can be edited, added, moved (Subir, Descer,
  * "Mover para o grupo…") and removed, keeping the focus on the item the action is about. "Salvar"
  * keeps the draft; "Confirmar conteúdo" saves it and confirms it after an `alert-dialog`, since a
- * confirmed content can no longer change.
+ * confirmed content can no longer change. An `AI_ASSISTED` draft (007) says so, with a link to its proposal.
  */
 export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: SyllabusRevisionEditorProps) {
   const save = useSaveSyllabusRevision(revision.id);
@@ -176,6 +178,14 @@ export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: Syl
         {announcement}
       </p>
       <ErrorSummary errors={errors} title="Não foi possível salvar a revisão" />
+      {revision.source === "AI_ASSISTED" && revision.aiProposalId ? (
+        <Notice className="mb-4">
+          <p className="m-0">
+            Preenchido com IA — revise o conteúdo antes de confirmar.{" "}
+            <Link href={`/disciplinas/${subjectId}/ementa/${revision.documentId}/proposta/${revision.aiProposalId}`}>Ver proposta</Link>
+          </p>
+        </Notice>
+      ) : null}
 
       <TextField id={FIELD_IDS.title} label="Título" error={fieldError(FIELD_IDS.title)} {...register("title")} />
       <TextField

@@ -96,6 +96,24 @@ export const ErrorCatalog = {
   AI_IDEMPOTENCY_KEY_REUSED: { status: 409, message: "Este pedido já foi feito com outros dados. Recarregue a página e tente de novo." },
   AI_PROPOSAL_ITEMS_INVALID: { status: 422, message: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte." },
   AI_RESOURCE_TYPE_NOT_ACCEPTED: { status: 422, message: "Este recurso de IA não pode ser usado aqui." },
+  AI_PROPOSAL_APPLY_REQUIRED: { status: 409, message: "Esta proposta é aprovada ao aplicá-la na ementa." },
+  SYLLABUS_NOT_READY_FOR_AI: {
+    status: 409,
+    message:
+      "O preenchimento com IA precisa de um documento com texto (PDF com texto ou DOCX). Preencha o conteúdo manualmente.",
+  },
+  CURRICULUM_PROPOSAL_PENDING: {
+    status: 409,
+    message: "Já existe uma proposta aguardando revisão. Revise-a ou descarte-a para pedir uma nova análise.",
+  },
+  CURRICULUM_SOURCE_CHANGED: {
+    status: 409,
+    message: "O documento analisado não corresponde mais a esta proposta. Peça uma nova análise.",
+  },
+  CURRICULUM_PROPOSAL_INVALID: {
+    status: 422,
+    message: "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
+  },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

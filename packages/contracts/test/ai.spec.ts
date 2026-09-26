@@ -65,7 +65,7 @@ describe("006 contratos de IA", () => {
       expect([...AI_FINAL_EXECUTION_STATUSES].sort()).toEqual(["CANCELLED", "COMPLETED", "FAILED", "TIMED_OUT"]);
     });
 
-    it("006/FR-050 os 13 códigos normalizados; só os de HTTP entram no catálogo de erros", () => {
+    it("006/FR-050 007/FR-030 os 13 códigos normalizados; só os de HTTP entram no catálogo de erros", () => {
       expect(AiErrorCodeSchema.options).toHaveLength(13);
       const http = ErrorCodeSchema.options.filter((code) => code.startsWith("AI_"));
       expect(http.sort()).toEqual(
@@ -77,6 +77,8 @@ describe("006 contratos de IA", () => {
           "AI_MODEL_UNAVAILABLE",
           "AI_PROPOSAL_ITEMS_INVALID",
           "AI_RESOURCE_TYPE_NOT_ACCEPTED",
+          // 007: an agent that approves through its domain (research C12).
+          "AI_PROPOSAL_APPLY_REQUIRED",
         ].sort(),
       );
     });

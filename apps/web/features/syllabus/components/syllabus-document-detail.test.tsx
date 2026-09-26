@@ -53,6 +53,27 @@ describe("004/US2-5 SyllabusDocumentDetail — versão da ementa, original e tex
     expect(screen.queryByRole("heading", { name: "Texto extraído" })).toBeNull();
   });
 
+  it("007/US1-5 \"Preencher com IA\" ao lado das ações da 004, só com ementas.revisar e ia.execucoes.visualizar", async () => {
+    const view = documentView(SUBJECT_ID, { processingStatus: "PROCESSED", extractionResult: "TEXT" });
+    const aiStatus = { availability: "AVAILABLE", activeExecution: null, lastExecution: null, lastOutcome: null, pendingProposalId: null };
+    fetchMock.mockImplementation(async (url) =>
+      String(url).endsWith(`/syllabus-documents/${view.id}/ai`) ? json(200, aiStatus) : json(200, documentDetail(view, { extraction: POO_EXTRACTION })),
+    );
+    const { container, unmount } = renderWithProviders(
+      <SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry canReview canUseAi />,
+    );
+    expect(await screen.findByRole("button", { name: "Preencher com IA" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+    unmount();
+
+    for (const props of [{ canReview: true, canUseAi: false }, { canReview: false, canUseAi: true }]) {
+      const other = renderWithProviders(<SyllabusDocumentDetail subjectId={SUBJECT_ID} documentId={view.id} canRetry {...props} />);
+      await screen.findByRole("heading", { level: 1 });
+      expect(screen.queryByRole("heading", { name: "Preencher com IA" })).toBeNull();
+      other.unmount();
+    }
+  });
+
   it("documento de outra disciplina na URL → não encontrado", async () => {
     const view = documentView("00000000-0000-4000-8000-000000000999");
     fetchMock.mockResolvedValue(json(200, documentDetail(view)));

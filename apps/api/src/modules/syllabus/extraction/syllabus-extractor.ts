@@ -56,9 +56,9 @@ export async function extractSyllabus(bytes: Uint8Array, mediaType: SyllabusMedi
 }
 
 /** "1.", "1)", "I.", "A." — opens a group. */
-const GROUP_MARKER = /^(?:\d{1,3}[.)]|[IVXLC]{1,6}[.)]|[A-Z][.)])\s+(?=\S)/;
+export const GROUP_MARKER = /^(?:\d{1,3}[.)]|[IVXLC]{1,6}[.)]|[A-Z][.)])\s+(?=\S)/;
 /** "-", "•", "a)", "1.1" — an item of the current group. */
-const ITEM_MARKER = /^(?:[-•▪◦*–—·●○■□►]|[a-z][.)]|\d{1,3}(?:\.\d{1,3})+[.)]?)\s+(?=\S)/;
+export const ITEM_MARKER = /^(?:[-•▪◦*–—·●○■□►]|[a-z][.)]|\d{1,3}(?:\.\d{1,3})+[.)]?)\s+(?=\S)/;
 
 type Kind = "group" | "item" | "plain";
 

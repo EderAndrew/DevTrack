@@ -126,6 +126,10 @@ describe("route access declarations", () => {
         "GET /ai/operations/model-configs",
         "POST /ai/operations/agents/:key/status",
         "POST /ai/operations/model-configs/:key/status",
+        // 007
+        "GET /syllabus-documents/:id/ai",
+        "POST /syllabus-documents/:id/ai-analyses",
+        "POST /syllabus-documents/:id/ai-proposals/:proposalId/apply",
       ]),
     );
   });

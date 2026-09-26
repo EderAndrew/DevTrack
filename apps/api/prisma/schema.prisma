@@ -181,6 +181,8 @@ enum SyllabusRevisionSource {
   EXTRACTION
   MANUAL
   REVISION
+  /// Created by applying a Curriculum Agent proposal (007 FR-031).
+  AI_ASSISTED
 
   @@map("syllabus_revision_source")
 }
@@ -541,10 +543,13 @@ model SyllabusRevision {
   /// Set together (CHECK).
   confirmedAt       DateTime?              @map("confirmed_at") @db.Timestamptz(6)
   confirmedById     String?                @map("confirmed_by_id") @db.Uuid
+  /// Required iff source = AI_ASSISTED (CHECK); one revision per proposal (007 FR-034).
+  aiProposalId      String?                @unique @map("ai_proposal_id") @db.Uuid
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   document    SyllabusDocument   @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  aiProposal  AiProposal?        @relation(fields: [aiProposalId], references: [id], onDelete: Restrict)
   basedOn     SyllabusRevision?  @relation("SyllabusRevisionBasedOn", fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
   derived     SyllabusRevision[] @relation("SyllabusRevisionBasedOn")
   confirmedBy User?              @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
@@ -1210,6 +1215,8 @@ model AiProposal {
   execution    AiExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
   agentVersion AiAgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
   decidedBy    User?          @relation("AiProposalDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  /// The draft created by applying this proposal (007); the AI module never writes it.
+  syllabusRevision SyllabusRevision?
 
   @@index([workspaceId, status, createdAt(sort: Desc), id])
   @@map("ai_proposals")

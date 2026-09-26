@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
-import { MAX_ITEMS_PER_REVISION } from "./limits.js";
+import {
+  MAX_GROUP_TITLE_LENGTH,
+  MAX_ITEM_TEXT_LENGTH,
+  MAX_ITEMS_PER_REVISION,
+  MAX_REVISION_TEXT_LENGTH,
+  MAX_REVISION_TITLE_LENGTH,
+} from "./limits.js";
 
 // Syllabus documents and their reviewed content (004 contracts/http-api.md, "Ementa").
 
@@ -20,8 +26,11 @@ export type SyllabusExtractionResult = z.infer<typeof SyllabusExtractionResultSc
 export const SyllabusRevisionStatusSchema = z.enum(["DRAFT", "CONFIRMED"]);
 export type SyllabusRevisionStatus = z.infer<typeof SyllabusRevisionStatusSchema>;
 
-/** Where a draft starts from: the extraction, an empty form, or a copy of a confirmed revision. */
-export const SyllabusRevisionSourceSchema = z.enum(["EXTRACTION", "MANUAL", "REVISION"]);
+/**
+ * Where a draft starts from: the extraction, an empty form, a copy of a confirmed revision, or an
+ * applied Curriculum Agent proposal (`AI_ASSISTED`, 007; only the apply route creates it).
+ */
+export const SyllabusRevisionSourceSchema = z.enum(["EXTRACTION", "MANUAL", "REVISION", "AI_ASSISTED"]);
 export type SyllabusRevisionSource = z.infer<typeof SyllabusRevisionSourceSchema>;
 
 /** Never exposes the storage key nor the hash. */
@@ -39,7 +48,8 @@ export const SyllabusDocumentViewSchema = z.strictObject({
   attempts: z.int(),
   uploadedAt: IsoDateTimeSchema,
   processedAt: IsoDateTimeSchema.nullable(),
-  confirmedRevision: z.strictObject({ id: UuidSchema, number: z.int() }).nullable(),
+  /** `source` labels the versions list ("Preenchido com IA", 007). */
+  confirmedRevision: z.strictObject({ id: UuidSchema, number: z.int(), source: SyllabusRevisionSourceSchema }).nullable(),
   draftRevisionId: UuidSchema.nullable(),
 });
 export type SyllabusDocumentView = z.infer<typeof SyllabusDocumentViewSchema>;
@@ -73,6 +83,7 @@ export const SyllabusDocumentDetailSchema = SyllabusDocumentViewSchema.extend({
       number: z.int(),
       status: SyllabusRevisionStatusSchema,
       source: SyllabusRevisionSourceSchema,
+      aiProposalId: UuidSchema.nullable(),
       confirmedAt: IsoDateTimeSchema.nullable(),
     }),
   ),
@@ -83,10 +94,13 @@ export type SyllabusDocumentDetail = z.infer<typeof SyllabusDocumentDetailSchema
 export const SyllabusFileQuerySchema = z.strictObject({ view: z.literal("inline").optional() });
 export type SyllabusFileQuery = z.infer<typeof SyllabusFileQuerySchema>;
 
-/** `basedOnRevisionId` is required if, and only if, `source` is `REVISION`. */
+/**
+ * `basedOnRevisionId` is required if, and only if, `source` is `REVISION`. `AI_ASSISTED` is
+ * refused: only applying a proposal creates it (007 data-model).
+ */
 export const CreateSyllabusRevisionRequestSchema = z
   .strictObject({
-    source: SyllabusRevisionSourceSchema,
+    source: SyllabusRevisionSourceSchema.exclude(["AI_ASSISTED"]),
     basedOnRevisionId: UuidSchema.optional(),
   })
   .refine((value) => (value.source === "REVISION") === (value.basedOnRevisionId !== undefined), {
@@ -100,6 +114,8 @@ export const SyllabusRevisionViewSchema = z.strictObject({
   number: z.int(),
   status: SyllabusRevisionStatusSchema,
   source: SyllabusRevisionSourceSchema,
+  /** The applied proposal of an `AI_ASSISTED` revision (007); null otherwise. */
+  aiProposalId: UuidSchema.nullable(),
   title: z.string().nullable(),
   syllabusText: z.string().nullable(),
   competencyText: z.string().nullable(),
@@ -122,15 +138,15 @@ export type SyllabusRevisionView = z.infer<typeof SyllabusRevisionViewSchema>;
  */
 export const SaveSyllabusRevisionRequestSchema = z
   .strictObject({
-    title: z.string().trim().max(200).nullable().optional(),
-    syllabusText: z.string().trim().max(10_000).nullable().optional(),
-    competencyText: z.string().trim().max(10_000).nullable().optional(),
+    title: z.string().trim().max(MAX_REVISION_TITLE_LENGTH).nullable().optional(),
+    syllabusText: z.string().trim().max(MAX_REVISION_TEXT_LENGTH).nullable().optional(),
+    competencyText: z.string().trim().max(MAX_REVISION_TEXT_LENGTH).nullable().optional(),
     groups: z
       .array(
         z.strictObject({
-          title: z.string().trim().max(300).nullable().optional(),
+          title: z.string().trim().max(MAX_GROUP_TITLE_LENGTH).nullable().optional(),
           items: z
-            .array(z.strictObject({ id: UuidSchema.optional(), text: z.string().trim().min(1).max(1000) }))
+            .array(z.strictObject({ id: UuidSchema.optional(), text: z.string().trim().min(1).max(MAX_ITEM_TEXT_LENGTH) }))
             .max(MAX_ITEMS_PER_REVISION),
         }),
       )

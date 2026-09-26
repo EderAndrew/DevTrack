@@ -17,7 +17,18 @@ turmas como oferta da disciplina (período e datas), envio da ementa em PDF, DOC
 validação do arquivo e extração de texto em segundo plano (sem OCR), revisão e confirmação do
 conteúdo, calendário de aulas da turma e planejamento com tópicos manuais ligados aos itens da
 ementa (juntar, dividir, arquivar, reordenar), cobertura da ementa e situações do planejamento.
-Banco de questões, atividades e avaliações vêm nas próximas fases.
+A **fase 005 — design system** trouxe os tokens de design, Inter e JetBrains Mono, os componentes
+base com variantes e estados, o AppShell e o layout do aluno, o catálogo `/design-system`, a
+documentação em `apps/web/design-system/` e o contrato visual do Modo Prova. A **fase 006 —
+fundação de IA** trouxe o registro de agentes, prompts, schemas de saída, ferramentas e
+configurações de modelo, o gateway independente de provedor, ferramentas negadas por padrão,
+saída estruturada validada, propostas revisadas pelo professor, execução assíncrona com limites,
+uso e custo, auditoria e a tela "Operação de IA" do administrador. A **fase 007 — agente de
+ementa** trouxe o "Preencher com IA" numa ementa com texto: o `curriculum-agent` propõe o conteúdo
+com base no documento, o professor aceita campos e grupos e a aplicação cria um rascunho da
+ementa (`AI_ASSISTED`) que ele edita e confirma como sempre. Ela também trouxe o primeiro provedor
+real (Anthropic) e a avaliação com um conjunto de referência. Banco de questões, atividades e
+avaliações vêm nas próximas fases.
 
 ## Pré-requisitos
 
@@ -36,7 +47,11 @@ Banco de questões, atividades e avaliações vêm nas próximas fases.
 | `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
 | `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
 | `specs/003-class-invitations-enrollment/` | O mesmo para a fase 003 (turmas, convites de turma e matrículas) |
-| `specs/004-syllabus-planning/` | O mesmo para a fase 004 (disciplinas, ementa, calendário e planejamento; decisões E1–E22) |
+| `specs/004-syllabus-planning/` | O mesmo para a fase 004 (disciplinas, ementa, calendário e planejamento; decisões E1–E23) |
+| `specs/005-design-system/` | O mesmo para a fase 005 (design system; decisões V1–V20) |
+| `specs/006-ai-foundation/` | O mesmo para a fase 006 (fundação de IA; decisões A1–A22) |
+| `specs/007-curriculum-agent/` | O mesmo para a fase 007 (agente de ementa; decisões C1–C20) |
+| `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
 | `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
@@ -62,7 +77,9 @@ O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
 [`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md);
 o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md); o da
 área do professor (disciplina → ementa → calendário → planejamento), em
-[`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md).
+[`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md). As
+fases 003, 005, 006 e 007 também têm o seu `quickstart.md` na pasta da spec; o da 007 inclui o
+roteiro manual com o provedor real (opcional, tem custo).
 
 ## Comandos
 
@@ -76,6 +93,9 @@ pnpm --filter api test:security                 # matriz de autorização, repla
 pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
 pnpm --filter @repo/contracts test              # guardas de fronteira, duplicação e versão única de Zod
 pnpm --filter api maintenance:run [--job <nome>] # jobs de retenção (executam apps/api/dist)
+pnpm --filter api fixtures:syllabus             # recria os arquivos de teste de ementa (004)
+pnpm --filter api fixtures:curriculum           # recria os documentos do conjunto de referência (007)
+ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum   # avaliação contra o modelo real (EVAL_RECORD=1 regrava recorded.json)
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
@@ -102,8 +122,7 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
 - Ementas (004): tamanho máximo do arquivo (`SYLLABUS_MAX_FILE_MB`, 10), intervalo do
   processamento em segundo plano (`SYLLABUS_PROCESSING_INTERVAL_SECONDS`; `0` desliga) e limites
   por professor de envios e novas tentativas por hora; o arquivo original fica no próprio banco.
-- IA (006): nenhum provedor real vem configurado, então a API sobe sem agentes. As variáveis
-  `AI_*` são:
+- IA (006): as variáveis `AI_*` são:
   - `AI_EXECUTION_INTERVAL_SECONDS` (5; `0` desliga todo processamento de IA);
   - os limites por execução: `AI_EXECUTION_TOTAL_TIMEOUT_SECONDS` (120),
     `AI_MODEL_CALL_TIMEOUT_SECONDS` (60), `AI_TOOL_TIMEOUT_SECONDS` (10), `AI_MAX_MODEL_CALLS`
@@ -114,8 +133,13 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
     `ai-records`.
 
   Os limites de pedidos são `RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE` (10) e
-  `RATE_LIMIT_AI_DECISIONS_PER_MINUTE` (30). A credencial de um provedor entrará com a spec
-  do primeiro provedor real, nunca no browser.
+  `RATE_LIMIT_AI_DECISIONS_PER_MINUTE` (30).
+- Agente de ementa (007): o provedor Anthropic só é registrado com `ANTHROPIC_API_KEY`. Vazia, a
+  API sobe normalmente, o "Preencher com IA" aparece como indisponível e o fluxo manual segue
+  funcionando. A chave fica só na API, nunca no browser, e nunca vai para os logs. O
+  `curriculum-agent` é registrado desativado: o administrador o ativa em "Operação de IA" depois
+  da avaliação. `RATE_LIMIT_CURRICULUM_AI_PER_HOUR` (10) limita os pedidos por professor.
+  `ANTHROPIC_BASE_URL` serve só para o E2E local, que aponta para um simulador da API.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

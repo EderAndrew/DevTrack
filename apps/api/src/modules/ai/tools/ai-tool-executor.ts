@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import type { AiErrorCode } from "@repo/contracts";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { AuditService } from "../../audit/audit.service";
-import type { AiExecutionContext, ModelToolCall, ToolContext } from "../definitions/types";
+import { type AiExecutionContext, type ModelToolCall, type ToolContext, ToolRefusal } from "../definitions/types";
 import { aiLog } from "../execution/ai-log";
 import { AiResourceResolver } from "../execution/ai-resource.resolver";
 import { AiToolRegistry } from "../registry/ai-tool.registry";
@@ -15,6 +16,13 @@ export type ToolCallOutcome =
 
 /** A model-chosen key is recorded as given, but never longer than a registry key. */
 const MAX_KEY = 63;
+
+/** How a tool's own refusal ends the call (the runner treats DENIED and TIMED_OUT as it does the executor's). */
+const REFUSAL_STATUS: Record<ToolRefusal["code"], ToolCallStatus> = {
+  AI_CONTEXT_ACCESS_DENIED: "DENIED",
+  AI_TIMEOUT: "TIMED_OUT",
+  AI_TOOL_EXECUTION_FAILED: "FAILED",
+};
 
 class Refused {
   constructor(
@@ -33,7 +41,9 @@ class Refused {
  *   4. the arguments pass the tool's strict schema, before any data access — AI_TOOL_EXECUTION_FAILED;
  *   5. the resource exists in the execution's workspace — AI_CONTEXT_ACCESS_DENIED;
  *   6. `run` under the tool timeout, the execution deadline and the cancellation — TIMED_OUT;
- *   7. the result passes the tool's strict output schema (minimal fields) — AI_TOOL_EXECUTION_FAILED.
+ *   7. the result passes the tool's strict output schema (minimal fields) — AI_TOOL_EXECUTION_FAILED;
+ *   8. the result fits the model's input limit (`maxInputBytes`, 007 spec Edge Cases) — FAILED
+ *      AI_EXECUTION_LIMIT_EXCEEDED, so an oversized document never reaches the model.
  * Each call writes `ai_tool_calls` (never the arguments nor the result, FR-037) and its audit event
  * in a short transaction. The result goes back to the model only as untrusted content.
  */
@@ -46,9 +56,15 @@ export class AiToolExecutor {
     private readonly audit: AuditService,
     private readonly tools: AiToolRegistry,
     private readonly resources: AiResourceResolver,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
-  async call(ctx: AiExecutionContext, request: ModelToolCall, sequence: number, limits: { toolTimeoutMs: number }): Promise<ToolCallOutcome> {
+  async call(
+    ctx: AiExecutionContext,
+    request: ModelToolCall,
+    sequence: number,
+    limits: { toolTimeoutMs: number; maxInputBytes: number },
+  ): Promise<ToolCallOutcome> {
     const startedAt = new Date();
     const toolKey = String(request.toolKey).slice(0, MAX_KEY);
     let toolId: string | null = null;
@@ -75,9 +91,11 @@ export class AiToolExecutor {
       );
       const output = definition.outputSchema.safeParse(result);
       if (!output.success) throw new Refused("FAILED", "AI_TOOL_EXECUTION_FAILED", "INVALID_OUTPUT");
+      if (Buffer.byteLength(JSON.stringify(output.data), "utf8") > limits.maxInputBytes) throw new Refused("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
       outcome = { ok: true, result: output.data };
     } catch (error) {
       if (error instanceof Refused) outcome = { ok: false, status: error.status, code: error.code, ...(error.reason ? { reason: error.reason } : {}) };
+      else if (error instanceof ToolRefusal) outcome = { ok: false, status: REFUSAL_STATUS[error.code], code: error.code };
       else {
         aiLog(this.logger, "ai.tool_error", { executionId: ctx.executionId, correlationId: ctx.correlationId, toolKey, errorName: error instanceof Error ? error.name : "unknown" }, "warn");
         outcome = { ok: false, status: "FAILED", code: "AI_TOOL_EXECUTION_FAILED" };
@@ -96,6 +114,7 @@ export class AiToolExecutor {
       correlationId: ctx.correlationId,
       signal,
       db: this.prisma,
+      get: (token) => this.moduleRef.get(token, { strict: false }),
     };
   }
 

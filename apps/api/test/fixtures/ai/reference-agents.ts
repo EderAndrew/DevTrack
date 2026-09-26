@@ -68,6 +68,32 @@ export const REFERENCE_L2 = defineAgent({
   },
 });
 
+/**
+ * L2 with a `proposal.build` hook (007 research C6), registered only by the tests of the hook
+ * (`createAiTestApp({agents: [REFERENCE_L2_BUILD]})`). The first item's id drives it: `nothing` →
+ * no proposal, `throw` → the hook throws; otherwise the content lists the labels and the tools
+ * that answered, and the ids get a `b:` prefix.
+ */
+export const REFERENCE_L2_BUILD = defineAgent({
+  ...REFERENCE_L2,
+  key: "reference-l2-build",
+  name: "Agente de referência (proposta montada)",
+  prompt: { ...REFERENCE_L2.prompt, key: "reference-items-build" },
+  proposal: {
+    type: "REFERENCE_BUILT",
+    itemIds: (output) => ITEMS.parse(output).items.map((item) => item.id),
+    build(output, { toolResults }) {
+      const { items } = ITEMS.parse(output);
+      if (items[0]!.id === "nothing") return null;
+      if (items[0]!.id === "throw") throw new Error("falha simulada no build");
+      return {
+        content: { built: true, labels: items.map((item) => item.label), tools: toolResults },
+        itemIds: items.map((item) => `b:${item.id}`),
+      };
+    },
+  },
+});
+
 /** Never ACTIVE: requests answer AI_AGENT_NOT_FOUND (006/US1-6). */
 export const REFERENCE_DRAFT = defineAgent({
   ...REFERENCE_L1,

@@ -184,6 +184,13 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/ai/operations/model-configs", access: "ia.operacao.visualizar" },
   { method: "POST", path: "/ai/operations/agents/:key/status", access: "ia.agentes.gerenciar" },
   { method: "POST", path: "/ai/operations/model-configs/:key/status", access: "ia.agentes.gerenciar" },
+
+  // 007 — "Preencher com IA" (contracts/permissions.md). The status and the request also require
+  // ia.execucoes.visualizar, and the application ia.propostas.revisar, which every role holding
+  // the ementas.* permissions has (TEACHER).
+  { method: "GET", path: "/syllabus-documents/:id/ai", access: "ementas.visualizar" },
+  { method: "POST", path: "/syllabus-documents/:id/ai-analyses", access: "ementas.revisar" },
+  { method: "POST", path: "/syllabus-documents/:id/ai-proposals/:proposalId/apply", access: "ementas.revisar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

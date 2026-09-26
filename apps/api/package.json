@@ -14,9 +14,12 @@
     "admin:bootstrap": "node --env-file-if-exists=.env dist/cli/admin-bootstrap.js",
     "maintenance:run": "node --env-file-if-exists=.env dist/cli/maintenance.js",
     "fixtures:syllabus": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/fixtures/syllabus/build-fixtures.ts",
+    "eval:curriculum": "vitest run --config vitest.eval.config.ts",
+    "fixtures:curriculum": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/fixtures/curriculum-agent/build-golden.ts",
     "prisma": "prisma"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.128.0",
     "@nestjs/common": "^11.2.5",
     "@nestjs/core": "^11.2.5",
     "@nestjs/platform-express": "^11.2.5",

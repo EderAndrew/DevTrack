@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AuditService } from "../../src/modules/audit/audit.service";
-import { PRODUCTION_AI_DEFINITIONS } from "../../src/modules/ai/definitions";
+import { productionAiDefinitions } from "../../src/modules/ai/definitions";
 import type { AgentDefinition, AiDefinitions } from "../../src/modules/ai/definitions/types";
 import { AiRegistryError } from "../../src/modules/ai/registry/ai-definitions.check";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
@@ -8,8 +8,8 @@ import { ROLE_KEYS } from "../../src/modules/access-control/permissions";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import { REFERENCE_AGENTS, REFERENCE_L1 } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiTestApp, createAiExecution, resetAiDb } from "../helpers/ai";
-import { createUser } from "../helpers/factories";
-import { createTestApp } from "../helpers/test-app";
+import { createUser, loginAs } from "../helpers/factories";
+import { api, createTestApp, resetDb } from "../helpers/test-app";
 import { AI_OPERATIONS, AI_TEACHER, ROLE_PERMISSIONS } from "../security/authorization-matrix";
 
 const counts = async (t: AiTestApp) => ({
@@ -113,20 +113,53 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(old.agentVersionRef.version).toBe(1);
   });
 
-  it("produção (PRODUCTION_AI_DEFINITIONS) sincroniza zero agentes", async () => {
-    const summary = await syncWith(PRODUCTION_AI_DEFINITIONS);
-    expect(summary).toMatchObject({ agents: 0, tools: 0, modelConfigs: 0 });
-    expect(await t.prisma.aiAgent.count({ where: { status: { not: "DEPRECATED" } } })).toBe(0);
+  it("007/FR-051 produção sincroniza curriculum-agent v1 DESABILITADO, de forma idempotente", async () => {
+    const production = productionAiDefinitions(t.config);
+    await syncWith(production);
+    const agents = await t.prisma.aiAgent.findMany({ where: { status: { not: "DEPRECATED" } }, include: { currentVersion: true } });
+    expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 1]]);
+    const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
+    expect(tool.status).toBe("ENABLED");
+    const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "curriculum-extraction-default" } });
+    expect(config).toMatchObject({ provider: "anthropic", model: "claude-opus-5" });
+
+    const before = await counts(t);
+    const events = await t.prisma.auditEvent.count();
+    expect(await syncWith(production)).toMatchObject({ newVersions: 0 });
+    expect(await counts(t)).toEqual(before);
+    expect(await t.prisma.auditEvent.count()).toBe(events);
     expect(REFERENCE_AGENTS.length).toBeGreaterThan(0);
+  });
+
+  it("007/FR-051 depois de o administrador habilitar o agente, uma nova sincronização mantém ACTIVE", async () => {
+    const production = productionAiDefinitions(t.config);
+    // The app's own definitions stay the reference ones; the production agent joins through a sync.
+    const reference = referenceAiDefinitions(t.provider);
+    await syncWith({
+      agents: [...reference.agents, ...production.agents],
+      tools: [...reference.tools, ...production.tools],
+      modelConfigs: [...reference.modelConfigs, ...production.modelConfigs],
+      providers: reference.providers,
+      resources: { ...reference.resources, ...production.resources },
+    });
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const enabled = await api(t, { cookie: await loginAs(t, admin) }).post("/api/ai/operations/agents/curriculum-agent/status", { status: "ACTIVE" });
+    expect(enabled.status).toBe(200);
+    await syncWith(production);
+    expect(await t.prisma.aiAgent.findUniqueOrThrow({ where: { key: "curriculum-agent" } })).toMatchObject({ status: "ACTIVE" });
   });
 });
 
 describe("006/SC-013 006/FR-067 as features 001–005 continuam iguais", () => {
-  it("com as definições de produção a API sobe sem agentes, e cada papel mantém as permissões da 001–005", async () => {
+  it("com as definições de produção a API sobe sem agente ativo (007: só curriculum-agent, desabilitado), e cada papel mantém as permissões da 001–005", async () => {
     const t = await createTestApp();
     try {
+      // A clean database: an agent an earlier test enabled would keep ACTIVE through the sync.
+      await resetDb(t.prisma);
       await t.get(AiRegistrySync).sync();
-      expect(await t.prisma.aiAgent.count({ where: { status: { in: ["ACTIVE", "DRAFT", "DISABLED"] } } })).toBe(0);
+      expect(await t.prisma.aiAgent.count({ where: { status: { in: ["ACTIVE", "DRAFT"] } } })).toBe(0);
+      const disabled = await t.prisma.aiAgent.findMany({ where: { status: "DISABLED" }, select: { key: true } });
+      expect(disabled.map((a) => a.key)).toEqual(["curriculum-agent"]);
       const aiKeys = new Set<string>([...AI_TEACHER, ...AI_OPERATIONS]);
       for (const role of ROLE_KEYS) {
         const rows = await t.prisma.rolePermission.findMany({ where: { role: { key: role } }, select: { permission: { select: { key: true } } } });

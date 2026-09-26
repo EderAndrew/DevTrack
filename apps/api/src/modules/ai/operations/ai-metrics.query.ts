@@ -9,7 +9,8 @@ export const PERIOD_MS: Record<AiMetricsPeriod, number> = { "24h": 24 * HOUR, "7
  * prompt version, provider and model, and usage by provider and model. Only ids, versions,
  * statuses, counters, tokens and cost are read — never `input`, `output`, `payload`,
  * `workspace_id`, `resource_id` or user ids (FR-031). Cost is summed as `numeric` and returned as
- * a decimal string.
+ * a decimal string. Per agent (007 research C12.5, FR-048) also the output validation failures,
+ * the proposals by status, and the average tokens and cost per execution.
  */
 export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<AiAgentMetrics[]> {
   const rows = await db.$queryRaw<
@@ -27,21 +28,49 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
       avg_duration_ms: number | null;
       model_calls: bigint;
       tool_calls: bigint;
+      output_invalid: bigint;
+      proposals_created: bigint;
+      proposals_approved: bigint;
+      proposals_partially_approved: bigint;
+      proposals_rejected: bigint;
+      proposals_expired: bigint;
+      avg_total_tokens: number | null;
+      avg_estimated_cost: string | null;
+      currency: string | null;
     }[]
   >`
-    SELECT agent_key, agent_version, prompt_version, provider, model,
+    WITH usage AS (
+      SELECT execution_id,
+             SUM(total_tokens) AS total_tokens,
+             SUM(estimated_cost) AS estimated_cost,
+             CASE WHEN COUNT(DISTINCT currency) = 1 THEN MIN(currency) END AS currency
+      FROM ai_model_calls
+      GROUP BY execution_id
+    )
+    SELECT e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model,
            COUNT(*) AS executions,
-           COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed,
-           COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,
-           COUNT(*) FILTER (WHERE status = 'TIMED_OUT') AS timed_out,
-           COUNT(*) FILTER (WHERE status = 'CANCELLED') AS cancelled,
-           ROUND(AVG(duration_ms))::int AS avg_duration_ms,
-           COALESCE(SUM(model_calls), 0) AS model_calls,
-           COALESCE(SUM(tool_calls), 0) AS tool_calls
-    FROM ai_executions
-    WHERE created_at >= ${from}::timestamptz AND created_at < ${to}::timestamptz
-    GROUP BY agent_key, agent_version, prompt_version, provider, model
-    ORDER BY agent_key, agent_version, prompt_version, provider, model`;
+           COUNT(*) FILTER (WHERE e.status = 'COMPLETED') AS completed,
+           COUNT(*) FILTER (WHERE e.status = 'FAILED') AS failed,
+           COUNT(*) FILTER (WHERE e.status = 'TIMED_OUT') AS timed_out,
+           COUNT(*) FILTER (WHERE e.status = 'CANCELLED') AS cancelled,
+           ROUND(AVG(e.duration_ms))::int AS avg_duration_ms,
+           COALESCE(SUM(e.model_calls), 0) AS model_calls,
+           COALESCE(SUM(e.tool_calls), 0) AS tool_calls,
+           COUNT(*) FILTER (WHERE e.status = 'FAILED' AND e.error_code IN ('AI_OUTPUT_PARSE_FAILED', 'AI_OUTPUT_VALIDATION_FAILED')) AS output_invalid,
+           COUNT(p.id) AS proposals_created,
+           COUNT(p.id) FILTER (WHERE p.status = 'APPROVED') AS proposals_approved,
+           COUNT(p.id) FILTER (WHERE p.status = 'PARTIALLY_APPROVED') AS proposals_partially_approved,
+           COUNT(p.id) FILTER (WHERE p.status = 'REJECTED') AS proposals_rejected,
+           COUNT(p.id) FILTER (WHERE p.status = 'EXPIRED' OR (p.status = 'READY_FOR_REVIEW' AND p.expires_at <= now())) AS proposals_expired,
+           ROUND(AVG(u.total_tokens))::int AS avg_total_tokens,
+           ROUND(AVG(u.estimated_cost), 6)::text AS avg_estimated_cost,
+           CASE WHEN COUNT(DISTINCT u.currency) = 1 THEN MIN(u.currency) END AS currency
+    FROM ai_executions e
+    LEFT JOIN usage u ON u.execution_id = e.id
+    LEFT JOIN ai_proposals p ON p.execution_id = e.id
+    WHERE e.created_at >= ${from}::timestamptz AND e.created_at < ${to}::timestamptz
+    GROUP BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model
+    ORDER BY e.agent_key, e.agent_version, e.prompt_version, e.provider, e.model`;
   return rows.map((row) => ({
     agentKey: row.agent_key,
     agentVersion: row.agent_version,
@@ -56,6 +85,17 @@ export async function queryAgentMetrics(db: Tx, from: Date, to: Date): Promise<A
     avgDurationMs: row.avg_duration_ms,
     modelCalls: Number(row.model_calls),
     toolCalls: Number(row.tool_calls),
+    outputInvalid: Number(row.output_invalid),
+    proposals: {
+      created: Number(row.proposals_created),
+      approved: Number(row.proposals_approved),
+      partiallyApproved: Number(row.proposals_partially_approved),
+      rejected: Number(row.proposals_rejected),
+      expired: Number(row.proposals_expired),
+    },
+    avgTotalTokens: row.avg_total_tokens,
+    avgEstimatedCost: row.avg_estimated_cost,
+    currency: row.currency?.trim() ?? null,
   }));
 }
 

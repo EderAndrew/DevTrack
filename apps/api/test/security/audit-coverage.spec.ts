@@ -6,7 +6,8 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types";
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
-import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
+import { type AiTestApp, resetAiDb } from "../helpers/ai";
+import { createCurriculumAiApp } from "../helpers/curriculum-ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -14,8 +15,8 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/003-class-invitations-enrollment/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
 ];
-
 
 interface ContractRow {
   type: string;
@@ -72,7 +73,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   });
 
   it("o contrato e o catálogo do AuditService listam os mesmos tipos e as mesmas chaves de metadata", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19);
+    expect(rows.length).toBeGreaterThanOrEqual(28 + 11 + 17 + 19 + 2);
     expect(new Set(rows.map((r) => r.type)).size).toBe(rows.length);
     const contract = Object.fromEntries(rows.map((r) => [r.type, [...r.metadata].sort()]));
     const catalogue = Object.fromEntries(
@@ -86,7 +87,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createAiTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      t = await createCurriculumAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
       await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });

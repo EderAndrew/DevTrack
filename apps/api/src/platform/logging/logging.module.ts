@@ -9,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 /**
  * Never logged (FR-072, R12): cookies, authorization, Set-Cookie and any password/token/secret
- * field. Request bodies are never logged at all (pino-http default serializers skip them).
+ * field, including the AI provider key (007 FR-043). Request bodies are never logged at all (pino-http default serializers skip them).
  */
 export const REDACT_PATHS = [
   "req.headers.cookie",
@@ -20,6 +20,8 @@ export const REDACT_PATHS = [
   "*.secret",
   "*.passwordHash",
   "*.tokenHash",
+  "*.apiKey",
+  "*.anthropic",
 ];
 
 /** Accepts the caller's X-Request-Id only when it is a UUID; otherwise generates one. */
