@@ -54,6 +54,33 @@ export function areaFor(pathname: string): string | null {
 }
 
 /**
+ * Permissions of the teacher and administration areas: a verified user with any of them works in
+ * the AppShell, otherwise in the student layout (005 contracts/layouts.md). UX only.
+ */
+export const STAFF_AREA_PERMISSIONS: readonly string[] = [
+  "disciplinas.visualizar",
+  "turmas.visualizar",
+  ...USER_AREAS.map((area) => area.permission),
+];
+
+/** Route prefix → name of the area, shown in the Topbar (005 research V12, V20). */
+export const AREAS = [
+  { prefix: "/disciplinas", name: "Minhas disciplinas" },
+  { prefix: "/turmas", name: "Turmas" },
+  { prefix: "/professores", name: "Professores" },
+  { prefix: "/admin/managers", name: "Gestores" },
+  { prefix: "/admin/usuarios", name: "Usuários" },
+  { prefix: "/conta", name: "Minha conta" },
+  { prefix: MY_CLASSES_PATH, name: "Minhas turmas" },
+] as const;
+
+/** Name of the area a path belongs to (the prefix itself or a page below it), or `null`. */
+export function areaFor(pathname: string): string | null {
+  const area = AREAS.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return area?.name ?? null;
+}
+
+/**
  * Post-login destination: only a path of this app (`/…`), never `//host` or `/\host`, so a
  * crafted `?next=` cannot send the user to another site. Defaults to the app root, which picks
  * the account's start page.
