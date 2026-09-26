@@ -67,6 +67,19 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(await restrictedImports("src/modules/ai/gateway/providers/x/x.provider.ts", code)).toEqual([]);
   });
 
+  it("007/FR-042 o @anthropic-ai/sdk é importado só pelo adaptador, e o lint o recusa em outro arquivo", async () => {
+    const code = 'import Anthropic from "@anthropic-ai/sdk";\nexport const y = Anthropic;\n';
+    expect(await restrictedImports(`${PROVIDERS_DIR}anthropic.provider.ts`, code)).toEqual([]);
+    for (const path of ["src/modules/curriculum-ai/curriculum-ai-request.service.ts", "src/modules/ai/definitions/index.ts", "src/modules/ai/gateway/model-gateway.ts"]) {
+      expect(await restrictedImports(path, code), path).not.toEqual([]);
+    }
+    const importers = sourceFiles(resolve(API_ROOT, "src"))
+      .filter((file) => importsOf(readFileSync(file, "utf8")).some((specifier) => specifier.startsWith("@anthropic-ai/")))
+      .map((file) => relative(API_ROOT, file))
+      .sort();
+    expect(importers).toEqual([`${PROVIDERS_DIR}anthropic.provider.spec.ts`, `${PROVIDERS_DIR}anthropic.provider.ts`]);
+  });
+
   it("fora de src/modules/ai, os internos (gateway, ferramentas, validador, registro) são recusados", async () => {
     for (const path of ["../ai/gateway/model-gateway", "../ai/tools/ai-tool-executor", "../ai/registry/ai-registry.sync", "../ai/output/x"]) {
       const code = `import { X } from "${path}";\nexport const y = X;\n`;

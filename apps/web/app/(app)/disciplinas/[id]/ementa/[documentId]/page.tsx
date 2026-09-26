@@ -28,6 +28,7 @@ export default async function SyllabusDocumentPage({
         classId={UuidSchema.safeParse(turma).success ? turma : undefined}
         canRetry={me.permissions.includes("ementas.enviar")}
         canReview={me.permissions.includes("ementas.revisar")}
+        canUseAi={me.permissions.includes("ia.execucoes.visualizar")}
       />
     </section>
   );

@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
-import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
+import { type AiTestApp, resetAiDb } from "../helpers/ai";
+import { createCurriculumAiApp } from "../helpers/curriculum-ai";
 import { createUser, loginAs } from "../helpers/factories";
 import { api } from "../helpers/test-app";
 
@@ -38,7 +39,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   let content: JourneySecret[];
 
   beforeAll(async () => {
-    t = await createAiTestApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+    t = await createCurriculumAiApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
     await resetAiDb(t);
     ({ secrets, content } = await runFullJourney(t));
   });

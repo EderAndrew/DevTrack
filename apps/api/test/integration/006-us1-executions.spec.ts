@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { AiExecutionViewSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { AiExecutionsService } from "../../src/modules/ai/execution/ai-executions.service";
+import type { AuthContext } from "../../src/platform/http/request-context";
 import { fakeDelay, fakeOutput } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
@@ -210,6 +212,61 @@ describe("006/US1 execução assíncrona de agente", () => {
     const other = await createUser(t, { roles: ["TEACHER"] });
     const empty = await api(t, { cookie: await loginAs(t, other) }).get("/api/ai/executions");
     expect(empty.body.items).toEqual([]);
+  });
+
+  describe("007 research C12.3 availability(agentKey)", () => {
+    const availability = (agentKey = "reference-l1") => t.get(AiExecutionsService).availability(agentKey);
+
+    it("AVAILABLE com agente ativo, modelo habilitado com provedor e o worker ligado", async () => {
+      const interval = t.config.ai.intervalSeconds;
+      t.config.ai.intervalSeconds = 3_600; // no request here, so neither the timer nor kick() runs
+      try {
+        expect(await availability()).toBe("AVAILABLE");
+      } finally {
+        t.config.ai.intervalSeconds = interval;
+      }
+    });
+
+    it("PAUSED com AI_EXECUTION_INTERVAL_SECONDS = 0", async () => {
+      expect(await availability()).toBe("PAUSED");
+    });
+
+    it("AGENT_DISABLED com o agente desabilitado, em rascunho ou inexistente, antes das outras razões", async () => {
+      await t.prisma.aiAgent.update({ where: { key: "reference-l1" }, data: { status: "DISABLED" } });
+      expect(await availability()).toBe("AGENT_DISABLED");
+      expect(await availability("reference-draft")).toBe("AGENT_DISABLED");
+      expect(await availability("nao-existe")).toBe("AGENT_DISABLED");
+    });
+
+    it("MODEL_UNAVAILABLE com a configuração de modelo desabilitada", async () => {
+      await t.prisma.aiModelConfig.update({ where: { key: "fake-default" }, data: { status: "DISABLED" } });
+      expect(await availability()).toBe("MODEL_UNAVAILABLE");
+    });
+  });
+
+  describe("007 research C12.4 gancho onCreated", () => {
+    const body = () => ({ agentKey: "reference-l1", resource: { type: "SUBJECT", id: subjectId }, input: {}, idempotencyKey: randomUUID() });
+
+    it("roda na transação que cria a execução, depois de ai_execution.requested", async () => {
+      const seen: { executionId: string; requested: number }[] = [];
+      const { view, created } = await t.get(AiExecutionsService).request({ userId: teacher.id } as AuthContext, body(), "req-hook", {
+        onCreated: async (tx, executionId) => {
+          seen.push({ executionId, requested: await tx.auditEvent.count({ where: { type: "ai_execution.requested", targetId: executionId } }) });
+        },
+      });
+      expect(created).toBe(true);
+      expect(seen).toEqual([{ executionId: view.id, requested: 1 }]);
+    });
+
+    it("uma exceção no gancho desfaz a execução e a auditoria", async () => {
+      await expect(
+        t.get(AiExecutionsService).request({ userId: teacher.id } as AuthContext, body(), "req-hook", {
+          onCreated: () => Promise.reject(new Error("falha no gancho")),
+        }),
+      ).rejects.toThrow("falha no gancho");
+      expect(await t.prisma.aiExecution.count()).toBe(0);
+      expect(await t.prisma.auditEvent.count({ where: { type: "ai_execution.requested" } })).toBe(0);
+    });
   });
 });
 

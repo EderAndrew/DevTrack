@@ -33,6 +33,18 @@ const RUNNING = ["RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"] as const;
 
 const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
+/** Whether an agent can take a new request now (007 research C12.3); never names the provider nor the model. */
+export type AiAvailability = "AVAILABLE" | "AGENT_DISABLED" | "MODEL_UNAVAILABLE" | "PAUSED";
+
+export interface RequestExecutionOptions {
+  /**
+   * Runs inside the transaction that creates the execution, after `ai_execution.requested` (007
+   * research C12.4): a domain writes its own audit there. An exception rolls everything back. It
+   * doesn't run when the idempotency key returns an existing execution.
+   */
+  onCreated?: (tx: Tx, executionId: string) => Promise<void>;
+}
+
 export interface RequestedExecution {
   view: AiExecutionView;
   /** false when the idempotency key returned an existing execution (200 instead of 202). */
@@ -62,7 +74,22 @@ export class AiExecutionsService {
     private readonly resources: AiResourceResolver,
   ) {}
 
-  async request(auth: AuthContext, body: RequestAiExecutionRequest, requestId: string | null): Promise<RequestedExecution> {
+  /** In this order: the agent, its model config and provider, then the global kill switch. */
+  async availability(agentKey: string): Promise<AiAvailability> {
+    const agent = await this.agents.byKey(agentKey);
+    if (!agent || agent.status !== "ACTIVE") return "AGENT_DISABLED";
+    const config = await this.modelConfigs.byId(agent.modelConfigId);
+    if (!config || config.status !== "ENABLED" || !this.gateway.providerFor(config.provider)) return "MODEL_UNAVAILABLE";
+    if (this.config.ai.intervalSeconds <= 0) return "PAUSED";
+    return "AVAILABLE";
+  }
+
+  async request(
+    auth: AuthContext,
+    body: RequestAiExecutionRequest,
+    requestId: string | null,
+    options: RequestExecutionOptions = {},
+  ): Promise<RequestedExecution> {
     const workspaceId = auth.userId;
     const limit = await this.rateLimit.hit("ai-execution", workspaceId, { limit: this.config.rateLimit.aiExecutionsPerMinute, windowSec: 60 });
     if (limit.blocked) {
@@ -145,6 +172,7 @@ export class AiExecutionsService {
             riskLevel: agent.riskLevel,
           },
         });
+        await options.onCreated?.(tx, created.id);
         return created.id;
       });
     } catch (error) {
@@ -157,6 +185,20 @@ export class AiExecutionsService {
 
     this.worker.kick();
     return { view: await this.get(workspaceId, id), created: true };
+  }
+
+  /** The newest execution of `agentKey` on `resource` in the workspace, or null. */
+  async findLatestForResource(workspaceId: string, agentKey: string, resource: { type: string; id: string }): Promise<AiExecutionView | null> {
+    const row = await this.prisma.aiExecution.findFirst({
+      where: { workspaceId, agentKey, resourceType: resource.type, resourceId: resource.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: EXECUTION_VIEW_INCLUDE,
+    });
+    return row ? toExecutionView(row) : null;
+  }
+
+  countForResource(workspaceId: string, agentKey: string, resource: { type: string; id: string }): Promise<number> {
+    return this.prisma.aiExecution.count({ where: { workspaceId, agentKey, resourceType: resource.type, resourceId: resource.id } });
   }
 
   async list(workspaceId: string, query: AiExecutionListQuery): Promise<AiExecutionPage> {

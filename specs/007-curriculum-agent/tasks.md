@@ -259,7 +259,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T015 [P] [US1] Teste de integração
+- [X] T015 [P] [US1] Teste de integração
   `apps/api/test/integration/007-us1-request-analysis.spec.ts`:
   - `007/US1-1` e `007/SC-008` (pedido): `POST /syllabus-documents/:id/ai-analyses` → 202
     `QUEUED` em < 1 s, com o provedor em `delay(30000)` e o worker desligado. A execução
@@ -285,7 +285,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
     simulado, a duração e o custo estimado pelo preço 5 / 25 USD da configuração;
   - `curriculum_ai.analysis_requested` e `ai_execution.requested` na mesma transação
     (mesmo `requestId`, e nenhum dos dois quando a criação falha).
-- [ ] T016 [P] [US1] Testes do web
+- [X] T016 [P] [US1] Testes do web
   `apps/web/features/curriculum-ai/components/curriculum-ai-panel.test.tsx`:
   - `007/US1-5`: textos de FR-041 e o botão "Preencher com IA";
   - `007/US1-2` e `007/FR-018`: cada etapa com o seu texto e a região `polite`; polling até
@@ -296,7 +296,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Fundação (research C12.3 e C12.4) em
+- [X] T017 [US1] Fundação (research C12.3 e C12.4) em
   `apps/api/src/modules/ai/execution/ai-executions.service.ts`:
   - `availability(agentKey)` → `AVAILABLE | AGENT_DISABLED | MODEL_UNAVAILABLE | PAUSED`
     (`PAUSED` = intervalo 0; modelo desabilitado ou sem provedor registrado =
@@ -310,7 +310,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
     `countForResource(workspaceId, agentKey, resource)`.
 
   Testes unitários ou de integração 006 para `availability` nos quatro casos.
-- [ ] T018 [US1] `apps/api/src/modules/curriculum-ai/curriculum-ai-request.service.ts`:
+- [X] T018 [US1] `apps/api/src/modules/curriculum-ai/curriculum-ai-request.service.ts`:
   - `status(auth, documentId)`: C14, com as razões na ordem `DOCUMENT_NOT_READY`,
     `DOCUMENT_WITHOUT_TEXT` e depois `availability`;
   - `request(auth, documentId, body, requestId)`, pelos passos de C13:
@@ -324,7 +324,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
   - Nesta história, `discardPendingProposal` só é aceito no contrato. O comportamento e o
     limite `curriculum-ai` por hora são da US7 (T057).
   - Logs só com ids e contagens (C19).
-- [ ] T019 [US1] `apps/api/src/modules/curriculum-ai/curriculum-ai.controller.ts`, fino:
+- [X] T019 [US1] `apps/api/src/modules/curriculum-ai/curriculum-ai.controller.ts`, fino:
   - `GET /syllabus-documents/:id/ai` (`ementas.visualizar` + `ia.execucoes.visualizar`);
   - `POST /syllabus-documents/:id/ai-analyses` (`ementas.revisar` +
     `ia.execucoes.visualizar`), 202/200 conforme `created`.
@@ -334,11 +334,11 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
   `contracts/permissions.md`), em `route-declarations.spec.ts`, e o `VALID_BODY` de
   `ai-analyses` em `apps/api/test/security/004-curriculum-authorization-matrix.ts`. Retirar
   `curriculum_ai.analysis_requested` de `PENDING_007_TYPES`.
-- [ ] T020 [P] [US1] Web:
+- [X] T020 [P] [US1] Web:
   - `apps/web/features/curriculum-ai/api/curriculum-ai.ts` (`getStatus`, `requestAnalysis`);
   - os hooks `use-curriculum-ai-status.ts` (polling com `refetchInterval` enquanto houver
     `activeExecution`) e `use-request-curriculum-analysis.ts`.
-- [ ] T021 [US1] `apps/web/features/curriculum-ai/components/curriculum-ai-panel.tsx`, pelos
+- [X] T021 [US1] `apps/web/features/curriculum-ai/components/curriculum-ai-panel.tsx`, pelos
   estados `AVAILABLE`, `activeExecution` e `pendingProposalId` de `contracts/web-ui.md`:
   - reusa `AiExecutionStatus` e `AiProcessingIndicator` de
     `apps/web/components/shared/ai/`;
@@ -348,7 +348,7 @@ pedir a análise, drenar a fila e conferir a proposta pronta e nenhuma revisão 
   Incluir o painel em `apps/web/features/syllabus/components/syllabus-document-detail.tsx`,
   ao lado de "Revisar conteúdo" e "Preencher manualmente", e atualizar
   `syllabus-document-detail.test.tsx`.
-- [ ] T022 [US1] Jornada de auditoria: acrescentar o pedido de análise ao fluxo 004 de
+- [X] T022 [US1] Jornada de auditoria: acrescentar o pedido de análise ao fluxo 004 de
   `apps/api/test/helpers/journey.ts`, depois do upload e do processamento, com
   `createCurriculumAiApp`, e conferir `curriculum_ai.analysis_requested` e os eventos
   `ai_execution.*`/`ai_proposal.created` com `agentKey = curriculum-agent`.
@@ -368,7 +368,7 @@ desabilitado, preencher manualmente, editar e confirmar: a 004 funciona sem dife
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T023 [P] [US2] Teste de integração
+- [X] T023 [P] [US2] Teste de integração
   `apps/api/test/integration/007-us2-manual-without-ai.spec.ts`:
   - `007/US2-1` e `007/SC-007`: provedor simulado `UNAVAILABLE` → "Preencher manualmente"
     cria, edita e confirma a revisão; o mesmo com a IA pausada (intervalo 0) e sem provedor
@@ -383,7 +383,7 @@ desabilitado, preencher manualmente, editar e confirmar: a 004 funciona sem dife
   - `007/US1-7` e `007/FR-013`: PNG, JPG e PDF escaneado → status `DOCUMENT_WITHOUT_TEXT`,
     pedido → 409 `SYLLABUS_NOT_READY_FOR_AI`; documento `UPLOADED`/`PROCESSING`/`FAILED` →
     `DOCUMENT_NOT_READY` e 409.
-- [ ] T024 [P] [US2] Testes unitários do provedor
+- [X] T024 [P] [US2] Testes unitários do provedor
   `apps/api/src/modules/ai/gateway/providers/anthropic.provider.spec.ts`, contra um servidor
   HTTP local (`node:http`, `baseURL`), nunca a rede:
   - o corpo enviado segue a tabela de `contracts/curriculum-agent.md`: `system`, primeira
@@ -400,7 +400,7 @@ desabilitado, preencher manualmente, editar e confirmar: a 004 funciona sem dife
 
   E `json-schema-sanitize.spec.ts`: remove as palavras da lista, recursivamente, e mantém
   `required` e `additionalProperties: false`.
-- [ ] T025 [P] [US2] Testes do web, em `curriculum-ai-panel.test.tsx`:
+- [X] T025 [P] [US2] Testes do web, em `curriculum-ai-panel.test.tsx`:
   - `007/US2-2`: botão desabilitado com a razão do catálogo via `aria-describedby`, e
     "Preencher manualmente" habilitado, para cada razão;
   - `007/US2-3`: `FAILED`/`TIMED_OUT`/`CANCELLED` → `AiErrorState` com o texto da etapa,
@@ -409,9 +409,9 @@ desabilitado, preencher manualmente, editar e confirmar: a 004 funciona sem dife
 
 ### Implementation for User Story 2
 
-- [ ] T026 [US2] `apps/api/src/modules/ai/gateway/providers/json-schema-sanitize.ts`
+- [X] T026 [US2] `apps/api/src/modules/ai/gateway/providers/json-schema-sanitize.ts`
   (research C3, pura).
-- [ ] T027 [US2] `apps/api/src/modules/ai/gateway/providers/anthropic.provider.ts`
+- [X] T027 [US2] `apps/api/src/modules/ai/gateway/providers/anthropic.provider.ts`
   (`AnthropicProvider implements ModelProvider`), pela tabela de
   `contracts/curriculum-agent.md`:
   - cliente com `{apiKey, baseURL?, maxRetries: 0}`;
@@ -424,18 +424,18 @@ desabilitado, preencher manualmente, editar e confirmar: a 004 funciona sem dife
 
   É o único arquivo que importa `@anthropic-ai/sdk`. Conferir as assinaturas no pacote
   instalado (tipos do SDK), sem supor a API.
-- [ ] T028 [US2] `apps/api/test/security/006-ai-boundary.spec.ts`: com o SDK instalado, a
+- [X] T028 [US2] `apps/api/test/security/006-ai-boundary.spec.ts`: com o SDK instalado, a
   varredura confirma `@anthropic-ai/sdk` e `api.anthropic.com` só em
   `src/modules/ai/gateway/providers/**`. O ESLint recusa o import em outro arquivo, com um
   caso de teste.
-- [ ] T029 [US2] `006-ai-no-real-provider.spec.ts` (`007/FR-043`):
+- [X] T029 [US2] `006-ai-no-real-provider.spec.ts` (`007/FR-043`):
   - `productionAiDefinitions` com chave → um provedor `anthropic`; sem chave → nenhum, e a app
     inicia;
   - `anthropic` é a única chave de provedor real no código;
   - os testes só registram `fake*`.
-- [ ] T030 [US2] `apps/api/src/modules/ai/definitions/index.ts`: `productionAiDefinitions`
+- [X] T030 [US2] `apps/api/src/modules/ai/definitions/index.ts`: `productionAiDefinitions`
   acrescenta `new AnthropicProvider(config.ai.anthropic)` só quando `apiKey` existe.
-- [ ] T031 [US2] Web: estados indisponível e de erro em `curriculum-ai-panel.tsx`, com as
+- [X] T031 [US2] Web: estados indisponível e de erro em `curriculum-ai-panel.tsx`, com as
   razões e o texto `NOTHING_FOUND` no catálogo `apps/web/lib/messages/error-messages.ts`
   (chaves só do web, de `contracts/http-api.md`).
 

@@ -79,6 +79,9 @@ export const VALID_BODY: Record<string, (area: TeacherArea) => object> = {
   "GET /syllabus-documents/:id": () => ({}),
   "GET /syllabus-documents/:id/file": () => ({}),
   "POST /syllabus-documents/:id/retry": () => ({}),
+  // 007
+  "GET /syllabus-documents/:id/ai": () => ({}),
+  "POST /syllabus-documents/:id/ai-analyses": () => ({}),
   "POST /syllabus-documents/:id/revisions": () => ({ source: "MANUAL" }),
   "GET /syllabus-revisions/:id": () => ({}),
   "PUT /syllabus-revisions/:id": () => ({ groups: [{ title: "Grupo", items: [{ text: "Item" }] }] }),

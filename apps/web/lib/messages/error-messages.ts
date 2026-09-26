@@ -1,4 +1,4 @@
-import type { AiErrorCode, ErrorCode } from "@repo/contracts";
+import type { AiErrorCode, CurriculumAiAvailability, ErrorCode } from "@repo/contracts";
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
@@ -168,3 +168,24 @@ export const AI_ERROR_GUIDANCE = {
     guidance: "Tente com um conteúdo menor.",
   },
 } as const satisfies Record<AiErrorCode, { title: string; guidance: string }>;
+
+const AI_UNAVAILABLE = "O preenchimento com IA está indisponível no momento.";
+
+/**
+ * Why "Preencher com IA" can't be used on a document (007 contracts/http-api.md, web-only
+ * messages): never the provider or the model.
+ */
+export const CURRICULUM_AI_AVAILABILITY_MESSAGES = {
+  DOCUMENT_NOT_READY: "Aguarde o processamento do documento para usar a IA.",
+  DOCUMENT_WITHOUT_TEXT: ERROR_MESSAGES.SYLLABUS_NOT_READY_FOR_AI,
+  AGENT_DISABLED: AI_UNAVAILABLE,
+  MODEL_UNAVAILABLE: AI_UNAVAILABLE,
+  PAUSED: AI_UNAVAILABLE,
+} as const satisfies Record<Exclude<CurriculumAiAvailability, "AVAILABLE">, string>;
+
+/** The last analysis found nothing to propose (007/FR-017). */
+export const CURRICULUM_AI_NOTHING_FOUND =
+  "Não foi possível identificar conteúdo de ementa neste documento. Preencha manualmente.";
+
+/** A `429` on "Preencher com IA" (007 contracts/web-ui.md). */
+export const CURRICULUM_AI_RATE_LIMITED = "Muitas análises solicitadas. Tente novamente em alguns minutos.";

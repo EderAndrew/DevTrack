@@ -8,6 +8,7 @@ import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.w
 import { fakeDelay, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
 import type { AiTestApp } from "./ai";
+import { pooOutput, scriptCurriculumRun } from "./curriculum-ai";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
   createSyllabusDocument,
@@ -48,8 +49,8 @@ export interface JourneyResult {
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
  * Used by the SC-005 secret scan and the SC-008 audit coverage tests. `t` comes from
- * `createAiTestApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
- * flows run the reference agents on the fake provider.
+ * `createCurriculumAiApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
+ * flows run the reference agents and the 007 flows the curriculum agent, all on the fake provider.
  */
 export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const secrets: JourneySecret[] = [];
@@ -221,6 +222,19 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   });
   expect(reviewed.status).toBe(200);
   expect((await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {})).body.status).toBe("CONFIRMED");
+  // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
+  // provider, reads the document and proposes its content without touching the syllabus.
+  const aiDocumentId = syllabus.body.document.id as string;
+  scriptCurriculumRun(t.provider, aiDocumentId, pooOutput());
+  const analysis = await teacherClient.post(`/api/syllabus-documents/${aiDocumentId}/ai-analyses`, {});
+  expect(analysis.status).toBe(202);
+  expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  expect((await teacherClient.get(`/api/syllabus-documents/${aiDocumentId}/ai`)).body.pendingProposalId).not.toBeNull();
+  for (const type of ["ai_execution.requested", "ai_proposal.created"]) {
+    const event = await t.prisma.auditEvent.findFirstOrThrow({ where: { type }, orderBy: { id: "desc" } });
+    expect(event.metadata, type).toMatchObject({ agentKey: "curriculum-agent" });
+  }
+  expect(await t.prisma.auditEvent.count({ where: { type: "curriculum_ai.analysis_requested", targetId: aiDocumentId } })).toBe(1);
   // 004/US4 — the teacher marks two class days, then unmarks one whose topic is archived there.
   const meetingsPath = `/api/classes/${classId}/meetings`;
   const calendar = await teacherClient.put(meetingsPath, {

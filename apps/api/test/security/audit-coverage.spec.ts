@@ -6,7 +6,8 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types";
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
-import { type AiTestApp, createAiTestApp, resetAiDb } from "../helpers/ai";
+import { type AiTestApp, resetAiDb } from "../helpers/ai";
+import { createCurriculumAiApp } from "../helpers/curriculum-ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -21,7 +22,7 @@ const CONTRACTS = [
  * 007 types the journey does not emit yet. Transitional: each user story removes its own when its
  * flow joins the journey, and T067 removes the empty list.
  */
-const PENDING_007_TYPES = new Set(["curriculum_ai.analysis_requested", "curriculum_ai.proposal_applied"]);
+const PENDING_007_TYPES = new Set(["curriculum_ai.proposal_applied"]);
 
 
 interface ContractRow {
@@ -93,7 +94,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createAiTestApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      t = await createCurriculumAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
       await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });

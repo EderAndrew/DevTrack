@@ -1,12 +1,13 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { productionAiDefinitions } from "../../src/modules/ai/definitions";
 import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
+import { AnthropicProvider } from "../../src/modules/ai/gateway/providers/anthropic.provider";
 import { fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
 import { createSubject, createUser, loginAs } from "../helpers/factories";
-import { api } from "../helpers/test-app";
+import { api, createTestApp } from "../helpers/test-app";
 
 const LOCAL = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
@@ -30,6 +31,30 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
     expect(production.agents.map((a) => [a.key, a.initialStatus])).toEqual([["curriculum-agent", "DISABLED"]]);
     expect(production.modelConfigs.map((c) => c.provider)).toEqual(["anthropic"]);
     expect(production.tools.map((tool) => tool.key)).toEqual(["read-curriculum-document"]);
+  });
+
+  it("007/FR-043 com a chave, a produção registra um provedor anthropic, e só ele", () => {
+    const withKey = productionAiDefinitions({ ...t.config, ai: { ...t.config.ai, anthropic: { apiKey: "sk-ant-teste-007-CHAVE-FALSA", baseUrl: null } } });
+    expect(withKey.providers.map((provider) => provider.key)).toEqual(["anthropic"]);
+    expect(withKey.providers[0]).toBeInstanceOf(AnthropicProvider);
+  });
+
+  it("007/FR-043 sem a chave, a app de produção inicia sem provedor", async () => {
+    const production = await createTestApp();
+    try {
+      expect(production.get<AiDefinitions>(AI_DEFINITIONS).providers).toEqual([]);
+      expect((await api(production).get("/api/health/live")).status).toBe(200);
+    } finally {
+      await production.close();
+    }
+  });
+
+  it("007/FR-043 anthropic é a única chave de provedor real no código", () => {
+    const dir = join(__dirname, "../../src/modules/ai/gateway/providers");
+    const keys = readdirSync(dir)
+      .filter((name) => name.endsWith(".provider.ts"))
+      .flatMap((name) => [...readFileSync(join(dir, name), "utf8").matchAll(/readonly key = "([^"]+)"/g)].map((m) => m[1]));
+    expect(keys).toEqual(["anthropic"]);
   });
 
   it("o app de teste só tem provedores simulados (chaves fake*), e toda configuração aponta para eles", () => {

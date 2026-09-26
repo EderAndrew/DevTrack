@@ -63,6 +63,28 @@ export class AiProposalsService {
     return toProposalView(row);
   }
 
+  /** For domain modules (007 research C14): the id of the proposal of `proposalType` on `target` still awaiting review, or null. */
+  async findPendingForTarget(
+    workspaceId: string,
+    proposalType: string,
+    target: { type: string; id: string },
+    now = new Date(),
+  ): Promise<string | null> {
+    const row = await this.prisma.aiProposal.findFirst({
+      where: {
+        workspaceId,
+        proposalType,
+        targetResourceType: target.type,
+        targetResourceId: target.id,
+        status: "READY_FOR_REVIEW",
+        expiresAt: { gt: now },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
   /** For domain modules (research A3): an APPROVED or PARTIALLY_APPROVED proposal of the workspace, else 404/409. */
   async getApproved(workspaceId: string, id: string): Promise<AiProposalView> {
     const view = await this.get(workspaceId, id);

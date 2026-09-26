@@ -20,8 +20,11 @@ import { api, type TestApp, type TestAppOptions } from "./test-app";
 /** The real `curriculum-agent`, registered ACTIVE: its availability tests disable it through the admin route. */
 export const TEST_CURRICULUM_AGENT = defineAgent({ ...CURRICULUM_AGENT, initialStatus: "ACTIVE" });
 
-/** The agent's model config, on the fake provider: only the provider is swapped (006/SC-011). */
-export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({ ...CURRICULUM_MODEL_CONFIG, provider: "fake", model: "fake-model-1" });
+/**
+ * The agent's model config, on the fake provider: only the provider is swapped (006/SC-011), so the
+ * model name and the price stay the real ones (007/FR-047).
+ */
+export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({ ...CURRICULUM_MODEL_CONFIG, provider: "fake" });
 
 /**
  * `createAiTestApp` with the 007 definitions (agent, tool, ownership of `SYLLABUS_DOCUMENT`) next to
