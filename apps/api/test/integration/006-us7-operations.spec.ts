@@ -50,6 +50,7 @@ describe("006/US7 o administrador opera a IA", () => {
         totalTokens: usage.input === null || usage.output === null ? null : usage.input + usage.output,
         estimatedCost: usage.cost === null ? null : new Prisma.Decimal(usage.cost),
         currency: usage.cost === null ? null : "USD",
+        costSource: usage.cost === null ? null : "PRICE",
       },
     });
   }
@@ -77,11 +78,13 @@ describe("006/US7 o administrador opera a IA", () => {
         promptVersion: 1,
         provider: "fake",
         model: "fake-model-1",
+        taskKey: "reference-default",
         executions: 2,
         completed: 1,
         failed: 1,
         timedOut: 0,
         cancelled: 0,
+        fallbacks: 0,
         avgDurationMs: 2_000,
         modelCalls: 3,
         toolCalls: 1,
@@ -109,14 +112,14 @@ describe("006/US7 o administrador opera a IA", () => {
 
       const body = (await ops().get("/api/ai/operations/metrics?period=24h")).body;
       expect(body.byModel).toEqual([
-        { provider: "fake", model: "fake-model-1", calls: 2, inputTokens: 1_500, outputTokens: 300, totalTokens: 1_800, estimatedCost: "0.002100", currency: "USD" },
+        { provider: "fake", model: "fake-model-1", calls: 2, failedCalls: 0, fallbackCalls: 0, avgDurationMs: 100, inputTokens: 1_500, outputTokens: 300, totalTokens: 1_800, estimatedCost: "0.002100", currency: "USD" },
       ]);
 
       await t.prisma.aiModelCall.deleteMany();
       await modelCall(execution.id, 4, recent, { input: null, output: null, cost: null });
       const empty = (await ops().get("/api/ai/operations/metrics?period=24h")).body;
       expect(empty.byModel).toEqual([
-        { provider: "fake", model: "fake-model-1", calls: 1, inputTokens: null, outputTokens: null, totalTokens: null, estimatedCost: null, currency: null },
+        { provider: "fake", model: "fake-model-1", calls: 1, failedCalls: 0, fallbackCalls: 0, avgDurationMs: 100, inputTokens: null, outputTokens: null, totalTokens: null, estimatedCost: null, currency: null },
       ]);
     });
 
@@ -137,7 +140,9 @@ describe("006/US7 o administrador opera a IA", () => {
       status: "ACTIVE",
       version: 1,
       riskLevel: "L1_READ_ONLY",
-      modelConfigKey: "fake-default",
+      taskKey: "reference-default",
+      primaryModelConfigKey: "fake-default",
+      fallbackModelConfigKey: null,
       promptVersion: 1,
       outputSchemaVersion: 1,
       toolKeys: ["reference.disabled", "reference.leaky", "reference.read-subject"],

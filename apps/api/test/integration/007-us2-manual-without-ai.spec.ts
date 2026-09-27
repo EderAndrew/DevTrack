@@ -11,6 +11,7 @@ import {
   requestAnalysis,
   scriptCurriculumRun,
   seedProcessedDocument,
+  TEST_CURRICULUM_MODEL_CONFIG,
 } from "../helpers/curriculum-ai";
 import { createSyllabusDocument, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
@@ -102,7 +103,7 @@ describe("007/US2 o preenchimento manual continua funcionando, com ou sem IA", (
     });
 
     it("modelo desabilitado pelo administrador → MODEL_UNAVAILABLE e 503 AI_MODEL_UNAVAILABLE", async () => {
-      const res = await (await adminClient()).post("/api/ai/operations/model-configs/curriculum-extraction-default/status", { status: "DISABLED" });
+      const res = await (await adminClient()).post(`/api/ai/operations/model-configs/${TEST_CURRICULUM_MODEL_CONFIG.key}/status`, { status: "DISABLED" });
       expect(res.status).toBe(200);
       expect((await getCurriculumAiStatus(t, cookie, document.id)).body.availability).toBe("MODEL_UNAVAILABLE");
       const request = await requestAnalysis(t, cookie, document.id);
@@ -184,7 +185,7 @@ describe("007/US2 o preenchimento manual continua funcionando, com ou sem IA", (
 });
 
 /**
- * The production definitions without `ANTHROPIC_API_KEY` (007/FR-043): no provider is registered,
+ * The production definitions without `OPENROUTER_API_KEY` (007/FR-043, 008/FR-003): no provider is registered,
  * so even an enabled agent is MODEL_UNAVAILABLE, and the 004 flow is untouched.
  */
 describe("007/US2-1 007/US2-2 sem provedor registrado (produção sem a chave)", () => {

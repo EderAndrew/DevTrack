@@ -8,6 +8,10 @@ import { AiAgentStatusSchema, AiModelConfigStatusSchema, AiRiskLevelSchema } fro
 export const AiProviderStatusSchema = z.enum(["UP", "DOWN", "NOT_CONFIGURED"]);
 export type AiProviderStatus = z.infer<typeof AiProviderStatusSchema>;
 
+/** State of a model config's circuit on the answering API instance (008 research G8). */
+export const AiCircuitStateSchema = z.enum(["CLOSED", "OPEN", "HALF_OPEN"]);
+export type AiCircuitState = z.infer<typeof AiCircuitStateSchema>;
+
 export const AiHealthSchema = z.strictObject({
   checkedAt: IsoDateTimeSchema,
   modelConfigs: z.array(
@@ -17,6 +21,7 @@ export const AiHealthSchema = z.strictObject({
       model: z.string(),
       status: AiModelConfigStatusSchema,
       providerStatus: AiProviderStatusSchema,
+      circuit: AiCircuitStateSchema,
     }),
   ),
 });
@@ -37,11 +42,15 @@ export const AiAgentMetricsSchema = z.strictObject({
   promptVersion: z.int(),
   provider: z.string(),
   model: z.string(),
+  /** The task the executions ran (008); null for versions before it. */
+  taskKey: z.string().nullable(),
   executions: z.int(),
   completed: z.int(),
   failed: z.int(),
   timedOut: z.int(),
   cancelled: z.int(),
+  /** Executions in which a logical call went to the fallback model (008 FR-019). */
+  fallbacks: z.int(),
   avgDurationMs: z.int().nullable(),
   modelCalls: z.int(),
   toolCalls: z.int(),
@@ -64,8 +73,14 @@ export type AiAgentMetrics = z.infer<typeof AiAgentMetricsSchema>;
 
 export const AiModelUsageSchema = z.strictObject({
   provider: z.string(),
+  /** The model the provider served when it said so, else the one requested (008 FR-019). */
   model: z.string(),
   calls: z.int(),
+  /** Calls that did not succeed (failed or timed out). */
+  failedCalls: z.int(),
+  /** Calls made by the fallback leg. */
+  fallbackCalls: z.int(),
+  avgDurationMs: z.int().nullable(),
   inputTokens: z.int().nullable(),
   outputTokens: z.int().nullable(),
   totalTokens: z.int().nullable(),
@@ -89,7 +104,10 @@ export const AiAgentOperationsViewSchema = z.strictObject({
   status: AiAgentStatusSchema,
   version: z.int(),
   riskLevel: AiRiskLevelSchema,
-  modelConfigKey: z.string(),
+  /** The route of the current version (008): its task and the configs it routes to. */
+  taskKey: z.string().nullable(),
+  primaryModelConfigKey: z.string().nullable(),
+  fallbackModelConfigKey: z.string().nullable(),
   promptVersion: z.int(),
   outputSchemaVersion: z.int().nullable(),
   toolKeys: z.array(z.string()),

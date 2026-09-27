@@ -13,11 +13,11 @@ import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } f
 import { createSubject, createUser, loginAs } from "../helpers/factories";
 import { createTestApp, type TestApp } from "../helpers/test-app";
 
-/** v2 of the reference L1 agent: new instructions and another model config; same key. */
+/** v2 of the reference L1 agent: new instructions and a task on another model config; same key. */
 const L1_V2: AgentDefinition = {
   ...REFERENCE_L1,
   version: 2,
-  modelConfigKey: "fake-alt",
+  taskKey: "reference-alt",
   prompt: { ...REFERENCE_L1.prompt, version: 2, systemInstructions: "Resuma o recurso autorizado, versão 2." },
 };
 
@@ -47,6 +47,8 @@ describe("006/US8 agentes, instruções, modelos e esquemas versionados e trocá
     const base = referenceAiDefinitions(provider);
     return { ...base, ...change(base) };
   };
+  /** A model config's id (008: an agent version reaches its config through its task). */
+  const configId = async (key: string) => (await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key } })).id;
   const withAgent = (agent: AgentDefinition) => (base: AiDefinitions) => ({
     agents: base.agents.map((a) => (a.key === agent.key ? agent : a)),
   });
@@ -228,14 +230,14 @@ describe("006/US8 agentes, instruções, modelos e esquemas versionados e trocá
       await store.recordResult(caseId, {
         agentVersionId: v1.id,
         promptVersionId: v1.promptVersionId,
-        modelConfigId: v1.modelConfigId,
+        modelConfigId: await configId("fake-default"),
         passed: true,
         metrics: { score: 0.9, latencyMs: 120 },
       });
 
       await new AiRegistrySync(definitionsWith(t.provider, withAgent(L1_V2)), t.config, t.prisma, t.get(AuditService)).sync();
       const v2 = await t.prisma.aiAgentVersion.findFirstOrThrow({ where: { agent: { key: "reference-l1" }, version: 2 } });
-      await store.recordResult(caseId, { agentVersionId: v2.id, promptVersionId: v2.promptVersionId, modelConfigId: v2.modelConfigId, passed: false, metrics: { score: 0.4 } });
+      await store.recordResult(caseId, { agentVersionId: v2.id, promptVersionId: v2.promptVersionId, modelConfigId: await configId("fake-alt"), passed: false, metrics: { score: 0.4 } });
 
       const results = await t.prisma.aiEvaluationResult.findMany({
         where: { caseId },
@@ -253,7 +255,7 @@ describe("006/US8 agentes, instruções, modelos e esquemas versionados e trocá
       const { id: caseId } = await store.recordCase("reference-l1", CASE);
       const l1 = await t.prisma.aiAgentVersion.findFirstOrThrow({ where: { agent: { key: "reference-l1" } } });
       const l2 = await t.prisma.aiAgentVersion.findFirstOrThrow({ where: { agent: { key: "reference-l2" } } });
-      const valid = { agentVersionId: l1.id, promptVersionId: l1.promptVersionId, modelConfigId: l1.modelConfigId, passed: true };
+      const valid = { agentVersionId: l1.id, promptVersionId: l1.promptVersionId, modelConfigId: await configId("fake-default"), passed: true };
 
       await expect(store.recordResult(caseId, { ...valid, metrics: { saida: "texto do modelo" } as never })).rejects.toBeInstanceOf(ZodError);
       await expect(store.recordResult(caseId, { ...valid, agentVersionId: l2.id, promptVersionId: l2.promptVersionId })).rejects.toBeInstanceOf(AiEvaluationError);

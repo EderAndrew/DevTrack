@@ -13,21 +13,21 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 const HEALTH: AiHealth = {
   checkedAt: "2026-09-25T12:00:00.000Z",
   modelConfigs: [
-    { key: "cfg-a", provider: "prov", model: "modelo-a", status: "ENABLED", providerStatus: "UP" },
-    { key: "cfg-b", provider: "prov", model: "modelo-b", status: "DISABLED", providerStatus: "NOT_CONFIGURED" },
+    { key: "cfg-a", provider: "prov", model: "modelo-a", status: "ENABLED", providerStatus: "UP", circuit: "OPEN" },
+    { key: "cfg-b", provider: "prov", model: "modelo-b", status: "DISABLED", providerStatus: "NOT_CONFIGURED", circuit: "CLOSED" },
   ],
 };
 const METRICS: AiMetrics = {
   from: "2026-09-18T12:00:00.000Z",
   to: "2026-09-25T12:00:00.000Z",
   byAgent: [
-    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4,
+    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", taskKey: "tarefa-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, fallbacks: 2, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4,
       outputInvalid: 1, proposals: { created: 4, approved: 2, partiallyApproved: 1, rejected: 1, expired: 0 }, avgTotalTokens: 2400, avgEstimatedCost: "0.012500", currency: "USD" },
   ],
-  byModel: [{ provider: "prov", model: "modelo-a", calls: 12, inputTokens: null, outputTokens: 300, totalTokens: null, estimatedCost: null, currency: null }],
+  byModel: [{ provider: "prov", model: "modelo-a", calls: 12, failedCalls: 3, fallbackCalls: 2, avgDurationMs: 800, inputTokens: null, outputTokens: 300, totalTokens: null, estimatedCost: null, currency: null }],
 };
 const AGENTS: AiAgentOperationsView[] = [
-  { key: "agente-a", name: "Agente A", description: "d", status: "ACTIVE", version: 2, riskLevel: "L1_READ_ONLY", modelConfigKey: "cfg-a", promptVersion: 3, outputSchemaVersion: 1, toolKeys: [], queued: 3, running: 1 },
+  { key: "agente-a", name: "Agente A", description: "d", status: "ACTIVE", version: 2, riskLevel: "L1_READ_ONLY", taskKey: "tarefa-a", primaryModelConfigKey: "cfg-a", fallbackModelConfigKey: "cfg-b", promptVersion: 3, outputSchemaVersion: 1, toolKeys: [], queued: 3, running: 1 },
 ];
 const CONFIGS: AiModelConfigView[] = [
   { key: "cfg-a", provider: "prov", model: "modelo-a", status: "ENABLED", maxOutputTokens: 1000, timeoutMs: 30000, hasPrice: true, agentKeys: ["agente-a"] },
@@ -85,6 +85,62 @@ describe("006/US7-6 tela Operação de IA", () => {
     expect(at("Rejeitadas")).toBe("1 (25%)");
     expect(at("Tokens médios")).toBe("2.400");
     expect(at("Custo médio")).toBe("USD 0,0125");
+  });
+
+  it("008/US5-1 agentes com tarefa, principal e fallback; fallbacks por agente; falhas, fallbacks e duração média por modelo", async () => {
+    serve({
+      agents: [
+        ...AGENTS,
+        { ...AGENTS[0]!, key: "agente-b", name: "Agente B", taskKey: null, primaryModelConfigKey: "cfg-a", fallbackModelConfigKey: null },
+      ],
+    });
+    const { container } = renderPage();
+
+    const agents = await screen.findByRole("table", { name: "Agentes de IA" });
+    await within(agents).findByText("Agente B");
+    const agentHeaders = within(agents).getAllByRole("columnheader").map((cell) => cell.textContent);
+    expect(agentHeaders).toEqual(expect.arrayContaining(["Tarefa", "Modelo principal", "Fallback"]));
+    const [rowA, rowB] = within(agents).getAllByRole("row").slice(1);
+    const cellOf = (row: HTMLElement, header: string) => within(row).getAllByRole("cell")[agentHeaders.indexOf(header)]!.textContent;
+    expect([cellOf(rowA!, "Tarefa"), cellOf(rowA!, "Modelo principal"), cellOf(rowA!, "Fallback")]).toEqual(["tarefa-a", "cfg-a", "cfg-b"]);
+    // Without a task (a version before 008) and without a fallback, said in words.
+    expect([cellOf(rowB!, "Tarefa"), cellOf(rowB!, "Fallback")]).toEqual(["—não informado", "Sem fallback"]);
+
+    const metrics = screen.getByRole("table", { name: "Indicadores por agente" });
+    const metricHeaders = within(metrics).getAllByRole("columnheader").map((cell) => cell.textContent);
+    const metricCells = within(metrics).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(metricCells[metricHeaders.indexOf("Tarefa")]).toBe("tarefa-a");
+    expect(metricCells[metricHeaders.indexOf("Fallbacks")]).toBe("2 (20%)");
+
+    const usage = screen.getByRole("table", { name: "Uso e custo por modelo" });
+    const usageHeaders = within(usage).getAllByRole("columnheader").map((cell) => cell.textContent);
+    const usageCells = within(usage).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(usageCells[usageHeaders.indexOf("Falhas")]).toBe("3 (25%)");
+    expect(usageCells[usageHeaders.indexOf("Fallbacks")]).toBe("2 (17%)");
+    expect(usageCells[usageHeaders.indexOf("Duração média")]).toBe("0,8 s");
+    await expectNoA11yViolations(container);
+  });
+
+  it("008/US6 008/FR-013 saúde mostra o circuito de cada configuração, com texto e ícone", async () => {
+    serve({
+      health: {
+        ...HEALTH,
+        modelConfigs: [...HEALTH.modelConfigs, { key: "cfg-c", provider: "prov", model: "modelo-c", status: "ENABLED", providerStatus: "UP", circuit: "HALF_OPEN" }],
+      },
+    });
+    const { container } = renderPage();
+    const table = await screen.findByRole("table", { name: "Saúde das configurações de modelo" });
+    await within(table).findByText("cfg-c");
+    const headers = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+    const column = headers.indexOf("Circuito");
+    expect(column).toBeGreaterThan(-1);
+    const circuits = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[column]!);
+    expect(circuits.map((cell) => cell.textContent)).toEqual(["Aberto (sem chamadas)", "Fechado (normal)", "Em teste"]);
+    for (const cell of circuits) expect(cell.querySelector("svg")).not.toBeNull();
+    await expectNoA11yViolations(container);
   });
 
   it("mostra as 5 seções com dados, e as situações têm sempre texto e ícone", async () => {

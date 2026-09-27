@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { ANTHROPIC_MOCK_PORT, API_DIR, API_URL, WEB_DIR, WEB_URL, e2eEnv } from "./env.ts";
+import { API_DIR, API_URL, OPENROUTER_MOCK_PORT, WEB_DIR, WEB_URL, e2eEnv } from "./env.ts";
 
 /**
  * E2E suite (specs/002-stack-alignment/contracts/ci-and-e2e.md, research S14). Runs the builds
@@ -42,10 +42,11 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // 007: the local Anthropic Messages API mock the E2E API's ANTHROPIC_BASE_URL points to.
-      command: "node e2e/anthropic-mock.ts",
+      // 008: the local OpenRouter mock the E2E API's OPENROUTER_BASE_URL points to.
+      command: "node e2e/openrouter-mock.ts",
       cwd: WEB_DIR,
-      url: `http://127.0.0.1:${ANTHROPIC_MOCK_PORT}/v1/models/claude-opus-5`,
+      env: e2eEnv,
+      url: `http://127.0.0.1:${OPENROUTER_MOCK_PORT}/api/v1/key`,
       reuseExistingServer: false,
       timeout: 30_000,
     },

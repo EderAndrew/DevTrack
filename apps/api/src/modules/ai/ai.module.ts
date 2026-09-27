@@ -15,11 +15,15 @@ import { AiProposalsService } from "./proposals/ai-proposals.service";
 import { AiToolExecutor } from "./tools/ai-tool-executor";
 import { AiResourceResolver } from "./execution/ai-resource.resolver";
 import { AiExecutionsService } from "./execution/ai-executions.service";
+import type { AppConfig } from "../../platform/config/config.schema";
+import { CircuitAuditor } from "./gateway/circuit-auditor";
+import { CircuitBreaker } from "./gateway/circuit-breaker";
 import { ModelGateway } from "./gateway/model-gateway";
 import { StructuredOutputValidator } from "./output/structured-output.validator";
 import { AiAgentRegistry } from "./registry/ai-agent.registry";
 import { AiModelConfigRegistry } from "./registry/ai-model-config.registry";
 import { AiRegistrySync } from "./registry/ai-registry.sync";
+import { AiTaskRegistry } from "./registry/ai-task.registry";
 import { AiToolRegistry } from "./registry/ai-tool.registry";
 import { AiRecordsJob } from "./retention/ai-records.job";
 import { AiUsageRecorder } from "./usage/ai-usage.recorder";
@@ -38,6 +42,13 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiAgentRegistry,
     AiToolRegistry,
     AiModelConfigRegistry,
+    AiTaskRegistry,
+    {
+      provide: CircuitBreaker,
+      useFactory: (config: AppConfig) => new CircuitBreaker(config.ai.circuit),
+      inject: [APP_CONFIG],
+    },
+    CircuitAuditor,
     ModelGateway,
     StructuredOutputValidator,
     AiUsageRecorder,

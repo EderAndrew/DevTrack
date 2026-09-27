@@ -4,9 +4,12 @@
 // live as SQL in the migrations. No other academic-domain model belongs here (FR-080, 003/D13).
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  // `.js` imports: swc keeps import paths as written, and tsconfig's rewriteRelativeImportExtensions
+  // would otherwise make the generator write `.ts` ones that the compiled API can't load.
+  importFileExtension = "js"
 }
 
 datasource db {
@@ -921,12 +924,36 @@ model AiModelConfig {
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  agentVersions     AiAgentVersion[]
-  executions        AiExecution[]
-  modelCalls        AiModelCall[]
-  evaluationResults AiEvaluationResult[]
+  agentVersions      AiAgentVersion[]
+  executions         AiExecution[]         @relation("AiExecutionPrimary")
+  fallbackExecutions AiExecution[]         @relation("AiExecutionFallback")
+  modelCalls         AiModelCall[]
+  evaluationResults  AiEvaluationResult[]
+  primaryOfTasks     AiTask[]              @relation("AiTaskPrimary")
+  fallbackOfTasks    AiTask[]              @relation("AiTaskFallback")
 
   @@map("ai_model_configs")
+}
+
+/// What an agent asks the gateway for, and how it is routed (008 research G2). Synced from code;
+/// mutable like model configs, its history is the audit trail. Fallback ≠ primary (CHECK).
+model AiTask {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                   String   @unique
+  primaryModelConfigId  String   @map("primary_model_config_id") @db.Uuid
+  fallbackModelConfigId String?  @map("fallback_model_config_id") @db.Uuid
+  parameters            Json     @default("{}")
+  maxOutputTokens       Int      @map("max_output_tokens")
+  timeoutMs             Int      @map("timeout_ms")
+  definitionHash        String   @map("definition_hash")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  primaryModelConfig  AiModelConfig    @relation("AiTaskPrimary", fields: [primaryModelConfigId], references: [id], onDelete: Restrict)
+  fallbackModelConfig AiModelConfig?   @relation("AiTaskFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
+  agentVersions       AiAgentVersion[]
+
+  @@map("ai_tasks")
 }
 
 /// Stable identity of an agent; its behavior lives in the versions.
@@ -959,7 +986,9 @@ model AiAgentVersion {
   requiredPermission    String          @map("required_permission")
   promptVersionId       String          @map("prompt_version_id") @db.Uuid
   outputSchemaVersionId String?         @map("output_schema_version_id") @db.Uuid
-  modelConfigId         String          @map("model_config_id") @db.Uuid
+  /// Versions synced before 008 only; exactly one of this and `taskId` (CHECK).
+  modelConfigId         String?         @map("model_config_id") @db.Uuid
+  taskId                String?         @map("task_id") @db.Uuid
   resourceTypes         String[]        @map("resource_types")
   proposalType          String?         @map("proposal_type")
   limits                Json            @default("{}")
@@ -972,7 +1001,8 @@ model AiAgentVersion {
   permission        Permission             @relation(fields: [requiredPermission], references: [key], onDelete: Restrict)
   promptVersion     AiPromptVersion        @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
   outputSchema      AiOutputSchemaVersion? @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
-  modelConfig       AiModelConfig          @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  modelConfig       AiModelConfig?         @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  task              AiTask?                @relation(fields: [taskId], references: [id], onDelete: Restrict)
   currentOf         AiAgent[]              @relation("AiAgentCurrentVersion")
   tools             AiAgentTool[]
   executions        AiExecution[]
@@ -1070,7 +1100,12 @@ model AiExecution {
   promptVersionId       String            @map("prompt_version_id") @db.Uuid
   promptVersion         Int               @map("prompt_version")
   outputSchemaVersionId String?           @map("output_schema_version_id") @db.Uuid
+  /// The primary of the route, fixed at request (008 research G5).
   modelConfigId         String            @map("model_config_id") @db.Uuid
+  fallbackModelConfigId String?           @map("fallback_model_config_id") @db.Uuid
+  /// NULL for executions requested before 008.
+  taskKey               String?           @map("task_key")
+  fallbackUsed          Boolean           @default(false) @map("fallback_used")
   provider              String
   model                 String
   riskLevel             AiRiskLevel       @map("risk_level")
@@ -1102,7 +1137,8 @@ model AiExecution {
   agentVersionRef  AiAgentVersion          @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
   promptVersionRef AiPromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
   outputSchema     AiOutputSchemaVersion?  @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
-  modelConfig      AiModelConfig           @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  modelConfig         AiModelConfig           @relation("AiExecutionPrimary", fields: [modelConfigId], references: [id], onDelete: Restrict)
+  fallbackModelConfig AiModelConfig?          @relation("AiExecutionFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
   transitions      AiExecutionTransition[]
   output           AiExecutionOutput?
   modelCallRows    AiModelCall[]
@@ -1161,6 +1197,12 @@ model AiModelCall {
   totalTokens   Int?         @map("total_tokens")
   estimatedCost Decimal?     @map("estimated_cost") @db.Decimal(14, 6)
   currency      String?      @db.Char(3)
+  /// `PROVIDER` (cost the provider reported) or `PRICE` (estimated by the config price); NULL iff no cost (008 research G17).
+  costSource    String?      @map("cost_source")
+  /// The model the provider says it served; NULL when unknown or on failure (008 research G12).
+  servedModel   String?      @map("served_model")
+  /// A leg of the route's fallback config (008 research G6).
+  isFallback    Boolean      @default(false) @map("is_fallback")
 
   execution   AiExecution   @relation(fields: [executionId], references: [id], onDelete: Cascade)
   modelConfig AiModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)

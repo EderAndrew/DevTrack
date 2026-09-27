@@ -26,7 +26,7 @@ interface AgentDefinition {
   prompt: { key: string; version: number; status: "DRAFT" | "ACTIVE" | "DEPRECATED"; systemInstructions: string };
   output?: { version: number; schema: z.ZodType };   // strict; required for L2
   input?: z.ZodType;                                 // validates `input` of the request (400)
-  modelConfigKey: string;
+  modelConfigKey: string;                            // 008: replaced by taskKey (see "Tarefas e fallback")
   toolKeys: string[];                                // explicit allowlist; [] = no tools
   resourceTypes: string[];                           // accepted `resource.type`
   onToolDenied?: "continue" | "fail";                // default "fail"
@@ -110,8 +110,8 @@ instance) changes nothing (FR-024).
 
 ## Guarantees for the next agents
 
-- The agent never sees the provider, the model or credentials, and asks only for
-  `modelConfigKey`.
+- The agent never sees the provider, the model or credentials, and asks only for its task
+  (`taskKey`, since 008; `modelConfigKey` before it).
 - The workspace, permissions, tools and risk level are fixed before the first model call.
   The model's output can't change them.
 - Every tool call passes the checks of research A14.
@@ -122,3 +122,28 @@ instance) changes nothing (FR-024).
   and runs the domain's own validations.
 - Before production, each agent brings evaluation cases (`AiEvaluationStore`) and its
   quality thresholds (constitution XIX).
+
+## Tarefas e fallback (008)
+
+Since `specs/008-ai-gateway-openrouter`, an agent declares the task it runs, never a model
+config (details in `specs/008-ai-gateway-openrouter/contracts/gateway-routing.md`):
+
+```ts
+const MY_TASK = defineTask({
+  key: "my-task",
+  primaryModelConfigKey: "openrouter-default",      // DEFAULT_MODEL_CONFIG_KEY
+  fallbackModelConfigKey: "openrouter-fallback",    // optional
+  parameters: { effort: "low" },                    // only temperature, top_p, effort
+  maxOutputTokens: 16_000,
+  timeoutMs: 60_000,
+});
+
+const MY_AGENT = defineAgent({ /* ...as above, without modelConfigKey */ taskKey: MY_TASK.key });
+```
+
+Both go into `AiDefinitions` (`tasks` next to `agents`). The agent then gets, with no code of
+its own: the provider and its credential, retries, the fallback after a recoverable failure,
+the circuit per model config, the per-agent hourly limit, usage and cost per call, the
+`ai.model_call` logs and the audit events. Its tests register it with `createAiTestApp({ agents,
+tasks })` on the fake provider; `apps/api/test/fixtures/ai/reference-routed.ts` is the example
+(`008-us7-reuse.spec.ts`).

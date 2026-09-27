@@ -29,7 +29,7 @@ const SDKS = [
   "replicate",
 ];
 const SDK_NAME = /^(openai|@anthropic-ai\/.+|@google\/genai|@google\/generative-ai|ai|@ai-sdk\/.+|langchain|@langchain\/.+|ollama|cohere-ai|@mistralai\/.+|groq-sdk|replicate)(\/.*)?$/;
-const PROVIDER_HOSTS = /api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.cohere\.(ai|com)/;
+const PROVIDER_HOSTS = /openrouter\.ai|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.cohere\.(ai|com)/;
 const PROVIDERS_DIR = "src/modules/ai/gateway/providers/";
 
 async function restrictedImports(filePath: string, code: string): Promise<string[]> {
@@ -67,17 +67,22 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(await restrictedImports("src/modules/ai/gateway/providers/x/x.provider.ts", code)).toEqual([]);
   });
 
-  it("007/FR-042 o @anthropic-ai/sdk é importado só pelo adaptador, e o lint o recusa em outro arquivo", async () => {
+  it("008/FR-024 nenhum arquivo importa o @anthropic-ai/*, e o lint o recusa fora dos adaptadores", async () => {
     const code = 'import Anthropic from "@anthropic-ai/sdk";\nexport const y = Anthropic;\n';
-    expect(await restrictedImports(`${PROVIDERS_DIR}anthropic.provider.ts`, code)).toEqual([]);
     for (const path of ["src/modules/curriculum-ai/curriculum-ai-request.service.ts", "src/modules/ai/definitions/index.ts", "src/modules/ai/gateway/model-gateway.ts"]) {
       expect(await restrictedImports(path, code), path).not.toEqual([]);
     }
     const importers = sourceFiles(resolve(API_ROOT, "src"))
       .filter((file) => importsOf(readFileSync(file, "utf8")).some((specifier) => specifier.startsWith("@anthropic-ai/")))
-      .map((file) => relative(API_ROOT, file))
-      .sort();
-    expect(importers).toEqual([`${PROVIDERS_DIR}anthropic.provider.spec.ts`, `${PROVIDERS_DIR}anthropic.provider.ts`]);
+      .map((file) => relative(API_ROOT, file));
+    expect(importers).toEqual([]);
+  });
+
+  it("008/FR-024 o host do OpenRouter aparece só no adaptador openrouter.provider.ts", () => {
+    const citing = sourceFiles(resolve(API_ROOT, "src"))
+      .filter((file) => !file.endsWith(".spec.ts") && /openrouter\.ai/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(API_ROOT, file));
+    expect(citing).toEqual([`${PROVIDERS_DIR}openrouter.provider.ts`]);
   });
 
   it("fora de src/modules/ai, os internos (gateway, ferramentas, validador, registro) são recusados", async () => {
@@ -106,8 +111,55 @@ describe("006/FR-001 006/SC-002 só a fundação de IA fala com modelos", () => 
     expect(offenders).toEqual([]);
   });
 
-  it("006/FR-016 007/FR-042 o web não depende de SDK de provedor, e a API só do @anthropic-ai/sdk", () => {
-    const allowed = { "apps/api/package.json": ["@anthropic-ai/sdk"], "apps/web/package.json": [] };
+  it("008/US4-4 o web não tem host, chave nem chamada ao OpenRouter, e o build do web não recebe OPENROUTER_*", () => {
+    // Only the E2E harness names OpenRouter: the mock and the configuration of the E2E API.
+    const E2E_HARNESS = ["e2e/openrouter-mock.ts", "e2e/env.ts", "e2e/playwright.config.ts", "e2e/.env.e2e"];
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        if (["node_modules", ".next", "playwright-report", "test-results", "coverage"].includes(name)) continue;
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.(ts|tsx|js|mjs|json)$|^\.env/.test(name)) {
+          const rel = relative(WEB, path);
+          if (E2E_HARNESS.includes(rel)) continue;
+          const text = readFileSync(path, "utf8");
+          // A comment naming the mock is fine; a host, a key variable, a key or a call is not.
+          if (/openrouter\.ai|OPENROUTER_|sk-or-|chat\/completions/i.test(text)) offenders.push(rel);
+        }
+      }
+    };
+    walk(WEB);
+    expect(offenders).toEqual([]);
+
+    // The web server of the E2E gets only its own variables, never the API's `.env.e2e`.
+    const playwright = readFileSync(resolve(WEB, "e2e/playwright.config.ts"), "utf8");
+    const webServer = playwright.slice(playwright.indexOf('command: "next build'));
+    expect(webServer.slice(0, webServer.indexOf("}") + 1), "webServer do web").toMatch(/env: \{ API_ORIGIN: API_URL, NEXT_DIST_DIR: "\.next\/e2e" \}/);
+    // `next.config.js` exposes only the app version to the bundle.
+    const nextConfig = readFileSync(resolve(WEB, "next.config.js"), "utf8");
+    expect(nextConfig).not.toMatch(/OPENROUTER/);
+    expect(nextConfig.match(/\benv\s*:.*$/gm)).toEqual(["env: { NEXT_PUBLIC_APP_VERSION: appVersion() },"]);
+    // A production build, when present, carries no OpenRouter variable, host or key.
+    const staticDir = resolve(WEB, ".next/static");
+    const bundles: string[] = [];
+    const collect = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) collect(path);
+        else if (name.endsWith(".js")) bundles.push(path);
+      }
+    };
+    try {
+      collect(staticDir);
+    } catch {
+      // No build in this checkout: the source scan above is the guard.
+    }
+    expect(bundles.filter((file) => /openrouter\.ai|OPENROUTER_|sk-or-/.test(readFileSync(file, "utf8"))).map((file) => relative(WEB, file))).toEqual([]);
+  });
+
+  it("006/FR-016 008/FR-024 nem a API nem o web dependem de SDK de provedor (o OpenRouter usa fetch)", () => {
+    const allowed = { "apps/api/package.json": [], "apps/web/package.json": [] };
     for (const [pkg, expected] of Object.entries(allowed)) {
       const json = JSON.parse(readFileSync(resolve(REPO, pkg), "utf8")) as Record<string, Record<string, string> | undefined>;
       const deps = Object.keys({ ...json.dependencies, ...json.devDependencies });

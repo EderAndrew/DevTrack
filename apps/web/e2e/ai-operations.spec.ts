@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { bootstrapAdmin, classTeacher, logIn } from "./fixtures/journeys.ts";
 
-// 006/US7, 007: production registers only the curriculum agent and its model config, and with the
-// E2E key the Anthropic provider, answered by the local mock (e2e/anthropic-mock.ts). The metrics
+// 006/US7, 007, 008: production registers only the curriculum agent and its model config, and with
+// the E2E key the OpenRouter provider, answered by the local mock (e2e/openrouter-mock.ts). The metrics
 // depend on the other journeys running in parallel, so only their section is checked.
 
 test("006/US7-6 ADMIN abre Operação de IA pelo menu: o agente e a configuração da 007, saúde e período pelo teclado", async ({ page }) => {
@@ -15,10 +15,10 @@ test("006/US7-6 ADMIN abre Operação de IA pelo menu: o agente e a configuraç�
     await expect(page.getByRole("heading", { level: 2, name: section })).toBeVisible();
   }
   const region = (name: string) => page.getByRole("region", { name });
-  await expect(region("Saúde").getByText("curriculum-extraction-default")).toBeVisible();
+  await expect(region("Saúde").getByText("openrouter-default")).toBeVisible();
   await expect(region("Saúde").getByText("Respondendo")).toBeVisible();
   await expect(region("Agentes").getByText("Curriculum Agent")).toBeVisible();
-  await expect(region("Configurações de modelo").getByText("curriculum-extraction-default")).toBeVisible();
+  await expect(region("Configurações de modelo").getByText("openrouter-default")).toBeVisible();
 
   await page.getByRole("button", { name: "Verificar de novo" }).click();
   await expect(region("Saúde").getByText("Respondendo")).toBeVisible();

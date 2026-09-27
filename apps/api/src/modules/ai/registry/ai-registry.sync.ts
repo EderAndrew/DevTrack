@@ -5,7 +5,7 @@ import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey, type Tx } from "../../../platform/database/transaction";
 import { AuditService } from "../../audit/audit.service";
-import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions } from "../definitions/types";
+import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions, type TaskUnavailableReason } from "../definitions/types";
 import {
   AiRegistryError,
   agentVersionHash,
@@ -14,6 +14,7 @@ import {
   modelConfigHash,
   outputSchemaHash,
   promptHash,
+  taskHash,
   toolHash,
 } from "./ai-definitions.check";
 
@@ -21,6 +22,7 @@ export interface AiRegistrySummary {
   agents: number;
   tools: number;
   modelConfigs: number;
+  tasks: number;
   newVersions: number;
   deprecated: number;
   changed: boolean;
@@ -55,8 +57,9 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         await advisoryXactLock(tx, LockKey.AI_REGISTRY);
         const changes = { count: 0, newVersions: 0, deprecated: 0 };
         const configIds = await this.syncModelConfigs(tx, changes);
+        const taskIds = await this.syncTasks(tx, configIds, changes);
         const toolIds = await this.syncTools(tx, changes);
-        for (const agent of this.definitions.agents) await this.syncAgent(tx, agent, configIds, toolIds, changes);
+        for (const agent of this.definitions.agents) await this.syncAgent(tx, agent, taskIds, toolIds, changes);
         changes.deprecated = await this.deprecateMissing(tx);
         changes.count += changes.deprecated;
 
@@ -64,6 +67,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
           agents: this.definitions.agents.length,
           tools: this.definitions.tools.length,
           modelConfigs: this.definitions.modelConfigs.length,
+          tasks: this.definitions.tasks.length,
           newVersions: changes.newVersions,
           deprecated: changes.deprecated,
           changed: changes.count > 0,
@@ -77,7 +81,24 @@ export class AiRegistrySync implements OnApplicationBootstrap {
       { timeoutMs: 30_000 },
     );
     this.logger.log({ agents: summary.agents, newVersions: summary.newVersions, deprecated: summary.deprecated }, "ai.registry_synced");
+    this.reportUnavailableTasks();
     return summary;
+  }
+
+  /**
+   * One warning per task that can't run with this deploy's definitions (008 FR-008): the reason
+   * code only, never a model value, key or secret. The API keeps running.
+   */
+  private reportUnavailableTasks(): void {
+    const configs = new Map(this.definitions.modelConfigs.map((config) => [config.key, config]));
+    const providers = new Set(this.definitions.providers.map((provider) => provider.key));
+    for (const task of this.definitions.tasks) {
+      const route = [task.primaryModelConfigKey, task.fallbackModelConfigKey].flatMap((key) => (key ? [configs.get(key)!] : []));
+      const reason: TaskUnavailableReason | null =
+        route.find((config) => config.unavailableReason)?.unavailableReason ??
+        (route.some((config) => providers.has(config.provider)) ? null : "PROVIDER_NOT_REGISTERED");
+      if (reason) this.logger.warn({ task: task.key, reason }, "ai.task_unavailable");
+    }
   }
 
   private async syncModelConfigs(tx: Tx, changes: { count: number }): Promise<Map<string, string>> {
@@ -95,7 +116,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         currency: config.price?.currency ?? null,
         definitionHash: hash,
       };
-      const existing = await tx.aiModelConfig.findUnique({ where: { key: config.key }, select: { id: true, definitionHash: true } });
+      const existing = await tx.aiModelConfig.findUnique({ where: { key: config.key }, select: { id: true, definitionHash: true, model: true } });
       if (!existing) {
         const created = await tx.aiModelConfig.create({ data: { key: config.key, status: config.initialStatus, ...fields }, select: { id: true } });
         ids.set(config.key, created.id);
@@ -104,8 +125,47 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         if (existing.definitionHash !== hash) {
           await tx.aiModelConfig.update({ where: { id: existing.id }, data: fields });
           changes.count += 1;
+          // Each call keeps the model it used; this is the history of the config (008 research G3).
+          if (existing.model !== config.model) {
+            await this.audit.record(tx, {
+              type: "ai_model_config.changed",
+              actorType: "SYSTEM",
+              targetType: "AI_MODEL_CONFIG",
+              targetId: existing.id,
+              metadata: { configKey: config.key, provider: config.provider, previousModel: existing.model, model: config.model },
+            });
+          }
         }
         ids.set(config.key, existing.id);
+      }
+    }
+    return ids;
+  }
+
+  /** Tasks after the configs they route to (008 research G2); mutable rows, like the configs. */
+  private async syncTasks(tx: Tx, configIds: Map<string, string>, changes: { count: number }): Promise<Map<string, string>> {
+    const ids = new Map<string, string>();
+    for (const task of this.definitions.tasks) {
+      const hash = taskHash(task);
+      const fields = {
+        primaryModelConfigId: configIds.get(task.primaryModelConfigKey)!,
+        fallbackModelConfigId: task.fallbackModelConfigKey ? configIds.get(task.fallbackModelConfigKey)! : null,
+        parameters: (task.parameters ?? {}) as Prisma.InputJsonObject,
+        maxOutputTokens: task.maxOutputTokens,
+        timeoutMs: task.timeoutMs,
+        definitionHash: hash,
+      };
+      const existing = await tx.aiTask.findUnique({ where: { key: task.key }, select: { id: true, definitionHash: true } });
+      if (!existing) {
+        const created = await tx.aiTask.create({ data: { key: task.key, ...fields }, select: { id: true } });
+        ids.set(task.key, created.id);
+        changes.count += 1;
+      } else {
+        if (existing.definitionHash !== hash) {
+          await tx.aiTask.update({ where: { id: existing.id }, data: fields });
+          changes.count += 1;
+        }
+        ids.set(task.key, existing.id);
       }
     }
     return ids;
@@ -145,7 +205,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
   private async syncAgent(
     tx: Tx,
     agent: AgentDefinition,
-    configIds: Map<string, string>,
+    taskIds: Map<string, string>,
     toolIds: Map<string, string>,
     changes: { count: number; newVersions: number },
   ): Promise<void> {
@@ -220,7 +280,9 @@ export class AiRegistrySync implements OnApplicationBootstrap {
       requiredPermission: agent.requiredPermission,
       promptVersionId: promptId,
       outputSchemaVersionId: outputId,
-      modelConfigId: configIds.get(agent.modelConfigKey)!,
+      // Versions synced since 008 route through their task; `model_config_id` stays for older ones.
+      taskId: taskIds.get(agent.taskKey)!,
+      modelConfigId: null,
       resourceTypes: agent.resourceTypes,
       proposalType: agent.proposal?.type ?? null,
       limits: (agent.limits ?? {}) as Prisma.InputJsonObject,

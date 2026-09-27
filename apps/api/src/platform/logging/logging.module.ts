@@ -21,7 +21,7 @@ export const REDACT_PATHS = [
   "*.passwordHash",
   "*.tokenHash",
   "*.apiKey",
-  "*.anthropic",
+  "*.openrouter",
 ];
 
 /** Accepts the caller's X-Request-Id only when it is a UUID; otherwise generates one. */

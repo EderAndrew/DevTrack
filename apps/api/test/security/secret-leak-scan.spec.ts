@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
-import { type JourneySecret, runFullJourney } from "../helpers/journey";
+import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
 import { createCurriculumAiApp } from "../helpers/curriculum-ai";
 import { createUser, loginAs } from "../helpers/factories";
-import { api } from "../helpers/test-app";
+import { api, testConfig } from "../helpers/test-app";
 
 const SENSITIVE_KEY = /password|token|cookie|authorization|secret/i;
 const REDACTED = "[REDACTED]";
@@ -39,7 +39,13 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   let content: JourneySecret[];
 
   beforeAll(async () => {
-    t = await createCurriculumAiApp({ logs, overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+    // 008/US4-1: the OpenRouter key is configured; the definitions keep the simulated provider (T022).
+    const base = testConfig();
+    t = await createCurriculumAiApp({
+      logs,
+      config: { ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
+      overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }],
+    });
     await resetAiDb(t);
     ({ secrets, content } = await runFullJourney(t));
   });
@@ -57,6 +63,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
       "hash de token de convite de turma",
       "senha do aluno convidado",
       "credencial do provedor de IA",
+      "chave do OpenRouter",
     ]) {
       expect(kinds.has(kind), kind).toBe(true);
     }
@@ -175,6 +182,38 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     // The marker was really read and proposed (the scan is not vacuous): in the model's context and the proposal.
     expect(serialize(t.provider.requests)).toContain("MARCADOR-EMENTA-007");
     expect(serialize(await t.prisma.aiProposal.findMany({ where: { status: "REJECTED" }, select: { payload: true } }))).toContain("MARCADOR-EMENTA-007");
+  });
+
+  it("008/US4-1 008/SC-005 a chave do OpenRouter fora dos logs, da auditoria, das respostas (operacionais e de erro) e de todas as tabelas", async () => {
+    expect(t.config.ai.openrouter.apiKey).toBe(OPENROUTER_MARKER_KEY);
+    const key = secrets.filter(({ kind }) => kind === "chave do OpenRouter");
+    expect(key).toHaveLength(1);
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = { logs: logs.text() };
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs", "unknown-route"]) {
+      sources[`resposta de /ai/operations/${path}`] = serialize((await client.get(`/api/ai/operations/${path}`)).body);
+    }
+    sources["resposta de erro 400"] = serialize((await client.post("/api/ai/executions", { model: "x" })).body);
+    // Every column of every table, as text; the same query finds a marker that is stored (not vacuous).
+    const [stored] = await t.prisma.$queryRawUnsafe<{ hits: bigint }[]>(
+      `SELECT count(*) AS hits FROM "ai_executions" AS row WHERE row::text LIKE '%' || $1 || '%'`,
+      "MARCADOR-ENTRADA-006",
+    );
+    expect(stored?.hits).toBeGreaterThan(0n);
+    const tables = await t.prisma.$queryRawUnsafe<{ table_name: string }[]>(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'",
+    );
+    expect(tables.length).toBeGreaterThan(20);
+    for (const { table_name } of tables) {
+      const [row] = await t.prisma.$queryRawUnsafe<{ hits: bigint }[]>(
+        `SELECT count(*) AS hits FROM "${table_name}" AS row WHERE row::text LIKE '%' || $1 || '%'`,
+        OPENROUTER_MARKER_KEY,
+      );
+      sources[`tabela ${table_name}`] = (row?.hits ?? 0n) > 0n ? OPENROUTER_MARKER_KEY : "";
+    }
+    expect(leaks(key, sources)).toEqual([]);
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {

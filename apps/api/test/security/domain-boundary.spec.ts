@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001, 003, 004 and 006; 007 adds none) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003, 004, 006 and 008; 007 adds none) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -51,6 +51,8 @@ const EXPECTED_MODELS = [
   "AiProposal",
   "AiEvaluationCase",
   "AiEvaluationResult",
+  // 008 — tasks routed to a primary and a fallback model config.
+  "AiTask",
 ];
 
 /**

@@ -25,6 +25,12 @@ const CONFIG: GatewayModelConfig = {
   timeoutMs: 5_000,
 };
 
+/** A route with only `config` as primary, and the config's own values as the task's (006 behavior). */
+const routeOf = (config: GatewayModelConfig) => ({
+  route: { primary: config, fallback: null },
+  task: { parameters: config.parameters, maxOutputTokens: config.maxOutputTokens, timeoutMs: config.timeoutMs },
+});
+
 const REQUEST: Omit<ModelRequest, "model" | "parameters" | "maxOutputTokens"> = {
   system: "s",
   context: {},
@@ -57,7 +63,7 @@ function scriptedProvider(steps: Step[]) {
 }
 
 function gatewayWith(provider: ModelProvider | null, limits: Partial<AiExecutionLimits> = {}) {
-  const definitions: AiDefinitions = { agents: [], tools: [], modelConfigs: [], providers: provider ? [provider] : [], resources: {} };
+  const definitions: AiDefinitions = { agents: [], tools: [], modelConfigs: [], tasks: [], providers: provider ? [provider] : [], resources: {} };
   const gateway = new ModelGateway(definitions);
   const sleeps: number[] = [];
   gateway.timing = { sleep: async (ms) => void sleeps.push(ms), random: () => 0 };
@@ -70,7 +76,7 @@ describe("006/FR-014 gateway de modelos", () => {
   it("chama o provedor da configuração, com modelo e parâmetros dela, e devolve uso e tentativas", async () => {
     const { provider, requests } = scriptedProvider([{ output: "{}" }]);
     const { gateway, limits } = gatewayWith(provider);
-    const result = await gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
+    const result = await gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
     expect(result.response).toMatchObject({ kind: "output", text: "{}", usage: { totalTokens: 7 } });
     expect(result.attempts).toBe(1);
     expect(requests[0]).toMatchObject({ model: "m-1", maxOutputTokens: 1000 });
@@ -80,10 +86,10 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ output: "{}" }]);
     const { gateway, limits } = gatewayWith(provider);
     await expect(
-      gateway.call({ config: { ...CONFIG, status: "DISABLED" }, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf({ ...CONFIG, status: "DISABLED" }), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code: "AI_MODEL_UNAVAILABLE" });
     await expect(
-      gateway.call({ config: { ...CONFIG, provider: "outro" }, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf({ ...CONFIG, provider: "outro" }), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code: "AI_MODEL_UNAVAILABLE" });
     expect(calls()).toBe(0);
   });
@@ -91,7 +97,7 @@ describe("006/FR-014 gateway de modelos", () => {
   it("006/FR-049 repete transitórios até o limite, com espera crescente, e registra as tentativas", async () => {
     const { provider } = scriptedProvider([{ error: "UNAVAILABLE" }, { error: "RATE_LIMITED" }, { output: "{}" }]);
     const { gateway, sleeps, limits } = gatewayWith(provider);
-    const result = await gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
+    const result = await gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
     expect(result.attempts).toBe(3);
     expect(sleeps).toEqual([500, 1000]);
   });
@@ -104,7 +110,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider } = scriptedProvider([{ error: category }]);
     const { gateway, limits } = gatewayWith(provider);
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code, attempts: 3 });
   });
 
@@ -116,7 +122,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ error: category }]);
     const { gateway, limits } = gatewayWith(provider);
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code, attempts: 1 });
     expect(calls()).toBe(1);
   });
@@ -125,7 +131,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider } = scriptedProvider([{ throw: new Error("sk-secret leaked in message") }]);
     const { gateway, limits } = gatewayWith(provider);
     const failure = await gateway
-      .call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal })
+      .call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal })
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(AiFailure);
     expect((failure as AiFailure).code).toBe("AI_PROVIDER_ERROR");
@@ -136,7 +142,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ hang: true }]);
     const { gateway, limits } = gatewayWith(provider, { modelCallTimeoutMs: 20 });
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code: "AI_TIMEOUT", attempts: 3 });
     expect(calls()).toBe(3);
   });
@@ -145,11 +151,11 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ hang: true }]);
     const { gateway, limits } = gatewayWith(provider);
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(30), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(30), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code: "AI_TIMEOUT", attempts: 1 });
     expect(calls()).toBe(1);
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: new Date(Date.now() - 1), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: new Date(Date.now() - 1), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ code: "AI_TIMEOUT", attempts: 0 });
   });
 
@@ -157,7 +163,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ hang: true }]);
     const { gateway, limits } = gatewayWith(provider);
     const controller = new AbortController();
-    const pending = gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: controller.signal });
+    const pending = gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: controller.signal });
     setTimeout(() => controller.abort(), 10);
     await expect(pending).rejects.toMatchObject({ code: "AI_EXECUTION_CANCELLED" });
     expect(calls()).toBe(1);
@@ -167,7 +173,7 @@ describe("006/FR-014 gateway de modelos", () => {
     const { provider, calls } = scriptedProvider([{ error: "UNAVAILABLE" }]);
     const { gateway, limits } = gatewayWith(provider, { maxRetries: 0 });
     await expect(
-      gateway.call({ config: CONFIG, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
+      gateway.call({ ...routeOf(CONFIG), request: REQUEST, limits, deadline: future(), signal: new AbortController().signal }),
     ).rejects.toMatchObject({ attempts: 1 });
     expect(calls()).toBe(1);
   });
@@ -185,7 +191,7 @@ describe("006/FR-014 gateway de modelos", () => {
     };
     const { gateway, limits } = gatewayWith(provider);
     await gateway.call({
-      config: CONFIG,
+      ...routeOf(CONFIG),
       request: REQUEST,
       limits,
       deadline: future(),
@@ -193,5 +199,239 @@ describe("006/FR-014 gateway de modelos", () => {
       structuredSchema: { type: "object" },
     });
     expect(seen).toEqual([{ type: "object" }]);
+  });
+});
+
+describe("008/FR-006 rota da tarefa e pernas da chamada", () => {
+  const TASK = { parameters: { temperature: 0.2 }, maxOutputTokens: 500, timeoutMs: 4_000 };
+
+  it("rota sem fallback: uma perna com tentativas, duração, uso e o modelo servido", async () => {
+    const provider: ModelProvider = {
+      key: "test",
+      generate: async () => ({ kind: "output", text: "{}", usage: { inputTokens: 3, outputTokens: 4, totalTokens: 7 }, servedModel: "m-1-2026" }),
+      generateStructured: async () => ({ kind: "output", text: "{}", usage: null }),
+      healthCheck: async () => "UP",
+    };
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await gateway.call({ route: { primary: CONFIG, fallback: null }, task: TASK, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
+    expect(result.legs).toEqual([
+      {
+        config: CONFIG,
+        isFallback: false,
+        startedAt: expect.any(Date),
+        status: "SUCCEEDED",
+        attempts: 1,
+        durationMs: expect.any(Number),
+        errorCode: null,
+        usage: { inputTokens: 3, outputTokens: 4, totalTokens: 7 },
+        servedModel: "m-1-2026",
+      },
+    ]);
+  });
+
+  it("sem modelo servido informado, a perna fica com null", async () => {
+    const { provider } = scriptedProvider([{ output: "{}" }]);
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await gateway.call({ route: { primary: CONFIG, fallback: null }, task: TASK, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal });
+    expect(result.legs[0]!.servedModel).toBeNull();
+  });
+
+  it("valores efetivos: min(tarefa, configuração, limite) para tokens e tempo, e os parâmetros da tarefa", async () => {
+    const { provider, requests } = scriptedProvider([{ hang: true }]);
+    const { gateway, limits } = gatewayWith(provider, { maxRetries: 0, modelCallTimeoutMs: 60_000 });
+    const started = Date.now();
+    await expect(
+      gateway.call({
+        route: { primary: { ...CONFIG, maxOutputTokens: 800, timeoutMs: 5_000 }, fallback: null },
+        task: { parameters: { temperature: 0.2 }, maxOutputTokens: 500, timeoutMs: 30 },
+        request: REQUEST,
+        limits,
+        deadline: future(),
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ code: "AI_TIMEOUT" });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(requests[0]).toMatchObject({ maxOutputTokens: 500, parameters: { temperature: 0.2 } });
+
+    const second = scriptedProvider([{ output: "{}" }]);
+    const other = gatewayWith(second.provider);
+    await other.gateway.call({
+      route: { primary: { ...CONFIG, maxOutputTokens: 300 }, fallback: null },
+      task: TASK,
+      request: REQUEST,
+      limits: other.limits,
+      deadline: future(),
+      signal: new AbortController().signal,
+    });
+    expect(second.requests[0]).toMatchObject({ maxOutputTokens: 300 });
+  });
+
+  it("na falha, o AiFailure leva a perna do principal com o código e as tentativas", async () => {
+    const { provider } = scriptedProvider([{ error: "INVALID_REQUEST" }]);
+    const { gateway, limits } = gatewayWith(provider);
+    const failure = (await gateway
+      .call({ route: { primary: CONFIG, fallback: null }, task: TASK, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal })
+      .catch((error: unknown) => error)) as AiFailure;
+    expect(failure.legs).toEqual([
+      expect.objectContaining({ config: CONFIG, isFallback: false, status: "FAILED", attempts: 1, errorCode: "AI_PROVIDER_ERROR", usage: null, servedModel: null }),
+    ]);
+  });
+
+  it("na falha por tempo, a perna fica TIMED_OUT", async () => {
+    const { provider } = scriptedProvider([{ error: "TIMEOUT" }]);
+    const { gateway, limits } = gatewayWith(provider, { maxRetries: 0 });
+    const failure = (await gateway
+      .call({ route: { primary: CONFIG, fallback: null }, task: TASK, request: REQUEST, limits, deadline: future(), signal: new AbortController().signal })
+      .catch((error: unknown) => error)) as AiFailure;
+    expect(failure.legs).toEqual([expect.objectContaining({ status: "TIMED_OUT", errorCode: "AI_TIMEOUT" })]);
+  });
+});
+
+describe("008/FR-010 008/FR-011 008/SC-003 fallback depois do principal (contracts/gateway-routing.md)", () => {
+  const PRIMARY: GatewayModelConfig = { ...CONFIG, key: "primary", model: "m-primary" };
+  const FALLBACK: GatewayModelConfig = { ...CONFIG, key: "fallback", model: "m-fallback" };
+  const task = { parameters: {}, maxOutputTokens: 1000, timeoutMs: 5_000 };
+
+  /** One script per model (the last step of each repeats); `order` keeps the models called. */
+  function byModel(scripts: Record<string, Step[]>) {
+    const order: string[] = [];
+    const counters = new Map<string, number>();
+    const run = (request: ModelRequest, signal: AbortSignal): Promise<ModelResponse> => {
+      order.push(request.model);
+      const steps = scripts[request.model]!;
+      const n = counters.get(request.model) ?? 0;
+      counters.set(request.model, n + 1);
+      const step = steps[Math.min(n, steps.length - 1)]!;
+      if ("output" in step) return Promise.resolve({ kind: "output", text: step.output, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } });
+      if ("error" in step) return Promise.reject(new ProviderError(step.error));
+      if ("throw" in step) return Promise.reject(step.throw);
+      return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
+    };
+    const provider: ModelProvider = { key: "test", generate: run, generateStructured: (r, _s, signal) => run(r, signal), healthCheck: async () => "UP" };
+    return { provider, order };
+  }
+
+  const call = (gateway: ModelGateway, limits: AiExecutionLimits, extra: { primary?: GatewayModelConfig; fallback?: GatewayModelConfig | null; deadline?: Date; signal?: AbortSignal } = {}) =>
+    gateway.call({
+      route: { primary: extra.primary ?? PRIMARY, fallback: extra.fallback === undefined ? FALLBACK : extra.fallback },
+      task,
+      request: REQUEST,
+      limits,
+      deadline: extra.deadline ?? future(),
+      signal: extra.signal ?? new AbortController().signal,
+    });
+
+  it.each([
+    ["UNAVAILABLE", "AI_PROVIDER_ERROR"],
+    ["RATE_LIMITED", "AI_RATE_LIMITED"],
+    ["TIMEOUT", "AI_TIMEOUT"],
+  ] as const)("%s do principal esgota as tentativas e chama o fallback uma vez, com as suas tentativas", async (category, code) => {
+    const { provider, order } = byModel({ "m-primary": [{ error: category }], "m-fallback": [{ error: "UNAVAILABLE" }, { output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await call(gateway, limits);
+
+    expect(result.response).toMatchObject({ kind: "output", text: "{}" });
+    expect(order).toEqual(["m-primary", "m-primary", "m-primary", "m-fallback", "m-fallback"]);
+    expect(result.legs).toHaveLength(2);
+    expect(result.legs[0]).toMatchObject({ config: { key: "primary" }, isFallback: false, status: category === "TIMEOUT" ? "TIMED_OUT" : "FAILED", attempts: 3, errorCode: code });
+    expect(result.legs[1]).toMatchObject({
+      config: { key: "fallback" },
+      isFallback: true,
+      status: "SUCCEEDED",
+      attempts: 2,
+      trigger: { reason: "PROVIDER_FAILURE", primaryErrorCode: code },
+    });
+    expect(result.attempts).toBe(5);
+  });
+
+  it.each(["INVALID_REQUEST", "AUTH", "UNKNOWN"] as const)("%s do principal → sem fallback", async (category) => {
+    const { provider, order } = byModel({ "m-primary": [{ error: category }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits).catch((e: unknown) => e)) as AiFailure;
+    expect(error).toBeInstanceOf(AiFailure);
+    expect(order).toEqual(["m-primary"]);
+    expect(error.legs.map((leg) => leg.isFallback)).toEqual([false]);
+  });
+
+  it("um erro fora de ProviderError no principal → UNKNOWN, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ throw: new Error("x") }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    await expect(call(gateway, limits)).rejects.toBeInstanceOf(AiFailure);
+    expect(order).toEqual(["m-primary"]);
+  });
+
+  it("cancelamento durante o principal → AI_EXECUTION_CANCELLED, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ hang: true }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const controller = new AbortController();
+    const pending = call(gateway, limits, { signal: controller.signal }).catch((e: unknown) => e);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+    expect(await pending).toMatchObject({ code: "AI_EXECUTION_CANCELLED" });
+    expect(order).toEqual(["m-primary"]);
+  });
+
+  it("prazo da execução esgotado no principal → AI_TIMEOUT, sem fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ hang: true }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { deadline: future(50) }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_TIMEOUT");
+    expect(order).toEqual(["m-primary"]);
+    expect(error.legs).toHaveLength(1);
+  });
+
+  it("o fallback roda só no prazo que resta da execução, nunca além", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ hang: true }] });
+    const { gateway, limits } = gatewayWith(provider, { maxRetries: 0 });
+    const started = Date.now();
+    const error = (await call(gateway, limits, { deadline: future(100) }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_TIMEOUT");
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(order).toEqual(["m-primary", "m-fallback"]);
+    expect(error.legs.map((leg) => [leg.isFallback, leg.status])).toEqual([
+      [false, "FAILED"],
+      [true, "TIMED_OUT"],
+    ]);
+  });
+
+  it("principal e fallback falhando → AiFailure com o código do fallback e duas pernas, sem voltar ao principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ error: "RATE_LIMITED" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_RATE_LIMITED");
+    expect(error.legs.map((leg) => [leg.config.key, leg.isFallback])).toEqual([
+      ["primary", false],
+      ["fallback", true],
+    ]);
+    expect(order).toEqual(["m-primary", "m-primary", "m-primary", "m-fallback", "m-fallback", "m-fallback"]);
+    expect(error.attempts).toBe(6); // (1 + maxRetries) per leg, never more
+  });
+
+  it("fallback desabilitado → o código do principal, sem chamada ao fallback", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { fallback: { ...FALLBACK, status: "DISABLED" } }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_PROVIDER_ERROR");
+    expect(order.every((model) => model === "m-primary")).toBe(true);
+    expect(error.legs).toHaveLength(1);
+  });
+
+  it("principal desabilitado pelo administrador → direto no fallback, sem perna do principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ output: "{}" }], "m-fallback": [{ output: "{}" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await call(gateway, limits, { primary: { ...PRIMARY, status: "DISABLED" } });
+    expect(order).toEqual(["m-fallback"]);
+    expect(result.legs).toEqual([
+      expect.objectContaining({ isFallback: true, status: "SUCCEEDED", trigger: { reason: "PROVIDER_FAILURE", primaryErrorCode: "AI_MODEL_UNAVAILABLE" } }),
+    ]);
+  });
+
+  it("rota sem fallback → comportamento da 006: uma perna e o código do principal", async () => {
+    const { provider, order } = byModel({ "m-primary": [{ error: "UNAVAILABLE" }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const error = (await call(gateway, limits, { fallback: null }).catch((e: unknown) => e)) as AiFailure;
+    expect(error.code).toBe("AI_PROVIDER_ERROR");
+    expect(error.legs).toHaveLength(1);
+    expect(order).toHaveLength(3);
   });
 });

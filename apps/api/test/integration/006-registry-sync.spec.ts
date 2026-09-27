@@ -113,15 +113,16 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(old.agentVersionRef.version).toBe(1);
   });
 
-  it("007/FR-051 produção sincroniza curriculum-agent v1 DESABILITADO, de forma idempotente", async () => {
+  it("007/FR-051 produção sincroniza curriculum-agent v2 DESABILITADO, de forma idempotente", async () => {
     const production = productionAiDefinitions(t.config);
     await syncWith(production);
     const agents = await t.prisma.aiAgent.findMany({ where: { status: { not: "DEPRECATED" } }, include: { currentVersion: true } });
-    expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 1]]);
+    expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 2]]);
     const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
     expect(tool.status).toBe("ENABLED");
-    const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "curriculum-extraction-default" } });
-    expect(config).toMatchObject({ provider: "anthropic", model: "claude-opus-5" });
+    // 008: the agent's task routes to the OpenRouter config of the default model.
+    const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "openrouter-default" } });
+    expect(config).toMatchObject({ provider: "openrouter", model: t.config.ai.openrouter.defaultModel });
 
     const before = await counts(t);
     const events = await t.prisma.auditEvent.count();
@@ -139,6 +140,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
       agents: [...reference.agents, ...production.agents],
       tools: [...reference.tools, ...production.tools],
       modelConfigs: [...reference.modelConfigs, ...production.modelConfigs],
+      tasks: [...reference.tasks, ...production.tasks],
       providers: reference.providers,
       resources: { ...reference.resources, ...production.resources },
     });

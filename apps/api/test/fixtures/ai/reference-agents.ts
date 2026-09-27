@@ -11,7 +11,7 @@ const ITEMS = z.strictObject({
 
 const BASE = {
   requiredPermission: "ia.execucoes.visualizar",
-  modelConfigKey: "fake-default",
+  taskKey: "reference-default",
   resourceTypes: ["SUBJECT"],
   input: z.strictObject({ text: z.string().max(10_000).optional() }),
   buildContext: (context) => ({ resourceType: context.resource?.type ?? null }),

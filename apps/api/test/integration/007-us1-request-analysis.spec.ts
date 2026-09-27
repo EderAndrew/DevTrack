@@ -8,11 +8,14 @@ import { fakeDelay, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-p
 import { type AiTestApp, drain, resetAiDb } from "../helpers/ai";
 import {
   createCurriculumAiApp,
+  CURRICULUM_TEST_MODEL,
   getCurriculumAiStatus,
   pooOutput,
   requestAnalysis,
   scriptCurriculumRun,
   seedProcessedDocument,
+  TEST_CURRICULUM_AGENT,
+  TEST_CURRICULUM_MODEL_CONFIG,
 } from "../helpers/curriculum-ai";
 import { createConfirmedRevision, createSyllabusDocument, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api } from "../helpers/test-app";
@@ -54,14 +57,14 @@ describe("007/US1 o professor pede o preenchimento com IA e recebe uma proposta"
     expect(res.status).toBe(202);
     expect(res.body).toMatchObject({
       created: true,
-      execution: { status: "QUEUED", agent: { key: "curriculum-agent", version: 1 }, resource: { type: "SYLLABUS_DOCUMENT", id: document.id } },
+      execution: { status: "QUEUED", agent: { key: "curriculum-agent", version: TEST_CURRICULUM_AGENT.version }, resource: { type: "SYLLABUS_DOCUMENT", id: document.id } },
     });
     expect(elapsed).toBeLessThan(1_000);
     expect(t.provider.requests).toHaveLength(0);
 
     const row = await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: res.body.execution.id }, include: { modelConfig: true } });
-    expect(row).toMatchObject({ workspaceId: teacher.id, agentVersion: 1, promptVersion: 1, model: "claude-opus-5" });
-    expect(row.modelConfig.key).toBe("curriculum-extraction-default");
+    expect(row).toMatchObject({ workspaceId: teacher.id, agentVersion: TEST_CURRICULUM_AGENT.version, promptVersion: 1, model: CURRICULUM_TEST_MODEL });
+    expect(row.modelConfig.key).toBe(TEST_CURRICULUM_MODEL_CONFIG.key);
     const schema = await t.prisma.aiOutputSchemaVersion.findUniqueOrThrow({ where: { id: row.outputSchemaVersionId! } });
     expect(schema.version).toBe(1);
 
@@ -122,7 +125,7 @@ describe("007/US1 o professor pede o preenchimento com IA e recebe uma proposta"
     const calls = await t.prisma.aiModelCall.findMany({ where: { executionId: body.execution.id }, orderBy: { sequence: "asc" } });
     expect(calls).toHaveLength(2);
     for (const call of calls) {
-      expect(call).toMatchObject({ status: "SUCCEEDED", provider: "fake", model: "claude-opus-5", inputTokens: 120, outputTokens: 30, totalTokens: 150, currency: "USD" });
+      expect(call).toMatchObject({ status: "SUCCEEDED", provider: "fake", model: CURRICULUM_TEST_MODEL, inputTokens: 120, outputTokens: 30, totalTokens: 150, currency: "USD" });
       expect(call.durationMs).toBeGreaterThanOrEqual(0);
       // 120 × 5 / 1M + 30 × 25 / 1M
       expect(call.estimatedCost?.toString()).toBe("0.00135");

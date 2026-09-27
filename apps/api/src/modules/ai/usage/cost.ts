@@ -31,3 +31,16 @@ export function estimateCost(usage: ModelUsage | null, price: ModelPrice | null)
   const total = BigInt(usage.inputTokens) * toMicros(price.inputPerMTok) + BigInt(usage.outputTokens) * toMicros(price.outputPerMTok);
   return { amount: fromMicros(total / MICRO), currency: price.currency };
 }
+
+/**
+ * The cost recorded for a call (008 research G17): the amount the provider reported
+ * (`PROVIDER`), else the estimate by the config's price (`PRICE`), else none.
+ */
+export function callCost(
+  usage: ModelUsage | null,
+  price: ModelPrice | null,
+): { amount: string; currency: string; source: "PROVIDER" | "PRICE" } | null {
+  if (usage?.cost) return { ...usage.cost, source: "PROVIDER" };
+  const estimated = estimateCost(usage, price);
+  return estimated ? { ...estimated, source: "PRICE" } : null;
+}

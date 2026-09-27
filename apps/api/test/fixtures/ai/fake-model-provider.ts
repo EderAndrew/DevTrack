@@ -12,7 +12,14 @@ export type FakeStep = (
   | { empty: true }
   | { toolCalls: ModelToolCall[] }
   | { error: ProviderErrorCategory }
-) & { delayMs?: number; usage?: ModelUsage | null };
+) & {
+  delayMs?: number;
+  usage?: ModelUsage | null;
+  /** The model the answer says it served; defaults to the requested one (008 research G12). */
+  servedModel?: string | null;
+  /** A cost the provider reports, as OpenRouter does (008 research G17). */
+  cost?: { amount: string; currency: string };
+};
 
 export const fakeOutput = (output: unknown, extra: Partial<FakeStep> = {}): FakeStep => ({ output, ...extra }) as FakeStep;
 export const fakeText = (text: string): FakeStep => ({ text });
@@ -20,6 +27,8 @@ export const fakeEmpty = (): FakeStep => ({ empty: true });
 export const fakeToolCall = (toolKey: string, args: unknown): FakeStep => ({ toolCalls: [{ toolKey, arguments: args }] });
 export const fakeError = (category: ProviderErrorCategory): FakeStep => ({ error: category });
 export const fakeDelay = (ms: number, then: FakeStep): FakeStep => ({ ...then, delayMs: ms });
+export const fakeServedModel = (model: string | null, then: FakeStep): FakeStep => ({ ...then, servedModel: model });
+export const fakeCost = (amount: string, then: FakeStep, currency = "USD"): FakeStep => ({ ...then, cost: { amount, currency } });
 
 const DEFAULT_USAGE: ModelUsage = { inputTokens: 120, outputTokens: 30, totalTokens: 150 };
 
@@ -42,6 +51,7 @@ export class FakeModelProvider implements ModelProvider {
   readonly structuredSchemas: object[] = [];
   health: ProviderHealth = "UP";
   private scripts: Script[] = [];
+  private byModel = new Map<string, FakeStep[]>();
   private defaults: FakeStep[] = [];
   /** Held like a real provider would hold its key; never returned, logged nor thrown. */
   private readonly credential: string;
@@ -59,6 +69,15 @@ export class FakeModelProvider implements ModelProvider {
     return this;
   }
 
+  /**
+   * Steps for the requests to `model`, before `scriptWhen` and `script` (008: a primary and a
+   * fallback that answer differently); the last one repeats.
+   */
+  scriptFor(model: string, ...steps: FakeStep[]): this {
+    this.byModel.set(model, [...steps]);
+    return this;
+  }
+
   /** Steps for the requests `matches` accepts (e.g. by a marker in the untrusted input). */
   scriptWhen(matches: (request: ModelRequest) => boolean, ...steps: FakeStep[]): this {
     this.scripts.push({ matches, steps: [...steps] });
@@ -69,6 +88,7 @@ export class FakeModelProvider implements ModelProvider {
     this.requests.length = 0;
     this.structuredSchemas.length = 0;
     this.scripts = [];
+    this.byModel.clear();
     this.defaults = [];
     this.health = "UP";
   }
@@ -87,6 +107,8 @@ export class FakeModelProvider implements ModelProvider {
   }
 
   private nextStep(request: ModelRequest): FakeStep {
+    const forModel = this.byModel.get(request.model);
+    if (forModel && forModel.length > 0) return forModel.length > 1 ? forModel.shift()! : forModel[0]!;
     const script = this.scripts.find((candidate) => candidate.matches(request) && candidate.steps.length > 0);
     if (script) return script.steps.length > 1 ? script.steps.shift()! : script.steps[0]!;
     if (this.defaults.length === 0) throw new ProviderError("UNKNOWN");
@@ -97,12 +119,14 @@ export class FakeModelProvider implements ModelProvider {
     this.requests.push(structuredClone(request));
     const step = this.nextStep(request);
     if (step.delayMs) await abortableSleep(step.delayMs, signal);
-    const usage = step.usage === undefined ? DEFAULT_USAGE : step.usage;
+    const base = step.usage === undefined ? DEFAULT_USAGE : step.usage;
+    const usage = base && step.cost ? { ...base, cost: step.cost } : base;
+    const servedModel = step.servedModel === undefined ? request.model : step.servedModel;
     if ("error" in step) throw new ProviderError(step.error);
-    if ("toolCalls" in step) return { kind: "tool_calls", calls: step.toolCalls, usage };
-    if ("empty" in step) return { kind: "output", text: "", usage };
-    if ("text" in step) return { kind: "output", text: step.text, usage };
-    return { kind: "output", text: JSON.stringify(step.output), usage };
+    if ("toolCalls" in step) return { kind: "tool_calls", calls: step.toolCalls, usage, servedModel };
+    if ("empty" in step) return { kind: "output", text: "", usage, servedModel };
+    if ("text" in step) return { kind: "output", text: step.text, usage, servedModel };
+    return { kind: "output", text: JSON.stringify(step.output), usage, servedModel };
   }
 }
 

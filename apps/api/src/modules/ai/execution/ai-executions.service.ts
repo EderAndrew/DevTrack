@@ -20,7 +20,7 @@ import { PermissionResolver } from "../../access-control/permission-resolver";
 import { ModelGateway } from "../gateway/model-gateway";
 import { AiAgentRegistry, type RegisteredAgent } from "../registry/ai-agent.registry";
 import { stableHash } from "../registry/ai-definitions.check";
-import { AiModelConfigRegistry } from "../registry/ai-model-config.registry";
+import { type RegisteredRoute, AiTaskRegistry } from "../registry/ai-task.registry";
 import { AiExecutionAborts } from "./ai-execution-aborts";
 import { AiExecutionStore } from "./ai-execution.store";
 import { EXECUTION_SUMMARY_INCLUDE, EXECUTION_VIEW_INCLUDE, toExecutionSummary, toExecutionView } from "./ai-execution.view";
@@ -66,7 +66,7 @@ export class AiExecutionsService {
     private readonly permissions: PermissionResolver,
     private readonly audit: AuditService,
     private readonly agents: AiAgentRegistry,
-    private readonly modelConfigs: AiModelConfigRegistry,
+    private readonly tasks: AiTaskRegistry,
     private readonly gateway: ModelGateway,
     private readonly store: AiExecutionStore,
     private readonly aborts: AiExecutionAborts,
@@ -74,14 +74,24 @@ export class AiExecutionsService {
     private readonly resources: AiResourceResolver,
   ) {}
 
-  /** In this order: the agent, its model config and provider, then the global kill switch. */
+  /** In this order: the agent, a usable model config of its route, then the global kill switch. */
   async availability(agentKey: string): Promise<AiAvailability> {
     const agent = await this.agents.byKey(agentKey);
     if (!agent || agent.status !== "ACTIVE") return "AGENT_DISABLED";
-    const config = await this.modelConfigs.byId(agent.modelConfigId);
-    if (!config || config.status !== "ENABLED" || !this.gateway.providerFor(config.provider)) return "MODEL_UNAVAILABLE";
+    if (!(await this.usableRoute(agent))) return "MODEL_UNAVAILABLE";
     if (this.config.ai.intervalSeconds <= 0) return "PAUSED";
     return "AVAILABLE";
+  }
+
+  /**
+   * The agent's route when the primary or the fallback can take a call (008 research G5); the
+   * runner checks both again at start.
+   */
+  private async usableRoute(agent: RegisteredAgent): Promise<RegisteredRoute | null> {
+    const route = await this.tasks.routeOf(agent);
+    if (!route) return null;
+    const usable = this.gateway.isUsable(route.primary) || (route.fallback !== null && this.gateway.isUsable(route.fallback));
+    return usable ? route : null;
   }
 
   async request(
@@ -113,10 +123,9 @@ export class AiExecutionsService {
     const resource = body.resource ?? null;
     if (resource) await this.resources.assertOwned(workspaceId, agent.resourceTypes, resource);
 
-    const config = await this.modelConfigs.byId(agent.modelConfigId);
-    if (!config || config.status !== "ENABLED" || !this.gateway.providerFor(config.provider)) {
-      throw new AppException("AI_MODEL_UNAVAILABLE");
-    }
+    const route = await this.usableRoute(agent);
+    if (!route) throw new AppException("AI_MODEL_UNAVAILABLE");
+    const { primary, fallback } = route;
 
     const limits = effectiveLimits(this.config.ai.limits, agent.definition);
     const input = this.validateInput(agent, body.input ?? {}, limits.maxInputBytes);
@@ -139,9 +148,11 @@ export class AiExecutionsService {
             promptVersionId: agent.promptVersionId,
             promptVersion: agent.promptVersion,
             outputSchemaVersionId: agent.outputSchemaVersionId,
-            modelConfigId: config.id,
-            provider: config.provider,
-            model: config.model,
+            modelConfigId: primary.id,
+            fallbackModelConfigId: fallback?.id ?? null,
+            taskKey: route.task?.key ?? null,
+            provider: primary.provider,
+            model: primary.model,
             riskLevel: agent.riskLevel,
             resourceType: resource?.type ?? null,
             resourceId: resource?.id ?? null,
@@ -155,6 +166,11 @@ export class AiExecutionsService {
           },
           select: { id: true },
         });
+        // All teachers together, per agent (008 FR-015, research G9). Counted after the insert, so
+        // a concurrent duplicate that loses the unique index below never counts; a blocked
+        // request rolls its execution back.
+        const perAgent = await this.rateLimit.hit("ai-agent", agent.key, { limit: this.config.rateLimit.aiAgentPerHour, windowSec: 3600 });
+        if (perAgent.blocked) throw new AgentLimitReached(perAgent.retryAfterSec);
         await this.markUsed(tx, agent, now);
         await this.audit.record(tx, {
           type: "ai_execution.requested",
@@ -167,7 +183,9 @@ export class AiExecutionsService {
             agentKey: agent.key,
             agentVersion: agent.version,
             promptVersion: agent.promptVersion,
-            modelConfigKey: config.key,
+            modelConfigKey: primary.key,
+            taskKey: route.task?.key ?? null,
+            fallbackModelConfigKey: fallback?.key ?? null,
             resourceType: resource?.type ?? null,
             riskLevel: agent.riskLevel,
           },
@@ -176,6 +194,16 @@ export class AiExecutionsService {
         return created.id;
       });
     } catch (error) {
+      if (error instanceof AgentLimitReached) {
+        await this.audit.record(this.prisma, {
+          type: "ai_execution.rate_limited",
+          actorType: "USER",
+          actorUserId: workspaceId,
+          requestId,
+          metadata: { scope: "agent" },
+        });
+        throw rateLimited(error.retryAfterSec);
+      }
       // A concurrent request with the same key won the unique index (FR-025).
       if (!isUniqueViolation(error)) throw error;
       const winner = await this.findByKey(workspaceId, body.idempotencyKey);
@@ -308,5 +336,12 @@ export class AiExecutionsService {
     if (agent.outputSchemaVersionId) {
       await tx.aiOutputSchemaVersion.updateMany({ where: { id: agent.outputSchemaVersionId, usedAt: null }, data: { usedAt: now } });
     }
+  }
+}
+
+/** Rolls back the execution of a request past the agent's hourly limit. */
+class AgentLimitReached extends Error {
+  constructor(readonly retryAfterSec: number) {
+    super("agent limit reached");
   }
 }

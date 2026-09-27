@@ -56,7 +56,6 @@ Fora da allowlist, todos **transitivos**:
 | MIT AND ISC | `@visx/vendor` | `prisma` → `@prisma/studio-core` | Ambas permissivas; só no Prisma Studio |
 | Unlicense | `robust-predicates` | `prisma` → `@prisma/studio-core` | Domínio público; só no Prisma Studio |
 | Unlicense | `postgres` | `prisma` (CLI, servidor de dev `prisma dev`) | Domínio público; a API usa `pg` + `@prisma/adapter-pg` |
-| Unlicense | `fast-sha256` | `@anthropic-ai/sdk` → `standardwebhooks` (fase 007, seção 9) | Domínio público; só na verificação de webhooks do SDK, que a API não usa |
 
 **Pendente de decisão do mantenedor:** aceitar essas exceções, sendo que nenhuma exige
 alterar ou abrir o código do DevTrack, ou ajustar a allowlist (MIT-0, Unlicense e CC-BY-4.0
@@ -173,23 +172,25 @@ e `test/security/006-ai-boundary.spec.ts` aceitam importar um SDK de provedor (`
 `@anthropic-ai/*`, `@google/genai` e afins). A dependência ganha então uma linha nesta tabela,
 com versão exata, licença e alternativa descartada.
 
-## 9. Provedor de IA — fase 007 (`specs/007-curriculum-agent`, C2)
+## 9. Provedor de IA — fase 007 (`specs/007-curriculum-agent`, C2), removido na 008
 
-Primeiro provedor real de modelos (FR-042). Instalado com versão exata (`pnpm add -E`) só em
-`apps/api`. `pnpm audit --prod --audit-level high`: nenhum achado.
+A fase 007 instalou `@anthropic-ai/sdk` (0.128.0, MIT) em `apps/api` como primeiro provedor
+real, com as transitivas `json-schema-to-ts`, `ts-algebra`, `standardwebhooks`,
+`@stablelib/base64`, `@babel/runtime` e `fast-sha256`. A fase 008 o removeu (seção 10).
 
-| Pacote | Onde | Versão | Licença | Para quê | Alternativa descartada |
-|--------|------|--------|---------|----------|------------------------|
-| `@anthropic-ai/sdk` | api | 0.128.0 | MIT | Cliente oficial da Messages API da Anthropic, com erros tipados que viram as categorias do gateway (`ProviderErrorCategory`) e tipos de requisição e resposta | `fetch` direto na API HTTP (reimplementar erros, retries e tipos); SDKs multi-provedor como `@ai-sdk/*` ou LangChain (camada extra sobre a abstração que o gateway da 006 já é) |
+## 10. OpenRouter — fase 008 (`specs/008-ai-gateway-openrouter`, G10, G15)
 
-Regra de fronteira (006 A15): o SDK só pode ser importado em
-`apps/api/src/modules/ai/gateway/providers/**`. O ESLint de `apps/api` e
-`test/security/006-ai-boundary.spec.ts` recusam qualquer outro lugar, na API e no web. O
-cliente é criado com `maxRetries: 0` (quem repete é o gateway) e só quando `ANTHROPIC_API_KEY`
-está definida; sem a chave, o provedor não é registrado e a IA fica indisponível, sem impedir
-o startup (FR-043).
+Nenhuma dependência nova, e `@anthropic-ai/sdk` saiu com as suas transitivas (a exceção
+Unlicense de `fast-sha256` na seção 2 deixou de existir). O OpenRouter é o único provedor real
+e é chamado pelo `fetch` nativo do Node em
+`apps/api/src/modules/ai/gateway/providers/openrouter.provider.ts`. A clarificação da spec
+decidiu remover o provedor direto da Anthropic, que ficaria como código morto sob uma exceção
+da fronteira, e sem ele a superfície de ataque diminui (constituição IX).
 
-Transitivas novas: `json-schema-to-ts` e `ts-algebra` (tipos), `standardwebhooks`,
-`@stablelib/base64` e `@babel/runtime` (MIT) e `fast-sha256` (Unlicense, tabela da seção 2).
-`zod` é *peer dependency* opcional do SDK e resolve para a versão do catálogo, então o
-`zod-version.spec.ts` continua com uma única versão.
+Alternativas descartadas: o SDK `openai` apontado para o OpenRouter (dependência, retries
+próprios, e a fronteira o trata como SDK de provedor) e os SDKs `@openrouter/*` (idem).
+
+Regra de fronteira (006 A15): continua valendo para qualquer SDK futuro. `@anthropic-ai/*`
+segue na lista proibida do ESLint de `apps/api`, e `test/security/006-ai-boundary.spec.ts`
+exige que nem a API nem o web dependam de SDK de provedor. O provedor só é registrado quando
+`OPENROUTER_API_KEY` está definida; sem a chave, a IA fica indisponível sem impedir o startup.

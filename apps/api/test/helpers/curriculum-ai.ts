@@ -9,11 +9,8 @@ import type {
 } from "@repo/contracts";
 import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
 import { type AgentDefinition, type AiDefinitions, defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
-import {
-  CURRICULUM_AGENT,
-  CURRICULUM_MODEL_CONFIG,
-  curriculumAiDefinitions,
-} from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
+import { CURRICULUM_AGENT, curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
@@ -25,11 +22,22 @@ import { api, type TestApp, type TestAppOptions } from "./test-app";
 /** The real `curriculum-agent`, registered ACTIVE: its availability tests disable it through the admin route. */
 export const TEST_CURRICULUM_AGENT = defineAgent({ ...CURRICULUM_AGENT, initialStatus: "ACTIVE" });
 
+/** The default model of production (`OPENROUTER_DEFAULT_MODEL`). */
+export const CURRICULUM_TEST_MODEL = "anthropic/claude-opus-5";
+
 /**
- * The agent's model config, on the fake provider: only the provider is swapped (006/SC-011), so the
- * model name and the price stay the real ones (007/FR-047).
+ * The config the agent's task routes to, on the fake provider (006/SC-011): the key and model of
+ * production, with a reference price so the cost is computed (007/FR-047).
  */
-export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({ ...CURRICULUM_MODEL_CONFIG, provider: "fake" });
+export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({
+  key: DEFAULT_MODEL_CONFIG_KEY,
+  provider: "fake",
+  model: CURRICULUM_TEST_MODEL,
+  initialStatus: "ENABLED",
+  maxOutputTokens: 32_000,
+  timeoutMs: 60_000,
+  price: { inputPerMTok: "5", outputPerMTok: "25", currency: "USD" },
+});
 
 /**
  * `createAiTestApp` with the 007 definitions (agent, tool, ownership of `SYLLABUS_DOCUMENT`) next to
@@ -43,6 +51,7 @@ export function createCurriculumAiApp(options: TestAppOptions = {}): Promise<AiT
     agents: [TEST_CURRICULUM_AGENT],
     tools: curriculum.tools,
     modelConfigs: [TEST_CURRICULUM_MODEL_CONFIG],
+    tasks: curriculum.tasks,
     resources: curriculum.resources,
   });
 }
@@ -58,6 +67,7 @@ export function curriculumTestDefinitions(provider: FakeModelProvider, agent: Ag
     agents: [...base.agents, agent],
     tools: [...base.tools, ...curriculum.tools],
     modelConfigs: [...base.modelConfigs, TEST_CURRICULUM_MODEL_CONFIG],
+    tasks: [...base.tasks, ...curriculum.tasks],
     providers: base.providers,
     resources: { ...base.resources, ...curriculum.resources },
   };

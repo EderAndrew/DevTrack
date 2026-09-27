@@ -3,10 +3,8 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import type { AgentDefinition } from "../../src/modules/ai/definitions/types";
 import { AiRegistryError } from "../../src/modules/ai/registry/ai-definitions.check";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
-import {
-  CURRICULUM_AGENT_KEY,
-  CURRICULUM_MODEL_CONFIG_KEY,
-} from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
+import { CURRICULUM_AGENT_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { type AiTestApp, drain, resetAiDb } from "../helpers/ai";
 import {
@@ -26,7 +24,7 @@ const registered = (t: TestApp) =>
   t.prisma.aiAgent.findUniqueOrThrow({
     where: { key: CURRICULUM_AGENT_KEY },
     include: {
-      versions: { orderBy: { version: "asc" }, include: { promptVersion: true, outputSchema: true, modelConfig: true, tools: { include: { tool: true } } } },
+      versions: { orderBy: { version: "asc" }, include: { promptVersion: true, outputSchema: true, task: { include: { primaryModelConfig: true } }, tools: { include: { tool: true } } } },
     },
   });
 
@@ -47,8 +45,9 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
     expect(agent.versions).toHaveLength(1);
     const v1 = agent.versions[0]!;
     expect(agent.currentVersionId).toBe(v1.id);
+    // 008: the production agent is v2, v1 with its task instead of a model config (research G4).
     expect(v1).toMatchObject({
-      version: 1,
+      version: 2,
       riskLevel: "L2_PROPOSAL",
       executionMode: "ASYNC",
       requiredPermission: "ementas.revisar",
@@ -59,7 +58,7 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
     });
     expect(v1.promptVersion).toMatchObject({ key: "curriculum-extraction", version: 1 });
     expect(v1.outputSchema).toMatchObject({ version: 1 });
-    expect(v1.modelConfig).toMatchObject({ key: CURRICULUM_MODEL_CONFIG_KEY, provider: "anthropic", model: "claude-opus-5" });
+    expect(v1.task).toMatchObject({ key: "curriculum-extraction", primaryModelConfig: { key: DEFAULT_MODEL_CONFIG_KEY, provider: "openrouter" } });
     expect(v1.tools.map((entry) => entry.tool.key)).toEqual([READ_CURRICULUM_DOCUMENT]);
     // Nothing else is registered in production: no reference agent, no other tool.
     expect((await t.prisma.aiAgent.findMany({ select: { key: true } })).map((row) => row.key)).toEqual([CURRICULUM_AGENT_KEY]);
@@ -79,11 +78,11 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
   });
 });
 
-/** v2 of the agent: new instructions under a new prompt version; same key. */
+/** The next version of the agent (3 since 008): new instructions under prompt version 2; same key. */
 const CHANGED_TEXT = "Instruções alteradas sem nova versão.";
 const V2: AgentDefinition = {
   ...TEST_CURRICULUM_AGENT,
-  version: 2,
+  version: TEST_CURRICULUM_AGENT.version + 1,
   prompt: { ...TEST_CURRICULUM_AGENT.prompt, version: 2, systemInstructions: `${TEST_CURRICULUM_AGENT.prompt.systemInstructions}\nVersão 2.` },
 };
 
@@ -130,12 +129,12 @@ describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () =
 
     const agent = await registered(t);
     expect(agent.versions.map((version) => [version.version, version.promptVersion.version])).toEqual([
-      [1, 1],
-      [2, 2],
+      [TEST_CURRICULUM_AGENT.version, 1],
+      [TEST_CURRICULUM_AGENT.version + 1, 2],
     ]);
     expect(agent.currentVersionId).toBe(agent.versions[1]!.id);
     expect(await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: old }, select: { agentVersion: true, promptVersion: true, agentVersionId: true } })).toEqual({
-      agentVersion: 1,
+      agentVersion: TEST_CURRICULUM_AGENT.version,
       promptVersion: 1,
       agentVersionId: agent.versions[0]!.id,
     });
@@ -147,7 +146,7 @@ describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () =
     const { document } = await seedProcessedDocument(t, teacher.id);
     const { body } = await requestAnalysis(t, await loginAs(t, teacher), document.id);
     expect(await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: body.execution.id }, select: { agentVersion: true, promptVersion: true } })).toEqual({
-      agentVersion: 2,
+      agentVersion: TEST_CURRICULUM_AGENT.version + 1,
       promptVersion: 2,
     });
   });

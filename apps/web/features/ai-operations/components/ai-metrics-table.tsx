@@ -2,11 +2,12 @@ import type { AiAgentMetrics } from "@repo/contracts";
 import { ChartNoAxesColumn } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cost, count, countWithRate, duration } from "./format";
+import { cost, count, countWithRate, duration, Missing } from "./format";
 
 /**
  * "Indicadores": one row per agent, version, instructions and model in the period (006/US7-1), with
- * the rates of 007/FR-048 next to their counts: outcomes over executions, decisions over proposals.
+ * the rates of 007/FR-048 next to their counts: outcomes over executions, decisions over proposals;
+ * since 008 (US5-1) the task and the executions that used the fallback.
  */
 export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
   if (rows.length === 0) return <EmptyState icon={ChartNoAxesColumn} headingLevel="h3" title="Nenhuma execução no período." />;
@@ -18,12 +19,14 @@ export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
           <TableHead scope="col">Agente</TableHead>
           <TableHead scope="col">Versão</TableHead>
           <TableHead scope="col">Instruções</TableHead>
+          <TableHead scope="col">Tarefa</TableHead>
           <TableHead scope="col">Modelo</TableHead>
           <TableHead scope="col">Execuções</TableHead>
           <TableHead scope="col">Concluídas</TableHead>
           <TableHead scope="col">Falhas</TableHead>
           <TableHead scope="col">Tempo esgotado</TableHead>
           <TableHead scope="col">Canceladas</TableHead>
+          <TableHead scope="col">Fallbacks</TableHead>
           <TableHead scope="col">Duração média</TableHead>
           <TableHead scope="col">Chamadas ao modelo</TableHead>
           <TableHead scope="col">Chamadas de ferramenta</TableHead>
@@ -38,10 +41,11 @@ export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow key={`${row.agentKey}:${row.agentVersion}:${row.promptVersion}:${row.provider}:${row.model}`}>
+          <TableRow key={`${row.agentKey}:${row.agentVersion}:${row.promptVersion}:${row.provider}:${row.model}:${row.taskKey}`}>
             <TableCell>{row.agentKey}</TableCell>
             <TableCell>{row.agentVersion}</TableCell>
             <TableCell>{row.promptVersion}</TableCell>
+            <TableCell>{row.taskKey ?? <Missing />}</TableCell>
             <TableCell>
               {row.provider} / {row.model}
             </TableCell>
@@ -50,6 +54,7 @@ export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
             <TableCell>{countWithRate(row.failed, row.executions)}</TableCell>
             <TableCell>{countWithRate(row.timedOut, row.executions)}</TableCell>
             <TableCell>{countWithRate(row.cancelled, row.executions)}</TableCell>
+            <TableCell>{countWithRate(row.fallbacks, row.executions)}</TableCell>
             <TableCell>{duration(row.avgDurationMs)}</TableCell>
             <TableCell>{count(row.modelCalls)}</TableCell>
             <TableCell>{count(row.toolCalls)}</TableCell>

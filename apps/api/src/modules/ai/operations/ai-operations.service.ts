@@ -6,6 +6,7 @@ import type { Tx } from "../../../platform/database/transaction";
 import { invalidStateTransition, notFound } from "../../../platform/http/errors";
 import { AuditService } from "../../audit/audit.service";
 import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
+import { CircuitBreaker } from "../gateway/circuit-breaker";
 import { AiExecutionStore } from "../execution/ai-execution.store";
 import { PERIOD_MS, queryAgentMetrics, queryModelUsage } from "./ai-metrics.query";
 
@@ -27,6 +28,7 @@ const AGENT_INCLUDE = {
   currentVersion: {
     include: {
       modelConfig: { select: { key: true } },
+      task: { select: { key: true, primaryModelConfig: { select: { key: true } }, fallbackModelConfig: { select: { key: true } } } },
       promptVersion: { select: { version: true } },
       outputSchema: { select: { version: true } },
       tools: { select: { tool: { select: { key: true } } } },
@@ -49,9 +51,13 @@ export class AiOperationsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly store: AiExecutionStore,
+    private readonly circuit: CircuitBreaker,
   ) {}
 
-  /** Each provider answers once, in parallel, within 5 s; an error or a timeout is DOWN. */
+  /**
+   * Each provider answers once, in parallel, within 5 s; an error or a timeout is DOWN. The circuit
+   * is the state on this instance (008 research G8).
+   */
   async health(): Promise<AiHealth> {
     const configs = await this.prisma.aiModelConfig.findMany({ orderBy: { key: "asc" } });
     const statuses = new Map<string, Promise<AiProviderStatus>>();
@@ -66,6 +72,7 @@ export class AiOperationsService {
           model: config.model,
           status: config.status,
           providerStatus: await statuses.get(config.provider)!,
+          circuit: this.circuit.state(config.key),
         })),
       ),
     };
@@ -190,14 +197,19 @@ export class AiOperationsService {
     return counts;
   }
 
-  /** Keys of the agents whose current version uses each model config. */
+  /** Keys of the agents whose current version uses each model config, through its task (008) or directly. */
   private async configUsers(db: Tx): Promise<Map<string, string[]>> {
     const versions = await db.aiAgentVersion.findMany({
       where: { currentOf: { some: {} } },
-      select: { modelConfigId: true, agent: { select: { key: true } } },
+      select: { modelConfigId: true, task: { select: { primaryModelConfigId: true, fallbackModelConfigId: true } }, agent: { select: { key: true } } },
     });
     const users = new Map<string, string[]>();
-    for (const version of versions) users.set(version.modelConfigId, [...(users.get(version.modelConfigId) ?? []), version.agent.key].sort());
+    for (const version of versions) {
+      const configIds = [version.modelConfigId, version.task?.primaryModelConfigId, version.task?.fallbackModelConfigId];
+      for (const id of new Set(configIds.filter((value): value is string => typeof value === "string"))) {
+        users.set(id, [...(users.get(id) ?? []), version.agent.key].sort());
+      }
+    }
     return users;
   }
 
@@ -210,7 +222,10 @@ export class AiOperationsService {
       status: agent.status,
       version: version.version,
       riskLevel: version.riskLevel,
-      modelConfigKey: version.modelConfig.key,
+      // A pre-008 version has no task: its own config is the primary, with no fallback.
+      taskKey: version.task?.key ?? null,
+      primaryModelConfigKey: version.task?.primaryModelConfig.key ?? version.modelConfig?.key ?? null,
+      fallbackModelConfigKey: version.task?.fallbackModelConfig?.key ?? null,
       promptVersion: version.promptVersion.version,
       outputSchemaVersion: version.outputSchema?.version ?? null,
       toolKeys: version.tools.map((item) => item.tool.key).sort(),
