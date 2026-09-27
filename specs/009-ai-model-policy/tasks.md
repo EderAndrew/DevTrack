@@ -157,34 +157,34 @@ nunca são chamados; o Jev responde por `decide` com validação e certeza.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T016 [P] [US1] Criar `apps/api/src/modules/ai/policy/select-route.spec.ts` (parte
+- [X] T016 [P] [US1] Criar `apps/api/src/modules/ai/policy/select-route.spec.ts` (parte
   allowlist): família fora da allowlist ou da tarefa, modelo fora do catálogo, modo diferente
   e capacidade ausente nunca são escolhidos (`009/US1-1`, `009/US1-2`, `009/FR-003`,
   `009/FR-001a`).
-- [ ] T017 [P] [US1] Criar `apps/api/test/security/009-model-id-boundary.spec.ts`: nenhum
+- [X] T017 [P] [US1] Criar `apps/api/test/security/009-model-id-boundary.spec.ts`: nenhum
   arquivo de `apps/api/src` fora de `definitions/model-catalog.ts` (e do adaptador) contém id
   concreto de modelo; o agente só nomeia a tarefa (`009/US3-3`, `009/FR-007`); nenhuma entrada
   nova entra sem estar no arquivo (`009/US1-3`, `009/FR-004`).
-- [ ] T018 [P] [US1] Em `apps/api/src/modules/ai/gateway/providers/openrouter.provider.spec.ts`:
+- [X] T018 [P] [US1] Em `apps/api/src/modules/ai/gateway/providers/openrouter.provider.spec.ts`:
   `decide` monta `POST {origin}/api/alpha/decisions` com `model`, `state`, `questions`, sem
   `user`/`session_id`/`trace`; mapeia respostas `choice`/`score`/`noul`, custo, modelo servido,
   e a tabela de erros; a chave nunca aparece (`009/FR-001a`, `009/US1-4`).
-- [ ] T019 [P] [US1] Em `apps/api/src/modules/ai/gateway/model-gateway.spec.ts`: `decide`
+- [X] T019 [P] [US1] Em `apps/api/src/modules/ai/gateway/model-gateway.spec.ts`: `decide`
   valida ids, tipos e opções; resposta fora do pedido → `AI_OUTPUT_VALIDATION_FAILED`; abaixo
   de `minConfidence` → `UNDECIDED`; fallback e circuito como em `call` (`009/FR-001b`).
-- [ ] T020 [P] [US1] Criar `apps/api/test/integration/009-us1-allowlist.spec.ts`: uma tarefa de
+- [X] T020 [P] [US1] Criar `apps/api/test/integration/009-us1-allowlist.spec.ts`: uma tarefa de
   referência de decisão roda pelo provedor simulado; modelo de decisão nunca escolhido para
   tarefa de geração e vice-versa; configuração de modelo fora do catálogo no banco nunca é
   chamada (`009/US1-1`, `009/SC-001`).
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] `apps/api/src/modules/ai/gateway/providers/openrouter.provider.ts`: `decide`
+- [X] T021 [US1] `apps/api/src/modules/ai/gateway/providers/openrouter.provider.ts`: `decide`
   (contracts/decisions-provider.md); `apps/api/test/fixtures/ai/fake-model-provider.ts`:
   `decide` com roteiro (`fakeDecision`).
-- [ ] T022 [US1] `apps/api/src/modules/ai/gateway/model-gateway.ts`: `decide(call)` com pernas,
+- [X] T022 [US1] `apps/api/src/modules/ai/gateway/model-gateway.ts`: `decide(call)` com pernas,
   tentativas, fallback, circuito e validação das respostas.
-- [ ] T023 [US1] `apps/web/e2e/openrouter-mock.ts`: rota de decisões (para o teste de
+- [X] T023 [US1] `apps/web/e2e/openrouter-mock.ts`: rota de decisões (para o teste de
   referência de decisão rodar pelo adaptador real no E2E, se usado).
 
 **Checkpoint**: US1 completa.
@@ -200,18 +200,18 @@ certo e a mais barata entre os aprovados.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T024 [P] [US2] Em `apps/api/src/modules/ai/policy/select-route.spec.ts`: tarefa BASIC
+- [X] T024 [P] [US2] Em `apps/api/src/modules/ai/policy/select-route.spec.ts`: tarefa BASIC
   nunca recebe STANDARD/ADVANCED; o mais barato entre os aprovados; empate por prioridade e
   chave; reprovado mais barato ignorado; sem preço depois dos com preço; saída estruturada
   exigida; sem candidato → indisponível; mesma entrada → mesma saída (`009/US2-1`…`009/US2-6`,
   `009/FR-008`, `009/FR-009`, `009/SC-002`, `009/SC-003`, `009/SC-004`).
-- [ ] T025 [P] [US2] Criar `apps/api/test/integration/009-us2-selection.spec.ts`: a execução
+- [X] T025 [P] [US2] Criar `apps/api/test/integration/009-us2-selection.spec.ts`: a execução
   grava nível, modelo e motivo; a disponibilidade da 007 fica `MODEL_UNAVAILABLE` sem candidato
   e o fluxo manual funciona (`009/US2-5`, `009/FR-010`, `009/SC-010`).
 
 ### Implementation for User Story 2
 
-- [ ] T026 [US2] Completar `select-route.ts`/`ai-policy.registry.ts` com o que os testes
+- [X] T026 [US2] Completar `select-route.ts`/`ai-policy.registry.ts` com o que os testes
   apontarem (preço desconhecido, DEPRECATED só na falta, motivos) e o log
   `ai.task_unavailable` com os motivos novos.
 

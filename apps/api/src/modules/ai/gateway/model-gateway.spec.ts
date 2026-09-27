@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
-import type { AiDefinitions, ModelProvider, ModelRequest, ModelResponse } from "../definitions/types";
+import type { AiDefinitions, DecisionRequest, DecisionResponse, ModelProvider, ModelRequest, ModelResponse } from "../definitions/types";
+import { CircuitBreaker } from "./circuit-breaker";
 import { type GatewayModelConfig, ModelGateway } from "./model-gateway";
 import { AiFailure, ProviderError, type ProviderErrorCategory } from "./provider-errors";
 
@@ -433,5 +434,133 @@ describe("008/FR-010 008/FR-011 008/SC-003 fallback depois do principal (contrac
     expect(error.code).toBe("AI_PROVIDER_ERROR");
     expect(error.legs).toHaveLength(1);
     expect(order).toHaveLength(3);
+  });
+});
+
+describe("009/FR-001b decisão pelo gateway (contracts/decisions-provider.md)", () => {
+  const PRIMARY: GatewayModelConfig = { ...CONFIG, key: "decision-primary", model: "typesafe/jev-1.13" };
+  const FALLBACK: GatewayModelConfig = { ...CONFIG, key: "decision-fallback", model: "typesafe/jev-alt" };
+  const QUESTIONS: DecisionRequest["questions"] = {
+    kind: { type: "choice", instructions: "Which kind?", criteria: { bug: "A defect", feature: "A new capability" } },
+    urgency: { type: "score", instructions: "How urgent?", criteria: ["low", "medium", "high"] },
+    reply: { type: "noul", instructions: "Needs a reply?", criteria: { true: "yes", false: "no" } },
+  };
+  const VALID: DecisionResponse["answers"] = {
+    kind: { type: "choice", choice: "bug", probabilities: { bug: 0.9, feature: 0.1 }, confidence: 0.9 },
+    urgency: { type: "score", score: 1.4, probabilities: { low: 0.1, medium: 0.5, high: 0.4 }, confidence: 0.8 },
+    reply: { type: "noul", noul: 0.92 },
+  };
+
+  type DecisionStep = { answers: DecisionResponse["answers"] } | { error: ProviderErrorCategory };
+
+  /** A decision provider with one script per model (the last step of each repeats). */
+  function decider(scripts: Record<string, DecisionStep[]>) {
+    const requests: DecisionRequest[] = [];
+    const counters = new Map<string, number>();
+    const provider: ModelProvider = {
+      key: "test",
+      generate: () => Promise.reject(new Error("generate não é usado")),
+      generateStructured: () => Promise.reject(new Error("generate não é usado")),
+      healthCheck: async () => "UP",
+      decide: (request) => {
+        requests.push(request);
+        const steps = scripts[request.model]!;
+        const n = counters.get(request.model) ?? 0;
+        counters.set(request.model, n + 1);
+        const step = steps[Math.min(n, steps.length - 1)]!;
+        if ("error" in step) return Promise.reject(new ProviderError(step.error));
+        return Promise.resolve({ answers: step.answers, usage: { inputTokens: 600, outputTokens: 3, totalTokens: 603, cost: { amount: "0.00003", currency: "USD" } }, servedModel: `${request.model}-20260917` });
+      },
+    };
+    return { provider, requests };
+  }
+
+  const decide = (gateway: ModelGateway, limits: AiExecutionLimits, extra: { fallback?: GatewayModelConfig | null; minConfidence?: number } = {}) =>
+    gateway.decide({
+      route: { primary: PRIMARY, fallback: extra.fallback === undefined ? null : extra.fallback },
+      task: { timeoutMs: 5_000, minConfidence: extra.minConfidence ?? 0.7 },
+      request: { state: "Texto não confiável", questions: QUESTIONS },
+      limits,
+      deadline: future(),
+      signal: new AbortController().signal,
+    });
+
+  it("009/US1-4 envia o modelo da configuração, o estado e as perguntas; respostas válidas voltam como estão, com a perna", async () => {
+    const { provider, requests } = decider({ [PRIMARY.model]: [{ answers: VALID }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await decide(gateway, limits);
+
+    expect(requests).toEqual([{ model: PRIMARY.model, state: "Texto não confiável", questions: QUESTIONS }]);
+    expect(result.answers).toEqual(VALID);
+    expect(result.legs).toEqual([
+      expect.objectContaining({ config: PRIMARY, isFallback: false, status: "SUCCEEDED", attempts: 1, servedModel: `${PRIMARY.model}-20260917`, usage: expect.objectContaining({ cost: { amount: "0.00003", currency: "USD" } }) }),
+    ]);
+  });
+
+  it("abaixo de minConfidence a resposta vira UNDECIDED; o noul usa a faixa de incerteza", async () => {
+    const answers: DecisionResponse["answers"] = {
+      kind: { type: "choice", choice: "bug", probabilities: { bug: 0.55, feature: 0.45 }, confidence: 0.55 },
+      urgency: { type: "score", score: 2, probabilities: { low: 0, medium: 0.1, high: 0.9 }, confidence: 0.9 },
+      reply: { type: "noul", noul: 0.4 },
+    };
+    const { provider } = decider({ [PRIMARY.model]: [{ answers }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await decide(gateway, limits, { minConfidence: 0.7 });
+
+    expect(result.answers).toEqual({ kind: { type: "choice", undecided: true }, urgency: answers.urgency, reply: { type: "noul", undecided: true } });
+    // noul 0.25 → 75% "não", acima de 0.7: decidido.
+    const confident = decider({ [PRIMARY.model]: [{ answers: { ...VALID, reply: { type: "noul", noul: 0.25 } } }] });
+    expect((await decide(gatewayWith(confident.provider).gateway, limits)).answers.reply).toEqual({ type: "noul", noul: 0.25 });
+  });
+
+  it.each<[string, DecisionResponse["answers"]]>([
+    ["pergunta sem resposta", { kind: VALID.kind!, urgency: VALID.urgency! }],
+    ["resposta a pergunta não feita", { ...VALID, extra: { type: "noul", noul: 1 } }],
+    ["tipo diferente do perguntado", { ...VALID, kind: { type: "noul", noul: 1 } }],
+    ["escolha fora das opções", { ...VALID, kind: { type: "choice", choice: "question", probabilities: { bug: 0.5, feature: 0.5 }, confidence: 0.9 } }],
+    ["nota fora de [0, níveis − 1]", { ...VALID, urgency: { type: "score", score: 3, probabilities: { low: 0, medium: 0, high: 1 }, confidence: 0.9 } }],
+    ["probabilidade fora de [0, 1]", { ...VALID, kind: { type: "choice", choice: "bug", probabilities: { bug: 1.2, feature: 0 }, confidence: 0.9 } }],
+    ["confiança fora de [0, 1]", { ...VALID, kind: { type: "choice", choice: "bug", probabilities: { bug: 1, feature: 0 }, confidence: 2 } }],
+    ["noul fora de [0, 1]", { ...VALID, reply: { type: "noul", noul: -0.1 } }],
+  ])("resposta fora do pedido (%s) → AI_OUTPUT_VALIDATION_FAILED, sem fallback, com a perna", async (_name, answers) => {
+    const { provider, requests } = decider({ [PRIMARY.model]: [{ answers }], [FALLBACK.model]: [{ answers: VALID }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const failure = await decide(gateway, limits, { fallback: FALLBACK }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(AiFailure);
+    expect(failure).toMatchObject({ code: "AI_OUTPUT_VALIDATION_FAILED", legs: [expect.objectContaining({ config: PRIMARY, status: "SUCCEEDED" })] });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("falha transitória do principal → fallback uma vez, como em call", async () => {
+    const { provider, requests } = decider({ [PRIMARY.model]: [{ error: "UNAVAILABLE" }], [FALLBACK.model]: [{ answers: VALID }] });
+    const { gateway, limits } = gatewayWith(provider);
+    const result = await decide(gateway, limits, { fallback: FALLBACK });
+
+    expect(requests.map((request) => request.model)).toEqual([PRIMARY.model, PRIMARY.model, PRIMARY.model, FALLBACK.model]);
+    expect(result.legs.map((leg) => [leg.config.key, leg.status, leg.trigger?.reason])).toEqual([
+      [PRIMARY.key, "FAILED", undefined],
+      [FALLBACK.key, "SUCCEEDED", "PROVIDER_FAILURE"],
+    ]);
+  });
+
+  it("circuito aberto no principal → direto no fallback, sem chamar o principal", async () => {
+    const { provider, requests } = decider({ [PRIMARY.model]: [{ error: "UNAVAILABLE" }], [FALLBACK.model]: [{ answers: VALID }] });
+    const definitions: AiDefinitions = { agents: [], tools: [], modelConfigs: [], tasks: [], families: [], providers: [provider], resources: {} };
+    const gateway = new ModelGateway(definitions, new CircuitBreaker({ failureThreshold: 1, openSeconds: 60 }));
+    gateway.timing = { sleep: async () => undefined, random: () => 0 };
+    await decide(gateway, LIMITS, { fallback: FALLBACK });
+    requests.length = 0;
+
+    const result = await decide(gateway, LIMITS, { fallback: FALLBACK });
+    expect(requests.map((request) => request.model)).toEqual([FALLBACK.model]);
+    expect(result.legs).toEqual([expect.objectContaining({ config: FALLBACK, trigger: { reason: "CIRCUIT_OPEN", primaryErrorCode: null } })]);
+  });
+
+  it("009/FR-001a provedor sem modo decisão → AI_MODEL_UNAVAILABLE, sem chamada", async () => {
+    const { provider, calls } = scriptedProvider([{ output: "{}" }]);
+    const { gateway, limits } = gatewayWith(provider);
+    await expect(decide(gateway, limits)).rejects.toMatchObject({ code: "AI_MODEL_UNAVAILABLE" });
+    expect(calls()).toBe(0);
   });
 });

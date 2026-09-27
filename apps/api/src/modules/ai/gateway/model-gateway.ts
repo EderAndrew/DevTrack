@@ -1,7 +1,18 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import type { AiErrorCode, AiModelConfigStatus } from "@repo/contracts";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
-import { AI_DEFINITIONS, type AiDefinitions, type ModelProvider, type ModelRequest, type ModelResponse, type ModelUsage } from "../definitions/types";
+import {
+  AI_DEFINITIONS,
+  type AiDefinitions,
+  type DecisionAnswer,
+  type DecisionQuestion,
+  type DecisionRequest,
+  type DecisionResponse,
+  type ModelProvider,
+  type ModelRequest,
+  type ModelResponse,
+  type ModelUsage,
+} from "../definitions/types";
 import { CircuitBreaker } from "./circuit-breaker";
 import { AiFailure, PROVIDER_ERROR_CODES, ProviderError, type ProviderErrorCategory } from "./provider-errors";
 import { backoffMs, isTransient } from "./retry-policy";
@@ -74,10 +85,51 @@ export interface GatewayResult {
   durationMs: number;
 }
 
-type Outcome = { ok: true; response: ModelResponse } | { ok: false; reason: "cancelled" | "deadline" } | { ok: false; category: ProviderErrorCategory };
+/** A call to a decision model (009 research H10, contracts/decisions-provider.md). */
+export interface GatewayDecisionCall {
+  route: GatewayRoute;
+  /** The task's timeout and the confidence below which an answer is `UNDECIDED` (009 FR-001b). */
+  task: { timeoutMs: number; minConfidence: number };
+  request: Omit<DecisionRequest, "model">;
+  limits: AiExecutionLimits;
+  deadline: Date;
+  signal: AbortSignal;
+}
+
+/** An answer the model gave without the task's certainty: the caller decides otherwise. */
+export interface UndecidedAnswer {
+  type: DecisionQuestion["type"];
+  undecided: true;
+}
+
+export interface GatewayDecisionResult {
+  answers: Record<string, DecisionAnswer | UndecidedAnswer>;
+  legs: GatewayLeg[];
+  attempts: number;
+  durationMs: number;
+}
+
+/** What every provider answer carries for the leg's record. */
+type ProviderAnswer = { usage: ModelUsage | null; servedModel?: string | null };
+
+/** How one kind of call reaches a provider: whether it can, and the request for a config. */
+interface Sender<R extends ProviderAnswer> {
+  supports(provider: ModelProvider): boolean;
+  send(provider: ModelProvider, config: GatewayModelConfig, signal: AbortSignal): Promise<R>;
+}
+
+/** The bounds every leg of a logical call shares. */
+interface CallBounds {
+  taskTimeoutMs: number;
+  limits: AiExecutionLimits;
+  deadline: Date;
+  signal: AbortSignal;
+}
+
+type Outcome<R> = { ok: true; response: R } | { ok: false; reason: "cancelled" | "deadline" } | { ok: false; category: ProviderErrorCategory };
 
 /** `recoverable`: the leg ended on a transient provider failure, so the fallback may run (008 FR-010). */
-type LegResult = { ok: true; response: ModelResponse; leg: GatewayLeg } | { ok: false; recoverable: boolean; leg: GatewayLeg & { errorCode: AiErrorCode } };
+type LegResult<R> = { ok: true; response: R; leg: GatewayLeg } | { ok: false; recoverable: boolean; leg: GatewayLeg & { errorCode: AiErrorCode } };
 
 /**
  * The only way to a model (006 FR-001, FR-014, research A12): picks the provider of the config,
@@ -128,20 +180,63 @@ export class ModelGateway {
    * to the primary, so at most two legs. Each leg's final outcome goes to its circuit.
    */
   async call(call: GatewayCall): Promise<GatewayResult> {
+    const { response, legs, started } = await this.route(call.route, { ...call, taskTimeoutMs: call.task.timeoutMs }, {
+      supports: () => true,
+      send: (provider, config, signal) => {
+        const request: ModelRequest = {
+          ...call.request,
+          model: config.model,
+          parameters: call.task.parameters,
+          maxOutputTokens: Math.min(call.task.maxOutputTokens, config.maxOutputTokens),
+        };
+        return call.structuredSchema ? provider.generateStructured(request, call.structuredSchema, signal) : provider.generate(request, signal);
+      },
+    });
+    return { response, legs, attempts: attemptsOf(legs), durationMs: Date.now() - started };
+  }
+
+  /**
+   * A call to a decision model (009 FR-001a, FR-001b, research H10): the same legs, retries,
+   * fallback and circuit as `call`, on providers with a decision mode. The answers must match the
+   * questions asked (ids, types, options, ranges), or the call fails `AI_OUTPUT_VALIDATION_FAILED`
+   * without a fallback; an answer below the task's `minConfidence` comes back `UNDECIDED`.
+   */
+  async decide(call: GatewayDecisionCall): Promise<GatewayDecisionResult> {
+    const { response, legs, started } = await this.route(call.route, { ...call, taskTimeoutMs: call.task.timeoutMs }, {
+      supports: (provider) => typeof provider.decide === "function",
+      send: (provider, config, signal) => provider.decide!({ ...call.request, model: config.model }, signal),
+    });
+    const attempts = attemptsOf(legs);
+    if (!answersMatch(response, call.request.questions)) {
+      throw new AiFailure("AI_OUTPUT_VALIDATION_FAILED", attempts, Date.now() - started, legs);
+    }
+    const answers = Object.fromEntries(
+      Object.entries(response.answers).map(([id, answer]) => [id, confidenceOf(answer) < call.task.minConfidence ? { type: answer.type, undecided: true as const } : answer]),
+    );
+    return { answers, legs, attempts, durationMs: Date.now() - started };
+  }
+
+  /** The legs of one logical call (see `call`); throws `AiFailure` with the legs when none succeeds. */
+  private async route<R extends ProviderAnswer>(
+    route: GatewayRoute,
+    bounds: CallBounds,
+    sender: Sender<R>,
+  ): Promise<{ response: R; legs: GatewayLeg[]; started: number }> {
     const started = Date.now();
-    const { primary, fallback } = call.route;
+    const { primary, fallback } = route;
     const legs: GatewayLeg[] = [];
-    const finish = (response: ModelResponse): GatewayResult => ({ response, legs, attempts: attemptsOf(legs), durationMs: Date.now() - started });
+    const finish = (response: R) => ({ response, legs, started });
     const fail = (code: AiErrorCode): never => {
       throw new AiFailure(code, attemptsOf(legs), Date.now() - started, legs);
     };
+    const callable = (config: GatewayModelConfig) => this.callable(config) && sender.supports(this.providerFor(config.provider)!);
 
     let trigger: FallbackTrigger;
-    const primaryCallable = this.callable(primary);
+    const primaryCallable = callable(primary);
     const decision = primaryCallable ? this.circuit.allow(primary.key) : null;
     if (decision === "CALL" || decision === "PROBE" || !fallback) {
       if (decision === "OPEN") return fail("AI_MODEL_UNAVAILABLE"); // open circuit, nowhere else to go
-      const first = await this.leg(primary, false, call);
+      const first = await this.leg(primary, false, bounds, primaryCallable, sender);
       legs.push(first.leg);
       if (primaryCallable) await this.report(primary, first);
       if (first.ok) return finish(first.response);
@@ -156,11 +251,11 @@ export class ModelGateway {
     }
 
     const primaryCode = trigger.primaryErrorCode ?? "AI_MODEL_UNAVAILABLE";
-    if (!this.callable(fallback)) return fail(primaryCode);
-    if (call.signal.aborted) return fail("AI_EXECUTION_CANCELLED");
-    if (call.deadline.getTime() <= Date.now()) return fail(primaryCode);
+    if (!callable(fallback)) return fail(primaryCode);
+    if (bounds.signal.aborted) return fail("AI_EXECUTION_CANCELLED");
+    if (bounds.deadline.getTime() <= Date.now()) return fail(primaryCode);
     if (this.circuit.allow(fallback.key) === "OPEN") return fail(primaryCode);
-    const second = await this.leg(fallback, true, call);
+    const second = await this.leg(fallback, true, bounds, true, sender);
     legs.push({ ...second.leg, trigger });
     await this.report(fallback, second);
     if (second.ok) return finish(second.response);
@@ -168,17 +263,23 @@ export class ModelGateway {
   }
 
   /** The leg's final outcome, not each attempt, goes to the config's circuit (research G8). */
-  private async report(config: GatewayModelConfig, result: LegResult): Promise<void> {
+  private async report<R>(config: GatewayModelConfig, result: LegResult<R>): Promise<void> {
     if (result.ok) await this.circuit.recordSuccess(config);
     else if (result.recoverable) await this.circuit.recordTransientFailure(config);
     else this.circuit.recordOtherOutcome(config);
   }
 
   /** One config with its own retries, under the call's deadline and signal. */
-  private async leg(config: GatewayModelConfig, isFallback: boolean, call: GatewayCall): Promise<LegResult> {
+  private async leg<R extends ProviderAnswer>(
+    config: GatewayModelConfig,
+    isFallback: boolean,
+    bounds: CallBounds,
+    callable: boolean,
+    sender: Sender<R>,
+  ): Promise<LegResult<R>> {
     const startedAt = new Date();
     const started = startedAt.getTime();
-    const done = (errorCode: AiErrorCode, attempts: number, recoverable = false): LegResult => ({
+    const done = (errorCode: AiErrorCode, attempts: number, recoverable = false): LegResult<R> => ({
       ok: false,
       recoverable,
       leg: {
@@ -194,24 +295,18 @@ export class ModelGateway {
       },
     });
     const provider = this.providerFor(config.provider);
-    if (config.status !== "ENABLED" || !provider) return done("AI_MODEL_UNAVAILABLE", 0);
+    if (!callable || !provider) return done("AI_MODEL_UNAVAILABLE", 0);
 
-    const request: ModelRequest = {
-      ...call.request,
-      model: config.model,
-      parameters: call.task.parameters,
-      maxOutputTokens: Math.min(call.task.maxOutputTokens, config.maxOutputTokens),
-    };
-    const perCallMs = Math.min(call.task.timeoutMs, config.timeoutMs, call.limits.modelCallTimeoutMs);
+    const perCallMs = Math.min(bounds.taskTimeoutMs, config.timeoutMs, bounds.limits.modelCallTimeoutMs);
     let attempts = 0;
 
     for (;;) {
-      if (call.signal.aborted) return done("AI_EXECUTION_CANCELLED", attempts);
-      const remaining = call.deadline.getTime() - Date.now();
+      if (bounds.signal.aborted) return done("AI_EXECUTION_CANCELLED", attempts);
+      const remaining = bounds.deadline.getTime() - Date.now();
       if (remaining <= 0) return done("AI_TIMEOUT", attempts);
 
       attempts += 1;
-      const outcome = await this.attempt(provider, request, call, Math.min(perCallMs, remaining), remaining <= perCallMs);
+      const outcome = await this.attempt((signal) => sender.send(provider, config, signal), bounds.signal, Math.min(perCallMs, remaining), remaining <= perCallMs);
       if (outcome.ok) {
         const response = outcome.response;
         return {
@@ -233,34 +328,31 @@ export class ModelGateway {
       if ("reason" in outcome) return done(outcome.reason === "cancelled" ? "AI_EXECUTION_CANCELLED" : "AI_TIMEOUT", attempts);
       const code = PROVIDER_ERROR_CODES[outcome.category];
       if (!isTransient(outcome.category)) return done(code, attempts);
-      if (attempts > call.limits.maxRetries) return done(code, attempts, true);
+      if (attempts > bounds.limits.maxRetries) return done(code, attempts, true);
       const wait = backoffMs(attempts - 1, this.timing.random);
-      if (Date.now() + wait >= call.deadline.getTime()) return done(code, attempts, true);
+      if (Date.now() + wait >= bounds.deadline.getTime()) return done(code, attempts, true);
       await this.timing.sleep(wait);
     }
   }
 
   /** One provider call bounded by `timeoutMs`; `deadlineBound` says the timeout is the deadline itself. */
-  private attempt(provider: ModelProvider, request: ModelRequest, call: GatewayCall, timeoutMs: number, deadlineBound: boolean): Promise<Outcome> {
+  private attempt<R>(send: (signal: AbortSignal) => Promise<R>, cancel: AbortSignal, timeoutMs: number, deadlineBound: boolean): Promise<Outcome<R>> {
     const controller = new AbortController();
-    const signal = AbortSignal.any([controller.signal, call.signal]);
-    return new Promise<Outcome>((resolve) => {
+    const signal = AbortSignal.any([controller.signal, cancel]);
+    return new Promise<Outcome<R>>((resolve) => {
       const onCancel = () => finish({ ok: false, reason: "cancelled" });
       const timer = setTimeout(() => finish(deadlineBound ? { ok: false, reason: "deadline" } : { ok: false, category: "TIMEOUT" }), timeoutMs);
       let done = false;
-      function finish(outcome: Outcome) {
+      function finish(outcome: Outcome<R>) {
         if (done) return;
         done = true;
         clearTimeout(timer);
-        call.signal.removeEventListener("abort", onCancel);
+        cancel.removeEventListener("abort", onCancel);
         controller.abort();
         resolve(outcome);
       }
-      call.signal.addEventListener("abort", onCancel, { once: true });
-      const pending = call.structuredSchema
-        ? provider.generateStructured(request, call.structuredSchema, signal)
-        : provider.generate(request, signal);
-      pending.then(
+      cancel.addEventListener("abort", onCancel, { once: true });
+      send(signal).then(
         (response) => finish({ ok: true, response }),
         (error: unknown) => finish({ ok: false, category: error instanceof ProviderError ? error.category : "UNKNOWN" }),
       );
@@ -269,3 +361,29 @@ export class ModelGateway {
 }
 
 const attemptsOf = (legs: readonly GatewayLeg[]) => legs.reduce((sum, leg) => sum + leg.attempts, 0);
+
+const isProbability = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+const probabilitiesValid = (probabilities: unknown) =>
+  probabilities !== null && typeof probabilities === "object" && Object.values(probabilities).every(isProbability);
+
+/** Every asked id answered with the asked type, a value among the asked options or levels, probabilities in [0, 1]. */
+function answersMatch(response: DecisionResponse, questions: Record<string, DecisionQuestion>): boolean {
+  const answers = response.answers;
+  if (!answers || typeof answers !== "object") return false;
+  const ids = Object.keys(answers);
+  if (ids.length !== Object.keys(questions).length || !ids.every((id) => Object.hasOwn(questions, id))) return false;
+  return ids.every((id) => {
+    const question = questions[id]!;
+    const answer = answers[id];
+    if (!answer || answer.type !== question.type) return false;
+    if (answer.type === "noul") return isProbability(answer.noul);
+    if (!isProbability(answer.confidence) || !probabilitiesValid(answer.probabilities)) return false;
+    if (answer.type === "choice") return typeof answer.choice === "string" && Object.hasOwn(question.criteria, answer.choice);
+    const levels = (question.criteria as string[]).length;
+    return typeof answer.score === "number" && Number.isFinite(answer.score) && answer.score >= 0 && answer.score <= levels - 1;
+  });
+}
+
+/** How sure the model is: its confidence, or for a yes/no the probability of the likelier side. */
+const confidenceOf = (answer: DecisionAnswer): number => (answer.type === "noul" ? Math.max(answer.noul, 1 - answer.noul) : answer.confidence);
