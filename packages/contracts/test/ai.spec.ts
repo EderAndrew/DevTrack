@@ -79,6 +79,8 @@ describe("006 contratos de IA", () => {
           "AI_RESOURCE_TYPE_NOT_ACCEPTED",
           // 007: an agent that approves through its domain (research C12).
           "AI_PROPOSAL_APPLY_REQUIRED",
+          // 009: an override outside the task's policy (FR-024).
+          "AI_OVERRIDE_NOT_ALLOWED",
         ].sort(),
       );
     });

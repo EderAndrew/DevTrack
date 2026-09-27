@@ -365,22 +365,22 @@ perguntas do pedido.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T043 [P] [US7] Criar `apps/api/test/integration/009-us7-override.spec.ts`: `PUT` com
+- [X] T043 [P] [US7] Criar `apps/api/test/integration/009-us7-override.spec.ts`: `PUT` com
   aprovado → novas execuções o usam (motivo `OVERRIDE`) e auditoria; outro nível, família,
   modo, não aprovado ou desabilitado → `409 AI_OVERRIDE_NOT_ALLOWED`; repetir não gera evento;
   `DELETE`; override que deixa de valer é ignorado com o motivo; professor sem acesso; campos de
   modelo/família/nível/tarefa no corpo dos pedidos → 400 (`009/US7-1`…`009/US7-4`,
   `009/FR-024`, `009/FR-025`).
-- [ ] T044 [P] [US7] Matriz de autorização da 006 com `PUT`/`DELETE
+- [X] T044 [P] [US7] Matriz de autorização da 006 com `PUT`/`DELETE
   /ai/operations/tasks/:key/override`.
 
 ### Implementation for User Story 7
 
-- [ ] T045 [US7] Contratos (`TaskOverrideRequestSchema`, endpoints), serviço e rotas do
+- [X] T045 [US7] Contratos (`TaskOverrideRequestSchema`, endpoints), serviço e rotas do
   override em `ai-operations.*`; auditoria `ai_task_override.set`/`removed` (tipos novos,
   alvo `AI_TASK`, contrato 006, jornada); código `AI_OVERRIDE_NOT_ALLOWED` no catálogo de erros
   e na mensagem do web.
-- [ ] T046 [US7] Web: na seção "Tarefas", fixar/remover o override com confirmação, só com
+- [X] T046 [US7] Web: na seção "Tarefas", fixar/remover o override com confirmação, só com
   `ia.agentes.gerenciar`, listando apenas os modelos elegíveis da tarefa.
 
 **Checkpoint**: US7 completa.
@@ -395,7 +395,7 @@ perguntas do pedido.
 
 ### Tests for User Story 8 ⚠️
 
-- [ ] T047 [P] [US8] Criar `apps/api/test/integration/009-us8-budgets.spec.ts`: consumo diário,
+- [X] T047 [P] [US8] Criar `apps/api/test/integration/009-us8-budgets.spec.ts`: consumo diário,
   mensal, por agente e por usuário (só a contagem de usuários acima); primeira ultrapassagem
   gera `ai_budget.exceeded` uma vez por escopo e período, mesmo com execuções simultâneas; o
   pedido segue normalmente; os limites por execução continuam valendo (`009/US8-1`…`009/US8-3`,
@@ -403,10 +403,10 @@ perguntas do pedido.
 
 ### Implementation for User Story 8
 
-- [ ] T048 [US8] Criar `apps/api/src/modules/ai/usage/ai-budget.monitor.ts`: soma de custos
+- [X] T048 [US8] Criar `apps/api/src/modules/ai/usage/ai-budget.monitor.ts`: soma de custos
   por período (America/Sao_Paulo), checagem depois de cada chamada gravada, alerta único por
   `ai_budget_alerts` e auditoria `ai_budget.exceeded` (tipo novo, contrato 006, jornada).
-- [ ] T049 [US8] Métricas `budgets` (contrato e consulta) e a seção de orçamentos no web.
+- [X] T049 [US8] Métricas `budgets` (contrato e consulta) e a seção de orçamentos no web.
 
 **Checkpoint**: todas as histórias completas.
 

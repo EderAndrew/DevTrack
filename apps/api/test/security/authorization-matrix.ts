@@ -187,6 +187,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   // 009 — the model catalog and the task policies (aggregates and configuration only).
   { method: "GET", path: "/ai/operations/models", access: "ia.operacao.visualizar" },
   { method: "GET", path: "/ai/operations/tasks", access: "ia.operacao.visualizar" },
+  // 009 — the administrator's override of a task's model (US7).
+  { method: "PUT", path: "/ai/operations/tasks/:key/override", access: "ia.agentes.gerenciar" },
+  { method: "DELETE", path: "/ai/operations/tasks/:key/override", access: "ia.agentes.gerenciar" },
 
   // 007 — "Preencher com IA" (contracts/permissions.md). The status and the request also require
   // ia.execucoes.visualizar, and the application ia.propostas.revisar, which every role holding

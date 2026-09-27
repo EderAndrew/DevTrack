@@ -417,7 +417,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   gateway.timing = { sleep: async () => {}, random: () => 0 };
   t.provider.scriptFor("fake-model-1", fakeError("UNAVAILABLE"));
   t.provider.scriptFor("fake-model-2", fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
+  // 009/US8 — a tiny daily budget: this execution's calls cross it (the app reads the budgets on each check).
+  const budgets = t.config.ai.budgets;
+  t.config.ai.budgets = { ...budgets, daily: "0.000001" };
   expect(await aiWorker.runOnce()).toBe(1);
+  t.config.ai.budgets = budgets;
   t.provider.scriptFor("fake-model-1");
   t.provider.scriptFor("fake-model-2");
   gateway.timing = timing;
@@ -470,6 +474,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     expect((await adminClient.post(path, { status: off })).status).toBe(200);
     expect((await adminClient.post(path, { status: on })).status).toBe(200);
   }
+  // 009/US7 — the administrator fixes an approved model for a task, then removes the override.
+  expect((await adminClient.put("/api/ai/operations/tasks/reference-alt/override", { modelConfigKey: "fake-alt" })).status).toBe(200);
+  expect((await adminClient.delete("/api/ai/operations/tasks/reference-alt/override")).status).toBe(200);
   // 008/US2 — a deploy with another model: the registry sync audits the change of the config;
   // 009 — and of its lifecycle (a promotion in code).
   await t.prisma.aiModelConfig.update({

@@ -12,5 +12,5 @@ carries content, credential, user id in clear or provider message.
 | `ai_task_override.removed` | USER | `AI_TASK` | `taskKey`, `modelConfigKey` | override removed |
 | `ai_budget.exceeded` | SYSTEM | — | `scope`, `period`, `limit`, `spent`, `agentKey` (nullable) | first crossing of a budget in its period |
 
-Changed, not new: `ai_execution.requested` gains `tier` and `selectionReason`;
+Changed, not new: `ai_execution.requested` gains `tier`, `selectionReason` and `overrideIgnored` (an override was set but its model no longer qualifies, US7-4);
 `ai_registry.synced` gains `catalogModels`. New target type `AI_TASK`.

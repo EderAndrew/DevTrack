@@ -2,6 +2,7 @@ import { z } from "zod";
 import { IsoDateTimeSchema } from "../common/primitives.js";
 import {
   AiAgentStatusSchema,
+  AiBudgetScopeSchema,
   AiModelConfigStatusSchema,
   AiModelLifecycleSchema,
   AiModelModeSchema,
@@ -144,6 +145,21 @@ export const AiFamilyMetricsSchema = z.strictObject({
 });
 export type AiFamilyMetrics = z.infer<typeof AiFamilyMetricsSchema>;
 
+/**
+ * Consumption against one budget in its current period (009 FR-022, research H16), in USD: the
+ * limit (null when not configured), what was spent and whether it was reached. PER_USER is one
+ * aggregate row: the spending of all users and only how many are over their budget, never who.
+ */
+export const AiBudgetStatusSchema = z.strictObject({
+  scope: AiBudgetScopeSchema,
+  agentKey: z.string().nullable(),
+  limit: DecimalStringSchema.nullable(),
+  spent: DecimalStringSchema,
+  exceeded: z.boolean(),
+  usersOverBudget: z.int().nullable(),
+});
+export type AiBudgetStatus = z.infer<typeof AiBudgetStatusSchema>;
+
 export const AiMetricsSchema = z.strictObject({
   from: IsoDateTimeSchema,
   to: IsoDateTimeSchema,
@@ -152,6 +168,7 @@ export const AiMetricsSchema = z.strictObject({
   byTask: z.array(AiTaskMetricsSchema),
   byTier: z.array(AiTierMetricsSchema),
   byFamily: z.array(AiFamilyMetricsSchema),
+  budgets: z.array(AiBudgetStatusSchema),
 });
 export type AiMetrics = z.infer<typeof AiMetricsSchema>;
 
@@ -225,7 +242,7 @@ export type AiModelCatalogView = z.infer<typeof AiModelCatalogViewSchema>;
 /**
  * One task with its policy and the policy's choice now (009 FR-006, FR-010): the primary and
  * fallback catalog keys and the reason (`DEPRECATED_ONLY` is the deprecated-in-use warning), or why
- * it is unavailable; and the administrator's override.
+ * it is unavailable; the administrator's override and the catalog keys it may fix now (US7).
  */
 export const AiTaskPolicyViewSchema = z.strictObject({
   key: z.string(),
@@ -244,6 +261,7 @@ export const AiTaskPolicyViewSchema = z.strictObject({
     z.strictObject({ unavailable: AiTaskUnavailableReasonSchema }),
   ]),
   override: z.strictObject({ modelConfigKey: z.string(), setAt: IsoDateTimeSchema }).nullable(),
+  overrideCandidates: z.array(z.string()),
 });
 export type AiTaskPolicyView = z.infer<typeof AiTaskPolicyViewSchema>;
 
@@ -256,3 +274,7 @@ export type ChangeAiAgentStatusRequest = z.infer<typeof ChangeAiAgentStatusReque
 
 export const ChangeAiModelConfigStatusRequestSchema = z.strictObject({ status: AiModelConfigStatusSchema });
 export type ChangeAiModelConfigStatusRequest = z.infer<typeof ChangeAiModelConfigStatusRequestSchema>;
+
+/** The model an administrator fixes for a task (009 FR-024): only a catalog key, never a tier or family. */
+export const TaskOverrideRequestSchema = z.strictObject({ modelConfigKey: AiRegistryKeySchema });
+export type TaskOverrideRequest = z.infer<typeof TaskOverrideRequestSchema>;

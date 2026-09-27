@@ -2,14 +2,16 @@
 
 import type { AiTaskPolicyView } from "@repo/contracts";
 import { ListChecks } from "lucide-react";
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Status } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { messageForError } from "@/lib/messages/error-messages";
-import { useAiTasks } from "../hooks/use-ai-operations";
+import { useAiTasks, useRemoveAiTaskOverride, useSetAiTaskOverride } from "../hooks/use-ai-operations";
 import { IconStatus } from "./ai-health-table";
+import { AiTaskOverride } from "./ai-task-override";
 import { Missing } from "./format";
 import { MODE, SELECTION_REASON, TIER, UNAVAILABLE_ICON, UNAVAILABLE_REASON } from "./policy-labels";
 
@@ -32,16 +34,31 @@ function Selection({ task }: { task: AiTaskPolicyView }) {
 /**
  * "Tarefas" (009/US6, FR-006, FR-010): each task's policy — tier, families, fallback and
  * escalation — and the model the policy chooses now with the reason, in words and with an icon; a
- * task left with only a deprecated model reads as a warning (US5-4).
+ * task left with only a deprecated model reads as a warning (US5-4). With `ia.agentes.gerenciar`,
+ * the administrator fixes or removes the task's model (US7).
  */
-export function AiTasksTable() {
+export function AiTasksTable({ canManage }: { canManage: boolean }) {
   const tasks = useAiTasks();
+  const set = useSetAiTaskOverride();
+  const remove = useRemoveAiTaskOverride();
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (action: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await action();
+    } catch (failure) {
+      setError(messageForError(failure));
+    }
+  };
+  const pendingFor = (key: string) => (set.isPending && set.variables?.key === key) || (remove.isPending && remove.variables === key);
+
   return (
     <section aria-labelledby="ia-tarefas">
       <h2 id="ia-tarefas">Tarefas</h2>
-      {tasks.isError ? (
+      {error || tasks.isError ? (
         <Alert variant="danger" className="mb-4">
-          <AlertDescription>{messageForError(tasks.error)}</AlertDescription>
+          <AlertDescription>{error ?? messageForError(tasks.error)}</AlertDescription>
         </Alert>
       ) : null}
       {tasks.isPending ? (
@@ -62,6 +79,8 @@ export function AiTasksTable() {
               <TableHead scope="col">Escalonamento</TableHead>
               <TableHead scope="col">Modelo escolhido</TableHead>
               <TableHead scope="col">Motivo</TableHead>
+              <TableHead scope="col">Modelo fixado</TableHead>
+              {canManage ? <TableHead scope="col">Ações</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -78,6 +97,17 @@ export function AiTasksTable() {
                   <Selection task={task} />
                 </TableCell>
                 <TableCell>{"reason" in task.selection ? <IconStatus entry={SELECTION_REASON[task.selection.reason]} /> : <Missing />}</TableCell>
+                <TableCell>{task.override?.modelConfigKey ?? "Nenhum"}</TableCell>
+                {canManage ? (
+                  <TableCell>
+                    <AiTaskOverride
+                      task={task}
+                      pending={pendingFor(task.key)}
+                      onSet={(modelConfigKey) => void run(() => set.mutateAsync({ key: task.key, modelConfigKey }))}
+                      onRemove={() => void run(() => remove.mutateAsync(task.key))}
+                    />
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))}
           </TableBody>

@@ -55,6 +55,7 @@ import {
   AiTaskPolicyViewSchema,
   ChangeAiAgentStatusRequestSchema,
   ChangeAiModelConfigStatusRequestSchema,
+  TaskOverrideRequestSchema,
 } from "./ai/operations.js";
 import { AiProposalListQuerySchema, AiProposalPageSchema, AiProposalViewSchema, DecideAiProposalRequestSchema } from "./ai/proposals.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
@@ -698,6 +699,22 @@ export const endpoints = {
   // 009 — the model catalog with approvals and real cost, and the task policies with the current choice.
   "aiOperations.models": { method: "GET", path: "/ai/operations/models", query: AiMetricsQuerySchema, response: z.array(AiModelCatalogViewSchema), status: 200 },
   "aiOperations.tasks": { method: "GET", path: "/ai/operations/tasks", response: z.array(AiTaskPolicyViewSchema), status: 200 },
+  /** 009 US7: the administrator's override; the same override again, or none to remove, changes nothing. */
+  "aiOperations.setTaskOverride": {
+    method: "PUT",
+    path: "/ai/operations/tasks/:key/override",
+    params: z.strictObject({ key: AiRegistryKeySchema }),
+    body: TaskOverrideRequestSchema,
+    response: AiTaskPolicyViewSchema,
+    status: 200,
+  },
+  "aiOperations.removeTaskOverride": {
+    method: "DELETE",
+    path: "/ai/operations/tasks/:key/override",
+    params: z.strictObject({ key: AiRegistryKeySchema }),
+    response: AiTaskPolicyViewSchema,
+    status: 200,
+  },
   "aiOperations.changeAgentStatus": {
     method: "POST",
     path: "/ai/operations/agents/:key/status",

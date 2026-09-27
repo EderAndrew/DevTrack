@@ -4,6 +4,7 @@ import type { AiCallStatus } from "../../../generated/prisma/client";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ModelUsage } from "../definitions/types";
 import type { RegisteredModelConfig } from "../registry/ai-model-config.registry";
+import { AiBudgetMonitor } from "./ai-budget.monitor";
 import { callCost } from "./cost";
 
 export interface ModelCallRecord {
@@ -28,10 +29,13 @@ export interface ModelCallRecord {
  * One row of `ai_model_calls` per call to the model, failed ones included (006 FR-059, research
  * A16), and per leg of a route since 008. Tokens only as the provider reported them; the cost the
  * provider reported, else the estimate by the config's price, else none (008 research G17). Since
- * 009 each row also snapshots the tier and family of the config it called.
+ * 009 each row also snapshots the tier and family of the config it called, and the budgets it
+ * counts toward are checked in the same transaction (research H16).
  */
 @Injectable()
 export class AiUsageRecorder {
+  constructor(private readonly budgets: AiBudgetMonitor) {}
+
   async record(tx: Tx, call: ModelCallRecord): Promise<void> {
     const cost = callCost(call.usage, call.config.price);
     await tx.aiModelCall.create({
@@ -60,5 +64,6 @@ export class AiUsageRecorder {
         family: call.config.family,
       },
     });
+    if (cost) await this.budgets.afterCall(tx, call.executionId, call.startedAt);
   }
 }

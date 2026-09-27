@@ -129,6 +129,8 @@ describe("route access declarations", () => {
         // 009
         "GET /ai/operations/models",
         "GET /ai/operations/tasks",
+        "PUT /ai/operations/tasks/:key/override",
+        "DELETE /ai/operations/tasks/:key/override",
         // 007
         "GET /syllabus-documents/:id/ai",
         "POST /syllabus-documents/:id/ai-analyses",

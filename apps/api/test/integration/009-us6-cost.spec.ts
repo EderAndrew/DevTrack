@@ -144,6 +144,7 @@ describe("009/US6 custo por agente, tarefa, nível, família e modelo em \"Opera
         agentKeys: expect.arrayContaining([ESCALATING_AGENT.key, "reference-one-call", "reference-escalating-l2"]),
         selection: { primaryKey: FAKE_DEFAULT.key, fallbackKey: FAKE_ALT.key, reason: "LOWEST_COST" },
         override: null,
+        overrideCandidates: [FAKE_ALT.key, FAKE_DEFAULT.key],
       });
       expect(tasks[NO_ESCALATION_TASK.key]).toMatchObject({ maxTier: "BASIC", escalation: "NONE" });
 

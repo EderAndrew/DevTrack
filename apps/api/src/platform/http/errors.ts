@@ -97,6 +97,7 @@ export const ErrorCatalog = {
   AI_PROPOSAL_ITEMS_INVALID: { status: 422, message: "Selecione ao menos um item, sem selecionar todos, para aprovar em parte." },
   AI_RESOURCE_TYPE_NOT_ACCEPTED: { status: 422, message: "Este recurso de IA não pode ser usado aqui." },
   AI_PROPOSAL_APPLY_REQUIRED: { status: 409, message: "Esta proposta é aprovada ao aplicá-la na ementa." },
+  AI_OVERRIDE_NOT_ALLOWED: { status: 409, message: "Este modelo não pode ser fixado para esta tarefa." },
   SYLLABUS_NOT_READY_FOR_AI: {
     status: 409,
     message:

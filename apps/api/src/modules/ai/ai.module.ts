@@ -27,6 +27,7 @@ import { AiRegistrySync } from "./registry/ai-registry.sync";
 import { AiTaskRegistry } from "./registry/ai-task.registry";
 import { AiToolRegistry } from "./registry/ai-tool.registry";
 import { AiRecordsJob } from "./retention/ai-records.job";
+import { AiBudgetMonitor } from "./usage/ai-budget.monitor";
 import { AiUsageRecorder } from "./usage/ai-usage.recorder";
 
 /**
@@ -54,6 +55,7 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     ModelGateway,
     StructuredOutputValidator,
     AiUsageRecorder,
+    AiBudgetMonitor,
     AiExecutionStore,
     AiExecutionAborts,
     AiResourceResolver,

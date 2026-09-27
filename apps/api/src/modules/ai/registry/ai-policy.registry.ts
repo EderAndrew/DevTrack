@@ -78,6 +78,20 @@ export class AiPolicyRegistry {
     return qualifyingEntries({ task: policy, tier: task.preferredTier, families: this.definitions.families, catalog }).map((entry) => entry.config.id);
   }
 
+  /**
+   * Keys of the models an administrator may fix for the task now (research H11): those the policy
+   * admits at the preferred tier, in PRODUCTION and enabled — so never another tier, family or mode.
+   */
+  async overrideCandidates(taskId: string): Promise<string[]> {
+    const loaded = await this.load(taskId);
+    if (!loaded || taskPolicyProblem(loaded.policy, this.definitions.families) !== null) return [];
+    const { task, policy, catalog } = loaded;
+    return qualifyingEntries({ task: policy, tier: task.preferredTier, families: this.definitions.families, catalog })
+      .filter((entry) => entry.lifecycle === "PRODUCTION" && entry.config.status === "ENABLED")
+      .map((entry) => entry.key)
+      .sort();
+  }
+
   /** Why the task can't take a request now, or null (dry run: no circuit probe is taken). */
   async availability(taskId: string): Promise<UnavailableReason | null> {
     const route = await this.routeFor(taskId);

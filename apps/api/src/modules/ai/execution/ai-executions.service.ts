@@ -188,6 +188,8 @@ export class AiExecutionsService {
             fallbackModelConfigKey: fallback?.key ?? null,
             tier: route.tier,
             selectionReason: route.reason,
+            // An override whose model no longer qualifies was set but not used (009 US7-4).
+            overrideIgnored: route.overrideIgnored,
             resourceType: resource?.type ?? null,
             riskLevel: agent.riskLevel,
           },

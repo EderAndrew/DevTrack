@@ -41,7 +41,8 @@ Query `period` as in metrics (for `avgCostPerExecution`).
 { key, mode, minimumTier, preferredTier, maxTier, allowedFamilies, requiredCapabilities,
   fallback, escalation, quality: Record<string, number>, agentKeys: string[],
   selection: { primaryKey, fallbackKey, reason } | { unavailable: UnavailableReason },
-  override: { modelConfigKey, setAt } | null }[]
+  override: { modelConfigKey, setAt } | null,
+  overrideCandidates: string[] /* keys an override may fix now: admitted at the preferred tier, PRODUCTION, enabled */ }[]
 ```
 
 ## `PUT /ai/operations/tasks/:key/override` (`ia.agentes.gerenciar`) — new

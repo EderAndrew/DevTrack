@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useAiMetrics } from "../hooks/use-ai-operations";
 import { AiAgentsTable } from "./ai-agents-table";
+import { AiBudgetsTable } from "./ai-budgets-table";
 import { AiCostBreakdown } from "./ai-cost-breakdown";
 import { AiHealthTable } from "./ai-health-table";
 import { AiMetricsTable } from "./ai-metrics-table";
@@ -26,7 +27,7 @@ const PERIODS: Record<AiMetricsPeriod, string> = {
 /**
  * "Operação de IA" (006 US7, contracts/web-ui.md): health, indicators, usage and cost, agents and
  * model configs; since 009 (US6) the cost by task, tier and family, the task policies with the
- * model chosen now, and the model catalog with quality next to cost. Only aggregates and
+ * model chosen now, and the model catalog with quality next to cost; the budgets (US8). Only aggregates and
  * configuration reach this screen — never teachers' content.
  */
 export function AiOperationsPage({ canManage }: { canManage: boolean }) {
@@ -74,7 +75,9 @@ export function AiOperationsPage({ canManage }: { canManage: boolean }) {
         ) : null}
       </section>
 
-      <AiTasksTable />
+      <AiBudgetsTable budgets={metrics.data?.budgets} />
+
+      <AiTasksTable canManage={canManage} />
       <AiModelsTable period={period} />
 
       <AiAgentsTable canManage={canManage} />

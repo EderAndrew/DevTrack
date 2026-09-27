@@ -12,9 +12,11 @@ import type {
   AiTaskPolicyView,
 } from "@repo/contracts";
 import type { Prisma } from "../../../generated/prisma/client";
+import { APP_CONFIG } from "../../../platform/config/config.module";
+import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import type { Tx } from "../../../platform/database/transaction";
-import { invalidStateTransition, notFound } from "../../../platform/http/errors";
+import { AppException, invalidStateTransition, notFound } from "../../../platform/http/errors";
 import { AuditService } from "../../audit/audit.service";
 import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
 import { CircuitBreaker } from "../gateway/circuit-breaker";
@@ -22,6 +24,7 @@ import { AiExecutionStore } from "../execution/ai-execution.store";
 import type { TaskPolicyFields } from "../policy/task-policy";
 import { maxTierOf } from "../policy/tiers";
 import { AiPolicyRegistry } from "../registry/ai-policy.registry";
+import { queryBudgets } from "./ai-budget.query";
 import { PERIOD_MS, queryAgentMetrics, queryFamilyMetrics, queryModelTaskCost, queryModelUsage, queryTaskMetrics, queryTierMetrics } from "./ai-metrics.query";
 
 /** Longest wait for one provider's health check (contracts/http-api.md). */
@@ -62,6 +65,7 @@ const AGENT_INCLUDE = {
 export class AiOperationsService {
   constructor(
     @Inject(AI_DEFINITIONS) private readonly definitions: AiDefinitions,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly store: AiExecutionStore,
@@ -103,6 +107,8 @@ export class AiOperationsService {
       byTask: await queryTaskMetrics(this.prisma, from, to),
       byTier: await queryTierMetrics(this.prisma, from, to),
       byFamily: await queryFamilyMetrics(this.prisma, from, to),
+      // The budgets' own periods (today and this month in São Paulo), whatever the metrics period.
+      budgets: await queryBudgets(this.prisma, this.config.ai.budgets, now),
     };
   }
 
@@ -147,35 +153,77 @@ export class AiOperationsService {
   /**
    * The task policies (009 FR-006, FR-010) with the policy's choice now — primary, fallback and
    * reason (`DEPRECATED_ONLY` is the deprecated-in-use warning, US5-4) or why the task is
-   * unavailable — the agents whose current version runs the task, and the admin's override.
+   * unavailable — the agents whose current version runs the task, the admin's override and the
+   * models it may fix now (US7).
    */
   async listTasks(): Promise<AiTaskPolicyView[]> {
-    const tasks = await this.prisma.aiTask.findMany({ include: { override: { include: { modelConfig: { select: { key: true } } } } }, orderBy: { key: "asc" } });
-    const versions = await this.prisma.aiAgentVersion.findMany({ where: { currentOf: { some: {} }, taskId: { not: null } }, select: { taskId: true, agent: { select: { key: true } } } });
-    return Promise.all(
-      tasks.map(async (task): Promise<AiTaskPolicyView> => {
-        const policy = task.policy as unknown as TaskPolicyFields;
-        const route = await this.policy.routeFor(task.id);
-        return {
-          key: task.key,
-          mode: policy.mode,
-          minimumTier: policy.minimumTier,
-          preferredTier: policy.preferredTier,
-          maxTier: maxTierOf(policy),
-          allowedFamilies: [...policy.allowedFamilies],
-          requiredCapabilities: [...policy.requiredCapabilities],
-          fallback: policy.fallback,
-          escalation: policy.escalation,
-          quality: { ...policy.quality },
-          agentKeys: versions.filter((version) => version.taskId === task.id).map((version) => version.agent.key).sort(),
-          selection:
-            !route || "unavailable" in route
-              ? { unavailable: route?.unavailable ?? "POLICY_INVALID" }
-              : { primaryKey: route.primary.key, fallbackKey: route.fallback?.key ?? null, reason: route.reason },
-          override: task.override ? { modelConfigKey: task.override.modelConfig.key, setAt: task.override.setAt.toISOString() } : null,
-        };
-      }),
-    );
+    const tasks = await this.prisma.aiTask.findMany({ select: { key: true }, orderBy: { key: "asc" } });
+    return Promise.all(tasks.map((task) => this.taskView(task.key)));
+  }
+
+  /**
+   * Fixes `modelConfigKey` for the task (009 FR-024, research H11): only a model the policy admits
+   * at the task's preferred tier, in PRODUCTION and enabled (`409 AI_OVERRIDE_NOT_ALLOWED`
+   * otherwise). The same override again changes nothing and writes no event.
+   */
+  async setTaskOverride(actor: OperationsActor, taskKey: string, modelConfigKey: string): Promise<AiTaskPolicyView> {
+    await this.prisma.runInTransaction(async (tx) => {
+      const task = await lockTask(tx, taskKey);
+      if (!(await this.policy.overrideCandidates(task.id)).includes(modelConfigKey)) throw new AppException("AI_OVERRIDE_NOT_ALLOWED");
+      const config = await tx.aiModelConfig.findUniqueOrThrow({ where: { key: modelConfigKey }, select: { id: true } });
+      const current = await tx.aiTaskOverride.findUnique({ where: { taskId: task.id }, include: { modelConfig: { select: { key: true } } } });
+      if (current?.modelConfigId === config.id) return;
+      const data = { modelConfigId: config.id, setByUserId: actor.userId, setAt: new Date() };
+      await tx.aiTaskOverride.upsert({ where: { taskId: task.id }, create: { taskId: task.id, ...data }, update: data });
+      await this.audit.record(tx, {
+        type: "ai_task_override.set",
+        ...overrideAudit(actor, task.id),
+        metadata: { taskKey, modelConfigKey, previousModelConfigKey: current?.modelConfig.key ?? null },
+      });
+    });
+    return this.taskView(taskKey);
+  }
+
+  /** Removes the task's override; none → nothing changes and no event is written. */
+  async removeTaskOverride(actor: OperationsActor, taskKey: string): Promise<AiTaskPolicyView> {
+    await this.prisma.runInTransaction(async (tx) => {
+      const task = await lockTask(tx, taskKey);
+      const current = await tx.aiTaskOverride.findUnique({ where: { taskId: task.id }, include: { modelConfig: { select: { key: true } } } });
+      if (!current) return;
+      await tx.aiTaskOverride.delete({ where: { taskId: task.id } });
+      await this.audit.record(tx, {
+        type: "ai_task_override.removed",
+        ...overrideAudit(actor, task.id),
+        metadata: { taskKey, modelConfigKey: current.modelConfig.key },
+      });
+    });
+    return this.taskView(taskKey);
+  }
+
+  private async taskView(taskKey: string): Promise<AiTaskPolicyView> {
+    const task = await this.prisma.aiTask.findUniqueOrThrow({ where: { key: taskKey }, include: { override: { include: { modelConfig: { select: { key: true } } } } } });
+    const versions = await this.prisma.aiAgentVersion.findMany({ where: { currentOf: { some: {} }, taskId: task.id }, select: { agent: { select: { key: true } } } });
+    const policy = task.policy as unknown as TaskPolicyFields;
+    const route = await this.policy.routeFor(task.id);
+    return {
+      key: task.key,
+      mode: policy.mode,
+      minimumTier: policy.minimumTier,
+      preferredTier: policy.preferredTier,
+      maxTier: maxTierOf(policy),
+      allowedFamilies: [...policy.allowedFamilies],
+      requiredCapabilities: [...policy.requiredCapabilities],
+      fallback: policy.fallback,
+      escalation: policy.escalation,
+      quality: { ...policy.quality },
+      agentKeys: versions.map((version) => version.agent.key).sort(),
+      selection:
+        !route || "unavailable" in route
+          ? { unavailable: route?.unavailable ?? "POLICY_INVALID" }
+          : { primaryKey: route.primary.key, fallbackKey: route.fallback?.key ?? null, reason: route.reason },
+      override: task.override ? { modelConfigKey: task.override.modelConfig.key, setAt: task.override.setAt.toISOString() } : null,
+      overrideCandidates: await this.policy.overrideCandidates(task.id),
+    };
   }
 
   async listAgents(): Promise<AiAgentOperationsView[]> {
@@ -345,6 +393,21 @@ export class AiOperationsService {
     };
   }
 }
+
+/** The task row, locked for the override change; unknown task → 404. */
+async function lockTask(tx: Tx, taskKey: string): Promise<{ id: string }> {
+  const [task] = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM ai_tasks WHERE key = ${taskKey} FOR UPDATE`;
+  if (!task) throw notFound();
+  return task;
+}
+
+const overrideAudit = (actor: OperationsActor, taskId: string) => ({
+  actorType: "USER" as const,
+  actorUserId: actor.userId,
+  requestId: actor.requestId,
+  targetType: "AI_TASK" as const,
+  targetId: taskId,
+});
 
 /** `[from, to)` of a metrics period ending now (the end is exclusive, so `now` itself counts). */
 function periodOf(period: AiMetricsPeriod, now: Date): { from: Date; to: Date } {

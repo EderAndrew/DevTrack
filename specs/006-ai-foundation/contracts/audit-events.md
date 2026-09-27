@@ -17,7 +17,7 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 
 | `type` | Spec name | Actor | Target | `metadata` allowed |
 |--------|-----------|-------|--------|--------------------|
-| `ai_execution.requested` | `AI_EXECUTION_REQUESTED` | USER | AI_EXECUTION | `agentKey`, `agentVersion`, `promptVersion`, `modelConfigKey`, `taskKey`, `fallbackModelConfigKey` (008), `tier`, `selectionReason` (009), `resourceType`, `riskLevel` |
+| `ai_execution.requested` | `AI_EXECUTION_REQUESTED` | USER | AI_EXECUTION | `agentKey`, `agentVersion`, `promptVersion`, `modelConfigKey`, `taskKey`, `fallbackModelConfigKey` (008), `tier`, `selectionReason`, `overrideIgnored` (009), `resourceType`, `riskLevel` |
 | `ai_execution.started` | `AI_EXECUTION_STARTED` | SYSTEM | AI_EXECUTION | `claim` |
 | `ai_execution.completed` | `AI_EXECUTION_COMPLETED` | SYSTEM | AI_EXECUTION | `durationMs`, `modelCalls`, `toolCalls`, `proposalId` |
 | `ai_execution.failed` | `AI_EXECUTION_FAILED` | SYSTEM | AI_EXECUTION | `status` (`FAILED`\|`TIMED_OUT`), `errorCode`, `durationMs`, `modelCalls`, `toolCalls` |
@@ -36,6 +36,9 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_model_config.disabled` | idem | USER | AI_MODEL_CONFIG | `configKey`, `provider`, `model` |
 | `ai_model_config.changed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `previousModel`, `model` (registry sync, when a deploy changes the model of an existing config) |
 | `ai_model_config.lifecycle_changed` | — (009) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `from`, `to` (registry sync, when a catalog entry's lifecycle changes in code) |
+| `ai_task_override.set` | — (009) | USER | AI_TASK | `taskKey`, `modelConfigKey`, `previousModelConfigKey` (the administrator fixes or changes a task's model) |
+| `ai_task_override.removed` | — (009) | USER | AI_TASK | `taskKey`, `modelConfigKey` |
+| `ai_budget.exceeded` | — (009) | SYSTEM | — | `scope` (`DAILY`\|`MONTHLY`\|`PER_AGENT`\|`PER_USER`), `period`, `limit`, `spent`, `agentKey` (first crossing of a budget in its period, in the transaction of the call's row; never a user id) |
 | `ai_circuit.opened` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `model`, `failures` (own transaction, once per CLOSED/HALF_OPEN → OPEN) |
 | `ai_circuit.closed` | — (008) | SYSTEM | AI_MODEL_CONFIG | `configKey`, `provider`, `model` (own transaction, once per HALF_OPEN → CLOSED) |
 | `ai_registry.synced` | — | SYSTEM | — | `agents`, `tools`, `modelConfigs`, `catalogModels` (009), `tasks` (008), `newVersions`, `deprecated` (only when something changed) |

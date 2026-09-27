@@ -76,3 +76,7 @@ export const AiErrorCodeSchema = z.enum([
   "AI_EXECUTION_LIMIT_EXCEEDED",
 ]);
 export type AiErrorCode = z.infer<typeof AiErrorCodeSchema>;
+
+/** Scopes of the observable AI budgets (009 FR-022): system day and month, per agent and per user (monthly). */
+export const AiBudgetScopeSchema = z.enum(["DAILY", "MONTHLY", "PER_AGENT", "PER_USER"]);
+export type AiBudgetScope = z.infer<typeof AiBudgetScopeSchema>;

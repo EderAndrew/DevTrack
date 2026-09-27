@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
+import { Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from "@nestjs/common";
 import {
   type AiAgentOperationsView,
   type AiHealth,
@@ -13,6 +13,8 @@ import {
   ChangeAiAgentStatusRequestSchema,
   type ChangeAiModelConfigStatusRequest,
   ChangeAiModelConfigStatusRequestSchema,
+  type TaskOverrideRequest,
+  TaskOverrideRequestSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../../platform/http/request-context";
 import { ZodBody, ZodValidationPipe } from "../../../platform/http/zod-validation.pipe";
@@ -86,5 +88,22 @@ export class AiOperationsController {
     @Ctx() ctx: RequestContext,
   ): Promise<AiModelConfigView> {
     return this.operations.changeModelConfigStatus({ userId: ctx.auth!.userId, requestId: ctx.requestId }, key, body.status);
+  }
+
+  /** 009 US7: the administrator fixes an approved model for a task (FR-024). */
+  @Put("tasks/:key/override")
+  @RequirePermissions("ia.agentes.gerenciar")
+  setTaskOverride(
+    @Param("key", keyPipe) key: string,
+    @ZodBody(TaskOverrideRequestSchema) body: TaskOverrideRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<AiTaskPolicyView> {
+    return this.operations.setTaskOverride({ userId: ctx.auth!.userId, requestId: ctx.requestId }, key, body.modelConfigKey);
+  }
+
+  @Delete("tasks/:key/override")
+  @RequirePermissions("ia.agentes.gerenciar")
+  removeTaskOverride(@Param("key", keyPipe) key: string, @Ctx() ctx: RequestContext): Promise<AiTaskPolicyView> {
+    return this.operations.removeTaskOverride({ userId: ctx.auth!.userId, requestId: ctx.requestId }, key);
   }
 }

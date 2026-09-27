@@ -8,6 +8,7 @@ import type {
   AiTaskPolicyView,
   ChangeAiAgentStatusRequest,
   ChangeAiModelConfigStatusRequest,
+  TaskOverrideRequest,
 } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
 
@@ -24,4 +25,8 @@ export const aiOperationsApi = {
     apiClient.post<AiAgentOperationsView>(`/ai/operations/agents/${encodeURIComponent(key)}/status`, body),
   changeModelConfigStatus: (key: string, body: ChangeAiModelConfigStatusRequest) =>
     apiClient.post<AiModelConfigView>(`/ai/operations/model-configs/${encodeURIComponent(key)}/status`, body),
+  // 009/US7 — the administrator's override of a task's model.
+  setTaskOverride: (key: string, body: TaskOverrideRequest) =>
+    apiClient.put<AiTaskPolicyView>(`/ai/operations/tasks/${encodeURIComponent(key)}/override`, body),
+  removeTaskOverride: (key: string) => apiClient.delete<AiTaskPolicyView>(`/ai/operations/tasks/${encodeURIComponent(key)}/override`),
 };

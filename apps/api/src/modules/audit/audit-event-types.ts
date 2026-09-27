@@ -78,6 +78,7 @@ export const AUDIT_EVENT_METADATA = {
     "fallbackModelConfigKey",
     "tier",
     "selectionReason",
+    "overrideIgnored",
     "resourceType",
     "riskLevel",
   ],
@@ -109,6 +110,11 @@ export const AUDIT_EVENT_METADATA = {
   "ai_model_config.changed": ["configKey", "provider", "previousModel", "model"],
   // 009 — model policy: a catalog entry's lifecycle changed in code (research H4).
   "ai_model_config.lifecycle_changed": ["configKey", "from", "to"],
+  // 009 — the administrator's model override of a task (research H11).
+  "ai_task_override.set": ["taskKey", "modelConfigKey", "previousModelConfigKey"],
+  "ai_task_override.removed": ["taskKey", "modelConfigKey"],
+  // 009 — the first crossing of a budget in its period (research H16); never a user id.
+  "ai_budget.exceeded": ["scope", "period", "limit", "spent", "agentKey"],
   "ai_registry.synced": ["agents", "tools", "modelConfigs", "catalogModels", "tasks", "newVersions", "deprecated"],
   // 007 — Curriculum Agent. Never the document, the ementa text or the proposal content (FR-045).
   "curriculum_ai.analysis_requested": ["executionId", "created", "discardedProposal"],
@@ -162,4 +168,5 @@ export type AuditTargetType =
   | "AI_EXECUTION"
   | "AI_PROPOSAL"
   | "AI_AGENT"
-  | "AI_MODEL_CONFIG";
+  | "AI_MODEL_CONFIG"
+  | "AI_TASK";
