@@ -284,3 +284,48 @@ describe("009/US2-6 009/SC-002 mesma entrada → mesma escolha", () => {
     }
   });
 });
+
+describe("009/US4-1 009/US4-2 009/FR-012 fallback do mesmo nível, de outra família quando existe", () => {
+  it("o fallback é o próximo aprovado de outra família, mesmo que um da mesma família seja mais barato", () => {
+    const route = select([
+      basic("anthropic-a", { price: price("1", "1") }),
+      basic("anthropic-b", { price: price("1.1", "1.1") }),
+      basic("openai-a", { family: "openai", price: price("5", "5") }),
+    ]);
+    expect(route).toMatchObject({ primary: { key: "anthropic-a" }, fallback: { key: "openai-a", tier: "BASIC" } });
+  });
+
+  it("sem outra família, o fallback é o próximo da mesma família e do mesmo nível", () => {
+    expect(select([basic("anthropic-a"), basic("anthropic-b", { priority: -1 })])).toMatchObject({ fallback: { key: "anthropic-b", family: "anthropic" } });
+  });
+
+  it("um fallback possível só em outro nível não existe: sem fallback", () => {
+    const route = select([basic("basic-a"), basic("standard-openai", { family: "openai", tier: "STANDARD" }), basic("advanced-a", { tier: "ADVANCED" })]);
+    expect(route).toMatchObject({ primary: { key: "basic-a" }, fallback: null });
+  });
+
+  it("nunca de família fora da tarefa ou da allowlist, nem de outro modo", () => {
+    const route = select(
+      [
+        basic("anthropic-a"),
+        basic("openai-not-allowed", { family: "openai" }),
+        basic("mistral-a", { family: "mistral" }),
+        basic("typesafe-decision", { family: "typesafe", mode: "DECISION", capabilities: JEV.capabilities }),
+      ],
+      { task: { ...GENERATION_TASK, allowedFamilies: ["anthropic"] } },
+    );
+    expect(route).toMatchObject({ primary: { key: "anthropic-a" }, fallback: null });
+  });
+
+  it("uma tarefa sem fallback (NONE) nunca recebe um, mesmo com candidatos", () => {
+    expect(select([basic("a"), basic("b", { family: "openai" })], { task: { ...GENERATION_TASK, fallback: "NONE" } })).toMatchObject({ fallback: null });
+  });
+
+  it("o fallback de uma rota de escalonamento é do nível de destino", () => {
+    const route = select(
+      [basic("basic-a"), basic("standard-a", { tier: "STANDARD" }), basic("standard-openai", { tier: "STANDARD", family: "openai", price: price("9", "9") })],
+      { tier: "STANDARD" },
+    );
+    expect(route).toMatchObject({ primary: { key: "standard-a" }, fallback: { key: "standard-openai", tier: "STANDARD" } });
+  });
+});

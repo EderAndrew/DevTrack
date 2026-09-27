@@ -20,6 +20,8 @@ export interface ModelCallRecord {
   servedModel: string | null;
   /** A leg of the route's fallback (008 research G6). */
   isFallback: boolean;
+  /** A leg of the escalated call (009 research H9). */
+  isEscalation?: boolean;
 }
 
 /**
@@ -52,6 +54,7 @@ export class AiUsageRecorder {
         costSource: cost?.source ?? null,
         servedModel: call.servedModel,
         isFallback: call.isFallback,
+        isEscalation: call.isEscalation ?? false,
         // The config's catalog tier and family now, so a later catalog change keeps history (009 H14).
         tier: call.config.tier,
         family: call.config.family,

@@ -92,6 +92,8 @@ export const AUDIT_EVENT_METADATA = {
   "ai_circuit.closed": ["configKey", "provider", "model"],
   // 008 — a logical call went to the fallback model (research G6).
   "ai_execution.fallback_used": ["primaryConfigKey", "fallbackConfigKey", "reason", "primaryErrorCode"],
+  // 009 — an invalid output repeated once on the next tier the task's policy allows (research H9).
+  "ai_execution.escalated": ["taskKey", "fromTier", "toTier", "reason", "modelConfigKey"],
   "ai_tool.called": ["toolKey", "sequence", "durationMs"],
   "ai_tool.failed": ["toolKey", "sequence", "status", "errorCode"],
   "ai_proposal.created": ["executionId", "agentKey", "proposalType", "itemCount"],

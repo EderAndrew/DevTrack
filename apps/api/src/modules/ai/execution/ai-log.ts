@@ -28,6 +28,10 @@ export interface AiLogFields {
   configKey?: string;
   servedModel?: string | null;
   fallback?: boolean;
+  /** Tiers of an escalation and whether a call belongs to it (009 research H9). */
+  fromTier?: string;
+  toTier?: string;
+  escalation?: boolean;
 }
 
 const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
@@ -52,6 +56,9 @@ const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
   "configKey",
   "servedModel",
   "fallback",
+  "fromTier",
+  "toTier",
+  "escalation",
 ]);
 
 /** Keeps only the allowed fields, whatever the caller passes at runtime. */

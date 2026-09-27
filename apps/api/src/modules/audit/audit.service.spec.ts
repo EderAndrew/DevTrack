@@ -82,7 +82,7 @@ describe("AuditService metadata allowlist (FR-071)", () => {
   it("006/FR-062 no AI event type allows a content-bearing key, and content keys are refused", () => {
     const content = /^(prompt|instructions|systemInstructions|input|output|payload|content|arguments|args|result|name|title|text|message|apiKey|credential|secret|token)$/i;
     const types = Object.keys(AUDIT_EVENT_METADATA).filter((type) => type.startsWith("ai_"));
-    expect(types).toHaveLength(24); // 008: ai_model_config.changed, ai_execution.fallback_used, ai_circuit.opened/closed; 009: ai_model_config.lifecycle_changed
+    expect(types).toHaveLength(25); // 008: ai_model_config.changed, ai_execution.fallback_used, ai_circuit.opened/closed; 009: ai_model_config.lifecycle_changed, ai_execution.escalated
     for (const type of types) {
       for (const key of AUDIT_EVENT_METADATA[type as keyof typeof AUDIT_EVENT_METADATA]) {
         expect(content.test(key), `${type}.${key}`).toBe(false);

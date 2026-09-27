@@ -229,19 +229,19 @@ gera a evidência dos candidatos BASIC.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T027 [P] [US3] Criar `apps/api/test/integration/009-us3-curriculum-basic.spec.ts`: com o
+- [X] T027 [P] [US3] Criar `apps/api/test/integration/009-us3-curriculum-basic.spec.ts`: com o
   catálogo de teste de um BASIC aprovado, a análise usa BASIC e o registro mostra tarefa,
   nível, família e modelo (`009/US3-1`, `009/SC-005`); a suíte da 007 roda sem mudança de
   comportamento com a análise pela política (`009/US3-2`); o agente não nomeia nível, família
   nem modelo (`009/US3-3`).
-- [ ] T028 [P] [US3] Criar `apps/api/test/security/009-quality-gate.spec.ts`: toda aprovação do
+- [X] T028 [P] [US3] Criar `apps/api/test/security/009-quality-gate.spec.ts`: toda aprovação do
   catálogo de produção bate com o arquivo de evidência, que registra o modelo servido e o custo
   de uma execução real, e atinge os limiares da tarefa; nenhum PRODUCTION sem aprovação
   (contracts/catalog-and-quality-gate.md, `009/FR-017`).
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] `apps/api/test/eval/curriculum-agent.eval.ts`: `EVAL_MODEL=<chave do
+- [X] T029 [US3] `apps/api/test/eval/curriculum-agent.eval.ts`: `EVAL_MODEL=<chave do
   catálogo>` roda o conjunto de referência só nesse modelo; com `EVAL_RECORD=1` grava
   `apps/api/test/fixtures/evaluations/curriculum-extraction/<chave>.json` (formato do contrato);
   README do conjunto de referência atualizado.
@@ -270,10 +270,10 @@ produzem o nível, as chamadas e o registro esperados.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T032 [P] [US4] Em `select-route.spec.ts`: fallback sempre do mesmo nível, de outra
+- [X] T032 [P] [US4] Em `select-route.spec.ts`: fallback sempre do mesmo nível, de outra
   família quando existe; nunca de família não permitida (`009/US4-1`, `009/US4-2`,
   `009/FR-012`).
-- [ ] T033 [P] [US4] Criar `apps/api/test/integration/009-us4-escalation.spec.ts`:
+- [X] T033 [P] [US4] Criar `apps/api/test/integration/009-us4-escalation.spec.ts`:
   - saída inválida com escalonamento permitido → uma chamada a mais no nível seguinte,
     `escalation_used`, níveis e motivo, evento `ai_execution.escalated` (`009/US4-3`);
   - sem permissão → falha como na 006 (`009/US4-4`);
@@ -285,7 +285,7 @@ produzem o nível, as chamadas e o registro esperados.
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] `apps/api/src/modules/ai/execution/ai-execution.runner.ts`: escalonamento
+- [X] T034 [US4] `apps/api/src/modules/ai/execution/ai-execution.runner.ts`: escalonamento
   (contracts/model-policy.md) com registro na execução, pernas `is_escalation`, auditoria
   `ai_execution.escalated` (tipo novo: catálogo, contrato 006, jornada) e respeito a
   `maxModelCalls` e ao prazo.
