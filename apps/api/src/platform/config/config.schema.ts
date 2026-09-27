@@ -35,6 +35,13 @@ const hmacSecret = z
 const nonNegativeInt = (fallback: number) => z.coerce.number().int().min(0).default(fallback);
 const positiveInt = (fallback: number) => z.coerce.number().int().min(1).default(fallback);
 /** An optional variable where an empty string (`KEY=` in .env) means "not set". */
+/** A positive decimal amount of money (USD), kept as a string so no precision is lost (009 research H16). */
+const decimalAmount = z
+  .string()
+  .trim()
+  .regex(/^\d+(\.\d+)?$/, "must be a decimal number")
+  .refine((value) => Number(value) > 0, "must be greater than zero");
+
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
@@ -91,6 +98,11 @@ export const configSchema = z.object({
   ),
   OPENROUTER_FALLBACK_MODEL: optional(z.string().trim().min(1)),
   OPENROUTER_TIMEOUT_MS: positiveInt(60_000),
+  // 009: observable budgets only; reaching one warns and audits, never blocks (spec Q3).
+  AI_BUDGET_DAILY_USD: optional(decimalAmount),
+  AI_BUDGET_MONTHLY_USD: optional(decimalAmount),
+  AI_BUDGET_PER_USER_MONTHLY_USD: optional(decimalAmount),
+  AI_BUDGET_PER_AGENT_MONTHLY_USD: optional(decimalAmount),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -156,6 +168,11 @@ export interface AppConfig {
     };
     /** Circuit breaker per model config (008 research G8). */
     circuit: { failureThreshold: number; openSeconds: number };
+    /**
+     * Budgets in USD as decimal strings (009 research H16); null = no budget. Only observed:
+     * reaching one warns in "Operação de IA" and audits `ai_budget.exceeded` once per period.
+     */
+    budgets: { daily: string | null; monthly: string | null; perUserMonthly: string | null; perAgentMonthly: string | null };
   };
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
@@ -250,6 +267,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         timeoutMs: e.OPENROUTER_TIMEOUT_MS,
       },
       circuit: { failureThreshold: e.AI_CIRCUIT_FAILURE_THRESHOLD, openSeconds: e.AI_CIRCUIT_OPEN_SECONDS },
+      budgets: {
+        daily: e.AI_BUDGET_DAILY_USD ?? null,
+        monthly: e.AI_BUDGET_MONTHLY_USD ?? null,
+        perUserMonthly: e.AI_BUDGET_PER_USER_MONTHLY_USD ?? null,
+        perAgentMonthly: e.AI_BUDGET_PER_AGENT_MONTHLY_USD ?? null,
+      },
     },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };

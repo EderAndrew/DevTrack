@@ -48,13 +48,13 @@ configuration), quickstart.md
 
 **Purpose**: configuração e enums, sem mudar comportamento.
 
-- [ ] T001 Em `apps/api/src/platform/config/config.schema.ts` (contracts/configuration.md):
+- [X] T001 Em `apps/api/src/platform/config/config.schema.ts` (contracts/configuration.md):
   acrescentar `AI_BUDGET_DAILY_USD`, `AI_BUDGET_MONTHLY_USD`, `AI_BUDGET_PER_USER_MONTHLY_USD`,
   `AI_BUDGET_PER_AGENT_MONTHLY_USD` (decimais opcionais > 0; vazio = ausente) em
   `AppConfig.ai.budgets`; manter `OPENROUTER_DEFAULT_MODEL`/`OPENROUTER_FALLBACK_MODEL` até a
   T013 (que os remove). `apps/api/test/helpers/test-app.ts`: orçamentos nulos por padrão.
-- [ ] T002 [P] `apps/api/.env.example`: bloco comentado dos orçamentos (só avisam, spec Q3).
-- [ ] T003 [P] Criar `apps/api/src/modules/ai/definitions/model-families.ts`: allowlist
+- [X] T002 [P] `apps/api/.env.example`: bloco comentado dos orçamentos (só avisam, spec Q3).
+- [X] T003 [P] Criar `apps/api/src/modules/ai/definitions/model-families.ts`: allowlist
   fechada `["openai", "anthropic", "typesafe"]`, tipos `ModelTier` (ordenado, com
   `nextTier`/`compareTiers`), `ModelMode`, `ModelLifecycle`, `ModelCapabilities`
   (`structuredOutput`, `tools`, `vision`, `reasoning`) (`009/FR-005`).
