@@ -1,0 +1,19 @@
+{
+  "task": "curriculum-extraction",
+  "model": "openai/gpt-6-luna",
+  "servedModel": "openai/gpt-6-luna",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-09-27T23:12:38.040Z",
+  "metrics": {
+    "itemRecall": 1,
+    "schemaValidity": 1,
+    "unsupportedWithoutWarning": 0,
+    "inventedFields": 0,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.003619",
+    "currency": "USD",
+    "perExecution": "0.000452"
+  }
+}

@@ -1,16 +1,12 @@
-import type { ModelUsage } from "../definitions/types";
+import type { ModelPrice, ModelUsage } from "../definitions/types";
 
-export interface ModelPrice {
-  inputPerMTok: string;
-  outputPerMTok: string;
-  currency: string;
-}
+export type { ModelPrice };
 
 /** Decimal as integer millionths, so prices × tokens stay exact. */
 const MICRO = 1_000_000n;
 const SCALE = 6;
 
-function toMicros(decimal: string): bigint {
+export function toMicros(decimal: string): bigint {
   const [whole = "0", fraction = ""] = decimal.split(".");
   return BigInt(whole) * MICRO + BigInt(fraction.padEnd(SCALE, "0").slice(0, SCALE));
 }

@@ -17,6 +17,9 @@ export const nextJsConfig = [
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright output of a local E2E run (gitignored, generated).
+    "playwright-report/**",
+    "test-results/**",
   ]),
   {
     languageOptions: {

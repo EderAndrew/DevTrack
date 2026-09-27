@@ -1,20 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { defineAgent, defineTask } from "../../src/modules/ai/definitions/types";
+import { defineAgent } from "../../src/modules/ai/definitions/types";
 import { fakeCost, fakeOutput, fakeServedModel } from "../fixtures/ai/fake-model-provider";
+import { routedTask } from "../fixtures/ai/tasks";
 import { REFERENCE_L1 } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
 import { createSubject, createUser, loginAs, type TestUser } from "../helpers/factories";
 
 /** A task with a fallback, and one on the config without a price. */
-const ROUTED_TASK = defineTask({
+const ROUTED_TASK = routedTask({
   key: "route-test",
-  primaryModelConfigKey: "fake-default",
-  fallbackModelConfigKey: "fake-alt",
   parameters: { temperature: 0 },
   maxOutputTokens: 2000,
   timeoutMs: 30_000,
-});
-const NO_PRICE_TASK = defineTask({ key: "route-no-price", primaryModelConfigKey: "fake-no-price", maxOutputTokens: 1000, timeoutMs: 30_000 });
+}, ["fake-default", "fake-alt"]);
+const NO_PRICE_TASK = routedTask({ key: "route-no-price", maxOutputTokens: 1000, timeoutMs: 30_000 }, ["fake-no-price"]);
 
 const ROUTED_AGENT = defineAgent({
   ...REFERENCE_L1,

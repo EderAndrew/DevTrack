@@ -1,11 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "../../../generated/prisma/client";
 import { PrismaService } from "../../../platform/database/prisma.service";
+import type { ModelTier } from "../definitions/model-families";
+import type { ModelPrice } from "../definitions/types";
 import type { GatewayModelConfig } from "../gateway/model-gateway";
 
 export interface RegisteredModelConfig extends GatewayModelConfig {
   id: string;
-  price: { inputPerMTok: string; outputPerMTok: string; currency: string } | null;
+  price: ModelPrice | null;
+  /** Catalog tier and family (009); null for a row no longer in the catalog. */
+  tier: ModelTier | null;
+  family: string | null;
 }
 
 /** A model config row as the gateway and the usage recorder need it; never a credential. */
@@ -23,6 +28,8 @@ export function toRegisteredModelConfig(row: Prisma.AiModelConfigGetPayload<obje
       row.inputPricePerMTok && row.outputPricePerMTok && row.currency
         ? { inputPerMTok: row.inputPricePerMTok.toString(), outputPerMTok: row.outputPricePerMTok.toString(), currency: row.currency }
         : null,
+    tier: row.tier,
+    family: row.family,
   };
 }
 

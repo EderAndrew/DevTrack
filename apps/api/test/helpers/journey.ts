@@ -277,6 +277,38 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const goldenProposalId = (await goldenClient.get(`/api/syllabus-documents/${golden.id}/ai`)).body.pendingProposalId as string;
   const rejected = await goldenClient.post(`/api/ai/proposals/${goldenProposalId}/decision`, { decision: "REJECT" });
   expect(rejected.body.status).toBe("REJECTED");
+  // 009/US4-3 — an invalid output escalates once, BASIC → STANDARD (the task allows it): an
+  // approved STANDARD entry joins the catalog, the BASIC model answers no JSON, the STANDARD one a
+  // valid output. The rejection above never escalates; this invalid output does.
+  const standard = await t.prisma.aiModelConfig.create({
+    data: {
+      key: "anthropic-standard-jornada",
+      provider: "fake",
+      family: "anthropic",
+      tier: "STANDARD",
+      mode: "GENERATION",
+      lifecycle: "PRODUCTION",
+      model: "fake-model-standard-jornada",
+      status: "ENABLED",
+      maxOutputTokens: 32_000,
+      timeoutMs: 60_000,
+      definitionHash: "jornada",
+      capabilities: { structuredOutput: true, tools: true, vision: true, reasoning: true },
+    },
+  });
+  const extractionTask = await t.prisma.aiTask.findUniqueOrThrow({ where: { key: "curriculum-extraction" } });
+  await t.prisma.aiModelTaskApproval.create({
+    data: { modelConfigId: standard.id, taskId: extractionTask.id, metrics: (extractionTask.policy as { quality: Record<string, number> }).quality, evaluatedAt: new Date(), evidence: "jornada", valid: true, syncedAt: new Date() },
+  });
+  const basicModel = (await t.prisma.aiModelConfig.findFirstOrThrow({ where: { tier: "BASIC", family: "anthropic", status: "ENABLED", lifecycle: "PRODUCTION" }, orderBy: { key: "asc" } })).model;
+  t.provider.scriptFor(basicModel, fakeToolCall(READ_CURRICULUM_DOCUMENT, { documentId: golden.id }), fakeText("não é JSON"));
+  t.provider.scriptFor(standard.model, fakeOutput(pooOutput()));
+  const escalatedAnalysis = await goldenClient.post(`/api/syllabus-documents/${golden.id}/ai-analyses`, {});
+  expect(escalatedAnalysis.status).toBe(202);
+  expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  t.provider.scriptFor(basicModel);
+  t.provider.scriptFor(standard.model);
+  expect(await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: escalatedAnalysis.body.execution.id } })).toMatchObject({ escalationUsed: true, escalationToTier: "STANDARD" });
   // 004/US4 — the teacher marks two class days, then unmarks one whose topic is archived there.
   const meetingsPath = `/api/classes/${classId}/meetings`;
   const calendar = await teacherClient.put(meetingsPath, {
@@ -385,7 +417,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   gateway.timing = { sleep: async () => {}, random: () => 0 };
   t.provider.scriptFor("fake-model-1", fakeError("UNAVAILABLE"));
   t.provider.scriptFor("fake-model-2", fakeToolCall("reference.read-subject", { subjectId }), fakeOutput({ summary: aiOutput }));
+  // 009/US8 — a tiny daily budget: this execution's calls cross it (the app reads the budgets on each check).
+  const budgets = t.config.ai.budgets;
+  t.config.ai.budgets = { ...budgets, daily: "0.000001" };
   expect(await aiWorker.runOnce()).toBe(1);
+  t.config.ai.budgets = budgets;
   t.provider.scriptFor("fake-model-1");
   t.provider.scriptFor("fake-model-2");
   gateway.timing = timing;
@@ -438,8 +474,15 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     expect((await adminClient.post(path, { status: off })).status).toBe(200);
     expect((await adminClient.post(path, { status: on })).status).toBe(200);
   }
-  // 008/US2 — a deploy with another model: the registry sync audits the change of the config.
-  await t.prisma.aiModelConfig.update({ where: { key: "fake-alt" }, data: { model: "fake-model-anterior", definitionHash: "deploy-anterior" } });
+  // 009/US7 — the administrator fixes an approved model for a task, then removes the override.
+  expect((await adminClient.put("/api/ai/operations/tasks/reference-alt/override", { modelConfigKey: "fake-alt" })).status).toBe(200);
+  expect((await adminClient.delete("/api/ai/operations/tasks/reference-alt/override")).status).toBe(200);
+  // 008/US2 — a deploy with another model: the registry sync audits the change of the config;
+  // 009 — and of its lifecycle (a promotion in code).
+  await t.prisma.aiModelConfig.update({
+    where: { key: "fake-alt" },
+    data: { model: "fake-model-anterior", lifecycle: "EVALUATING", definitionHash: "deploy-anterior" },
+  });
   await t.get(AiRegistrySync).sync();
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
     if ((await requestAi()).status === 429) break;

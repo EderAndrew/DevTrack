@@ -17,10 +17,9 @@ import type { AuthContext } from "../../../platform/http/request-context";
 import { RateLimitService } from "../../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../../audit/audit.service";
 import { PermissionResolver } from "../../access-control/permission-resolver";
-import { ModelGateway } from "../gateway/model-gateway";
 import { AiAgentRegistry, type RegisteredAgent } from "../registry/ai-agent.registry";
 import { stableHash } from "../registry/ai-definitions.check";
-import { type RegisteredRoute, AiTaskRegistry } from "../registry/ai-task.registry";
+import { AiPolicyRegistry, type PolicyRoute } from "../registry/ai-policy.registry";
 import { AiExecutionAborts } from "./ai-execution-aborts";
 import { AiExecutionStore } from "./ai-execution.store";
 import { EXECUTION_SUMMARY_INCLUDE, EXECUTION_VIEW_INCLUDE, toExecutionSummary, toExecutionView } from "./ai-execution.view";
@@ -66,15 +65,14 @@ export class AiExecutionsService {
     private readonly permissions: PermissionResolver,
     private readonly audit: AuditService,
     private readonly agents: AiAgentRegistry,
-    private readonly tasks: AiTaskRegistry,
-    private readonly gateway: ModelGateway,
+    private readonly policy: AiPolicyRegistry,
     private readonly store: AiExecutionStore,
     private readonly aborts: AiExecutionAborts,
     private readonly worker: AiExecutionWorker,
     private readonly resources: AiResourceResolver,
   ) {}
 
-  /** In this order: the agent, a usable model config of its route, then the global kill switch. */
+  /** In this order: the agent, a model the policy can choose for its task, then the global kill switch. */
   async availability(agentKey: string): Promise<AiAvailability> {
     const agent = await this.agents.byKey(agentKey);
     if (!agent || agent.status !== "ACTIVE") return "AGENT_DISABLED";
@@ -84,14 +82,14 @@ export class AiExecutionsService {
   }
 
   /**
-   * The agent's route when the primary or the fallback can take a call (008 research G5); the
-   * runner checks both again at start.
+   * The route the model policy chooses for the agent's task now (009 research H7): only usable
+   * models are candidates, so the primary can take a call; null when none qualifies. Fixed on the
+   * execution (008 research G5); the runner checks it again at start.
    */
-  private async usableRoute(agent: RegisteredAgent): Promise<RegisteredRoute | null> {
-    const route = await this.tasks.routeOf(agent);
-    if (!route) return null;
-    const usable = this.gateway.isUsable(route.primary) || (route.fallback !== null && this.gateway.isUsable(route.fallback));
-    return usable ? route : null;
+  private async usableRoute(agent: RegisteredAgent): Promise<PolicyRoute | null> {
+    if (!agent.taskId) return null;
+    const route = await this.policy.routeFor(agent.taskId);
+    return route && !("unavailable" in route) ? route : null;
   }
 
   async request(
@@ -150,7 +148,9 @@ export class AiExecutionsService {
             outputSchemaVersionId: agent.outputSchemaVersionId,
             modelConfigId: primary.id,
             fallbackModelConfigId: fallback?.id ?? null,
-            taskKey: route.task?.key ?? null,
+            taskKey: route.task.key,
+            tier: route.tier,
+            selectionReason: route.reason,
             provider: primary.provider,
             model: primary.model,
             riskLevel: agent.riskLevel,
@@ -184,8 +184,12 @@ export class AiExecutionsService {
             agentVersion: agent.version,
             promptVersion: agent.promptVersion,
             modelConfigKey: primary.key,
-            taskKey: route.task?.key ?? null,
+            taskKey: route.task.key,
             fallbackModelConfigKey: fallback?.key ?? null,
+            tier: route.tier,
+            selectionReason: route.reason,
+            // An override whose model no longer qualifies was set but not used (009 US7-4).
+            overrideIgnored: route.overrideIgnored,
             resourceType: resource?.type ?? null,
             riskLevel: agent.riskLevel,
           },

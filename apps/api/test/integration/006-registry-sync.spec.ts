@@ -120,9 +120,9 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 2]]);
     const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
     expect(tool.status).toBe("ENABLED");
-    // 008: the agent's task routes to the OpenRouter config of the default model.
-    const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "openrouter-default" } });
-    expect(config).toMatchObject({ provider: "openrouter", model: t.config.ai.openrouter.defaultModel });
+    // 009: the catalog of production, on OpenRouter; the agent's task names no model.
+    const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "anthropic-basic" } });
+    expect(config).toMatchObject({ provider: "openrouter", family: "anthropic", tier: "BASIC", lifecycle: "CANDIDATE" });
 
     const before = await counts(t);
     const events = await t.prisma.auditEvent.count();
@@ -141,6 +141,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
       tools: [...reference.tools, ...production.tools],
       modelConfigs: [...reference.modelConfigs, ...production.modelConfigs],
       tasks: [...reference.tasks, ...production.tasks],
+      families: reference.families,
       providers: reference.providers,
       resources: { ...reference.resources, ...production.resources },
     });

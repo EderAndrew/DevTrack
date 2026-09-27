@@ -22,18 +22,26 @@ instituição ou de um professor real. Os de POO são a amostra fictícia da 004
 
 ```bash
 pnpm --filter api fixtures:curriculum                                  # regrava golden/<caso>/document.*
-pnpm --filter api test -- test/integration/007-us6-evaluation.spec.ts  # CI: respostas gravadas
-OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum                # sob demanda: OpenRouter, OPENROUTER_DEFAULT_MODEL
-OPENROUTER_API_KEY=... EVAL_RECORD=1 pnpm --filter api eval:curriculum  # também regrava recorded.json
+pnpm --filter api test test/integration/007-us6-evaluation.spec.ts  # CI: respostas gravadas
+OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum                                 # sob demanda: os candidatos BASIC do catálogo
+OPENROUTER_API_KEY=... EVAL_MODEL=anthropic-basic pnpm --filter api eval:curriculum      # só uma entrada do catálogo (qualquer nível)
+OPENROUTER_API_KEY=... EVAL_RECORD=1 EVAL_MODEL=anthropic-basic pnpm --filter api eval:curriculum  # grava a evidência
+OPENROUTER_API_KEY=... EVAL_REPLAY=1 EVAL_MODEL=anthropic-basic pnpm --filter api eval:curriculum  # regrava recorded.json
 ```
 
-Desde a 008 (`008/US1-4`, `008/FR-022`, `008/SC-009`), a avaliação sob demanda roda pelo
-OpenRouter contra o modelo principal de `OPENROUTER_DEFAULT_MODEL` e, quando definido, contra o de
-`OPENROUTER_FALLBACK_MODEL` (cada um como único modelo da rota), com os mesmos limiares da 007
-(`007/SC-005`, `007/SC-006`). Só as respostas do principal são gravadas em `recorded.json`.
-Trocar um desses modelos exige rodá-la de novo antes de habilitar o agente com ele.
+Desde a 009 (`009/FR-017`, contracts/catalog-and-quality-gate.md), a avaliação sob demanda é o
+portão de qualidade do catálogo: roda pelo OpenRouter contra as entradas de `model-catalog.ts` do
+nível e das famílias da tarefa `curriculum-extraction` (BASIC), cada uma como único modelo da
+rota, ou só contra a entrada de `EVAL_MODEL`. Com `EVAL_RECORD=1` grava, para cada modelo,
+`test/fixtures/evaluations/curriculum-extraction/<chave>.json`, passe ou não: a tarefa, o modelo
+pedido e o servido, a versão do conjunto, a data, as métricas do conjunto inteiro (`itemRecall`,
+`schemaValidity`, `unsupportedWithoutWarning`, `inventedFields`, `injectionClean`) e o custo
+informado pelo OpenRouter. Um modelo só atende a tarefa em produção com a evidência versionada, os
+limiares da tarefa atingidos e a aprovação no catálogo com as mesmas métricas e data
+(`test/security/009-quality-gate.spec.ts`); trocar o modelo de uma entrada exige avaliar de novo.
+As respostas gravadas (`recorded.json`, do CI) não servem de evidência.
 
-Para regravar: rode com `EVAL_RECORD=1`, revise o diff de cada `recorded.json` (o CI passa a
+Para regravar as respostas do CI: rode com `EVAL_REPLAY=1`, revise o diff de cada `recorded.json` (o CI passa a
 reproduzir essas respostas) e versione. Um caso novo ou um `expected.json` alterado é uma nova
 versão do caso (`version`), porque `ai_evaluation_cases` não aceita o mesmo caso com outro
 conteúdo.

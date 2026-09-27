@@ -51,8 +51,12 @@ const EXPECTED_MODELS = [
   "AiProposal",
   "AiEvaluationCase",
   "AiEvaluationResult",
-  // 008 — tasks routed to a primary and a fallback model config.
+  // 008 — tasks routed to a primary and a fallback model config (009: a model policy).
   "AiTask",
+  // 009 — model policy: approvals per model × task, the admin's override, budget alerts.
+  "AiModelTaskApproval",
+  "AiTaskOverride",
+  "AiBudgetAlert",
 ];
 
 /**

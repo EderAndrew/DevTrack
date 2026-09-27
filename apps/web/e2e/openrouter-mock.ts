@@ -9,9 +9,11 @@ import { API_DIR, OPENROUTER_MOCK_PORT } from "./env.ts";
  * leaving the machine. It replays the POO case of the golden set (`recorded.json`): a request with
  * no `tool` message asks for `read-curriculum-document` with the `documentId` of the context; one
  * with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
- * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`OPENROUTER_DEFAULT_MODEL`), so a
- * run with a fallback model exercises the fallback. Playwright starts it as a `webServer`
- * (`node e2e/openrouter-mock.ts`) before the API.
+ * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`MOCK_PRIMARY_MODEL`, by default
+ * the cheapest BASIC entry of the 009 catalog, the policy's primary once approved), so a run with a
+ * fallback model exercises the fallback. Any other model gets the recorded answer. Playwright starts it as a `webServer`
+ * (`node e2e/openrouter-mock.ts`) before the API. It also answers OpenRouter's decisions route
+ * (009 T023, `POST /api/alpha/decisions`) for a decision task run through the real adapter.
  */
 
 interface RecordedRun {
@@ -24,8 +26,8 @@ const recorded = JSON.parse(
 const toolKey = recorded.steps.flatMap((step) => ("toolCalls" in step ? step.toolCalls : []))[0]!.toolKey;
 const output = recorded.steps.flatMap((step) => ("output" in step ? [step.output] : []))[0];
 
-/** The API's default model when `OPENROUTER_DEFAULT_MODEL` is unset (apps/api config.schema.ts). */
-const PRIMARY_MODEL = process.env.OPENROUTER_DEFAULT_MODEL || "anthropic/claude-opus-5";
+/** The model `MOCK_PRIMARY_DOWN` takes down: `openai-basic` of apps/api `model-catalog.ts` by default. */
+const PRIMARY_MODEL = process.env.MOCK_PRIMARY_MODEL || "openai/gpt-6-luna";
 const PRIMARY_DOWN = process.env.MOCK_PRIMARY_DOWN === "1";
 
 interface ChatBody {
@@ -53,6 +55,31 @@ function answer(body: ChatBody) {
   return { ...base, choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(output) } }] };
 }
 
+interface DecisionBody {
+  model: string;
+  questions: Record<string, { type: "choice" | "score" | "noul"; criteria?: Record<string, string> | string[] }>;
+}
+
+/**
+ * Deterministic, confident answers (009 contracts/decisions-provider.md): the first option of a
+ * choice, the highest level of a score, "yes" for a yes/no. The wire carries only the values.
+ */
+function decide(body: DecisionBody) {
+  const answers = Object.fromEntries(
+    Object.entries(body.questions).map(([id, question]) => {
+      if (question.type === "noul") return [id, { noul: 0.9 }];
+      if (question.type === "score") {
+        const levels = Array.isArray(question.criteria) ? question.criteria : [];
+        const top = Math.max(levels.length - 1, 0);
+        return [id, { score: top, probabilities: Object.fromEntries(levels.map((level, i) => [level, i === top ? 0.95 : 0.05 / top])), legend: levels[top], confidence: 0.95 }];
+      }
+      const options = Object.keys(question.criteria ?? {});
+      return [id, { choice: options[0], probabilities: Object.fromEntries(options.map((option, i) => [option, i === 0 ? 0.95 : 0.05 / (options.length - 1)])), confidence: 0.95 }];
+    }),
+  );
+  return { id: `dec-e2e-${Date.now()}`, model: body.model, provider: "TypeSafe", answers, usage: { input_tokens: 600, output_tokens: 3, cost: 0.00003 } };
+}
+
 /** Starts the mock on `port`; resolves once it listens. */
 export function startOpenRouterMock(port: number): Promise<Server> {
   const server = createServer(async (req, res) => {
@@ -67,6 +94,7 @@ export function startOpenRouterMock(port: number): Promise<Server> {
       if (PRIMARY_DOWN && body.model === PRIMARY_MODEL) return send(503, { error: { code: 503, message: "mock: primary down" } });
       return send(200, answer(body));
     }
+    if (req.method === "POST" && path === "/api/alpha/decisions") return send(200, decide(JSON.parse(await readBody(req)) as DecisionBody));
     send(404, { error: { code: 404, message: "mock" } });
   });
   return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));

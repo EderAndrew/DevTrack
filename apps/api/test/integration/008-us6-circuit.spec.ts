@@ -1,17 +1,23 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DEFAULT_MODEL_CONFIG_KEY, FALLBACK_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
-import { AI_DEFINITIONS, defineAgent, defineModelConfig, defineTask } from "../../src/modules/ai/definitions/types";
+import { AI_DEFINITIONS, defineAgent } from "../../src/modules/ai/definitions/types";
 import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { fakeError, fakeOutput, FakeModelProvider } from "../fixtures/ai/fake-model-provider";
 import { REFERENCE_L1 } from "../fixtures/ai/reference-agents";
+import { routedTask } from "../fixtures/ai/tasks";
 import { drain, requestExecution, resetAiDb } from "../helpers/ai";
-import { curriculumTestDefinitions, getCurriculumAiStatus, seedProcessedDocument, TEST_CURRICULUM_MODEL_CONFIG } from "../helpers/curriculum-ai";
+import {
+  curriculumTestDefinitions,
+  getCurriculumAiStatus,
+  seedProcessedDocument,
+  TEST_CURRICULUM_FALLBACK_CONFIG,
+  TEST_CURRICULUM_MODEL_CONFIG,
+} from "../helpers/curriculum-ai";
 import { createSubject, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, type TestApp, testConfig } from "../helpers/test-app";
 
 /** One logical call per execution, so each execution is one leg on the primary's circuit. */
-const ROUTED_TASK = defineTask({ key: "circuit-task", primaryModelConfigKey: "fake-default", fallbackModelConfigKey: "fake-alt", maxOutputTokens: 1000, timeoutMs: 30_000 });
+const ROUTED_TASK = routedTask({ key: "circuit-task", maxOutputTokens: 1000, timeoutMs: 30_000 }, ["fake-default", "fake-alt"]);
 const ROUTED_AGENT = defineAgent({
   ...REFERENCE_L1,
   key: "circuit-agent",
@@ -19,7 +25,9 @@ const ROUTED_AGENT = defineAgent({
   taskKey: ROUTED_TASK.key,
   prompt: { ...REFERENCE_L1.prompt, key: "circuit-agent" },
 });
-const CURRICULUM_FALLBACK = defineModelConfig({ ...TEST_CURRICULUM_MODEL_CONFIG, key: FALLBACK_MODEL_CONFIG_KEY, model: "openai/gpt-5.5" });
+/** The analysis's primary and, with a second approved BASIC model, its fallback (009 FR-012). */
+const CURRICULUM_PRIMARY = TEST_CURRICULUM_MODEL_CONFIG;
+const CURRICULUM_FALLBACK = TEST_CURRICULUM_FALLBACK_CONFIG;
 
 describe("008/US6 circuito aberto por configuração de modelo", () => {
   const provider = new FakeModelProvider();
@@ -33,10 +41,7 @@ describe("008/US6 circuito aberto por configuração de modelo", () => {
   beforeAll(async () => {
     const definitions = curriculumTestDefinitions(provider);
     definitions.agents = [...definitions.agents, ROUTED_AGENT];
-    definitions.tasks = [
-      ...definitions.tasks.map((task) => (task.key === "curriculum-extraction" ? { ...task, fallbackModelConfigKey: CURRICULUM_FALLBACK.key } : task)),
-      ROUTED_TASK,
-    ];
+    definitions.tasks = [...definitions.tasks, ROUTED_TASK];
     definitions.modelConfigs = [...definitions.modelConfigs, CURRICULUM_FALLBACK];
     const base = testConfig();
     t = await createTestApp({
@@ -145,15 +150,15 @@ describe("008/US6 circuito aberto por configuração de modelo", () => {
     const { document } = await seedProcessedDocument(t, teacher.id);
     const status = async () => (await getCurriculumAiStatus(t, cookie, document.id)).body.availability;
 
-    await openFor({ key: DEFAULT_MODEL_CONFIG_KEY, provider: "fake", model: TEST_CURRICULUM_MODEL_CONFIG.model });
+    await openFor({ key: CURRICULUM_PRIMARY.key, provider: "fake", model: TEST_CURRICULUM_MODEL_CONFIG.model });
     const health = (await ops.get("/api/ai/operations/health")).body as { modelConfigs: { key: string; circuit: string }[] };
     const circuitOf = (key: string) => health.modelConfigs.find((config) => config.key === key)?.circuit;
-    expect(circuitOf(DEFAULT_MODEL_CONFIG_KEY)).toBe("OPEN");
-    expect(circuitOf(FALLBACK_MODEL_CONFIG_KEY)).toBe("CLOSED");
+    expect(circuitOf(CURRICULUM_PRIMARY.key)).toBe("OPEN");
+    expect(circuitOf(CURRICULUM_FALLBACK.key)).toBe("CLOSED");
     // The fallback still takes calls: past the model check (the test worker's timer is off, so PAUSED).
     expect(await status()).toBe("PAUSED");
 
-    await openFor({ key: FALLBACK_MODEL_CONFIG_KEY, provider: "fake", model: CURRICULUM_FALLBACK.model });
+    await openFor({ key: CURRICULUM_FALLBACK.key, provider: "fake", model: CURRICULUM_FALLBACK.model });
     expect(await status()).toBe("MODEL_UNAVAILABLE");
   });
 

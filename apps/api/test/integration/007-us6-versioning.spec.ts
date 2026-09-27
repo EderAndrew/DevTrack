@@ -3,7 +3,6 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import type { AgentDefinition } from "../../src/modules/ai/definitions/types";
 import { AiRegistryError } from "../../src/modules/ai/registry/ai-definitions.check";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
-import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
 import { CURRICULUM_AGENT_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { type AiTestApp, drain, resetAiDb } from "../helpers/ai";
@@ -24,7 +23,7 @@ const registered = (t: TestApp) =>
   t.prisma.aiAgent.findUniqueOrThrow({
     where: { key: CURRICULUM_AGENT_KEY },
     include: {
-      versions: { orderBy: { version: "asc" }, include: { promptVersion: true, outputSchema: true, task: { include: { primaryModelConfig: true } }, tools: { include: { tool: true } } } },
+      versions: { orderBy: { version: "asc" }, include: { promptVersion: true, outputSchema: true, task: true, tools: { include: { tool: true } } } },
     },
   });
 
@@ -58,7 +57,8 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
     });
     expect(v1.promptVersion).toMatchObject({ key: "curriculum-extraction", version: 1 });
     expect(v1.outputSchema).toMatchObject({ version: 1 });
-    expect(v1.task).toMatchObject({ key: "curriculum-extraction", primaryModelConfig: { key: DEFAULT_MODEL_CONFIG_KEY, provider: "openrouter" } });
+    // 009: the task carries the model policy (BASIC, research H12), never a model.
+    expect(v1.task).toMatchObject({ key: "curriculum-extraction", preferredTier: "BASIC", policy: { preferredTier: "BASIC", maxTier: "STANDARD" } });
     expect(v1.tools.map((entry) => entry.tool.key)).toEqual([READ_CURRICULUM_DOCUMENT]);
     // Nothing else is registered in production: no reference agent, no other tool.
     expect((await t.prisma.aiAgent.findMany({ select: { key: true } })).map((row) => row.key)).toEqual([CURRICULUM_AGENT_KEY]);

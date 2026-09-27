@@ -8,9 +8,8 @@ import type {
   SyllabusExtraction,
 } from "@repo/contracts";
 import type { Prisma, SyllabusDocument, Subject } from "../../src/generated/prisma/client";
-import { type AgentDefinition, type AiDefinitions, defineAgent, defineModelConfig } from "../../src/modules/ai/definitions/types";
-import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
-import { CURRICULUM_AGENT, curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { type AgentDefinition, type AiDefinitions, type CatalogModel, defineAgent, defineCatalogModel } from "../../src/modules/ai/definitions/types";
+import { CURRICULUM_AGENT, CURRICULUM_EXTRACTION_TASK, curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { itemIdsOf } from "../../src/modules/curriculum-ai/proposal/item-ids";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
@@ -22,21 +21,55 @@ import { api, type TestApp, type TestAppOptions } from "./test-app";
 /** The real `curriculum-agent`, registered ACTIVE: its availability tests disable it through the admin route. */
 export const TEST_CURRICULUM_AGENT = defineAgent({ ...CURRICULUM_AGENT, initialStatus: "ACTIVE" });
 
-/** The default model of production (`OPENROUTER_DEFAULT_MODEL`). */
-export const CURRICULUM_TEST_MODEL = "anthropic/claude-opus-5";
+/** The model of the BASIC catalog entry the analysis runs on in the tests. */
+export const CURRICULUM_TEST_MODEL = "anthropic/claude-haiku-4.5";
+
+/** Metrics meeting every threshold of `curriculum-extraction` (009 contracts/catalog-and-quality-gate.md). */
+export const PASSING_CURRICULUM_METRICS = { ...CURRICULUM_EXTRACTION_TASK.quality };
+
+/** A BASIC catalog entry approved for `curriculum-extraction`, on the fake provider (006/SC-011). */
+export const curriculumTestModel = (entry: Pick<CatalogModel, "key" | "family" | "model"> & Partial<CatalogModel>): CatalogModel =>
+  defineCatalogModel({
+    provider: "fake",
+    tier: "BASIC",
+    mode: "GENERATION",
+    lifecycle: "PRODUCTION",
+    initialStatus: "ENABLED",
+    maxOutputTokens: 32_000,
+    timeoutMs: 60_000,
+    contextWindow: 200_000,
+    capabilities: { structuredOutput: true, tools: true, vision: true, reasoning: true },
+    approvals: [
+      {
+        taskKey: CURRICULUM_EXTRACTION_TASK.key,
+        metrics: PASSING_CURRICULUM_METRICS,
+        evaluatedAt: "2026-09-27T00:00:00.000Z",
+        evidence: "apps/api/test/helpers/curriculum-ai.ts",
+      },
+    ],
+    ...entry,
+  });
 
 /**
- * The config the agent's task routes to, on the fake provider (006/SC-011): the key and model of
- * production, with a reference price so the cost is computed (007/FR-047).
+ * The model the policy picks for the agent's task (009 T014): the only approved BASIC entry of
+ * the test catalog, with a reference price so the cost is computed (007/FR-047).
  */
-export const TEST_CURRICULUM_MODEL_CONFIG = defineModelConfig({
-  key: DEFAULT_MODEL_CONFIG_KEY,
-  provider: "fake",
+export const TEST_CURRICULUM_MODEL_CONFIG = curriculumTestModel({
+  key: "anthropic-basic",
+  family: "anthropic",
   model: CURRICULUM_TEST_MODEL,
-  initialStatus: "ENABLED",
-  maxOutputTokens: 32_000,
-  timeoutMs: 60_000,
   price: { inputPerMTok: "5", outputPerMTok: "25", currency: "USD" },
+});
+
+/**
+ * A second approved BASIC entry, of another family and pricier, so the policy makes it the
+ * fallback (009 FR-012): what the 008 suites called the configured fallback.
+ */
+export const TEST_CURRICULUM_FALLBACK_CONFIG = curriculumTestModel({
+  key: "openai-basic",
+  family: "openai",
+  model: "openai/gpt-5.5",
+  price: { inputPerMTok: "6", outputPerMTok: "30", currency: "USD" },
 });
 
 /**
@@ -68,6 +101,7 @@ export function curriculumTestDefinitions(provider: FakeModelProvider, agent: Ag
     tools: [...base.tools, ...curriculum.tools],
     modelConfigs: [...base.modelConfigs, TEST_CURRICULUM_MODEL_CONFIG],
     tasks: [...base.tasks, ...curriculum.tasks],
+    families: base.families,
     providers: base.providers,
     resources: { ...base.resources, ...curriculum.resources },
   };

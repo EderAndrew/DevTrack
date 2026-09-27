@@ -2,16 +2,24 @@ import { z } from "zod";
 import { defineAgent, defineTask } from "../../../src/modules/ai/definitions/types";
 
 /**
- * A new agent as 008/US7 asks for it (008 contracts/gateway-routing.md): its task (routing and
- * generation settings), its versioned instructions, its output schema and its tools. Everything
+ * A new agent as 008/US7 asks for it (008 contracts/gateway-routing.md): its task (model policy
+ * and generation settings), its versioned instructions, its output schema and its tools. Everything
  * else (provider, credential, retries, fallback, circuit, usage, cost, logs, audit) comes from the
  * gateway: this file imports only the definition helpers. Registered only by the suites that use
  * it (`createAiTestApp({ agents, tasks })`), so the 006 reference lists stay as they are.
  */
 export const REFERENCE_ROUTED_TASK = defineTask({
   key: "reference-routed",
-  primaryModelConfigKey: "fake-default",
-  fallbackModelConfigKey: "fake-alt",
+  // The model policy (009): the cheapest approved BASIC model of the test family, with a fallback of the same tier.
+  mode: "GENERATION",
+  minimumTier: "BASIC",
+  preferredTier: "BASIC",
+  allowedFamilies: ["fake"],
+  requiredCapabilities: ["structuredOutput"],
+  fallback: "SAME_TIER",
+  escalation: "NONE",
+  quality: { schemaValidity: 1 },
+  typicalUsage: { inputTokens: 0, outputTokens: 0 },
   parameters: { temperature: 0 },
   maxOutputTokens: 1000,
   timeoutMs: 30_000,

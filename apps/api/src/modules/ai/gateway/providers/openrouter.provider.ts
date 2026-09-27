@@ -1,4 +1,14 @@
-import type { ModelProvider, ModelRequest, ModelResponse, ModelToolCall, ModelUsage, ProviderHealth } from "../../definitions/types";
+import type {
+  DecisionAnswer,
+  DecisionRequest,
+  DecisionResponse,
+  ModelProvider,
+  ModelRequest,
+  ModelResponse,
+  ModelToolCall,
+  ModelUsage,
+  ProviderHealth,
+} from "../../definitions/types";
 import { ProviderError, type ProviderErrorCategory } from "../provider-errors";
 import { sanitizeJsonSchema } from "./json-schema-sanitize";
 
@@ -28,6 +38,14 @@ interface Completion {
   error?: { code?: unknown; metadata?: unknown };
 }
 
+/** The body of `POST /api/alpha/decisions` (009 contracts/decisions-provider.md). */
+interface Decisions {
+  model?: unknown;
+  answers?: unknown;
+  usage?: { input_tokens?: unknown; output_tokens?: unknown; cost?: unknown };
+  error?: { code?: unknown; metadata?: unknown };
+}
+
 /**
  * Maps an HTTP status (or the `error.code` of a 200 body) to the gateway's category (008 research
  * G13). Only the number and whether moderation metadata exist are read, never the message.
@@ -52,11 +70,14 @@ export class OpenRouterProvider implements ModelProvider {
   readonly key = "openrouter";
   readonly #apiKey: string;
   readonly #baseUrl: string;
+  /** The decisions route lives outside `/api/v1` (009 research H10). */
+  readonly #origin: string;
   readonly #fetch: typeof fetch;
 
   constructor(options: OpenRouterProviderOptions) {
     this.#apiKey = options.apiKey;
     this.#baseUrl = (options.baseUrl ?? OPENROUTER_BASE_URL).replace(/\/+$/, "");
+    this.#origin = new URL(this.#baseUrl).origin;
     this.#fetch = options.fetch ?? fetch;
   }
 
@@ -66,6 +87,35 @@ export class OpenRouterProvider implements ModelProvider {
 
   generateStructured(request: ModelRequest, jsonSchema: object, signal: AbortSignal): Promise<ModelResponse> {
     return this.send(request, jsonSchema, signal);
+  }
+
+  /**
+   * Decision mode (009 FR-001a, contracts/decisions-provider.md): the state and the questions,
+   * nothing that identifies the teacher. Each answer takes the asked question's type; the gateway
+   * validates the values. Errors as in `generate`, plus 524 (edge timeout) as `TIMEOUT`.
+   */
+  async decide(request: DecisionRequest, signal: AbortSignal): Promise<DecisionResponse> {
+    const payload = JSON.stringify({ model: request.model, state: request.state, questions: request.questions });
+    let status: number;
+    let body: Decisions;
+    try {
+      const res = await this.#fetch(`${this.#origin}/api/alpha/decisions`, { method: "POST", headers: this.headers(), body: payload, signal });
+      status = res.status;
+      body = (await res.json().catch(() => null)) as Decisions;
+    } catch {
+      throw new ProviderError("UNAVAILABLE");
+    }
+    const category = (code: number) => (code === 524 ? "TIMEOUT" : openRouterErrorCategory(code, isModerated(body)));
+    if (status !== 200) throw new ProviderError(category(status));
+    if (!body || typeof body !== "object") throw new ProviderError("UNKNOWN");
+    if (body.error) throw new ProviderError(typeof body.error.code === "number" ? category(body.error.code) : "UNKNOWN");
+    if (!body.answers || typeof body.answers !== "object" || Array.isArray(body.answers)) throw new ProviderError("UNKNOWN");
+    const servedModel = typeof body.model === "string" ? body.model : null;
+    if (servedModel !== null && !servedModel.startsWith(request.model)) throw new ProviderError("UNKNOWN");
+    const answers = Object.fromEntries(
+      Object.entries(body.answers as Record<string, unknown>).map(([id, answer]) => [id, decisionAnswer(answer, request.questions[id]?.type)]),
+    );
+    return { answers, usage: decisionUsage(body.usage), servedModel };
   }
 
   async healthCheck(signal: AbortSignal): Promise<ProviderHealth> {
@@ -104,7 +154,7 @@ export class OpenRouterProvider implements ModelProvider {
   }
 }
 
-function isModerated(completion: Completion | null): boolean {
+function isModerated(completion: Completion | Decisions | null): boolean {
   const metadata = completion?.error?.metadata;
   return typeof metadata === "object" && metadata !== null && "reasons" in metadata;
 }
@@ -206,4 +256,30 @@ function toResponse(completion: Completion, requestedModel: string): ModelRespon
   if (choice.finish_reason !== "stop") return { kind: "output", text: "", usage, servedModel };
   const content = choice.message?.content;
   return { kind: "output", text: typeof content === "string" ? content : "", usage, servedModel };
+}
+
+/**
+ * One decision answer under the asked type (the wire carries only the values); an id nobody asked
+ * keeps the wire's `type`, if any, so the gateway refuses it. Only the known fields are kept.
+ */
+function decisionAnswer(raw: unknown, askedType: DecisionAnswer["type"] | undefined): DecisionAnswer {
+  const answer = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const type = (askedType ?? answer.type) as DecisionAnswer["type"];
+  if (type === "noul") return { type, noul: answer.noul as number };
+  const common = { probabilities: answer.probabilities as Record<string, number>, confidence: answer.confidence as number };
+  if (type === "score") return { type, score: answer.score as number, ...common };
+  return { type, choice: answer.choice as string, ...common };
+}
+
+function decisionUsage(usage: Decisions["usage"]): ModelUsage | null {
+  if (!usage || typeof usage !== "object") return null;
+  const input = count(usage.input_tokens);
+  const output = count(usage.output_tokens);
+  const cost = count(usage.cost);
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    totalTokens: input !== null && output !== null ? input + output : null,
+    cost: cost === null ? null : { amount: String(cost), currency: "USD" },
+  };
 }

@@ -9,9 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useAiMetrics } from "../hooks/use-ai-operations";
 import { AiAgentsTable } from "./ai-agents-table";
+import { AiBudgetsTable } from "./ai-budgets-table";
+import { AiCostBreakdown } from "./ai-cost-breakdown";
 import { AiHealthTable } from "./ai-health-table";
 import { AiMetricsTable } from "./ai-metrics-table";
 import { AiModelConfigsTable } from "./ai-model-configs-table";
+import { AiModelsTable } from "./ai-models-table";
+import { AiTasksTable } from "./ai-tasks-table";
 import { AiUsageTable } from "./ai-usage-table";
 
 const PERIODS: Record<AiMetricsPeriod, string> = {
@@ -22,7 +26,9 @@ const PERIODS: Record<AiMetricsPeriod, string> = {
 
 /**
  * "Operação de IA" (006 US7, contracts/web-ui.md): health, indicators, usage and cost, agents and
- * model configs. Only aggregates and configuration reach this screen — never teachers' content.
+ * model configs; since 009 (US6) the cost by task, tier and family, the task policies with the
+ * model chosen now, and the model catalog with quality next to cost; the budgets (US8). Only aggregates and
+ * configuration reach this screen — never teachers' content.
  */
 export function AiOperationsPage({ canManage }: { canManage: boolean }) {
   const [period, setPeriod] = useState<AiMetricsPeriod>("7d");
@@ -59,8 +65,20 @@ export function AiOperationsPage({ canManage }: { canManage: boolean }) {
 
       <section aria-labelledby="ia-uso">
         <h2 id="ia-uso">Uso e custo</h2>
-        {metrics.isPending ? <Skeleton className="h-24 w-full" /> : metrics.data ? <AiUsageTable rows={metrics.data.byModel} /> : null}
+        {metrics.isPending ? (
+          <Skeleton className="h-24 w-full" />
+        ) : metrics.data ? (
+          <div className="flex flex-col gap-4">
+            <AiUsageTable rows={metrics.data.byModel} />
+            <AiCostBreakdown byTask={metrics.data.byTask} byTier={metrics.data.byTier} byFamily={metrics.data.byFamily} />
+          </div>
+        ) : null}
       </section>
+
+      <AiBudgetsTable budgets={metrics.data?.budgets} />
+
+      <AiTasksTable canManage={canManage} />
+      <AiModelsTable period={period} />
 
       <AiAgentsTable canManage={canManage} />
       <AiModelConfigsTable canManage={canManage} />

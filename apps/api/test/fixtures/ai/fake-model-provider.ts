@@ -1,4 +1,13 @@
-import type { ModelProvider, ModelRequest, ModelResponse, ModelToolCall, ModelUsage, ProviderHealth } from "../../../src/modules/ai/definitions/types";
+import type {
+  DecisionRequest,
+  DecisionResponse,
+  ModelProvider,
+  ModelRequest,
+  ModelResponse,
+  ModelToolCall,
+  ModelUsage,
+  ProviderHealth,
+} from "../../../src/modules/ai/definitions/types";
 import { ProviderError, type ProviderErrorCategory } from "../../../src/modules/ai/gateway/provider-errors";
 
 /**
@@ -30,6 +39,18 @@ export const fakeDelay = (ms: number, then: FakeStep): FakeStep => ({ ...then, d
 export const fakeServedModel = (model: string | null, then: FakeStep): FakeStep => ({ ...then, servedModel: model });
 export const fakeCost = (amount: string, then: FakeStep, currency = "USD"): FakeStep => ({ ...then, cost: { amount, currency } });
 
+/** One programmed answer of `decide` (009 research H10): the answers, or a provider error. */
+export type FakeDecisionStep = ({ answers: DecisionResponse["answers"] } | { error: ProviderErrorCategory }) & {
+  servedModel?: string | null;
+  cost?: { amount: string; currency: string };
+};
+
+export const fakeDecision = (answers: DecisionResponse["answers"], extra: Partial<Omit<FakeDecisionStep, "answers" | "error">> = {}): FakeDecisionStep => ({
+  answers,
+  ...extra,
+});
+export const fakeDecisionError = (category: ProviderErrorCategory): FakeDecisionStep => ({ error: category });
+
 const DEFAULT_USAGE: ModelUsage = { inputTokens: 120, outputTokens: 30, totalTokens: 150 };
 
 /** A credential the fake "holds", so scans can prove it never leaks (006/SC-007). */
@@ -49,10 +70,13 @@ interface Script {
 export class FakeModelProvider implements ModelProvider {
   readonly requests: ModelRequest[] = [];
   readonly structuredSchemas: object[] = [];
+  /** Every decision request (009), apart from the generation ones. */
+  readonly decisionRequests: DecisionRequest[] = [];
   health: ProviderHealth = "UP";
   private scripts: Script[] = [];
   private byModel = new Map<string, FakeStep[]>();
   private defaults: FakeStep[] = [];
+  private decisions: FakeDecisionStep[] = [];
   /** Held like a real provider would hold its key; never returned, logged nor thrown. */
   private readonly credential: string;
 
@@ -84,8 +108,16 @@ export class FakeModelProvider implements ModelProvider {
     return this;
   }
 
+  /** Steps of `decide`; the last one repeats. */
+  scriptDecisions(...steps: FakeDecisionStep[]): this {
+    this.decisions = [...steps];
+    return this;
+  }
+
   reset(): void {
     this.requests.length = 0;
+    this.decisionRequests.length = 0;
+    this.decisions = [];
     this.structuredSchemas.length = 0;
     this.scripts = [];
     this.byModel.clear();
@@ -100,6 +132,16 @@ export class FakeModelProvider implements ModelProvider {
   generateStructured(request: ModelRequest, jsonSchema: object, signal: AbortSignal): Promise<ModelResponse> {
     this.structuredSchemas.push(jsonSchema);
     return this.answer(request, signal);
+  }
+
+  /** Decision mode (009 contracts/decisions-provider.md); without a script, `UNKNOWN`. */
+  async decide(request: DecisionRequest): Promise<DecisionResponse> {
+    this.decisionRequests.push(structuredClone(request));
+    if (this.decisions.length === 0) throw new ProviderError("UNKNOWN");
+    const step = this.decisions.length > 1 ? this.decisions.shift()! : this.decisions[0]!;
+    if ("error" in step) throw new ProviderError(step.error);
+    const usage: ModelUsage = { inputTokens: 600, outputTokens: 3, totalTokens: 603, cost: step.cost ?? null };
+    return { answers: step.answers, usage, servedModel: step.servedModel === undefined ? request.model : step.servedModel };
   }
 
   async healthCheck(): Promise<ProviderHealth> {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ModelRequest } from "../../definitions/types";
+import type { DecisionRequest, ModelRequest } from "../../definitions/types";
 import { ProviderError } from "../provider-errors";
 import { OPENROUTER_BASE_URL, OpenRouterProvider } from "./openrouter.provider";
 
@@ -345,5 +345,105 @@ describe("008/FR-004 OpenRouterProvider — healthCheck", () => {
 
   it("DOWN com erro de rede", async () => {
     expect(await provider(() => Promise.reject(new TypeError("fetch failed"))).healthCheck(signal())).toBe("DOWN");
+  });
+});
+
+describe("009/FR-001a OpenRouterProvider — decide (contracts/decisions-provider.md)", () => {
+  const DECISION: DecisionRequest = {
+    model: "typesafe/jev-1.13",
+    state: "<<ESTADO-NAO-CONFIAVEL>>",
+    questions: {
+      kind: { type: "choice", instructions: "Which kind?", criteria: { bug: "A defect", feature: "A new capability" } },
+      urgency: { type: "score", instructions: "How urgent?", criteria: ["low", "medium", "high"] },
+      reply: { type: "noul", instructions: "Needs a reply?", criteria: { true: "yes", false: "no" } },
+    },
+  };
+  const decision = (extra: Record<string, unknown> = {}) => ({
+    id: "dec-teste",
+    model: "typesafe/jev-1.13-20260917",
+    provider: "TypeSafe",
+    answers: {
+      kind: { choice: "bug", probabilities: { bug: 0.9, feature: 0.1 }, confidence: 0.9 },
+      urgency: { score: 1.4, probabilities: { low: 0.1, medium: 0.5, high: 0.4 }, legend: "medium", confidence: 0.8 },
+      reply: { noul: 0.84 },
+    },
+    usage: { input_tokens: 685, output_tokens: 3, cost: 0.00002877 },
+    ...extra,
+  });
+  const decideWith = (answer: Answer, baseUrl: string | null = BASE_URL) => provider(answer, baseUrl).decide!(DECISION, signal());
+
+  it("009/US1-4 POST {origin}/api/alpha/decisions só com model, state e questions, com a chave no cabeçalho", async () => {
+    await decideWith(json(200, decision()));
+    const [request] = received;
+    expect(request!.url).toBe("http://127.0.0.1:9/api/alpha/decisions");
+    expect(request!.method).toBe("POST");
+    expect(request!.headers.authorization).toBe(`Bearer ${FAKE_KEY}`);
+    expect(request!.body).toEqual({ model: DECISION.model, state: DECISION.state, questions: DECISION.questions });
+    for (const field of ["user", "session_id", "trace"]) expect(request!.body).not.toHaveProperty(field);
+  });
+
+  it("em produção usa a origem do OpenRouter", async () => {
+    await decideWith(json(200, decision()), null);
+    expect(received[0]!.url).toBe(`${new URL(OPENROUTER_BASE_URL).origin}/api/alpha/decisions`);
+  });
+
+  it("mapeia choice, score e noul pelo tipo perguntado, o uso com o custo e o modelo servido", async () => {
+    const response = await decideWith(json(200, decision()));
+    expect(response).toEqual({
+      answers: {
+        kind: { type: "choice", choice: "bug", probabilities: { bug: 0.9, feature: 0.1 }, confidence: 0.9 },
+        urgency: { type: "score", score: 1.4, probabilities: { low: 0.1, medium: 0.5, high: 0.4 }, confidence: 0.8 },
+        reply: { type: "noul", noul: 0.84 },
+      },
+      usage: { inputTokens: 685, outputTokens: 3, totalTokens: 688, cost: { amount: "0.00002877", currency: "USD" } },
+      servedModel: "typesafe/jev-1.13-20260917",
+    });
+  });
+
+  it("sem uso informado → usage null; sem modelo informado → servedModel null", async () => {
+    const response = await decideWith(json(200, decision({ usage: undefined, model: undefined })));
+    expect(response).toMatchObject({ usage: null, servedModel: null });
+  });
+
+  it("modelo servido que não começa pelo pedido → UNKNOWN", async () => {
+    const error = await decideWith(json(200, decision({ model: "openai/gpt-6-luna" }))).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).category).toBe("UNKNOWN");
+  });
+
+  it("corpo sem answers → UNKNOWN", async () => {
+    const error = await decideWith(json(200, { model: "typesafe/jev-1.13" })).catch((e: unknown) => e);
+    expect((error as ProviderError).category).toBe("UNKNOWN");
+  });
+
+  it.each([
+    [400, "INVALID_REQUEST"],
+    [404, "INVALID_REQUEST"],
+    [413, "INVALID_REQUEST"],
+    [422, "INVALID_REQUEST"],
+    [401, "AUTH"],
+    [402, "AUTH"],
+    [403, "AUTH"],
+    [408, "TIMEOUT"],
+    [524, "TIMEOUT"],
+    [429, "RATE_LIMITED"],
+    [500, "UNAVAILABLE"],
+    [502, "UNAVAILABLE"],
+    [503, "UNAVAILABLE"],
+    [529, "UNAVAILABLE"],
+  ])("HTTP %d → %s, sem mensagem, estado nem chave", async (status, category) => {
+    const error = await decideWith(json(status, { error: { code: status, message: PROVIDER_SECRET } })).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).category).toBe(category);
+    const serialized = `${(error as Error).message} ${(error as Error).stack} ${JSON.stringify(error)}`;
+    for (const secret of [PROVIDER_SECRET, FAKE_KEY, "ESTADO-NAO-CONFIAVEL"]) expect(serialized).not.toContain(secret);
+    expect(received).toHaveLength(1);
+  });
+
+  it("erro dentro de um corpo 200 e falha de rede", async () => {
+    const inBody = await decideWith(json(200, { error: { code: 429, message: PROVIDER_SECRET } })).catch((e: unknown) => e);
+    expect((inBody as ProviderError).category).toBe("RATE_LIMITED");
+    const network = await decideWith(() => Promise.reject(new TypeError(`fetch failed ${PROVIDER_SECRET}`))).catch((e: unknown) => e);
+    expect((network as ProviderError).category).toBe("UNAVAILABLE");
   });
 });

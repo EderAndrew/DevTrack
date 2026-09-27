@@ -1,6 +1,6 @@
 "use client";
 
-import type { AiMetricsPeriod, ChangeAiAgentStatusRequest, ChangeAiModelConfigStatusRequest } from "@repo/contracts";
+import type { AiMetricsPeriod, ChangeAiAgentStatusRequest, ChangeAiModelConfigStatusRequest, TaskOverrideRequest } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { aiOperationsApi } from "../api/ai-operations";
@@ -11,6 +11,8 @@ export const aiOperationsKeys = {
   metrics: (period: AiMetricsPeriod) => [...aiOperationsKeys.all, "metrics", period] as const,
   agents: () => [...aiOperationsKeys.all, "agents"] as const,
   modelConfigs: () => [...aiOperationsKeys.all, "model-configs"] as const,
+  models: (period: AiMetricsPeriod) => [...aiOperationsKeys.all, "models", period] as const,
+  tasks: () => [...aiOperationsKeys.all, "tasks"] as const,
 };
 
 export const useAiHealth = () => useQuery({ queryKey: aiOperationsKeys.health(), queryFn: aiOperationsApi.health });
@@ -21,6 +23,11 @@ export const useAiMetrics = (period: AiMetricsPeriod) =>
 export const useAiAgents = () => useQuery({ queryKey: aiOperationsKeys.agents(), queryFn: aiOperationsApi.agents });
 
 export const useAiModelConfigs = () => useQuery({ queryKey: aiOperationsKeys.modelConfigs(), queryFn: aiOperationsApi.modelConfigs });
+
+export const useAiModels = (period: AiMetricsPeriod) =>
+  useQuery({ queryKey: aiOperationsKeys.models(period), queryFn: () => aiOperationsApi.models(period) });
+
+export const useAiTasks = () => useQuery({ queryKey: aiOperationsKeys.tasks(), queryFn: aiOperationsApi.tasks });
 
 /** Enables or disables an agent; the toast says the result and every AI operations list refetches. */
 export function useChangeAiAgentStatus() {
@@ -46,6 +53,32 @@ export function useChangeAiModelConfigStatus() {
         variant: "success",
         title: config.status === "DISABLED" ? `Configuração ${config.key} desabilitada.` : `Configuração ${config.key} habilitada.`,
       });
+      await queryClient.invalidateQueries({ queryKey: aiOperationsKeys.all });
+    },
+  });
+}
+
+/** Fixes a model for a task (009/US7); the toast names both and every AI operations list refetches. */
+export function useSetAiTaskOverride() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ key, modelConfigKey }: { key: string } & TaskOverrideRequest) => aiOperationsApi.setTaskOverride(key, { modelConfigKey }),
+    onSuccess: async (task) => {
+      toast({ variant: "success", title: `Modelo ${task.override?.modelConfigKey ?? ""} fixado para a tarefa ${task.key}.` });
+      await queryClient.invalidateQueries({ queryKey: aiOperationsKeys.all });
+    },
+  });
+}
+
+/** Removes a task's override: the policy chooses again. */
+export function useRemoveAiTaskOverride() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (key: string) => aiOperationsApi.removeTaskOverride(key),
+    onSuccess: async (task) => {
+      toast({ variant: "success", title: `A tarefa ${task.key} voltou à escolha da política.` });
       await queryClient.invalidateQueries({ queryKey: aiOperationsKeys.all });
     },
   });

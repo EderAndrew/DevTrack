@@ -1,4 +1,4 @@
-import type { AiAgentOperationsView, AiHealth, AiMetrics, AiModelConfigView } from "@repo/contracts";
+import type { AiAgentOperationsView, AiHealth, AiMetrics, AiModelCatalogView, AiModelConfigView, AiTaskPolicyView } from "@repo/contracts";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,11 +21,53 @@ const METRICS: AiMetrics = {
   from: "2026-09-18T12:00:00.000Z",
   to: "2026-09-25T12:00:00.000Z",
   byAgent: [
-    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", taskKey: "tarefa-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, fallbacks: 2, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4,
+    { agentKey: "agente-a", agentVersion: 2, promptVersion: 3, provider: "prov", model: "modelo-a", taskKey: "tarefa-a", executions: 10, completed: 7, failed: 1, timedOut: 1, cancelled: 1, fallbacks: 2, escalations: 1, avgDurationMs: 1500, modelCalls: 12, toolCalls: 4,
       outputInvalid: 1, proposals: { created: 4, approved: 2, partiallyApproved: 1, rejected: 1, expired: 0 }, avgTotalTokens: 2400, avgEstimatedCost: "0.012500", currency: "USD" },
   ],
-  byModel: [{ provider: "prov", model: "modelo-a", calls: 12, failedCalls: 3, fallbackCalls: 2, avgDurationMs: 800, inputTokens: null, outputTokens: 300, totalTokens: null, estimatedCost: null, currency: null }],
+  byModel: [{ provider: "prov", model: "modelo-a", tier: "BASIC", family: "anthropic", calls: 12, failedCalls: 3, fallbackCalls: 2, avgDurationMs: 800, inputTokens: null, outputTokens: 300, totalTokens: null, estimatedCost: null, currency: null }],
+  byTask: [
+    { taskKey: "tarefa-a", agentKeys: ["agente-a"], executions: 10, calls: 12, inputTokens: 9000, outputTokens: 300, avgDurationMs: 800, estimatedCost: "0.125000", currency: "USD", fallbacks: 2, escalations: 1 },
+  ],
+  byTier: [
+    { tier: "BASIC", calls: 11, inputTokens: 8000, outputTokens: 250, avgDurationMs: 700, estimatedCost: "0.100000", currency: "USD" },
+    { tier: "STANDARD", calls: 1, inputTokens: 1000, outputTokens: 50, avgDurationMs: 1900, estimatedCost: "0.025000", currency: "USD" },
+    { tier: null, calls: 2, inputTokens: null, outputTokens: null, avgDurationMs: null, estimatedCost: null, currency: null },
+  ],
+  byFamily: [
+    { family: "anthropic", calls: 10, inputTokens: 7000, outputTokens: 200, avgDurationMs: 750, estimatedCost: "0.090000", currency: "USD", fallbackCalls: 0 },
+    { family: "openai", calls: 2, inputTokens: 2000, outputTokens: 100, avgDurationMs: 900, estimatedCost: "0.035000", currency: "USD", fallbackCalls: 2 },
+  ],
+  budgets: [
+    { scope: "DAILY", agentKey: null, limit: "5", spent: "1.250000", exceeded: false, usersOverBudget: null },
+    { scope: "MONTHLY", agentKey: null, limit: null, spent: "12.500000", exceeded: false, usersOverBudget: null },
+    { scope: "PER_AGENT", agentKey: "agente-a", limit: "10", spent: "12.500000", exceeded: true, usersOverBudget: null },
+    { scope: "PER_USER", agentKey: null, limit: "3", spent: "12.500000", exceeded: true, usersOverBudget: 2 },
+  ],
 };
+const CAPABILITIES = { structuredOutput: true, tools: true, vision: false, reasoning: false };
+const MODELS: AiModelCatalogView[] = [
+  {
+    key: "anthropic-basic", family: "anthropic", model: "anthropic/modelo-basico", tier: "BASIC", mode: "GENERATION", lifecycle: "PRODUCTION", status: "ENABLED",
+    capabilities: CAPABILITIES, contextWindow: 200000, price: { inputPerMTok: "1", outputPerMTok: "5", currency: "USD" },
+    approvals: [{ taskKey: "tarefa-a", valid: true, metrics: { itemRecall: 0.96, schemaValidity: 1 }, evaluatedAt: "2026-09-27T12:00:00.000Z", avgCostPerExecution: "0.012500" }],
+  },
+  {
+    key: "typesafe-decision", family: "typesafe", model: "typesafe/decisor", tier: "BASIC", mode: "DECISION", lifecycle: "CANDIDATE", status: "ENABLED",
+    capabilities: { structuredOutput: false, tools: false, vision: false, reasoning: false }, contextWindow: 64000, price: null,
+    approvals: [{ taskKey: "tarefa-b", valid: false, metrics: { accuracy: 0.7 }, evaluatedAt: "2026-09-27T12:00:00.000Z", avgCostPerExecution: null }],
+  },
+];
+const TASK_BASE: Omit<AiTaskPolicyView, "key" | "selection" | "agentKeys" | "overrideCandidates"> = {
+  mode: "GENERATION", minimumTier: "BASIC", preferredTier: "BASIC", maxTier: "STANDARD", allowedFamilies: ["anthropic", "openai"],
+  requiredCapabilities: ["structuredOutput"], fallback: "SAME_TIER", escalation: "ON_OUTPUT_INVALID", quality: { schemaValidity: 1 }, override: null,
+};
+const TASKS: AiTaskPolicyView[] = [
+  { ...TASK_BASE, key: "tarefa-a", agentKeys: ["agente-a"], selection: { primaryKey: "anthropic-basic", fallbackKey: "openai-basic", reason: "LOWEST_COST" },
+    overrideCandidates: ["anthropic-basic", "openai-basic"] },
+  { ...TASK_BASE, key: "tarefa-b", agentKeys: [], escalation: "NONE", maxTier: "BASIC", selection: { unavailable: "NO_APPROVED_MODEL" }, overrideCandidates: [] },
+  { ...TASK_BASE, key: "tarefa-c", agentKeys: [], selection: { primaryKey: "anthropic-antigo", fallbackKey: null, reason: "DEPRECATED_ONLY" }, overrideCandidates: [],
+    override: { modelConfigKey: "anthropic-antigo", setAt: "2026-09-27T10:00:00.000Z" } },
+];
 const AGENTS: AiAgentOperationsView[] = [
   { key: "agente-a", name: "Agente A", description: "d", status: "ACTIVE", version: 2, riskLevel: "L1_READ_ONLY", taskKey: "tarefa-a", primaryModelConfigKey: "cfg-a", fallbackModelConfigKey: "cfg-b", promptVersion: 3, outputSchemaVersion: 1, toolKeys: [], queued: 3, running: 1 },
 ];
@@ -33,7 +75,14 @@ const CONFIGS: AiModelConfigView[] = [
   { key: "cfg-a", provider: "prov", model: "modelo-a", status: "ENABLED", maxOutputTokens: 1000, timeoutMs: 30000, hasPrice: true, agentKeys: ["agente-a"] },
 ];
 
-type Routes = Partial<Record<"health" | "metrics" | "agents" | "model-configs", unknown>>;
+/** A table's header names and cell texts, read once: `at(row, header)`. */
+const tableCells = (table: HTMLElement) => {
+  const headers = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+  const rows = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent));
+  return { headers, rows, at: (row: number, header: string) => rows[row]![headers.indexOf(header)] };
+};
+
+type Routes = Partial<Record<"health" | "metrics" | "agents" | "model-configs" | "models" | "tasks", unknown>>;
 
 describe("006/US7-6 tela Operação de IA", () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -47,6 +96,8 @@ describe("006/US7-6 tela Operação de IA", () => {
       if (url.includes("/ai/operations/metrics")) return json(200, routes.metrics ?? METRICS);
       if (url.includes("/ai/operations/agents")) return json(200, routes.agents ?? AGENTS);
       if (url.includes("/ai/operations/model-configs")) return json(200, routes["model-configs"] ?? CONFIGS);
+      if (url.includes("/ai/operations/models")) return json(200, routes.models ?? MODELS);
+      if (url.includes("/ai/operations/tasks")) return json(200, routes.tasks ?? TASKS);
       return json(404, { statusCode: 404, code: "NOT_FOUND", message: "x" });
     });
   }
@@ -143,10 +194,10 @@ describe("006/US7-6 tela Operação de IA", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("mostra as 5 seções com dados, e as situações têm sempre texto e ícone", async () => {
+  it("mostra as 8 seções com dados, e as situações têm sempre texto e ícone", async () => {
     serve();
     const { container } = renderPage();
-    for (const heading of ["Saúde", "Indicadores", "Uso e custo", "Agentes", "Configurações de modelo"]) {
+    for (const heading of ["Saúde", "Indicadores", "Uso e custo", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo"]) {
       expect(screen.getByRole("heading", { level: 2, name: heading })).toBeTruthy();
     }
     expect(await screen.findByText("Respondendo")).toBeTruthy();
@@ -166,16 +217,105 @@ describe("006/US7-6 tela Operação de IA", () => {
   });
 
   it("vazias: cada seção diz que não há dados", async () => {
-    serve({ health: { ...HEALTH, modelConfigs: [] }, metrics: { ...METRICS, byAgent: [], byModel: [] }, agents: [], "model-configs": [] });
+    serve({
+      health: { ...HEALTH, modelConfigs: [] },
+      metrics: { ...METRICS, byAgent: [], byModel: [], byTask: [], byTier: [], byFamily: [] },
+      agents: [],
+      "model-configs": [],
+      models: [],
+      tasks: [],
+    });
     const { container } = renderPage();
     await waitFor(() => expect(screen.getAllByText("Nenhuma configuração de modelo registrada.")).toHaveLength(2));
     expect(await screen.findByText("Nenhuma execução no período.")).toBeTruthy();
     expect(screen.getByText("Nenhuma chamada ao modelo no período.")).toBeTruthy();
     expect(await screen.findByText("Nenhum agente registrado.")).toBeTruthy();
+    expect(await screen.findByText("Nenhuma tarefa registrada.")).toBeTruthy();
+    expect(await screen.findByText("Nenhum modelo no catálogo.")).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 
-  it("o Select de período refaz a consulta com o novo período", async () => {
+  describe("009/US6 custo por tarefa, nível e família; seções Tarefas e Modelos", () => {
+    it("009/US6-1 009/US6-3 custo por tarefa (com fallbacks e escalonamentos), por nível e por família; escalonamentos por agente", async () => {
+      serve();
+      const { container } = renderPage();
+      const byTask = tableCells(await screen.findByRole("table", { name: "Custo por tarefa" }));
+      expect(byTask.at(0, "Tarefa")).toBe("tarefa-a");
+      expect(byTask.at(0, "Agentes")).toBe("agente-a");
+      expect(byTask.at(0, "Fallbacks")).toBe("2 (20%)");
+      expect(byTask.at(0, "Escalonamentos")).toBe("1 (10%)");
+      expect(byTask.at(0, "Custo estimado")).toBe("USD 0,125");
+
+      const byTier = tableCells(screen.getByRole("table", { name: "Custo por nível" }));
+      expect(byTier.rows.map((row) => row[0])).toEqual(["Básico", "Padrão", "—não informado"]);
+      expect(byTier.at(1, "Custo estimado")).toBe("USD 0,025");
+
+      const byFamily = tableCells(screen.getByRole("table", { name: "Custo por família" }));
+      expect(byFamily.rows.map((row) => row[0])).toEqual(["anthropic", "openai"]);
+      expect(byFamily.at(1, "Fallbacks")).toBe("2 (100%)");
+
+      const metrics = tableCells(screen.getByRole("table", { name: "Indicadores por agente" }));
+      expect(metrics.at(0, "Escalonamentos")).toBe("1 (10%)");
+      const usage = tableCells(screen.getByRole("table", { name: "Uso e custo por modelo" }));
+      expect([usage.at(0, "Nível"), usage.at(0, "Família")]).toEqual(["Básico", "anthropic"]);
+      await expectNoA11yViolations(container);
+    });
+
+    it("Tarefas: política, escolha atual com o motivo em texto e ícone; indisponível e modelo descontinuado em uso como aviso", async () => {
+      serve();
+      const { container } = renderPage();
+      const tasks = tableCells(await screen.findByRole("table", { name: "Tarefas e modelo escolhido" }));
+      await waitFor(() => expect(tasks.rows).toHaveLength(3));
+      expect(tasks.at(0, "Nível")).toBe("Básico (até Padrão)");
+      expect(tasks.at(0, "Famílias")).toBe("anthropic, openai");
+      expect(tasks.at(0, "Escalonamento")).toBe("Ao nível seguinte, se a saída for inválida");
+      expect(tasks.at(0, "Modelo escolhido")).toBe("anthropic-basic (fallback: openai-basic)");
+      expect(tasks.at(0, "Motivo")).toBe("Menor custo");
+      expect(tasks.at(1, "Modelo escolhido")).toBe("Indisponível: sem modelo aprovado");
+      expect(tasks.at(1, "Escalonamento")).toBe("Não escala");
+      expect(tasks.at(2, "Motivo")).toBe("Só resta modelo descontinuado");
+      const table = screen.getByRole("table", { name: "Tarefas e modelo escolhido" });
+      for (const status of table.querySelectorAll('[data-slot="status"]')) expect(status.querySelector("svg")).not.toBeNull();
+      await expectNoA11yViolations(container);
+    });
+
+    it("009/US6-2 Modelos: catálogo com nível, família, ciclo de vida e preço, e a qualidade de cada tarefa ao lado do custo médio por execução", async () => {
+      serve();
+      const { container } = renderPage();
+      const catalog = tableCells(await screen.findByRole("table", { name: "Catálogo de modelos" }));
+      await waitFor(() => expect(catalog.rows).toHaveLength(2));
+      expect([catalog.at(0, "Nível"), catalog.at(0, "Família"), catalog.at(0, "Modo"), catalog.at(0, "Ciclo de vida")]).toEqual(["Básico", "anthropic", "Geração", "Produção"]);
+      expect(catalog.at(0, "Preço por milhão de tokens")).toBe("USD 1 entrada / USD 5 saída");
+      expect(catalog.at(1, "Preço por milhão de tokens")).toBe("Custo desconhecido");
+      expect(catalog.at(1, "Ciclo de vida")).toBe("Candidato");
+
+      const quality = tableCells(screen.getByRole("table", { name: "Qualidade e custo por tarefa" }));
+      expect(quality.rows).toHaveLength(2);
+      expect([quality.at(0, "Tarefa"), quality.at(0, "Modelo"), quality.at(0, "Aprovação")]).toEqual(["tarefa-a", "anthropic-basic", "Aprovado"]);
+      expect(quality.at(0, "Qualidade medida")).toBe("itemRecall 0,96 · schemaValidity 1");
+      expect(quality.at(0, "Custo médio por execução")).toBe("USD 0,0125");
+      expect(quality.at(1, "Aprovação")).toBe("Abaixo dos limiares");
+      expect(quality.at(1, "Custo médio por execução")).toBe("—não informado");
+      await expectNoA11yViolations(container);
+    });
+  });
+
+  it("009/US8-1 009/US8-2 Orçamentos: limite, consumo e situação em texto e ícone; atingido vira aviso, sem identificar usuários", async () => {
+    serve();
+    const { container } = renderPage();
+    const budgets = tableCells(await screen.findByRole("table", { name: "Consumo em relação aos orçamentos" }));
+    expect(budgets.rows.map((row) => row[0])).toEqual(["Diário do sistema", "Mensal do sistema", "Mensal do agente agente-a", "Mensal por usuário"]);
+    expect([budgets.at(0, "Limite"), budgets.at(0, "Consumo"), budgets.at(0, "Situação")]).toEqual(["USD 5,00", "USD 1,25", "Dentro do limite"]);
+    expect([budgets.at(1, "Limite"), budgets.at(1, "Situação")]).toEqual(["—não informado", "Sem limite configurado"]);
+    expect(budgets.at(2, "Situação")).toBe("Atingido");
+    expect(budgets.at(3, "Usuários acima do limite")).toBe("2");
+    expect(screen.getByText(/2 orçamentos foram atingidos: Mensal do agente agente-a, Mensal por usuário\. Os pedidos continuam sendo atendidos\./)).toBeTruthy();
+    const table = screen.getByRole("table", { name: "Consumo em relação aos orçamentos" });
+    for (const status of table.querySelectorAll('[data-slot="status"]')) expect(status.querySelector("svg")).not.toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("o Select de período refaz a consulta com o novo período (métricas e catálogo)", async () => {
     serve();
     renderPage();
     await screen.findByText("Agente A");
@@ -184,6 +324,8 @@ describe("006/US7-6 tela Operação de IA", () => {
     await user.click(screen.getByRole("combobox", { name: "Período" }));
     await user.click(await screen.findByRole("option", { name: "Últimos 30 dias" }));
     await waitFor(() => expect(calls("/ai/operations/metrics?period=30d")).toHaveLength(1));
+    // 009/US6-2: the period also drives the real cost per execution of the catalog.
+    await waitFor(() => expect(calls("/ai/operations/models?period=30d")).toHaveLength(1));
   });
 
   it("\"Verificar de novo\" consulta a saúde outra vez", async () => {
@@ -228,15 +370,70 @@ describe("006/US7-6 tela Operação de IA", () => {
     expect(screen.queryByText("texto da API")).toBeNull();
   });
 
+  describe("009/US7 override do modelo de uma tarefa, só com ia.agentes.gerenciar", () => {
+    it("009/US7-1 Fixar modelo lista só os modelos elegíveis da tarefa, confirma e envia o PUT; o toast confirma", async () => {
+      serve({}, (url, init) =>
+        url.includes("/tasks/tarefa-a/override") && init?.method === "PUT"
+          ? json(200, { ...TASKS[0], override: { modelConfigKey: "openai-basic", setAt: "2026-09-27T12:00:00.000Z" }, selection: { primaryKey: "openai-basic", fallbackKey: "anthropic-basic", reason: "OVERRIDE" } })
+          : undefined,
+      );
+      const { container } = renderPage();
+      const tasks = tableCells(await screen.findByRole("table", { name: "Tarefas e modelo escolhido" }));
+      await waitFor(() => expect(tasks.rows).toHaveLength(3));
+      expect([tasks.at(0, "Modelo fixado"), tasks.at(2, "Modelo fixado")]).toEqual(["Nenhum", "anthropic-antigo"]);
+      expect(tasks.at(1, "Ações")).toBe("Nenhum modelo elegível");
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "Fixar modelo da tarefa tarefa-a" }));
+      const dialog = await screen.findByRole("alertdialog", { name: "Fixar um modelo para a tarefa tarefa-a?" });
+      const select = within(dialog).getByRole("combobox", { name: "Modelo" });
+      expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual(["anthropic-basic", "openai-basic"]);
+      await user.selectOptions(select, "openai-basic");
+      await expectNoA11yViolations(container);
+      await user.click(within(dialog).getByRole("button", { name: "Fixar" }));
+
+      const put = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/tasks/tarefa-a/override") && init?.method === "PUT")!;
+      expect(JSON.parse(String(put[1]?.body))).toEqual({ modelConfigKey: "openai-basic" });
+      expect(await screen.findByText("Modelo openai-basic fixado para a tarefa tarefa-a.")).toBeTruthy();
+      await waitFor(() => expect(calls("/ai/operations/tasks").length).toBeGreaterThan(1));
+    });
+
+    it("Remover modelo fixado (danger) confirma com a consequência e envia o DELETE", async () => {
+      serve({}, (url, init) => (url.includes("/tasks/tarefa-c/override") && init?.method === "DELETE" ? json(200, { ...TASKS[2], override: null }) : undefined));
+      renderPage();
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Remover modelo fixado da tarefa tarefa-c" }));
+      const dialog = await screen.findByRole("alertdialog", { name: "Remover o modelo fixado da tarefa tarefa-c?" });
+      expect(dialog.textContent).toContain("A tarefa deixa de usar anthropic-antigo e volta à escolha da política");
+      await user.click(within(dialog).getByRole("button", { name: "Remover modelo fixado" }));
+      await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => String(url).includes("/tasks/tarefa-c/override") && init?.method === "DELETE")).toBe(true));
+      expect(await screen.findByText("A tarefa tarefa-c voltou à escolha da política.")).toBeTruthy();
+    });
+
+    it("009/US7-2 recusa da API (AI_OVERRIDE_NOT_ALLOWED) aparece como Alert com o texto do catálogo", async () => {
+      serve({}, (url, init) =>
+        url.includes("/tasks/tarefa-a/override") && init?.method === "PUT"
+          ? json(409, { statusCode: 409, code: "AI_OVERRIDE_NOT_ALLOWED", message: "texto da API" })
+          : undefined,
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Fixar modelo da tarefa tarefa-a" }));
+      await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Fixar" }));
+      expect(await screen.findByText("Este modelo não pode ser fixado para esta tarefa.")).toBeTruthy();
+      expect(screen.queryByText("texto da API")).toBeNull();
+    });
+  });
+
   it("sem ia.agentes.gerenciar, as ações ficam escondidas", async () => {
     serve();
     renderPage(false);
     await screen.findByText("Agente A");
-    expect(screen.queryByRole("button", { name: /^(Desabilitar|Habilitar) / })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^(Desabilitar|Habilitar|Fixar modelo|Remover modelo fixado) / })).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Ações" })).toBeNull();
   });
 
-  it("006/SC-012 Tab: Select → Verificar de novo → ações das linhas; o foco volta ao botão depois do diálogo", async () => {
+  it("006/SC-012 Tab: Select → Verificar de novo → ações das linhas (tarefas, agentes, configurações); o foco volta ao botão depois do diálogo", async () => {
     serve();
     renderPage();
     await screen.findByText("Agente A");
@@ -246,6 +443,8 @@ describe("006/US7-6 tela Operação de IA", () => {
     await expectTabOrder(user, [
       screen.getByRole("button", { name: "Verificar de novo" }),
       screen.getByRole("combobox", { name: "Período" }),
+      screen.getByRole("button", { name: "Fixar modelo da tarefa tarefa-a" }),
+      screen.getByRole("button", { name: "Remover modelo fixado da tarefa tarefa-c" }),
       agentButton,
       screen.getByRole("button", { name: "Desabilitar a configuração cfg-a" }),
     ]);

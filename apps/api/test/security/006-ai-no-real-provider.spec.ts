@@ -25,12 +25,13 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
   });
   afterAll(() => t.close());
 
-  it("007/FR-043 sem chave, a produção não registra provedor; só o curriculum-agent e sua configuração", () => {
+  it("007/FR-043 sem chave, a produção não registra provedor; só o curriculum-agent e o catálogo", () => {
     const production = productionAiDefinitions(t.config);
     expect(t.config.ai.openrouter.apiKey).toBeNull();
     expect(production.providers).toEqual([]);
     expect(production.agents.map((a) => [a.key, a.initialStatus])).toEqual([["curriculum-agent", "DISABLED"]]);
-    expect(production.modelConfigs.map((c) => c.provider)).toEqual(["openrouter"]);
+    // 009: the catalog, every entry on OpenRouter.
+    expect([...new Set(production.modelConfigs.map((c) => c.provider))]).toEqual(["openrouter"]);
     expect(production.tools.map((tool) => tool.key)).toEqual(["read-curriculum-document"]);
   });
 

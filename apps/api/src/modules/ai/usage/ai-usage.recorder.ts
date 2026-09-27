@@ -4,6 +4,7 @@ import type { AiCallStatus } from "../../../generated/prisma/client";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ModelUsage } from "../definitions/types";
 import type { RegisteredModelConfig } from "../registry/ai-model-config.registry";
+import { AiBudgetMonitor } from "./ai-budget.monitor";
 import { callCost } from "./cost";
 
 export interface ModelCallRecord {
@@ -20,15 +21,21 @@ export interface ModelCallRecord {
   servedModel: string | null;
   /** A leg of the route's fallback (008 research G6). */
   isFallback: boolean;
+  /** A leg of the escalated call (009 research H9). */
+  isEscalation?: boolean;
 }
 
 /**
  * One row of `ai_model_calls` per call to the model, failed ones included (006 FR-059, research
  * A16), and per leg of a route since 008. Tokens only as the provider reported them; the cost the
- * provider reported, else the estimate by the config's price, else none (008 research G17).
+ * provider reported, else the estimate by the config's price, else none (008 research G17). Since
+ * 009 each row also snapshots the tier and family of the config it called, and the budgets it
+ * counts toward are checked in the same transaction (research H16).
  */
 @Injectable()
 export class AiUsageRecorder {
+  constructor(private readonly budgets: AiBudgetMonitor) {}
+
   async record(tx: Tx, call: ModelCallRecord): Promise<void> {
     const cost = callCost(call.usage, call.config.price);
     await tx.aiModelCall.create({
@@ -51,7 +58,12 @@ export class AiUsageRecorder {
         costSource: cost?.source ?? null,
         servedModel: call.servedModel,
         isFallback: call.isFallback,
+        isEscalation: call.isEscalation ?? false,
+        // The config's catalog tier and family now, so a later catalog change keeps history (009 H14).
+        tier: call.config.tier,
+        family: call.config.family,
       },
     });
+    if (cost) await this.budgets.afterCall(tx, call.executionId, call.startedAt);
   }
 }

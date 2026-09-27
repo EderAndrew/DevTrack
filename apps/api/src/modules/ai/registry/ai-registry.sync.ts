@@ -5,15 +5,19 @@ import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey, type Tx } from "../../../platform/database/transaction";
 import { AuditService } from "../../audit/audit.service";
-import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions, type TaskUnavailableReason } from "../definitions/types";
+import { AI_DEFINITIONS, type AgentDefinition, type AiDefinitions, type AiSwitchStatus, type CatalogModel } from "../definitions/types";
+import { type PolicyCatalogEntry, selectRoute } from "../policy/select-route";
+import { approvalMeetsQuality, taskPolicyOf } from "../policy/task-policy";
 import {
   AiRegistryError,
   agentVersionHash,
+  checkCatalog,
   checkDefinitions,
   jsonSchemaOf,
   modelConfigHash,
   outputSchemaHash,
   promptHash,
+  stableHash,
   taskHash,
   toolHash,
 } from "./ai-definitions.check";
@@ -22,6 +26,8 @@ export interface AiRegistrySummary {
   agents: number;
   tools: number;
   modelConfigs: number;
+  /** Catalog entries accepted by the checks (009 research H2); the rest were logged and left out. */
+  catalogModels: number;
   tasks: number;
   newVersions: number;
   deprecated: number;
@@ -34,6 +40,10 @@ export interface AiRegistrySummary {
  * of agents and configs comes from code only on insert; afterwards it is operational, so a
  * DISABLED agent stays disabled. An agent missing from code becomes DEPRECATED. A used version
  * (`used_at`) whose content changed in code stops the startup: publish a new version instead.
+ * Since 009 the model configs are the catalog: an entry the checks refuse, or one no longer in
+ * code, stays only as history (no tier, never selected); the approvals are synced with their
+ * validity against the task's thresholds; a lifecycle change is audited. An invalid catalog
+ * entry, approval or task policy is logged and never stops the startup (009 FR-027).
  */
 @Injectable()
 export class AiRegistrySync implements OnApplicationBootstrap {
@@ -52,12 +62,19 @@ export class AiRegistrySync implements OnApplicationBootstrap {
 
   async sync(): Promise<AiRegistrySummary> {
     checkDefinitions(this.definitions, this.config.ai.limits);
-    const summary = await this.prisma.runInTransaction(
+    // Models come from the catalog since 009: a removed variable still set changes nothing.
+    for (const variable of this.config.ai.ignoredVariables) this.logger.warn({ variable }, "ai.config_ignored");
+    // A lifecycle change is checked against the registry: a refused one leaves the entry out (009 FR-018).
+    const previous = await this.prisma.aiModelConfig.findMany({ select: { key: true, lifecycle: true } });
+    const catalog = checkCatalog(this.definitions, new Map(previous.map((row) => [row.key, row.lifecycle])));
+    for (const { key, reason } of catalog.rejected) this.logger.warn({ configKey: key, reason }, "ai.catalog_entry_rejected");
+    const { summary, statuses } = await this.prisma.runInTransaction(
       async (tx) => {
         await advisoryXactLock(tx, LockKey.AI_REGISTRY);
         const changes = { count: 0, newVersions: 0, deprecated: 0 };
-        const configIds = await this.syncModelConfigs(tx, changes);
-        const taskIds = await this.syncTasks(tx, configIds, changes);
+        const { ids: configIds, statuses } = await this.syncModelConfigs(tx, catalog.accepted, changes);
+        const taskIds = await this.syncTasks(tx, changes);
+        await this.syncApprovals(tx, catalog.accepted, configIds, taskIds, changes);
         const toolIds = await this.syncTools(tx, changes);
         for (const agent of this.definitions.agents) await this.syncAgent(tx, agent, taskIds, toolIds, changes);
         changes.deprecated = await this.deprecateMissing(tx);
@@ -67,6 +84,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
           agents: this.definitions.agents.length,
           tools: this.definitions.tools.length,
           modelConfigs: this.definitions.modelConfigs.length,
+          catalogModels: catalog.accepted.length,
           tasks: this.definitions.tasks.length,
           newVersions: changes.newVersions,
           deprecated: changes.deprecated,
@@ -76,34 +94,55 @@ export class AiRegistrySync implements OnApplicationBootstrap {
           const { changed: _changed, ...metadata } = result;
           await this.audit.record(tx, { type: "ai_registry.synced", actorType: "SYSTEM", metadata });
         }
-        return result;
+        return { summary: result, statuses };
       },
       { timeoutMs: 30_000 },
     );
     this.logger.log({ agents: summary.agents, newVersions: summary.newVersions, deprecated: summary.deprecated }, "ai.registry_synced");
-    this.reportUnavailableTasks();
+    this.reportUnavailableTasks(catalog.accepted, statuses);
     return summary;
   }
 
   /**
-   * One warning per task that can't run with this deploy's definitions (008 FR-008): the reason
-   * code only, never a model value, key or secret. The API keeps running.
+   * One warning per task that can't run with this deploy's catalog and policies (008 FR-008, 009
+   * FR-010): the reason code only, never a model value, key or secret. The API keeps running. The
+   * circuits start closed, so only the status and the registered providers count here. A task
+   * left with only a DEPRECATED model runs on it, with a warning (009 US5-4): the catalog key only.
    */
-  private reportUnavailableTasks(): void {
-    const configs = new Map(this.definitions.modelConfigs.map((config) => [config.key, config]));
+  private reportUnavailableTasks(accepted: CatalogModel[], statuses: Map<string, AiSwitchStatus>): void {
     const providers = new Set(this.definitions.providers.map((provider) => provider.key));
     for (const task of this.definitions.tasks) {
-      const route = [task.primaryModelConfigKey, task.fallbackModelConfigKey].flatMap((key) => (key ? [configs.get(key)!] : []));
-      const reason: TaskUnavailableReason | null =
-        route.find((config) => config.unavailableReason)?.unavailableReason ??
-        (route.some((config) => providers.has(config.provider)) ? null : "PROVIDER_NOT_REGISTERED");
-      if (reason) this.logger.warn({ task: task.key, reason }, "ai.task_unavailable");
+      const policy = taskPolicyOf(task);
+      const route = selectRoute({
+        task: policy,
+        tier: task.preferredTier,
+        families: this.definitions.families,
+        override: null,
+        catalog: accepted.map((entry) => ({ ...policyEntry(entry, task.key, task.quality), provider: entry.provider })),
+        health: (entry) => (statuses.get(entry.key) !== "ENABLED" ? "BLOCKED" : providers.has(entry.provider) ? "USABLE" : "NO_PROVIDER"),
+      });
+      if ("unavailable" in route) this.logger.warn({ task: task.key, reason: route.unavailable }, "ai.task_unavailable");
+      else if (route.reason === "DEPRECATED_ONLY") this.logger.warn({ task: task.key, configKey: route.primary.key }, "ai.model_deprecated_in_use");
     }
   }
 
-  private async syncModelConfigs(tx: Tx, changes: { count: number }): Promise<Map<string, string>> {
+  /**
+   * The catalog into `ai_model_configs` (009 research H2). Rows out of the catalog lose their tier
+   * first (they stay for the history of past calls), so a model can move between entries.
+   */
+  private async syncModelConfigs(
+    tx: Tx,
+    accepted: CatalogModel[],
+    changes: { count: number },
+  ): Promise<{ ids: Map<string, string>; statuses: Map<string, AiSwitchStatus> }> {
     const ids = new Map<string, string>();
-    for (const config of this.definitions.modelConfigs) {
+    const statuses = new Map<string, AiSwitchStatus>();
+    const { count: removed } = await tx.aiModelConfig.updateMany({
+      where: { key: { notIn: accepted.map((entry) => entry.key) }, tier: { not: null } },
+      data: { family: null, tier: null },
+    });
+    changes.count += removed;
+    for (const config of accepted) {
       const hash = modelConfigHash(config);
       const fields = {
         provider: config.provider,
@@ -114,42 +153,113 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         inputPricePerMTok: config.price?.inputPerMTok ?? null,
         outputPricePerMTok: config.price?.outputPerMTok ?? null,
         currency: config.price?.currency ?? null,
+        family: config.family,
+        tier: config.tier,
+        mode: config.mode,
+        lifecycle: config.lifecycle,
+        contextWindow: config.contextWindow,
+        capabilities: config.capabilities as unknown as Prisma.InputJsonObject,
+        priority: config.priority ?? 0,
         definitionHash: hash,
       };
-      const existing = await tx.aiModelConfig.findUnique({ where: { key: config.key }, select: { id: true, definitionHash: true, model: true } });
+      const existing = await tx.aiModelConfig.findUnique({
+        where: { key: config.key },
+        select: { id: true, definitionHash: true, model: true, lifecycle: true, tier: true, status: true },
+      });
       if (!existing) {
         const created = await tx.aiModelConfig.create({ data: { key: config.key, status: config.initialStatus, ...fields }, select: { id: true } });
         ids.set(config.key, created.id);
+        statuses.set(config.key, config.initialStatus);
         changes.count += 1;
-      } else {
-        if (existing.definitionHash !== hash) {
-          await tx.aiModelConfig.update({ where: { id: existing.id }, data: fields });
-          changes.count += 1;
-          // Each call keeps the model it used; this is the history of the config (008 research G3).
-          if (existing.model !== config.model) {
-            await this.audit.record(tx, {
-              type: "ai_model_config.changed",
-              actorType: "SYSTEM",
-              targetType: "AI_MODEL_CONFIG",
-              targetId: existing.id,
-              metadata: { configKey: config.key, provider: config.provider, previousModel: existing.model, model: config.model },
-            });
-          }
-        }
-        ids.set(config.key, existing.id);
+        continue;
       }
+      // A row back in the catalog has no tier even when its hash is unchanged.
+      if (existing.definitionHash !== hash || existing.tier === null) {
+        await tx.aiModelConfig.update({ where: { id: existing.id }, data: fields });
+        changes.count += 1;
+        // Each call keeps the model it used; this is the history of the config (008 research G3).
+        if (existing.model !== config.model) {
+          await this.audit.record(tx, {
+            type: "ai_model_config.changed",
+            actorType: "SYSTEM",
+            targetType: "AI_MODEL_CONFIG",
+            targetId: existing.id,
+            metadata: { configKey: config.key, provider: config.provider, previousModel: existing.model, model: config.model },
+          });
+        }
+        // Promotion and deprecation are reviewed code changes; the history lives here (research H4).
+        if (existing.lifecycle !== config.lifecycle) {
+          await this.audit.record(tx, {
+            type: "ai_model_config.lifecycle_changed",
+            actorType: "SYSTEM",
+            targetType: "AI_MODEL_CONFIG",
+            targetId: existing.id,
+            metadata: { configKey: config.key, from: existing.lifecycle, to: config.lifecycle },
+          });
+        }
+      }
+      ids.set(config.key, existing.id);
+      statuses.set(config.key, existing.status);
     }
-    return ids;
+    return { ids, statuses };
   }
 
-  /** Tasks after the configs they route to (008 research G2); mutable rows, like the configs. */
-  private async syncTasks(tx: Tx, configIds: Map<string, string>, changes: { count: number }): Promise<Map<string, string>> {
+  /**
+   * The catalog's approvals into `ai_model_task_approvals` (009 research H6), `valid` when their
+   * metrics meet the task's thresholds. An approval for an unknown task, or below the thresholds,
+   * is logged `ai.approval_rejected`; one no longer in code is deleted (the git history keeps it).
+   */
+  private async syncApprovals(
+    tx: Tx,
+    accepted: CatalogModel[],
+    configIds: Map<string, string>,
+    taskIds: Map<string, string>,
+    changes: { count: number },
+  ): Promise<void> {
+    const tasks = new Map(this.definitions.tasks.map((task) => [task.key, task]));
+    const kept: { modelConfigId: string; taskId: string }[] = [];
+    const now = new Date();
+    for (const entry of accepted) {
+      for (const approval of entry.approvals ?? []) {
+        const task = tasks.get(approval.taskKey);
+        if (!task) {
+          this.logger.warn({ configKey: entry.key, task: approval.taskKey, reason: "UNKNOWN_TASK" }, "ai.approval_rejected");
+          continue;
+        }
+        const valid = approvalMeetsQuality(approval, task.quality);
+        if (!valid) this.logger.warn({ configKey: entry.key, task: task.key, reason: "BELOW_THRESHOLD" }, "ai.approval_rejected");
+        const key = { modelConfigId: configIds.get(entry.key)!, taskId: taskIds.get(task.key)! };
+        kept.push(key);
+        const fields = { metrics: approval.metrics, evaluatedAt: new Date(approval.evaluatedAt), evidence: approval.evidence, valid };
+        const existing = await tx.aiModelTaskApproval.findUnique({ where: { modelConfigId_taskId: key } });
+        if (!existing) {
+          await tx.aiModelTaskApproval.create({ data: { ...key, ...fields, syncedAt: now } });
+          changes.count += 1;
+        } else if (
+          existing.evidence !== fields.evidence ||
+          existing.valid !== fields.valid ||
+          existing.evaluatedAt.getTime() !== fields.evaluatedAt.getTime() ||
+          stableHash(existing.metrics) !== stableHash(fields.metrics)
+        ) {
+          await tx.aiModelTaskApproval.update({ where: { id: existing.id }, data: { ...fields, syncedAt: now } });
+          changes.count += 1;
+        }
+      }
+    }
+    const { count } = await tx.aiModelTaskApproval.deleteMany({
+      where: { NOT: { OR: kept.length > 0 ? kept : [{ modelConfigId: { in: [] } }] } },
+    });
+    changes.count += count;
+  }
+
+  /** Tasks with their policy (009 research H5); mutable rows, like the configs. */
+  private async syncTasks(tx: Tx, changes: { count: number }): Promise<Map<string, string>> {
     const ids = new Map<string, string>();
     for (const task of this.definitions.tasks) {
       const hash = taskHash(task);
       const fields = {
-        primaryModelConfigId: configIds.get(task.primaryModelConfigKey)!,
-        fallbackModelConfigId: task.fallbackModelConfigKey ? configIds.get(task.fallbackModelConfigKey)! : null,
+        policy: JSON.parse(JSON.stringify(taskPolicyOf(task))) as Prisma.InputJsonObject,
+        preferredTier: task.preferredTier,
         parameters: (task.parameters ?? {}) as Prisma.InputJsonObject,
         maxOutputTokens: task.maxOutputTokens,
         timeoutMs: task.timeoutMs,
@@ -352,4 +462,20 @@ export class AiRegistrySync implements OnApplicationBootstrap {
 function outputFields(schema: AgentDefinition["input"]): string[] {
   const json = schema ? (jsonSchemaOf(schema) as { properties?: Record<string, unknown> }) : {};
   return Object.keys(json.properties ?? {}).sort();
+}
+
+/** A catalog entry as the policy sees it for `taskKey` (009 research H7). */
+export function policyEntry(entry: CatalogModel, taskKey: string, quality: Record<string, number>): PolicyCatalogEntry {
+  const approval = entry.approvals?.find((candidate) => candidate.taskKey === taskKey);
+  return {
+    key: entry.key,
+    family: entry.family,
+    mode: entry.mode,
+    tier: entry.tier,
+    lifecycle: entry.lifecycle,
+    capabilities: entry.capabilities,
+    price: entry.price ?? null,
+    priority: entry.priority ?? 0,
+    approved: approval !== undefined && approvalMeetsQuality(approval, quality),
+  };
 }

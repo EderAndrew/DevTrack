@@ -35,6 +35,13 @@ const hmacSecret = z
 const nonNegativeInt = (fallback: number) => z.coerce.number().int().min(0).default(fallback);
 const positiveInt = (fallback: number) => z.coerce.number().int().min(1).default(fallback);
 /** An optional variable where an empty string (`KEY=` in .env) means "not set". */
+/** A positive decimal amount of money (USD), kept as a string so no precision is lost (009 research H16). */
+const decimalAmount = z
+  .string()
+  .trim()
+  .regex(/^\d+(\.\d+)?$/, "must be a decimal number")
+  .refine((value) => Number(value) > 0, "must be greater than zero");
+
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
@@ -83,14 +90,12 @@ export const configSchema = z.object({
   AI_CIRCUIT_OPEN_SECONDS: positiveInt(60),
   OPENROUTER_API_KEY: optional(z.string().trim().min(1)),
   OPENROUTER_BASE_URL: optional(z.url({ protocol: /^https?$/ })),
-  // Only trimmed here: an invalid model id leaves the task unavailable instead of stopping
-  // the API (008 research G16), so the format is checked where the model configs are built.
-  OPENROUTER_DEFAULT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().trim().default("anthropic/claude-opus-5"),
-  ),
-  OPENROUTER_FALLBACK_MODEL: optional(z.string().trim().min(1)),
   OPENROUTER_TIMEOUT_MS: positiveInt(60_000),
+  // 009: observable budgets only; reaching one warns and audits, never blocks (spec Q3).
+  AI_BUDGET_DAILY_USD: optional(decimalAmount),
+  AI_BUDGET_MONTHLY_USD: optional(decimalAmount),
+  AI_BUDGET_PER_USER_MONTHLY_USD: optional(decimalAmount),
+  AI_BUDGET_PER_AGENT_MONTHLY_USD: optional(decimalAmount),
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -144,18 +149,26 @@ export interface AppConfig {
     /**
      * OpenRouter provider (008 research G10, G16). Without `apiKey` the provider is not
      * registered and AI is unavailable, while the app starts normally (FR-003). `baseUrl` is
-     * only for the local E2E mock. The models are checked where the model configs are built.
-     * The key is never logged.
+     * only for the local E2E mock. The models come from the catalog in code (009 research H2);
+     * `timeoutMs` is the ceiling of each catalog entry's. The key is never logged.
      */
     openrouter: {
       apiKey: string | null;
       baseUrl: string | null;
-      defaultModel: string;
-      fallbackModel: string | null;
       timeoutMs: number;
     };
+    /**
+     * Names of removed variables still set in the environment (009 contracts/configuration.md:
+     * `OPENROUTER_DEFAULT_MODEL`, `OPENROUTER_FALLBACK_MODEL`): ignored, logged `ai.config_ignored`.
+     */
+    ignoredVariables: string[];
     /** Circuit breaker per model config (008 research G8). */
     circuit: { failureThreshold: number; openSeconds: number };
+    /**
+     * Budgets in USD as decimal strings (009 research H16); null = no budget. Only observed:
+     * reaching one warns in "Operação de IA" and audits `ai_budget.exceeded` once per period.
+     */
+    budgets: { daily: string | null; monthly: string | null; perUserMonthly: string | null; perAgentMonthly: string | null };
   };
   /** Argon2id parameters (OWASP minimum, R4). Not configurable through env on purpose. */
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
@@ -187,6 +200,9 @@ export class InvalidConfigError extends Error {
  * Validates the environment before the application starts (FR-074). The error lists
  * only variable names — values are never echoed, since some of them are secrets.
  */
+/** Models come from the catalog since 009; a value still set is ignored (contracts/configuration.md). */
+const REMOVED_AI_VARIABLES = ["OPENROUTER_DEFAULT_MODEL", "OPENROUTER_FALLBACK_MODEL"];
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const result = configSchema.safeParse(env);
   if (!result.success) {
@@ -245,11 +261,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       openrouter: {
         apiKey: e.OPENROUTER_API_KEY ?? null,
         baseUrl: e.OPENROUTER_BASE_URL ?? null,
-        defaultModel: e.OPENROUTER_DEFAULT_MODEL,
-        fallbackModel: e.OPENROUTER_FALLBACK_MODEL ?? null,
         timeoutMs: e.OPENROUTER_TIMEOUT_MS,
       },
+      ignoredVariables: REMOVED_AI_VARIABLES.filter((name) => (env[name] ?? "").trim() !== ""),
       circuit: { failureThreshold: e.AI_CIRCUIT_FAILURE_THRESHOLD, openSeconds: e.AI_CIRCUIT_OPEN_SECONDS },
+      budgets: {
+        daily: e.AI_BUDGET_DAILY_USD ?? null,
+        monthly: e.AI_BUDGET_MONTHLY_USD ?? null,
+        perUserMonthly: e.AI_BUDGET_PER_USER_MONTHLY_USD ?? null,
+        perAgentMonthly: e.AI_BUDGET_PER_AGENT_MONTHLY_USD ?? null,
+      },
     },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };

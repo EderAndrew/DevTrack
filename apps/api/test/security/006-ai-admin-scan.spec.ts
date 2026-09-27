@@ -1,5 +1,6 @@
+import { routedTask } from "../fixtures/ai/tasks";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { defineAgent, defineTask } from "../../src/modules/ai/definitions/types";
+import { defineAgent } from "../../src/modules/ai/definitions/types";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { FAKE_PROVIDER_CREDENTIAL, fakeError, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER, REFERENCE_L1 } from "../fixtures/ai/reference-agents";
@@ -12,7 +13,7 @@ const OUTPUT_MARKER = "MARCADOR-SAIDA-006";
 const SUBJECT_MARKER = "MARCADOR-DISCIPLINA-006";
 
 /** 008/FR-020: an agent routed through a fallback, so the 008 fields of the responses have data. */
-const FALLBACK_TASK = defineTask({ key: "scan-fallback", primaryModelConfigKey: "fake-default", fallbackModelConfigKey: "fake-alt", maxOutputTokens: 1000, timeoutMs: 30_000 });
+const FALLBACK_TASK = routedTask({ key: "scan-fallback", maxOutputTokens: 1000, timeoutMs: 30_000 }, ["fake-default", "fake-alt"]);
 const FALLBACK_AGENT = defineAgent({
   ...REFERENCE_L1,
   key: "scan-fallback-agent",
@@ -60,13 +61,16 @@ describe("006/US7-4 006/SC-007 006/FR-031 as respostas de operação não trazem
   });
   afterAll(() => t.close());
 
-  it("008/FR-020 nenhuma rota de /ai/operations devolve marcadora, credencial, id de usuário, de área, de recurso ou de execução", async () => {
+  it("008/FR-020 009/US6-4 009/SC-009 nenhuma rota de /ai/operations devolve marcadora, credencial, id de usuário, de área, de recurso ou de execução", async () => {
     const admin = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["ADMIN"] })) });
     const responses = [
       await admin.get("/api/ai/operations/health"),
       ...(await Promise.all(["24h", "7d", "30d"].map((period) => admin.get(`/api/ai/operations/metrics?period=${period}`)))),
       await admin.get("/api/ai/operations/agents"),
       await admin.get("/api/ai/operations/model-configs"),
+      // 009: the catalog with approvals and real cost, and the task policies with the current choice.
+      ...(await Promise.all(["24h", "7d", "30d"].map((period) => admin.get(`/api/ai/operations/models?period=${period}`)))),
+      await admin.get("/api/ai/operations/tasks"),
       await admin.post("/api/ai/operations/agents/reference-l1/status", { status: "DISABLED" }),
       await admin.post("/api/ai/operations/agents/reference-l1/status", { status: "ACTIVE" }),
       await admin.post("/api/ai/operations/model-configs/fake-alt/status", { status: "DISABLED" }),
@@ -84,6 +88,14 @@ describe("006/US7-4 006/SC-007 006/FR-031 as respostas de operação não trazem
     expect(metrics.byAgent.find((row: { agentKey: string }) => row.agentKey === FALLBACK_AGENT.key)).toMatchObject({ taskKey: FALLBACK_TASK.key, fallbacks: 2 });
     expect(metrics.byModel.some((row: { fallbackCalls: number; failedCalls: number }) => row.fallbackCalls > 0)).toBe(true);
     expect(metrics.byModel.some((row: { failedCalls: number }) => row.failedCalls > 0)).toBe(true);
+    // The 009 fields were in the scanned responses, with data.
+    expect(metrics.byTask.find((row: { taskKey: string }) => row.taskKey === FALLBACK_TASK.key)).toMatchObject({ executions: 2, fallbacks: 2 });
+    expect(metrics.byTier.find((row: { tier: string }) => row.tier === "BASIC").calls).toBeGreaterThan(0);
+    expect(metrics.byFamily.find((row: { family: string }) => row.family === "fake").fallbackCalls).toBeGreaterThan(0);
+    const models = responses[6]!.body as { key: string; approvals: { avgCostPerExecution: string | null }[] }[];
+    expect(models.some((model) => model.approvals.some((approval) => approval.avgCostPerExecution !== null))).toBe(true);
+    const tasks = responses[9]!.body as { key: string; selection: object }[];
+    expect(tasks.find((task) => task.key === FALLBACK_TASK.key)!.selection).toMatchObject({ primaryKey: "fake-default", fallbackKey: "fake-alt" });
     const agents = responses[4]!.body as { key: string }[];
     expect(agents.find((agent) => agent.key === FALLBACK_AGENT.key)).toMatchObject({ primaryModelConfigKey: "fake-default", fallbackModelConfigKey: "fake-alt" });
   });

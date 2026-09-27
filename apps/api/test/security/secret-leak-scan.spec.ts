@@ -216,6 +216,29 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(leaks(key, sources)).toEqual([]);
   });
 
+  it("009/SC-009 009/FR-010 escalonamento, ciclo de vida, override e orçamento: eventos e respostas novas sem credencial, conteúdo nem id de usuário", async () => {
+    const types = ["ai_execution.escalated", "ai_model_config.lifecycle_changed", "ai_task_override.set", "ai_task_override.removed", "ai_budget.exceeded"];
+    const events = await t.prisma.auditEvent.findMany({ where: { type: { in: types } }, select: { type: true, metadata: true } });
+    // The journey really emitted every new event (the scan is not vacuous).
+    expect(new Set(events.map((event) => event.type))).toEqual(new Set(types));
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = { "eventos da 009": serialize(events) };
+    for (const path of ["models?period=30d", "tasks", "metrics?period=30d"]) {
+      const res = await client.get(`/api/ai/operations/${path}`);
+      expect(res.status, path).toBe(200);
+      sources[`resposta de /ai/operations/${path}`] = serialize(res.body);
+    }
+    const fixed = await client.put("/api/ai/operations/tasks/reference-alt/override", { modelConfigKey: "fake-alt" });
+    expect(fixed.status).toBe(200);
+    sources["resposta do override"] = serialize(fixed.body);
+    expect(sources["resposta de /ai/operations/metrics?period=30d"]).toContain("budgets");
+
+    const userIds = (await t.prisma.user.findMany({ select: { id: true } })).map(({ id }) => ({ kind: "id de usuário", value: id }));
+    expect(leaks([...secrets, ...content, ...userIds], sources)).toEqual([]);
+  });
+
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {
     const planted = { kind: "token plantado", value: "tok-plantado-123" };
     expect(leaks([planted], { logs: `{"msg":"x","t":"${planted.value}"}` })).toEqual(["token plantado em logs"]);

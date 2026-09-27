@@ -58,9 +58,29 @@ whose startup syncs them (see `006-us8-versioning.spec.ts`). The reference agent
 `reference-restricted`; `REFERENCE_L2_BUILD` (with a `proposal.build` hook) and other extra
 definitions join through `createAiTestApp({agents, tools, modelConfigs, resources})`. The factories
 `createAiExecution` and `createAiProposal` write rows straight to the database.
+Model policy (009): the test catalog (`test/fixtures/ai/model-configs.ts`) is `fake-default`,
+`fake-alt` and `fake-no-price`, family `fake` (only in `TEST_MODEL_FAMILIES`, never production), BASIC,
+generation, PRODUCTION. The fixture tasks zero `typicalUsage`, so estimated costs tie and `priority`
+decides (`fake-default` 2 → primary, `fake-alt` 1 → fallback, no price last); a suite that needs a
+new entry first in the order gives it a higher `priority`. `routedTask(task, [primary, fallback])`
+(`test/fixtures/ai/tasks.ts`) registers the task and approves those models for it with
+`testApproval(taskKey)` (metrics `{ schemaValidity: 1 }`), read when the app is created.
+`test/fixtures/ai/reference-escalation.ts` adds `fake-standard` and `fake-advanced` and tasks and agents
+that escalate (or not) for the 009/US4 suites. To simulate a deploy that changes the catalog, sync
+other definitions with `new AiRegistrySync(definitions, t.config, t.prisma, t.get(AuditService)).sync()`.
+Decision-mode calls go to `t.provider.scriptDecisions(fakeDecision(answers), …)` (or
+`fakeDecisionError(category)`), recorded apart in `provider.decisionRequests`. Budgets are null in
+`testConfig()`; the monitor reads `t.config.ai.budgets` on every check, so a suite sets them on the
+running app (`009-us8-budgets.spec.ts`). The Curriculum Agent's approvals in production need committed
+evidence: `EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:curriculum` writes
+`test/fixtures/evaluations/<task>/<key>.json` (served model, golden-set version, metrics, real cost;
+nothing when a case failed for infrastructure, e.g. `AI_PROVIDER_ERROR`), and
+`009-quality-gate.spec.ts` checks that every catalog approval equals its evidence and meets the task's
+thresholds. The curriculum test app approves its own configs with `PASSING_CURRICULUM_METRICS`.
+
 Curriculum Agent (007) tests use `test/helpers/curriculum-ai.ts`: `createCurriculumAiApp()` registers
 the real `curriculum-agent` (ACTIVE, where production starts it DISABLED; availability tests disable
-it through the admin route) and its read tool, with only the config its task routes to (`openrouter-default`) moved to the fake provider;
+it through the admin route) and its read tool, with its catalog entries (`anthropic-basic`, `openai-basic`) moved to the fake provider and approved;
 `seedProcessedDocument(t, teacherId, fixture)` creates a subject and a PROCESSED document with the
 original stored (`TEXT` for PDF/DOCX, `NO_TEXT` for images); `pooOutput()` is a valid agent output for
 the POO sample; `scriptCurriculumRun(t.provider, documentId, output)` programs the read call then the

@@ -69,7 +69,19 @@ export const AUDIT_EVENT_METADATA = {
   // 006 — AI foundation (specs/006-ai-foundation/contracts/audit-events.md). Only ids, versions,
   // codes and numbers: never prompts, request input, model output, proposal content, tool
   // arguments or results, resource names nor credentials (FR-062).
-  "ai_execution.requested": ["agentKey", "agentVersion", "promptVersion", "modelConfigKey", "taskKey", "fallbackModelConfigKey", "resourceType", "riskLevel"],
+  "ai_execution.requested": [
+    "agentKey",
+    "agentVersion",
+    "promptVersion",
+    "modelConfigKey",
+    "taskKey",
+    "fallbackModelConfigKey",
+    "tier",
+    "selectionReason",
+    "overrideIgnored",
+    "resourceType",
+    "riskLevel",
+  ],
   "ai_execution.started": ["claim"],
   "ai_execution.completed": ["durationMs", "modelCalls", "toolCalls", "proposalId"],
   "ai_execution.failed": ["status", "errorCode", "durationMs", "modelCalls", "toolCalls"],
@@ -81,6 +93,8 @@ export const AUDIT_EVENT_METADATA = {
   "ai_circuit.closed": ["configKey", "provider", "model"],
   // 008 — a logical call went to the fallback model (research G6).
   "ai_execution.fallback_used": ["primaryConfigKey", "fallbackConfigKey", "reason", "primaryErrorCode"],
+  // 009 — an invalid output repeated once on the next tier the task's policy allows (research H9).
+  "ai_execution.escalated": ["taskKey", "fromTier", "toTier", "reason", "modelConfigKey"],
   "ai_tool.called": ["toolKey", "sequence", "durationMs"],
   "ai_tool.failed": ["toolKey", "sequence", "status", "errorCode"],
   "ai_proposal.created": ["executionId", "agentKey", "proposalType", "itemCount"],
@@ -94,7 +108,14 @@ export const AUDIT_EVENT_METADATA = {
   "ai_model_config.disabled": ["configKey", "provider", "model"],
   // 008 — a deploy changed the model of an existing config (research G3).
   "ai_model_config.changed": ["configKey", "provider", "previousModel", "model"],
-  "ai_registry.synced": ["agents", "tools", "modelConfigs", "tasks", "newVersions", "deprecated"],
+  // 009 — model policy: a catalog entry's lifecycle changed in code (research H4).
+  "ai_model_config.lifecycle_changed": ["configKey", "from", "to"],
+  // 009 — the administrator's model override of a task (research H11).
+  "ai_task_override.set": ["taskKey", "modelConfigKey", "previousModelConfigKey"],
+  "ai_task_override.removed": ["taskKey", "modelConfigKey"],
+  // 009 — the first crossing of a budget in its period (research H16); never a user id.
+  "ai_budget.exceeded": ["scope", "period", "limit", "spent", "agentKey"],
+  "ai_registry.synced": ["agents", "tools", "modelConfigs", "catalogModels", "tasks", "newVersions", "deprecated"],
   // 007 — Curriculum Agent. Never the document, the ementa text or the proposal content (FR-045).
   "curriculum_ai.analysis_requested": ["executionId", "created", "discardedProposal"],
   "curriculum_ai.proposal_applied": [
@@ -147,4 +168,5 @@ export type AuditTargetType =
   | "AI_EXECUTION"
   | "AI_PROPOSAL"
   | "AI_AGENT"
-  | "AI_MODEL_CONFIG";
+  | "AI_MODEL_CONFIG"
+  | "AI_TASK";

@@ -3,9 +3,12 @@ import type {
   AiHealth,
   AiMetrics,
   AiMetricsPeriod,
+  AiModelCatalogView,
   AiModelConfigView,
+  AiTaskPolicyView,
   ChangeAiAgentStatusRequest,
   ChangeAiModelConfigStatusRequest,
+  TaskOverrideRequest,
 } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
 
@@ -15,8 +18,15 @@ export const aiOperationsApi = {
   metrics: (period: AiMetricsPeriod) => apiClient.get<AiMetrics>(`/ai/operations/metrics?period=${period}`),
   agents: () => apiClient.get<AiAgentOperationsView[]>("/ai/operations/agents"),
   modelConfigs: () => apiClient.get<AiModelConfigView[]>("/ai/operations/model-configs"),
+  // 009 — the model catalog (with the real cost per execution in the period) and the task policies.
+  models: (period: AiMetricsPeriod) => apiClient.get<AiModelCatalogView[]>(`/ai/operations/models?period=${period}`),
+  tasks: () => apiClient.get<AiTaskPolicyView[]>("/ai/operations/tasks"),
   changeAgentStatus: (key: string, body: ChangeAiAgentStatusRequest) =>
     apiClient.post<AiAgentOperationsView>(`/ai/operations/agents/${encodeURIComponent(key)}/status`, body),
   changeModelConfigStatus: (key: string, body: ChangeAiModelConfigStatusRequest) =>
     apiClient.post<AiModelConfigView>(`/ai/operations/model-configs/${encodeURIComponent(key)}/status`, body),
+  // 009/US7 — the administrator's override of a task's model.
+  setTaskOverride: (key: string, body: TaskOverrideRequest) =>
+    apiClient.put<AiTaskPolicyView>(`/ai/operations/tasks/${encodeURIComponent(key)}/override`, body),
+  removeTaskOverride: (key: string) => apiClient.delete<AiTaskPolicyView>(`/ai/operations/tasks/${encodeURIComponent(key)}/override`),
 };

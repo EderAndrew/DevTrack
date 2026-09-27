@@ -18,11 +18,15 @@ import {
   type ProposalBuildContext,
   type UntrustedContent,
 } from "../definitions/types";
+import type { ModelTier } from "../definitions/model-families";
 import { type GatewayLeg, type GatewayRoute, type GatewayTask, ModelGateway } from "../gateway/model-gateway";
 import { AiFailure } from "../gateway/provider-errors";
+import type { TaskPolicyFields } from "../policy/task-policy";
+import { escalationTierOf } from "../policy/tiers";
 import { StructuredOutputValidator } from "../output/structured-output.validator";
 import { jsonSchemaOf } from "../registry/ai-definitions.check";
 import { AiModelConfigRegistry, type RegisteredModelConfig } from "../registry/ai-model-config.registry";
+import { AiPolicyRegistry } from "../registry/ai-policy.registry";
 import { AiTaskRegistry } from "../registry/ai-task.registry";
 import { AiToolExecutor, type ToolCallOutcome } from "../tools/ai-tool-executor";
 import { AiUsageRecorder } from "../usage/ai-usage.recorder";
@@ -59,7 +63,22 @@ interface ExecutionRoute extends GatewayRoute {
   primary: RegisteredModelConfig;
   fallback: RegisteredModelConfig | null;
   task: GatewayTask;
+  /** Set on the route of the escalated call (009 research H9); `recorded` once its first leg is written. */
+  escalation?: { fromTier: ModelTier; toTier: ModelTier; reason: "OUTPUT_INVALID"; recorded: boolean };
 }
+
+/** The model ⇄ tools exchange so far: an escalated call goes on from the same point. */
+interface Conversation {
+  history: ModelHistoryEntry[];
+  toolResults: { toolKey: string; output: unknown }[];
+  modelCalls: number;
+  toolCalls: number;
+  /** One `ai_model_calls` row per leg: a logical call with a fallback writes two (008 research G6). */
+  rows: { next: number };
+}
+
+/** Failures of the output that an escalation may answer (contracts/model-policy.md "Escalation"). */
+const ESCALATION_CODES: ReadonlySet<AiErrorCode> = new Set(["AI_OUTPUT_PARSE_FAILED", "AI_OUTPUT_VALIDATION_FAILED"]);
 
 /**
  * Runs one claimed execution (006 US1, contracts/agent-runtime.md "Execution cycle"):
@@ -79,6 +98,7 @@ export class AiExecutionRunner {
     private readonly permissions: PermissionResolver,
     private readonly modelConfigs: AiModelConfigRegistry,
     private readonly tasks: AiTaskRegistry,
+    private readonly policy: AiPolicyRegistry,
     private readonly gateway: ModelGateway,
     private readonly validator: StructuredOutputValidator,
     private readonly usage: AiUsageRecorder,
@@ -117,20 +137,65 @@ export class AiExecutionRunner {
     const limits = effectiveLimits(this.config.ai.limits, definition);
     await this.checkCancel(claimed);
 
-    const { text, toolResults } = await this.converse(claimed, execution, definition, route, context, limits, signal);
+    const conversation: Conversation = { history: [], toolResults: [], modelCalls: 0, toolCalls: 0, rows: { next: 0 } };
+    let text = await this.converse(claimed, execution, definition, route, context, limits, signal, conversation);
     await this.checkCancel(claimed);
+
+    // Validated while still RUNNING, so an invalid output can be escalated once (009 research H9).
+    let validation = definition.output ? this.validator.validate(text, definition.output.schema, limits.maxOutputBytes) : null;
+    if (definition.output && validation && !validation.ok && ESCALATION_CODES.has(validation.code)) {
+      const escalated = await this.escalationRoute(execution, route, conversation.modelCalls, limits, validation.code);
+      if (escalated) {
+        aiLog(this.logger, "ai.output_invalid", { ...this.logBase(execution), errorCode: validation.code, issuePaths: validation.issues.map((i) => i.path) }, "warn");
+        aiLog(this.logger, "ai.execution_escalated", { ...this.logBase(execution), task: execution.taskKey, fromTier: escalated.escalation!.fromTier, toTier: escalated.escalation!.toTier, configKey: escalated.primary.key, errorCode: validation.code });
+        text = await this.converse(claimed, execution, definition, escalated, context, limits, signal, conversation);
+        await this.checkCancel(claimed);
+        validation = this.validator.validate(text, definition.output.schema, limits.maxOutputBytes);
+      }
+    }
 
     const moved = await this.prisma.runInTransaction((tx) =>
       this.store.move(tx, claimed.id, claimed.claimToken, "RUNNING", "VALIDATING_OUTPUT", new Date(), "OUTPUT_VALIDATION"),
     );
     if (!moved) return this.lost(claimed, execution);
-    if (!definition.output) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
-    const validation = this.validator.validate(text, definition.output.schema, limits.maxOutputBytes);
+    if (!definition.output || !validation) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
     if (!validation.ok) {
       aiLog(this.logger, "ai.output_invalid", { ...this.logBase(execution), errorCode: validation.code, issuePaths: validation.issues.map((i) => i.path) }, "warn");
       throw new Stop("FAILED", validation.code);
     }
-    await this.complete(claimed, execution, definition, validation.output, toolResults);
+    await this.complete(claimed, execution, definition, validation.output, conversation.toolResults);
+  }
+
+  /**
+   * The route of an escalation after an invalid output (contracts/model-policy.md "Escalation"):
+   * only when the task's policy allows it, below its ceiling, once per execution, with room for
+   * one more model call and before the deadline; the model is the policy's choice at the next
+   * tier (same order, same-tier fallback). null → the execution fails with the original code.
+   * A teacher rejecting a proposal never gets here.
+   */
+  private async escalationRoute(
+    execution: Loaded,
+    route: ExecutionRoute,
+    modelCalls: number,
+    limits: ReturnType<typeof effectiveLimits>,
+    code: AiErrorCode,
+  ): Promise<ExecutionRoute | null> {
+    if (route.escalation || execution.escalationUsed || !execution.taskKey || !execution.tier) return null;
+    if (modelCalls >= limits.maxModelCalls || Date.now() >= execution.deadlineAt.getTime()) return null;
+    const task = await this.prisma.aiTask.findUnique({ where: { key: execution.taskKey }, select: { id: true, policy: true } });
+    const toTier = task ? escalationTierOf(task.policy as unknown as TaskPolicyFields, execution.tier) : null;
+    if (!task || !toTier) return null;
+    const selected = await this.policy.routeFor(task.id, toTier);
+    if (!selected || "unavailable" in selected) {
+      aiLog(this.logger, "ai.escalation_unavailable", { ...this.logBase(execution), task: execution.taskKey, fromTier: execution.tier, toTier, errorCode: code }, "warn");
+      return null;
+    }
+    return {
+      primary: selected.primary,
+      fallback: selected.fallback,
+      task: route.task,
+      escalation: { fromTier: execution.tier, toTier, reason: "OUTPUT_INVALID", recorded: false },
+    };
   }
 
   /**
@@ -147,16 +212,12 @@ export class AiExecutionRunner {
     context: AiExecutionContext,
     limits: ReturnType<typeof effectiveLimits>,
     signal: AbortSignal,
-  ): Promise<{ text: string; toolResults: ProposalBuildContext["toolResults"] }> {
-    const history: ModelHistoryEntry[] = [];
-    const toolResults: { toolKey: string; output: unknown }[] = [];
+    conversation: Conversation,
+  ): Promise<string> {
+    const { history, toolResults, rows } = conversation;
     const tools = this.toolSpecs(execution);
-    let modelCalls = 0;
-    let toolCalls = 0;
-    // One `ai_model_calls` row per leg: a logical call with a fallback writes two (008 research G6).
-    const rows = { next: 0 };
     for (;;) {
-      if (modelCalls >= limits.maxModelCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
+      if (conversation.modelCalls >= limits.maxModelCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
       const request = buildEnvelope({
         systemInstructions: definition.prompt.systemInstructions,
         context: definition.buildContext?.(context) ?? {},
@@ -165,17 +226,17 @@ export class AiExecutionRunner {
         history,
       });
       await this.store.setStep(this.prisma, claimed.id, claimed.claimToken, "MODEL_CALL");
-      modelCalls += 1;
+      conversation.modelCalls += 1;
       const response = await this.callModel(claimed, execution, route, limits, request, definition, signal, rows);
       await this.checkCancel(claimed);
-      if (response.kind === "output") return { text: response.text, toolResults };
+      if (response.kind === "output") return response.text;
 
       if (!(await this.moveOrStop(claimed, "RUNNING", "WAITING_TOOL", "TOOL_CALL"))) throw new Stop("CANCELLED", "AI_EXECUTION_CANCELLED");
       history.push({ role: "assistant", toolCalls: response.calls });
       for (const call of response.calls) {
-        if (toolCalls >= limits.maxToolCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
-        toolCalls += 1;
-        const outcome = await this.toolExecutor.call(context, call, toolCalls, limits);
+        if (conversation.toolCalls >= limits.maxToolCalls) throw new Stop("FAILED", "AI_EXECUTION_LIMIT_EXCEEDED");
+        conversation.toolCalls += 1;
+        const outcome = await this.toolExecutor.call(context, call, conversation.toolCalls, limits);
         await this.checkCancel(claimed);
         if (outcome.ok) toolResults.push({ toolKey: String(call.toolKey), output: outcome.result });
         if (!outcome.ok) {
@@ -230,9 +291,9 @@ export class AiExecutionRunner {
   }
 
   /**
-   * The route fixed at request (008 research G5), read again: the primary and the fallback with
-   * their current status, and the task's settings (a pre-008 execution uses its config's). Neither
-   * usable → `AI_MODEL_UNAVAILABLE`.
+   * The route fixed at request (008 research G5; chosen by the model policy since 009), read
+   * again: the primary and the fallback with their current status, and the task's settings (a
+   * pre-008 execution uses its config's). Neither usable → `AI_MODEL_UNAVAILABLE`.
    */
   private async routeOf(execution: Loaded): Promise<ExecutionRoute> {
     const primary = await this.modelConfigs.byId(execution.modelConfigId);
@@ -282,7 +343,9 @@ export class AiExecutionRunner {
 
   /**
    * One leg: its `ai_model_calls` row and the execution's counter in one transaction, and for a
-   * fallback leg `fallback_used` and its audit event too (008 FR-016); then its log line.
+   * fallback leg `fallback_used` and its audit event too (008 FR-016); the first leg of an
+   * escalated call also records the escalation on the execution and audits it (009 FR-015); then
+   * its log line.
    */
   private async recordLeg(claimed: ClaimedExecution, execution: Loaded, route: ExecutionRoute, leg: GatewayLeg, sequence: number): Promise<void> {
     const config = [route.primary, route.fallback].find((candidate) => candidate?.key === leg.config.key)!;
@@ -299,11 +362,33 @@ export class AiExecutionRunner {
         usage: leg.usage,
         servedModel: leg.servedModel,
         isFallback: leg.isFallback,
+        isEscalation: route.escalation !== undefined,
       });
       await tx.aiExecution.updateMany({
         where: { id: claimed.id, claimToken: claimed.claimToken },
         data: { modelCalls: { increment: 1 }, ...(leg.isFallback ? { fallbackUsed: true } : {}) },
       });
+      const escalation = route.escalation;
+      if (escalation && !escalation.recorded) {
+        await tx.aiExecution.updateMany({
+          where: { id: claimed.id, claimToken: claimed.claimToken },
+          data: {
+            escalationUsed: true,
+            escalationFromTier: escalation.fromTier,
+            escalationToTier: escalation.toTier,
+            escalationReason: escalation.reason,
+            escalationModelConfigId: route.primary.id,
+          },
+        });
+        await this.audit.record(tx, {
+          type: "ai_execution.escalated",
+          actorType: "SYSTEM",
+          targetType: "AI_EXECUTION",
+          targetId: claimed.id,
+          metadata: { taskKey: execution.taskKey, fromTier: escalation.fromTier, toTier: escalation.toTier, reason: escalation.reason, modelConfigKey: route.primary.key },
+        });
+        escalation.recorded = true;
+      }
       if (leg.isFallback && leg.trigger) {
         await this.audit.record(tx, {
           type: "ai_execution.fallback_used",
@@ -327,6 +412,7 @@ export class AiExecutionRunner {
       model: config.model,
       servedModel: leg.servedModel,
       fallback: leg.isFallback,
+      escalation: route.escalation !== undefined,
       status: leg.status,
       durationMs: leg.durationMs,
       attempts: leg.attempts,
