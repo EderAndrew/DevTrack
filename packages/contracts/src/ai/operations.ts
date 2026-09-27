@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { IsoDateTimeSchema } from "../common/primitives.js";
-import { AiAgentStatusSchema, AiModelConfigStatusSchema, AiRiskLevelSchema } from "./enums.js";
+import {
+  AiAgentStatusSchema,
+  AiModelConfigStatusSchema,
+  AiModelLifecycleSchema,
+  AiModelModeSchema,
+  AiModelTierSchema,
+  AiRiskLevelSchema,
+  AiSelectionReasonSchema,
+  AiTaskUnavailableReasonSchema,
+} from "./enums.js";
 
 // AI operations for the administrator (006 contracts/http-api.md, US7): aggregates and
 // configuration only — never pedagogical content, resources, users, prompts or credentials.
@@ -51,6 +60,8 @@ export const AiAgentMetricsSchema = z.strictObject({
   cancelled: z.int(),
   /** Executions in which a logical call went to the fallback model (008 FR-019). */
   fallbacks: z.int(),
+  /** Executions escalated to a higher tier after an invalid output (009 FR-015). */
+  escalations: z.int(),
   avgDurationMs: z.int().nullable(),
   modelCalls: z.int(),
   toolCalls: z.int(),
@@ -75,6 +86,9 @@ export const AiModelUsageSchema = z.strictObject({
   provider: z.string(),
   /** The model the provider served when it said so, else the one requested (008 FR-019). */
   model: z.string(),
+  /** Tier and family of the catalog entry the calls went to (009); null before 009. */
+  tier: AiModelTierSchema.nullable(),
+  family: z.string().nullable(),
   calls: z.int(),
   /** Calls that did not succeed (failed or timed out). */
   failedCalls: z.int(),
@@ -89,11 +103,55 @@ export const AiModelUsageSchema = z.strictObject({
 });
 export type AiModelUsage = z.infer<typeof AiModelUsageSchema>;
 
+/** Usage of one task in the period (009 FR-020): its executions and their calls. */
+export const AiTaskMetricsSchema = z.strictObject({
+  taskKey: z.string(),
+  agentKeys: z.array(z.string()),
+  executions: z.int(),
+  calls: z.int(),
+  inputTokens: z.int().nullable(),
+  outputTokens: z.int().nullable(),
+  avgDurationMs: z.int().nullable(),
+  estimatedCost: DecimalStringSchema.nullable(),
+  currency: z.string().nullable(),
+  fallbacks: z.int(),
+  escalations: z.int(),
+});
+export type AiTaskMetrics = z.infer<typeof AiTaskMetricsSchema>;
+
+/** Calls by the tier of their catalog entry (009 FR-020); null for calls before 009. */
+export const AiTierMetricsSchema = z.strictObject({
+  tier: AiModelTierSchema.nullable(),
+  calls: z.int(),
+  inputTokens: z.int().nullable(),
+  outputTokens: z.int().nullable(),
+  avgDurationMs: z.int().nullable(),
+  estimatedCost: DecimalStringSchema.nullable(),
+  currency: z.string().nullable(),
+});
+export type AiTierMetrics = z.infer<typeof AiTierMetricsSchema>;
+
+/** Calls by the family of their catalog entry (009 FR-020); null for calls before 009. */
+export const AiFamilyMetricsSchema = z.strictObject({
+  family: z.string().nullable(),
+  calls: z.int(),
+  inputTokens: z.int().nullable(),
+  outputTokens: z.int().nullable(),
+  avgDurationMs: z.int().nullable(),
+  estimatedCost: DecimalStringSchema.nullable(),
+  currency: z.string().nullable(),
+  fallbackCalls: z.int(),
+});
+export type AiFamilyMetrics = z.infer<typeof AiFamilyMetricsSchema>;
+
 export const AiMetricsSchema = z.strictObject({
   from: IsoDateTimeSchema,
   to: IsoDateTimeSchema,
   byAgent: z.array(AiAgentMetricsSchema),
   byModel: z.array(AiModelUsageSchema),
+  byTask: z.array(AiTaskMetricsSchema),
+  byTier: z.array(AiTierMetricsSchema),
+  byFamily: z.array(AiFamilyMetricsSchema),
 });
 export type AiMetrics = z.infer<typeof AiMetricsSchema>;
 
@@ -127,6 +185,67 @@ export const AiModelConfigViewSchema = z.strictObject({
   agentKeys: z.array(z.string()),
 });
 export type AiModelConfigView = z.infer<typeof AiModelConfigViewSchema>;
+
+export const AiModelCapabilitiesSchema = z.strictObject({
+  structuredOutput: z.boolean(),
+  tools: z.boolean(),
+  vision: z.boolean(),
+  reasoning: z.boolean(),
+});
+export type AiModelCapabilities = z.infer<typeof AiModelCapabilitiesSchema>;
+
+/**
+ * One entry of the model catalog (009 FR-002, FR-021): its classification, reference price and,
+ * per task, the approval with the metrics measured and the real average cost per execution in
+ * the period (null without executions or without cost).
+ */
+export const AiModelCatalogViewSchema = z.strictObject({
+  key: z.string(),
+  family: z.string(),
+  model: z.string(),
+  tier: AiModelTierSchema,
+  mode: AiModelModeSchema,
+  lifecycle: AiModelLifecycleSchema,
+  status: AiModelConfigStatusSchema,
+  capabilities: AiModelCapabilitiesSchema,
+  contextWindow: z.int().nullable(),
+  price: z.strictObject({ inputPerMTok: DecimalStringSchema, outputPerMTok: DecimalStringSchema, currency: z.string() }).nullable(),
+  approvals: z.array(
+    z.strictObject({
+      taskKey: z.string(),
+      valid: z.boolean(),
+      metrics: z.record(z.string(), z.number()),
+      evaluatedAt: IsoDateTimeSchema,
+      avgCostPerExecution: DecimalStringSchema.nullable(),
+    }),
+  ),
+});
+export type AiModelCatalogView = z.infer<typeof AiModelCatalogViewSchema>;
+
+/**
+ * One task with its policy and the policy's choice now (009 FR-006, FR-010): the primary and
+ * fallback catalog keys and the reason (`DEPRECATED_ONLY` is the deprecated-in-use warning), or why
+ * it is unavailable; and the administrator's override.
+ */
+export const AiTaskPolicyViewSchema = z.strictObject({
+  key: z.string(),
+  mode: AiModelModeSchema,
+  minimumTier: AiModelTierSchema,
+  preferredTier: AiModelTierSchema,
+  maxTier: AiModelTierSchema,
+  allowedFamilies: z.array(z.string()),
+  requiredCapabilities: z.array(z.string()),
+  fallback: z.enum(["SAME_TIER", "NONE"]),
+  escalation: z.enum(["NONE", "ON_OUTPUT_INVALID"]),
+  quality: z.record(z.string(), z.number()),
+  agentKeys: z.array(z.string()),
+  selection: z.union([
+    z.strictObject({ primaryKey: z.string(), fallbackKey: z.string().nullable(), reason: AiSelectionReasonSchema }),
+    z.strictObject({ unavailable: AiTaskUnavailableReasonSchema }),
+  ]),
+  override: z.strictObject({ modelConfigKey: z.string(), setAt: IsoDateTimeSchema }).nullable(),
+});
+export type AiTaskPolicyView = z.infer<typeof AiTaskPolicyViewSchema>;
 
 /** Key of an agent or model config in the registry (a code identifier such as `reference-l1`). */
 export const AiRegistryKeySchema = z.string().regex(/^[a-z0-9][a-z0-9.-]{0,62}$/);

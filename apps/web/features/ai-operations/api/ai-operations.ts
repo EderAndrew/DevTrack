@@ -3,7 +3,9 @@ import type {
   AiHealth,
   AiMetrics,
   AiMetricsPeriod,
+  AiModelCatalogView,
   AiModelConfigView,
+  AiTaskPolicyView,
   ChangeAiAgentStatusRequest,
   ChangeAiModelConfigStatusRequest,
 } from "@repo/contracts";
@@ -15,6 +17,9 @@ export const aiOperationsApi = {
   metrics: (period: AiMetricsPeriod) => apiClient.get<AiMetrics>(`/ai/operations/metrics?period=${period}`),
   agents: () => apiClient.get<AiAgentOperationsView[]>("/ai/operations/agents"),
   modelConfigs: () => apiClient.get<AiModelConfigView[]>("/ai/operations/model-configs"),
+  // 009 — the model catalog (with the real cost per execution in the period) and the task policies.
+  models: (period: AiMetricsPeriod) => apiClient.get<AiModelCatalogView[]>(`/ai/operations/models?period=${period}`),
+  tasks: () => apiClient.get<AiTaskPolicyView[]>("/ai/operations/tasks"),
   changeAgentStatus: (key: string, body: ChangeAiAgentStatusRequest) =>
     apiClient.post<AiAgentOperationsView>(`/ai/operations/agents/${encodeURIComponent(key)}/status`, body),
   changeModelConfigStatus: (key: string, body: ChangeAiModelConfigStatusRequest) =>

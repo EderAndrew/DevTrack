@@ -49,8 +49,10 @@ import {
   AiHealthSchema,
   AiMetricsQuerySchema,
   AiMetricsSchema,
+  AiModelCatalogViewSchema,
   AiModelConfigViewSchema,
   AiRegistryKeySchema,
+  AiTaskPolicyViewSchema,
   ChangeAiAgentStatusRequestSchema,
   ChangeAiModelConfigStatusRequestSchema,
 } from "./ai/operations.js";
@@ -693,6 +695,9 @@ export const endpoints = {
   "aiOperations.metrics": { method: "GET", path: "/ai/operations/metrics", query: AiMetricsQuerySchema, response: AiMetricsSchema, status: 200 },
   "aiOperations.agents": { method: "GET", path: "/ai/operations/agents", response: z.array(AiAgentOperationsViewSchema), status: 200 },
   "aiOperations.modelConfigs": { method: "GET", path: "/ai/operations/model-configs", response: z.array(AiModelConfigViewSchema), status: 200 },
+  // 009 — the model catalog with approvals and real cost, and the task policies with the current choice.
+  "aiOperations.models": { method: "GET", path: "/ai/operations/models", query: AiMetricsQuerySchema, response: z.array(AiModelCatalogViewSchema), status: 200 },
+  "aiOperations.tasks": { method: "GET", path: "/ai/operations/tasks", response: z.array(AiTaskPolicyViewSchema), status: 200 },
   "aiOperations.changeAgentStatus": {
     method: "POST",
     path: "/ai/operations/agents/:key/status",

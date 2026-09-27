@@ -24,7 +24,14 @@ Changing a model's version = a new entry (new key) or a changed `model` on an en
 
 `CANDIDATE → EVALUATING → PRODUCTION → DEPRECATED`, and back to `EVALUATING` from
 `DEPRECATED` for a re-evaluation; every change is a code change, synced and audited
-(`ai_model_config.lifecycle_changed`, with `from`, `to`). The admin's `DISABLED` (006 status)
+(`ai_model_config.lifecycle_changed`, with `from`, `to`). A candidate whose evaluation already passed
+may go straight to `PRODUCTION` in the change that adds its approval, and `EVALUATING` may go
+back to `CANDIDATE` (evaluation given up); any other change (e.g. `PRODUCTION → CANDIDATE`,
+`DEPRECATED → PRODUCTION`) is refused by the startup check against the registry: the entry is
+left out of the catalog and logged `ai.catalog_entry_rejected` with
+`LIFECYCLE_TRANSITION_INVALID` (decided during implementation, 2026-09-27). A task left with only
+a `DEPRECATED` model runs on it and logs `ai.model_deprecated_in_use` (task, catalog key) at
+startup. The admin's `DISABLED` (006 status)
 overrides any lifecycle. No transition is automatic; nothing from OpenRouter enters the catalog
 by itself (FR-004, FR-018).
 

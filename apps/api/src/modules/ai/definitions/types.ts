@@ -1,3 +1,4 @@
+import type { AiTaskUnavailableReason } from "@repo/contracts";
 import type { Abstract, Type } from "@nestjs/common";
 import type { AiModelConfigStatus, AiProviderStatus, AiResourceRef } from "@repo/contracts";
 import type { z } from "zod";
@@ -201,10 +202,11 @@ export type CatalogEntryRejection =
   | "MODEL_INVALID"
   | "MODEL_DUPLICATED"
   | "DECISION_CAPABILITIES"
-  | "VALUE_INVALID";
+  | "VALUE_INVALID"
+  | "LIFECYCLE_TRANSITION_INVALID";
 
 /** Why a task can't run, logged once per startup as `ai.task_unavailable`. */
-export type TaskUnavailableReason = "POLICY_INVALID" | "NO_APPROVED_MODEL" | "PROVIDER_NOT_REGISTERED" | "ALL_BLOCKED";
+export type TaskUnavailableReason = AiTaskUnavailableReason;
 
 /**
  * What an agent asks the gateway for and the model policy that picks its models (009 research H5,

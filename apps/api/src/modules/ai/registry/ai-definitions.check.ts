@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
-import { isModelTier, MODEL_CAPABILITIES, MODEL_LIFECYCLES, MODEL_MODES, PRODUCTION_MODEL_FAMILIES } from "../definitions/model-families";
+import { isLifecycleTransition, isModelTier, MODEL_CAPABILITIES, MODEL_LIFECYCLES, MODEL_MODES, type ModelLifecycle, PRODUCTION_MODEL_FAMILIES } from "../definitions/model-families";
 import type { AgentDefinition, AiDefinitions, AnyToolDefinition, CatalogEntryRejection, CatalogModel, TaskDefinition } from "../definitions/types";
 
 /** A definition in code the foundation refuses; startup stops (006 FR-006, research A4, A5). */
@@ -107,16 +107,28 @@ export interface CatalogCheck {
 
 /**
  * The catalog entries the policy may use (contracts/catalog-and-quality-gate.md): each checked
- * alone, then one entry per key and per model (the first one wins).
+ * alone, then one entry per key and per model (the first one wins), then its lifecycle change
+ * against `previous` (the lifecycle each key has in the registry now, 009 FR-018).
  */
-export function checkCatalog(definitions: Pick<AiDefinitions, "modelConfigs" | "families">): CatalogCheck {
+export function checkCatalog(
+  definitions: Pick<AiDefinitions, "modelConfigs" | "families">,
+  previous: ReadonlyMap<string, ModelLifecycle> = new Map(),
+): CatalogCheck {
   const families = new Set(definitions.families);
   const result: CatalogCheck = { accepted: [], rejected: [] };
   const keys = new Set<string>();
   const models = new Set<string>();
   for (const entry of definitions.modelConfigs) {
+    const before = previous.get(entry.key);
     const reason =
-      catalogEntryProblem(entry, families) ?? (keys.has(entry.key) ? "KEY_DUPLICATED" : models.has(entry.model) ? "MODEL_DUPLICATED" : null);
+      catalogEntryProblem(entry, families) ??
+      (keys.has(entry.key)
+        ? "KEY_DUPLICATED"
+        : models.has(entry.model)
+          ? "MODEL_DUPLICATED"
+          : before !== undefined && !isLifecycleTransition(before, entry.lifecycle)
+            ? "LIFECYCLE_TRANSITION_INVALID"
+            : null);
     if (reason) {
       result.rejected.push({ key: entry.key, reason });
       continue;

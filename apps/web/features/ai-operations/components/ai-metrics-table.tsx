@@ -7,7 +7,8 @@ import { cost, count, countWithRate, duration, Missing } from "./format";
 /**
  * "Indicadores": one row per agent, version, instructions and model in the period (006/US7-1), with
  * the rates of 007/FR-048 next to their counts: outcomes over executions, decisions over proposals;
- * since 008 (US5-1) the task and the executions that used the fallback.
+ * since 008 (US5-1) the task and the executions that used the fallback; since 009 (US6-3) the ones
+ * escalated to a higher tier.
  */
 export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
   if (rows.length === 0) return <EmptyState icon={ChartNoAxesColumn} headingLevel="h3" title="Nenhuma execução no período." />;
@@ -27,6 +28,7 @@ export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
           <TableHead scope="col">Tempo esgotado</TableHead>
           <TableHead scope="col">Canceladas</TableHead>
           <TableHead scope="col">Fallbacks</TableHead>
+          <TableHead scope="col">Escalonamentos</TableHead>
           <TableHead scope="col">Duração média</TableHead>
           <TableHead scope="col">Chamadas ao modelo</TableHead>
           <TableHead scope="col">Chamadas de ferramenta</TableHead>
@@ -55,6 +57,7 @@ export function AiMetricsTable({ rows }: { rows: AiAgentMetrics[] }) {
             <TableCell>{countWithRate(row.timedOut, row.executions)}</TableCell>
             <TableCell>{countWithRate(row.cancelled, row.executions)}</TableCell>
             <TableCell>{countWithRate(row.fallbacks, row.executions)}</TableCell>
+            <TableCell>{countWithRate(row.escalations, row.executions)}</TableCell>
             <TableCell>{duration(row.avgDurationMs)}</TableCell>
             <TableCell>{count(row.modelCalls)}</TableCell>
             <TableCell>{count(row.toolCalls)}</TableCell>

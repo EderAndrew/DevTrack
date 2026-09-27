@@ -9,6 +9,22 @@ export const AiAgentStatusSchema = z.enum(["DRAFT", "ACTIVE", "DISABLED", "DEPRE
 export type AiAgentStatus = z.infer<typeof AiAgentStatusSchema>;
 
 export const AiModelConfigStatusSchema = z.enum(["ENABLED", "DISABLED"]);
+
+// 009 — model policy (research H2–H7): the catalog's classification and the policy's choice.
+export const AiModelTierSchema = z.enum(["BASIC", "STANDARD", "ADVANCED"]);
+export type AiModelTier = z.infer<typeof AiModelTierSchema>;
+
+export const AiModelModeSchema = z.enum(["GENERATION", "DECISION"]);
+export type AiModelMode = z.infer<typeof AiModelModeSchema>;
+
+export const AiModelLifecycleSchema = z.enum(["CANDIDATE", "EVALUATING", "PRODUCTION", "DEPRECATED"]);
+export type AiModelLifecycle = z.infer<typeof AiModelLifecycleSchema>;
+
+export const AiSelectionReasonSchema = z.enum(["OVERRIDE", "LOWEST_COST", "ONLY_CANDIDATE", "DEPRECATED_ONLY"]);
+export type AiSelectionReason = z.infer<typeof AiSelectionReasonSchema>;
+
+export const AiTaskUnavailableReasonSchema = z.enum(["NO_APPROVED_MODEL", "POLICY_INVALID", "PROVIDER_NOT_REGISTERED", "ALL_BLOCKED"]);
+export type AiTaskUnavailableReason = z.infer<typeof AiTaskUnavailableReasonSchema>;
 export type AiModelConfigStatus = z.infer<typeof AiModelConfigStatusSchema>;
 
 export const AiExecutionStatusSchema = z.enum([

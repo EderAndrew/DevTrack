@@ -329,3 +329,13 @@ describe("009/US4-1 009/US4-2 009/FR-012 fallback do mesmo nível, de outra fam�
     expect(route).toMatchObject({ primary: { key: "standard-a" }, fallback: { key: "standard-openai", tier: "STANDARD" } });
   });
 });
+
+describe("009/US5-3 override de um modelo que não pode atender agora", () => {
+  it("desabilitado ou de circuito aberto: o override é ignorado e vale a ordem da política", () => {
+    const catalog = [basic("a"), basic("b", { family: "openai" })];
+    expect(select(catalog, { override: "b" })).toMatchObject({ primary: { key: "b" }, reason: "OVERRIDE", overrideIgnored: false });
+    const route = select(catalog, { override: "b", health: (e) => (e.key === "b" ? "BLOCKED" : "USABLE") });
+    expect(route).toMatchObject({ primary: { key: "a" }, fallback: null, overrideIgnored: true });
+    expect(route).not.toMatchObject({ reason: "OVERRIDE" });
+  });
+});

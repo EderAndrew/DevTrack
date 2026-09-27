@@ -1,3 +1,4 @@
+import type { AiSelectionReason, AiTaskUnavailableReason } from "@repo/contracts";
 import type { ModelCapabilities, ModelLifecycle, ModelMode, ModelTier } from "../definitions/model-families";
 import type { ModelPrice } from "../definitions/types";
 import { type TaskPolicyFields, taskPolicyProblem } from "./task-policy";
@@ -26,9 +27,9 @@ export interface PolicyCatalogEntry {
 /** Why an entry can't take a call now: no provider registered, or disabled / circuit open (008). */
 export type EntryHealth = "USABLE" | "NO_PROVIDER" | "BLOCKED";
 
-export type SelectionReason = "OVERRIDE" | "LOWEST_COST" | "ONLY_CANDIDATE" | "DEPRECATED_ONLY";
+export type SelectionReason = AiSelectionReason;
 
-export type UnavailableReason = "NO_APPROVED_MODEL" | "POLICY_INVALID" | "PROVIDER_NOT_REGISTERED" | "ALL_BLOCKED";
+export type UnavailableReason = AiTaskUnavailableReason;
 
 export interface SelectRouteInput<E extends PolicyCatalogEntry> {
   task: TaskPolicyFields;
@@ -59,16 +60,20 @@ export function selectRoute<E extends PolicyCatalogEntry>(input: SelectRouteInpu
   const qualifying = qualifyingEntries(input);
   if (qualifying.length === 0) return { unavailable: "NO_APPROVED_MODEL" };
 
-  const production = order(qualifying.filter((entry) => entry.lifecycle === "PRODUCTION"), task, input.override);
-  const deprecated = order(qualifying.filter((entry) => entry.lifecycle === "DEPRECATED"), task, input.override);
+  // The health never reorders the policy's choice (below), but an override naming a model that
+  // can't take a call now (disabled, circuit open) is ignored: the policy's order applies (009 US5-3).
+  const health = new Map(qualifying.map((entry) => [entry.key, input.health(entry)]));
+  const usable = (entry: E) => health.get(entry.key) === "USABLE";
+  const overrideEntry = qualifying.find((entry) => entry.key === input.override);
+  const override = overrideEntry && usable(overrideEntry) ? input.override : null;
+  const production = order(qualifying.filter((entry) => entry.lifecycle === "PRODUCTION"), task, override);
+  const deprecated = order(qualifying.filter((entry) => entry.lifecycle === "DEPRECATED"), task, override);
   // DEPRECATED serves only when no PRODUCTION model remains (009 FR-016).
   const candidates = production.length > 0 ? [...production, ...deprecated] : deprecated;
   const primary = candidates[0]!;
 
-  // The health never reorders the policy's choice: an unusable primary stays the primary, and the
-  // 008 gateway goes to the fallback (recorded as such, 008 G6); so the fallback must be usable.
-  const health = new Map(qualifying.map((entry) => [entry.key, input.health(entry)]));
-  const usable = (entry: E) => health.get(entry.key) === "USABLE";
+  // An unusable primary stays the primary, and the 008 gateway goes to the fallback (recorded as
+  // such, 008 G6); so the fallback must be usable.
   let fallback: E | null = null;
   if (task.fallback === "SAME_TIER") {
     const rest = candidates.slice(1).filter(usable);
@@ -80,7 +85,7 @@ export function selectRoute<E extends PolicyCatalogEntry>(input: SelectRouteInpu
     return { unavailable: noProvider ? "PROVIDER_NOT_REGISTERED" : "ALL_BLOCKED" };
   }
 
-  const overrideUsed = input.override !== null && primary.key === input.override;
+  const overrideUsed = override !== null && primary.key === override;
   const reason: SelectionReason = overrideUsed
     ? "OVERRIDE"
     : production.length === 0

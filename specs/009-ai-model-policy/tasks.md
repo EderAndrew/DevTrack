@@ -304,7 +304,7 @@ reagir.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T035 [P] [US5] Criar `apps/api/test/integration/009-us5-lifecycle.spec.ts`: CANDIDATE e
+- [X] T035 [P] [US5] Criar `apps/api/test/integration/009-us5-lifecycle.spec.ts`: CANDIDATE e
   EVALUATING nunca escolhidos; aprovação abaixo dos limiares ignorada e logada; DISABLED nunca
   (nem fallback, nem override); DEPRECATED só na falta de outro, com aviso; nova versão no
   catálogo muda a escolha sem tocar em agente ou política, e as execuções antigas mantêm o
@@ -313,7 +313,7 @@ reagir.
 
 ### Implementation for User Story 5
 
-- [ ] T036 [US5] Completar sync e seleção com o que os testes apontarem (aviso de DEPRECATED
+- [X] T036 [US5] Completar sync e seleção com o que os testes apontarem (aviso de DEPRECATED
   em `ai.model_deprecated_in_use`, transições inválidas do ciclo de vida recusadas na
   checagem do catálogo).
 
@@ -330,25 +330,25 @@ perguntas do pedido.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T037 [P] [US6] Criar `apps/api/test/integration/009-us6-cost.spec.ts`: `byTask`,
+- [X] T037 [P] [US6] Criar `apps/api/test/integration/009-us6-cost.spec.ts`: `byTask`,
   `byTier`, `byFamily`, `byAgent.escalations`, `byModel.tier/family`; `GET
   /ai/operations/models` com aprovações, métricas e custo real por execução; `GET
   /ai/operations/tasks` com a escolha atual e o motivo (`009/US6-1`…`009/US6-3`,
   `009/FR-020`, `009/FR-021`, `009/SC-008`).
-- [ ] T038 [P] [US6] `apps/api/test/security/006-ai-admin-scan.spec.ts` e
+- [X] T038 [P] [US6] `apps/api/test/security/006-ai-admin-scan.spec.ts` e
   `006-ai-authorization-matrix.ts`: as rotas novas sem conteúdo, credencial nem ids
   (`009/US6-4`, `009/SC-009`).
-- [ ] T039 [P] [US6] `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
+- [X] T039 [P] [US6] `apps/web/features/ai-operations/components/ai-operations-page.test.tsx`:
   seções "Tarefas" e "Modelos", custo por nível e família; axe e Tab.
 
 ### Implementation for User Story 6
 
-- [ ] T040 [US6] `packages/contracts/src/ai/operations.ts` e `packages/contracts/src/endpoints.ts`
+- [X] T040 [US6] `packages/contracts/src/ai/operations.ts` e `packages/contracts/src/endpoints.ts`
   (contracts/http-api.md): métricas novas, `AiModelCatalogViewSchema`, `AiTaskPolicyViewSchema`.
-- [ ] T041 [US6] `apps/api/src/modules/ai/operations/{ai-metrics.query.ts,ai-operations.service.ts,ai-operations.controller.ts}`:
+- [X] T041 [US6] `apps/api/src/modules/ai/operations/{ai-metrics.query.ts,ai-operations.service.ts,ai-operations.controller.ts}`:
   agregações por tarefa, nível e família; rotas `GET /ai/operations/models` e
   `GET /ai/operations/tasks`, com o aviso de modelo DEPRECATED em uso por tarefa (`009/US5-4`).
-- [ ] T042 [US6] `apps/web/features/ai-operations/`: hooks e componentes das seções "Tarefas" e
+- [X] T042 [US6] `apps/web/features/ai-operations/`: hooks e componentes das seções "Tarefas" e
   "Modelos" e as colunas de nível e família, com componentes do design system, textos em
   português e estados sem depender só de cor; modelo sem preço aparece como "custo
   desconhecido" e modelo DEPRECATED em uso como aviso com texto e ícone.

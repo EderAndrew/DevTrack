@@ -11,6 +11,8 @@ export const aiOperationsKeys = {
   metrics: (period: AiMetricsPeriod) => [...aiOperationsKeys.all, "metrics", period] as const,
   agents: () => [...aiOperationsKeys.all, "agents"] as const,
   modelConfigs: () => [...aiOperationsKeys.all, "model-configs"] as const,
+  models: (period: AiMetricsPeriod) => [...aiOperationsKeys.all, "models", period] as const,
+  tasks: () => [...aiOperationsKeys.all, "tasks"] as const,
 };
 
 export const useAiHealth = () => useQuery({ queryKey: aiOperationsKeys.health(), queryFn: aiOperationsApi.health });
@@ -21,6 +23,11 @@ export const useAiMetrics = (period: AiMetricsPeriod) =>
 export const useAiAgents = () => useQuery({ queryKey: aiOperationsKeys.agents(), queryFn: aiOperationsApi.agents });
 
 export const useAiModelConfigs = () => useQuery({ queryKey: aiOperationsKeys.modelConfigs(), queryFn: aiOperationsApi.modelConfigs });
+
+export const useAiModels = (period: AiMetricsPeriod) =>
+  useQuery({ queryKey: aiOperationsKeys.models(period), queryFn: () => aiOperationsApi.models(period) });
+
+export const useAiTasks = () => useQuery({ queryKey: aiOperationsKeys.tasks(), queryFn: aiOperationsApi.tasks });
 
 /** Enables or disables an agent; the toast says the result and every AI operations list refetches. */
 export function useChangeAiAgentStatus() {

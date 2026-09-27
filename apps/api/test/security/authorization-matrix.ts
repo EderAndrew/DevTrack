@@ -184,6 +184,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/ai/operations/model-configs", access: "ia.operacao.visualizar" },
   { method: "POST", path: "/ai/operations/agents/:key/status", access: "ia.agentes.gerenciar" },
   { method: "POST", path: "/ai/operations/model-configs/:key/status", access: "ia.agentes.gerenciar" },
+  // 009 — the model catalog and the task policies (aggregates and configuration only).
+  { method: "GET", path: "/ai/operations/models", access: "ia.operacao.visualizar" },
+  { method: "GET", path: "/ai/operations/tasks", access: "ia.operacao.visualizar" },
 
   // 007 — "Preencher com IA" (contracts/permissions.md). The status and the request also require
   // ia.execucoes.visualizar, and the application ia.propostas.revisar, which every role holding

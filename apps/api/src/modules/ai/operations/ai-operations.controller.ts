@@ -5,8 +5,10 @@ import {
   type AiMetrics,
   type AiMetricsQuery,
   AiMetricsQuerySchema,
+  type AiModelCatalogView,
   type AiModelConfigView,
   AiRegistryKeySchema,
+  type AiTaskPolicyView,
   type ChangeAiAgentStatusRequest,
   ChangeAiAgentStatusRequestSchema,
   type ChangeAiModelConfigStatusRequest,
@@ -49,6 +51,18 @@ export class AiOperationsController {
   @RequirePermissions("ia.operacao.visualizar")
   modelConfigs(): Promise<AiModelConfigView[]> {
     return this.operations.listModelConfigs();
+  }
+
+  @Get("models")
+  @RequirePermissions("ia.operacao.visualizar")
+  models(@Query(new ZodValidationPipe(AiMetricsQuerySchema)) query: AiMetricsQuery): Promise<AiModelCatalogView[]> {
+    return this.operations.listModels(query.period);
+  }
+
+  @Get("tasks")
+  @RequirePermissions("ia.operacao.visualizar")
+  tasks(): Promise<AiTaskPolicyView[]> {
+    return this.operations.listTasks();
   }
 
   @Post("agents/:key/status")

@@ -1,5 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { AiAgentOperationsView, AiHealth, AiMetrics, AiMetricsPeriod, AiModelConfigStatus, AiModelConfigView, AiProviderStatus } from "@repo/contracts";
+import type {
+  AiAgentOperationsView,
+  AiHealth,
+  AiMetrics,
+  AiMetricsPeriod,
+  AiModelCatalogView,
+  AiModelCapabilities,
+  AiModelConfigStatus,
+  AiModelConfigView,
+  AiProviderStatus,
+  AiTaskPolicyView,
+} from "@repo/contracts";
 import type { Prisma } from "../../../generated/prisma/client";
 import { PrismaService } from "../../../platform/database/prisma.service";
 import type { Tx } from "../../../platform/database/transaction";
@@ -8,8 +19,10 @@ import { AuditService } from "../../audit/audit.service";
 import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
 import { CircuitBreaker } from "../gateway/circuit-breaker";
 import { AiExecutionStore } from "../execution/ai-execution.store";
+import type { TaskPolicyFields } from "../policy/task-policy";
+import { maxTierOf } from "../policy/tiers";
 import { AiPolicyRegistry } from "../registry/ai-policy.registry";
-import { PERIOD_MS, queryAgentMetrics, queryModelUsage } from "./ai-metrics.query";
+import { PERIOD_MS, queryAgentMetrics, queryFamilyMetrics, queryModelTaskCost, queryModelUsage, queryTaskMetrics, queryTierMetrics } from "./ai-metrics.query";
 
 /** Longest wait for one provider's health check (contracts/http-api.md). */
 export const HEALTH_TIMEOUT_MS = 5_000;
@@ -81,14 +94,88 @@ export class AiOperationsService {
   }
 
   async metrics(period: AiMetricsPeriod, now = new Date()): Promise<AiMetrics> {
-    const from = new Date(now.getTime() - PERIOD_MS[period]);
-    const to = new Date(now.getTime() + 1);
+    const { from, to } = periodOf(period, now);
     return {
       from: from.toISOString(),
       to: now.toISOString(),
       byAgent: await queryAgentMetrics(this.prisma, from, to),
       byModel: await queryModelUsage(this.prisma, from, to),
+      byTask: await queryTaskMetrics(this.prisma, from, to),
+      byTier: await queryTierMetrics(this.prisma, from, to),
+      byFamily: await queryFamilyMetrics(this.prisma, from, to),
     };
+  }
+
+  /**
+   * The model catalog (009 FR-002, FR-021): the entries with a tier, their approvals by task with
+   * the metrics measured, and the real average cost per execution of the task in the period.
+   */
+  async listModels(period: AiMetricsPeriod, now = new Date()): Promise<AiModelCatalogView[]> {
+    const { from, to } = periodOf(period, now);
+    const costs = await queryModelTaskCost(this.prisma, from, to);
+    const rows = await this.prisma.aiModelConfig.findMany({
+      where: { tier: { not: null } },
+      include: { taskApprovals: { include: { task: { select: { key: true } } } } },
+      orderBy: { key: "asc" },
+    });
+    return rows.map((row) => ({
+      key: row.key,
+      family: row.family!,
+      model: row.model,
+      tier: row.tier!,
+      mode: row.mode,
+      lifecycle: row.lifecycle,
+      status: row.status,
+      capabilities: row.capabilities as unknown as AiModelCapabilities,
+      contextWindow: row.contextWindow,
+      price:
+        row.inputPricePerMTok !== null && row.outputPricePerMTok !== null && row.currency !== null
+          ? { inputPerMTok: row.inputPricePerMTok.toString(), outputPerMTok: row.outputPricePerMTok.toString(), currency: row.currency.trim() }
+          : null,
+      approvals: row.taskApprovals
+        .map((approval) => ({
+          taskKey: approval.task.key,
+          valid: approval.valid,
+          metrics: approval.metrics as Record<string, number>,
+          evaluatedAt: approval.evaluatedAt.toISOString(),
+          avgCostPerExecution: costs.get(`${row.id}|${approval.task.key}`) ?? null,
+        }))
+        .sort((a, b) => a.taskKey.localeCompare(b.taskKey)),
+    }));
+  }
+
+  /**
+   * The task policies (009 FR-006, FR-010) with the policy's choice now — primary, fallback and
+   * reason (`DEPRECATED_ONLY` is the deprecated-in-use warning, US5-4) or why the task is
+   * unavailable — the agents whose current version runs the task, and the admin's override.
+   */
+  async listTasks(): Promise<AiTaskPolicyView[]> {
+    const tasks = await this.prisma.aiTask.findMany({ include: { override: { include: { modelConfig: { select: { key: true } } } } }, orderBy: { key: "asc" } });
+    const versions = await this.prisma.aiAgentVersion.findMany({ where: { currentOf: { some: {} }, taskId: { not: null } }, select: { taskId: true, agent: { select: { key: true } } } });
+    return Promise.all(
+      tasks.map(async (task): Promise<AiTaskPolicyView> => {
+        const policy = task.policy as unknown as TaskPolicyFields;
+        const route = await this.policy.routeFor(task.id);
+        return {
+          key: task.key,
+          mode: policy.mode,
+          minimumTier: policy.minimumTier,
+          preferredTier: policy.preferredTier,
+          maxTier: maxTierOf(policy),
+          allowedFamilies: [...policy.allowedFamilies],
+          requiredCapabilities: [...policy.requiredCapabilities],
+          fallback: policy.fallback,
+          escalation: policy.escalation,
+          quality: { ...policy.quality },
+          agentKeys: versions.filter((version) => version.taskId === task.id).map((version) => version.agent.key).sort(),
+          selection:
+            !route || "unavailable" in route
+              ? { unavailable: route?.unavailable ?? "POLICY_INVALID" }
+              : { primaryKey: route.primary.key, fallbackKey: route.fallback?.key ?? null, reason: route.reason },
+          override: task.override ? { modelConfigKey: task.override.modelConfig.key, setAt: task.override.setAt.toISOString() } : null,
+        };
+      }),
+    );
   }
 
   async listAgents(): Promise<AiAgentOperationsView[]> {
@@ -257,4 +344,9 @@ export class AiOperationsService {
       agentKeys: users.get(config.id) ?? [],
     };
   }
+}
+
+/** `[from, to)` of a metrics period ending now (the end is exclusive, so `now` itself counts). */
+function periodOf(period: AiMetricsPeriod, now: Date): { from: Date; to: Date } {
+  return { from: new Date(now.getTime() - PERIOD_MS[period]), to: new Date(now.getTime() + 1) };
 }

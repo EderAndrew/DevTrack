@@ -17,7 +17,9 @@ Filter, in order: family ∈ allowlist ∩ `task.allowedFamilies` → `mode === 
 `task.requiredCapabilities` → `lifecycle = PRODUCTION` with a **valid** approval for the task
 (`DEPRECATED` only if nothing else remains) → `tier === input.tier`.
 
-Order the candidates: override first (if present among them), then estimated cost
+Order the candidates: override first (if present among them and usable now: an override naming
+a disabled model or one behind an open circuit is ignored, `overrideIgnored`; decided during
+implementation, 2026-09-27), then estimated cost
 `(typicalUsage.inputTokens × in + typicalUsage.outputTokens × out) / 1e6` ascending (entries
 without price after those with price), then `priority` descending, then `key`.
 

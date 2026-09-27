@@ -64,7 +64,9 @@ export class AiRegistrySync implements OnApplicationBootstrap {
     checkDefinitions(this.definitions, this.config.ai.limits);
     // Models come from the catalog since 009: a removed variable still set changes nothing.
     for (const variable of this.config.ai.ignoredVariables) this.logger.warn({ variable }, "ai.config_ignored");
-    const catalog = checkCatalog(this.definitions);
+    // A lifecycle change is checked against the registry: a refused one leaves the entry out (009 FR-018).
+    const previous = await this.prisma.aiModelConfig.findMany({ select: { key: true, lifecycle: true } });
+    const catalog = checkCatalog(this.definitions, new Map(previous.map((row) => [row.key, row.lifecycle])));
     for (const { key, reason } of catalog.rejected) this.logger.warn({ configKey: key, reason }, "ai.catalog_entry_rejected");
     const { summary, statuses } = await this.prisma.runInTransaction(
       async (tx) => {
@@ -104,7 +106,8 @@ export class AiRegistrySync implements OnApplicationBootstrap {
   /**
    * One warning per task that can't run with this deploy's catalog and policies (008 FR-008, 009
    * FR-010): the reason code only, never a model value, key or secret. The API keeps running. The
-   * circuits start closed, so only the status and the registered providers count here.
+   * circuits start closed, so only the status and the registered providers count here. A task
+   * left with only a DEPRECATED model runs on it, with a warning (009 US5-4): the catalog key only.
    */
   private reportUnavailableTasks(accepted: CatalogModel[], statuses: Map<string, AiSwitchStatus>): void {
     const providers = new Set(this.definitions.providers.map((provider) => provider.key));
@@ -119,6 +122,7 @@ export class AiRegistrySync implements OnApplicationBootstrap {
         health: (entry) => (statuses.get(entry.key) !== "ENABLED" ? "BLOCKED" : providers.has(entry.provider) ? "USABLE" : "NO_PROVIDER"),
       });
       if ("unavailable" in route) this.logger.warn({ task: task.key, reason: route.unavailable }, "ai.task_unavailable");
+      else if (route.reason === "DEPRECATED_ONLY") this.logger.warn({ task: task.key, configKey: route.primary.key }, "ai.model_deprecated_in_use");
     }
   }
 

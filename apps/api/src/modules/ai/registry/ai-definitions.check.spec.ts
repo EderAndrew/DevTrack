@@ -113,3 +113,34 @@ describe("009/FR-006 checagem da política da tarefa", () => {
     expect(problem({ ...decision, minConfidence: 0.8, maxTier: "STANDARD", escalation: "ON_OUTPUT_INVALID" })).not.toBeNull();
   });
 });
+
+describe("009/FR-018 transições do ciclo de vida na checagem do catálogo", () => {
+  const withPrevious = (lifecycle: CatalogModel["lifecycle"], previous: CatalogModel["lifecycle"]) =>
+    checkCatalog({ modelConfigs: [entry({ lifecycle })], families: FAMILIES }, new Map([["anthropic-basic", previous]]));
+
+  it.each([
+    ["CANDIDATE", "EVALUATING"],
+    ["CANDIDATE", "PRODUCTION"],
+    ["EVALUATING", "PRODUCTION"],
+    ["EVALUATING", "CANDIDATE"],
+    ["PRODUCTION", "DEPRECATED"],
+    ["DEPRECATED", "EVALUATING"],
+    ["PRODUCTION", "PRODUCTION"],
+  ] as const)("%s → %s é aceita", (from, to) => {
+    expect(withPrevious(to, from).rejected).toEqual([]);
+  });
+
+  it.each([
+    ["PRODUCTION", "CANDIDATE"],
+    ["PRODUCTION", "EVALUATING"],
+    ["DEPRECATED", "PRODUCTION"],
+    ["DEPRECATED", "CANDIDATE"],
+    ["CANDIDATE", "DEPRECATED"],
+  ] as const)("%s → %s é recusada", (from, to) => {
+    expect(withPrevious(to, from)).toEqual({ accepted: [], rejected: [{ key: "anthropic-basic", reason: "LIFECYCLE_TRANSITION_INVALID" }] });
+  });
+
+  it("uma entrada nova pode começar em qualquer estado", () => {
+    expect(checkCatalog({ modelConfigs: [entry({ lifecycle: "PRODUCTION" })], families: FAMILIES }, new Map()).rejected).toEqual([]);
+  });
+});

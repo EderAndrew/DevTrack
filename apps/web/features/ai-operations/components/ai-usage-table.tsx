@@ -2,12 +2,13 @@ import type { AiModelUsage } from "@repo/contracts";
 import { Coins } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cost, count, countWithRate, duration } from "./format";
+import { cost, count, countWithRate, duration, Missing } from "./format";
+import { tierLabel } from "./policy-labels";
 
 /**
  * "Uso e custo": calls, tokens and estimated cost per provider and model in the period; the model
  * is the one served when the provider said so, with the failed and fallback calls and the average
- * duration (008/US5-1).
+ * duration (008/US5-1); since 009 (US6-1) the tier and family of the catalog entry.
  */
 export function AiUsageTable({ rows }: { rows: AiModelUsage[] }) {
   if (rows.length === 0) return <EmptyState icon={Coins} headingLevel="h3" title="Nenhuma chamada ao modelo no período." />;
@@ -18,6 +19,8 @@ export function AiUsageTable({ rows }: { rows: AiModelUsage[] }) {
         <TableRow>
           <TableHead scope="col">Provedor</TableHead>
           <TableHead scope="col">Modelo</TableHead>
+          <TableHead scope="col">Nível</TableHead>
+          <TableHead scope="col">Família</TableHead>
           <TableHead scope="col">Chamadas</TableHead>
           <TableHead scope="col">Falhas</TableHead>
           <TableHead scope="col">Fallbacks</TableHead>
@@ -30,9 +33,11 @@ export function AiUsageTable({ rows }: { rows: AiModelUsage[] }) {
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow key={`${row.provider}:${row.model}`}>
+          <TableRow key={`${row.provider}:${row.model}:${row.tier}:${row.family}`}>
             <TableCell>{row.provider}</TableCell>
             <TableCell>{row.model}</TableCell>
+            <TableCell>{tierLabel(row.tier)}</TableCell>
+            <TableCell>{row.family ?? <Missing />}</TableCell>
             <TableCell>{count(row.calls)}</TableCell>
             <TableCell>{countWithRate(row.failedCalls, row.calls)}</TableCell>
             <TableCell>{countWithRate(row.fallbackCalls, row.calls)}</TableCell>
