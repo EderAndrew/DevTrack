@@ -1,8 +1,7 @@
 import { CurriculumProposalContentSchema, type CurriculumExtractionOutput } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
-import { FALLBACK_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
-import { AI_DEFINITIONS, defineModelConfig } from "../../src/modules/ai/definitions/types";
+import { AI_DEFINITIONS } from "../../src/modules/ai/definitions/types";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
@@ -14,21 +13,16 @@ import {
   pooOutput,
   requestAnalysis,
   seedProcessedDocument,
+  TEST_CURRICULUM_FALLBACK_CONFIG,
   TEST_CURRICULUM_MODEL_CONFIG,
 } from "../helpers/curriculum-ai";
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, type TestApp, testConfig } from "../helpers/test-app";
 
+/** A second approved BASIC model of another family: the policy makes it the fallback (009 FR-012). */
+const FALLBACK_CONFIG = TEST_CURRICULUM_FALLBACK_CONFIG;
 const PRIMARY = CURRICULUM_TEST_MODEL;
-const FALLBACK = "openai/gpt-5.5";
-
-/** The fallback config of production (`OPENROUTER_FALLBACK_MODEL`), on the simulated provider. */
-const FALLBACK_CONFIG = defineModelConfig({
-  ...TEST_CURRICULUM_MODEL_CONFIG,
-  key: FALLBACK_MODEL_CONFIG_KEY,
-  model: FALLBACK,
-  price: { inputPerMTok: "2", outputPerMTok: "8", currency: "USD" },
-});
+const FALLBACK = FALLBACK_CONFIG.model;
 
 async function waitFor(check: () => boolean | Promise<boolean>, timeoutMs = 5_000): Promise<void> {
   const started = Date.now();
@@ -46,12 +40,9 @@ describe("008/US3 uma falha recuperável do principal cai no fallback, com limit
   let document: SyllabusDocument;
 
   beforeAll(async () => {
-    // The Curriculum Agent's task with the fallback production adds when it is configured.
+    // The Curriculum Agent's task with a second approved model of its tier, so the policy picks a fallback.
     const definitions = curriculumTestDefinitions(provider);
     definitions.modelConfigs = [...definitions.modelConfigs, FALLBACK_CONFIG];
-    definitions.tasks = definitions.tasks.map((task) =>
-      task.key === "curriculum-extraction" ? { ...task, fallbackModelConfigKey: FALLBACK_CONFIG.key } : task,
-    );
     const base = testConfig();
     t = await createTestApp({
       config: { rateLimit: { ...base.rateLimit, curriculumAiPerHour: 1_000, aiExecutionsPerMinute: 1_000, aiAgentPerHour: 1_000 } },

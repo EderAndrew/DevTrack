@@ -230,9 +230,9 @@ export class AiExecutionRunner {
   }
 
   /**
-   * The route fixed at request (008 research G5), read again: the primary and the fallback with
-   * their current status, and the task's settings (a pre-008 execution uses its config's). Neither
-   * usable → `AI_MODEL_UNAVAILABLE`.
+   * The route fixed at request (008 research G5; chosen by the model policy since 009), read
+   * again: the primary and the fallback with their current status, and the task's settings (a
+   * pre-008 execution uses its config's). Neither usable → `AI_MODEL_UNAVAILABLE`.
    */
   private async routeOf(execution: Loaded): Promise<ExecutionRoute> {
     const primary = await this.modelConfigs.byId(execution.modelConfigId);

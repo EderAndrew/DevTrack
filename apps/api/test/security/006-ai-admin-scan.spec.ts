@@ -1,5 +1,6 @@
+import { routedTask } from "../fixtures/ai/tasks";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { defineAgent, defineTask } from "../../src/modules/ai/definitions/types";
+import { defineAgent } from "../../src/modules/ai/definitions/types";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { FAKE_PROVIDER_CREDENTIAL, fakeError, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER, REFERENCE_L1 } from "../fixtures/ai/reference-agents";
@@ -12,7 +13,7 @@ const OUTPUT_MARKER = "MARCADOR-SAIDA-006";
 const SUBJECT_MARKER = "MARCADOR-DISCIPLINA-006";
 
 /** 008/FR-020: an agent routed through a fallback, so the 008 fields of the responses have data. */
-const FALLBACK_TASK = defineTask({ key: "scan-fallback", primaryModelConfigKey: "fake-default", fallbackModelConfigKey: "fake-alt", maxOutputTokens: 1000, timeoutMs: 30_000 });
+const FALLBACK_TASK = routedTask({ key: "scan-fallback", maxOutputTokens: 1000, timeoutMs: 30_000 }, ["fake-default", "fake-alt"]);
 const FALLBACK_AGENT = defineAgent({
   ...REFERENCE_L1,
   key: "scan-fallback-agent",

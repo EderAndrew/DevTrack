@@ -66,7 +66,7 @@ configuration), quickstart.md
 **Purpose**: dados, definições, sync e seleção pura no pedido. Ao fim, a 006/007/008 passa com
 as tarefas escolhendo modelos pela política.
 
-- [ ] T004 Migração `apps/api/prisma/migrations/<ts>_ai_model_policy/migration.sql` e
+- [X] T004 Migração `apps/api/prisma/migrations/<ts>_ai_model_policy/migration.sql` e
   `apps/api/prisma/schema.prisma` (data-model.md): enums `ai_model_tier`, `ai_model_mode`,
   `ai_model_lifecycle`, `ai_selection_reason`; colunas novas de `ai_model_configs` (`family`,
   `tier`, `mode`, `lifecycle`, `context_window`, `capabilities`, `priority`) com CHECK do modo
@@ -76,40 +76,40 @@ as tarefas escolhendo modelos pela política.
   `ai_executions` (`tier`, `selection_reason`, `escalation_*`) com CHECK "tudo ou nada" e de
   `ai_model_calls` (`tier`, `family`, `is_escalation`). Conferir com `prisma migrate diff` que o
   schema e a migração batem.
-- [ ] T005 Em `apps/api/src/modules/ai/definitions/types.ts`: `CatalogModel` (ex-
+- [X] T005 Em `apps/api/src/modules/ai/definitions/types.ts`: `CatalogModel` (ex-
   `ModelConfigDefinition` + família, nível, modo, ciclo de vida, janela, capacidades, prioridade,
   aprovações), `TaskDefinition` com a política (research H5) no lugar de
   `primaryModelConfigKey`/`fallbackModelConfigKey`, `AiDefinitions.families` (allowlist em
   vigor; produção = as três, testes = as mesmas mais `fake`), `ModelProvider.decide?` e os
   tipos de decisão (contracts/decisions-provider.md).
-- [ ] T006 Em `apps/api/src/modules/ai/registry/ai-definitions.check.ts`: checagens do catálogo
+- [X] T006 Em `apps/api/src/modules/ai/registry/ai-definitions.check.ts`: checagens do catálogo
   (contracts/catalog-and-quality-gate.md; uma entrada inválida é ignorada e logada
   `ai.catalog_entry_rejected`, sem derrubar a API) e da política (H5; tarefa inválida fica
   indisponível com `POLICY_INVALID`; `minConfidence` só em `(0.5, 1]`) (`009/FR-006`, `009/FR-027`). Regra da
   família (research H3): quando o id tem `/`, o prefixo é a família; id sem prefixo só para
   família fora da allowlist de produção (a `fake` dos testes). Um teste fixa a allowlist de
   produção em exatamente `openai`, `anthropic` e `typesafe` (`009/FR-001`).
-- [ ] T007 Criar `apps/api/src/modules/ai/policy/{tiers.ts,estimate-cost.ts,select-route.ts}`
+- [X] T007 Criar `apps/api/src/modules/ai/policy/{tiers.ts,estimate-cost.ts,select-route.ts}`
   (contracts/model-policy.md): `selectRoute` pura com filtros, ordem (override, custo estimado,
   prioridade, chave), fallback do mesmo nível preferindo outra família, motivos e
   indisponibilidade. Só lê o que recebe; sem Prisma nem Nest.
-- [ ] T008 Em `apps/api/src/modules/ai/registry/ai-registry.sync.ts`: sincronizar o catálogo
+- [X] T008 Em `apps/api/src/modules/ai/registry/ai-registry.sync.ts`: sincronizar o catálogo
   em `ai_model_configs` (colunas novas; `ai_model_config.lifecycle_changed` ao mudar o ciclo de
   vida — tipo novo, com contrato 006 e jornada), as políticas em `ai_tasks`, e as aprovações em
   `ai_model_task_approvals` com `valid` calculado pelos limiares da tarefa (aprovação abaixo →
   `ai.approval_rejected`); `ai_registry.synced` ganha `catalogModels`.
-- [ ] T009 Criar `apps/api/src/modules/ai/registry/ai-policy.registry.ts`: lê do banco catálogo
+- [X] T009 Criar `apps/api/src/modules/ai/registry/ai-policy.registry.ts`: lê do banco catálogo
   (com status e circuito via `ModelGateway.isUsable`), aprovações válidas, política e override
   de uma tarefa e chama `selectRoute`; `availability(taskKey)` sem tomar sonda de circuito.
   Substitui `AiTaskRegistry.routeOf`.
-- [ ] T010 Em `apps/api/src/modules/ai/execution/ai-executions.service.ts`: a rota vem da
+- [X] T010 Em `apps/api/src/modules/ai/execution/ai-executions.service.ts`: a rota vem da
   `AiPolicyRegistry` no pedido; a execução grava principal, fallback, `tier` e
   `selection_reason`; `ai_execution.requested` ganha `tier` e `selectionReason` (contrato 006).
   A disponibilidade do agente usa a mesma seleção.
-- [ ] T011 Em `apps/api/src/modules/ai/execution/ai-execution.runner.ts` e
+- [X] T011 Em `apps/api/src/modules/ai/execution/ai-execution.runner.ts` e
   `apps/api/src/modules/ai/usage/ai-usage.recorder.ts`: cada perna grava `tier` e `family` da
   configuração; o runner relê a rota fixada (008) sem mudança de comportamento.
-- [ ] T012 Criar `apps/api/src/modules/ai/definitions/model-catalog.ts` com as sete entradas
+- [X] T012 Criar `apps/api/src/modules/ai/definitions/model-catalog.ts` com as sete entradas
   (research H12), **todas CANDIDATE e sem aprovações** — nenhuma evidência é montada a partir
   do `recorded.json` da 007, que não registra o modelo que respondeu (`009/FR-002`,
   `009/FR-017`) — e `apps/api/src/modules/curriculum-ai/definitions/curriculum-agent.ts` com as
@@ -118,13 +118,13 @@ as tarefas escolhendo modelos pela política.
   `fallback: "SAME_TIER"`; as outras sete com os níveis da spec. Consequência esperada: fora dos
   testes (que usam o catálogo simulado), a análise fica indisponível na branch até a T030, e a
   branch não é mergeada antes dela.
-- [ ] T013 Em `apps/api/src/modules/ai/definitions/index.ts`: `productionAiDefinitions` passa a
+- [X] T013 Em `apps/api/src/modules/ai/definitions/index.ts`: `productionAiDefinitions` passa a
   usar o catálogo e as famílias; remover `openRouterModelConfigs` e as variáveis
   `OPENROUTER_DEFAULT_MODEL`/`OPENROUTER_FALLBACK_MODEL` de `config.schema.ts`,
   `.env.example` e `test-app.ts` (um valor ainda definido é ignorado e logado
   `ai.config_ignored`, só o nome); a validação de modelos da 008 (T030 dela) passa para a
   checagem do catálogo.
-- [ ] T014 Fixtures e ajustes de testes (só detalhes que a feature muda de propósito):
+- [X] T014 Fixtures e ajustes de testes (só detalhes que a feature muda de propósito):
   - `apps/api/test/fixtures/ai/model-configs.ts` vira o catálogo de teste: `fake-default`,
     `fake-alt`, `fake-no-price` com família `fake`, nível BASIC, modo geração, PRODUCTION,
     `fake-default` com prioridade maior; aprovados para as tarefas de referência;
@@ -139,7 +139,7 @@ as tarefas escolhendo modelos pela política.
     a `008-us2-model-by-config` troca "modelo por variável" por "modelo por catálogo";
   - `test/security/domain-boundary.spec.ts`: modelos `AiModelTaskApproval`, `AiTaskOverride`,
     `AiBudgetAlert`.
-- [ ] T015 [P] Criar `apps/api/test/integration/009-registry-catalog.spec.ts`: o sync grava
+- [X] T015 [P] Criar `apps/api/test/integration/009-registry-catalog.spec.ts`: o sync grava
   catálogo, políticas e aprovações; mudança de ciclo de vida audita uma vez; entrada ou
   política inválida não derruba a API e fica indisponível com o motivo no log.
 

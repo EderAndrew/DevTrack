@@ -438,8 +438,12 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     expect((await adminClient.post(path, { status: off })).status).toBe(200);
     expect((await adminClient.post(path, { status: on })).status).toBe(200);
   }
-  // 008/US2 — a deploy with another model: the registry sync audits the change of the config.
-  await t.prisma.aiModelConfig.update({ where: { key: "fake-alt" }, data: { model: "fake-model-anterior", definitionHash: "deploy-anterior" } });
+  // 008/US2 — a deploy with another model: the registry sync audits the change of the config;
+  // 009 — and of its lifecycle (a promotion in code).
+  await t.prisma.aiModelConfig.update({
+    where: { key: "fake-alt" },
+    data: { model: "fake-model-anterior", lifecycle: "EVALUATING", definitionHash: "deploy-anterior" },
+  });
   await t.get(AiRegistrySync).sync();
   for (let i = 0; i < t.config.rateLimit.aiExecutionsPerMinute; i += 1) {
     if ((await requestAi()).status === 429) break;

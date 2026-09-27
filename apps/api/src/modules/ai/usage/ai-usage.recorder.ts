@@ -25,7 +25,8 @@ export interface ModelCallRecord {
 /**
  * One row of `ai_model_calls` per call to the model, failed ones included (006 FR-059, research
  * A16), and per leg of a route since 008. Tokens only as the provider reported them; the cost the
- * provider reported, else the estimate by the config's price, else none (008 research G17).
+ * provider reported, else the estimate by the config's price, else none (008 research G17). Since
+ * 009 each row also snapshots the tier and family of the config it called.
  */
 @Injectable()
 export class AiUsageRecorder {
@@ -51,6 +52,9 @@ export class AiUsageRecorder {
         costSource: cost?.source ?? null,
         servedModel: call.servedModel,
         isFallback: call.isFallback,
+        // The config's catalog tier and family now, so a later catalog change keeps history (009 H14).
+        tier: call.config.tier,
+        family: call.config.family,
       },
     });
   }

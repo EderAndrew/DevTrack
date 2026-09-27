@@ -4,6 +4,7 @@ import type { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
 import type { PrismaService } from "../../../platform/database/prisma.service";
 import type { Tx } from "../../../platform/database/transaction";
+import type { ModelCapabilities, ModelCapability, ModelLifecycle, ModelMode, ModelTier } from "./model-families";
 
 /**
  * How the next AI specs declare agents, tools, model configs and providers
@@ -144,39 +145,92 @@ export interface ToolDefinition<I = unknown, O = unknown> {
   run(context: ToolContext, input: I): Promise<O>;
 }
 
-export interface ModelConfigDefinition {
+/** Reference price per million tokens, as decimal strings; without it the cost stays empty. */
+export interface ModelPrice {
+  inputPerMTok: string;
+  outputPerMTok: string;
+  currency: string;
+}
+
+/**
+ * A model approved for a task (009 research H6): the metrics of a committed evaluation evidence
+ * file. It serves the task only when the metrics meet the task's `quality` thresholds.
+ */
+export interface ModelApproval {
+  taskKey: string;
+  metrics: Record<string, number>;
+  /** ISO timestamp of the evaluation. */
+  evaluatedAt: string;
+  /** Repository path of the evidence file, e.g. `apps/api/test/fixtures/evaluations/<task>/<model>.json`. */
+  evidence: string;
+}
+
+/**
+ * An entry of the model catalog (009 research H2, contracts/catalog-and-quality-gate.md), synced
+ * into `ai_model_configs`. The catalog is the only place with concrete model ids; a task picks
+ * among its entries by policy, never by name.
+ */
+export interface CatalogModel {
   key: string;
+  /** Vendor prefix of the id when it has one (research H3); must be in `AiDefinitions.families`. */
+  family: string;
   provider: string;
   model: string;
+  tier: ModelTier;
+  mode: ModelMode;
+  lifecycle: ModelLifecycle;
+  /** Status of the first registration; afterwards it is the admin's (006). */
   initialStatus: AiSwitchStatus;
   parameters?: Record<string, number | string | boolean>;
   maxOutputTokens: number;
   timeoutMs: number;
-  /** Prices per million tokens as decimal strings; without them the cost stays empty. */
-  price?: { inputPerMTok: string; outputPerMTok: string; currency: string };
-  /**
-   * Set when the routing policy of the environment is invalid (008 FR-008): the config is synced,
-   * so the task keeps its route and the change is audited, but the gateway never calls it.
-   */
-  unavailableReason?: ModelConfigUnavailableReason;
+  price?: ModelPrice;
+  contextWindow: number;
+  capabilities: ModelCapabilities;
+  /** Higher first on a cost tie (default 0). */
+  priority?: number;
+  approvals?: ModelApproval[];
 }
 
-/** Why a model config from the environment can't be called (008 contracts/configuration.md). */
-export type ModelConfigUnavailableReason = "MODEL_INVALID" | "FALLBACK_EQUALS_PRIMARY";
+/** Why a catalog entry was left out at startup, logged `ai.catalog_entry_rejected` (009 FR-027). */
+export type CatalogEntryRejection =
+  | "KEY_INVALID"
+  | "KEY_DUPLICATED"
+  | "FAMILY_NOT_ALLOWED"
+  | "FAMILY_MISMATCH"
+  | "MODEL_INVALID"
+  | "MODEL_DUPLICATED"
+  | "DECISION_CAPABILITIES"
+  | "VALUE_INVALID";
 
 /** Why a task can't run, logged once per startup as `ai.task_unavailable`. */
-export type TaskUnavailableReason = ModelConfigUnavailableReason | "PROVIDER_NOT_REGISTERED";
+export type TaskUnavailableReason = "POLICY_INVALID" | "NO_APPROVED_MODEL" | "PROVIDER_NOT_REGISTERED" | "ALL_BLOCKED";
 
 /**
- * What an agent asks the gateway for, and how it is routed (008 research G2,
- * contracts/gateway-routing.md): the primary model config and an optional fallback, plus the
- * generation settings. The config's own tokens and timeout act as ceilings.
+ * What an agent asks the gateway for and the model policy that picks its models (009 research H5,
+ * contracts/model-policy.md): the route is chosen per request by `selectRoute` and fixed on the
+ * execution (008 G5). The chosen config's own tokens and timeout act as ceilings.
  */
 export interface TaskDefinition {
   key: string;
-  primaryModelConfigKey: string;
-  /** Another config, tried once after a recoverable failure of the primary (008 FR-010). */
-  fallbackModelConfigKey?: string;
+  mode: ModelMode;
+  minimumTier: ModelTier;
+  preferredTier: ModelTier;
+  /** Escalation ceiling; defaults to `preferredTier` (no escalation). */
+  maxTier?: ModelTier;
+  /** Subset of `AiDefinitions.families`. */
+  allowedFamilies: string[];
+  requiredCapabilities: ModelCapability[];
+  /** `SAME_TIER`: a fallback of the same tier, of another family when possible (009 FR-012). */
+  fallback: "SAME_TIER" | "NONE";
+  /** `ON_OUTPUT_INVALID`: once, to the next tier, when the output fails validation (009 FR-013). */
+  escalation: "NONE" | "ON_OUTPUT_INVALID";
+  /** Metric thresholds an approval must meet, e.g. `{ itemRecall: 0.9, schemaValidity: 1 }`. */
+  quality: Record<string, number>;
+  /** Tokens of a typical call, for the estimated cost that orders the candidates. */
+  typicalUsage: { inputTokens: number; outputTokens: number };
+  /** DECISION only: answers below it are `UNDECIDED`; within `(0.5, 1]`. */
+  minConfidence?: number;
   /** Only `temperature`, `top_p` and `effort` (checked at startup). */
   parameters?: Record<string, number | string | boolean>;
   maxOutputTokens: number;
@@ -235,6 +289,31 @@ export type ModelResponse = (
 
 export type ProviderHealth = AiProviderStatus;
 
+/** A question to a decision model (009 contracts/decisions-provider.md). */
+export type DecisionQuestion =
+  | { type: "choice"; instructions: string; criteria: Record<string, string> }
+  /** 2–10 levels, from the lowest to the highest. */
+  | { type: "score"; instructions: string; criteria: string[] }
+  | { type: "noul"; instructions: string; criteria: { true: string; false: string } };
+
+/** What the gateway sends to a decision provider: the state is untrusted content, as-is. */
+export interface DecisionRequest {
+  model: string;
+  state: string | Record<string, unknown> | unknown[];
+  questions: Record<string, DecisionQuestion>;
+}
+
+export type DecisionAnswer =
+  | { type: "choice"; choice: string; probabilities: Record<string, number>; confidence: number }
+  | { type: "score"; score: number; probabilities: Record<string, number>; confidence: number }
+  | { type: "noul"; noul: number };
+
+export interface DecisionResponse {
+  answers: Record<string, DecisionAnswer>;
+  usage: ModelUsage | null;
+  servedModel?: string | null;
+}
+
 /**
  * A model provider. It throws `ProviderError(category)`, never a raw SDK error, and never
  * exposes its credential (FR-018).
@@ -244,6 +323,8 @@ export interface ModelProvider {
   generate(request: ModelRequest, signal: AbortSignal): Promise<ModelResponse>;
   generateStructured(request: ModelRequest, jsonSchema: object, signal: AbortSignal): Promise<ModelResponse>;
   healthCheck(signal: AbortSignal): Promise<ProviderHealth>;
+  /** Decision mode (009 research H10); only providers of decision models implement it. */
+  decide?(request: DecisionRequest, signal: AbortSignal): Promise<DecisionResponse>;
 }
 
 /** Ownership check of a resource type inside a teacher's workspace (research A7). */
@@ -259,8 +340,14 @@ export type AnyToolDefinition = ToolDefinition<any, any>;
 export interface AiDefinitions {
   agents: AgentDefinition[];
   tools: AnyToolDefinition[];
-  modelConfigs: ModelConfigDefinition[];
+  /** The model catalog (009 research H2), synced into `ai_model_configs`. */
+  modelConfigs: CatalogModel[];
   tasks: TaskDefinition[];
+  /**
+   * The model families in force (009 FR-001): production = `PRODUCTION_MODEL_FAMILIES`; the tests
+   * add `fake`, which never reaches production.
+   */
+  families: readonly string[];
   providers: ModelProvider[];
   resources: Record<string, ResourceOwnership>;
 }
@@ -270,5 +357,5 @@ export const AI_DEFINITIONS = Symbol("AI_DEFINITIONS");
 
 export const defineAgent = (definition: AgentDefinition): AgentDefinition => definition;
 export const defineTool = <I, O>(definition: ToolDefinition<I, O>): ToolDefinition<I, O> => definition;
-export const defineModelConfig = (definition: ModelConfigDefinition): ModelConfigDefinition => definition;
+export const defineCatalogModel = (definition: CatalogModel): CatalogModel => definition;
 export const defineTask = (definition: TaskDefinition): TaskDefinition => definition;

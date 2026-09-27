@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { CurriculumProposalContentSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
-import { AI_DEFINITIONS, defineModelConfig } from "../../src/modules/ai/definitions/types";
+import { AI_DEFINITIONS, defineCatalogModel } from "../../src/modules/ai/definitions/types";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { FakeModelProvider, fakeOutput, fakeServedModel, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { drain, resetAiDb } from "../helpers/ai";
@@ -38,7 +38,7 @@ describe("008/US1 008/SC-001 \"Preencher com IA\" continua igual, agora através
     beforeAll(async () => {
       const definitions = curriculumTestDefinitions(provider);
       definitions.modelConfigs = definitions.modelConfigs.map((config) =>
-        config.key === TEST_CURRICULUM_MODEL_CONFIG.key ? defineModelConfig({ ...config, provider: "openrouter" }) : config,
+        config.key === TEST_CURRICULUM_MODEL_CONFIG.key ? defineCatalogModel({ ...config, provider: "openrouter" }) : config,
       );
       t = await createTestApp({ overrides: [{ provide: AI_DEFINITIONS, useValue: definitions }] });
     });

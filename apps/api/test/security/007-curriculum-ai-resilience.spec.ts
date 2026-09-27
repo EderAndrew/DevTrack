@@ -2,14 +2,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { AiOperationsService } from "../../src/modules/ai/operations/ai-operations.service";
-import { DEFAULT_MODEL_CONFIG_KEY } from "../../src/modules/ai/definitions/model-config-keys";
 import { CURRICULUM_AGENT_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { SYLLABUS_WORKER_PATH } from "../../src/modules/syllabus/syllabus-worker-runner";
 import { docxFromBody, paragraph } from "../fixtures/syllabus/build-fixtures.ts";
 import { fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { type AiTestApp, drain, resetAiDb } from "../helpers/ai";
-import { createCurriculumAiApp, pooOutput, requestAnalysis, scriptCurriculumRun, seedProcessedDocument } from "../helpers/curriculum-ai";
+import {
+  createCurriculumAiApp,
+  pooOutput,
+  requestAnalysis,
+  scriptCurriculumRun,
+  seedProcessedDocument,
+  TEST_CURRICULUM_MODEL_CONFIG,
+} from "../helpers/curriculum-ai";
 import { createSubject, createSyllabusDocument, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { writeFakeWorker } from "../helpers/syllabus-worker";
 import { testConfig } from "../helpers/test-app";
@@ -96,7 +102,7 @@ describe("007 resiliência do Curriculum Agent", () => {
 
   it("configuração de modelo desabilitada com a execução na fila → FAILED AI_MODEL_UNAVAILABLE no início", async () => {
     const { body } = await requestAnalysis(t, cookie, document.id);
-    await t.prisma.aiModelConfig.update({ where: { key: DEFAULT_MODEL_CONFIG_KEY }, data: { status: "DISABLED" } });
+    await t.prisma.aiModelConfig.update({ where: { key: TEST_CURRICULUM_MODEL_CONFIG.key }, data: { status: "DISABLED" } });
     await drain(t);
 
     const row = await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: body.execution.id }, include: { proposal: true } });

@@ -67,6 +67,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
       openrouter: { ...base.ai.openrouter, apiKey: null, baseUrl: null },
       // No budget unless a suite sets one (009 US8), whatever the shell exports.
       budgets: { daily: null, monthly: null, perUserMonthly: null, perAgentMonthly: null },
+      ignoredVariables: [],
       ...overrides.ai,
     },
   };

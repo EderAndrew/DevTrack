@@ -8,6 +8,7 @@ import { AuditService } from "../../audit/audit.service";
 import { AI_DEFINITIONS, type AiDefinitions } from "../definitions/types";
 import { CircuitBreaker } from "../gateway/circuit-breaker";
 import { AiExecutionStore } from "../execution/ai-execution.store";
+import { AiPolicyRegistry } from "../registry/ai-policy.registry";
 import { PERIOD_MS, queryAgentMetrics, queryModelUsage } from "./ai-metrics.query";
 
 /** Longest wait for one provider's health check (contracts/http-api.md). */
@@ -28,7 +29,7 @@ const AGENT_INCLUDE = {
   currentVersion: {
     include: {
       modelConfig: { select: { key: true } },
-      task: { select: { key: true, primaryModelConfig: { select: { key: true } }, fallbackModelConfig: { select: { key: true } } } },
+      task: { select: { id: true, key: true } },
       promptVersion: { select: { version: true } },
       outputSchema: { select: { version: true } },
       tools: { select: { tool: { select: { key: true } } } },
@@ -52,6 +53,7 @@ export class AiOperationsService {
     private readonly audit: AuditService,
     private readonly store: AiExecutionStore,
     private readonly circuit: CircuitBreaker,
+    private readonly policy: AiPolicyRegistry,
   ) {}
 
   /**
@@ -92,7 +94,7 @@ export class AiOperationsService {
   async listAgents(): Promise<AiAgentOperationsView[]> {
     const agents = await this.prisma.aiAgent.findMany({ where: { currentVersionId: { not: null } }, include: AGENT_INCLUDE, orderBy: { key: "asc" } });
     const counts = await this.queueCounts(this.prisma);
-    return agents.map((agent) => this.agentView(agent, counts));
+    return Promise.all(agents.map((agent) => this.agentView(agent, counts)));
   }
 
   async listModelConfigs(): Promise<AiModelConfigView[]> {
@@ -113,7 +115,7 @@ export class AiOperationsService {
         change = { changed: true, cancelledExecutions: await this.applyAgentStatus(tx, actor, agent.id, agentKey, to) };
       }
       const row = await tx.aiAgent.findUniqueOrThrow({ where: { id: agent.id }, include: AGENT_INCLUDE });
-      return { ...change, view: this.agentView(row, await this.queueCounts(tx)) };
+      return { ...change, view: await this.agentView(row, await this.queueCounts(tx)) };
     });
   }
 
@@ -197,15 +199,18 @@ export class AiOperationsService {
     return counts;
   }
 
-  /** Keys of the agents whose current version uses each model config, through its task (008) or directly. */
+  /**
+   * Keys of the agents whose current version may use each model config: the configs its task's
+   * policy admits (009), whatever their status or circuit, or the config of a pre-008 version.
+   */
   private async configUsers(db: Tx): Promise<Map<string, string[]>> {
     const versions = await db.aiAgentVersion.findMany({
       where: { currentOf: { some: {} } },
-      select: { modelConfigId: true, task: { select: { primaryModelConfigId: true, fallbackModelConfigId: true } }, agent: { select: { key: true } } },
+      select: { modelConfigId: true, taskId: true, agent: { select: { key: true } } },
     });
     const users = new Map<string, string[]>();
     for (const version of versions) {
-      const configIds = [version.modelConfigId, version.task?.primaryModelConfigId, version.task?.fallbackModelConfigId];
+      const configIds = [version.modelConfigId, ...(version.taskId ? await this.policy.candidateIds(version.taskId) : [])];
       for (const id of new Set(configIds.filter((value): value is string => typeof value === "string"))) {
         users.set(id, [...(users.get(id) ?? []), version.agent.key].sort());
       }
@@ -213,8 +218,14 @@ export class AiOperationsService {
     return users;
   }
 
-  private agentView(agent: Prisma.AiAgentGetPayload<{ include: typeof AGENT_INCLUDE }>, counts: Map<string, { queued: number; running: number }>): AiAgentOperationsView {
+  /** The agent with the route its task's policy would choose now (009); none when unavailable. */
+  private async agentView(
+    agent: Prisma.AiAgentGetPayload<{ include: typeof AGENT_INCLUDE }>,
+    counts: Map<string, { queued: number; running: number }>,
+  ): Promise<AiAgentOperationsView> {
     const version = agent.currentVersion!;
+    const route = version.task ? await this.policy.routeFor(version.task.id) : null;
+    const chosen = route && !("unavailable" in route) ? route : null;
     return {
       key: agent.key,
       name: agent.name,
@@ -224,8 +235,8 @@ export class AiOperationsService {
       riskLevel: version.riskLevel,
       // A pre-008 version has no task: its own config is the primary, with no fallback.
       taskKey: version.task?.key ?? null,
-      primaryModelConfigKey: version.task?.primaryModelConfig.key ?? version.modelConfig?.key ?? null,
-      fallbackModelConfigKey: version.task?.fallbackModelConfig?.key ?? null,
+      primaryModelConfigKey: version.task ? (chosen?.primary.key ?? null) : (version.modelConfig?.key ?? null),
+      fallbackModelConfigKey: chosen?.fallback?.key ?? null,
       promptVersion: version.promptVersion.version,
       outputSchemaVersion: version.outputSchema?.version ?? null,
       toolKeys: version.tools.map((item) => item.tool.key).sort(),

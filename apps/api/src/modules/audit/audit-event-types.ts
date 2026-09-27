@@ -69,7 +69,18 @@ export const AUDIT_EVENT_METADATA = {
   // 006 — AI foundation (specs/006-ai-foundation/contracts/audit-events.md). Only ids, versions,
   // codes and numbers: never prompts, request input, model output, proposal content, tool
   // arguments or results, resource names nor credentials (FR-062).
-  "ai_execution.requested": ["agentKey", "agentVersion", "promptVersion", "modelConfigKey", "taskKey", "fallbackModelConfigKey", "resourceType", "riskLevel"],
+  "ai_execution.requested": [
+    "agentKey",
+    "agentVersion",
+    "promptVersion",
+    "modelConfigKey",
+    "taskKey",
+    "fallbackModelConfigKey",
+    "tier",
+    "selectionReason",
+    "resourceType",
+    "riskLevel",
+  ],
   "ai_execution.started": ["claim"],
   "ai_execution.completed": ["durationMs", "modelCalls", "toolCalls", "proposalId"],
   "ai_execution.failed": ["status", "errorCode", "durationMs", "modelCalls", "toolCalls"],
@@ -94,7 +105,9 @@ export const AUDIT_EVENT_METADATA = {
   "ai_model_config.disabled": ["configKey", "provider", "model"],
   // 008 — a deploy changed the model of an existing config (research G3).
   "ai_model_config.changed": ["configKey", "provider", "previousModel", "model"],
-  "ai_registry.synced": ["agents", "tools", "modelConfigs", "tasks", "newVersions", "deprecated"],
+  // 009 — model policy: a catalog entry's lifecycle changed in code (research H4).
+  "ai_model_config.lifecycle_changed": ["configKey", "from", "to"],
+  "ai_registry.synced": ["agents", "tools", "modelConfigs", "catalogModels", "tasks", "newVersions", "deprecated"],
   // 007 — Curriculum Agent. Never the document, the ementa text or the proposal content (FR-045).
   "curriculum_ai.analysis_requested": ["executionId", "created", "discardedProposal"],
   "curriculum_ai.proposal_applied": [

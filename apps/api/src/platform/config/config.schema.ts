@@ -90,13 +90,6 @@ export const configSchema = z.object({
   AI_CIRCUIT_OPEN_SECONDS: positiveInt(60),
   OPENROUTER_API_KEY: optional(z.string().trim().min(1)),
   OPENROUTER_BASE_URL: optional(z.url({ protocol: /^https?$/ })),
-  // Only trimmed here: an invalid model id leaves the task unavailable instead of stopping
-  // the API (008 research G16), so the format is checked where the model configs are built.
-  OPENROUTER_DEFAULT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().trim().default("anthropic/claude-opus-5"),
-  ),
-  OPENROUTER_FALLBACK_MODEL: optional(z.string().trim().min(1)),
   OPENROUTER_TIMEOUT_MS: positiveInt(60_000),
   // 009: observable budgets only; reaching one warns and audits, never blocks (spec Q3).
   AI_BUDGET_DAILY_USD: optional(decimalAmount),
@@ -156,16 +149,19 @@ export interface AppConfig {
     /**
      * OpenRouter provider (008 research G10, G16). Without `apiKey` the provider is not
      * registered and AI is unavailable, while the app starts normally (FR-003). `baseUrl` is
-     * only for the local E2E mock. The models are checked where the model configs are built.
-     * The key is never logged.
+     * only for the local E2E mock. The models come from the catalog in code (009 research H2);
+     * `timeoutMs` is the ceiling of each catalog entry's. The key is never logged.
      */
     openrouter: {
       apiKey: string | null;
       baseUrl: string | null;
-      defaultModel: string;
-      fallbackModel: string | null;
       timeoutMs: number;
     };
+    /**
+     * Names of removed variables still set in the environment (009 contracts/configuration.md:
+     * `OPENROUTER_DEFAULT_MODEL`, `OPENROUTER_FALLBACK_MODEL`): ignored, logged `ai.config_ignored`.
+     */
+    ignoredVariables: string[];
     /** Circuit breaker per model config (008 research G8). */
     circuit: { failureThreshold: number; openSeconds: number };
     /**
@@ -204,6 +200,9 @@ export class InvalidConfigError extends Error {
  * Validates the environment before the application starts (FR-074). The error lists
  * only variable names — values are never echoed, since some of them are secrets.
  */
+/** Models come from the catalog since 009; a value still set is ignored (contracts/configuration.md). */
+const REMOVED_AI_VARIABLES = ["OPENROUTER_DEFAULT_MODEL", "OPENROUTER_FALLBACK_MODEL"];
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const result = configSchema.safeParse(env);
   if (!result.success) {
@@ -262,10 +261,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       openrouter: {
         apiKey: e.OPENROUTER_API_KEY ?? null,
         baseUrl: e.OPENROUTER_BASE_URL ?? null,
-        defaultModel: e.OPENROUTER_DEFAULT_MODEL,
-        fallbackModel: e.OPENROUTER_FALLBACK_MODEL ?? null,
         timeoutMs: e.OPENROUTER_TIMEOUT_MS,
       },
+      ignoredVariables: REMOVED_AI_VARIABLES.filter((name) => (env[name] ?? "").trim() !== ""),
       circuit: { failureThreshold: e.AI_CIRCUIT_FAILURE_THRESHOLD, openSeconds: e.AI_CIRCUIT_OPEN_SECONDS },
       budgets: {
         daily: e.AI_BUDGET_DAILY_USD ?? null,

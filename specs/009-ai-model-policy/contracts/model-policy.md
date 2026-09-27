@@ -14,15 +14,22 @@ selectRoute(input: {
 ```
 
 Filter, in order: family ∈ allowlist ∩ `task.allowedFamilies` → `mode === task.mode` → every
-`task.requiredCapabilities` → `usable` → `lifecycle = PRODUCTION` with a **valid** approval for
-the task (`DEPRECATED` only if nothing else remains) → `tier === input.tier`.
+`task.requiredCapabilities` → `lifecycle = PRODUCTION` with a **valid** approval for the task
+(`DEPRECATED` only if nothing else remains) → `tier === input.tier`.
 
 Order the candidates: override first (if present among them), then estimated cost
 `(typicalUsage.inputTokens × in + typicalUsage.outputTokens × out) / 1e6` ascending (entries
 without price after those with price), then `priority` descending, then `key`.
 
 `primary` = first. `fallback` (only when `task.fallback = "SAME_TIER"`) = first remaining
-candidate of another family, else the next candidate, else null.
+**usable** candidate of another family, else the next usable candidate, else null.
+
+The health (`usable`: enabled, provider registered, circuit not blocking) never reorders the
+candidates (decided during implementation, 2026-09-27): an unusable primary stays the primary
+and the 008 gateway goes straight to the fallback, recorded as a fallback leg with its trigger
+(`CIRCUIT_OPEN`, or `PROVIDER_FAILURE` + `AI_MODEL_UNAVAILABLE` for a disabled primary), exactly
+as in 008 (research H8, 008 G6). The task is unavailable when neither the primary nor a
+fallback is usable.
 
 `UnavailableReason`: `NO_APPROVED_MODEL`, `POLICY_INVALID`, `PROVIDER_NOT_REGISTERED`,
 `ALL_BLOCKED` (disabled or circuit open). Availability of a task = `selectRoute` for its

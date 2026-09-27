@@ -17,14 +17,12 @@ describe("008/FR-006 008/FR-007 tarefas no registro sincronizado", () => {
   afterAll(() => t.close());
   beforeEach(() => resetAiDb(t));
 
-  it("grava cada tarefa com principal, fallback, parâmetros, máximo de tokens e tempo limite", async () => {
-    const task = await t.prisma.aiTask.findUniqueOrThrow({
-      where: { key: REFERENCE_DEFAULT_TASK.key },
-      include: { primaryModelConfig: { select: { key: true } }, fallbackModelConfig: { select: { key: true } } },
-    });
+  // 009: the fixed route became the task's model policy (research H5).
+  it("grava cada tarefa com a política de modelos, parâmetros, máximo de tokens e tempo limite", async () => {
+    const task = await t.prisma.aiTask.findUniqueOrThrow({ where: { key: REFERENCE_DEFAULT_TASK.key } });
     expect(task).toMatchObject({
-      primaryModelConfig: { key: REFERENCE_DEFAULT_TASK.primaryModelConfigKey },
-      fallbackModelConfig: null,
+      policy: { mode: "GENERATION", preferredTier: "BASIC", allowedFamilies: ["fake"], fallback: "NONE" },
+      preferredTier: "BASIC",
       parameters: REFERENCE_DEFAULT_TASK.parameters ?? {},
       maxOutputTokens: REFERENCE_DEFAULT_TASK.maxOutputTokens,
       timeoutMs: REFERENCE_DEFAULT_TASK.timeoutMs,
@@ -35,11 +33,11 @@ describe("008/FR-006 008/FR-007 tarefas no registro sincronizado", () => {
     const base = referenceAiDefinitions(t.provider);
     expect((await syncWith(base)).changed).toBe(false);
 
-    const changed = defineTask({ ...REFERENCE_DEFAULT_TASK, fallbackModelConfigKey: "fake-alt", maxOutputTokens: 900 });
+    const changed = defineTask({ ...REFERENCE_DEFAULT_TASK, fallback: "SAME_TIER", maxOutputTokens: 900 });
     const summary = await syncWith({ ...base, tasks: base.tasks.map((task) => (task.key === changed.key ? changed : task)) });
     expect(summary.changed).toBe(true);
-    const row = await t.prisma.aiTask.findUniqueOrThrow({ where: { key: changed.key }, include: { fallbackModelConfig: { select: { key: true } } } });
-    expect(row).toMatchObject({ maxOutputTokens: 900, fallbackModelConfig: { key: "fake-alt" } });
+    const row = await t.prisma.aiTask.findUniqueOrThrow({ where: { key: changed.key } });
+    expect(row).toMatchObject({ maxOutputTokens: 900, policy: { fallback: "SAME_TIER" } });
   });
 
   it("uma versão de agente com tarefa grava task_id e deixa model_config_id vazio", async () => {
@@ -57,11 +55,9 @@ describe("008/FR-006 008/FR-007 tarefas no registro sincronizado", () => {
     await expect(t.prisma.aiAgentVersion.update({ where: { id: version.id }, data: { taskId: task.id, modelConfigId: config.id } })).rejects.toThrow();
   });
 
-  it("o banco recusa fallback igual ao principal", async () => {
+  it("o banco recusa um nível da tarefa diferente do da política", async () => {
     const task = await t.prisma.aiTask.findUniqueOrThrow({ where: { key: REFERENCE_DEFAULT_TASK.key } });
-    await expect(
-      t.prisma.aiTask.update({ where: { id: task.id }, data: { fallbackModelConfigId: task.primaryModelConfigId } }),
-    ).rejects.toThrow();
+    await expect(t.prisma.aiTask.update({ where: { id: task.id }, data: { preferredTier: "ADVANCED" } })).rejects.toThrow(/policy_tier/);
   });
 
   it("a tarefa de uma versão já usada não pode mudar (imutabilidade da 006)", async () => {

@@ -261,10 +261,11 @@ model User {
   topicsCreated              Topic[]            @relation("TopicCreatedBy")
   topicsUpdated              Topic[]            @relation("TopicUpdatedBy")
 
-  aiExecutionsOwned     AiExecution[] @relation("AiExecutionWorkspace")
-  aiExecutionsRequested AiExecution[] @relation("AiExecutionRequestedBy")
-  aiProposalsOwned      AiProposal[]  @relation("AiProposalWorkspace")
-  aiProposalsDecided    AiProposal[]  @relation("AiProposalDecidedBy")
+  aiExecutionsOwned     AiExecution[]    @relation("AiExecutionWorkspace")
+  aiExecutionsRequested AiExecution[]    @relation("AiExecutionRequestedBy")
+  aiProposalsOwned      AiProposal[]     @relation("AiProposalWorkspace")
+  aiProposalsDecided    AiProposal[]     @relation("AiProposalDecidedBy")
+  aiTaskOverridesSet    AiTaskOverride[] @relation("AiTaskOverrideSetBy")
 
   @@map("users")
 }
@@ -907,6 +908,42 @@ enum AiEvaluationCaseStatus {
   @@map("ai_evaluation_case_status")
 }
 
+/// Capability tier of a catalog model, from the cheapest (009 research H3–H5).
+enum AiModelTier {
+  BASIC
+  STANDARD
+  ADVANCED
+
+  @@map("ai_model_tier")
+}
+
+enum AiModelMode {
+  GENERATION
+  DECISION
+
+  @@map("ai_model_mode")
+}
+
+/// The spec's DISABLED is `ai_model_configs.status` (009 research H4).
+enum AiModelLifecycle {
+  CANDIDATE
+  EVALUATING
+  PRODUCTION
+  DEPRECATED
+
+  @@map("ai_model_lifecycle")
+}
+
+/// Why the policy chose the primary of an execution (009 research H7).
+enum AiSelectionReason {
+  OVERRIDE
+  LOWEST_COST
+  ONLY_CANDIDATE
+  DEPRECATED_ONLY
+
+  @@map("ai_selection_reason")
+}
+
 /// Model configuration; never a credential (FR-018). Status is operational after the first sync.
 model AiModelConfig {
   id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -921,16 +958,27 @@ model AiModelConfig {
   outputPricePerMTok Decimal?            @map("output_price_per_mtok") @db.Decimal(12, 6)
   currency           String?             @db.Char(3)
   definitionHash     String              @map("definition_hash")
+  /// Catalog fields (009 research H2); `tier` NULL only for legacy rows no longer in the catalog.
+  family             String?
+  tier               AiModelTier?
+  mode               AiModelMode         @default(GENERATION)
+  lifecycle          AiModelLifecycle    @default(CANDIDATE)
+  contextWindow      Int?                @map("context_window")
+  /// `{ structuredOutput, tools, vision, reasoning }` booleans.
+  capabilities       Json                @default("{}")
+  /// Higher first on a cost tie.
+  priority           Int                 @default(0)
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  agentVersions      AiAgentVersion[]
-  executions         AiExecution[]         @relation("AiExecutionPrimary")
-  fallbackExecutions AiExecution[]         @relation("AiExecutionFallback")
-  modelCalls         AiModelCall[]
-  evaluationResults  AiEvaluationResult[]
-  primaryOfTasks     AiTask[]              @relation("AiTaskPrimary")
-  fallbackOfTasks    AiTask[]              @relation("AiTaskFallback")
+  agentVersions       AiAgentVersion[]
+  executions          AiExecution[]         @relation("AiExecutionPrimary")
+  fallbackExecutions  AiExecution[]         @relation("AiExecutionFallback")
+  escalatedExecutions AiExecution[]         @relation("AiExecutionEscalation")
+  modelCalls          AiModelCall[]
+  evaluationResults   AiEvaluationResult[]
+  taskApprovals       AiModelTaskApproval[]
+  taskOverrides       AiTaskOverride[]
 
   @@map("ai_model_configs")
 }
@@ -938,20 +986,22 @@ model AiModelConfig {
 /// What an agent asks the gateway for, and how it is routed (008 research G2). Synced from code;
 /// mutable like model configs, its history is the audit trail. Fallback ≠ primary (CHECK).
 model AiTask {
-  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  key                   String   @unique
-  primaryModelConfigId  String   @map("primary_model_config_id") @db.Uuid
-  fallbackModelConfigId String?  @map("fallback_model_config_id") @db.Uuid
-  parameters            Json     @default("{}")
-  maxOutputTokens       Int      @map("max_output_tokens")
-  timeoutMs             Int      @map("timeout_ms")
-  definitionHash        String   @map("definition_hash")
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key             String      @unique
+  /// The task's model policy (009 research H5); the route is chosen per request.
+  policy          Json
+  /// Copy of `policy.preferredTier` for queries.
+  preferredTier   AiModelTier @map("preferred_tier")
+  parameters      Json        @default("{}")
+  maxOutputTokens Int         @map("max_output_tokens")
+  timeoutMs       Int         @map("timeout_ms")
+  definitionHash  String      @map("definition_hash")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  primaryModelConfig  AiModelConfig    @relation("AiTaskPrimary", fields: [primaryModelConfigId], references: [id], onDelete: Restrict)
-  fallbackModelConfig AiModelConfig?   @relation("AiTaskFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
-  agentVersions       AiAgentVersion[]
+  agentVersions AiAgentVersion[]
+  approvals     AiModelTaskApproval[]
+  override      AiTaskOverride?
 
   @@map("ai_tasks")
 }
@@ -1090,60 +1140,70 @@ model AiAgentTool {
 
 /// One agent execution; the table is also the worker's queue (research A6).
 model AiExecution {
-  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// The session teacher (research A2).
-  workspaceId           String            @map("workspace_id") @db.Uuid
-  requestedByUserId     String            @map("requested_by_user_id") @db.Uuid
-  agentVersionId        String            @map("agent_version_id") @db.Uuid
-  agentKey              String            @map("agent_key")
-  agentVersion          Int               @map("agent_version")
-  promptVersionId       String            @map("prompt_version_id") @db.Uuid
-  promptVersion         Int               @map("prompt_version")
-  outputSchemaVersionId String?           @map("output_schema_version_id") @db.Uuid
+  workspaceId             String             @map("workspace_id") @db.Uuid
+  requestedByUserId       String             @map("requested_by_user_id") @db.Uuid
+  agentVersionId          String             @map("agent_version_id") @db.Uuid
+  agentKey                String             @map("agent_key")
+  agentVersion            Int                @map("agent_version")
+  promptVersionId         String             @map("prompt_version_id") @db.Uuid
+  promptVersion           Int                @map("prompt_version")
+  outputSchemaVersionId   String?            @map("output_schema_version_id") @db.Uuid
   /// The primary of the route, fixed at request (008 research G5).
-  modelConfigId         String            @map("model_config_id") @db.Uuid
-  fallbackModelConfigId String?           @map("fallback_model_config_id") @db.Uuid
+  modelConfigId           String             @map("model_config_id") @db.Uuid
+  fallbackModelConfigId   String?            @map("fallback_model_config_id") @db.Uuid
   /// NULL for executions requested before 008.
-  taskKey               String?           @map("task_key")
-  fallbackUsed          Boolean           @default(false) @map("fallback_used")
-  provider              String
-  model                 String
-  riskLevel             AiRiskLevel       @map("risk_level")
-  resourceType          String?           @map("resource_type")
-  resourceId            String?           @map("resource_id") @db.Uuid
+  taskKey                 String?            @map("task_key")
+  fallbackUsed            Boolean            @default(false) @map("fallback_used")
+  /// Tier and reason of the selection (009 research H7); NULL before 009.
+  tier                    AiModelTier?
+  selectionReason         AiSelectionReason? @map("selection_reason")
+  /// One escalation at most, all fields set together (009 research H9).
+  escalationUsed          Boolean            @default(false) @map("escalation_used")
+  escalationFromTier      AiModelTier?       @map("escalation_from_tier")
+  escalationToTier        AiModelTier?       @map("escalation_to_tier")
+  escalationReason        String?            @map("escalation_reason")
+  escalationModelConfigId String?            @map("escalation_model_config_id") @db.Uuid
+  provider                String
+  model                   String
+  riskLevel               AiRiskLevel        @map("risk_level")
+  resourceType            String?            @map("resource_type")
+  resourceId              String?            @map("resource_id") @db.Uuid
   /// Request input; pedagogical, owner-only, never logged.
-  input                 Json              @default("{}")
-  status                AiExecutionStatus @default(QUEUED)
-  step                  AiExecutionStep?
-  errorCode             String?           @map("error_code")
-  modelCalls            Int               @default(0) @map("model_calls")
-  toolCalls             Int               @default(0) @map("tool_calls")
+  input                   Json               @default("{}")
+  status                  AiExecutionStatus  @default(QUEUED)
+  step                    AiExecutionStep?
+  errorCode               String?            @map("error_code")
+  modelCalls              Int                @default(0) @map("model_calls")
+  toolCalls               Int                @default(0) @map("tool_calls")
   /// Times the worker took the execution; model call retries are in ai_model_calls.attempts.
-  claims                Int               @default(0)
-  claimToken            String?           @map("claim_token") @db.Uuid
-  leaseExpiresAt        DateTime?         @map("lease_expires_at") @db.Timestamptz(6)
-  deadlineAt            DateTime          @map("deadline_at") @db.Timestamptz(6)
-  cancelRequestedAt     DateTime?         @map("cancel_requested_at") @db.Timestamptz(6)
-  correlationId         String            @map("correlation_id")
-  idempotencyKey        String            @map("idempotency_key") @db.Uuid
-  requestHash           String            @map("request_hash")
-  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  startedAt             DateTime?         @map("started_at") @db.Timestamptz(6)
-  finishedAt            DateTime?         @map("finished_at") @db.Timestamptz(6)
-  durationMs            Int?              @map("duration_ms")
+  claims                  Int                @default(0)
+  claimToken              String?            @map("claim_token") @db.Uuid
+  leaseExpiresAt          DateTime?          @map("lease_expires_at") @db.Timestamptz(6)
+  deadlineAt              DateTime           @map("deadline_at") @db.Timestamptz(6)
+  cancelRequestedAt       DateTime?          @map("cancel_requested_at") @db.Timestamptz(6)
+  correlationId           String             @map("correlation_id")
+  idempotencyKey          String             @map("idempotency_key") @db.Uuid
+  requestHash             String             @map("request_hash")
+  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt               DateTime?          @map("started_at") @db.Timestamptz(6)
+  finishedAt              DateTime?          @map("finished_at") @db.Timestamptz(6)
+  durationMs              Int?               @map("duration_ms")
 
-  workspace        User                    @relation("AiExecutionWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
-  requestedBy      User                    @relation("AiExecutionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
-  agentVersionRef  AiAgentVersion          @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
-  promptVersionRef AiPromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
-  outputSchema     AiOutputSchemaVersion?  @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
-  modelConfig         AiModelConfig           @relation("AiExecutionPrimary", fields: [modelConfigId], references: [id], onDelete: Restrict)
-  fallbackModelConfig AiModelConfig?          @relation("AiExecutionFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
-  transitions      AiExecutionTransition[]
-  output           AiExecutionOutput?
-  modelCallRows    AiModelCall[]
-  toolCallRows     AiToolCall[]
-  proposal         AiProposal?
+  workspace             User                    @relation("AiExecutionWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  requestedBy           User                    @relation("AiExecutionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  agentVersionRef       AiAgentVersion          @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  promptVersionRef      AiPromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  outputSchema          AiOutputSchemaVersion?  @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
+  modelConfig           AiModelConfig           @relation("AiExecutionPrimary", fields: [modelConfigId], references: [id], onDelete: Restrict)
+  fallbackModelConfig   AiModelConfig?          @relation("AiExecutionFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
+  escalationModelConfig AiModelConfig?          @relation("AiExecutionEscalation", fields: [escalationModelConfigId], references: [id], onDelete: Restrict)
+  transitions           AiExecutionTransition[]
+  output                AiExecutionOutput?
+  modelCallRows         AiModelCall[]
+  toolCallRows          AiToolCall[]
+  proposal              AiProposal?
 
   @@unique([requestedByUserId, idempotencyKey])
   @@index([workspaceId, createdAt(sort: Desc), id])
@@ -1203,6 +1263,11 @@ model AiModelCall {
   servedModel   String?      @map("served_model")
   /// A leg of the route's fallback config (008 research G6).
   isFallback    Boolean      @default(false) @map("is_fallback")
+  /// Tier and family of the config the leg called, as they were then (009 research H14).
+  tier          AiModelTier?
+  family        String?
+  /// The leg belongs to the escalated call (009 research H9).
+  isEscalation  Boolean      @default(false) @map("is_escalation")
 
   execution   AiExecution   @relation(fields: [executionId], references: [id], onDelete: Cascade)
   modelConfig AiModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
@@ -1253,10 +1318,10 @@ model AiProposal {
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace    User           @relation("AiProposalWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
-  execution    AiExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  agentVersion AiAgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
-  decidedBy    User?          @relation("AiProposalDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  workspace        User              @relation("AiProposalWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  execution        AiExecution       @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  agentVersion     AiAgentVersion    @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  decidedBy        User?             @relation("AiProposalDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
   /// The draft created by applying this proposal (007); the AI module never writes it.
   syllabusRevision SyllabusRevision?
 
@@ -1301,4 +1366,51 @@ model AiEvaluationResult {
   modelConfig    AiModelConfig    @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
 
   @@map("ai_evaluation_results")
+}
+
+/// A model approved for a task, synced from the catalog (009 research H6); read-only for the app.
+model AiModelTaskApproval {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelConfigId String   @map("model_config_id") @db.Uuid
+  taskId        String   @map("task_id") @db.Uuid
+  /// Metric → value, as in the evidence file.
+  metrics       Json
+  evaluatedAt   DateTime @map("evaluated_at") @db.Timestamptz(6)
+  /// Repository path of the evidence file.
+  evidence      String
+  /// The metrics meet the task's quality thresholds (computed at sync).
+  valid         Boolean
+  syncedAt      DateTime @map("synced_at") @db.Timestamptz(6)
+
+  modelConfig AiModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  task        AiTask        @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@unique([modelConfigId, taskId])
+  @@map("ai_model_task_approvals")
+}
+
+/// The admin's pinned model for a task (009 research H11); one per task.
+model AiTaskOverride {
+  taskId        String   @id @map("task_id") @db.Uuid
+  modelConfigId String   @map("model_config_id") @db.Uuid
+  setByUserId   String   @map("set_by_user_id") @db.Uuid
+  setAt         DateTime @map("set_at") @db.Timestamptz(6)
+
+  task        AiTask        @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  modelConfig AiModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Restrict)
+  setBy       User          @relation("AiTaskOverrideSetBy", fields: [setByUserId], references: [id], onDelete: Restrict)
+
+  @@map("ai_task_overrides")
+}
+
+/// One row per budget crossed in a period, so the warning is written once (009 research H16).
+model AiBudgetAlert {
+  scope       String
+  periodStart DateTime @map("period_start") @db.Date
+  /// HMAC of the user or agent, never the id in clear; `-` for system scopes.
+  subjectHash String   @map("subject_hash")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([scope, periodStart, subjectHash])
+  @@map("ai_budget_alerts")
 }

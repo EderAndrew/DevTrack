@@ -63,7 +63,7 @@ function scriptedProvider(steps: Step[]) {
 }
 
 function gatewayWith(provider: ModelProvider | null, limits: Partial<AiExecutionLimits> = {}) {
-  const definitions: AiDefinitions = { agents: [], tools: [], modelConfigs: [], tasks: [], providers: provider ? [provider] : [], resources: {} };
+  const definitions: AiDefinitions = { agents: [], tools: [], modelConfigs: [], tasks: [], families: [], providers: provider ? [provider] : [], resources: {} };
   const gateway = new ModelGateway(definitions);
   const sleeps: number[] = [];
   gateway.timing = { sleep: async (ms) => void sleeps.push(ms), random: () => 0 };

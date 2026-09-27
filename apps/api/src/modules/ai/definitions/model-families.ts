@@ -10,6 +10,9 @@
 export const PRODUCTION_MODEL_FAMILIES = ["openai", "anthropic", "typesafe"] as const;
 export type ModelFamily = (typeof PRODUCTION_MODEL_FAMILIES)[number];
 
+/** The families with generation models; decision-only families (TypeSafe's Jev) are left out. */
+export const GENERATION_MODEL_FAMILIES: readonly ModelFamily[] = ["openai", "anthropic"];
+
 /** Capability tiers, from the cheapest to the most capable; independent of family (009 FR-005). */
 export const MODEL_TIERS = ["BASIC", "STANDARD", "ADVANCED"] as const;
 export type ModelTier = (typeof MODEL_TIERS)[number];

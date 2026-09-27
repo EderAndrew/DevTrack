@@ -22,6 +22,7 @@ import { ModelGateway } from "./gateway/model-gateway";
 import { StructuredOutputValidator } from "./output/structured-output.validator";
 import { AiAgentRegistry } from "./registry/ai-agent.registry";
 import { AiModelConfigRegistry } from "./registry/ai-model-config.registry";
+import { AiPolicyRegistry } from "./registry/ai-policy.registry";
 import { AiRegistrySync } from "./registry/ai-registry.sync";
 import { AiTaskRegistry } from "./registry/ai-task.registry";
 import { AiToolRegistry } from "./registry/ai-tool.registry";
@@ -43,6 +44,7 @@ import { AiUsageRecorder } from "./usage/ai-usage.recorder";
     AiToolRegistry,
     AiModelConfigRegistry,
     AiTaskRegistry,
+    AiPolicyRegistry,
     {
       provide: CircuitBreaker,
       useFactory: (config: AppConfig) => new CircuitBreaker(config.ai.circuit),

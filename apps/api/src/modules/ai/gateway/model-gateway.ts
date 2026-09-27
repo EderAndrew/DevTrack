@@ -109,8 +109,8 @@ export class ModelGateway {
   }
 
   /**
-   * Can take a call now: enabled, with its provider registered, not refused by the routing policy
-   * (008 FR-008) and not behind an open circuit (008 FR-013).
+   * Can take a call now: enabled, with its provider registered and not behind an open circuit
+   * (008 FR-013). Which models a task may use is the policy's (009), checked at request.
    */
   isUsable(config: GatewayModelConfig): boolean {
     return this.callable(config) && !this.circuit.blocks(config.key);
@@ -118,11 +118,7 @@ export class ModelGateway {
 
   /** Everything `isUsable` checks but the circuit, which the gateway asks leg by leg. */
   private callable(config: GatewayModelConfig): boolean {
-    return config.status === "ENABLED" && this.providerFor(config.provider) !== undefined && !this.refused(config.key);
-  }
-
-  private refused(configKey: string): boolean {
-    return this.definitions.modelConfigs.some((config) => config.key === configKey && config.unavailableReason !== undefined);
+    return config.status === "ENABLED" && this.providerFor(config.provider) !== undefined;
   }
 
   /**
@@ -155,7 +151,7 @@ export class ModelGateway {
       // The model isn't called while its circuit is open: straight to the fallback.
       trigger = { reason: "CIRCUIT_OPEN", primaryErrorCode: null };
     } else {
-      // Disabled by the admin or refused by the policy: nothing to call on the primary.
+      // Disabled by the admin or without its provider: nothing to call on the primary.
       trigger = { reason: "PROVIDER_FAILURE", primaryErrorCode: "AI_MODEL_UNAVAILABLE" };
     }
 
@@ -198,7 +194,7 @@ export class ModelGateway {
       },
     });
     const provider = this.providerFor(config.provider);
-    if (config.status !== "ENABLED" || !provider || this.refused(config.key)) return done("AI_MODEL_UNAVAILABLE", 0);
+    if (config.status !== "ENABLED" || !provider) return done("AI_MODEL_UNAVAILABLE", 0);
 
     const request: ModelRequest = {
       ...call.request,

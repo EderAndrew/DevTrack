@@ -4,6 +4,7 @@ import type { Prisma } from "../../src/generated/prisma/client";
 import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
+import { AiPolicyRegistry } from "../../src/modules/ai/registry/ai-policy.registry";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { referenceAiDefinitions } from "../fixtures/ai/definitions";
 import type { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
@@ -65,9 +66,15 @@ export function requestExecution(t: TestApp, cookie: string, body: Record<string
 async function currentVersion(t: TestApp, agentKey: string) {
   const agent = await t.prisma.aiAgent.findUniqueOrThrow({
     where: { key: agentKey },
-    include: { currentVersion: { include: { promptVersion: true, task: { include: { primaryModelConfig: true, fallbackModelConfig: true } } } } },
+    include: { currentVersion: { include: { promptVersion: true, task: true } } },
   });
-  return agent.currentVersion!;
+  const version = agent.currentVersion!;
+  // The route the model policy chooses now (009), as a request would fix it. Without one (e.g. the
+  // production catalog, no model approved yet) a past execution on any catalog model.
+  const route = await t.get(AiPolicyRegistry).routeFor(version.task!.id);
+  if (route && !("unavailable" in route)) return { ...version, route };
+  const primary = await t.prisma.aiModelConfig.findFirstOrThrow({ where: { tier: { not: null } }, orderBy: { key: "asc" } });
+  return { ...version, route: { primary, fallback: null, tier: primary.tier!, reason: "ONLY_CANDIDATE" as const } };
 }
 
 export interface AiExecutionOptions {
@@ -100,11 +107,13 @@ export async function createAiExecution(t: TestApp, workspaceId: string, agentKe
       promptVersionId: version.promptVersionId,
       promptVersion: version.promptVersion.version,
       outputSchemaVersionId: version.outputSchemaVersionId,
-      modelConfigId: version.task!.primaryModelConfigId,
-      fallbackModelConfigId: version.task!.fallbackModelConfigId,
+      modelConfigId: version.route.primary.id,
+      fallbackModelConfigId: version.route.fallback?.id ?? null,
       taskKey: version.task!.key,
-      provider: version.task!.primaryModelConfig.provider,
-      model: version.task!.primaryModelConfig.model,
+      tier: version.route.tier,
+      selectionReason: version.route.reason,
+      provider: version.route.primary.provider,
+      model: version.route.primary.model,
       riskLevel: version.riskLevel,
       resourceType: options.resource?.type ?? null,
       resourceId: options.resource?.id ?? null,

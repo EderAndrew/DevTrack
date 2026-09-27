@@ -1,5 +1,6 @@
+import { routedTask } from "../fixtures/ai/tasks";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { defineAgent, defineTask } from "../../src/modules/ai/definitions/types";
+import { defineAgent } from "../../src/modules/ai/definitions/types";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { fakeError, fakeOutput, fakeServedModel } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER, REFERENCE_L1 } from "../fixtures/ai/reference-agents";
@@ -8,13 +9,11 @@ import { createSubject, createUser, loginAs, type TestUser } from "../helpers/fa
 import { captureLogs } from "../helpers/log-capture";
 import { api } from "../helpers/test-app";
 
-const TASK = defineTask({
+const TASK = routedTask({
   key: "observed-task",
-  primaryModelConfigKey: "fake-default",
-  fallbackModelConfigKey: "fake-alt",
   maxOutputTokens: 1000,
   timeoutMs: 30_000,
-});
+}, ["fake-default", "fake-alt"]);
 const AGENT = defineAgent({
   ...REFERENCE_L1,
   key: "observed-agent",

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { AiExecutionLimits } from "../../../platform/config/config.schema";
-import type { AgentDefinition, AiDefinitions, AnyToolDefinition, ModelConfigDefinition, TaskDefinition } from "../definitions/types";
+import { isModelTier, MODEL_CAPABILITIES, MODEL_LIFECYCLES, MODEL_MODES, PRODUCTION_MODEL_FAMILIES } from "../definitions/model-families";
+import type { AgentDefinition, AiDefinitions, AnyToolDefinition, CatalogEntryRejection, CatalogModel, TaskDefinition } from "../definitions/types";
 
 /** A definition in code the foundation refuses; startup stops (006 FR-006, research A4, A5). */
 export class AiRegistryError extends Error {
@@ -33,7 +34,7 @@ export const promptHash = (agent: AgentDefinition) => stableHash(agent.prompt.sy
 
 export const outputSchemaHash = (agent: AgentDefinition) => (agent.output ? stableHash(jsonSchemaOf(agent.output.schema)) : null);
 
-export const modelConfigHash = (config: ModelConfigDefinition) => stableHash(config);
+export const modelConfigHash = (config: CatalogModel) => stableHash(config);
 
 export const taskHash = (task: TaskDefinition) => stableHash(task);
 
@@ -63,9 +64,74 @@ export function agentVersionHash(agent: AgentDefinition): string {
 
 const KEY = /^[a-z0-9][a-z0-9.-]{1,62}$/;
 
+/** An OpenRouter id (`vendor/model`); `openrouter/*` ids pick other models on their own (008 FR-004). */
+const MODEL_ID = /^[a-z0-9-]+\/[a-z0-9._:-]+$/;
+
+export const isValidModelId = (model: string) => MODEL_ID.test(model) && !model.startsWith("openrouter/");
+
+const PRODUCTION_FAMILIES: ReadonlySet<string> = new Set(PRODUCTION_MODEL_FAMILIES);
+
+/** Why one catalog entry can't be used on its own, or null (contracts/catalog-and-quality-gate.md). */
+function catalogEntryProblem(entry: CatalogModel, families: ReadonlySet<string>): CatalogEntryRejection | null {
+  if (!KEY.test(entry.key)) return "KEY_INVALID";
+  if (!families.has(entry.family)) return "FAMILY_NOT_ALLOWED";
+  // The family is the id's vendor prefix (research H3); an id without one only outside production.
+  if (entry.model.includes("/")) {
+    if (!isValidModelId(entry.model)) return "MODEL_INVALID";
+    if (entry.model.split("/")[0] !== entry.family) return "FAMILY_MISMATCH";
+  } else if (PRODUCTION_FAMILIES.has(entry.family) || !/^[a-z0-9][a-z0-9._:-]*$/.test(entry.model)) {
+    return "MODEL_INVALID";
+  }
+  if (entry.mode === "DECISION" && (entry.capabilities.structuredOutput || entry.capabilities.tools)) return "DECISION_CAPABILITIES";
+  const valid =
+    isModelTier(entry.tier) &&
+    MODEL_MODES.includes(entry.mode) &&
+    MODEL_LIFECYCLES.includes(entry.lifecycle) &&
+    MODEL_CAPABILITIES.every((capability) => typeof entry.capabilities?.[capability] === "boolean") &&
+    Number.isInteger(entry.contextWindow) &&
+    entry.contextWindow > 0 &&
+    Number.isInteger(entry.maxOutputTokens) &&
+    entry.maxOutputTokens > 0 &&
+    Number.isInteger(entry.timeoutMs) &&
+    entry.timeoutMs >= 100 &&
+    entry.timeoutMs <= 600_000 &&
+    Number.isInteger(entry.priority ?? 0);
+  return valid ? null : "VALUE_INVALID";
+}
+
+export interface CatalogCheck {
+  accepted: CatalogModel[];
+  /** Left out of the catalog, logged `ai.catalog_entry_rejected`; never stops the API (009 FR-027). */
+  rejected: { key: string; reason: CatalogEntryRejection }[];
+}
+
+/**
+ * The catalog entries the policy may use (contracts/catalog-and-quality-gate.md): each checked
+ * alone, then one entry per key and per model (the first one wins).
+ */
+export function checkCatalog(definitions: Pick<AiDefinitions, "modelConfigs" | "families">): CatalogCheck {
+  const families = new Set(definitions.families);
+  const result: CatalogCheck = { accepted: [], rejected: [] };
+  const keys = new Set<string>();
+  const models = new Set<string>();
+  for (const entry of definitions.modelConfigs) {
+    const reason =
+      catalogEntryProblem(entry, families) ?? (keys.has(entry.key) ? "KEY_DUPLICATED" : models.has(entry.model) ? "MODEL_DUPLICATED" : null);
+    if (reason) {
+      result.rejected.push({ key: entry.key, reason });
+      continue;
+    }
+    keys.add(entry.key);
+    models.add(entry.model);
+    result.accepted.push(entry);
+  }
+  return result;
+}
+
 /**
  * Checks the definitions before anything is written. Messages name keys and versions only,
- * never instructions (FR-018, FR-061).
+ * never instructions (FR-018, FR-061). The catalog and the task policies are checked apart
+ * (`checkCatalog`, `taskPolicyProblem`): an invalid entry or policy never stops the startup.
  */
 export function checkDefinitions(definitions: AiDefinitions, limits: AiExecutionLimits): void {
   const unique = (kind: string, keys: string[]) => {
@@ -76,25 +142,15 @@ export function checkDefinitions(definitions: AiDefinitions, limits: AiExecution
       seen.add(key);
     }
   };
-  unique("model config", definitions.modelConfigs.map((c) => c.key));
   unique("task", definitions.tasks.map((t) => t.key));
   unique("tool", definitions.tools.map((t) => t.key));
   unique("agent", definitions.agents.map((a) => a.key));
 
-  const configs = new Set(definitions.modelConfigs.map((c) => c.key));
-  for (const config of definitions.modelConfigs) {
-    // A model that picks other models by itself would hide the fallback from the gateway (008 FR-004).
-    // An environment model already refused by production reaches the sync as unavailable.
-    if (!config.unavailableReason && config.model.startsWith("openrouter/")) throw new AiRegistryError(`model config "${config.key}": model "${config.model}" is not accepted`);
-  }
   const tasks = new Set(definitions.tasks.map((t) => t.key));
   for (const task of definitions.tasks) {
     const where = `task "${task.key}"`;
-    if (!configs.has(task.primaryModelConfigKey)) throw new AiRegistryError(`${where}: unknown model config "${task.primaryModelConfigKey}"`);
-    if (task.fallbackModelConfigKey !== undefined) {
-      if (!configs.has(task.fallbackModelConfigKey)) throw new AiRegistryError(`${where}: unknown model config "${task.fallbackModelConfigKey}"`);
-      if (task.fallbackModelConfigKey === task.primaryModelConfigKey) throw new AiRegistryError(`${where}: the fallback is the primary`);
-    }
+    // `preferred_tier` is an enum column: a value outside it is code that doesn't type-check.
+    if (!isModelTier(task.preferredTier)) throw new AiRegistryError(`${where}: invalid preferred tier`);
     for (const name of Object.keys(task.parameters ?? {})) {
       if (!TASK_PARAMETERS.has(name)) throw new AiRegistryError(`${where}: parameter "${name}" is not accepted`);
     }

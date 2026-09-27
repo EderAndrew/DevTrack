@@ -1,21 +1,20 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { defineAgent, defineTask } from "../../src/modules/ai/definitions/types";
+import { defineAgent } from "../../src/modules/ai/definitions/types";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { fakeError, fakeOutput } from "../fixtures/ai/fake-model-provider";
+import { routedTask } from "../fixtures/ai/tasks";
 import { REFERENCE_L1 } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiTestApp, requestExecution, resetAiDb } from "../helpers/ai";
 import { createSubject, createUser, loginAs } from "../helpers/factories";
 import { testConfig } from "../helpers/test-app";
 
 /** One logical call per execution (the model answers the output at once), primary → fallback. */
-const FALLBACK_TASK = defineTask({
+const FALLBACK_TASK = routedTask({
   key: "concurrency-fallback",
-  primaryModelConfigKey: "fake-default",
-  fallbackModelConfigKey: "fake-alt",
   maxOutputTokens: 1000,
   timeoutMs: 30_000,
-});
+}, ["fake-default", "fake-alt"]);
 const FALLBACK_AGENT = defineAgent({
   ...REFERENCE_L1,
   key: "concurrency-fallback-agent",

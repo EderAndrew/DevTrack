@@ -2,20 +2,30 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { productionAiDefinitions } from "../../src/modules/ai/definitions";
-import { AI_DEFINITIONS, type AiDefinitions } from "../../src/modules/ai/definitions/types";
+import { MODEL_CATALOG } from "../../src/modules/ai/definitions/model-catalog";
+import { AI_DEFINITIONS, type AiDefinitions, type CatalogModel, type TaskDefinition } from "../../src/modules/ai/definitions/types";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import type { AppConfig } from "../../src/platform/config/config.schema";
 import { FakeModelProvider } from "../fixtures/ai/fake-model-provider";
 import { drain, requestExecution } from "../helpers/ai";
-import { getCurriculumAiStatus, pooOutput, requestAnalysis, scriptCurriculumRun, seedProcessedDocument } from "../helpers/curriculum-ai";
+import {
+  getCurriculumAiStatus,
+  PASSING_CURRICULUM_METRICS,
+  pooOutput,
+  requestAnalysis,
+  scriptCurriculumRun,
+  seedProcessedDocument,
+} from "../helpers/curriculum-ai";
 import { API_ROOT } from "../helpers/env";
 import { createSubject, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { captureLogs } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
-const MODEL_A = "anthropic/claude-opus-5";
-const MODEL_B = "openai/gpt-5.5";
+// 009: the model of a task comes from the catalog, never from a variable (research H2).
+const MODEL_A = "anthropic/claude-haiku-4.5";
+const MODEL_B = "anthropic/claude-haiku-4.6";
 const FAKE_KEY = "sk-or-teste-008-US2-CHAVE-FALSA";
+const ENTRY_KEY = "anthropic-basic";
 
 /**
  * One capture for every app of the file: nestjs-pino sends the logs written outside a request
@@ -23,42 +33,63 @@ const FAKE_KEY = "sk-or-teste-008-US2-CHAVE-FALSA";
  */
 const logs = captureLogs();
 
+/** The production catalog with its BASIC Anthropic entry on `model`, promoted and approved for the analysis. */
+function approvedCatalog(model = MODEL_A): CatalogModel[] {
+  return MODEL_CATALOG.map((entry) =>
+    entry.key === ENTRY_KEY
+      ? {
+          ...entry,
+          model,
+          lifecycle: "PRODUCTION" as const,
+          approvals: [{ taskKey: "curriculum-extraction", metrics: PASSING_CURRICULUM_METRICS, evaluatedAt: "2026-09-27T00:00:00.000Z", evidence: "test" }],
+        }
+      : entry,
+  );
+}
+
 /**
- * The production definitions for `openrouter` (the model variables of the environment), with the
- * agent ACTIVE and a simulated provider under the key `openrouter` (006/SC-011): what a deploy with
- * those variables syncs, without leaving the machine.
+ * The production definitions with `catalog`, the agent ACTIVE and a simulated provider under the
+ * key `openrouter` (006/SC-011): what a deploy with that catalog syncs, without leaving the machine.
  */
-function deployWith(provider: FakeModelProvider, openrouter: Partial<AppConfig["ai"]["openrouter"]>): { config: AppConfig; definitions: AiDefinitions } {
+function deployWith(
+  provider: FakeModelProvider | null,
+  catalog: CatalogModel[],
+  tasks?: (tasks: TaskDefinition[]) => TaskDefinition[],
+): { config: AppConfig; definitions: AiDefinitions } {
   const base = testConfig();
-  const config: AppConfig = { ...base, ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: FAKE_KEY, ...openrouter } } };
+  const config: AppConfig = { ...base, ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: FAKE_KEY } } };
   const production = productionAiDefinitions(config);
   return {
     config,
     definitions: {
       ...production,
+      modelConfigs: catalog,
+      tasks: tasks ? tasks(production.tasks) : production.tasks,
       agents: production.agents.map((agent) => ({ ...agent, initialStatus: "ACTIVE" as const })),
-      providers: [provider],
+      providers: provider ? [provider] : [],
     },
   };
 }
 
-function appWith(provider: FakeModelProvider, openrouter: Partial<AppConfig["ai"]["openrouter"]>): Promise<TestApp> {
-  const { config, definitions } = deployWith(provider, openrouter);
+function appWith(provider: FakeModelProvider | null, catalog: CatalogModel[], tasks?: (tasks: TaskDefinition[]) => TaskDefinition[]): Promise<TestApp> {
+  const { config, definitions } = deployWith(provider, catalog, tasks);
   return createTestApp({ config, logs, overrides: [{ provide: AI_DEFINITIONS, useValue: definitions }] });
 }
 
-describe("008/US2 o modelo de cada tarefa é trocado por configuração, sem tocar no agente", () => {
+const analysisUnavailable = () => logs.lines().filter((line) => line.msg === "ai.task_unavailable" && line.task === "curriculum-extraction");
+
+describe("008/US2 o modelo de cada tarefa é trocado no catálogo, sem tocar no agente", () => {
   // Every log line of the file, not only the ones each test looks at, is free of the key.
   afterAll(() => expect(logs.text()).not.toContain(FAKE_KEY));
 
-  it("008/US2-1 008/SC-002 trocar o modelo principal e reiniciar: a nova execução usa B, a antiga continua com A, e a troca é auditada", async () => {
+  it("008/US2-1 008/SC-002 trocar o modelo da entrada do catálogo e reiniciar: a nova execução usa B, a antiga continua com A, e a troca é auditada", async () => {
     const agentSource = readFileSync(join(API_ROOT, "src/modules/curriculum-ai/definitions/curriculum-agent.ts"), "utf8");
     const provider = new FakeModelProvider("openrouter");
     let teacher: TestUser;
     let documentId: string;
     let first: string;
 
-    const a = await appWith(provider, { defaultModel: MODEL_A });
+    const a = await appWith(provider, approvedCatalog(MODEL_A));
     try {
       await resetDb(a.prisma);
       await a.get(AiRegistrySync).sync();
@@ -73,15 +104,15 @@ describe("008/US2 o modelo de cada tarefa é trocado por configuração, sem toc
     }
 
     provider.reset();
-    const b = await appWith(provider, { defaultModel: MODEL_B });
+    const b = await appWith(provider, approvedCatalog(MODEL_B));
     try {
       const event = await b.prisma.auditEvent.findFirstOrThrow({ where: { type: "ai_model_config.changed" } });
-      const config = await b.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "openrouter-default" } });
+      const config = await b.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: ENTRY_KEY } });
       expect(event).toMatchObject({
         actorType: "SYSTEM",
         targetType: "AI_MODEL_CONFIG",
         targetId: config.id,
-        metadata: { configKey: "openrouter-default", provider: "openrouter", previousModel: MODEL_A, model: MODEL_B },
+        metadata: { configKey: ENTRY_KEY, provider: "openrouter", previousModel: MODEL_A, model: MODEL_B },
       });
       expect(config.model).toBe(MODEL_B);
 
@@ -108,24 +139,32 @@ describe("008/US2 o modelo de cada tarefa é trocado por configuração, sem toc
     expect(readFileSync(join(API_ROOT, "src/modules/curriculum-ai/definitions/curriculum-agent.ts"), "utf8")).toBe(agentSource);
   });
 
-  describe("008/US2-2 008/FR-008 uma política inválida deixa a tarefa indisponível sem derrubar a API", () => {
+  describe("008/US2-2 008/FR-008 009/FR-027 um catálogo ou uma política inválida deixa a tarefa indisponível sem derrubar a API", () => {
+    const withModel = (model: string) => () => approvedCatalog(model);
     it.each([
-      ["formato inválido", { defaultModel: "claude opus 5" }, "MODEL_INVALID"],
-      ["modelo que escolhe outros modelos", { defaultModel: "openrouter/auto" }, "MODEL_INVALID"],
-      ["fallback inválido", { fallbackModel: "gpt5" }, "MODEL_INVALID"],
-      ["fallback igual ao principal", { defaultModel: MODEL_A, fallbackModel: MODEL_A }, "FALLBACK_EQUALS_PRIMARY"],
-    ] as const)("%s → a app inicia, MODEL_UNAVAILABLE, log ai.task_unavailable com o motivo, e o fluxo manual funciona", async (_name, openrouter, reason) => {
+      ["id fora do formato", withModel("claude haiku 4.5"), undefined, "MODEL_INVALID", "NO_APPROVED_MODEL"],
+      ["modelo que escolhe outros modelos", withModel("openrouter/auto"), undefined, "MODEL_INVALID", "NO_APPROVED_MODEL"],
+      ["família diferente do prefixo do id", withModel("openai/gpt-6-luna-x"), undefined, "FAMILY_MISMATCH", "NO_APPROVED_MODEL"],
+      [
+        "política com família fora da allowlist",
+        () => approvedCatalog(),
+        (tasks: TaskDefinition[]) => tasks.map((task) => (task.key === "curriculum-extraction" ? { ...task, allowedFamilies: ["google"] } : task)),
+        null,
+        "POLICY_INVALID",
+      ],
+    ] as const)("%s → a app inicia, MODEL_UNAVAILABLE, log com o motivo, e o fluxo manual funciona", async (_name, catalog, tasks, rejected, reason) => {
       const provider = new FakeModelProvider("openrouter");
-      const t = await appWith(provider, openrouter);
+      const t = await appWith(provider, catalog(), tasks);
       try {
         await resetDb(t.prisma);
         logs.clear();
         await t.get(AiRegistrySync).sync();
         expect((await api(t).get("/api/health/live")).status).toBe(200);
 
-        const unavailable = logs.lines().filter((line) => line.msg === "ai.task_unavailable");
-        expect(unavailable.length).toBeGreaterThan(0);
-        expect(unavailable[0]).toMatchObject({ task: "curriculum-extraction", reason });
+        if (rejected) {
+          expect(logs.lines().find((line) => line.msg === "ai.catalog_entry_rejected")).toMatchObject({ configKey: ENTRY_KEY, reason: rejected });
+        }
+        expect(analysisUnavailable()).toEqual([expect.objectContaining({ task: "curriculum-extraction", reason })]);
         expect(logs.text()).not.toContain(FAKE_KEY);
 
         const teacher = await createUser(t, { roles: ["TEACHER"] });
@@ -146,24 +185,36 @@ describe("008/US2 o modelo de cada tarefa é trocado por configuração, sem toc
     });
 
     it("sem a chave, o log diz PROVIDER_NOT_REGISTERED", async () => {
-      const t = await createTestApp({ logs });
+      const t = await appWith(null, approvedCatalog());
       try {
         await resetDb(t.prisma);
         logs.clear();
         await t.get(AiRegistrySync).sync();
-        expect(logs.lines().find((line) => line.msg === "ai.task_unavailable")).toMatchObject({ task: "curriculum-extraction", reason: "PROVIDER_NOT_REGISTERED" });
+        expect(analysisUnavailable()).toEqual([expect.objectContaining({ reason: "PROVIDER_NOT_REGISTERED" })]);
       } finally {
         await t.close();
       }
     });
 
-    it("com a política válida, nenhum ai.task_unavailable", async () => {
-      const t = await appWith(new FakeModelProvider("openrouter"), { defaultModel: MODEL_A, fallbackModel: MODEL_B });
+    it("009/FR-017 com o catálogo de produção sem aprovação, o log diz NO_APPROVED_MODEL", async () => {
+      const t = await createTestApp({ logs });
       try {
         await resetDb(t.prisma);
         logs.clear();
         await t.get(AiRegistrySync).sync();
-        expect(logs.lines().filter((line) => line.msg === "ai.task_unavailable")).toEqual([]);
+        expect(analysisUnavailable()).toEqual([expect.objectContaining({ reason: "NO_APPROVED_MODEL" })]);
+      } finally {
+        await t.close();
+      }
+    });
+
+    it("com um modelo aprovado, nenhum ai.task_unavailable da análise", async () => {
+      const t = await appWith(new FakeModelProvider("openrouter"), approvedCatalog());
+      try {
+        await resetDb(t.prisma);
+        logs.clear();
+        await t.get(AiRegistrySync).sync();
+        expect(analysisUnavailable()).toEqual([]);
       } finally {
         await t.close();
       }
@@ -176,7 +227,7 @@ describe("008/US2 o modelo de cada tarefa é trocado por configuração, sem toc
     let cookie: string;
 
     beforeAll(async () => {
-      t = await appWith(new FakeModelProvider("openrouter"), { defaultModel: MODEL_A });
+      t = await appWith(new FakeModelProvider("openrouter"), approvedCatalog());
       await resetDb(t.prisma);
       await t.get(AiRegistrySync).sync();
       teacher = await createUser(t, { roles: ["TEACHER"] });
