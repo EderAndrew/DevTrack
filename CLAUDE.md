@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-27 (008 implemented)
+Last updated: 2026-09-27 (009 implemented except T030/T031)
 
 ## Project state
 
@@ -41,10 +41,20 @@ to a primary and an optional fallback model config, built from `OPENROUTER_DEFAU
 `OPENROUTER_FALLBACK_MODEL`; the gateway falls back once after a recoverable failure, a circuit per
 model config skips a failing model, and a per-agent hourly limit caps all teachers together. The
 Curriculum Agent is v2 with the same behavior, and "Operação de IA" shows the task, the served
-model, the fallbacks and the circuits. Later work starts a new feature through `/speckit-specify`.
+model, the fallbacks and the circuits. Phase 009 (`specs/009-ai-model-policy`) is implemented except
+the release gate (T030, a real-model eval that needs OpenRouter credit) and the E2E run (T031): the
+model policy over the 008 gateway. Models come from a catalog in code (families OpenAI, Anthropic
+and TypeSafe; tier BASIC/STANDARD/ADVANCED; mode generation/decision; lifecycle), not from
+`OPENROUTER_*_MODEL`; a task declares its policy and gets the cheapest PRODUCTION model approved for
+it by committed eval evidence, a same-tier fallback and, only by its explicit rule, one escalation
+after an invalid output. The admin can fix an approved model per task, and "Operação de IA" shows
+cost by task, tier and family, the catalog with quality next to cost and the budgets (observed,
+never blocking). The `curriculum-extraction` analysis is BASIC. Until T030 approves a model the
+catalog has no approvals, so `009-quality-gate.spec.ts` "009/US3-1" fails on purpose. Later work
+starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -103,7 +113,10 @@ pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
 pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)
 pnpm --filter api fixtures:curriculum                   # rebuild test/fixtures/curriculum-agent/golden/*/document.* (007)
-OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval against OPENROUTER_DEFAULT_MODEL (and the fallback model when set); EVAL_RECORD=1 rewrites recorded.json
+OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval of the catalog candidates of the analysis's tier (costs cents)
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:curriculum
+                                                        # 009 release gate: one catalog entry; writes test/fixtures/evaluations/<task>/<key>.json
+                                                        # (skipped when a case failed for infrastructure); EVAL_REPLAY=1 rewrites recorded.json
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -135,7 +148,7 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007 and 008; the on-demand eval's `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008 and 009; the on-demand eval's `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -164,7 +177,8 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   (request, failure, proposal, apply, reject), and the secret scan also looks for
   `MARCADOR-EMENTA-007`. The E2E replays the POO answers through `apps/web/e2e/openrouter-mock.ts`,
   the local mock of OpenRouter's chat completions the E2E API's `OPENROUTER_BASE_URL` points to
-  (`MOCK_PRIMARY_DOWN=1` answers 503 to the primary model).
+  (`MOCK_PRIMARY_DOWN=1` answers 503 to the primary model, `MOCK_PRIMARY_MODEL`, by default the
+  catalog's cheapest BASIC id).
 - 008 suites (`apps/api/test/{integration,security}/008-*`): OpenRouter behind the gateway (US1),
   model by configuration and invalid policies (US2), fallback and its concurrency (US3), the
   OpenRouter marker key `sk-or-teste-008-CHAVE-FALSA` scanned in logs, responses and every table,
@@ -172,6 +186,14 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   and per-agent limit (US6) and reuse by a new agent (US7, `test/fixtures/ai/reference-routed.ts`).
   The provider boundary guard also checks that `openrouter.ai` appears only in the adapter, that
   neither app depends on a provider SDK, and that the web has nothing of OpenRouter.
+- 009 suites (`apps/api/test/{integration,security}/009-*`): allowlist and decision mode (US1),
+  tier-and-cost selection (US2, plus the pure `policy/select-route.spec.ts`), the Curriculum Agent on
+  BASIC (US3), same-tier fallback and one-step escalation (US4, `test/fixtures/ai/reference-escalation.ts`),
+  lifecycle transitions (US5), cost by task/tier/family and the models and tasks views (US6), the
+  admin override (US7), budgets (US8), the registry catalog, the quality gate (each approval equals
+  its evidence file in `test/fixtures/evaluations/` and meets the task's thresholds), the model id
+  boundary (no concrete model id outside `definitions/model-catalog.ts`) and policy injection
+  (documents and model output never change task, tier, family, model or budget).
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -273,9 +295,10 @@ the removal conditions are in `DEPENDENCIES.md`.
 - 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
   `definitions` (agents, prompts, output schemas, tools, tasks and model configs are code, research A4;
   `productionAiDefinitions(config)` registers the 007 `curriculum-agent`, DISABLED until the admin
-  enables it, its `curriculum-extraction` task and the `openrouter-default`/`openrouter-fallback`
-  configs built from the environment; an invalid model variable leaves the task unavailable and
-  logs `ai.task_unavailable` instead of stopping the API, and a changed model is audited as
+  enables it, its `curriculum-extraction` task and, since 009, the model catalog of
+  `model-catalog.ts` (008's `openrouter-default`/`openrouter-fallback` configs built from the
+  environment are gone); a task with no usable approved model is unavailable and logs
+  `ai.task_unavailable` instead of stopping the API, and a changed model is audited as
   `ai_model_config.changed`), `registry` (`AiRegistrySync`
   writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
   whose content changed stops the startup, and a trigger refuses the update: publish a new
@@ -298,6 +321,22 @@ the removal conditions are in `DEPENDENCIES.md`.
   `evaluation` (`AiEvaluationStore`, no routes) and `retention` (maintenance job `ai-records`).
   An agent whose proposal has `approveThroughDomain` (007) is approved only by its domain's apply
   flow through `AiProposalsService.decideWithin`; the 006 decision route accepts only REJECT.
+- 009 model policy (`apps/api/src/modules/ai`): `definitions/model-families.ts` (allowlist, tiers,
+  modes, lifecycle and its transitions), `definitions/model-catalog.ts` (the only concrete model ids;
+  entries with price, capabilities and approvals that point at committed evidence), task policies
+  on `ai_tasks` (`policy/task-policy.ts`: minimum, preferred and max tier, families, capabilities,
+  fallback, escalation, quality thresholds, typical usage). `policy/select-route.ts` is pure: filter
+  (family, mode, capabilities, PRODUCTION with a valid approval, DEPRECATED only when nothing else,
+  tier), order (override if usable, estimated cost, unknown price last, priority, key), fallback of
+  the same tier preferring another family; health never reorders. `AiPolicyRegistry` feeds it from
+  the synced tables (`ai_model_task_approvals`, `ai_task_overrides`) and fixes the route on the
+  execution with its tier and reason. The runner escalates once, to the next tier, after an invalid
+  output when the task says so. `AiRegistrySync` refuses an invalid lifecycle transition (the entry
+  leaves the catalog) and audits `ai_model_config.lifecycle_changed`. The admin override
+  (`PUT/DELETE /ai/operations/tasks/:key/override`) accepts only a model the policy admits;
+  `usage/ai-budget.monitor.ts` checks the budgets after each recorded call and audits
+  `ai_budget.exceeded` once per period (`ai_budget_alerts`). Decision-mode models (TypeSafe's Jev)
+  answer through `ModelGateway.decide` (OpenRouter decisions, `contracts/decisions-provider.md`).
 - 007 module `curriculum-ai` (`apps/api/src/modules/curriculum-ai`, research C1): the
   `curriculum-agent` definition, its prompt and output schema, the `read-curriculum-document` tool
   (only the execution's own document, normalized by the 004 readers in the worker thread) and the

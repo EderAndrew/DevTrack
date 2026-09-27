@@ -414,20 +414,20 @@ perguntas do pedido.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T050 [P] `apps/api/test/security/secret-leak-scan.spec.ts` e `journey.ts`: a jornada
+- [X] T050 [P] `apps/api/test/security/secret-leak-scan.spec.ts` e `journey.ts`: a jornada
   cobre escalonamento, override, ciclo de vida e orçamento; nenhuma credencial ou conteúdo nos
   eventos novos.
-- [ ] T051 [P] `apps/api/test/security/009-policy-injection.spec.ts`: documento com instruções
+- [X] T051 [P] `apps/api/test/security/009-policy-injection.spec.ts`: documento com instruções
   para usar outro modelo ou nível não muda a política; a saída do modelo não altera nível,
   modelo nem orçamento (`009/FR-011`).
-- [ ] T052 [P] `apps/api/CLAUDE.md`: catálogo de teste, políticas das fixtures (`typicalUsage`
+- [X] T052 [P] `apps/api/CLAUDE.md`: catálogo de teste, políticas das fixtures (`typicalUsage`
   zerado e prioridade), `fakeDecision`, `EVAL_MODEL`, evidências.
-- [ ] T053 [P] `CLAUDE.md` da raiz: estado (009), arquitetura (`policy/`, catálogo, aprovações,
+- [X] T053 [P] `CLAUDE.md` da raiz: estado (009), arquitetura (`policy/`, catálogo, aprovações,
   escalonamento, override, orçamentos, modo decisão), guardas (`009-*`), comandos da etapa de
   liberação.
-- [ ] T054 [P] `README.md`: fase 009, catálogo e níveis, etapa de liberação, orçamentos.
+- [X] T054 [P] `README.md`: fase 009, catálogo e níveis, etapa de liberação, orçamentos.
 - [ ] T055 Rodar o `quickstart.md` §1 e corrigir divergências.
-- [ ] T056 Acrescentar a 009 ao `SPECS` de `apps/api/test/traceability.spec.ts` (8 histórias,
+- [X] T056 Acrescentar a 009 ao `SPECS` de `apps/api/test/traceability.spec.ts` (8 histórias,
   cenários do spec, `rows: 0`, `successCriteria` SC-001–SC-010) e cobrir os ids que faltarem.
 - [ ] T057 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.

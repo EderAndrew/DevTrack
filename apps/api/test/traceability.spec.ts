@@ -108,6 +108,16 @@ const SPECS: FeatureSpec[] = [
     // SC-009 is the on-demand evaluation against the real models (test/eval, outside CI).
     successCriteria: [...sc(1, 8), "SC-010"],
   },
+  {
+    feature: "009",
+    path: "specs/009-ai-model-policy/spec.md",
+    stories: 8,
+    scenarios: 35,
+    // No "### Acceptance Criteria Traceability" table, as in 008.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 10),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
