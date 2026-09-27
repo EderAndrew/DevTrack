@@ -106,7 +106,7 @@ pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # todos os wo
 pnpm format                                                         # Prettier
 
 pnpm --filter api test                          # unitários, integração e segurança (usa postgres-test)
-pnpm --filter api test -- test/integration/003-us6-enrollments.spec.ts
+pnpm --filter api test test/integration/003-us6-enrollments.spec.ts   # um arquivo (sem `--`)
 pnpm --filter api test:security                 # matriz de autorização, replay, concorrência, segredos
 pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
 pnpm --filter @repo/contracts test              # guardas de fronteira, duplicação e versão única de Zod

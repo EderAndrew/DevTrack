@@ -6,16 +6,22 @@
 docker compose up -d postgres-test mailpit
 pnpm build
 pnpm --filter api test                       # 006/007/008 suites still pass; 009 policy, catalog, escalation, override, budgets
-pnpm --filter api test -- -t "009/"          # the 009 scenarios only
+pnpm --filter api test -t "009/"             # the 009 scenarios only (no `--`: with pnpm 11 it reaches vitest and drops the filter)
 pnpm --filter web test                       # "Operação de IA": tasks, models, tiers, budgets
-pnpm --filter web test:e2e                   # curriculum flow through the policy (openrouter-mock)
+pnpm --filter web test:e2e                   # curriculum flow through the policy (openrouter-mock); resets devtrack_e2e
 ```
+
+Before the release gate (§2) approves a model the production catalog has none, so two checks are
+red: `009-quality-gate.spec.ts` "009/US3-1" (no approved model for the analysis's tier) and the E2E
+`curriculum-ai.spec.ts` ("Preencher com IA" stays disabled). Since 2026-09-27 `openai-basic` is
+approved and both are green.
 
 Check that:
 
 - `selectRoute` never returns a model of another tier, mode or family, a `CANDIDATE`/`EVALUATING`
   or disabled model, or one without a valid approval (`policy/select-route.spec.ts`);
-- `009-quality-gate.spec.ts` passes: each approval matches its evidence file and its thresholds;
+- `009-quality-gate.spec.ts`: each approval matches its evidence file and its thresholds (all
+  green once §2 approved a model);
 - no production code outside `definitions/model-catalog.ts` names a concrete model id
   (`009-model-id-boundary.spec.ts`).
 

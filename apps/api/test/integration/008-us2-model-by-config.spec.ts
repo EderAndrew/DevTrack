@@ -33,9 +33,15 @@ const ENTRY_KEY = "anthropic-basic";
  */
 const logs = captureLogs();
 
-/** The production catalog with its BASIC Anthropic entry on `model`, promoted and approved for the analysis. */
+/** The production catalog without any approval: no model may serve a task. */
+const unapprovedCatalog = (): CatalogModel[] => MODEL_CATALOG.map((entry) => ({ ...entry, approvals: [] }));
+
+/**
+ * The production catalog with only its BASIC Anthropic entry, on `model`, promoted and approved for
+ * the analysis: the release gate's own approvals are removed, so this entry is the policy's choice.
+ */
 function approvedCatalog(model = MODEL_A): CatalogModel[] {
-  return MODEL_CATALOG.map((entry) =>
+  return unapprovedCatalog().map((entry) =>
     entry.key === ENTRY_KEY
       ? {
           ...entry,
@@ -197,7 +203,7 @@ describe("008/US2 o modelo de cada tarefa é trocado no catálogo, sem tocar no 
     });
 
     it("009/FR-017 com o catálogo de produção sem aprovação, o log diz NO_APPROVED_MODEL", async () => {
-      const t = await createTestApp({ logs });
+      const t = await appWith(new FakeModelProvider("openrouter"), unapprovedCatalog());
       try {
         await resetDb(t.prisma);
         logs.clear();

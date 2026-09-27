@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-27 (009 implemented except T030/T031)
+Last updated: 2026-09-27 (009 implemented)
 
 ## Project state
 
@@ -41,17 +41,17 @@ to a primary and an optional fallback model config, built from `OPENROUTER_DEFAU
 `OPENROUTER_FALLBACK_MODEL`; the gateway falls back once after a recoverable failure, a circuit per
 model config skips a failing model, and a per-agent hourly limit caps all teachers together. The
 Curriculum Agent is v2 with the same behavior, and "Operação de IA" shows the task, the served
-model, the fallbacks and the circuits. Phase 009 (`specs/009-ai-model-policy`) is implemented except
-the release gate (T030, a real-model eval that needs OpenRouter credit) and the E2E run (T031): the
+model, the fallbacks and the circuits. Phase 009 (`specs/009-ai-model-policy`) is implemented: the
 model policy over the 008 gateway. Models come from a catalog in code (families OpenAI, Anthropic
 and TypeSafe; tier BASIC/STANDARD/ADVANCED; mode generation/decision; lifecycle), not from
 `OPENROUTER_*_MODEL`; a task declares its policy and gets the cheapest PRODUCTION model approved for
 it by committed eval evidence, a same-tier fallback and, only by its explicit rule, one escalation
 after an invalid output. The admin can fix an approved model per task, and "Operação de IA" shows
 cost by task, tier and family, the catalog with quality next to cost and the budgets (observed,
-never blocking). The `curriculum-extraction` analysis is BASIC. Until T030 approves a model the
-catalog has no approvals, so `009-quality-gate.spec.ts` "009/US3-1" fails on purpose. Later work
-starts a new feature through `/speckit-specify`.
+never blocking). The `curriculum-extraction` analysis is BASIC, served by `openai-basic`, the only
+entry approved by the release gate so far (`anthropic-basic` wasn't evaluated: OpenRouter refused
+its 16000-token calls for lack of credit, 402), so the analysis has no same-tier fallback until a
+second BASIC model is approved. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009), `data-model.md`,
@@ -106,8 +106,8 @@ pnpm --filter api prisma generate                       # client -> src/generate
 pnpm --filter api prisma migrate deploy                 # migrations also seed roles/permissions; prisma.config.ts loads apps/api/.env
 pnpm --filter api dev                                   # swc watch into dist/ + node --watch
 pnpm --filter api test                                  # all unit + integration + security (needs postgres-test up)
-pnpm --filter api test -- test/integration/003-us6-enrollments.spec.ts   # single file
-pnpm --filter api test -- -t "<test name>"                       # single test
+pnpm --filter api test test/integration/003-us6-enrollments.spec.ts      # single file (no `--`: pnpm 11 passes it on and vitest drops the filter)
+pnpm --filter api test -t "<test name>"                          # single test, or an id prefix such as "009/"
 pnpm --filter api test:security                         # test/security only
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)

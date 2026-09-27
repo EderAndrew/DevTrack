@@ -22,7 +22,7 @@ instituição ou de um professor real. Os de POO são a amostra fictícia da 004
 
 ```bash
 pnpm --filter api fixtures:curriculum                                  # regrava golden/<caso>/document.*
-pnpm --filter api test -- test/integration/007-us6-evaluation.spec.ts  # CI: respostas gravadas
+pnpm --filter api test test/integration/007-us6-evaluation.spec.ts  # CI: respostas gravadas
 OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum                                 # sob demanda: os candidatos BASIC do catálogo
 OPENROUTER_API_KEY=... EVAL_MODEL=anthropic-basic pnpm --filter api eval:curriculum      # só uma entrada do catálogo (qualquer nível)
 OPENROUTER_API_KEY=... EVAL_RECORD=1 EVAL_MODEL=anthropic-basic pnpm --filter api eval:curriculum  # grava a evidência

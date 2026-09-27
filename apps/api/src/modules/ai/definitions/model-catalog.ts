@@ -67,10 +67,19 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     model: "openai/gpt-6-luna",
     tier: "BASIC",
     mode: "GENERATION",
-    lifecycle: "CANDIDATE",
+    // Promoted by the release gate (009 T030): the golden set met every threshold of the analysis.
+    lifecycle: "PRODUCTION",
     price: usd("0.1", "0.5"),
     contextWindow: 1_050_000,
     capabilities: GENERATION,
+    approvals: [
+      {
+        taskKey: "curriculum-extraction",
+        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, injectionClean: 1 },
+        evaluatedAt: "2026-09-27T23:12:38.040Z",
+        evidence: "apps/api/test/fixtures/evaluations/curriculum-extraction/openai-basic.json",
+      },
+    ],
   }),
   openRouter({
     key: "openai-standard",

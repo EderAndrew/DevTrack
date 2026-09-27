@@ -245,14 +245,20 @@ gera a evidência dos candidatos BASIC.
   catálogo>` roda o conjunto de referência só nesse modelo; com `EVAL_RECORD=1` grava
   `apps/api/test/fixtures/evaluations/curriculum-extraction/<chave>.json` (formato do contrato);
   README do conjunto de referência atualizado.
-- [ ] T030 [US3] **Etapa de liberação (custo de centavos; autorizada pelo usuário, roda sem perguntar)**: rodar a
+- [X] T030 [US3] **Etapa de liberação (custo de centavos; autorizada pelo usuário, roda sem perguntar)**: rodar a
   avaliação para `anthropic-basic` e `openai-basic`; commitar as evidências; para cada BASIC que
   atingir os limiares, acrescentar a aprovação e `lifecycle: "PRODUCTION"` no catálogo (a
   política de `curriculum-extraction` já é BASIC desde a T012). Se nenhum BASIC passar,
   avaliar os STANDARD e subir a política para STANDARD com a evidência reprovada como
   justificativa (spec Assumptions, research H12). Ao fim, a análise volta a ficar disponível e
   o `009-quality-gate.spec.ts` passa com as aprovações reais.
-- [ ] T031 [US3] E2E: `apps/web/e2e/curriculum-ai.spec.ts` e `ai-operations.spec.ts` passam com
+  *Resultado (2026-09-27)*: `openai-basic` atingiu todos os limiares (itemRecall 1,
+  schemaValidity 1, sem conteúdo sem aviso, sem campos inventados, injeção limpa; US$ 0,003619
+  no conjunto, US$ 0,000452 por execução) e foi aprovado em PRODUCTION. `anthropic-basic` não
+  foi avaliado: o OpenRouter recusou as chamadas de 16000 tokens por falta de crédito (402,
+  `AI_MODEL_UNAVAILABLE`, evidência não gravada). Com um só BASIC aprovado, a análise fica sem
+  fallback do mesmo nível até outro ser aprovado (rodar de novo com crédito).
+- [X] T031 [US3] E2E: `apps/web/e2e/curriculum-ai.spec.ts` e `ai-operations.spec.ts` passam com
   a análise pela política (o mock responde a qualquer modelo pedido); ajustar só o que cita a
   configuração `openrouter-default`.
 
@@ -426,10 +432,10 @@ perguntas do pedido.
   escalonamento, override, orçamentos, modo decisão), guardas (`009-*`), comandos da etapa de
   liberação.
 - [X] T054 [P] `README.md`: fase 009, catálogo e níveis, etapa de liberação, orçamentos.
-- [ ] T055 Rodar o `quickstart.md` §1 e corrigir divergências.
+- [X] T055 Rodar o `quickstart.md` §1 e corrigir divergências.
 - [X] T056 Acrescentar a 009 ao `SPECS` de `apps/api/test/traceability.spec.ts` (8 histórias,
   cenários do spec, `rows: 0`, `successCriteria` SC-001–SC-010) e cobrir os ids que faltarem.
-- [ ] T057 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T057 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
 
 ---
