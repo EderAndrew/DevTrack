@@ -16,6 +16,8 @@ const TEST_ROOTS = [
   { dir: join(REPO_ROOT, "apps/api/src"), pattern: /\.spec\.ts$/ },
   { dir: join(REPO_ROOT, "apps/web"), pattern: /\.test\.tsx?$/ },
   { dir: join(REPO_ROOT, "apps/web/e2e"), pattern: /\.spec\.ts$/ },
+  // The on-demand evaluation against the real models (008/US1-4), like the local E2E, outside CI.
+  { dir: join(REPO_ROOT, "apps/api/test/eval"), pattern: /\.eval\.ts$/ },
 ];
 
 interface FeatureSpec {
@@ -93,6 +95,18 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     // SC-001 is covered by the local E2E journey (apps/web/e2e/curriculum-ai.spec.ts).
     successCriteria: sc(1, 9),
+  },
+  {
+    feature: "008",
+    path: "specs/008-ai-gateway-openrouter/spec.md",
+    stories: 7,
+    scenarios: 27,
+    // The table of the request's acceptance criteria is informative and sits outside
+    // "### Acceptance Criteria Traceability", as in 007.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-009 is the on-demand evaluation against the real models (test/eval, outside CI).
+    successCriteria: [...sc(1, 8), "SC-010"],
   },
 ];
 

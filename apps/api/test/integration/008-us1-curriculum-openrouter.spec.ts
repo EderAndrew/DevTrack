@@ -23,7 +23,9 @@ import { createTestApp, type TestApp } from "../helpers/test-app";
 /** What OpenRouter answers as the served model: the requested id with a dated suffix. */
 const SERVED = `${CURRICULUM_TEST_MODEL}-20260901`;
 
-describe("008/US1 \"Preencher com IA\" continua igual, agora através do OpenRouter", () => {
+// 008/SC-001: the whole 007 suite runs on the task-routed agent with its behavior assertions as
+// they were (only the version, model and config key changed, T019); this suite adds the OpenRouter side.
+describe("008/US1 008/SC-001 \"Preencher com IA\" continua igual, agora através do OpenRouter", () => {
   describe("008/US1-1 a análise pelo provedor openrouter", () => {
     // A simulated provider under the key `openrouter` (006/SC-011): the route, the records and the
     // proposal are the ones production writes, without leaving the machine.

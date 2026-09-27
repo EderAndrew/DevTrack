@@ -4,9 +4,12 @@
 // live as SQL in the migrations. No other academic-domain model belongs here (FR-080, 003/D13).
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  // `.js` imports: swc keeps import paths as written, and tsconfig's rewriteRelativeImportExtensions
+  // would otherwise make the generator write `.ts` ones that the compiled API can't load.
+  importFileExtension = "js"
 }
 
 datasource db {

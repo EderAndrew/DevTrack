@@ -27,7 +27,13 @@ uso e custo, auditoria e a tela "Operação de IA" do administrador. A **fase 00
 ementa** trouxe o "Preencher com IA" numa ementa com texto: o `curriculum-agent` propõe o conteúdo
 com base no documento, o professor aceita campos e grupos e a aplicação cria um rascunho da
 ementa (`AI_ASSISTED`) que ele edita e confirma como sempre. Ela também trouxe o primeiro provedor
-real (Anthropic) e a avaliação com um conjunto de referência. Banco de questões, atividades e
+real e a avaliação com um conjunto de referência. A **fase 008 — gateway de IA com OpenRouter**
+trocou esse provedor pelo OpenRouter, o único provedor real, chamado só pelo servidor. Cada agente
+declara a tarefa que executa, e a tarefa aponta para um modelo principal e um de fallback
+escolhidos por configuração. O gateway usa o fallback uma vez depois de uma falha recuperável,
+um circuito por modelo evita chamar um modelo fora do ar, e um limite por agente protege o
+consumo. O "Preencher com IA" continua igual para o professor, e "Operação de IA" passou a
+mostrar a tarefa, o modelo servido, os fallbacks e os circuitos. Banco de questões, atividades e
 avaliações vêm nas próximas fases.
 
 ## Pré-requisitos
@@ -51,6 +57,7 @@ avaliações vêm nas próximas fases.
 | `specs/005-design-system/` | O mesmo para a fase 005 (design system; decisões V1–V20) |
 | `specs/006-ai-foundation/` | O mesmo para a fase 006 (fundação de IA; decisões A1–A22) |
 | `specs/007-curriculum-agent/` | O mesmo para a fase 007 (agente de ementa; decisões C1–C20) |
+| `specs/008-ai-gateway-openrouter/` | O mesmo para a fase 008 (gateway de IA com OpenRouter; decisões G1–G20) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -78,8 +85,8 @@ O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
 o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md); o da
 área do professor (disciplina → ementa → calendário → planejamento), em
 [`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md). As
-fases 003, 005, 006 e 007 também têm o seu `quickstart.md` na pasta da spec; o da 007 inclui o
-roteiro manual com o provedor real (opcional, tem custo).
+fases 003, 005, 006, 007 e 008 também têm o seu `quickstart.md` na pasta da spec; os da 007 e da
+008 incluem o roteiro manual com o provedor real (opcional, tem custo).
 
 ## Comandos
 
@@ -95,7 +102,7 @@ pnpm --filter @repo/contracts test              # guardas de fronteira, duplica�
 pnpm --filter api maintenance:run [--job <nome>] # jobs de retenção (executam apps/api/dist)
 pnpm --filter api fixtures:syllabus             # recria os arquivos de teste de ementa (004)
 pnpm --filter api fixtures:curriculum           # recria os documentos do conjunto de referência (007)
-ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum   # avaliação contra o modelo real (EVAL_RECORD=1 regrava recorded.json)
+OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # avaliação contra o modelo principal e o de fallback (EVAL_RECORD=1 regrava recorded.json)
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
@@ -134,12 +141,20 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
 
   Os limites de pedidos são `RATE_LIMIT_AI_EXECUTIONS_PER_MINUTE` (10) e
   `RATE_LIMIT_AI_DECISIONS_PER_MINUTE` (30).
-- Agente de ementa (007): o provedor Anthropic só é registrado com `ANTHROPIC_API_KEY`. Vazia, a
-  API sobe normalmente, o "Preencher com IA" aparece como indisponível e o fluxo manual segue
-  funcionando. A chave fica só na API, nunca no browser, e nunca vai para os logs. O
-  `curriculum-agent` é registrado desativado: o administrador o ativa em "Operação de IA" depois
-  da avaliação. `RATE_LIMIT_CURRICULUM_AI_PER_HOUR` (10) limita os pedidos por professor.
-  `ANTHROPIC_BASE_URL` serve só para o E2E local, que aponta para um simulador da API.
+- Provedor de IA (008): o OpenRouter só é registrado com `OPENROUTER_API_KEY`. Vazia, a API sobe
+  normalmente, o "Preencher com IA" aparece como indisponível e o fluxo manual segue funcionando.
+  A chave fica só na API, nunca no browser, e nunca vai para os logs. Os modelos vêm de
+  `OPENROUTER_DEFAULT_MODEL` (`anthropic/claude-opus-5`) e, opcional, `OPENROUTER_FALLBACK_MODEL`,
+  no formato `fornecedor/modelo` (nunca `openrouter/*`); um valor inválido deixa a tarefa
+  indisponível sem derrubar a API e aparece no log `ai.task_unavailable`. Trocar um modelo é
+  trocar a variável e reiniciar, e a troca fica auditada. `OPENROUTER_TIMEOUT_MS` (60000) é o teto
+  de cada chamada; `OPENROUTER_BASE_URL` serve só para o E2E local, que aponta para um simulador.
+  O circuito de cada modelo abre depois de `AI_CIRCUIT_FAILURE_THRESHOLD` (5) falhas recuperáveis
+  seguidas e fica aberto por `AI_CIRCUIT_OPEN_SECONDS` (60); `AI_AGENT_EXECUTIONS_PER_HOUR` (100)
+  limita as execuções de cada agente somando todos os professores.
+- Agente de ementa (007): o `curriculum-agent` é registrado desativado: o administrador o ativa em
+  "Operação de IA" depois da avaliação com o modelo configurado.
+  `RATE_LIMIT_CURRICULUM_AI_PER_HOUR` (10) limita os pedidos por professor.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

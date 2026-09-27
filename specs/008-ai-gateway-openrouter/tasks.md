@@ -476,7 +476,7 @@ e auditoria sem código de infraestrutura.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T054 [P] [US7] Criar `apps/api/test/integration/008-us7-reuse.spec.ts`:
+- [X] T054 [P] [US7] Criar `apps/api/test/integration/008-us7-reuse.spec.ts`:
   - `008/US7-1`, `008/SC-010`: agente de referência `reference-routed` (em
     `apps/api/test/fixtures/ai/`) com tarefa própria e fallback, principal falhando → usa o
     fallback, registra uso e auditoria, respeita limite do agente e circuito; o arquivo do
@@ -485,7 +485,7 @@ e auditoria sem código de infraestrutura.
 
 ### Implementation for User Story 7
 
-- [ ] T055 [US7] Criar o agente de referência `reference-routed` e a sua tarefa em
+- [X] T055 [US7] Criar o agente de referência `reference-routed` e a sua tarefa em
   `apps/api/test/fixtures/ai/` e documentar em `specs/006-ai-foundation/contracts/agent-runtime.md`
   (seção "Tarefas e fallback", apontando para `specs/008-ai-gateway-openrouter/contracts/gateway-routing.md`)
   como um novo agente declara a tarefa.
@@ -496,29 +496,32 @@ e auditoria sem código de infraestrutura.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T056 [P] `apps/api/CLAUDE.md`: provedor simulado por modelo (`scriptFor`,
+- [X] T056 [P] `apps/api/CLAUDE.md`: provedor simulado por modelo (`scriptFor`,
   `fakeServedModel`, `fakeCost`), tarefas nos agentes de referência, circuito e limite por
   agente nos testes, `OPENROUTER_API_KEY` na avaliação.
-- [ ] T057 [P] `CLAUDE.md` da raiz: estado do projeto (008 implementada), comandos
+- [X] T057 [P] `CLAUDE.md` da raiz: estado do projeto (008 implementada), comandos
   (`OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum`), arquitetura do módulo `ai`
   (tarefas, fallback, circuito, provedor OpenRouter) e guardas (fronteira, sem provedor real,
   varredura com a chave marcadora da 008, suíte `008-*`); tirar menções à Anthropic como
   provedor.
-- [ ] T058 [P] `README.md`: fase 008, variáveis `OPENROUTER_*`, `AI_CIRCUIT_*`,
+- [X] T058 [P] `README.md`: fase 008, variáveis `OPENROUTER_*`, `AI_CIRCUIT_*`,
   `AI_AGENT_EXECUTIONS_PER_HOUR`, comando de avaliação; tirar `ANTHROPIC_*`.
-- [ ] T059 [P] `DEPENDENCIES.md`: conferir a remoção do `@anthropic-ai/sdk` e que o lockfile não
+- [X] T059 [P] `DEPENDENCIES.md`: conferir a remoção do `@anthropic-ai/sdk` e que o lockfile não
   o contém mais (`pnpm install --frozen-lockfile`).
-- [ ] T060 Rodar o `quickstart.md` §1 inteiro e corrigir divergências entre ele e o código.
-- [ ] T061 [P] Revisar `apps/api/.env.example` e `apps/web/e2e/.env.e2e` contra
+- [X] T060 Rodar o `quickstart.md` §1 inteiro e corrigir divergências entre ele e o código.
+- [X] T061 [P] Revisar `apps/api/.env.example` e `apps/web/e2e/.env.e2e` contra
   contracts/configuration.md.
-- [ ] T062 Acrescentar a 008 ao `SPECS` de `apps/api/test/traceability.spec.ts`:
+- [X] T062 Acrescentar a 008 ao `SPECS` de `apps/api/test/traceability.spec.ts`:
   `path: "specs/008-ai-gateway-openrouter/spec.md"`, `stories: 7`, `scenarios: 27`,
   `rows: 0` (a tabela "Rastreabilidade dos critérios de aceite do pedido" é informativa e
   fica fora de `### Acceptance Criteria Traceability`, como na 007), `rowsWithoutIds: []`,
   `successCriteria` com SC-001–SC-008 e SC-010 (SC-009 é a avaliação sob demanda, fora do
   CI, com comentário explicando). Cobrir os ids que faltarem nos títulos dos testes.
-- [ ] T063 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T063 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
+  Resultado (2026-09-26): tudo verde, E2E com 17 testes. O E2E revelou que a API compilada não
+  subia: com `rewriteRelativeImportExtensions` (007) o gerador do Prisma escrevia imports `.ts`,
+  que o swc mantém; corrigido com `importFileExtension = "js"` no `generator` do `schema.prisma`.
 
 ---
 

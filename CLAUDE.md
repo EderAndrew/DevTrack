@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-26 (007 implemented)
+Last updated: 2026-09-26 (008 implemented)
 
 ## Project state
 
@@ -31,13 +31,20 @@ Phase 007 (`specs/007-curriculum-agent`) is implemented (US1–US7 plus the Poli
 Curriculum Agent. "Preencher com IA" on a syllabus document with text asks `curriculum-agent`
 (registered DISABLED until the admin enables it after the on-demand eval) for an L2 proposal
 grounded in the document; the teacher accepts fields and groups on the proposal page, and applying
-it creates an `AI_ASSISTED` 004 draft that the teacher edits and confirms as usual. It adds the
-first real provider (Anthropic, only with `ANTHROPIC_API_KEY`), the golden-set evaluation (CI on
-recorded answers, on demand against the real model) and the per-agent proposal and cost metrics of
-"Operação de IA". Later work starts a new feature through `/speckit-specify`.
+it creates an `AI_ASSISTED` 004 draft that the teacher edits and confirms as usual. It added the
+first real provider (Anthropic, replaced in 008), the golden-set evaluation (CI on recorded answers,
+on demand against the real model) and the per-agent proposal and cost metrics of "Operação de IA".
+Phase 008 (`specs/008-ai-gateway-openrouter`) is implemented (US1–US7 plus the Polish phase): the AI
+gateway with OpenRouter. OpenRouter is the only real provider (native `fetch`, registered only with
+`OPENROUTER_API_KEY`; the Anthropic SDK is gone). An agent declares a task (`ai_tasks`) that routes
+to a primary and an optional fallback model config, built from `OPENROUTER_DEFAULT_MODEL` and
+`OPENROUTER_FALLBACK_MODEL`; the gateway falls back once after a recoverable failure, a circuit per
+model config skips a failing model, and a per-agent hourly limit caps all teachers together. The
+Curriculum Agent is v2 with the same behavior, and "Operação de IA" shows the task, the served
+model, the fallbacks and the circuits. Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -63,7 +70,7 @@ hand-maintained.
 - New deps `pdfjs-dist`, `fflate`, `fast-xml-parser` (api) and `react-day-picker` (web, shadcn Calendar); PostgreSQL tables `subjects`, `stored_files` (bytea), `syllabus_documents` (processing queue + in-process worker, extraction in `worker_threads`), `syllabus_revisions`/`groups`/`items`, `class_meetings`, `class_plans`, `topics`, `topic_syllabus_items`; `classes.subject_id`/`starts_on`/`ends_on`; `disciplinas.*`, `ementas.*`, `calendario.gerenciar`, `planejamento.*` permissions (004-syllabus-planning)
 - No new dependencies; design tokens in `apps/web/design-system/tokens.css` (Tailwind 4 default scales reset), Inter + JetBrains Mono as local fonts (Geist removed), new shadcn components from the installed `radix-ui`; no API, schema or contract changes (005-design-system)
 - No new dependencies and no provider SDK; `modules/ai` (registry synced from code, model gateway, tool executor, structured output, proposals, worker on the `ai_executions` table); 15 `ai_*` PostgreSQL tables; `ia.*` permissions; reference agent and fake provider only in `apps/api/test/fixtures/ai` (006-ai-foundation)
-- New dep `@anthropic-ai/sdk` (api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
+- New dep `@anthropic-ai/sdk` (removed in 008; api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
 - No new dependency, `@anthropic-ai/sdk` removed: OpenRouter is the only real provider, over Node's native `fetch` (`gateway/providers/openrouter.provider.ts`, registered only with `OPENROUTER_API_KEY`); task routing (`ai_tasks`: primary + fallback model config), fallback in `ModelGateway`, in-memory circuit breaker, per-agent hourly limit; new columns on `ai_agent_versions`, `ai_executions`, `ai_model_calls` (008-ai-gateway-openrouter)
 
 ## Stack notes
@@ -95,7 +102,7 @@ pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
 pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)
 pnpm --filter api fixtures:curriculum                   # rebuild test/fixtures/curriculum-agent/golden/*/document.* (007)
-ANTHROPIC_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval against the real provider (EVAL_RECORD=1 rewrites recorded.json)
+OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval against OPENROUTER_DEFAULT_MODEL (and the fallback model when set); EVAL_RECORD=1 rewrites recorded.json
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -127,7 +134,8 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006 and 007). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
+  (001, 003, 004, 005, 006, 007 and 008; the on-demand eval's `apps/api/test/eval/*.eval.ts` counts
+  too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
@@ -153,8 +161,16 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `apps/api/test/fixtures/curriculum-agent/` (documents, `expected.json` for a person to review,
   `recorded.json`, the pure scorer); `007-us6-evaluation.spec.ts` replays it in CI. The journey runs the 007 flows
   (request, failure, proposal, apply, reject), and the secret scan also looks for
-  `MARCADOR-EMENTA-007`. The E2E replays the POO answers through `apps/web/e2e/anthropic-mock.ts`,
-  the local Messages API mock the E2E API's `ANTHROPIC_BASE_URL` points to.
+  `MARCADOR-EMENTA-007`. The E2E replays the POO answers through `apps/web/e2e/openrouter-mock.ts`,
+  the local mock of OpenRouter's chat completions the E2E API's `OPENROUTER_BASE_URL` points to
+  (`MOCK_PRIMARY_DOWN=1` answers 503 to the primary model).
+- 008 suites (`apps/api/test/{integration,security}/008-*`): OpenRouter behind the gateway (US1),
+  model by configuration and invalid policies (US2), fallback and its concurrency (US3), the
+  OpenRouter marker key `sk-or-teste-008-CHAVE-FALSA` scanned in logs, responses and every table,
+  and resilience without the key or with a hanging provider (US4), observability (US5), circuit
+  and per-agent limit (US6) and reuse by a new agent (US7, `test/fixtures/ai/reference-routed.ts`).
+  The provider boundary guard also checks that `openrouter.ai` appears only in the adapter, that
+  neither app depends on a provider SDK, and that the web has nothing of OpenRouter.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -254,17 +270,25 @@ the removal conditions are in `DEPENDENCIES.md`.
   topics use; a `COMPLETED` topic (US9) is locked except for archive and "Reabrir aula", can't be
   restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
 - 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
-  `definitions` (agents, prompts, output schemas, tools and model configs are code, research A4;
+  `definitions` (agents, prompts, output schemas, tools, tasks and model configs are code, research A4;
   `productionAiDefinitions(config)` registers the 007 `curriculum-agent`, DISABLED until the admin
-  enables it), `registry` (`AiRegistrySync`
+  enables it, its `curriculum-extraction` task and the `openrouter-default`/`openrouter-fallback`
+  configs built from the environment; an invalid model variable leaves the task unavailable and
+  logs `ai.task_unavailable` instead of stopping the API, and a changed model is audited as
+  `ai_model_config.changed`), `registry` (`AiRegistrySync`
   writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
   whose content changed stops the startup, and a trigger refuses the update: publish a new
-  version), `gateway` (`ModelGateway` picks the provider by the model config, applies the timeout,
-  retries only transient failures and normalizes errors; real providers live in
-  `gateway/providers/**`, the only place a provider SDK may be imported: `AnthropicProvider`, 007),
+  version), `gateway` (`ModelGateway` runs the task's route fixed on the execution: the primary with
+  its timeout and retries of transient failures, then, after a recoverable failure or an open
+  circuit, the fallback once, never back to the primary, each leg written to `ai_model_calls`
+  with the served model and the provider's cost; `CircuitBreaker` per model config, in memory,
+  audited `ai_circuit.opened`/`closed`; errors normalized; real providers live in
+  `gateway/providers/**`, the only place a provider SDK or host may appear: `OpenRouterProvider`,
+  008, over native `fetch`),
   `tools` (`AiToolExecutor`: allowlist, enabled, permission, strict input, resource owned by the
   workspace, timeout, strict output, and a result within the model's input limit), `output` (structured output validated by the agent's Zod schema),
-  `execution` (`POST /ai/executions` queues; `AiExecutionWorker` claims `QUEUED` rows with
+  `execution` (`POST /ai/executions` queues, after the per-user limits and, since 008, the
+  per-agent hourly limit `AI_AGENT_EXECUTIONS_PER_HOUR`; `AiExecutionWorker` claims `QUEUED` rows with
   `SKIP LOCKED` every `AI_EXECUTION_INTERVAL_SECONDS`, `0` = global kill switch; the runner
   re-authorizes at start and checks cancellation between steps; the workspace is always the
   session user), `proposals` (L2 output becomes a proposal the teacher approves, partially
@@ -319,7 +343,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
-- 008-ai-gateway-openrouter (planned): OpenRouter replaces the direct Anthropic provider; agents declare a task, the gateway routes it to a primary and a fallback model with a circuit breaker; Curriculum Agent v2 with unchanged rules
+- 008-ai-gateway-openrouter: OpenRouter replaces the direct Anthropic provider; agents declare a task, the gateway routes it to a primary and a fallback model with a circuit breaker; Curriculum Agent v2 with unchanged rules
 - 007-curriculum-agent: Curriculum Agent — "Preencher com IA" on a syllabus document with text: L2 proposal grounded in the document (read tool, deterministic grounding check, source refs), teacher accepts fields/groups and applying creates an `AI_ASSISTED` 004 draft; first real provider (Anthropic); golden-set eval in CI (recorded) and on demand
 - 006-ai-foundation: AI foundation — agent/prompt/schema/tool/model-config registry, provider-independent gateway, deny-by-default tools, validated structured output, L2 proposals with teacher review, bounded async execution, usage/cost, audit and the admin "Operação de IA" screen; no domain agent, no real provider
 
