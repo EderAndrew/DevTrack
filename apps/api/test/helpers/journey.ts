@@ -316,6 +316,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await generationClient.post(`/api/exercises/${editedDraft!.id}/approve`, { version: edited.body.version })).status).toBe(200);
   expect((await generationClient.post(`/api/exercise-batches/${batch.body.id}/approve`, { exerciseIds: [keptDraft!.id] })).status).toBe(200);
   expect((await generationClient.delete(`/api/exercises/${discardedDraft!.id}`, { version: discardedDraft!.version })).status).toBe(204);
+  // 010/US5 — the bank: a search without accents finds the manual exercise; one approved exercise
+  // is archived (out of the default query) and restored.
+  const found = await teacherClient.get("/api/exercises?query=jornada%20dez&pageSize=10");
+  expect(found.body.items).toHaveLength(1);
+  const archivedExercise = await teacherClient.post(`/api/exercises/${found.body.items[0].id}/archive`, { version: found.body.items[0].version });
+  expect(archivedExercise.body.status).toBe("ARCHIVED");
+  const restoredExercise = await teacherClient.post(`/api/exercises/${found.body.items[0].id}/restore`, { version: archivedExercise.body.version });
+  expect(restoredExercise.body.status).toBe("APPROVED");
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

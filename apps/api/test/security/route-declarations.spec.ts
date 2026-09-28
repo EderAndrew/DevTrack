@@ -138,12 +138,19 @@ describe("route access declarations", () => {
         // 010
         "POST /exercises/sets",
         "POST /exercises",
+        "GET /exercises",
         "GET /exercises/:id",
+        "PUT /exercises/:id",
+        "POST /exercises/:id/approve",
+        "POST /exercises/:id/archive",
+        "POST /exercises/:id/restore",
+        "DELETE /exercises/:id",
         "GET /programming-languages",
         "GET /exercise-generation/availability",
         "POST /exercise-batches",
         "GET /exercise-batches",
         "GET /exercise-batches/:id",
+        "POST /exercise-batches/:id/approve",
       ]),
     );
   });

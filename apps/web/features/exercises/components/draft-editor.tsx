@@ -61,14 +61,16 @@ export interface DraftEditorProps {
   n: number;
   onSave: (body: UpdateExerciseRequest) => Promise<unknown>;
   onCancel: () => void;
+  /** The form's accessible name; default "Editar exercício {n}". */
+  label?: string;
 }
 
 /**
- * The inline editor of one draft of a batch (010 US4-2): the texts, difficulty, objective and
- * alternatives; the type, topic and language stay as generated. The contract's rules run before
+ * The inline editor of one exercise (010 US4-2 for a batch's drafts, US5-3 on the exercise page):
+ * the texts, difficulty, objective and alternatives; the type, topic and language stay as they are. The contract's rules run before
  * sending (the same ones the API applies); a refusal keeps the exercise as it was (US4-4).
  */
-export function DraftEditor({ exercise, n, onSave, onCancel }: DraftEditorProps) {
+export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exercício ${n}` }: DraftEditorProps) {
   const form = useForm<ExerciseCardValues>({ defaultValues: cardFromView(exercise) });
   const { register, control, handleSubmit } = form;
   const alternatives = useFieldArray({ control, name: "alternatives", keyName: "fieldId" });
@@ -113,7 +115,7 @@ export function DraftEditor({ exercise, n, onSave, onCancel }: DraftEditorProps)
   const correctError = errors[id("correctAlternative")];
 
   return (
-    <form noValidate onSubmit={(event) => void submit(event)} aria-label={`Editar exercício ${n}`} className="mt-4">
+    <form noValidate onSubmit={(event) => void submit(event)} aria-label={label} className="mt-4">
       <ErrorSummary errors={summary} />
       {text("statement", "Enunciado")}
       <div className="grid gap-x-4 sm:grid-cols-2">

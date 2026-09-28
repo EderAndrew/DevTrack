@@ -7,6 +7,8 @@ import type {
   ExerciseBatchRequest,
   ExerciseBatchView,
   ExerciseGenerationAvailability,
+  ExerciseListQuery,
+  ExercisePage,
   ExerciseSet,
   ExerciseSetRequest,
   ExerciseTeacherView,
@@ -17,11 +19,19 @@ import { apiClient } from "@/lib/api/client";
 
 /** The teacher's exercise bank (010 contracts/http-api.md, "Exercises"). */
 export const exercisesApi = {
+  /** One page of the bank; empty filters are left out of the query string. */
+  list: (query: ExerciseListQuery) => {
+    const params = new URLSearchParams(Object.entries(query).flatMap(([key, value]) => (value === undefined || value === "" ? [] : [[key, String(value)]])));
+    const search = params.toString();
+    return apiClient.get<ExercisePage>(`/exercises${search ? `?${search}` : ""}`);
+  },
   createSet: (body: ExerciseSetRequest) => apiClient.post<ExerciseSet>("/exercises/sets", body),
   create: (body: CreateExerciseRequest) => apiClient.post<ExerciseTeacherView>("/exercises", body),
   get: (id: string) => apiClient.get<ExerciseTeacherView>(`/exercises/${id}`),
   update: (id: string, body: UpdateExerciseRequest) => apiClient.put<ExerciseTeacherView>(`/exercises/${id}`, body),
   approve: (id: string, version: number) => apiClient.post<ExerciseTeacherView>(`/exercises/${id}/approve`, { version }),
+  archive: (id: string, version: number) => apiClient.post<ExerciseTeacherView>(`/exercises/${id}/archive`, { version }),
+  restore: (id: string, version: number) => apiClient.post<ExerciseTeacherView>(`/exercises/${id}/restore`, { version }),
   /** Only a DRAFT of a batch (US4-3). */
   remove: (id: string, version: number) => apiClient.delete<void>(`/exercises/${id}`, { version }),
 };

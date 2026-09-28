@@ -1,7 +1,10 @@
-import { Controller, Delete, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
+import { Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from "@nestjs/common";
 import {
   type CreateExerciseRequest,
   CreateExerciseRequestSchema,
+  type ExerciseListQuery,
+  ExerciseListQuerySchema,
+  type ExercisePage,
   type ExerciseSet,
   type ExerciseSetRequest,
   ExerciseSetRequestSchema,
@@ -36,6 +39,13 @@ export class ExercisesController {
     return this.exercises.createOne(ctx.auth!, body, ctx.requestId);
   }
 
+  /** One page of the teacher's bank; ARCHIVED only when filtered (US5-1). */
+  @Get()
+  @RequirePermissions("questoes.visualizar")
+  list(@Query(new ZodValidationPipe(ExerciseListQuerySchema)) query: ExerciseListQuery, @Ctx() ctx: RequestContext): Promise<ExercisePage> {
+    return this.exercises.list(ctx.auth!.userId, query);
+  }
+
   @Get(":id")
   @RequirePermissions("questoes.visualizar")
   get(@Param("id", idPipe) id: string, @Ctx() ctx: RequestContext): Promise<ExerciseTeacherView> {
@@ -61,6 +71,30 @@ export class ExercisesController {
     @Ctx() ctx: RequestContext,
   ): Promise<ExerciseTeacherView> {
     return this.exercises.approve(ctx.auth!, id, body.version, ctx.requestId);
+  }
+
+  /** DRAFT | APPROVED → ARCHIVED; already archived → 200 as it is (US5-4). */
+  @Post(":id/archive")
+  @HttpCode(200)
+  @RequirePermissions("questoes.editar")
+  archive(
+    @Param("id", idPipe) id: string,
+    @ZodBody(ExerciseVersionRequestSchema) body: ExerciseVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ExerciseTeacherView> {
+    return this.exercises.archive(ctx.auth!, id, body.version, ctx.requestId);
+  }
+
+  /** ARCHIVED → the status before archiving (US5-4). */
+  @Post(":id/restore")
+  @HttpCode(200)
+  @RequirePermissions("questoes.editar")
+  restore(
+    @Param("id", idPipe) id: string,
+    @ZodBody(ExerciseVersionRequestSchema) body: ExerciseVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ExerciseTeacherView> {
+    return this.exercises.restore(ctx.auth!, id, body.version, ctx.requestId);
   }
 
   /** Only a DRAFT of a batch (US4-3); 204. */

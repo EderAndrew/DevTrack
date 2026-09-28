@@ -23,10 +23,7 @@ const CONTRACTS = [
  * 010 types whose flows arrive with later user stories (tasks.md); each leaves this list with the
  * story that emits it.
  */
-const PENDING_010 = new Set([
-  "exercise.archived",
-  "exercise.restored",
-]);
+const PENDING_010 = new Set<string>([]);
 
 interface ContractRow {
   type: string;

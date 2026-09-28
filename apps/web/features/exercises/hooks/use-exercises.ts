@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateExerciseRequest, ExerciseBatchRequest, ExerciseSetRequest, UpdateExerciseRequest } from "@repo/contracts";
+import type { CreateExerciseRequest, ExerciseBatchRequest, ExerciseListQuery, ExerciseSetRequest, UpdateExerciseRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { subjectsApi } from "@/features/subjects/api/subjects";
 import { subjectsKeys } from "@/features/subjects/hooks/use-subjects";
@@ -14,11 +14,15 @@ export { useSyllabusRevision as useTopicRevision } from "@/features/syllabus/hoo
 export const exercisesKeys = {
   all: ["exercises"] as const,
   detail: (id: string) => [...exercisesKeys.all, id] as const,
+  list: (filters: ExerciseFilters) => [...exercisesKeys.all, "list", filters] as const,
   languages: ["programming-languages"] as const,
   batches: ["exercise-batches"] as const,
   batch: (id: string) => [...exercisesKeys.batches, id] as const,
   availability: ["exercise-generation", "availability"] as const,
 };
+
+/** The bank's filters: the list query without the page position. */
+export type ExerciseFilters = Omit<ExerciseListQuery, "cursor" | "pageSize">;
 
 /** A batch still generating is looked at again every 3 s. */
 export const BATCH_POLL_MS = 3000;
@@ -115,5 +119,39 @@ export function useBatchReview(batchId: string) {
       mutationFn: ({ id, version }: { id: string; version: number }) => exercisesApi.remove(id, version),
       onSettled: refresh,
     }),
+  };
+}
+
+/** The teacher's bank with `filters`, 20 at a time (010 US5-1). */
+export const useExercises = (filters: ExerciseFilters) =>
+  useInfiniteQuery({
+    queryKey: exercisesKeys.list(filters),
+    queryFn: ({ pageParam }) => exercisesApi.list({ ...filters, cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+  });
+
+export const useExercise = (id: string) => useQuery({ queryKey: exercisesKeys.detail(id), queryFn: () => exercisesApi.get(id) });
+
+/**
+ * The exercise page's actions (010 US5-3, US5-4): edit, archive and restore, each with the version
+ * read. The answer replaces the cached exercise; the bank and the batches are stale after it.
+ */
+export function useExerciseActions(id: string) {
+  const queryClient = useQueryClient();
+  const onSuccess = async (updated: Awaited<ReturnType<typeof exercisesApi.get>>) => {
+    queryClient.setQueryData(exercisesKeys.detail(id), updated);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [...exercisesKeys.all, "list"] }),
+      queryClient.invalidateQueries({ queryKey: exercisesKeys.batches }),
+    ]);
+  };
+  // After a refused archive or restore (e.g. a stale version), read it again. An edit keeps the
+  // version it read, so the teacher's text is never saved over someone else's change.
+  const onError = () => queryClient.invalidateQueries({ queryKey: exercisesKeys.detail(id) });
+  return {
+    update: useMutation({ mutationFn: (body: UpdateExerciseRequest) => exercisesApi.update(id, body), onSuccess }),
+    archive: useMutation({ mutationFn: (version: number) => exercisesApi.archive(id, version), onSuccess, onError }),
+    restore: useMutation({ mutationFn: (version: number) => exercisesApi.restore(id, version), onSuccess, onError }),
   };
 }

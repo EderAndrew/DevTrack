@@ -1,6 +1,17 @@
 import { Injectable } from "@nestjs/common";
-import type { CreateExerciseRequest, ExerciseInput, ExerciseOrigin, ExerciseStatus, ExerciseTeacherView, ManualExerciseStatus, UpdateExerciseRequest } from "@repo/contracts";
+import type {
+  CreateExerciseRequest,
+  ExerciseInput,
+  ExerciseListQuery,
+  ExerciseOrigin,
+  ExercisePage,
+  ExerciseStatus,
+  ExerciseTeacherView,
+  ManualExerciseStatus,
+  UpdateExerciseRequest,
+} from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
+import { decodeCursor, encodeCursor } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
@@ -14,7 +25,7 @@ import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { ExerciseBatchReview } from "./batch-review";
 import { ExerciseStateMachine } from "./exercise.state-machine";
-import { EXERCISE_RECORD_SELECT, toExerciseRecord } from "./exercise-query";
+import { afterUpdated, EXERCISE_PAGE_SIZE_DEFAULT, EXERCISE_RECORD_SELECT, exerciseListWhere, toExerciseRecord } from "./exercise-query";
 import { type ExerciseContentRows, exerciseContentRows, exerciseViolations } from "./rules/exercise-rules";
 import { toTeacherView } from "./views/teacher-view";
 
@@ -35,6 +46,27 @@ export class ExercisesService {
     const row = await db.exercise.findFirst({ where: { id: exerciseId, teacherId }, select: EXERCISE_RECORD_SELECT });
     if (!row) throw notFound();
     return toTeacherView(toExerciseRecord(row));
+  }
+
+  /**
+   * The teacher's bank, one keyset page at a time (010 US5-1, FR-034, SC-008): most recently changed
+   * first, never more than the page size.
+   */
+  async list(teacherId: string, { cursor, pageSize = EXERCISE_PAGE_SIZE_DEFAULT, ...filters }: ExerciseListQuery): Promise<ExercisePage> {
+    const after = cursor ? decodeCursor(cursor) : null;
+    const where = exerciseListWhere(teacherId, filters);
+    const rows = await this.prisma.exercise.findMany({
+      where: after ? { AND: [where, afterUpdated(after)] } : where,
+      select: EXERCISE_RECORD_SELECT,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: pageSize + 1,
+    });
+    const page = rows.slice(0, pageSize);
+    const last = page.at(-1);
+    return {
+      items: page.map((row) => toTeacherView(toExerciseRecord(row))),
+      nextCursor: rows.length > pageSize && last ? encodeCursor({ createdAt: last.updatedAt, id: last.id }) : null,
+    };
   }
 
   /** A manual set of 3–10 (the contract checks the size): all or nothing (010/FR-016). */
@@ -161,6 +193,60 @@ export class ExercisesService {
     });
   }
 
+  /**
+   * DRAFT | APPROVED → ARCHIVED (010 US5-4, FR-010): the previous status is kept for the restore,
+   * and an archived draft of a batch counts in the batch (and may end its review, research X15).
+   * Already ARCHIVED → as it is, no event.
+   */
+  async archive(auth: AuthContext, exerciseId: string, version: number, requestId: string | null): Promise<ExerciseTeacherView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockCurrent(tx, auth.userId, exerciseId, version);
+      if (!ExerciseStateMachine.transition(current.status, "ARCHIVED", current.archivedFromStatus)) return this.get(auth.userId, exerciseId, tx);
+      await tx.exercise.update({
+        where: { id: exerciseId },
+        data: { status: "ARCHIVED", archivedFromStatus: current.status, version: { increment: 1 } },
+      });
+      if (current.generationBatchId) {
+        await tx.exerciseGenerationBatch.update({ where: { id: current.generationBatchId }, data: { archivedCount: { increment: 1 } } });
+      }
+      await this.audit.record(tx, {
+        type: "exercise.archived",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "EXERCISE",
+        targetId: exerciseId,
+        requestId,
+        metadata: { from: current.status },
+      });
+      if (current.status === "DRAFT") await this.batchChanged(tx, auth, current.generationBatchId, requestId, new Date());
+      return this.get(auth.userId, exerciseId, tx);
+    });
+  }
+
+  /** ARCHIVED → the status it had before (010 US5-4); anything not archived → 409. */
+  async restore(auth: AuthContext, exerciseId: string, version: number, requestId: string | null): Promise<ExerciseTeacherView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockCurrent(tx, auth.userId, exerciseId, version);
+      if (current.status !== "ARCHIVED") throw invalidStateTransition();
+      const to = ExerciseStateMachine.restoredStatus(current.archivedFromStatus);
+      ExerciseStateMachine.transition(current.status, to, current.archivedFromStatus);
+      await tx.exercise.update({ where: { id: exerciseId }, data: { status: to, archivedFromStatus: null, version: { increment: 1 } } });
+      if (current.generationBatchId) {
+        await tx.exerciseGenerationBatch.update({ where: { id: current.generationBatchId }, data: { archivedCount: { decrement: 1 } } });
+      }
+      await this.audit.record(tx, {
+        type: "exercise.restored",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "EXERCISE",
+        targetId: exerciseId,
+        requestId,
+        metadata: { to },
+      });
+      return this.get(auth.userId, exerciseId, tx);
+    });
+  }
+
   /** The teacher's exercise, locked; 404 when it isn't theirs, 409 when `version` is stale. */
   private async lockCurrent(tx: Tx, teacherId: string, exerciseId: string, version: number): Promise<LockedExercise> {
     const [row] = await tx.$queryRaw<LockedExercise[]>`
@@ -172,7 +258,9 @@ export class ExercisesService {
 
   /** Approves a locked exercise; `false` when it already was (no event). ARCHIVED → 409. */
   private async approveLocked(tx: Tx, auth: AuthContext, row: LockedExercise, requestId: string | null, now: Date): Promise<boolean> {
-    if (!ExerciseStateMachine.transition(row.status, "APPROVED", row.archivedFromStatus)) return false;
+    // ARCHIVED → APPROVED is a restore, never an approval (FR-015).
+    if (row.status === "ARCHIVED") throw invalidStateTransition();
+    if (!ExerciseStateMachine.transition(row.status, "APPROVED")) return false;
     await tx.exercise.update({
       where: { id: row.id },
       data: { status: "APPROVED", humanReviewed: true, reviewedById: auth.userId, reviewedAt: now, version: { increment: 1 } },

@@ -140,6 +140,10 @@ export interface ExerciseOptions {
   generationBatchId?: string;
   /** For APPROVED AI exercises; default the teacher. */
   reviewedById?: string;
+  /** ARCHIVED: the status a restore goes back to; default APPROVED. */
+  archivedFromStatus?: "DRAFT" | "APPROVED";
+  /** Default: now (the bank lists by `updated_at desc, id`). */
+  updatedAt?: Date;
 }
 
 let exerciseSequence = 0;
@@ -178,7 +182,7 @@ export async function createExercise(
         cognitiveObjective: options.cognitiveObjective ?? "UNDERSTAND",
         origin,
         status,
-        archivedFromStatus: status === "ARCHIVED" ? "APPROVED" : null,
+        archivedFromStatus: status === "ARCHIVED" ? (options.archivedFromStatus ?? "APPROVED") : null,
         statement,
         statementSearchKey: searchKey(statement),
         explanation: options.explanation ?? "Explicação de teste",
@@ -194,6 +198,7 @@ export async function createExercise(
         humanReviewed: reviewed,
         reviewedById: reviewed ? (options.reviewedById ?? teacherId) : null,
         reviewedAt: reviewed ? new Date() : null,
+        ...(options.updatedAt ? { updatedAt: options.updatedAt } : {}),
       },
     });
     const rows: ExerciseAlternative[] = [];

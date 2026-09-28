@@ -1,9 +1,8 @@
-import { ListChecks } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Notice } from "@/components/shared/notice";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { ExerciseBankList } from "./exercise-bank-list";
 
 export interface ExerciseBankHomeProps {
   canCreate: boolean;
@@ -14,8 +13,8 @@ export interface ExerciseBankHomeProps {
 }
 
 /**
- * "Banco de Exercícios": the creation actions (010/US1). The list with filters and search
- * arrives with 010/US5.
+ * "Banco de Exercícios": the creation actions (010/US1, US2) and the bank itself, with filters,
+ * search and "Carregar mais" (010/US5).
  */
 export function ExerciseBankHome({ canCreate, canGenerate = false, created }: ExerciseBankHomeProps) {
   const actions =
@@ -50,11 +49,7 @@ export function ExerciseBankHome({ canCreate, canGenerate = false, created }: Ex
       <p className="mt-0">
         <Link href="/exercicios/lotes">Lotes gerados com IA</Link>
       </p>
-      <EmptyState
-        icon={ListChecks}
-        title="A consulta do banco chega em breve"
-        description="Os exercícios que você salvar ficam guardados no seu banco, visíveis só para você."
-      />
+      <ExerciseBankList />
     </>
   );
 }

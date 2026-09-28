@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Tx } from "../../platform/database/transaction";
 import type { AuthContext } from "../../platform/http/request-context";
 
-/** What a batch's review changed: one of its drafts was approved or discarded. */
+/** What a batch's review changed: one of its drafts was approved, discarded or archived. */
 export interface BatchReviewChange {
   auth: AuthContext;
   batchId: string;
@@ -14,7 +14,7 @@ export type BatchReviewListener = (tx: Tx, change: BatchReviewChange) => Promise
 
 /**
  * The bank's extension point for batch reviews (010 research X1, X15): the bank calls it inside
- * the transaction of each approval or discard of a batch's draft, and the generation module, which
+ * the transaction of each approval, discard or archive of a batch's draft, and the generation module, which
  * the bank never imports, registers the listener that closes the AI proposal. Without a listener
  * (the bank alone) it does nothing.
  */

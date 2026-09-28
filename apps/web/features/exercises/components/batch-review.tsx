@@ -1,9 +1,9 @@
 "use client";
 
-import { type ExerciseBatchStatus, type ExerciseBatchView, type ExerciseTeacherView, ExerciseTypeSchema, type ExerciseStatus } from "@repo/contracts";
-import { AlertTriangle, Pencil, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { type ExerciseBatchStatus, type ExerciseBatchView, ExerciseTypeSchema } from "@repo/contracts";
+import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { Notice } from "@/components/shared/notice";
 import {
   AlertDialog,
@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,20 +23,15 @@ import { Label } from "@/components/ui/label";
 import { Status, type StatusVariant } from "@/components/ui/status";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useBatchReview, useExerciseBatch, useRequestExerciseBatch } from "../hooks/use-exercises";
-import { COGNITIVE_OBJECTIVE_LABELS, DIFFICULTY_LABELS, EXERCISE_TYPE_LABELS } from "../schemas/exercise-form";
+import { DIFFICULTY_LABELS, EXERCISE_TYPE_LABELS } from "../schemas/exercise-form";
 import { DraftEditor } from "./draft-editor";
+import { ExerciseBadges, ExerciseContent, ExerciseStatusLabel } from "./exercise-parts";
 
 const BATCH_STATUS: Record<ExerciseBatchStatus, { label: string; variant: StatusVariant }> = {
   PENDING: { label: "Gerando", variant: "info" },
   GENERATED: { label: "Gerado", variant: "success" },
   FAILED: { label: "Falhou", variant: "danger" },
   CANCELLED: { label: "Cancelado", variant: "neutral" },
-};
-
-const EXERCISE_STATUS: Record<ExerciseStatus, { label: string; variant: StatusVariant }> = {
-  DRAFT: { label: "Rascunho", variant: "warning" },
-  APPROVED: { label: "Aprovado", variant: "success" },
-  ARCHIVED: { label: "Arquivado", variant: "neutral" },
 };
 
 /** The same request again, linked to this batch (US4-6): the counts it had, a new key. */
@@ -120,7 +114,7 @@ export function BatchReview({ batchId }: { batchId: string }) {
         {batch.status === "GENERATED" ? (
           <p className="m-0">
             {batch.pendingReview} para revisar · {batch.approved} aprovado{batch.approved === 1 ? "" : "s"} · {batch.discarded} excluído
-            {batch.discarded === 1 ? "" : "s"}
+            {batch.discarded === 1 ? "" : "s"} · {batch.archived} arquivado{batch.archived === 1 ? "" : "s"}
           </p>
         ) : null}
       </div>
@@ -182,7 +176,7 @@ export function BatchReview({ batchId }: { batchId: string }) {
                     <h3 id={headingId} className="m-0 text-h3">
                       Exercício {n} — {EXERCISE_TYPE_LABELS[exercise.type]}
                     </h3>
-                    <Status variant={EXERCISE_STATUS[exercise.status].variant}>{EXERCISE_STATUS[exercise.status].label}</Status>
+                    <ExerciseStatusLabel status={exercise.status} />
                   </div>
                   <ExerciseBadges exercise={exercise} />
                 </CardHeader>
@@ -261,70 +255,5 @@ export function BatchReview({ batchId }: { batchId: string }) {
         })}
       </ol>
     </>
-  );
-}
-
-/** "Gerado por IA", "Editado por você" and "Pegadinha": words and an icon, never color alone. */
-function ExerciseBadges({ exercise }: { exercise: ExerciseTeacherView }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {exercise.origin === "AI_GENERATED" ? (
-        <Badge variant="info">
-          <Sparkles aria-hidden="true" />
-          Gerado por IA
-        </Badge>
-      ) : null}
-      {exercise.humanEdited ? (
-        <Badge variant="neutral">
-          <Pencil aria-hidden="true" />
-          Editado por você
-        </Badge>
-      ) : null}
-      {exercise.isTrickQuestion ? (
-        <Badge variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          Pegadinha
-        </Badge>
-      ) : null}
-    </div>
-  );
-}
-
-/** What the teacher reads of an exercise: everything, answers included (never shown to students). */
-function ExerciseContent({ exercise }: { exercise: ExerciseTeacherView }) {
-  return (
-    <dl className="m-0 flex flex-col gap-2">
-      <Item term="Enunciado">{exercise.statement}</Item>
-      <Item term="Dificuldade e objetivo">
-        {DIFFICULTY_LABELS[exercise.difficulty]} · {COGNITIVE_OBJECTIVE_LABELS[exercise.cognitiveObjective]}
-      </Item>
-      {exercise.expectedAnswer !== null ? <Item term="Resposta esperada">{exercise.expectedAnswer}</Item> : null}
-      {exercise.type === "MULTIPLE_CHOICE" ? (
-        <Item term="Alternativas">
-          <ol className="m-0 pl-6">
-            {exercise.alternatives.map((alternative) => (
-              <li key={alternative.id}>
-                {alternative.text}
-                {alternative.isCorrect ? <strong> (correta)</strong> : null}
-              </li>
-            ))}
-          </ol>
-        </Item>
-      ) : null}
-      {exercise.instructions !== null ? <Item term="Instruções">{exercise.instructions}</Item> : null}
-      {exercise.starterCode !== null ? <Item term="Código inicial">{exercise.starterCode}</Item> : null}
-      {exercise.expectedSolution !== null ? <Item term="Solução esperada">{exercise.expectedSolution}</Item> : null}
-      {exercise.language ? <Item term="Linguagem">{exercise.language.name}</Item> : null}
-      <Item term="Explicação">{exercise.explanation}</Item>
-    </dl>
-  );
-}
-
-function Item({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-label text-text-secondary">{term}</dt>
-      <dd className="m-0 whitespace-pre-wrap">{children}</dd>
-    </div>
   );
 }

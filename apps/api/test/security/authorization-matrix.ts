@@ -210,9 +210,12 @@ export const MATRIX: readonly MatrixEntry[] = [
   // 010 — the teacher's exercise bank (contracts/permissions.md).
   { method: "POST", path: "/exercises/sets", access: "questoes.criar" },
   { method: "POST", path: "/exercises", access: "questoes.criar" },
+  { method: "GET", path: "/exercises", access: "questoes.visualizar" },
   { method: "GET", path: "/exercises/:id", access: "questoes.visualizar" },
   { method: "PUT", path: "/exercises/:id", access: "questoes.editar" },
   { method: "POST", path: "/exercises/:id/approve", access: "questoes.aprovar" },
+  { method: "POST", path: "/exercises/:id/archive", access: "questoes.editar" },
+  { method: "POST", path: "/exercises/:id/restore", access: "questoes.editar" },
   { method: "DELETE", path: "/exercises/:id", access: "questoes.editar" },
   { method: "GET", path: "/programming-languages", access: "questoes.visualizar" },
   // 010 — "Criar com IA" (the request and the availability also need ia.execucoes.visualizar).

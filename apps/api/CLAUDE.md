@@ -104,8 +104,8 @@ CONFIRMED revision with a language and items (the topic is `itemId`), `createGen
 (no execution unless given) and `createExercise` an exercise with its alternatives in one transaction, since the
 deferred trigger checks 3–5 alternatives and exactly one correct at commit. The 010 permissions are seeded before
 their routes: `us7-matrix-completeness.spec.ts` lists them in `SEEDED_BEFORE_ROUTES`, and each leaves that list
-with the first route that requires it. Likewise `audit-coverage.spec.ts` reads the 010 `audit-events.md` but
-skips the types in `PENDING_010` until the story that emits them (US1 emits `exercise.created`, run by the journey).
+with the first route that requires it. Likewise `audit-coverage.spec.ts` reads the 010 `audit-events.md` and
+skips the types in `PENDING_010` until the story that emits them; both lists are empty since US5.
 Generation (010/US2) tests use `test/helpers/exercise-ai.ts`: `createExerciseAiApp()` registers the 007 and 010
 agents (the real `exercise-generator` ACTIVE, where production starts it DISABLED) with one catalog entry approved for
 both tasks; `batchRequest(topic, overrides)` builds a request body, `requestBatch` posts it, and
@@ -123,6 +123,13 @@ exercise's row lock with its `version`); each approval or discard of a batch's d
 in the same transaction, and `exercise-ai`'s `ExerciseProposalCloser` (registered on it at startup, so the bank never
 imports AI code) decides the generator's proposal once the batch has no DRAFT left. `api(t).delete(path, body)` sends
 the `{ version }` body.
+The bank (010/US5): `GET /exercises` filters through `exerciseListWhere` (`exercise-query.ts`: the search compares
+`searchKey(query)` with `statement_search_key`; ARCHIVED only when `status` asks for it) and pages by keyset on
+`updated_at desc, id desc` (20 by default, ≤ 50); `createExercise` takes `updatedAt` to pin the order and
+`archivedFromStatus` for an ARCHIVED row. `archive`/`restore` keep `archived_from_status`, move the batch's
+`archived_count`, and an archived DRAFT of a batch also calls `ExerciseBatchReview.changed`. Approving an ARCHIVED
+exercise is always 409 (ARCHIVED → APPROVED is a restore, never an approval). `010-performance.spec.ts` bulk-inserts
+1 000 open answers (no alternatives, so `createMany` passes the deferred trigger).
 Student view (010/US6): any future route that shows an exercise to a student (activities, exams) answers only
 `toStudentView` (`src/modules/exercises/views/student-view.ts`), which copies an allowlist and never strips the teacher
 view; a new field reaches students only when listed there or in its type's `studentFields`.

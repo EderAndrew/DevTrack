@@ -135,6 +135,8 @@ export const AUDIT_EVENT_METADATA = {
   "exercise.edited": ["origin", "status", "fields"],
   "exercise.approved": ["origin", "humanEdited", "batchId"],
   "exercise.discarded": ["exerciseId", "batchId"],
+  "exercise.archived": ["from"],
+  "exercise.restored": ["to"],
   "exercise_batch.requested": [
     "executionId",
     "difficulty",

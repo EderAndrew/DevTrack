@@ -102,6 +102,8 @@ import {
 } from "./curriculum/curriculum-ai.js";
 import {
   CreateExerciseRequestSchema,
+  ExerciseListQuerySchema,
+  ExercisePageSchema,
   ExerciseSetRequestSchema,
   ExerciseSetSchema,
   ExerciseTeacherViewSchema,
@@ -794,6 +796,8 @@ export const endpoints = {
     response: ExerciseTeacherViewSchema,
     status: 201,
   },
+  /** Keyset page (≤ 50) of the teacher's bank; without `status`, DRAFT and APPROVED (US5-1). */
+  "exercises.list": { method: "GET", path: "/exercises", query: ExerciseListQuerySchema, response: ExercisePageSchema, status: 200 },
   "exercises.get": { method: "GET", path: "/exercises/:id", params: IdParamsSchema, response: ExerciseTeacherViewSchema, status: 200 },
   /** The whole content with the version read; ARCHIVED or stale → 409 (US4, research X14). */
   "exercises.update": {
@@ -808,6 +812,24 @@ export const endpoints = {
   "exercises.approve": {
     method: "POST",
     path: "/exercises/:id/approve",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT | APPROVED → ARCHIVED, the previous status kept; already ARCHIVED → 200, no event (US5-4). */
+  "exercises.archive": {
+    method: "POST",
+    path: "/exercises/:id/archive",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** ARCHIVED → the status before archiving; anything else → 409 (US5-4). */
+  "exercises.restore": {
+    method: "POST",
+    path: "/exercises/:id/restore",
     params: IdParamsSchema,
     body: ExerciseVersionRequestSchema,
     response: ExerciseTeacherViewSchema,

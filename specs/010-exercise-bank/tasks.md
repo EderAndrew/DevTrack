@@ -343,22 +343,22 @@ origem e a proposta fechada.
 **Independent Test**: 60 exercícios em várias disciplinas; filtrar, buscar e paginar só os do
 professor.
 
-- [ ] T043 [P] [US5] `apps/api/test/integration/010-us5-bank.spec.ts`: cada filtro e combinação,
+- [X] T043 [P] [US5] `apps/api/test/integration/010-us5-bank.spec.ts`: cada filtro e combinação,
   busca sem acento/maiúsculas, arquivados só quando filtrados, cursor sem repetição nem buraco,
   página ≤ 50; editar APPROVED mantém APPROVED; arquivar e restaurar; ARCHIVED não edita nem
   aprova; professor B → 404 em todas as rotas (`010/US5-1`…`010/US5-6`, `010/SC-007`). O
   desempenho com 1 000 exercícios (< 1 s, margem folgada) fica em
   `apps/api/test/security/010-performance.spec.ts`, no padrão das suítes de desempenho da 004
   (`010/SC-008`).
-- [ ] T044 [P] [US5] `apps/api/test/security/010-isolation.spec.ts`: área completa de A e B;
+- [X] T044 [P] [US5] `apps/api/test/security/010-isolation.spec.ts`: área completa de A e B;
   toda rota de exercícios e lotes com a sessão de A sobre ids de B → 404; ADMIN, MANAGER e
   STUDENT → 403 (`010/SC-007`).
-- [ ] T045 [US5] `exercise-query.ts` (filtros, `statement_search_key LIKE`, keyset por
+- [X] T045 [US5] `exercise-query.ts` (filtros, `statement_search_key LIKE`, keyset por
   `updated_at desc, id`), `archive`/`restore` com `archived_from_status`, auditorias
   `exercise.archived`/`exercise.restored`; rotas; linhas do `MATRIX` e de
   `route-declarations.spec.ts` para `GET /exercises`, `POST /exercises/:id/archive` e
   `POST /exercises/:id/restore`.
-- [ ] T046 [P] [US5] Web `/exercicios` (filtros, busca, "Carregar mais", estado vazio) e
+- [X] T046 [P] [US5] Web `/exercicios` (filtros, busca, "Carregar mais", estado vazio) e
   `/exercicios/[id]` (ver, editar, arquivar/restaurar); testes.
 
 ---

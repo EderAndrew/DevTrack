@@ -7,7 +7,7 @@ import { type BatchReviewChange, ExerciseBatchReview } from "../exercises/batch-
 
 /**
  * The generator's proposal follows the batch review (010 research X15): when the last DRAFT of a
- * generated batch is approved or discarded, the proposal is decided in the same transaction —
+ * generated batch is approved, discarded or archived, the proposal is decided in the same transaction —
  * APPROVE when every item was approved, APPROVE_PARTIALLY with the approved ones, REJECT with none.
  * An expired or already decided proposal stays as it is; the drafts are domain data either way.
  */

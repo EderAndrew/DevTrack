@@ -62,7 +62,7 @@ null`. Confirmed revisions stay immutable (`409 REVISION_CONFIRMED`).
 
 | Route | Permission | Body / query | Result |
 |-------|------------|--------------|--------|
-| `GET /exercises` | `questoes.visualizar` | `subjectId?, syllabusRevisionId?, syllabusItemId?, difficulty?, cognitiveObjective?, type?, origin?, status?` (default: DRAFT + APPROVED), `languageId?, query?` (≤ 200), `cursor?, pageSize?` (≤ 50) | `200 { items: ExerciseTeacherView[], nextCursor }` |
+| `GET /exercises` | `questoes.visualizar` | `subjectId?, syllabusRevisionId?, syllabusItemId?, difficulty?, cognitiveObjective?, type?, origin?, status?` (default: DRAFT + APPROVED), `languageId?, query?` (≤ 200), `cursor?, pageSize?` (≤ 50, default 20) | `200 { items: ExerciseTeacherView[], nextCursor }` |
 | `GET /exercises/:id` | `questoes.visualizar` | — | `200 ExerciseTeacherView`; other teacher → 404 |
 | `POST /exercises/sets` | `questoes.criar` | `{ exercises: ExerciseInput[] /* 3–10 */, status: "DRAFT" | "APPROVED" }` | `201 { items }`; all or nothing |
 | `POST /exercises` | `questoes.criar` | `ExerciseInput & { status }` | `201 ExerciseTeacherView` (single exercise, US5-6) |
