@@ -129,6 +129,8 @@ export const SyllabusRevisionViewSchema = z.strictObject({
   ),
   itemCount: z.int(),
   confirmedAt: IsoDateTimeSchema.nullable(),
+  /** The syllabus' programming language (010/FR-039); null when it has none. */
+  language: z.strictObject({ id: UuidSchema, name: z.string() }).nullable(),
 });
 export type SyllabusRevisionView = z.infer<typeof SyllabusRevisionViewSchema>;
 

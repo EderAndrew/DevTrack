@@ -72,8 +72,10 @@ null`. Confirmed revisions stay immutable (`409 REVISION_CONFIRMED`).
 | `POST /exercise-batches/:id/approve` | `questoes.aprovar` | `{ exerciseIds: uuid[] /* DRAFTs of the batch */ }` | `200 { items }`; approve several at once |
 
 Validation codes: set size, alternatives, correct count, required fields per type →
-`400 VALIDATION_ERROR` (contract refinements); language inactive/unknown → `422
-VALIDATION_ERROR`; `syllabusItemId` not the teacher's or not in a confirmed revision → `404`.
+`400 VALIDATION_ERROR` (contract refinements); language inactive/unknown → `400
+VALIDATION_ERROR` (the catalog fixes one status per code); `syllabusItemId` missing or not the
+teacher's → `404`, an item of the teacher's draft revision → `422 REVISION_NOT_CONFIRMED`
+(research X9). The whole set is refused on any of them; nothing is written.
 
 ## Generation batches (`ia.exercicios.gerar` + `ia.execucoes.visualizar`)
 

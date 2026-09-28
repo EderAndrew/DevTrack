@@ -21,6 +21,7 @@ export const config = {
     "/professores/:path*",
     "/turmas/:path*",
     "/disciplinas/:path*",
+    "/exercicios/:path*",
     "/minhas-turmas",
   ],
 };

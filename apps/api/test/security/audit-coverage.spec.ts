@@ -16,7 +16,22 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/004-syllabus-planning/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/010-exercise-bank/contracts/audit-events.md"),
 ];
+
+/**
+ * 010 types whose flows arrive with later user stories (tasks.md); each leaves this list with the
+ * story that emits it.
+ */
+const PENDING_010 = new Set([
+  "exercise.edited",
+  "exercise.approved",
+  "exercise.discarded",
+  "exercise.archived",
+  "exercise.restored",
+  "exercise_batch.requested",
+  "exercise_batch.generated",
+]);
 
 interface ContractRow {
   type: string;
@@ -35,7 +50,7 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  */
 function contractRows(file: string): ContractRow[] {
   const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
-  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text);
+  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the request \|/m.test(text);
   return text
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
@@ -65,7 +80,12 @@ function retiredTypes(file: string): string[] {
 
 describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => {
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
-  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type));
+  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING_010.has(row.type));
+
+  it("010 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+    expect([...PENDING_010].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
+    expect([...PENDING_010].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
+  });
 
   it("003/FR-048 os tipos aposentados saem do catálogo", () => {
     expect([...retired]).toEqual(["auth.signup"]);

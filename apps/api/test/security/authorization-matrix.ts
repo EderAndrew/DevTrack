@@ -206,6 +206,12 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/syllabus-documents/:id/ai", access: "ementas.visualizar" },
   { method: "POST", path: "/syllabus-documents/:id/ai-analyses", access: "ementas.revisar" },
   { method: "POST", path: "/syllabus-documents/:id/ai-proposals/:proposalId/apply", access: "ementas.revisar" },
+
+  // 010 — the teacher's exercise bank (contracts/permissions.md).
+  { method: "POST", path: "/exercises/sets", access: "questoes.criar" },
+  { method: "POST", path: "/exercises", access: "questoes.criar" },
+  { method: "GET", path: "/exercises/:id", access: "questoes.visualizar" },
+  { method: "GET", path: "/programming-languages", access: "questoes.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

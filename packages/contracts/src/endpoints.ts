@@ -100,6 +100,13 @@ import {
   RequestCurriculumAnalysisRequestSchema,
   RequestCurriculumAnalysisResponseSchema,
 } from "./curriculum/curriculum-ai.js";
+import {
+  CreateExerciseRequestSchema,
+  ExerciseSetRequestSchema,
+  ExerciseSetSchema,
+  ExerciseTeacherViewSchema,
+} from "./exercises/exercises.js";
+import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -756,6 +763,31 @@ export const endpoints = {
     params: CurriculumProposalParamsSchema,
     body: ApplyCurriculumProposalRequestSchema,
     response: ApplyCurriculumProposalResponseSchema,
+    status: 200,
+  },
+
+  // 010 — the teacher's exercise bank.
+  /** 3–10 exercises, all or nothing. */
+  "exercises.createSet": {
+    method: "POST",
+    path: "/exercises/sets",
+    body: ExerciseSetRequestSchema,
+    response: ExerciseSetSchema,
+    status: 201,
+  },
+  /** A single exercise (US5-6). */
+  "exercises.create": {
+    method: "POST",
+    path: "/exercises",
+    body: CreateExerciseRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 201,
+  },
+  "exercises.get": { method: "GET", path: "/exercises/:id", params: IdParamsSchema, response: ExerciseTeacherViewSchema, status: 200 },
+  "programmingLanguages.list": {
+    method: "GET",
+    path: "/programming-languages",
+    response: ProgrammingLanguageListSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

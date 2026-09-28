@@ -104,7 +104,8 @@ CONFIRMED revision with a language and items (the topic is `itemId`), `createGen
 (no execution unless given) and `createExercise` an exercise with its alternatives in one transaction, since the
 deferred trigger checks 3–5 alternatives and exactly one correct at commit. The 010 permissions are seeded before
 their routes: `us7-matrix-completeness.spec.ts` lists them in `SEEDED_BEFORE_ROUTES`, and each leaves that list
-with the first route that requires it.
+with the first route that requires it. Likewise `audit-coverage.spec.ts` reads the 010 `audit-events.md` but
+skips the types in `PENDING_010` until the story that emits them (US1 emits `exercise.created`, run by the journey).
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

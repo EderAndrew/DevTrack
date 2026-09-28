@@ -126,32 +126,32 @@ MANUAL e nenhuma execução de IA existe.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T012 [P] [US1] `apps/api/test/integration/010-us1-manual.spec.ts`: conjunto de 3 e de 10
+- [X] T012 [P] [US1] `apps/api/test/integration/010-us1-manual.spec.ts`: conjunto de 3 e de 10
   aceitos, de 2 e 11 recusados sem gravar nada; Múltipla escolha 2/6 alternativas e 0/2
   corretas recusam o conjunto inteiro, com a indicação do exercício; código sem linguagem ou com
   linguagem inativa recusado; tópico de outro professor ou de revisão em rascunho → 404/422;
   salvar como DRAFT ou APPROVED; exercício avulso aceito (US5-6 também); zero linhas em
   `ai_executions` e `ai_model_calls` depois de tudo; auditoria `exercise.created` por exercício
   (`010/US1-1`…`010/US1-6`, `010/SC-001`).
-- [ ] T013 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para
+- [X] T013 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para
   `POST /exercises/sets`, `POST /exercises`, `GET /exercises/:id`, `GET /programming-languages`.
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] `apps/api/src/modules/exercises/exercises.service.ts`: `createSet` e
+- [X] T014 [US1] `apps/api/src/modules/exercises/exercises.service.ts`: `createSet` e
   `createOne` numa transação (resolução do tópico por consulta escopada ao professor,
   linguagem ativa, linhas + alternativas, `statement_search_key`), auditoria
   `exercise.created` (tipo novo + contrato + jornada); `programming-languages.service.ts`.
-- [ ] T015 [US1] Rotas em `exercises.controller.ts` e `programming-languages.controller.ts`,
+- [X] T015 [US1] Rotas em `exercises.controller.ts` e `programming-languages.controller.ts`,
   entradas em `packages/contracts/src/endpoints.ts`.
-- [ ] T016 [P] [US1] Web: `apps/web/features/exercises/{api,hooks}` e a página
+- [X] T016 [P] [US1] Web: `apps/web/features/exercises/{api,hooks}` e a página
   `/exercicios/novo` (React Hook Form com `useFieldArray` de 3–10 cartões, campos por tipo,
   alternativas com uma correta, tópico opcional por Disciplina → Ementa → Tópico, linguagem do
   catálogo; ao ligar um cartão de código a um tópico, a linguagem da ementa vem pré-selecionada
   e o professor pode trocá-la; pegadinha marcável na Múltipla escolha) e `/exercicios/novo/avulso`, em `apps/web/app/(app)/exercicios/…` e
   `apps/web/features/exercises/components/*`; item de menu "Banco de Exercícios"
   (`questoes.visualizar`).
-- [ ] T017 [P] [US1] Testes web em `apps/web/features/exercises/components/*.test.tsx`: erros
+- [X] T017 [P] [US1] Testes web em `apps/web/features/exercises/components/*.test.tsx`: erros
   por campo ligados (`expectFieldErrorLinked`), limites 3/10 no formulário, linguagem sugerida pela ementa e troca
   manual (`010/FR-040`), axe, ordem de Tab (padrão de teclado `SC-012` da 001).
 
@@ -198,7 +198,8 @@ resposta, correta, solução ou explicação.
 ### Implementation for User Story 7
 
 - [ ] T022 [US7] 004: `SaveSyllabusRevisionRequestSchema` e `SyllabusRevisionViewSchema` com a
-  linguagem (`packages/contracts/src/curriculum/*`), serviço de revisão
+  linguagem (`packages/contracts/src/curriculum/*`; o campo `language` da visão, só leitura, já
+  entrou com T016 para a sugestão de linguagem de US1), serviço de revisão
   (`apps/api/src/modules/syllabus/…`) validando linguagem ativa; auditoria do save com
   `languageId` na lista de campos.
 - [ ] T023 [US7] Curriculum Agent v3 (`apps/api/src/modules/curriculum-ai/…`): a ferramenta de

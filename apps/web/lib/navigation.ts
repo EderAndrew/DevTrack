@@ -38,6 +38,7 @@ export const STAFF_AREA_PERMISSIONS: readonly string[] = [
 /** Route prefix → name of the area, shown in the Topbar (005 research V12, V20). */
 export const AREAS = [
   { prefix: "/disciplinas", name: "Minhas disciplinas" },
+  { prefix: "/exercicios", name: "Banco de Exercícios" },
   { prefix: "/turmas", name: "Turmas" },
   { prefix: "/professores", name: "Professores" },
   { prefix: "/admin/managers", name: "Gestores" },

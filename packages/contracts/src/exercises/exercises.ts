@@ -159,6 +159,10 @@ export const ExerciseTeacherViewSchema = z.strictObject({
 });
 export type ExerciseTeacherView = z.infer<typeof ExerciseTeacherViewSchema>;
 
+/** `POST /exercises/sets` response: the created exercises, in the order sent. */
+export const ExerciseSetSchema = z.strictObject({ items: z.array(ExerciseTeacherViewSchema) });
+export type ExerciseSet = z.infer<typeof ExerciseSetSchema>;
+
 /**
  * What a student may see of an exercise (010/FR-036, research X12): a closed list, built on the
  * server by copying these fields only. Never the correct alternative, the expected answer or

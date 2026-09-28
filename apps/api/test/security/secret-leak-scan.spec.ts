@@ -112,7 +112,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(hashes.some(({ value }) => sources.class_invitations.includes(value))).toBe(true);
   });
 
-  it("004/SC-010 004/FR-047 004/FR-048 texto da ementa, títulos e descrições de tópicos, nome da disciplina e do arquivo fora dos logs e da metadata de auditoria", async () => {
+  it("004/SC-010 004/FR-047 004/FR-048 texto da ementa, títulos e descrições de tópicos, nome da disciplina e do arquivo e (010) o conteúdo dos exercícios fora dos logs e da metadata de auditoria", async () => {
     expect(new Set(content.map(({ kind }) => kind))).toEqual(
       new Set([
         "texto da ementa (marcador)",
@@ -127,6 +127,12 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "saída do modelo",
         // 007: the text of a golden syllabus document the curriculum agent read.
         "texto do documento de referência (007)",
+        // 010: the exercises' statement, answers, solution and explanation.
+        "enunciado",
+        "resposta esperada",
+        "alternativa correta",
+        "solução esperada",
+        "explicação do exercício",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -134,6 +140,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(leaks(content, { logs: logs.text(), "metadata de auditoria": serialize(events) })).toEqual([]);
     // The content itself was stored where it belongs (the scan is not vacuous).
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
+    expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );

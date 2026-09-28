@@ -229,7 +229,38 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     groups,
   });
   expect(reviewed.status).toBe(200);
-  expect((await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {})).body.status).toBe("CONFIRMED");
+  const confirmed = await teacherClient.post(`/api/syllabus-revisions/${draft.body.id}/confirm`, {});
+  expect(confirmed.body.status).toBe("CONFIRMED");
+  // 010/US1 — a manual set of three exercises, one on a topic of the confirmed syllabus, and a
+  // single one: `exercise.created` per exercise, never with their texts (contracts/audit-events.md).
+  const topicItemId = confirmed.body.groups[0].items[0].id as string;
+  const exerciseCommon = { explanation: text("explicação do exercício", "Explicação do exercício da jornada"), difficulty: "BASIC", cognitiveObjective: "APPLY" };
+  const exerciseSet = await teacherClient.post("/api/exercises/sets", {
+    status: "APPROVED",
+    exercises: [
+      { type: "OPEN_ANSWER", statement: text("enunciado", "Enunciado da jornada dez"), ...exerciseCommon, syllabusItemId: topicItemId, expectedAnswer: text("resposta esperada", "Resposta esperada da jornada") },
+      {
+        type: "MULTIPLE_CHOICE",
+        statement: "Qual alternativa?",
+        ...exerciseCommon,
+        alternatives: [
+          { text: text("alternativa correta", "Alternativa correta da jornada"), isCorrect: true },
+          { text: "Distrator um", isCorrect: false },
+          { text: "Distrator dois", isCorrect: false },
+        ],
+      },
+      {
+        type: "CODE",
+        statement: "Implemente.",
+        ...exerciseCommon,
+        instructions: "Implemente a classe.",
+        expectedSolution: text("solução esperada", "class SolucaoDaJornada {}"),
+        languageId: (await t.prisma.programmingLanguage.findUniqueOrThrow({ where: { key: "java" } })).id,
+      },
+    ],
+  });
+  expect(exerciseSet.status).toBe(201);
+  expect((await teacherClient.post("/api/exercises", { type: "OPEN_ANSWER", statement: "Avulso", ...exerciseCommon, expectedAnswer: "Sim", status: "DRAFT" })).status).toBe(201);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

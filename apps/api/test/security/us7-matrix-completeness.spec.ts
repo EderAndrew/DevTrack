@@ -10,8 +10,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  * exists (tasks.md T004/T006); each one leaves this list with the first route that requires it.
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
-  "questoes.visualizar",
-  "questoes.criar",
   "questoes.editar",
   "questoes.aprovar",
   "ia.exercicios.gerar",

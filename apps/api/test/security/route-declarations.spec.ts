@@ -135,6 +135,11 @@ describe("route access declarations", () => {
         "GET /syllabus-documents/:id/ai",
         "POST /syllabus-documents/:id/ai-analyses",
         "POST /syllabus-documents/:id/ai-proposals/:proposalId/apply",
+        // 010
+        "POST /exercises/sets",
+        "POST /exercises",
+        "GET /exercises/:id",
+        "GET /programming-languages",
       ]),
     );
   });
