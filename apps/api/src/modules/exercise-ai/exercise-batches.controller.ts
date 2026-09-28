@@ -1,5 +1,7 @@
-import { Controller, Get, Param, Post, Query, Res } from "@nestjs/common";
+import { Controller, Get, HttpCode, Param, Post, Query, Res } from "@nestjs/common";
 import {
+  type ApproveBatchExercisesRequest,
+  ApproveBatchExercisesRequestSchema,
   type ExerciseBatchDetail,
   type ExerciseBatchListQuery,
   ExerciseBatchListQuerySchema,
@@ -8,12 +10,14 @@ import {
   ExerciseBatchRequestSchema,
   type ExerciseBatchView,
   type ExerciseGenerationAvailability,
+  type ExerciseSet,
   UuidSchema,
 } from "@repo/contracts";
 import type { Response } from "express";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodBody, ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
+import { ExercisesService } from "../exercises/exercises.service";
 import { ExerciseBatchesService } from "./exercise-batches.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
@@ -21,7 +25,10 @@ const idPipe = new ZodValidationPipe(UuidSchema);
 /** "Criar com IA" (010 contracts/http-api.md, "Generation batches"); other teachers' batches are 404. */
 @Controller()
 export class ExerciseBatchesController {
-  constructor(private readonly batches: ExerciseBatchesService) {}
+  constructor(
+    private readonly batches: ExerciseBatchesService,
+    private readonly exercises: ExercisesService,
+  ) {}
 
   @Get("exercise-generation/availability")
   @RequirePermissions("ia.exercicios.gerar", "ia.execucoes.visualizar")
@@ -52,5 +59,17 @@ export class ExerciseBatchesController {
   @RequirePermissions("questoes.visualizar")
   get(@Param("id", idPipe) id: string, @Ctx() ctx: RequestContext): Promise<ExerciseBatchDetail> {
     return this.batches.get(ctx.auth!.userId, id);
+  }
+
+  /** Approves several DRAFTs of the batch at once (US4, FR-014); the review lives in the bank. */
+  @Post("exercise-batches/:id/approve")
+  @HttpCode(200)
+  @RequirePermissions("questoes.aprovar")
+  async approve(
+    @Param("id", idPipe) id: string,
+    @ZodBody(ApproveBatchExercisesRequestSchema) body: ApproveBatchExercisesRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ExerciseSet> {
+    return { items: await this.exercises.approveMany(ctx.auth!, id, body.exerciseIds, ctx.requestId) };
   }
 }

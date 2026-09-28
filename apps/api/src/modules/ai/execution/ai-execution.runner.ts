@@ -34,7 +34,7 @@ import { AiUsageRecorder } from "../usage/ai-usage.recorder";
 import { AiExecutionAborts } from "./ai-execution-aborts";
 import { createExecutionContext } from "./ai-execution-context";
 import { AiExecutionStore } from "./ai-execution.store";
-import { aiLog } from "./ai-log";
+import { aiLog, rejectReasonOf } from "./ai-log";
 import { effectiveLimits } from "./ai-limits";
 import { AiResourceResolver } from "./ai-resource.resolver";
 import { buildEnvelope } from "./prompt-envelope";
@@ -506,7 +506,7 @@ export class AiExecutionRunner {
               aiLog(
                 this.logger,
                 "ai.materialize_failed",
-                { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown" },
+                { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown", rejectReason: rejectReasonOf(error) },
                 "warn",
               );
               throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
@@ -545,7 +545,7 @@ export class AiExecutionRunner {
       aiLog(
         this.logger,
         "ai.output_invalid",
-        { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown" },
+        { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown", rejectReason: rejectReasonOf(error) },
         "warn",
       );
       throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");

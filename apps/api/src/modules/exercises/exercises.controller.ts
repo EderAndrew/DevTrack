@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from "@nestjs/common";
+import { Controller, Delete, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
 import {
   type CreateExerciseRequest,
   CreateExerciseRequestSchema,
@@ -6,6 +6,10 @@ import {
   type ExerciseSetRequest,
   ExerciseSetRequestSchema,
   type ExerciseTeacherView,
+  type ExerciseVersionRequest,
+  ExerciseVersionRequestSchema,
+  type UpdateExerciseRequest,
+  UpdateExerciseRequestSchema,
   UuidSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -36,5 +40,34 @@ export class ExercisesController {
   @RequirePermissions("questoes.visualizar")
   get(@Param("id", idPipe) id: string, @Ctx() ctx: RequestContext): Promise<ExerciseTeacherView> {
     return this.exercises.get(ctx.auth!.userId, id);
+  }
+
+  @Put(":id")
+  @RequirePermissions("questoes.editar")
+  update(
+    @Param("id", idPipe) id: string,
+    @ZodBody(UpdateExerciseRequestSchema) body: UpdateExerciseRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ExerciseTeacherView> {
+    return this.exercises.update(ctx.auth!, id, body, ctx.requestId);
+  }
+
+  @Post(":id/approve")
+  @HttpCode(200)
+  @RequirePermissions("questoes.aprovar")
+  approve(
+    @Param("id", idPipe) id: string,
+    @ZodBody(ExerciseVersionRequestSchema) body: ExerciseVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<ExerciseTeacherView> {
+    return this.exercises.approve(ctx.auth!, id, body.version, ctx.requestId);
+  }
+
+  /** Only a DRAFT of a batch (US4-3); 204. */
+  @Delete(":id")
+  @HttpCode(204)
+  @RequirePermissions("questoes.editar")
+  async delete(@Param("id", idPipe) id: string, @ZodBody(ExerciseVersionRequestSchema) body: ExerciseVersionRequest, @Ctx() ctx: RequestContext): Promise<void> {
+    await this.exercises.deleteDraft(ctx.auth!, id, body.version, ctx.requestId);
   }
 }

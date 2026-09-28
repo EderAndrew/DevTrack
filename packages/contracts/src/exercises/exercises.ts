@@ -109,6 +109,20 @@ export const ExerciseSetRequestSchema = z.strictObject({
 });
 export type ExerciseSetRequest = z.infer<typeof ExerciseSetRequestSchema>;
 
+/** The exercise's `version` as the teacher last saw it (010 research X14): a stale one → 409. */
+const ExerciseVersionSchema = z.int().min(1);
+
+/**
+ * `PUT /exercises/:id`: the whole content again, with the version it was read at. The type never
+ * changes; an AI exercise keeps its topic and language (010/FR-031, FR-040).
+ */
+export const UpdateExerciseRequestSchema = exerciseVariants({ version: ExerciseVersionSchema });
+export type UpdateExerciseRequest = z.infer<typeof UpdateExerciseRequestSchema>;
+
+/** `POST /exercises/:id/approve` and `DELETE /exercises/:id` (and later archive and restore). */
+export const ExerciseVersionRequestSchema = z.strictObject({ version: ExerciseVersionSchema });
+export type ExerciseVersionRequest = z.infer<typeof ExerciseVersionRequestSchema>;
+
 export const ExerciseAlternativeViewSchema = z.strictObject({
   id: UuidSchema,
   text: z.string(),

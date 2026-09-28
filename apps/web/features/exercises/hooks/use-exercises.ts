@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateExerciseRequest, ExerciseBatchRequest, ExerciseSetRequest } from "@repo/contracts";
+import type { CreateExerciseRequest, ExerciseBatchRequest, ExerciseSetRequest, UpdateExerciseRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { subjectsApi } from "@/features/subjects/api/subjects";
 import { subjectsKeys } from "@/features/subjects/hooks/use-subjects";
@@ -16,6 +16,7 @@ export const exercisesKeys = {
   detail: (id: string) => [...exercisesKeys.all, id] as const,
   languages: ["programming-languages"] as const,
   batches: ["exercise-batches"] as const,
+  batch: (id: string) => [...exercisesKeys.batches, id] as const,
   availability: ["exercise-generation", "availability"] as const,
 };
 
@@ -76,4 +77,43 @@ export function useCreateExercise() {
     mutationFn: (body: CreateExerciseRequest) => exercisesApi.create(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: exercisesKeys.all }),
   });
+}
+
+/** One batch and its exercises; looked at again every 3 s while it is generating (US4). */
+export const useExerciseBatch = (id: string) =>
+  useQuery({
+    queryKey: exercisesKeys.batch(id),
+    queryFn: () => exerciseBatchesApi.get(id),
+    refetchInterval: (query) => (query.state.data?.batch.status === "PENDING" ? BATCH_POLL_MS : false),
+  });
+
+/**
+ * The review of a batch (010 US4): edit, approve one or several, delete a draft. Each change
+ * refreshes the batch and the bank; a stale version comes back as `EXERCISE_VERSION_CONFLICT`.
+ */
+export function useBatchReview(batchId: string) {
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: exercisesKeys.batches }),
+      queryClient.invalidateQueries({ queryKey: exercisesKeys.all }),
+    ]);
+  return {
+    update: useMutation({
+      mutationFn: ({ id, body }: { id: string; body: UpdateExerciseRequest }) => exercisesApi.update(id, body),
+      onSettled: refresh,
+    }),
+    approve: useMutation({
+      mutationFn: ({ id, version }: { id: string; version: number }) => exercisesApi.approve(id, version),
+      onSettled: refresh,
+    }),
+    approveMany: useMutation({
+      mutationFn: (exerciseIds: string[]) => exerciseBatchesApi.approve(batchId, { exerciseIds }),
+      onSettled: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: ({ id, version }: { id: string; version: number }) => exercisesApi.remove(id, version),
+      onSettled: refresh,
+    }),
+  };
 }

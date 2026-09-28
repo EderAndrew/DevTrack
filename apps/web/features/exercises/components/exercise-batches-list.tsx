@@ -70,7 +70,9 @@ export function ExerciseBatchesList({ requested }: { requested: boolean }) {
             className="flex flex-col gap-1 rounded-md border border-border p-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="m-0 text-h3">{batch.topic.itemText}</h2>
+              <h2 className="m-0 text-h3">
+                <Link href={`/exercicios/lotes/${batch.id}`}>{batch.topic.itemText}</Link>
+              </h2>
               <Status variant={STATUS[batch.status].variant}>
                 {STATUS[batch.status].label}
                 {batch.status === "GENERATED" && batch.pendingReview > 0

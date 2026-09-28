@@ -182,6 +182,7 @@ export const revisionDraftExists = () => new AppException("REVISION_DRAFT_EXISTS
 export const revisionConfirmed = () => new AppException("REVISION_CONFIRMED");
 export const meetingHasTopics = () => new AppException("MEETING_HAS_TOPICS");
 export const planRevisionConflict = () => new AppException("PLAN_REVISION_CONFLICT");
+export const exerciseVersionConflict = () => new AppException("EXERCISE_VERSION_CONFLICT");
 export const planArchived = () => new AppException("PLAN_ARCHIVED");
 export const fileTooLarge = () => new AppException("FILE_TOO_LARGE");
 export const classNotPlannable = () => new AppException("CLASS_NOT_PLANNABLE");

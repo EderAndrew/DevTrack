@@ -148,6 +148,7 @@ export const apiClient = {
     apiRequest<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: Options) =>
     apiRequest<T>(path, { ...options, method: "PATCH", body }),
-  delete: <T>(path: string, options?: Options) => apiRequest<T>(path, { ...options, method: "DELETE" }),
+  /** `body`: e.g. the version an exercise was read at (010 research X14). */
+  delete: <T>(path: string, body?: unknown, options?: Options) => apiRequest<T>(path, { ...options, method: "DELETE", body }),
   upload: <T>(path: string, formData: FormData, options?: ApiUploadOptions) => apiUpload<T>(path, formData, options),
 };

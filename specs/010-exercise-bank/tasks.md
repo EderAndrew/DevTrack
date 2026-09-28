@@ -286,16 +286,16 @@ pedida, todos DRAFT e AI_GENERATED.
 
 **Independent Test**: cada resposta inválida simulada termina o lote em FAILED sem exercícios.
 
-- [ ] T035 [P] [US3] Testes puros `apps/api/src/modules/exercise-ai/generation/
+- [X] T035 [P] [US3] Testes puros `apps/api/src/modules/exercise-ai/generation/
   validate-generated-batch.spec.ts`: quantidade, tipo não pedido, distribuição, dificuldade,
   pegadinhas a mais/a menos/fora de MC, linguagem diferente, 2/6 alternativas, 0/2 corretas,
   alternativas repetidas, campo obrigatório ausente, enunciados iguais após normalização, ids e
   tópico da resposta ignorados (`010/US3-2`…`010/US3-6`, `010/FR-029`, `010/FR-031`).
-- [ ] T036 [P] [US3] `apps/api/test/integration/010-us3-invalid-output.spec.ts`: resposta fora do
+- [X] T036 [P] [US3] `apps/api/test/integration/010-us3-invalid-output.spec.ts`: resposta fora do
   esquema e cada caso acima pelo runner → lote FAILED, zero exercícios e alternativas, escalonamento
   único da 009 quando a política permite; falha no `materialize` → rollback total (lote sem
   `generated_at`, sem proposta) (`010/US3-1`, `010/US3-7`, `010/SC-004`).
-- [ ] T037 [US3] `generation/validate-generated-batch.ts` (research X10) usado pelo `build`;
+- [X] T037 [US3] `generation/validate-generated-batch.ts` (research X10) usado pelo `build`;
   motivos de recusa só como código nos logs.
 
 ---
@@ -309,7 +309,7 @@ origem e a proposta fechada.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T038 [P] [US4] `apps/api/test/integration/010-us4-review.spec.ts`: aprovar DRAFT AI →
+- [X] T038 [P] [US4] `apps/api/test/integration/010-us4-review.spec.ts`: aprovar DRAFT AI →
   APPROVED com revisor e data, `human_reviewed`; editar antes marca `human_edited` e mantém a
   origem; excluir DRAFT do lote (contagem de descartados); edição que quebra regra recusada;
   nenhuma execução deixa exercício APPROVED; "Gerar de novo" cria lote ligado; aprovar vários do
@@ -317,19 +317,19 @@ origem e a proposta fechada.
   decisão da 006 recusa APPROVE (`409 AI_PROPOSAL_APPLY_REQUIRED`); auditoria
   `exercise.approved`, `exercise.edited`, `exercise.discarded` (`010/US4-1`…`010/US4-6`,
   `010/FR-012`…`010/FR-014`, `010/SC-005`).
-- [ ] T039 [P] [US4] `apps/api/test/security/010-concurrency.spec.ts`: duas aprovações ou edições
+- [X] T039 [P] [US4] `apps/api/test/security/010-concurrency.spec.ts`: duas aprovações ou edições
   simultâneas do mesmo exercício → uma vale, a outra `409 EXERCISE_VERSION_CONFLICT`; dois
   pedidos iguais simultâneos → um lote (`010/US4-7`).
-- [ ] T040 [P] [US4] Linhas do `MATRIX` para `PUT /exercises/:id`,
+- [X] T040 [P] [US4] Linhas do `MATRIX` para `PUT /exercises/:id`,
   `POST /exercises/:id/approve`, `DELETE /exercises/:id`, `POST /exercise-batches/:id/approve`.
 
 ### Implementation for User Story 4
 
-- [ ] T041 [US4] Serviço: `update` (regras de novo, `version`, `human_edited` para
+- [X] T041 [US4] Serviço: `update` (regras de novo, `version`, `human_edited` para
   AI_GENERATED), `approve` e `approveMany` (revisor, data), `deleteDraft` (só DRAFT de lote,
   contagem), fechamento da proposta por `AiProposalsService.decideWithin` quando o lote não tem
   mais DRAFT (research X15); tipos de auditoria novos; rotas e contratos.
-- [ ] T042 [P] [US4] Web `/exercicios/lotes/[id]`: situação com polling enquanto PENDING,
+- [X] T042 [P] [US4] Web `/exercicios/lotes/[id]`: situação com polling enquanto PENDING,
   edição inline dos rascunhos, excluir (danger + confirmação), aprovar um/selecionados, gerar de
   novo, selos "Gerado por IA", "Editado por você", "Pegadinha" com texto e ícone; testes com
   axe e teclado.

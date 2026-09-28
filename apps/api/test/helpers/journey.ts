@@ -289,7 +289,33 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     validGeneratedBatch({ difficulty: "BASIC", counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 0, CODE: 0 }, trickQuestions: 0, language: null }, text("texto gerado pela IA (010)", "MARCADOR-GERADO-010")),
   );
   expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
-  expect((await generationClient.get(`/api/exercise-batches/${batch.body.id}`)).body.batch.status).toBe("GENERATED");
+  const generatedBatch = await generationClient.get(`/api/exercise-batches/${batch.body.id}`);
+  expect(generatedBatch.body.batch.status).toBe("GENERATED");
+  // 010/US4 — the review: one draft edited then approved, one approved as it is, one discarded;
+  // the last one closes the generator's proposal (APPROVED_PARTIALLY). Never the texts in audit.
+  const [editedDraft, keptDraft, discardedDraft] = generatedBatch.body.exercises as {
+    id: string;
+    version: number;
+    explanation: string;
+    difficulty: string;
+    cognitiveObjective: string;
+    topic: { syllabusItemId: string };
+    expectedAnswer: string;
+  }[];
+  const edited = await generationClient.put(`/api/exercises/${editedDraft!.id}`, {
+    type: "OPEN_ANSWER",
+    statement: text("enunciado revisado (010)", "Enunciado revisado pelo professor na jornada"),
+    explanation: editedDraft!.explanation,
+    difficulty: editedDraft!.difficulty,
+    cognitiveObjective: editedDraft!.cognitiveObjective,
+    syllabusItemId: editedDraft!.topic.syllabusItemId,
+    expectedAnswer: editedDraft!.expectedAnswer,
+    version: editedDraft!.version,
+  });
+  expect(edited.status).toBe(200);
+  expect((await generationClient.post(`/api/exercises/${editedDraft!.id}/approve`, { version: edited.body.version })).status).toBe(200);
+  expect((await generationClient.post(`/api/exercise-batches/${batch.body.id}/approve`, { exerciseIds: [keptDraft!.id] })).status).toBe(200);
+  expect((await generationClient.delete(`/api/exercises/${discardedDraft!.id}`, { version: discardedDraft!.version })).status).toBe(204);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

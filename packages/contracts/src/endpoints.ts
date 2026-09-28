@@ -105,10 +105,13 @@ import {
   ExerciseSetRequestSchema,
   ExerciseSetSchema,
   ExerciseTeacherViewSchema,
+  ExerciseVersionRequestSchema,
+  UpdateExerciseRequestSchema,
 } from "./exercises/exercises.js";
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
 import {
+  ApproveBatchExercisesRequestSchema,
   ExerciseBatchDetailSchema,
   ExerciseBatchListQuerySchema,
   ExerciseBatchPageSchema,
@@ -792,6 +795,33 @@ export const endpoints = {
     status: 201,
   },
   "exercises.get": { method: "GET", path: "/exercises/:id", params: IdParamsSchema, response: ExerciseTeacherViewSchema, status: 200 },
+  /** The whole content with the version read; ARCHIVED or stale → 409 (US4, research X14). */
+  "exercises.update": {
+    method: "PUT",
+    path: "/exercises/:id",
+    params: IdParamsSchema,
+    body: UpdateExerciseRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT → APPROVED by the teacher, with reviewer and date; already APPROVED → 200, no event. */
+  "exercises.approve": {
+    method: "POST",
+    path: "/exercises/:id/approve",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** Only a DRAFT of a batch: removed, and the batch counts it as discarded. */
+  "exercises.delete": {
+    method: "DELETE",
+    path: "/exercises/:id",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: null,
+    status: 204,
+  },
   "programmingLanguages.list": {
     method: "GET",
     path: "/programming-languages",
@@ -815,6 +845,15 @@ export const endpoints = {
   },
   "exerciseBatches.list": { method: "GET", path: "/exercise-batches", query: ExerciseBatchListQuerySchema, response: ExerciseBatchPageSchema, status: 200 },
   "exerciseBatches.get": { method: "GET", path: "/exercise-batches/:id", params: IdParamsSchema, response: ExerciseBatchDetailSchema, status: 200 },
+  /** Approves several DRAFTs of the batch at once (US4-1, FR-014). */
+  "exerciseBatches.approve": {
+    method: "POST",
+    path: "/exercise-batches/:id/approve",
+    params: IdParamsSchema,
+    body: ApproveBatchExercisesRequestSchema,
+    response: ExerciseSetSchema,
+    status: 200,
+  },
 } as const satisfies Record<string, EndpointContract>;
 
 export type EndpointKey = keyof typeof endpoints;

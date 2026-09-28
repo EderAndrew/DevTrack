@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AiErrorCodeSchema } from "../ai/enums.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ExerciseBatchStatusSchema, ExerciseDifficultySchema } from "./enums.js";
-import { ExerciseTeacherViewSchema } from "./exercises.js";
+import { EXERCISE_SET_MAX, ExerciseTeacherViewSchema } from "./exercises.js";
 
 // Generation batches (010 contracts/http-api.md, "Generation batches"; research X8, X13). The
 // request is `ExerciseBatchRequestSchema` (distribution.ts).
@@ -10,7 +10,8 @@ import { ExerciseTeacherViewSchema } from "./exercises.js";
 export const ExerciseBatchViewSchema = z.strictObject({
   id: UuidSchema,
   status: ExerciseBatchStatusSchema,
-  topic: z.strictObject({ syllabusItemId: UuidSchema, itemText: z.string(), subjectName: z.string() }),
+  /** The revision too, so "Gerar de novo" can send the same request (US4-6). */
+  topic: z.strictObject({ syllabusItemId: UuidSchema, syllabusRevisionId: UuidSchema, itemText: z.string(), subjectName: z.string() }),
   difficulty: ExerciseDifficultySchema,
   total: z.int(),
   counts: z.strictObject({ OPEN_ANSWER: z.int(), MULTIPLE_CHOICE: z.int(), CODE: z.int() }),
@@ -53,3 +54,9 @@ export const ExerciseGenerationAvailabilitySchema = z.strictObject({
   availability: z.enum(["AVAILABLE", "AGENT_DISABLED", "MODEL_UNAVAILABLE", "PAUSED"]),
 });
 export type ExerciseGenerationAvailability = z.infer<typeof ExerciseGenerationAvailabilitySchema>;
+
+/** `POST /exercise-batches/:id/approve`: several DRAFTs of the batch at once (010/FR-014). */
+export const ApproveBatchExercisesRequestSchema = z.strictObject({
+  exerciseIds: z.array(UuidSchema).min(1).max(EXERCISE_SET_MAX),
+});
+export type ApproveBatchExercisesRequest = z.infer<typeof ApproveBatchExercisesRequestSchema>;

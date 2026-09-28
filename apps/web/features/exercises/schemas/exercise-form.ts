@@ -4,6 +4,7 @@ import {
   type ExerciseDifficulty,
   type ExerciseInput,
   ExerciseInputSchema,
+  type ExerciseTeacherView,
   type ExerciseType,
 } from "@repo/contracts";
 import { z } from "zod";
@@ -83,6 +84,30 @@ export const emptyCard = (): ExerciseCardValues => ({
   expectedSolution: "",
   languageId: "",
 });
+
+/** The card of a saved exercise, for editing it (010 US4): its alternatives keep their order and mark. */
+export function cardFromView(view: ExerciseTeacherView): ExerciseCardValues {
+  const alternatives = view.alternatives.map((alternative) => ({ key: alternative.id, text: alternative.text }));
+  return {
+    ...emptyCard(),
+    type: view.type,
+    statement: view.statement,
+    explanation: view.explanation,
+    difficulty: view.difficulty,
+    cognitiveObjective: view.cognitiveObjective,
+    subjectId: view.topic?.subjectId ?? "",
+    revisionId: view.topic?.syllabusRevisionId ?? "",
+    syllabusItemId: view.topic?.syllabusItemId ?? "",
+    expectedAnswer: view.expectedAnswer ?? "",
+    alternatives: view.type === "MULTIPLE_CHOICE" ? alternatives : emptyCard().alternatives,
+    correctAlternative: view.alternatives.find((alternative) => alternative.isCorrect)?.id ?? "",
+    isTrickQuestion: view.isTrickQuestion,
+    instructions: view.instructions ?? "",
+    starterCode: view.starterCode ?? "",
+    expectedSolution: view.expectedSolution ?? "",
+    languageId: view.language?.id ?? "",
+  };
+}
 
 const optional = (value: string) => (value.trim() === "" ? undefined : value);
 

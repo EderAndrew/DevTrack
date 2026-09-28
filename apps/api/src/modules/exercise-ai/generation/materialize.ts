@@ -1,11 +1,11 @@
-import { type ExerciseDifficulty, type GeneratedExercise, GeneratedExerciseBatchSchema } from "@repo/contracts";
+import { type ExerciseDifficulty, GeneratedExerciseBatchSchema } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
 import { derivedUuid } from "../../../platform/crypto/derived-uuid";
 import type { ProposalMaterializeContext } from "../../ai/definitions/types";
 import { AuditService } from "../../audit/audit.service";
 import { checkExercise, exerciseContentRows } from "../../exercises/rules/exercise-rules";
-import { ProposalRejected } from "./build-proposal";
 import { EXERCISE_GENERATION_BATCH } from "./request-content";
+import { generatedExerciseInput, ProposalRejected } from "./validate-generated-batch";
 
 interface LockedBatch {
   id: string;
@@ -15,33 +15,6 @@ interface LockedBatch {
   language_id: string | null;
   ai_execution_id: string | null;
   generated_at: Date | null;
-}
-
-/**
- * The exercise input of a generated one (research X8): topic and difficulty from the batch, and
- * the language as the batch's — the output never chooses them (FR-031). The structural rules of
- * manual input apply as they are (FR-006).
- */
-function toInput(generated: GeneratedExercise, batch: LockedBatch): unknown {
-  const common = {
-    statement: generated.statement,
-    explanation: generated.explanation,
-    difficulty: batch.difficulty,
-    cognitiveObjective: generated.cognitiveObjective,
-    syllabusItemId: batch.syllabus_item_id,
-  };
-  if (generated.type === "OPEN_ANSWER") return { type: generated.type, ...common, expectedAnswer: generated.expectedAnswer };
-  if (generated.type === "MULTIPLE_CHOICE") {
-    return { type: generated.type, ...common, alternatives: generated.alternatives, isTrickQuestion: generated.isTrickQuestion };
-  }
-  return {
-    type: generated.type,
-    ...common,
-    instructions: generated.instructions,
-    ...(generated.starterCode === null ? {} : { starterCode: generated.starterCode }),
-    expectedSolution: generated.expectedSolution,
-    languageId: batch.language_id ?? undefined,
-  };
 }
 
 /**
@@ -60,7 +33,8 @@ export async function materializeExerciseBatch(tx: Tx, context: ProposalMaterial
   if (!batch || batch.ai_execution_id !== context.executionId || batch.generated_at !== null) throw new ProposalRejected("BATCH_MISMATCH");
 
   const { exercises } = GeneratedExerciseBatchSchema.parse(context.content);
-  const inputs = exercises.map((generated) => checkExercise(toInput(generated, batch)).input);
+  const target = { difficulty: batch.difficulty, syllabusItemId: batch.syllabus_item_id, languageId: batch.language_id ?? undefined };
+  const inputs = exercises.map((generated) => checkExercise(generatedExerciseInput(generated, target)).input);
   if (inputs.some((input) => input === null)) throw new ProposalRejected("STRUCTURE_INVALID");
 
   for (const [index, input] of inputs.entries()) {

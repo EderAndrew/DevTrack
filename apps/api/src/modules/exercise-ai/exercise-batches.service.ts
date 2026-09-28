@@ -47,6 +47,7 @@ const BATCH_VIEW_SELECT = {
   discardedCount: true,
   archivedCount: true,
   regeneratedFromId: true,
+  syllabusRevisionId: true,
   language: { select: { name: true } },
   syllabusItem: { select: { id: true, text: true } },
   syllabusRevision: { select: { document: { select: { subject: { select: { name: true } } } } } },
@@ -69,7 +70,12 @@ function toBatchView(row: BatchRow): ExerciseBatchView {
   return {
     id: row.id,
     ...statusOf(row),
-    topic: { syllabusItemId: row.syllabusItem.id, itemText: row.syllabusItem.text, subjectName: row.syllabusRevision.document.subject.name },
+    topic: {
+      syllabusItemId: row.syllabusItem.id,
+      syllabusRevisionId: row.syllabusRevisionId,
+      itemText: row.syllabusItem.text,
+      subjectName: row.syllabusRevision.document.subject.name,
+    },
     difficulty: row.difficulty,
     total: row.requestedQuantity,
     counts: { OPEN_ANSWER: row.openAnswerQuantity, MULTIPLE_CHOICE: row.multipleChoiceQuantity, CODE: row.codeQuantity },

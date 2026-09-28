@@ -134,6 +134,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "solução esperada",
         "explicação do exercício",
         "texto gerado pela IA (010)",
+        "enunciado revisado (010)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });

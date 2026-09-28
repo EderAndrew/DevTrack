@@ -70,7 +70,7 @@ null`. Confirmed revisions stay immutable (`409 REVISION_CONFIRMED`).
 | `POST /exercises/:id/approve` | `questoes.aprovar` | `{ version }` | `200`; already APPROVED → 200 no event |
 | `POST /exercises/:id/archive` | `questoes.editar` | `{ version }` | `200` |
 | `POST /exercises/:id/restore` | `questoes.editar` | `{ version }` | `200` back to `archivedFromStatus` |
-| `DELETE /exercises/:id` | `questoes.editar` | `{ version }` | `200`; only DRAFT of a batch (else 409) |
+| `DELETE /exercises/:id` | `questoes.editar` | `{ version }` | `204`; only DRAFT of a batch (else 409) |
 | `POST /exercise-batches/:id/approve` | `questoes.aprovar` | `{ exerciseIds: uuid[] /* DRAFTs of the batch */ }` | `200 { items }`; approve several at once |
 
 Validation codes: set size, alternatives, correct count, required fields per type →
@@ -110,7 +110,7 @@ agent, `RATE_LIMIT_EXERCISE_AI_PER_HOUR`). Availability errors: `409 AI_AGENT_DI
 ```ts
 ExerciseBatchView = {
   id, status: "PENDING" | "GENERATED" | "FAILED" | "CANCELLED",
-  topic: { syllabusItemId, itemText, subjectName }, difficulty, total,
+  topic: { syllabusItemId, syllabusRevisionId, itemText, subjectName }, difficulty, total,
   counts: { OPEN_ANSWER, MULTIPLE_CHOICE, CODE }, trickQuestions, language: { name } | null,
   distribution: "AUTO" | "MANUAL", createdAt, generatedAt, failureCode: AiErrorCode | null,
   approved, discarded, archived, pendingReview, regeneratedFromId

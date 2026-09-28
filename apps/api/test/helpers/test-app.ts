@@ -160,7 +160,7 @@ export function api(t: TestApp, options: ApiClientOptions = {}) {
     post: (path: string, body: object = {}) => withBody(request(t.baseUrl).post(path), body),
     put: (path: string, body: object = {}) => withBody(request(t.baseUrl).put(path), body),
     patch: (path: string, body: object = {}) => withBody(request(t.baseUrl).patch(path), body),
-    delete: (path: string) => withBody(request(t.baseUrl).delete(path), {}),
+    delete: (path: string, body: object = {}) => withBody(request(t.baseUrl).delete(path), body),
     /** `multipart/form-data` POST with one file (004 uploads); supertest sets the boundary. */
     upload: (path: string, file: { bytes: Buffer; filename: string; contentType?: string }, field = "file") =>
       decorate(request(t.baseUrl).post(path)).attach(field, file.bytes, {

@@ -132,6 +132,9 @@ export const AUDIT_EVENT_METADATA = {
   // 010 — the exercise bank. Only ids, counts and enums: never statements, answers, solutions,
   // explanations or alternative texts.
   "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId"],
+  "exercise.edited": ["origin", "status", "fields"],
+  "exercise.approved": ["origin", "humanEdited", "batchId"],
+  "exercise.discarded": ["exerciseId", "batchId"],
   "exercise_batch.requested": [
     "executionId",
     "difficulty",

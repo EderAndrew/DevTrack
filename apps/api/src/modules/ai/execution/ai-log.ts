@@ -23,6 +23,8 @@ export interface AiLogFields {
   /** Paths (never values) of an output that failed its schema. */
   issuePaths?: string[];
   errorName?: string;
+  /** Why a domain hook refused an output (e.g. 010 `COUNT_MISMATCH`): a code, never content. */
+  rejectReason?: string;
   /** The task of the execution and the config, served model and leg of one call (008 FR-019). */
   task?: string | null;
   configKey?: string;
@@ -52,6 +54,7 @@ const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
   "attempts",
   "issuePaths",
   "errorName",
+  "rejectReason",
   "task",
   "configKey",
   "servedModel",
@@ -60,6 +63,12 @@ const ALLOWED: ReadonlySet<string> = new Set<keyof AiLogFields>([
   "toTier",
   "escalation",
 ]);
+
+/** The `reason` of a hook's error when it is a code (upper snake case), so no content can reach a log. */
+export function rejectReasonOf(error: unknown): string | undefined {
+  const reason = (error as { reason?: unknown } | null)?.reason;
+  return typeof reason === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(reason) ? reason : undefined;
+}
 
 /** Keeps only the allowed fields, whatever the caller passes at runtime. */
 export function aiLogFields(fields: AiLogFields): AiLogFields {

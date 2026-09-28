@@ -24,9 +24,6 @@ const CONTRACTS = [
  * story that emits it.
  */
 const PENDING_010 = new Set([
-  "exercise.edited",
-  "exercise.approved",
-  "exercise.discarded",
   "exercise.archived",
   "exercise.restored",
 ]);

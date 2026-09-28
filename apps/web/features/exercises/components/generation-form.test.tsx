@@ -1,4 +1,3 @@
-import type { ExerciseBatchView } from "@repo/contracts";
 import { screen } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,31 +6,11 @@ import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ExerciseBatchesList } from "./exercise-batches-list";
 import { GenerationForm } from "./generation-form";
-import { apiError, exerciseApiMock, json, POO, POO_REVISION } from "./test-fixtures";
+import { apiError, batchView, exerciseApiMock, json, POO, POO_REVISION } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-const batchView = (overrides: Partial<ExerciseBatchView> = {}): ExerciseBatchView => ({
-  id: "00000000-0000-4000-d000-000000000001",
-  status: "PENDING",
-  topic: { syllabusItemId: POO_REVISION.groups[0]!.items[0]!.id, itemText: "Herança", subjectName: POO.name },
-  difficulty: "INTERMEDIATE",
-  total: 5,
-  counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 2, CODE: 0 },
-  trickQuestions: 1,
-  language: null,
-  distribution: "AUTO",
-  createdAt: "2026-09-28T12:00:00.000Z",
-  generatedAt: null,
-  failureCode: null,
-  approved: 0,
-  discarded: 0,
-  archived: 0,
-  pendingReview: 0,
-  regeneratedFromId: null,
-  ...overrides,
-});
 
 describe("010/US2 GenerationForm — Criar com IA", () => {
   const fetchMock = vi.fn<typeof fetch>();

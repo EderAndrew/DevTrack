@@ -3,6 +3,7 @@ import { AiModule } from "../ai/ai.module";
 import { ExercisesModule } from "../exercises/exercises.module";
 import { ExerciseBatchesController } from "./exercise-batches.controller";
 import { ExerciseBatchesService } from "./exercise-batches.service";
+import { ExerciseProposalCloser } from "./exercise-proposal-closer";
 
 /**
  * Exercise generation with AI (010, research X1): the batch, the `exercise-generator` definitions
@@ -12,6 +13,6 @@ import { ExerciseBatchesService } from "./exercise-batches.service";
 @Module({
   imports: [AiModule, ExercisesModule],
   controllers: [ExerciseBatchesController],
-  providers: [ExerciseBatchesService],
+  providers: [ExerciseBatchesService, ExerciseProposalCloser],
 })
 export class ExerciseAiModule {}

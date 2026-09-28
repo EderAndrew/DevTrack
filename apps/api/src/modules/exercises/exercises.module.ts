@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ExerciseBatchReview } from "./batch-review";
 import { ExercisesController } from "./exercises.controller";
 import { ExercisesService } from "./exercises.service";
 import { ProgrammingLanguagesController } from "./programming-languages.controller";
@@ -11,7 +12,7 @@ import { ProgrammingLanguagesService } from "./programming-languages.service";
  */
 @Module({
   controllers: [ExercisesController, ProgrammingLanguagesController],
-  providers: [ExercisesService, ProgrammingLanguagesService],
-  exports: [ExercisesService],
+  providers: [ExercisesService, ProgrammingLanguagesService, ExerciseBatchReview],
+  exports: [ExercisesService, ExerciseBatchReview],
 })
 export class ExercisesModule {}

@@ -1,4 +1,4 @@
-import type { ExerciseTeacherView, ProgrammingLanguageView, SubjectView, SyllabusDocumentView, SyllabusRevisionView } from "@repo/contracts";
+import type { ExerciseBatchView, ExerciseTeacherView, ProgrammingLanguageView, SubjectView, SyllabusDocumentView, SyllabusRevisionView } from "@repo/contracts";
 import { apiError, json, subjectView } from "@/features/subjects/components/test-fixtures";
 import { revisionView } from "@/features/syllabus/components/test-fixtures";
 
@@ -70,6 +70,28 @@ export const exerciseView = (overrides: Partial<ExerciseTeacherView> = {}): Exer
     ...overrides,
   };
 };
+
+/** An `ExerciseBatchView` on "Herança" of POO: PENDING, 3 open answers and 2 multiple choice. */
+export const batchView = (overrides: Partial<ExerciseBatchView> = {}): ExerciseBatchView => ({
+  id: "00000000-0000-4000-d000-000000000001",
+  status: "PENDING",
+  topic: { syllabusItemId: POO_REVISION.groups[0]!.items[0]!.id, syllabusRevisionId: POO_REVISION.id, itemText: "Herança", subjectName: POO.name },
+  difficulty: "INTERMEDIATE",
+  total: 5,
+  counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 2, CODE: 0 },
+  trickQuestions: 1,
+  language: null,
+  distribution: "AUTO",
+  createdAt: "2026-09-28T12:00:00.000Z",
+  generatedAt: null,
+  failureCode: null,
+  approved: 0,
+  discarded: 0,
+  archived: 0,
+  pendingReview: 0,
+  regeneratedFromId: null,
+  ...overrides,
+});
 
 /**
  * Answers the reads of the form (languages, subjects, syllabus versions, revision) and hands

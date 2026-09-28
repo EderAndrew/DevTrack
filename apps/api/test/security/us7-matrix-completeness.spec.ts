@@ -8,11 +8,9 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 /**
  * 010: the migration seeds the bank's permissions in the Foundational phase, before any route
  * exists (tasks.md T004/T006); each one leaves this list with the first route that requires it.
+ * Empty since US4 (`questoes.editar`, `questoes.aprovar`); kept for the next seeded-first permission.
  */
-const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
-  "questoes.editar",
-  "questoes.aprovar",
-]);
+const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {

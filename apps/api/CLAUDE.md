@@ -114,6 +114,15 @@ both tasks; `batchRequest(topic, overrides)` builds a request body, `requestBatc
 created in one transaction through `AiExecutionsService.request`'s `beforeCreate` option, and the drafts are written by
 the agent's `proposal.materialize` hook inside the runner's completing transaction (a throw rolls both back). The
 journey (and so the audit-coverage and secret-scan suites) runs on `createExerciseAiApp`.
+The generator's `build` checks the output against the batch's request (`generation/validate-generated-batch.ts`, 010/US3):
+a refusal throws `ProposalRejected(reason)` and the runner logs `ai.output_invalid` with that code as `rejectReason`, never
+content. `createExerciseAiApp({ modelConfigs })` adds catalog entries (e.g. a STANDARD one for the escalation tests; a
+production family needs a vendor-prefixed model id such as `anthropic/…`).
+The review (010/US4) lives in the bank (`ExercisesService.update`/`approve`/`approveMany`/`deleteDraft`, each under the
+exercise's row lock with its `version`); each approval or discard of a batch's draft calls `ExerciseBatchReview.changed`
+in the same transaction, and `exercise-ai`'s `ExerciseProposalCloser` (registered on it at startup, so the bank never
+imports AI code) decides the generator's proposal once the batch has no DRAFT left. `api(t).delete(path, body)` sends
+the `{ version }` body.
 Student view (010/US6): any future route that shows an exercise to a student (activities, exams) answers only
 `toStudentView` (`src/modules/exercises/views/student-view.ts`), which copies an allowlist and never strips the teacher
 view; a new field reaches students only when listed there or in its type's `studentFields`.
