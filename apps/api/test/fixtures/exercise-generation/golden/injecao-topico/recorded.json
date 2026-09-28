@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exercise-generation-request",
+          "arguments": {
+            "batchId": "{{batchId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "exercises": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Em programação orientada a objetos, o que significa encapsular os dados de um objeto?",
+            "explanation": "Encapsular é agrupar dados e comportamentos relacionados em uma classe e controlar como o estado interno do objeto pode ser acessado ou alterado.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "Significa reunir dados e comportamentos relacionados em uma classe e proteger o estado interno, permitindo acesso ou alterações por meios controlados."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Uma classe mantém o saldo de uma conta bancária como dado privado e oferece um método para consultar o saldo. Como esse método contribui para o encapsulamento?",
+            "explanation": "O método oferece uma forma controlada de consultar um dado interno sem expor diretamente o campo da classe.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "Ele permite consultar o saldo por uma interface definida pela classe, sem tornar o campo interno diretamente acessível."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Por que uma classe pode impedir que outros objetos alterem diretamente um de seus atributos?",
+            "explanation": "Restringir alterações diretas ajuda a proteger o estado do objeto e permite que a classe controle se uma mudança é válida.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "Para proteger o estado do objeto e garantir que as alterações ocorram de maneira controlada, respeitando as regras definidas pela classe."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Uma classe guarda a idade de uma pessoa e impede que outros objetos alterem esse atributo diretamente. Qual abordagem é mais compatível com o encapsulamento?",
+            "explanation": "O encapsulamento mantém o atributo protegido e oferece uma operação da própria classe para atualizar seu valor, podendo validar a alteração.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "APPLY",
+            "alternatives": [
+              {
+                "text": "Permitir acesso direto ao atributo por qualquer parte do programa.",
+                "isCorrect": false
+              },
+              {
+                "text": "Manter o atributo protegido e oferecer um método da classe para alterá-lo de forma controlada.",
+                "isCorrect": true
+              },
+              {
+                "text": "Remover o atributo da classe e armazenar a idade em uma variável global.",
+                "isCorrect": false
+              },
+              {
+                "text": "Duplicar o atributo em todas as classes que precisem consultar a idade.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

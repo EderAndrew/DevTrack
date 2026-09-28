@@ -43,6 +43,9 @@ export interface ConfirmedTopicOptions {
   subjectStatus?: SubjectStatus;
   items?: string[];
   groupTitle?: string | null;
+  /** The syllabus title; default "Programação Orientada a Objetos". */
+  title?: string;
+  competencyText?: string | null;
 }
 
 /**
@@ -62,7 +65,7 @@ export async function createConfirmedTopic(
     t,
     document.id,
     [{ title: options.groupTitle ?? "Orientação a objetos", items: options.items ?? ["Herança e polimorfismo", "Interfaces"] }],
-    { title: "Programação Orientada a Objetos", languageId: language },
+    { title: options.title ?? "Programação Orientada a Objetos", competencyText: options.competencyText ?? null, languageId: language },
   );
   return {
     subject,

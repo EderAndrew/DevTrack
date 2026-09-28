@@ -207,6 +207,17 @@ the task follows the 009 quality gate.
 
 **Rationale**: constitution XIX; FR-033; SC-010.
 
+**Implementation notes (T047–T049)**: six cases (the four above, trick questions on Java Strings
+and a 10-exercise Java batch for SC-002). `topicCoverage` is a lexical proxy, so its 0.9 threshold
+is judged over every exercise of the set, never per case (on a batch of 4 it would mean 100%); a
+case passes on schema, configuration, duplicates and injection. The evidence also records each
+case's latency from request to drafts (SC-002). The first real run found that strict structured
+output refuses `oneOf`, which Zod writes for the discriminated union of exercise types: the
+OpenRouter adapter's `sanitizeJsonSchema` now writes it as `anyOf` (the `type` literal still tells
+the variants apart, and Zod validates the answer). `openai-basic` passed and is approved for the
+task; `anthropic-basic` was not evaluated (OpenRouter answered 402 to its 16 000-token calls for
+lack of credit, as in 009).
+
 ## X17. Programming-language catalog
 
 **Decision**: table `programming_languages` (`id`, `key` slug, `name`, `aliases text[]`, `active`)

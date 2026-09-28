@@ -341,6 +341,7 @@ export async function createConfirmedRevision(
     title?: string | null;
     /** The syllabus' programming language (010), frozen with the revision. */
     languageId?: string | null;
+    competencyText?: string | null;
   } = {},
 ): Promise<ConfirmedRevision> {
   const document = await t.prisma.syllabusDocument.findUniqueOrThrow({ where: { id: documentId } });
@@ -353,6 +354,7 @@ export async function createConfirmedRevision(
         status: "DRAFT",
         source: options.source ?? "MANUAL",
         title: options.title ?? null,
+        competencyText: options.competencyText ?? null,
         languageId: options.languageId ?? null,
       },
     });

@@ -79,6 +79,13 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         evaluatedAt: "2026-09-28T13:15:55.778Z",
         evidence: "apps/api/test/fixtures/evaluations/curriculum-extraction/openai-basic.json",
       },
+      // 010 T049: the generator's golden set met every threshold of `exercise-generation`.
+      {
+        taskKey: "exercise-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 0.9655, injectionClean: 1 },
+        evaluatedAt: "2026-09-28T20:04:09.584Z",
+        evidence: "apps/api/test/fixtures/evaluations/exercise-generation/openai-basic.json",
+      },
     ],
   }),
   openRouter({

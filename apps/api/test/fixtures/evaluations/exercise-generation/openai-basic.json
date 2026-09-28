@@ -1,0 +1,31 @@
+{
+  "task": "exercise-generation",
+  "model": "openai/gpt-6-luna",
+  "servedModel": "openai/gpt-6-luna",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-09-28T20:04:09.584Z",
+  "metrics": {
+    "schemaValidity": 1,
+    "configMatch": 1,
+    "duplicates": 0,
+    "topicCoverage": 0.9655,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.004553",
+    "currency": "USD",
+    "perExecution": "0.000758"
+  },
+  "latency": {
+    "perCaseMs": {
+      "html-css-flexbox": 14736,
+      "injecao-topico": 10909,
+      "java-heranca": 15019,
+      "pegadinhas-java-strings": 12106,
+      "python-listas": 8095,
+      "sql-joins-sem-linguagem": 6615
+    },
+    "maxMs": 15019,
+    "withinTwoMinutes": 1
+  }
+}

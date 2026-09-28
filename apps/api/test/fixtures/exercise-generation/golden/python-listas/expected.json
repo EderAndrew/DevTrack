@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "description": "Múltipla escolha e código sobre listas em Python, nível básico, sem pegadinha.",
+  "injection": false,
+  "syllabus": {
+    "title": "Introdução à Programação com Python",
+    "competencyText": null,
+    "languageKey": "python",
+    "groupTitle": "Estruturas de dados",
+    "items": [
+      "Listas: criação, indexação, fatiamento e compreensão de listas",
+      "Dicionários"
+    ]
+  },
+  "request": {
+    "difficulty": "BASIC",
+    "total": 4,
+    "types": [
+      "MULTIPLE_CHOICE",
+      "CODE"
+    ],
+    "distribution": {
+      "mode": "AUTO"
+    },
+    "trickQuestions": 0
+  },
+  "counts": {
+    "OPEN_ANSWER": 0,
+    "MULTIPLE_CHOICE": 2,
+    "CODE": 2
+  },
+  "language": "Python",
+  "keyTerms": [
+    "lista",
+    "list",
+    "append",
+    "fatia",
+    "índice",
+    "indexa",
+    "compreensão"
+  ],
+  "forbiddenPatterns": []
+}

@@ -1,4 +1,4 @@
-import { CurriculumExtractionOutputSchema } from "@repo/contracts";
+import { CurriculumExtractionOutputSchema, GeneratedExerciseBatchSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { jsonSchemaOf } from "../../registry/ai-definitions.check";
@@ -55,5 +55,18 @@ describe("007 research C3 sanitizeJsonSchema", () => {
       for (const word of [...REMOVED, "$schema"]) expect(keysOf(sanitized), word).not.toContain(word);
       expect(JSON.stringify(sanitized)).toContain('"additionalProperties":false');
     }
+  });
+
+  it("010 oneOf vira anyOf (o structured output estrito recusa oneOf): o esquema de saída do gerador de exercícios", () => {
+    const schema = jsonSchemaOf(GeneratedExerciseBatchSchema);
+    expect(JSON.stringify(schema)).toContain('"oneOf"');
+    const sanitized = sanitizeJsonSchema(schema) as { properties: { exercises: { items: { anyOf: { properties: { type: object } }[] } } } };
+    expect(keysOf(sanitized)).not.toContain("oneOf");
+    // The three variants stay, each told apart by its `type` literal; Zod still validates the answer.
+    expect(sanitized.properties.exercises.items.anyOf.map((variant) => variant.properties.type)).toEqual([
+      expect.objectContaining({ const: "OPEN_ANSWER" }),
+      expect.objectContaining({ const: "MULTIPLE_CHOICE" }),
+      expect.objectContaining({ const: "CODE" }),
+    ]);
   });
 });

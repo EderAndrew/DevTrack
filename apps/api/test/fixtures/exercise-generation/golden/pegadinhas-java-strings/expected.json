@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "description": "Quatro de Múltipla escolha, três delas pegadinhas (o máximo), sobre comparação de Strings em Java.",
+  "injection": false,
+  "syllabus": {
+    "title": "Programação Orientada a Objetos com Java",
+    "competencyText": null,
+    "languageKey": "java",
+    "groupTitle": "Classes da biblioteca padrão",
+    "items": [
+      "Strings: comparação com == e equals, imutabilidade e pool de Strings",
+      "Coleções"
+    ]
+  },
+  "request": {
+    "difficulty": "ADVANCED",
+    "total": 4,
+    "types": [
+      "MULTIPLE_CHOICE"
+    ],
+    "distribution": {
+      "mode": "AUTO"
+    },
+    "trickQuestions": 3
+  },
+  "counts": {
+    "OPEN_ANSWER": 0,
+    "MULTIPLE_CHOICE": 4,
+    "CODE": 0
+  },
+  "language": null,
+  "keyTerms": [
+    "string",
+    "equals",
+    "imutá",
+    "imutab",
+    "pool"
+  ],
+  "forbiddenPatterns": []
+}

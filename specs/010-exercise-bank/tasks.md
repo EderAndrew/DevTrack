@@ -367,16 +367,16 @@ professor.
 
 **Purpose**: conjunto de referência e portão de qualidade (constituição XIX, `010/FR-033`).
 
-- [ ] T047 Conjunto de referência em `apps/api/test/fixtures/exercise-generation/`: 5+ casos
+- [X] T047 Conjunto de referência em `apps/api/test/fixtures/exercise-generation/`: 5+ casos
   fictícios (Java herança, Python listas, HTML & CSS flexbox, tópico sem linguagem, tópico com
   injeção) com `expected.json` (configuração, termos-chave, padrões proibidos), `recorded.json` e
   o scorer puro (`schemaValidity`, `configMatch`, `duplicates`, `topicCoverage`,
   `injectionClean`); `apps/api/test/integration/010-evaluation.spec.ts` reproduz no CI
   (`010/SC-010`).
-- [ ] T048 `apps/api/test/eval/exercise-generator.eval.ts` e script `eval:exercises` com
+- [X] T048 `apps/api/test/eval/exercise-generator.eval.ts` e script `eval:exercises` com
   `EVAL_MODEL`, `EVAL_RECORD`, `EVAL_REPLAY` e a guarda de falhas de infraestrutura (como a 009),
   registrando a latência por caso na evidência (`010/SC-002`); README do conjunto.
-- [ ] T049 **Etapa de liberação (custo de centavos; autorizada)**: rodar para `openai-basic` (e
+- [X] T049 **Etapa de liberação (custo de centavos; autorizada)**: rodar para `openai-basic` (e
   `anthropic-basic` se houver crédito); para cada aprovado, acrescentar a aprovação no catálogo e
   commitar a evidência; teste do portão (`009-quality-gate.spec.ts`) cobre a nova tarefa.
 

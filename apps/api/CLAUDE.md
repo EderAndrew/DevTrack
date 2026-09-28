@@ -93,9 +93,10 @@ is what a "restart" with another agent version syncs. The read tool normalizes t
 build of the syllabus worker. The golden set (`test/fixtures/curriculum-agent/`): `loadGoldenCases()`,
 `recordedSteps(run, documentId)` for the fake provider, `runGoldenCase(t, case, caseId, prepare)` runs one
 case through the real runner and stores the score (`scoreCurriculumCase`) with `AiEvaluationStore`.
-`vitest.eval.config.ts` holds only `test/eval/**/*.eval.ts` (`pnpm --filter api eval:curriculum`, real
-provider through `OpenRouterProvider`, needs `OPENROUTER_API_KEY`; it runs the golden set against
-`OPENROUTER_DEFAULT_MODEL` and, when set, `OPENROUTER_FALLBACK_MODEL`), never part of `pnpm test`.
+`vitest.eval.config.ts` holds only `test/eval/**/*.eval.ts`, one script per file (`pnpm --filter api
+eval:curriculum`, and since 010 `eval:exercises` over `test/fixtures/exercise-generation/`; real provider
+through `OpenRouterProvider`, needs `OPENROUTER_API_KEY`; each runs its golden set against the catalog
+candidates of its task's tier, or `EVAL_MODEL`), never part of `pnpm test`.
 No test app registers `OpenRouterProvider`: only its unit test (injected `fetch`), the 008 secret
 test and the eval instantiate it.
 Exercise bank (010) fixtures live in `test/helpers/exercises.ts`: `languageId(t, key)` reads the seeded
