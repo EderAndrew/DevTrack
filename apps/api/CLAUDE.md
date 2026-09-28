@@ -106,6 +106,11 @@ deferred trigger checks 3–5 alternatives and exactly one correct at commit. Th
 their routes: `us7-matrix-completeness.spec.ts` lists them in `SEEDED_BEFORE_ROUTES`, and each leaves that list
 with the first route that requires it. Likewise `audit-coverage.spec.ts` reads the 010 `audit-events.md` but
 skips the types in `PENDING_010` until the story that emits them (US1 emits `exercise.created`, run by the journey).
+Student view (010/US6): any future route that shows an exercise to a student (activities, exams) answers only
+`toStudentView` (`src/modules/exercises/views/student-view.ts`), which copies an allowlist and never strips the teacher
+view; a new field reaches students only when listed there or in its type's `studentFields`.
+`test/security/010-student-view.spec.ts` scans every type for the answer markers (`MARCADOR-RESPOSTA-010`,
+`MARCADOR-SOLUCAO-010`, `MARCADOR-EXPLICACAO-010`) and the answer keys.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

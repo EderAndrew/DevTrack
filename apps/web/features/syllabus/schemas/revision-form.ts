@@ -24,6 +24,8 @@ export const RevisionFormSchema = z
     title: shape.title.unwrap().unwrap(),
     syllabusText: shape.syllabusText.unwrap().unwrap(),
     competencyText: shape.competencyText.unwrap().unwrap(),
+    /** The syllabus' language (010/FR-039): a catalog id, or "" for "Nenhuma". */
+    languageId: z.union([z.literal(""), shape.languageId.unwrap().unwrap()]),
     groups: z.array(
       z.strictObject({
         title: groupShape.title.unwrap().unwrap(),
@@ -49,6 +51,7 @@ export const toRevisionForm = (revision: SyllabusRevisionView): RevisionFormInpu
   title: revision.title ?? "",
   syllabusText: revision.syllabusText ?? "",
   competencyText: revision.competencyText ?? "",
+  languageId: revision.language?.id ?? "",
   groups: revision.groups.map((group) => ({
     title: group.title ?? "",
     items: group.items.map((item) => ({ itemId: item.id, text: item.text })),
@@ -59,6 +62,7 @@ export const toSaveRevisionRequest = (values: RevisionFormOutput): SaveSyllabusR
   title: values.title || null,
   syllabusText: values.syllabusText || null,
   competencyText: values.competencyText || null,
+  languageId: values.languageId || null,
   groups: values.groups.map((group) => ({
     title: group.title || null,
     items: group.items.map((item) => ({ ...(item.itemId ? { id: item.itemId } : {}), text: item.text })),

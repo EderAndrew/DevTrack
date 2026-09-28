@@ -14,6 +14,7 @@ const EXPECTED: GoldenExpected = {
     { title: "Conceitos", items: ["Encapsulamento", "Herança"] },
     { title: "Prática", items: ["Classes", "Objetos"] },
   ],
+  languageKey: null,
   missingFields: ["competencyText"],
 };
 
@@ -34,6 +35,7 @@ function content(): CurriculumProposalContent {
       ],
       warnings: [{ code: "FIELD_NOT_FOUND", field: "competencyText", groupIndex: null }],
     },
+    language: null,
     grounding: { unsupported: [] },
     source: { documentId: "00000000-0000-4000-8000-000000000001", sha256: "a".repeat(64), readerVersion: 1 },
   };

@@ -17,5 +17,6 @@ syllabus text. New target types `EXERCISE` and `EXERCISE_BATCH`.
 | `exercise_batch.generated` | `EXERCISE_GENERATED` | SYSTEM | EXERCISE_BATCH | `executionId`, `exercises` | drafts materialized (X8) |
 
 A failed or cancelled generation is audited by the 006 events (`ai_execution.failed`,
-`ai_execution.cancelled`) on the batch's execution. The 004 `syllabus_revision` save event's
-changed-field list gains `languageId`.
+`ai_execution.cancelled`) on the batch's execution. 004 audits no draft save, only the
+confirmation: `syllabus.revision_confirmed` gains `languageId` (the language the confirmed syllabus
+declares, null without one).

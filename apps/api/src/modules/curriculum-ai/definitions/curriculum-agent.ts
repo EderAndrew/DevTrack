@@ -1,10 +1,10 @@
-import { CurriculumExtractionOutputSchema } from "@repo/contracts";
+import { CurriculumExtractionOutputV2Schema } from "@repo/contracts";
 import { z } from "zod";
 import { GENERATION_MODEL_FAMILIES, type ModelTier } from "../../ai/definitions/model-families";
 import { type AiDefinitions, defineAgent, defineTask, type TaskDefinition } from "../../ai/definitions/types";
 import { buildCurriculumProposal } from "../proposal/build-proposal";
 import { itemIdsOf } from "../proposal/item-ids";
-import { CURRICULUM_EXTRACTION_V1 } from "./curriculum-extraction.prompt";
+import { CURRICULUM_EXTRACTION_V2 } from "./curriculum-extraction.prompt";
 import { readCurriculumDocumentTool } from "./read-curriculum-document.tool";
 import { syllabusDocumentOwnership } from "./syllabus-document.ownership";
 
@@ -15,9 +15,10 @@ export const CURRICULUM_PROPOSAL_TYPE = "CURRICULUM_EXTRACTION";
 const CURRICULUM_FAMILIES = [...GENERATION_MODEL_FAMILIES];
 
 /**
- * The 007 quality thresholds (SC-005, SC-006) an approval must meet (contracts/catalog-and-quality-gate.md).
+ * The 007 quality thresholds (SC-005, SC-006) an approval must meet (contracts/catalog-and-quality-gate.md),
+ * and since 010 the language of every golden case (SC-012).
  */
-const EXTRACTION_QUALITY = { itemRecall: 0.9, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, injectionClean: 1 };
+const EXTRACTION_QUALITY = { itemRecall: 0.9, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, injectionClean: 1, languageMatch: 1 };
 
 /**
  * The task of the agent (008 research G2) with its model policy (009 research H5, H12, FR-026):
@@ -73,20 +74,22 @@ export const CURRICULUM_FUTURE_TASKS: readonly TaskDefinition[] = [
 ];
 
 /**
- * `curriculum-agent` v2 (contracts/curriculum-agent.md; 008 research G4): v1 with its task instead
- * of a model config. Instructions, output schema, tools, limits and proposal are the same.
+ * `curriculum-agent` v3 (010 research X18): v2 (008 research G4, its task instead of a model
+ * config) that also proposes the syllabus' programming language — prompt v2, output schema v2
+ * with `languageKey`, the read tool returning the catalog. Task, tools, limits and the rest of the
+ * proposal are the same.
  */
 export const CURRICULUM_AGENT = defineAgent({
   key: CURRICULUM_AGENT_KEY,
-  version: 2,
+  version: 3,
   // Enabled by the admin in "Operação de IA" after the on-demand eval passes (FR-051).
   initialStatus: "DISABLED",
   name: "Curriculum Agent",
   description: "Assistente responsável por extrair e estruturar informações existentes em documentos institucionais de ementa.",
   riskLevel: "L2_PROPOSAL",
   requiredPermission: "ementas.revisar",
-  prompt: { key: "curriculum-extraction", version: 1, status: "ACTIVE", systemInstructions: CURRICULUM_EXTRACTION_V1 },
-  output: { version: 1, schema: CurriculumExtractionOutputSchema },
+  prompt: { key: "curriculum-extraction", version: 2, status: "ACTIVE", systemInstructions: CURRICULUM_EXTRACTION_V2 },
+  output: { version: 2, schema: CurriculumExtractionOutputV2Schema },
   input: z.strictObject({}),
   taskKey: CURRICULUM_EXTRACTION_TASK.key,
   toolKeys: [readCurriculumDocumentTool.key],
@@ -98,7 +101,10 @@ export const CURRICULUM_AGENT = defineAgent({
     type: CURRICULUM_PROPOSAL_TYPE,
     approveThroughDomain: true,
     // Unused while `build` exists; kept for the hook-less path of the foundation.
-    itemIds: (output) => itemIdsOf(CurriculumExtractionOutputSchema.parse(output)),
+    itemIds: (output) => {
+      const { languageKey, ...extraction } = CurriculumExtractionOutputV2Schema.parse(output);
+      return itemIdsOf(extraction, languageKey !== null);
+    },
     build: buildCurriculumProposal,
   },
 });

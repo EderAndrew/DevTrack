@@ -45,7 +45,8 @@
             "field": "groups",
             "groupIndex": 0
           }
-        ]
+        ],
+        "languageKey": null
       }
     }
   ]

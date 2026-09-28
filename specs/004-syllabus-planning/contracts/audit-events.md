@@ -14,7 +14,7 @@ de tópicos, nomes de disciplina, nomes de arquivo nem conteúdo do documento (F
 | `syllabus.uploaded` | USER | SYLLABUS_DOCUMENT | `subjectId`, `version`, `mediaType`, `sizeBytes` | FR-006 |
 | `syllabus.processed` | SYSTEM | SYLLABUS_DOCUMENT | `result` (`TEXT`\|`NO_TEXT`), `groupCount`, `itemCount`, `attempts`, `extractorVersion` | FR-014 |
 | `syllabus.processing_failed` | SYSTEM | SYLLABUS_DOCUMENT | `category`, `attempts` | FR-015 |
-| `syllabus.revision_confirmed` | USER | SYLLABUS_REVISION | `documentId`, `number`, `source`, `groupCount`, `itemCount` | FR-023 |
+| `syllabus.revision_confirmed` | USER | SYLLABUS_REVISION | `documentId`, `number`, `source`, `groupCount`, `itemCount`, `languageId` (010, null without one) | FR-023 |
 | `class_meetings.updated` | USER | CLASS | `added`, `removed`, `total`, `resolutions` (quantidade por ação) | FR-025, FR-029 |
 | `topic.created` | USER | TOPIC | `planId`, `itemCount`, `hasMeeting` | FR-035 |
 | `topic.updated` | USER | TOPIC | `planId`, `fields` | FR-035 |

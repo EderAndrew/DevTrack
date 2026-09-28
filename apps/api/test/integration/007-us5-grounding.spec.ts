@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type CurriculumExtractionOutput, CurriculumProposalContentSchema } from "@repo/contracts";
+import { type CurriculumExtractionOutputV2, CurriculumProposalContentSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
@@ -25,13 +25,14 @@ async function refsOf(name: string, file: string): Promise<(text: string) => str
 const item = (text: string, sourceRef: string | null = null) => ({ text, sourceRef });
 
 /** What the model would answer for `minimo`, before the test adds anything. */
-function minimoOutput(): CurriculumExtractionOutput {
+function minimoOutput(): CurriculumExtractionOutputV2 {
   return {
     title: "Tópicos de Orientação a Objetos",
     syllabusText: "Encapsulamento e herança.",
     competencyText: null,
     groups: [{ title: "Conceitos", items: [item("Encapsulamento"), item("Herança")] }],
     warnings: [{ code: "FIELD_NOT_FOUND", field: "competencyText", groupIndex: null }],
+    languageKey: null,
   };
 }
 
@@ -57,7 +58,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
   });
 
   /** Runs the agent on `document` with `output` and returns the proposal's content. */
-  async function analyse(document: SyllabusDocument, output: CurriculumExtractionOutput) {
+  async function analyse(document: SyllabusDocument, output: CurriculumExtractionOutputV2) {
     scriptCurriculumRun(t.provider, document.id, output);
     const { body } = await requestAnalysis(t, cookie, document.id);
     await drain(t);
@@ -90,6 +91,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
         competencyText: null,
         groups: [LINEARES, HIERARQUICAS],
         warnings: [{ code: "FIELD_NOT_FOUND", field: "competencyText", groupIndex: null }],
+        languageKey: null,
       });
 
       expect(content.extraction.competencyText).toBeNull();
@@ -105,6 +107,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
         competencyText: "Projetar sistemas distribuídos tolerantes a falhas.",
         groups: [LINEARES, HIERARQUICAS],
         warnings: [],
+        languageKey: null,
       });
 
       expect(content.grounding.unsupported).toEqual([{ field: "competencyText", groupIndex: null, itemIndex: null }]);
@@ -144,6 +147,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
           { title: HIERARQUICAS.title, items: [item("Árvores binárias de busca", null)] },
         ],
         warnings: [],
+        languageKey: null,
       });
 
       expect(ref("Listas encadeadas")).toMatch(/^par\d+$/);
@@ -195,6 +199,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
         competencyText: "Selecionar e implementar a estrutura de dados adequada a cada problema, justificando o custo das operações.",
         groups: [LINEARES, HIERARQUICAS, LINEARES],
         warnings: [{ code: "POSSIBLE_DUPLICATE_CONTENT", field: "groups", groupIndex: 2 }],
+        languageKey: null,
       });
 
       expect(content.extraction.groups.map((group) => group.title)).toEqual(["Estruturas lineares", "Estruturas hierárquicas", "Estruturas lineares"]);
@@ -212,6 +217,7 @@ describe("007/US5 o resultado é fundamentado no documento", () => {
         competencyText: null,
         groups: [reversed, LINEARES],
         warnings: [],
+        languageKey: null,
       });
 
       expect(content.extraction.groups.map((group) => [group.title, group.items.map((entry) => entry.text)])).toEqual([

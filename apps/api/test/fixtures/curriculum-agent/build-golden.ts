@@ -133,6 +133,41 @@ export const GOLDEN_DOCUMENTS: Record<string, GoldenDocument> = {
       ...baseGroups([BASE.groups[0]!, BASE.groups[1]!, BASE.groups[0]!]),
     ],
   },
+  // 9. 010/SC-012: a syllabus that declares its language, one of the catalog (Java).
+  "linguagem-java": {
+    format: "pdf",
+    paragraphs: [
+      title("Programação Orientada a Objetos com Java"),
+      marker(),
+      heading("Ementa"),
+      text("Fundamentos da programação orientada a objetos com a linguagem Java: classes, objetos, herança e interfaces."),
+      heading("Competência"),
+      text("Implementar programas orientados a objetos em Java aplicando encapsulamento e herança."),
+      heading("Objetos de Aprendizagem"),
+      group(1, "Fundamentos"),
+      item("Classes e objetos"),
+      item("Encapsulamento"),
+      group(2, "Reuso"),
+      item("Herança"),
+      item("Interfaces"),
+    ],
+  },
+  // 10. 010/US7-7: a language outside the catalog (Kotlin) → no language, never a new value.
+  "linguagem-fora-do-catalogo": {
+    format: "docx",
+    paragraphs: [
+      title("Desenvolvimento Mobile com Kotlin"),
+      marker(),
+      heading("Ementa"),
+      text("Desenvolvimento de aplicativos Android com a linguagem Kotlin."),
+      heading("Competência"),
+      text("Construir aplicativos móveis nativos em Kotlin."),
+      heading("Objetos de Aprendizagem"),
+      group(1, "Fundamentos"),
+      item("Sintaxe da linguagem"),
+      item("Coroutines"),
+    ],
+  },
 };
 
 function pdfLines(paragraphs: GoldenParagraph[]): PdfLine[] {

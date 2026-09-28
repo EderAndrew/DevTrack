@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "description": "010/US7-7: a ementa declara uma linguagem fora do catálogo (Kotlin): a proposta vem sem linguagem.",
+  "document": "curriculum-agent/golden/linguagem-fora-do-catalogo/document.docx",
+  "injection": false,
+  "title": "Desenvolvimento Mobile com Kotlin",
+  "syllabusText": "Desenvolvimento de aplicativos Android com a linguagem Kotlin.",
+  "competencyText": "Construir aplicativos móveis nativos em Kotlin.",
+  "groups": [
+    {
+      "title": "Fundamentos",
+      "items": [
+        "Sintaxe da linguagem",
+        "Coroutines"
+      ]
+    }
+  ],
+  "languageKey": null,
+  "missingFields": []
+}

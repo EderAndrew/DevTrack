@@ -53,7 +53,7 @@ export const AUDIT_EVENT_METADATA = {
   "syllabus.uploaded": ["subjectId", "version", "mediaType", "sizeBytes"],
   "syllabus.processed": ["result", "groupCount", "itemCount", "attempts", "extractorVersion"],
   "syllabus.processing_failed": ["category", "attempts"],
-  "syllabus.revision_confirmed": ["documentId", "number", "source", "groupCount", "itemCount"],
+  "syllabus.revision_confirmed": ["documentId", "number", "source", "groupCount", "itemCount", "languageId"],
   "class_meetings.updated": ["added", "removed", "total", "resolutions"],
   "topic.created": ["planId", "itemCount", "hasMeeting"],
   "topic.updated": ["planId", "fields"],

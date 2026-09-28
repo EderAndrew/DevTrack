@@ -166,13 +166,13 @@ MANUAL e nenhuma execução de IA existe.
 **Independent Test**: para cada tipo, a visão serializada não contém nenhum marcador de
 resposta, correta, solução ou explicação.
 
-- [ ] T018 [P] [US6] `apps/api/test/security/010-student-view.spec.ts`: exercícios com
+- [X] T018 [P] [US6] `apps/api/test/security/010-student-view.spec.ts`: exercícios com
   marcadores (`MARCADOR-RESPOSTA-010`, `MARCADOR-SOLUCAO-010`, `MARCADOR-EXPLICACAO-010`) nos
   campos sensíveis; a visão de aluno de cada tipo passa em `ExerciseStudentViewSchema` estrito e
   o JSON não contém nenhum marcador nem as chaves `isCorrect`, `expectedAnswer`,
   `expectedSolution`, `explanation`, `isTrickQuestion`, `origin`; acrescentar um campo novo ao
   exercício não o faz aparecer (projeção por lista) (`010/US6-1`…`010/US6-5`, `010/SC-006`).
-- [ ] T019 [US6] Ajustar `views/student-view.ts` e o contrato até o teste passar; documentar em
+- [X] T019 [US6] Ajustar `views/student-view.ts` e o contrato até o teste passar; documentar em
   `apps/api/CLAUDE.md` que rotas futuras de aluno usam só essa visão.
 
 ---
@@ -185,11 +185,11 @@ resposta, correta, solução ou explicação.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T020 [P] [US7] `apps/api/test/integration/010-us7-syllabus-language.spec.ts`: salvar a
-  revisão em rascunho com `languageId`; valor desconhecido ou inativo → 422; revisão confirmada
+- [X] T020 [P] [US7] `apps/api/test/integration/010-us7-syllabus-language.spec.ts`: salvar a
+  revisão em rascunho com `languageId`; valor desconhecido ou inativo → 400 `VALIDATION_ERROR`; revisão confirmada
   imutável; revisões antigas sem linguagem continuam válidas; `GET /programming-languages` em
   ordem alfabética com as 13 entradas (`010/US7-1`…`010/US7-5`, `010/FR-038`, `010/FR-039`).
-- [ ] T021 [P] [US7] `apps/api/test/integration/010-us7-curriculum-language.spec.ts` com o
+- [X] T021 [P] [US7] `apps/api/test/integration/010-us7-curriculum-language.spec.ts` com o
   agente v3 e o provedor simulado: documento que descreve Java → proposta com `language` Java;
   documento sem linguagem ou com uma fora do catálogo → `null`; linguagem proposta ausente do
   texto → sinalizada `UNSUPPORTED_CONTENT`; aceitar o campo na aplicação grava `language_id` no
@@ -197,22 +197,22 @@ resposta, correta, solução ou explicação.
 
 ### Implementation for User Story 7
 
-- [ ] T022 [US7] 004: `SaveSyllabusRevisionRequestSchema` e `SyllabusRevisionViewSchema` com a
+- [X] T022 [US7] 004: `SaveSyllabusRevisionRequestSchema` e `SyllabusRevisionViewSchema` com a
   linguagem (`packages/contracts/src/curriculum/*`; o campo `language` da visão, só leitura, já
   entrou com T016 para a sugestão de linguagem de US1), serviço de revisão
   (`apps/api/src/modules/syllabus/…`) validando linguagem ativa; auditoria do save com
   `languageId` na lista de campos.
-- [ ] T023 [US7] Curriculum Agent v3 (`apps/api/src/modules/curriculum-ai/…`): a ferramenta de
+- [X] T023 [US7] Curriculum Agent v3 (`apps/api/src/modules/curriculum-ai/…`): a ferramenta de
   leitura devolve o catálogo ativo; esquema de saída v2 com `languageKey`; prompt v2; `build`
   mantém só chave do catálogo e marca sem apoio pelo nome/aliases no texto (research X18);
   contrato da proposta e do apply (`"language"` aceito); `CURRICULUM_AGENT` versão 3.
-- [ ] T024 [US7] Conjunto de referência da 007: `languageKey` esperado em cada
+- [X] T024 [US7] Conjunto de referência da 007: `languageKey` esperado em cada
   `test/fixtures/curriculum-agent/golden/*/expected.json`, métrica `languageMatch` no scorer,
   `recorded.json` ajustados para a saída v2; `007-us6-evaluation.spec.ts` verde (`010/SC-012`).
-- [ ] T025 [P] [US7] Web: select "Linguagem" na revisão da ementa
+- [X] T025 [P] [US7] Web: select "Linguagem" na revisão da ementa
   (`apps/web/features/syllabus/…`) e campo "Linguagem" aceitável na página da proposta
   (`apps/web/features/curriculum-ai/…`), com aviso de conteúdo sem apoio; testes com axe.
-- [ ] T026 [US7] **Etapa de liberação da 007 v3 (custo de centavos; autorizada)**:
+- [X] T026 [US7] **Etapa de liberação da 007 v3 (custo de centavos; autorizada)**:
   `EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:curriculum`; atualizar a
   aprovação do catálogo e a evidência; se o crédito faltar, registrar e seguir (a análise fica
   indisponível até a nova evidência).

@@ -143,6 +143,8 @@ export const SaveSyllabusRevisionRequestSchema = z
     title: z.string().trim().max(MAX_REVISION_TITLE_LENGTH).nullable().optional(),
     syllabusText: z.string().trim().max(MAX_REVISION_TEXT_LENGTH).nullable().optional(),
     competencyText: z.string().trim().max(MAX_REVISION_TEXT_LENGTH).nullable().optional(),
+    /** The syllabus' programming language (010/FR-039): an active catalog entry, or null for none. */
+    languageId: UuidSchema.nullable().optional(),
     groups: z
       .array(
         z.strictObject({

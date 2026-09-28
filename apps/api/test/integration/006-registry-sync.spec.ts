@@ -113,11 +113,11 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(old.agentVersionRef.version).toBe(1);
   });
 
-  it("007/FR-051 produção sincroniza curriculum-agent v2 DESABILITADO, de forma idempotente", async () => {
+  it("007/FR-051 produção sincroniza curriculum-agent v3 DESABILITADO, de forma idempotente", async () => {
     const production = productionAiDefinitions(t.config);
     await syncWith(production);
     const agents = await t.prisma.aiAgent.findMany({ where: { status: { not: "DEPRECATED" } }, include: { currentVersion: true } });
-    expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 2]]);
+    expect(agents.map((a) => [a.key, a.status, a.currentVersion?.version])).toEqual([["curriculum-agent", "DISABLED", 3]]);
     const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
     expect(tool.status).toBe("ENABLED");
     // 009: the catalog of production, on OpenRouter; the agent's task names no model.

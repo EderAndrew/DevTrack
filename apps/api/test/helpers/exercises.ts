@@ -125,6 +125,12 @@ export interface ExerciseOptions {
   statement?: string;
   explanation?: string;
   syllabusItemId?: string | null;
+  /** OPEN_ANSWER. */
+  expectedAnswer?: string;
+  /** CODE (defaults: fixed texts; `starterCode` null). */
+  instructions?: string;
+  starterCode?: string | null;
+  expectedSolution?: string;
   /** CODE: default the `java` entry. */
   languageId?: string;
   /** MULTIPLE_CHOICE: default three alternatives, the first correct. */
@@ -176,10 +182,10 @@ export async function createExercise(
         statement,
         statementSearchKey: searchKey(statement),
         explanation: options.explanation ?? "Explicação de teste",
-        expectedAnswer: type === "OPEN_ANSWER" ? "Resposta esperada" : null,
-        instructions: type === "CODE" ? "Implemente a função" : null,
-        starterCode: null,
-        expectedSolution: type === "CODE" ? "class Solucao {}" : null,
+        expectedAnswer: type === "OPEN_ANSWER" ? (options.expectedAnswer ?? "Resposta esperada") : null,
+        instructions: type === "CODE" ? (options.instructions ?? "Implemente a função") : null,
+        starterCode: type === "CODE" ? (options.starterCode ?? null) : null,
+        expectedSolution: type === "CODE" ? (options.expectedSolution ?? "class Solucao {}") : null,
         languageId: language,
         isTrickQuestion: options.isTrickQuestion ?? false,
         syllabusItemId: options.syllabusItemId ?? null,

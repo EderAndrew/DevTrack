@@ -44,9 +44,10 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
     expect(agent.versions).toHaveLength(1);
     const v1 = agent.versions[0]!;
     expect(agent.currentVersionId).toBe(v1.id);
-    // 008: the production agent is v2, v1 with its task instead of a model config (research G4).
+    // 008: the production agent is v2, v1 with its task instead of a model config (research G4);
+    // 010: v3, which also proposes the language (prompt v2, output schema v2).
     expect(v1).toMatchObject({
-      version: 2,
+      version: 3,
       riskLevel: "L2_PROPOSAL",
       executionMode: "ASYNC",
       requiredPermission: "ementas.revisar",
@@ -55,8 +56,8 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
       onToolDenied: "continue",
       usedAt: null,
     });
-    expect(v1.promptVersion).toMatchObject({ key: "curriculum-extraction", version: 1 });
-    expect(v1.outputSchema).toMatchObject({ version: 1 });
+    expect(v1.promptVersion).toMatchObject({ key: "curriculum-extraction", version: 2 });
+    expect(v1.outputSchema).toMatchObject({ version: 2 });
     // 009: the task carries the model policy (BASIC, research H12), never a model.
     expect(v1.task).toMatchObject({ key: "curriculum-extraction", preferredTier: "BASIC", policy: { preferredTier: "BASIC", maxTier: "STANDARD" } });
     expect(v1.tools.map((entry) => entry.tool.key)).toEqual([READ_CURRICULUM_DOCUMENT]);
@@ -78,12 +79,13 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
   });
 });
 
-/** The next version of the agent (3 since 008): new instructions under prompt version 2; same key. */
+/** The next version of the agent: new instructions under the next prompt version; same key. */
 const CHANGED_TEXT = "Instruções alteradas sem nova versão.";
+const PROMPT = TEST_CURRICULUM_AGENT.prompt.version;
 const V2: AgentDefinition = {
   ...TEST_CURRICULUM_AGENT,
   version: TEST_CURRICULUM_AGENT.version + 1,
-  prompt: { ...TEST_CURRICULUM_AGENT.prompt, version: 2, systemInstructions: `${TEST_CURRICULUM_AGENT.prompt.systemInstructions}\nVersão 2.` },
+  prompt: { ...TEST_CURRICULUM_AGENT.prompt, version: PROMPT + 1, systemInstructions: `${TEST_CURRICULUM_AGENT.prompt.systemInstructions}\nVersão 2.` },
 };
 
 describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () => {
@@ -118,7 +120,7 @@ describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () =
 
     expect(failure).toBeInstanceOf(AiRegistryError);
     expect((failure as Error).message).not.toContain(CHANGED_TEXT);
-    const prompt = await t.prisma.aiPromptVersion.findFirstOrThrow({ where: { key: "curriculum-extraction", version: 1 } });
+    const prompt = await t.prisma.aiPromptVersion.findFirstOrThrow({ where: { key: "curriculum-extraction", version: PROMPT } });
     expect(prompt.systemInstructions).toBe(TEST_CURRICULUM_AGENT.prompt.systemInstructions);
   });
 
@@ -129,16 +131,16 @@ describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () =
 
     const agent = await registered(t);
     expect(agent.versions.map((version) => [version.version, version.promptVersion.version])).toEqual([
-      [TEST_CURRICULUM_AGENT.version, 1],
-      [TEST_CURRICULUM_AGENT.version + 1, 2],
+      [TEST_CURRICULUM_AGENT.version, PROMPT],
+      [TEST_CURRICULUM_AGENT.version + 1, PROMPT + 1],
     ]);
     expect(agent.currentVersionId).toBe(agent.versions[1]!.id);
     expect(await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: old }, select: { agentVersion: true, promptVersion: true, agentVersionId: true } })).toEqual({
       agentVersion: TEST_CURRICULUM_AGENT.version,
-      promptVersion: 1,
+      promptVersion: PROMPT,
       agentVersionId: agent.versions[0]!.id,
     });
-    const v1Prompt = await t.prisma.aiPromptVersion.findFirstOrThrow({ where: { key: "curriculum-extraction", version: 1 } });
+    const v1Prompt = await t.prisma.aiPromptVersion.findFirstOrThrow({ where: { key: "curriculum-extraction", version: PROMPT } });
     expect(v1Prompt.systemInstructions).toBe(TEST_CURRICULUM_AGENT.prompt.systemInstructions);
 
     // A request after the "restart" runs on v2.
@@ -147,7 +149,7 @@ describe("007/US6-2 007/FR-005 instruções v1 já usadas são imutáveis", () =
     const { body } = await requestAnalysis(t, await loginAs(t, teacher), document.id);
     expect(await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: body.execution.id }, select: { agentVersion: true, promptVersion: true } })).toEqual({
       agentVersion: TEST_CURRICULUM_AGENT.version + 1,
-      promptVersion: 2,
+      promptVersion: PROMPT + 1,
     });
   });
 });

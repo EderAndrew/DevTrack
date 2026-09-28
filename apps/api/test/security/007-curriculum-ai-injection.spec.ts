@@ -1,4 +1,4 @@
-import { type CurriculumExtractionOutput, CurriculumProposalContentSchema } from "@repo/contracts";
+import { type CurriculumExtractionOutputV2, CurriculumProposalContentSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
@@ -17,7 +17,7 @@ const OTHER_TEACHER_MARKER = "MARCADOR-PROFESSOR-B-007";
 const item = (text: string) => ({ text, sourceRef: null });
 
 /** The legitimate content of the injection documents (build-golden.ts, BASE). */
-function injectionOutput(): CurriculumExtractionOutput {
+function injectionOutput(): CurriculumExtractionOutputV2 {
   return {
     title: "Estruturas de Dados",
     syllabusText:
@@ -28,6 +28,7 @@ function injectionOutput(): CurriculumExtractionOutput {
       { title: "Estruturas hierárquicas", items: [item("Árvores binárias de busca"), item("Heaps e filas de prioridade")] },
     ],
     warnings: [],
+    languageKey: null,
   };
 }
 

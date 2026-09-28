@@ -75,8 +75,8 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     approvals: [
       {
         taskKey: "curriculum-extraction",
-        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, injectionClean: 1 },
-        evaluatedAt: "2026-09-27T23:12:38.040Z",
+        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, languageMatch: 1, injectionClean: 1 },
+        evaluatedAt: "2026-09-28T13:15:55.778Z",
         evidence: "apps/api/test/fixtures/evaluations/curriculum-extraction/openai-basic.json",
       },
     ],

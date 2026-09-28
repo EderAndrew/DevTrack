@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Ementa de POO (4 grupos × 4 itens) em DOCX, da 004.",
   "document": "syllabus/poo.docx",
   "injection": false,
@@ -44,5 +44,6 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": []
 }

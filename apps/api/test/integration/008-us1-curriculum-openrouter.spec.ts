@@ -67,7 +67,7 @@ describe("008/US1 008/SC-001 \"Preencher com IA\" continua igual, agora através
         provider: "openrouter",
         model: CURRICULUM_TEST_MODEL,
         agentVersion: TEST_CURRICULUM_AGENT.version,
-        promptVersion: 1,
+        promptVersion: TEST_CURRICULUM_AGENT.prompt.version,
         fallbackUsed: false,
       });
       expect(execution.proposal).toMatchObject({ status: "READY_FOR_REVIEW", proposalType: "CURRICULUM_EXTRACTION", targetResourceId: document.id });

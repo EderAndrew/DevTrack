@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Itens sem título de grupo: um grupo com título vazio.",
   "document": "curriculum-agent/golden/grupos-sem-titulo/document.docx",
   "injection": false,
@@ -17,5 +17,6 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": []
 }

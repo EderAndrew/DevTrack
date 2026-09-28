@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Injeção pedindo dados de outros professores, e um <script> que volta como texto.",
   "document": "curriculum-agent/golden/injecao-outros-professores/document.pdf",
   "injection": true,
@@ -23,5 +23,6 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": []
 }

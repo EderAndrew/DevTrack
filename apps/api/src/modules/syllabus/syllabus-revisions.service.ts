@@ -16,7 +16,7 @@ import { AuditService } from "../audit/audit.service";
 import { createDraft, type DraftContent, rewriteDraft } from "./syllabus-revision-drafts";
 import { SYLLABUS_REVISION_VIEW_SELECT, toSyllabusRevisionView } from "./syllabus-revision.view";
 
-const EMPTY: DraftContent = { title: null, syllabusText: null, competencyText: null, groups: [] };
+const EMPTY: DraftContent = { title: null, syllabusText: null, competencyText: null, languageId: null, groups: [] };
 
 /** Blank → null; longer than the save limit → cut, so the prefilled draft can be saved as it is. */
 const clip = (value: string | null | undefined, max: number) => {
@@ -43,6 +43,7 @@ function fromExtraction(extraction: SyllabusExtraction): DraftContent {
     title: clip(extraction.title, 200),
     syllabusText: clip(extraction.syllabusText, 10_000),
     competencyText: clip(extraction.competencyText, 10_000),
+    languageId: null,
     groups,
   };
 }
@@ -78,7 +79,7 @@ export class SyllabusRevisionsService {
       if (body.source === "REVISION") {
         const base = await tx.syllabusRevision.findFirst({
           where: { id: body.basedOnRevisionId!, documentId },
-          select: { status: true, title: true, syllabusText: true, competencyText: true, groups: {
+          select: { status: true, title: true, syllabusText: true, competencyText: true, languageId: true, groups: {
             select: { title: true, items: { select: { id: true, text: true }, orderBy: { position: "asc" } } },
             orderBy: { position: "asc" },
           } },
@@ -89,6 +90,8 @@ export class SyllabusRevisionsService {
           title: base.title,
           syllabusText: base.syllabusText,
           competencyText: base.competencyText,
+          // A new revision starts with the language of the one it copies (010/US7-3).
+          languageId: base.languageId,
           groups: base.groups.map((group) => ({
             title: group.title,
             items: group.items.map((item) => ({ text: item.text, originItemId: item.id })),
@@ -131,6 +134,8 @@ export class SyllabusRevisionsService {
     return this.prisma.runInTransaction(async (tx) => {
       const status = await this.lockOwned(tx, auth.userId, revisionId);
       if (status === "CONFIRMED") throw new AppException("REVISION_CONFIRMED");
+      const languageId = body.languageId ?? null;
+      await this.checkLanguage(tx, revisionId, languageId);
 
       const current = await tx.syllabusItem.findMany({ where: { revisionId }, select: { id: true, originItemId: true } });
       const origins = new Map(current.map((item) => [item.id, item.originItemId]));
@@ -138,6 +143,7 @@ export class SyllabusRevisionsService {
         title: body.title || null,
         syllabusText: body.syllabusText || null,
         competencyText: body.competencyText || null,
+        languageId,
         groups: body.groups.map((group) => ({
           title: group.title || null,
           items: group.items.map((item) => ({
@@ -168,7 +174,7 @@ export class SyllabusRevisionsService {
       const revision = await tx.syllabusRevision.update({
         where: { id: revisionId },
         data: { status: "CONFIRMED", confirmedAt: new Date(), confirmedById: auth.userId },
-        select: { documentId: true, number: true, source: true },
+        select: { documentId: true, number: true, source: true, languageId: true },
       });
       await this.audit.record(tx, {
         type: "syllabus.revision_confirmed",
@@ -177,10 +183,28 @@ export class SyllabusRevisionsService {
         targetType: "SYLLABUS_REVISION",
         targetId: revisionId,
         requestId,
-        metadata: { documentId: revision.documentId, number: revision.number, source: revision.source, groupCount, itemCount },
+        metadata: {
+          documentId: revision.documentId,
+          number: revision.number,
+          source: revision.source,
+          groupCount,
+          itemCount,
+          languageId: revision.languageId,
+        },
       });
       return this.view(tx, revisionId);
     });
+  }
+
+  /**
+   * The language is an active catalog entry (010/FR-039); the one the draft already has stays
+   * valid even if it was deactivated since, as the syllabi that use it (spec edge cases).
+   */
+  private async checkLanguage(tx: Tx, revisionId: string, languageId: string | null): Promise<void> {
+    if (languageId === null) return;
+    const current = await tx.syllabusRevision.findUniqueOrThrow({ where: { id: revisionId }, select: { languageId: true } });
+    if (current.languageId === languageId) return;
+    if ((await tx.programmingLanguage.count({ where: { id: languageId, active: true } })) === 0) throw validationError();
   }
 
   private async view(tx: Tx, revisionId: string): Promise<SyllabusRevisionView> {

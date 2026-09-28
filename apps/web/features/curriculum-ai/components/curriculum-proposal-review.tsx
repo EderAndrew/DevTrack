@@ -284,6 +284,25 @@ function ProposalReview({ subjectId, document, proposal, content, back }: Propos
             </li>
           );
         })}
+        {/* 010/FR-041: the syllabus' language, a catalog entry the teacher accepts or not. */}
+        <li className="flex flex-col gap-1">
+          {content.language && proposal.itemIds.includes("language") ? (
+            <>
+              {choice("language", "Linguagem", anchor("campo", "language"), `${anchor("campo", "language")}-texto`)}
+              <p id={`${anchor("campo", "language")}-texto`} className="m-0">
+                {content.language.name}
+              </p>
+            </>
+          ) : (
+            <>
+              <span id={anchor("campo", "language")} className="text-label">
+                Linguagem
+              </span>
+              <p className="m-0 text-text-secondary">{NOT_IDENTIFIED}</p>
+            </>
+          )}
+          {unsupported.some((flag) => flag.field === "language") ? <CurriculumWarning code="UNSUPPORTED_CONTENT" /> : null}
+        </li>
       </ul>
 
       <h3 className="m-0">Objetos de aprendizagem</h3>

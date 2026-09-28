@@ -302,6 +302,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     competencyText: null,
     groups: [{ title: "Conceitos", items: [{ text: "Encapsulamento", sourceRef: null }, { text: "Herança", sourceRef: null }] }],
     warnings: [{ code: "FIELD_NOT_FOUND", field: "competencyText", groupIndex: null }],
+    languageKey: null,
   });
   expect((await goldenClient.post(`/api/syllabus-documents/${golden.id}/ai-analyses`, {})).status).toBe(202);
   expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);

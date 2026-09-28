@@ -37,17 +37,22 @@ export function isSupported(text: string, stream: string): boolean {
 /**
  * Deterministic grounding check (007/FR-021, research C8): every field, group title and item the
  * model proposed, against the document's own text. It only reports: nothing is removed or
- * approved here, and the teacher sees `UNSUPPORTED_CONTENT` next to what is listed.
+ * approved here, and the teacher sees `UNSUPPORTED_CONTENT` next to what is listed. A proposed
+ * language (010 research X18) is supported when its name or one of its aliases is in the text.
  */
 export function checkGrounding(
   extraction: CurriculumExtractionOutput,
   blocks: readonly { text: string }[],
+  language: { name: string; aliases: readonly string[] } | null = null,
 ): { unsupported: CurriculumUnsupported[] } {
   const stream = documentStream(blocks);
   const unsupported: CurriculumUnsupported[] = [];
   for (const field of ["title", "syllabusText", "competencyText"] as const) {
     const value = extraction[field];
     if (value !== null && !isSupported(value, stream)) unsupported.push({ field, groupIndex: null, itemIndex: null });
+  }
+  if (language && ![language.name, ...language.aliases].some((term) => isSupported(term, stream))) {
+    unsupported.push({ field: "language", groupIndex: null, itemIndex: null });
   }
   extraction.groups.forEach((group, groupIndex) => {
     if (group.title !== null && !isSupported(group.title, stream)) {

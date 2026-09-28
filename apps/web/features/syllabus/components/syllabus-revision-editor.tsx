@@ -31,7 +31,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormField } from "@/components/ui/form-field";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { useProgrammingLanguages } from "@/features/exercises/hooks/use-exercises";
 import { ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { useConfirmSyllabusRevision, useSaveSyllabusRevision } from "../hooks/use-syllabus-revisions";
 import {
@@ -44,7 +47,12 @@ import {
   toSaveRevisionRequest,
 } from "../schemas/revision-form";
 
-const FIELD_IDS = { title: "revisao-titulo", syllabusText: "revisao-ementa", competencyText: "revisao-competencia" } as const;
+const FIELD_IDS = {
+  title: "revisao-titulo",
+  syllabusText: "revisao-ementa",
+  competencyText: "revisao-competencia",
+  languageId: "revisao-linguagem",
+} as const;
 const ADD_GROUP_ID = "revisao-adicionar-grupo";
 const groupTitleId = (group: number) => `grupo-${group + 1}-titulo`;
 const itemFieldId = (group: number, item: number) => `grupo-${group + 1}-item-${item + 1}`;
@@ -69,6 +77,7 @@ export interface SyllabusRevisionEditorProps {
  */
 export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: SyllabusRevisionEditorProps) {
   const save = useSaveSyllabusRevision(revision.id);
+  const languages = useProgrammingLanguages();
   const confirm = useConfirmSyllabusRevision(subjectId, revision.id);
   const { control, register, handleSubmit, reset, getValues, setValue, formState } = useForm<
     RevisionFormInput,
@@ -102,7 +111,7 @@ export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: Syl
 
   const onInvalid = (fieldErrors: FieldErrors<RevisionFormInput>) => {
     const list: FormError[] = [];
-    for (const key of ["title", "syllabusText", "competencyText"] as const) {
+    for (const key of ["title", "syllabusText", "competencyText", "languageId"] as const) {
       const message = fieldErrors[key]?.message;
       if (message) list.push({ fieldId: FIELD_IDS[key], message });
     }
@@ -165,6 +174,11 @@ export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: Syl
     }
   }, onInvalid);
 
+  // The catalog's active languages, plus the draft's own when it was deactivated since (010, spec edge cases).
+  const catalog = languages.data ?? [];
+  const languageOptions =
+    revision.language && !catalog.some((language) => language.id === revision.language!.id) ? [...catalog, revision.language] : catalog;
+
   const pending = formState.isSubmitting;
   const fieldError = (id: string) => errors.find((error) => error.fieldId === id)?.message;
 
@@ -202,6 +216,23 @@ export function SyllabusRevisionEditor({ subjectId, revision, onConfirmed }: Syl
         error={fieldError(FIELD_IDS.competencyText)}
         {...register("competencyText")}
       />
+      <FormField
+        id={FIELD_IDS.languageId}
+        label="Linguagem"
+        description="A linguagem dos exercícios de código gerados a partir desta ementa."
+        error={fieldError(FIELD_IDS.languageId)}
+      >
+        {(control) => (
+          <NativeSelect {...control} {...register("languageId")}>
+            <option value="">Nenhuma</option>
+            {languageOptions.map((language) => (
+              <option key={language.id} value={language.id}>
+                {language.name}
+              </option>
+            ))}
+          </NativeSelect>
+        )}
+      </FormField>
 
       <h3>Objetos de aprendizagem</h3>
       {groups.fields.length === 0 ? <p>Nenhum grupo. Use &quot;Adicionar grupo&quot; para começar.</p> : null}

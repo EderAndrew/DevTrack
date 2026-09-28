@@ -1,4 +1,4 @@
-import { CurriculumProposalContentSchema, type CurriculumExtractionOutput } from "@repo/contracts";
+import { CurriculumProposalContentSchema, type CurriculumExtractionOutputV2 } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
@@ -20,7 +20,7 @@ import {
 import { createConfirmedRevision, createSyllabusDocument, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api } from "../helpers/test-app";
 
-const NOTHING_FOUND: CurriculumExtractionOutput = { title: null, syllabusText: null, competencyText: null, groups: [], warnings: [] };
+const NOTHING_FOUND: CurriculumExtractionOutputV2 = { title: null, syllabusText: null, competencyText: null, groups: [], warnings: [], languageKey: null };
 
 async function waitFor(check: () => Promise<boolean>, timeoutMs = 5_000): Promise<void> {
   const started = Date.now();
@@ -63,10 +63,10 @@ describe("007/US1 o professor pede o preenchimento com IA e recebe uma proposta"
     expect(t.provider.requests).toHaveLength(0);
 
     const row = await t.prisma.aiExecution.findUniqueOrThrow({ where: { id: res.body.execution.id }, include: { modelConfig: true } });
-    expect(row).toMatchObject({ workspaceId: teacher.id, agentVersion: TEST_CURRICULUM_AGENT.version, promptVersion: 1, model: CURRICULUM_TEST_MODEL });
+    expect(row).toMatchObject({ workspaceId: teacher.id, agentVersion: TEST_CURRICULUM_AGENT.version, promptVersion: TEST_CURRICULUM_AGENT.prompt.version, model: CURRICULUM_TEST_MODEL });
     expect(row.modelConfig.key).toBe(TEST_CURRICULUM_MODEL_CONFIG.key);
     const schema = await t.prisma.aiOutputSchemaVersion.findUniqueOrThrow({ where: { id: row.outputSchemaVersionId! } });
-    expect(schema.version).toBe(1);
+    expect(schema.version).toBe(TEST_CURRICULUM_AGENT.output!.version);
 
     const event = await t.prisma.auditEvent.findFirstOrThrow({ where: { type: "curriculum_ai.analysis_requested" } });
     expect(event).toMatchObject({

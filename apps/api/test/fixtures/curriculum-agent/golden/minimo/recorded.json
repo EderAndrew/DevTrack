@@ -41,7 +41,8 @@
             "field": "competencyText",
             "groupIndex": null
           }
-        ]
+        ],
+        "languageKey": null
       }
     }
   ]

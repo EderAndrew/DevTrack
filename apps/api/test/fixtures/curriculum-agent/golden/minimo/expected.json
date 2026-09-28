@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Documento mínimo \"Encapsulamento e herança.\": o que passar disso é sem apoio.",
   "document": "curriculum-agent/golden/minimo/document.pdf",
   "injection": false,
@@ -15,6 +15,7 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": [
     "competencyText"
   ]

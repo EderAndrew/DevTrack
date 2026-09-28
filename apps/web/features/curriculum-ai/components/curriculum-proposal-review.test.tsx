@@ -39,8 +39,9 @@ const extraction = (overrides: Partial<CurriculumExtractionOutput> = {}): Curric
   ...overrides,
 });
 
-const itemIdsOf = (value: CurriculumExtractionOutput) => [
+const itemIdsOf = (value: CurriculumExtractionOutput, hasLanguage = false) => [
   ...(["title", "syllabusText", "competencyText"] as const).filter((field) => value[field] !== null),
+  ...(hasLanguage ? ["language"] : []),
   ...value.groups.map((_, index) => `group:${index}`),
 ];
 
@@ -63,7 +64,7 @@ describe("007/US3 CurriculumProposalReview — revisar a proposta e aplicar à e
     target: { type: "SYLLABUS_DOCUMENT", id: doc.id },
     status,
     nature: "SUGGESTION",
-    itemIds: itemIdsOf(content.extraction),
+    itemIds: itemIdsOf(content.extraction, content.language !== null),
     acceptedItemIds: null,
     expiresAt: "2099-01-01T00:00:00.000Z",
     decidedAt: status === "READY_FOR_REVIEW" ? null : "2026-09-25T13:00:00.000Z",
@@ -72,8 +73,13 @@ describe("007/US3 CurriculumProposalReview — revisar a proposta e aplicar à e
     content,
   });
 
-  const contentOf = (value: CurriculumExtractionOutput, unsupported: CurriculumProposalContent["grounding"]["unsupported"] = []): CurriculumProposalContent => ({
+  const contentOf = (
+    value: CurriculumExtractionOutput,
+    unsupported: CurriculumProposalContent["grounding"]["unsupported"] = [],
+    language: CurriculumProposalContent["language"] = null,
+  ): CurriculumProposalContent => ({
     extraction: value,
+    language,
     grounding: { unsupported },
     source: { documentId: doc.id, sha256: "a".repeat(64), readerVersion: 1 },
   });
@@ -127,7 +133,7 @@ describe("007/US3 CurriculumProposalReview — revisar a proposta e aplicar à e
     expect(checkbox("Grupo sem título").checked).toBe(true);
     // Competência was not found: the text says so, without a checkbox (and the warning is not repeated).
     expect(screen.queryByRole("checkbox", { name: "Competência" })).toBeNull();
-    expect(within(proposal).getAllByText("Não identificado no documento")).toHaveLength(1);
+    expect(within(proposal).getAllByText("Não identificado no documento")).toHaveLength(2); // Competência and (010) Linguagem
     expect(within(proposal).queryByText("Não identificado no documento.")).toBeNull();
 
     const syllabusItem = within(proposal).getByText("Exploração dos princípios da programação orientada a objetos.").closest("li")!;
@@ -179,6 +185,35 @@ describe("007/US3 CurriculumProposalReview — revisar a proposta e aplicar à e
 
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(documentHref()));
     expect(posts(applyPath())).toEqual([{ acceptedItemIds: ["title", "syllabusText", "group:0"], replaceDraft: false }]);
+  });
+
+  it("010/US7-6 010/US7-8 a linguagem proposta é um campo aceitável, com o aviso quando não tem apoio no documento", async () => {
+    const draft = revisionView(doc.id, [], { source: "AI_ASSISTED", aiProposalId: PROPOSAL_ID });
+    const content = contentOf(extraction(), [{ field: "language", groupIndex: null, itemIndex: null }], { key: "java", name: "Java" });
+    serve(proposalView(content), () => json(200, { revision: draft, proposal: proposalView(content, "APPROVED") }));
+    const user = userEvent.setup();
+    const { container } = render();
+
+    const language = await screen.findByRole("checkbox", { name: "Linguagem" });
+    expect((language as HTMLInputElement).checked).toBe(true);
+    const row = language.closest("li")!;
+    expect(row.textContent).toContain("Java");
+    expect(within(row as HTMLElement).getByText(/Não encontrado no documento/)).toBeTruthy();
+    await expectNoA11yViolations(container);
+
+    await user.click(language);
+    await user.click(applyButton());
+    await user.click(within(await screen.findByRole("alertdialog", { name: "Aplicar à ementa?" })).getByRole("button", { name: "Aplicar à ementa" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(documentHref()));
+    expect(posts(applyPath())).toEqual([{ acceptedItemIds: ["title", "syllabusText", "group:0", "group:1"], replaceDraft: false }]);
+  });
+
+  it("010/US7-7 sem linguagem proposta: \"Não identificado no documento\", sem caixa de seleção", async () => {
+    serve(proposalView(contentOf(extraction())));
+    render();
+    await screen.findByRole("checkbox", { name: "Nome da disciplina" });
+    expect(screen.queryByRole("checkbox", { name: "Linguagem" })).toBeNull();
+    expect(screen.getByText("Linguagem").closest("li")!.textContent).toContain("Não identificado no documento");
   });
 
   it("007/US3-9 rascunho existente: segundo diálogo, \"Substituir rascunho\" reenvia com replaceDraft: true", async () => {

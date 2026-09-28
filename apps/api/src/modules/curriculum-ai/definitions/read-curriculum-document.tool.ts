@@ -21,7 +21,7 @@ export const readCurriculumDocumentTool = defineTool({
   key: READ_CURRICULUM_DOCUMENT,
   name: "Ler documento de ementa",
   description:
-    "Lê o conteúdo normalizado do documento de ementa autorizado para esta análise. Recebe apenas o documentId informado no contexto.",
+    "Lê o conteúdo normalizado do documento de ementa autorizado para esta análise e o catálogo de linguagens de programação. Recebe apenas o documentId informado no contexto.",
   riskLevel: "L1_READ_ONLY",
   timeoutMs: TIMEOUT_MS,
   initialStatus: "ENABLED",
@@ -74,6 +74,12 @@ export const readCurriculumDocumentTool = defineTool({
     } catch (error) {
       throw new ToolRefusal(error instanceof WorkerTimeout ? "AI_TIMEOUT" : "AI_TOOL_EXECUTION_FAILED");
     }
+    // 010 research X18: the only languages the agent may propose.
+    const languages = await context.db.programmingLanguage.findMany({
+      where: { active: true },
+      select: { key: true, name: true, aliases: true },
+      orderBy: { name: "asc" },
+    });
     return {
       documentId: document.id,
       subjectName: document.subject.name,
@@ -81,6 +87,7 @@ export const readCurriculumDocumentTool = defineTool({
       readerVersion: READER_VERSION,
       sha256: sha256.toString("hex"),
       blocks,
+      languages,
     };
   },
 });

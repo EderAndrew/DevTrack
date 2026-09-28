@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-curriculum-document",
+          "arguments": {
+            "documentId": "{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Programação Orientada a Objetos com Java",
+        "syllabusText": "Fundamentos da programação orientada a objetos com a linguagem Java: classes, objetos, herança e interfaces.",
+        "competencyText": "Implementar programas orientados a objetos em Java aplicando encapsulamento e herança.",
+        "groups": [
+          {
+            "title": "Fundamentos",
+            "items": [
+              {
+                "text": "Classes e objetos",
+                "sourceRef": null
+              },
+              {
+                "text": "Encapsulamento",
+                "sourceRef": null
+              }
+            ]
+          },
+          {
+            "title": "Reuso",
+            "items": [
+              {
+                "text": "Herança",
+                "sourceRef": null
+              },
+              {
+                "text": "Interfaces",
+                "sourceRef": null
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "languageKey": "java"
+      }
+    }
+  ]
+}

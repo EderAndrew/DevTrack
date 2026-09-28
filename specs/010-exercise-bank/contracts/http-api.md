@@ -52,8 +52,10 @@ key, name }[]`, active only, ordered by name.
 
 ## Syllabus revision (004, changed)
 
-`PUT /syllabus-revisions/:id` body gains `languageId: uuid | null`; `422 VALIDATION_ERROR` when
-the language is unknown or inactive. `SyllabusRevisionView` gains `language: { id, name } |
+`PUT /syllabus-revisions/:id` body gains `languageId: uuid | null` (omitted = none, the save
+replaces the whole draft); `400 VALIDATION_ERROR` when the language is unknown or inactive (the
+one the draft already has stays valid if it was deactivated since). A new revision based on a
+confirmed one starts with its language. `SyllabusRevisionView` gains `language: { id, name } |
 null`. Confirmed revisions stay immutable (`409 REVISION_CONFIRMED`).
 
 ## Exercises (`questoes.*`)

@@ -66,5 +66,5 @@ export function approvalMeetsQuality(approval: Pick<ModelApproval, "metrics">, q
  * `accuracy` for decision tasks). Counts of failures are ceilings; the others are floors.
  */
 const CEILING_METRICS: ReadonlySet<string> = new Set(["unsupportedWithoutWarning", "inventedFields"]);
-const QUALITY_METRICS: ReadonlySet<string> = new Set([...CEILING_METRICS, "itemRecall", "schemaValidity", "injectionClean", "accuracy"]);
+const QUALITY_METRICS: ReadonlySet<string> = new Set([...CEILING_METRICS, "itemRecall", "schemaValidity", "injectionClean", "languageMatch", "accuracy"]);
 const meets = (metric: string, value: number, threshold: number) => (CEILING_METRICS.has(metric) ? value <= threshold : value >= threshold);

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-curriculum-document",
+          "arguments": {
+            "documentId": "{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Desenvolvimento Mobile com Kotlin",
+        "syllabusText": "Desenvolvimento de aplicativos Android com a linguagem Kotlin.",
+        "competencyText": "Construir aplicativos móveis nativos em Kotlin.",
+        "groups": [
+          {
+            "title": "Fundamentos",
+            "items": [
+              {
+                "text": "Sintaxe da linguagem",
+                "sourceRef": null
+              },
+              {
+                "text": "Coroutines",
+                "sourceRef": null
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "languageKey": null
+      }
+    }
+  ]
+}
