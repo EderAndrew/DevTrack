@@ -98,6 +98,9 @@ export const ErrorCatalog = {
   AI_RESOURCE_TYPE_NOT_ACCEPTED: { status: 422, message: "Este recurso de IA não pode ser usado aqui." },
   AI_PROPOSAL_APPLY_REQUIRED: { status: 409, message: "Esta proposta é aprovada ao aplicá-la na ementa." },
   AI_OVERRIDE_NOT_ALLOWED: { status: 409, message: "Este modelo não pode ser fixado para esta tarefa." },
+  EXERCISE_VERSION_CONFLICT: { status: 409, message: "Este exercício foi alterado depois que você o abriu. Atualize a página antes de continuar." },
+  SUBJECT_ARCHIVED: { status: 409, message: "Esta disciplina está arquivada e não pode ser usada para gerar exercícios." },
+  SYLLABUS_LANGUAGE_REQUIRED: { status: 422, message: "Defina a linguagem da ementa para gerar exercícios de código." },
   SYLLABUS_NOT_READY_FOR_AI: {
     status: 409,
     message:

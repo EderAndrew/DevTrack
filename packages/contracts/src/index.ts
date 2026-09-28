@@ -21,6 +21,7 @@ export * from "./curriculum/class-meetings.js";
 export * from "./curriculum/class-plan.js";
 export * from "./curriculum/curriculum-ai.js";
 export * from "./ai/enums.js";
+export * from "./exercises/enums.js";
 export * from "./ai/executions.js";
 export * from "./ai/proposals.js";
 export * from "./ai/operations.js";

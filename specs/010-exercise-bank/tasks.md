@@ -45,17 +45,17 @@ description: "Task list for 010 — Banco de Exercícios: criação manual e ger
 
 **Purpose**: vocabulário, configuração e contratos que todas as histórias usam.
 
-- [ ] T001 Criar `packages/contracts/src/exercises/enums.ts` com `ExerciseTypeSchema`,
+- [X] T001 Criar `packages/contracts/src/exercises/enums.ts` com `ExerciseTypeSchema`,
   `ExerciseDifficultySchema`, `CognitiveObjectiveSchema`, `ExerciseOriginSchema`,
   `ExerciseStatusSchema`, `ExerciseBatchStatusSchema` e exportá-los em
   `packages/contracts/src/index.ts`; teste em `packages/contracts/test/exercises.spec.ts`
   (valores exatos; nenhum valor comum com `AiModelTierSchema` é tratado como o mesmo tipo —
   `010/FR-007`).
-- [ ] T002 [P] Acrescentar `RATE_LIMIT_EXERCISE_AI_PER_HOUR` (padrão 10, int ≥ 1) em
-  `apps/api/src/platform/config/config.schema.ts` (`rateLimit.exerciseAiPerHour`),
-  `apps/api/.env.example` e `apps/api/.env.test.example`; teste em
-  `apps/api/src/platform/config/config.schema.spec.ts`.
-- [ ] T003 [P] Acrescentar os códigos de erro `EXERCISE_VERSION_CONFLICT` (409),
+- [X] T002 [P] Acrescentar `RATE_LIMIT_EXERCISE_AI_PER_HOUR` (padrão 10, int ≥ 1) em
+  `apps/api/src/platform/config/config.schema.ts` (`rateLimit.exerciseAiPerHour`) e
+  `apps/api/.env.example` (o `.env.test.example` não lista limites; vale o padrão); teste em
+  `apps/api/test/integration/platform.spec.ts`, onde ficam os testes da configuração.
+- [X] T003 [P] Acrescentar os códigos de erro `EXERCISE_VERSION_CONFLICT` (409),
   `SUBJECT_ARCHIVED` (409) e `SYLLABUS_LANGUAGE_REQUIRED` (422) em
   `packages/contracts/src/common/errors.ts`, `apps/api/src/platform/http/errors.ts`,
   `apps/web/lib/messages/error-messages.ts`, com o teste do catálogo de mensagens
