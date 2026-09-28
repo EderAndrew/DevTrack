@@ -212,6 +212,11 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/exercises", access: "questoes.criar" },
   { method: "GET", path: "/exercises/:id", access: "questoes.visualizar" },
   { method: "GET", path: "/programming-languages", access: "questoes.visualizar" },
+  // 010 — "Criar com IA" (the request and the availability also need ia.execucoes.visualizar).
+  { method: "GET", path: "/exercise-generation/availability", access: "ia.exercicios.gerar" },
+  { method: "POST", path: "/exercise-batches", access: "ia.exercicios.gerar" },
+  { method: "GET", path: "/exercise-batches", access: "questoes.visualizar" },
+  { method: "GET", path: "/exercise-batches/:id", access: "questoes.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

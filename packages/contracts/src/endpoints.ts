@@ -107,6 +107,14 @@ import {
   ExerciseTeacherViewSchema,
 } from "./exercises/exercises.js";
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
+import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
+import {
+  ExerciseBatchDetailSchema,
+  ExerciseBatchListQuerySchema,
+  ExerciseBatchPageSchema,
+  ExerciseBatchViewSchema,
+  ExerciseGenerationAvailabilitySchema,
+} from "./exercises/exercise-batches.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -790,6 +798,23 @@ export const endpoints = {
     response: ProgrammingLanguageListSchema,
     status: 200,
   },
+  // 010 — "Criar com IA": generation batches.
+  "exerciseBatches.availability": {
+    method: "GET",
+    path: "/exercise-generation/availability",
+    response: ExerciseGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new batch; 200 when the same key and body return the existing one. */
+  "exerciseBatches.request": {
+    method: "POST",
+    path: "/exercise-batches",
+    body: ExerciseBatchRequestSchema,
+    response: ExerciseBatchViewSchema,
+    status: 202,
+  },
+  "exerciseBatches.list": { method: "GET", path: "/exercise-batches", query: ExerciseBatchListQuerySchema, response: ExerciseBatchPageSchema, status: 200 },
+  "exerciseBatches.get": { method: "GET", path: "/exercise-batches/:id", params: IdParamsSchema, response: ExerciseBatchDetailSchema, status: 200 },
 } as const satisfies Record<string, EndpointContract>;
 
 export type EndpointKey = keyof typeof endpoints;

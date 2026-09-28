@@ -106,6 +106,14 @@ deferred trigger checks 3–5 alternatives and exactly one correct at commit. Th
 their routes: `us7-matrix-completeness.spec.ts` lists them in `SEEDED_BEFORE_ROUTES`, and each leaves that list
 with the first route that requires it. Likewise `audit-coverage.spec.ts` reads the 010 `audit-events.md` but
 skips the types in `PENDING_010` until the story that emits them (US1 emits `exercise.created`, run by the journey).
+Generation (010/US2) tests use `test/helpers/exercise-ai.ts`: `createExerciseAiApp()` registers the 007 and 010
+agents (the real `exercise-generator` ACTIVE, where production starts it DISABLED) with one catalog entry approved for
+both tasks; `batchRequest(topic, overrides)` builds a request body, `requestBatch` posts it, and
+`scriptGeneration(t.provider, batchId, output)` programs the read call then the output (a valid one comes from
+`validGeneratedBatch(request)` in `test/fixtures/exercise-generation/valid-batch.ts`). The batch and its execution are
+created in one transaction through `AiExecutionsService.request`'s `beforeCreate` option, and the drafts are written by
+the agent's `proposal.materialize` hook inside the runner's completing transaction (a throw rolls both back). The
+journey (and so the audit-coverage and secret-scan suites) runs on `createExerciseAiApp`.
 Student view (010/US6): any future route that shows an exercise to a student (activities, exams) answers only
 `toStudentView` (`src/modules/exercises/views/student-view.ts`), which copies an allowlist and never strips the teacher
 view; a new field reaches students only when listed there or in its type's `studentFields`.

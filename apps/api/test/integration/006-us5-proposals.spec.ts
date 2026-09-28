@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
-import { REFERENCE_L2_BUILD } from "../fixtures/ai/reference-agents";
+import { REFERENCE_L2_BUILD, REFERENCE_L2_MATERIALIZE } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiProposal, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
 import { createClass, createSubject, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api } from "../helpers/test-app";
@@ -255,7 +255,7 @@ describe("007/FR-017 006/US5 gancho proposal.build", () => {
   let subjectId: string;
 
   beforeAll(async () => {
-    t = await createAiTestApp({ agents: [REFERENCE_L2_BUILD] });
+    t = await createAiTestApp({ agents: [REFERENCE_L2_BUILD, REFERENCE_L2_MATERIALIZE] });
   });
   afterAll(() => t.close());
 
@@ -316,6 +316,30 @@ describe("007/FR-017 006/US5 gancho proposal.build", () => {
     expect(calls[0]![0]).toMatchObject({ executionId: execution.id, errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: "Error" });
     expect(JSON.stringify(calls)).not.toContain("MARCADOR-BUILD-007");
     expect(JSON.stringify(calls)).not.toContain("falha simulada no build");
+  });
+
+  it("010/FR-032 gancho materialize: grava o registro do domínio na mesma transação da proposta", async () => {
+    const execution = await run("reference-l2-materialize", [
+      { id: "i1", label: "Primeiro" },
+      { id: "i2", label: "Segundo" },
+    ]);
+    expect(execution).toMatchObject({ status: "COMPLETED", errorCode: null });
+    const proposal = await t.prisma.aiProposal.findUniqueOrThrow({ where: { executionId: execution.id } });
+    const subject = await t.prisma.subject.findUniqueOrThrow({ where: { id: subjectId } });
+    expect(subject.description).toBe(`materializado ${proposal.id}: Primeiro, Segundo (2)`);
+  });
+
+  it("010/FR-032 exceção no materialize → rollback total (sem proposta nem registro) e FAILED, com log sem conteúdo", async () => {
+    const warn = vi.spyOn(Logger.prototype, "warn");
+    const execution = await run("reference-l2-materialize", [{ id: "throw", label: "MARCADOR-MATERIALIZE-010" }]);
+    const calls = warn.mock.calls.filter((call) => call[1] === "ai.materialize_failed");
+    warn.mockRestore();
+    expect(execution).toMatchObject({ status: "FAILED", errorCode: "AI_OUTPUT_VALIDATION_FAILED" });
+    expect(await t.prisma.aiProposal.count()).toBe(0);
+    expect(await t.prisma.auditEvent.count({ where: { type: "ai_proposal.created" } })).toBe(0);
+    expect((await t.prisma.subject.findUniqueOrThrow({ where: { id: subjectId } })).description).toBeNull();
+    expect(calls).toHaveLength(1);
+    expect(JSON.stringify(calls)).not.toContain("MARCADOR-MATERIALIZE-010");
   });
 
   it("os agentes de referência sem gancho continuam iguais: o conteúdo é a saída", async () => {

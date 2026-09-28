@@ -2,7 +2,7 @@ import type { AiExecutionStatus, AiProposalStatus, CurriculumExtractionOutputV2 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { CURRICULUM_AGENT_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
-import { derivedUuid } from "../../src/modules/curriculum-ai/proposal/derived-uuid";
+import { derivedUuid } from "../../src/platform/crypto/derived-uuid";
 import { type AiTestApp, createAiExecution, drain, resetAiDb } from "../helpers/ai";
 import {
   createCurriculumAiApp,

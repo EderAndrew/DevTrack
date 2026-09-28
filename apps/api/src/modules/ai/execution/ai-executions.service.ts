@@ -42,6 +42,12 @@ export interface RequestExecutionOptions {
    * doesn't run when the idempotency key returns an existing execution.
    */
   onCreated?: (tx: Tx, executionId: string) => Promise<void>;
+  /**
+   * Runs first inside that transaction, before the execution row (010 research X8): a domain
+   * writes there the record the execution is about, so both commit or neither does. The resource
+   * is then checked in the same transaction instead of before it.
+   */
+  beforeCreate?: (tx: Tx) => Promise<void>;
 }
 
 export interface RequestedExecution {
@@ -119,7 +125,7 @@ export class AiExecutionsService {
     if (!permissions.has(agent.requiredPermission)) throw forbidden();
 
     const resource = body.resource ?? null;
-    if (resource) await this.resources.assertOwned(workspaceId, agent.resourceTypes, resource);
+    if (resource && !options.beforeCreate) await this.resources.assertOwned(workspaceId, agent.resourceTypes, resource);
 
     const route = await this.usableRoute(agent);
     if (!route) throw new AppException("AI_MODEL_UNAVAILABLE");
@@ -135,6 +141,10 @@ export class AiExecutionsService {
     let id: string;
     try {
       id = await this.prisma.runInTransaction(async (tx) => {
+        if (options.beforeCreate) {
+          await options.beforeCreate(tx);
+          if (resource) await this.resources.assertOwned(workspaceId, agent.resourceTypes, resource, tx);
+        }
         const now = new Date();
         const created = await tx.aiExecution.create({
           data: {

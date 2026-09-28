@@ -1,12 +1,12 @@
 "use client";
 
-import type { CreateExerciseRequest, ExerciseSetRequest } from "@repo/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CreateExerciseRequest, ExerciseBatchRequest, ExerciseSetRequest } from "@repo/contracts";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { subjectsApi } from "@/features/subjects/api/subjects";
 import { subjectsKeys } from "@/features/subjects/hooks/use-subjects";
 import { syllabusDocumentsApi } from "@/features/syllabus/api/syllabus-documents";
 import { syllabusKeys } from "@/features/syllabus/hooks/use-syllabus-documents";
-import { exercisesApi, programmingLanguagesApi } from "../api/exercises";
+import { exerciseBatchesApi, exercisesApi, programmingLanguagesApi } from "../api/exercises";
 
 export { useSyllabusRevision as useTopicRevision } from "@/features/syllabus/hooks/use-syllabus-revisions";
 
@@ -15,7 +15,12 @@ export const exercisesKeys = {
   all: ["exercises"] as const,
   detail: (id: string) => [...exercisesKeys.all, id] as const,
   languages: ["programming-languages"] as const,
+  batches: ["exercise-batches"] as const,
+  availability: ["exercise-generation", "availability"] as const,
 };
+
+/** A batch still generating is looked at again every 3 s. */
+export const BATCH_POLL_MS = 3000;
 
 /** The catalog changes only by migration: cached for the session. */
 export const useProgrammingLanguages = () =>
@@ -33,6 +38,29 @@ export const useTopicSyllabi = (subjectId: string) =>
     queryFn: () => syllabusDocumentsApi.list(subjectId),
     enabled: subjectId !== "",
   });
+
+/** Whether "Criar com IA" can take a request now (006 semantics, no reason text). */
+export const useGenerationAvailability = () =>
+  useQuery({ queryKey: exercisesKeys.availability, queryFn: exerciseBatchesApi.availability });
+
+/** The teacher's batches, newest first, page by page; refreshed while one is still generating. */
+export const useExerciseBatches = () =>
+  useInfiniteQuery({
+    queryKey: exercisesKeys.batches,
+    queryFn: ({ pageParam }) => exerciseBatchesApi.list({ cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) => page.items.some((batch) => batch.status === "PENDING")) ? BATCH_POLL_MS : false,
+  });
+
+export function useRequestExerciseBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ExerciseBatchRequest) => exerciseBatchesApi.request(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: exercisesKeys.batches }),
+  });
+}
 
 export function useCreateExerciseSet() {
   const queryClient = useQueryClient();

@@ -25,6 +25,8 @@ export * from "./exercises/enums.js";
 export * from "./exercises/exercises.js";
 export * from "./exercises/distribution.js";
 export * from "./exercises/programming-languages.js";
+export * from "./exercises/exercise-batches.js";
+export * from "./exercises/exercise-ai.js";
 export * from "./ai/executions.js";
 export * from "./ai/proposals.js";
 export * from "./ai/operations.js";

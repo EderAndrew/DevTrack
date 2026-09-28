@@ -228,7 +228,7 @@ pedida, todos DRAFT e AI_GENERATED.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T027 [P] [US2] `apps/api/test/integration/010-us2-generation.spec.ts` (provedor simulado
+- [X] T027 [P] [US2] `apps/api/test/integration/010-us2-generation.spec.ts` (provedor simulado
   com uma resposta válida de fixture): pedido válido → 202, lote PENDING, execução com recurso
   `EXERCISE_GENERATION_BATCH`, depois do worker GENERATED com 10 DRAFT AI_GENERATED ligados ao
   tópico e com a linguagem da ementa; sem tópico, tópico inexistente, de outra revisão, de outro
@@ -238,41 +238,41 @@ pedida, todos DRAFT e AI_GENERATED.
   inválidas → 400; mesma chave → mesmo lote, outra configuração com a mesma chave → 409; limite
   por hora → 429; indisponível → 503 e o manual continua (`010/US2-1`…`010/US2-8`,
   `010/FR-017`…`010/FR-025`).
-- [ ] T028 [P] [US2] `apps/api/test/security/010-no-model-choice.spec.ts`: varredura de
+- [X] T028 [P] [US2] `apps/api/test/security/010-no-model-choice.spec.ts`: varredura de
   `src/modules/exercise-ai` e `src/modules/exercises` sem referência a `AiModelTier`,
   `routeFor`, `MODEL_CATALOG`, famílias, `openrouter` ou chaves do catálogo; a escolha de modelo
   é a mesma para BASIC, INTERMEDIATE e ADVANCED (`010/FR-007`, `010/SC-009`).
-- [ ] T028a [P] [US2] `apps/api/test/security/010-tool-scope.spec.ts`: a ferramenta
+- [X] T028a [P] [US2] `apps/api/test/security/010-tool-scope.spec.ts`: a ferramenta
   `read-exercise-generation-request` devolve só o item, o grupo, o título, a competência e a
   linguagem da revisão do lote da própria execução e a configuração do pedido; recusa o lote de
   outra execução ou de outro professor (`AI_CONTEXT_ACCESS_DENIED`); a requisição ao modelo não
   contém nome da disciplina, outras ementas, ids de usuário, dados de turma ou de aluno
   (`010/FR-026`).
-- [ ] T029 [P] [US2] Linhas do `MATRIX`/`route-declarations` para `POST /exercise-batches`,
+- [X] T029 [P] [US2] Linhas do `MATRIX`/`route-declarations` para `POST /exercise-batches`,
   `GET /exercise-batches`, `GET /exercise-batches/:id`, `GET /exercise-generation/availability`.
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Gancho genérico `proposal.materialize(tx, context)` em
+- [X] T030 [US2] Gancho genérico `proposal.materialize(tx, context)` em
   `apps/api/src/modules/ai/definitions/types.ts` e chamada em
   `apps/api/src/modules/ai/execution/ai-execution.runner.ts` na transação que cria a proposta
   (erro → rollback e FAILED); teste unitário/integração com um agente de referência em
   `apps/api/test/fixtures/ai/` (`010/FR-032`).
-- [ ] T031 [US2] `apps/api/src/modules/exercise-ai/definitions/`: tarefa `exercise-generation`
+- [X] T031 [US2] `apps/api/src/modules/exercise-ai/definitions/`: tarefa `exercise-generation`
   (research X7), agente `exercise-generator` v1 (DISABLED), prompt v1, esquema de saída
   `GeneratedExerciseBatchSchema` (contratos em `packages/contracts/src/exercises/exercise-ai.ts`),
   ferramenta `read-exercise-generation-request` e ownership `EXERCISE_GENERATION_BATCH`;
   registrados em `productionAiDefinitions`.
-- [ ] T032 [US2] `exercise-batches.service.ts`: validação do tópico (research X9), linguagem da
+- [X] T032 [US2] `exercise-batches.service.ts`: validação do tópico (research X9), linguagem da
   revisão, distribuição, gravação do lote e pedido da execução na mesma transação
   (`AiExecutionsService.request` com `onCreated`), limite por hora, idempotência, regeneração;
   auditoria `exercise_batch.requested`; status derivado (research X13); rotas e contratos
   (`exercise-batches.ts`, `endpoints.ts`).
-- [ ] T033 [US2] `generation/build-proposal.ts` (conteúdo e ids de item) e
+- [X] T033 [US2] `generation/build-proposal.ts` (conteúdo e ids de item) e
   `generation/materialize.ts` (lock do lote, DRAFT + alternativas, `generated_at`, auditoria
   `exercise_batch.generated`); fixtures de resposta válida em
   `apps/api/test/fixtures/exercise-generation/`.
-- [ ] T034 [P] [US2] Web `/exercicios/gerar` (cascata Disciplina → Ementa → Tópico por grupo,
+- [X] T034 [P] [US2] Web `/exercicios/gerar` (cascata Disciplina → Ementa → Tópico por grupo,
   dificuldade, total, tipos, distribuição automática com a prévia de `distributeExercises` ou
   manual, pegadinhas só com Múltipla escolha, linguagem somente leitura da ementa, código
   desabilitado sem linguagem, aviso de indisponível) e `/exercicios/lotes` com testes (axe,

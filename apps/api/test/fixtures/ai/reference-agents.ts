@@ -94,6 +94,30 @@ export const REFERENCE_L2_BUILD = defineAgent({
   },
 });
 
+/**
+ * L2 with a `proposal.materialize` hook (010 research X8), registered only by its tests: the domain
+ * record is the execution's subject, whose description becomes the materialized labels. The first
+ * item's id `throw` makes the hook throw after writing, so the rollback is visible.
+ */
+export const REFERENCE_L2_MATERIALIZE = defineAgent({
+  ...REFERENCE_L2,
+  key: "reference-l2-materialize",
+  name: "Agente de referência (proposta materializada)",
+  prompt: { ...REFERENCE_L2.prompt, key: "reference-items-materialize" },
+  proposal: {
+    type: "REFERENCE_MATERIALIZED",
+    itemIds: (output) => ITEMS.parse(output).items.map((item) => item.id),
+    async materialize(tx, { resource, content, itemIds, proposalId }) {
+      const { items } = ITEMS.parse(content);
+      await tx.subject.update({
+        where: { id: resource!.id },
+        data: { description: `materializado ${proposalId}: ${items.map((item) => item.label).join(", ")} (${itemIds.length})` },
+      });
+      if (items[0]!.id === "throw") throw new Error("falha simulada no materialize");
+    },
+  },
+});
+
 /** Never ACTIVE: requests answer AI_AGENT_NOT_FOUND (006/US1-6). */
 export const REFERENCE_DRAFT = defineAgent({
   ...REFERENCE_L1,

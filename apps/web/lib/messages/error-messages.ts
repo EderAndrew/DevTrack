@@ -187,6 +187,9 @@ export const CURRICULUM_AI_AVAILABILITY_MESSAGES = {
   PAUSED: AI_UNAVAILABLE,
 } as const satisfies Record<Exclude<CurriculumAiAvailability, "AVAILABLE">, string>;
 
+/** Why "Criar com IA" can't take a request now (010/US2-7): never the provider or the model. */
+export const EXERCISE_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar exercícios manualmente.";
+
 /** The last analysis found nothing to propose (007/FR-017). */
 export const CURRICULUM_AI_NOTHING_FOUND =
   "Não foi possível identificar conteúdo de ementa neste documento. Preencha manualmente.";

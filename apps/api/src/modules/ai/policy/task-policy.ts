@@ -62,9 +62,19 @@ export function approvalMeetsQuality(approval: Pick<ModelApproval, "metrics">, q
 }
 
 /**
- * The metrics a task may require (the 007 scorer's, contracts/catalog-and-quality-gate.md, and
- * `accuracy` for decision tasks). Counts of failures are ceilings; the others are floors.
+ * The metrics a task may require (the 007 scorer's, contracts/catalog-and-quality-gate.md, the
+ * 010 exercise-generation scorer's, and `accuracy` for decision tasks). Counts of failures are
+ * ceilings; the others are floors.
  */
-const CEILING_METRICS: ReadonlySet<string> = new Set(["unsupportedWithoutWarning", "inventedFields"]);
-const QUALITY_METRICS: ReadonlySet<string> = new Set([...CEILING_METRICS, "itemRecall", "schemaValidity", "injectionClean", "languageMatch", "accuracy"]);
+const CEILING_METRICS: ReadonlySet<string> = new Set(["unsupportedWithoutWarning", "inventedFields", "duplicates"]);
+const QUALITY_METRICS: ReadonlySet<string> = new Set([
+  ...CEILING_METRICS,
+  "itemRecall",
+  "schemaValidity",
+  "injectionClean",
+  "languageMatch",
+  "configMatch",
+  "topicCoverage",
+  "accuracy",
+]);
 const meets = (metric: string, value: number, threshold: number) => (CEILING_METRICS.has(metric) ? value <= threshold : value >= threshold);

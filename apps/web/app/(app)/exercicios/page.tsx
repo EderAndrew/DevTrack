@@ -19,7 +19,9 @@ export default async function ExerciseBankPage({ searchParams }: Props) {
 
   return (
     <section className="mx-auto w-full max-w-256">
-      <ExerciseBankHome canCreate={me.permissions.includes("questoes.criar")} created={Number.isInteger(created) && created > 0 ? created : 0} />
+      <ExerciseBankHome
+        canCreate={me.permissions.includes("questoes.criar")}
+        canGenerate={me.permissions.includes("ia.exercicios.gerar")} created={Number.isInteger(created) && created > 0 ? created : 0} />
     </section>
   );
 }

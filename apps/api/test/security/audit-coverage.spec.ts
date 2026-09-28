@@ -7,7 +7,7 @@ import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types"
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createCurriculumAiApp } from "../helpers/curriculum-ai";
+import { createExerciseAiApp } from "../helpers/exercise-ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -29,8 +29,6 @@ const PENDING_010 = new Set([
   "exercise.discarded",
   "exercise.archived",
   "exercise.restored",
-  "exercise_batch.requested",
-  "exercise_batch.generated",
 ]);
 
 interface ContractRow {
@@ -107,7 +105,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createCurriculumAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      t = await createExerciseAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
       await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });

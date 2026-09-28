@@ -132,6 +132,19 @@ export const AUDIT_EVENT_METADATA = {
   // 010 — the exercise bank. Only ids, counts and enums: never statements, answers, solutions,
   // explanations or alternative texts.
   "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId"],
+  "exercise_batch.requested": [
+    "executionId",
+    "difficulty",
+    "total",
+    "openAnswer",
+    "multipleChoice",
+    "code",
+    "trickQuestions",
+    "languageKey",
+    "distribution",
+    "regeneratedFromId",
+  ],
+  "exercise_batch.generated": ["executionId", "exercises"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -173,4 +186,5 @@ export type AuditTargetType =
   | "AI_AGENT"
   | "AI_MODEL_CONFIG"
   | "AI_TASK"
-  | "EXERCISE";
+  | "EXERCISE"
+  | "EXERCISE_BATCH";

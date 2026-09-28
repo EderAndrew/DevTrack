@@ -14,6 +14,12 @@ describe("010/US1 ExerciseBankHome", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("010/US2 com ia.exercicios.gerar oferece \"Criar com IA\" e o caminho para os lotes", () => {
+    renderWithProviders(<ExerciseBankHome canCreate canGenerate created={0} />);
+    expect(screen.getByRole("link", { name: "Criar com IA" }).getAttribute("href")).toBe("/exercicios/gerar");
+    expect(screen.getByRole("link", { name: "Lotes gerados com IA" }).getAttribute("href")).toBe("/exercicios/lotes");
+  });
+
   it("sem questoes.criar não há ações de criação, e sem criados não há aviso", () => {
     renderWithProviders(<ExerciseBankHome canCreate={false} created={0} />);
     expect(screen.queryByRole("link", { name: "Criar manualmente" })).toBeNull();

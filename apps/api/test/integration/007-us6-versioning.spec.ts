@@ -61,9 +61,9 @@ describe("007/US6-1 007/FR-051 007/FR-007 as definições de produção registra
     // 009: the task carries the model policy (BASIC, research H12), never a model.
     expect(v1.task).toMatchObject({ key: "curriculum-extraction", preferredTier: "BASIC", policy: { preferredTier: "BASIC", maxTier: "STANDARD" } });
     expect(v1.tools.map((entry) => entry.tool.key)).toEqual([READ_CURRICULUM_DOCUMENT]);
-    // Nothing else is registered in production: no reference agent, no other tool.
-    expect((await t.prisma.aiAgent.findMany({ select: { key: true } })).map((row) => row.key)).toEqual([CURRICULUM_AGENT_KEY]);
-    expect((await t.prisma.aiTool.findMany({ select: { key: true } })).map((row) => row.key)).toEqual([READ_CURRICULUM_DOCUMENT]);
+    // Nothing else is registered in production: no reference agent; besides it, only the 010 generator and its tool.
+    expect((await t.prisma.aiAgent.findMany({ select: { key: true }, orderBy: { key: "asc" } })).map((row) => row.key)).toEqual([CURRICULUM_AGENT_KEY, "exercise-generator"]);
+    expect((await t.prisma.aiTool.findMany({ select: { key: true }, orderBy: { key: "asc" } })).map((row) => row.key)).toEqual([READ_CURRICULUM_DOCUMENT, "read-exercise-generation-request"]);
   });
 
   it("até o administrador habilitar, o status do documento é AGENT_DISABLED e o pedido é recusado", async () => {

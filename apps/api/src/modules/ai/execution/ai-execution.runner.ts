@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import type { AiErrorCode } from "@repo/contracts";
 import type { Prisma } from "../../../generated/prisma/client";
 import { APP_CONFIG } from "../../../platform/config/config.module";
@@ -107,6 +108,7 @@ export class AiExecutionRunner {
     private readonly resources: AiResourceResolver,
     private readonly toolExecutor: AiToolExecutor,
     private readonly audit: AuditService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async run(claimed: ClaimedExecution): Promise<void> {
@@ -487,6 +489,29 @@ export class AiExecutionRunner {
           targetId: proposalId,
           metadata: { executionId: claimed.id, agentKey: execution.agentKey, proposalType: proposal.type, itemCount: itemIds.length },
         });
+        // 010 research X8: the domain's records, all or nothing with the proposal.
+        if (proposal.materialize) {
+          await proposal
+            .materialize(tx, {
+              proposalId,
+              executionId: claimed.id,
+              workspaceId: execution.workspaceId,
+              resource: execution.resourceType && execution.resourceId ? { type: execution.resourceType, id: execution.resourceId } : null,
+              content: built.content,
+              itemIds,
+              now,
+              get: (token) => this.moduleRef.get(token, { strict: false }),
+            })
+            .catch((error: unknown) => {
+              aiLog(
+                this.logger,
+                "ai.materialize_failed",
+                { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown" },
+                "warn",
+              );
+              throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+            });
+        }
       } else if (!proposal && execution.outputSchemaVersionId) {
         await tx.aiExecutionOutput.create({
           data: { executionId: claimed.id, outputSchemaVersionId: execution.outputSchemaVersionId, output: output as Prisma.InputJsonValue },
