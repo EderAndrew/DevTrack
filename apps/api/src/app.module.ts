@@ -14,6 +14,7 @@ import { ClassInvitationsModule } from "./modules/class-invitations/class-invita
 import { ClassesModule } from "./modules/classes/classes.module";
 import { CurriculumAiModule } from "./modules/curriculum-ai/curriculum-ai.module";
 import { EnrollmentsModule } from "./modules/enrollments/enrollments.module";
+import { ExercisesModule } from "./modules/exercises/exercises.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { ProvisioningModule } from "./modules/provisioning/provisioning.module";
 import { RetentionModule } from "./modules/retention/retention.module";
@@ -68,6 +69,7 @@ export class AppModule {
         ClassPlansModule,
         AiModule,
         CurriculumAiModule,
+        ExercisesModule,
         RetentionModule,
         HealthModule,
       ],

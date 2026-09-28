@@ -4,7 +4,7 @@ API tests (`apps/api/vitest.config.mts`): the global setup loads `.env.test` (fa
 `.env.test.example`), generates the Prisma client if it's missing, and runs `migrate deploy` on the
 test DB. They refuse to run unless `NODE_ENV=test` and the DB name contains `test`. Test files run
 serially against one shared DB. Specs call `resetDb(t.prisma)` in `beforeEach`, which truncates
-everything except the seeded roles/permissions and bypasses the append-only audit trigger only
+everything except the seeded roles/permissions and (010) the programming-language catalog, and bypasses the append-only audit trigger only
 inside that transaction. Build the app with `createTestApp()` from `test/helpers/test-app.ts`. It listens on
 127.0.0.1, swaps in an `InMemoryMailer` (`flushMail()` waits for after-commit emails), and lets you
 override config and providers. Use `test/helpers/factories.ts` for fixtures. The permission matrix
@@ -98,6 +98,13 @@ provider through `OpenRouterProvider`, needs `OPENROUTER_API_KEY`; it runs the g
 `OPENROUTER_DEFAULT_MODEL` and, when set, `OPENROUTER_FALLBACK_MODEL`), never part of `pnpm test`.
 No test app registers `OpenRouterProvider`: only its unit test (injected `fetch`), the 008 secret
 test and the eval instantiate it.
+Exercise bank (010) fixtures live in `test/helpers/exercises.ts`: `languageId(t, key)` reads the seeded
+catalog, `createConfirmedTopic(t, teacherId, { languageKey })` builds a subject, a PROCESSED document and a
+CONFIRMED revision with a language and items (the topic is `itemId`), `createGenerationBatch` writes a batch row
+(no execution unless given) and `createExercise` an exercise with its alternatives in one transaction, since the
+deferred trigger checks 3–5 alternatives and exactly one correct at commit. The 010 permissions are seeded before
+their routes: `us7-matrix-completeness.spec.ts` lists them in `SEEDED_BEFORE_ROUTES`, and each leaves that list
+with the first route that requires it.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -106,8 +113,9 @@ root CLAUDE.md):
 - `test/security/audit-coverage.spec.ts` requires `contracts/audit-events.md` and
   `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
   type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
-- `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001, 003, 004 and 006; 007 adds only a column; 008 adds `AiTask`)
-  and forbids academic terms of later phases (classes and enrollments are allowed since 003).
+- `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001, 003, 004 and 006; 007 adds only a column; 008 adds `AiTask`;
+  009 the policy tables; 010 the exercise bank) and forbids academic terms of later phases (classes and enrollments are
+  allowed since 003, questions and exercises since 010).
 - `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
   trail for every secret it produced; since 008 the journey app is configured with the OpenRouter
   marker key `sk-or-teste-008-CHAVE-FALSA` (`OPENROUTER_MARKER_KEY` of `journey.ts`), which is also

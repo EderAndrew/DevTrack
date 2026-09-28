@@ -267,6 +267,10 @@ model User {
   aiProposalsDecided    AiProposal[]     @relation("AiProposalDecidedBy")
   aiTaskOverridesSet    AiTaskOverride[] @relation("AiTaskOverrideSetBy")
 
+  exercisesOwned          Exercise[]                @relation("ExerciseTeacher")
+  exercisesReviewed       Exercise[]                @relation("ExerciseReviewedBy")
+  exerciseGenerationBatch ExerciseGenerationBatch[] @relation("ExerciseGenerationBatchTeacher")
+
   @@map("users")
 }
 
@@ -549,17 +553,21 @@ model SyllabusRevision {
   confirmedById     String?                @map("confirmed_by_id") @db.Uuid
   /// Required iff source = AI_ASSISTED (CHECK); one revision per proposal (007 FR-034).
   aiProposalId      String?                @unique @map("ai_proposal_id") @db.Uuid
+  /// One language per syllabus (010 research X17); frozen with the revision by the immutability trigger.
+  languageId        String?                @map("language_id") @db.Uuid
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  document    SyllabusDocument   @relation(fields: [documentId], references: [id], onDelete: Restrict)
-  aiProposal  AiProposal?        @relation(fields: [aiProposalId], references: [id], onDelete: Restrict)
-  basedOn     SyllabusRevision?  @relation("SyllabusRevisionBasedOn", fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
-  derived     SyllabusRevision[] @relation("SyllabusRevisionBasedOn")
-  confirmedBy User?              @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
-  groups      SyllabusGroup[]
-  items       SyllabusItem[]
-  plans       ClassPlan[]
+  document                  SyllabusDocument          @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  aiProposal                AiProposal?               @relation(fields: [aiProposalId], references: [id], onDelete: Restrict)
+  basedOn                   SyllabusRevision?         @relation("SyllabusRevisionBasedOn", fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
+  derived                   SyllabusRevision[]        @relation("SyllabusRevisionBasedOn")
+  confirmedBy               User?                     @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
+  language                  ProgrammingLanguage?      @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  groups                    SyllabusGroup[]
+  items                     SyllabusItem[]
+  plans                     ClassPlan[]
+  exerciseGenerationBatches ExerciseGenerationBatch[]
 
   @@unique([documentId, number])
   @@map("syllabus_revisions")
@@ -589,13 +597,17 @@ model SyllabusItem {
   /// The item of the revision this one was copied from (source REVISION); lets a plan remap links (E16).
   originItemId String? @map("origin_item_id") @db.Uuid
 
-  revision   SyllabusRevision    @relation(fields: [revisionId], references: [id], onDelete: Restrict)
-  group      SyllabusGroup       @relation(fields: [groupId, revisionId], references: [id, revisionId], onDelete: Restrict)
-  originItem SyllabusItem?       @relation("SyllabusItemOrigin", fields: [originItemId], references: [id], onDelete: Restrict)
-  copies     SyllabusItem[]      @relation("SyllabusItemOrigin")
-  topicLinks TopicSyllabusItem[]
+  revision                  SyllabusRevision          @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  group                     SyllabusGroup             @relation(fields: [groupId, revisionId], references: [id, revisionId], onDelete: Restrict)
+  originItem                SyllabusItem?             @relation("SyllabusItemOrigin", fields: [originItemId], references: [id], onDelete: Restrict)
+  copies                    SyllabusItem[]            @relation("SyllabusItemOrigin")
+  topicLinks                TopicSyllabusItem[]
+  exercises                 Exercise[]
+  exerciseGenerationBatches ExerciseGenerationBatch[]
 
   @@unique([groupId, position])
+  /// Target of the exercise batches' composite FK: a batch's topic belongs to the batch's revision (010).
+  @@unique([id, revisionId])
   @@index([revisionId])
   @@map("syllabus_items")
 }
@@ -1191,19 +1203,20 @@ model AiExecution {
   finishedAt              DateTime?          @map("finished_at") @db.Timestamptz(6)
   durationMs              Int?               @map("duration_ms")
 
-  workspace             User                    @relation("AiExecutionWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
-  requestedBy           User                    @relation("AiExecutionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
-  agentVersionRef       AiAgentVersion          @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
-  promptVersionRef      AiPromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
-  outputSchema          AiOutputSchemaVersion?  @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
-  modelConfig           AiModelConfig           @relation("AiExecutionPrimary", fields: [modelConfigId], references: [id], onDelete: Restrict)
-  fallbackModelConfig   AiModelConfig?          @relation("AiExecutionFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
-  escalationModelConfig AiModelConfig?          @relation("AiExecutionEscalation", fields: [escalationModelConfigId], references: [id], onDelete: Restrict)
-  transitions           AiExecutionTransition[]
-  output                AiExecutionOutput?
-  modelCallRows         AiModelCall[]
-  toolCallRows          AiToolCall[]
-  proposal              AiProposal?
+  workspace               User                     @relation("AiExecutionWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  requestedBy             User                     @relation("AiExecutionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  agentVersionRef         AiAgentVersion           @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  promptVersionRef        AiPromptVersion          @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  outputSchema            AiOutputSchemaVersion?   @relation(fields: [outputSchemaVersionId], references: [id], onDelete: Restrict)
+  modelConfig             AiModelConfig            @relation("AiExecutionPrimary", fields: [modelConfigId], references: [id], onDelete: Restrict)
+  fallbackModelConfig     AiModelConfig?           @relation("AiExecutionFallback", fields: [fallbackModelConfigId], references: [id], onDelete: Restrict)
+  escalationModelConfig   AiModelConfig?           @relation("AiExecutionEscalation", fields: [escalationModelConfigId], references: [id], onDelete: Restrict)
+  transitions             AiExecutionTransition[]
+  output                  AiExecutionOutput?
+  modelCallRows           AiModelCall[]
+  toolCallRows            AiToolCall[]
+  proposal                AiProposal?
+  exerciseGenerationBatch ExerciseGenerationBatch?
 
   @@unique([requestedByUserId, idempotencyKey])
   @@index([workspaceId, createdAt(sort: Desc), id])
@@ -1413,4 +1426,186 @@ model AiBudgetAlert {
 
   @@id([scope, periodStart, subjectHash])
   @@map("ai_budget_alerts")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Spec 010 — exercise bank (specs/010-exercise-bank/data-model.md). The per-type CHECKs, the
+// partial unique index of the correct alternative, the deferred trigger of 3–5 alternatives, the
+// origin trigger, the language catalog seed and the questoes.* permissions live in the
+// `exercise_bank` migration.
+// ---------------------------------------------------------------------------------------------
+
+enum ExerciseType {
+  OPEN_ANSWER
+  MULTIPLE_CHOICE
+  CODE
+
+  @@map("exercise_type")
+}
+
+/// Pedagogical; unrelated to AiModelTier (010 FR-007).
+enum ExerciseDifficulty {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+
+  @@map("exercise_difficulty")
+}
+
+enum CognitiveObjective {
+  RECOGNIZE
+  UNDERSTAND
+  APPLY
+  ANALYZE
+  CREATE
+
+  @@map("cognitive_objective")
+}
+
+enum ExerciseOrigin {
+  MANUAL
+  AI_GENERATED
+
+  @@map("exercise_origin")
+}
+
+enum ExerciseStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+
+  @@map("exercise_status")
+}
+
+/// Seeded catalog (research X17); no write route. Inactive entries stay valid where used.
+model ProgrammingLanguage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique
+  name      String   @unique
+  /// Lowercase terms the 007 grounding looks for besides the name.
+  aliases   String[] @default([])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  syllabusRevisions SyllabusRevision[]
+  exercises         Exercise[]
+  generationBatches ExerciseGenerationBatch[]
+
+  @@map("programming_languages")
+}
+
+model Exercise {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The owner; every query filters by it.
+  teacherId          String             @map("teacher_id") @db.Uuid
+  /// Never changes (trigger).
+  type               ExerciseType
+  difficulty         ExerciseDifficulty
+  cognitiveObjective CognitiveObjective @map("cognitive_objective")
+  /// Never changes (trigger, FR-009).
+  origin             ExerciseOrigin
+  status             ExerciseStatus     @default(DRAFT)
+  /// Set iff ARCHIVED (CHECK); the restore target.
+  archivedFromStatus ExerciseStatus?    @map("archived_from_status")
+  statement          String
+  /// `searchKey(statement)`, written by the application (research X20).
+  statementSearchKey String             @map("statement_search_key")
+  explanation        String
+  /// Required iff OPEN_ANSWER (CHECK).
+  expectedAnswer     String?            @map("expected_answer")
+  /// `instructions`, `expectedSolution` and `languageId` required iff CODE; `starterCode` only CODE (CHECK).
+  instructions       String?
+  starterCode        String?            @map("starter_code")
+  expectedSolution   String?            @map("expected_solution")
+  languageId         String?            @map("language_id") @db.Uuid
+  /// Only MULTIPLE_CHOICE (CHECK).
+  isTrickQuestion    Boolean            @default(false) @map("is_trick_question")
+  /// The topic; required when AI_GENERATED (CHECK).
+  syllabusItemId     String?            @map("syllabus_item_id") @db.Uuid
+  /// Set iff AI_GENERATED, together with the proposal item id (CHECK).
+  generationBatchId  String?            @map("generation_batch_id") @db.Uuid
+  generationItemId   String?            @map("generation_item_id") @db.Uuid
+  humanReviewed      Boolean            @default(false) @map("human_reviewed")
+  humanEdited        Boolean            @default(false) @map("human_edited")
+  /// Set together (CHECK).
+  reviewedById       String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt         DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  /// Optimistic concurrency (research X14).
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher         User                     @relation("ExerciseTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  language        ProgrammingLanguage?     @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  syllabusItem    SyllabusItem?            @relation(fields: [syllabusItemId], references: [id], onDelete: Restrict)
+  generationBatch ExerciseGenerationBatch? @relation(fields: [generationBatchId], references: [id], onDelete: Restrict)
+  reviewedBy      User?                    @relation("ExerciseReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  alternatives    ExerciseAlternative[]
+
+  @@unique([generationBatchId, generationItemId])
+  @@index([teacherId, status, updatedAt(sort: Desc), id])
+  @@index([teacherId, syllabusItemId])
+  @@index([generationBatchId])
+  @@map("exercises")
+}
+
+/// Only MULTIPLE_CHOICE: 3–5, exactly one correct, distinct texts (deferred trigger); one correct
+/// per exercise also by a partial unique index.
+model ExerciseAlternative {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exerciseId String  @map("exercise_id") @db.Uuid
+  /// 0-based presentation order.
+  position   Int
+  text       String
+  isCorrect  Boolean @map("is_correct")
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, position])
+  @@map("exercise_alternatives")
+}
+
+/// One AI generation request (research X8); its status is derived from the execution and
+/// `generatedAt`, never stored (X13).
+model ExerciseGenerationBatch {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId              String             @map("teacher_id") @db.Uuid
+  /// The topic: an item of the batch's revision (composite FK).
+  syllabusItemId         String             @map("syllabus_item_id") @db.Uuid
+  syllabusRevisionId     String             @map("syllabus_revision_id") @db.Uuid
+  difficulty             ExerciseDifficulty
+  /// 3–10, the sum of the counts per type (CHECK).
+  requestedQuantity      Int                @map("requested_quantity")
+  openAnswerQuantity     Int                @map("open_answer_quantity")
+  multipleChoiceQuantity Int                @map("multiple_choice_quantity")
+  codeQuantity           Int                @map("code_quantity")
+  /// 0–3 and ≤ multiple choice (CHECK).
+  trickQuestionQuantity  Int                @map("trick_question_quantity")
+  /// Copied from the revision; set iff codeQuantity > 0 (CHECK).
+  languageId             String?            @map("language_id") @db.Uuid
+  /// AUTO or MANUAL (CHECK).
+  distribution           String
+  /// Set in the request transaction.
+  aiExecutionId          String?            @unique @map("ai_execution_id") @db.Uuid
+  regeneratedFromId      String?            @map("regenerated_from_id") @db.Uuid
+  idempotencyKey         String             @map("idempotency_key")
+  /// Set by the materialization of the proposal (research X8).
+  generatedAt            DateTime?          @map("generated_at") @db.Timestamptz(6)
+  approvedCount          Int                @default(0) @map("approved_count")
+  discardedCount         Int                @default(0) @map("discarded_count")
+  archivedCount          Int                @default(0) @map("archived_count")
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  teacher          User                      @relation("ExerciseGenerationBatchTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  syllabusItem     SyllabusItem              @relation(fields: [syllabusItemId, syllabusRevisionId], references: [id, revisionId], onDelete: Restrict)
+  syllabusRevision SyllabusRevision          @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  language         ProgrammingLanguage?      @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  aiExecution      AiExecution?              @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
+  regeneratedFrom  ExerciseGenerationBatch?  @relation("ExerciseGenerationBatchRegeneratedFrom", fields: [regeneratedFromId], references: [id], onDelete: Restrict)
+  regenerations    ExerciseGenerationBatch[] @relation("ExerciseGenerationBatchRegeneratedFrom")
+  exercises        Exercise[]
+
+  @@unique([teacherId, idempotencyKey])
+  @@index([teacherId, createdAt(sort: Desc), id])
+  @@map("exercise_generation_batches")
 }

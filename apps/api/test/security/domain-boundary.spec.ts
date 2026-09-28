@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001, 003, 004, 006 and 008; 007 adds none) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003, 004, 006, 008, 009 and 010; 007 adds none) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -57,22 +57,25 @@ const EXPECTED_MODELS = [
   "AiModelTaskApproval",
   "AiTaskOverride",
   "AiBudgetAlert",
+  // 010 — exercise bank: the language catalog, exercises, their alternatives and AI generation batches.
+  "ProgrammingLanguage",
+  "Exercise",
+  "ExerciseAlternative",
+  "ExerciseGenerationBatch",
 ];
 
 /**
  * Word prefixes of the academic domain not built yet (FR-080), without accents, pt-BR and English.
  * 003 brought classes and enrollments in on purpose (`turma`, `matricul`, `class`, `classes`,
  * `enrollment` are allowed, 003/D13) and 004 subjects, syllabi, meetings, plans and topics
- * (`subject`, `syllabus`, `ementa`, `disciplina`, `topic`, `tópico`, `meeting`, `plan`, 004/E22);
- * the later phases' terms (questions, exercises, exams, assignments, grades, attempts) stay forbidden.
+ * (`subject`, `syllabus`, `ementa`, `disciplina`, `topic`, `tópico`, `meeting`, `plan`, 004/E22)
+ * and 010 the question bank (`questao`, `questoes`, `exercicio`; `exercise` was never listed); the
+ * later phases' terms (exams, assignments, grades, attempts) stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
   "periodo",
   "aula",
-  "questao",
-  "questoes",
-  "exercicio",
   "trabalho",
   "prova",
   "nota",
@@ -123,7 +126,7 @@ function schemaNames() {
   return { models, names: [...models, ...enums, ...maps, ...fields] };
 }
 
-describe("004/E22 006/FR-003 007/FR-031 fronteira do domínio (FR-080, critério 27)", () => {
+describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080, critério 27)", () => {
   let routes: string[];
 
   beforeAll(async () => {
@@ -155,7 +158,7 @@ describe("004/E22 006/FR-003 007/FR-031 fronteira do domínio (FR-080, critério
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "exercicios.criar", "tentativas_prova", "exam_attempts"]) {
+    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "trabalhos.criar", "tentativas_prova", "exam_attempts"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
     for (const name of [
@@ -179,6 +182,10 @@ describe("004/E22 006/FR-003 007/FR-031 fronteira do domínio (FR-080, critério
       "class_meetings",
       "planejamento.alterar_situacao",
       "ClassPlan",
+      "questoes.aprovar",
+      "ia.exercicios.gerar",
+      "exercise_generation_batches",
+      "ExerciseAlternative",
     ]) {
       expect(academicTerms(name), name).toEqual([]);
     }

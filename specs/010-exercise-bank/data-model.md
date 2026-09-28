@@ -25,7 +25,8 @@ indexes, deferred triggers, seed rows) are SQL in the migration. Research X2, X1
 | `created_at` | timestamptz | |
 
 Seed: Angular, C, C++, Go, HTML & CSS, Java, JavaScript, Nest, Node, PHP, Python, Rust,
-TypeScript. No write route (admin management is a future spec).
+TypeScript. No write route (admin management is a future spec). The test `resetDb` keeps the
+table, like roles and permissions.
 
 ## `syllabus_revisions` (changed, 004)
 
@@ -54,9 +55,9 @@ TypeScript. No write route (admin management is a future spec).
 | `expected_solution` | text NULL | required iff `CODE` |
 | `language_id` | uuid NULL FK → `programming_languages` RESTRICT | required iff `CODE` |
 | `is_trick_question` | boolean default false | true only for `MULTIPLE_CHOICE` (CHECK) |
-| `syllabus_item_id` | uuid NULL FK → `syllabus_items` RESTRICT | the topic; required iff `origin = AI_GENERATED` (CHECK) |
+| `syllabus_item_id` | uuid NULL FK → `syllabus_items` RESTRICT | the topic; required when `origin = AI_GENERATED`, optional for `MANUAL` (CHECK) |
 | `generation_batch_id` | uuid NULL FK → `exercise_generation_batches` RESTRICT | required iff `AI_GENERATED` (CHECK) |
-| `generation_item_id` | uuid NULL | the proposal item id (X15); UNIQUE with the batch |
+| `generation_item_id` | uuid NULL | the proposal item id (X15); set iff the batch is (CHECK); UNIQUE with the batch |
 | `human_reviewed` | boolean default false | true once a user approved it |
 | `human_edited` | boolean default false | true once a user changed its content after generation |
 | `reviewed_by_id` | uuid NULL FK → `users` | set with `reviewed_at` (CHECK: both or none) |
@@ -65,7 +66,8 @@ TypeScript. No write route (admin management is a future spec).
 | `created_at`, `updated_at` | timestamptz | |
 
 CHECKs: the type columns (above); `AI_GENERATED` in `APPROVED` ⇒ `human_reviewed` and
-reviewer set. Indexes: `(teacher_id, status, updated_at desc, id)`, `(teacher_id,
+reviewer set; statement and explanation lengths; `version ≥ 1`. A `BEFORE UPDATE` trigger
+refuses any change of `origin` or `type`. Indexes: `(teacher_id, status, updated_at desc, id)`, `(teacher_id,
 syllabus_item_id)`, `(generation_batch_id)`.
 
 ## `exercise_alternatives` (new)
@@ -80,7 +82,9 @@ syllabus_item_id)`, `(generation_batch_id)`.
 
 A `DEFERRABLE INITIALLY DEFERRED` constraint trigger checks, at commit, that every
 `MULTIPLE_CHOICE` exercise has 3–5 alternatives with exactly one correct and distinct texts
-(normalized), and that no other type has alternatives.
+(normalized: trimmed, spaces collapsed, lowercase), and that no other type has alternatives. It
+fires on `exercise_alternatives` and on the insert of an `exercises` row, so a multiple-choice
+exercise saved without alternatives is refused too.
 
 ## `exercise_generation_batches` (new)
 
@@ -88,7 +92,7 @@ A `DEFERRABLE INITIALLY DEFERRED` constraint trigger checks, at commit, that eve
 |--------|------|-------|
 | `id` | uuid PK | |
 | `teacher_id` | uuid FK → `users` | |
-| `syllabus_item_id` | uuid FK → `syllabus_items` RESTRICT | the topic (confirmed revision) |
+| `syllabus_item_id` | uuid FK → `syllabus_items` RESTRICT | the topic (confirmed revision); composite FK (item, revision) → `syllabus_items (id, revision_id)`, a new UNIQUE |
 | `syllabus_revision_id` | uuid FK → `syllabus_revisions` RESTRICT | the item's revision (composite FK with the item) |
 | `difficulty` | `exercise_difficulty` | |
 | `requested_quantity` | int | 3–10 (CHECK) |
@@ -96,12 +100,12 @@ A `DEFERRABLE INITIALLY DEFERRED` constraint trigger checks, at commit, that eve
 | `trick_question_quantity` | int | 0–3 and ≤ multiple choice (CHECK) |
 | `language_id` | uuid NULL FK | required iff `code_quantity > 0` (CHECK); copied from the revision |
 | `distribution` | text | `AUTO` or `MANUAL` (how the counts were chosen) |
-| `ai_execution_id` | uuid UNIQUE FK → `ai_executions` RESTRICT | set in the request transaction |
+| `ai_execution_id` | uuid NULL UNIQUE FK → `ai_executions` RESTRICT | set in the request transaction, after the batch row exists (the execution's resource) |
 | `regenerated_from_id` | uuid NULL FK → self | |
 | `idempotency_key` | text | UNIQUE (teacher, key) |
 | `generated_at` | timestamptz NULL | set by the materialization (X8) |
 | `approved_count`, `discarded_count`, `archived_count` | int default 0 | maintained in the review transactions |
-| `created_at` | timestamptz | |
+| `created_at` | timestamptz | index `(teacher_id, created_at desc, id)` for the batch list |
 
 **Derived status** (X13, never stored): `GENERATED` when `generated_at` is set; else from the
 execution: `QUEUED`/`RUNNING`/`WAITING_TOOL`/`VALIDATING_OUTPUT` → `PENDING`,

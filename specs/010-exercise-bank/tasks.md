@@ -69,7 +69,7 @@ description: "Task list for 010 — Banco de Exercícios: criação manual e ger
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T004 Migração `apps/api/prisma/migrations/<ts>_exercise_bank/migration.sql` e
+- [X] T004 Migração `apps/api/prisma/migrations/<ts>_exercise_bank/migration.sql` e
   `apps/api/prisma/schema.prisma` conforme `data-model.md`: enums; `programming_languages` com a
   carga das 13 entradas (key, name, aliases); `syllabus_revisions.language_id`; `exercises`
   (CHECKs por tipo, `origin` imutável por trigger, índices); `exercise_alternatives` (UNIQUE
@@ -79,14 +79,14 @@ description: "Task list for 010 — Banco de Exercícios: criação manual e ger
   `ai_execution_id`); permissões `questoes.visualizar/criar/editar/aprovar` e
   `ia.exercicios.gerar` concedidas a TEACHER; atualizar a lista de modelos de
   `apps/api/test/security/domain-boundary.spec.ts` e `data-model.md` se necessário.
-- [ ] T005 [P] Teste do banco em `apps/api/test/integration/010-schema.spec.ts`: as CHECKs e o
+- [X] T005 [P] Teste do banco em `apps/api/test/integration/010-schema.spec.ts`: as CHECKs e o
   trigger recusam, por SQL direto, Múltipla escolha com 2 e 6 alternativas, com 0 e 2 corretas,
   código sem linguagem, AI_GENERATED sem lote/tópico, mudança de `origin`, lote com soma
   diferente do total e pegadinhas acima da Múltipla escolha (`010/FR-004`, `010/FR-009`,
   `010/FR-016`).
-- [ ] T006 [P] Atualizar `apps/api/test/security/authorization-matrix.ts` (`ROLE_PERMISSIONS`
+- [X] T006 [P] Atualizar `apps/api/test/security/authorization-matrix.ts` (`ROLE_PERMISSIONS`
   de TEACHER com as 5 permissões novas) e `us7-matrix-completeness.spec.ts` se preciso.
-- [ ] T007 [P] Contratos em `packages/contracts/src/exercises/exercises.ts`:
+- [X] T007 [P] Contratos em `packages/contracts/src/exercises/exercises.ts`:
   `ExerciseInputSchema` (união discriminada por tipo com as refinações: 3–5 alternativas,
   textos distintos, exatamente uma correta, campos por tipo), `ExerciseSetRequestSchema` (3–10),
   `ExerciseTeacherViewSchema`, `ExerciseStudentViewSchema` (estrito, lista fechada),
@@ -94,21 +94,21 @@ description: "Task list for 010 — Banco de Exercícios: criação manual e ger
   (`ProgrammingLanguageViewSchema`); testes de fronteira em
   `packages/contracts/test/exercises.spec.ts` com os casos do spec §31 (2/3/5/6 alternativas;
   0/1/2 corretas; 2/3/10/11 exercícios — `010/SC-003`).
-- [ ] T008 [P] `packages/contracts/src/exercises/distribution.ts`: `distributeExercises(total,
+- [X] T008 [P] `packages/contracts/src/exercises/distribution.ts`: `distributeExercises(total,
   types)` (research X6) e `ExerciseBatchRequestSchema` (tópico por ids, dificuldade, total 3–10,
   tipos 1–3 distintos, distribuição AUTO/MANUAL com soma = total e cada tipo ≥ 1, pegadinhas
   0–3 e ≤ Múltipla escolha, sem linguagem, `idempotencyKey`, `regeneratedFromId?`); testes: 10
   em 3 tipos → 4/3/3, 5 em 2 → 3/2, determinístico; 5 MC + 3 pegadinhas aceito, 2 MC + 3 e 4
   pegadinhas recusados, pegadinha sem MC recusada (`010/FR-019`, `010/FR-020`).
-- [ ] T009 Registro de tipos em `apps/api/src/modules/exercises/types/{open-answer,
+- [X] T009 Registro de tipos em `apps/api/src/modules/exercises/types/{open-answer,
   multiple-choice,code,index}.ts` (research X3): regras puras, mapeamento para linhas e
   alternativas, visão do professor e visão do aluno por lista de campos permitidos
   (`views/{teacher-view,student-view}.ts`); `rules/exercise-rules.ts` reaproveitando as
   refinações do contrato; testes unitários em `apps/api/src/modules/exercises/types/*.spec.ts`.
-- [ ] T010 Máquina de estados `apps/api/src/modules/exercises/exercise.state-machine.ts`
+- [X] T010 Máquina de estados `apps/api/src/modules/exercises/exercise.state-machine.ts`
   (DRAFT→APPROVED, DRAFT→ARCHIVED, APPROVED→ARCHIVED, ARCHIVED→anterior; resto →
   `INVALID_STATE_TRANSITION`) com teste unitário (`010/FR-010`).
-- [ ] T011 Módulo `apps/api/src/modules/exercises/exercises.module.ts` registrado em
+- [X] T011 Módulo `apps/api/src/modules/exercises/exercises.module.ts` registrado em
   `AppModule`; fábricas de teste em `apps/api/test/helpers/exercises.ts`
   (`createExercise`, `createConfirmedTopic` com disciplina, documento, revisão confirmada,
   grupo e item, `languageId`).

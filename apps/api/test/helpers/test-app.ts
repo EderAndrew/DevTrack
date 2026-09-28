@@ -18,8 +18,11 @@ import { assertTestDatabase } from "./env";
 import { LogCapture } from "./log-capture";
 import { TEST_WORKER_PATH } from "./syllabus-worker";
 
-/** Reference data seeded by migration: never truncated. */
-const PRESERVED_TABLES = new Set(["roles", "permissions", "role_permissions", "_prisma_migrations"]);
+/**
+ * Reference data seeded by migration: never truncated (010 adds the programming-language catalog; a
+ * test that changes one of its rows restores it).
+ */
+const PRESERVED_TABLES = new Set(["roles", "permissions", "role_permissions", "programming_languages", "_prisma_migrations"]);
 
 export interface TestAppOptions {
   /** Defaults to a fresh InMemoryMailer; pass FailingMailer to simulate SMTP outages. */

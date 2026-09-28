@@ -2,7 +2,7 @@ import type { RoleKey } from "@repo/contracts";
 import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
- * Transcribed by hand from contracts/permissions.md of specs 001, 003 and 004 (not derived from the seed), so a drift
+ * Transcribed by hand from contracts/permissions.md of specs 001, 003, 004, 006 and 010 (not derived from the seed), so a drift
  * between the contract and the database breaks the tests.
  */
 
@@ -71,6 +71,15 @@ export const AI_TEACHER = ["ia.execucoes.visualizar", "ia.propostas.revisar"] as
 /** 006: AI operations — ADMIN only, never pedagogical content. */
 export const AI_OPERATIONS = ["ia.operacao.visualizar", "ia.agentes.gerenciar"] as const satisfies PermissionKey[];
 
+/** 010: the teacher's private exercise bank and its AI generation (MANAGER and ADMIN get none). */
+export const EXERCISE_BANK = [
+  "questoes.visualizar",
+  "questoes.criar",
+  "questoes.editar",
+  "questoes.aprovar",
+  "ia.exercicios.gerar",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -83,7 +92,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 
