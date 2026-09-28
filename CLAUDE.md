@@ -83,6 +83,7 @@ hand-maintained.
 - New dep `@anthropic-ai/sdk` (removed in 008; api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
 - No new dependency, `@anthropic-ai/sdk` removed: OpenRouter is the only real provider, over Node's native `fetch` (`gateway/providers/openrouter.provider.ts`, registered only with `OPENROUTER_API_KEY`); task routing (`ai_tasks`: primary + fallback model config), fallback in `ModelGateway`, in-memory circuit breaker, per-agent hourly limit; new columns on `ai_agent_versions`, `ai_executions`, `ai_model_calls` (008-ai-gateway-openrouter)
 - No new dependency: model catalog in code (`definitions/model-catalog.ts`: families OpenAI/Anthropic/TypeSafe, tier BASIC/STANDARD/ADVANCED, mode generation/decision, lifecycle, approvals backed by committed eval evidence), pure `selectRoute` in `modules/ai/policy`, same-tier fallback and one-step escalation; OpenRouter decisions route for Jev; tables `ai_model_task_approvals`, `ai_task_overrides`, `ai_budget_alerts` (009-ai-model-policy)
+- No new dependency: exercise bank (`modules/exercises`: tables `exercises`, `exercise_alternatives` with DB-enforced 3–5 alternatives / one correct, types as a registry, teacher × student views by allowlist) and AI generation (`modules/exercise-ai`: `exercise_generation_batches`, L2 agent `exercise-generator` on task `exercise-generation`, drafts materialized by a `proposal.materialize` foundation hook); `programming_languages` catalog (seeded) and `syllabus_revisions.language_id`; `questoes.*`, `ia.exercicios.gerar` permissions (010-exercise-bank)
 
 ## Stack notes
 
@@ -383,9 +384,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
+- 010-exercise-bank (planned): private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 - 009-ai-model-policy (planned): model policy over the 008 gateway — approved catalog per family and tier, task policies, cheapest approved model of the task's tier, same-tier fallback, escalation only by explicit rule, admin override, cost by task/tier/family, observable budgets; Curriculum Agent analysis to BASIC after a release-gate eval
 - 008-ai-gateway-openrouter: OpenRouter replaces the direct Anthropic provider; agents declare a task, the gateway routes it to a primary and a fallback model with a circuit breaker; Curriculum Agent v2 with unchanged rules
-- 007-curriculum-agent: Curriculum Agent — "Preencher com IA" on a syllabus document with text: L2 proposal grounded in the document (read tool, deterministic grounding check, source refs), teacher accepts fields/groups and applying creates an `AI_ASSISTED` 004 draft; first real provider (Anthropic); golden-set eval in CI (recorded) and on demand
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
