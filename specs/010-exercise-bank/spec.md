@@ -455,9 +455,9 @@ todos saem em Java.
 **Linguagem da ementa e catálogo de linguagens**
 
 - **FR-038**: O sistema DEVE manter um catálogo de linguagens como dado (nome e se está ativa),
-  com a carga inicial C, C++, Java, PHP, JavaScript, TypeScript, Python, Go, Node, HTML & CSS
-  e Rust. Nenhuma tela ou rota desta feature altera o catálogo; a gestão pelo administrador
-  virá em spec própria.
+  com a carga inicial Angular, C, C++, Go, HTML & CSS, Java, JavaScript, Nest, Node, PHP,
+  Python, Rust e TypeScript (Clarifications, 2026-09-27). Nenhuma tela ou rota desta feature
+  altera o catálogo; a gestão pelo administrador virá em spec própria.
 - **FR-039**: A revisão da ementa (004) DEVE ter uma linguagem opcional — uma por ementa —,
   escolhida pelo professor numa lista das linguagens ativas, editável enquanto a revisão está em rascunho,
   imutável depois de confirmada como o resto da revisão, e auditada como as demais edições.
@@ -636,3 +636,8 @@ Nível: L2. Nenhuma operação L3: a IA não aprova, não publica e não arquiva
 - **Sem compartilhamento**: o banco é privado; compartilhar entre professores exige spec.
 - **Limites e custo**: a geração conta nos limites existentes por usuário e por agente e no
   custo e orçamentos da 009; um limite próprio por professor por hora é definido no plano.
+- **Decisões de implementação** (research X16, notas T047–T049): a fidelidade ao tópico
+  (`topicCoverage`, limiar 0,9) é medida pela palavra e julgada sobre todos os exercícios do
+  conjunto de referência, não por caso; o esquema de saída chega ao provedor com `anyOf` no lugar
+  de `oneOf`, que a saída estruturada estrita recusa; o modelo básico da OpenAI foi aprovado para a
+  geração, e o da Anthropic ficou sem avaliação por falta de crédito no OpenRouter.

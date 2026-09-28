@@ -14,7 +14,8 @@ pnpm --filter web test:e2e                  # manual set + AI batch through the 
 Check that:
 
 - the boundary rules (3/10 exercises, 3/5 alternatives, one correct, 0–3 tricks ≤ multiple
-  choice) hold in manual create, edit and AI output (`exercises/rules/*.spec.ts`);
+  choice) hold in manual create, edit and AI output (`exercises/rules/*.spec.ts`,
+  `010-sc003-boundaries.spec.ts`);
 - no AI output outside the request becomes an exercise (`010-us3-*`);
 - the student view has no answer, correct flag, solution or explanation for any type
   (`010-student-view.spec.ts`);

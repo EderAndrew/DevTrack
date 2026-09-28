@@ -384,29 +384,29 @@ professor.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T050 [P] `apps/api/test/security/010-injection.spec.ts`: item da ementa com instruções
+- [X] T050 [P] `apps/api/test/security/010-injection.spec.ts`: item da ementa com instruções
   para mudar quantidade, tipos, dificuldade, linguagem ou aprovar → o pedido e as regras não
   mudam; o texto chega só no bloco não confiável (`010/FR-027`).
-- [ ] T051 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada cria conjunto
+- [X] T051 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada cria conjunto
   manual, gera um lote, edita, aprova, descarta, arquiva e restaura; nenhum enunciado, resposta,
   solução ou texto da ementa nos logs, na auditoria ou nas respostas de "Operação de IA".
-- [ ] T052 [P] E2E `apps/web/e2e/exercise-bank.spec.ts` (criação manual e lote gerado pela IA) e
+- [X] T052 [P] E2E `apps/web/e2e/exercise-bank.spec.ts` (criação manual e lote gerado pela IA) e
   `apps/web/e2e/openrouter-mock.ts` respondendo à geração de exercícios com a fixture.
-- [ ] T053 [P] `apps/api/CLAUDE.md`: módulos `exercises`/`exercise-ai`, fábricas, fixtures e o
+- [X] T053 [P] `apps/api/CLAUDE.md`: módulos `exercises`/`exercise-ai`, fábricas, fixtures e o
   gancho `materialize`.
-- [ ] T054 [P] `CLAUDE.md` da raiz: estado (010), arquitetura, guardas `010-*`, comando
+- [X] T054 [P] `CLAUDE.md` da raiz: estado (010), arquitetura, guardas `010-*`, comando
   `eval:exercises`.
-- [ ] T055 [P] `README.md`: fase 010, banco de exercícios, linguagem da ementa, etapa de liberação.
-- [ ] T056 [P] `apps/web/design-system/` e testes de identidade se algum componente novo de base
+- [X] T055 [P] `README.md`: fase 010, banco de exercícios, linguagem da ementa, etapa de liberação.
+- [X] T056 [P] `apps/web/design-system/` e testes de identidade se algum componente novo de base
   for criado (idealmente nenhum).
-- [ ] T057 Rodar o `quickstart.md` §1 e corrigir divergências.
-- [ ] T058 Revisar `specs/010-exercise-bank/spec.md` × implementação (Assumptions e decisões
+- [X] T057 Rodar o `quickstart.md` §1 e corrigir divergências.
+- [X] T058 Revisar `specs/010-exercise-bank/spec.md` × implementação (Assumptions e decisões
   de implementação registradas).
-- [ ] T059 [P] Varredura administrativa (`006-ai-admin-scan.spec.ts`) com o agente e a tarefa
+- [X] T059 [P] Varredura administrativa (`006-ai-admin-scan.spec.ts`) com o agente e a tarefa
   novos em "Operação de IA" (sem conteúdo de exercício).
-- [ ] T060 Acrescentar a 010 ao `SPECS` de `apps/api/test/traceability.spec.ts` (7 histórias,
+- [X] T060 Acrescentar a 010 ao `SPECS` de `apps/api/test/traceability.spec.ts` (7 histórias,
   cenários do spec, `rows: 0`, `successCriteria` SC-001–SC-012) e cobrir ids faltantes.
-- [ ] T061 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T061 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
 
 ---

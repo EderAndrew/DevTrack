@@ -44,8 +44,20 @@ acontece por regra explícita da tarefa, uma vez, quando a saída é inválida. 
 os modelos reais e aprova os que atingem os limiares. O
 administrador pode fixar um modelo aprovado para uma tarefa, e "Operação de IA" mostra o custo
 por tarefa, nível, família e modelo, o catálogo com qualidade ao lado do custo e o consumo em
-relação a orçamentos configuráveis, que avisam sem bloquear. Banco de questões, atividades e
-avaliações vêm nas próximas fases.
+relação a orçamentos configuráveis, que avisam sem bloquear. A **fase 010 — banco de exercícios**
+trouxe o banco privado de cada professor, com três tipos de exercício (Pergunta e resposta,
+Múltipla escolha e Exercício de código), dificuldade, objetivo cognitivo e pegadinhas. O professor
+cria à mão conjuntos de 3 a 10 exercícios ou um exercício avulso, e pode pedir à IA exercícios
+sobre um tópico de uma ementa confirmada, escolhendo quantidade, tipos, distribuição, dificuldade
+e pegadinhas. A IA entrega um lote em rascunho: uma resposta que não segue o pedido é recusada
+inteira, e nada gerado vira exercício aprovado sem que o professor revise, edite ou exclua cada
+um. O banco tem busca, filtros, paginação, arquivamento e restauração, e a visão do aluno nunca
+leva resposta, gabarito, solução ou explicação. A ementa passou a declarar sua linguagem de
+programação, escolhida num catálogo de linguagens, e o "Preencher com IA" a propõe a partir do
+documento. O gerador passou pela etapa de liberação: o conjunto de referência da geração rodou
+contra os modelos reais, e o modelo básico aprovado atende a tarefa; o agente começa desabilitado
+até o administrador habilitá-lo em "Operação de IA". Atividades e avaliações vêm nas próximas
+fases.
 
 ## Pré-requisitos
 
@@ -69,6 +81,8 @@ avaliações vêm nas próximas fases.
 | `specs/006-ai-foundation/` | O mesmo para a fase 006 (fundação de IA; decisões A1–A22) |
 | `specs/007-curriculum-agent/` | O mesmo para a fase 007 (agente de ementa; decisões C1–C20) |
 | `specs/008-ai-gateway-openrouter/` | O mesmo para a fase 008 (gateway de IA com OpenRouter; decisões G1–G20) |
+| `specs/009-ai-model-policy/` | O mesmo para a fase 009 (política de modelos de IA; decisões H1–H16) |
+| `specs/010-exercise-bank/` | O mesmo para a fase 010 (banco de exercícios; decisões X1–X20) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -117,6 +131,8 @@ OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # avaliação dos mode
 OPENROUTER_API_KEY=... EVAL_MODEL=anthropic-basic EVAL_RECORD=1 pnpm --filter api eval:curriculum
                                                 # etapa de liberação (009): grava a evidência de um modelo do catálogo
                                                 # em test/fixtures/evaluations/; EVAL_REPLAY=1 regrava recorded.json
+OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:exercises
+                                                # etapa de liberação do gerador de exercícios (010), com o mesmo formato
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit

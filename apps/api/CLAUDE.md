@@ -136,6 +136,23 @@ Student view (010/US6): any future route that shows an exercise to a student (ac
 view; a new field reaches students only when listed there or in its type's `studentFields`.
 `test/security/010-student-view.spec.ts` scans every type for the answer markers (`MARCADOR-RESPOSTA-010`,
 `MARCADOR-SOLUCAO-010`, `MARCADOR-EXPLICACAO-010`) and the answer keys.
+Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
+`ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
+holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and
+`/exercise-generation/availability`), the agent definition, prompt and read tool (`definitions/`), the pure
+`generation/` steps (`request-content`, `validate-generated-batch`, `build-proposal`) and `materialize`, the
+foundation hook that writes the drafts. `modules/exercise-ai` never names a tier, family or catalog key
+(`010-no-model-choice.spec.ts`).
+Golden set of the generator (010, research X16): `test/fixtures/exercise-generation/` (README, `golden/<case>/`
+`expected.json` + `recorded.json`, the pure `score.ts`, `load-golden.ts`, `run-case.ts`); `010-evaluation.spec.ts`
+replays it in CI and `pnpm --filter api eval:exercises` runs it against the real models (the release gate: the
+evidence in `test/fixtures/evaluations/exercise-generation/` backs the `openai-basic` approval; `topicCoverage` is
+judged over the set). `createConfirmedTopic` also takes `title`, `competencyText`, `groupTitle` and `items`.
+010 security suites (`test/security/010-*`): isolation (teacher B's ids → 404 on every route, other roles → 403),
+tool scope, injection through the topic (`010-injection.spec.ts`: the text reaches the model only in the untrusted
+block; an answer that obeys it is refused whole), concurrency, student view, performance and no model choice; the
+journey's topic and exercise texts are scanned out of logs, audit and "Operação de IA" (`secret-leak-scan.spec.ts`,
+`006-ai-admin-scan.spec.ts`), and `010-sc003-boundaries.spec.ts` runs every rule boundary on each path.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

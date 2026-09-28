@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-27 (009 implemented)
+Last updated: 2026-09-28 (010 implemented)
 
 ## Project state
 
@@ -51,10 +51,20 @@ cost by task, tier and family, the catalog with quality next to cost and the bud
 never blocking). The `curriculum-extraction` analysis is BASIC, served by `openai-basic`, the only
 entry approved by the release gate so far (`anthropic-basic` wasn't evaluated: OpenRouter refused
 its 16000-token calls for lack of credit, 402), so the analysis has no same-tier fallback until a
-second BASIC model is approved. Later work starts a new feature through `/speckit-specify`.
+second BASIC model is approved. Phase 010 (`specs/010-exercise-bank`) is implemented (US1–US7 plus
+the Polish phase): the teacher's private exercise bank. Three types (open answer, multiple choice
+with 3–5 alternatives and one correct, code in a language of the catalog), difficulty, cognitive
+objective and trick questions; manual sets of 3–10 or single exercises; "Criar com IA" asks the L2
+`exercise-generator` (task `exercise-generation`, BASIC, registered DISABLED until the admin enables
+it) for a batch on a topic of a confirmed syllabus, whose answer is checked whole against the
+request and becomes DRAFT exercises the teacher edits, approves or discards; search, filters,
+keyset pages, archive and restore; a student view that never carries an answer. The syllabus
+revision declares its programming language (catalog `programming_languages`), which the Curriculum
+Agent v3 proposes. `openai-basic` passed the generator's release gate (`anthropic-basic` wasn't
+evaluated, OpenRouter 402 again). Later work starts a new feature through `/speckit-specify`.
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -118,6 +128,9 @@ OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:curriculum
                                                         # 009 release gate: one catalog entry; writes test/fixtures/evaluations/<task>/<key>.json
                                                         # (skipped when a case failed for infrastructure); EVAL_REPLAY=1 rewrites recorded.json
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:exercises
+                                                        # 010 release gate of the exercise generator, same flags; evidence in
+                                                        # test/fixtures/evaluations/exercise-generation/, with each case's latency
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -149,7 +162,7 @@ scans): see `apps/api/CLAUDE.md`, loaded when working under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008 and 009; the on-demand eval's `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009 and 010; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -195,6 +208,16 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   its evidence file in `test/fixtures/evaluations/` and meets the task's thresholds), the model id
   boundary (no concrete model id outside `definitions/model-catalog.ts`) and policy injection
   (documents and model output never change task, tier, family, model or budget).
+- 010 suites (`apps/api/test/{integration,security}/010-*`): one file per story (`010-us1-manual` …
+  `010-us7-*`), the schema's DB rules, every rule boundary on each path (`010-sc003-boundaries`), the
+  golden set replay (`010-evaluation`, fixtures in `test/fixtures/exercise-generation/`), isolation
+  (teacher B's ids → 404, other roles → 403 on every route), the read tool's scope, injection through
+  the topic (untrusted block only; an obeying answer is refused whole), concurrency, performance
+  (1 000 exercises), the student view's answer markers and `010-no-model-choice` (the exercise modules
+  never name a tier, family or model). The journey creates, generates, reviews, archives and
+  restores exercises, and the secret and admin scans keep their texts out of logs, audit and
+  "Operação de IA". The E2E `exercise-bank.spec.ts` replays the `sql-joins-sem-linguagem` case
+  through `openrouter-mock.ts`.
 - Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
   the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
@@ -349,6 +372,15 @@ the removal conditions are in `DEPENDENCIES.md`.
   the source hash, validates the accepted content as a 004 draft, creates or replaces the draft
   and approves the proposal in one transaction; idempotent). The AI module never writes syllabus
   data.
+- 010 modules: `exercises` (the bank: types as a registry, pure rules, teacher and student views
+  (`toStudentView` copies an allowlist), `ExercisesService` with optimistic `version` under a row
+  lock, keyset list in `exercise-query.ts`, archive/restore, `ExerciseBatchReview` hook; never
+  imports AI code) and `exercise-ai` (batches: request with the idempotency key and the execution in
+  one transaction; the `exercise-generator` definition, prompt and `read-exercise-generation-request`
+  tool; `validate-generated-batch` refuses an answer that doesn't match the request; the
+  `proposal.materialize` foundation hook writes the DRAFT exercises in the runner's transaction;
+  `ExerciseProposalCloser` decides the proposal once no draft is left). The OpenRouter adapter's
+  `sanitizeJsonSchema` writes `oneOf` as `anyOf` (strict structured output refuses `oneOf`).
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 
@@ -384,7 +416,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
-- 010-exercise-bank (planned): private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
+- 010-exercise-bank: private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 - 009-ai-model-policy (planned): model policy over the 008 gateway — approved catalog per family and tier, task policies, cheapest approved model of the task's tier, same-tier fallback, escalation only by explicit rule, admin override, cost by task/tier/family, observable budgets; Curriculum Agent analysis to BASIC after a release-gate eval
 - 008-ai-gateway-openrouter: OpenRouter replaces the direct Anthropic provider; agents declare a task, the gateway routes it to a primary and a fallback model with a circuit breaker; Curriculum Agent v2 with unchanged rules
 

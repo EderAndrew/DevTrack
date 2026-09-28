@@ -15,7 +15,7 @@ const CASES = loadGoldenCases();
  * scores are stored by `AiEvaluationStore`. The same cases run against the real provider on
  * demand (`pnpm --filter api eval:curriculum`).
  */
-describe("007/US6-3 007/FR-049 007/FR-050 avaliação do conjunto de referência (respostas gravadas)", () => {
+describe("007/US6-3 007/FR-049 007/FR-050 010/SC-012 avaliação do conjunto de referência (respostas gravadas)", () => {
   let t: AiTestApp;
   let caseIds: Map<string, string>;
   const runs: { name: string; golden: GoldenCase; run: CaseRun }[] = [];

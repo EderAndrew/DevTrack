@@ -135,6 +135,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "explicação do exercício",
         "texto gerado pela IA (010)",
         "enunciado revisado (010)",
+        "tópico lido pelo gerador (010)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -191,6 +192,41 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     // The marker was really read and proposed (the scan is not vacuous): in the model's context and the proposal.
     expect(serialize(t.provider.requests)).toContain("MARCADOR-EMENTA-007");
     expect(serialize(await t.prisma.aiProposal.findMany({ where: { status: "REJECTED" }, select: { payload: true } }))).toContain("MARCADOR-EMENTA-007");
+  });
+
+  it("010/FR-033 enunciados, respostas, soluções, explicações e o tópico lido pelo gerador fora dos logs, da auditoria e das respostas da Operação de IA", async () => {
+    const kinds = [
+      "enunciado",
+      "resposta esperada",
+      "alternativa correta",
+      "solução esperada",
+      "explicação do exercício",
+      "texto gerado pela IA (010)",
+      "enunciado revisado (010)",
+      "tópico lido pelo gerador (010)",
+    ];
+    const scanned = content.filter(({ kind }) => kinds.includes(kind));
+    expect(new Set(scanned.map(({ kind }) => kind))).toEqual(new Set(kinds));
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = {
+      logs: logs.text(),
+      auditoria: serialize(await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } })),
+    };
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs", "models", "tasks"]) {
+      const res = await client.get(`/api/ai/operations/${path}`);
+      expect(res.status, path).toBe(200);
+      sources[`resposta de /ai/operations/${path}`] = serialize(res.body);
+    }
+    // The generator and its task are there (the scan is not vacuous), with no exercise content.
+    expect(sources["resposta de /ai/operations/metrics?period=30d"]).toContain("exercise-generator");
+    expect(sources["resposta de /ai/operations/tasks"]).toContain("exercise-generation");
+    expect(leaks(scanned, sources)).toEqual([]);
+
+    // The topic reached the model (as untrusted data) and the output became the drafts.
+    expect(serialize(t.provider.requests)).toContain("MARCADOR-TOPICO-010");
+    expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("MARCADOR-GERADO-010");
   });
 
   it("008/US4-1 008/SC-005 a chave do OpenRouter fora dos logs, da auditoria, das respostas (operacionais e de erro) e de todas as tabelas", async () => {

@@ -5,6 +5,9 @@ import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { FAKE_PROVIDER_CREDENTIAL, fakeError, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER, REFERENCE_L1 } from "../fixtures/ai/reference-agents";
 import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } from "../helpers/ai";
+import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch";
+import { batchRequest, createExerciseAiApp, requestBatch, scriptGeneration } from "../helpers/exercise-ai";
+import { createConfirmedTopic } from "../helpers/exercises";
 import { createSubject, createUser, loginAs } from "../helpers/factories";
 import { api } from "../helpers/test-app";
 
@@ -104,5 +107,61 @@ describe("006/US7-4 006/SC-007 006/FR-031 as respostas de operação não trazem
     const events = await t.prisma.auditEvent.findMany({ where: { type: { startsWith: "ai_" } }, select: { metadata: true } });
     const text = JSON.stringify(events);
     for (const value of [INSTRUCTIONS_MARKER, INPUT_MARKER, OUTPUT_MARKER, SUBJECT_MARKER, FAKE_PROVIDER_CREDENTIAL]) expect(text).not.toContain(value);
+  });
+});
+
+/**
+ * 010/FR-033 (T059): with the exercise generator run by two teachers — one batch generated, one
+ * refused — "Operação de IA" shows the agent and its task with numbers only: no topic, statement,
+ * answer, solution or explanation, and no user, batch, exercise or execution id.
+ */
+describe("010/FR-033 a Operação de IA mostra o gerador de exercícios sem conteúdo de exercício", () => {
+  let t: AiTestApp;
+  const TOPIC_MARKER = "MARCADOR-TOPICO-ADMIN-010";
+  const EXERCISE_MARKER = "MARCADOR-EXERCICIO-ADMIN-010";
+  const forbidden: string[] = [TOPIC_MARKER, EXERCISE_MARKER, FAKE_PROVIDER_CREDENTIAL];
+
+  beforeAll(async () => {
+    t = await createExerciseAiApp();
+    await resetAiDb(t);
+    for (const name of ["A", "B"]) {
+      const teacher = await createUser(t, { roles: ["TEACHER"], name: `Professor ${name}` });
+      const cookie = await loginAs(t, teacher);
+      const topic = await createConfirmedTopic(t, teacher.id, { items: [`${TOPIC_MARKER} ${name}`, "Interfaces"] });
+      const res = await requestBatch(t, cookie, batchRequest(topic, { difficulty: "BASIC", total: 3, types: ["OPEN_ANSWER"] }));
+      expect(res.status).toBe(202);
+      const valid = validGeneratedBatch({ difficulty: "BASIC", counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 0, CODE: 0 }, trickQuestions: 0, language: null }, `${EXERCISE_MARKER} ${name}`);
+      // Teacher A's batch is generated; teacher B's answer has one exercise too few and is refused.
+      scriptGeneration(t.provider, res.body.id, name === "A" ? valid : { exercises: valid.exercises.slice(0, 2) });
+      await drain(t);
+      forbidden.push(teacher.id, teacher.email, res.body.id, topic.itemId, topic.revision.id);
+    }
+    for (const row of await t.prisma.exercise.findMany({ select: { id: true } })) forbidden.push(row.id);
+    for (const row of await t.prisma.aiExecution.findMany({ select: { id: true } })) forbidden.push(row.id);
+    expect(await t.prisma.exercise.count()).toBe(3);
+    expect(await t.prisma.aiExecution.count({ where: { status: "FAILED" } })).toBe(1);
+  });
+  afterAll(() => t.close());
+
+  it("nenhuma rota de /ai/operations devolve tópico, exercício, credencial ou id; o agente e a tarefa aparecem com números", async () => {
+    const admin = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["ADMIN"] })) });
+    const responses = {
+      health: await admin.get("/api/ai/operations/health"),
+      metrics: await admin.get("/api/ai/operations/metrics?period=30d"),
+      agents: await admin.get("/api/ai/operations/agents"),
+      modelConfigs: await admin.get("/api/ai/operations/model-configs"),
+      models: await admin.get("/api/ai/operations/models?period=30d"),
+      tasks: await admin.get("/api/ai/operations/tasks"),
+    };
+    for (const [path, res] of Object.entries(responses)) {
+      expect(res.status, path).toBe(200);
+      const text = JSON.stringify(res.body);
+      for (const value of forbidden) expect(text, `${path}: ${value}`).not.toContain(value);
+    }
+    // Not vacuous: the generator's two executions and its task are there.
+    expect(responses.metrics.body.byAgent.find((row: { agentKey: string }) => row.agentKey === "exercise-generator")).toMatchObject({ taskKey: "exercise-generation", executions: 2 });
+    expect(responses.metrics.body.byTask.find((row: { taskKey: string }) => row.taskKey === "exercise-generation")).toMatchObject({ executions: 2 });
+    expect((responses.agents.body as { key: string }[]).map((agent) => agent.key)).toContain("exercise-generator");
+    expect((responses.tasks.body as { key: string }[]).map((task) => task.key)).toContain("exercise-generation");
   });
 });

@@ -271,7 +271,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // the flows below rely on is not spent here.
   const generationTeacher = await createUser(t, { roles: ["TEACHER"] });
   const generationClient = api(t, { cookie: await loginAs(t, generationTeacher) });
-  const generationTopic = await createConfirmedTopic(t, generationTeacher.id, { languageKey: null });
+  const generationTopic = await createConfirmedTopic(t, generationTeacher.id, {
+    languageKey: null,
+    // The topic the generator reads (as untrusted tool output): syllabus text, never in logs, audit or operations.
+    items: [text("tópico lido pelo gerador (010)", "MARCADOR-TOPICO-010 Herança e polimorfismo"), "Interfaces"],
+  });
   const batch = await generationClient.post("/api/exercise-batches", {
     syllabusRevisionId: generationTopic.revision.id,
     syllabusItemId: generationTopic.itemId,
