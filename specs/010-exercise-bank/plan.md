@@ -47,7 +47,7 @@ Curriculum Agent v3 proposes it from the document.
 - [x] **X. Evidence**: N/A (no student evidence)
 - [x] **XI. Human oversight**: approval, edits, deletion and archiving are HUMAN_DECISION; AI output is SUGGESTION; validation is RULE_RESULT
 - [x] **XII. Determinism first**: distribution, validation and duplicate detection are deterministic; AI only drafts content
-- [x] **XIII. Risk level**: generator is L2 (drafts only); the review closes the proposal (X15)
+- [x] **XIII. Risk level**: generator is L2 (drafts only) with the risk assessment of the spec; the review closes the proposal (X15)
 - [x] **XIV–XV. AI governance**: one read tool scoped to the execution's batch; grounded on the chosen syllabus item; model choice by the 009 policy
 - [x] **XVI. Explicit states**: `exercise_status`; batch status derived from its execution and `generated_at`
 - [x] **XVII. Idempotency**: batch idempotency key; repeated approve/archive no-op; optimistic `version`
@@ -56,7 +56,7 @@ Curriculum Agent v3 proposes it from the document.
 - [x] **XX. Pedagogy**: trick questions constrained to legitimate patterns; teacher decides
 - [x] **XXI. Configurable domain**: languages are a seeded data catalog; difficulty and cognitive objective are platform concepts (allowed)
 - [x] **XXII. Personalization & accessibility**: no student data; pages with axe and keyboard tests
-- [x] **XXIII. Curricular traceability**: generated exercises linked to the syllabus item; manual ones may link; bank ≠ class activity (snapshot later)
+- [x] **XXIII. Curricular traceability**: bank generation under the "Geração para o banco de questões" rule of XXIII (constitution v3.1.0; decision record in `constitution-amendment-3.1.0.md`): one syllabus item chosen by the teacher, deterministic link, validated output, teacher review; the taught-scope rule applies when a bank exercise enters a class activity (later phase)
 - [x] **XXIV. Academic isolation**: private bank; horizontal access → 404 (security suite)
 - [x] **XXV. Privileged provisioning**: N/A
 - [x] **XXVI. Shared contracts**: `packages/contracts/src/exercises/*`, endpoints catalog, teacher and student view schemas

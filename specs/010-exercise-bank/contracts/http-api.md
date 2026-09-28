@@ -24,7 +24,8 @@ CognitiveObjective = "RECOGNIZE" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "CREATE"
 ExerciseInput =
   | { type: "OPEN_ANSWER", statement, explanation, difficulty, cognitiveObjective, syllabusItemId?, expectedAnswer }
   | { type: "MULTIPLE_CHOICE", statement, explanation, difficulty, cognitiveObjective, syllabusItemId?,
-      alternatives: { text, isCorrect }[] /* 3–5, distinct, exactly one isCorrect */ }
+      alternatives: { text, isCorrect }[] /* 3–5, distinct, exactly one isCorrect */,
+      isTrickQuestion?: boolean /* default false */ }
   | { type: "CODE", statement, explanation, difficulty, cognitiveObjective, syllabusItemId?,
       instructions, starterCode?, expectedSolution, languageId }
 

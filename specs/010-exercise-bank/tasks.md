@@ -134,7 +134,7 @@ MANUAL e nenhuma execução de IA existe.
   `ai_executions` e `ai_model_calls` depois de tudo; auditoria `exercise.created` por exercício
   (`010/US1-1`…`010/US1-6`, `010/SC-001`).
 - [ ] T013 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para
-  `POST /exercises/sets`, `POST /exercises`, `GET /programming-languages`.
+  `POST /exercises/sets`, `POST /exercises`, `GET /exercises/:id`, `GET /programming-languages`.
 
 ### Implementation for User Story 1
 
@@ -147,12 +147,13 @@ MANUAL e nenhuma execução de IA existe.
 - [ ] T016 [P] [US1] Web: `apps/web/features/exercises/{api,hooks}` e a página
   `/exercicios/novo` (React Hook Form com `useFieldArray` de 3–10 cartões, campos por tipo,
   alternativas com uma correta, tópico opcional por Disciplina → Ementa → Tópico, linguagem do
-  catálogo) e `/exercicios/novo/avulso`, em `apps/web/app/(app)/exercicios/…` e
+  catálogo; ao ligar um cartão de código a um tópico, a linguagem da ementa vem pré-selecionada
+  e o professor pode trocá-la; pegadinha marcável na Múltipla escolha) e `/exercicios/novo/avulso`, em `apps/web/app/(app)/exercicios/…` e
   `apps/web/features/exercises/components/*`; item de menu "Banco de Exercícios"
   (`questoes.visualizar`).
 - [ ] T017 [P] [US1] Testes web em `apps/web/features/exercises/components/*.test.tsx`: erros
-  por campo ligados (`expectFieldErrorLinked`), limites 3/10 no formulário, axe, ordem de Tab
-  (padrão de teclado `SC-012` da 001).
+  por campo ligados (`expectFieldErrorLinked`), limites 3/10 no formulário, linguagem sugerida pela ementa e troca
+  manual (`010/FR-040`), axe, ordem de Tab (padrão de teclado `SC-012` da 001).
 
 **Checkpoint**: banco manual funcionando (MVP).
 
@@ -240,6 +241,12 @@ pedida, todos DRAFT e AI_GENERATED.
   `src/modules/exercise-ai` e `src/modules/exercises` sem referência a `AiModelTier`,
   `routeFor`, `MODEL_CATALOG`, famílias, `openrouter` ou chaves do catálogo; a escolha de modelo
   é a mesma para BASIC, INTERMEDIATE e ADVANCED (`010/FR-007`, `010/SC-009`).
+- [ ] T028a [P] [US2] `apps/api/test/security/010-tool-scope.spec.ts`: a ferramenta
+  `read-exercise-generation-request` devolve só o item, o grupo, o título, a competência e a
+  linguagem da revisão do lote da própria execução e a configuração do pedido; recusa o lote de
+  outra execução ou de outro professor (`AI_CONTEXT_ACCESS_DENIED`); a requisição ao modelo não
+  contém nome da disciplina, outras ementas, ids de usuário, dados de turma ou de aluno
+  (`010/FR-026`).
 - [ ] T029 [P] [US2] Linhas do `MATRIX`/`route-declarations` para `POST /exercise-batches`,
   `GET /exercise-batches`, `GET /exercise-batches/:id`, `GET /exercise-generation/availability`.
 
@@ -338,14 +345,18 @@ professor.
 - [ ] T043 [P] [US5] `apps/api/test/integration/010-us5-bank.spec.ts`: cada filtro e combinação,
   busca sem acento/maiúsculas, arquivados só quando filtrados, cursor sem repetição nem buraco,
   página ≤ 50; editar APPROVED mantém APPROVED; arquivar e restaurar; ARCHIVED não edita nem
-  aprova; professor B → 404 em todas as rotas; desempenho com 1 000 exercícios < 1 s
-  (`010/US5-1`…`010/US5-6`, `010/SC-007`, `010/SC-008`).
+  aprova; professor B → 404 em todas as rotas (`010/US5-1`…`010/US5-6`, `010/SC-007`). O
+  desempenho com 1 000 exercícios (< 1 s, margem folgada) fica em
+  `apps/api/test/security/010-performance.spec.ts`, no padrão das suítes de desempenho da 004
+  (`010/SC-008`).
 - [ ] T044 [P] [US5] `apps/api/test/security/010-isolation.spec.ts`: área completa de A e B;
   toda rota de exercícios e lotes com a sessão de A sobre ids de B → 404; ADMIN, MANAGER e
   STUDENT → 403 (`010/SC-007`).
 - [ ] T045 [US5] `exercise-query.ts` (filtros, `statement_search_key LIKE`, keyset por
   `updated_at desc, id`), `archive`/`restore` com `archived_from_status`, auditorias
-  `exercise.archived`/`exercise.restored`; rotas.
+  `exercise.archived`/`exercise.restored`; rotas; linhas do `MATRIX` e de
+  `route-declarations.spec.ts` para `GET /exercises`, `POST /exercises/:id/archive` e
+  `POST /exercises/:id/restore`.
 - [ ] T046 [P] [US5] Web `/exercicios` (filtros, busca, "Carregar mais", estado vazio) e
   `/exercicios/[id]` (ver, editar, arquivar/restaurar); testes.
 
@@ -362,8 +373,8 @@ professor.
   `injectionClean`); `apps/api/test/integration/010-evaluation.spec.ts` reproduz no CI
   (`010/SC-010`).
 - [ ] T048 `apps/api/test/eval/exercise-generator.eval.ts` e script `eval:exercises` com
-  `EVAL_MODEL`, `EVAL_RECORD`, `EVAL_REPLAY` e a guarda de falhas de infraestrutura (como a 009);
-  README do conjunto.
+  `EVAL_MODEL`, `EVAL_RECORD`, `EVAL_REPLAY` e a guarda de falhas de infraestrutura (como a 009),
+  registrando a latência por caso na evidência (`010/SC-002`); README do conjunto.
 - [ ] T049 **Etapa de liberação (custo de centavos; autorizada)**: rodar para `openai-basic` (e
   `anthropic-basic` se houver crédito); para cada aprovado, acrescentar a aprovação no catálogo e
   commitar a evidência; teste do portão (`009-quality-gate.spec.ts`) cobre a nova tarefa.
@@ -428,7 +439,7 @@ professor.
 - US1: T012, T013 em paralelo; T016 e T017 em paralelo com T014–T015.
 - US6 inteira em paralelo com a US1.
 - US7: T020, T021 em paralelo; T025 em paralelo com T022–T024.
-- US2: T027–T029 em paralelo; T034 em paralelo com T030–T033.
+- US2: T027, T028, T028a e T029 em paralelo; T034 em paralelo com T030–T033.
 - US5 em paralelo com US2–US4 (arquivos diferentes, exceto o serviço — coordenar).
 
 ## Parallel Example: User Story 2

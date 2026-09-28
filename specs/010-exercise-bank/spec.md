@@ -344,7 +344,8 @@ todos saem em Java.
   cognitivo, origem, situação e explicação.
 - **FR-003**: Pergunta e resposta DEVE ter resposta esperada.
 - **FR-004**: Múltipla escolha DEVE ter de 3 a 5 alternativas, sem textos repetidos, exatamente
-  uma correta, em ordem definida, e a indicação de pegadinha (sim/não).
+  uma correta, em ordem definida, e a indicação de pegadinha (sim/não): definida pela IA na
+  geração e editável pelo professor, também na criação manual (padrão: não).
 - **FR-005**: Exercício de código DEVE ter instruções, solução esperada e linguagem; o código
   inicial é opcional. A linguagem DEVE ser uma entrada ativa do catálogo de linguagens; nenhuma
   linguagem é fixa no código (constituição XXI).
@@ -503,15 +504,17 @@ todos saem em Java.
   filtrada pelo professor da sessão, e recurso de outro professor responde "não encontrado".
   O tópico de um pedido é verificado contra as disciplinas e ementas do professor (004).
 - **Audit events**: exercício criado manualmente, geração pedida, lote gerado (ou falho),
-  exercício editado, exercício revisado, aprovado, descartado, arquivado e restaurado — com
+  exercício editado, aprovado (a aprovação é a revisão explícita e registra se houve edição),
+  descartado, arquivado e restaurado — com
   ator, exercício ou lote, data e identificador de correlação; metadados só com ids,
   contagens, tipos e códigos, nunca enunciado, resposta, solução ou texto da ementa.
 - **Untrusted input**: pedidos HTTP com campos desconhecidos, texto no lugar de tópico ou
   campos de modelo são recusados; o texto da ementa é conteúdo não confiável para a IA; a
   resposta da IA é validada contra esquema e contra o pedido antes de qualquer gravação.
 - **States & transitions**: exercício (DRAFT → APPROVED → ARCHIVED, DRAFT → ARCHIVED,
-  restaurar de ARCHIVED); lote (PENDING → GENERATED | FAILED | CANCELLED); transição inválida →
-  `409 INVALID_STATE_TRANSITION`.
+  restaurar de ARCHIVED); transição inválida → `409 INVALID_STATE_TRANSITION`. A situação do lote
+  (PENDING, GENERATED, FAILED, CANCELLED) é derivada da sua execução de IA e da materialização
+  dos rascunhos, nunca gravada em duplicidade.
 - **Idempotency**: o pedido de geração usa chave de idempotência (mesma chave → mesmo lote);
   aprovar ou arquivar de novo algo já nesse estado não muda nada nem gera evento; edições usam
   controle de concorrência (a segunda edição sobre uma versão antiga é recusada).
@@ -526,8 +529,27 @@ todos saem em Java.
 - **Sensitive data & adaptations**: nenhum dado de aluno nem de adaptação é tocado ou enviado
   à IA; respostas e soluções são dados sensíveis de avaliação e só saem na visão do professor.
 - **Curricular traceability**: exercícios gerados são sempre ligados ao item da ementa do
-  pedido; manuais podem ser ligados a um item. O escopo "ensinado na turma" (XXIII) se aplica
-  às atividades de turma, que não fazem parte desta feature.
+  pedido; manuais podem ser ligados a um item. A geração para o banco segue a constituição XXIII
+  ("Geração para o banco de questões", v3.1.0): um único conteúdo escolhido pelo professor, sem
+  turma. Quando um exercício do banco entrar numa atividade de turma (fase futura), valerá o
+  escopo ensinado daquela turma. O vínculo com objetivos de aprendizagem virá quando esse
+  conceito existir no domínio (hoje a ementa tem só o texto de competência); o objetivo
+  cognitivo não o substitui.
+
+### Risk assessment (L2 — geração de exercícios)
+
+Exigida pela constituição XIII para um agente que começa em L2.
+
+| Risco | Efeito | Mitigação |
+|-------|--------|-----------|
+| Resposta correta errada (alternativa ou solução) | Aluno avaliado com gabarito errado | Nasce DRAFT; aprovação explícita do professor, com revisor e data (FR-012, FR-013); conjunto de referência com revisão humana dos gabaritos (FR-033) |
+| Pegadinha enganosa ou ambígua | Questão injusta | Regras de pegadinha no prompt; exatamente uma correta validada (FR-029); selo "Pegadinha" visível na revisão |
+| Conteúdo fora do tópico | Exercício que não avalia o conteúdo | Contexto só do item escolhido (FR-026); métrica `topicCoverage` no portão de qualidade |
+| Injeção pelo texto da ementa | Mudança de quantidade, modelo ou aprovação | Texto como bloco não confiável (FR-027); configuração vinda do lote, não da IA (FR-031); nenhum caminho de aprovação pela IA |
+| Vazamento de gabarito ao aluno | Integridade da avaliação | Visão do aluno por lista de campos permitidos, montada no servidor (FR-036, FR-037) |
+| Custo descontrolado | Gasto de IA | Limites por execução, por professor por hora e por agente; orçamentos da 009 |
+
+Nível: L2. Nenhuma operação L3: a IA não aprova, não publica e não arquiva.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -553,7 +575,8 @@ todos saem em Java.
 - **SC-001**: Um professor cria 3 exercícios manuais (um de cada tipo) em menos de 5 minutos,
   sem nenhuma chamada a modelo de IA.
 - **SC-002**: Um professor pede 10 exercícios com IA e tem o lote em rascunho para revisar em
-  menos de 2 minutos em 95% dos pedidos, com exatamente a distribuição pedida.
+  menos de 2 minutos em 95% dos pedidos, com exatamente a distribuição pedida (latência medida
+  pela avaliação sob demanda com o modelo real; no CI só a distribuição).
 - **SC-003**: 100% dos casos de fronteira das regras (2/3/10/11 exercícios; 2/3/5/6
   alternativas; 0/1/2 corretas; 0/3/4 pegadinhas e pegadinhas acima da Múltipla escolha) têm o
   resultado esperado, na criação manual, na edição e na resposta da IA.
