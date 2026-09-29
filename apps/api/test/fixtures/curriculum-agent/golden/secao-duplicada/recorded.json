@@ -63,7 +63,8 @@
             "field": "groups",
             "groupIndex": 2
           }
-        ]
+        ],
+        "languageKey": null
       }
     }
   ]

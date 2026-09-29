@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "description": "010/SC-012: a ementa declara a linguagem (Java), que está no catálogo.",
+  "document": "curriculum-agent/golden/linguagem-java/document.pdf",
+  "injection": false,
+  "title": "Programação Orientada a Objetos com Java",
+  "syllabusText": "Fundamentos da programação orientada a objetos com a linguagem Java: classes, objetos, herança e interfaces.",
+  "competencyText": "Implementar programas orientados a objetos em Java aplicando encapsulamento e herança.",
+  "groups": [
+    {
+      "title": "Fundamentos",
+      "items": [
+        "Classes e objetos",
+        "Encapsulamento"
+      ]
+    },
+    {
+      "title": "Reuso",
+      "items": [
+        "Herança",
+        "Interfaces"
+      ]
+    }
+  ],
+  "languageKey": "java",
+  "missingFields": []
+}

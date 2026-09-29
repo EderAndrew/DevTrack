@@ -1,9 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PERMISSIONS, ROLE_KEYS } from "../../src/modules/access-control/permissions";
+import { PERMISSIONS, type PermissionKey, ROLE_KEYS } from "../../src/modules/access-control/permissions";
 import { createUser, loginAs } from "../helpers/factories";
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
+
+/**
+ * 010: the migration seeds the bank's permissions in the Foundational phase, before any route
+ * exists (tasks.md T004/T006); each one leaves this list with the first route that requires it.
+ * Empty since US4 (`questoes.editar`, `questoes.aprovar`); kept for the next seeded-first permission.
+ */
+const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {
@@ -18,7 +25,12 @@ describe("US7 — completude da matriz e do seed", () => {
 
   it("toda permissão do catálogo é exigida por pelo menos uma rota", () => {
     const required = new Set(MATRIX.map((entry) => entry.access));
-    expect(PERMISSIONS.filter((key) => !required.has(key))).toEqual([]);
+    expect(PERMISSIONS.filter((key) => !required.has(key) && !SEEDED_BEFORE_ROUTES.has(key))).toEqual([]);
+  });
+
+  it("010 permissões semeadas antes das rotas ainda não são exigidas por nenhuma (remova-as da lista quando a rota chegar)", () => {
+    const required = new Set(MATRIX.map((entry) => entry.access));
+    expect([...SEEDED_BEFORE_ROUTES].filter((key) => required.has(key))).toEqual([]);
   });
 
   describe("seed × contrato", () => {

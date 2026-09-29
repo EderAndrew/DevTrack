@@ -2,6 +2,9 @@ import { UuidSchema } from "@repo/contracts";
 import { z } from "zod";
 import { MAX_BLOCK_TEXT, READER_VERSION } from "../../syllabus/extraction/normalize";
 
+/** Entries of the language catalog the tool returns (13 seeded, 010 research X17). */
+export const MAX_CATALOG_LANGUAGES = 200;
+
 /** Blocks of one normalized document (007 data-model; the whole result is also capped at 200 KB by 006). */
 export const MAX_DOCUMENT_BLOCKS = 5000;
 
@@ -26,6 +29,14 @@ export const CurriculumDocumentContentSchema = z.strictObject({
     )
     .min(1)
     .max(MAX_DOCUMENT_BLOCKS),
+  /**
+   * The active programming languages (010 research X18): the only values the agent may propose
+   * as the syllabus' language. `aliases` are the other lowercase names the grounding looks for.
+   */
+  languages: z
+    .array(z.strictObject({ key: z.string().min(1).max(40), name: z.string().min(1).max(80), aliases: z.array(z.string().max(80)).max(20) }))
+    .max(MAX_CATALOG_LANGUAGES),
 });
 export type CurriculumDocumentContent = z.infer<typeof CurriculumDocumentContentSchema>;
 export type CurriculumDocumentBlock = CurriculumDocumentContent["blocks"][number];
+export type CurriculumCatalogLanguage = CurriculumDocumentContent["languages"][number];

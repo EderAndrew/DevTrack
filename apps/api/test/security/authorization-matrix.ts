@@ -2,7 +2,7 @@ import type { RoleKey } from "@repo/contracts";
 import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
- * Transcribed by hand from contracts/permissions.md of specs 001, 003 and 004 (not derived from the seed), so a drift
+ * Transcribed by hand from contracts/permissions.md of specs 001, 003, 004, 006 and 010 (not derived from the seed), so a drift
  * between the contract and the database breaks the tests.
  */
 
@@ -71,6 +71,15 @@ export const AI_TEACHER = ["ia.execucoes.visualizar", "ia.propostas.revisar"] as
 /** 006: AI operations — ADMIN only, never pedagogical content. */
 export const AI_OPERATIONS = ["ia.operacao.visualizar", "ia.agentes.gerenciar"] as const satisfies PermissionKey[];
 
+/** 010: the teacher's private exercise bank and its AI generation (MANAGER and ADMIN get none). */
+export const EXERCISE_BANK = [
+  "questoes.visualizar",
+  "questoes.criar",
+  "questoes.editar",
+  "questoes.aprovar",
+  "ia.exercicios.gerar",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -83,7 +92,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 
@@ -197,6 +206,24 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/syllabus-documents/:id/ai", access: "ementas.visualizar" },
   { method: "POST", path: "/syllabus-documents/:id/ai-analyses", access: "ementas.revisar" },
   { method: "POST", path: "/syllabus-documents/:id/ai-proposals/:proposalId/apply", access: "ementas.revisar" },
+
+  // 010 — the teacher's exercise bank (contracts/permissions.md).
+  { method: "POST", path: "/exercises/sets", access: "questoes.criar" },
+  { method: "POST", path: "/exercises", access: "questoes.criar" },
+  { method: "GET", path: "/exercises", access: "questoes.visualizar" },
+  { method: "GET", path: "/exercises/:id", access: "questoes.visualizar" },
+  { method: "PUT", path: "/exercises/:id", access: "questoes.editar" },
+  { method: "POST", path: "/exercises/:id/approve", access: "questoes.aprovar" },
+  { method: "POST", path: "/exercises/:id/archive", access: "questoes.editar" },
+  { method: "POST", path: "/exercises/:id/restore", access: "questoes.editar" },
+  { method: "DELETE", path: "/exercises/:id", access: "questoes.editar" },
+  { method: "GET", path: "/programming-languages", access: "questoes.visualizar" },
+  // 010 — "Criar com IA" (the request and the availability also need ia.execucoes.visualizar).
+  { method: "GET", path: "/exercise-generation/availability", access: "ia.exercicios.gerar" },
+  { method: "POST", path: "/exercise-batches", access: "ia.exercicios.gerar" },
+  { method: "GET", path: "/exercise-batches", access: "questoes.visualizar" },
+  { method: "GET", path: "/exercise-batches/:id", access: "questoes.visualizar" },
+  { method: "POST", path: "/exercise-batches/:id/approve", access: "questoes.aprovar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

@@ -20,7 +20,8 @@ import { SYLLABUS_REVISION_VIEW_SELECT, toSyllabusRevisionView } from "../syllab
 import { CURRICULUM_PROPOSAL_TYPE } from "./definitions/curriculum-agent";
 import { projectAccepted } from "./proposal/item-ids";
 
-const FIELDS = ["title", "syllabusText", "competencyText"] as const;
+/** The accepted fields counted as such in the audit; the language (010) is one of them. */
+const FIELDS = ["title", "syllabusText", "competencyText", "language"] as const;
 
 /**
  * The stored payload, read without the output schema's limits: the 004 draft schema decides what
@@ -34,6 +35,8 @@ const StoredContentSchema = z.object({
     competencyText: z.string().nullable(),
     groups: z.array(z.object({ title: z.string().nullable(), items: z.array(z.object({ text: z.string() })) })),
   }),
+  /** 010: absent on proposals made before the language. */
+  language: z.object({ key: z.string() }).nullable().optional(),
   grounding: z.object({
     unsupported: z.array(z.object({ field: z.string(), groupIndex: z.number().nullable() })),
   }),
@@ -104,7 +107,7 @@ export class CurriculumAiApplyService {
     // 3. The analysed document is still this one.
     const content = StoredContentSchema.safeParse(proposal.content);
     if (!content.success) throw new AppException("CURRICULUM_PROPOSAL_INVALID");
-    const { source, extraction, grounding } = content.data;
+    const { source, extraction, grounding, language } = content.data;
     if (source.sha256 !== Buffer.from(document.sha256).toString("hex") || source.readerVersion !== READER_VERSION) {
       throw new AppException("CURRICULUM_SOURCE_CHANGED");
     }
@@ -116,10 +119,12 @@ export class CurriculumAiApplyService {
     // 5. The accepted content, validated as a 004 draft (FR-036).
     const parsed = SaveSyllabusRevisionRequestSchema.safeParse(projectAccepted(extraction as CurriculumExtractionOutput, body.acceptedItemIds));
     if (!parsed.success) throw new AppException("CURRICULUM_PROPOSAL_INVALID");
+    const languageId = body.acceptedItemIds.includes("language") ? await this.acceptedLanguage(tx, language?.key ?? null) : null;
     const draft: DraftContent = {
       title: parsed.data.title || null,
       syllabusText: parsed.data.syllabusText || null,
       competencyText: parsed.data.competencyText || null,
+      languageId,
       groups: parsed.data.groups.map((group) => ({
         title: group.title || null,
         items: group.items.map((item) => ({ text: item.text, originItemId: null })),
@@ -177,6 +182,16 @@ export class CurriculumAiApplyService {
     });
     this.logger.log({ documentId, proposalId, revisionId, replacedDraft: existing !== undefined, ...counts }, "curriculum proposal applied");
     return { revision, proposal: decided };
+  }
+
+  /**
+   * The id of the accepted language (010/FR-041): it must still be an active catalog entry, else
+   * the field can't be applied (422, as any accepted content that no longer fits).
+   */
+  private async acceptedLanguage(tx: Tx, key: string | null): Promise<string> {
+    const entry = key === null ? null : await tx.programmingLanguage.findFirst({ where: { key, active: true }, select: { id: true } });
+    if (!entry) throw new AppException("CURRICULUM_PROPOSAL_INVALID");
+    return entry.id;
   }
 
   /** The answer of an application already made, when the selection is the same one (FR-034). */

@@ -118,6 +118,17 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 10),
   },
+  {
+    feature: "010",
+    path: "specs/010-exercise-bank/spec.md",
+    stories: 7,
+    scenarios: 47,
+    // No "### Acceptance Criteria Traceability" table, as in 008 and 009.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-002 is measured by the on-demand evaluation against the real models (test/eval).
+    successCriteria: sc(1, 12),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

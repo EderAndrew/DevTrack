@@ -13,6 +13,7 @@ export const SYLLABUS_REVISION_VIEW_SELECT = {
   syllabusText: true,
   competencyText: true,
   confirmedAt: true,
+  language: { select: { id: true, name: true } },
   groups: {
     select: {
       id: true,
@@ -40,5 +41,6 @@ export function toSyllabusRevisionView(row: SyllabusRevisionViewRow): SyllabusRe
     groups: row.groups,
     itemCount: row.groups.reduce((sum, group) => sum + group.items.length, 0),
     confirmedAt: row.confirmedAt?.toISOString() ?? null,
+    language: row.language,
   };
 }

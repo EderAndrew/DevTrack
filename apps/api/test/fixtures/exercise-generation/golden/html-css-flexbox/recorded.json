@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exercise-generation-request",
+          "arguments": {
+            "batchId": "{{batchId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "exercises": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Um contêiner Flexbox usa `flex-direction: row-reverse`, `flex-wrap: wrap`, `justify-content: flex-end` e `align-items: center`, com a direção de escrita padrão. Explique quais são os eixos principal e transversal, como `justify-content` e `align-items` posicionam os itens e o que acontece quando eles passam para uma nova linha.",
+            "explanation": "Com `row-reverse`, o eixo principal continua horizontal, mas a direção de disposição dos itens é invertida. `justify-content: flex-end` posiciona os itens no fim desse eixo principal. O eixo transversal é vertical, e `align-items: center` centraliza os itens nesse eixo dentro de cada linha. Com `flex-wrap: wrap`, os itens que não cabem passam para outra linha; `align-items` continua atuando dentro de cada linha, não distribuindo as linhas entre si.",
+            "difficulty": "ADVANCED",
+            "cognitiveObjective": "ANALYZE",
+            "expectedAnswer": "O eixo principal é horizontal e tem direção invertida por `row-reverse`; o eixo transversal é vertical. `justify-content: flex-end` posiciona os itens no fim do eixo principal, enquanto `align-items: center` os centraliza verticalmente em cada linha flexível. Quando não há espaço, os itens passam para outra linha por causa de `flex-wrap: wrap`; o alinhamento de itens ocorre separadamente em cada linha."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Em um contêiner Flexbox com a direção de escrita padrão, `flex-direction: column` e `flex-wrap: nowrap`, qual afirmação descreve corretamente os eixos e o efeito de `justify-content: center` e `align-items: center`?",
+            "explanation": "Com `flex-direction: column`, o eixo principal é vertical e o transversal é horizontal. `justify-content` alinha ao longo do eixo principal, portanto centraliza verticalmente; `align-items` alinha ao longo do eixo transversal, portanto centraliza horizontalmente. A pegadinha é presumir que `justify-content` sempre atua na horizontal.",
+            "difficulty": "ADVANCED",
+            "cognitiveObjective": "UNDERSTAND",
+            "alternatives": [
+              {
+                "text": "`justify-content: center` centraliza verticalmente no eixo principal, e `align-items: center` centraliza horizontalmente no eixo transversal.",
+                "isCorrect": true
+              },
+              {
+                "text": "`justify-content: center` centraliza horizontalmente porque esse método sempre atua na horizontal, e `align-items: center` centraliza verticalmente.",
+                "isCorrect": false
+              },
+              {
+                "text": "As duas propriedades centralizam os itens verticalmente, pois `flex-direction: column` torna ambos os eixos verticais.",
+                "isCorrect": false
+              },
+              {
+                "text": "`justify-content` não tem efeito com `flex-direction: column`; somente `align-items` pode centralizar os itens.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma grade de cartões responsiva usando somente Flexbox para organizar os itens. O contêiner deve exibir os cartões em linha, permitir que eles passem para linhas seguintes quando não couberem, manter um espaço uniforme de 1rem entre eles e fazer cada cartão crescer igualmente, sem ficar menor que 14rem. Alinhe verticalmente o conteúdo dos cartões ao centro.",
+            "explanation": "`display: flex` cria o contêiner flexível; `flex-wrap: wrap` permite criar novas linhas; `gap` define espaçamento entre itens; e `flex: 1 1 14rem` permite que os cartões cresçam e encolham a partir de uma base de 14rem, respeitando esse mínimo. `align-items: center` alinha os itens no eixo transversal, verticalmente em cada linha.",
+            "difficulty": "ADVANCED",
+            "cognitiveObjective": "CREATE",
+            "instructions": "Complete o HTML e o CSS para cumprir os requisitos. Use Flexbox no contêiner `.cartoes` e não use Grid nem posicionamento absoluto.",
+            "starterCode": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Cartões responsivos</title>\n  <style>\n    /* Escreva o CSS aqui. */\n  </style>\n</head>\n<body>\n  <main class=\"cartoes\">\n    <article class=\"cartao\"><h2>Cartão 1</h2><p>Conteúdo do primeiro cartão.</p></article>\n    <article class=\"cartao\"><h2>Cartão 2</h2><p>Conteúdo do segundo cartão.</p></article>\n    <article class=\"cartao\"><h2>Cartão 3</h2><p>Conteúdo do terceiro cartão.</p></article>\n  </main>\n</body>\n</html>",
+            "expectedSolution": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Cartões responsivos</title>\n  <style>\n    * {\n      box-sizing: border-box;\n    }\n\n    .cartoes {\n      display: flex;\n      flex-direction: row;\n      flex-wrap: wrap;\n      gap: 1rem;\n      align-items: center;\n    }\n\n    .cartao {\n      flex: 1 1 14rem;\n      min-width: 14rem;\n      padding: 1rem;\n      border: 1px solid #777;\n      border-radius: 0.5rem;\n    }\n  </style>\n</head>\n<body>\n  <main class=\"cartoes\">\n    <article class=\"cartao\"><h2>Cartão 1</h2><p>Conteúdo do primeiro cartão.</p></article>\n    <article class=\"cartao\"><h2>Cartão 2</h2><p>Conteúdo do segundo cartão.</p></article>\n    <article class=\"cartao\"><h2>Cartão 3</h2><p>Conteúdo do terceiro cartão.</p></article>\n  </main>\n</body>\n</html>",
+            "language": "HTML & CSS"
+          }
+        ]
+      }
+    }
+  ]
+}

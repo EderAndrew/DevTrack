@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "description": "Dez exercícios dos três tipos sobre herança em Java, com uma pegadinha (010/SC-002: o pedido de 10).",
+  "injection": false,
+  "syllabus": {
+    "title": "Programação Orientada a Objetos com Java",
+    "competencyText": "Projetar e implementar programas orientados a objetos em Java.",
+    "languageKey": "java",
+    "groupTitle": "Herança e polimorfismo",
+    "items": [
+      "Herança entre classes: extends, sobrescrita de métodos e uso de super",
+      "Classes abstratas e interfaces"
+    ]
+  },
+  "request": {
+    "difficulty": "INTERMEDIATE",
+    "total": 10,
+    "types": [
+      "OPEN_ANSWER",
+      "MULTIPLE_CHOICE",
+      "CODE"
+    ],
+    "distribution": {
+      "mode": "AUTO"
+    },
+    "trickQuestions": 1
+  },
+  "counts": {
+    "OPEN_ANSWER": 4,
+    "MULTIPLE_CHOICE": 3,
+    "CODE": 3
+  },
+  "language": "Java",
+  "keyTerms": [
+    "herança",
+    "herda",
+    "extends",
+    "subclasse",
+    "superclasse",
+    "classe filha",
+    "classe mãe",
+    "classe pai",
+    "super",
+    "sobrescr",
+    "override"
+  ],
+  "forbiddenPatterns": []
+}

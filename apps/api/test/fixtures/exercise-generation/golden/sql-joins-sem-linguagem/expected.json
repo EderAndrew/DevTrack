@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "description": "Ementa sem linguagem: só Pergunta e resposta e Múltipla escolha sobre junções em SQL.",
+  "injection": false,
+  "syllabus": {
+    "title": "Banco de Dados",
+    "competencyText": null,
+    "languageKey": null,
+    "groupTitle": "Consultas",
+    "items": [
+      "Junções entre tabelas: INNER JOIN, LEFT JOIN e RIGHT JOIN",
+      "Subconsultas"
+    ]
+  },
+  "request": {
+    "difficulty": "BASIC",
+    "total": 4,
+    "types": [
+      "OPEN_ANSWER",
+      "MULTIPLE_CHOICE"
+    ],
+    "distribution": {
+      "mode": "AUTO"
+    },
+    "trickQuestions": 0
+  },
+  "counts": {
+    "OPEN_ANSWER": 2,
+    "MULTIPLE_CHOICE": 2,
+    "CODE": 0
+  },
+  "language": null,
+  "keyTerms": [
+    "join",
+    "junção",
+    "junções"
+  ],
+  "forbiddenPatterns": []
+}

@@ -18,6 +18,12 @@ const GROUPS = [
   { title: "Padrões", items: ["SOLID"] },
 ];
 
+/** The catalog the "Linguagem" select offers (010). */
+const LANGUAGES = [
+  { id: "00000000-0000-4000-b000-000000000001", key: "java", name: "Java" },
+  { id: "00000000-0000-4000-b000-000000000002", key: "python", name: "Python" },
+];
+
 const input = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
 const itemValues = (group: number) =>
   within(screen.getByRole("group", { name: `Grupo ${group}` }))
@@ -31,9 +37,13 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
       .filter(([, init]) => init?.method === method)
       .map(([url, init]) => ({ url: String(url), body: JSON.parse(String(init?.body)) as unknown }));
 
+  /** Calls that write (the catalog GET of the "Linguagem" select is not one). */
+  const writes = () => fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
+
   /** The API answers a PUT with the content saved (new item ids) and a confirm with CONFIRMED. */
   const answerAsApi = (revision: SyllabusRevisionView) =>
-    fetchMock.mockImplementation((_url, init) => {
+    fetchMock.mockImplementation((url, init) => {
+      if (String(url) === "/api/programming-languages") return Promise.resolve(json(200, LANGUAGES));
       if (init?.method === "PUT") {
         const body = JSON.parse(String(init.body)) as SaveSyllabusRevisionRequest;
         const saved = revisionView(
@@ -150,6 +160,7 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
         title: "POO",
         syllabusText: "Texto da ementa",
         competencyText: null,
+        languageId: null,
         groups: [
           {
             title: "Fundamentos",
@@ -165,13 +176,38 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
     expect(itemValues(2)).toEqual(["SOLID", "Novo item"]);
   });
 
+  it("010/US7-1 010/FR-039 Linguagem: vem com a da revisão (ou Nenhuma), lista o catálogo e é enviada no Salvar", async () => {
+    const { user, revision } = setup(revisionView(DOCUMENT_ID, GROUPS, { title: "POO", language: { id: LANGUAGES[1]!.id, name: "Python" } }));
+    const select = screen.getByLabelText(/^Linguagem/) as HTMLSelectElement;
+    await vi.waitFor(() => expect([...select.options].map((option) => option.text)).toEqual(["Nenhuma", "Java", "Python"]));
+    expect(select.value).toBe(LANGUAGES[1]!.id);
+
+    await user.selectOptions(select, "Java");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await vi.waitFor(() => expect(sent("PUT")).toHaveLength(1));
+    expect(sent("PUT")[0]!.body).toMatchObject({ languageId: LANGUAGES[0]!.id });
+
+    await user.selectOptions(select, "Nenhuma");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await vi.waitFor(() => expect(sent("PUT")).toHaveLength(2));
+    expect(sent("PUT")[1]!.body).toMatchObject({ languageId: null });
+    expect(revision.status).toBe("DRAFT");
+  });
+
+  it("uma linguagem desativada depois de escolhida continua na lista do rascunho que a tem", async () => {
+    setup(revisionView(DOCUMENT_ID, GROUPS, { language: { id: "00000000-0000-4000-b000-000000000009", name: "Rust" } }));
+    const select = screen.getByLabelText(/^Linguagem/) as HTMLSelectElement;
+    await vi.waitFor(() => expect([...select.options].map((option) => option.text)).toEqual(["Nenhuma", "Java", "Python", "Rust"]));
+    expect(select.value).toBe("00000000-0000-4000-b000-000000000009");
+  });
+
   it("004/US3-3 confirmar sem itens: \"Inclua ao menos um item antes de confirmar.\" sem pedido", async () => {
     const { user } = setup(revisionView(DOCUMENT_ID, [], { source: "MANUAL" }));
     expect(screen.getByText(/Nenhum grupo/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Confirmar conteúdo" }));
     expect(screen.getByText("Inclua ao menos um item antes de confirmar.")).toBeTruthy();
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 
   it("004/US3-3 Confirmar conteúdo pede confirmação, salva e confirma", async () => {
@@ -182,7 +218,7 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
     await user.click(within(dialog).getByRole("button", { name: "Confirmar conteúdo" }));
 
     await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
-    expect(fetchMock.mock.calls.map(([url, init]) => `${init?.method} ${String(url)}`)).toEqual([
+    expect(writes().map(([url, init]) => `${init?.method} ${String(url)}`)).toEqual([
       `PUT /api/syllabus-revisions/${revision.id}`,
       `POST /api/syllabus-revisions/${revision.id}/confirm`,
     ]);
@@ -197,7 +233,7 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
     const summary = await screen.findByRole("group", { name: "Não foi possível salvar a revisão" });
     expect(within(summary).getByRole("link", { name: "Grupo 1, item 3: Informe o texto do item." })).toBeTruthy();
     expectFieldErrorLinked(input("Item 3 do grupo 1"));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(writes()).toEqual([]);
   });
 
   it("erro da API aparece no resumo (REVISION_CONFIRMED)", async () => {
@@ -213,6 +249,7 @@ describe("004/US3 004/FR-021 SyllabusRevisionEditor — revisão do conteúdo", 
       input("Título"),
       screen.getByLabelText("Ementa"),
       screen.getByLabelText("Competência"),
+      screen.getByLabelText(/^Linguagem/),
       input("Título do grupo"),
       screen.getByRole("button", { name: "Remover grupo 1" }),
       input("Item 1 do grupo 1"),

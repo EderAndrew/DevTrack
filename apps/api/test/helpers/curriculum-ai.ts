@@ -4,6 +4,7 @@ import type {
   ApplyCurriculumProposalRequest,
   AiProposalStatus,
   CurriculumExtractionOutput,
+  CurriculumExtractionOutputV2,
   RequestCurriculumAnalysisRequest,
   SyllabusExtraction,
 } from "@repo/contracts";
@@ -158,10 +159,11 @@ export async function seedDocumentFile(
 }
 
 /**
- * A valid agent output for the POO sample, as written in the document (4 groups, 16 items, no
- * refs). Tests change it to exercise the grounding check and the refs.
+ * A valid agent output (v2) for the POO sample, as written in the document (4 groups, 16 items, no
+ * refs), with no language unless `languageKey` is given (010). Tests change it to exercise the
+ * grounding check and the refs.
  */
-export function pooOutput(): CurriculumExtractionOutput {
+export function pooOutput(languageKey: string | null = null): CurriculumExtractionOutputV2 {
   const extraction = pooExtraction() as unknown as SyllabusExtraction;
   return {
     title: extraction.title,
@@ -172,6 +174,7 @@ export function pooOutput(): CurriculumExtractionOutput {
       items: group.items.map((text) => ({ text, sourceRef: null })),
     })),
     warnings: [],
+    languageKey,
   };
 }
 
@@ -205,8 +208,13 @@ export function applyProposal(
 }
 
 export interface CurriculumProposalOptions {
-  /** The extraction stored as is: the factory skips the output schema, so it can hold what a run never would. */
-  extraction?: CurriculumExtractionOutput;
+  /**
+   * The extraction stored as is: the factory skips the output schema, so it can hold what a run
+   * never would. An output v2's `languageKey` is dropped: the content keeps the language apart.
+   */
+  extraction?: CurriculumExtractionOutput | CurriculumExtractionOutputV2;
+  /** The proposed language (010); none by default. */
+  language?: { key: string; name: string } | null;
   itemIds?: string[];
   status?: AiProposalStatus;
   expiresAt?: Date;
@@ -228,10 +236,11 @@ export async function createCurriculumProposal(
     status: "COMPLETED",
     resource: { type: "SYLLABUS_DOCUMENT", id: document.id },
   });
-  const extraction = options.extraction ?? pooOutput();
+  const { languageKey: _, ...extraction } = { languageKey: null, ...(options.extraction ?? pooOutput()) };
+  const language = options.language ?? null;
   const status = options.status ?? "READY_FOR_REVIEW";
   const decided = status !== "READY_FOR_REVIEW";
-  const itemIds = options.itemIds ?? itemIdsOf(extraction);
+  const itemIds = options.itemIds ?? itemIdsOf(extraction, language !== null);
   return t.prisma.aiProposal.create({
     data: {
       workspaceId: teacherId,
@@ -243,6 +252,7 @@ export async function createCurriculumProposal(
       targetResourceId: document.id,
       payload: {
         extraction,
+        language,
         grounding: { unsupported: [] },
         source: {
           documentId: document.id,

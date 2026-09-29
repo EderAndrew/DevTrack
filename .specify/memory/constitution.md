@@ -1,43 +1,32 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.1.0 → 3.0.0
-Motivo (MAJOR): redefinição incompatível de uma regra do Princípio XXV — "Alunos
-PODEM ter autocadastro" passa a "NÃO existe autocadastro público". O código da Fase
-001 (cadastro público) deixa de estar em conformidade até a spec 003 removê-lo.
+Version change: 3.0.0 → 3.1.0
+Motivo (MINOR): o Princípio XXIII passa a distinguir a geração por IA de atividades de
+turma (escopo ensinado, inalterado) da geração de modelos para o banco de questões do
+professor (um conteúdo da ementa confirmada escolhido por ele, sem turma, com as mesmas
+garantias). Nenhuma regra removida ou enfraquecida.
 
 Princípios modificados:
-  XXIV. Isolamento por Contexto Acadêmico — "Conta ≠ matrícula": a conta do aluno
-        nasce do aceite de convite de turma, com a primeira matrícula, mas continua
-        distinta dela.
-  XXV.  Provisionamento Controlado de Professores e Privilégios — sem autocadastro
-        público; contas de aluno só pelo aceite de convite de turma do professor
-        responsável; papel, turma e e-mail vêm do convite; convites de turma com as
-        mesmas regras dos demais convites; o professor nunca cria, conhece, recebe,
-        envia nem redefine a senha do aluno; contas do autocadastro antigo continuam
-        válidas; transição até a spec 003; identidade única e idempotência do aceite
-        generalizadas para convites de turma.
-
-Seções modificadas:
-  - Arquitetura e Stack Técnica — descrição do papel STUDENT.
-  - Roadmap — Fase 001 (autocadastro substituído) e Fase 002 (primeira spec:
-    turmas, convites de turma e matrículas).
+  XXIII. Referência Curricular e Rastreabilidade Pedagógica — "Escopo ensinado" restrito
+         a atividades de turma; novo item "Geração para o banco de questões".
 
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXV atualizado
+  ✅ .specify/templates/plan-template.md  — gate XXIII atualizado (banco × turma)
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — regra de cadastro público atualizada
+  ✅ CLAUDE.md, README.md — citam a constituição sem detalhar o XXIII; sem mudança
 
 Follow-ups:
-  - Implementar a spec 003-class-invitations-enrollment, que remove /cadastro e a
-    operação pública de cadastro (FR-048) e adapta os testes e o E2E da Fase 001.
-  - A spec 001 (FR-010, FR-012) fica superada pela 003 nesse ponto; o registro
-    histórico da 001 não é reescrito.
+  - A spec 010-exercise-bank aplica a regra nova (spec "Curricular traceability", plan
+    Constitution Check XXIII); proposta registrada em
+    specs/010-exercise-bank/constitution-amendment-3.1.0.md.
+  - A futura spec de atividades aplica o escopo ensinado quando uma questão do banco
+    entrar numa atividade de turma.
 -->
 
 # DevTrack Constitution
@@ -401,12 +390,19 @@ meio de progressão, não redução de expectativa.
   proposta de estrutura em rascunho que o professor edita e aprova; nada é salvo como
   aprovado automaticamente. Itens compostos da ementa DEVEM ser propostos como
   conteúdos granulares.
-- **Escopo ensinado**: geração por IA de exercícios, trabalhos e provas DEVE receber
-  somente o escopo permitido — conteúdos e objetivos já trabalhados naquela turma até
-  o ponto escolhido pelo professor. O escopo é calculado deterministicamente a partir
-  das aulas registradas (XII), e a saída DEVE ser validada deterministicamente: toda
-  questão gerada DEVE estar vinculada a um conteúdo do escopo; itens fora dele são
-  rejeitados ou sinalizados.
+- **Escopo ensinado**: geração por IA de **atividades de uma turma** (exercícios
+  aplicados, trabalhos e provas) DEVE receber somente o escopo permitido — conteúdos e
+  objetivos já trabalhados naquela turma até o ponto escolhido pelo professor. O escopo
+  é calculado deterministicamente a partir das aulas registradas (XII), e a saída DEVE
+  ser validada deterministicamente: toda questão gerada DEVE estar vinculada a um
+  conteúdo do escopo; itens fora dele são rejeitados ou sinalizados.
+- **Geração para o banco de questões**: a IA PODE gerar **modelos** para o banco do
+  professor a partir de um conteúdo da ementa confirmada que ele escolher, sem vínculo
+  com turma, porque o banco é reutilizável entre turmas e semestres. Valem as mesmas
+  garantias: um único conteúdo como escopo, escolhido pelo professor e verificado no
+  servidor; vínculo determinístico de cada questão gerada a esse conteúdo; saída
+  validada; rascunho revisado pelo professor (XIII). Ao entrar numa atividade de turma,
+  a questão do banco passa pela regra do escopo ensinado daquela turma.
 - **Cobertura**: antes de publicar uma prova, o professor DEVE conseguir ver a
   distribuição das questões por conteúdo, objetivo e dificuldade.
 - **Tipos de atividade** são conceitos pedagógicos distintos, ainda que compartilhem
@@ -768,7 +764,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-22
+**Version**: 3.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-27
 
 Histórico:
 

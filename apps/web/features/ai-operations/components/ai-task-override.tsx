@@ -41,7 +41,7 @@ export function AiTaskOverride({ task, pending, onSet, onRemove }: AiTaskOverrid
       {options.length > 0 ? (
         <AlertDialog onOpenChange={(open) => open && setChoice("")}>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="secondary" aria-label={`Fixar modelo da tarefa ${task.key}`} aria-busy={pending || undefined} disabled={pending}>
+            <Button type="button" size="sm" variant="secondary" aria-label={`Fixar modelo da tarefa ${task.key}`} aria-busy={pending || undefined} disabled={pending}>
               Fixar modelo
             </Button>
           </AlertDialogTrigger>
@@ -73,7 +73,7 @@ export function AiTaskOverride({ task, pending, onSet, onRemove }: AiTaskOverrid
       {current ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="danger" aria-label={`Remover modelo fixado da tarefa ${task.key}`} aria-busy={pending || undefined} disabled={pending}>
+            <Button type="button" size="sm" variant="danger" aria-label={`Remover modelo fixado da tarefa ${task.key}`} aria-busy={pending || undefined} disabled={pending}>
               Remover modelo fixado
             </Button>
           </AlertDialogTrigger>

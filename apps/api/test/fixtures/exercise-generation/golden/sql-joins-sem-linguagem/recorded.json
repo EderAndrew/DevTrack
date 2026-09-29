@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exercise-generation-request",
+          "arguments": {
+            "batchId": "{{batchId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "exercises": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Em uma consulta SQL, o que retorna um `INNER JOIN` entre duas tabelas quando há uma condição de junção?",
+            "explanation": "O `INNER JOIN` retorna somente as linhas que encontram correspondência nas duas tabelas de acordo com a condição de junção.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "Retorna apenas as linhas com correspondência nas duas tabelas segundo a condição de junção."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Ao combinar as tabelas `Clientes` e `Pedidos` com `LEFT JOIN`, qual conjunto de linhas é preservado?",
+            "explanation": "O `LEFT JOIN` preserva todas as linhas da tabela à esquerda. Quando uma linha não tem correspondência na tabela à direita, as colunas desta aparecem como `NULL`.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "Todas as linhas da tabela à esquerda (`Clientes`); as linhas sem correspondência em `Pedidos` também aparecem, com valores `NULL` nas colunas de `Pedidos`."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual alternativa descreve corretamente o resultado de um `RIGHT JOIN` entre duas tabelas?",
+            "explanation": "O `RIGHT JOIN` preserva todas as linhas da tabela à direita e inclui os dados correspondentes da tabela à esquerda. Onde não houver correspondência, as colunas da tabela à esquerda recebem `NULL`.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "RECOGNIZE",
+            "alternatives": [
+              {
+                "text": "Preserva todas as linhas da tabela à direita e traz os dados correspondentes da tabela à esquerda.",
+                "isCorrect": true
+              },
+              {
+                "text": "Preserva todas as linhas da tabela à esquerda e traz os dados correspondentes da tabela à direita.",
+                "isCorrect": false
+              },
+              {
+                "text": "Retorna somente as linhas que têm correspondência nas duas tabelas.",
+                "isCorrect": false
+              },
+              {
+                "text": "Retorna todas as linhas das duas tabelas, mesmo sem correspondências.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Uma consulta usa `INNER JOIN` entre `Produtos` e `Categorias`. Um produto não tem categoria correspondente segundo a condição de junção. O que acontece com a linha desse produto no resultado?",
+            "explanation": "Como o `INNER JOIN` retorna apenas linhas com correspondência nas duas tabelas, a linha do produto sem categoria correspondente não aparece no resultado.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "APPLY",
+            "alternatives": [
+              {
+                "text": "A linha do produto não aparece no resultado.",
+                "isCorrect": true
+              },
+              {
+                "text": "A linha aparece, com `NULL` nas colunas da categoria.",
+                "isCorrect": false
+              },
+              {
+                "text": "A linha aparece somente se for a primeira da tabela `Produtos`.",
+                "isCorrect": false
+              },
+              {
+                "text": "A linha aparece junto com todas as categorias, mesmo sem correspondência.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

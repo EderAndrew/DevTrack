@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Sem a seção Competência: competência vazia com FIELD_NOT_FOUND.",
   "document": "curriculum-agent/golden/sem-competencia/document.docx",
   "injection": false,
@@ -22,6 +22,7 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": [
     "competencyText"
   ]

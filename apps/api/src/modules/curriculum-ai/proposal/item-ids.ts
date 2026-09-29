@@ -3,12 +3,14 @@ import type { CurriculumExtractionOutput, SaveSyllabusRevisionRequest } from "@r
 const FIELDS = ["title", "syllabusText", "competencyText"] as const;
 
 /**
- * The items a teacher accepts or not (007 data-model): each identified field, then `group:<i>`
- * for each group, in document order. Empty when nothing was identified (FR-017).
+ * The items a teacher accepts or not (007 data-model): each identified field, the language when
+ * one is proposed (010/FR-041), then `group:<i>` for each group, in document order. Empty when
+ * nothing was identified (FR-017).
  */
-export function itemIdsOf(extraction: CurriculumExtractionOutput): string[] {
+export function itemIdsOf(extraction: CurriculumExtractionOutput, hasLanguage = false): string[] {
   return [
     ...FIELDS.filter((field) => extraction[field] !== null),
+    ...(hasLanguage ? ["language"] : []),
     ...extraction.groups.map((_, index) => `group:${index}`),
   ];
 }

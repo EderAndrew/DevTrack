@@ -90,9 +90,31 @@ export interface AgentDefinition {
      * refuses `APPROVE` and `APPROVE_PARTIALLY` with `409 AI_PROPOSAL_APPLY_REQUIRED`.
      */
     approveThroughDomain?: boolean;
+    /**
+     * Turns the proposal into the domain's own records (010 research X8), inside the transaction
+     * that completes the execution and creates the proposal: a domain whose AI results are born
+     * as drafts writes them here. The AI module knows nothing of those records. A throw rolls the
+     * whole transaction back (no proposal, no records) and the execution ends FAILED.
+     */
+    materialize?(tx: Tx, context: ProposalMaterializeContext): Promise<void>;
   };
   /** Authorized metadata sent to the model as `context` (FR-057). */
   buildContext?(context: AiExecutionContext): Record<string, unknown>;
+}
+
+/** What `proposal.materialize` gets: the proposal just created and the execution it comes from. */
+export interface ProposalMaterializeContext {
+  proposalId: string;
+  executionId: string;
+  workspaceId: string;
+  /** The execution's resource (the domain record the proposal is about). */
+  resource: AiResourceRef | null;
+  /** The content and item ids `build` returned. */
+  content: unknown;
+  itemIds: readonly string[];
+  now: Date;
+  /** An application service, e.g. the audit (as `ToolContext.get`). */
+  get<T>(token: Type<T> | Abstract<T>): T;
 }
 
 /** What `proposal.build` gets besides the output: the successful tool results of the execution, in order. */

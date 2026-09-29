@@ -1,8 +1,8 @@
-import type { AiExecutionStatus, AiProposalStatus, CurriculumExtractionOutput } from "@repo/contracts";
+import type { AiExecutionStatus, AiProposalStatus, CurriculumExtractionOutputV2 } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SyllabusDocument } from "../../src/generated/prisma/client";
 import { CURRICULUM_AGENT_KEY } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
-import { derivedUuid } from "../../src/modules/curriculum-ai/proposal/derived-uuid";
+import { derivedUuid } from "../../src/platform/crypto/derived-uuid";
 import { type AiTestApp, createAiExecution, drain, resetAiDb } from "../helpers/ai";
 import {
   createCurriculumAiApp,
@@ -14,7 +14,7 @@ import {
 import { createConfirmedRevision, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { testConfig } from "../helpers/test-app";
 
-const NOTHING_FOUND: CurriculumExtractionOutput = { title: null, syllabusText: null, competencyText: null, groups: [], warnings: [] };
+const NOTHING_FOUND: CurriculumExtractionOutputV2 = { title: null, syllabusText: null, competencyText: null, groups: [], warnings: [], languageKey: null };
 
 /** Everything a new request must leave as it was: executions, proposals and the syllabus. */
 async function snapshot(t: AiTestApp) {

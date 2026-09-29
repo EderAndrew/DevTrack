@@ -3,7 +3,7 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createCurriculumAiApp } from "../helpers/curriculum-ai";
+import { createExerciseAiApp } from "../helpers/exercise-ai";
 import { createUser, loginAs } from "../helpers/factories";
 import { api, testConfig } from "../helpers/test-app";
 
@@ -41,7 +41,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   beforeAll(async () => {
     // 008/US4-1: the OpenRouter key is configured; the definitions keep the simulated provider (T022).
     const base = testConfig();
-    t = await createCurriculumAiApp({
+    t = await createExerciseAiApp({
       logs,
       config: { ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
       overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }],
@@ -112,7 +112,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(hashes.some(({ value }) => sources.class_invitations.includes(value))).toBe(true);
   });
 
-  it("004/SC-010 004/FR-047 004/FR-048 texto da ementa, títulos e descrições de tópicos, nome da disciplina e do arquivo fora dos logs e da metadata de auditoria", async () => {
+  it("004/SC-010 004/FR-047 004/FR-048 texto da ementa, títulos e descrições de tópicos, nome da disciplina e do arquivo e (010) o conteúdo dos exercícios fora dos logs e da metadata de auditoria", async () => {
     expect(new Set(content.map(({ kind }) => kind))).toEqual(
       new Set([
         "texto da ementa (marcador)",
@@ -127,6 +127,15 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "saída do modelo",
         // 007: the text of a golden syllabus document the curriculum agent read.
         "texto do documento de referência (007)",
+        // 010: the exercises' statement, answers, solution and explanation.
+        "enunciado",
+        "resposta esperada",
+        "alternativa correta",
+        "solução esperada",
+        "explicação do exercício",
+        "texto gerado pela IA (010)",
+        "enunciado revisado (010)",
+        "tópico lido pelo gerador (010)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -134,6 +143,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(leaks(content, { logs: logs.text(), "metadata de auditoria": serialize(events) })).toEqual([]);
     // The content itself was stored where it belongs (the scan is not vacuous).
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
+    expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );
@@ -182,6 +192,41 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     // The marker was really read and proposed (the scan is not vacuous): in the model's context and the proposal.
     expect(serialize(t.provider.requests)).toContain("MARCADOR-EMENTA-007");
     expect(serialize(await t.prisma.aiProposal.findMany({ where: { status: "REJECTED" }, select: { payload: true } }))).toContain("MARCADOR-EMENTA-007");
+  });
+
+  it("010/FR-033 enunciados, respostas, soluções, explicações e o tópico lido pelo gerador fora dos logs, da auditoria e das respostas da Operação de IA", async () => {
+    const kinds = [
+      "enunciado",
+      "resposta esperada",
+      "alternativa correta",
+      "solução esperada",
+      "explicação do exercício",
+      "texto gerado pela IA (010)",
+      "enunciado revisado (010)",
+      "tópico lido pelo gerador (010)",
+    ];
+    const scanned = content.filter(({ kind }) => kinds.includes(kind));
+    expect(new Set(scanned.map(({ kind }) => kind))).toEqual(new Set(kinds));
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = {
+      logs: logs.text(),
+      auditoria: serialize(await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } })),
+    };
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs", "models", "tasks"]) {
+      const res = await client.get(`/api/ai/operations/${path}`);
+      expect(res.status, path).toBe(200);
+      sources[`resposta de /ai/operations/${path}`] = serialize(res.body);
+    }
+    // The generator and its task are there (the scan is not vacuous), with no exercise content.
+    expect(sources["resposta de /ai/operations/metrics?period=30d"]).toContain("exercise-generator");
+    expect(sources["resposta de /ai/operations/tasks"]).toContain("exercise-generation");
+    expect(leaks(scanned, sources)).toEqual([]);
+
+    // The topic reached the model (as untrusted data) and the output became the drafts.
+    expect(serialize(t.provider.requests)).toContain("MARCADOR-TOPICO-010");
+    expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("MARCADOR-GERADO-010");
   });
 
   it("008/US4-1 008/SC-005 a chave do OpenRouter fora dos logs, da auditoria, das respostas (operacionais e de erro) e de todas as tabelas", async () => {

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "A mesma seção duas vezes: as duas cópias, na ordem, com o aviso.",
   "document": "curriculum-agent/golden/secao-duplicada/document.pdf",
   "injection": false,
@@ -29,5 +29,6 @@
       ]
     }
   ],
+  "languageKey": null,
   "missingFields": []
 }

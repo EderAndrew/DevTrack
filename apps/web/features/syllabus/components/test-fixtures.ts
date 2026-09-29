@@ -78,6 +78,7 @@ export const revisionView = (
     groups: built,
     itemCount: built.reduce((sum, group) => sum + group.items.length, 0),
     confirmedAt: null,
+    language: null,
     ...overrides,
   };
 };

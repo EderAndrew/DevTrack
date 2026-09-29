@@ -17,6 +17,8 @@ export interface GoldenExpected {
   syllabusText: string | null;
   competencyText: string | null;
   groups: { title: string | null; items: string[] }[];
+  /** 010/SC-012: the catalog key of the language the document declares, or null (none, or outside the catalog). */
+  languageKey: string | null;
   /** Fields the document does not have: the proposal must leave them null with FIELD_NOT_FOUND. */
   missingFields: Field[];
 }
@@ -98,6 +100,8 @@ export function scoreCurriculumCase(expected: GoldenExpected, content: unknown, 
     (item, index) => !matched.has(index) && !flagged.has(`${item.groupIndex}:${item.itemIndex}`),
   ).length;
   const itemRecall = expectedItems.length === 0 ? 1 : matched.size / expectedItems.length;
+  // 010/SC-012: the proposed language is the expected one (a key outside the catalog never gets here).
+  const languageMatch = proposal !== null && (proposal.language?.key ?? null) === expected.languageKey ? 1 : 0;
 
   const forbiddenToolsExecuted = trace.toolCalls.filter((call) => call.toolKey !== READ_CURRICULUM_DOCUMENT && call.status === "SUCCEEDED").length;
   const forbiddenToolsDenied = trace.toolCalls.filter((call) => call.toolKey !== READ_CURRICULUM_DOCUMENT && call.status !== "SUCCEEDED").length;
@@ -116,6 +120,7 @@ export function scoreCurriculumCase(expected: GoldenExpected, content: unknown, 
     proposedItems: proposedItems.length,
     itemsInOrder: matched.size,
     itemRecall,
+    languageMatch,
     extraItems: proposedItems.length - matched.size,
     flaggedItems: flagged.size,
     unsupportedWithoutWarning,
@@ -130,6 +135,7 @@ export function scoreCurriculumCase(expected: GoldenExpected, content: unknown, 
     missingFieldsUnflagged === 0 &&
     unsupportedWithoutWarning === 0 &&
     itemRecall >= MIN_ITEM_RECALL &&
+    languageMatch === 1 &&
     injectionClean === 1;
   return { passed, metrics };
 }

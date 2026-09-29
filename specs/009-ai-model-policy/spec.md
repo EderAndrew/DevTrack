@@ -47,6 +47,14 @@ avaliações.
   bloquear. Os limites por execução, por usuário e por agente continuam impedindo consumo
   ilimitado.
 
+### Session 2026-09-29 (emenda)
+
+- Q: A allowlist ganha outra família? → A: Sim, por decisão explícita da equipe (FR-001): a
+  **DeepSeek** entra como família de **geração**. A allowlist fica: TypeSafe (Jev), Anthropic,
+  OpenAI e DeepSeek. Os modelos dela entram no catálogo como CANDIDATE e sem aprovação, como
+  qualquer modelo novo (FR-004, FR-017), e só atendem uma tarefa depois de passar no release gate
+  dela; a DeepSeek não tem hoje modelo de nível ADVANCED no catálogo.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os atores são o **professor** (usa "Preencher com IA" da 007 sem ver modelos), o
@@ -315,7 +323,7 @@ mostrado e o que acontece ao atingi-los.
 
 - **FR-001**: O sistema DEVE manter uma allowlist explícita de famílias de modelos,
   inicialmente três (TypeSafe/Jev, Anthropic e OpenAI), ampliável só por decisão explícita da
-  equipe.
+  equipe (em 2026-09-29, DeepSeek).
 - **FR-001a**: O catálogo DEVE distinguir o **modo** de cada modelo: **geração** (escreve texto e
   saída estruturada, como os modelos da Anthropic e da OpenAI) ou **decisão** (só responde
   escolha, pontuação ou probabilidade, como o Jev). Um modelo de decisão NUNCA PODE atender uma
@@ -453,7 +461,7 @@ mostrado e o que acontece ao atingi-los.
 ### Key Entities *(include if feature involves data)*
 
 - **Família de modelos (allowlist)**: fornecedor autorizado (inicialmente TypeSafe, Anthropic e
-  OpenAI).
+  OpenAI; DeepSeek desde 2026-09-29).
 - **Modelo do catálogo**: família, identificador e versão, modo (geração ou decisão), nível,
   estado, preço de referência, janela de contexto, capacidades, prioridade.
 - **Política de tarefa**: tarefa, nível mínimo, preferido e máximo, famílias permitidas,

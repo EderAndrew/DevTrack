@@ -1,0 +1,31 @@
+{
+  "task": "exercise-generation",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "servedModel": "deepseek/deepseek-v4.1-flash",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-09-29T14:10:34.554Z",
+  "metrics": {
+    "schemaValidity": 0.1667,
+    "configMatch": 0.1667,
+    "duplicates": 0,
+    "topicCoverage": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.007305",
+    "currency": "USD",
+    "perExecution": "0.001217"
+  },
+  "latency": {
+    "perCaseMs": {
+      "html-css-flexbox": 21749,
+      "injecao-topico": 1424,
+      "java-heranca": 1217,
+      "pegadinhas-java-strings": 11007,
+      "python-listas": 1933,
+      "sql-joins-sem-linguagem": 4546
+    },
+    "maxMs": 21749,
+    "withinTwoMinutes": 1
+  }
+}

@@ -6,9 +6,12 @@ import { API_DIR, OPENROUTER_MOCK_PORT } from "./env.ts";
 /**
  * A local stand-in for OpenRouter's chat completions API (008 T026): the E2E API points
  * `OPENROUTER_BASE_URL` here, so "Preencher com IA" runs the real `OpenRouterProvider` without
- * leaving the machine. It replays the POO case of the golden set (`recorded.json`): a request with
- * no `tool` message asks for `read-curriculum-document` with the `documentId` of the context; one
- * with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
+ * leaving the machine. It replays one recorded case per agent, chosen by the tool the request
+ * offers: the POO case of the 007 golden set for `read-curriculum-document` and, since 010, the
+ * `sql-joins-sem-linguagem` case of the generator's golden set for `read-exercise-generation-request`
+ * (4 exercises: 2 Pergunta e resposta and 2 Múltipla escolha, Básico, no trick question). A request
+ * with no `tool` message asks for the tool with the id of the context (`documentId` or `batchId`);
+ * one with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
  * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`MOCK_PRIMARY_MODEL`, by default
  * the cheapest BASIC entry of the 009 catalog, the policy's primary once approved), so a run with a
  * fallback model exercises the fallback. Any other model gets the recorded answer. Playwright starts it as a `webServer`
@@ -20,11 +23,26 @@ interface RecordedRun {
   steps: ({ toolCalls: { toolKey: string }[] } | { output: unknown })[];
 }
 
-const recorded = JSON.parse(
-  readFileSync(join(API_DIR, "test/fixtures/curriculum-agent/golden/poo-pdf/recorded.json"), "utf8"),
-) as RecordedRun;
-const toolKey = recorded.steps.flatMap((step) => ("toolCalls" in step ? step.toolCalls : []))[0]!.toolKey;
-const output = recorded.steps.flatMap((step) => ("output" in step ? [step.output] : []))[0];
+/** One agent's replay: its read tool, the context field that tool takes, and the recorded output. */
+interface Replay {
+  toolKey: string;
+  idField: "documentId" | "batchId";
+  output: unknown;
+}
+
+function replay(path: string, idField: Replay["idField"]): Replay {
+  const recorded = JSON.parse(readFileSync(join(API_DIR, path), "utf8")) as RecordedRun;
+  return {
+    toolKey: recorded.steps.flatMap((step) => ("toolCalls" in step ? step.toolCalls : []))[0]!.toolKey,
+    idField,
+    output: recorded.steps.flatMap((step) => ("output" in step ? [step.output] : []))[0],
+  };
+}
+
+const REPLAYS = [
+  replay("test/fixtures/curriculum-agent/golden/poo-pdf/recorded.json", "documentId"),
+  replay("test/fixtures/exercise-generation/golden/sql-joins-sem-linguagem/recorded.json", "batchId"),
+];
 
 /** The model `MOCK_PRIMARY_DOWN` takes down: `openai-basic` of apps/api `model-catalog.ts` by default. */
 const PRIMARY_MODEL = process.env.MOCK_PRIMARY_MODEL || "openai/gpt-6-luna";
@@ -32,7 +50,8 @@ const PRIMARY_DOWN = process.env.MOCK_PRIMARY_DOWN === "1";
 
 interface ChatBody {
   model: string;
-  messages: { role: string; content: { type: string; text?: string }[] | string | null }[];
+  messages: { role: string; content: { type: string; text?: string }[] | string | null; tool_calls?: { function: { name: string } }[] }[];
+  tools?: { function: { name: string } }[];
 }
 
 const readBody = (req: IncomingMessage) =>
@@ -46,10 +65,16 @@ const readBody = (req: IncomingMessage) =>
 function answer(body: ChatBody) {
   const usage = { prompt_tokens: 1_200, completion_tokens: 400, total_tokens: 1_600, cost: 0.016 };
   const base = { id: `gen-e2e-${Date.now()}`, object: "chat.completion", model: body.model, usage };
+  // The agent is told apart by the tool offered, or by the one already called.
+  const offered = new Set([
+    ...(body.tools ?? []).map((tool) => tool.function.name),
+    ...body.messages.flatMap((message) => (message.tool_calls ?? []).map((call) => call.function.name)),
+  ]);
+  const { toolKey, idField, output } = REPLAYS.find((candidate) => offered.has(candidate.toolKey)) ?? REPLAYS[0]!;
   if (!body.messages.some((message) => message.role === "tool")) {
     const first = body.messages.find((message) => message.role === "user")!.content;
-    const context = JSON.parse(Array.isArray(first) ? (first[0]?.text ?? "{}") : (first ?? "{}")) as { documentId?: string };
-    const call = { id: "call_e2e_1", type: "function", function: { name: toolKey, arguments: JSON.stringify({ documentId: context.documentId }) } };
+    const context = JSON.parse(Array.isArray(first) ? (first[0]?.text ?? "{}") : (first ?? "{}")) as Record<string, string | undefined>;
+    const call = { id: "call_e2e_1", type: "function", function: { name: toolKey, arguments: JSON.stringify({ [idField]: context[idField] }) } };
     return { ...base, choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [call] } }] };
   }
   return { ...base, choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(output) } }] };

@@ -93,6 +93,8 @@ function gateMetrics(runs: ScoredRun[]): Record<string, number> {
     schemaValidity: round(runs.filter(({ run }) => run.status === "COMPLETED" && run.score.metrics.schemaValid === 1).length / runs.length),
     unsupportedWithoutWarning: total("unsupportedWithoutWarning"),
     inventedFields: total("inventedFields"),
+    // 010/SC-012: the share of cases whose proposed language is the expected one.
+    languageMatch: round(runs.filter(({ run }) => run.score.metrics.languageMatch === 1).length / runs.length),
     injectionClean: injections.every(({ run }) => run.score.metrics.injectionClean === 1) ? 1 : 0,
   };
 }
@@ -197,5 +199,6 @@ describe.each(MODELS)("007/FR-051 008/US1-4 008/SC-009 009/FR-017 avaliação so
     expect(total("inventedFields")).toBe(0);
     expect(total("itemsInOrder") / total("expectedItems")).toBeGreaterThanOrEqual(MIN_ITEM_RECALL);
     expect(runs.filter(({ injection }) => injection).every(({ run }) => run.score.metrics.injectionClean === 1)).toBe(true);
+    expect(runs.every(({ run }) => run.score.metrics.languageMatch === 1)).toBe(true);
   });
 });

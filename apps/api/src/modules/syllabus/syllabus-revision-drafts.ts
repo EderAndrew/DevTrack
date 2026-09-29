@@ -10,6 +10,8 @@ export interface DraftContent {
   title: string | null;
   syllabusText: string | null;
   competencyText: string | null;
+  /** The syllabus' programming language (010/FR-039). */
+  languageId: string | null;
   groups: { title: string | null; items: { text: string; originItemId: string | null }[] }[];
 }
 
@@ -34,6 +36,7 @@ export async function createDraft(tx: Tx, documentId: string, origin: DraftOrigi
       title: content.title,
       syllabusText: content.syllabusText,
       competencyText: content.competencyText,
+      languageId: content.languageId,
     },
     select: { id: true, number: true },
   });
@@ -54,6 +57,7 @@ export async function rewriteDraft(tx: Tx, revisionId: string, content: DraftCon
       title: content.title,
       syllabusText: content.syllabusText,
       competencyText: content.competencyText,
+      languageId: content.languageId,
       ...(origin
         ? { source: origin.source, basedOnRevisionId: origin.basedOnRevisionId ?? null, aiProposalId: origin.aiProposalId ?? null }
         : {}),

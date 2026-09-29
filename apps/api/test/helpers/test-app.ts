@@ -18,8 +18,11 @@ import { assertTestDatabase } from "./env";
 import { LogCapture } from "./log-capture";
 import { TEST_WORKER_PATH } from "./syllabus-worker";
 
-/** Reference data seeded by migration: never truncated. */
-const PRESERVED_TABLES = new Set(["roles", "permissions", "role_permissions", "_prisma_migrations"]);
+/**
+ * Reference data seeded by migration: never truncated (010 adds the programming-language catalog; a
+ * test that changes one of its rows restores it).
+ */
+const PRESERVED_TABLES = new Set(["roles", "permissions", "role_permissions", "programming_languages", "_prisma_migrations"]);
 
 export interface TestAppOptions {
   /** Defaults to a fresh InMemoryMailer; pass FailingMailer to simulate SMTP outages. */
@@ -157,7 +160,7 @@ export function api(t: TestApp, options: ApiClientOptions = {}) {
     post: (path: string, body: object = {}) => withBody(request(t.baseUrl).post(path), body),
     put: (path: string, body: object = {}) => withBody(request(t.baseUrl).put(path), body),
     patch: (path: string, body: object = {}) => withBody(request(t.baseUrl).patch(path), body),
-    delete: (path: string) => withBody(request(t.baseUrl).delete(path), {}),
+    delete: (path: string, body: object = {}) => withBody(request(t.baseUrl).delete(path), body),
     /** `multipart/form-data` POST with one file (004 uploads); supertest sets the boundary. */
     upload: (path: string, file: { bytes: Buffer; filename: string; contentType?: string }, field = "file") =>
       decorate(request(t.baseUrl).post(path)).attach(field, file.bytes, {

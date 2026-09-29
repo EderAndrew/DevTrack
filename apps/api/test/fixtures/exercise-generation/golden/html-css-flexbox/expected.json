@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "description": "Um exercício de cada tipo sobre Flexbox em HTML & CSS, nível avançado, com uma pegadinha.",
+  "injection": false,
+  "syllabus": {
+    "title": "Desenvolvimento Web",
+    "competencyText": "Construir páginas web responsivas com HTML e CSS.",
+    "languageKey": "html-css",
+    "groupTitle": "Layout",
+    "items": [
+      "Layout com Flexbox: eixo principal, justify-content, align-items e flex-wrap",
+      "CSS Grid"
+    ]
+  },
+  "request": {
+    "difficulty": "ADVANCED",
+    "total": 3,
+    "types": [
+      "OPEN_ANSWER",
+      "MULTIPLE_CHOICE",
+      "CODE"
+    ],
+    "distribution": {
+      "mode": "AUTO"
+    },
+    "trickQuestions": 1
+  },
+  "counts": {
+    "OPEN_ANSWER": 1,
+    "MULTIPLE_CHOICE": 1,
+    "CODE": 1
+  },
+  "language": "HTML & CSS",
+  "keyTerms": [
+    "flex",
+    "justify-content",
+    "align-items",
+    "eixo principal",
+    "eixo cruzado"
+  ],
+  "forbiddenPatterns": []
+}

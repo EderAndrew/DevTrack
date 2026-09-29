@@ -59,6 +59,33 @@ show as an `Alert` near the table.
 Keyboard: Tab goes through Select → Verificar de novo → the action of each row, and the
 dialog traps focus and returns it to the button (SC-012; `test/keyboard.ts`).
 
+### Amendment 2026-09-29: sections in tabs
+
+The sections above (plus the ones 009 added: Orçamentos, Tarefas and Modelos) no longer stack on
+one page; each group is a tab of the design system's `Tabs` (`TabsList` labelled "Seções da
+operação de IA"), in this order:
+
+| Tab | `?aba=` | Content |
+|-----|---------|---------|
+| Saúde | `saude` (default) | Saúde |
+| Indicadores | `indicadores` | the "Período" `Select`, Indicadores and Uso e custo (cost by model, task, tier and family) |
+| Orçamentos | `orcamentos` | Orçamentos |
+| Tarefas | `tarefas` | Tarefas (with the override actions) |
+| Modelos | `modelos` | the "Período" `Select` (the same period as Indicadores) and Modelos |
+| Agentes | `agentes` | Agentes |
+| Configurações de modelo | `configuracoes` | Configurações de modelo |
+
+- Each section keeps its `h2` and its region, so its content, empty states, actions, dialogs,
+  toasts and `Alert`s are unchanged; only the active tab's panel is rendered.
+- The active tab is in the URL (`/admin/ia?aba=agentes`), replaced without a new history entry;
+  an unknown value opens Saúde. A reload or a shared link opens the same tab.
+- Width: the page is a wide AppShell page (`data-layout="wide"`, 005 `layouts.md`): it takes the
+  whole width of the screen, beyond `--content-max`, and table actions use the small button. A status (icon + text) never breaks across lines; on a
+  narrow screen the tabs wrap and each table scrolls sideways inside its own frame, never the page.
+- Keyboard (SC-012): Tab reaches the active tab, the arrows move between tabs (activating them),
+  and Tab goes on into the active panel: its controls in the order above (for example Período →
+  the action of each row). Dialogs still trap focus and return it to their button.
+
 ## State components (`components/shared/ai/`, catalog group "Inteligência artificial")
 
 | Component | Props | Behavior |

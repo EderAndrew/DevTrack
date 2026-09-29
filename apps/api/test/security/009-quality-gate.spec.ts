@@ -5,6 +5,7 @@ import { productionAiDefinitions } from "../../src/modules/ai/definitions";
 import { MODEL_CATALOG } from "../../src/modules/ai/definitions/model-catalog";
 import { approvalMeetsQuality } from "../../src/modules/ai/policy/task-policy";
 import { CURRICULUM_EXTRACTION_TASK } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
+import { EXERCISE_GENERATION_TASK } from "../../src/modules/exercise-ai/definitions/exercise-generator";
 import { API_ROOT } from "../helpers/env";
 import { testConfig } from "../helpers/test-app";
 
@@ -84,8 +85,8 @@ describe("009/FR-017 portão de qualidade: aprovação por modelo × tarefa, com
     }
   });
 
-  it("uma aprovação nunca vem de respostas sem procedência (o recorded.json da 007)", () => {
-    for (const { approval } of approvals) expect(approval.evidence).not.toMatch(/recorded\.json|curriculum-agent\/golden/);
+  it("uma aprovação nunca vem de respostas sem procedência (o recorded.json da 007 e da 010)", () => {
+    for (const { approval } of approvals) expect(approval.evidence).not.toMatch(/recorded\.json|curriculum-agent\/golden|exercise-generation\/golden/);
   });
 
   it("nenhum modelo PRODUCTION sem aprovação para ao menos uma tarefa", () => {
@@ -104,5 +105,25 @@ describe("009/FR-017 portão de qualidade: aprovação por modelo × tarefa, com
         (entry.approvals ?? []).some((approval) => approval.taskKey === CURRICULUM_EXTRACTION_TASK.key),
     );
     expect(approved.map((entry) => entry.key)).not.toEqual([]);
+  });
+
+  it("010/FR-033 010/SC-010 a geração de exercícios tem ao menos um modelo aprovado do seu nível, com a evidência do conjunto da 010 e a latência de cada caso", () => {
+    const approved = MODEL_CATALOG.filter(
+      (entry) =>
+        entry.lifecycle === "PRODUCTION" &&
+        entry.tier === EXERCISE_GENERATION_TASK.preferredTier &&
+        entry.mode === EXERCISE_GENERATION_TASK.mode &&
+        EXERCISE_GENERATION_TASK.allowedFamilies.includes(entry.family) &&
+        (entry.approvals ?? []).some((approval) => approval.taskKey === EXERCISE_GENERATION_TASK.key),
+    );
+    expect(approved.map((entry) => entry.key)).not.toEqual([]);
+    for (const entry of approved) {
+      const approval = entry.approvals!.find((candidate) => candidate.taskKey === EXERCISE_GENERATION_TASK.key)!;
+      const evidence = readEvidence(approval.evidence) as Evidence & { latency?: { perCaseMs: Record<string, number>; withinTwoMinutes: number } };
+      expect(Object.keys(evidence.metrics).sort(), approval.evidence).toEqual(Object.keys(EXERCISE_GENERATION_TASK.quality).sort());
+      // 010/SC-002: measured by the on-demand run with the real model, one time per golden case.
+      expect(Object.keys(evidence.latency?.perCaseMs ?? {}).length, approval.evidence).toBeGreaterThanOrEqual(5);
+      expect(evidence.latency!.withinTwoMinutes, approval.evidence).toBeGreaterThanOrEqual(0.95);
+    }
   });
 });

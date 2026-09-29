@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { Activity, BookOpen, ChevronRight, Library, School, UserRound, Users } from "lucide-react";
+import { Activity, BookOpen, ChevronRight, Library, ListChecks, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -32,7 +32,7 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open, "Operação de IA" is the administrator's AI operation (006), "Minhas disciplinas" and "Turmas" are the teacher's subjects and classes, and "Minhas
+ * open, "Operação de IA" is the administrator's AI operation (006), "Minhas disciplinas", "Banco de Exercícios" (010) and "Turmas" are the teacher's subjects, exercises and classes, and "Minhas
  * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
  * the icons (labels stay as accessible names and show as tooltips); opening "Usuários" there
@@ -47,6 +47,8 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const subjects = Boolean(me?.emailVerified && me.permissions.includes("disciplinas.visualizar"));
   const aiOperations = Boolean(me?.emailVerified && me.permissions.includes(AI_OPERATIONS_AREA.permission));
   const inSubjects = pathname === "/disciplinas" || pathname.startsWith("/disciplinas/");
+  const exercises = Boolean(me?.emailVerified && me.permissions.includes("questoes.visualizar"));
+  const inExercises = pathname === "/exercicios" || pathname.startsWith("/exercicios/");
   const { state, isMobile, setOpen } = useSidebar();
   const iconsOnly = state === "collapsed" && !isMobile;
   const [usersOpen, setUsersOpen] = useState(true);
@@ -133,6 +135,20 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       >
                         <Library aria-hidden="true" />
                         <span>Minhas disciplinas</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : null}
+                {exercises ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inExercises} tooltip="Banco de Exercícios">
+                      <Link
+                        href="/exercicios"
+                        className={LINK}
+                        aria-current={pathname === "/exercicios" ? "page" : undefined}
+                      >
+                        <ListChecks aria-hidden="true" />
+                        <span>Banco de Exercícios</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

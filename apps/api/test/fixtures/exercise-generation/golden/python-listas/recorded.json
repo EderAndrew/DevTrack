@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exercise-generation-request",
+          "arguments": {
+            "batchId": "{{batchId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "exercises": [
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Em Python, qual expressão cria uma lista com os números 3, 6 e 9, nessa ordem?",
+            "explanation": "Uma lista é criada com colchetes, e seus elementos são separados por vírgulas. Portanto, [3, 6, 9] cria a lista solicitada.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "RECOGNIZE",
+            "alternatives": [
+              {
+                "text": "[3, 6, 9]",
+                "isCorrect": true
+              },
+              {
+                "text": "(3, 6, 9)",
+                "isCorrect": false
+              },
+              {
+                "text": "{3, 6, 9}",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere a lista numeros = [10, 20, 30, 40, 50]. Qual é o resultado de numeros[1:4]?",
+            "explanation": "O fatiamento começa no índice 1 e vai até antes do índice 4. Assim, são selecionados os elementos 20, 30 e 40.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "UNDERSTAND",
+            "alternatives": [
+              {
+                "text": "[20, 30, 40]",
+                "isCorrect": true
+              },
+              {
+                "text": "[10, 20, 30, 40]",
+                "isCorrect": false
+              },
+              {
+                "text": "[20, 30, 40, 50]",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "CODE",
+            "statement": "Crie uma lista chamada frutas com os itens \"maçã\", \"pera\" e \"uva\". Depois, usando indexação, atribua o primeiro item à variável primeira e o terceiro à variável terceira.",
+            "explanation": "A lista é criada com colchetes. Como os índices começam em zero, o primeiro item está no índice 0 e o terceiro está no índice 2.",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "APPLY",
+            "instructions": "Complete o código para criar a lista e obter os itens indicados por indexação.",
+            "starterCode": "frutas = ...\nprimeira = ...\nterceira = ...",
+            "expectedSolution": "frutas = [\"maçã\", \"pera\", \"uva\"]\nprimeira = frutas[0]\nterceira = frutas[2]",
+            "language": "Python"
+          },
+          {
+            "type": "CODE",
+            "statement": "Dada a lista numeros = [1, 2, 3, 4, 5, 6], use uma compreensão de listas para criar pares, contendo apenas os números pares da lista.",
+            "explanation": "A compreensão percorre cada número da lista e inclui no resultado somente aqueles cujo resto da divisão por 2 é zero. O resultado é [2, 4, 6].",
+            "difficulty": "BASIC",
+            "cognitiveObjective": "APPLY",
+            "instructions": "Complete o código para formar a lista pares usando uma compreensão de listas.",
+            "starterCode": "numeros = [1, 2, 3, 4, 5, 6]\npares = ...",
+            "expectedSolution": "numeros = [1, 2, 3, 4, 5, 6]\npares = [numero for numero in numeros if numero % 2 == 0]",
+            "language": "Python"
+          }
+        ]
+      }
+    }
+  ]
+}

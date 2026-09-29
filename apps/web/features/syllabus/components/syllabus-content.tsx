@@ -2,6 +2,8 @@ export interface SyllabusContentData {
   title: string | null;
   syllabusText: string | null;
   competencyText: string | null;
+  /** A revision's programming language (010/FR-039); absent for the extraction, which has none. */
+  language?: { name: string } | null;
   groups: { title: string | null; items: string[] }[];
 }
 
@@ -26,6 +28,12 @@ export function SyllabusContent({ content, kind }: { content: SyllabusContentDat
         <dd className="m-0 mb-3 whitespace-pre-line">{content.syllabusText ?? missing.feminine}</dd>
         <dt className="font-semibold">Competência</dt>
         <dd className="m-0 mb-3 whitespace-pre-line">{content.competencyText ?? missing.feminine}</dd>
+        {content.language !== undefined ? (
+          <>
+            <dt className="font-semibold">Linguagem</dt>
+            <dd className="m-0 mb-3">{content.language?.name ?? "Nenhuma"}</dd>
+          </>
+        ) : null}
       </dl>
       <h3>Objetos de aprendizagem</h3>
       {content.groups.length === 0 ? (

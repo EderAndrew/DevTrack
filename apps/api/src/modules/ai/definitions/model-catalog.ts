@@ -75,9 +75,16 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     approvals: [
       {
         taskKey: "curriculum-extraction",
-        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, injectionClean: 1 },
-        evaluatedAt: "2026-09-27T23:12:38.040Z",
+        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, languageMatch: 1, injectionClean: 1 },
+        evaluatedAt: "2026-09-28T13:15:55.778Z",
         evidence: "apps/api/test/fixtures/evaluations/curriculum-extraction/openai-basic.json",
+      },
+      // 010 T049: the generator's golden set met every threshold of `exercise-generation`.
+      {
+        taskKey: "exercise-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 0.9655, injectionClean: 1 },
+        evaluatedAt: "2026-09-28T20:04:09.584Z",
+        evidence: "apps/api/test/fixtures/evaluations/exercise-generation/openai-basic.json",
       },
     ],
   }),
@@ -102,6 +109,30 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     price: usd("10", "50"),
     contextWindow: 1_050_000,
     capabilities: GENERATION,
+  }),
+  // DeepSeek joined the allowlist on 2026-09-29 (009 amendment); ids and prices from OpenRouter's
+  // public list that day. No DeepSeek model fits ADVANCED.
+  openRouter({
+    key: "deepseek-basic",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4.1-flash",
+    tier: "BASIC",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.3", "1.2"),
+    contextWindow: 1_048_576,
+    capabilities: GENERATION,
+  }),
+  openRouter({
+    key: "deepseek-standard",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4-pro-0813",
+    tier: "STANDARD",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.48", "4.2"),
+    contextWindow: 1_048_576,
+    capabilities: { ...GENERATION, vision: false },
   }),
   // Decision mode (009 FR-001a, contracts/decisions-provider.md): answers choice, score or
   // yes/no, never text. Not in OpenRouter's model list, so no reference price: its cost comes

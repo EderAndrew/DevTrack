@@ -73,6 +73,9 @@ export const ERROR_MESSAGES = {
   AI_RESOURCE_TYPE_NOT_ACCEPTED: "Este recurso de IA não pode ser usado aqui.",
   AI_PROPOSAL_APPLY_REQUIRED: "Esta proposta é aprovada ao aplicá-la na ementa.",
   AI_OVERRIDE_NOT_ALLOWED: "Este modelo não pode ser fixado para esta tarefa.",
+  EXERCISE_VERSION_CONFLICT: "Este exercício foi alterado depois que você o abriu. Atualize a página antes de continuar.",
+  SUBJECT_ARCHIVED: "Esta disciplina está arquivada e não pode ser usada para gerar exercícios.",
+  SYLLABUS_LANGUAGE_REQUIRED: "Defina a linguagem da ementa para gerar exercícios de código.",
   SYLLABUS_NOT_READY_FOR_AI:
     "O preenchimento com IA precisa de um documento com texto (PDF com texto ou DOCX). Preencha o conteúdo manualmente.",
   CURRICULUM_PROPOSAL_PENDING:
@@ -183,6 +186,9 @@ export const CURRICULUM_AI_AVAILABILITY_MESSAGES = {
   MODEL_UNAVAILABLE: AI_UNAVAILABLE,
   PAUSED: AI_UNAVAILABLE,
 } as const satisfies Record<Exclude<CurriculumAiAvailability, "AVAILABLE">, string>;
+
+/** Why "Criar com IA" can't take a request now (010/US2-7): never the provider or the model. */
+export const EXERCISE_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar exercícios manualmente.";
 
 /** The last analysis found nothing to propose (007/FR-017). */
 export const CURRICULUM_AI_NOTHING_FOUND =

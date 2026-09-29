@@ -53,7 +53,7 @@ export const AUDIT_EVENT_METADATA = {
   "syllabus.uploaded": ["subjectId", "version", "mediaType", "sizeBytes"],
   "syllabus.processed": ["result", "groupCount", "itemCount", "attempts", "extractorVersion"],
   "syllabus.processing_failed": ["category", "attempts"],
-  "syllabus.revision_confirmed": ["documentId", "number", "source", "groupCount", "itemCount"],
+  "syllabus.revision_confirmed": ["documentId", "number", "source", "groupCount", "itemCount", "languageId"],
   "class_meetings.updated": ["added", "removed", "total", "resolutions"],
   "topic.created": ["planId", "itemCount", "hasMeeting"],
   "topic.updated": ["planId", "fields"],
@@ -129,6 +129,27 @@ export const AUDIT_EVENT_METADATA = {
     "itemCount",
     "unsupportedCount",
   ],
+  // 010 — the exercise bank. Only ids, counts and enums: never statements, answers, solutions,
+  // explanations or alternative texts.
+  "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId"],
+  "exercise.edited": ["origin", "status", "fields"],
+  "exercise.approved": ["origin", "humanEdited", "batchId"],
+  "exercise.discarded": ["exerciseId", "batchId"],
+  "exercise.archived": ["from"],
+  "exercise.restored": ["to"],
+  "exercise_batch.requested": [
+    "executionId",
+    "difficulty",
+    "total",
+    "openAnswer",
+    "multipleChoice",
+    "code",
+    "trickQuestions",
+    "languageKey",
+    "distribution",
+    "regeneratedFromId",
+  ],
+  "exercise_batch.generated": ["executionId", "exercises"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -169,4 +190,6 @@ export type AuditTargetType =
   | "AI_PROPOSAL"
   | "AI_AGENT"
   | "AI_MODEL_CONFIG"
-  | "AI_TASK";
+  | "AI_TASK"
+  | "EXERCISE"
+  | "EXERCISE_BATCH";

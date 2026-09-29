@@ -131,6 +131,16 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(screen.getByRole("link", { name: "Minhas disciplinas" }).getAttribute("data-active")).toBe("true");
   });
 
+  it("010/US1 Banco de Exercícios (questoes.visualizar) vem depois de Minhas disciplinas e fica ativo nas telas de exercícios", () => {
+    navigation.pathname = "/exercicios/novo";
+    renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar"]) });
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Turmas", "Meu perfil"]);
+    const link = screen.getByRole("link", { name: "Banco de Exercícios" });
+    expect(link.getAttribute("href")).toBe("/exercicios");
+    expect(link.getAttribute("data-active")).toBe("true");
+    expect(link.getAttribute("aria-current")).toBeNull();
+  });
+
   it("004/US8-1 004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();

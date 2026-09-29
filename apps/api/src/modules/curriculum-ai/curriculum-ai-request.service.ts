@@ -15,7 +15,7 @@ import { AuditService } from "../audit/audit.service";
 import { AiExecutionsService } from "../ai/execution/ai-executions.service";
 import { AiProposalsService } from "../ai/proposals/ai-proposals.service";
 import { CURRICULUM_AGENT_KEY, CURRICULUM_PROPOSAL_TYPE } from "./definitions/curriculum-agent";
-import { derivedUuid } from "./proposal/derived-uuid";
+import { derivedUuid } from "../../platform/crypto/derived-uuid";
 
 const ACTIVE = new Set(["QUEUED", "RUNNING", "WAITING_TOOL", "VALIDATING_OUTPUT"]);
 

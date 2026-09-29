@@ -7,7 +7,7 @@ import { bootstrapAdmin, classTeacher, logIn } from "./fixtures/journeys.ts";
  * release gate says. Idempotent, since other runs or retries may have enabled it already.
  */
 async function enableCurriculumAgent(page: Page): Promise<void> {
-  await logIn(page, bootstrapAdmin(), "/admin/ia");
+  await logIn(page, bootstrapAdmin(), "/admin/ia?aba=agentes");
   const agents = page.getByRole("region", { name: "Agentes" });
   await expect(agents.getByText("Curriculum Agent")).toBeVisible();
   const enable = agents.getByRole("button", { name: "Habilitar o agente Curriculum Agent" });

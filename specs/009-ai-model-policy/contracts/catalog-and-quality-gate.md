@@ -61,7 +61,9 @@ Evidence file (`apps/api/test/fixtures/evaluations/<taskKey>/<modelKey>.json`), 
 
 The metrics are those of the 007 scorer. `curriculum-extraction.quality` =
 `{ itemRecall: 0.9, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0,
-injectionClean: 1 }` (the 007 SC-005/SC-006 thresholds).
+injectionClean: 1, languageMatch: 1 }` (the 007 SC-005/SC-006 thresholds; `languageMatch`, the
+share of golden cases whose proposed language is the expected one, since 010 SC-012 and golden
+set v2).
 
 `009-quality-gate.spec.ts` (CI): every approval has an evidence file with equal metrics and the
 same model; every evidence file meets its task's thresholds and records the served model and the

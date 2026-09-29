@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exercise-generation-request",
+          "arguments": {
+            "batchId": "{{batchId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "exercises": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique o que a palavra-chave `extends` estabelece entre duas classes em Java e indique qual delas é a subclasse.",
+            "explanation": "Com `extends`, uma classe herda da classe indicada. A classe que declara `extends` é a subclasse; a classe indicada é a superclasse.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "`extends` estabelece uma relação de herança: a classe que o utiliza herda membros acessíveis da classe indicada. A classe que declara `extends` é a subclasse, e a classe indicada é a superclasse."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Uma subclasse declara um método com a mesma assinatura de um método de instância acessível da superclasse. O que acontece quando esse método é sobrescrito e uma chamada é feita por uma referência cujo tipo é a superclasse, mas que aponta para um objeto da subclasse?",
+            "explanation": "A sobrescrita permite que a implementação selecionada para métodos de instância dependa da classe real do objeto, não apenas do tipo da referência.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "UNDERSTAND",
+            "expectedAnswer": "A implementação sobrescrita na subclasse é executada, desde que a chamada seja válida. Para métodos de instância sobrescritos, Java usa despacho dinâmico: a implementação depende do tipo real do objeto."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Em uma subclasse, qual é a finalidade de chamar `super.calcular()` dentro de uma implementação sobrescrita de `calcular()`?",
+            "explanation": "O uso de `super` nessa chamada permite reutilizar a implementação de `calcular` definida na superclasse, em vez de chamar novamente a versão da subclasse.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "APPLY",
+            "expectedAnswer": "A chamada `super.calcular()` executa a implementação de `calcular` herdada da superclasse. Ela pode ser usada para reaproveitar esse comportamento e, em seguida, acrescentar ou adaptar ações na implementação sobrescrita."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Descreva a regra de posicionamento de uma chamada explícita a `super(...)` dentro de um construtor de subclasse em Java.",
+            "explanation": "Java exige que a chamada explícita ao construtor da superclasse seja a primeira instrução do construtor da subclasse.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "RECOGNIZE",
+            "expectedAnswer": "Uma chamada explícita a `super(...)` deve ser a primeira instrução do construtor da subclasse. Ela invoca um construtor da superclasse, e os argumentos devem corresponder a um construtor disponível."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere `class Veiculo { void mover() { System.out.println(\"veículo\"); } }` e `class Bicicleta extends Veiculo { @Override void mover() { System.out.println(\"bicicleta\"); } }`. Qual é a saída de `Veiculo v = new Bicicleta(); v.mover();`?",
+            "explanation": "O método de instância sobrescrito é escolhido conforme a classe real do objeto. Como o objeto é uma `Bicicleta`, executa-se sua implementação de `mover()`.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "APPLY",
+            "alternatives": [
+              {
+                "text": "bicicleta",
+                "isCorrect": true
+              },
+              {
+                "text": "veículo",
+                "isCorrect": false
+              },
+              {
+                "text": "veículo e depois bicicleta",
+                "isCorrect": false
+              },
+              {
+                "text": "O código não compila porque a referência é do tipo `Veiculo`.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "A classe `Especialista` sobrescreve um método de instância `exibir()` definido por sua superclasse `Profissional`. Dentro de `Especialista.exibir()`, o que faz a instrução `super.exibir();`?",
+            "explanation": "Em uma chamada de método com `super`, a implementação correspondente na superclasse imediata é invocada. Isso não equivale a chamar novamente a implementação sobrescrita da subclasse.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "UNDERSTAND",
+            "alternatives": [
+              {
+                "text": "Invoca a implementação de `exibir()` da superclasse imediata.",
+                "isCorrect": true
+              },
+              {
+                "text": "Invoca novamente `Especialista.exibir()`, causando recursão obrigatória.",
+                "isCorrect": false
+              },
+              {
+                "text": "Invoca a implementação de `exibir()` de qualquer classe que esteja acima na hierarquia, escolhida em tempo de execução.",
+                "isCorrect": false
+              },
+              {
+                "text": "Cria um novo objeto `Profissional` e chama `exibir()` nele.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual anotação é usada para indicar que um método de uma subclasse pretende sobrescrever um método da superclasse?",
+            "explanation": "`@Override` documenta a intenção de sobrescrever um método e permite que o compilador detecte erros, como uma assinatura que não corresponde a um método sobrescrevível da superclasse.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "RECOGNIZE",
+            "alternatives": [
+              {
+                "text": "`@Override`",
+                "isCorrect": true
+              },
+              {
+                "text": "`@Extends`",
+                "isCorrect": false
+              },
+              {
+                "text": "`@Super`",
+                "isCorrect": false
+              },
+              {
+                "text": "`@InheritedMethod`",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma classe `Relatorio` e uma subclasse `RelatorioDetalhado`. A subclasse deve sobrescrever `gerar()` para chamar primeiro a implementação da superclasse e depois acrescentar uma linha de detalhes.",
+            "explanation": "A implementação usa `extends` para estabelecer a herança e `@Override` para declarar a sobrescrita. A chamada `super.gerar()` reaproveita o comportamento da superclasse antes de imprimir os detalhes.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "CREATE",
+            "instructions": "Escreva as duas classes. `Relatorio.gerar()` deve imprimir `Relatório`. `RelatorioDetalhado.gerar()` deve imprimir primeiro `Relatório` usando `super.gerar()` e, em seguida, imprimir `Detalhes adicionais`. Inclua um `main` que instancie `RelatorioDetalhado` e chame `gerar()`.",
+            "starterCode": "class Relatorio {\n    void gerar() {\n        // Imprima a linha do relatório\n    }\n}\n\nclass RelatorioDetalhado extends Relatorio {\n    @Override\n    void gerar() {\n        // Reutilize a implementação da superclasse e acrescente detalhes\n    }\n}\n\nclass Main {\n    public static void main(String[] args) {\n        // Crie e use um RelatorioDetalhado\n    }\n}",
+            "expectedSolution": "class Relatorio {\n    void gerar() {\n        System.out.println(\"Relatório\");\n    }\n}\n\nclass RelatorioDetalhado extends Relatorio {\n    @Override\n    void gerar() {\n        super.gerar();\n        System.out.println(\"Detalhes adicionais\");\n    }\n}\n\nclass Main {\n    public static void main(String[] args) {\n        RelatorioDetalhado relatorio = new RelatorioDetalhado();\n        relatorio.gerar();\n    }\n}",
+            "language": "Java"
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma hierarquia em que `Funcionario` armazena nome e salário, e `Gerente` herda esses dados e acrescenta um bônus. Use `super(...)` para inicializar a parte herdada do objeto.",
+            "explanation": "O construtor de `Gerente` chama o construtor da superclasse com `super(nome, salario)`, e essa chamada é a primeira instrução. O método `salarioTotal()` combina o salário herdado com o bônus.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "APPLY",
+            "instructions": "Crie `Funcionario` com campos `nome` e `salario`, um construtor que os inicializa e um método `salarioTotal()` que retorna o salário. Crie `Gerente extends Funcionario`, com campo `bonus`, construtor que inicializa os campos usando `super(...)` e `salarioTotal()` sobrescrito para retornar salário mais bônus. Inclua um `main` que imprima o total de um gerente com salário 5000 e bônus 800.",
+            "starterCode": "class Funcionario {\n    protected String nome;\n    protected double salario;\n\n    // Construtor e salarioTotal()\n}\n\nclass Gerente extends Funcionario {\n    private double bonus;\n\n    // Construtor e sobrescrita de salarioTotal()\n}\n\nclass Main {\n    public static void main(String[] args) {\n        // Crie o gerente e imprima seu salário total\n    }\n}",
+            "expectedSolution": "class Funcionario {\n    protected String nome;\n    protected double salario;\n\n    public Funcionario(String nome, double salario) {\n        this.nome = nome;\n        this.salario = salario;\n    }\n\n    public double salarioTotal() {\n        return salario;\n    }\n}\n\nclass Gerente extends Funcionario {\n    private double bonus;\n\n    public Gerente(String nome, double salario, double bonus) {\n        super(nome, salario);\n        this.bonus = bonus;\n    }\n\n    @Override\n    public double salarioTotal() {\n        return salario + bonus;\n    }\n}\n\nclass Main {\n    public static void main(String[] args) {\n        Gerente gerente = new Gerente(\"Ana\", 5000, 800);\n        System.out.println(gerente.salarioTotal());\n    }\n}",
+            "language": "Java"
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma hierarquia com `Notificacao` e `NotificacaoEmail`. A subclasse deve sobrescrever `enviar()` para executar o comportamento comum da superclasse antes de informar o canal usado.",
+            "explanation": "`NotificacaoEmail` herda de `Notificacao` e sobrescreve `enviar()`. A chamada a `super.enviar()` preserva a ação comum, e a subclasse complementa o comportamento com a informação do canal.",
+            "difficulty": "INTERMEDIATE",
+            "cognitiveObjective": "CREATE",
+            "instructions": "Crie `Notificacao`, cujo método `enviar()` imprime `Notificação enviada`. Crie `NotificacaoEmail extends Notificacao` e sobrescreva `enviar()` para chamar `super.enviar()` e depois imprimir `Canal: e-mail`. Inclua um `main` que armazene um objeto `NotificacaoEmail` em uma variável do tipo `Notificacao` e chame `enviar()`.",
+            "starterCode": "class Notificacao {\n    void enviar() {\n        // Imprima a mensagem comum\n    }\n}\n\nclass NotificacaoEmail extends Notificacao {\n    @Override\n    void enviar() {\n        // Execute o comportamento herdado e informe o canal\n    }\n}\n\nclass Main {\n    public static void main(String[] args) {\n        // Use uma referência Notificacao para um objeto NotificacaoEmail\n    }\n}",
+            "expectedSolution": "class Notificacao {\n    void enviar() {\n        System.out.println(\"Notificação enviada\");\n    }\n}\n\nclass NotificacaoEmail extends Notificacao {\n    @Override\n    void enviar() {\n        super.enviar();\n        System.out.println(\"Canal: e-mail\");\n    }\n}\n\nclass Main {\n    public static void main(String[] args) {\n        Notificacao notificacao = new NotificacaoEmail();\n        notificacao.enviar();\n    }\n}",
+            "language": "Java"
+          }
+        ]
+      }
+    }
+  ]
+}

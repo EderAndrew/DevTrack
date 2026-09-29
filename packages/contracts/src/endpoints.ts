@@ -100,6 +100,26 @@ import {
   RequestCurriculumAnalysisRequestSchema,
   RequestCurriculumAnalysisResponseSchema,
 } from "./curriculum/curriculum-ai.js";
+import {
+  CreateExerciseRequestSchema,
+  ExerciseListQuerySchema,
+  ExercisePageSchema,
+  ExerciseSetRequestSchema,
+  ExerciseSetSchema,
+  ExerciseTeacherViewSchema,
+  ExerciseVersionRequestSchema,
+  UpdateExerciseRequestSchema,
+} from "./exercises/exercises.js";
+import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
+import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
+import {
+  ApproveBatchExercisesRequestSchema,
+  ExerciseBatchDetailSchema,
+  ExerciseBatchListQuerySchema,
+  ExerciseBatchPageSchema,
+  ExerciseBatchViewSchema,
+  ExerciseGenerationAvailabilitySchema,
+} from "./exercises/exercise-batches.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
@@ -756,6 +776,104 @@ export const endpoints = {
     params: CurriculumProposalParamsSchema,
     body: ApplyCurriculumProposalRequestSchema,
     response: ApplyCurriculumProposalResponseSchema,
+    status: 200,
+  },
+
+  // 010 — the teacher's exercise bank.
+  /** 3–10 exercises, all or nothing. */
+  "exercises.createSet": {
+    method: "POST",
+    path: "/exercises/sets",
+    body: ExerciseSetRequestSchema,
+    response: ExerciseSetSchema,
+    status: 201,
+  },
+  /** A single exercise (US5-6). */
+  "exercises.create": {
+    method: "POST",
+    path: "/exercises",
+    body: CreateExerciseRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 201,
+  },
+  /** Keyset page (≤ 50) of the teacher's bank; without `status`, DRAFT and APPROVED (US5-1). */
+  "exercises.list": { method: "GET", path: "/exercises", query: ExerciseListQuerySchema, response: ExercisePageSchema, status: 200 },
+  "exercises.get": { method: "GET", path: "/exercises/:id", params: IdParamsSchema, response: ExerciseTeacherViewSchema, status: 200 },
+  /** The whole content with the version read; ARCHIVED or stale → 409 (US4, research X14). */
+  "exercises.update": {
+    method: "PUT",
+    path: "/exercises/:id",
+    params: IdParamsSchema,
+    body: UpdateExerciseRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT → APPROVED by the teacher, with reviewer and date; already APPROVED → 200, no event. */
+  "exercises.approve": {
+    method: "POST",
+    path: "/exercises/:id/approve",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT | APPROVED → ARCHIVED, the previous status kept; already ARCHIVED → 200, no event (US5-4). */
+  "exercises.archive": {
+    method: "POST",
+    path: "/exercises/:id/archive",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** ARCHIVED → the status before archiving; anything else → 409 (US5-4). */
+  "exercises.restore": {
+    method: "POST",
+    path: "/exercises/:id/restore",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: ExerciseTeacherViewSchema,
+    status: 200,
+  },
+  /** Only a DRAFT of a batch: removed, and the batch counts it as discarded. */
+  "exercises.delete": {
+    method: "DELETE",
+    path: "/exercises/:id",
+    params: IdParamsSchema,
+    body: ExerciseVersionRequestSchema,
+    response: null,
+    status: 204,
+  },
+  "programmingLanguages.list": {
+    method: "GET",
+    path: "/programming-languages",
+    response: ProgrammingLanguageListSchema,
+    status: 200,
+  },
+  // 010 — "Criar com IA": generation batches.
+  "exerciseBatches.availability": {
+    method: "GET",
+    path: "/exercise-generation/availability",
+    response: ExerciseGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new batch; 200 when the same key and body return the existing one. */
+  "exerciseBatches.request": {
+    method: "POST",
+    path: "/exercise-batches",
+    body: ExerciseBatchRequestSchema,
+    response: ExerciseBatchViewSchema,
+    status: 202,
+  },
+  "exerciseBatches.list": { method: "GET", path: "/exercise-batches", query: ExerciseBatchListQuerySchema, response: ExerciseBatchPageSchema, status: 200 },
+  "exerciseBatches.get": { method: "GET", path: "/exercise-batches/:id", params: IdParamsSchema, response: ExerciseBatchDetailSchema, status: 200 },
+  /** Approves several DRAFTs of the batch at once (US4-1, FR-014). */
+  "exerciseBatches.approve": {
+    method: "POST",
+    path: "/exercise-batches/:id/approve",
+    params: IdParamsSchema,
+    body: ApproveBatchExercisesRequestSchema,
+    response: ExerciseSetSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
