@@ -48,7 +48,7 @@ async function fillCommon(scope: Locator, statement: string) {
  * the release gate. Idempotent, since other runs or retries may have enabled it already.
  */
 async function enableExerciseGenerator(page: Page): Promise<void> {
-  await logIn(page, bootstrapAdmin(), "/admin/ia");
+  await logIn(page, bootstrapAdmin(), "/admin/ia?aba=agentes");
   const agents = page.getByRole("region", { name: "Agentes" });
   await expect(agents.getByText("Gerador de exercícios")).toBeVisible();
   const enable = agents.getByRole("button", {
