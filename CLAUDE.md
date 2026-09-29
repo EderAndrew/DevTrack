@@ -49,6 +49,10 @@ helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
+`docs/adr/` records architecture decisions (ADR-0001: the multi-model AI architecture of 006–009).
+ADRs only describe what the constitution and the specs decide; they never change a rule, and when
+they diverge the spec wins and the ADR is fixed.
+
 `.specify/scripts/bash/update-agent-context.sh` rewrites the `## Active Technologies` and
 `## Recent Changes` sections of this file in place — keep those headings; everything else here is
 hand-maintained.
