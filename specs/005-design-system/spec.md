@@ -19,6 +19,14 @@
   fundamentais em todas as telas; as telas internas passam a usar o AppShell e as telas da
   área do aluno o layout do aluno, sem redesenhar o conteúdo nem mudar comportamento.
 
+### Session 2026-09-29 (emenda)
+
+- Q: Um Toast de erro pode sumir sozinho? → A: Sim, quando a tela pede um tempo explícito
+  (`duration`); sem ele, o erro continua até ser fechado. O primeiro caso é a recusa do login
+  (002, emenda 2026-09-29): Toast `danger` de 5 s no rodapé, que pausa com foco ou mouse e é
+  a única exceção à regra "nunca o único lugar de uma informação necessária", porque a
+  mensagem é curta e a pessoa pode tentar de novo na mesma tela.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Professor e aluno reconhecem uma identidade única em todas as telas (Priority: P1)

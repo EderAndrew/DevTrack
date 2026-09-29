@@ -464,16 +464,19 @@ página ao carregar pode usar `role="note"` para não ser anunciado.
 
 ### Estados
 
-Aberto, pausado (com foco ou mouse) e fechado. Some em 5 s; `danger` fica até ser fechado.
+Aberto, pausado (com foco ou mouse) e fechado. Some em 5 s; `danger` fica até ser fechado,
+salvo quando a tela passa `duration` (em ms).
 
 ### Quando usar
 
-Para confirmar uma ação concluída que não muda a tela ("Convite reenviado.").
+Para confirmar uma ação concluída que não muda a tela ("Convite reenviado."). Exceção: a
+recusa do login ("E-mail ou senha incorretos.") é um `danger` com `duration: 5_000` (002,
+emenda 2026-09-29).
 
 ### Quando não usar
 
 Como o único lugar de uma informação necessária; para erros de formulário; para algo que o
-usuário precisa ler com calma (`Alert`).
+usuário precisa ler com calma (`Alert`). A recusa do login é a única exceção.
 
 ### Exemplo
 

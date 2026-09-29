@@ -22,6 +22,15 @@ roadmap (Academic Domain) será especificada depois desta, com o próximo númer
   Criar integração contínua com lint, tipos, build e testes da API e do web; o E2E
   roda localmente com comando documentado e fica fora da CI por enquanto.
 
+### Session 2026-09-29 (emenda)
+
+- Q: Como o login mostra a recusa da API (e-mail ou senha incorretos, muitas tentativas)? →
+  A: Num Toast `danger` no rodapé da página, que some sozinho em 5 s (pausa com foco ou
+  mouse), e não mais no resumo de erros. O foco fica no botão "Entrar" e o Toast é anunciado
+  a leitores de tela. Essa recusa nunca aponta um campo; os erros de validação (campo vazio,
+  e-mail inválido) continuam no resumo de erros e no campo, como em US4-2. Vale só para o
+  login; os demais formulários seguem com o resumo de erros.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Contrato único entre API e web (Priority: P1)

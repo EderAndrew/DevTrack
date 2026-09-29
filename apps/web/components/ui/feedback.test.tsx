@@ -150,6 +150,18 @@ describe("005/US2-4 notificação temporária (Toast)", () => {
     await user.click(screen.getByRole("button", { name: "Fechar notificação" }));
     expect(screen.queryByText("Não foi possível salvar.")).toBeNull();
   });
+
+  it("erro com duration explícito some sozinho (emenda 2026-09-29, recusa do login)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderToaster({ title: "Não foi possível entrar", variant: "danger", duration: 5_000 });
+    await user.click(screen.getByRole("button", { name: "Notificar" }));
+    expect(screen.getByText("Não foi possível entrar").closest("li")?.getAttribute("data-variant")).toBe("danger");
+    act(() => {
+      vi.advanceTimersByTime(5_100);
+    });
+    expect(screen.queryByText("Não foi possível entrar")).toBeNull();
+  });
 });
 
 describe("005/US2-4 progresso, carregamento, estado vazio e esqueleto", () => {

@@ -96,7 +96,9 @@ páginas com token não mudam.
 - Erros de validação e erros da API vão para o `ErrorSummary` (que recebe o foco) e
   para o campo correspondente (`aria-describedby`, `aria-invalid`); os códigos de API
   associados a campos são os mesmos de hoje (ex.: `SELF_INVITE_FORBIDDEN`,
-  `ALREADY_MANAGER`, `INVITATION_ALREADY_PENDING` → campo e-mail).
+  `ALREADY_MANAGER`, `INVITATION_ALREADY_PENDING` → campo e-mail). Exceção (emenda
+  2026-09-29): no login, a recusa da API vai para um Toast `danger` que some em 5 s, com o
+  foco no botão "Entrar"; a validação continua no `ErrorSummary`.
 - Envio duplicado bloqueado por `formState.isSubmitting`; o botão fica focável com
   `aria-disabled`/`aria-busy`, como hoje.
 

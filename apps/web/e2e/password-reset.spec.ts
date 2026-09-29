@@ -22,7 +22,7 @@ test("002/US5-1 esqueci a senha → e-mail → redefinir → login com a nova se
   await field(page, "E-mail").fill(account.email);
   await field(page, "Senha").fill(account.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Não foi possível entrar" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /Notificações/ }).getByText("E-mail ou senha incorretos.")).toBeVisible();
 
   await logIn(page, { email: account.email, password: newPassword });
   await expect(page.getByRole("heading", { level: 1, name: "Meu perfil" })).toBeVisible();
