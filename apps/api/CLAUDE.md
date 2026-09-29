@@ -168,3 +168,44 @@ root CLAUDE.md):
   trail for every secret it produced; since 008 the journey app is configured with the OpenRouter
   marker key `sk-or-teste-008-CHAVE-FALSA` (`OPENROUTER_MARKER_KEY` of `journey.ts`), which is also
   searched in every column of every table.
+- `test/contracts/endpoint-catalog.spec.ts` requires every Nest route to have exactly one entry in
+  `packages/contracts/src/endpoints.ts` and vice versa, and `ContractConformanceInterceptor`
+  (`test/helpers/contract-conformance.interceptor.ts`), installed by `createTestApp()`, turns a
+  response that doesn't parse against its contract into a 500, so the test fails on its status
+  assertion. A new route needs a catalog entry.
+
+Per-feature suites (`test/{integration,security}/0NN-*`):
+- 004: the curriculum authorization matrix (`004-curriculum-authorization-matrix.ts` builds a
+  complete teacher area; a new 004 route needs a `VALID_BODY` entry and a `MATRIX` row), cross
+  links, server-controlled fields, rate limits, immutability of originals and confirmed revisions,
+  concurrency and performance. The journey also returns the 004 pedagogical `content`, which the
+  secret scan keeps out of logs and audit metadata.
+- 006: the AI authorization matrix (`006-ai-authorization-matrix.ts`: teachers A and B and an ADMIN
+  over every AI route), the provider boundary (`006-ai-boundary.spec.ts`: provider SDKs and hosts
+  only under `src/modules/ai/gateway/providers/**`, enforced by ESLint and a scan of api and web),
+  concurrency, resilience, the admin scan (no teacher content, credential or ids in the operations
+  responses) and `006-ai-no-real-provider.spec.ts` (production registers no provider, the tests only
+  `fake*` ones). The journey runs the 006 flows, and the secret scan looks for the instructions,
+  input and output markers and the fake provider's credential in logs, audit and operations
+  responses.
+- 007: isolation (teachers A and B, the admin and forged document ids given to the read tool), the
+  authorization matrix of the 3 routes with the order of the checks, prompt injection through the
+  golden documents, concurrency (apply, reject, confirm and request races) and resilience.
+  `007-us6-evaluation.spec.ts` replays the golden set in CI (`expected.json` is for a person to
+  review). The journey runs the 007 flows (request, failure, proposal, apply, reject), and the
+  secret scan also looks for `MARCADOR-EMENTA-007`.
+- 008: OpenRouter behind the gateway (US1), model by configuration and invalid policies (US2),
+  fallback and its concurrency (US3), the marker key scanned in logs, responses and every table and
+  resilience without the key or with a hanging provider (US4), observability (US5), circuit and
+  per-agent limit (US6), reuse by a new agent (US7, `reference-routed.ts`). The provider boundary
+  guard also checks that `openrouter.ai` appears only in the adapter, that neither app depends on a
+  provider SDK, and that the web has nothing of OpenRouter.
+- 009: allowlist and decision mode (US1), tier-and-cost selection (US2, plus the pure
+  `policy/select-route.spec.ts`), the Curriculum Agent on BASIC (US3), same-tier fallback and
+  one-step escalation (US4), lifecycle transitions (US5), cost by task/tier/family and the models and
+  tasks views (US6), the admin override (US7), budgets (US8), the registry catalog, the quality gate,
+  the model id boundary (no concrete model id outside `definitions/model-catalog.ts`) and policy
+  injection (documents and model output never change task, tier, family, model or budget).
+- 010: one file per story (`010-us1-manual` … `010-us7-*`) plus the schema's DB rules and the
+  security suites described above; the journey creates, generates, reviews, archives and restores
+  exercises.
