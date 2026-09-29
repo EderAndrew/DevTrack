@@ -35,7 +35,7 @@ um circuito por modelo evita chamar um modelo fora do ar, e um limite por agente
 consumo. O "Preencher com IA" continua igual para o professor, e "Operação de IA" passou a
 mostrar a tarefa, o modelo servido, os fallbacks e os circuitos. A **fase 009 — política de
 modelos de IA** tirou a escolha do modelo das variáveis de ambiente: um catálogo em código lista
-os modelos permitidos por família (OpenAI, Anthropic e TypeSafe, esta só para decisões), com nível
+os modelos permitidos por família (OpenAI, Anthropic, DeepSeek e TypeSafe, esta só para decisões), com nível
 de capacidade (básico, padrão, avançado), modo, ciclo de vida e preço de referência. Cada tarefa
 declara seu nível, e a política escolhe, entre os modelos aprovados para ela por uma avaliação
 registrada no repositório, o de menor custo; o fallback fica no mesmo nível, e subir de nível só

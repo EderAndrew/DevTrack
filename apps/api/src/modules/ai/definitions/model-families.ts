@@ -10,11 +10,11 @@ import { AiModelLifecycleSchema, AiModelModeSchema, AiModelTierSchema } from "@r
  * The only model families production may use (009 FR-001). A family is the vendor prefix of an
  * OpenRouter model id (`anthropic/…`); adding one is an explicit, reviewed change here.
  */
-export const PRODUCTION_MODEL_FAMILIES = ["openai", "anthropic", "typesafe"] as const;
+export const PRODUCTION_MODEL_FAMILIES = ["openai", "anthropic", "typesafe", "deepseek"] as const;
 export type ModelFamily = (typeof PRODUCTION_MODEL_FAMILIES)[number];
 
 /** The families with generation models; decision-only families (TypeSafe's Jev) are left out. */
-export const GENERATION_MODEL_FAMILIES: readonly ModelFamily[] = ["openai", "anthropic"];
+export const GENERATION_MODEL_FAMILIES: readonly ModelFamily[] = ["openai", "anthropic", "deepseek"];
 
 /** Capability tiers, from the cheapest to the most capable; independent of family (009 FR-005). */
 export const MODEL_TIERS = AiModelTierSchema.options;

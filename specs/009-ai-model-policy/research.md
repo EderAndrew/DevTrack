@@ -37,14 +37,15 @@ an override (a second path around the catalog).
 
 ## H3. Families and modes
 
-**Decision**: The allowlist is a closed list in code: `openai`, `anthropic`, `typesafe`. A
+**Decision**: The allowlist is a closed list in code: `openai`, `anthropic`, `typesafe` and, since
+the 2026-09-29 amendment, `deepseek` (generation). A
 model's family is its OpenRouter vendor prefix, checked at startup against the allowlist. Mode
 `DECISION` (Jev) and `GENERATION` (the others) are part of the catalog entry; a task declares
 its mode; the selection never mixes them.
 
 Rule: when the model id has a `/`, its prefix must equal the family (always true for
 OpenRouter ids); an id without a prefix is accepted only for a family outside the production
-allowlist (the tests' `fake`). The production allowlist is pinned by a test to exactly the three
+allowlist (the tests' `fake`). The production allowlist is pinned by a test to exactly its
 families.
 
 **Rationale**: FR-001, FR-001a; the prefix is how OpenRouter names the vendor, so a model can't
@@ -199,6 +200,15 @@ refreshed in the catalog, never in the spec):
 | openai | STANDARD | `openai/gpt-6-sol` | CANDIDATE |
 | openai | ADVANCED | `openai/gpt-6-astra` | CANDIDATE |
 | typesafe | BASIC (decision) | `typesafe/jev-1.13` | CANDIDATE |
+
+Amendment 2026-09-29 (ids and prices from OpenRouter's public list that day): the `deepseek`
+family adds a `flash` model as BASIC (priced between `openai-basic` and `anthropic-basic`) and a
+`pro` model as STANDARD; no DeepSeek model fits ADVANCED.
+
+| Family | Tier | Model | Lifecycle |
+|--------|------|-------|-----------|
+| deepseek | BASIC | `deepseek/deepseek-v4.1-flash` | CANDIDATE |
+| deepseek | STANDARD | `deepseek/deepseek-v4-pro-0813` | CANDIDATE |
 
 All entries start without approvals: the 007 `recorded.json` files hold the answers the fake
 provider replays, not a record of which model produced them, so they are not evidence (FR-017,

@@ -1,0 +1,20 @@
+{
+  "task": "curriculum-extraction",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "servedModel": "deepseek/deepseek-v4.1-flash",
+  "goldenSetVersion": 2,
+  "evaluatedAt": "2026-09-29T14:09:16.512Z",
+  "metrics": {
+    "itemRecall": 0,
+    "schemaValidity": 0,
+    "unsupportedWithoutWarning": 0,
+    "inventedFields": 0,
+    "languageMatch": 0,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.008670",
+    "currency": "USD",
+    "perExecution": "0.000867"
+  }
+}

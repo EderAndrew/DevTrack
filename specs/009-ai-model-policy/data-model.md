@@ -20,7 +20,7 @@ New columns, synced from `definitions/model-catalog.ts`:
 
 | Column | Type | Rules |
 |--------|------|-------|
-| `family` | text | one of the allowlist (`openai`, `anthropic`, `typesafe`); equals the model id's vendor prefix whenever the id has one (research H3) |
+| `family` | text | one of the allowlist (`openai`, `anthropic`, `typesafe`, `deepseek`); equals the model id's vendor prefix whenever the id has one (research H3) |
 | `tier` | `ai_model_tier` | NOT NULL for catalog entries; NULL only for legacy rows no longer in the catalog |
 | `mode` | `ai_model_mode` | default `GENERATION` |
 | `lifecycle` | `ai_model_lifecycle` | default `CANDIDATE`; changes audited (`ai_model_config.lifecycle_changed`) |
@@ -115,7 +115,7 @@ event in one transaction; later crossings in the period find the row and write n
 type ModelTier = "BASIC" | "STANDARD" | "ADVANCED";
 
 interface CatalogModel {                       // model-catalog.ts
-  key: string; family: "openai" | "anthropic" | "typesafe"; model: string;
+  key: string; family: "openai" | "anthropic" | "typesafe" | "deepseek"; model: string;
   tier: ModelTier; mode: "GENERATION" | "DECISION"; lifecycle: Lifecycle;
   price?: { inputPerMTok: string; outputPerMTok: string; currency: "USD" };
   contextWindow: number; capabilities: Capabilities; priority?: number;

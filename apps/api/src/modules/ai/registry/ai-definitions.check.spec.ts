@@ -43,8 +43,8 @@ const task = (change: Partial<TaskDefinition> = {}): TaskDefinition =>
 const problem = (change: Partial<TaskDefinition>) => taskPolicyProblem(taskPolicyOf(task(change)), FAMILIES);
 
 describe("009/FR-001 allowlist de famílias de produção", () => {
-  it("é exatamente openai, anthropic e typesafe", () => {
-    expect([...PRODUCTION_MODEL_FAMILIES].sort()).toEqual(["anthropic", "openai", "typesafe"]);
+  it("é exatamente openai, anthropic, typesafe e deepseek", () => {
+    expect([...PRODUCTION_MODEL_FAMILIES].sort()).toEqual(["anthropic", "deepseek", "openai", "typesafe"]);
   });
 
   it("o catálogo de produção passa inteiro pelas checagens, só com famílias da allowlist", () => {

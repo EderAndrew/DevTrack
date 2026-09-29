@@ -29,8 +29,9 @@ a new feature through `/speckit-specify`.
 
 AI agents (`curriculum-agent`, `exercise-generator`) are registered DISABLED until the admin enables
 them. Both tasks are BASIC and served by `openai-basic`, the only model that passed their release
-gates (`anthropic-basic` was never evaluated: OpenRouter answered 402, no credit), so they have no
-same-tier fallback until a second BASIC model is approved.
+gates (`anthropic-basic` was never evaluated: OpenRouter answered 402, no credit; `deepseek-basic`
+failed both on 2026-09-29, schema validity 0 and 0.17), so they have no same-tier fallback until a
+second BASIC model is approved. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010), `data-model.md`,
@@ -61,7 +62,7 @@ hand-maintained.
 - No new dependencies and no provider SDK; `modules/ai` (registry synced from code, model gateway, tool executor, structured output, proposals, worker on the `ai_executions` table); 15 `ai_*` PostgreSQL tables; `ia.*` permissions; reference agent and fake provider only in `apps/api/test/fixtures/ai` (006-ai-foundation)
 - New dep `@anthropic-ai/sdk` (removed in 008; api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
 - No new dependency, `@anthropic-ai/sdk` removed: OpenRouter is the only real provider, over Node's native `fetch` (`gateway/providers/openrouter.provider.ts`, registered only with `OPENROUTER_API_KEY`); task routing (`ai_tasks`: primary + fallback model config), fallback in `ModelGateway`, in-memory circuit breaker, per-agent hourly limit; new columns on `ai_agent_versions`, `ai_executions`, `ai_model_calls` (008-ai-gateway-openrouter)
-- No new dependency: model catalog in code (`definitions/model-catalog.ts`: families OpenAI/Anthropic/TypeSafe, tier BASIC/STANDARD/ADVANCED, mode generation/decision, lifecycle, approvals backed by committed eval evidence), pure `selectRoute` in `modules/ai/policy`, same-tier fallback and one-step escalation; OpenRouter decisions route for Jev; tables `ai_model_task_approvals`, `ai_task_overrides`, `ai_budget_alerts` (009-ai-model-policy)
+- No new dependency: model catalog in code (`definitions/model-catalog.ts`: families OpenAI/Anthropic/TypeSafe/DeepSeek, tier BASIC/STANDARD/ADVANCED, mode generation/decision, lifecycle, approvals backed by committed eval evidence), pure `selectRoute` in `modules/ai/policy`, same-tier fallback and one-step escalation; OpenRouter decisions route for Jev; tables `ai_model_task_approvals`, `ai_task_overrides`, `ai_budget_alerts` (009-ai-model-policy)
 - No new dependency: exercise bank (`modules/exercises`: tables `exercises`, `exercise_alternatives` with DB-enforced 3–5 alternatives / one correct, types as a registry, teacher × student views by allowlist) and AI generation (`modules/exercise-ai`: `exercise_generation_batches`, L2 agent `exercise-generator` on task `exercise-generation`, drafts materialized by a `proposal.materialize` foundation hook); `programming_languages` catalog (seeded) and `syllabus_revisions.language_id`; `questoes.*`, `ia.exercicios.gerar` permissions (010-exercise-bank)
 
 ## Stack notes

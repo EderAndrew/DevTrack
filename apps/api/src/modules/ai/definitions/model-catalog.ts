@@ -110,6 +110,30 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     contextWindow: 1_050_000,
     capabilities: GENERATION,
   }),
+  // DeepSeek joined the allowlist on 2026-09-29 (009 amendment); ids and prices from OpenRouter's
+  // public list that day. No DeepSeek model fits ADVANCED.
+  openRouter({
+    key: "deepseek-basic",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4.1-flash",
+    tier: "BASIC",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.3", "1.2"),
+    contextWindow: 1_048_576,
+    capabilities: GENERATION,
+  }),
+  openRouter({
+    key: "deepseek-standard",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4-pro-0813",
+    tier: "STANDARD",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.48", "4.2"),
+    contextWindow: 1_048_576,
+    capabilities: { ...GENERATION, vision: false },
+  }),
   // Decision mode (009 FR-001a, contracts/decisions-provider.md): answers choice, score or
   // yes/no, never text. Not in OpenRouter's model list, so no reference price: its cost comes
   // from each response. 64k tokens per request.
