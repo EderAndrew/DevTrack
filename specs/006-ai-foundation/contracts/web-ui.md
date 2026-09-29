@@ -79,6 +79,9 @@ operação de IA"), in this order:
   toasts and `Alert`s are unchanged; only the active tab's panel is rendered.
 - The active tab is in the URL (`/admin/ia?aba=agentes`), replaced without a new history entry;
   an unknown value opens Saúde. A reload or a shared link opens the same tab.
+- Width: the page is a wide AppShell page (`data-layout="wide"`, 005 `layouts.md`): it takes the
+  whole width of the screen, beyond `--content-max`, and table actions use the small button. A status (icon + text) never breaks across lines; on a
+  narrow screen the tabs wrap and each table scrolls sideways inside its own frame, never the page.
 - Keyboard (SC-012): Tab reaches the active tab, the arrows move between tabs (activating them),
   and Tab goes on into the active panel: its controls in the order above (for example Período →
   the action of each row). Dialogs still trap focus and return it to their button.

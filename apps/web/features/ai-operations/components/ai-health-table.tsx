@@ -33,7 +33,7 @@ export const CONFIG_STATUS: Record<AiModelConfigStatus, [string, StatusVariant, 
 export function IconStatus({ entry }: { entry: [string, StatusVariant, LucideIcon] }) {
   const [label, variant, Icon] = entry;
   return (
-    <Status variant={variant}>
+    <Status variant={variant} className="whitespace-nowrap">
       <Icon aria-hidden="true" className="size-4" />
       {label}
     </Status>

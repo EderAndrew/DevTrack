@@ -17,7 +17,7 @@ export default async function AiOperationsRoute({ searchParams }: { searchParams
   if (!me.permissions.includes(AI_OPERATIONS_AREA.permission)) return <NoAccess title={AI_OPERATIONS_AREA.label} />;
 
   return (
-    <section className="mx-auto w-full max-w-256">
+    <section data-layout="wide" className="w-full">
       <PageHeader title={AI_OPERATIONS_AREA.label} description="Saúde, uso e custo dos agentes de IA. Nenhum conteúdo de professores aparece aqui." />
       <AiOperationsPage canManage={me.permissions.includes("ia.agentes.gerenciar")} initialTab={aiOperationsTabOf((await searchParams).aba)} />
     </section>

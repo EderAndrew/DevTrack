@@ -34,7 +34,7 @@ export function AiStatusToggle({ disabling, subject, title, consequences, pendin
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button type="button" variant={disabling ? "danger" : "secondary"} aria-label={`${label} ${subject}`} aria-busy={pending || undefined} disabled={pending}>
+        <Button type="button" size="sm" variant={disabling ? "danger" : "secondary"} aria-label={`${label} ${subject}`} aria-busy={pending || undefined} disabled={pending}>
           {label}
         </Button>
       </AlertDialogTrigger>
