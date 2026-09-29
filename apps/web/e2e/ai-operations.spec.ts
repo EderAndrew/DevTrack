@@ -44,10 +44,14 @@ test("006/US7-6 009/US6-2 ADMIN abre Operação de IA pelo menu: o agente da 007
   // A reload opens the same tab.
   await page.reload();
   await expect(tabs.getByRole("tab", { name: "Configurações de modelo" })).toHaveAttribute("aria-selected", "true");
+  // The reopened tab loads its data before the keyboard part.
+  await expect(region("Configurações de modelo").getByText("openai-basic", { exact: true })).toBeVisible();
 
   // Keyboard: the arrows move between tabs; Tab goes on into the panel (Período).
+  // Radix moves the focus in a timeout: wait for each key to land before the next one.
   await tabs.getByRole("tab", { name: "Configurações de modelo" }).focus();
   await page.keyboard.press("Home");
+  await expect(tabs.getByRole("tab", { name: "Saúde" })).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(tabs.getByRole("tab", { name: "Indicadores" })).toBeFocused();
   await expect(tabs.getByRole("tab", { name: "Indicadores" })).toHaveAttribute("aria-selected", "true");
