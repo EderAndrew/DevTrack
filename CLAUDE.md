@@ -58,21 +58,9 @@ they diverge the spec wins and the ADR is fixed.
 hand-maintained.
 
 ## Active Technologies
-- No new dependencies; PostgreSQL tables `classes`, `class_invitations`, `class_invitation_deliveries` (mail outbox + in-process retry worker), `enrollments`; `student_profiles.ra`/`status`; `turmas.*` permissions (003-class-invitations-enrollment)
-- `@repo/contracts` (Zod 4 via pnpm catalog, ESM built with `tsc`); web: Tailwind CSS 4, shadcn/ui (Radix), Lucide, TanStack Query 5, React Hook Form 7 + `@hookform/resolvers`; E2E: Playwright; CI: GitHub Actions (002-stack-alignment)
-- TypeScript 7 sobre Node.js 24 LTS; `apps/api` compila com SWC e faz type-check com `tsc --noEmit` (R1) + NestJS 11 (Express), Prisma 7 + `@prisma/adapter-pg`, `argon2`, `zod`, `nestjs-pino`/`pino`, `nodemailer`, `cookie-parser`; web: Next.js 16, React 19 (001-foundation-identity-access)
-- New deps `pdfjs-dist`, `fflate`, `fast-xml-parser` (api) and `react-day-picker` (web, shadcn Calendar); PostgreSQL tables `subjects`, `stored_files` (bytea), `syllabus_documents` (processing queue + in-process worker, extraction in `worker_threads`), `syllabus_revisions`/`groups`/`items`, `class_meetings`, `class_plans`, `topics`, `topic_syllabus_items`; `classes.subject_id`/`starts_on`/`ends_on`; `disciplinas.*`, `ementas.*`, `calendario.gerenciar`, `planejamento.*` permissions (004-syllabus-planning)
-- No new dependencies; design tokens in `apps/web/design-system/tokens.css` (Tailwind 4 default scales reset), Inter + JetBrains Mono as local fonts (Geist removed), new shadcn components from the installed `radix-ui`; no API, schema or contract changes (005-design-system)
-- No new dependencies and no provider SDK; `modules/ai` (registry synced from code, model gateway, tool executor, structured output, proposals, worker on the `ai_executions` table); 15 `ai_*` PostgreSQL tables; `ia.*` permissions; reference agent and fake provider only in `apps/api/test/fixtures/ai` (006-ai-foundation)
-- New dep `@anthropic-ai/sdk` (removed in 008; api, only under `src/modules/ai/gateway/providers/**`; first real provider, `claude-opus-5`, registered only with `ANTHROPIC_API_KEY`); module `modules/curriculum-ai` (agent `curriculum-agent`, tool `read-curriculum-document`, grounding check, apply into a 004 draft); `syllabus_revision_source` + `AI_ASSISTED`, `syllabus_revisions.ai_proposal_id`; no new table or permission (007-curriculum-agent)
-- No new dependency, `@anthropic-ai/sdk` removed: OpenRouter is the only real provider, over Node's native `fetch` (`gateway/providers/openrouter.provider.ts`, registered only with `OPENROUTER_API_KEY`); task routing (`ai_tasks`: primary + fallback model config), fallback in `ModelGateway`, in-memory circuit breaker, per-agent hourly limit; new columns on `ai_agent_versions`, `ai_executions`, `ai_model_calls` (008-ai-gateway-openrouter)
-- No new dependency: model catalog in code (`definitions/model-catalog.ts`: families OpenAI/Anthropic/TypeSafe/DeepSeek, tier BASIC/STANDARD/ADVANCED, mode generation/decision, lifecycle, approvals backed by committed eval evidence), pure `selectRoute` in `modules/ai/policy`, same-tier fallback and one-step escalation; OpenRouter decisions route for Jev; tables `ai_model_task_approvals`, `ai_task_overrides`, `ai_budget_alerts` (009-ai-model-policy)
-- No new dependency: exercise bank (`modules/exercises`: tables `exercises`, `exercise_alternatives` with DB-enforced 3–5 alternatives / one correct, types as a registry, teacher × student views by allowlist) and AI generation (`modules/exercise-ai`: `exercise_generation_batches`, L2 agent `exercise-generator` on task `exercise-generation`, drafts materialized by a `proposal.materialize` foundation hook); `programming_languages` catalog (seeded) and `syllabus_revisions.language_id`; `questoes.*`, `ia.exercicios.gerar` permissions (010-exercise-bank)
 
 ## Stack notes
 
-Monorepo: pnpm 11 workspaces + Turborepo; PostgreSQL 17; tests with Vitest (`unplugin-swc`),
-`@nestjs/testing` + `supertest` against a real PostgreSQL, Testing Library + `vitest-axe` on web.
 If TS 7 rejects Nest decorators, the documented fallback (R1) is pinning `typescript@~5.9` in
 `apps/api` only.
 
@@ -218,95 +206,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- 003 modules (`apps/api/src/modules`): `classes` (`ClassContextPolicy` scopes every lookup to the
-  session teacher's own classes → 404 otherwise), `class-invitations` (invite, list, resend, cancel;
-  public preview/accept through `RoleGrantAcceptance`, which grants `STUDENT` and creates the
-  enrollment) and `enrollments` (the teacher's student list and removal, plus the student's
-  `GET /me/classes`). Invitation e-mails go through the `class_invitation_deliveries` outbox: the
-  first attempt runs after the commit, then the in-process `ClassInvitationDeliveryWorker` (`FOR
-  UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS` (0 disables the timer; tests
-  call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7 attempts; a retry issues a
-  fresh token and supersedes the old link.
-- 004 modules: `subjects` (`SubjectContextPolicy`, same 404 scoping as classes; syllabus documents
-  and revisions are reached through their subject), `syllabus` (multipart upload through
-  `SyllabusFileInterceptor` in `platform/http/upload.ts`, on routes marked `@AcceptsMultipart()` so
-  `OriginGuard` lets `multipart/form-data` through; the file is inspected in a worker thread before
-  anything is written, then the original goes into `stored_files` (bytea, immutable by trigger)
-  through `FileStorage` in `platform/storage`; `SyllabusProcessingWorker` claims `UPLOADED`
-  documents every `SYLLABUS_PROCESSING_INTERVAL_SECONDS` (0 disables the timer) with a lease and
-  runs extraction in a `worker_threads` worker via `SyllabusWorkerRunner`, with the state machine in
-  `syllabus-processing.state-machine.ts`; confirmed revisions are immutable by trigger; worker test
-  setup is in `apps/api/CLAUDE.md`) and
-  `class-plans` (the class calendar, where the meeting number comes from `row_number()` and is never
-  stored; plan and topic state machines; `bumpRevision` in `plan-revision.guard.ts` starts every plan
-  write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the
-  topics use; a `COMPLETED` topic (US9) is locked except for archive and "Reabrir aula", can't be
-  restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
-- 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
-  `definitions` (agents, prompts, output schemas, tools, tasks and model configs are code, research A4;
-  `productionAiDefinitions(config)` registers the 007 `curriculum-agent`, DISABLED until the admin
-  enables it, its `curriculum-extraction` task and, since 009, the model catalog of
-  `model-catalog.ts` (008's `openrouter-default`/`openrouter-fallback` configs built from the
-  environment are gone); a task with no usable approved model is unavailable and logs
-  `ai.task_unavailable` instead of stopping the API, and a changed model is audited as
-  `ai_model_config.changed`), `registry` (`AiRegistrySync`
-  writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
-  whose content changed stops the startup, and a trigger refuses the update: publish a new
-  version), `gateway` (`ModelGateway` runs the task's route fixed on the execution: the primary with
-  its timeout and retries of transient failures, then, after a recoverable failure or an open
-  circuit, the fallback once, never back to the primary, each leg written to `ai_model_calls`
-  with the served model and the provider's cost; `CircuitBreaker` per model config, in memory,
-  audited `ai_circuit.opened`/`closed`; errors normalized; real providers live in
-  `gateway/providers/**`, the only place a provider SDK or host may appear: `OpenRouterProvider`,
-  008, over native `fetch`),
-  `tools` (`AiToolExecutor`: allowlist, enabled, permission, strict input, resource owned by the
-  workspace, timeout, strict output, and a result within the model's input limit), `output` (structured output validated by the agent's Zod schema),
-  `execution` (`POST /ai/executions` queues, after the per-user limits and, since 008, the
-  per-agent hourly limit `AI_AGENT_EXECUTIONS_PER_HOUR`; `AiExecutionWorker` claims `QUEUED` rows with
-  `SKIP LOCKED` every `AI_EXECUTION_INTERVAL_SECONDS`, `0` = global kill switch; the runner
-  re-authorizes at start and checks cancellation between steps; the workspace is always the
-  session user), `proposals` (L2 output becomes a proposal the teacher approves, partially
-  approves or rejects; approving never writes domain data), `usage` (tokens and cost in
-  `ai_model_calls`), `operations` (admin health, metrics, agents and configs, never content),
-  `evaluation` (`AiEvaluationStore`, no routes) and `retention` (maintenance job `ai-records`).
-  An agent whose proposal has `approveThroughDomain` (007) is approved only by its domain's apply
-  flow through `AiProposalsService.decideWithin`; the 006 decision route accepts only REJECT.
-- 009 model policy (`apps/api/src/modules/ai`): `definitions/model-families.ts` (allowlist, tiers,
-  modes, lifecycle and its transitions), `definitions/model-catalog.ts` (the only concrete model ids;
-  entries with price, capabilities and approvals that point at committed evidence), task policies
-  on `ai_tasks` (`policy/task-policy.ts`: minimum, preferred and max tier, families, capabilities,
-  fallback, escalation, quality thresholds, typical usage). `policy/select-route.ts` is pure: filter
-  (family, mode, capabilities, PRODUCTION with a valid approval, DEPRECATED only when nothing else,
-  tier), order (override if usable, estimated cost, unknown price last, priority, key), fallback of
-  the same tier preferring another family; health never reorders. `AiPolicyRegistry` feeds it from
-  the synced tables (`ai_model_task_approvals`, `ai_task_overrides`) and fixes the route on the
-  execution with its tier and reason. The runner escalates once, to the next tier, after an invalid
-  output when the task says so. `AiRegistrySync` refuses an invalid lifecycle transition (the entry
-  leaves the catalog) and audits `ai_model_config.lifecycle_changed`. The admin override
-  (`PUT/DELETE /ai/operations/tasks/:key/override`) accepts only a model the policy admits;
-  `usage/ai-budget.monitor.ts` checks the budgets after each recorded call and audits
-  `ai_budget.exceeded` once per period (`ai_budget_alerts`). Decision-mode models (TypeSafe's Jev)
-  answer through `ModelGateway.decide` (OpenRouter decisions, `contracts/decisions-provider.md`).
-- 007 module `curriculum-ai` (`apps/api/src/modules/curriculum-ai`, research C1): the
-  `curriculum-agent` definition, its prompt and output schema, the `read-curriculum-document` tool
-  (only the execution's own document, normalized by the 004 readers in the worker thread) and the
-  `SYLLABUS_DOCUMENT` ownership; `proposal/` (pure: item ids, deterministic grounding check that
-  flags `UNSUPPORTED_CONTENT`, source refs kept only when the block has the text);
-  `CurriculumAiRequestService` (status and request: per-teacher hourly limit, one active analysis
-  per document by a derived idempotency key, a pending proposal discarded only when the teacher
-  confirms) and `CurriculumAiApplyService` (locks the document, the proposal and the draft, checks
-  the source hash, validates the accepted content as a 004 draft, creates or replaces the draft
-  and approves the proposal in one transaction; idempotent). The AI module never writes syllabus
-  data.
-- 010 modules: `exercises` (the bank: types as a registry, pure rules, teacher and student views
-  (`toStudentView` copies an allowlist), `ExercisesService` with optimistic `version` under a row
-  lock, keyset list in `exercise-query.ts`, archive/restore, `ExerciseBatchReview` hook; never
-  imports AI code) and `exercise-ai` (batches: request with the idempotency key and the execution in
-  one transaction; the `exercise-generator` definition, prompt and `read-exercise-generation-request`
-  tool; `validate-generated-batch` refuses an answer that doesn't match the request; the
-  `proposal.materialize` foundation hook writes the DRAFT exercises in the runner's transaction;
-  `ExerciseProposalCloser` decides the proposal once no draft is left). The OpenRouter adapter's
-  `sanitizeJsonSchema` writes `oneOf` as `anyOf` (strict structured output refuses `oneOf`).
+- API modules (003, 004, 006, 007, 009, 010): see `apps/api/CLAUDE.md`, loaded when working
+  under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
 
