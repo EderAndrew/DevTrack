@@ -11,15 +11,17 @@ export interface ToastOptions {
   title: string
   description?: string
   variant?: ToastVariant
+  /** Milliseconds before closing; defaults to 5 s, or until closed for `danger`. */
+  duration?: number
 }
 
-interface ToastItem extends Required<Pick<ToastOptions, "title" | "variant">> {
+interface ToastItem extends Required<Pick<ToastOptions, "title" | "variant" | "duration">> {
   id: number
   description?: string
   open: boolean
 }
 
-/** How long a toast stays (005 contracts/components.md "Toast"); errors stay until closed. */
+/** How long a toast stays (005 contracts/components.md "Toast"); errors stay until closed unless given a `duration`. */
 const DURATION_MS = 5_000
 
 const VARIANT_CLASSES: Record<ToastVariant, string> = {
@@ -47,7 +49,7 @@ function useToast() {
 
 /**
  * Provides `useToast()` and shows the toasts (Radix Toast): announced to assistive technology,
- * paused while hovered or focused, `--z-toast`, closed after 5 s except errors.
+ * paused while hovered or focused, `--z-toast`, closed after 5 s except errors without a `duration`.
  */
 function Toaster({ children }: { children?: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastItem[]>([])
@@ -55,11 +57,13 @@ function Toaster({ children }: { children?: React.ReactNode }) {
 
   const toast = React.useCallback((options: ToastOptions) => {
     nextId.current += 1
+    const variant = options.variant ?? "info"
     const item: ToastItem = {
       id: nextId.current,
       title: options.title,
       description: options.description,
-      variant: options.variant ?? "info",
+      variant,
+      duration: options.duration ?? (variant === "danger" ? Infinity : DURATION_MS),
       open: true,
     }
     setToasts((current) => [...current, item])
@@ -80,7 +84,7 @@ function Toaster({ children }: { children?: React.ReactNode }) {
               data-slot="toast"
               data-variant={item.variant}
               type={item.variant === "danger" ? "foreground" : "background"}
-              duration={item.variant === "danger" ? Infinity : DURATION_MS}
+              duration={item.duration}
               onOpenChange={(open) => {
                 if (!open) close(item.id)
               }}

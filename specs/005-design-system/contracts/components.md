@@ -38,7 +38,7 @@ alvo ≥ 24 px (44 px em botões e campos), nome acessível, nenhum estado só p
 | Componente | Situação | Contrato |
 |------------|----------|----------|
 | `Alert` | ajustado | `variant`: `info`, `success`, `warning`, `danger`; fundo `--*-surface`, borda à esquerda `--*`, ícone (`Info`, `CircleCheck`, `TriangleAlert`, `CircleAlert`), título; `role="alert"` só para erro que interrompe, senão `role="status"` |
-| `Toast` | novo (Radix Toast) | mesmas variantes, `--z-toast`, some em 5 s (erro fica até fechar), pausa com foco ou mouse, anunciado; nunca o único lugar de uma informação necessária |
+| `Toast` | novo (Radix Toast) | mesmas variantes, `--z-toast`, some em 5 s (erro fica até fechar, salvo `duration` explícito), pausa com foco ou mouse, anunciado; nunca o único lugar de uma informação necessária, exceto a recusa do login (emenda 2026-09-29) |
 | `Progress` | ajustado | trilho `--border`, preenchimento `--primary`, `aria-valuenow` e rótulo |
 | `Spinner` | novo | `LoaderCircle` + texto para leitores de tela; `role="status"` |
 | `EmptyState` | novo | ícone, título (`text-h3`), texto e uma ação opcional; sem ilustração decorativa |

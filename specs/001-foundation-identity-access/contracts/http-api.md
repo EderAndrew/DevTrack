@@ -234,4 +234,5 @@ Mensagens (`message`) em português, sem dados do alvo.
 
 Toda tela web desta feature segue FR-075 (WCAG 2.2 AA): erros devolvidos pela API
 são exibidos em região `aria-live`, vinculados ao campo por `aria-describedby`
-quando se referem a um campo, e o foco vai para o resumo de erros (R22).
+quando se referem a um campo, e o foco vai para o resumo de erros (R22). Exceção (002,
+emenda 2026-09-29): a recusa do login é anunciada num Toast e o foco fica no botão.
