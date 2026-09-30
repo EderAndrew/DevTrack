@@ -52,16 +52,16 @@ description: "Task list for 011 — Banco de Trabalhos: criação manual e gera�
 **Purpose**: vocabulário, configuração, códigos de erro e os helpers puros que todas as histórias
 usam.
 
-- [ ] T001 Criar `packages/contracts/src/works/enums.ts` com `WorkQuestionTypeSchema`,
+- [X] T001 Criar `packages/contracts/src/works/enums.ts` com `WorkQuestionTypeSchema`,
   `WorkGradingStrategySchema`, `WorkDifficultySchema`, `WorkOriginSchema`, `WorkStatusSchema`,
   `TestCaseVisibilitySchema` e `WorkGenerationRequestStatusSchema`, exportados em
   `packages/contracts/src/index.ts`; teste em `packages/contracts/test/works.spec.ts` (valores
   exatos; nenhum reaproveita `ExerciseDifficultySchema` nem `AiModelTierSchema` — `011/FR-009`).
-- [ ] T002 [P] `packages/contracts/src/common/split-evenly.ts`: `splitEvenly(total, k)` puro
+- [X] T002 [P] `packages/contracts/src/common/split-evenly.ts`: `splitEvenly(total, k)` puro
   (`floor(total / k)` para todos e +1 para os primeiros `total mod k`), exportado; teste em
   `packages/contracts/test/split-evenly.spec.ts` (10/3 → 4,3,3; 5/2 → 3,2; 50/3 → 17,17,16;
   determinístico; `k = 0` → `[]`). A `distributeExercises` da 010 não muda.
-- [ ] T003 [P] `packages/contracts/src/works/grade.ts` (research W3, W4): `GradeStringSchema`
+- [X] T003 [P] `packages/contracts/src/works/grade.ts` (research W3, W4): `GradeStringSchema`
   (entrada `/^\d{1,3}(\.\d{1,2})?$/`, 0.01–100.00) e `GradeOutputSchema` (saída sempre com
   duas casas), `gradeToCents`, `centsToGrade`,
   `distributeGrade(totalCents, count)` sobre `splitEvenly`; testes em
@@ -70,10 +70,10 @@ usam.
   recusa de `"0.505"`, `"-1.00"`, `"0.00"`, `"100.01"`, vírgula; `centsToGrade(50)` → `"0.50"`; propriedade exaustiva de 1 a 1 000 centésimos × 1–10 questões e
   amostrada até 10 000: soma = total, máx − mín ≤ 1, não crescente por posição
   (`011/US2-1`…`011/US2-3`, `011/US2-5`, `011/US2-6`, `011/SC-004`).
-- [ ] T004 [P] Acrescentar `RATE_LIMIT_WORK_AI_PER_HOUR` (padrão 10, int ≥ 1) em
+- [X] T004 [P] Acrescentar `RATE_LIMIT_WORK_AI_PER_HOUR` (padrão 10, int ≥ 1) em
   `apps/api/src/platform/config/config.schema.ts` (`rateLimit.workAiPerHour`) e
   `apps/api/.env.example`; teste em `apps/api/test/integration/platform.spec.ts`.
-- [ ] T005 [P] Acrescentar o código de erro `WORK_VERSION_CONFLICT` (409) em
+- [X] T005 [P] Acrescentar o código de erro `WORK_VERSION_CONFLICT` (409) em
   `packages/contracts/src/common/errors.ts`, `apps/api/src/platform/http/errors.ts` e
   `apps/web/lib/messages/error-messages.ts` ("Este trabalho mudou em outra aba. Recarregue para
   ver a versão atual."), com o teste do catálogo (`apps/web/lib/messages/error-messages.test.ts`).

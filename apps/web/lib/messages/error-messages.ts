@@ -74,6 +74,7 @@ export const ERROR_MESSAGES = {
   AI_PROPOSAL_APPLY_REQUIRED: "Esta proposta é aprovada ao aplicá-la na ementa.",
   AI_OVERRIDE_NOT_ALLOWED: "Este modelo não pode ser fixado para esta tarefa.",
   EXERCISE_VERSION_CONFLICT: "Este exercício foi alterado depois que você o abriu. Atualize a página antes de continuar.",
+  WORK_VERSION_CONFLICT: "Este trabalho mudou em outra aba. Recarregue para ver a versão atual.",
   SUBJECT_ARCHIVED: "Esta disciplina está arquivada e não pode ser usada para gerar exercícios.",
   SYLLABUS_LANGUAGE_REQUIRED: "Defina a linguagem da ementa para gerar exercícios de código.",
   SYLLABUS_NOT_READY_FOR_AI:
