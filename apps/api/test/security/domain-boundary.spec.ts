@@ -5,7 +5,7 @@ import { PERMISSIONS } from "../../src/modules/access-control/permissions";
 import { API_ROOT } from "../helpers/env";
 import { registeredRoutes } from "../helpers/routes";
 
-/** The entities of data-model.md (001, 003, 004, 006, 008, 009 and 010; 007 adds none) — nothing else exists yet. */
+/** The entities of data-model.md (001, 003, 004, 006, 008, 009, 010 and 011; 007 adds none) — nothing else exists yet. */
 const EXPECTED_MODELS = [
   "User",
   "Role",
@@ -62,6 +62,15 @@ const EXPECTED_MODELS = [
   "Exercise",
   "ExerciseAlternative",
   "ExerciseGenerationBatch",
+  // 011 — work bank: works, their topics, questions, alternatives, test cases and AI generation requests.
+  "Work",
+  "WorkTopic",
+  "WorkQuestion",
+  "WorkQuestionAlternative",
+  "WorkQuestionTestCase",
+  "WorkQuestionTopic",
+  "WorkGenerationRequest",
+  "WorkGenerationRequestTopic",
 ];
 
 /**
@@ -69,17 +78,17 @@ const EXPECTED_MODELS = [
  * 003 brought classes and enrollments in on purpose (`turma`, `matricul`, `class`, `classes`,
  * `enrollment` are allowed, 003/D13) and 004 subjects, syllabi, meetings, plans and topics
  * (`subject`, `syllabus`, `ementa`, `disciplina`, `topic`, `tópico`, `meeting`, `plan`, 004/E22)
- * and 010 the question bank (`questao`, `questoes`, `exercicio`; `exercise` was never listed); the
- * later phases' terms (exams, assignments, grades, attempts) stay forbidden.
+ * and 010 the question bank (`questao`, `questoes`, `exercicio`; `exercise` was never listed) and
+ * 011 the work bank (`trabalho`, `trabalhos`, and `grade` for a work's total grade and its grading
+ * strategies; `work` was never listed); the later phases' terms (exams, student grades as `nota`,
+ * submissions, attempts) stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
   "periodo",
   "aula",
-  "trabalho",
   "prova",
   "nota",
-  "grade",
   "submiss",
   "course",
   "lesson",
@@ -158,7 +167,7 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "trabalhos.criar", "tentativas_prova", "exam_attempts"]) {
+    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "prova_trabalhos", "tentativas_prova", "exam_attempts"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
     for (const name of [
@@ -186,6 +195,10 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
       "ia.exercicios.gerar",
       "exercise_generation_batches",
       "ExerciseAlternative",
+      "trabalhos.criar",
+      "ia.trabalhos.gerar",
+      "work_grading_strategy",
+      "total_grade",
     ]) {
       expect(academicTerms(name), name).toEqual([]);
     }

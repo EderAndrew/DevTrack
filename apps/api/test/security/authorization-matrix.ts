@@ -80,6 +80,16 @@ export const EXERCISE_BANK = [
   "ia.exercicios.gerar",
 ] as const satisfies PermissionKey[];
 
+/** 011: the teacher's private work bank and its AI generation (MANAGER and ADMIN get none). */
+export const WORK_BANK = [
+  "trabalhos.visualizar",
+  "trabalhos.criar",
+  "trabalhos.editar",
+  "trabalhos.arquivar",
+  "trabalhos.aprovar",
+  "ia.trabalhos.gerar",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -92,7 +102,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK],
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
 };
 

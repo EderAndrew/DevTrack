@@ -87,7 +87,7 @@ ainda.
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T006 Migração `apps/api/prisma/migrations/<ts>_work_bank/migration.sql` e
+- [X] T006 Migração `apps/api/prisma/migrations/<ts>_work_bank/migration.sql` e
   `apps/api/prisma/schema.prisma` conforme `data-model.md`: os 6 enums; `works` (CHECKs de nota
   0.01–100.00 e ≥ 0,01 por questão, `question_count` 1–10, `archived_from_status`, AI ⇒
   revisão, dificuldade e pedido, AI APPROVED ⇒ revisor; UNIQUE `(id, syllabus_revision_id)`;
@@ -105,7 +105,7 @@ ainda.
   pedido; permissões `trabalhos.visualizar/criar/editar/arquivar/aprovar` e `ia.trabalhos.gerar`
   concedidas a TEACHER; atualizar a lista de modelos de
   `apps/api/test/security/domain-boundary.spec.ts`; `resetDb` limpa as tabelas novas.
-- [ ] T007 [P] Teste do banco em `apps/api/test/integration/011-schema.spec.ts`: por SQL direto,
+- [X] T007 [P] Teste do banco em `apps/api/test/integration/011-schema.spec.ts`: por SQL direto,
   recusam no commit: soma dos valores ≠ nota total; 0 e 11 questões; posições com buraco; MC com
   2 e 6 alternativas, 0 e 2 corretas, textos repetidos; alternativa em questão aberta; caso de
   teste em MC; estratégia trocada (MC com `AI_REVIEW`); tópico de outra revisão no trabalho;
@@ -113,9 +113,9 @@ ainda.
   mudança de `origin` e de `type`; AI_GENERATED sem dificuldade ou sem pedido; nota 0.00 e
   100.01; pedido com soma ≠ total e pegadinhas acima da MC (`011/FR-002`, `011/FR-003`,
   `011/FR-006`, `011/FR-011`, `011/FR-036`).
-- [ ] T008 [P] Atualizar `apps/api/test/security/authorization-matrix.ts` (`ROLE_PERMISSIONS` de
+- [X] T008 [P] Atualizar `apps/api/test/security/authorization-matrix.ts` (`ROLE_PERMISSIONS` de
   TEACHER com as 6 permissões novas) e `us7-matrix-completeness.spec.ts` se preciso.
-- [ ] T009 [P] Contratos em `packages/contracts/src/works/works.ts` (contracts/http-api.md):
+- [X] T009 [P] Contratos em `packages/contracts/src/works/works.ts` (contracts/http-api.md):
   `WorkQuestionInputSchema` (união discriminada por tipo; 3–5 alternativas distintas com
   exatamente uma correta; pegadinha só em MC; gabarito obrigatório por tipo; 0–20 casos de teste;
   0–3 `topicItemIds`), `WorkTopicsInputSchema`, `CreateWorkRequestSchema` (1–10 questões, nota ≥
@@ -126,7 +126,7 @@ ainda.
   `packages/contracts/test/works.spec.ts`: 0/1/10/11 questões; 2/3/5/6 alternativas; 0/1/2
   corretas; nota 0,05 para 10 questões recusada; campos `teacherId`, `origin`, `value`,
   `gradingStrategy` e `model` recusados (`011/SC-003`, `011/FR-008`).
-- [ ] T010 [P] `packages/contracts/src/works/work-generation.ts`: `distributeWorkQuestions(total,
+- [X] T010 [P] `packages/contracts/src/works/work-generation.ts`: `distributeWorkQuestions(total,
   types)` sobre `splitEvenly` (ordem fixa OPEN_ANSWER, MULTIPLE_CHOICE, CODE),
   `WorkGenerationRequestSchema` (disciplina, revisão, 1–10 itens distintos, tópicos ≤ 3 × total,
   título, descrição, dificuldade obrigatória, nota, total 1–10, tipos 1–3 distintos, distribuição
@@ -137,7 +137,7 @@ ainda.
   MC + 3, 4 pegadinhas e pegadinha sem MC recusados; 7 tópicos e 2 questões recusado; sem
   dificuldade ou sem tópico recusado; campos `model`/`provider`/`tier`/`family`/`task`/
   `instructions` recusados (`011/US3-2`, `011/US3-4`…`011/US3-6`, `011/FR-018`…`011/FR-022`).
-- [ ] T011 Registro de tipos em `apps/api/src/modules/works/types/{open-answer,multiple-choice,
+- [X] T011 Registro de tipos em `apps/api/src/modules/works/types/{open-answer,multiple-choice,
   code,index}.ts` (research W5): regras puras, estratégia fixa do tipo, gabarito completo,
   mapeamento para linhas (questão, alternativas, casos de teste), visão do professor e visão do
   aluno por lista de campos permitidos (`views/{teacher-view,student-view}.ts`, só leitura das
@@ -145,15 +145,15 @@ ainda.
   `searchKey`, aviso `CODE_QUESTION_WITHOUT_TEST_CASES`); `grade/grade-values.ts` (aplica
   `distributeGrade` às questões ordenadas); testes unitários em
   `apps/api/src/modules/works/types/*.spec.ts` e `rules/*.spec.ts`.
-- [ ] T012 [P] Máquina de estados `apps/api/src/modules/works/work.state-machine.ts`
+- [X] T012 [P] Máquina de estados `apps/api/src/modules/works/work.state-machine.ts`
   (DRAFT→APPROVED, DRAFT→ARCHIVED, APPROVED→ARCHIVED, ARCHIVED→anterior; editar só em DRAFT e
   APPROVED; resto → `INVALID_STATE_TRANSITION`) com teste unitário (`011/FR-013`, `011/FR-016`).
-- [ ] T013 Módulo `apps/api/src/modules/works/works.module.ts` registrado em `AppModule`;
+- [X] T013 Módulo `apps/api/src/modules/works/works.module.ts` registrado em `AppModule`;
   `work-topics.ts` com a consulta escopada que resolve disciplina, revisão confirmada e itens do
   professor (research W11: faltando → 404, rascunho → `422 REVISION_NOT_CONFIRMED`); fábricas de
   teste em `apps/api/test/helpers/works.ts` (`createWork`, `createConfirmedSyllabus` com
   disciplina, documento, revisão confirmada com linguagem, grupos e vários itens).
-- [ ] T014 [P] `apps/api/test/works-boundary.spec.ts` (research W1, W8, W20): nenhum import entre
+- [X] T014 [P] `apps/api/test/works-boundary.spec.ts` (research W1, W8, W20): nenhum import entre
   `src/modules/{works,work-ai}` e `src/modules/{exercises,exercise-ai}` nos dois sentidos, nem
   entre `packages/contracts/src/works` e `src/exercises`, nem entre `features/works` e
   `features/exercises`; nenhum `child_process`, `vm`, `eval(`, `new Function` ou

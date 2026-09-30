@@ -271,6 +271,10 @@ model User {
   exercisesReviewed       Exercise[]                @relation("ExerciseReviewedBy")
   exerciseGenerationBatch ExerciseGenerationBatch[] @relation("ExerciseGenerationBatchTeacher")
 
+  worksOwned             Work[]                  @relation("WorkTeacher")
+  worksReviewed          Work[]                  @relation("WorkReviewedBy")
+  workGenerationRequests WorkGenerationRequest[] @relation("WorkGenerationRequestTeacher")
+
   @@map("users")
 }
 
@@ -476,9 +480,11 @@ model Subject {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  teacher           User               @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  classes           SchoolClass[]
-  syllabusDocuments SyllabusDocument[]
+  teacher                User                    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  classes                SchoolClass[]
+  syllabusDocuments      SyllabusDocument[]
+  works                  Work[]
+  workGenerationRequests WorkGenerationRequest[]
 
   @@index([teacherId, status, name])
   @@map("subjects")
@@ -568,6 +574,8 @@ model SyllabusRevision {
   items                     SyllabusItem[]
   plans                     ClassPlan[]
   exerciseGenerationBatches ExerciseGenerationBatch[]
+  works                     Work[]
+  workGenerationRequests    WorkGenerationRequest[]
 
   @@unique([documentId, number])
   @@map("syllabus_revisions")
@@ -597,13 +605,15 @@ model SyllabusItem {
   /// The item of the revision this one was copied from (source REVISION); lets a plan remap links (E16).
   originItemId String? @map("origin_item_id") @db.Uuid
 
-  revision                  SyllabusRevision          @relation(fields: [revisionId], references: [id], onDelete: Restrict)
-  group                     SyllabusGroup             @relation(fields: [groupId, revisionId], references: [id, revisionId], onDelete: Restrict)
-  originItem                SyllabusItem?             @relation("SyllabusItemOrigin", fields: [originItemId], references: [id], onDelete: Restrict)
-  copies                    SyllabusItem[]            @relation("SyllabusItemOrigin")
+  revision                  SyllabusRevision             @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  group                     SyllabusGroup                @relation(fields: [groupId, revisionId], references: [id, revisionId], onDelete: Restrict)
+  originItem                SyllabusItem?                @relation("SyllabusItemOrigin", fields: [originItemId], references: [id], onDelete: Restrict)
+  copies                    SyllabusItem[]               @relation("SyllabusItemOrigin")
   topicLinks                TopicSyllabusItem[]
   exercises                 Exercise[]
   exerciseGenerationBatches ExerciseGenerationBatch[]
+  workTopics                WorkTopic[]
+  workGenerationTopics      WorkGenerationRequestTopic[]
 
   @@unique([groupId, position])
   /// Target of the exercise batches' composite FK: a batch's topic belongs to the batch's revision (010).
@@ -1217,6 +1227,7 @@ model AiExecution {
   toolCallRows            AiToolCall[]
   proposal                AiProposal?
   exerciseGenerationBatch ExerciseGenerationBatch?
+  workGenerationRequest   WorkGenerationRequest?
 
   @@unique([requestedByUserId, idempotencyKey])
   @@index([workspaceId, createdAt(sort: Desc), id])
@@ -1487,9 +1498,11 @@ model ProgrammingLanguage {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  syllabusRevisions SyllabusRevision[]
-  exercises         Exercise[]
-  generationBatches ExerciseGenerationBatch[]
+  syllabusRevisions      SyllabusRevision[]
+  exercises              Exercise[]
+  generationBatches      ExerciseGenerationBatch[]
+  workQuestions          WorkQuestion[]
+  workGenerationRequests WorkGenerationRequest[]
 
   @@map("programming_languages")
 }
@@ -1608,4 +1621,278 @@ model ExerciseGenerationBatch {
   @@unique([teacherId, idempotencyKey])
   @@index([teacherId, createdAt(sort: Desc), id])
   @@map("exercise_generation_batches")
+}
+
+// 011 — Work bank (specs/011-work-bank/data-model.md). Apart from the 010 exercise bank: no
+// table, enum or relation is shared with it (research W1). CHECKs, deferred triggers and the
+// deferrable position constraints are SQL in the migration.
+
+enum WorkQuestionType {
+  OPEN_ANSWER
+  MULTIPLE_CHOICE
+  CODE
+
+  @@map("work_question_type")
+}
+
+/// Fixed by the question type (CHECK): MULTIPLE_CHOICE ↔ EXACT_MATCH, CODE ↔ TEST_CASES, OPEN_ANSWER ↔ AI_REVIEW (research W7).
+enum WorkGradingStrategy {
+  EXACT_MATCH
+  TEST_CASES
+  AI_REVIEW
+
+  @@map("work_grading_strategy")
+}
+
+/// Pedagogical; unrelated to AiModelTier and to ExerciseDifficulty (011 FR-009).
+enum WorkDifficulty {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+
+  @@map("work_difficulty")
+}
+
+enum WorkOrigin {
+  MANUAL
+  AI_GENERATED
+
+  @@map("work_origin")
+}
+
+enum WorkStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+
+  @@map("work_status")
+}
+
+enum WorkTestCaseVisibility {
+  PUBLIC
+  PRIVATE
+
+  @@map("work_test_case_visibility")
+}
+
+model Work {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The owner; every query filters by it.
+  teacherId           String          @map("teacher_id") @db.Uuid
+  subjectId           String          @map("subject_id") @db.Uuid
+  /// The confirmed revision of the work's topics; NULL iff it has no topic; required when AI_GENERATED (CHECK).
+  syllabusRevisionId  String?         @map("syllabus_revision_id") @db.Uuid
+  title               String
+  /// `searchKey(title)`, written by the application (research W19).
+  titleSearchKey      String          @map("title_search_key")
+  description         String?
+  /// Required when AI_GENERATED (CHECK).
+  difficulty          WorkDifficulty?
+  /// 0.01–100.00 and ≥ 0.01 per question (CHECK); the questions' values add up to it (deferred trigger).
+  totalGrade          Decimal         @map("total_grade") @db.Decimal(5, 2)
+  /// 1–10, equal to the number of questions (deferred trigger).
+  questionCount       Int             @map("question_count")
+  /// Never changes (trigger).
+  origin              WorkOrigin
+  status              WorkStatus      @default(DRAFT)
+  /// Set iff ARCHIVED (CHECK); the restore target.
+  archivedFromStatus  WorkStatus?     @map("archived_from_status")
+  /// Set iff AI_GENERATED (CHECK).
+  generationRequestId String?         @unique @map("generation_request_id") @db.Uuid
+  humanReviewed       Boolean         @default(false) @map("human_reviewed")
+  humanEdited         Boolean         @default(false) @map("human_edited")
+  /// Set together (CHECK).
+  reviewedById        String?         @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?       @map("reviewed_at") @db.Timestamptz(6)
+  /// Optimistic concurrency of the whole aggregate (research W16).
+  version             Int             @default(1)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher           User                   @relation("WorkTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  subject           Subject                @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  syllabusRevision  SyllabusRevision?      @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  generationRequest WorkGenerationRequest? @relation(fields: [generationRequestId], references: [id], onDelete: Restrict)
+  reviewedBy        User?                  @relation("WorkReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  topics            WorkTopic[]
+  questions         WorkQuestion[]
+
+  /// Target of the topics' composite FK: every topic comes from the work's revision.
+  @@unique([id, syllabusRevisionId])
+  @@index([teacherId, status, updatedAt(sort: Desc), id])
+  @@index([teacherId, subjectId])
+  @@index([teacherId, createdAt])
+  @@map("works")
+}
+
+/// A topic of a work: an item of the work's revision (both composite FKs); ≤ 10 per work (deferred trigger).
+model WorkTopic {
+  workId             String @map("work_id") @db.Uuid
+  syllabusItemId     String @map("syllabus_item_id") @db.Uuid
+  syllabusRevisionId String @map("syllabus_revision_id") @db.Uuid
+  /// Selection order.
+  position           Int
+
+  work           Work                @relation(fields: [workId, syllabusRevisionId], references: [id, syllabusRevisionId], onDelete: Cascade)
+  syllabusItem   SyllabusItem        @relation(fields: [syllabusItemId, syllabusRevisionId], references: [id, revisionId], onDelete: Restrict)
+  questionTopics WorkQuestionTopic[]
+
+  @@id([workId, syllabusItemId])
+  @@unique([workId, position])
+  @@index([syllabusItemId])
+  @@map("work_topics")
+}
+
+model WorkQuestion {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workId             String              @map("work_id") @db.Uuid
+  /// 0-based; unique per work, deferrable (reorder).
+  position           Int
+  /// Never changes (trigger).
+  type               WorkQuestionType
+  gradingStrategy    WorkGradingStrategy @map("grading_strategy")
+  statement          String
+  /// `searchKey(statement)`; duplicate detection within a work.
+  statementSearchKey String              @map("statement_search_key")
+  /// ≥ 0.01; computed by position (research W4), never from a request or the AI.
+  value              Decimal             @db.Decimal(5, 2)
+  explanation        String?
+  /// Required iff OPEN_ANSWER; `rubric` only OPEN_ANSWER (CHECK).
+  expectedAnswer     String?             @map("expected_answer")
+  rubric             String?
+  /// `expectedSolution` and `languageId` required iff CODE; `instructions`, `starterCode` only CODE (CHECK).
+  instructions       String?
+  starterCode        String?             @map("starter_code")
+  expectedSolution   String?             @map("expected_solution")
+  languageId         String?             @map("language_id") @db.Uuid
+  /// Only MULTIPLE_CHOICE (CHECK).
+  isTrickQuestion    Boolean             @default(false) @map("is_trick_question")
+  /// The proposal item id of an AI question.
+  generationItemId   String?             @map("generation_item_id") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  work         Work                      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  language     ProgrammingLanguage?      @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  alternatives WorkQuestionAlternative[]
+  testCases    WorkQuestionTestCase[]
+  topics       WorkQuestionTopic[]
+
+  /// Target of the question topics' composite FK.
+  @@unique([id, workId])
+  @@unique([workId, position])
+  @@unique([workId, generationItemId])
+  @@map("work_questions")
+}
+
+/// Only MULTIPLE_CHOICE: 3–5, exactly one correct, distinct texts (deferred trigger); one correct
+/// per question also by a partial unique index.
+model WorkQuestionAlternative {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  /// 0-based presentation order; deferrable.
+  position   Int
+  text       String
+  isCorrect  Boolean @map("is_correct")
+
+  question WorkQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@map("work_question_alternatives")
+}
+
+/// Only CODE, ≤ 20 per question (deferred trigger). Never executed in 011 (research W20).
+model WorkQuestionTestCase {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId     String                 @map("question_id") @db.Uuid
+  /// 0-based; deferrable.
+  position       Int
+  /// 0–10 000 characters, empty allowed.
+  input          String
+  expectedOutput String                 @map("expected_output")
+  /// A PRIVATE case never reaches the student view.
+  visibility     WorkTestCaseVisibility
+
+  question WorkQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@map("work_question_test_cases")
+}
+
+/// A question's topics: topics of its own work only (composite FKs); ≤ 3 per question (deferred trigger).
+model WorkQuestionTopic {
+  questionId     String @map("question_id") @db.Uuid
+  workId         String @map("work_id") @db.Uuid
+  syllabusItemId String @map("syllabus_item_id") @db.Uuid
+
+  question  WorkQuestion @relation(fields: [questionId, workId], references: [id, workId], onDelete: Cascade)
+  workTopic WorkTopic    @relation(fields: [workId, syllabusItemId], references: [workId, syllabusItemId], onDelete: Restrict)
+
+  @@id([questionId, syllabusItemId])
+  @@map("work_question_topics")
+}
+
+/// One AI generation request (research W10); its status is derived from the execution and
+/// `generatedAt`, never stored.
+model WorkGenerationRequest {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId              String         @map("teacher_id") @db.Uuid
+  subjectId              String         @map("subject_id") @db.Uuid
+  /// Confirmed when requested (checked by the service).
+  syllabusRevisionId     String         @map("syllabus_revision_id") @db.Uuid
+  title                  String
+  description            String?
+  difficulty             WorkDifficulty
+  /// 0.01–100.00 and ≥ 0.01 per question (CHECK).
+  totalGrade             Decimal        @map("total_grade") @db.Decimal(5, 2)
+  /// 1–10, the sum of the counts per type (CHECK).
+  requestedQuantity      Int            @map("requested_quantity")
+  openAnswerQuantity     Int            @map("open_answer_quantity")
+  multipleChoiceQuantity Int            @map("multiple_choice_quantity")
+  codeQuantity           Int            @map("code_quantity")
+  /// 0–3 and ≤ multiple choice (CHECK).
+  trickQuestionQuantity  Int            @map("trick_question_quantity")
+  /// Copied from the revision; set iff codeQuantity > 0 (CHECK).
+  languageId             String?        @map("language_id") @db.Uuid
+  /// AUTO or MANUAL (CHECK).
+  distribution           String
+  /// Set in the request transaction.
+  aiExecutionId          String?        @unique @map("ai_execution_id") @db.Uuid
+  regeneratedFromId      String?        @map("regenerated_from_id") @db.Uuid
+  idempotencyKey         String         @map("idempotency_key") @db.Uuid
+  /// Set by the materialization of the proposal (research W10).
+  generatedAt            DateTime?      @map("generated_at") @db.Timestamptz(6)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  teacher          User                         @relation("WorkGenerationRequestTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  subject          Subject                      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  syllabusRevision SyllabusRevision             @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  language         ProgrammingLanguage?         @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  aiExecution      AiExecution?                 @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
+  regeneratedFrom  WorkGenerationRequest?       @relation("WorkGenerationRequestRegeneratedFrom", fields: [regeneratedFromId], references: [id], onDelete: Restrict)
+  regenerations    WorkGenerationRequest[]      @relation("WorkGenerationRequestRegeneratedFrom")
+  topics           WorkGenerationRequestTopic[]
+  work             Work?
+
+  /// Target of the topics' composite FK: every topic comes from the request's revision.
+  @@unique([id, syllabusRevisionId])
+  @@unique([teacherId, idempotencyKey])
+  @@index([teacherId, createdAt(sort: Desc), id])
+  @@map("work_generation_requests")
+}
+
+/// 1–10 per request and ≤ 3 × the requested quantity (deferred trigger). The tool's ref is `T{position+1}` (research W12).
+model WorkGenerationRequestTopic {
+  requestId          String @map("request_id") @db.Uuid
+  syllabusItemId     String @map("syllabus_item_id") @db.Uuid
+  syllabusRevisionId String @map("syllabus_revision_id") @db.Uuid
+  /// 0-based selection order.
+  position           Int
+
+  request      WorkGenerationRequest @relation(fields: [requestId, syllabusRevisionId], references: [id, syllabusRevisionId], onDelete: Cascade)
+  syllabusItem SyllabusItem          @relation(fields: [syllabusItemId, syllabusRevisionId], references: [id, revisionId], onDelete: Restrict)
+
+  @@id([requestId, syllabusItemId])
+  @@unique([requestId, position])
+  @@map("work_generation_request_topics")
 }
