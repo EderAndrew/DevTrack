@@ -134,20 +134,35 @@ describe("011/US5 WorkDetail — revisar, editar e aprovar o trabalho", () => {
     writes.length = 0;
     current = generated;
     answerWrite = (url, body) => {
-      current = url.endsWith("/approve")
-        ? {
-            ...current,
-            status: "APPROVED",
-            humanReviewed: true,
-            reviewedBy: { name: "Professora Ana" },
-            reviewedAt: "2026-09-30T15:00:00.000Z",
-            version: current.version + 1,
-          }
-        : {
-            ...current,
-            title: String(body.title),
-            version: current.version + 1,
-          };
+      if (url.endsWith("/archive"))
+        current = {
+          ...current,
+          status: "ARCHIVED",
+          archivedFromStatus: current.status,
+          version: current.version + 1,
+        };
+      else if (url.endsWith("/restore"))
+        current = {
+          ...current,
+          status: current.archivedFromStatus!,
+          archivedFromStatus: null,
+          version: current.version + 1,
+        };
+      else
+        current = url.endsWith("/approve")
+          ? {
+              ...current,
+              status: "APPROVED",
+              humanReviewed: true,
+              reviewedBy: { name: "Professora Ana" },
+              reviewedAt: "2026-09-30T15:00:00.000Z",
+              version: current.version + 1,
+            }
+          : {
+              ...current,
+              title: String(body.title),
+              version: current.version + 1,
+            };
       return json(200, current);
     };
     const reads = workApiMock(() => apiError(500, "INTERNAL", "x"));
@@ -170,10 +185,14 @@ describe("011/US5 WorkDetail — revisar, editar e aprovar o trabalho", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const render = (
-    props: Partial<{ canEdit: boolean; canApprove: boolean }> = {},
+    props: Partial<{
+      canEdit: boolean;
+      canApprove: boolean;
+      canArchive: boolean;
+    }> = {},
   ) =>
     renderWithProviders(
-      <WorkDetail workId={WORK_ID} canEdit canApprove {...props} />,
+      <WorkDetail workId={WORK_ID} canEdit canApprove canArchive {...props} />,
     );
   const question = (n: number) =>
     screen.getByRole("group", { name: `Questão ${n}` });
@@ -324,7 +343,7 @@ describe("011/US5 WorkDetail — revisar, editar e aprovar o trabalho", () => {
     render();
     expect(
       await screen.findByText(
-        "Trabalho arquivado: não pode ser editado nem aprovado.",
+        /Trabalho arquivado: não pode ser editado nem aprovado\. Ao restaurar, volta a rascunho\./,
       ),
     ).toBeTruthy();
     // A disabled fieldset turns its controls off: `:disabled`, not the element's own attribute.
@@ -337,13 +356,69 @@ describe("011/US5 WorkDetail — revisar, editar e aprovar o trabalho", () => {
     expect(screen.queryByRole("button", { name: "Aprovar" })).toBeNull();
   });
 
-  it("sem trabalhos.aprovar não há Aprovar; sem trabalhos.editar não há Salvar", async () => {
-    render({ canApprove: false, canEdit: false });
+  it("sem trabalhos.aprovar não há Aprovar; sem trabalhos.editar não há Salvar; sem trabalhos.arquivar não há Arquivar", async () => {
+    render({ canApprove: false, canEdit: false, canArchive: false });
     await screen.findByDisplayValue("Trabalho de herança");
     expect(screen.queryByRole("button", { name: "Aprovar" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Salvar alterações" }),
     ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Arquivar" })).toBeNull();
+  });
+
+  it("011/US7-3 arquivar pede confirmação, envia a versão lida e passa a oferecer só restaurar, de volta a rascunho", async () => {
+    render();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Arquivar" }));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Arquivar este trabalho?",
+    });
+    expect(writes).toEqual([]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Arquivar trabalho" }),
+    );
+    expect(await screen.findByText("Trabalho arquivado.")).toBeTruthy();
+    expect(writes).toEqual([
+      {
+        method: "POST",
+        url: `/api/works/${WORK_ID}/archive`,
+        body: { version: 3 },
+      },
+    ]);
+    expect(
+      await screen.findByText(/Ao restaurar, volta a rascunho/),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Arquivar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Aprovar" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Restaurar" }));
+    expect(await screen.findByText("Trabalho restaurado.")).toBeTruthy();
+    expect(writes.at(-1)).toEqual({
+      method: "POST",
+      url: `/api/works/${WORK_ID}/restore`,
+      body: { version: 4 },
+    });
+    expect(
+      await screen.findByRole("button", { name: "Arquivar" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Rascunho")).toBeTruthy();
+  });
+
+  it("arquivar com a versão antiga mostra o aviso de outra aba e o trabalho atual", async () => {
+    answerWrite = () => {
+      current = { ...current, title: "Mudado na outra aba", version: 4 };
+      return apiError(409, "WORK_VERSION_CONFLICT", "conflito");
+    };
+    render();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Arquivar" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Arquivar trabalho",
+      }),
+    );
+    expect(await screen.findByText(VERSION_CONFLICT_NOTICE)).toBeTruthy();
+    expect(await screen.findByDisplayValue("Mudado na outra aba")).toBeTruthy();
   });
 
   it('011/US6 "Ver como aluno" mostra a visão do servidor, somente leitura', async () => {

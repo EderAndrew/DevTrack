@@ -155,6 +155,11 @@ whole work back (`toUpdateBody(view)` in `test/helpers/works.ts` builds that bod
 diffs them for `work.edited` and a no-op save writes nothing) and `approve`, both under the work's row lock with its
 `version`; approving a generated work calls `WorkReview.changed` in the same transaction, and `work-ai`'s
 `WorkProposalCloser` decides the proposal (APPROVE, or APPROVE_PARTIALLY with the generated questions that remain).
+The bank (011/US7): `GET /works` filters through `workListWhere` (`work-query.ts`: `title_search_key` compared with
+`searchKey(query)`, the topic through `work_topics`, the creation period in whole days of UTC-3; ARCHIVED only when
+asked) and pages by keyset on `updated_at desc, id desc`; `archive`/`restore` keep `archived_from_status`, and archiving a
+never-approved generated work also calls `WorkReview.changed` (the proposal closes REJECT). Suites that need many works
+insert them with `createMany` in one transaction with one question each (`011-us7-bank`, `011-performance`).
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and

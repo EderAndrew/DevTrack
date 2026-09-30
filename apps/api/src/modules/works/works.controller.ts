@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
+import { Controller, Get, HttpCode, Param, Post, Put, Query } from "@nestjs/common";
 import {
   type CreateWorkRequest,
   CreateWorkRequestSchema,
@@ -6,6 +6,9 @@ import {
   type UpdateWorkRequest,
   UpdateWorkRequestSchema,
   UuidSchema,
+  type WorkListQuery,
+  WorkListQuerySchema,
+  type WorkPage,
   type WorkStudentView,
   type WorkTeacherView,
   type WorkVersionRequest,
@@ -34,6 +37,16 @@ export class WorksController {
     @Ctx() ctx: RequestContext,
   ): Promise<WorkTeacherView> {
     return this.works.create(ctx.auth!, body, ctx.requestId);
+  }
+
+  /** The teacher's bank: filters, title search, keyset pages; ARCHIVED only when asked (US7). */
+  @Get()
+  @RequirePermissions("trabalhos.visualizar")
+  list(
+    @Query(new ZodValidationPipe(WorkListQuerySchema)) query: WorkListQuery,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkPage> {
+    return this.works.list(ctx.auth!.userId, query);
   }
 
   /** The active languages of the shared catalog (research W18); declared before `:id`. */
@@ -83,5 +96,29 @@ export class WorksController {
     @Ctx() ctx: RequestContext,
   ): Promise<WorkTeacherView> {
     return this.works.approve(ctx.auth!, id, body, ctx.requestId);
+  }
+
+  /** DRAFT or APPROVED → ARCHIVED; already ARCHIVED → 200 with no event (US7). */
+  @Post(":id/archive")
+  @HttpCode(200)
+  @RequirePermissions("trabalhos.arquivar")
+  archive(
+    @Param("id", idPipe) id: string,
+    @ZodBody(WorkVersionRequestSchema) body: WorkVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkTeacherView> {
+    return this.works.archive(ctx.auth!, id, body, ctx.requestId);
+  }
+
+  /** ARCHIVED → the status it had before (US7). */
+  @Post(":id/restore")
+  @HttpCode(200)
+  @RequirePermissions("trabalhos.arquivar")
+  restore(
+    @Param("id", idPipe) id: string,
+    @ZodBody(WorkVersionRequestSchema) body: WorkVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkTeacherView> {
+    return this.works.restore(ctx.auth!, id, body, ctx.requestId);
   }
 }

@@ -31,6 +31,7 @@ export default async function WorkPage({ params }: Props) {
         workId={id}
         canEdit={me.permissions.includes("trabalhos.editar")}
         canApprove={me.permissions.includes("trabalhos.aprovar")}
+        canArchive={me.permissions.includes("trabalhos.arquivar")}
       />
     </section>
   );

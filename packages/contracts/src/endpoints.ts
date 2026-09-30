@@ -115,6 +115,8 @@ import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
 import {
   CreateWorkRequestSchema,
   UpdateWorkRequestSchema,
+  WorkListQuerySchema,
+  WorkPageSchema,
   WorkStudentViewSchema,
   WorkTeacherViewSchema,
   WorkVersionRequestSchema,
@@ -901,6 +903,8 @@ export const endpoints = {
     response: ProgrammingLanguageListSchema,
     status: 200,
   },
+  /** The teacher's bank: filters, title search, keyset pages; ARCHIVED only when asked (US7, research W19). */
+  "works.list": { method: "GET", path: "/works", query: WorkListQuerySchema, response: WorkPageSchema, status: 200 },
   "works.get": { method: "GET", path: "/works/:id", params: IdParamsSchema, response: WorkTeacherViewSchema, status: 200 },
   /** "Ver como aluno": the same builder 012 serves to students (research W14). */
   "works.studentPreview": {
@@ -923,6 +927,24 @@ export const endpoints = {
   "works.approve": {
     method: "POST",
     path: "/works/:id/approve",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT or APPROVED → ARCHIVED; already ARCHIVED → 200 with no event (US7). */
+  "works.archive": {
+    method: "POST",
+    path: "/works/:id/archive",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** ARCHIVED → the status it had before; anything else → 409 (US7). */
+  "works.restore": {
+    method: "POST",
+    path: "/works/:id/restore",
     params: IdParamsSchema,
     body: WorkVersionRequestSchema,
     response: WorkTeacherViewSchema,

@@ -1,7 +1,15 @@
 "use client";
 
 import type { WorkStatus, WorkTeacherView } from "@repo/contracts";
-import { CheckCircle2, Eye, EyeOff, Pencil, Sparkles } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -43,6 +51,8 @@ export interface WorkDetailProps {
   canEdit: boolean;
   /** `trabalhos.aprovar`. */
   canApprove: boolean;
+  /** `trabalhos.arquivar`: "Arquivar" and "Restaurar" (US7). */
+  canArchive: boolean;
 }
 
 /** "Gerado por IA" and "Editado por você": words and an icon, never color alone. */
@@ -82,10 +92,16 @@ function warningText(work: WorkTeacherView): string | null {
 /**
  * One work of the bank (011 contracts/web-ui.md, `/trabalhos/[id]`, US5): its status and origin in
  * words, the same form as the manual one loaded with it ("Salvar alterações" sends the whole work
- * with its version), "Aprovar" with a confirmation that lists the warnings, and "Ver como aluno".
- * Another tab's change shows a notice and the work as it now is. An archived work is read-only.
+ * with its version), "Aprovar" with a confirmation that lists the warnings, "Arquivar" with a
+ * confirmation and "Restaurar" to the status it had (US7), and "Ver como aluno". Another tab's
+ * change shows a notice and the work as it now is. An archived work is read-only.
  */
-export function WorkDetail({ workId, canEdit, canApprove }: WorkDetailProps) {
+export function WorkDetail({
+  workId,
+  canEdit,
+  canApprove,
+  canArchive,
+}: WorkDetailProps) {
   const query = useWork(workId);
   const actions = useWorkActions(workId);
   const [notice, setNotice] = useState<string | null>(null);
@@ -116,12 +132,16 @@ export function WorkDetail({ workId, canEdit, canApprove }: WorkDetailProps) {
     }
   };
 
-  const approve = async () => {
+  /** Approve, archive or restore, each with the version read. */
+  const run = async (
+    action: (version: number) => Promise<unknown>,
+    done: string,
+  ) => {
     setNotice(null);
     setError(null);
     try {
-      await actions.approve.mutateAsync(work.version);
-      setNotice("Trabalho aprovado.");
+      await action(work.version);
+      setNotice(done);
     } catch (caught) {
       if (isWorkVersionConflict(caught)) await conflict();
       else setError(messageForError(caught));
@@ -157,6 +177,9 @@ export function WorkDetail({ workId, canEdit, canApprove }: WorkDetailProps) {
           <Alert variant="info">
             <AlertDescription>
               Trabalho arquivado: não pode ser editado nem aprovado.
+              {work.archivedFromStatus
+                ? ` Ao restaurar, volta a ${WORK_STATUS_LABELS[work.archivedFromStatus].toLowerCase()}.`
+                : ""}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -185,7 +208,14 @@ export function WorkDetail({ workId, canEdit, canApprove }: WorkDetailProps) {
                 ) : null}
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => void approve()}>
+                  <AlertDialogAction
+                    onClick={() =>
+                      void run(
+                        actions.approve.mutateAsync,
+                        "Trabalho aprovado.",
+                      )
+                    }
+                  >
                     Aprovar trabalho
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -206,6 +236,53 @@ export function WorkDetail({ workId, canEdit, canApprove }: WorkDetailProps) {
             )}
             {preview ? "Ocultar visão do aluno" : "Ver como aluno"}
           </Button>
+          {canArchive && archived ? (
+            <Button
+              type="button"
+              variant="secondary"
+              aria-busy={actions.restore.isPending || undefined}
+              onClick={() =>
+                void run(actions.restore.mutateAsync, "Trabalho restaurado.")
+              }
+            >
+              <ArchiveRestore aria-hidden="true" />
+              Restaurar
+            </Button>
+          ) : null}
+          {canArchive && !archived ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="danger">
+                  <Archive aria-hidden="true" />
+                  Arquivar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Arquivar este trabalho?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ele sai da consulta do banco e não pode ser editado nem
+                    aprovado. Você pode restaurá-lo depois, filtrando por
+                    arquivados.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="danger"
+                    onClick={() =>
+                      void run(
+                        actions.archive.mutateAsync,
+                        "Trabalho arquivado.",
+                      )
+                    }
+                  >
+                    Arquivar trabalho
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
         </div>
       </div>
 

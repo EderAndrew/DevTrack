@@ -4,6 +4,7 @@ import type {
   CreateWorkRequest,
   UpdateWorkRequest,
   WorkGenerationRequest,
+  WorkListQuery,
   WorkTeacherView,
 } from "@repo/contracts";
 import {
@@ -30,6 +31,7 @@ export { useSyllabusRevision as useWorkRevision } from "@/features/syllabus/hook
 export const worksKeys = {
   all: ["works"] as const,
   detail: (id: string) => [...worksKeys.all, id] as const,
+  list: (filters: WorkFilters) => [...worksKeys.all, "list", filters] as const,
   studentPreview: (id: string) =>
     [...worksKeys.all, id, "student-preview"] as const,
   languages: ["works", "programming-languages"] as const,
@@ -73,6 +75,19 @@ export function useCreateWork() {
   });
 }
 
+/** The bank's filters: the list query without the page. */
+export type WorkFilters = Omit<WorkListQuery, "cursor" | "pageSize">;
+
+/** The teacher's bank, most recently changed first, 20 at a time ("Carregar mais", US7). */
+export const useWorks = (filters: WorkFilters) =>
+  useInfiniteQuery({
+    queryKey: worksKeys.list(filters),
+    queryFn: ({ pageParam }) =>
+      worksApi.list({ ...filters, cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+  });
+
 /** One of the teacher's works, everything included (the teacher view). */
 export const useWork = (id: string) =>
   useQuery({ queryKey: worksKeys.detail(id), queryFn: () => worksApi.get(id) });
@@ -98,6 +113,14 @@ export function useWorkActions(id: string) {
     }),
     approve: useMutation({
       mutationFn: (version: number) => worksApi.approve(id, version),
+      onSuccess,
+    }),
+    archive: useMutation({
+      mutationFn: (version: number) => worksApi.archive(id, version),
+      onSuccess,
+    }),
+    restore: useMutation({
+      mutationFn: (version: number) => worksApi.restore(id, version),
       onSuccess,
     }),
     /** A version conflict: the work is read again, as it now is. */

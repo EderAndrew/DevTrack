@@ -5,6 +5,8 @@ import {
   gradeToCents,
   type ProgrammingLanguageList,
   type UpdateWorkRequest,
+  type WorkListQuery,
+  type WorkPage,
   type WorkQuestionType,
   type WorkStudentView,
   WorkQuestionTypeSchema,
@@ -13,7 +15,9 @@ import {
 } from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
+import { decodeCursor, encodeCursor } from "../../platform/database/keyset";
 import {
+  invalidStateTransition,
   notFound,
   validationError,
   workVersionConflict,
@@ -35,7 +39,15 @@ import { toWorkStudentView } from "./views/student-view";
 import { toWorkTeacherView } from "./views/teacher-view";
 import { clearWorkContent, writeWorkContent } from "./work-content";
 import { isEmptyEdit, workEditDiff } from "./work-edit";
-import { WORK_RECORD_SELECT, toWorkRecord } from "./work-query";
+import {
+  afterUpdated,
+  toWorkRecord,
+  toWorkSummary,
+  WORK_PAGE_SIZE_DEFAULT,
+  WORK_RECORD_SELECT,
+  WORK_SUMMARY_SELECT,
+  workListWhere,
+} from "./work-query";
 import { WorkReview } from "./work-review";
 import { WorkTopics } from "./work-topics";
 import { WorkStateMachine } from "./work.state-machine";
@@ -72,6 +84,33 @@ export class WorksService {
     workId: string,
   ): Promise<WorkStudentView> {
     return toWorkStudentView(await this.ownRecord(teacherId, workId));
+  }
+
+  /**
+   * The teacher's bank (011 US7, research W19): every filter at once, a keyset page by
+   * `updated_at desc, id` of at most 50, only the teacher's own works whatever the filters name.
+   */
+  async list(
+    teacherId: string,
+    { cursor, pageSize = WORK_PAGE_SIZE_DEFAULT, ...filters }: WorkListQuery,
+  ): Promise<WorkPage> {
+    const after = cursor ? decodeCursor(cursor) : null;
+    const where = workListWhere(teacherId, filters);
+    const rows = await this.prisma.work.findMany({
+      where: after ? { AND: [where, afterUpdated(after)] } : where,
+      select: WORK_SUMMARY_SELECT,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: pageSize + 1,
+    });
+    const page = rows.slice(0, pageSize);
+    const last = page.at(-1);
+    return {
+      items: page.map(toWorkSummary),
+      nextCursor:
+        rows.length > pageSize && last
+          ? encodeCursor({ createdAt: last.updatedAt, id: last.id })
+          : null,
+    };
   }
 
   /** The work of this teacher; another teacher's or a missing one is the same 404. */
@@ -346,6 +385,80 @@ export class WorksService {
           now,
         });
       }
+      return this.getForTeacher(auth.userId, workId, tx);
+    });
+  }
+
+  /**
+   * DRAFT or APPROVED → ARCHIVED (011 US7-3), keeping the status a restore goes back to; already
+   * ARCHIVED → the work as it is, no event. A generated work archived before any approval closes
+   * its proposal REJECT (`WorkReview`, research W10).
+   */
+  async archive(
+    auth: AuthContext,
+    workId: string,
+    body: WorkVersionRequest,
+    requestId: string | null,
+  ): Promise<WorkTeacherView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockedRecord(tx, auth.userId, workId, body.version);
+      if (!WorkStateMachine.transition(current.status, "ARCHIVED"))
+        return toWorkTeacherView(current);
+      await tx.work.update({
+        where: { id: workId },
+        data: {
+          status: "ARCHIVED",
+          archivedFromStatus: current.status,
+          version: { increment: 1 },
+        },
+      });
+      await this.audit.record(tx, {
+        type: "work.archived",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "WORK",
+        targetId: workId,
+        requestId,
+        metadata: { from: current.status },
+      });
+      if (current.generationRequestId && current.status === "DRAFT") {
+        await this.review.changed(tx, {
+          auth,
+          workId,
+          generationRequestId: current.generationRequestId,
+          requestId,
+          now: new Date(),
+        });
+      }
+      return this.getForTeacher(auth.userId, workId, tx);
+    });
+  }
+
+  /** ARCHIVED → the status it had before (011 US7-3); anything not archived → 409. */
+  async restore(
+    auth: AuthContext,
+    workId: string,
+    body: WorkVersionRequest,
+    requestId: string | null,
+  ): Promise<WorkTeacherView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockedRecord(tx, auth.userId, workId, body.version);
+      if (current.status !== "ARCHIVED") throw invalidStateTransition();
+      const to = WorkStateMachine.restoredStatus(current.archivedFromStatus);
+      WorkStateMachine.transition(current.status, to, current.archivedFromStatus);
+      await tx.work.update({
+        where: { id: workId },
+        data: { status: to, archivedFromStatus: null, version: { increment: 1 } },
+      });
+      await this.audit.record(tx, {
+        type: "work.restored",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "WORK",
+        targetId: workId,
+        requestId,
+        metadata: { to },
+      });
       return this.getForTeacher(auth.userId, workId, tx);
     });
   }

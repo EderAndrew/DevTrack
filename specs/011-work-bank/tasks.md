@@ -408,23 +408,23 @@ aprovar; conferir valores, revisor, edição por pessoa e origem.
 **Independent Test**: 60 trabalhos em várias disciplinas; filtrar por tópico e situação, buscar e
 paginar só os do professor.
 
-- [ ] T044 [P] [US7] `apps/api/test/integration/011-us7-bank.spec.ts`: cada filtro (disciplina,
+- [X] T044 [P] [US7] `apps/api/test/integration/011-us7-bank.spec.ts`: cada filtro (disciplina,
   ementa, tópico, origem, situação, dificuldade, período) e combinações; "heranca" encontra
   "Herança"; arquivados só quando filtrados; cursor sem repetição nem buraco, página ≤ 50; arquivar
   DRAFT e APPROVED, restaurar para a situação anterior, no-op sem evento; arquivar um AI nunca
   aprovado fecha a proposta REJECT; 500 trabalhos numa disciplina e mais um aceito
   (`011/US7-1`…`011/US7-3`, `011/US7-5`, `011/FR-031`). O desempenho com 1 000 trabalhos (< 1 s)
   fica em `apps/api/test/security/011-performance.spec.ts` (`011/SC-009`).
-- [ ] T045 [P] [US7] `apps/api/test/security/011-isolation.spec.ts`: área completa de A e B;
+- [X] T045 [P] [US7] `apps/api/test/security/011-isolation.spec.ts`: área completa de A e B;
   toda rota de trabalhos e pedidos com a sessão de A sobre ids de B → 404; ADMIN, MANAGER e
   STUDENT → 403 em todas; conta ADMIN + TEACHER vê só o próprio banco (`011/US7-4`,
   `011/SC-008`).
-- [ ] T046 [US7] `apps/api/src/modules/works/work-query.ts` (filtros, `EXISTS` em `work_topics`,
+- [X] T046 [US7] `apps/api/src/modules/works/work-query.ts` (filtros, `EXISTS` em `work_topics`,
   `title_search_key LIKE`, keyset por `updated_at desc, id`), `archive`/`restore` com
   `archived_from_status`, auditorias `work.archived`/`work.restored`; rotas `GET /works`,
   `POST /works/:id/archive`, `POST /works/:id/restore`; linhas do `MATRIX` e de
   `route-declarations.spec.ts`.
-- [ ] T047 [P] [US7] Web `/trabalhos` (filtros, busca, "Carregar mais", estado vazio, ações
+- [X] T047 [P] [US7] Web `/trabalhos` (filtros, busca, "Carregar mais", estado vazio, ações
   "Criar trabalho manualmente", "Criar trabalho com IA", "Pedidos de geração") e
   arquivar/restaurar em `/trabalhos/[id]` (`variant="danger"` com confirmação); testes.
 

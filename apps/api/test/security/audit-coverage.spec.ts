@@ -27,10 +27,7 @@ const CONTRACTS = [
 const PENDING_010 = new Set<string>([]);
 
 /** 011 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_011 = new Set<string>([
-  "work.archived",
-  "work.restored",
-]);
+const PENDING_011 = new Set<string>([]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011]);
 
 interface ContractRow {

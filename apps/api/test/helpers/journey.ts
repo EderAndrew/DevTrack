@@ -406,7 +406,13 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const generatedWork = (await workGenerationClient.get(`/api/works/${generatedWorkId}`)).body as WorkTeacherView;
   const editedWork = await workGenerationClient.put(`/api/works/${generatedWorkId}`, { ...toUpdateBody(generatedWork), title: "Trabalho revisto" });
   expect(editedWork.status).toBe(200);
-  expect((await workGenerationClient.post(`/api/works/${generatedWorkId}/approve`, { version: editedWork.body.version })).status).toBe(200);
+  const approvedWork = await workGenerationClient.post(`/api/works/${generatedWorkId}/approve`, { version: editedWork.body.version });
+  expect(approvedWork.status).toBe(200);
+  // 011/US7 — the bank lists it; archived, then restored: `work.archived` and `work.restored`.
+  expect((await workGenerationClient.get("/api/works?query=revisto")).body.items).toHaveLength(1);
+  const archivedWork = await workGenerationClient.post(`/api/works/${generatedWorkId}/archive`, { version: approvedWork.body.version });
+  expect(archivedWork.status).toBe(200);
+  expect((await workGenerationClient.post(`/api/works/${generatedWorkId}/restore`, { version: archivedWork.body.version })).status).toBe(200);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

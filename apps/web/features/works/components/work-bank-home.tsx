@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Notice } from "@/components/shared/notice";
 import { Button } from "@/components/ui/button";
+import { WorkBankList } from "./work-bank-list";
 
 export interface WorkBankHomeProps {
   canCreate: boolean;
@@ -12,10 +13,14 @@ export interface WorkBankHomeProps {
 }
 
 /**
- * "Banco de Trabalhos": the creation actions, manual (011/US1) and with AI, and the generation
- * requests (US3). The list and its filters come with US7.
+ * "Banco de Trabalhos": the creation actions, manual (011/US1) and with AI, the generation
+ * requests (US3), and the teacher's works with their filters (US7).
  */
-export function WorkBankHome({ canCreate, canGenerate, created }: WorkBankHomeProps) {
+export function WorkBankHome({
+  canCreate,
+  canGenerate,
+  created,
+}: WorkBankHomeProps) {
   const actions = (
     <div className="flex flex-wrap gap-2">
       {canCreate ? (
@@ -46,6 +51,7 @@ export function WorkBankHome({ canCreate, canGenerate, created }: WorkBankHomePr
         Trabalhos de 1 a 10 questões, com gabarito, ligados aos tópicos das suas
         ementas.
       </p>
+      <WorkBankList />
     </>
   );
 }

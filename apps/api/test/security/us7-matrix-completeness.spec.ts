@@ -10,9 +10,7 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  * exists (010 tasks.md T004/T006, 011 T006); each one leaves this list with the first route that
  * requires it.
  */
-const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
-  "trabalhos.arquivar",
-]);
+const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
 describe("US7 — completude da matriz e do seed", () => {

@@ -155,6 +155,8 @@ export const AUDIT_EVENT_METADATA = {
   "work.created": ["subjectId", "status", "questionCount", "types", "topicCount", "difficulty"],
   "work.edited": ["origin", "status", "fields", "questionCountChanged", "questionsAdded", "questionsRemoved", "reordered"],
   "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
+  "work.archived": ["from"],
+  "work.restored": ["to"],
   "work_generation.requested": [
     "executionId",
     "subjectId",
