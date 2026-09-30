@@ -98,7 +98,7 @@ describe("008/US7 um novo agente reaproveita o gateway sem implementar infraestr
     expect(definitions.modelConfigs.every((config) => config.provider.startsWith("fake"))).toBe(true);
 
     // The real provider is instantiated only by its own unit test, the secret scan and the
-    // on-demand evals (007, 010) — never registered by a test app.
+    // on-demand evals (007, 010, 011) — never registered by a test app.
     const NEEDLE = ["new OpenRouter", "Provider("].join("");
     const users: string[] = [];
     const walk = (dir: string) => {
@@ -116,6 +116,7 @@ describe("008/US7 um novo agente reaproveita o gateway sem implementar infraestr
         "src/modules/ai/gateway/providers/openrouter.provider.spec.ts",
         "test/eval/curriculum-agent.eval.ts",
         "test/eval/exercise-generator.eval.ts",
+        "test/eval/work-generator.eval.ts",
         "test/security/008-openrouter-secret.spec.ts",
       ].sort(),
     );

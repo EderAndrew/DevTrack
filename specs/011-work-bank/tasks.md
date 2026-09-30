@@ -462,18 +462,18 @@ modelo, e conferir nota por questão, nota do trabalho e pendências.
 
 **Purpose**: conjunto de referência e portão de qualidade (constituição XIX, `011/FR-030`).
 
-- [ ] T052 Conjunto de referência em `apps/api/test/fixtures/work-generation/`: casos fictícios
+- [X] T052 Conjunto de referência em `apps/api/test/fixtures/work-generation/`: casos fictícios
   (POO em Java com 3 tópicos e 10 questões mistas com 2 pegadinhas; SQL joins sem linguagem;
   listas em Python só código; tópico com injeção; 7 tópicos e 3 questões) com `expected.json`
   (pedido, termos-chave por tópico, padrões proibidos), `recorded.json` e o scorer puro com as
   métricas existentes (`schemaValidity`, `configMatch` incluindo tópicos por questão e cobertura,
   `duplicates`, `topicCoverage`, `injectionClean`); `apps/api/test/integration/011-evaluation.spec.ts`
   reproduz no CI (`011/SC-012`).
-- [ ] T053 `apps/api/test/eval/work-generator.eval.ts` e script `eval:works` em
+- [X] T053 `apps/api/test/eval/work-generator.eval.ts` e script `eval:works` em
   `apps/api/package.json` com `EVAL_MODEL`, `EVAL_RECORD`, `EVAL_REPLAY` e a guarda de falhas de
   infraestrutura (como a 010), registrando a latência por caso e listando as pegadinhas para
   leitura humana na evidência (`011/SC-002`); README do conjunto.
-- [ ] T054 **Etapa de liberação (custo de centavos; autorizada)**: rodar para `openai-basic`;
+- [X] T054 **Etapa de liberação (custo de centavos; autorizada)**: rodar para `openai-basic`;
   se aprovado, acrescentar a aprovação de `work-generation` no catálogo e commitar a evidência em
   `apps/api/test/fixtures/evaluations/work-generation/`; o teste do portão
   (`009-quality-gate.spec.ts`) cobre a nova tarefa. Se o crédito faltar, registrar e seguir (a

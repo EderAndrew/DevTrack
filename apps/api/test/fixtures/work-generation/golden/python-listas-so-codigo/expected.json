@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "Só questões de código sobre listas em Python: a linguagem vem da ementa e cada questão traz casos de teste.",
+  "injection": false,
+  "syllabus": {
+    "title": "Introdução à Programação",
+    "competencyText": null,
+    "languageKey": "python",
+    "groups": [{ "title": "Estruturas de dados", "items": ["Listas", "Tuplas", "Dicionários"] }]
+  },
+  "topics": ["Listas"],
+  "request": {
+    "title": "Exercícios de listas",
+    "description": null,
+    "difficulty": "BASIC",
+    "totalGrade": "3.00",
+    "total": 3,
+    "types": ["CODE"],
+    "distribution": { "mode": "AUTO" },
+    "trickQuestions": 0
+  },
+  "counts": { "OPEN_ANSWER": 0, "MULTIPLE_CHOICE": 0, "CODE": 3 },
+  "language": "Python",
+  "keyTerms": {
+    "T1": ["lista", "list", "append", "índice", "fatiamento", "slice"]
+  },
+  "forbiddenPatterns": []
+}

@@ -86,6 +86,15 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         evaluatedAt: "2026-09-28T20:04:09.584Z",
         evidence: "apps/api/test/fixtures/evaluations/exercise-generation/openai-basic.json",
       },
+      // 011 T054: the work generator's golden set met every threshold of `work-generation`. The 4
+      // trick questions of the evidence were read by a person on 2026-09-30 (011/FR-030): one
+      // correct alternative each, distractors from common errors, no ambiguity.
+      {
+        taskKey: "work-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 0.9583, injectionClean: 1 },
+        evaluatedAt: "2026-09-30T19:44:17.269Z",
+        evidence: "apps/api/test/fixtures/evaluations/work-generation/openai-basic.json",
+      },
     ],
   }),
   openRouter({

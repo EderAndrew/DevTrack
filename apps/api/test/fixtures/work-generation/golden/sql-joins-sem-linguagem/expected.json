@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "description": "Ementa sem linguagem: Pergunta e resposta e Múltipla escolha sobre junções e subconsultas em SQL, com 1 pegadinha e nenhuma questão de código.",
+  "injection": false,
+  "syllabus": {
+    "title": "Banco de Dados",
+    "competencyText": null,
+    "languageKey": null,
+    "groups": [
+      {
+        "title": "Consultas",
+        "items": ["Junções entre tabelas: INNER JOIN, LEFT JOIN e RIGHT JOIN", "Subconsultas", "Agregação com GROUP BY"]
+      }
+    ]
+  },
+  "topics": ["Junções entre tabelas: INNER JOIN, LEFT JOIN e RIGHT JOIN", "Subconsultas"],
+  "request": {
+    "title": "Trabalho de consultas SQL",
+    "description": "Junções e subconsultas",
+    "difficulty": "BASIC",
+    "totalGrade": "1.00",
+    "total": 4,
+    "types": ["OPEN_ANSWER", "MULTIPLE_CHOICE"],
+    "distribution": { "mode": "AUTO" },
+    "trickQuestions": 1
+  },
+  "counts": { "OPEN_ANSWER": 2, "MULTIPLE_CHOICE": 2, "CODE": 0 },
+  "language": null,
+  "keyTerms": {
+    "T1": ["join", "junção", "junções", "juntar"],
+    "T2": ["subconsulta", "subquery", "consulta aninhada", "select aninhado", "consulta interna"]
+  },
+  "forbiddenPatterns": []
+}

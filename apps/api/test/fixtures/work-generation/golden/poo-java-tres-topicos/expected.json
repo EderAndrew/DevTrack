@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "description": "Três tópicos de POO em Java, 10 questões dos três tipos (distribuição automática 4/3/3) e 2 pegadinhas: o pedido de 10 do 011/SC-002.",
+  "injection": false,
+  "syllabus": {
+    "title": "Programação Orientada a Objetos",
+    "competencyText": "Modelar problemas com classes, herança e polimorfismo em Java.",
+    "languageKey": "java",
+    "groups": [
+      { "title": "Orientação a objetos", "items": ["Herança", "Polimorfismo", "Classes abstratas"] },
+      { "title": "Coleções", "items": ["Listas", "Mapas"] }
+    ]
+  },
+  "topics": ["Herança", "Polimorfismo", "Classes abstratas"],
+  "request": {
+    "title": "Trabalho de POO",
+    "description": null,
+    "difficulty": "INTERMEDIATE",
+    "totalGrade": "2.00",
+    "total": 10,
+    "types": ["OPEN_ANSWER", "MULTIPLE_CHOICE", "CODE"],
+    "distribution": { "mode": "AUTO" },
+    "trickQuestions": 2
+  },
+  "counts": { "OPEN_ANSWER": 4, "MULTIPLE_CHOICE": 3, "CODE": 3 },
+  "language": "Java",
+  "keyTerms": {
+    "T1": ["herança", "herda", "herdar", "extends", "superclasse", "subclasse", "classe pai", "classe filha", "super("],
+    "T2": ["polimorf", "sobrescrit", "sobrescrev", "override", "sobrecarga", "ligação dinâmica"],
+    "T3": ["abstrat", "abstract"]
+  },
+  "forbiddenPatterns": []
+}

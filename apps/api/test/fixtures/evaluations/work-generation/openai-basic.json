@@ -1,0 +1,124 @@
+{
+  "task": "work-generation",
+  "model": "openai/gpt-6-luna",
+  "servedModel": "openai/gpt-6-luna",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-09-30T19:44:17.269Z",
+  "metrics": {
+    "schemaValidity": 1,
+    "configMatch": 1,
+    "duplicates": 0,
+    "topicCoverage": 0.9583,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.004599",
+    "currency": "USD",
+    "perExecution": "0.000919"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 12499,
+      "poo-java-tres-topicos": 23775,
+      "python-listas-so-codigo": 9545,
+      "sete-topicos-tres-questoes": 9930,
+      "sql-joins-sem-linguagem": 7982
+    },
+    "maxMs": 23775,
+    "withinTwoMinutes": 1
+  },
+  "trickQuestions": [
+    {
+      "case": "poo-java-tres-topicos",
+      "statement": "Considere `class Base { String nome() { return \"Base\"; } }`, `class Derivada extends Base { String nome() { return \"Derivada\"; } }` e `Base x = new Derivada();`. Qual texto é devolvido por `x.nome()`?",
+      "alternatives": [
+        {
+          "text": "`Base`, pois o tipo declarado da variável `x` determina a implementação chamada.",
+          "isCorrect": false
+        },
+        {
+          "text": "`Derivada`, pois o objeto referenciado foi criado como uma instância de Derivada.",
+          "isCorrect": true
+        },
+        {
+          "text": "O programa não compila, pois uma variável Base não pode referenciar uma instância de Derivada.",
+          "isCorrect": false
+        },
+        {
+          "text": "O método não devolve texto, porque uma subclasse não pode sobrescrever método herdado.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "O método `nome` é sobrescrito em Derivada. A chamada de um método de instância sobrescrito é despachada de acordo com a classe real do objeto, que nesse caso é Derivada."
+    },
+    {
+      "case": "poo-java-tres-topicos",
+      "statement": "Uma classe abstrata `Forma` declara `abstract int area();`. Qual opção apresenta uma subclasse concreta válida de `Forma`?",
+      "alternatives": [
+        {
+          "text": "`class Retangulo extends Forma { int area() { return 12; } }`",
+          "isCorrect": true
+        },
+        {
+          "text": "`class Retangulo extends Forma { }`",
+          "isCorrect": false
+        },
+        {
+          "text": "`abstract class Retangulo extends Forma { }`, declarada como classe concreta.",
+          "isCorrect": false
+        },
+        {
+          "text": "`class Retangulo { int area() { return 12; } }`, sem declarar herança de Forma.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "Uma subclasse concreta precisa implementar o método abstrato herdado com uma assinatura compatível. Uma subclasse que não o implementar também teria de ser declarada abstrata."
+    },
+    {
+      "case": "sete-topicos-tres-questoes",
+      "statement": "Durante uma revisão de código, um revisor observa que uma alteração inclui testes unitários aprovados, mas também modifica a forma como dois componentes trocam dados. Qual conclusão é mais bem fundamentada?",
+      "alternatives": [
+        {
+          "text": "Os testes unitários aprovados demonstram que a troca de dados entre os componentes está correta; a revisão pode ser encerrada sem outras verificações.",
+          "isCorrect": false
+        },
+        {
+          "text": "A alteração deve ser revisada, e testes de integração são pertinentes para verificar a interação modificada; os testes unitários aprovados não comprovam essa interação por si só.",
+          "isCorrect": true
+        },
+        {
+          "text": "A revisão de código substitui os testes unitários e de integração, pois avalia diretamente a alteração realizada.",
+          "isCorrect": false
+        },
+        {
+          "text": "Testes de integração verificam apenas cada unidade de forma isolada, enquanto testes unitários verificam a comunicação entre componentes.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "Testes unitários aprovados oferecem evidência sobre o comportamento das unidades exercitadas, mas não demonstram por si só que a interação entre componentes modificados está correta. A revisão de código pode avaliar a alteração e apontar aspectos que mereçam atenção, mas não substitui a execução de testes de integração quando a interação entre componentes precisa ser verificada."
+    },
+    {
+      "case": "sql-joins-sem-linguagem",
+      "statement": "Considere `Clientes LEFT JOIN Pedidos` relacionando as tabelas pela identificação do cliente. O que ocorre com um cliente que não possui nenhum pedido correspondente?",
+      "alternatives": [
+        {
+          "text": "O cliente aparece, e as colunas de Pedidos ficam com valores NULL.",
+          "isCorrect": true
+        },
+        {
+          "text": "O cliente não aparece, pois não há correspondência em Pedidos.",
+          "isCorrect": false
+        },
+        {
+          "text": "O cliente aparece apenas se houver exatamente um pedido.",
+          "isCorrect": false
+        },
+        {
+          "text": "A consulta transforma automaticamente a junção em RIGHT JOIN.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "O LEFT JOIN preserva todas as linhas da tabela à esquerda. Para o cliente sem pedido, as colunas da tabela Pedidos ficam com valores NULL."
+    }
+  ]
+}

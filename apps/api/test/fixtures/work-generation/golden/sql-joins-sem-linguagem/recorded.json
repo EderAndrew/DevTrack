@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique a diferença entre `INNER JOIN` e `LEFT JOIN` ao combinar uma tabela `Clientes` com uma tabela `Pedidos`, usando `Clientes` como tabela à esquerda.",
+            "explanation": "O `INNER JOIN` retorna apenas clientes que têm pedidos correspondentes. O `LEFT JOIN` retorna todos os clientes e, para aqueles sem pedido correspondente, apresenta valores nulos nas colunas de `Pedidos`.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "expectedAnswer": "O `INNER JOIN` inclui apenas clientes com correspondência em `Pedidos`. O `LEFT JOIN` inclui todos os clientes; quando um cliente não tem pedido correspondente, as colunas de `Pedidos` aparecem como `NULL`.",
+            "rubric": "Atribua crédito completo se a resposta identificar corretamente quais linhas são mantidas por cada junção e mencionar os valores NULL no caso sem correspondência para o LEFT JOIN."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "O que é uma subconsulta e como o resultado dela pode ser usado em uma consulta externa?",
+            "explanation": "Uma subconsulta é uma consulta aninhada em outra. A consulta externa pode usar seu resultado, por exemplo, como valor de comparação ou conjunto de valores em uma condição.",
+            "topicRefs": [
+              "T2"
+            ],
+            "difficulty": "BASIC",
+            "expectedAnswer": "É uma consulta SQL inserida dentro de outra consulta. Seu resultado pode ser usado pela consulta externa em uma condição ou de outra forma permitida pela posição em que a subconsulta aparece.",
+            "rubric": "Atribua crédito completo se a resposta descrever uma consulta dentro de outra e explicar que a consulta externa utiliza o resultado da subconsulta."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere `Clientes LEFT JOIN Pedidos` relacionando as tabelas pela identificação do cliente. O que ocorre com um cliente que não possui nenhum pedido correspondente?",
+            "explanation": "O LEFT JOIN preserva todas as linhas da tabela à esquerda. Para o cliente sem pedido, as colunas da tabela Pedidos ficam com valores NULL.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "alternatives": [
+              {
+                "text": "O cliente aparece, e as colunas de Pedidos ficam com valores NULL.",
+                "isCorrect": true
+              },
+              {
+                "text": "O cliente não aparece, pois não há correspondência em Pedidos.",
+                "isCorrect": false
+              },
+              {
+                "text": "O cliente aparece apenas se houver exatamente um pedido.",
+                "isCorrect": false
+              },
+              {
+                "text": "A consulta transforma automaticamente a junção em RIGHT JOIN.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Uma subconsulta retorna a lista de identificações de clientes que possuem pedidos. Qual operador é adequado para selecionar, na consulta externa, clientes cuja identificação esteja nessa lista?",
+            "explanation": "O operador IN verifica se um valor pertence ao conjunto retornado pela subconsulta.",
+            "topicRefs": [
+              "T2"
+            ],
+            "difficulty": "BASIC",
+            "alternatives": [
+              {
+                "text": "IN",
+                "isCorrect": true
+              },
+              {
+                "text": "LEFT JOIN",
+                "isCorrect": false
+              },
+              {
+                "text": "GROUP BY",
+                "isCorrect": false
+              },
+              {
+                "text": "ORDER BY",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

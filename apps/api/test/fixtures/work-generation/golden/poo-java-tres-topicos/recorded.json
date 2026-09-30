@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique como uma variável declarada com o tipo de uma classe-base pode referenciar um objeto de uma subclasse e como uma chamada a um método sobrescrito é resolvida nesse caso.",
+            "explanation": "A herança permite que uma instância da subclasse seja usada onde se espera a classe-base. Quando o método sobrescrito é chamado, a implementação selecionada é a da classe real do objeto, o que caracteriza o polimorfismo em tempo de execução.",
+            "topicRefs": [
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "expectedAnswer": "Uma variável do tipo da classe-base pode referenciar um objeto de uma subclasse porque a subclasse herda e é compatível com a classe-base. Se um método de instância for sobrescrito, a chamada feita por essa variável executa a implementação correspondente à classe real do objeto, não necessariamente a implementação da classe declarada na variável.",
+            "rubric": "Atribuir crédito por explicar a compatibilidade entre subclasse e classe-base (1 ponto) e por identificar que a implementação sobrescrita é escolhida conforme o tipo real do objeto (1 ponto)."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Qual é a diferença entre uma classe abstrata e uma classe concreta em Java? Inclua uma consequência prática da diferença.",
+            "explanation": "Uma classe abstrata pode definir métodos abstratos e servir como base para subclasses, mas não pode ser instanciada diretamente. Uma classe concreta fornece implementações para os métodos abstratos herdados e pode ser instanciada, desde que não tenha outros requisitos pendentes.",
+            "topicRefs": [
+              "T3"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "expectedAnswer": "Uma classe abstrata é declarada com `abstract`, pode conter métodos abstratos e não pode ser instanciada diretamente. Uma classe concreta não é abstrata e pode ser instanciada; se herdar métodos abstratos, precisa implementá-los para ser concreta.",
+            "rubric": "Atribuir crédito por indicar que a classe abstrata não pode ser instanciada diretamente (1 ponto) e por explicar que uma classe concreta precisa implementar os métodos abstratos herdados para poder ser instanciada (1 ponto)."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Em uma hierarquia de classes, uma subclasse sobrescreve um método de instância da classe-base. Explique o que significa sobrescrever e por que isso pode ser útil em uma hierarquia polimórfica.",
+            "explanation": "Sobrescrever é fornecer, na subclasse, uma implementação de um método herdado com a mesma assinatura. Isso permite que objetos de diferentes subclasses respondam de maneiras específicas à mesma chamada feita por meio de uma referência comum.",
+            "topicRefs": [
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "expectedAnswer": "Sobrescrever significa redefinir na subclasse um método herdado, mantendo sua assinatura. Isso é útil porque subclasses diferentes podem oferecer comportamentos próprios e ainda ser usadas por meio de uma referência da classe-base, que invoca a implementação adequada ao objeto real.",
+            "rubric": "Atribuir crédito por definir corretamente a sobrescrita como redefinição de método herdado com a mesma assinatura (1 ponto) e por relacionar isso ao comportamento específico de subclasses acessadas polimorficamente (1 ponto)."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Uma classe abstrata pode conter métodos com implementação, além de métodos abstratos? Explique como uma subclasse pode aproveitar esses métodos.",
+            "explanation": "Sim. Uma classe abstrata pode combinar métodos abstratos com métodos concretos. Uma subclasse herda os métodos concretos e pode utilizá-los ou sobrescrevê-los, além de implementar os métodos abstratos necessários para se tornar concreta.",
+            "topicRefs": [
+              "T3",
+              "T1"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "expectedAnswer": "Sim. Uma classe abstrata pode conter métodos concretos, com implementação, e métodos abstratos, sem implementação. As subclasses herdam os métodos concretos e podem usá-los ou sobrescrevê-los; também devem implementar os métodos abstratos para poderem ser concretas.",
+            "rubric": "Atribuir crédito por responder que sim e distinguir métodos concretos de abstratos (1 ponto), e por explicar a herança dos métodos concretos e a necessidade de implementar os abstratos numa subclasse concreta (1 ponto)."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere `class Veiculo { void mover() {} }` e `class Carro extends Veiculo { void abrirPorta() {} }`. Qual afirmação descreve corretamente a relação entre essas classes?",
+            "explanation": "`Carro extends Veiculo` estabelece uma relação de herança: Carro é uma subclasse de Veiculo e herda seus membros acessíveis. O método próprio `abrirPorta` não passa a existir na classe-base.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "alternatives": [
+              {
+                "text": "Carro é uma subclasse de Veiculo e herda seus membros acessíveis.",
+                "isCorrect": true
+              },
+              {
+                "text": "Veiculo herda automaticamente os métodos declarados em Carro.",
+                "isCorrect": false
+              },
+              {
+                "text": "A declaração `extends` faz com que Carro e Veiculo sejam a mesma classe.",
+                "isCorrect": false
+              },
+              {
+                "text": "Carro herda apenas os métodos que foram declarados como abstratos em Veiculo.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere `class Base { String nome() { return \"Base\"; } }`, `class Derivada extends Base { String nome() { return \"Derivada\"; } }` e `Base x = new Derivada();`. Qual texto é devolvido por `x.nome()`?",
+            "explanation": "O método `nome` é sobrescrito em Derivada. A chamada de um método de instância sobrescrito é despachada de acordo com a classe real do objeto, que nesse caso é Derivada.",
+            "topicRefs": [
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "alternatives": [
+              {
+                "text": "`Base`, pois o tipo declarado da variável `x` determina a implementação chamada.",
+                "isCorrect": false
+              },
+              {
+                "text": "`Derivada`, pois o objeto referenciado foi criado como uma instância de Derivada.",
+                "isCorrect": true
+              },
+              {
+                "text": "O programa não compila, pois uma variável Base não pode referenciar uma instância de Derivada.",
+                "isCorrect": false
+              },
+              {
+                "text": "O método não devolve texto, porque uma subclasse não pode sobrescrever método herdado.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Uma classe abstrata `Forma` declara `abstract int area();`. Qual opção apresenta uma subclasse concreta válida de `Forma`?",
+            "explanation": "Uma subclasse concreta precisa implementar o método abstrato herdado com uma assinatura compatível. Uma subclasse que não o implementar também teria de ser declarada abstrata.",
+            "topicRefs": [
+              "T3",
+              "T1"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "alternatives": [
+              {
+                "text": "`class Retangulo extends Forma { int area() { return 12; } }`",
+                "isCorrect": true
+              },
+              {
+                "text": "`class Retangulo extends Forma { }`",
+                "isCorrect": false
+              },
+              {
+                "text": "`abstract class Retangulo extends Forma { }`, declarada como classe concreta.",
+                "isCorrect": false
+              },
+              {
+                "text": "`class Retangulo { int area() { return 12; } }`, sem declarar herança de Forma.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente um programa Java que leia dois inteiros positivos, largura e altura, e calcule a área de um retângulo. Use uma classe abstrata `Forma` com o método abstrato `area()`, uma subclasse `Retangulo` e uma referência do tipo `Forma` para chamar o método.",
+            "explanation": "A solução declara um método abstrato na classe-base, implementa esse método na subclasse e faz a chamada por uma referência da classe-base. Assim, a implementação de Retangulo é usada de forma polimórfica.",
+            "topicRefs": [
+              "T3",
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "instructions": "Leia largura e altura, nessa ordem, da entrada padrão e imprima a área do retângulo como um inteiro.",
+            "starterCode": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Implemente a leitura e o cálculo usando Forma e Retangulo.\n    }\n}",
+            "expectedSolution": "import java.util.Scanner;\n\nabstract class Forma {\n    abstract int area();\n}\n\nclass Retangulo extends Forma {\n    private final int largura;\n    private final int altura;\n\n    Retangulo(int largura, int altura) {\n        this.largura = largura;\n        this.altura = altura;\n    }\n\n    @Override\n    int area() {\n        return largura * altura;\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        int largura = scanner.nextInt();\n        int altura = scanner.nextInt();\n        Forma forma = new Retangulo(largura, altura);\n        System.out.println(forma.area());\n    }\n}",
+            "language": "Java",
+            "testCases": [
+              {
+                "input": "4 6",
+                "expectedOutput": "24",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "7 3",
+                "expectedOutput": "21",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente um programa Java que leia um caractere: `P` para piano ou `T` para tambor. Crie uma classe-base `Instrumento` e subclasses que sobrescrevam o método `tocar()`. Armazene o instrumento escolhido em uma variável do tipo `Instrumento` e imprima o resultado de `tocar()`.",
+            "explanation": "As subclasses herdam de Instrumento e sobrescrevem o método tocar. A referência de tipo Instrumento pode apontar para uma instância de qualquer uma das subclasses, e a chamada executa a implementação correspondente ao objeto escolhido.",
+            "topicRefs": [
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "instructions": "A entrada contém um único caractere, `P` ou `T`. Imprima `som de piano` para P e `som de tambor` para T.",
+            "starterCode": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Crie as classes e selecione o instrumento usando polimorfismo.\n    }\n}",
+            "expectedSolution": "import java.util.Scanner;\n\nclass Instrumento {\n    String tocar() {\n        return \"som de instrumento\";\n    }\n}\n\nclass Piano extends Instrumento {\n    @Override\n    String tocar() {\n        return \"som de piano\";\n    }\n}\n\nclass Tambor extends Instrumento {\n    @Override\n    String tocar() {\n        return \"som de tambor\";\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        String escolha = scanner.next();\n        Instrumento instrumento;\n        if (escolha.equals(\"P\")) {\n            instrumento = new Piano();\n        } else {\n            instrumento = new Tambor();\n        }\n        System.out.println(instrumento.tocar());\n    }\n}",
+            "language": "Java",
+            "testCases": [
+              {
+                "input": "P",
+                "expectedOutput": "som de piano",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "T",
+                "expectedOutput": "som de tambor",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente um programa Java que leia uma letra (`N` ou `D`) e um preço inteiro. Modele uma regra de preço por meio da classe abstrata `RegraPreco`, com o método abstrato `calcular(int preco)`. A regra `N` mantém o preço; a regra `D` aplica desconto de 10%. Use uma referência de `RegraPreco` para calcular e imprimir o preço final.",
+            "explanation": "RegraPreco define o contrato abstrato, e as subclasses fornecem comportamentos diferentes. A chamada `calcular` é feita por uma referência da classe-base e é encaminhada à implementação da subclasse selecionada. O desconto é calculado com divisão inteira, como definido pelo tipo int.",
+            "topicRefs": [
+              "T3",
+              "T1",
+              "T2"
+            ],
+            "difficulty": "INTERMEDIATE",
+            "instructions": "Leia a letra da regra e, em seguida, o preço inteiro. Para `D`, calcule o preço com desconto usando `preco * 90 / 100` com aritmética inteira. Imprima o preço final como inteiro.",
+            "starterCode": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Implemente RegraPreco e as duas regras concretas.\n    }\n}",
+            "expectedSolution": "import java.util.Scanner;\n\nabstract class RegraPreco {\n    abstract int calcular(int preco);\n}\n\nclass RegraNormal extends RegraPreco {\n    @Override\n    int calcular(int preco) {\n        return preco;\n    }\n}\n\nclass RegraDesconto extends RegraPreco {\n    @Override\n    int calcular(int preco) {\n        return preco * 90 / 100;\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        String tipo = scanner.next();\n        int preco = scanner.nextInt();\n        RegraPreco regra;\n        if (tipo.equals(\"D\")) {\n            regra = new RegraDesconto();\n        } else {\n            regra = new RegraNormal();\n        }\n        System.out.println(regra.calcular(preco));\n    }\n}",
+            "language": "Java",
+            "testCases": [
+              {
+                "input": "D 200",
+                "expectedOutput": "180",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "N 75",
+                "expectedOutput": "75",
+                "visibility": "PRIVATE"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
