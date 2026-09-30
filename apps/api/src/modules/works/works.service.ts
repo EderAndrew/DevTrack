@@ -5,6 +5,7 @@ import {
   gradeToCents,
   type ProgrammingLanguageList,
   type WorkQuestionType,
+  type WorkStudentView,
   WorkQuestionTypeSchema,
   type WorkTeacherView,
 } from "@repo/contracts";
@@ -20,6 +21,7 @@ import {
   workQuestionViolations,
 } from "./rules/work-rules";
 import type { AnyWorkQuestionInput } from "./types";
+import { toWorkStudentView } from "./views/student-view";
 import { toWorkTeacherView } from "./views/teacher-view";
 import { WORK_RECORD_SELECT, toWorkRecord } from "./work-query";
 import { WorkTopics } from "./work-topics";
@@ -43,12 +45,32 @@ export class WorksService {
     workId: string,
     db: Tx = this.prisma,
   ): Promise<WorkTeacherView> {
+    return toWorkTeacherView(await this.ownRecord(teacherId, workId, db));
+  }
+
+  /**
+   * "Ver como aluno" (011/US6): the student view of the teacher's own work, from the allowlist
+   * builder that 012 serves to students (research W14); never the teacher view with fields removed.
+   */
+  async studentPreview(
+    teacherId: string,
+    workId: string,
+  ): Promise<WorkStudentView> {
+    return toWorkStudentView(await this.ownRecord(teacherId, workId));
+  }
+
+  /** The work of this teacher; another teacher's or a missing one is the same 404. */
+  private async ownRecord(
+    teacherId: string,
+    workId: string,
+    db: Tx = this.prisma,
+  ) {
     const row = await db.work.findFirst({
       where: { id: workId, teacherId },
       select: WORK_RECORD_SELECT,
     });
     if (!row) throw notFound();
-    return toWorkTeacherView(toWorkRecord(row));
+    return toWorkRecord(row);
   }
 
   /** The active entries of the shared language catalog, by name (research W18); read-only. */

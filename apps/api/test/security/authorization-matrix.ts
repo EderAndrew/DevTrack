@@ -239,6 +239,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/works", access: "trabalhos.criar" },
   { method: "GET", path: "/works/programming-languages", access: "trabalhos.visualizar" },
   { method: "GET", path: "/works/:id", access: "trabalhos.visualizar" },
+  { method: "GET", path: "/works/:id/student-preview", access: "trabalhos.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

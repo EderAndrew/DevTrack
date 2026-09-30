@@ -4,6 +4,7 @@ import {
   CreateWorkRequestSchema,
   type ProgrammingLanguageList,
   UuidSchema,
+  type WorkStudentView,
   type WorkTeacherView,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -45,5 +46,15 @@ export class WorksController {
     @Ctx() ctx: RequestContext,
   ): Promise<WorkTeacherView> {
     return this.works.getForTeacher(ctx.auth!.userId, id);
+  }
+
+  /** "Ver como aluno": what a student will see of this work, with no answer key (US6). */
+  @Get(":id/student-preview")
+  @RequirePermissions("trabalhos.visualizar")
+  studentPreview(
+    @Param("id", idPipe) id: string,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkStudentView> {
+    return this.works.studentPreview(ctx.auth!.userId, id);
   }
 }

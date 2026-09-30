@@ -14,6 +14,8 @@ export { useSyllabusRevision as useWorkRevision } from "@/features/syllabus/hook
 export const worksKeys = {
   all: ["works"] as const,
   detail: (id: string) => [...worksKeys.all, id] as const,
+  studentPreview: (id: string) =>
+    [...worksKeys.all, id, "student-preview"] as const,
   languages: ["works", "programming-languages"] as const,
 };
 
@@ -48,3 +50,10 @@ export function useCreateWork() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: worksKeys.all }),
   });
 }
+
+/** The student view of one of the teacher's works, as the server builds it. */
+export const useWorkStudentPreview = (id: string) =>
+  useQuery({
+    queryKey: worksKeys.studentPreview(id),
+    queryFn: () => worksApi.studentPreview(id),
+  });

@@ -136,6 +136,11 @@ Student view (010/US6): any future route that shows an exercise to a student (ac
 view; a new field reaches students only when listed there or in its type's `studentFields`.
 `test/security/010-student-view.spec.ts` scans every type for the answer markers (`MARCADOR-RESPOSTA-010`,
 `MARCADOR-SOLUCAO-010`, `MARCADOR-EXPLICACAO-010`) and the answer keys.
+Works (011/US6) follow the same rule: the only student view of a work is `toWorkStudentView`
+(`src/modules/works/views/student-view.ts`, an allowlist plus each type's `studentFields`). In 011 it is served only
+by the teacher's "Ver como aluno" (`GET /works/:id/student-preview`); the 012 student route must answer that builder
+and nothing else. `test/security/011-student-view.spec.ts` scans for `MARCADOR-RESPOSTA-011`, `-RUBRICA-`,
+`-SOLUCAO-`, `-PRIVADO-` (private test cases) and `-EXPLICACAO-011` and the answer keys.
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and

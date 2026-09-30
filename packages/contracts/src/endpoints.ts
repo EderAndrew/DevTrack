@@ -112,7 +112,7 @@ import {
 } from "./exercises/exercises.js";
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
-import { CreateWorkRequestSchema, WorkTeacherViewSchema } from "./works/works.js";
+import { CreateWorkRequestSchema, WorkStudentViewSchema, WorkTeacherViewSchema } from "./works/works.js";
 import {
   ApproveBatchExercisesRequestSchema,
   ExerciseBatchDetailSchema,
@@ -889,6 +889,14 @@ export const endpoints = {
     status: 200,
   },
   "works.get": { method: "GET", path: "/works/:id", params: IdParamsSchema, response: WorkTeacherViewSchema, status: 200 },
+  /** "Ver como aluno": the same builder 012 serves to students (research W14). */
+  "works.studentPreview": {
+    method: "GET",
+    path: "/works/:id/student-preview",
+    params: IdParamsSchema,
+    response: WorkStudentViewSchema,
+    status: 200,
+  },
 } as const satisfies Record<string, EndpointContract>;
 
 export type EndpointKey = keyof typeof endpoints;

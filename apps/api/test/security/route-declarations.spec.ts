@@ -155,6 +155,7 @@ describe("route access declarations", () => {
         "POST /works",
         "GET /works/programming-languages",
         "GET /works/:id",
+        "GET /works/:id/student-preview",
       ]),
     );
   });

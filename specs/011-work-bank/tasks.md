@@ -242,7 +242,7 @@ professor.
 
 **Independent Test**: para cada tipo, a prévia serializada não contém nenhum marcador de gabarito.
 
-- [ ] T024 [P] [US6] `apps/api/test/security/011-student-view.spec.ts`: trabalho com marcadores
+- [X] T024 [P] [US6] `apps/api/test/security/011-student-view.spec.ts`: trabalho com marcadores
   (`MARCADOR-RESPOSTA-011`, `MARCADOR-RUBRICA-011`, `MARCADOR-SOLUCAO-011`,
   `MARCADOR-PRIVADO-011`, `MARCADOR-EXPLICACAO-011`) nos campos sensíveis; `GET
   /works/:id/student-preview` passa em `WorkStudentViewSchema` estrito e o JSON não contém nenhum
@@ -251,11 +251,11 @@ professor.
   `PUBLIC` presentes, `PRIVATE` ausentes; alternativas na ordem; uma coluna nova na linha de
   fixture não aparece (projeção por lista); STUDENT, ADMIN e MANAGER → 403 nas rotas do professor
   com o id do trabalho (`011/US6-1`…`011/US6-5`, `011/SC-007`, `011/FR-034`, `011/FR-035`).
-- [ ] T025 [US6] Rota `GET /works/:id/student-preview` em `works.controller.ts`, entrada em
+- [X] T025 [US6] Rota `GET /works/:id/student-preview` em `works.controller.ts`, entrada em
   `endpoints.ts`, linhas do `MATRIX`/`route-declarations`; ajustar `views/student-view.ts` até o
   teste passar; documentar em `apps/api/CLAUDE.md` que a rota de aluno da 012 usa só esse
   builder.
-- [ ] T026 [P] [US6] Web: "Ver como aluno" (somente leitura) em
+- [X] T026 [P] [US6] Web: "Ver como aluno" (somente leitura) em
   `apps/web/features/works/components/student-preview.tsx`, com teste (axe, nenhum campo de
   gabarito renderizado).
 
