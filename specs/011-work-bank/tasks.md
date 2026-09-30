@@ -220,16 +220,16 @@ exata e mostra cada valor.
 **Independent Test**: criar trabalhos com 0,50/10, 1,00/10, 0,50/5 e 0,50/3 e conferir cada
 valor e a soma.
 
-- [ ] T021 [P] [US2] `apps/api/test/integration/011-us2-grade.spec.ts`: pela rota de criação,
+- [X] T021 [P] [US2] `apps/api/test/integration/011-us2-grade.spec.ts`: pela rota de criação,
   0,50/10 → 0,05 cada; 1,00/10 → 0,10; 0,50/5 → 0,10; 0,50/3 → 0,17 · 0,17 · 0,16 na ordem; a
   soma lida do banco (`SUM(value)`) é igual à nota em todos; nota com três casas, negativa, zero,
   acima de 100,00 ou 0,05 para 10 questões → 400 sem arredondar; a visão do professor traz
   `"0.17"` como string (`011/US2-1`…`011/US2-3`, `011/US2-5`, `011/US2-6`, `011/SC-004`,
   `011/FR-011`).
-- [ ] T022 [US2] Ajustar `grade-values.ts`, `works.service.ts` e as visões até o teste passar
+- [X] T022 [US2] Ajustar `grade-values.ts`, `works.service.ts` e as visões até o teste passar
   (teste de varredura em `works-boundary.spec.ts` que proíbe `parseFloat`, `Number(` e
   `.toNumber()` nos módulos `works` e `work-ai`).
-- [ ] T023 [P] [US2] Web: cada cartão de `/trabalhos/novo` mostra "Vale 0,17" com
+- [X] T023 [P] [US2] Web: cada cartão de `/trabalhos/novo` mostra "Vale 0,17" com
   `distributeGrade` e atualiza ao mudar a nota, acrescentar, remover ou reordenar; teste em
   `apps/web/features/works/components/work-form.test.tsx`.
 

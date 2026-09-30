@@ -174,3 +174,20 @@ describe("011/FR-024 as regras de trabalho não escolhem modelo (research W8)", 
     expect(FORBIDDEN.some((pattern) => pattern.test('difficulty: "ADVANCED"'))).toBe(false);
   });
 });
+
+describe("011/FR-011 notas em aritmética decimal exata, nunca ponto flutuante (research W3)", () => {
+  const FORBIDDEN = [/\bparseFloat\s*\(/, /\bNumber\s*\(/, /\.toNumber\s*\(/];
+
+  it("nenhum parseFloat, Number( nem .toNumber() em works e work-ai", () => {
+    expect(offendingLines(WORKS_API.flatMap(sources), FORBIDDEN, read)).toEqual([]);
+  });
+
+  it("controle: a varredura acha a conversão para float e ignora nomes parecidos", () => {
+    for (const line of ["const grade = parseFloat(body.totalGrade);", "Number(row.value)", "row.value.toNumber()"]) {
+      expect(FORBIDDEN.some((pattern) => pattern.test(line)), line).toBe(true);
+    }
+    for (const line of ["const questionNumber = 3;", "Number.isInteger(cents)", "type Grade = GradeNumber(x);"]) {
+      expect(FORBIDDEN.some((pattern) => pattern.test(line)), line).toBe(false);
+    }
+  });
+});

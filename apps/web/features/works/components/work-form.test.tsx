@@ -502,3 +502,86 @@ describe("011/US1 WorkForm — criar um trabalho manualmente", () => {
     ]);
   });
 });
+
+describe("011/US2 WorkForm — valor de cada questão", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(workApiMock(() => json(201, workView()))),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const values = () =>
+    screen
+      .getAllByRole("group", { name: /^Questão \d+$/ })
+      .map((card) => within(card).queryByText(/^Vale /)?.textContent ?? null);
+  const statement = (n: number) =>
+    (within(question(n)).getByLabelText(/^Enunciado/) as HTMLTextAreaElement)
+      .value;
+
+  it('011/US2-3 011/US2-4 011/FR-012 cada cartão mostra "Vale 0,17" e recalcula ao mudar a nota, acrescentar, remover ou reordenar', async () => {
+    const { container } = renderWithProviders(<WorkForm />);
+    const user = userEvent.setup();
+    const grade = screen.getByLabelText(/^Nota total/);
+    await user.type(grade, "0,50");
+    expect(values()).toEqual(["Vale 0,50"]);
+
+    await addQuestion(user);
+    await addQuestion(user);
+    expect(values()).toEqual(["Vale 0,17", "Vale 0,17", "Vale 0,16"]);
+    await expectNoA11yViolations(container);
+    for (const [n, text] of ["Primeira", "Segunda", "Terceira"].entries())
+      await user.type(
+        within(question(n + 1)).getByLabelText(/^Enunciado/),
+        text,
+      );
+
+    // The value follows the position, not the question: the moved one takes its new place's value.
+    await user.click(
+      within(question(3)).getByRole("button", {
+        name: "Mover para cima Questão 3",
+      }),
+    );
+    expect(statement(2)).toBe("Terceira");
+    expect(statement(3)).toBe("Segunda");
+    expect(values()).toEqual(["Vale 0,17", "Vale 0,17", "Vale 0,16"]);
+
+    await addQuestion(user);
+    expect(values()).toEqual([
+      "Vale 0,13",
+      "Vale 0,13",
+      "Vale 0,12",
+      "Vale 0,12",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Remover Questão 1" }));
+    expect(statement(1)).toBe("Terceira");
+    expect(values()).toEqual(["Vale 0,17", "Vale 0,17", "Vale 0,16"]);
+
+    await user.clear(grade);
+    await user.type(grade, "1");
+    expect(values()).toEqual(["Vale 0,34", "Vale 0,33", "Vale 0,33"]);
+    await user.clear(grade);
+    await user.type(grade, "10,00");
+    expect(values()).toEqual(["Vale 3,34", "Vale 3,33", "Vale 3,33"]);
+  });
+
+  it("011/US2-5 sem nota válida, ou com menos de 0,01 por questão, nenhum cartão mostra valor", async () => {
+    renderWithProviders(<WorkForm />);
+    const user = userEvent.setup();
+    expect(values()).toEqual([null]);
+    const grade = screen.getByLabelText(/^Nota total/);
+    for (const invalid of ["0,505", "0", "100,01", "-1", "abc"]) {
+      await user.clear(grade);
+      await user.type(grade, invalid);
+      expect(values(), invalid).toEqual([null]);
+    }
+    await user.clear(grade);
+    await user.type(grade, "0,02");
+    await addQuestion(user);
+    expect(values()).toEqual(["Vale 0,01", "Vale 0,01"]);
+    await addQuestion(user);
+    expect(values()).toEqual([null, null, null]);
+  });
+});
