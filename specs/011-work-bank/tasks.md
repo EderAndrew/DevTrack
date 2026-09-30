@@ -332,19 +332,19 @@ AI_GENERATED, com a distribuição, os 3 tópicos, o título e a nota do pedido.
 
 **Independent Test**: cada resposta inválida simulada termina o pedido em FAILED sem trabalho.
 
-- [ ] T035 [P] [US4] Testes puros `apps/api/src/modules/work-ai/generation/
+- [X] T035 [P] [US4] Testes puros `apps/api/src/modules/work-ai/generation/
   validate-generated-work.spec.ts`: quantidade, tipo não pedido, distribuição, dificuldade,
   pegadinhas a mais/a menos/fora de MC, linguagem diferente, questão sem gabarito, MC fora das
   regras, código sem caso de teste, enunciados iguais após normalização, `ref` fora da seleção,
   questão sem tópico ou com 4, tópico selecionado sem questão; motivo de recusa exato para cada
   (`011/US4-2`…`011/US4-4`, `011/US4-6`, `011/FR-027`).
-- [ ] T036 [P] [US4] `apps/api/test/integration/011-us4-invalid-output.spec.ts`: resposta fora do
+- [X] T036 [P] [US4] `apps/api/test/integration/011-us4-invalid-output.spec.ts`: resposta fora do
   esquema e cada caso acima pelo runner → pedido FAILED, zero linhas nas tabelas de trabalho,
   escalonamento único da 009 quando a política permite; resposta com nota, valores, título,
   tópicos, ids ou situação → recusada pelo esquema estrito ou ignorada, e o trabalho usa os do
   pedido; falha no `materialize` → rollback total (pedido sem `generated_at`, sem proposta, sem
   trabalho) (`011/US4-1`, `011/US4-5`, `011/US4-7`, `011/SC-005`, `011/FR-028`, `011/FR-029`).
-- [ ] T037 [US4] `generation/validate-generated-work.ts` (research W13) usado pelo `build`;
+- [X] T037 [US4] `generation/validate-generated-work.ts` (research W13) usado pelo `build`;
   motivos de recusa só como código nos logs.
 
 ---

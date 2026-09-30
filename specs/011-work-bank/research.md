@@ -171,7 +171,7 @@ change:
    `WORK_GENERATION_REQUEST` and input `{}`.
 2. The agent calls its only tool, `read-work-generation-request` (W12).
 3. `proposal.build` (pure) validates the structured output against the request (W13) and throws
-   `ProposalRejected(reason)` on any mismatch → `AI_OUTPUT_VALIDATION_FAILED` (one escalation).
+   `ProposalRejected(reason)` on any mismatch → `AI_OUTPUT_VALIDATION_FAILED`, no retry (the 009 escalation covers an output outside the schema, inside the model loop).
 4. `proposal.materialize(tx, context)` locks the request row, writes the work (DRAFT,
    `AI_GENERATED`, title, description, subject, revision, difficulty and total grade from the
    request; values from W4), its topics, questions, alternatives, test cases and question topics,

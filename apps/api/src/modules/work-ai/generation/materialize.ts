@@ -1,4 +1,4 @@
-import { centsToGrade, type GeneratedWorkQuestion, GeneratedWorkSchema, gradeToCents, type WorkDifficulty } from "@repo/contracts";
+import { centsToGrade, GeneratedWorkSchema, gradeToCents, type WorkDifficulty } from "@repo/contracts";
 import { derivedUuid } from "../../../platform/crypto/derived-uuid";
 import type { Tx } from "../../../platform/database/transaction";
 import { searchKey } from "../../../platform/text/search-key";
@@ -8,6 +8,7 @@ import { checkWorkQuestion } from "../../works/rules/work-rules";
 import { writeWorkContent } from "../../works/work-content";
 import { ProposalRejected } from "./proposal-rejected";
 import { topicRef, WORK_GENERATION_REQUEST } from "./request-content";
+import { generatedQuestionInput } from "./validate-generated-work";
 
 interface LockedRequest {
   id: string;
@@ -22,28 +23,6 @@ interface LockedRequest {
   language_id: string | null;
   ai_execution_id: string | null;
   generated_at: Date | null;
-}
-
-/**
- * The question input of a generated one (research W10, FR-028): its topics are the request's
- * items its refs point at, its language the request's; the output never chooses them. The rules
- * of manual input apply to it as they are (FR-008).
- */
-function generatedQuestionInput(generated: GeneratedWorkQuestion, target: { languageId: string | null; topicItemIds: string[] }): unknown {
-  const common = { statement: generated.statement, explanation: generated.explanation, topicItemIds: target.topicItemIds };
-  if (generated.type === "OPEN_ANSWER") return { type: generated.type, ...common, expectedAnswer: generated.expectedAnswer, rubric: generated.rubric };
-  if (generated.type === "MULTIPLE_CHOICE") {
-    return { type: generated.type, ...common, alternatives: generated.alternatives, isTrickQuestion: generated.isTrickQuestion };
-  }
-  return {
-    type: generated.type,
-    ...common,
-    instructions: generated.instructions,
-    starterCode: generated.starterCode,
-    expectedSolution: generated.expectedSolution,
-    languageId: target.languageId,
-    testCases: generated.testCases,
-  };
 }
 
 /**
