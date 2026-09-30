@@ -14,7 +14,6 @@ const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "trabalhos.editar",
   "trabalhos.arquivar",
   "trabalhos.aprovar",
-  "ia.trabalhos.gerar",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

@@ -20,6 +20,7 @@ export default async function WorkBankPage({ searchParams }: Props) {
     <section className="mx-auto w-full max-w-256">
       <WorkBankHome
         canCreate={me.permissions.includes("trabalhos.criar")}
+        canGenerate={me.permissions.includes("ia.trabalhos.gerar")}
         created={(await searchParams).criado === "1"}
       />
     </section>

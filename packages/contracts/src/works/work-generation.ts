@@ -148,6 +148,12 @@ export const WorkGenerationRequestViewSchema = z.strictObject({
 });
 export type WorkGenerationRequestView = z.infer<typeof WorkGenerationRequestViewSchema>;
 
+/** `GET /work-generation/availability` (006 semantics, no reason text). */
+export const WorkGenerationAvailabilitySchema = z.strictObject({
+  availability: z.enum(["AVAILABLE", "AGENT_DISABLED", "MODEL_UNAVAILABLE", "PAUSED"]),
+});
+export type WorkGenerationAvailability = z.infer<typeof WorkGenerationAvailabilitySchema>;
+
 /** `GET /work-generation-requests`: the teacher's requests, newest first. */
 export const WorkGenerationRequestListQuerySchema = z.strictObject({ cursor: z.string().max(200).optional() });
 export type WorkGenerationRequestListQuery = z.infer<typeof WorkGenerationRequestListQuerySchema>;

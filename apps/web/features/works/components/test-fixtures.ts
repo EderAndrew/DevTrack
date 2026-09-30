@@ -3,6 +3,7 @@ import type {
   SubjectView,
   SyllabusDocumentView,
   SyllabusRevisionView,
+  WorkGenerationRequestView,
   WorkTeacherView,
 } from "@repo/contracts";
 import {
@@ -110,6 +111,36 @@ export const workView = (
   ],
   createdAt: "2026-09-30T12:00:00.000Z",
   updatedAt: "2026-09-30T12:00:00.000Z",
+  ...overrides,
+});
+
+/** A `WorkGenerationRequestView` of the contract: 5 questions on Herança and Polimorfismo. */
+export const generationRequestView = (
+  overrides: Partial<WorkGenerationRequestView> = {},
+): WorkGenerationRequestView => ({
+  id: "00000000-0000-4000-f000-000000000001",
+  status: "PENDING",
+  subject: { id: POO.id, name: POO.name },
+  syllabusRevisionId: POO_REVISION.id,
+  topics: [
+    { syllabusItemId: itemId("Herança"), itemText: "Herança" },
+    { syllabusItemId: itemId("Polimorfismo"), itemText: "Polimorfismo" },
+  ],
+  title: "Trabalho de herança",
+  description: null,
+  difficulty: "INTERMEDIATE",
+  totalGrade: "2.00",
+  total: 5,
+  counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 2, CODE: 0 },
+  trickQuestions: 1,
+  language: null,
+  distribution: "AUTO",
+  executionId: "00000000-0000-4000-f000-000000000002",
+  createdAt: "2026-09-30T12:00:00.000Z",
+  generatedAt: null,
+  failureCode: null,
+  workId: null,
+  regeneratedFromId: null,
   ...overrides,
 });
 

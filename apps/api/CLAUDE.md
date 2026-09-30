@@ -141,6 +141,14 @@ Works (011/US6) follow the same rule: the only student view of a work is `toWork
 by the teacher's "Ver como aluno" (`GET /works/:id/student-preview`); the 012 student route must answer that builder
 and nothing else. `test/security/011-student-view.spec.ts` scans for `MARCADOR-RESPOSTA-011`, `-RUBRICA-`,
 `-SOLUCAO-`, `-PRIVADO-` (private test cases) and `-EXPLICACAO-011` and the answer keys.
+Work generation (011/US3) mirrors 010: `modules/work-ai` holds `WorkGenerationRequestsService` (topics through
+`WorkTopics`, request + topics + execution in one transaction, hourly limit `work-ai`), the `work-generator` definition,
+prompt and `read-work-generation-request` tool (topics by ref `T1…`, never ids, title, description or grade) and
+`generation/` (`build-proposal`, `materialize`, which maps refs to the request's topics by position and writes the DRAFT
+work through `works/work-content.ts`'s `writeWorkContent`). Tests use `test/helpers/work-ai.ts` (`createWorkAiApp()`
+registers the 007, 010 and 011 agents, `workGenerationRequest`, `requestWork`, `scriptWorkGeneration`) and
+`validGeneratedWork(shape)` from `test/fixtures/work-generation/valid-work.ts`; the journey (so audit coverage and the
+secret scan) runs on `createWorkAiApp`.
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and

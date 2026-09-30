@@ -154,6 +154,21 @@ export const AUDIT_EVENT_METADATA = {
   // statements, answers, rubrics, solutions, test cases, alternative texts or syllabus text.
   "work.created": ["subjectId", "status", "questionCount", "types", "topicCount", "difficulty"],
   "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
+  "work_generation.requested": [
+    "executionId",
+    "subjectId",
+    "topicCount",
+    "difficulty",
+    "total",
+    "openAnswer",
+    "multipleChoice",
+    "code",
+    "trickQuestions",
+    "languageKey",
+    "distribution",
+    "regeneratedFromId",
+  ],
+  "work_generation.generated": ["executionId", "workId", "questionCount"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -197,4 +212,5 @@ export type AuditTargetType =
   | "AI_TASK"
   | "EXERCISE"
   | "EXERCISE_BATCH"
-  | "WORK";
+  | "WORK"
+  | "WORK_GENERATION_REQUEST";

@@ -1,6 +1,11 @@
 import type {
   CreateWorkRequest,
   ProgrammingLanguageList,
+  WorkGenerationAvailability,
+  WorkGenerationRequest,
+  WorkGenerationRequestListQuery,
+  WorkGenerationRequestPage,
+  WorkGenerationRequestView,
   WorkStudentView,
   WorkTeacherView,
 } from "@repo/contracts";
@@ -17,4 +22,18 @@ export const worksApi = {
   /** The active languages of the shared catalog, by name (research W18). */
   programmingLanguages: () =>
     apiClient.get<ProgrammingLanguageList>("/works/programming-languages"),
+};
+
+/** "Criar trabalho com IA": generation requests (011 contracts/http-api.md, "Generation"). */
+export const workGenerationApi = {
+  availability: () =>
+    apiClient.get<WorkGenerationAvailability>("/work-generation/availability"),
+  request: (body: WorkGenerationRequest) =>
+    apiClient.post<WorkGenerationRequestView>("/work-generation-requests", body),
+  list: ({ cursor }: WorkGenerationRequestListQuery) =>
+    apiClient.get<WorkGenerationRequestPage>(
+      `/work-generation-requests${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    ),
+  get: (id: string) =>
+    apiClient.get<WorkGenerationRequestView>(`/work-generation-requests/${id}`),
 };

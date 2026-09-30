@@ -21,6 +21,7 @@ import { ProvisioningModule } from "./modules/provisioning/provisioning.module";
 import { RetentionModule } from "./modules/retention/retention.module";
 import { SubjectsModule } from "./modules/subjects/subjects.module";
 import { SyllabusModule } from "./modules/syllabus/syllabus.module";
+import { WorkAiModule } from "./modules/work-ai/work-ai.module";
 import { WorksModule } from "./modules/works/works.module";
 import { ConfigModule } from "./platform/config/config.module";
 import type { AppConfig } from "./platform/config/config.schema";
@@ -74,6 +75,7 @@ export class AppModule {
         ExercisesModule,
         ExerciseAiModule,
         WorksModule,
+        WorkAiModule,
         RetentionModule,
         HealthModule,
       ],

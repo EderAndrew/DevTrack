@@ -15,14 +15,11 @@ import { notFound, validationError } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
-import { withValues } from "./grade/grade-values";
-import {
-  workQuestionContentRows,
-  workQuestionViolations,
-} from "./rules/work-rules";
+import { workQuestionViolations } from "./rules/work-rules";
 import type { AnyWorkQuestionInput } from "./types";
 import { toWorkStudentView } from "./views/student-view";
 import { toWorkTeacherView } from "./views/teacher-view";
+import { writeWorkContent } from "./work-content";
 import { WORK_RECORD_SELECT, toWorkRecord } from "./work-query";
 import { WorkTopics } from "./work-topics";
 
@@ -132,14 +129,13 @@ export class WorksService {
         },
         select: { id: true },
       });
-      await this.writeContent(
-        tx,
-        id,
-        resolved.revision?.id ?? null,
-        resolved.topics.map((topic) => topic.syllabusItemId),
+      await writeWorkContent(tx, {
+        workId: id,
+        revisionId: resolved.revision?.id ?? null,
+        topicItemIds: resolved.topics.map((topic) => topic.syllabusItemId),
         totalCents,
-        body.questions,
-      );
+        questions: body.questions,
+      });
 
       await this.audit.record(tx, {
         type: "work.created",
@@ -176,57 +172,6 @@ export class WorksService {
       }
       return view;
     });
-  }
-
-  /**
-   * The work's topics in selection order, then each question in array order (its position) with
-   * its value, type columns, alternatives, test cases and topics. The deferred triggers check the
-   * whole aggregate (counts, positions, the sum of the values) at commit.
-   */
-  private async writeContent(
-    tx: Tx,
-    workId: string,
-    revisionId: string | null,
-    topicItemIds: string[],
-    totalCents: number,
-    questions: readonly AnyWorkQuestionInput[],
-  ): Promise<void> {
-    if (revisionId !== null && topicItemIds.length > 0) {
-      await tx.workTopic.createMany({
-        data: topicItemIds.map((syllabusItemId, position) => ({
-          workId,
-          syllabusItemId,
-          syllabusRevisionId: revisionId,
-          position,
-        })),
-      });
-    }
-    for (const [position, question] of withValues(
-      totalCents,
-      questions,
-    ).entries()) {
-      const rows = workQuestionContentRows(question);
-      await tx.workQuestion.create({
-        data: {
-          workId,
-          position,
-          type: question.type,
-          gradingStrategy: rows.gradingStrategy,
-          statement: rows.statement,
-          statementSearchKey: rows.statementSearchKey,
-          explanation: rows.explanation,
-          value: centsToGrade(question.valueCents),
-          ...rows.columns,
-          alternatives: { create: rows.alternatives },
-          testCases: { create: rows.testCases },
-          topics: {
-            create: (question.topicItemIds ?? []).map((syllabusItemId) => ({
-              syllabusItemId,
-            })),
-          },
-        },
-      });
-    }
   }
 
   /**

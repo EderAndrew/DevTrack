@@ -114,6 +114,13 @@ import { ProgrammingLanguageListSchema } from "./exercises/programming-languages
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
 import { CreateWorkRequestSchema, WorkStudentViewSchema, WorkTeacherViewSchema } from "./works/works.js";
 import {
+  WorkGenerationAvailabilitySchema,
+  WorkGenerationRequestListQuerySchema,
+  WorkGenerationRequestPageSchema,
+  WorkGenerationRequestSchema,
+  WorkGenerationRequestViewSchema,
+} from "./works/work-generation.js";
+import {
   ApproveBatchExercisesRequestSchema,
   ExerciseBatchDetailSchema,
   ExerciseBatchListQuerySchema,
@@ -895,6 +902,35 @@ export const endpoints = {
     path: "/works/:id/student-preview",
     params: IdParamsSchema,
     response: WorkStudentViewSchema,
+    status: 200,
+  },
+  // 011 — "Criar trabalho com IA": generation requests.
+  "workGenerationRequests.availability": {
+    method: "GET",
+    path: "/work-generation/availability",
+    response: WorkGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new request; 200 when the same key and body return the existing one. */
+  "workGenerationRequests.request": {
+    method: "POST",
+    path: "/work-generation-requests",
+    body: WorkGenerationRequestSchema,
+    response: WorkGenerationRequestViewSchema,
+    status: 202,
+  },
+  "workGenerationRequests.list": {
+    method: "GET",
+    path: "/work-generation-requests",
+    query: WorkGenerationRequestListQuerySchema,
+    response: WorkGenerationRequestPageSchema,
+    status: 200,
+  },
+  "workGenerationRequests.get": {
+    method: "GET",
+    path: "/work-generation-requests/:id",
+    params: IdParamsSchema,
+    response: WorkGenerationRequestViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

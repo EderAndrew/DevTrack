@@ -3,7 +3,7 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createExerciseAiApp } from "../helpers/exercise-ai";
+import { createWorkAiApp } from "../helpers/work-ai";
 import { createUser, loginAs } from "../helpers/factories";
 import { api, testConfig } from "../helpers/test-app";
 
@@ -41,7 +41,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   beforeAll(async () => {
     // 008/US4-1: the OpenRouter key is configured; the definitions keep the simulated provider (T022).
     const base = testConfig();
-    t = await createExerciseAiApp({
+    t = await createWorkAiApp({
       logs,
       config: { ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
       overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }],
@@ -144,6 +144,10 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "alternativa correta do trabalho (011)",
         "solução esperada do trabalho (011)",
         "saída de caso de teste (011)",
+        // 011/US3: the request's title, the topic the work generator read and what it generated.
+        "título do pedido de trabalho (011)",
+        "tópico lido pelo gerador de trabalhos (011)",
+        "texto gerado pela IA (011)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });

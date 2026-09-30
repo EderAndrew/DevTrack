@@ -240,6 +240,11 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/works/programming-languages", access: "trabalhos.visualizar" },
   { method: "GET", path: "/works/:id", access: "trabalhos.visualizar" },
   { method: "GET", path: "/works/:id/student-preview", access: "trabalhos.visualizar" },
+  // 011 — "Criar trabalho com IA" (the request and the availability also need ia.execucoes.visualizar).
+  { method: "GET", path: "/work-generation/availability", access: "ia.trabalhos.gerar" },
+  { method: "POST", path: "/work-generation-requests", access: "ia.trabalhos.gerar" },
+  { method: "GET", path: "/work-generation-requests", access: "trabalhos.visualizar" },
+  { method: "GET", path: "/work-generation-requests/:id", access: "trabalhos.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

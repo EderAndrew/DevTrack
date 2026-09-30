@@ -191,6 +191,9 @@ export const CURRICULUM_AI_AVAILABILITY_MESSAGES = {
 /** Why "Criar com IA" can't take a request now (010/US2-7): never the provider or the model. */
 export const EXERCISE_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar exercícios manualmente.";
 
+/** Why "Criar trabalho com IA" can't take a request now (011/US3-8): never the provider or the model. */
+export const WORK_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar o trabalho manualmente.";
+
 /** The last analysis found nothing to propose (007/FR-017). */
 export const CURRICULUM_AI_NOTHING_FOUND =
   "Não foi possível identificar conteúdo de ementa neste documento. Preencha manualmente.";

@@ -71,8 +71,10 @@ No field for title, description, grade, values, ids, status or the work's topics
 ## `build(output, { toolResults })` — pure
 
 Runs `validateGeneratedWork(output, request)` (research W13) with the tool's `request` and
-`topics`. On success: `{ content: { questions: [...with itemId, syllabusItemIds] }, itemIds }`
-(refs mapped to item ids; item ids derived from the execution and the position). Throws
+`topics`. On success: `{ content: { questions: [...] }, itemIds }` — the questions still cite
+topics by ref (the tool never gives item ids, W12), and `materialize` maps each ref `T{n}` to the
+request's topic at position `n-1`; proposal item ids are `question:<index>`, and each question's
+`generation_item_id` is derived from the execution and that item id. Throws
 `ProposalRejected(reason)` with one of `COUNT_MISMATCH`, `TYPE_MISMATCH`, `DIFFICULTY_MISMATCH`,
 `TRICK_MISMATCH`, `LANGUAGE_MISMATCH`, `STRUCTURE_INVALID`, `TEST_CASES_MISSING`,
 `DUPLICATE_STATEMENT`, `TOPIC_OUT_OF_SCOPE`, `TOPIC_NOT_COVERED`, `MISSING_REQUEST`.

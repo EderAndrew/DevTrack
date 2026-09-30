@@ -8,7 +8,7 @@ import { notFound, revisionNotConfirmed } from "../../platform/http/errors";
 export interface ResolvedWorkTopics {
   subject: { id: string; name: string; status: SubjectStatus };
   /** Null when the work has no topic. */
-  revision: { id: string; languageId: string | null; languageName: string | null } | null;
+  revision: { id: string; languageId: string | null; languageKey: string | null; languageName: string | null } | null;
   /** In selection order. */
   topics: WorkTopicView[];
 }
@@ -40,7 +40,7 @@ export class WorkTopics {
         id: true,
         text: true,
         group: { select: { title: true } },
-        revision: { select: { id: true, status: true, languageId: true, language: { select: { name: true } } } },
+        revision: { select: { id: true, status: true, languageId: true, language: { select: { key: true, name: true } } } },
       },
     });
     if (items.length !== new Set(topics.syllabusItemIds).size) throw notFound();
@@ -50,7 +50,12 @@ export class WorkTopics {
     const byId = new Map(items.map((item) => [item.id, item]));
     return {
       subject,
-      revision: { id: revision.id, languageId: revision.languageId, languageName: revision.language?.name ?? null },
+      revision: {
+        id: revision.id,
+        languageId: revision.languageId,
+        languageKey: revision.language?.key ?? null,
+        languageName: revision.language?.name ?? null,
+      },
       topics: topics.syllabusItemIds.map((id) => {
         const item = byId.get(id)!;
         return { syllabusItemId: item.id, itemText: item.text, groupTitle: item.group.title };

@@ -34,7 +34,7 @@ describe("011/FR-006 tópicos do trabalho resolvidos no escopo do professor (res
     const [heranca, polimorfismo, , listas] = syllabus.itemIds;
     const resolved = await topics.resolve(teacherId, syllabus.subject.id, selection([listas!, heranca!, polimorfismo!]));
     expect(resolved.subject).toMatchObject({ id: syllabus.subject.id, status: "ACTIVE" });
-    expect(resolved.revision).toEqual({ id: syllabus.revision.id, languageId: syllabus.languageId, languageName: "Java" });
+    expect(resolved.revision).toEqual({ id: syllabus.revision.id, languageId: syllabus.languageId, languageKey: "java", languageName: "Java" });
     expect(resolved.topics).toEqual([
       { syllabusItemId: listas, itemText: "Listas", groupTitle: "Coleções" },
       { syllabusItemId: heranca, itemText: "Herança", groupTitle: "Orientação a objetos" },

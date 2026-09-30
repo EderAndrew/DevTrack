@@ -270,7 +270,7 @@ AI_GENERATED, com a distribuição, os 3 tópicos, o título e a nota do pedido.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T027 [P] [US3] `apps/api/test/integration/011-us3-generation.spec.ts` (provedor simulado
+- [X] T027 [P] [US3] `apps/api/test/integration/011-us3-generation.spec.ts` (provedor simulado
   com uma resposta válida de fixture): herança, polimorfismo e classes abstratas numa ementa Java,
   Intermediário, nota 2,00, 3/4/3 e 2 pegadinhas → 202, pedido PENDING, execução com recurso
   `WORK_GENERATION_REQUEST`; depois do worker, GENERATED com um trabalho DRAFT AI_GENERATED com a
@@ -285,39 +285,39 @@ AI_GENERATED, com a distribuição, os 3 tópicos, o título e a nota do pedido.
   e outro trabalho; `regeneratedFromId` de outro professor → 404; execução cancelada antes de
   terminar → pedido CANCELLED, sem trabalho, e o professor pode pedir de novo
   (`011/US3-1`…`011/US3-9`, `011/FR-018`…`011/FR-025`, `011/FR-032`).
-- [ ] T028 [P] [US3] `apps/api/test/security/011-no-model-choice.spec.ts`: a rota da tarefa
+- [X] T028 [P] [US3] `apps/api/test/security/011-no-model-choice.spec.ts`: a rota da tarefa
   `work-generation` pela política da 009 é a mesma para BASIC, INTERMEDIATE e ADVANCED; o pedido
   registrado não guarda campo de modelo (`011/US3-7`, `011/SC-010`, `011/FR-009`).
-- [ ] T029 [P] [US3] `apps/api/test/security/011-tool-scope.spec.ts`: a ferramenta
+- [X] T029 [P] [US3] `apps/api/test/security/011-tool-scope.spec.ts`: a ferramenta
   `read-work-generation-request` devolve só os itens do pedido (com `ref` T1…), os títulos dos
   grupos, título, competência e linguagem da revisão e a configuração; nunca título, descrição ou
   nota do trabalho; recusa o pedido de outra execução ou de outro professor
   (`AI_CONTEXT_ACCESS_DENIED`); a requisição ao modelo não contém nome da disciplina, outras
   ementas, ids de usuário, dados de turma ou de aluno (`011/FR-025`, `011/FR-026`).
-- [ ] T030 [P] [US3] Linhas do `MATRIX`/`route-declarations` para `POST /work-generation-requests`,
+- [X] T030 [P] [US3] Linhas do `MATRIX`/`route-declarations` para `POST /work-generation-requests`,
   `GET /work-generation-requests`, `GET /work-generation-requests/:id` e
   `GET /work-generation/availability`.
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] `apps/api/src/modules/work-ai/definitions/`: tarefa `work-generation` (research
+- [X] T031 [US3] `apps/api/src/modules/work-ai/definitions/`: tarefa `work-generation` (research
   W9), agente `work-generator` v1 (DISABLED, L2), prompt `work-generation` v1 (regras de tipo,
   tópicos por `ref`, cobertura, pegadinhas aceitáveis e proibidas, linguagem, casos de teste),
   ferramenta `read-work-generation-request`, ownership `WORK_GENERATION_REQUEST`;
   `workAiDefinitions()` registrado em `apps/api/src/modules/ai/definitions/index.ts` junto de
   `exerciseAiDefinitions()` (registro apenas).
-- [ ] T032 [US3] `apps/api/src/modules/work-ai/work-generation-requests.service.ts`: validação de
+- [X] T032 [US3] `apps/api/src/modules/work-ai/work-generation-requests.service.ts`: validação de
   disciplina e tópicos (`work-topics.ts`), linguagem da revisão, distribuição, gravação do pedido
   e dos tópicos e pedido da execução na mesma transação (`AiExecutionsService.request` com
   `onCreated`), limite por hora, idempotência, regeneração; auditoria `work_generation.requested`;
   status derivado; `work-generation-requests.controller.ts` e disponibilidade;
   `work-ai.module.ts`; entradas em `endpoints.ts`.
-- [ ] T033 [US3] `generation/build-proposal.ts` (mapeia `ref` → item, ids de item por posição) e
+- [X] T033 [US3] `generation/build-proposal.ts` (mapeia `ref` → item, ids de item por posição) e
   `generation/materialize.ts` (lock do pedido, trabalho DRAFT com dados do pedido, tópicos,
   questões com estratégia do registro e valores de `distributeGrade`, alternativas, casos de
   teste, tópicos das questões, `generated_at`, auditoria `work_generation.generated`); fixtures de
   resposta válida em `apps/api/test/fixtures/work-generation/`.
-- [ ] T034 [P] [US3] Web `/trabalhos/gerar` (Disciplina → Ementa → Tópicos por grupo, 1–10;
+- [X] T034 [P] [US3] Web `/trabalhos/gerar` (Disciplina → Ementa → Tópicos por grupo, 1–10;
   título, descrição, dificuldade, nota, quantidade, tipos, distribuição automática com a prévia de
   `distributeWorkQuestions` ou manual, pegadinhas só com MC, linguagem somente leitura, Código
   desabilitado sem linguagem, aviso "até 3 tópicos por questão", indisponível com link para o

@@ -5,20 +5,34 @@ import { Button } from "@/components/ui/button";
 
 export interface WorkBankHomeProps {
   canCreate: boolean;
+  /** `ia.trabalhos.gerar`: "Criar trabalho com IA" (US3). */
+  canGenerate: boolean;
   /** A work was just saved (`?criado=1`). */
   created: boolean;
 }
 
 /**
- * "Banco de Trabalhos": the creation action (011/US1). The list, its filters and the AI requests
- * come with their stories (US7, US3).
+ * "Banco de Trabalhos": the creation actions, manual (011/US1) and with AI, and the generation
+ * requests (US3). The list and its filters come with US7.
  */
-export function WorkBankHome({ canCreate, created }: WorkBankHomeProps) {
-  const actions = canCreate ? (
-    <Button asChild>
-      <Link href="/trabalhos/novo">Criar trabalho manualmente</Link>
-    </Button>
-  ) : null;
+export function WorkBankHome({ canCreate, canGenerate, created }: WorkBankHomeProps) {
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      {canCreate ? (
+        <Button asChild>
+          <Link href="/trabalhos/novo">Criar trabalho manualmente</Link>
+        </Button>
+      ) : null}
+      {canGenerate ? (
+        <Button asChild variant="secondary">
+          <Link href="/trabalhos/gerar">Criar trabalho com IA</Link>
+        </Button>
+      ) : null}
+      <Button asChild variant="ghost">
+        <Link href="/trabalhos/pedidos">Pedidos de geração</Link>
+      </Button>
+    </div>
+  );
 
   return (
     <>
