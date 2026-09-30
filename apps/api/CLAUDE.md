@@ -160,6 +160,11 @@ The bank (011/US7): `GET /works` filters through `workListWhere` (`work-query.ts
 asked) and pages by keyset on `updated_at desc, id desc`; `archive`/`restore` keep `archived_from_status`, and archiving a
 never-approved generated work also calls `WorkReview.changed` (the proposal closes REJECT). Suites that need many works
 insert them with `createMany` in one transaction with one question each (`011-us7-bank`, `011-performance`).
+Grading (011/US8) is pure domain code for 012 in `src/modules/works/grading/`: strategies keyed by `grading_strategy`
+in `registry.ts` (`gradeQuestion` never branches on the question type; `registry.spec.ts` scans it), `decideByTeacher`,
+`computeWorkGrade`, the `CodeRunnerPort`/`AiReviewPort` interfaces and `UnavailableCodeRunner` (the only runner: nothing
+is executed in 011). A TEST_CASES question has no expected-solution field. The fake ports are in
+`test/fixtures/works/grading-ports.ts`; the result shapes are `packages/contracts/src/works/grading.ts`.
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and

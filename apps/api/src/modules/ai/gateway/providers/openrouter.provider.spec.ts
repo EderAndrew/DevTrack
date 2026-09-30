@@ -21,10 +21,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-type Answer = (signal: AbortSignal) => Promise<Response> | Response;
+type FetchAnswer = (signal: AbortSignal) => Promise<Response> | Response;
 
 /** An injected `fetch` that records the request and answers with `answer`; nothing leaves the machine. */
-function fetchWith(answer: Answer): typeof fetch {
+function fetchWith(answer: FetchAnswer): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     received.push({
       url: String(input),
@@ -36,7 +36,7 @@ function fetchWith(answer: Answer): typeof fetch {
   }) as typeof fetch;
 }
 
-const json = (status: number, body: unknown): Answer => () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const json = (status: number, body: unknown): FetchAnswer => () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const completion = (message: Record<string, unknown>, finishReason: string | null, extra: Record<string, unknown> = {}) => ({
   id: "gen-teste",
@@ -46,7 +46,7 @@ const completion = (message: Record<string, unknown>, finishReason: string | nul
   ...extra,
 });
 
-const provider = (answer: Answer, baseUrl: string | null = BASE_URL) => new OpenRouterProvider({ apiKey: FAKE_KEY, baseUrl, fetch: fetchWith(answer) });
+const provider = (answer: FetchAnswer, baseUrl: string | null = BASE_URL) => new OpenRouterProvider({ apiKey: FAKE_KEY, baseUrl, fetch: fetchWith(answer) });
 const signal = () => new AbortController().signal;
 
 const REQUEST: ModelRequest = {
@@ -304,19 +304,19 @@ describe("008/FR-005 OpenRouterProvider — erros normalizados, sem mensagem, co
   });
 
   it("corpo ilegível ou sem choices → UNKNOWN", async () => {
-    const garbage: Answer = () => new Response(`não é json ${PROVIDER_SECRET}`, { status: 200 });
+    const garbage: FetchAnswer = () => new Response(`não é json ${PROVIDER_SECRET}`, { status: 200 });
     expectClean(await provider(garbage).generate(REQUEST, signal()).catch((e: unknown) => e), "UNKNOWN");
     expectClean(await provider(json(200, { id: "x", model: "anthropic/claude-opus-5" })).generate(REQUEST, signal()).catch((e: unknown) => e), "UNKNOWN");
   });
 
   it("erro de rede → UNAVAILABLE, sem a mensagem da falha", async () => {
-    const network: Answer = () => Promise.reject(new TypeError(`fetch failed ${PROVIDER_SECRET} ${FAKE_KEY}`));
+    const network: FetchAnswer = () => Promise.reject(new TypeError(`fetch failed ${PROVIDER_SECRET} ${FAKE_KEY}`));
     expectClean(await provider(network).generate(REQUEST, signal()).catch((e: unknown) => e), "UNAVAILABLE");
   });
 
   it("signal abortado → a chamada recebe o signal e termina em ProviderError", async () => {
     const controller = new AbortController();
-    const hang: Answer = (s) =>
+    const hang: FetchAnswer = (s) =>
       new Promise<Response>((_resolve, reject) => s.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true }));
     const pending = provider(hang)
       .generate(REQUEST, controller.signal)
@@ -370,7 +370,7 @@ describe("009/FR-001a OpenRouterProvider — decide (contracts/decisions-provide
     usage: { input_tokens: 685, output_tokens: 3, cost: 0.00002877 },
     ...extra,
   });
-  const decideWith = (answer: Answer, baseUrl: string | null = BASE_URL) => provider(answer, baseUrl).decide!(DECISION, signal());
+  const decideWith = (answer: FetchAnswer, baseUrl: string | null = BASE_URL) => provider(answer, baseUrl).decide!(DECISION, signal());
 
   it("009/US1-4 POST {origin}/api/alpha/decisions só com model, state e questions, com a chave no cabeçalho", async () => {
     await decideWith(json(200, decision()));

@@ -437,10 +437,10 @@ paginar só os do professor.
 **Independent Test**: aplicar as regras a respostas simuladas de cada tipo, sem turma, entrega nem
 modelo, e conferir nota por questão, nota do trabalho e pendências.
 
-- [ ] T048 [P] [US8] `packages/contracts/src/works/grading.ts` (contracts/grading.md):
+- [X] T048 [P] [US8] `packages/contracts/src/works/grading.ts` (contracts/grading.md):
   `AnswerSchema`, `QuestionGradingSchema`, `WorkGradeSchema`, `GradingNatureSchema`,
   `PendingReasonSchema`; exportados; teste de forma em `packages/contracts/test/works.spec.ts`.
-- [ ] T049 [P] [US8] Testes em `apps/api/src/modules/works/grading/*.spec.ts`: MC correta → valor,
+- [X] T049 [P] [US8] Testes em `apps/api/src/modules/works/grading/*.spec.ts`: MC correta → valor,
   errada ou em branco → 0, sem porta; 0,50 × 10 com 9 e 8 acertos → 0,45 e 0,40; duas fontes
   diferentes `PASSED` → valor integral nas duas; o tipo de entrada de `testCases.grade` não tem
   campo de solução esperada (teste de tipo); `UNAVAILABLE`, `INFRA_ERROR` e sem casos →
@@ -449,10 +449,10 @@ modelo, e conferir nota por questão, nota do trabalho e pendências.
   recusada; `computeWorkGrade` parcial sem contar zero e, por propriedade, sempre entre 0 e o
   total; o despachante não ramifica por tipo (varredura) (`011/US8-1`…`011/US8-7`,
   `011/SC-011`, `011/FR-036`…`011/FR-041`).
-- [ ] T050 [US8] `apps/api/src/modules/works/grading/{strategy,registry,exact-match,test-cases,
+- [X] T050 [US8] `apps/api/src/modules/works/grading/{strategy,registry,exact-match,test-cases,
   ai-review,decide,work-grade}.ts` e `UnavailableCodeRunner`; as portas `CodeRunnerPort` e
   `AiReviewPort` como interfaces; nenhuma rota, tabela ou chamada de modelo (`011/FR-042`).
-- [ ] T051 [P] [US8] `apps/api/test/security/011-no-answer-key-route.spec.ts`: varredura do
+- [X] T051 [P] [US8] `apps/api/test/security/011-no-answer-key-route.spec.ts`: varredura do
   catálogo `endpoints.ts` — nenhuma rota da 011 acessível a STUDENT e nenhuma resposta de rota com
   `WorkTeacherViewSchema` sem `trabalhos.visualizar` (`011/US8-8`, `011/FR-035`).
 

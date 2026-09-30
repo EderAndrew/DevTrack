@@ -30,6 +30,7 @@ export * from "./exercises/exercise-batches.js";
 export * from "./exercises/exercise-ai.js";
 export * from "./works/enums.js";
 export * from "./works/grade.js";
+export * from "./works/grading.js";
 export * from "./works/works.js";
 export * from "./works/work-generation.js";
 export * from "./ai/executions.js";

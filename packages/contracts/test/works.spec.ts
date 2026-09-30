@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   AiModelTierSchema,
+  AnswerSchema,
+  GradingNatureSchema,
+  PendingReasonSchema,
+  QuestionGradingSchema,
+  WorkGradeSchema,
   CreateWorkRequestSchema,
   distributeWorkQuestions,
   ExerciseDifficultySchema,
@@ -241,5 +246,57 @@ describe("011 pedido de geração com IA (011/FR-018–FR-022)", () => {
     for (const extra of [{ value: "1.00" }, { id: ID }, { syllabusItemIds: [ID] }]) {
       expect(accepts(GeneratedWorkSchema, { questions: [{ ...question, ...extra }] })).toBe(false);
     }
+  });
+});
+
+describe("011/US8 formas da correção (contracts/grading.md)", () => {
+  const grading = (overrides: Record<string, unknown> = {}) => ({
+    questionId: ID,
+    strategy: "EXACT_MATCH",
+    valueCents: 5,
+    status: "GRADED",
+    nature: "RULE_RESULT",
+    suggestedCents: null,
+    teacherCents: null,
+    finalCents: 5,
+    pendingReason: null,
+    ...overrides,
+  });
+
+  it("resposta: alternativa (em branco é null), código ou texto; nada além disso", () => {
+    expect(accepts(AnswerSchema, { kind: "ALTERNATIVE", alternativeId: ID })).toBe(true);
+    expect(accepts(AnswerSchema, { kind: "ALTERNATIVE", alternativeId: null })).toBe(true);
+    expect(accepts(AnswerSchema, { kind: "CODE", source: "class A {}" })).toBe(true);
+    expect(accepts(AnswerSchema, { kind: "TEXT", text: "Reuso" })).toBe(true);
+    expect(accepts(AnswerSchema, { kind: "TEXT", text: "Reuso", isCorrect: true })).toBe(false);
+    expect(accepts(AnswerSchema, { kind: "AUDIO" })).toBe(false);
+  });
+
+  it("naturezas e motivos de pendência são códigos fixos", () => {
+    expect(GradingNatureSchema.options).toEqual(["RULE_RESULT", "SUGGESTION", "HUMAN_DECISION"]);
+    expect(PendingReasonSchema.options).toEqual([
+      "CODE_RUNNER_UNAVAILABLE",
+      "CODE_RUNNER_INFRA_ERROR",
+      "NO_TEST_CASES",
+      "AI_REVIEW_FAILED",
+      "AI_REVIEW_OUT_OF_RANGE",
+    ]);
+  });
+
+  it("011/SC-011 nota final só com regra ou decisão do professor; sugestão sem nota final; pendência com motivo", () => {
+    expect(accepts(QuestionGradingSchema, grading())).toBe(true);
+    expect(accepts(QuestionGradingSchema, grading({ strategy: "AI_REVIEW", status: "SUGGESTED", nature: "SUGGESTION", suggestedCents: 4, finalCents: null }))).toBe(true);
+    expect(accepts(QuestionGradingSchema, grading({ strategy: "AI_REVIEW", status: "SUGGESTED", nature: "SUGGESTION", suggestedCents: 4, finalCents: 4 }))).toBe(false);
+    expect(accepts(QuestionGradingSchema, grading({ status: "PENDING_TEACHER", nature: null, finalCents: null, pendingReason: "NO_TEST_CASES" }))).toBe(true);
+    expect(accepts(QuestionGradingSchema, grading({ status: "PENDING_TEACHER", nature: null, finalCents: null }))).toBe(false);
+    expect(accepts(QuestionGradingSchema, grading({ status: "DECIDED", nature: "HUMAN_DECISION", teacherCents: 5, finalCents: 5 }))).toBe(true);
+  });
+
+  it("011/US8-7 cada nota entre 0 e o valor da questão; nota do trabalho em centésimos inteiros", () => {
+    expect(accepts(QuestionGradingSchema, grading({ finalCents: 6 }))).toBe(false);
+    expect(accepts(QuestionGradingSchema, grading({ finalCents: -1 }))).toBe(false);
+    expect(accepts(QuestionGradingSchema, grading({ finalCents: 2.5 }))).toBe(false);
+    expect(accepts(WorkGradeSchema, { cents: 45, partial: false })).toBe(true);
+    expect(accepts(WorkGradeSchema, { cents: 0.45, partial: false })).toBe(false);
   });
 });
