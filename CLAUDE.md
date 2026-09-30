@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-09-29 (010 implemented)
+Last updated: 2026-09-30 (010 implemented; 011 planned)
 
 ## Project state
 
@@ -34,7 +34,7 @@ failed both on 2026-09-29, schema validity 0 and 0.17), so they have no same-tie
 second BASIC model is approved. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -45,7 +45,7 @@ spec first.
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
 
-`.specify/memory/constitution.md` (v3.1.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.2.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -246,9 +246,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
+- 011-work-bank (planned, not implemented): private work bank apart from the exercise bank — works of 1–10 questions (open answer, multiple choice, code with test cases) linked to items of one confirmed syllabus revision, total grade split in exact hundredths (`numeric(5,2)`, integer cents in code), manual or AI (`work-generator` through the existing gateway and policy) into DRAFT works approved by the teacher; server-built student view without answer key; grading strategies (EXACT_MATCH, TEST_CASES, AI_REVIEW) as domain rules for 012
 - 010-exercise-bank: private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 - 009-ai-model-policy: model policy over the 008 gateway — approved catalog per family and tier, task policies, cheapest approved model of the task's tier, same-tier fallback, escalation only by explicit rule, admin override, cost by task/tier/family, observable budgets; Curriculum Agent analysis to BASIC after a release-gate eval
-- 008-ai-gateway-openrouter: OpenRouter replaces the direct Anthropic provider; agents declare a task, the gateway routes it to a primary and a fallback model with a circuit breaker; Curriculum Agent v2 with unchanged rules
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
