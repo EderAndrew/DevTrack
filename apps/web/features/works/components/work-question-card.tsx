@@ -9,8 +9,9 @@ import {
   WorkQuestionTypeSchema,
   type WorkTopicView,
 } from "@repo/contracts";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useFieldArray, type UseFormReturn, useWatch } from "react-hook-form";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -53,6 +54,10 @@ export interface WorkQuestionCardProps {
   errorFor: ErrorFor;
   onRemove?: () => void;
   onMove: (to: number) => void;
+  /** A saved question (US5): its type can't change, so it is shown, not chosen. */
+  typeLocked?: boolean;
+  /** The saved question's language when it was deactivated since: still offered, for it only (FR-007). */
+  inactiveLanguage?: { id: string; name: string };
 }
 
 /**
@@ -68,9 +73,14 @@ export function WorkQuestionCard({
   errorFor,
   onRemove,
   onMove,
+  typeLocked = false,
+  inactiveLanguage,
 }: WorkQuestionCardProps) {
   const { register, control } = form;
-  const type = useWatch({ control, name: `questions.${index}.type` });
+  const [type, isTrickQuestion] = useWatch({
+    control,
+    name: [`questions.${index}.type`, `questions.${index}.isTrickQuestion`],
+  });
   const languages = useWorkLanguages();
   const id = (field: QuestionField) => questionFieldId(index, field);
   const heading = `Questão ${index + 1}`;
@@ -87,6 +97,12 @@ export function WorkQuestionCard({
             <p className="m-0 text-body-sm text-text-secondary">
               Vale {formatGrade(value)}
             </p>
+          ) : null}
+          {type === "MULTIPLE_CHOICE" && isTrickQuestion ? (
+            <Badge variant="warning" className="mt-1">
+              <AlertTriangle aria-hidden="true" />
+              Pegadinha
+            </Badge>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -126,19 +142,25 @@ export function WorkQuestionCard({
         </div>
       </CardHeader>
       <CardContent>
-        <SelectField
-          id={id("type")}
-          label="Tipo"
-          required
-          error={errorFor(id("type"))}
-          {...register(`questions.${index}.type`)}
-        >
-          {WorkQuestionTypeSchema.options.map((option) => (
-            <option key={option} value={option}>
-              {WORK_QUESTION_TYPE_LABELS[option]}
-            </option>
-          ))}
-        </SelectField>
+        {typeLocked ? (
+          <p id={id("type")} className="mt-0 mb-4">
+            Tipo: {WORK_QUESTION_TYPE_LABELS[type]}
+          </p>
+        ) : (
+          <SelectField
+            id={id("type")}
+            label="Tipo"
+            required
+            error={errorFor(id("type"))}
+            {...register(`questions.${index}.type`)}
+          >
+            {WorkQuestionTypeSchema.options.map((option) => (
+              <option key={option} value={option}>
+                {WORK_QUESTION_TYPE_LABELS[option]}
+              </option>
+            ))}
+          </SelectField>
+        )}
         <TextareaField
           id={id("statement")}
           label="Enunciado"
@@ -221,6 +243,14 @@ export function WorkQuestionCard({
                   {language.name}
                 </option>
               ))}
+              {inactiveLanguage &&
+              !(languages.data ?? []).some(
+                (language) => language.id === inactiveLanguage.id,
+              ) ? (
+                <option value={inactiveLanguage.id}>
+                  {inactiveLanguage.name} (desativada)
+                </option>
+              ) : null}
             </SelectField>
             <TestCasesFields index={index} form={form} errorFor={errorFor} />
           </>

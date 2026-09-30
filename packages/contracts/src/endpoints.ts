@@ -112,7 +112,13 @@ import {
 } from "./exercises/exercises.js";
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
-import { CreateWorkRequestSchema, WorkStudentViewSchema, WorkTeacherViewSchema } from "./works/works.js";
+import {
+  CreateWorkRequestSchema,
+  UpdateWorkRequestSchema,
+  WorkStudentViewSchema,
+  WorkTeacherViewSchema,
+  WorkVersionRequestSchema,
+} from "./works/works.js";
 import {
   WorkGenerationAvailabilitySchema,
   WorkGenerationRequestListQuerySchema,
@@ -902,6 +908,24 @@ export const endpoints = {
     path: "/works/:id/student-preview",
     params: IdParamsSchema,
     response: WorkStudentViewSchema,
+    status: 200,
+  },
+  /** The whole work again with its version; values recalculated; ARCHIVED → 409 (US5, research W16). */
+  "works.update": {
+    method: "PUT",
+    path: "/works/:id",
+    params: IdParamsSchema,
+    body: UpdateWorkRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT → APPROVED by a person; already APPROVED → 200 with no event (US5). */
+  "works.approve": {
+    method: "POST",
+    path: "/works/:id/approve",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
     status: 200,
   },
   // 011 — "Criar trabalho com IA": generation requests.

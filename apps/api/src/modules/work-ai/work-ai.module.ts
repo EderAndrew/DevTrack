@@ -3,6 +3,7 @@ import { AiModule } from "../ai/ai.module";
 import { WorksModule } from "../works/works.module";
 import { WorkGenerationRequestsController } from "./work-generation-requests.controller";
 import { WorkGenerationRequestsService } from "./work-generation-requests.service";
+import { WorkProposalCloser } from "./work-proposal-closer";
 
 /**
  * Work generation with AI (011, research W1, W10): the request, the `work-generator` definitions
@@ -12,6 +13,6 @@ import { WorkGenerationRequestsService } from "./work-generation-requests.servic
 @Module({
   imports: [AiModule, WorksModule],
   controllers: [WorkGenerationRequestsController],
-  providers: [WorkGenerationRequestsService],
+  providers: [WorkGenerationRequestsService, WorkProposalCloser],
 })
 export class WorkAiModule {}

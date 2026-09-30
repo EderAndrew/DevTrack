@@ -358,7 +358,7 @@ aprovar; conferir valores, revisor, edição por pessoa e origem.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T038 [P] [US5] `apps/api/test/integration/011-us5-review.spec.ts`: aprovar DRAFT AI →
+- [X] T038 [P] [US5] `apps/api/test/integration/011-us5-review.spec.ts`: aprovar DRAFT AI →
   APPROVED com revisor e data, `human_reviewed`, proposta fechada APPROVE e a rota de decisão da
   006 recusa APPROVE (`409 AI_PROPOSAL_APPLY_REQUIRED`); editar antes marca `human_edited` e mantém
   a origem; acrescentar a 11ª e remover a última recusados; edição que quebra regra recusada e o
@@ -370,24 +370,24 @@ aprovar; conferir valores, revisor, edição por pessoa e origem.
   que sobraram; auditoria `work.edited` (campos, contagem mudou,
   reordenado) e `work.approved` (`011/US5-1`…`011/US5-5`, `011/US5-7`, `011/FR-014`…`011/FR-017`,
   `011/SC-006`).
-- [ ] T039 [P] [US5] `apps/api/test/integration/011-us2-recalculation.spec.ts`: trabalho de 0,50
+- [X] T039 [P] [US5] `apps/api/test/integration/011-us2-recalculation.spec.ts`: trabalho de 0,50
   com 3 questões; acrescentar a 4ª (0,13 · 0,13 · 0,12 · 0,12), remover uma (0,25 · 0,25),
   reordenar (o centésimo extra segue a posição) e mudar a nota → valores regravados e soma igual à
   nota (`011/US2-4`, `011/FR-012`).
-- [ ] T039a [P] [US5] `apps/api/test/integration/011-sc003-boundaries.spec.ts`: a tabela de
+- [X] T039a [P] [US5] `apps/api/test/integration/011-sc003-boundaries.spec.ts`: a tabela de
   fronteiras de SC-003 repetida pelos três caminhos — `POST /works`, `PUT /works/:id` e a resposta
   simulada da IA: 0/1/10/11 questões; 2/3/5/6 alternativas; 0/1/2 corretas; 0/3/4 pegadinhas e
   pegadinhas acima da MC (só IA); tópico inexistente, de outra disciplina ou de outro professor;
   cada recusa sem gravar nada e, na edição, o trabalho fica como estava (`011/SC-003`).
-- [ ] T040 [P] [US5] `apps/api/test/security/011-concurrency.spec.ts`: duas edições ou aprovações
+- [X] T040 [P] [US5] `apps/api/test/security/011-concurrency.spec.ts`: duas edições ou aprovações
   simultâneas do mesmo trabalho → uma vale, a outra `409 WORK_VERSION_CONFLICT`; dois pedidos de
   geração iguais simultâneos → um pedido e um trabalho (`011/US5-6`).
-- [ ] T041 [P] [US5] Linhas do `MATRIX`/`route-declarations` para `PUT /works/:id` e
+- [X] T041 [P] [US5] Linhas do `MATRIX`/`route-declarations` para `PUT /works/:id` e
   `POST /works/:id/approve`.
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] `works.service.ts`: `update` (trabalho inteiro: diff de questões por `id`, tipo
+- [X] T042 [US5] `works.service.ts`: `update` (trabalho inteiro: diff de questões por `id`, tipo
   imutável, reescrita de posições, tópicos, valores; `version`; `human_edited` em AI_GENERATED;
   ARCHIVED → 409) e `approve` (gabarito completo, revisor, data, no-op se já APPROVED);
   `apps/api/src/modules/work-ai/work-proposal-closer.ts` fecha a proposta por
@@ -395,7 +395,7 @@ aprovar; conferir valores, revisor, edição por pessoa e origem.
   `works/work-review.ts` (`WorkReview.register`, espelhando o `ExerciseBatchReview` da 010: a
   dependência vai de `work-ai` para `works`, nunca o contrário); auditorias `work.edited` e
   `work.approved`; rotas e `endpoints.ts`.
-- [ ] T043 [P] [US5] Web `/trabalhos/[id]` (mesmo formulário carregado, selos "Gerado por IA",
+- [X] T043 [P] [US5] Web `/trabalhos/[id]` (mesmo formulário carregado, selos "Gerado por IA",
   "Editado por você", "Pegadinha" com texto e ícone, "Aprovar" com a confirmação que lista os
   avisos, conflito de versão com mensagem e recarga); testes com axe e teclado.
 

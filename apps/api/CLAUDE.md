@@ -149,6 +149,12 @@ work through `works/work-content.ts`'s `writeWorkContent`). Tests use `test/help
 registers the 007, 010 and 011 agents, `workGenerationRequest`, `requestWork`, `scriptWorkGeneration`) and
 `validGeneratedWork(shape)` from `test/fixtures/work-generation/valid-work.ts`; the journey (so audit coverage and the
 secret scan) runs on `createWorkAiApp`.
+The generator's `build` checks the output against the request (`generation/validate-generated-work.ts`, 011/US4), with
+the same `ProposalRejected(reason)` logging as 010. The review (011/US5) lives in the bank: `WorksService.update` takes the
+whole work back (`toUpdateBody(view)` in `test/helpers/works.ts` builds that body; kept questions by `id`, `work-edit.ts`
+diffs them for `work.edited` and a no-op save writes nothing) and `approve`, both under the work's row lock with its
+`version`; approving a generated work calls `WorkReview.changed` in the same transaction, and `work-ai`'s
+`WorkProposalCloser` decides the proposal (APPROVE, or APPROVE_PARTIALLY with the generated questions that remain).
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and

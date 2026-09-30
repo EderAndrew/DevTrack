@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { WorkTeacherView } from "@repo/contracts";
 import { expect } from "vitest";
 import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-bootstrap.service";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
@@ -18,6 +19,7 @@ import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch
 import { scriptGeneration } from "./exercise-ai";
 import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
 import { scriptWorkGeneration } from "./work-ai";
+import { toUpdateBody } from "./works";
 import { createConfirmedTopic } from "./exercises";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
@@ -398,6 +400,13 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   );
   expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
   expect((await workGenerationClient.get(`/api/work-generation-requests/${workRequest.body.id}`)).body.status).toBe("GENERATED");
+  // 011/US5 — the teacher edits the generated work and approves it: `work.edited`, `work.approved`,
+  // and the generator's proposal closes in the same transaction.
+  const generatedWorkId = (await workGenerationClient.get(`/api/work-generation-requests/${workRequest.body.id}`)).body.workId as string;
+  const generatedWork = (await workGenerationClient.get(`/api/works/${generatedWorkId}`)).body as WorkTeacherView;
+  const editedWork = await workGenerationClient.put(`/api/works/${generatedWorkId}`, { ...toUpdateBody(generatedWork), title: "Trabalho revisto" });
+  expect(editedWork.status).toBe(200);
+  expect((await workGenerationClient.post(`/api/works/${generatedWorkId}/approve`, { version: editedWork.body.version })).status).toBe(200);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

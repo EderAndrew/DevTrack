@@ -5,7 +5,9 @@ import {
   WORK_QUESTIONS_MAX,
   WORK_QUESTIONS_MIN,
   WORK_TOPICS_MAX,
+  type UpdateWorkRequest,
   WorkDifficultySchema,
+  type WorkTeacherView,
   type WorkTopicView,
 } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,10 +45,13 @@ import {
   emptyWork,
   questionValues,
   toCreateWorkRequest,
+  toUpdateWorkRequest,
   WORK_DIFFICULTY_LABELS,
+  workEditFormSchema,
   type WorkFormValues,
   type WorkQuestionFormValues,
   workFormSchema,
+  workFormValues,
 } from "../schemas/work-form";
 import { InputField, SelectField, TextareaField } from "./form-fields";
 import {
@@ -187,22 +192,34 @@ function collectErrors(
   return result;
 }
 
+/** A saved work in the form (`/trabalhos/[id]`, US5). */
+export interface WorkEdit {
+  work: WorkTeacherView;
+  /** Sends the whole work; a refusal throws and is shown in the summary. */
+  onSave: (body: UpdateWorkRequest) => Promise<void>;
+  /** ARCHIVED, or no `trabalhos.editar`: everything shown, nothing editable. */
+  readOnly?: boolean;
+}
+
 /**
  * Manual creation of a work (011/US1): subject, title, description, total grade, an optional
  * difficulty and optional topics of a confirmed syllabus, then 1–10 questions of any type, each
  * with its answer key and what it is worth. The form checks everything with the contract's rules
  * before sending; "Salvar como rascunho" keeps it as DRAFT, "Salvar e aprovar" as APPROVED
- * (011/FR-014). No AI is involved.
+ * (011/FR-014). No AI is involved. With `edit` (US5) the same form holds a saved work: the subject
+ * and the type of each saved question stay, and "Salvar alterações" sends it all back with its
+ * version.
  */
-export function WorkForm() {
+export function WorkForm({ edit }: { edit?: WorkEdit } = {}) {
   const router = useRouter();
   const createWork = useCreateWork();
   const form = useForm<WorkFormValues>({
     // Focus goes to the ErrorSummary, which links to each field.
     shouldFocusError: false,
-    resolver: zodResolver(workFormSchema),
-    defaultValues: emptyWork(),
+    resolver: zodResolver(edit ? workEditFormSchema : workFormSchema),
+    defaultValues: edit ? workFormValues(edit.work) : emptyWork(),
   });
+  const readOnly = edit?.readOnly ?? false;
   const questions = useFieldArray({ control: form.control, name: "questions" });
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [announcement, setAnnouncement] = useState("");
@@ -263,6 +280,10 @@ export function WorkForm() {
     form.handleSubmit(async (formValues) => {
       setErrors(NO_ERRORS);
       try {
+        if (edit) {
+          await edit.onSave(toUpdateWorkRequest(formValues, edit.work.version));
+          return;
+        }
         await createWork.mutateAsync(toCreateWorkRequest(formValues, status));
         router.push("/trabalhos?criado=1");
       } catch (error) {
@@ -305,9 +326,11 @@ export function WorkForm() {
   return (
     <form
       noValidate
-      aria-label="Criar trabalho"
+      aria-label={edit ? "Editar trabalho" : "Criar trabalho"}
       onSubmit={(event) =>
-        pending ? event.preventDefault() : void save("APPROVED")(event)
+        pending || readOnly
+          ? event.preventDefault()
+          : void save("APPROVED")(event)
       }
     >
       <p className="sr-only" aria-live="polite">
@@ -317,76 +340,102 @@ export function WorkForm() {
         errors={errors.summary}
         title="Não foi possível salvar o trabalho"
       />
-      <WorkHeader form={form} errorFor={errorFor} />
-      <WorkTopics form={form} errorFor={errorFor} />
-
-      <p className="mt-0 mb-4 text-text-secondary">
-        De {WORK_QUESTIONS_MIN} a {WORK_QUESTIONS_MAX} questões. O valor de cada
-        uma vem da nota total, dividida em partes iguais.
-      </p>
-      {questions.fields.map((field, index) => (
-        <WorkQuestionCard
-          key={field.id}
-          index={index}
-          count={questions.fields.length}
+      {/* A disabled fieldset turns every control inside it off (ARCHIVED, read-only). */}
+      <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+        <WorkHeader
           form={form}
-          value={values?.[index] ?? null}
-          workTopics={workTopics}
           errorFor={errorFor}
-          onRemove={
-            questions.fields.length > WORK_QUESTIONS_MIN
-              ? () => removeQuestion(index)
-              : undefined
-          }
-          onMove={(to) => moveQuestion(index, to)}
+          subject={edit ? edit.work.subject : undefined}
         />
-      ))}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Button
-          id={ADD_QUESTION_ID}
-          type="button"
-          variant="secondary"
-          onClick={addQuestion}
-          disabled={questions.fields.length >= WORK_QUESTIONS_MAX}
-        >
-          <Plus aria-hidden="true" />
-          Adicionar questão
-        </Button>
-        <span className="text-body-sm text-text-secondary">
-          {questions.fields.length} de {WORK_QUESTIONS_MAX}
-        </span>
-      </div>
+        <WorkTopics form={form} errorFor={errorFor} />
 
-      {codeWithoutTests.length > 0 ? (
-        <Alert variant="warning" className="mb-4">
-          <AlertDescription>
-            {codeWithoutTests.length === 1
-              ? `A questão ${codeWithoutTests[0]} é`
-              : `As questões ${codeWithoutTests.join(", ")} são`}{" "}
-            de código sem casos de teste: o trabalho pode ser aprovado, mas{" "}
-            {codeWithoutTests.length === 1
-              ? "ela não poderá ser corrigida"
-              : "elas não poderão ser corrigidas"}{" "}
-            automaticamente.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <SubmitButton pending={pending} pendingLabel="Salvando…">
-          Salvar e aprovar
-        </SubmitButton>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={pending}
-          onClick={() => void save("DRAFT")()}
-        >
-          Salvar como rascunho
-        </Button>
-        <Button asChild variant="ghost">
-          <Link href="/trabalhos">Cancelar</Link>
-        </Button>
-      </div>
+        <p className="mt-0 mb-4 text-text-secondary">
+          De {WORK_QUESTIONS_MIN} a {WORK_QUESTIONS_MAX} questões. O valor de
+          cada uma vem da nota total, dividida em partes iguais.
+        </p>
+        {questions.fields.map((field, index) => (
+          <WorkQuestionCard
+            key={field.id}
+            index={index}
+            count={questions.fields.length}
+            form={form}
+            value={values?.[index] ?? null}
+            workTopics={workTopics}
+            errorFor={errorFor}
+            onRemove={
+              questions.fields.length > WORK_QUESTIONS_MIN
+                ? () => removeQuestion(index)
+                : undefined
+            }
+            onMove={(to) => moveQuestion(index, to)}
+            typeLocked={Boolean(questionValuesWatch[index]?.questionId)}
+            inactiveLanguage={
+              edit?.work.questions.find(
+                (saved) => saved.id === questionValuesWatch[index]?.questionId,
+              )?.language
+            }
+          />
+        ))}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <Button
+            id={ADD_QUESTION_ID}
+            type="button"
+            variant="secondary"
+            onClick={addQuestion}
+            disabled={questions.fields.length >= WORK_QUESTIONS_MAX}
+          >
+            <Plus aria-hidden="true" />
+            Adicionar questão
+          </Button>
+          <span className="text-body-sm text-text-secondary">
+            {questions.fields.length} de {WORK_QUESTIONS_MAX}
+          </span>
+        </div>
+
+        {codeWithoutTests.length > 0 ? (
+          <Alert variant="warning" className="mb-4">
+            <AlertDescription>
+              {codeWithoutTests.length === 1
+                ? `A questão ${codeWithoutTests[0]} é`
+                : `As questões ${codeWithoutTests.join(", ")} são`}{" "}
+              de código sem casos de teste: o trabalho pode ser aprovado, mas{" "}
+              {codeWithoutTests.length === 1
+                ? "ela não poderá ser corrigida"
+                : "elas não poderão ser corrigidas"}{" "}
+              automaticamente.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+      </fieldset>
+      {edit ? (
+        readOnly ? null : (
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton pending={pending} pendingLabel="Salvando…">
+              Salvar alterações
+            </SubmitButton>
+            <Button asChild variant="ghost">
+              <Link href="/trabalhos">Voltar ao banco</Link>
+            </Button>
+          </div>
+        )
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <SubmitButton pending={pending} pendingLabel="Salvando…">
+            Salvar e aprovar
+          </SubmitButton>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending}
+            onClick={() => void save("DRAFT")()}
+          >
+            Salvar como rascunho
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/trabalhos">Cancelar</Link>
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
@@ -394,9 +443,12 @@ export function WorkForm() {
 function WorkHeader({
   form,
   errorFor,
+  subject,
 }: {
   form: Form;
   errorFor: (fieldId: string) => string | undefined;
+  /** A saved work's subject, which never changes (research W16). */
+  subject?: { name: string };
 }) {
   const { register } = form;
   const subjects = useWorkSubjects();
@@ -404,30 +456,36 @@ function WorkHeader({
 
   return (
     <>
-      <SelectField
-        id={id("subjectId")}
-        label="Disciplina"
-        required
-        hint={
-          subjects.isError
-            ? "Não foi possível carregar as disciplinas."
-            : undefined
-        }
-        error={errorFor(id("subjectId"))}
-        {...register("subjectId", {
-          onChange: () => {
-            form.setValue("revisionId", "");
-            form.setValue("topicItemIds", []);
-          },
-        })}
-      >
-        <option value="">Escolha a disciplina</option>
-        {(subjects.data?.items ?? []).map((subject) => (
-          <option key={subject.id} value={subject.id}>
-            {subject.name}
-          </option>
-        ))}
-      </SelectField>
+      {subject ? (
+        <p id={id("subjectId")} className="mt-0 mb-4">
+          Disciplina: {subject.name}
+        </p>
+      ) : (
+        <SelectField
+          id={id("subjectId")}
+          label="Disciplina"
+          required
+          hint={
+            subjects.isError
+              ? "Não foi possível carregar as disciplinas."
+              : undefined
+          }
+          error={errorFor(id("subjectId"))}
+          {...register("subjectId", {
+            onChange: () => {
+              form.setValue("revisionId", "");
+              form.setValue("topicItemIds", []);
+            },
+          })}
+        >
+          <option value="">Escolha a disciplina</option>
+          {(subjects.data?.items ?? []).map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
       <InputField
         id={id("title")}
         label="Título"

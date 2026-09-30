@@ -1,6 +1,11 @@
 "use client";
 
-import type { CreateWorkRequest, WorkGenerationRequest } from "@repo/contracts";
+import type {
+  CreateWorkRequest,
+  UpdateWorkRequest,
+  WorkGenerationRequest,
+  WorkTeacherView,
+} from "@repo/contracts";
 import {
   useInfiniteQuery,
   useMutation,
@@ -11,7 +16,13 @@ import { subjectsApi } from "@/features/subjects/api/subjects";
 import { subjectsKeys } from "@/features/subjects/hooks/use-subjects";
 import { syllabusDocumentsApi } from "@/features/syllabus/api/syllabus-documents";
 import { syllabusKeys } from "@/features/syllabus/hooks/use-syllabus-documents";
-import { workGenerationApi, worksApi } from "../api/works";
+import {
+  isWorkVersionConflict,
+  workGenerationApi,
+  worksApi,
+} from "../api/works";
+
+export { isWorkVersionConflict };
 
 export { useSyllabusRevision as useWorkRevision } from "@/features/syllabus/hooks/use-syllabus-revisions";
 
@@ -62,6 +73,42 @@ export function useCreateWork() {
   });
 }
 
+/** One of the teacher's works, everything included (the teacher view). */
+export const useWork = (id: string) =>
+  useQuery({ queryKey: worksKeys.detail(id), queryFn: () => worksApi.get(id) });
+
+/**
+ * "Salvar alterações" and "Aprovar" (US5): each answers the work as it now is, which replaces the
+ * cached one; the bank and the student view are read again.
+ */
+export function useWorkActions(id: string) {
+  const queryClient = useQueryClient();
+  const onSuccess = (work: WorkTeacherView) => {
+    queryClient.setQueryData(worksKeys.detail(id), work);
+    void queryClient.invalidateQueries({
+      queryKey: worksKeys.all,
+      predicate: (query) =>
+        query.queryKey[1] !== id || query.queryKey.length > 2,
+    });
+  };
+  return {
+    update: useMutation({
+      mutationFn: (body: UpdateWorkRequest) => worksApi.update(id, body),
+      onSuccess,
+    }),
+    approve: useMutation({
+      mutationFn: (version: number) => worksApi.approve(id, version),
+      onSuccess,
+    }),
+    /** A version conflict: the work is read again, as it now is. */
+    reload: () =>
+      queryClient.invalidateQueries({
+        queryKey: worksKeys.detail(id),
+        exact: true,
+      }),
+  };
+}
+
 /** The student view of one of the teacher's works, as the server builds it. */
 export const useWorkStudentPreview = (id: string) =>
   useQuery({
@@ -79,7 +126,8 @@ export const useWorkGenerationAvailability = () =>
 export function useRequestWorkGeneration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: WorkGenerationRequest) => workGenerationApi.request(body),
+    mutationFn: (body: WorkGenerationRequest) =>
+      workGenerationApi.request(body),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: worksKeys.generationRequests,

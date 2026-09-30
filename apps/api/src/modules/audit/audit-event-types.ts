@@ -153,6 +153,7 @@ export const AUDIT_EVENT_METADATA = {
   // 011 — the work bank. Only ids, counts, enums and codes: never titles, descriptions,
   // statements, answers, rubrics, solutions, test cases, alternative texts or syllabus text.
   "work.created": ["subjectId", "status", "questionCount", "types", "topicCount", "difficulty"],
+  "work.edited": ["origin", "status", "fields", "questionCountChanged", "questionsAdded", "questionsRemoved", "reordered"],
   "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
   "work_generation.requested": [
     "executionId",

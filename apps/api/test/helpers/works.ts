@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { centsToGrade, distributeGrade, gradeToCents } from "@repo/contracts";
+import {
+  centsToGrade,
+  distributeGrade,
+  gradeToCents,
+  type UpdateWorkRequest,
+  type WorkQuestionEdit,
+  type WorkQuestionTeacherView,
+  type WorkTeacherView,
+} from "@repo/contracts";
 import type {
   Subject,
   SubjectStatus,
@@ -290,4 +298,45 @@ export async function createWorkGenerationRequest(
     });
     return request;
   });
+}
+
+/** A question of the teacher view as the edit sends it back: same id, type and content. */
+export function toQuestionEdit(question: WorkQuestionTeacherView): WorkQuestionEdit {
+  const common = { id: question.id, statement: question.statement, explanation: question.explanation, topicItemIds: question.topicItemIds };
+  if (question.type === "OPEN_ANSWER") {
+    return { type: "OPEN_ANSWER", ...common, expectedAnswer: question.expectedAnswer!, rubric: question.rubric ?? null };
+  }
+  if (question.type === "MULTIPLE_CHOICE") {
+    return {
+      type: "MULTIPLE_CHOICE",
+      ...common,
+      alternatives: question.alternatives!.map(({ text, isCorrect }) => ({ text, isCorrect })),
+      isTrickQuestion: question.isTrickQuestion,
+    };
+  }
+  return {
+    type: "CODE",
+    ...common,
+    instructions: question.instructions ?? null,
+    starterCode: question.starterCode ?? null,
+    expectedSolution: question.expectedSolution!,
+    languageId: question.language!.id,
+    testCases: question.testCases!.map(({ input, expectedOutput, visibility }) => ({ input, expectedOutput, visibility })),
+  };
+}
+
+/** `PUT /works/:id` body that saves `view` unchanged (research W16); spread overrides on top. */
+export function toUpdateBody(view: WorkTeacherView): UpdateWorkRequest {
+  return {
+    title: view.title,
+    description: view.description,
+    difficulty: view.difficulty,
+    totalGrade: view.totalGrade,
+    topics:
+      view.syllabusRevisionId === null
+        ? null
+        : { syllabusRevisionId: view.syllabusRevisionId, syllabusItemIds: view.topics.map((topic) => topic.syllabusItemId) },
+    questions: view.questions.map(toQuestionEdit),
+    version: view.version,
+  };
 }

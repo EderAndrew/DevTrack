@@ -156,6 +156,8 @@ describe("route access declarations", () => {
         "GET /works/programming-languages",
         "GET /works/:id",
         "GET /works/:id/student-preview",
+        "PUT /works/:id",
+        "POST /works/:id/approve",
         "GET /work-generation/availability",
         "POST /work-generation-requests",
         "GET /work-generation-requests",

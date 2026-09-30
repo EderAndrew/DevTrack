@@ -7,10 +7,16 @@ import {
   gradeToCents,
   type ManualWorkStatus,
   type TestCaseVisibility,
+  type UpdateWorkRequest,
+  UpdateWorkRequestSchema,
   WORK_ALTERNATIVES_MIN,
   type WorkDifficulty,
+  type WorkOrigin,
   type WorkQuestionInput,
+  type WorkQuestionTeacherView,
   type WorkQuestionType,
+  type WorkStatus,
+  type WorkTeacherView,
 } from "@repo/contracts";
 import { z } from "zod";
 import { INVALID_DATA } from "@/lib/forms/field-messages";
@@ -29,6 +35,15 @@ export const WORK_DIFFICULTY_LABELS: Record<WorkDifficulty, string> = {
 export const TEST_CASE_VISIBILITY_LABELS: Record<TestCaseVisibility, string> = {
   PUBLIC: "Pública",
   PRIVATE: "Privada",
+};
+export const WORK_STATUS_LABELS: Record<WorkStatus, string> = {
+  DRAFT: "Rascunho",
+  APPROVED: "Aprovado",
+  ARCHIVED: "Arquivado",
+};
+export const WORK_ORIGIN_LABELS: Record<WorkOrigin, string> = {
+  MANUAL: "Manual",
+  AI_GENERATED: "Gerado por IA",
 };
 
 /** An alternative of the form; `key` is the form's own, so the "Correta" mark follows its alternative. */
@@ -49,6 +64,8 @@ export interface WorkTestCaseFormValue {
  * of the checked radio ("" while none is).
  */
 export interface WorkQuestionFormValues {
+  /** A saved question of the work being edited (its type can't change); absent for a new one. */
+  questionId?: string;
   type: WorkQuestionType;
   statement: string;
   explanation: string;
@@ -148,6 +165,7 @@ function toQuestionInput(
   workTopics: ReadonlySet<string>,
 ): WorkQuestionInput {
   const common = {
+    ...(question.questionId ? { id: question.questionId } : {}),
     statement: question.statement,
     explanation: optional(question.explanation),
     // A topic unchecked from the work leaves its questions too.
@@ -311,3 +329,94 @@ export const workFormSchema = z
       ctx.addIssue({ code: "custom", path, message });
     }
   });
+
+/** The edit of a saved work (US5): the same checks with the contract's `UpdateWorkRequestSchema`. */
+export const workEditFormSchema = z
+  .custom<WorkFormValues>()
+  .superRefine((values, ctx) => {
+    const body = toUpdateWorkRequest(values, 1);
+    const result = UpdateWorkRequestSchema.safeParse(body);
+    if (result.success) return;
+    for (const issue of result.error.issues) {
+      const { path, message } = formIssue(
+        body as unknown as CreateWorkRequest,
+        issue.path,
+        issue.message,
+      );
+      ctx.addIssue({ code: "custom", path, message });
+    }
+  });
+
+/**
+ * `PUT /works/:id` for the form (research W16): the whole work, each saved question with its id,
+ * and the version it was read at. The subject never changes.
+ */
+export function toUpdateWorkRequest(
+  values: WorkFormValues,
+  version: number,
+): UpdateWorkRequest {
+  const body = toCreateWorkRequest(values, "DRAFT");
+  return {
+    title: body.title,
+    description: body.description,
+    difficulty: body.difficulty,
+    totalGrade: body.totalGrade,
+    topics: body.topics,
+    questions: body.questions,
+    version,
+  } as UpdateWorkRequest;
+}
+
+const questionFormValues = (
+  question: WorkQuestionTeacherView,
+): WorkQuestionFormValues => {
+  const alternatives = (question.alternatives ?? []).map((alternative) => ({
+    key: crypto.randomUUID(),
+    text: alternative.text,
+    isCorrect: alternative.isCorrect,
+  }));
+  return {
+    ...emptyQuestion(),
+    questionId: question.id,
+    type: question.type,
+    statement: question.statement,
+    explanation: question.explanation ?? "",
+    topicItemIds: question.topicItemIds,
+    expectedAnswer: question.expectedAnswer ?? "",
+    rubric: question.rubric ?? "",
+    ...(question.type === "MULTIPLE_CHOICE"
+      ? {
+          alternatives: alternatives.map(({ key, text }) => ({ key, text })),
+          correctAlternative:
+            alternatives.find((alternative) => alternative.isCorrect)?.key ??
+            "",
+        }
+      : {}),
+    isTrickQuestion: question.isTrickQuestion,
+    instructions: question.instructions ?? "",
+    starterCode: question.starterCode ?? "",
+    expectedSolution: question.expectedSolution ?? "",
+    languageId: question.language?.id ?? "",
+    testCases: (question.testCases ?? []).map(
+      ({ input, expectedOutput, visibility }) => ({
+        input,
+        expectedOutput,
+        visibility,
+      }),
+    ),
+  };
+};
+
+/** A saved work loaded into the form (`/trabalhos/[id]`), grades with a comma. */
+export function workFormValues(work: WorkTeacherView): WorkFormValues {
+  return {
+    subjectId: work.subject.id,
+    title: work.title,
+    description: work.description ?? "",
+    totalGrade: formatGrade(work.totalGrade),
+    difficulty: work.difficulty ?? "",
+    revisionId: work.syllabusRevisionId ?? "",
+    topicItemIds: work.topics.map((topic) => topic.syllabusItemId),
+    questions: work.questions.map(questionFormValues),
+  };
+}

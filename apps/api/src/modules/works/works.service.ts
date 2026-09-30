@@ -4,24 +4,41 @@ import {
   type CreateWorkRequest,
   gradeToCents,
   type ProgrammingLanguageList,
+  type UpdateWorkRequest,
   type WorkQuestionType,
   type WorkStudentView,
   WorkQuestionTypeSchema,
   type WorkTeacherView,
+  type WorkVersionRequest,
 } from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { notFound, validationError } from "../../platform/http/errors";
+import {
+  notFound,
+  validationError,
+  workVersionConflict,
+} from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
-import { workQuestionViolations } from "./rules/work-rules";
-import type { AnyWorkQuestionInput } from "./types";
+import {
+  answerKeysComplete,
+  workQuestionViolations,
+  workWarnings,
+} from "./rules/work-rules";
+import type {
+  AnyWorkQuestionInput,
+  WorkQuestionRecord,
+  WorkRecord,
+} from "./types";
 import { toWorkStudentView } from "./views/student-view";
 import { toWorkTeacherView } from "./views/teacher-view";
-import { writeWorkContent } from "./work-content";
+import { clearWorkContent, writeWorkContent } from "./work-content";
+import { isEmptyEdit, workEditDiff } from "./work-edit";
 import { WORK_RECORD_SELECT, toWorkRecord } from "./work-query";
+import { WorkReview } from "./work-review";
 import { WorkTopics } from "./work-topics";
+import { WorkStateMachine } from "./work.state-machine";
 
 /**
  * The teacher's private work bank (011 US1). The teacher always comes from the session; every
@@ -35,6 +52,7 @@ export class WorksService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly workTopics: WorkTopics,
+    private readonly review: WorkReview,
   ) {}
 
   async getForTeacher(
@@ -175,17 +193,200 @@ export class WorksService {
   }
 
   /**
+   * The whole work again (011 US5, research W16), under its row lock and at the version the
+   * teacher read: kept questions by `id` (same type), new ones without, the rest removed; topics,
+   * positions and values rewritten (FR-012). DRAFT and APPROVED stay as they are, with the rules
+   * checked again (US5-7); ARCHIVED → 409. A generated work records the person's edit (FR-017) and
+   * never loses its topics or difficulty. Nothing changed → the work as it is, no event.
+   */
+  async update(
+    auth: AuthContext,
+    workId: string,
+    body: UpdateWorkRequest,
+    requestId: string | null,
+  ): Promise<WorkTeacherView> {
+    if (
+      body.questions.some(
+        (question) => workQuestionViolations(question).length > 0,
+      )
+    )
+      throw validationError();
+
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockedRecord(
+        tx,
+        auth.userId,
+        workId,
+        body.version,
+      );
+      WorkStateMachine.assertEditable(current.status);
+      if (
+        current.origin === "AI_GENERATED" &&
+        (body.topics === null || !body.difficulty)
+      )
+        throw validationError();
+
+      const stored = new Map(
+        current.questions.map((question) => [question.id, question]),
+      );
+      for (const question of body.questions) {
+        if (question.id === undefined) continue;
+        const existing = stored.get(question.id);
+        if (!existing) throw notFound();
+        if (existing.type !== question.type) throw validationError();
+      }
+      const resolved = await this.workTopics.resolve(
+        auth.userId,
+        current.subject.id,
+        body.topics,
+        tx,
+      );
+      await this.checkLanguages(tx, body.questions, stored);
+
+      const diff = workEditDiff(current, body);
+      if (isEmptyEdit(diff)) return toWorkTeacherView(current);
+
+      const keptIds = body.questions.flatMap((question) =>
+        question.id === undefined ? [] : [question.id],
+      );
+      await clearWorkContent(tx, workId, keptIds);
+      const totalCents = gradeToCents(body.totalGrade);
+      await tx.work.update({
+        where: { id: workId },
+        data: {
+          syllabusRevisionId: resolved.revision?.id ?? null,
+          title: body.title,
+          titleSearchKey: searchKey(body.title),
+          description: body.description ?? null,
+          difficulty: body.difficulty ?? null,
+          totalGrade: centsToGrade(totalCents),
+          questionCount: body.questions.length,
+          version: { increment: 1 },
+          ...(current.origin === "AI_GENERATED" ? { humanEdited: true } : {}),
+        },
+      });
+      await writeWorkContent(tx, {
+        workId,
+        revisionId: resolved.revision?.id ?? null,
+        topicItemIds: resolved.topics.map((topic) => topic.syllabusItemId),
+        totalCents,
+        questions: body.questions,
+      });
+
+      await this.audit.record(tx, {
+        type: "work.edited",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "WORK",
+        targetId: workId,
+        requestId,
+        metadata: { origin: current.origin, status: current.status, ...diff },
+      });
+      return this.getForTeacher(auth.userId, workId, tx);
+    });
+  }
+
+  /**
+   * DRAFT → APPROVED by a person (011 US5, FR-014, FR-015, FR-017): every answer key complete, the
+   * reviewer and the date recorded, audited with the warnings the confirmation showed. Already
+   * APPROVED → the work as it is, no event; ARCHIVED → 409 (a restore, never an approval). A
+   * generated work's proposal closes in the same transaction (`WorkReview`).
+   */
+  async approve(
+    auth: AuthContext,
+    workId: string,
+    body: WorkVersionRequest,
+    requestId: string | null,
+  ): Promise<WorkTeacherView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockedRecord(
+        tx,
+        auth.userId,
+        workId,
+        body.version,
+      );
+      WorkStateMachine.assertEditable(current.status);
+      if (!WorkStateMachine.transition(current.status, "APPROVED"))
+        return toWorkTeacherView(current);
+      if (!answerKeysComplete(current.questions)) throw validationError();
+
+      const now = new Date();
+      await tx.work.update({
+        where: { id: workId },
+        data: {
+          status: "APPROVED",
+          humanReviewed: true,
+          reviewedById: auth.userId,
+          reviewedAt: now,
+          version: { increment: 1 },
+        },
+      });
+      await this.audit.record(tx, {
+        type: "work.approved",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "WORK",
+        targetId: workId,
+        requestId,
+        metadata: {
+          origin: current.origin,
+          humanEdited: current.humanEdited,
+          generationRequestId: current.generationRequestId,
+          warnings: workWarnings(current.questions).map(
+            (warning) => warning.code,
+          ),
+        },
+      });
+      if (current.generationRequestId) {
+        await this.review.changed(tx, {
+          auth,
+          workId,
+          generationRequestId: current.generationRequestId,
+          requestId,
+          now,
+        });
+      }
+      return this.getForTeacher(auth.userId, workId, tx);
+    });
+  }
+
+  /**
+   * The teacher's work under its row lock (research W16): another teacher's or a missing one is
+   * 404; a version other than the one stored → `409 WORK_VERSION_CONFLICT`, so of two tabs only
+   * the first change counts.
+   */
+  private async lockedRecord(
+    tx: Tx,
+    teacherId: string,
+    workId: string,
+    version: number,
+  ): Promise<WorkRecord> {
+    const locked = await tx.$queryRaw<{ version: number }[]>`
+      SELECT version FROM works WHERE id = ${workId}::uuid AND teacher_id = ${teacherId}::uuid FOR UPDATE`;
+    if (locked.length === 0) throw notFound();
+    if (locked[0]!.version !== version) throw workVersionConflict();
+    return this.ownRecord(teacherId, workId, tx);
+  }
+
+  /**
    * Every language of a code question is an active entry of the catalog (FR-007); nothing about
    * languages is fixed in code. Unknown or inactive → 400.
    */
   private async checkLanguages(
     tx: Tx,
     questions: readonly AnyWorkQuestionInput[],
+    stored: ReadonlyMap<string, WorkQuestionRecord> = new Map(),
   ): Promise<void> {
+    // A kept question keeps its language even if it was deactivated since (FR-007).
+    const unchanged = (question: AnyWorkQuestionInput & { type: "CODE" }) =>
+      question.id !== undefined &&
+      stored.get(question.id)?.language?.id === question.languageId;
     const languageIds = [
       ...new Set(
         questions.flatMap((question) =>
-          question.type === "CODE" ? [question.languageId] : [],
+          question.type === "CODE" && !unchanged(question)
+            ? [question.languageId]
+            : [],
         ),
       ),
     ];

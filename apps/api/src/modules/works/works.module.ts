@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { WorkReview } from "./work-review";
 import { WorkTopics } from "./work-topics";
 import { WorksController } from "./works.controller";
 import { WorksService } from "./works.service";
@@ -11,7 +12,7 @@ import { WorksService } from "./works.service";
  */
 @Module({
   controllers: [WorksController],
-  providers: [WorksService, WorkTopics],
-  exports: [WorksService, WorkTopics],
+  providers: [WorksService, WorkTopics, WorkReview],
+  exports: [WorksService, WorkTopics, WorkReview],
 })
 export class WorksModule {}

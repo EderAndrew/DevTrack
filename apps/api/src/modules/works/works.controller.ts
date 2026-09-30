@@ -1,11 +1,15 @@
-import { Controller, Get, Param, Post } from "@nestjs/common";
+import { Controller, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
 import {
   type CreateWorkRequest,
   CreateWorkRequestSchema,
   type ProgrammingLanguageList,
+  type UpdateWorkRequest,
+  UpdateWorkRequestSchema,
   UuidSchema,
   type WorkStudentView,
   type WorkTeacherView,
+  type WorkVersionRequest,
+  WorkVersionRequestSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import {
@@ -56,5 +60,28 @@ export class WorksController {
     @Ctx() ctx: RequestContext,
   ): Promise<WorkStudentView> {
     return this.works.studentPreview(ctx.auth!.userId, id);
+  }
+
+  /** The whole work again, with the version it was read at (US5, research W16). */
+  @Put(":id")
+  @RequirePermissions("trabalhos.editar")
+  update(
+    @Param("id", idPipe) id: string,
+    @ZodBody(UpdateWorkRequestSchema) body: UpdateWorkRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkTeacherView> {
+    return this.works.update(ctx.auth!, id, body, ctx.requestId);
+  }
+
+  /** DRAFT → APPROVED by a person; already APPROVED → 200 with no event (US5). */
+  @Post(":id/approve")
+  @HttpCode(200)
+  @RequirePermissions("trabalhos.aprovar")
+  approve(
+    @Param("id", idPipe) id: string,
+    @ZodBody(WorkVersionRequestSchema) body: WorkVersionRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<WorkTeacherView> {
+    return this.works.approve(ctx.auth!, id, body, ctx.requestId);
   }
 }
