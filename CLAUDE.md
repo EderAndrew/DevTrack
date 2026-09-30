@@ -66,6 +66,9 @@ If TS 7 rejects Nest decorators, the documented fallback (R1) is pinning `typesc
 
 ## Commands
 
+Prerequisites: Node 24, pnpm 11 (`corepack enable`), Docker. Without `OPENROUTER_API_KEY` the API
+still boots; the AI actions just show as unavailable and the manual flows keep working.
+
 ```bash
 docker compose up -d postgres postgres-test mailpit     # dev DB :5432, test DB :5433 (tmpfs), Mailpit SMTP :1025 / UI :8025
                                                         # ports overridable: POSTGRES_PORT, POSTGRES_TEST_PORT, MAILPIT_*_PORT
