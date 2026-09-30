@@ -11,8 +11,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  * requires it.
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
-  "trabalhos.visualizar",
-  "trabalhos.criar",
   "trabalhos.editar",
   "trabalhos.arquivar",
   "trabalhos.aprovar",

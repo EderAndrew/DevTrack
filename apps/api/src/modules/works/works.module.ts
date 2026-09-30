@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { WorkTopics } from "./work-topics";
+import { WorksController } from "./works.controller";
+import { WorksService } from "./works.service";
 
 /**
  * The teacher's private work bank (011, research W1): works, their topics and questions, the
@@ -8,7 +10,8 @@ import { WorkTopics } from "./work-topics";
  * modules; the generation (`work-ai`) depends on it.
  */
 @Module({
-  providers: [WorkTopics],
-  exports: [WorkTopics],
+  controllers: [WorksController],
+  providers: [WorksService, WorkTopics],
+  exports: [WorksService, WorkTopics],
 })
 export class WorksModule {}

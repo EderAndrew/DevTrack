@@ -39,6 +39,7 @@ export const STAFF_AREA_PERMISSIONS: readonly string[] = [
 export const AREAS = [
   { prefix: "/disciplinas", name: "Minhas disciplinas" },
   { prefix: "/exercicios", name: "Banco de Exercícios" },
+  { prefix: "/trabalhos", name: "Banco de Trabalhos" },
   { prefix: "/turmas", name: "Turmas" },
   { prefix: "/professores", name: "Professores" },
   { prefix: "/admin/managers", name: "Gestores" },

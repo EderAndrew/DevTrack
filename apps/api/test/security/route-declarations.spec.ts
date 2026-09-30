@@ -151,6 +151,10 @@ describe("route access declarations", () => {
         "GET /exercise-batches",
         "GET /exercise-batches/:id",
         "POST /exercise-batches/:id/approve",
+        // 011
+        "POST /works",
+        "GET /works/programming-languages",
+        "GET /works/:id",
       ]),
     );
   });

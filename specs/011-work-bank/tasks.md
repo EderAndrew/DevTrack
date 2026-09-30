@@ -174,7 +174,7 @@ MANUAL, valores calculados e nenhuma execução de IA.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T015 [P] [US1] `apps/api/test/integration/011-us1-manual.spec.ts`: 3 questões válidas →
+- [X] T015 [P] [US1] `apps/api/test/integration/011-us1-manual.spec.ts`: 3 questões válidas →
   201, MANUAL, auditado `work.created`; 0 e 11 recusados sem gravar nada, 1 e 10 aceitos; MC com
   2/6 alternativas, repetidas, 0/2 corretas recusa o trabalho inteiro com a indicação da questão;
   aberta sem resposta esperada, código sem solução, sem linguagem ou com linguagem inativa
@@ -182,29 +182,29 @@ MANUAL, valores calculados e nenhuma execução de IA.
   professor, de revisão em rascunho → 404/422 sem revelar; salvar DRAFT e APPROVED (revisor
   registrado); caso de teste com entrada e saída vazias aceito; zero linhas em `ai_executions` e `ai_model_calls` depois de tudo
   (`011/US1-1`…`011/US1-6`, `011/SC-001`).
-- [ ] T016 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST /works`,
+- [X] T016 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST /works`,
   `GET /works/:id` e `GET /works/programming-languages`.
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] `apps/api/src/modules/works/works.service.ts`: `create` numa transação
+- [X] T017 [US1] `apps/api/src/modules/works/works.service.ts`: `create` numa transação
   (disciplina e tópicos por `work-topics.ts`, linguagem ativa, valores por `grade-values.ts`,
   linhas de trabalho, tópicos, questões, alternativas, casos de teste, tópicos das questões,
   `title_search_key` e `statement_search_key`, `human_reviewed`/revisor quando APPROVED),
   `getForTeacher` (404 fora do professor) e a leitura do catálogo de linguagens ativas;
   auditoria `work.created` (tipo novo + contrato + jornada); conversão `Prisma.Decimal` ↔
   centésimos só na borda do repositório.
-- [ ] T018 [US1] Rotas em `apps/api/src/modules/works/works.controller.ts` (`POST /works`,
+- [X] T018 [US1] Rotas em `apps/api/src/modules/works/works.controller.ts` (`POST /works`,
   `GET /works/:id`, `GET /works/programming-languages`) e entradas em
   `packages/contracts/src/endpoints.ts`.
-- [ ] T019 [P] [US1] Web: `apps/web/features/works/{api,hooks,schemas}` e a página
+- [X] T019 [P] [US1] Web: `apps/web/features/works/{api,hooks,schemas}` e a página
   `/trabalhos/novo` em `apps/web/app/(app)/trabalhos/novo/page.tsx` com os componentes de
   `apps/web/features/works/components/` (contracts/web-ui.md): disciplina, título, descrição,
   nota ("0,50" → `"0.50"`), dificuldade opcional, tópicos (Ementa confirmada → itens por grupo),
   `useFieldArray` de 1–10 cartões com tipo, campos do tipo, alternativas com uma correta e
   "Pegadinha", casos de teste Pública/Privada, tópicos da questão, "Salvar como rascunho" /
   "Salvar e aprovar"; item de menu "Banco de Trabalhos" (`trabalhos.visualizar`).
-- [ ] T020 [P] [US1] Testes web em `apps/web/features/works/components/*.test.tsx`: erros por campo
+- [X] T020 [P] [US1] Testes web em `apps/web/features/works/components/*.test.tsx`: erros por campo
   ligados (`expectFieldErrorLinked`), limites 1/10 no formulário, nota com vírgula, axe, ordem de
   Tab (padrão de teclado `SC-012` da 001).
 

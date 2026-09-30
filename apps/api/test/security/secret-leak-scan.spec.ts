@@ -136,6 +136,14 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "texto gerado pela IA (010)",
         "enunciado revisado (010)",
         "tópico lido pelo gerador (010)",
+        // 011: the manual work's title, description, statement and answer keys.
+        "título do trabalho (011)",
+        "descrição do trabalho (011)",
+        "enunciado do trabalho (011)",
+        "resposta esperada do trabalho (011)",
+        "alternativa correta do trabalho (011)",
+        "solução esperada do trabalho (011)",
+        "saída de caso de teste (011)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -144,6 +152,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     // The content itself was stored where it belongs (the scan is not vacuous).
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
+    expect(serialize(await t.prisma.work.findMany({ select: { title: true } }))).toContain("Trabalho manual da jornada onze");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );

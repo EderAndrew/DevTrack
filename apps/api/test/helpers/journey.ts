@@ -328,6 +328,41 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(archivedExercise.body.status).toBe("ARCHIVED");
   const restoredExercise = await teacherClient.post(`/api/exercises/${found.body.items[0].id}/restore`, { version: archivedExercise.body.version });
   expect(restoredExercise.body.status).toBe("APPROVED");
+  // 011/US1 — a manual work saved and approved: `work.created` and `work.approved`, with ids,
+  // counts and enums only, never the title, statements or answer keys (contracts/audit-events.md).
+  const work = await teacherClient.post("/api/works", {
+    subjectId,
+    title: text("título do trabalho (011)", "Trabalho manual da jornada onze"),
+    description: text("descrição do trabalho (011)", "Descrição do trabalho da jornada"),
+    totalGrade: "10",
+    topics: { syllabusRevisionId: confirmed.body.id, syllabusItemIds: [topicItemId] },
+    status: "APPROVED",
+    questions: [
+      {
+        type: "OPEN_ANSWER",
+        statement: text("enunciado do trabalho (011)", "Enunciado do trabalho da jornada onze"),
+        topicItemIds: [topicItemId],
+        expectedAnswer: text("resposta esperada do trabalho (011)", "Resposta esperada do trabalho da jornada"),
+      },
+      {
+        type: "MULTIPLE_CHOICE",
+        statement: "Qual alternativa do trabalho?",
+        alternatives: [
+          { text: text("alternativa correta do trabalho (011)", "Alternativa correta do trabalho da jornada"), isCorrect: true },
+          { text: "Distrator do trabalho um", isCorrect: false },
+          { text: "Distrator do trabalho dois", isCorrect: false },
+        ],
+      },
+      {
+        type: "CODE",
+        statement: "Implemente o trabalho.",
+        expectedSolution: text("solução esperada do trabalho (011)", "class SolucaoDoTrabalhoDaJornada {}"),
+        languageId: (await t.prisma.programmingLanguage.findUniqueOrThrow({ where: { key: "java" } })).id,
+        testCases: [{ input: "1", expectedOutput: text("saída de caso de teste (011)", "SAIDA-CASO-DE-TESTE-011"), visibility: "PRIVATE" }],
+      },
+    ],
+  });
+  expect(work.status).toBe(201);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

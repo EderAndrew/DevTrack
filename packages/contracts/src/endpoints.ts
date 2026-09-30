@@ -112,6 +112,7 @@ import {
 } from "./exercises/exercises.js";
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
+import { CreateWorkRequestSchema, WorkTeacherViewSchema } from "./works/works.js";
 import {
   ApproveBatchExercisesRequestSchema,
   ExerciseBatchDetailSchema,
@@ -876,6 +877,18 @@ export const endpoints = {
     response: ExerciseSetSchema,
     status: 200,
   },
+
+  // 011 — the teacher's work bank.
+  /** A manual work of 1–10 questions, all or nothing; origin MANUAL, no AI (US1). */
+  "works.create": { method: "POST", path: "/works", body: CreateWorkRequestSchema, response: WorkTeacherViewSchema, status: 201 },
+  /** The active catalog entries, by name; the same shape as the 010 route (research W18). */
+  "works.programmingLanguages": {
+    method: "GET",
+    path: "/works/programming-languages",
+    response: ProgrammingLanguageListSchema,
+    status: 200,
+  },
+  "works.get": { method: "GET", path: "/works/:id", params: IdParamsSchema, response: WorkTeacherViewSchema, status: 200 },
 } as const satisfies Record<string, EndpointContract>;
 
 export type EndpointKey = keyof typeof endpoints;
