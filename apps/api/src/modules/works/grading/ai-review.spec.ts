@@ -55,6 +55,17 @@ describe("011/FR-039 AI_REVIEW: a IA sugere, o professor decide", () => {
     expect(grading).toMatchObject({ status: "PENDING_TEACHER", nature: null, suggestedCents: null, finalCents: null, pendingReason: "AI_REVIEW_FAILED" });
   });
 
+  it("012/FR-027 sem revisor de IA (a 012 não usa IA) → professor, com o motivo AI_REVIEW_UNAVAILABLE, nunca 0", async () => {
+    const grading = await aiReview.grade(question, answer, ports(new FakeAiReview({ kind: "UNAVAILABLE" })));
+    expect(grading).toMatchObject({
+      status: "PENDING_TEACHER",
+      nature: null,
+      suggestedCents: null,
+      finalCents: null,
+      pendingReason: "AI_REVIEW_UNAVAILABLE",
+    });
+  });
+
   it("011/US8-7 sugestão fora de 0…valor (ou fora dos centésimos) → professor, sem guardar a sugestão", async () => {
     for (const cents of [6, -1, 2.5]) {
       const grading = await aiReview.grade(question, answer, ports(new FakeAiReview(suggested(cents))));

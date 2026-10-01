@@ -52,20 +52,21 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
 
 **Purpose**: vocabulário, configuração, códigos de erro e o ajuste do porto de correção da 011.
 
-- [ ] T001 Criar `packages/contracts/src/activities/enums.ts` com `ActivityTypeSchema`
+- [X] T001 Criar `packages/contracts/src/activities/enums.ts` com `ActivityTypeSchema`
   (`EXERCISE`, `ASSIGNMENT`), `ExecutionModeSchema` (`NORMAL`), `ActivityStatusSchema`,
   `PublicationPhaseSchema`, `LatePolicySchema`, `StudentActivityStatusSchema`,
   `StudentActivityFilterSchema` (`PENDING`, `IN_PROGRESS`, `OVERDUE`, `COMPLETED`),
   `RosterStatusSchema`, `AttemptStatusSchema`, `ActivityGradingStatusSchema`, exportados em
   `packages/contracts/src/index.ts`; teste em `packages/contracts/test/activities.spec.ts` com os
   valores exatos e a recusa de `EXAM`, `PROVA` e `CONTROLLED` (`012/FR-003`, `012/SC-012`).
-- [ ] T002 [P] Acrescentar `RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE` (60),
+- [X] T002 [P] Acrescentar `RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE` (60),
   `RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR` (20) e `RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR`
   (300) em `apps/api/src/platform/config/config.schema.ts` (`rateLimit.activitySavesPerMinute`,
   `activitySubmitsPerHour`, `activityTeacherWritesPerHour`), `apps/api/.env.example` e
   `apps/api/.env.test.example`; teste em `apps/api/test/integration/platform.spec.ts`
-  (contracts/configuration.md).
-- [ ] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+  (contracts/configuration.md). Nota de implementação: o `.env.test.example` não define nenhum
+  limite (as suítes usam os padrões), então ficou sem as variáveis, como nas features anteriores.
+- [X] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts`, com o
   teste do catálogo (`apps/web/lib/messages/error-messages.test.ts`): `SUBJECT_MISMATCH`,
   `OUT_OF_SCOPE_NOT_ACKNOWLEDGED`, `SOURCE_NOT_APPROVED`, `INVALID_SCHEDULE`,
@@ -81,13 +82,13 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
   atual.", "Esta correção mudou em outra aba. Recarregue para ver a versão atual.", "A nota da
   questão deve ficar entre 0 e o valor dela.", "Este trabalho é de outra disciplina.", "Confirme
   a aplicação com tópicos ainda não concluídos.".
-- [ ] T004 [P] Antes de criar, procurar em `apps/api/src` uma abstração de relógio existente
+- [X] T004 [P] Antes de criar, procurar em `apps/api/src` uma abstração de relógio existente
   (`planning-date.ts`, o `now` dos workers) e reaproveitá-la se servir; senão, `Clock` injetável
   em `apps/api/src/platform/clock/clock.ts` (provider
   `CLOCK`, `SystemClock` em produção; `FixedClock` com `set`/`advance` em
   `apps/api/test/helpers/clock.ts`; `createTestApp({ clock })`), sem mudar os relógios já
   existentes das features anteriores (research P10).
-- [ ] T005 [P] 011 → 012 (research P12): `AiReviewOutcome` ganha `{ kind: "UNAVAILABLE" }` em
+- [X] T005 [P] 011 → 012 (research P12): `AiReviewOutcome` ganha `{ kind: "UNAVAILABLE" }` em
   `apps/api/src/modules/works/grading/strategy.ts`; `ai-review.ts` devolve `pendingTeacher(…,
   "AI_REVIEW_UNAVAILABLE")` para ele; `PendingReasonSchema` ganha `AI_REVIEW_UNAVAILABLE` em
   `packages/contracts/src/works/grading.ts`; novo caso em

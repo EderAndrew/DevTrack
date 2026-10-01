@@ -280,6 +280,7 @@ describe("011/US8 formas da correção (contracts/grading.md)", () => {
       "NO_TEST_CASES",
       "AI_REVIEW_FAILED",
       "AI_REVIEW_OUT_OF_RANGE",
+      "AI_REVIEW_UNAVAILABLE",
     ]);
   });
 

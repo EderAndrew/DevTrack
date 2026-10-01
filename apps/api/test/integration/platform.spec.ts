@@ -53,6 +53,30 @@ describe("startup configuration (FR-074)", () => {
     expect(failure({ ...env, RATE_LIMIT_WORK_AI_PER_HOUR: "1.5" }).variables).toEqual(["RATE_LIMIT_WORK_AI_PER_HOUR"]);
   });
 
+  it("012 activity rate limits: 60 saves/min, 20 submits/h and 300 teacher writes/h by default, configurable, invalid stops the startup", () => {
+    const env = { ...process.env };
+    delete env.RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE;
+    delete env.RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR;
+    delete env.RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR;
+    const { rateLimit } = loadConfig(env);
+    expect([rateLimit.activitySavesPerMinute, rateLimit.activitySubmitsPerHour, rateLimit.activityTeacherWritesPerHour]).toEqual([60, 20, 300]);
+    const custom = loadConfig({
+      ...env,
+      RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE: "5",
+      RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR: "2",
+      RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR: "7",
+    }).rateLimit;
+    expect([custom.activitySavesPerMinute, custom.activitySubmitsPerHour, custom.activityTeacherWritesPerHour]).toEqual([5, 2, 7]);
+    for (const variable of [
+      "RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE",
+      "RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR",
+      "RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR",
+    ]) {
+      expect(failure({ ...env, [variable]: "0" }).variables).toEqual([variable]);
+      expect(failure({ ...env, [variable]: "1.5" }).variables).toEqual([variable]);
+    }
+  });
+
   it("accepts a complete environment", () => {
     const config = loadConfig({ ...process.env, DATABASE_URL: SECRET_DB_URL });
     expect(config.databaseUrl).toBe(SECRET_DB_URL);

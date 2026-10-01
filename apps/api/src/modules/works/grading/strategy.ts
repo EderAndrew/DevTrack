@@ -26,10 +26,14 @@ export interface AiReviewInput {
   answer: string;
 }
 
-/** A suggestion, or a failure (unavailable, invalid output, timeout): never a final grade. */
+/**
+ * A suggestion, a failure (invalid output, timeout) or no reviewer at all (012 runs with no AI,
+ * research P12): never a final grade.
+ */
 export type AiReviewOutcome =
   | { kind: "SUGGESTED"; suggestedCents: GradeCents; justification: string; feedback: string; confidence: number }
-  | { kind: "FAILED" };
+  | { kind: "FAILED" }
+  | { kind: "UNAVAILABLE" };
 
 export interface AiReviewPort {
   review(input: AiReviewInput): Promise<AiReviewOutcome>;

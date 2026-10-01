@@ -35,6 +35,7 @@ import { MailModule } from "./platform/mail/mail.module";
 import type { Mailer } from "./platform/mail/mailer";
 import { MaintenanceModule } from "./platform/maintenance/maintenance.module";
 import { RateLimitModule } from "./platform/rate-limit/rate-limit.module";
+import { ClockModule } from "./platform/clock/clock";
 import { StorageModule } from "./platform/storage/storage.module";
 
 export interface AppModuleOptions {
@@ -58,6 +59,7 @@ export class AppModule {
         MailModule.forRoot(options.mailer),
         MaintenanceModule,
         RateLimitModule,
+        ClockModule,
         AuditModule,
         IdentityModule,
         AccessControlModule,
