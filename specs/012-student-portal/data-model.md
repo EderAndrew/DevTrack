@@ -36,7 +36,8 @@ against the contract enum (CHECK), so a new reason doesn't need a migration of t
 | `status` | `class_activity_status` | default `ACTIVE`; transitions in `activity.state-machine.ts` |
 | `title` | text | 1–200, trimmed |
 | `instructions` | text null | ≤ 10 000 |
-| `total_grade` | numeric(5,2) | 0.01–100.00 (CHECK) |
+| `total_grade` | numeric(5,2) | 0.01–100.00 and ≥ 0.01 per question (CHECK) |
+| `question_count` | int | 1–10, equal to the questions (deferred trigger) |
 | `publish_at` | timestamptz | |
 | `deadline` | timestamptz | CHECK `deadline > publish_at` |
 | `late_policy` | `activity_late_policy` | |
@@ -58,7 +59,7 @@ Indexes: `(class_id, status, deadline)`, `(class_id, publish_at)`.
 |--------|------|-------|
 | `id` | uuid PK | |
 | `activity_id` | uuid FK | `UNIQUE (activity_id, position)`; `UNIQUE (activity_id, id)` for composite FKs |
-| `position` | int | 1–10 |
+| `position` | int | 0–9, contiguous (deferred trigger) |
 | `type` | `activity_question_type` | |
 | `grading_strategy` | `work_grading_strategy` | CHECK type ↔ strategy (MC ↔ EXACT_MATCH, CODE ↔ TEST_CASES, OPEN_ANSWER ↔ AI_REVIEW) |
 | `value` | numeric(5,2) | 0.01–100.00; deferred trigger: sum per activity = `total_grade` |
@@ -69,14 +70,16 @@ Indexes: `(class_id, status, deadline)`, `(class_id, publish_at)`.
 | `expected_solution` | text null | CODE (teacher only) |
 | `explanation` | text null | teacher only |
 | `is_trick_question` | bool | teacher only |
-| `source_work_question_id` | uuid null FK → `work_questions` | informative |
-| `source_exercise_id` | uuid null FK → `exercises` | informative |
+| `source_exercise_id` | uuid null FK → `exercises` | informative; a work's questions point to the activity's `source_work_id` |
 
-Deferred trigger: an activity has 1–10 questions at commit.
+Deferred trigger: an activity has `question_count` questions at commit. No FK to `work_questions`:
+editing a work deletes and recreates its questions, and a RESTRICT FK would stop the teacher from
+editing the bank after applying it (implementation note, T006). The snapshot tables are immutable
+(trigger on UPDATE/DELETE), and so are an activity's class, type, mode, grade and source.
 
 ### `class_activity_alternatives`
 
-`id`, `question_id` (FK), `position` (1–5, `UNIQUE (question_id, position)`), `text`, `is_correct`
+`id`, `question_id` (FK), `position` (0–4, `UNIQUE (question_id, position)`), `text`, `is_correct`
 (teacher only), `UNIQUE (question_id, id)`. Deferred trigger: MULTIPLE_CHOICE questions have 3–5
 alternatives with exactly one correct.
 
@@ -111,9 +114,10 @@ Index: `(student_user_id, activity_id)`.
 | Column | Type | Rules |
 |--------|------|-------|
 | `id` | uuid PK | |
-| `attempt_id` | uuid FK | `UNIQUE (attempt_id, question_id)` |
-| `question_id` | uuid FK | composite FK `(activity_id, question_id)` through the attempt's activity is enforced by trigger (the question belongs to the attempt's activity) |
-| `kind` | text | `TEXT`, `ALTERNATIVE`, `CODE`; CHECK kind ↔ question type (trigger) |
+| `attempt_id` | uuid | composite FK `(attempt_id, activity_id)` → `activity_attempts (id, activity_id)`; `UNIQUE (attempt_id, question_id)` |
+| `activity_id` | uuid | shared by both composite FKs: the question belongs to the attempt's activity |
+| `question_id` | uuid | composite FK `(question_id, activity_id, question_type)` → `class_activity_questions (id, activity_id, type)` |
+| `question_type` | `activity_question_type` | the question's type, carried by the FK, so a CHECK validates the answer's shape |
 | `text` | text null | ≤ 20 000 (CHECK) |
 | `alternative_id` | uuid null | composite FK `(question_id, alternative_id)` → `class_activity_alternatives (question_id, id)`; null = blank choice |
 | `source` | text null | ≤ 100 000 (CHECK) |
@@ -128,7 +132,7 @@ Trigger: no INSERT/UPDATE/DELETE when the attempt is SUBMITTED (P9).
 |--------|------|-------|
 | `id` | uuid PK | |
 | `attempt_id` | uuid FK | `UNIQUE` (one submission per attempt) |
-| `activity_id`, `student_user_id` | uuid FK | denormalized for the roster; trigger checks they match the attempt |
+| `activity_id`, `student_user_id` | uuid | denormalized for the roster; composite FK `(attempt_id, activity_id, student_user_id)` → the attempt |
 | `submitted_at` | timestamptz | server clock |
 | `late` | bool | `submitted_at > deadline` at submission |
 | `blank_count` | int | ≥ 0 |
@@ -152,7 +156,7 @@ code.
 | Column | Type | Rules |
 |--------|------|-------|
 | `submission_id` | uuid FK | PK with `question_id` |
-| `question_id` | uuid FK | belongs to the submission's activity (trigger) |
+| `question_id` | uuid | composite FKs `(submission_id, activity_id)` and `(question_id, activity_id)`: a question of the submission's activity |
 | `status` | `activity_grading_status` | |
 | `nature` | `activity_grading_nature` null | GRADED → RULE_RESULT, DECIDED → HUMAN_DECISION, PENDING → null (CHECK) |
 | `final_grade` | numeric(5,2) null | not null iff GRADED/DECIDED (CHECK); 0 … question value (trigger) |

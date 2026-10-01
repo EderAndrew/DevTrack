@@ -34,6 +34,8 @@ export * from "./works/grading.js";
 export * from "./works/works.js";
 export * from "./works/work-generation.js";
 export * from "./activities/enums.js";
+export * from "./activities/teacher.js";
+export * from "./activities/student.js";
 export * from "./ai/executions.js";
 export * from "./ai/proposals.js";
 export * from "./ai/operations.js";

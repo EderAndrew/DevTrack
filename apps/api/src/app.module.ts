@@ -23,6 +23,8 @@ import { SubjectsModule } from "./modules/subjects/subjects.module";
 import { SyllabusModule } from "./modules/syllabus/syllabus.module";
 import { WorkAiModule } from "./modules/work-ai/work-ai.module";
 import { WorksModule } from "./modules/works/works.module";
+import { ActivitiesModule } from "./modules/activities/activities.module";
+import { StudentActivitiesModule } from "./modules/student-activities/student-activities.module";
 import { ConfigModule } from "./platform/config/config.module";
 import type { AppConfig } from "./platform/config/config.schema";
 import { CryptoModule } from "./platform/crypto/crypto.module";
@@ -78,6 +80,8 @@ export class AppModule {
         ExerciseAiModule,
         WorksModule,
         WorkAiModule,
+        ActivitiesModule,
+        StudentActivitiesModule,
         RetentionModule,
         HealthModule,
       ],

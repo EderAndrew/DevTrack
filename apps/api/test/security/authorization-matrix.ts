@@ -90,6 +90,22 @@ export const WORK_BANK = [
   "ia.trabalhos.gerar",
 ] as const satisfies PermissionKey[];
 
+/** 012: class activities — the teacher applies, receives, grades and releases (MANAGER and ADMIN get none). */
+export const CLASS_ACTIVITIES = [
+  "atividades.visualizar",
+  "atividades.aplicar",
+  "entregas.visualizar",
+  "notas.lancar",
+  "notas.liberar",
+] as const satisfies PermissionKey[];
+
+/** 012: the student portal — the student's own activities, answers and released results. */
+export const STUDENT_PORTAL = [
+  "atividades.proprias.visualizar",
+  "atividades.proprias.responder",
+  "notas.proprias.visualizar",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -102,8 +118,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK],
-  STUDENT: [...SESSOES, "turmas.proprias.listar"],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */

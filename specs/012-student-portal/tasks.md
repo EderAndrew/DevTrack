@@ -102,7 +102,7 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T006 Migração `apps/api/prisma/migrations/<ts>_class_activities/migration.sql` e
+- [X] T006 Migração `apps/api/prisma/migrations/<ts>_class_activities/migration.sql` e
   `apps/api/prisma/schema.prisma` conforme `data-model.md`: os 8 enums; `class_activities` (CHECKs
   de nota, `deadline > publish_at`, tipo ↔ fonte, colunas de liberação ambas ou nenhuma; UNIQUE
   `(teacher_id, idempotency_key)`; índices); `class_activity_questions` (UNIQUE `(activity_id,
@@ -121,22 +121,29 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
   `notas.liberar` (TEACHER) e `atividades.proprias.visualizar`,
   `atividades.proprias.responder`, `notas.proprias.visualizar` (STUDENT); `resetDb` limpa as
   tabelas novas.
-- [ ] T007 [P] `apps/api/test/security/domain-boundary.spec.ts` (research P24): lista de modelos
+  Nota de implementação: a pertença da resposta, da entrega e da correção à atividade e à
+  tentativa ficou em FKs compostas (não em triggers); a resposta guarda o tipo da questão por FK
+  composta e um CHECK valida a forma; não há FK para `work_questions` (editar um trabalho recria
+  as questões e uma FK RESTRICT bloquearia o banco), só `source_work_id`/`source_exercise_id`;
+  posições começam em 0, como na 011. O `resetDb` já trunca todas as tabelas, sem mudança.
+  `PERMISSIONS` (`access-control/permissions.ts`) e o `SEEDED_BEFORE_ROUTES` da
+  `us7-matrix-completeness.spec.ts` receberam as 8 permissões novas.
+- [X] T007 [P] `apps/api/test/security/domain-boundary.spec.ts` (research P24): lista de modelos
   com as 9 tabelas novas; `nota` e `submiss` saem de `ACADEMIC_PREFIXES` (comentário: notas e
   entregas chegam com a 012); `notas.lancar` passa aos exemplos permitidos, junto de
   `activity_submissions` e `atividades.proprias.responder`; `prova`, `exam`, `tentativa`
   continuam proibidos (os exemplos `QuestãoProva`, `tentativas_prova`, `exam_attempts` seguem
   recusados).
-- [ ] T008 [P] Teste do banco em `apps/api/test/integration/012-schema.spec.ts`: por SQL direto,
+- [X] T008 [P] Teste do banco em `apps/api/test/integration/012-schema.spec.ts`: por SQL direto,
   recusam: soma dos valores ≠ total no commit; 0 e 11 questões; MC com 2 alternativas ou 2
   corretas; estratégia trocada; prazo antes da publicação; segunda tentativa do mesmo aluno;
   `number = 2`; segunda resposta da mesma questão; alternativa de outra questão; resposta TEXT em
   MC; mudar resposta de tentativa SUBMITTED; tentativa SUBMITTED → IN_PROGRESS; segunda entrega
   da tentativa; mudar `submitted_at`/`late`; nota final acima do valor; GRADED sem nota final;
   PENDING sem motivo (`012/FR-002`, `012/FR-016`, `012/FR-017`, `012/FR-025`).
-- [ ] T009 [P] `apps/api/test/security/authorization-matrix.ts`: `ROLE_PERMISSIONS` de TEACHER e
+- [X] T009 [P] `apps/api/test/security/authorization-matrix.ts`: `ROLE_PERMISSIONS` de TEACHER e
   STUDENT com as permissões novas (e `us7-matrix-completeness.spec.ts` se preciso).
-- [ ] T010 [P] Contratos do professor em `packages/contracts/src/activities/teacher.ts`
+- [X] T010 [P] Contratos do professor em `packages/contracts/src/activities/teacher.ts`
   (contracts/http-api.md): `ActivitySourceSchema`, `ScopeCheckSchema`,
   `CreateActivityRequestSchema` (`totalGrade` obrigatório em EXERCISE e recusado em ASSIGNMENT,
   1–10 `exerciseIds` distintos, `deadline > publishAt`, `acknowledgeOutOfScope`),
@@ -146,7 +153,7 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
   fronteira em `packages/contracts/test/activities.spec.ts` (0/1/10/11 exercícios; `totalGrade`
   "0.00"/"100.01"; prazo igual à publicação; campos `teacherId`, `status`, `value`,
   `gradingStrategy` recusados).
-- [ ] T011 [P] Contratos do aluno em `packages/contracts/src/activities/student.ts`:
+- [X] T011 [P] Contratos do aluno em `packages/contracts/src/activities/student.ts`:
   `StudentQuestionSchema` (estrito: só os campos permitidos, `alternatives` sem `isCorrect`,
   `publicTestCases`), `StudentActivitySummarySchema`, `StudentDashboardSchema`,
   `StudentActivitySchema` (`result` nulo ou completo), `StudentActivityListQuerySchema` (cursor,
@@ -155,39 +162,39 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
   a mais em `StudentQuestion` (ex.: `isCorrect`, `expectedAnswer`) quebra o parse;
   `studentUserId`, `status`, `submittedAt`, `late`, `grade` recusados no corpo (`012/FR-030`,
   `012/FR-032`).
-- [ ] T012 [P] Regras puras de situação em
+- [X] T012 [P] Regras puras de situação em
   `apps/api/src/modules/activities/status/{student-status,roster-status,operations}.ts`
   (contracts/student-status.md) com testes exaustivos em `*.spec.ts`: todas as combinações de
   tentativa, entrega, correção completa, liberação, estado da atividade, política de atraso e
   relógio antes, no e depois do prazo; `urgent` em 48 h exatas; `canAnswer` e o código de recusa
   por operação (`012/FR-014`, `012/FR-015`, `012/FR-021`, `012/FR-024a`, `012/SC-007`).
-- [ ] T013 [P] Máquina de estados `apps/api/src/modules/activities/activity.state-machine.ts`
+- [X] T013 [P] Máquina de estados `apps/api/src/modules/activities/activity.state-machine.ts`
   (ACTIVE→CLOSED, ACTIVE|CLOSED→CANCELLED, fase SCHEDULED/PUBLISHED por `publish_at` e relógio)
   e registro por tipo `activity-types.ts` (rótulo, nota total da fonte ou do pedido), com teste
   unitário (`012/FR-004`).
-- [ ] T014 [P] Mapeamento puro de snapshot em
+- [X] T014 [P] Mapeamento puro de snapshot em
   `apps/api/src/modules/activities/snapshot/{from-work,from-exercises}.ts` (research P2, P6):
   linhas de trabalho → questões com valor, estratégia, alternativas, casos de teste e tópicos;
   exercícios → MC/`EXACT_MATCH`, OPEN_ANSWER/`AI_REVIEW` sem rubrica, CODE/`TEST_CASES` sem
   casos; valores por `distributeGrade` na ordem escolhida; testes em `*.spec.ts` (3 exercícios em
   1,00 → 34, 33, 33; trabalho mantém os valores; tópicos copiados).
-- [ ] T015 [P] Escopo ensinado puro em `apps/api/src/modules/activities/scope/taught-scope.ts`
+- [X] T015 [P] Escopo ensinado puro em `apps/api/src/modules/activities/scope/taught-scope.ts`
   (research P5): itens de tópicos COMPLETED do plano × tópicos das questões → itens fora, com as
   posições; turma sem plano → tudo fora e `hasPlan = false`; teste unitário (`012/FR-005a`).
-- [ ] T016 [P] Ponte de correção em
+- [X] T016 [P] Ponte de correção em
   `apps/api/src/modules/activities/grading/{grade-submission,unavailable-ai-review}.ts`
   (research P12): monta as `GradableQuestion` do snapshot, chama `gradeQuestion` com
   `UnavailableCodeRunner` e `UnavailableAiReview`, devolve as correções e `computeWorkGrade`;
   resposta em branco de MC = 0; aberta/código em branco ficam pendentes; testes em `*.spec.ts`
   com as quatro linhas de contracts/student-status.md §"Grading at submission" (`012/FR-027`,
   `012/FR-028`).
-- [ ] T017 [P] Visões em `apps/api/src/modules/activities/views/{teacher-view,student-view}.ts`
+- [X] T017 [P] Visões em `apps/api/src/modules/activities/views/{teacher-view,student-view}.ts`
   (research P15): a do aluno copia a lista permitida do snapshot (nunca remove campos da do
   professor) e só monta `result` com liberação e correção completa; teste unitário que planta os
   marcadores `MARCADOR-RESPOSTA-012`, `MARCADOR-RUBRICA-012`, `MARCADOR-SOLUCAO-012`,
   `MARCADOR-PRIVADO-012`, `MARCADOR-EXPLICACAO-012` e confere a ausência deles e do id da
   alternativa correta marcada como tal (`012/FR-029`, `012/FR-030`).
-- [ ] T018 Módulos `apps/api/src/modules/activities/activities.module.ts` e
+- [X] T018 Módulos `apps/api/src/modules/activities/activities.module.ts` e
   `apps/api/src/modules/student-activities/student-activities.module.ts` registrados no
   `AppModule`; fábricas em `apps/api/test/helpers/activities.ts`: `createClassWithStudents(t,
   teacherId, { subjectId, students })`, `createCompletedTopics(t, classId, itemIds)` e
@@ -195,7 +202,7 @@ description: "Task list for 012 — Portal do Aluno: atividades da turma, respos
   `createWork`/`createExercise` das features 010/011. Os auxiliares que chamam rotas entram com
   as rotas: `applyWork`/`applyExercises` na T022, `startAttempt`/`saveAnswers` na T034,
   `submitAttempt` na T043.
-- [ ] T019 [P] `apps/api/test/activities-boundary.spec.ts` (research P24): em
+- [X] T019 [P] `apps/api/test/activities-boundary.spec.ts` (research P24): em
   `src/modules/{activities,student-activities}`, nenhum import de `modules/exercises`,
   `modules/ai`, `modules/work-ai`, `modules/exercise-ai`; de `modules/works` só
   `works/grading/*` e `works/types`; nenhum `child_process`, `vm`, `eval(`, `new Function`,

@@ -71,6 +71,17 @@ const EXPECTED_MODELS = [
   "WorkQuestionTopic",
   "WorkGenerationRequest",
   "WorkGenerationRequestTopic",
+  // 012 — class activities: the snapshot of the bank, the students' attempts, answers, submissions
+  // and gradings.
+  "ClassActivity",
+  "ClassActivityQuestion",
+  "ClassActivityAlternative",
+  "ClassActivityTestCase",
+  "ClassActivityQuestionTopic",
+  "ActivityAttempt",
+  "ActivityAnswer",
+  "ActivitySubmission",
+  "ActivityQuestionGrading",
 ];
 
 /**
@@ -80,16 +91,15 @@ const EXPECTED_MODELS = [
  * (`subject`, `syllabus`, `ementa`, `disciplina`, `topic`, `tópico`, `meeting`, `plan`, 004/E22)
  * and 010 the question bank (`questao`, `questoes`, `exercicio`; `exercise` was never listed) and
  * 011 the work bank (`trabalho`, `trabalhos`, and `grade` for a work's total grade and its grading
- * strategies; `work` was never listed); the later phases' terms (exams, student grades as `nota`,
- * submissions, attempts) stay forbidden.
+ * strategies; `work` was never listed) and 012 class activities, submissions and student grades
+ * (`nota`, `submiss`; research P24). The later phases' terms (exams, exam attempts as `tentativa`,
+ * lessons, courses) stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
   "periodo",
   "aula",
   "prova",
-  "nota",
-  "submiss",
   "course",
   "lesson",
   "exam",
@@ -167,7 +177,7 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["course_enrollments", "notas.lancar", "QuestãoProva", "classe", "prova_trabalhos", "tentativas_prova", "exam_attempts"]) {
+    for (const name of ["course_enrollments", "QuestãoProva", "classe", "prova_trabalhos", "tentativas_prova", "exam_attempts", "ExamSubmission", "modo_prova"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
     for (const name of [
@@ -199,6 +209,12 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
       "ia.trabalhos.gerar",
       "work_grading_strategy",
       "total_grade",
+      "notas.lancar",
+      "notas.proprias.visualizar",
+      "activity_submissions",
+      "ActivityAttempt",
+      "atividades.proprias.responder",
+      "POST /me/activities/:activityId/attempt/submit",
     ]) {
       expect(academicTerms(name), name).toEqual([]);
     }
