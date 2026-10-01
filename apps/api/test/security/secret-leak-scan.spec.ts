@@ -144,10 +144,13 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "alternativa correta do trabalho (011)",
         "solução esperada do trabalho (011)",
         "saída de caso de teste (011)",
+        "rubrica do trabalho (011)",
+        "explicação do trabalho (011)",
         // 011/US3: the request's title, the topic the work generator read and what it generated.
         "título do pedido de trabalho (011)",
         "tópico lido pelo gerador de trabalhos (011)",
         "texto gerado pela IA (011)",
+        "enunciado revisado do trabalho (011)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -240,6 +243,49 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     // The topic reached the model (as untrusted data) and the output became the drafts.
     expect(serialize(t.provider.requests)).toContain("MARCADOR-TOPICO-010");
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("MARCADOR-GERADO-010");
+  });
+
+  it("011/FR-024 011/SC-008 título, enunciados, gabaritos, rubricas, soluções, casos de teste, explicações e o tópico lido pelo gerador de trabalhos fora dos logs, da auditoria e das respostas da Operação de IA", async () => {
+    const kinds = [
+      "título do trabalho (011)",
+      "descrição do trabalho (011)",
+      "enunciado do trabalho (011)",
+      "resposta esperada do trabalho (011)",
+      "alternativa correta do trabalho (011)",
+      "solução esperada do trabalho (011)",
+      "saída de caso de teste (011)",
+      "rubrica do trabalho (011)",
+      "explicação do trabalho (011)",
+      "título do pedido de trabalho (011)",
+      "tópico lido pelo gerador de trabalhos (011)",
+      "texto gerado pela IA (011)",
+      "enunciado revisado do trabalho (011)",
+    ];
+    const scanned = content.filter(({ kind }) => kinds.includes(kind));
+    expect(new Set(scanned.map(({ kind }) => kind))).toEqual(new Set(kinds));
+
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    const sources: Record<string, string> = {
+      logs: logs.text(),
+      auditoria: serialize(await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } })),
+    };
+    for (const path of ["health", "metrics?period=30d", "agents", "model-configs", "models", "tasks"]) {
+      const res = await client.get(`/api/ai/operations/${path}`);
+      expect(res.status, path).toBe(200);
+      sources[`resposta de /ai/operations/${path}`] = serialize(res.body);
+    }
+    // The generator and its task are there (the scan is not vacuous), with no work content.
+    expect(sources["resposta de /ai/operations/metrics?period=30d"]).toContain("work-generator");
+    expect(sources["resposta de /ai/operations/tasks"]).toContain("work-generation");
+    expect(leaks(scanned, sources)).toEqual([]);
+
+    // The topic reached the model (as untrusted data), the output became the draft and the edit was stored.
+    expect(serialize(t.provider.requests)).toContain("MARCADOR-TOPICO-011");
+    const stored = serialize(await t.prisma.workQuestion.findMany({ select: { statement: true, rubric: true } }));
+    expect(stored).toContain("MARCADOR-GERADO-011");
+    expect(stored).toContain("Enunciado do trabalho revisto pelo professor");
+    expect(stored).toContain("Rubrica do trabalho da jornada onze");
   });
 
   it("008/US4-1 008/SC-005 a chave do OpenRouter fora dos logs, da auditoria, das respostas (operacionais e de erro) e de todas as tabelas", async () => {

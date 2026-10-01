@@ -347,6 +347,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
         statement: text("enunciado do trabalho (011)", "Enunciado do trabalho da jornada onze"),
         topicItemIds: [topicItemId],
         expectedAnswer: text("resposta esperada do trabalho (011)", "Resposta esperada do trabalho da jornada"),
+        rubric: text("rubrica do trabalho (011)", "Rubrica do trabalho da jornada onze"),
+        explanation: text("explicação do trabalho (011)", "Explicação do trabalho da jornada onze"),
       },
       {
         type: "MULTIPLE_CHOICE",
@@ -404,7 +406,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // and the generator's proposal closes in the same transaction.
   const generatedWorkId = (await workGenerationClient.get(`/api/work-generation-requests/${workRequest.body.id}`)).body.workId as string;
   const generatedWork = (await workGenerationClient.get(`/api/works/${generatedWorkId}`)).body as WorkTeacherView;
-  const editedWork = await workGenerationClient.put(`/api/works/${generatedWorkId}`, { ...toUpdateBody(generatedWork), title: "Trabalho revisto" });
+  const editedBody = toUpdateBody(generatedWork);
+  editedBody.questions[0] = { ...editedBody.questions[0]!, statement: text("enunciado revisado do trabalho (011)", "Enunciado do trabalho revisto pelo professor") };
+  const editedWork = await workGenerationClient.put(`/api/works/${generatedWorkId}`, { ...editedBody, title: "Trabalho revisto" });
   expect(editedWork.status).toBe(200);
   const approvedWork = await workGenerationClient.post(`/api/works/${generatedWorkId}/approve`, { version: editedWork.body.version });
   expect(approvedWork.status).toBe(200);

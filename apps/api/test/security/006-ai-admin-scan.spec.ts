@@ -8,6 +8,9 @@ import { type AiTestApp, createAiTestApp, drain, requestExecution, resetAiDb } f
 import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch";
 import { batchRequest, createExerciseAiApp, requestBatch, scriptGeneration } from "../helpers/exercise-ai";
 import { createConfirmedTopic } from "../helpers/exercises";
+import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
+import { createWorkAiApp, requestWork, scriptWorkGeneration, workGenerationRequest } from "../helpers/work-ai";
+import { createConfirmedSyllabus } from "../helpers/works";
 import { createSubject, createUser, loginAs } from "../helpers/factories";
 import { api } from "../helpers/test-app";
 
@@ -163,5 +166,63 @@ describe("010/FR-033 a Operação de IA mostra o gerador de exercícios sem cont
     expect(responses.metrics.body.byTask.find((row: { taskKey: string }) => row.taskKey === "exercise-generation")).toMatchObject({ executions: 2 });
     expect((responses.agents.body as { key: string }[]).map((agent) => agent.key)).toContain("exercise-generator");
     expect((responses.tasks.body as { key: string }[]).map((task) => task.key)).toContain("exercise-generation");
+  });
+});
+
+/**
+ * 011/FR-024 (T064): with the work generator run by two teachers — one work generated, one answer
+ * refused — "Operação de IA" shows the agent and its task with numbers only: no topic, title,
+ * description, statement, answer key, rubric, solution, test case or explanation, and no user,
+ * request, work or execution id.
+ */
+describe("011/FR-024 a Operação de IA mostra o gerador de trabalhos sem conteúdo de trabalho", () => {
+  let t: AiTestApp;
+  const TOPIC_MARKER = "MARCADOR-TOPICO-ADMIN-011";
+  const WORK_MARKER = "MARCADOR-TRABALHO-ADMIN-011";
+  const TITLE_MARKER = "MARCADOR-TITULO-ADMIN-011";
+  const forbidden: string[] = [TOPIC_MARKER, WORK_MARKER, TITLE_MARKER, FAKE_PROVIDER_CREDENTIAL];
+
+  beforeAll(async () => {
+    t = await createWorkAiApp();
+    await resetAiDb(t);
+    for (const name of ["A", "B"]) {
+      const teacher = await createUser(t, { roles: ["TEACHER"], name: `Professor ${name}` });
+      const cookie = await loginAs(t, teacher);
+      const syllabus = await createConfirmedSyllabus(t, teacher.id, { groups: [{ title: "Orientação a objetos", items: [`${TOPIC_MARKER} ${name}`, "Interfaces"] }] });
+      const res = await requestWork(t, cookie, workGenerationRequest(syllabus, { title: `${TITLE_MARKER} ${name}`, description: `${TITLE_MARKER} descrição`, total: 3, types: ["OPEN_ANSWER"] }));
+      expect(res.status).toBe(202);
+      const valid = validGeneratedWork({ difficulty: "INTERMEDIATE", counts: { OPEN_ANSWER: 3, MULTIPLE_CHOICE: 0, CODE: 0 }, trickQuestions: 0, language: null, topicCount: 1 }, `${WORK_MARKER} ${name}`);
+      // Teacher A's work is generated; teacher B's answer has one question too few and is refused.
+      scriptWorkGeneration(t.provider, res.body.id, name === "A" ? valid : { questions: valid.questions.slice(0, 2) });
+      await drain(t);
+      forbidden.push(teacher.id, teacher.email, res.body.id, syllabus.itemIds[0]!, syllabus.revision.id, syllabus.subject.id);
+    }
+    for (const row of await t.prisma.work.findMany({ select: { id: true } })) forbidden.push(row.id);
+    for (const row of await t.prisma.aiExecution.findMany({ select: { id: true } })) forbidden.push(row.id);
+    expect(await t.prisma.work.count()).toBe(1);
+    expect(await t.prisma.aiExecution.count({ where: { status: "FAILED" } })).toBe(1);
+  });
+  afterAll(() => t.close());
+
+  it("nenhuma rota de /ai/operations devolve tópico, trabalho, credencial ou id; o agente e a tarefa aparecem com números", async () => {
+    const admin = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["ADMIN"] })) });
+    const responses = {
+      health: await admin.get("/api/ai/operations/health"),
+      metrics: await admin.get("/api/ai/operations/metrics?period=30d"),
+      agents: await admin.get("/api/ai/operations/agents"),
+      modelConfigs: await admin.get("/api/ai/operations/model-configs"),
+      models: await admin.get("/api/ai/operations/models?period=30d"),
+      tasks: await admin.get("/api/ai/operations/tasks"),
+    };
+    for (const [path, res] of Object.entries(responses)) {
+      expect(res.status, path).toBe(200);
+      const text = JSON.stringify(res.body);
+      for (const value of forbidden) expect(text, `${path}: ${value}`).not.toContain(value);
+    }
+    // Not vacuous: the generator's two executions and its task are there.
+    expect(responses.metrics.body.byAgent.find((row: { agentKey: string }) => row.agentKey === "work-generator")).toMatchObject({ taskKey: "work-generation", executions: 2 });
+    expect(responses.metrics.body.byTask.find((row: { taskKey: string }) => row.taskKey === "work-generation")).toMatchObject({ executions: 2 });
+    expect((responses.agents.body as { key: string }[]).map((agent) => agent.key)).toContain("work-generator");
+    expect((responses.tasks.body as { key: string }[]).map((task) => task.key)).toContain("work-generation");
   });
 });

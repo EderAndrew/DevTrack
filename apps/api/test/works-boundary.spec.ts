@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { endpoints } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { MODEL_CATALOG } from "../src/modules/ai/definitions/model-catalog";
 import { API_ROOT } from "./helpers/env";
@@ -189,5 +190,78 @@ describe("011/FR-011 notas em aritmética decimal exata, nunca ponto flutuante (
     for (const line of ["const questionNumber = 3;", "Number.isInteger(cents)", "type Grade = GradeNumber(x);"]) {
       expect(FORBIDDEN.some((pattern) => pattern.test(line)), line).toBe(false);
     }
+  });
+});
+
+/**
+ * 011/SC-013: the exercise bank (010) keeps its tables, routes and rules. The routes of the 010
+ * catalog are pinned, and no migration after the 010 one writes to, alters or drops a 010 table
+ * (a foreign key from a work table to `programming_languages` only references it). Its rules are
+ * covered by the import scans above and by the `010-*` suites, which run unchanged.
+ */
+describe("011/SC-013 o banco de exercícios (010) não muda com o banco de trabalhos", () => {
+  const TABLES_010 = ["programming_languages", "exercises", "exercise_alternatives", "exercise_generation_batches"];
+  const MIGRATIONS = join(API_ROOT, "prisma/migrations");
+  const after010 = readdirSync(MIGRATIONS)
+    .filter((name) => /^\d{14}_/.test(name) && name > "20260928120000_exercise_bank")
+    .sort();
+  /** Statements that change a table: ALTER, DROP, TRUNCATE, writes, and indexes, triggers, rules or policies on it. */
+  const changes = (sql: string, table: string) =>
+    sql
+      .replace(/--.*$/gm, "")
+      .split(";")
+      .map((statement) => statement.replace(/\s+/g, " ").trim())
+      .filter((statement) =>
+        new RegExp(
+          `^(ALTER TABLE|DROP TABLE|TRUNCATE|UPDATE|DELETE FROM|INSERT INTO|COMMENT ON TABLE)( IF EXISTS| ONLY)* "?${table}"?\\b` +
+            `|^CREATE (UNIQUE )?INDEX .* ON "?${table}"?\\b|^CREATE (OR REPLACE )?(CONSTRAINT )?TRIGGER .* ON "?${table}"?\\b` +
+            `|^CREATE (RULE|POLICY) .* ON "?${table}"?\\b`,
+          "i",
+        ).test(statement),
+      );
+
+  it("as rotas da 010 são as mesmas, com os mesmos métodos e caminhos", () => {
+    const routes = Object.entries(endpoints)
+      .filter(([key]) => /^(exercises|exerciseBatches|programmingLanguages)\./.test(key))
+      .map(([key, endpoint]) => `${key} ${endpoint.method} ${endpoint.path}`)
+      .sort();
+    expect(routes).toEqual(
+      [
+        "exercises.createSet POST /exercises/sets",
+        "exercises.create POST /exercises",
+        "exercises.list GET /exercises",
+        "exercises.get GET /exercises/:id",
+        "exercises.update PUT /exercises/:id",
+        "exercises.approve POST /exercises/:id/approve",
+        "exercises.archive POST /exercises/:id/archive",
+        "exercises.restore POST /exercises/:id/restore",
+        "exercises.delete DELETE /exercises/:id",
+        "programmingLanguages.list GET /programming-languages",
+        "exerciseBatches.availability GET /exercise-generation/availability",
+        "exerciseBatches.request POST /exercise-batches",
+        "exerciseBatches.list GET /exercise-batches",
+        "exerciseBatches.get GET /exercise-batches/:id",
+        "exerciseBatches.approve POST /exercise-batches/:id/approve",
+      ].sort(),
+    );
+  });
+
+  it("nenhuma migração depois da 010 altera, apaga ou escreve nas tabelas da 010", () => {
+    expect(after010).toContain("20260930120000_work_bank");
+    const found = after010.flatMap((name) => {
+      const sql = readFileSync(join(MIGRATIONS, name, "migration.sql"), "utf8");
+      return TABLES_010.flatMap((table) => changes(sql, table).map((statement) => `${name}: ${statement.slice(0, 120)}`));
+    });
+    expect(found).toEqual([]);
+  });
+
+  it("controle: a varredura acha uma mudança numa tabela da 010 e ignora a referência de uma chave estrangeira", () => {
+    expect(changes('ALTER TABLE "exercises" ADD COLUMN "x" INTEGER;', "exercises")).toHaveLength(1);
+    expect(changes('CREATE INDEX "i" ON "exercise_alternatives"("x");', "exercise_alternatives")).toHaveLength(1);
+    expect(changes('UPDATE "programming_languages" SET "x" = 1;', "programming_languages")).toHaveLength(1);
+    expect(
+      changes('ALTER TABLE "work_questions" ADD CONSTRAINT "fk" FOREIGN KEY ("language_id") REFERENCES "programming_languages"("id");', "programming_languages"),
+    ).toEqual([]);
+    expect(changes('-- ALTER TABLE "exercises" in a comment\nSELECT 1;', "exercises")).toEqual([]);
   });
 });

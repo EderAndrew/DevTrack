@@ -129,6 +129,28 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       }
     });
 
+    it("011 work.* e work_generation.*: os 7 tipos gravados, metadata só com ids, contagens, enums e códigos", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^work(_generation)?\./.test(type));
+      expect(types.sort()).toEqual(
+        ["work.approved", "work.archived", "work.created", "work.edited", "work.restored", "work_generation.generated", "work_generation.requested"],
+      );
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      // Enum values, error/warning codes, field names and catalog keys: one word, no spaces.
+      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+      const offending: string[] = [];
+      const visit = (type: string, path: string, value: unknown) => {
+        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
+        if (typeof value === "string" && (uuid.test(value) || code.test(value))) return;
+        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
+        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
+        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
+      };
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(7);
+      for (const event of found) visit(event.type, "metadata", event.metadata);
+      expect(offending).toEqual([]);
+    });
+
     it("UPDATE em audit_events é recusado pelo trigger", async () => {
       await expect(t.prisma.$executeRawUnsafe("UPDATE audit_events SET type = 'auth.signup'")).rejects.toThrow(
         /append-only/,

@@ -18,7 +18,7 @@ const question = (n: number) => ({
   expectedAnswer: `Resposta ${n}`,
 });
 
-describe("011/US2 nota total e valor das questões com soma exata", () => {
+describe("011/US2 011/US2-1 011/US2-2 011/US2-3 nota total e valor das questões com soma exata", () => {
   let t: TestApp;
   let teacher: TestUser;
   let client: ReturnType<typeof api>;

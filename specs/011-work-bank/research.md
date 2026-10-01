@@ -27,6 +27,12 @@ differ in size limits, grade, topics and grading).
 the design-system components, and a new pure `splitEvenly(total, k)` in
 `packages/contracts/src/common/` (W6). The 010 `distributeExercises` stays as is.
 
+**SC-013 in CI** (Phase 12): `git diff main` is a manual check (T059), since CI may not have `main`.
+`works-boundary.spec.ts` also pins the 15 routes of the 010 catalog and fails when a migration
+after `exercise_bank` alters, drops, indexes, triggers or writes to a 010 table (a foreign key
+from a work table to `programming_languages` only references it); the `010-*` suites run
+unchanged.
+
 ## W2. Relational storage, one question table with type-specific columns
 
 **Decision** (data-model.md): `works`; `work_topics` (N:N work ↔ syllabus item);

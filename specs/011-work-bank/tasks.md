@@ -483,35 +483,35 @@ modelo, e conferir nota por questão, nota do trabalho e pendências.
 
 ## Phase 12: Polish & Cross-Cutting Concerns
 
-- [ ] T055 [P] `apps/api/test/security/011-injection.spec.ts`: item da ementa com instruções para
+- [X] T055 [P] `apps/api/test/security/011-injection.spec.ts`: item da ementa com instruções para
   mudar quantidade, tipos, dificuldade, nota, linguagem, tópicos ou aprovar → o pedido e as regras
   não mudam; o texto chega só no bloco não confiável (`011/FR-026`).
-- [ ] T056 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada cria um trabalho
+- [X] T056 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada cria um trabalho
   manual, gera outro, edita, aprova, arquiva e restaura; nenhum enunciado, gabarito, rubrica,
   solução, caso de teste ou texto da ementa nos logs, na auditoria ou em "Operação de IA".
-- [ ] T057 [P] `apps/api/test/security/audit-coverage.spec.ts`: os 7 tipos `work.*` e
+- [X] T057 [P] `apps/api/test/security/audit-coverage.spec.ts`: os 7 tipos `work.*` e
   `work_generation.*` cobertos, metadados só com ids, contagens, enums e códigos.
-- [ ] T058 [P] E2E `apps/web/e2e/work-bank.spec.ts` (trabalho manual com os três tipos e valores
+- [X] T058 [P] E2E `apps/web/e2e/work-bank.spec.ts` (trabalho manual com os três tipos e valores
   0,17 · 0,17 · 0,16; trabalho gerado pela IA revisado e aprovado; "Ver como aluno") e
   `apps/web/e2e/openrouter-mock.ts` respondendo à geração de trabalhos com a fixture.
-- [ ] T059 [P] SC-013: conferir por `git diff main -- apps/api/src/modules/exercises
+- [X] T059 [P] SC-013: conferir por `git diff main -- apps/api/src/modules/exercises
   apps/api/src/modules/exercise-ai packages/contracts/src/exercises apps/web/features/exercises`
   que nada mudou e que as suítes `010-*` passam sem alteração.
-- [ ] T060 [P] `apps/api/CLAUDE.md`: módulos `works`/`work-ai`, fábricas, fixtures, notas em
+- [X] T060 [P] `apps/api/CLAUDE.md`: módulos `works`/`work-ai`, fábricas, fixtures, notas em
   centésimos e as regras de correção para a 012.
-- [ ] T061 [P] `CLAUDE.md` da raiz: estado (011), arquitetura (`works` no contracts), guardas
+- [X] T061 [P] `CLAUDE.md` da raiz: estado (011), arquitetura (`works` no contracts), guardas
   `011-*` e `works-boundary`, comando `eval:works`, agentes.
-- [ ] T062 [P] `README.md`: fase 011, Banco de Trabalhos, etapa de liberação.
-- [ ] T063 [P] `apps/web/design-system/` e testes de identidade se algum componente novo de base
+- [X] T062 [P] `README.md`: fase 011, Banco de Trabalhos, etapa de liberação.
+- [X] T063 [P] `apps/web/design-system/` e testes de identidade se algum componente novo de base
   for criado (idealmente nenhum).
-- [ ] T064 [P] Varredura administrativa (`006-ai-admin-scan.spec.ts`) com o agente e a tarefa
+- [X] T064 [P] Varredura administrativa (`006-ai-admin-scan.spec.ts`) com o agente e a tarefa
   novos em "Operação de IA" (sem conteúdo de trabalho).
-- [ ] T065 Rodar o `quickstart.md` §1 e corrigir divergências.
-- [ ] T066 Revisar `specs/011-work-bank/spec.md` × implementação (Assumptions e decisões de
+- [X] T065 Rodar o `quickstart.md` §1 e corrigir divergências.
+- [X] T066 Revisar `specs/011-work-bank/spec.md` × implementação (Assumptions e decisões de
   implementação registradas no research).
-- [ ] T067 Acrescentar a 011 ao `SPECS` de `apps/api/test/traceability.spec.ts` (8 histórias,
+- [X] T067 Acrescentar a 011 ao `SPECS` de `apps/api/test/traceability.spec.ts` (8 histórias,
   cenários do spec, `rows: 0`, `successCriteria` SC-001–SC-013) e cobrir ids faltantes.
-- [ ] T068 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T068 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
 
 ---
