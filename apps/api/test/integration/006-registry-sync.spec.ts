@@ -126,7 +126,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(tool.status).toBe("ENABLED");
     // 009: the catalog of production, on OpenRouter; the agent's task names no model.
     const config = await t.prisma.aiModelConfig.findUniqueOrThrow({ where: { key: "anthropic-basic" } });
-    expect(config).toMatchObject({ provider: "openrouter", family: "anthropic", tier: "BASIC", lifecycle: "CANDIDATE" });
+    expect(config).toMatchObject({ provider: "openrouter", family: "anthropic", tier: "BASIC", lifecycle: "PRODUCTION" });
 
     const before = await counts(t);
     const events = await t.prisma.auditEvent.count();

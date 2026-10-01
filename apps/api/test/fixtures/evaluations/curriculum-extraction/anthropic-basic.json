@@ -1,0 +1,20 @@
+{
+  "task": "curriculum-extraction",
+  "model": "anthropic/claude-haiku-4.5",
+  "servedModel": "anthropic/claude-haiku-4.5",
+  "goldenSetVersion": 2,
+  "evaluatedAt": "2026-10-01T13:22:18.594Z",
+  "metrics": {
+    "itemRecall": 1,
+    "schemaValidity": 1,
+    "unsupportedWithoutWarning": 0,
+    "inventedFields": 0,
+    "languageMatch": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.080895",
+    "currency": "USD",
+    "perExecution": "0.008089"
+  }
+}

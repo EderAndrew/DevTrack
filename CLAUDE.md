@@ -32,11 +32,13 @@ a new feature through `/speckit-specify`.
   aluno" without the answer key, and the grading strategies as domain rules for 012.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
-the admin enables them. All three tasks are BASIC and served by `openai-basic`, the only model that
-passed their release gates (`anthropic-basic` was never evaluated: OpenRouter answered 402, no
-credit; `deepseek-basic` failed the 007 and 010 gates on 2026-09-29, schema validity 0 and 0.17; the
-011 gate ran only on `openai-basic`, 2026-09-30), so they have no same-tier fallback until a second
-BASIC model is approved. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
+the admin enables them. All three tasks are BASIC. `openai-basic` passed all three release gates and,
+being the cheapest, is the primary of each; `anthropic-basic` passed `curriculum-extraction` and
+`exercise-generation` on 2026-10-01 (the first run with OpenRouter credit) and is their same-tier
+fallback, but failed `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic`
+failed all three (2026-09-29 and 2026-10-01): called with tools its answers break the output schema
+(rubric, explanation, alternatives) and once it skipped the read tool, although the same request
+without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011), `data-model.md`,

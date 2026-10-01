@@ -1,0 +1,31 @@
+{
+  "task": "exercise-generation",
+  "model": "anthropic/claude-haiku-4.5",
+  "servedModel": "anthropic/claude-haiku-4.5",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-01T13:25:24.619Z",
+  "metrics": {
+    "schemaValidity": 1,
+    "configMatch": 1,
+    "duplicates": 0,
+    "topicCoverage": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.089038",
+    "currency": "USD",
+    "perExecution": "0.014839"
+  },
+  "latency": {
+    "perCaseMs": {
+      "html-css-flexbox": 65541,
+      "injecao-topico": 12787,
+      "java-heranca": 29818,
+      "pegadinhas-java-strings": 11031,
+      "python-listas": 10306,
+      "sql-joins-sem-linguagem": 8567
+    },
+    "maxMs": 65541,
+    "withinTwoMinutes": 1
+  }
+}

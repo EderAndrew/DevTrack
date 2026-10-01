@@ -3,7 +3,7 @@
   "model": "deepseek/deepseek-v4.1-flash",
   "servedModel": "deepseek/deepseek-v4.1-flash",
   "goldenSetVersion": 2,
-  "evaluatedAt": "2026-09-29T14:09:16.512Z",
+  "evaluatedAt": "2026-10-01T13:20:06.495Z",
   "metrics": {
     "itemRecall": 0,
     "schemaValidity": 0,
@@ -13,8 +13,8 @@
     "injectionClean": 1
   },
   "cost": {
-    "total": "0.008670",
+    "total": "0.008834",
     "currency": "USD",
-    "perExecution": "0.000867"
+    "perExecution": "0.000883"
   }
 }
