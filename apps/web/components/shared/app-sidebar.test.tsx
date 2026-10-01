@@ -141,6 +141,21 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(link.getAttribute("aria-current")).toBeNull();
   });
 
+  it("011/US1-1 Banco de Trabalhos (trabalhos.visualizar) vem depois de Banco de Exercícios e fica ativo nas telas de trabalhos", () => {
+    navigation.pathname = "/trabalhos/novo";
+    renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar", "trabalhos.visualizar"]) });
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Turmas", "Meu perfil"]);
+    const link = screen.getByRole("link", { name: "Banco de Trabalhos" });
+    expect(link.getAttribute("href")).toBe("/trabalhos");
+    expect(link.getAttribute("data-active")).toBe("true");
+    expect(link.getAttribute("aria-current")).toBeNull();
+  });
+
+  it("011/FR-034 sem trabalhos.visualizar não há Banco de Trabalhos no menu", () => {
+    renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.queryByRole("link", { name: "Banco de Trabalhos" })).toBeNull();
+  });
+
   it("004/US8-1 004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();

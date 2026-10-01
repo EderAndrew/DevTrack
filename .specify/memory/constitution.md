@@ -1,32 +1,39 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.0.0 → 3.1.0
-Motivo (MINOR): o Princípio XXIII passa a distinguir a geração por IA de atividades de
-turma (escopo ensinado, inalterado) da geração de modelos para o banco de questões do
-professor (um conteúdo da ementa confirmada escolhido por ele, sem turma, com as mesmas
-garantias). Nenhuma regra removida ou enfraquecida.
+Version change: 3.1.0 → 3.2.0
+Motivo (MINOR): a geração por IA para o banco deixa de ser restrita a um único conteúdo da
+ementa e passa a aceitar um ou mais conteúdos da mesma revisão confirmada, escolhidos pelo
+professor, e vale para todos os bancos do professor (questões/exercícios e trabalhos). As
+garantias continuam as mesmas: escopo verificado no servidor, a IA não acrescenta nem troca
+conteúdos, vínculo determinístico de cada questão ao escopo, saída validada e rascunho
+revisado pelo professor. A regra "banco × atividade" (modelo + snapshot) passa a valer para
+todo modelo de banco, inclusive o trabalho. Nenhuma regra removida ou enfraquecida: a
+geração com um único conteúdo (010) continua conforme.
 
 Princípios modificados:
-  XXIII. Referência Curricular e Rastreabilidade Pedagógica — "Escopo ensinado" restrito
-         a atividades de turma; novo item "Geração para o banco de questões".
+  XXIII. Referência Curricular e Rastreabilidade Pedagógica — "Geração para o banco de
+         questões" → "Geração para os bancos do professor" (1..N conteúdos da mesma
+         revisão); "Banco de questões × atividade" → "Bancos do professor × atividade".
 
+Seções modificadas: Governance — histórico ganha as entradas 3.1.0 (faltava) e 3.2.0.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXIII atualizado (banco × turma)
+  ✅ .specify/templates/plan-template.md  — gate XXIII atualizado (1..N conteúdos da mesma
+                                           revisão, todos os bancos do professor)
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md, README.md — citam a constituição sem detalhar o XXIII; sem mudança
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.2.0
 
 Follow-ups:
-  - A spec 010-exercise-bank aplica a regra nova (spec "Curricular traceability", plan
-    Constitution Check XXIII); proposta registrada em
-    specs/010-exercise-bank/constitution-amendment-3.1.0.md.
-  - A futura spec de atividades aplica o escopo ensinado quando uma questão do banco
-    entrar numa atividade de turma.
+  - A spec 011-work-bank aplica a regra nova (tópicos de uma revisão confirmada, cada
+    questão gerada vinculada a 1–3 deles); proposta registrada em
+    specs/011-work-bank/constitution-amendment-3.2.0.md.
+  - A spec 012 (aplicação do trabalho à turma) aplica o escopo ensinado e o snapshot
+    quando um trabalho do banco virar atividade `ASSIGNMENT` de uma turma.
 -->
 
 # DevTrack Constitution
@@ -396,13 +403,18 @@ meio de progressão, não redução de expectativa.
   é calculado deterministicamente a partir das aulas registradas (XII), e a saída DEVE
   ser validada deterministicamente: toda questão gerada DEVE estar vinculada a um
   conteúdo do escopo; itens fora dele são rejeitados ou sinalizados.
-- **Geração para o banco de questões**: a IA PODE gerar **modelos** para o banco do
-  professor a partir de um conteúdo da ementa confirmada que ele escolher, sem vínculo
-  com turma, porque o banco é reutilizável entre turmas e semestres. Valem as mesmas
-  garantias: um único conteúdo como escopo, escolhido pelo professor e verificado no
-  servidor; vínculo determinístico de cada questão gerada a esse conteúdo; saída
-  validada; rascunho revisado pelo professor (XIII). Ao entrar numa atividade de turma,
-  a questão do banco passa pela regra do escopo ensinado daquela turma.
+- **Geração para os bancos do professor**: a IA PODE gerar **modelos** para os bancos
+  do professor (banco de questões/exercícios, banco de trabalhos) a partir de um ou mais
+  conteúdos da ementa confirmada que ele escolher, sem vínculo com turma, porque os
+  bancos são reutilizáveis entre turmas e semestres. Valem as mesmas garantias:
+  - o escopo são somente os conteúdos escolhidos pelo professor, todos da mesma revisão
+    confirmada de uma ementa a que ele tem acesso, verificados no servidor;
+  - a IA NÃO DEVE acrescentar, trocar nem remover conteúdos do escopo;
+  - cada questão gerada DEVE estar vinculada deterministicamente a pelo menos um
+    conteúdo do escopo; itens fora dele são rejeitados;
+  - a saída é validada e nasce como rascunho revisado pelo professor (XIII).
+  Ao entrar numa atividade de turma, o modelo do banco passa pela regra do escopo
+  ensinado daquela turma.
 - **Cobertura**: antes de publicar uma prova, o professor DEVE conseguir ver a
   distribuição das questões por conteúdo, objetivo e dificuldade.
 - **Tipos de atividade** são conceitos pedagógicos distintos, ainda que compartilhem
@@ -416,11 +428,12 @@ meio de progressão, não redução de expectativa.
 - **Adaptações** de uma atividade são versões da mesma atividade, avaliando os mesmos
   conteúdos e objetivos, atribuídas a alunos conforme suas necessidades pedagógicas
   (XXII) — nunca uma atividade separada para uma categoria de pessoas.
-- **Banco de questões × atividade**: o banco de questões pertence ao professor e é
-  reutilizável entre turmas e semestres; atividades pertencem a uma turma. A questão
-  do banco é um modelo — ao entrar em uma atividade, DEVE ser guardado um snapshot
-  (`Question ≠ ExamQuestion`). Editar o banco NUNCA altera atividades já publicadas
-  ou aplicadas.
+- **Bancos do professor × atividade**: os bancos (questões/exercícios, trabalhos)
+  pertencem ao professor e são reutilizáveis entre turmas e semestres; atividades
+  pertencem a uma turma. O item do banco é um modelo — ao entrar em uma atividade,
+  DEVE ser guardado um snapshot (`Question ≠ ExamQuestion`; um trabalho do banco ≠ a
+  atividade `ASSIGNMENT` aplicada). Editar o banco NUNCA altera atividades já
+  publicadas ou aplicadas.
 - **Disciplina ≠ turma**: a disciplina (e sua ementa, conteúdos e materiais) é
   reutilizável; a turma é a oferta da disciplina em um período letivo, com seus
   próprios alunos, plano, atividades e notas.
@@ -764,7 +777,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-27
+**Version**: 3.2.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-30
 
 Histórico:
 
@@ -784,3 +797,9 @@ Histórico:
 - **3.0.0** — Fim do autocadastro público de aluno: contas de aluno nascem somente do
   aceite de convite de turma do professor, que nunca define nem conhece a senha do
   aluno; contas do autocadastro antigo continuam válidas (XXIV, XXV, roadmap).
+- **3.1.0** — XXIII distingue a geração por IA de atividades de turma (escopo ensinado)
+  da geração de modelos para o banco de questões do professor, a partir de um conteúdo
+  da ementa confirmada, sem turma.
+- **3.2.0** — XXIII: a geração para os bancos do professor (questões/exercícios e
+  trabalhos) aceita um ou mais conteúdos da mesma revisão confirmada da ementa, com as
+  mesmas garantias; a regra modelo + snapshot vale para todo item de banco.

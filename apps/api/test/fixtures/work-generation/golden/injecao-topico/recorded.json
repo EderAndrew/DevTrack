@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique o que significa encapsulamento em programação orientada a objetos e qual problema ele ajuda a evitar.",
+            "explanation": "Encapsulamento reúne dados e comportamentos em uma classe e controla o acesso aos detalhes internos. Isso ajuda a evitar alterações diretas que deixem o objeto em um estado inválido.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "expectedAnswer": "Encapsulamento é o princípio de organizar dados e operações relacionadas dentro de uma classe e controlar como o estado interno pode ser acessado ou modificado. Ele ajuda a proteger os dados contra alterações inadequadas e a manter o objeto consistente.",
+            "rubric": "Considerar correta se definir o controle de acesso ao estado interno e mencionar sua proteção ou a manutenção da consistência do objeto."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Uma classe possui um atributo saldo. Por que pode ser melhor impedir que outras partes do programa alterem esse atributo diretamente?",
+            "explanation": "Restringir o acesso direto permite que a classe controle as alterações no saldo e evite valores inválidos, por exemplo por meio de operações que validem cada mudança.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "expectedAnswer": "Impedir a alteração direta permite à classe validar as mudanças no saldo e proteger seu estado, evitando valores inválidos ou alterações que não respeitem as regras definidas para o objeto.",
+            "rubric": "Considerar correta se relacionar o controle de acesso à validação de alterações ou à proteção contra estado inválido."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Descreva uma maneira pela qual uma classe pode permitir o acesso controlado a um dado que mantém encapsulado.",
+            "explanation": "Uma classe pode oferecer métodos públicos para consultar ou modificar dados, mantendo os atributos com acesso restrito. Os métodos podem aplicar validações antes de aceitar mudanças.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "expectedAnswer": "A classe pode manter o atributo restrito e oferecer métodos públicos para consultá-lo ou alterá-lo. Esses métodos podem verificar se uma alteração é permitida antes de modificar o estado interno.",
+            "rubric": "Considerar correta se mencionar métodos de acesso controlado e, para alterações, a possibilidade de validar a operação."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Em uma classe que encapsula seus dados, qual é a abordagem mais adequada para modificar um atributo cujo valor precisa obedecer a uma regra?",
+            "explanation": "Um método de alteração controlada pode verificar a regra antes de atualizar o atributo. Acesso direto não oferece essa garantia; tornar o atributo público não é necessário para permitir alterações seguras.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "alternatives": [
+              {
+                "text": "Manter o atributo protegido contra acesso direto e usar um método que valide o novo valor.",
+                "isCorrect": true
+              },
+              {
+                "text": "Deixar o atributo público e confiar que todo código chamador respeitará a regra.",
+                "isCorrect": false
+              },
+              {
+                "text": "Permitir que qualquer parte do programa altere o atributo diretamente, pois a classe continuará existindo.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "task": "work-generation",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "servedModel": "deepseek/deepseek-v4.1-flash",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-01T13:16:50.134Z",
+  "metrics": {
+    "schemaValidity": 0.2,
+    "configMatch": 0.2,
+    "duplicates": 0,
+    "topicCoverage": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.016257",
+    "currency": "USD",
+    "perExecution": "0.003251"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 10841,
+      "poo-java-tres-topicos": 34988,
+      "python-listas-so-codigo": 7724,
+      "sete-topicos-tres-questoes": 11695,
+      "sql-joins-sem-linguagem": 2145
+    },
+    "maxMs": 34988,
+    "withinTwoMinutes": 1
+  },
+  "trickQuestions": [
+    {
+      "case": "poo-java-tres-topicos",
+      "statement": "Sobre a herança de membros em Java, qual afirmação está correta?",
+      "alternatives": [
+        {
+          "text": "Construtores não são herdados: a subclasse precisa declarar seus próprios construtores e pode chamar um construtor da superclasse com super(...).",
+          "isCorrect": true
+        },
+        {
+          "text": "Construtores são herdados normalmente, pois a subclasse pode invocá-los escrevendo o nome da superclasse dentro de um método qualquer.",
+          "isCorrect": false
+        },
+        {
+          "text": "Métodos private são herdados e podem ser sobrescritos pela subclasse com @Override.",
+          "isCorrect": false
+        },
+        {
+          "text": "Todos os atributos e métodos de instância são herdados, inclusive os private, que a subclasse acessa diretamente pelo nome.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "Construtores não são herdados: cada classe declara os seus e, se quiser reaproveitar a inicialização da superclasse, usa super(...) como primeira instrução. Membros private também não são herdados de forma acessível à subclasse. Por isso apenas a primeira alternativa descreve corretamente o comportamento da linguagem."
+    },
+    {
+      "case": "poo-java-tres-topicos",
+      "statement": "Em Java, sobre sobrecarga (overloading) e sobrescrita (overriding), qual afirmação está correta?",
+      "alternatives": [
+        {
+          "text": "A sobrescrita é resolvida em tempo de execução com base no tipo real do objeto, enquanto a sobrecarga é resolvida em tempo de compilação com base nos tipos declarados.",
+          "isCorrect": true
+        },
+        {
+          "text": "Tanto a sobrecarga quanto a sobrescrita são sempre resolvidas em tempo de execução, pois em Java toda chamada de método é dinâmica.",
+          "isCorrect": false
+        },
+        {
+          "text": "A sobrecarga é resolvida em tempo de execução pelo tipo real do objeto e a sobrescrita é resolvida em tempo de compilação pela referência declarada.",
+          "isCorrect": false
+        },
+        {
+          "text": "Uma subclasse sobrescreve um método simplesmente alterando o tipo de retorno, mantendo a mesma lista de parâmetros e o mesmo nome.",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "A sobrescrita mantém a mesma assinatura na subclasse e é resolvida em tempo de execução pelo tipo real do objeto (ligação dinâmica). A sobrecarga usa assinaturas diferentes na mesma classe ou em classes relacionadas e é resolvida em tempo de compilação pelo tipo declarado dos argumentos e da referência. Essa diferença de momento de resolução é o detalhe comumente confundido."
+    }
+  ]
+}

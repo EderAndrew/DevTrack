@@ -6,9 +6,9 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 
 /**
- * 010: the migration seeds the bank's permissions in the Foundational phase, before any route
- * exists (tasks.md T004/T006); each one leaves this list with the first route that requires it.
- * Empty since US4 (`questoes.editar`, `questoes.aprovar`); kept for the next seeded-first permission.
+ * 010 and 011: the migration seeds a bank's permissions in the Foundational phase, before any route
+ * exists (010 tasks.md T004/T006, 011 T006); each one leaves this list with the first route that
+ * requires it.
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([]);
 

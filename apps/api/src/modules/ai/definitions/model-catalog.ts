@@ -33,10 +33,28 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     model: "anthropic/claude-haiku-4.5",
     tier: "BASIC",
     mode: "GENERATION",
-    lifecycle: "CANDIDATE",
+    // Promoted by the release gate on 2026-10-01, the first run with OpenRouter credit (the 009 one
+    // got 402): it met every threshold of the analysis and of the exercise generator, so those
+    // tasks get a same-tier fallback of another family. It failed `work-generation` (schema validity
+    // 0.6: `poo-java-tres-topicos` and `sete-topicos-tres-questoes` refused), so no approval there.
+    lifecycle: "PRODUCTION",
     price: usd("1", "5"),
     contextWindow: 200_000,
     capabilities: GENERATION,
+    approvals: [
+      {
+        taskKey: "curriculum-extraction",
+        metrics: { itemRecall: 1, schemaValidity: 1, unsupportedWithoutWarning: 0, inventedFields: 0, languageMatch: 1, injectionClean: 1 },
+        evaluatedAt: "2026-10-01T13:22:18.594Z",
+        evidence: "apps/api/test/fixtures/evaluations/curriculum-extraction/anthropic-basic.json",
+      },
+      {
+        taskKey: "exercise-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 1, injectionClean: 1 },
+        evaluatedAt: "2026-10-01T13:25:24.619Z",
+        evidence: "apps/api/test/fixtures/evaluations/exercise-generation/anthropic-basic.json",
+      },
+    ],
   }),
   openRouter({
     key: "anthropic-standard",
@@ -86,6 +104,15 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         evaluatedAt: "2026-09-28T20:04:09.584Z",
         evidence: "apps/api/test/fixtures/evaluations/exercise-generation/openai-basic.json",
       },
+      // 011 T054: the work generator's golden set met every threshold of `work-generation`. The 4
+      // trick questions of the evidence were read by a person on 2026-09-30 (011/FR-030): one
+      // correct alternative each, distractors from common errors, no ambiguity.
+      {
+        taskKey: "work-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 0.9583, injectionClean: 1 },
+        evaluatedAt: "2026-09-30T19:44:17.269Z",
+        evidence: "apps/api/test/fixtures/evaluations/work-generation/openai-basic.json",
+      },
     ],
   }),
   openRouter({
@@ -122,6 +149,33 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     price: usd("0.3", "1.2"),
     contextWindow: 1_048_576,
     capabilities: GENERATION,
+  }),
+  // Earlier V4 Flash snapshots, added on 2026-10-01 to be evaluated after `deepseek-basic` failed
+  // the three gates: no newer DeepSeek exists on OpenRouter. Ids and prices from its public list
+  // that day. Both failed `work-generation` that day with no evidence written (timeouts count as
+  // infrastructure): v4-flash timed out on all 5 cases, v4-flash-0731 passed 1 of 5 (schema
+  // validity 0.2). They stay CANDIDATE, kept for a later run.
+  openRouter({
+    key: "deepseek-basic-v4",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4-flash",
+    tier: "BASIC",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.042", "0.084"),
+    contextWindow: 1_048_576,
+    capabilities: { ...GENERATION, vision: false },
+  }),
+  openRouter({
+    key: "deepseek-basic-v4-0731",
+    family: "deepseek",
+    model: "deepseek/deepseek-v4-flash-0731",
+    tier: "BASIC",
+    mode: "GENERATION",
+    lifecycle: "CANDIDATE",
+    price: usd("0.011", "1.28"),
+    contextWindow: 1_048_576,
+    capabilities: { ...GENERATION, vision: false },
   }),
   openRouter({
     key: "deepseek-standard",

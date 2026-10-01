@@ -136,6 +136,70 @@ Student view (010/US6): any future route that shows an exercise to a student (ac
 view; a new field reaches students only when listed there or in its type's `studentFields`.
 `test/security/010-student-view.spec.ts` scans every type for the answer markers (`MARCADOR-RESPOSTA-010`,
 `MARCADOR-SOLUCAO-010`, `MARCADOR-EXPLICACAO-010`) and the answer keys.
+Works (011/US6) follow the same rule: the only student view of a work is `toWorkStudentView`
+(`src/modules/works/views/student-view.ts`, an allowlist plus each type's `studentFields`). In 011 it is served only
+by the teacher's "Ver como aluno" (`GET /works/:id/student-preview`); the 012 student route must answer that builder
+and nothing else. `test/security/011-student-view.spec.ts` scans for `MARCADOR-RESPOSTA-011`, `-RUBRICA-`,
+`-SOLUCAO-`, `-PRIVADO-` (private test cases) and `-EXPLICACAO-011` and the answer keys.
+Work generation (011/US3) mirrors 010: `modules/work-ai` holds `WorkGenerationRequestsService` (topics through
+`WorkTopics`, request + topics + execution in one transaction, hourly limit `work-ai`), the `work-generator` definition,
+prompt and `read-work-generation-request` tool (topics by ref `T1…`, never ids, title, description or grade) and
+`generation/` (`build-proposal`, `materialize`, which maps refs to the request's topics by position and writes the DRAFT
+work through `works/work-content.ts`'s `writeWorkContent`). Tests use `test/helpers/work-ai.ts` (`createWorkAiApp()`
+registers the 007, 010 and 011 agents, `workGenerationRequest`, `requestWork`, `scriptWorkGeneration`) and
+`validGeneratedWork(shape)` from `test/fixtures/work-generation/valid-work.ts`; the journey (so audit coverage and the
+secret scan) runs on `createWorkAiApp`.
+The generator's `build` checks the output against the request (`generation/validate-generated-work.ts`, 011/US4), with
+the same `ProposalRejected(reason)` logging as 010. The review (011/US5) lives in the bank: `WorksService.update` takes the
+whole work back (`toUpdateBody(view)` in `test/helpers/works.ts` builds that body; kept questions by `id`, `work-edit.ts`
+diffs them for `work.edited` and a no-op save writes nothing) and `approve`, both under the work's row lock with its
+`version`; approving a generated work calls `WorkReview.changed` in the same transaction, and `work-ai`'s
+`WorkProposalCloser` decides the proposal (APPROVE, or APPROVE_PARTIALLY with the generated questions that remain).
+The bank (011/US7): `GET /works` filters through `workListWhere` (`work-query.ts`: `title_search_key` compared with
+`searchKey(query)`, the topic through `work_topics`, the creation period in whole days of UTC-3; ARCHIVED only when
+asked) and pages by keyset on `updated_at desc, id desc`; `archive`/`restore` keep `archived_from_status`, and archiving a
+never-approved generated work also calls `WorkReview.changed` (the proposal closes REJECT). Suites that need many works
+insert them with `createMany` in one transaction with one question each (`011-us7-bank`, `011-performance`).
+Grading (011/US8) is pure domain code for 012 in `src/modules/works/grading/`: strategies keyed by `grading_strategy`
+in `registry.ts` (`gradeQuestion` never branches on the question type; `registry.spec.ts` scans it), `decideByTeacher`,
+`computeWorkGrade`, the `CodeRunnerPort`/`AiReviewPort` interfaces and `UnavailableCodeRunner` (the only runner: nothing
+is executed in 011). A TEST_CASES question has no expected-solution field. The fake ports are in
+`test/fixtures/works/grading-ports.ts`; the result shapes are `packages/contracts/src/works/grading.ts`.
+Grading rules the 012 submission flow must keep (011/FR-036–FR-042): the strategy is fixed per question when it is
+saved (MULTIPLE_CHOICE → `EXACT_MATCH`, CODE → `TEST_CASES`, OPEN_ANSWER → `AI_REVIEW`; `gradingStrategyOf` in
+`types/`) and only the registry dispatches it; `EXACT_MATCH` is all or nothing with no AI; `TEST_CASES` is all or
+nothing by an isolated Code Runner (its own spec), never a text comparison, and goes to the teacher with no runner or
+no test case; `AI_REVIEW` only suggests a grade (0 to the question's value) that the teacher confirms or changes
+through `decideByTeacher`; a technical failure (AI unavailable, invalid AI answer, runner down) leaves the question
+pending, never zero; the work's grade is `computeWorkGrade`, the sum of the final grades in hundredths, partial while
+a question has none.
+Grades (011/US2, research W3/W4) are integer hundredths in code (`GradeCents`, `gradeToCents`/`centsToGrade` and
+`distributeGrade` in `packages/contracts/src/works/grade.ts`), `numeric(5,2)` in the database and a decimal string on
+the wire; `works/grade/grade-values.ts`'s `withValues` rewrites every question's value from the total on each create,
+edit and materialization (the first positions carry the remainder: 0,50 in 3 → 0,17 · 0,17 · 0,16), never from a
+request or the AI. `works-boundary.spec.ts` forbids `parseFloat`, `Number(` and `.toNumber()` in `works`/`work-ai`; a
+test compares a Prisma `Decimal` with `.toFixed(2)`.
+Work bank (011) fixtures live in `test/helpers/works.ts`: `workLanguageId(t, key)`, `createConfirmedSyllabus(t,
+teacherId, { languageKey, groups, title, competencyText, subjectStatus })` (an ACTIVE subject, a PROCESSED document
+and a CONFIRMED revision; `itemIds` in order), `createWork(t, teacherId, options)` (work, topics, questions,
+alternatives, test cases and question topics in one transaction, since the deferred triggers check the question
+count, the values' sum and 3–5 alternatives with one correct at commit; default a MANUAL APPROVED work with one
+multiple-choice question worth 1.00), `createWorkGenerationRequest` (a request row with its topics, no execution
+unless given) and `toQuestionEdit`/`toUpdateBody` (a teacher view back into a `PUT /works/:id` body).
+Golden set of the work generator (011/SC-012, same layout as 010): `test/fixtures/work-generation/` (README,
+`golden/<case>/`, `score.ts` with `schemaValidity`, `configMatch`, `duplicates`, `topicCoverage` and
+`injectionClean`); `011-evaluation.spec.ts` replays it in CI and `pnpm --filter api eval:works` runs it against the
+real models. The evidence in `test/fixtures/evaluations/work-generation/openai-basic.json` (2026-09-30) backs the
+`openai-basic` approval of `work-generation`, the only one, so the task has no same-tier fallback.
+011 security suites (`test/security/011-*`): isolation (teacher B's ids → 404 on every route, other roles → 403),
+tool scope (`read-work-generation-request` sees only the request's topics as refs), injection through the item, its
+group and the competency (`011-injection.spec.ts`: the text reaches the model only in the untrusted block; an answer
+that obeys it, in quantity, types, difficulty, grade, language, topics or approval, is refused whole), concurrency,
+student view, no answer-key route, performance (1 000 works) and no model choice; `011-sc003-boundaries.spec.ts`
+runs every rule boundary on each path. The journey creates, generates, edits, approves, archives and restores works,
+and its work texts are scanned out of logs, audit and "Operação de IA" (`secret-leak-scan.spec.ts`,
+`006-ai-admin-scan.spec.ts`); `audit-coverage.spec.ts` also checks that the `work.*`/`work_generation.*` metadata
+holds only ids, counts, enums and codes.
 Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
 `ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
 holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and
@@ -162,8 +226,8 @@ root CLAUDE.md):
   `src/modules/audit/audit-event-types.ts` to list the same types and metadata keys, and every
   type to be emitted by `test/helpers/journey.ts`. A new audit type needs all three updated.
 - `test/security/domain-boundary.spec.ts` pins the Prisma models to the `data-model.md` lists (001, 003, 004 and 006; 007 adds only a column; 008 adds `AiTask`;
-  009 the policy tables; 010 the exercise bank) and forbids academic terms of later phases (classes and enrollments are
-  allowed since 003, questions and exercises since 010).
+  009 the policy tables; 010 the exercise bank; 011 the work bank) and forbids academic terms of later phases (classes and
+  enrollments are allowed since 003, questions and exercises since 010, works since 011).
 - `test/security/secret-leak-scan.spec.ts` runs the same journey and scans the logs and audit
   trail for every secret it produced; since 008 the journey app is configured with the OpenRouter
   marker key `sk-or-teste-008-CHAVE-FALSA` (`OPENROUTER_MARKER_KEY` of `journey.ts`), which is also
@@ -209,6 +273,11 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
 - 010: one file per story (`010-us1-manual` … `010-us7-*`) plus the schema's DB rules and the
   security suites described above; the journey creates, generates, reviews, archives and restores
   exercises.
+- 011: one file per story (`011-us1-manual` … `011-us7-bank`, US8 as unit tests under
+  `src/modules/works/grading/`), the schema's DB rules (`011-schema`), the topics, the evaluation,
+  the boundaries and the security suites described above; `test/works-boundary.spec.ts` keeps works
+  and exercises apart in api, contracts and web, and forbids code execution, model choice and
+  float arithmetic in `works`/`work-ai`.
 
 ## Modules (moved from the root CLAUDE.md)
 
@@ -301,3 +370,14 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   `proposal.materialize` foundation hook writes the DRAFT exercises in the runner's transaction;
   `ExerciseProposalCloser` decides the proposal once no draft is left). The OpenRouter adapter's
   `sanitizeJsonSchema` writes `oneOf` as `anyOf` (strict structured output refuses `oneOf`).
+- 011 modules: `works` (the work bank, apart from `exercises` in both directions: question types as a
+  registry in `types/`, pure rules in `rules/`, exact grades in `grade/`, teacher and student views
+  (`toWorkStudentView` copies an allowlist), `WorkTopics` (topics of one confirmed revision),
+  `WorksService` with optimistic `version` under a row lock, `work-content.ts` (the only writer of a
+  work's content, shared with the materialization), `work-edit.ts`, keyset list in `work-query.ts`,
+  `work.state-machine.ts`, the `WorkReview` hook and the `grading/` domain rules for 012; never
+  imports AI code) and `work-ai` (`WorkGenerationRequestsService`: request, topics and execution in
+  one transaction with the idempotency key; the `work-generator` definition (DISABLED in
+  production), prompt and `read-work-generation-request` tool; `validate-generated-work`, the
+  `materialize` hook that writes the DRAFT work in the runner's transaction, and
+  `WorkProposalCloser`). Neither names a tier, family or catalog key (`011-no-model-choice.spec.ts`).

@@ -129,6 +129,17 @@ const SPECS: FeatureSpec[] = [
     // SC-002 is measured by the on-demand evaluation against the real models (test/eval).
     successCriteria: sc(1, 12),
   },
+  {
+    feature: "011",
+    path: "specs/011-work-bank/spec.md",
+    stories: 8,
+    scenarios: 53,
+    // No "### Acceptance Criteria Traceability" table, as in 008–010.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-002 is measured by the on-demand evaluation against the real models (test/eval).
+    successCriteria: sc(1, 13),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

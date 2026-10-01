@@ -106,16 +106,20 @@ const PHASE_010_TEXTS: Record<string, string> = {
   SYLLABUS_LANGUAGE_REQUIRED: "Defina a linguagem da ementa para gerar exercícios de código.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS };
+const PHASE_011_TEXTS: Record<string, string> = {
+  WORK_VERSION_CONFLICT: "Este trabalho mudou em outra aba. Recarregue para ver a versão atual.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 72 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009 e da 010", () => {
+  it("007/FR-040 cobre os 73 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010 e da 011", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(74);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(75);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

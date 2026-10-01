@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "description": "Sete tópicos e três questões: cada questão cita até 3 tópicos e todos os sete ficam cobertos (o limite de 3 × quantidade).",
+  "injection": false,
+  "syllabus": {
+    "title": "Engenharia de Software",
+    "competencyText": null,
+    "languageKey": null,
+    "groups": [
+      {
+        "title": "Requisitos",
+        "items": ["Requisitos funcionais", "Requisitos não funcionais", "Casos de uso", "Histórias de usuário"]
+      },
+      { "title": "Qualidade", "items": ["Testes unitários", "Testes de integração", "Revisão de código"] }
+    ]
+  },
+  "topics": [
+    "Requisitos funcionais",
+    "Requisitos não funcionais",
+    "Casos de uso",
+    "Histórias de usuário",
+    "Testes unitários",
+    "Testes de integração",
+    "Revisão de código"
+  ],
+  "request": {
+    "title": "Trabalho de engenharia de software",
+    "description": null,
+    "difficulty": "ADVANCED",
+    "totalGrade": "10.00",
+    "total": 3,
+    "types": ["OPEN_ANSWER", "MULTIPLE_CHOICE"],
+    "distribution": { "mode": "MANUAL", "counts": { "OPEN_ANSWER": 2, "MULTIPLE_CHOICE": 1 } },
+    "trickQuestions": 1
+  },
+  "counts": { "OPEN_ANSWER": 2, "MULTIPLE_CHOICE": 1, "CODE": 0 },
+  "language": null,
+  "keyTerms": {
+    "T1": ["requisito funcional", "requisitos funcionais", "funcionalidade"],
+    "T2": ["não funcional", "não funcionais", "desempenho", "segurança", "usabilidade", "disponibilidade"],
+    "T3": ["caso de uso", "casos de uso", "ator"],
+    "T4": ["história de usuário", "histórias de usuário", "user stor", "critério de aceitação", "critérios de aceitação"],
+    "T5": ["teste unitário", "testes unitários", "unidade"],
+    "T6": ["teste de integração", "testes de integração", "integração"],
+    "T7": ["revisão de código", "code review", "revisor", "pull request"]
+  },
+  "forbiddenPatterns": []
+}

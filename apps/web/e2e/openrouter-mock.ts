@@ -9,8 +9,11 @@ import { API_DIR, OPENROUTER_MOCK_PORT } from "./env.ts";
  * leaving the machine. It replays one recorded case per agent, chosen by the tool the request
  * offers: the POO case of the 007 golden set for `read-curriculum-document` and, since 010, the
  * `sql-joins-sem-linguagem` case of the generator's golden set for `read-exercise-generation-request`
- * (4 exercises: 2 Pergunta e resposta and 2 Múltipla escolha, Básico, no trick question). A request
- * with no `tool` message asks for the tool with the id of the context (`documentId` or `batchId`);
+ * (4 exercises: 2 Pergunta e resposta and 2 Múltipla escolha, Básico, no trick question) and, since 011,
+ * the `sql-joins-sem-linguagem` case of the work generator's golden set for
+ * `read-work-generation-request` (4 questions on 2 topics: 2 Pergunta e resposta and 2 Múltipla escolha,
+ * Básico, 1 trick question). A request with no `tool` message asks for the tool with the id of the
+ * context (`documentId`, `batchId` or `requestId`);
  * one with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
  * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`MOCK_PRIMARY_MODEL`, by default
  * the cheapest BASIC entry of the 009 catalog, the policy's primary once approved), so a run with a
@@ -26,7 +29,7 @@ interface RecordedRun {
 /** One agent's replay: its read tool, the context field that tool takes, and the recorded output. */
 interface Replay {
   toolKey: string;
-  idField: "documentId" | "batchId";
+  idField: "documentId" | "batchId" | "requestId";
   output: unknown;
 }
 
@@ -42,6 +45,7 @@ function replay(path: string, idField: Replay["idField"]): Replay {
 const REPLAYS = [
   replay("test/fixtures/curriculum-agent/golden/poo-pdf/recorded.json", "documentId"),
   replay("test/fixtures/exercise-generation/golden/sql-joins-sem-linguagem/recorded.json", "batchId"),
+  replay("test/fixtures/work-generation/golden/sql-joins-sem-linguagem/recorded.json", "requestId"),
 ];
 
 /** The model `MOCK_PRIMARY_DOWN` takes down: `openai-basic` of apps/api `model-catalog.ts` by default. */

@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "questions": [
+          {
+            "type": "CODE",
+            "statement": "Leia um inteiro N e, em seguida, N números inteiros. Armazene os números em uma lista e imprima a soma de seus elementos.",
+            "explanation": "A solução cria uma lista com os N números e usa sum para calcular a soma de todos os seus elementos.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "instructions": "A entrada contém N na primeira linha e os N números inteiros nas linhas seguintes ou separados por espaços. Imprima apenas a soma.",
+            "starterCode": "dados = list(map(int, input().split()))\n",
+            "expectedSolution": "import sys\n\ndados = list(map(int, sys.stdin.read().split()))\nn = dados[0]\nnumeros = dados[1:1 + n]\nprint(sum(numeros))",
+            "language": "Python",
+            "testCases": [
+              {
+                "input": "4\n3 7 1 5\n",
+                "expectedOutput": "16\n",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "3\n-2 0 6\n",
+                "expectedOutput": "4\n",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Leia um inteiro N e, em seguida, N números inteiros. Guarde-os em uma lista e imprima uma nova lista com os mesmos elementos na ordem inversa.",
+            "explanation": "O fatiamento com passo -1 cria uma lista com os elementos na ordem inversa, sem alterar a lista original.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "instructions": "A entrada contém N na primeira linha e os N números inteiros nas linhas seguintes ou separados por espaços. Imprima a lista invertida usando a representação padrão de listas do Python.",
+            "starterCode": "# Leia os dados e monte a lista\n",
+            "expectedSolution": "import sys\n\ndados = list(map(int, sys.stdin.read().split()))\nn = dados[0]\nnumeros = dados[1:1 + n]\nprint(numeros[::-1])",
+            "language": "Python",
+            "testCases": [
+              {
+                "input": "5\n8 3 9 1 4\n",
+                "expectedOutput": "[4, 1, 9, 3, 8]\n",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "1\n-7\n",
+                "expectedOutput": "[-7]\n",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Leia um inteiro N, depois N números inteiros para uma lista e, por fim, um número X. Imprima quantas vezes X aparece na lista.",
+            "explanation": "O método count de uma lista retorna o número de ocorrências do valor informado, inclusive zero quando ele não aparece.",
+            "topicRefs": [
+              "T1"
+            ],
+            "difficulty": "BASIC",
+            "instructions": "A entrada contém N, os N elementos da lista e o valor X, nessa ordem. Os valores podem estar separados por espaços ou quebras de linha. Imprima a quantidade de ocorrências de X.",
+            "starterCode": "# Leia os dados e conte as ocorrências\n",
+            "expectedSolution": "import sys\n\ndados = list(map(int, sys.stdin.read().split()))\nn = dados[0]\nnumeros = dados[1:1 + n]\nx = dados[1 + n]\nprint(numeros.count(x))",
+            "language": "Python",
+            "testCases": [
+              {
+                "input": "6\n2 5 2 8 2 5\n2\n",
+                "expectedOutput": "3\n",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "4\n1 3 5 7\n4\n",
+                "expectedOutput": "0\n",
+                "visibility": "PRIVATE"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

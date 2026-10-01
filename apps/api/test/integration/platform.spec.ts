@@ -44,6 +44,15 @@ describe("startup configuration (FR-074)", () => {
     expect(failure({ ...env, RATE_LIMIT_EXERCISE_AI_PER_HOUR: "0" }).variables).toEqual(["RATE_LIMIT_EXERCISE_AI_PER_HOUR"]);
   });
 
+  it("011 RATE_LIMIT_WORK_AI_PER_HOUR: 10 by default, configurable, and an invalid value stops the startup", () => {
+    const env = { ...process.env };
+    delete env.RATE_LIMIT_WORK_AI_PER_HOUR;
+    expect(loadConfig(env).rateLimit.workAiPerHour).toBe(10);
+    expect(loadConfig({ ...env, RATE_LIMIT_WORK_AI_PER_HOUR: "3" }).rateLimit.workAiPerHour).toBe(3);
+    expect(failure({ ...env, RATE_LIMIT_WORK_AI_PER_HOUR: "0" }).variables).toEqual(["RATE_LIMIT_WORK_AI_PER_HOUR"]);
+    expect(failure({ ...env, RATE_LIMIT_WORK_AI_PER_HOUR: "1.5" }).variables).toEqual(["RATE_LIMIT_WORK_AI_PER_HOUR"]);
+  });
+
   it("accepts a complete environment", () => {
     const config = loadConfig({ ...process.env, DATABASE_URL: SECRET_DB_URL });
     expect(config.databaseUrl).toBe(SECRET_DB_URL);

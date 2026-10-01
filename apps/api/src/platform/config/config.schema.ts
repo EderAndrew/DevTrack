@@ -70,6 +70,7 @@ export const configSchema = z.object({
   RATE_LIMIT_AI_DECISIONS_PER_MINUTE: positiveInt(30),
   RATE_LIMIT_CURRICULUM_AI_PER_HOUR: positiveInt(10),
   RATE_LIMIT_EXERCISE_AI_PER_HOUR: positiveInt(10),
+  RATE_LIMIT_WORK_AI_PER_HOUR: positiveInt(10),
   AI_AGENT_EXECUTIONS_PER_HOUR: positiveInt(100),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
@@ -132,6 +133,8 @@ export interface AppConfig {
     curriculumAiPerHour: number;
     /** Exercise generation (010 research X19): batches requested per teacher per hour. */
     exerciseAiPerHour: number;
+    /** Work generation (011 research W18): requests per teacher per hour. */
+    workAiPerHour: number;
     /** Executions per agent per hour, all users together (008 research G9). */
     aiAgentPerHour: number;
   };
@@ -239,6 +242,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       aiDecisionsPerMinute: e.RATE_LIMIT_AI_DECISIONS_PER_MINUTE,
       curriculumAiPerHour: e.RATE_LIMIT_CURRICULUM_AI_PER_HOUR,
       exerciseAiPerHour: e.RATE_LIMIT_EXERCISE_AI_PER_HOUR,
+      workAiPerHour: e.RATE_LIMIT_WORK_AI_PER_HOUR,
       aiAgentPerHour: e.AI_AGENT_EXECUTIONS_PER_HOUR,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,

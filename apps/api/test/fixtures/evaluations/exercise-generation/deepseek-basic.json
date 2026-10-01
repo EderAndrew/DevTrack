@@ -3,7 +3,7 @@
   "model": "deepseek/deepseek-v4.1-flash",
   "servedModel": "deepseek/deepseek-v4.1-flash",
   "goldenSetVersion": 1,
-  "evaluatedAt": "2026-09-29T14:10:34.554Z",
+  "evaluatedAt": "2026-10-01T13:20:40.424Z",
   "metrics": {
     "schemaValidity": 0.1667,
     "configMatch": 0.1667,
@@ -12,20 +12,20 @@
     "injectionClean": 1
   },
   "cost": {
-    "total": "0.007305",
+    "total": "0.021665",
     "currency": "USD",
-    "perExecution": "0.001217"
+    "perExecution": "0.003610"
   },
   "latency": {
     "perCaseMs": {
-      "html-css-flexbox": 21749,
-      "injecao-topico": 1424,
-      "java-heranca": 1217,
-      "pegadinhas-java-strings": 11007,
-      "python-listas": 1933,
-      "sql-joins-sem-linguagem": 4546
+      "html-css-flexbox": 8508,
+      "injecao-topico": 11204,
+      "java-heranca": 32305,
+      "pegadinhas-java-strings": 24532,
+      "python-listas": 7290,
+      "sql-joins-sem-linguagem": 8594
     },
-    "maxMs": 21749,
+    "maxMs": 32305,
     "withinTwoMinutes": 1
   }
 }

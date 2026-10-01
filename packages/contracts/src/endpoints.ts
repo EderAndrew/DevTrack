@@ -113,6 +113,22 @@ import {
 import { ProgrammingLanguageListSchema } from "./exercises/programming-languages.js";
 import { ExerciseBatchRequestSchema } from "./exercises/distribution.js";
 import {
+  CreateWorkRequestSchema,
+  UpdateWorkRequestSchema,
+  WorkListQuerySchema,
+  WorkPageSchema,
+  WorkStudentViewSchema,
+  WorkTeacherViewSchema,
+  WorkVersionRequestSchema,
+} from "./works/works.js";
+import {
+  WorkGenerationAvailabilitySchema,
+  WorkGenerationRequestListQuerySchema,
+  WorkGenerationRequestPageSchema,
+  WorkGenerationRequestSchema,
+  WorkGenerationRequestViewSchema,
+} from "./works/work-generation.js";
+import {
   ApproveBatchExercisesRequestSchema,
   ExerciseBatchDetailSchema,
   ExerciseBatchListQuerySchema,
@@ -874,6 +890,93 @@ export const endpoints = {
     params: IdParamsSchema,
     body: ApproveBatchExercisesRequestSchema,
     response: ExerciseSetSchema,
+    status: 200,
+  },
+
+  // 011 — the teacher's work bank.
+  /** A manual work of 1–10 questions, all or nothing; origin MANUAL, no AI (US1). */
+  "works.create": { method: "POST", path: "/works", body: CreateWorkRequestSchema, response: WorkTeacherViewSchema, status: 201 },
+  /** The active catalog entries, by name; the same shape as the 010 route (research W18). */
+  "works.programmingLanguages": {
+    method: "GET",
+    path: "/works/programming-languages",
+    response: ProgrammingLanguageListSchema,
+    status: 200,
+  },
+  /** The teacher's bank: filters, title search, keyset pages; ARCHIVED only when asked (US7, research W19). */
+  "works.list": { method: "GET", path: "/works", query: WorkListQuerySchema, response: WorkPageSchema, status: 200 },
+  "works.get": { method: "GET", path: "/works/:id", params: IdParamsSchema, response: WorkTeacherViewSchema, status: 200 },
+  /** "Ver como aluno": the same builder 012 serves to students (research W14). */
+  "works.studentPreview": {
+    method: "GET",
+    path: "/works/:id/student-preview",
+    params: IdParamsSchema,
+    response: WorkStudentViewSchema,
+    status: 200,
+  },
+  /** The whole work again with its version; values recalculated; ARCHIVED → 409 (US5, research W16). */
+  "works.update": {
+    method: "PUT",
+    path: "/works/:id",
+    params: IdParamsSchema,
+    body: UpdateWorkRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT → APPROVED by a person; already APPROVED → 200 with no event (US5). */
+  "works.approve": {
+    method: "POST",
+    path: "/works/:id/approve",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** DRAFT or APPROVED → ARCHIVED; already ARCHIVED → 200 with no event (US7). */
+  "works.archive": {
+    method: "POST",
+    path: "/works/:id/archive",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  /** ARCHIVED → the status it had before; anything else → 409 (US7). */
+  "works.restore": {
+    method: "POST",
+    path: "/works/:id/restore",
+    params: IdParamsSchema,
+    body: WorkVersionRequestSchema,
+    response: WorkTeacherViewSchema,
+    status: 200,
+  },
+  // 011 — "Criar trabalho com IA": generation requests.
+  "workGenerationRequests.availability": {
+    method: "GET",
+    path: "/work-generation/availability",
+    response: WorkGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new request; 200 when the same key and body return the existing one. */
+  "workGenerationRequests.request": {
+    method: "POST",
+    path: "/work-generation-requests",
+    body: WorkGenerationRequestSchema,
+    response: WorkGenerationRequestViewSchema,
+    status: 202,
+  },
+  "workGenerationRequests.list": {
+    method: "GET",
+    path: "/work-generation-requests",
+    query: WorkGenerationRequestListQuerySchema,
+    response: WorkGenerationRequestPageSchema,
+    status: 200,
+  },
+  "workGenerationRequests.get": {
+    method: "GET",
+    path: "/work-generation-requests/:id",
+    params: IdParamsSchema,
+    response: WorkGenerationRequestViewSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

@@ -56,8 +56,20 @@ leva resposta, gabarito, solução ou explicação. A ementa passou a declarar s
 programação, escolhida num catálogo de linguagens, e o "Preencher com IA" a propõe a partir do
 documento. O gerador passou pela etapa de liberação: o conjunto de referência da geração rodou
 contra os modelos reais, e o modelo básico aprovado atende a tarefa; o agente começa desabilitado
-até o administrador habilitá-lo em "Operação de IA". Atividades e avaliações vêm nas próximas
-fases.
+até o administrador habilitá-lo em "Operação de IA". A **fase 011 — banco de trabalhos** trouxe
+um banco privado de trabalhos, separado do banco de exercícios: cada trabalho tem de 1 a 10
+questões (Pergunta e resposta, Múltipla escolha e Código com casos de teste públicos e privados),
+ligadas a tópicos de uma revisão confirmada da ementa, e uma nota total dividida entre as questões
+em centésimos exatos (0,50 em 3 questões vale 0,17 · 0,17 · 0,16). O professor cria o trabalho à
+mão ou pede à IA um trabalho sobre um ou mais tópicos, com título, nota, dificuldade, quantidade,
+tipos e pegadinhas; a IA entrega um rascunho, uma resposta que não segue o pedido é recusada
+inteira, e nada gerado é aprovado sem o professor. "Ver como aluno" mostra o trabalho como o
+servidor o entregará ao aluno, sem gabarito, rubrica, solução, casos de teste privados nem
+explicação. As estratégias de correção de cada tipo (comparação exata, casos de teste num
+executor isolado e nota sugerida pela IA que o professor decide) ficaram prontas como regras do
+domínio para a fase de aplicação. O gerador de trabalhos passou pela etapa de liberação com o
+modelo básico aprovado e também começa desabilitado. A aplicação de trabalhos e avaliações às
+turmas vem nas próximas fases.
 
 ## Pré-requisitos
 
@@ -83,6 +95,7 @@ fases.
 | `specs/008-ai-gateway-openrouter/` | O mesmo para a fase 008 (gateway de IA com OpenRouter; decisões G1–G20) |
 | `specs/009-ai-model-policy/` | O mesmo para a fase 009 (política de modelos de IA; decisões H1–H16) |
 | `specs/010-exercise-bank/` | O mesmo para a fase 010 (banco de exercícios; decisões X1–X20) |
+| `specs/011-work-bank/` | O mesmo para a fase 011 (banco de trabalhos; decisões W1–W22) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -133,6 +146,8 @@ OPENROUTER_API_KEY=... EVAL_MODEL=anthropic-basic EVAL_RECORD=1 pnpm --filter ap
                                                 # em test/fixtures/evaluations/; EVAL_REPLAY=1 regrava recorded.json
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:exercises
                                                 # etapa de liberação do gerador de exercícios (010), com o mesmo formato
+OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:works
+                                                # etapa de liberação do gerador de trabalhos (011), com o mesmo formato
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit

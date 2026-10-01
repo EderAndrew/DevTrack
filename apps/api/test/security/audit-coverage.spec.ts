@@ -7,7 +7,7 @@ import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types"
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createExerciseAiApp } from "../helpers/exercise-ai";
+import { createWorkAiApp } from "../helpers/work-ai";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -17,6 +17,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/006-ai-foundation/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/010-exercise-bank/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/011-work-bank/contracts/audit-events.md"),
 ];
 
 /**
@@ -24,6 +25,10 @@ const CONTRACTS = [
  * story that emits it.
  */
 const PENDING_010 = new Set<string>([]);
+
+/** 011 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_011 = new Set<string>([]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011]);
 
 interface ContractRow {
   type: string;
@@ -72,11 +77,11 @@ function retiredTypes(file: string): string[] {
 
 describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => {
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
-  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING_010.has(row.type));
+  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
-    expect([...PENDING_010].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
-    expect([...PENDING_010].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
+  it("010 e 011 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+    expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
+    expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });
 
   it("003/FR-048 os tipos aposentados saem do catálogo", () => {
@@ -99,7 +104,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createExerciseAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      t = await createWorkAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
       await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });
@@ -122,6 +127,28 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
         if (event.actorType === "OPERATOR") expect(event.requestId).toBeNull();
         for (const key of Object.keys(event.metadata as object)) expect(row.metadata).toContain(key);
       }
+    });
+
+    it("011 work.* e work_generation.*: os 7 tipos gravados, metadata só com ids, contagens, enums e códigos", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^work(_generation)?\./.test(type));
+      expect(types.sort()).toEqual(
+        ["work.approved", "work.archived", "work.created", "work.edited", "work.restored", "work_generation.generated", "work_generation.requested"],
+      );
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      // Enum values, error/warning codes, field names and catalog keys: one word, no spaces.
+      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+      const offending: string[] = [];
+      const visit = (type: string, path: string, value: unknown) => {
+        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
+        if (typeof value === "string" && (uuid.test(value) || code.test(value))) return;
+        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
+        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
+        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
+      };
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(7);
+      for (const event of found) visit(event.type, "metadata", event.metadata);
+      expect(offending).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

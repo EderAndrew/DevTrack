@@ -1,0 +1,55 @@
+{
+  "task": "work-generation",
+  "model": "anthropic/claude-haiku-4.5",
+  "servedModel": "anthropic/claude-haiku-4.5",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-01T13:18:11.362Z",
+  "metrics": {
+    "schemaValidity": 0.6,
+    "configMatch": 0.6,
+    "duplicates": 0,
+    "topicCoverage": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.079678",
+    "currency": "USD",
+    "perExecution": "0.015935"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 38774,
+      "poo-java-tres-topicos": 28254,
+      "python-listas-so-codigo": 8923,
+      "sete-topicos-tres-questoes": 13163,
+      "sql-joins-sem-linguagem": 12653
+    },
+    "maxMs": 38774,
+    "withinTwoMinutes": 1
+  },
+  "trickQuestions": [
+    {
+      "case": "sql-joins-sem-linguagem",
+      "statement": "Qual das seguintes afirmações sobre subconsultas é FALSA?",
+      "alternatives": [
+        {
+          "text": "Subconsultas podem retornar múltiplas linhas quando usadas com IN ou em uma cláusula FROM",
+          "isCorrect": true
+        },
+        {
+          "text": "Uma subconsulta pode conter JOINs e outras subconsultas aninhadas",
+          "isCorrect": false
+        },
+        {
+          "text": "Subconsultas não podem retornar múltiplas linhas em nenhuma situação",
+          "isCorrect": false
+        },
+        {
+          "text": "Subconsultas podem ser usadas em cláusulas SELECT, WHERE e FROM",
+          "isCorrect": false
+        }
+      ],
+      "explanation": "A afirmação falsa é que subconsultas não podem retornar múltiplas linhas. Na verdade, subconsultas podem retornar múltiplas linhas e colunas dependendo do contexto (por exemplo, em uma cláusula WHERE com IN ou em um FROM). Esta é uma pegadinha comum porque iniciantes frequentemente assumem que subconsultas devem retornar um único valor, quando na verdade podem ser bem mais flexíveis. As outras afirmações são verdadeiras: subconsultas podem ser aninhadas, podem ser usadas em SELECT, WHERE, FROM, e podem conter JOINs internamente."
+    }
+  ]
+}

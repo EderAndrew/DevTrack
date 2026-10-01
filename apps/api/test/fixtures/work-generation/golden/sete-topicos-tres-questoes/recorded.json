@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Um sistema de agendamento deve permitir que a recepcionista registre uma consulta e impeça a reserva de um horário já ocupado. A equipe também recebeu a exigência de que a confirmação do agendamento seja exibida em até dois segundos. Identifique os requisitos funcionais e não funcionais e descreva um caso de uso que cubra o registro da consulta, incluindo ao menos um fluxo alternativo para horário ocupado.",
+            "explanation": "Registrar uma consulta e impedir a reserva de um horário ocupado descrevem comportamentos do sistema, portanto são requisitos funcionais. Exibir a confirmação em até dois segundos estabelece uma condição de desempenho, portanto é um requisito não funcional. O caso de uso deve descrever a interação entre a recepcionista e o sistema, o fluxo principal de registro e uma alternativa para o caso de o horário já estar ocupado.",
+            "topicRefs": [
+              "T1",
+              "T2",
+              "T3"
+            ],
+            "difficulty": "ADVANCED",
+            "expectedAnswer": "Requisitos funcionais: permitir que a recepcionista registre uma consulta e rejeitar uma reserva para horário já ocupado. Requisito não funcional: exibir a confirmação do agendamento em até dois segundos. Caso de uso — Registrar consulta: ator principal: recepcionista; fluxo principal: a recepcionista informa os dados da consulta e escolhe um horário; o sistema verifica a disponibilidade; estando disponível, registra a consulta e exibe a confirmação dentro do limite especificado. Fluxo alternativo: se o horário estiver ocupado, o sistema não registra a consulta e informa que o horário não está disponível, permitindo à recepcionista selecionar outro horário.",
+            "rubric": "Atribuir crédito se a resposta classificar corretamente os dois comportamentos como requisitos funcionais, o limite de tempo como requisito não funcional e apresentar um caso de uso com ator, fluxo principal e alternativa para horário ocupado."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere a história de usuário: “Como cliente, quero acompanhar o processamento do meu pedido para saber quando ele será enviado.” Proponha uma verificação unitária para uma regra isolada de atualização do status e uma verificação de integração entre os componentes que disponibilizam esse status ao cliente. Explique por que as duas verificações não são equivalentes.",
+            "explanation": "A história de usuário expressa uma necessidade do cliente. Uma verificação unitária deve isolar uma regra ou componente, enquanto uma verificação de integração avalia a colaboração entre componentes. Uma pode passar sem que a outra passe: o comportamento isolado pode estar correto, mas a comunicação entre componentes pode falhar, ou vice-versa.",
+            "topicRefs": [
+              "T4",
+              "T5",
+              "T6"
+            ],
+            "difficulty": "ADVANCED",
+            "expectedAnswer": "Uma história de usuário adequada é a fornecida, pois identifica o cliente, sua necessidade e o benefício esperado. Verificação unitária: testar isoladamente a regra que, ao receber um evento válido de envio, altera o status do pedido para “enviado”, verificando o resultado sem depender dos demais componentes. Verificação de integração: verificar que o componente que atualiza o pedido persiste o novo status e que o componente ou serviço consultado pelo cliente consegue recuperá-lo corretamente por meio da integração entre eles. Não são equivalentes porque a verificação unitária não comprova a comunicação e a compatibilidade entre componentes; a de integração exercita essas interações, mas não substitui a checagem isolada da regra.",
+            "rubric": "Atribuir crédito se a resposta relacionar a história à necessidade do cliente, distinguir uma verificação isolada de uma verificação entre componentes e explicar que os resultados de uma não garantem os da outra."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Durante uma revisão de código, um revisor observa que uma alteração inclui testes unitários aprovados, mas também modifica a forma como dois componentes trocam dados. Qual conclusão é mais bem fundamentada?",
+            "explanation": "Testes unitários aprovados oferecem evidência sobre o comportamento das unidades exercitadas, mas não demonstram por si só que a interação entre componentes modificados está correta. A revisão de código pode avaliar a alteração e apontar aspectos que mereçam atenção, mas não substitui a execução de testes de integração quando a interação entre componentes precisa ser verificada.",
+            "topicRefs": [
+              "T5",
+              "T6",
+              "T7"
+            ],
+            "difficulty": "ADVANCED",
+            "alternatives": [
+              {
+                "text": "Os testes unitários aprovados demonstram que a troca de dados entre os componentes está correta; a revisão pode ser encerrada sem outras verificações.",
+                "isCorrect": false
+              },
+              {
+                "text": "A alteração deve ser revisada, e testes de integração são pertinentes para verificar a interação modificada; os testes unitários aprovados não comprovam essa interação por si só.",
+                "isCorrect": true
+              },
+              {
+                "text": "A revisão de código substitui os testes unitários e de integração, pois avalia diretamente a alteração realizada.",
+                "isCorrect": false
+              },
+              {
+                "text": "Testes de integração verificam apenas cada unidade de forma isolada, enquanto testes unitários verificam a comunicação entre componentes.",
+                "isCorrect": false
+              }
+            ],
+            "isTrickQuestion": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -53,6 +53,12 @@ export const PERMISSIONS = [
   "questoes.editar",
   "questoes.aprovar",
   "ia.exercicios.gerar",
+  "trabalhos.visualizar",
+  "trabalhos.criar",
+  "trabalhos.editar",
+  "trabalhos.arquivar",
+  "trabalhos.aprovar",
+  "ia.trabalhos.gerar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

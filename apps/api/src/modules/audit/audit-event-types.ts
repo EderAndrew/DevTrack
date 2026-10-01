@@ -1,5 +1,5 @@
 /**
- * Audit catalogue of contracts/audit-events.md (specs 001, 003, 004, 006 and 007): event type → metadata keys
+ * Audit catalogue of contracts/audit-events.md (specs 001, 003, 004, 006, 007, 010 and 011): event type → metadata keys
  * allowed. Anything outside this list is a programming error (FR-071: no secrets in the trail).
  * `via` of `role.granted`/`account.claimed` is a `GrantSource`: INVITATION, ADMIN_BOOTSTRAP or,
  * since 003, CLASS_INVITATION.
@@ -150,6 +150,28 @@ export const AUDIT_EVENT_METADATA = {
     "regeneratedFromId",
   ],
   "exercise_batch.generated": ["executionId", "exercises"],
+  // 011 — the work bank. Only ids, counts, enums and codes: never titles, descriptions,
+  // statements, answers, rubrics, solutions, test cases, alternative texts or syllabus text.
+  "work.created": ["subjectId", "status", "questionCount", "types", "topicCount", "difficulty"],
+  "work.edited": ["origin", "status", "fields", "questionCountChanged", "questionsAdded", "questionsRemoved", "reordered"],
+  "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
+  "work.archived": ["from"],
+  "work.restored": ["to"],
+  "work_generation.requested": [
+    "executionId",
+    "subjectId",
+    "topicCount",
+    "difficulty",
+    "total",
+    "openAnswer",
+    "multipleChoice",
+    "code",
+    "trickQuestions",
+    "languageKey",
+    "distribution",
+    "regeneratedFromId",
+  ],
+  "work_generation.generated": ["executionId", "workId", "questionCount"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -192,4 +214,6 @@ export type AuditTargetType =
   | "AI_MODEL_CONFIG"
   | "AI_TASK"
   | "EXERCISE"
-  | "EXERCISE_BATCH";
+  | "EXERCISE_BATCH"
+  | "WORK"
+  | "WORK_GENERATION_REQUEST";
