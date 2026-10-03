@@ -1,5 +1,6 @@
 "use client";
 
+import type { SubmitAttemptRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isOffline, type StudentActivityListFilters, studentActivitiesApi } from "../api/student-activities";
 
@@ -34,6 +35,23 @@ export function useStartAttempt(activityId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => studentActivitiesApi.start(activityId),
+    onSuccess: (activity) => {
+      queryClient.setQueryData(studentActivitiesKeys.detail(activityId), activity);
+      void queryClient.invalidateQueries({ queryKey: studentActivitiesKeys.all, refetchType: "none" });
+    },
+  });
+}
+
+/** Repeats after a dropped connection: the same idempotent call returns the same submission (FR-025). */
+const SUBMIT_RETRIES = 3;
+
+/** "Entregar atividade": the answer is the activity with its submission, read-only from now on. */
+export function useSubmitAttempt(activityId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SubmitAttemptRequest) => studentActivitiesApi.submit(activityId, body),
+    retry: (failures, error) => isOffline(error) && failures < SUBMIT_RETRIES,
+    retryDelay: 1_000,
     onSuccess: (activity) => {
       queryClient.setQueryData(studentActivitiesKeys.detail(activityId), activity);
       void queryClient.invalidateQueries({ queryKey: studentActivitiesKeys.all, refetchType: "none" });

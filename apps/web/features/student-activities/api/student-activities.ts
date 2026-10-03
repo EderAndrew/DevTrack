@@ -6,6 +6,7 @@ import type {
   StudentActivityFilter,
   StudentActivityPage,
   StudentDashboard,
+  SubmitAttemptRequest,
 } from "@repo/contracts";
 import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
 
@@ -31,6 +32,9 @@ export const studentActivitiesApi = {
   /** SAVED / UNCHANGED / CONFLICT per answer (research P8). */
   saveAnswers: (activityId: string, body: SaveAnswersRequest) =>
     apiClient.put<SaveAnswersResult>(`/me/activities/${activityId}/attempt/answers`, body),
+  /** The single submission with the pending answers; a repeat returns the same one (FR-025). */
+  submit: (activityId: string, body: SubmitAttemptRequest) =>
+    apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempt/submit`, body),
 };
 
 export type { ApiError };

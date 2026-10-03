@@ -429,7 +429,7 @@ do envio: uma entrega, todas as respostas, situação ENTREGUE.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T040 [P] [US4] `apps/api/test/integration/012-us4-submit.spec.ts`: entregar dentro do
+- [X] T040 [P] [US4] `apps/api/test/integration/012-us4-submit.spec.ts`: entregar dentro do
   prazo → respostas pendentes gravadas, entrega com `submitted_at` do relógio, `late = false`,
   `blank_count` (em branco pela spec FR-023: sem resposta, MC sem alternativa, texto só com
   espaços, código vazio ou igual ao código inicial), ENTREGUE, `activity_submission.created`, o professor vê a entrega no detalhe da
@@ -441,18 +441,19 @@ do envio: uma entrega, todas as respostas, situação ENTREGUE.
   `409 ACTIVITY_CLOSED`; matrícula removida → 404; MC corrigida (certa = valor, errada e em
   branco = 0), aberta e código pendentes com o motivo, nota parcial; nenhuma nota na resposta ao
   aluno (`012/US4-1`…`012/US4-6`, `012/FR-023`…`012/FR-028`).
-- [ ] T041 [P] [US4] `apps/api/test/security/012-concurrency.spec.ts`: 10 inícios simultâneos →
+- [X] T041 [P] [US4] `apps/api/test/security/012-concurrency.spec.ts`: 10 inícios simultâneos →
   uma tentativa; 10 entregas simultâneas → uma entrega e um evento; salvamento concorrente com a
   entrega → a entrega fica consistente e o salvamento recusado ou anterior; encerrar × entregar
   serializados; duas abas salvando a mesma questão → uma SAVED e uma CONFLICT; entrega de uma
   aba com revisão antiga depois de a outra salvar → `ANSWER_CHANGED_ELSEWHERE`; duas aceitações do
-  professor simultâneas → uma entrega (`012/SC-006`, `012/FR-025`).
-- [ ] T042 [P] [US4] Linha do `MATRIX` e de `route-declarations.spec.ts` para `POST
+  professor simultâneas → uma entrega (`012/SC-006`, `012/FR-025`) — este último caso entra com a rota
+  de aceitação (T048a).
+- [X] T042 [P] [US4] Linha do `MATRIX` e de `route-declarations.spec.ts` para `POST
   …/attempt/submit`.
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] `attempts.service.ts`: `submit` numa transação (atividade `FOR SHARE`, tentativa
+- [X] T043 [US4] `attempts.service.ts`: `submit` numa transação (atividade `FOR SHARE`, tentativa
   `FOR UPDATE`, repetição devolve a entrega existente, operação por `status/operations.ts`,
   respostas do corpo pela regra de revisão da research P8 — conteúdo igual UNCHANGED, revisão
   antiga com outro conteúdo aborta tudo com `409 ANSWER_CHANGED_ELSEWHERE` —, tentativa
@@ -461,7 +462,7 @@ do envio: uma entrega, todas as respostas, situação ENTREGUE.
   limite `activitySubmitsPerHour`; auditoria `activity_submission.created` (tipo + contrato +
   jornada); rota em `attempts.controller.ts` e `endpoints.ts`; auxiliar `submitAttempt` em
   `apps/api/test/helpers/activities.ts`.
-- [ ] T044 [US4] Web: em `activity-answering.tsx`, "Entregar atividade" no `AssessmentFooter` com
+- [X] T044 [US4] Web: em `activity-answering.tsx`, "Entregar atividade" no `AssessmentFooter` com
   `AlertDialog` ("Tem certeza de que deseja entregar esta atividade? Depois de entregue, não
   será possível alterar as respostas." + "N questões em branco"), botão desabilitado durante o
   envio, repetição automática após queda (mesma chamada idempotente), em

@@ -73,6 +73,7 @@ import {
   StudentActivityPageSchema,
   StudentActivitySchema,
   StudentDashboardSchema,
+  SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
@@ -1105,6 +1106,15 @@ export const endpoints = {
     params: MyActivityParamsSchema,
     body: SaveAnswersRequestSchema,
     response: SaveAnswersResultSchema,
+    status: 200,
+  },
+  /** The single submission with the pending answers; already submitted → 200 with the same one (FR-025). */
+  "myActivities.submit": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/submit",
+    params: MyActivityParamsSchema,
+    body: SubmitAttemptRequestSchema,
+    response: StudentActivitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

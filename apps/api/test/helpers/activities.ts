@@ -75,6 +75,11 @@ export function saveAnswers(client: ApiClient, activityId: string, answers: { qu
   return client.put(`/api/me/activities/${activityId}/attempt/answers`, { answers });
 }
 
+/** `POST /me/activities/:activityId/attempt/submit` with the pending answers (012/US4, research P9). */
+export function submitAttempt(client: ApiClient, activityId: string, answers: { questionId: string; answer: Answer; baseRevision: number }[] = []) {
+  return client.post(`/api/me/activities/${activityId}/attempt/submit`, { answers });
+}
+
 export interface ClassWithStudents {
   schoolClass: SchoolClass;
   students: TestUser[];

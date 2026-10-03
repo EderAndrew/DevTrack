@@ -32,7 +32,6 @@ const PENDING_011 = new Set<string>([]);
 
 /** 012 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_012 = new Set<string>([
-  "activity_submission.created",
   "activity_submission.graded",
   "activity_submission.accepted_by_teacher",
   "activity_result.released",

@@ -729,17 +729,25 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const startedActivity = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
   expect(startedActivity.status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {})).status).toBe(200);
-  const firstQuestion = startedActivity.body.questions[0] as { id: string; type: string; alternatives: { id: string }[] };
-  const journeyAnswer =
-    firstQuestion.type === "MULTIPLE_CHOICE"
-      ? { kind: "ALTERNATIVE", alternativeId: firstQuestion.alternatives[0]!.id }
-      : firstQuestion.type === "CODE"
-        ? { kind: "CODE", source: text("código do aluno (012)", "class RespostaDaJornadaDoze {}") }
-        : { kind: "TEXT", text: text("resposta do aluno (012)", "Resposta do aluno da jornada doze") };
-  const savedAnswer = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, {
-    answers: [{ questionId: firstQuestion.id, answer: journeyAnswer, baseRevision: 0 }],
-  });
+  // Every question answered; both texts are registered whatever types the two exercises have.
+  const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
+  const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");
+  const journeyAnswers = (startedActivity.body.questions as { id: string; type: string; alternatives: { id: string }[] }[]).map((question) => ({
+    questionId: question.id,
+    baseRevision: 0,
+    answer:
+      question.type === "MULTIPLE_CHOICE"
+        ? { kind: "ALTERNATIVE", alternativeId: question.alternatives[0]!.id }
+        : question.type === "CODE"
+          ? { kind: "CODE", source: studentCode }
+          : { kind: "TEXT", text: studentText },
+  }));
+  const savedAnswer = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, { answers: journeyAnswers });
   expect(savedAnswer.body.results[0].outcome).toBe("SAVED");
+  // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
+  const submitPath = `/api/me/activities/${openExercises.body.id}/attempt/submit`;
+  expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");
+  expect((await classStudentClient.post(submitPath, { answers: [] })).status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("ACTIVITY_CLOSED");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);

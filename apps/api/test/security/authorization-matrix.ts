@@ -281,6 +281,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me/activities/:activityId", access: "atividades.proprias.visualizar" },
   { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
   { method: "PUT", path: "/me/activities/:activityId/attempt/answers", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/attempt/submit", access: "atividades.proprias.responder" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

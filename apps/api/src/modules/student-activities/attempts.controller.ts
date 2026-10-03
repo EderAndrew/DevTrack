@@ -5,6 +5,8 @@ import {
   SaveAnswersRequestSchema,
   type SaveAnswersResult,
   type StudentActivity,
+  type SubmitAttemptRequest,
+  SubmitAttemptRequestSchema,
   UuidSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -14,7 +16,7 @@ import { AttemptsService } from "./attempts.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
 
-/** The student's attempt (012 contracts/http-api.md, "Student routes"): start and save; identity from the session only. */
+/** The student's attempt (012 contracts/http-api.md, "Student routes"): start, save and submit; identity from the session only. */
 @Controller("me/activities/:activityId/attempt")
 export class AttemptsController {
   constructor(private readonly attempts: AttemptsService) {}
@@ -38,5 +40,16 @@ export class AttemptsController {
     @Ctx() ctx: RequestContext,
   ): Promise<SaveAnswersResult> {
     return this.attempts.saveAnswers(ctx.auth!.userId, activityId, body, ctx.requestId);
+  }
+
+  @Post("submit")
+  @HttpCode(200)
+  @RequirePermissions("atividades.proprias.responder")
+  submit(
+    @Param("activityId", idPipe) activityId: string,
+    @ZodBody(SubmitAttemptRequestSchema) body: SubmitAttemptRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<StudentActivity> {
+    return this.attempts.submit(ctx.auth!.userId, activityId, body, ctx.requestId);
   }
 }

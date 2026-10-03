@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
-import { readPendingAnswers } from "../store/pending-answers";
-import { ActivityAnswering, CONFLICT_ALERT, DEADLINE_WARNINGS, OFFLINE_ALERT } from "./activity-answering";
+import { readPendingAnswers, writePendingAnswers } from "../store/pending-answers";
+import { ActivityAnswering, CHANGED_ELSEWHERE, CONFLICT_ALERT, DEADLINE_WARNINGS, OFFLINE_ALERT, SUBMIT_CONFIRMATION } from "./activity-answering";
 import { apiError, json, routedFetch, studentActivity } from "./test-fixtures";
 
 // 012/US3 — the answering screen: start, answer each type, navigate, autosave status, offline and
@@ -20,6 +20,15 @@ const [open, multiple, code] = activity.questions as [
 const GET = `GET /api/me/activities/${activity.id}`;
 const START = `POST /api/me/activities/${activity.id}/attempt`;
 const SAVE = `PUT /api/me/activities/${activity.id}/attempt/answers`;
+const SUBMIT = `POST /api/me/activities/${activity.id}/attempt/submit`;
+const submitted = (overrides = {}) =>
+  started({
+    status: "SUBMITTED",
+    canAnswer: false,
+    submittedAt: "2026-10-02T12:30:00.000Z",
+    submission: { submittedAt: "2026-10-02T12:30:00.000Z", late: false, acceptedByTeacher: false, blankCount: 2 },
+    ...overrides,
+  });
 const started = (overrides = {}) =>
   studentActivity({
     status: "IN_PROGRESS",
@@ -211,5 +220,116 @@ describe("012/US3 tela de responder a atividade", () => {
     });
     expect(await screen.findByText("<img src=x onerror=alert(1)>", { selector: '[data-slot="question-statement"]' })).toBeTruthy();
     expect(document.querySelector("img")).toBeNull();
+  });
+
+  describe("012/US4 entregar a atividade", () => {
+    it("012/US4-4 012/FR-023 confirmação com o texto oficial e as questões em branco; Voltar às questões não entrega", async () => {
+      const { user, api, container } = setup({ [GET]: json(200, started()) });
+      await user.click(await screen.findByRole("button", { name: "Entregar atividade" }));
+      const dialog = await screen.findByRole("alertdialog");
+      expect(within(dialog).getByText(SUBMIT_CONFIRMATION)).toBeTruthy();
+      expect(within(dialog).getByText("3 questões em branco.")).toBeTruthy();
+      await expectNoA11yViolations(container.ownerDocument.body);
+      await user.click(within(dialog).getByRole("button", { name: "Voltar às questões" }));
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(api.calls.filter((call) => call.method === "POST")).toHaveLength(0);
+    });
+
+    it("012/US4-1 012/FR-026 entrega com as respostas pendentes: confirmação com data e hora, somente leitura, cópia local apagada", async () => {
+      const { user, api } = setup({ [GET]: json(200, started()), [SUBMIT]: json(200, submitted()) });
+      await user.type(await screen.findByLabelText("Sua resposta"), "na entrega");
+      await user.click(screen.getByRole("button", { name: "Entregar atividade" }));
+      expect(within(await screen.findByRole("alertdialog")).getByText("2 questões em branco.")).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Entregar" }));
+
+      expect(await screen.findByText(/Atividade entregue em sexta-feira, 2 de outubro/)).toBeTruthy();
+      const post = (api.calls as { method: string; url: string }[]).filter((call) => call.method === "POST");
+      expect(post).toHaveLength(1);
+      const fetchMock = globalThis.fetch as unknown as { mock: { calls: [string, RequestInit][] } };
+      const body = JSON.parse(String(fetchMock.mock.calls.find(([url, init]) => url.endsWith("/submit") && init.method === "POST")![1].body));
+      expect(body).toEqual({ answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "na entrega" }, baseRevision: 0 }] });
+      expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+      expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(true);
+      expect(readPendingAnswers("aluno-1", activity.id)).toEqual([]);
+    });
+
+    it("botão desabilitado durante o envio: dois cliques, uma entrega", async () => {
+      let resolve: (response: Response) => void = () => undefined;
+      const { user, api } = setup({ [GET]: json(200, started()), [SUBMIT]: () => new Promise<Response>((done) => (resolve = done)) });
+      await user.click(await screen.findByRole("button", { name: "Entregar atividade" }));
+      await user.click(screen.getByRole("button", { name: "Entregar" }));
+      const button = screen.getByRole("button", { name: "Entregar atividade" }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      await act(async () => resolve(json(200, submitted())));
+      expect(await screen.findByText(/Atividade entregue em/)).toBeTruthy();
+      expect(api.calls.filter((call) => call.method === "POST")).toHaveLength(1);
+    });
+
+    it("012/US4-2 queda depois do envio: repete a mesma chamada sozinho e mostra a mesma entrega", async () => {
+      let calls = 0;
+      const api = routedFetch({ [GET]: json(200, started()), [SUBMIT]: json(200, submitted()) });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string, init?: RequestInit) => {
+          if (String(input).endsWith("/submit") && ++calls === 1) throw new TypeError("Failed to fetch");
+          return api.fetch(input, init);
+        }),
+      );
+      renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Entregar atividade" }));
+      await user.click(screen.getByRole("button", { name: "Entregar" }));
+      expect(await screen.findByText(/Atividade entregue em/, {}, { timeout: 3_000 })).toBeTruthy();
+      expect(calls).toBe(2);
+    });
+
+    it("012/US4-5 recusa (prazo encerrado) mostra o motivo e mantém as respostas", async () => {
+      const { user } = setup({ [GET]: json(200, started()), [SUBMIT]: apiError(409, "DEADLINE_PASSED", "x") });
+      await user.type(await screen.findByLabelText("Sua resposta"), "fica");
+      await user.click(screen.getByRole("button", { name: "Entregar atividade" }));
+      await user.click(screen.getByRole("button", { name: "Entregar" }));
+      expect(await screen.findByText(/O prazo desta atividade terminou/)).toBeTruthy();
+      expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).value).toBe("fica");
+      expect(screen.getByRole("button", { name: "Entregar atividade" })).toBeTruthy();
+    });
+
+    it("ANSWER_CHANGED_ELSEWHERE recarrega as respostas do servidor e pede revisão", async () => {
+      writePendingAnswers("aluno-1", activity.id, []);
+      let gets = 0;
+      const { user } = setup({
+        [GET]: () =>
+          json(
+            200,
+            ++gets === 1
+              ? started()
+              : started({
+                  attempt: {
+                    startedAt: "2026-10-02T11:00:00.000Z",
+                    lastSavedAt: "2026-10-02T12:01:00.000Z",
+                    answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "da outra aba" }, revision: 2 }],
+                  },
+                }),
+          ),
+        [SAVE]: saved(open.id),
+        [SUBMIT]: apiError(409, "ANSWER_CHANGED_ELSEWHERE", "x"),
+      });
+      await user.type(await screen.findByLabelText("Sua resposta"), "desta aba");
+      await user.click(screen.getByRole("button", { name: "Entregar atividade" }));
+      await user.click(screen.getByRole("button", { name: "Entregar" }));
+      expect(await screen.findByText(CHANGED_ELSEWHERE)).toBeTruthy();
+      await vi.waitFor(() => expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).value).toBe("da outra aba"));
+      expect(readPendingAnswers("aluno-1", activity.id)).toEqual([]);
+      expect(screen.getByRole("button", { name: "Entregar atividade" })).toBeTruthy();
+    });
+
+    it("012/SC-009 entregue com atraso: confirmação com a marca e nenhuma ação de edição", async () => {
+      const { container } = setup({
+        [GET]: json(200, submitted({ late: true, submission: { submittedAt: "2026-10-02T12:30:00.000Z", late: true, acceptedByTeacher: false, blankCount: 0 } })),
+      });
+      expect(await screen.findByText(/Entrega com atraso\./)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+      expect(screen.queryByText("Resposta salva")).toBeNull();
+      await expectNoA11yViolations(container);
+    });
   });
 });

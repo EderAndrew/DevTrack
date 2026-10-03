@@ -34,6 +34,8 @@ export interface AttemptAnswers {
   dismissConflict: () => void;
   /** Answers on screen not confirmed by the server yet. */
   pendingCount: number;
+  /** For the submission: stops the scheduled save and returns the unsent answers with their revisions. */
+  takePending: () => PendingAnswer[];
 }
 
 interface State {
@@ -173,6 +175,11 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
       render();
     }, [render]),
     pendingCount: view.pendingCount,
+    takePending: useCallback(() => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      return pendingOf(state.current);
+    }, []),
   };
 }
 

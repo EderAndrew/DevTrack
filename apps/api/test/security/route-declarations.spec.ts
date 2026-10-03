@@ -178,6 +178,7 @@ describe("route access declarations", () => {
         "GET /me/activities/:activityId",
         "POST /me/activities/:activityId/attempt",
         "PUT /me/activities/:activityId/attempt/answers",
+        "POST /me/activities/:activityId/attempt/submit",
       ]),
     );
   });

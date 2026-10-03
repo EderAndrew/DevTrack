@@ -4,6 +4,16 @@ import type { StudentActivity, StudentQuestion } from "@repo/contracts";
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CodeAnswer, EssayAnswer, MultipleChoiceAnswer } from "@/components/ui/assessment/answers";
 import { AssessmentFooter } from "@/components/ui/assessment/assessment-footer";
 import { QuestionHeader, QuestionStatement } from "@/components/ui/assessment/question";
@@ -12,10 +22,10 @@ import { SaveStatus } from "@/components/ui/assessment/save-status";
 import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
-import { messageForError } from "@/lib/messages/error-messages";
+import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
-import { useStartAttempt, useStudentActivity } from "../hooks/use-student-activities";
+import { useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   emptyAnswer,
@@ -28,11 +38,16 @@ import {
   statusLabel,
   valueLabel,
 } from "../schemas/student-activity";
+import { clearPendingAnswers } from "../store/pending-answers";
 import { Loading, LoadFailed } from "./load-states";
 
 export const OFFLINE_ALERT =
   "Você está sem conexão. Suas respostas ficam guardadas neste navegador e serão enviadas quando a conexão voltar.";
 export const CONFLICT_ALERT = "Esta resposta foi alterada em outra aba. Carregamos a versão mais recente.";
+/** The catalog's text for `ANSWER_CHANGED_ELSEWHERE`, kept after the screen reloads. */
+export const CHANGED_ELSEWHERE = ERROR_MESSAGES.ANSWER_CHANGED_ELSEWHERE;
+export const SUBMIT_CONFIRMATION =
+  "Tem certeza de que deseja entregar esta atividade? Depois de entregue, não será possível alterar as respostas.";
 export const DEADLINE_WARNINGS = {
   10: "Faltam 10 minutos para o prazo desta atividade.",
   1: "Falta 1 minuto para o prazo desta atividade.",
@@ -62,10 +77,20 @@ export function ActivityAnswering({ activityId, userId }: { activityId: string; 
       </>
     );
   }
-  return <ActivityView activity={query.data} userId={userId} />;
+  return <ActivityView activity={query.data} userId={userId} reload={() => query.refetch()} />;
 }
 
-function ActivityView({ activity, userId }: { activity: StudentActivity; userId: string }) {
+function ActivityView({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
+  // Another tab changed an answer the submission carried (research P9): the server's answers come
+  // back on a fresh answering screen and the student reviews them before submitting again.
+  const [generation, setGeneration] = useState(0);
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const onChangedElsewhere = async () => {
+    clearPendingAnswers(userId, activity.id);
+    await reload();
+    setChangedElsewhere(true);
+    setGeneration((current) => current + 1);
+  };
   return (
     <>
       <PageHeader
@@ -75,8 +100,13 @@ function ActivityView({ activity, userId }: { activity: StudentActivity; userId:
       />
       <div className="flex flex-col gap-8">
         <ActivityDetails activity={activity} />
+        {changedElsewhere && activity.submission === null ? (
+          <Alert variant="warning">
+            <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
+          </Alert>
+        ) : null}
         {activity.attempt ? (
-          <AttemptAnswering activity={activity} userId={userId} />
+          <AttemptAnswering key={`${generation}:${revisionsKey(activity)}`} activity={activity} userId={userId} onChangedElsewhere={() => void onChangedElsewhere()} />
         ) : (
           <StartAttempt activity={activity} />
         )}
@@ -84,6 +114,10 @@ function ActivityView({ activity, userId }: { activity: StudentActivity; userId:
     </>
   );
 }
+
+/** The server's answers and revisions: new ones (after a reload) start a fresh answering screen. */
+const revisionsKey = (activity: StudentActivity) =>
+  (activity.attempt?.answers ?? []).map((answer) => `${answer.questionId}:${answer.revision}`).sort().join(",");
 
 function ActivityDetails({ activity }: { activity: StudentActivity }) {
   return (
@@ -142,7 +176,15 @@ function StartAttempt({ activity }: { activity: StudentActivity }) {
 /** A refusal by a rule (409/422/404): its reason replaces the "tentaremos de novo" of a transient failure. */
 const isRefusal = (status: number) => status >= 400 && status < 500 && status !== 429;
 
-function AttemptAnswering({ activity, userId }: { activity: StudentActivity; userId: string }) {
+function AttemptAnswering({
+  activity,
+  userId,
+  onChangedElsewhere,
+}: {
+  activity: StudentActivity;
+  userId: string;
+  onChangedElsewhere: () => void;
+}) {
   const editable = activity.canAnswer && activity.submission === null;
   const answers = useAttemptAnswers({
     userId,
@@ -158,6 +200,23 @@ function AttemptAnswering({ activity, userId }: { activity: StudentActivity; use
   const question = questions[index]!;
   const answeredCount = questions.filter((item) => isAnswered(item, answers.answerOf(item.id))).length;
   const refused = answers.error !== null && isRefusal(answers.error.status);
+  const submit = useSubmitAttempt(activity.id);
+  const [confirming, setConfirming] = useState(false);
+  const blankCount = questions.length - answeredCount;
+  const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
+
+  const send = () => {
+    setConfirming(false);
+    submit.mutate(
+      { answers: answers.takePending() },
+      {
+        onSuccess: () => clearPendingAnswers(userId, activity.id),
+        onError: (error) => {
+          if (apiErrorCode(error) === "ANSWER_CHANGED_ELSEWHERE") onChangedElsewhere();
+        },
+      },
+    );
+  };
 
   useEffect(() => {
     // The focus follows a question change made by the student, never the first render.
@@ -178,6 +237,21 @@ function AttemptAnswering({ activity, userId }: { activity: StudentActivity; use
         </h2>
         {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
       </div>
+      {activity.submission ? (
+        <Alert variant="success">
+          <AlertTitle>
+            Atividade entregue em {formatLongDateTime(activity.submission.submittedAt)}.
+            {activity.submission.late ? " Entrega com atraso." : ""}
+          </AlertTitle>
+          <AlertDescription>Suas respostas ficam somente para leitura.</AlertDescription>
+        </Alert>
+      ) : null}
+      {submitRefused ? (
+        <Alert variant="danger">
+          <AlertTitle>{messageForError(submit.error)}</AlertTitle>
+          <AlertDescription>Suas respostas continuam salvas.</AlertDescription>
+        </Alert>
+      ) : null}
       {warning ? (
         <Alert variant="warning">
           <AlertTitle>{DEADLINE_WARNINGS[warning]}</AlertTitle>
@@ -234,7 +308,38 @@ function AttemptAnswering({ activity, userId }: { activity: StudentActivity; use
         hasNext={index < questions.length - 1}
         onPrevious={() => goTo(index - 1)}
         onNext={() => goTo(index + 1)}
+        submit={
+          editable ? (
+            <Button
+              type="button"
+              variant={index === questions.length - 1 ? "primary" : "outline"}
+              loading={submit.isPending}
+              onClick={() => setConfirming(true)}
+            >
+              Entregar atividade
+            </Button>
+          ) : undefined
+        }
       />
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Entregar atividade?</AlertDialogTitle>
+            <AlertDialogDescription>{SUBMIT_CONFIRMATION}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="m-0 text-body">
+            {blankCount === 0
+              ? "Todas as questões estão respondidas."
+              : blankCount === 1
+                ? "1 questão em branco."
+                : `${blankCount} questões em branco.`}
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar às questões</AlertDialogCancel>
+            <AlertDialogAction onClick={send}>Entregar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
