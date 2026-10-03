@@ -124,3 +124,33 @@ describe("012/FR-036 nada é executado nem calculado em ponto flutuante (constit
     expect(FLOAT.some((pattern) => pattern.test("const grade = gradeToCents(value);"))).toBe(false);
   });
 });
+
+describe("012/SC-012 012/FR-036 nada de prova nem de modo controlado nesta feature", () => {
+  const WEB_SOURCES = ACTIVITIES_WEB.flatMap(sources).filter((file) => !/\.test\.tsx?$|test-fixtures\.ts$/.test(file));
+  /** Exam-mode monitoring that belongs to the exams spec (research P19): timer, fullscreen, focus, clipboard. */
+  const MONITORING = [/ExamTimer|FocusViolation|ReviewFlag/, /requestFullscreen|fullscreenchange|exitFullscreen/, /["']blur["']|onBlurCapture|hasFocus\s*\(/, /navigator\.clipboard|["'](copy|paste|cut)["']|\bon(Copy|Paste|Cut)\b/];
+
+  it("nenhuma rota do catálogo nem texto das telas de atividades fala de prova ou de modo controlado", () => {
+    const catalog = readFileSync(join(REPO_ROOT, "packages/contracts/src/endpoints.ts"), "utf8");
+    const paths = [...catalog.matchAll(/path:\s*"([^"]+)"/g)].map((match) => match[1]!);
+    expect(paths.filter((path) => /exam|prova|controlled/i.test(path))).toEqual([]);
+    const strings = WEB_SOURCES.flatMap((file) =>
+      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas|modo controlado|Modo controlado)\b[^"'`<>{}]*)["'`<]/g)].map(
+        (match) => `${file}: ${match[1]!.trim()}`,
+      ),
+    );
+    expect(strings).toEqual([]);
+    expect(offendingLines(ACTIVITIES_API.flatMap(sources), [/["'](EXAM|CONTROLLED)["']/])).toEqual([]);
+  });
+
+  it("nenhum cronômetro de prova, tela cheia, monitoramento de foco ou de área de transferência no portal do aluno", () => {
+    expect(offendingLines(WEB_SOURCES, MONITORING)).toEqual([]);
+  });
+
+  it("controle: os padrões pegam o que devem", () => {
+    expect(MONITORING.some((pattern) => pattern.test("document.documentElement.requestFullscreen();"))).toBe(true);
+    expect(MONITORING.some((pattern) => pattern.test('window.addEventListener("blur", onBlur);'))).toBe(true);
+    expect(MONITORING.some((pattern) => pattern.test("<textarea onPaste={block} />"))).toBe(true);
+    expect(MONITORING.some((pattern) => pattern.test('document.addEventListener("visibilitychange", flush);'))).toBe(false);
+  });
+});

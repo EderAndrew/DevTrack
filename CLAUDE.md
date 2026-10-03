@@ -2,18 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-02 (011 implemented; 012 in progress)
+Last updated: 2026-10-03 (012 implemented)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–011 in `specs/` are implemented; 012-student-portal
-is the active feature (T001–T044 done: schema, contracts, pure status/snapshot/grading/view rules,
-US1 the teacher applies, edits, closes and cancels an activity, US2 the student's dashboard and
-"Minhas atividades", US3 the student starts, answers and saves with autosave, revisions and the
-offline buffer, US4 the single idempotent submission graded by the 011 rules; the teacher's
-grading and release come next). Later work starts a new feature through
-`/speckit-specify`.
+test names are in Portuguese). Features 001–012 in `specs/` are implemented. Later work starts a
+new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -35,6 +30,13 @@ grading and release come next). Later work starts a new feature through
   topics of one confirmed syllabus revision, the total grade split in exact hundredths, manual or
   "Criar trabalho com IA" through `work-generator` into a DRAFT the teacher approves, "Ver como
   aluno" without the answer key, and the grading strategies as domain rules for 012.
+- 012 the student portal and class activities: the teacher applies an approved work or 1–10
+  approved exercises to a class as a snapshot (deadline, scheduled publication, late policy,
+  taught-scope topics flagged), edits, closes, cancels, grades the pending questions and releases
+  the result, and accepts a saved attempt as a late submission; the student gets "Painel",
+  "Minhas atividades" and "Histórico", answers with autosave, revisions and an offline buffer,
+  submits once, and sees the grade and feedback only after the release with complete grading.
+  Exams, controlled mode, AI grading and code execution are later features.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
 the admin enables them. All three tasks are BASIC. `openai-basic` passed all three release gates and,
@@ -143,7 +145,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010 and 011; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011 and 012; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -158,7 +160,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/activities-boundary.spec.ts` (012) lets `activities`/`student-activities` (API
   and web) reach the banks only through their snapshot readers and the pure `works/grading` and
   `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
-  grades, and students are answered only through the student-view allowlist.
+  grades, and students are answered only through the student-view allowlist; it also keeps exams,
+  controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
+- `apps/web/test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML
+  render as text, and no `dangerouslySetInnerHTML` in the 012 features or `components/ui/assessment`.
 - E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
   replaying its generator's `sql-joins-sem-linguagem` case)
   run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
@@ -236,7 +241,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -266,6 +271,11 @@ the removal conditions are in `DEPENDENCIES.md`.
 - Schema changes only via Prisma migrations. Subjects/languages/technologies are data, never enums
   or conditionals in code.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
+- Students never see a grade or feedback before the release with complete grading (and
+  `notas.proprias.visualizar`), and never an answer key: every student shape is built in
+  `activities/views/student-view.ts` by copying an allowlist, never by stripping the teacher view.
+  Deadlines, publication phases and statuses come from the injected server `Clock`, never the
+  browser's; statuses are derived on every read, never stored.
 - UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
   radii, shadows or fonts, and no recreated controls. An exception needs a
   `ds-exception: <reason>` marker on (or just above) the line and a row in
@@ -273,7 +283,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
-- 012-student-portal (planned): class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
+- 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
 - 011-work-bank: private work bank apart from the exercise bank — works of 1–10 questions (open answer, multiple choice, code with test cases) linked to items of one confirmed syllabus revision, total grade split in exact hundredths (`numeric(5,2)`, integer cents in code), manual or AI (`work-generator` through the existing gateway and policy) into DRAFT works approved by the teacher; server-built student view without answer key; grading strategies (EXACT_MATCH, TEST_CASES, AI_REVIEW) as domain rules for 012
 - 010-exercise-bank: private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 

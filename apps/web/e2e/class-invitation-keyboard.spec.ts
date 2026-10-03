@@ -45,6 +45,7 @@ test("002/US5-2 003/US3-2 aceite do convite de turma, saída e login só com o t
   await typeInto(page, page.locator("#senha"), account.password);
   await page.keyboard.press("Enter");
 
-  await expect(page).toHaveURL("/conta/perfil");
-  await expect(page.getByRole("heading", { level: 1, name: "Meu perfil" })).toBeVisible();
+  // A student's start page is the "Painel" since 012 (research P23).
+  await expect(page).toHaveURL("/painel");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

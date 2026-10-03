@@ -138,7 +138,7 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
     expect([item.status, item.result]).toEqual(["SUBMITTED", null]);
   });
 
-  it("012/US6-2 012/FR-030 liberada e completa: CORRIGIDO com nota total, por questão e feedback; activity_result.viewed uma vez só", async () => {
+  it("012/US6-2 012/US6-4 012/FR-030 liberada e completa: CORRIGIDO com nota total, por questão e feedback, sem gabarito; activity_result.viewed uma vez só", async () => {
     const created = await activityOf();
     const attemptId = await submitted(created);
     await gradeOpen(created, attemptId);
@@ -170,7 +170,7 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
       metadata: { activityId: created.activity.id },
     });
 
-    // 012/US6-4 — after the release the answer key is still absent.
+    // After the release the answer key is still absent.
     for (const body of await studentResponses(created.activity.id)) {
       const serialized = JSON.stringify(body);
       expect(serialized).not.toMatch(MARKERS);

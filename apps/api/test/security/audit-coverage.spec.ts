@@ -134,26 +134,57 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       }
     });
 
+    /**
+     * Metadata values that are not ids, integers, booleans, one-word codes (enum values, error
+     * codes, field names, catalog keys) or, when `routes`, route patterns such as
+     * `/me/activities/:activityId`: never free text.
+     */
+    const offendingMetadata = (found: AuditEvent[], routes = false) => {
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+      const route = /^(\/:?[a-z][A-Za-z-]*)+$/;
+      const offending: string[] = [];
+      const visit = (type: string, path: string, value: unknown) => {
+        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
+        if (typeof value === "string" && (uuid.test(value) || code.test(value) || (routes && route.test(value)))) return;
+        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
+        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
+        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
+      };
+      for (const event of found) visit(event.type, "metadata", event.metadata);
+      return offending;
+    };
+
     it("011 work.* e work_generation.*: os 7 tipos gravados, metadata só com ids, contagens, enums e códigos", () => {
       const types = rows.map((row) => row.type).filter((type) => /^work(_generation)?\./.test(type));
       expect(types.sort()).toEqual(
         ["work.approved", "work.archived", "work.created", "work.edited", "work.restored", "work_generation.generated", "work_generation.requested"],
       );
-      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-      // Enum values, error/warning codes, field names and catalog keys: one word, no spaces.
-      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
-      const offending: string[] = [];
-      const visit = (type: string, path: string, value: unknown) => {
-        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
-        if (typeof value === "string" && (uuid.test(value) || code.test(value))) return;
-        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
-        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
-        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
-      };
       const found = events.filter((event) => types.includes(event.type));
       expect(new Set(found.map((event) => event.type)).size).toBe(7);
-      for (const event of found) visit(event.type, "metadata", event.metadata);
-      expect(offending).toEqual([]);
+      expect(offendingMetadata(found)).toEqual([]);
+    });
+
+    it("012/SC-011 os 13 tipos da 012 gravados, metadata só com ids, contagens, enums, booleanos e códigos", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^(activity|activity_attempt|activity_submission|activity_result|student_access)\./.test(type));
+      expect(types.sort()).toEqual([
+        "activity.cancelled",
+        "activity.closed",
+        "activity.published",
+        "activity.updated",
+        "activity_attempt.progress_saved",
+        "activity_attempt.started",
+        "activity_result.released",
+        "activity_result.viewed",
+        "activity_submission.accepted_by_teacher",
+        "activity_submission.created",
+        "activity_submission.graded",
+        "activity_submission.rejected",
+        "student_access.denied",
+      ]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(13);
+      expect(offendingMetadata(found, true)).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

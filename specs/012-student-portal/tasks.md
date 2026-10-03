@@ -568,73 +568,73 @@ na liberada e não está em nenhuma resposta da API antes disso.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T053 [P] `apps/api/test/security/012-isolation.spec.ts` (contracts/permissions.md):
+- [X] T053 [P] `apps/api/test/security/012-isolation.spec.ts` (contracts/permissions.md):
   professores A e B, alunos A1, A2 e B1; toda rota do professor com a sessão de A nos ids de B →
   404; toda rota do aluno com A1 nos recursos de A2, de B1, de atividade agendada e cancelada →
   404 com `student_access.denied`; STUDENT nas rotas do professor, TEACHER nas do aluno, ADMIN e
   MANAGER em todas → 403 (`012/SC-002`, `012/FR-008`, `012/FR-009`).
-- [ ] T054 [P] `apps/api/test/security/012-student-view.spec.ts`: atividades dos dois tipos com
+- [X] T054 [P] `apps/api/test/security/012-student-view.spec.ts`: atividades dos dois tipos com
   os marcadores em todos os campos do gabarito; varre o corpo de toda resposta do aluno em todas
   as situações (pendente, em andamento, entregue, corrigida não liberada, liberada) — nada dos
   marcadores, de `isCorrect`, `gradingStrategy`, motivos de pendência nem casos privados; nota e
   feedback ausentes antes da liberação (`012/SC-003`, `012/SC-004`).
-- [ ] T055 [P] `apps/api/test/security/012-boundaries.spec.ts`: corpos com campos desconhecidos
+- [X] T055 [P] `apps/api/test/security/012-boundaries.spec.ts`: corpos com campos desconhecidos
   ou do servidor (`studentUserId`, `status`, `submittedAt`, `late`, `grade`, `value`,
   `isCorrect`) → 400 em toda rota; limites de tamanho de resposta e feedback; 0/1/10/11
   respostas por salvamento (`012/FR-020`).
-- [ ] T056 [P] `apps/api/test/security/012-rate-limits.spec.ts`: salvamentos, entregas e escritas
+- [X] T056 [P] `apps/api/test/security/012-rate-limits.spec.ts`: salvamentos, entregas e escritas
   do professor acima do limite → `429 RATE_LIMITED` sem gravar nada.
-- [ ] T057 [P] `apps/api/test/security/012-performance.spec.ts`: aluno em 10 turmas × 50
+- [X] T057 [P] `apps/api/test/security/012-performance.spec.ts`: aluno em 10 turmas × 50
   atividades com tentativas e entregas — painel e lista < 1 s; detalhe de atividade com 60 alunos
   < 1 s (inserção em lote); salvamento de 10 respostas com p95 < 300 ms em 100 chamadas
   (plan, Performance Goals).
-- [ ] T058 [P] `apps/api/test/security/012-xss.spec.ts` e teste web: resposta, título e feedback
+- [X] T058 [P] `apps/api/test/security/012-xss.spec.ts` e teste web: resposta, título e feedback
   com `<script>` e HTML chegam como texto nas telas do aluno e do professor; nenhum
   `dangerouslySetInnerHTML` em `features/{activities,student-activities}` e
   `components/ui/assessment` (scan) (`012/FR-035`).
-- [ ] T059 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada aplica as duas
+- [X] T059 [P] `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a jornada aplica as duas
   fontes, inicia, salva, entrega, corrige, libera e lê o resultado; nenhuma resposta, enunciado,
   gabarito ou feedback nos logs nem na auditoria.
-- [ ] T060 [P] `apps/api/test/security/audit-coverage.spec.ts`: os 13 tipos da 012 cobertos,
+- [X] T060 [P] `apps/api/test/security/audit-coverage.spec.ts`: os 13 tipos da 012 cobertos,
   metadados só com ids, contagens, enums, booleanos e códigos (`012/SC-011`).
-- [ ] T061 [P] E2E `apps/web/e2e/student-portal.spec.ts`: professor aplica um trabalho misto;
+- [X] T061 [P] E2E `apps/web/e2e/student-portal.spec.ts`: professor aplica um trabalho misto;
   aluno entra e cai no painel, inicia, responde, recarrega e encontra as respostas, sai e volta,
   entrega com confirmação; professor corrige e libera; aluno vê a nota no histórico e nenhum
   gabarito; a sequência iniciar → responder → entregar de 5 questões só com teclado
   (`012/SC-009`); offline simulado (`context.setOffline`) mantém e depois envia a resposta
   (`012/SC-005`).
-- [ ] T062 [P] Teste web de responsividade e acessibilidade das páginas do aluno em largura de
+- [X] T062 [P] Teste web de responsividade e acessibilidade das páginas do aluno em largura de
   celular (painel, atividade, histórico): nada sai da tela, navegação por Tab (`012/FR-034`).
-- [ ] T063 [P] SC-012: teste em `apps/api/test/activities-boundary.spec.ts` e
+- [X] T063 [P] SC-012: teste em `apps/api/test/activities-boundary.spec.ts` e
   `packages/contracts/test/activities.spec.ts` de que nenhum contrato, rota, enum nem texto do web
   aceita ou mostra Prova ou modo controlado; e nenhum código de cronômetro, fullscreen, foco ou
   clipboard em `features/student-activities` (`012/FR-036`).
-- [ ] T064 [P] Conferir por `git diff main -- apps/api/src/modules/exercises
+- [X] T064 [P] Conferir por `git diff main -- apps/api/src/modules/exercises
   apps/api/src/modules/exercise-ai apps/api/src/modules/work-ai packages/contracts/src/exercises
   apps/web/features/exercises apps/web/features/works` que nada mudou, e em `modules/works` só
   `grading/` (T005); as suítes `010-*` e `011-*` passam sem alteração.
-- [ ] T065 [P] `apps/api/CLAUDE.md`: módulos `activities`/`student-activities`, fábricas
+- [X] T065 [P] `apps/api/CLAUDE.md`: módulos `activities`/`student-activities`, fábricas
   (`test/helpers/activities.ts`, `FixedClock`), protocolo de salvamento, regras de entrega e
   correção, suítes `012-*` e a guarda `activities-boundary`.
-- [ ] T066 [P] `CLAUDE.md` da raiz: estado (012 implementada), arquitetura (`activities` no
+- [X] T066 [P] `CLAUDE.md` da raiz: estado (012 implementada), arquitetura (`activities` no
   contracts, componentes de avaliação), guardas novas, regras fáceis de errar (nota só liberada,
   visão do aluno por lista permitida, relógio do servidor).
-- [ ] T067 [P] `README.md`: fase 012, Portal do Aluno, ciclo professor → aluno.
-- [ ] T068 [P] `apps/web/design-system/exam-mode.md` e `components.md`: o que a 012 construiu e o
+- [X] T067 [P] `README.md`: fase 012, Portal do Aluno, ciclo professor → aluno.
+- [X] T068 [P] `apps/web/design-system/exam-mode.md` e `components.md`: o que a 012 construiu e o
   que fica para a feature de provas; `exceptions.md` se houver exceção (idealmente nenhuma).
-- [ ] T069 Rodar o `quickstart.md` à mão (incluindo o teste sem conexão) e corrigir divergências.
-- [ ] T070 Revisar `specs/012-student-portal/spec.md` × implementação (Assumptions e decisões de
+- [X] T069 Rodar o `quickstart.md` à mão (incluindo o teste sem conexão) e corrigir divergências.
+- [X] T070 Revisar `specs/012-student-portal/spec.md` × implementação (Assumptions e decisões de
   implementação registradas no research).
-- [ ] T071 [P] Apoio do E2E em `apps/web/e2e/support/student-portal-seed.ts`: cria pela API do
+- [X] T071 [P] Apoio do E2E em `apps/web/e2e/support/student-portal-seed.ts`: cria pela API do
   E2E (:4100) professor, disciplina, ementa confirmada, turma, trabalho aprovado e aluno pelo
   convite lido no Mailpit, para a T061 (sem depender de dados de outros specs E2E).
-- [ ] T072 [P] `apps/api/test/contracts/endpoint-catalog.spec.ts` verde com as 17 rotas e o
+- [X] T072 [P] `apps/api/test/contracts/endpoint-catalog.spec.ts` verde com as 17 rotas e o
   `ContractConformanceInterceptor` sem 500 em nenhuma suíte 012.
-- [ ] T073 [P] Conferir `domain-boundary`, `authorization-matrix`, `route-declarations` e
+- [X] T073 [P] Conferir `domain-boundary`, `authorization-matrix`, `route-declarations` e
   `us7-matrix-completeness` sem permissões órfãs nem rotas sem linha.
-- [ ] T074 Acrescentar a 012 ao `SPECS` de `apps/api/test/traceability.spec.ts` (6 histórias,
+- [X] T074 Acrescentar a 012 ao `SPECS` de `apps/api/test/traceability.spec.ts` (6 histórias,
   cenários do spec, `rows: 0`, `successCriteria` SC-001–SC-012) e cobrir ids faltantes.
-- [ ] T075 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T075 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
 
 ---

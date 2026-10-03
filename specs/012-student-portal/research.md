@@ -337,3 +337,30 @@ Its model list gains the 012 tables. `traceability.spec.ts` adds 012 to `SPECS`;
 and `modules/exercise-ai`; code execution (`child_process`, `vm`, `eval`, `new Function`,
 `worker_threads`); float arithmetic (`parseFloat`, `Number(`, `.toNumber()`); and any student
 response built outside `views/student-view.ts`.
+
+## Implementation notes (T070, 2026-10-03)
+
+Decisions taken while implementing, within the spec and this research:
+
+- **Acceptance of an attempt with nothing saved** (FR-006b, P9): the route always names an existing
+  attempt, so "sem tentativa → 409 `NOT_STARTED`" applies to an attempt with no saved answer
+  (FR-006b accepts "respostas salvas"). The web offers "Aceitar como entrega" only to a student
+  whose roster status is MISSED and whose attempt has saved answers.
+- **Release and the edit version** (P14): releasing sets `result_released_at`/`_by` but not the
+  activity's `version`, so an edit form open in another tab does not conflict with it.
+- **Grading no-op** (P13): a `PUT …/grades` whose decisions and general feedback equal what is
+  stored writes nothing (no new `version`, no event). Feedback omitted keeps the stored one; an
+  empty one clears it. In the web an empty grade field keeps the question as it is (a decision is
+  never undone).
+- **First view of a result** (P19): set by a conditional `UPDATE … WHERE result_viewed_at IS NULL
+  RETURNING id`, so concurrent reads audit once; only `GET /me/activities/:id` (and the start or
+  submit that answers the same view) counts, never the list or the dashboard.
+- **Result questions** come in the snapshot's position order.
+- **Responsiveness** (FR-034, T062) is checked in Playwright at 360 px (no horizontal scroll on
+  "Painel", the activity, the answering screen and "Histórico", the menu reachable by Tab): jsdom
+  has no layout.
+- **Spec review**: the Assumptions hold as implemented (one attempt and one submission, no answer
+  key to the student after the release, no AI and no Code Runner, no file upload, deadline by the
+  server clock shown in the browser's time zone, "urgente" within 48 h and at most 5 "próximas",
+  `/painel` as the student's start page, taught scope flagged and confirmed, rate limits of P20,
+  no e-mail). The banks 010/011 are unchanged apart from the planned `works/grading` change (T005).

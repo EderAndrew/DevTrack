@@ -37,7 +37,7 @@ export async function invite(page: Page, path: string, invitee: Pick<Account, "n
   await page.goto(path);
   await field(page, "Nome").fill(invitee.name);
   await field(page, "E-mail").fill(invitee.email);
-  await page.getByRole("button", { name: "Enviar convite" }).click();
+  await page.getByRole("button", { name: "Enviar convite", exact: true }).click();
   await expect(page.getByRole("cell").filter({ hasText: invitee.email }).first()).toBeVisible();
 }
 
