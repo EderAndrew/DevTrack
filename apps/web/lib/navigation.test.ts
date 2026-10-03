@@ -13,5 +13,6 @@ describe("012/US2-5 012/SC-010 página inicial pela permissão (só UX; a API au
     expect(areaFor("/painel")).toBe("Painel");
     expect(areaFor("/minhas-atividades")).toBe("Minhas atividades");
     expect(areaFor("/minhas-atividades/abc")).toBe("Minhas atividades");
+    expect(areaFor("/historico")).toBe("Histórico");
   });
 });

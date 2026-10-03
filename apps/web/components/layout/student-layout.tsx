@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { cn } from "@/lib/utils";
-import { DASHBOARD_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
+import { DASHBOARD_PATH, HISTORY_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
 
 const CONTENT = "mx-auto w-full max-w-240 flex-1 px-(--gutter) py-6";
 
@@ -20,7 +20,7 @@ export interface StudentLayoutProps {
 /**
  * Frame of the student screens (005 contracts/layouts.md "StudentLayout"): a top bar with the
  * brand, the student menu and "Sair", and the content at reading width. No side menu and no
- * teacher or administration item: Painel, Minhas atividades (012), Minhas turmas and Meu perfil,
+ * teacher or administration item: Painel, Minhas atividades, Histórico (012), Minhas turmas and Meu perfil,
  * each behind the permission its page needs (UX only; the API authorizes).
  */
 export function StudentLayout({ me, preview = false, children }: StudentLayoutProps) {
@@ -32,6 +32,7 @@ export function StudentLayout({ me, preview = false, children }: StudentLayoutPr
       ? [
           { href: DASHBOARD_PATH, label: "Painel" },
           { href: MY_ACTIVITIES_PATH, label: "Minhas atividades" },
+          { href: HISTORY_PATH, label: "Histórico" },
         ]
       : []),
     ...(can("turmas.proprias.listar") ? [{ href: MY_CLASSES_PATH, label: "Minhas turmas" }] : []),

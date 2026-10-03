@@ -39,6 +39,7 @@ import {
   valueLabel,
 } from "../schemas/student-activity";
 import { clearPendingAnswers } from "../store/pending-answers";
+import { ActivityResult } from "./activity-result";
 import { Loading, LoadFailed } from "./load-states";
 
 export const OFFLINE_ALERT =
@@ -237,6 +238,7 @@ function AttemptAnswering({
         </h2>
         {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
       </div>
+      <ActivityResult activity={activity} />
       {activity.submission ? (
         <Alert variant="success">
           <AlertTitle>

@@ -37,7 +37,7 @@ const byDeadline = (a: StudentActivitySummary, b: StudentActivitySummary) =>
  * The student's dashboard, list and activity (012 US2, research P16–P18). Everything comes from
  * `StudentActivityLoader` (the session user's ACTIVE enrollments only) and leaves through the
  * student-view builders; statuses are derived with the server clock on every read. The result block
- * needs `notas.proprias.visualizar` as well as the release.
+ * needs `notas.proprias.visualizar` as well as the release; its first read is audited once (US6).
  */
 @Injectable()
 export class MyActivitiesService {
@@ -88,7 +88,11 @@ export class MyActivitiesService {
   async get(userId: string, activityId: string, requestId: string | null): Promise<StudentActivity> {
     const now = this.clock.now();
     const input = await this.loader.loadOne(userId, activityId, now, await this.canSeeResults(userId));
-    if (input) return toStudentActivity(input);
+    if (input) {
+      const view = toStudentActivity(input);
+      if (view.result) await this.recordFirstView(userId, activityId, now, requestId);
+      return view;
+    }
     const reason = await this.loader.deniedReason(userId, activityId, now);
     if (reason) {
       // Its own write: there is no domain change to commit with (contracts/audit-events.md).
@@ -103,6 +107,30 @@ export class MyActivitiesService {
       });
     }
     throw notFound();
+  }
+
+  /**
+   * The first read of a visible result (research P19): `result_viewed_at` is set by a conditional
+   * UPDATE, so concurrent reads write `activity_result.viewed` once, in the same transaction.
+   */
+  private async recordFirstView(userId: string, activityId: string, now: Date, requestId: string | null): Promise<void> {
+    await this.prisma.runInTransaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE activity_submissions SET result_viewed_at = ${now}
+        WHERE activity_id = ${activityId}::uuid AND student_user_id = ${userId}::uuid AND result_viewed_at IS NULL
+        RETURNING id`;
+      const submission = rows[0];
+      if (!submission) return;
+      await this.audit.record(tx, {
+        type: "activity_result.viewed",
+        actorType: "USER",
+        actorUserId: userId,
+        targetType: "ACTIVITY_SUBMISSION",
+        targetId: submission.id,
+        requestId,
+        metadata: { activityId },
+      });
+    });
   }
 
   private async summaries(userId: string, now: Date): Promise<StudentActivitySummary[]> {

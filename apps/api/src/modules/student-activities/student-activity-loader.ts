@@ -39,7 +39,7 @@ const ATTEMPT_SELECT = {
       grade: true,
       gradePartial: true,
       generalFeedback: true,
-      gradings: { select: { questionId: true, finalGrade: true, feedback: true } },
+      gradings: { orderBy: { question: { position: "asc" } }, select: { questionId: true, finalGrade: true, feedback: true } },
     },
   },
 } as const satisfies Prisma.ActivityAttemptSelect;

@@ -732,16 +732,18 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // Every question answered; both texts are registered whatever types the two exercises have.
   const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
   const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");
-  const journeyAnswers = (startedActivity.body.questions as { id: string; type: string; alternatives: { id: string }[] }[]).map((question) => ({
-    questionId: question.id,
-    baseRevision: 0,
-    answer:
-      question.type === "MULTIPLE_CHOICE"
-        ? { kind: "ALTERNATIVE", alternativeId: question.alternatives[0]!.id }
-        : question.type === "CODE"
-          ? { kind: "CODE", source: studentCode }
-          : { kind: "TEXT", text: studentText },
-  }));
+  const answersFor = (questions: { id: string; type: string; alternatives: { id: string }[] }[]) =>
+    questions.map((question) => ({
+      questionId: question.id,
+      baseRevision: 0,
+      answer:
+        question.type === "MULTIPLE_CHOICE"
+          ? { kind: "ALTERNATIVE", alternativeId: question.alternatives[0]!.id }
+          : question.type === "CODE"
+            ? { kind: "CODE", source: studentCode }
+            : { kind: "TEXT", text: studentText },
+    }));
+  const journeyAnswers = answersFor(startedActivity.body.questions);
   const savedAnswer = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, { answers: journeyAnswers });
   expect(savedAnswer.body.results[0].outcome).toBe("SAVED");
   // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
@@ -749,6 +751,42 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");
   expect((await classStudentClient.post(submitPath, { answers: [] })).status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("ACTIVITY_CLOSED");
+  // 012/US5 — the teacher opens the submission, grades the pending questions with feedback
+  // (`activity_submission.graded`, grades in hundredths, never the feedback) and releases the result
+  // (`activity_result.released`); a saved attempt of a closed activity is accepted as a late
+  // submission (`activity_submission.accepted_by_teacher`).
+  const exercisesDetail = await teacherClient.get(`${activitiesPath}/${openExercises.body.id}`);
+  const journeyAttemptId = exercisesDetail.body.roster[0].attemptId as string;
+  const attemptPath = `${activitiesPath}/${openExercises.body.id}/attempts/${journeyAttemptId}`;
+  const reviewedAttempt = await teacherClient.get(attemptPath);
+  expect(reviewedAttempt.status).toBe(200);
+  const questionValues = new Map((exercisesDetail.body.questions as { id: string; value: string }[]).map((question) => [question.id, question.value]));
+  const pending = (reviewedAttempt.body.submission.gradings as { questionId: string; status: string }[]).filter((grading) => grading.status === "PENDING_TEACHER");
+  const graded = await teacherClient.put(`${attemptPath}/grades`, {
+    version: reviewedAttempt.body.submission.version,
+    decisions: pending.map((grading) => ({
+      questionId: grading.questionId,
+      grade: questionValues.get(grading.questionId),
+      feedback: text("feedback da questão (012)", "Feedback da questão da jornada doze"),
+    })),
+    generalFeedback: text("feedback geral (012)", "Feedback geral da jornada doze"),
+  });
+  expect(graded.status).toBe(200);
+  expect((await teacherClient.post(`${activitiesPath}/${openExercises.body.id}/release`, {})).status).toBe(200);
+  // 012/US6 — the student reads the released result (`activity_result.viewed`, once).
+  expect((await classStudentClient.get(`/api/me/activities/${openExercises.body.id}`)).body.status).toBe("GRADED");
+  expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(1);
+  const acceptedExercises = await teacherClient.post(activitiesPath, {
+    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
+    totalGrade: "2.00",
+  });
+  const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedExercises.body.id}/attempt`, {});
+  const acceptedAnswers = answersFor(acceptedStart.body.questions);
+  await classStudentClient.put(`/api/me/activities/${acceptedExercises.body.id}/attempt/answers`, { answers: acceptedAnswers });
+  expect((await teacherClient.post(`${activitiesPath}/${acceptedExercises.body.id}/close`, {})).status).toBe(200);
+  const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedExercises.body.id}`)).body.roster[0].attemptId as string;
+  const accepted = await teacherClient.post(`${activitiesPath}/${acceptedExercises.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
+  expect(accepted.body.submission.acceptedByTeacher).toBe(true);
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

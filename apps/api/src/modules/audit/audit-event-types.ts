@@ -198,6 +198,21 @@ export const AUDIT_EVENT_METADATA = {
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
   "student_access.denied": ["route", "reason"],
+  // Grades as integer hundredths, never feedback text.
+  "activity_submission.graded": [
+    "activityId",
+    "decidedCount",
+    "overriddenRuleCount",
+    "gradeCents",
+    "partial",
+    "afterRelease",
+    "generalFeedbackChanged",
+  ],
+  // `reason`: DEADLINE_PASSED | ACTIVITY_CLOSED (spec FR-006b).
+  "activity_submission.accepted_by_teacher": ["activityId", "attemptId", "reason", "blankCount", "questionCount", "pendingTeacherCount"],
+  "activity_result.released": ["classId", "submittedCount", "completeCount"],
+  // The first read of a visible result by the student (research P19).
+  "activity_result.viewed": ["activityId"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

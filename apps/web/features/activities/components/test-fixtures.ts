@@ -1,4 +1,4 @@
-import type { ClassView, ExerciseTeacherView, TeacherActivity, WorkSummary } from "@repo/contracts";
+import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, WorkSummary } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -133,6 +133,85 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
       gradePartial: null,
     },
   ],
+  ...overrides,
+});
+
+export const ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+export const OPEN_QUESTION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
+
+/** A mixed work: the multiple choice of `activity()` (0,50) and an open answer (0,50). */
+export const gradingActivity = (overrides: Partial<TeacherActivity> = {}): TeacherActivity => {
+  const base = activity();
+  const choice = { ...base.questions[0]!, value: "0.50" };
+  return activity({
+    questions: [
+      choice,
+      {
+        ...choice,
+        id: OPEN_QUESTION_ID,
+        position: 1,
+        type: "OPEN_ANSWER",
+        gradingStrategy: "AI_REVIEW",
+        statement: "Explique o encapsulamento.",
+        expectedAnswer: "Esconder o estado atrás de métodos.",
+        rubric: "Cita a interface pública.",
+        explanation: null,
+        alternatives: [],
+      },
+    ],
+    roster: [
+      { ...base.roster[0]!, studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc0", name: "Ana Souza", status: "NOT_STARTED" },
+      {
+        studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
+        name: "Bruno Lima",
+        enrollment: "ACTIVE",
+        status: "SUBMITTED",
+        attemptId: ATTEMPT_ID,
+        submittedAt: "2026-10-05T12:00:00.000Z",
+        grade: "0.50",
+        gradePartial: true,
+      },
+      {
+        studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
+        name: "Carla Dias",
+        enrollment: "ACTIVE",
+        status: "MISSED",
+        attemptId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+        submittedAt: null,
+        grade: null,
+        gradePartial: null,
+      },
+    ],
+    ...overrides,
+  });
+};
+
+/** Bruno's submission: the multiple choice right by the rule, the open answer pending. */
+export const teacherAttempt = (overrides: Partial<TeacherAttempt> = {}): TeacherAttempt => ({
+  id: ATTEMPT_ID,
+  student: { userId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2", name: "Bruno Lima" },
+  status: "SUBMITTED",
+  startedAt: "2026-10-05T11:00:00.000Z",
+  lastSavedAt: "2026-10-05T11:58:00.000Z",
+  answers: [
+    { questionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", answer: { kind: "ALTERNATIVE", alternativeId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1" }, savedAt: "2026-10-05T11:30:00.000Z" },
+    { questionId: OPEN_QUESTION_ID, answer: { kind: "TEXT", text: "Proteger os atributos." }, savedAt: "2026-10-05T11:58:00.000Z" },
+  ],
+  submission: {
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    submittedAt: "2026-10-05T12:00:00.000Z",
+    late: false,
+    acceptedByTeacher: false,
+    blankCount: 0,
+    grade: "0.50",
+    gradePartial: true,
+    generalFeedback: null,
+    version: 1,
+    gradings: [
+      { questionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", status: "GRADED", nature: "RULE_RESULT", finalGrade: "0.50", teacherGrade: null, pendingReason: null, feedback: null },
+      { questionId: OPEN_QUESTION_ID, status: "PENDING_TEACHER", nature: null, finalGrade: null, teacherGrade: null, pendingReason: "AI_REVIEW_UNAVAILABLE", feedback: null },
+    ],
+  },
   ...overrides,
 });
 

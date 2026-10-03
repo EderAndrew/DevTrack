@@ -15,7 +15,7 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound, rateLimited } from "../../platform/http/errors";
+import { AppException, invalidStateTransition, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
@@ -40,6 +40,7 @@ interface LockedActivity {
   version: number;
   publishAt: Date;
   deadline: Date;
+  resultReleasedAt: Date | null;
 }
 
 /**
@@ -263,6 +264,43 @@ export class ActivitiesService {
     return this.transition(auth, classId, activityId, "CANCELLED", requestId);
   }
 
+  /**
+   * Releases the activity's result to the class (FR-006, research P14): the whole activity at once;
+   * each student sees it once their grading is complete. Already released → as it is, no event;
+   * CANCELLED → `409 INVALID_STATE_TRANSITION`. The activity `FOR UPDATE` serializes it with close
+   * and cancel; its edit `version` doesn't change.
+   */
+  async release(auth: AuthContext, classId: string, activityId: string, requestId: string | null): Promise<TeacherActivity> {
+    const teacherId = auth.userId;
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    await this.assertWriteRate(teacherId);
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await lockActivity(tx, classId, activityId);
+      if (current.status === "CANCELLED") throw invalidStateTransition();
+      if (current.resultReleasedAt !== null) return this.get(teacherId, classId, activityId, tx);
+
+      await tx.classActivity.update({
+        where: { id: activityId },
+        data: { resultReleasedAt: this.clock.now(), resultReleasedById: teacherId },
+      });
+      const submissions = await tx.activitySubmission.findMany({ where: { activityId }, select: { gradePartial: true } });
+      await this.audit.record(tx, {
+        type: "activity_result.released",
+        actorType: "USER",
+        actorUserId: teacherId,
+        targetType: "CLASS_ACTIVITY",
+        targetId: activityId,
+        requestId,
+        metadata: {
+          classId,
+          submittedCount: submissions.length,
+          completeCount: submissions.filter((submission) => !submission.gradePartial).length,
+        },
+      });
+      return this.get(teacherId, classId, activityId, tx);
+    });
+  }
+
   private async transition(
     auth: AuthContext,
     classId: string,
@@ -308,7 +346,7 @@ export class ActivitiesService {
     return { view: await this.get(teacherId, classId, existing.id), created: false };
   }
 
-  /** Apply, edit, close and cancel per teacher per hour (research P20). */
+  /** Apply, edit, close, cancel and release per teacher per hour (research P20). */
   private async assertWriteRate(teacherId: string): Promise<void> {
     const limit = await this.rateLimit.hit("activity-teacher-writes", teacherId, {
       limit: this.config.rateLimit.activityTeacherWritesPerHour,
@@ -342,12 +380,12 @@ async function lockClass(tx: Tx, teacherId: string, classId: string): Promise<{ 
   return { status: rows[0]!.status, subjectId: rows[0]!.subject_id };
 }
 
-/** The activity of this class under `FOR UPDATE` (edits, transitions and, later, release serialize). */
+/** The activity of this class under `FOR UPDATE` (edits, transitions and release serialize). */
 async function lockActivity(tx: Tx, classId: string, activityId: string): Promise<LockedActivity> {
-  const rows = await tx.$queryRaw<{ status: ActivityStatus; version: number; publish_at: Date; deadline: Date }[]>`
-    SELECT status::text AS status, version, publish_at, deadline FROM class_activities
+  const rows = await tx.$queryRaw<{ status: ActivityStatus; version: number; publish_at: Date; deadline: Date; result_released_at: Date | null }[]>`
+    SELECT status::text AS status, version, publish_at, deadline, result_released_at FROM class_activities
     WHERE id = ${activityId}::uuid AND class_id = ${classId}::uuid FOR UPDATE`;
   if (rows.length === 0) throw notFound();
   const row = rows[0]!;
-  return { status: row.status, version: row.version, publishAt: row.publish_at, deadline: row.deadline };
+  return { status: row.status, version: row.version, publishAt: row.publish_at, deadline: row.deadline, resultReleasedAt: row.result_released_at };
 }

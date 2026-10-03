@@ -5,15 +5,15 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ActivityDetail, EDIT_FIELD_IDS, VERSION_CONFLICT_NOTICE } from "./activity-detail";
-import { ACTIVITY_ID, activity, apiError, CLASS_ID, json, routedFetch } from "./test-fixtures";
+import { ACTIVITY_ID, ATTEMPT_ID, activity, apiError, CLASS_ID, gradingActivity, json, routedFetch } from "./test-fixtures";
 
 const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 
-function setup(routes: Parameters<typeof routedFetch>[0] = {}, canApply = true) {
+function setup(routes: Parameters<typeof routedFetch>[0] = {}, canApply = true, canRelease = false) {
   const api = routedFetch({ [`GET ${PATH}`]: json(200, activity()), ...routes });
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply={canApply} />);
+  const view = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply={canApply} canRelease={canRelease} />);
   return { ...view, api, user: userEvent.setup() };
 }
 
@@ -117,5 +117,41 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
       screen.getByRole("radio", { name: "Não aceitar" }),
       screen.getByRole("button", { name: "Salvar alterações" }),
     ]);
+  });
+});
+
+describe("012/US5 ActivityDetail — alunos e liberação do resultado", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("012/FR-006 cada aluno com tentativa leva à tentativa; nota parcial aparece como Correção pendente", async () => {
+    setup({ [`GET ${PATH}`]: json(200, gradingActivity()) });
+    const roster = await screen.findByRole("table", { name: /Situação de cada aluno/ });
+    expect(within(roster).getByText("Ana Souza").closest("a")).toBeNull();
+    expect(within(roster).getByRole("link", { name: "Bruno Lima" }).getAttribute("href")).toBe(
+      `/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}/tentativas/${ATTEMPT_ID}`,
+    );
+    expect(within(roster).getByText("Correção pendente")).toBeTruthy();
+    expect(within(roster).getByText("Não entregou")).toBeTruthy();
+    expect(screen.getByText("Ainda não liberado")).toBeTruthy();
+  });
+
+  it("012/US5-4 liberar resultado confirma dizendo quantas entregas ainda estão pendentes e só então envia", async () => {
+    const released = activity({ resultReleasedAt: "2026-10-11T12:00:00.000Z" });
+    const { api, user } = setup({ [`POST ${PATH}/release`]: json(200, released) }, false, true);
+    await user.click(await screen.findByRole("button", { name: "Liberar resultado" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Liberar o resultado desta atividade?" });
+    expect(within(dialog).getByText(/3 entregas ainda têm correção pendente e aparecerão para os alunos assim que forem corrigidas\./)).toBeTruthy();
+    expect(api.writes()).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Liberar resultado" }));
+    expect(await screen.findByText("Resultado liberado.")).toBeTruthy();
+    expect(api.writes().map((call) => [call.method, call.url, call.body])).toEqual([["POST", `${PATH}/release`, {}]]);
+    expect(screen.getByText(/^Liberado em /)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Liberar resultado" })).toBeNull();
+  });
+
+  it("sem notas.liberar não há liberação", async () => {
+    setup({}, true, false);
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    expect(screen.queryByRole("button", { name: "Liberar resultado" })).toBeNull();
   });
 });

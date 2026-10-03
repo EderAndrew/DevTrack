@@ -332,4 +332,43 @@ describe("012/US3 tela de responder a atividade", () => {
       await expectNoA11yViolations(container);
     });
   });
+
+  describe("012/US6 resultado liberado", () => {
+    it("012/US6-2 nota total, nota e feedback por questão e feedback geral; nunca gabarito", async () => {
+      const { container } = setup({
+        [GET]: json(
+          200,
+          submitted({
+            status: "GRADED",
+            result: {
+              grade: "0.85",
+              generalFeedback: "Bom trabalho.",
+              questions: [
+                { questionId: open.id, grade: "0.35", feedback: "Faltou citar a interface." },
+                { questionId: multiple.id, grade: "0.30", feedback: null },
+                { questionId: code.id, grade: "0.20", feedback: null },
+              ],
+            },
+          }),
+        ),
+      });
+      const result = await screen.findByRole("region", { name: "Resultado" });
+      expect(within(result).getByText("0,85 de 1,00")).toBeTruthy();
+      expect(within(result).getByText("Bom trabalho.")).toBeTruthy();
+      const perQuestion = within(result).getByRole("list", { name: "Nota por questão" });
+      expect(within(perQuestion).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+        "Questão 1: 0,35 de 0,40Feedback: Faltou citar a interface.",
+        "Questão 2: 0,30 de 0,30",
+        "Questão 3: 0,20 de 0,30",
+      ]);
+      expect(container.textContent).not.toMatch(/correta|Resposta esperada|Solução/);
+      await expectNoA11yViolations(container);
+    });
+
+    it("012/US6-1 entregue e sem resultado: nenhuma nota na tela", async () => {
+      setup({ [GET]: json(200, submitted()) });
+      expect(await screen.findByText(/Atividade entregue em/)).toBeTruthy();
+      expect(screen.queryByRole("region", { name: "Resultado" })).toBeNull();
+    });
+  });
 });

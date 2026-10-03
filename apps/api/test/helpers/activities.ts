@@ -15,7 +15,7 @@ import type { api, TestApp } from "./test-app";
 
 // ── 012: class activities, written straight to the database (tasks T018) ─────────────────
 // The helpers that go through the routes arrive with them: `applyWork`/`applyExercises` (T022),
-// `startAttempt`/`saveAnswers` (T034), `submitAttempt` (T043).
+// `startAttempt`/`saveAnswers` (T034), `submitAttempt` (T043), the teacher's grading routes (T045).
 
 type ApiClient = ReturnType<typeof api>;
 
@@ -78,6 +78,35 @@ export function saveAnswers(client: ApiClient, activityId: string, answers: { qu
 /** `POST /me/activities/:activityId/attempt/submit` with the pending answers (012/US4, research P9). */
 export function submitAttempt(client: ApiClient, activityId: string, answers: { questionId: string; answer: Answer; baseRevision: number }[] = []) {
   return client.post(`/api/me/activities/${activityId}/attempt/submit`, { answers });
+}
+
+/** `…/activities/:activityId` of the teacher's class, the base of the 012/US5 routes. */
+const teacherActivityPath = (classId: string, activityId: string) => `/api/classes/${classId}/activities/${activityId}`;
+
+/** `GET …/attempts/:attemptId`: answers, gradings and submission, for the teacher (012/US5). */
+export function getAttempt(client: ApiClient, classId: string, activityId: string, attemptId: string) {
+  return client.get(`${teacherActivityPath(classId, activityId)}/attempts/${attemptId}`);
+}
+
+/** `PUT …/attempts/:attemptId/grades` at the submission's `version` (research P13). */
+export function gradeAttempt(
+  client: ApiClient,
+  classId: string,
+  activityId: string,
+  attemptId: string,
+  body: { version: number; decisions: { questionId: string; grade: string; feedback?: string | null }[]; generalFeedback?: string | null },
+) {
+  return client.put(`${teacherActivityPath(classId, activityId)}/attempts/${attemptId}/grades`, body);
+}
+
+/** `POST …/attempts/:attemptId/accept-submission` (spec FR-006b). */
+export function acceptSubmission(client: ApiClient, classId: string, activityId: string, attemptId: string) {
+  return client.post(`${teacherActivityPath(classId, activityId)}/attempts/${attemptId}/accept-submission`, {});
+}
+
+/** `POST …/release` (research P14). */
+export function releaseResult(client: ApiClient, classId: string, activityId: string) {
+  return client.post(`${teacherActivityPath(classId, activityId)}/release`, {});
 }
 
 export interface ClassWithStudents {

@@ -485,7 +485,7 @@ pelo professor, liberar e conferir o que cada aluno vê antes e depois.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T045 [P] [US5] `apps/api/test/integration/012-us5-grading.spec.ts`: detalhe da atividade
+- [X] T045 [P] [US5] `apps/api/test/integration/012-us5-grading.spec.ts`: detalhe da atividade
   com a lista de alunos e as situações Não iniciou / Em andamento / Entregou / Entregou com
   atraso / Não entregou (incluindo aluno removido com tentativa) e os contadores; abrir tentativa
   entregue e não entregue (somente leitura); MC GRADED pela regra; nota do professor dentro do
@@ -500,27 +500,27 @@ pelo professor, liberar e conferir o que cada aluno vê antes e depois.
   ENTREGUE; repetir → mesma entrega sem evento; aluno que ainda pode entregar → `409
   STUDENT_CAN_STILL_SUBMIT`; sem tentativa → `409 NOT_STARTED` (`012/US5-1`…`012/US5-6`,
   `012/FR-006`, `012/FR-006b`).
-- [ ] T046 [P] [US5] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET
+- [X] T046 [P] [US5] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET
   …/attempts/:attemptId`, `PUT …/attempts/:attemptId/grades`, `POST
   …/attempts/:attemptId/accept-submission` e `POST …/release`.
 
 ### Implementation for User Story 5
 
-- [ ] T047 [US5] `activities.service.ts`: lista de alunos com `deriveRosterStatus` e contadores
+- [X] T047 [US5] `activities.service.ts`: lista de alunos com `deriveRosterStatus` e contadores
   no `get` e no `list`; `release` (atividade `FOR UPDATE`, idempotente); auditoria
   `activity_result.released` (tipo + contrato + jornada); rota em `activities.controller.ts`.
-- [ ] T048 [US5] `apps/api/src/modules/activities/attempts-review.{service,controller}.ts`:
+- [X] T048 [US5] `apps/api/src/modules/activities/attempts-review.{service,controller}.ts`:
   `getAttempt` (respostas ao lado do gabarito, correções, entrega) e `grade` (entrega `FOR
   UPDATE` com `version`, `decideByTeacher` por decisão, feedback por questão e geral,
   `computeWorkGrade`, `graded_at`), limite `activityTeacherWritesPerHour`; auditoria
   `activity_submission.graded` (tipo + contrato + jornada); entradas em `endpoints.ts`.
-- [ ] T048a [US5] `attempts-review.service.ts`: `acceptSubmission` (spec FR-006b, research P9) —
+- [X] T048a [US5] `attempts-review.service.ts`: `acceptSubmission` (spec FR-006b, research P9) —
   atividade e tentativa sob lock, recusa `STUDENT_CAN_STILL_SUBMIT` enquanto
   `status/operations.ts` permitir ao aluno entregar, reaproveita a função de entrega da T043 só
   com as respostas salvas, `late = true` e `accepted_by_id`; auditoria
   `activity_submission.accepted_by_teacher` (tipo + contrato + jornada); rota em
   `attempts-review.controller.ts` e `endpoints.ts`.
-- [ ] T049 [P] [US5] Web: lista de alunos e ações "Liberar resultado" (confirmação com quantas
+- [X] T049 [P] [US5] Web: lista de alunos e ações "Liberar resultado" (confirmação com quantas
   ainda pendem) no detalhe da atividade; página
   `apps/web/app/(app)/turmas/[id]/atividades/[activityId]/tentativas/[attemptId]/page.tsx` com
   respostas e gabarito por questão, "Corrigida automaticamente", nota por questão ("0,00 a
@@ -543,7 +543,7 @@ na liberada e não está em nenhuma resposta da API antes disso.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T050 [P] [US6] `apps/api/test/integration/012-us6-history.spec.ts`: `status=COMPLETED` traz
+- [X] T050 [P] [US6] `apps/api/test/integration/012-us6-history.spec.ts`: `status=COMPLETED` traz
   as entregues e corrigidas com data, atraso, situação; corrigida e não liberada → ENTREGUE sem
   `result` nem nota em nenhuma rota do aluno; liberada mas com questão pendente → ainda ENTREGUE;
   liberada e completa → CORRIGIDO com nota total, nota e feedback por questão e geral,
@@ -555,10 +555,10 @@ na liberada e não está em nenhuma resposta da API antes disso.
 
 ### Implementation for User Story 6
 
-- [ ] T051 [US6] `my-activities.service.ts`: bloco `result` e `result` resumido da lista a partir
+- [X] T051 [US6] `my-activities.service.ts`: bloco `result` e `result` resumido da lista a partir
   da visão do aluno (T017) e de `notas.proprias.visualizar`; `result_viewed_at` e auditoria
   `activity_result.viewed` na primeira leitura (tipo + contrato + jornada).
-- [ ] T052 [P] [US6] Web: página `apps/web/app/(student)/historico/page.tsx` e o resultado em
+- [X] T052 [P] [US6] Web: página `apps/web/app/(student)/historico/page.tsx` e o resultado em
   `minhas-atividades/[id]` (nota "0,45 de 0,50", nota e feedback por questão, feedback geral,
   selo "Com feedback" na lista); testes com axe, Tab e os estados vazio/erro (`012/US6-2`).
 

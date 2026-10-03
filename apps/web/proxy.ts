@@ -26,5 +26,6 @@ export const config = {
     "/minhas-turmas",
     "/painel",
     "/minhas-atividades/:path*",
+    "/historico",
   ],
 };

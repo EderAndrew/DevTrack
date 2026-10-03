@@ -1,16 +1,18 @@
 "use client";
 
-import type { ActivitySource, CreateActivityRequest, TeacherActivity, UpdateActivityRequest } from "@repo/contracts";
+import type { ActivitySource, CreateActivityRequest, GradeSubmissionRequest, TeacherActivity, TeacherAttempt, UpdateActivityRequest } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { activitiesApi, activitySourcesApi, isActivityVersionConflict } from "../api/activities";
+import { activitiesApi, activitySourcesApi, attemptsApi, isActivityVersionConflict, isSubmissionVersionConflict } from "../api/activities";
 
-export { isActivityVersionConflict };
+export { isActivityVersionConflict, isSubmissionVersionConflict };
 
 /** Query keys: `["activities", classId, …]`. */
 export const activitiesKeys = {
   all: ["activities"] as const,
   class: (classId: string) => [...activitiesKeys.all, classId] as const,
   detail: (classId: string, activityId: string) => [...activitiesKeys.class(classId), activityId] as const,
+  attempt: (classId: string, activityId: string, attemptId: string) =>
+    [...activitiesKeys.detail(classId, activityId), "attempts", attemptId] as const,
   works: (subjectId: string) => ["activities", "sources", "works", subjectId] as const,
   exercises: (query: string) => ["activities", "sources", "exercises", query] as const,
 };
@@ -49,7 +51,7 @@ export function useCreateActivity(classId: string) {
   return useMutation({ mutationFn: (body: CreateActivityRequest) => activitiesApi.create(classId, body), onSuccess: afterChange });
 }
 
-/** Edit (with the version read), close and cancel; `reload` reads the activity again after a conflict. */
+/** Edit (with the version read), close, cancel and release; `reload` reads the activity again after a conflict. */
 export function useActivityActions(classId: string, activityId: string) {
   const queryClient = useQueryClient();
   const afterChange = useAfterChange(classId);
@@ -60,6 +62,34 @@ export function useActivityActions(classId: string, activityId: string) {
     }),
     close: useMutation({ mutationFn: () => activitiesApi.close(classId, activityId), onSuccess: afterChange }),
     cancel: useMutation({ mutationFn: () => activitiesApi.cancel(classId, activityId), onSuccess: afterChange }),
+    release: useMutation({ mutationFn: () => activitiesApi.release(classId, activityId), onSuccess: afterChange }),
     reload: () => queryClient.invalidateQueries({ queryKey: activitiesKeys.detail(classId, activityId) }),
+  };
+}
+
+export const useAttempt = (classId: string, activityId: string, attemptId: string) =>
+  useQuery({
+    queryKey: activitiesKeys.attempt(classId, activityId, attemptId),
+    queryFn: () => attemptsApi.get(classId, activityId, attemptId),
+  });
+
+/**
+ * Grade and accept one attempt: the returned attempt is cached and the activity (roster, counts)
+ * is stale; `reload` reads the attempt again after a version conflict.
+ */
+export function useAttemptActions(classId: string, activityId: string, attemptId: string) {
+  const queryClient = useQueryClient();
+  const afterChange = async (attempt: TeacherAttempt) => {
+    queryClient.setQueryData(activitiesKeys.attempt(classId, activityId, attemptId), attempt);
+    await queryClient.invalidateQueries({ queryKey: activitiesKeys.detail(classId, activityId), exact: true });
+    await queryClient.invalidateQueries({ queryKey: activitiesKeys.class(classId), exact: true });
+  };
+  return {
+    grade: useMutation({
+      mutationFn: (body: GradeSubmissionRequest) => attemptsApi.grade(classId, activityId, attemptId, body),
+      onSuccess: afterChange,
+    }),
+    accept: useMutation({ mutationFn: () => attemptsApi.accept(classId, activityId, attemptId), onSuccess: afterChange }),
+    reload: () => queryClient.invalidateQueries({ queryKey: activitiesKeys.attempt(classId, activityId, attemptId) }),
   };
 }

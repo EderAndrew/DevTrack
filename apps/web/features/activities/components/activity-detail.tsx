@@ -2,7 +2,8 @@
 
 import type { TeacherActivity } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Ban, Lock } from "lucide-react";
+import { Ban, Lock, Send } from "lucide-react";
+import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ErrorSummary, Field, SubmitButton } from "@/components/shared";
@@ -58,15 +59,18 @@ export interface ActivityDetailProps {
   activityId: string;
   /** `atividades.aplicar`: edit, close and cancel (UX only; the API authorizes). */
   canApply: boolean;
+  /** `notas.liberar`: "Liberar resultado". */
+  canRelease?: boolean;
 }
 
 /**
  * One activity of the class (012 contracts/web-ui.md, `/turmas/[id]/atividades/[activityId]`): its
  * data and edit (título, instruções, prazo, regra de atraso; publicação only while scheduled), the
- * questions with the answer key, the students' situations, "Encerrar atividade" and "Cancelar
+ * questions with the answer key, the students' situations with a link to each attempt, "Encerrar
+ * atividade", "Liberar resultado" (confirmation with the submissions still pending) and "Cancelar
  * atividade" (danger, explicit text and confirmation). Another tab's change reloads it with a notice.
  */
-export function ActivityDetail({ classId, activityId, canApply }: ActivityDetailProps) {
+export function ActivityDetail({ classId, activityId, canApply, canRelease = false }: ActivityDetailProps) {
   const query = useActivity(classId, activityId);
   const actions = useActivityActions(classId, activityId);
   const [notice, setNotice] = useState<string | null>(null);
@@ -134,8 +138,14 @@ export function ActivityDetail({ classId, activityId, canApply }: ActivityDetail
             <Item term="Tópicos ainda não concluídos, confirmados ao aplicar">{activity.outOfScopeTopicCount}</Item>
           ) : null}
           {activity.instructions ? <Item term="Instruções">{activity.instructions}</Item> : null}
+          <Item term="Resultado">
+            {activity.resultReleasedAt ? `Liberado em ${formatLongDateTime(activity.resultReleasedAt)}` : "Ainda não liberado"}
+          </Item>
         </dl>
-        {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
+        <div className="flex flex-wrap gap-2">
+          {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
+          {canRelease ? <ReleaseAction activity={activity} actions={actions} run={run} /> : null}
+        </div>
       </div>
 
       {canApply && activity.status === "ACTIVE" ? (
@@ -143,7 +153,7 @@ export function ActivityDetail({ classId, activityId, canApply }: ActivityDetail
         <ActivityEditForm key={activity.version} activity={activity} onSave={save} />
       ) : null}
 
-      <Roster activity={activity} />
+      <Roster classId={classId} activity={activity} />
       <ActivityQuestions questions={activity.questions} />
     </section>
   );
@@ -160,7 +170,7 @@ function LifecycleActions({
 }) {
   if (activity.status === "CANCELLED") return null;
   return (
-    <div className="flex flex-wrap gap-2">
+    <>
       {activity.status === "ACTIVE" ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -208,7 +218,51 @@ function LifecycleActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
+  );
+}
+
+/**
+ * "Liberar resultado" (FR-006): the whole activity at once; the confirmation says how many
+ * submissions are still pending and that they appear to their students once graded.
+ */
+function ReleaseAction({
+  activity,
+  actions,
+  run,
+}: {
+  activity: TeacherActivity;
+  actions: ReturnType<typeof useActivityActions>;
+  run: (action: () => Promise<unknown>, done: string) => Promise<void>;
+}) {
+  if (activity.status === "CANCELLED" || activity.resultReleasedAt !== null) return null;
+  const pending = activity.counts.pendingGrading;
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="secondary">
+          <Send aria-hidden="true" />
+          Liberar resultado
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Liberar o resultado desta atividade?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Os alunos com a correção completa passam a ver a nota e o feedback.{" "}
+            {pending === 0
+              ? "Todas as entregas estão corrigidas."
+              : pending === 1
+                ? "1 entrega ainda tem correção pendente e aparecerá para o aluno assim que for corrigida."
+                : `${pending} entregas ainda têm correção pendente e aparecerão para os alunos assim que forem corrigidas.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void run(actions.release.mutateAsync, "Resultado liberado.")}>Liberar resultado</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -273,8 +327,8 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
   );
 }
 
-/** Each student's situation, in words (FR-006); grades and corrections arrive with the grading. */
-function Roster({ activity }: { activity: TeacherActivity }) {
+/** Each student's situation, in words (FR-006), with a link to the attempt of those who started. */
+function Roster({ classId, activity }: { classId: string; activity: TeacherActivity }) {
   return (
     <section aria-labelledby="alunos-titulo" className="flex flex-col gap-2">
       <h3 id="alunos-titulo" className="m-0 text-h3">
@@ -300,7 +354,11 @@ function Roster({ activity }: { activity: TeacherActivity }) {
             {activity.roster.map((entry) => (
               <TableRow key={entry.studentUserId}>
                 <TableCell>
-                  {entry.name}
+                  {entry.attemptId ? (
+                    <Link href={`/turmas/${classId}/atividades/${activity.id}/tentativas/${entry.attemptId}`}>{entry.name}</Link>
+                  ) : (
+                    entry.name
+                  )}
                   {entry.enrollment === "REMOVED" ? " (removido da turma)" : ""}
                 </TableCell>
                 <TableCell>{ROSTER_STATUS_LABELS[entry.status]}</TableCell>

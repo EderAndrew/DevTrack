@@ -275,6 +275,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PATCH", path: "/classes/:classId/activities/:activityId", access: "atividades.aplicar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/close", access: "atividades.aplicar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/cancel", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/release", access: "notas.liberar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId", access: "entregas.visualizar" },
+  { method: "PUT", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/grades", access: "notas.lancar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission", access: "notas.lancar" },
   // 012 — the student portal (contracts/permissions.md).
   { method: "GET", path: "/me/dashboard", access: "atividades.proprias.visualizar" },
   { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },

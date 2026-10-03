@@ -101,4 +101,17 @@ export class ActivitiesController {
   ): Promise<TeacherActivity> {
     return this.activities.cancel(ctx.auth!, classId, activityId, ctx.requestId);
   }
+
+  /** The result to the class (FR-006); already released → 200 with no event. */
+  @Post(":activityId/release")
+  @HttpCode(200)
+  @RequirePermissions("notas.liberar")
+  release(
+    @Param("classId", idPipe) classId: string,
+    @Param("activityId", idPipe) activityId: string,
+    @ZodBody(EmptyBodySchema) _body: object,
+    @Ctx() ctx: RequestContext,
+  ): Promise<TeacherActivity> {
+    return this.activities.release(ctx.auth!, classId, activityId, ctx.requestId);
+  }
 }

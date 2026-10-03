@@ -12,5 +12,12 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   const me = await getMe();
   if (!me) redirect(`/entrar?next=${encodeURIComponent(`/turmas/${id}/atividades/${activityId}`)}`);
   if (!me.permissions.includes("atividades.visualizar")) return <NoAccess title="Atividade" />;
-  return <ActivityDetail classId={id} activityId={activityId} canApply={me.permissions.includes("atividades.aplicar")} />;
+  return (
+    <ActivityDetail
+      classId={id}
+      activityId={activityId}
+      canApply={me.permissions.includes("atividades.aplicar")}
+      canRelease={me.permissions.includes("notas.liberar")}
+    />
+  );
 }

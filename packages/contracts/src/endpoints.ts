@@ -62,8 +62,10 @@ import {
   ActivitySourceSchema,
   CreateActivityRequestSchema,
   ScopeCheckSchema,
+  GradeSubmissionRequestSchema,
   TeacherActivityListSchema,
   TeacherActivitySchema,
+  TeacherAttemptSchema,
   UpdateActivityRequestSchema,
 } from "./activities/teacher.js";
 import {
@@ -216,6 +218,10 @@ export type ClassParams = z.infer<typeof ClassParamsSchema>;
 /** An activity under its class (012). */
 export const ClassActivityParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema });
 export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
+
+/** A student's attempt under its activity (012). */
+export const ClassActivityAttemptParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, attemptId: UuidSchema });
+export type ClassActivityAttemptParams = z.infer<typeof ClassActivityAttemptParamsSchema>;
 
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
@@ -1068,6 +1074,41 @@ export const endpoints = {
     params: ClassActivityParamsSchema,
     body: EmptyBodySchema,
     response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** The result to the class, whole activity (FR-006, research P14); already released → 200 with no event. */
+  "activities.release": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/release",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** One student's attempt: answers, gradings and submission (US5); the answer key is in the activity. */
+  "activities.getAttempt": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+  /** The teacher's grades and feedback at the submission's `version` (research P13). */
+  "activities.gradeAttempt": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/grades",
+    params: ClassActivityAttemptParamsSchema,
+    body: GradeSubmissionRequestSchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+  /** The saved answers become a late submission accepted by the teacher (FR-006b); already submitted → 200. */
+  "activities.acceptSubmission": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission",
+    params: ClassActivityAttemptParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherAttemptSchema,
     status: 200,
   },
 

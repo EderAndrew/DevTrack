@@ -2,9 +2,11 @@ import type {
   ActivitySource,
   CreateActivityRequest,
   ExercisePage,
+  GradeSubmissionRequest,
   ScopeCheck,
   TeacherActivity,
   TeacherActivityList,
+  TeacherAttempt,
   UpdateActivityRequest,
   WorkPage,
 } from "@repo/contracts";
@@ -24,6 +26,21 @@ export const activitiesApi = {
     apiClient.patch<TeacherActivity>(`${base(classId)}/${activityId}`, body),
   close: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/close`, {}),
   cancel: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/cancel`, {}),
+  /** The result to the class, the whole activity at once (FR-006). */
+  release: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/release`, {}),
+};
+
+const attemptPath = (classId: string, activityId: string, attemptId: string) => `${base(classId)}/${activityId}/attempts/${attemptId}`;
+
+/** One student's attempt, teacher side (012 US5). */
+export const attemptsApi = {
+  get: (classId: string, activityId: string, attemptId: string) => apiClient.get<TeacherAttempt>(attemptPath(classId, activityId, attemptId)),
+  /** The teacher's grades at the submission's `version` (research P13). */
+  grade: (classId: string, activityId: string, attemptId: string, body: GradeSubmissionRequest) =>
+    apiClient.put<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/grades`, body),
+  /** The saved answers become a late submission (FR-006b). */
+  accept: (classId: string, activityId: string, attemptId: string) =>
+    apiClient.post<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/accept-submission`, {}),
 };
 
 /**
@@ -43,3 +60,6 @@ export const activitySourcesApi = {
 
 /** Another tab changed the activity first (`409 ACTIVITY_VERSION_CONFLICT`). */
 export const isActivityVersionConflict = (error: unknown) => error instanceof ApiError && error.code === "ACTIVITY_VERSION_CONFLICT";
+
+/** Another tab saved this correction first (`409 SUBMISSION_VERSION_CONFLICT`). */
+export const isSubmissionVersionConflict = (error: unknown) => error instanceof ApiError && error.code === "SUBMISSION_VERSION_CONFLICT";

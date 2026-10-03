@@ -13,6 +13,9 @@ export const DASHBOARD_PATH = "/painel";
 /** "Minhas atividades" of a student (012 US2). */
 export const MY_ACTIVITIES_PATH = "/minhas-atividades";
 
+/** "Histórico": the student's submitted activities (012 US6). */
+export const HISTORY_PATH = "/historico";
+
 /**
  * Start page after login: "Minhas disciplinas" for a teacher, the "Painel" for a student (who has
  * no subjects), otherwise the profile. UX only.
@@ -62,6 +65,7 @@ export const AREAS = [
   { prefix: MY_CLASSES_PATH, name: "Minhas turmas" },
   { prefix: DASHBOARD_PATH, name: "Painel" },
   { prefix: MY_ACTIVITIES_PATH, name: "Minhas atividades" },
+  { prefix: HISTORY_PATH, name: "Histórico" },
 ] as const;
 
 /** Name of the area a path belongs to (the prefix itself or a page below it), or `null`. */
