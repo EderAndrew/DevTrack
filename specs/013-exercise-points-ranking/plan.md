@@ -58,7 +58,7 @@ activities are converted without keeping grades (Q3 = A).
 - [x] **XXI. Configurable domain**: point values tied to the platform's exercise difficulty, not to subject/language
 - [x] **XXII. Personalization & accessibility**: no adaptation data; statuses and the viewer's ranking row by text + icon; axe and keyboard tests
 - [x] **XXIII. Curricular traceability**: snapshot and taught-scope flag of 012 unchanged; EXERCISE now matches the constitution's definition (practice, multiple attempts, feedback after conclusion), which closes 012's Complexity Tracking deviation
-- [x] **XXIV. Academic isolation**: ranking only for ACTIVE enrollment (student) or the class's teacher; attempts by number inside the session student's; 404 out of context; a student sees classmates' name and points only — no answer, result or grade ("vê somente as próprias notas e respostas" holds: points are not grades)
+- [x] **XXIV. Academic isolation**: ranking only for ACTIVE enrollment (student) or the class's teacher; attempts by number inside the session student's; 404 out of context; a student sees classmates' name and points only — no answer, result or grade, as the v3.3.0 ranking exception allows
 - [x] **XXV. Privileged provisioning**: N/A
 - [x] **XXVI. Shared contracts**: `activities/points.ts`, `activities/exercise-results.ts`, changed `teacher.ts`/`student.ts`, new `ranking/`; endpoints catalog; `EXERCISE_POINTS` shared by API and web
 - [x] **Frontend stack**: `features/ranking` + changes to the 012 features; TanStack Query; design-system components only

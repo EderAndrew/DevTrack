@@ -1,39 +1,32 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.1.0 → 3.2.0
-Motivo (MINOR): a geração por IA para o banco deixa de ser restrita a um único conteúdo da
-ementa e passa a aceitar um ou mais conteúdos da mesma revisão confirmada, escolhidos pelo
-professor, e vale para todos os bancos do professor (questões/exercícios e trabalhos). As
-garantias continuam as mesmas: escopo verificado no servidor, a IA não acrescenta nem troca
-conteúdos, vínculo determinístico de cada questão ao escopo, saída validada e rascunho
-revisado pelo professor. A regra "banco × atividade" (modelo + snapshot) passa a valer para
-todo modelo de banco, inclusive o trabalho. Nenhuma regra removida ou enfraquecida: a
-geração com um único conteúdo (010) continua conforme.
+Version change: 3.2.0 → 3.3.0
+Motivo (MINOR): o XXIV ganha uma exceção explícita e delimitada à regra "um aluno vê somente
+as próprias notas e respostas": o ranking de engajamento da turma, com posição, nome e total de
+pontos de prática obtidos em exercícios, pode ser visto pelos alunos com matrícula ativa na
+mesma turma. Pontos de prática não são nota nem resultado de avaliação. A exceção nunca alcança
+respostas, resultados por exercício, notas de trabalhos ou provas, nem outras turmas; o
+isolamento entre turmas e o 403 × 404 não mudam. É MINOR (e não PATCH) porque permite um acesso
+que o texto anterior não previa.
 
 Princípios modificados:
-  XXIII. Referência Curricular e Rastreabilidade Pedagógica — "Geração para o banco de
-         questões" → "Geração para os bancos do professor" (1..N conteúdos da mesma
-         revisão); "Banco de questões × atividade" → "Bancos do professor × atividade".
+  XXIV. Isolamento por Contexto Acadêmico — exceção do ranking de pontos de prática da turma.
 
-Seções modificadas: Governance — histórico ganha as entradas 3.1.0 (faltava) e 3.2.0.
+Seções modificadas: Governance — histórico ganha a entrada 3.3.0.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXIII atualizado (1..N conteúdos da mesma
-                                           revisão, todos os bancos do professor)
+  ✅ .specify/templates/plan-template.md  — gate XXIV cita a exceção do ranking
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.2.0
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.3.0
 
 Follow-ups:
-  - A spec 011-work-bank aplica a regra nova (tópicos de uma revisão confirmada, cada
-    questão gerada vinculada a 1–3 deles); proposta registrada em
-    specs/011-work-bank/constitution-amendment-3.2.0.md.
-  - A spec 012 (aplicação do trabalho à turma) aplica o escopo ensinado e o snapshot
-    quando um trabalho do banco virar atividade `ASSIGNMENT` de uma turma.
+  - specs/013-exercise-points-ranking/plan.md: o item XXIV do Constitution Check passa a
+    citar a v3.3.0 (análise D1 da 013).
 -->
 
 # DevTrack Constitution
@@ -454,6 +447,11 @@ análise de evolução.
 - O sistema DEVE impedir acesso horizontal entre turmas, professores, alunos,
   avaliações, submissões, resultados e notas. Um aluno vê somente as próprias notas e
   respostas; um professor, somente as de suas turmas.
+- **Exceção — ranking de pontos de prática**: o ranking de engajamento da turma (posição,
+  nome e total de pontos de prática obtidos em exercícios) PODE ser visto pelos alunos com
+  matrícula ativa na mesma turma e pelo professor dela. Pontos de prática não são nota nem
+  resultado de avaliação. O ranking NUNCA expõe respostas, resultados por exercício, notas de
+  trabalhos ou provas, nem dados de turmas em que o aluno não está matriculado.
 - Conhecer o identificador de uma turma ou recurso NUNCA é suficiente para obter
   acesso. Distinção de respostas:
   - **sem a capacidade** (o papel não possui a permissão para aquele tipo de
@@ -777,7 +775,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.2.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-30
+**Version**: 3.3.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-03
 
 Histórico:
 
@@ -803,3 +801,6 @@ Histórico:
 - **3.2.0** — XXIII: a geração para os bancos do professor (questões/exercícios e
   trabalhos) aceita um ou mais conteúdos da mesma revisão confirmada da ementa, com as
   mesmas garantias; a regra modelo + snapshot vale para todo item de banco.
+- **3.3.0** — XXIV: exceção explícita para o ranking de pontos de prática da turma
+  (posição, nome e total), visível aos alunos matriculados nela, sem respostas, resultados
+  por exercício nem notas.
