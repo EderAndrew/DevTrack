@@ -8,9 +8,10 @@ Last updated: 2026-10-02 (011 implemented; 012 in progress)
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
 test names are in Portuguese). Features 001–011 in `specs/` are implemented; 012-student-portal
-is the active feature (T001–T031 done: schema, contracts, pure status/snapshot/grading/view rules,
+is the active feature (T001–T039 done: schema, contracts, pure status/snapshot/grading/view rules,
 US1 the teacher applies, edits, closes and cancels an activity, US2 the student's dashboard and
-"Minhas atividades"; answering and submitting come next). Later work starts a new feature through
+"Minhas atividades", US3 the student starts, answers and saves with autosave, revisions and the
+offline buffer; submitting comes next). Later work starts a new feature through
 `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -20,8 +21,8 @@ US1 the teacher applies, edits, closes and cancels an activity, US2 the student'
 - 004 subjects, syllabus upload/extraction/review, class calendar, class plan with manual topics
   and coverage; US9 (2026-09-24 amendment) marks a topic's class completed. A teacher lands on
   "Minhas disciplinas" after login.
-- 005 design system and the Exam Mode visual contract (exam components are specified only; the
-  assessments feature builds them).
+- 005 design system and the Exam Mode visual contract; 012 built its NORMAL-mode subset in
+  `apps/web/components/ui/assessment/` (timer, review flag and focus warnings wait for exams).
 - 006 AI foundation with no domain agent and no real provider (tests use the reference agents and
   fake provider in `apps/api/test/fixtures/ai`).
 - 007 Curriculum Agent ("Preencher com IA" → L2 proposal → `AI_ASSISTED` 004 draft); 008 OpenRouter

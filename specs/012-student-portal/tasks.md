@@ -360,11 +360,12 @@ respostas e a questão atual.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T032 [P] [US3] `apps/api/test/integration/012-us3-answering.spec.ts`: iniciar PENDENTE →
+- [X] T032 [P] [US3] `apps/api/test/integration/012-us3-answering.spec.ts`: iniciar PENDENTE →
   tentativa, EM_ANDAMENTO, `activity_attempt.started`; iniciar de novo → mesma tentativa, sem
   evento; salvar → SAVED com revisão 1→2; mesmo conteúdo → UNCHANGED sem evento; `baseRevision`
   antiga com conteúdo diferente → CONFLICT com a resposta do servidor; alternativa de outra
-  questão, tipo errado, texto > 20 000, questão de outra atividade → `422 INVALID_ANSWER`;
+  questão, tipo errado, questão de outra atividade → `422 INVALID_ANSWER`; texto > 20 000 → `400
+  VALIDATION_ERROR` (o `AnswerSchema` do contrato, data-model "400/422");
   salvar sem iniciar → `409 NOT_STARTED`; depois do prazo com REJECT → `409 DEADLINE_PASSED` e
   com ACCEPT_MARKED aceito; encerrada → `409 ACTIVITY_CLOSED`; turma INACTIVE → `409
   CLASS_NOT_ACTIVE`; matrícula removida → 404 e tentativa preservada para o professor; recusas
@@ -372,12 +373,12 @@ respostas e a questão atual.
   primeira gravação e de novo só depois de 15 min (relógio fixo); a visão com tentativa traz as
   respostas e revisões e nenhum dado de correção; código de questão CODE salvo como texto e
   nunca executado (`012/US3-1`…`012/US3-8`, `012/FR-016`…`012/FR-022`).
-- [ ] T033 [P] [US3] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST
+- [X] T033 [P] [US3] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST
   /me/activities/:activityId/attempt` e `PUT …/attempt/answers`.
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] `apps/api/src/modules/student-activities/attempts.service.ts`: `start` (`INSERT
+- [X] T034 [US3] `apps/api/src/modules/student-activities/attempts.service.ts`: `start` (`INSERT
   … ON CONFLICT DO NOTHING` + leitura, operação permitida por `status/operations.ts`, limite
   `activitySubmitsPerHour`) e `saveAnswers` (tentativa `FOR UPDATE`, protocolo SAVED / UNCHANGED /
   CONFLICT da research P8, `last_saved_at`, auditoria de progresso com o intervalo de 15 min,
@@ -385,9 +386,9 @@ respostas e a questão atual.
   `activity_attempt.progress_saved`, `activity_submission.rejected` (tipos + contrato + jornada);
   `GET /me/activities/:id` passa a trazer a tentativa; auxiliares `startAttempt`/`saveAnswers`
   em `apps/api/test/helpers/activities.ts`.
-- [ ] T035 [US3] `apps/api/src/modules/student-activities/attempts.controller.ts` e entradas em
+- [X] T035 [US3] `apps/api/src/modules/student-activities/attempts.controller.ts` e entradas em
   `endpoints.ts`.
-- [ ] T036 [P] [US3] Componentes de avaliação em `apps/web/components/ui/assessment/` (research
+- [X] T036 [P] [US3] Componentes de avaliação em `apps/web/components/ui/assessment/` (research
   P21, `apps/web/design-system/exam-mode.md`): `ExamProgress`, `QuestionNavigator` (atual, não
   respondida, respondida; `aria-current="step"`, setas), `QuestionHeader`, `QuestionStatus`,
   `QuestionStatement`, `MultipleChoiceAnswer`, `EssayAnswer` (contador), `CodeAnswer` (sem
@@ -398,16 +399,16 @@ respostas e a questão atual.
   `apps/web/design-system/components.md`, nota em `exam-mode.md` do que existe; testes em
   `apps/web/components/ui/assessment/*.test.tsx` (estados, anúncios, axe, teclado) e o catálogo
   continua verde (`token-usage`, `identity`, `docs`, `catalog.test.tsx`).
-- [ ] T037 [P] [US3] `apps/web/features/student-activities/store/pending-answers.ts` (research
-  P22): leitura e escrita em `localStorage` por `devtrack:respostas:<userId>:<attemptId>` dentro
+- [X] T037 [P] [US3] `apps/web/features/student-activities/store/pending-answers.ts` (research
+  P22): leitura e escrita em `localStorage` por `devtrack:respostas:<userId>:<activityId>` (a tentativa única da atividade) dentro
   de try/catch, remoção na entrega e de todas as chaves `devtrack:respostas:` no logout (no fluxo
   de saída existente em `apps/web/features/auth`); teste com `localStorage` indisponível.
-- [ ] T038 [US3] Hook `apps/web/features/student-activities/hooks/use-attempt-answers.ts`: estado
+- [X] T038 [US3] Hook `apps/web/features/student-activities/hooks/use-attempt-answers.ts`: estado
   local, questões sujas, salvamento 1,5 s após parar de digitar, na troca de questão e em
   `visibilitychange`, reenvio no `online` e ao carregar, CONFLICT substitui a cópia local e
   avisa, `SaveStatus` derivado, "Tentar novamente" reenvia o conteúdo da tela; teste com
   `fetch` simulado (falha, sem conexão, conflito, retry).
-- [ ] T039 [US3] Página `apps/web/app/(student)/minhas-atividades/[id]/page.tsx` e componente
+- [X] T039 [US3] Página `apps/web/app/(student)/minhas-atividades/[id]/page.tsx` e componente
   `features/student-activities/components/activity-answering.tsx`: cabeçalho da atividade,
   "Iniciar atividade", navegação entre questões, respostas pelos componentes de T036, alerta sem
   conexão, alerta de conflito, avisos de prazo aos 10 e 1 minuto a partir de `serverNow`

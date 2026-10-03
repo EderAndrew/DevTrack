@@ -176,6 +176,8 @@ describe("route access declarations", () => {
         "GET /me/dashboard",
         "GET /me/activities",
         "GET /me/activities/:activityId",
+        "POST /me/activities/:activityId/attempt",
+        "PUT /me/activities/:activityId/attempt/answers",
       ]),
     );
   });

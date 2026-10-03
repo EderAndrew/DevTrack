@@ -166,3 +166,14 @@ editor.
 - Axe sem violações em todas as combinações de estado; teclado cobre navegador, resposta,
   revisão e rodapé; anúncios conforme as tabelas acima.
 - Nenhum token, ícone ou texto fora deste contrato sem emendá-lo.
+
+## O que já existe (012)
+
+A 012 (portal do aluno, modo NORMAL) construiu em `apps/web/components/ui/assessment/`:
+`ExamProgress`, `QuestionNavigator` (estados atual, não respondida e respondida),
+`QuestionHeader`, `QuestionStatus`, `QuestionStatement`, `MultipleChoiceAnswer` (uma
+resposta), `EssayAnswer`, `CodeAnswer` (sem as regiões de saída, erros e resultado: nada é
+executado), `CodeEditor` (`Textarea` com números de linha, sem biblioteca), `SaveStatus`,
+`AttemptStatus` e `AssessmentFooter` (o `ExamFooter` do modo NORMAL). Continuam com a
+feature de provas: `ExamHeader`, `ExamTimer`, `ReviewFlag`, `ExamAlert`,
+`FocusViolationWarning` e os estados "marcada para revisão", "bloqueada" e "invalidada".

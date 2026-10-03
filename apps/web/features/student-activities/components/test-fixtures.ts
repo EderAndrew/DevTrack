@@ -1,4 +1,4 @@
-import type { StudentActivitySummary, StudentDashboard } from "@repo/contracts";
+import type { StudentActivity, StudentActivitySummary, StudentDashboard } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -58,3 +58,60 @@ export function routedFetch(routes: Record<string, Response | (() => Response | 
   };
   return { fetch, calls };
 }
+
+/** One activity as the student sees it, with three questions (one of each type) and no attempt. */
+export const studentActivity = (overrides: Partial<StudentActivity> = {}): StudentActivity => {
+  const { result: _result, ...base } = summary({ title: "Lista de herança", totalGrade: "1.00" });
+  return {
+    ...base,
+    id: "bbbbbbbb-0000-4000-8000-000000000001",
+    instructions: "Responda com suas palavras.",
+    serverNow: "2026-10-02T12:00:00.000Z",
+    questions: [
+      {
+        id: "cccccccc-0000-4000-8000-000000000001",
+        position: 0,
+        type: "OPEN_ANSWER",
+        value: "0.40",
+        statement: "Explique encapsulamento.",
+        instructions: null,
+        starterCode: null,
+        language: null,
+        publicTestCases: [],
+        alternatives: [],
+      },
+      {
+        id: "cccccccc-0000-4000-8000-000000000002",
+        position: 1,
+        type: "MULTIPLE_CHOICE",
+        value: "0.30",
+        statement: "O que é um objeto?",
+        instructions: null,
+        starterCode: null,
+        language: null,
+        publicTestCases: [],
+        alternatives: [
+          { id: "dddddddd-0000-4000-8000-000000000001", text: "Uma instância de uma classe." },
+          { id: "dddddddd-0000-4000-8000-000000000002", text: "Um tipo primitivo." },
+          { id: "dddddddd-0000-4000-8000-000000000003", text: "Um pacote." },
+        ],
+      },
+      {
+        id: "cccccccc-0000-4000-8000-000000000003",
+        position: 2,
+        type: "CODE",
+        value: "0.30",
+        statement: "Implemente a soma.",
+        instructions: "Leia dois inteiros.",
+        starterCode: "class Main {}",
+        language: { name: "Java" },
+        publicTestCases: [{ input: "2 3", expectedOutput: "5" }],
+        alternatives: [],
+      },
+    ],
+    attempt: null,
+    submission: null,
+    result: null,
+    ...overrides,
+  };
+};

@@ -190,6 +190,11 @@ export const AUDIT_EVENT_METADATA = {
   "activity.updated": ["classId", "fields"],
   "activity.closed": ["classId", "submittedCount", "missedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount"],
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline"],
+  // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
+  "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
+  // `operation`: START | SAVE | SUBMIT; `code`: the 409 code of the refusal.
+  "activity_submission.rejected": ["operation", "code"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
   "student_access.denied": ["route", "reason"],
 } as const satisfies Record<string, readonly string[]>;

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Answer } from "@repo/contracts";
 import type {
   ActivityLatePolicy,
   ActivityQuestionType,
@@ -62,6 +63,16 @@ export function applyExercises(
     `/api/classes/${classId}/activities`,
     applyBody({ type: "EXERCISE", exerciseIds }, { ...(totalGrade === undefined ? {} : { totalGrade }), ...overrides }),
   );
+}
+
+/** `POST /me/activities/:activityId/attempt` as the student of `client` (012/US3). */
+export function startAttempt(client: ApiClient, activityId: string) {
+  return client.post(`/api/me/activities/${activityId}/attempt`, {});
+}
+
+/** `PUT /me/activities/:activityId/attempt/answers` with `baseRevision` per answer (research P8). */
+export function saveAnswers(client: ApiClient, activityId: string, answers: { questionId: string; answer: Answer; baseRevision: number }[]) {
+  return client.put(`/api/me/activities/${activityId}/attempt/answers`, { answers });
 }
 
 export interface ClassWithStudents {

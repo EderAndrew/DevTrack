@@ -10,6 +10,21 @@ import {
   AiProposalStatusShowcase,
 } from "./components/ai-showcase";
 import {
+  AssessmentFooterShowcase,
+  ATTEMPT_STATES,
+  AttemptStatusShowcase,
+  CodeAnswerShowcase,
+  CodeEditorShowcase,
+  EssayAnswerShowcase,
+  ExamProgressShowcase,
+  MultipleChoiceAnswerShowcase,
+  QuestionHeaderShowcase,
+  QuestionNavigatorShowcase,
+  QuestionStatementShowcase,
+  QuestionStatusShowcase,
+  SaveStatusShowcase,
+} from "./components/assessment-showcase";
+import {
   AlertDialogShowcase,
   CardShowcase,
   DialogShowcase,
@@ -53,7 +68,16 @@ import {
   TopbarShowcase,
 } from "./components/navigation-showcase";
 
-export type CatalogGroup = "actions" | "forms" | "feedback" | "containers" | "data" | "navigation" | "layouts" | "ai";
+export type CatalogGroup =
+  | "actions"
+  | "forms"
+  | "feedback"
+  | "containers"
+  | "data"
+  | "navigation"
+  | "layouts"
+  | "ai"
+  | "assessment";
 
 /** Groups of the catalog, in the order of the index (contracts/layouts.md "Catálogo"). */
 export const GROUPS: readonly { id: CatalogGroup; name: string }[] = [
@@ -65,6 +89,7 @@ export const GROUPS: readonly { id: CatalogGroup; name: string }[] = [
   { id: "navigation", name: "Navegação" },
   { id: "layouts", name: "Layouts" },
   { id: "ai", name: "Inteligência artificial" },
+  { id: "assessment", name: "Avaliação" },
 ];
 
 /**
@@ -446,5 +471,114 @@ export const REGISTRY: readonly CatalogEntry[] = [
     showcase: AiProposalReviewShowcase,
     variants: [],
     states: ["em revisão", "enviando", "decidida"],
+  },
+  // 012 research P21: the Exam Mode components of the student's answering screen (design-system/exam-mode.md).
+  {
+    id: "exam-progress",
+    name: "ExamProgress",
+    group: "assessment",
+    source: "components/ui/assessment/question-navigator.tsx",
+    showcase: ExamProgressShowcase,
+    variants: [],
+    states: ["início", "parcial"],
+  },
+  {
+    id: "question-navigator",
+    name: "QuestionNavigator",
+    group: "assessment",
+    source: "components/ui/assessment/question-navigator.tsx",
+    showcase: QuestionNavigatorShowcase,
+    variants: [],
+    states: ["atual, respondida e não respondida"],
+  },
+  {
+    id: "question-header",
+    name: "QuestionHeader",
+    group: "assessment",
+    source: "components/ui/assessment/question.tsx",
+    showcase: QuestionHeaderShowcase,
+    variants: [],
+    states: ["com estado", "sem estado"],
+  },
+  {
+    id: "question-status",
+    name: "QuestionStatus",
+    group: "assessment",
+    source: "components/ui/assessment/question.tsx",
+    showcase: QuestionStatusShowcase,
+    variants: [],
+    states: ["não respondida", "respondida"],
+  },
+  {
+    id: "question-statement",
+    name: "QuestionStatement",
+    group: "assessment",
+    source: "components/ui/assessment/question.tsx",
+    showcase: QuestionStatementShowcase,
+    variants: [],
+    states: ["texto com quebras de linha"],
+  },
+  {
+    id: "multiple-choice-answer",
+    name: "MultipleChoiceAnswer",
+    group: "assessment",
+    source: "components/ui/assessment/answers.tsx",
+    showcase: MultipleChoiceAnswerShowcase,
+    variants: [],
+    states: ["escolhida", "desabilitada"],
+  },
+  {
+    id: "essay-answer",
+    name: "EssayAnswer",
+    group: "assessment",
+    source: "components/ui/assessment/answers.tsx",
+    showcase: EssayAnswerShowcase,
+    variants: [],
+    states: ["com contador"],
+  },
+  {
+    id: "code-answer",
+    name: "CodeAnswer",
+    group: "assessment",
+    source: "components/ui/assessment/answers.tsx",
+    showcase: CodeAnswerShowcase,
+    variants: [],
+    states: ["com casos públicos"],
+  },
+  {
+    id: "code-editor",
+    name: "CodeEditor",
+    group: "assessment",
+    source: "components/ui/assessment/code-editor.tsx",
+    showcase: CodeEditorShowcase,
+    variants: [],
+    states: ["editável", "desabilitado"],
+  },
+  {
+    id: "save-status",
+    name: "SaveStatus",
+    group: "assessment",
+    source: "components/ui/assessment/save-status.tsx",
+    showcase: SaveStatusShowcase,
+    variants: [],
+    states: ["salvo", "erro ao salvar"],
+  },
+  {
+    id: "attempt-status",
+    name: "AttemptStatus",
+    group: "assessment",
+    source: "components/ui/assessment/save-status.tsx",
+    showcase: AttemptStatusShowcase,
+    variants: ATTEMPT_STATES,
+    states: [],
+  },
+  {
+    id: "assessment-footer",
+    name: "AssessmentFooter",
+    group: "assessment",
+    source: "components/ui/assessment/assessment-footer.tsx",
+    showcase: AssessmentFooterShowcase,
+    variants: [],
+    states: ["primeira questão", "no meio"],
   },
 ];

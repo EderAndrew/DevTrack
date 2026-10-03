@@ -67,6 +67,8 @@ import {
   UpdateActivityRequestSchema,
 } from "./activities/teacher.js";
 import {
+  SaveAnswersRequestSchema,
+  SaveAnswersResultSchema,
   StudentActivityListQuerySchema,
   StudentActivityPageSchema,
   StudentActivitySchema,
@@ -1085,6 +1087,24 @@ export const endpoints = {
     path: "/me/activities/:activityId",
     params: MyActivityParamsSchema,
     response: StudentActivitySchema,
+    status: 200,
+  },
+  /** Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). */
+  "myActivities.start": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt",
+    params: MyActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /** Saves up to 10 answers with their `baseRevision`: SAVED / UNCHANGED / CONFLICT each (research P8). */
+  "myActivities.saveAnswers": {
+    method: "PUT",
+    path: "/me/activities/:activityId/attempt/answers",
+    params: MyActivityParamsSchema,
+    body: SaveAnswersRequestSchema,
+    response: SaveAnswersResultSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

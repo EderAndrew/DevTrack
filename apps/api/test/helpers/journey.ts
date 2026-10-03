@@ -717,6 +717,30 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await classStudentClient.get("/api/me/dashboard")).body.counts).toEqual({ pending: 0, inProgress: 0, overdue: 1, completed: 0 });
   expect((await classStudentClient.get("/api/me/activities")).body.items.map((a: { id: string }) => a.id)).toEqual([appliedWork.body.id]);
   expect((await classStudentClient.get(`/api/me/activities/${appliedExercises.body.id}`)).status).toBe(404);
+  // 012/US3 — the teacher applies the exercises again; the student starts (and starts again: same
+  // attempt, no event), saves an answer (`activity_attempt.progress_saved`, counts only) and is
+  // refused on the closed work (`activity_submission.rejected` with the code). The answer is content
+  // the scans keep out of logs and audit.
+  const openExercises = await teacherClient.post(activitiesPath, {
+    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
+    totalGrade: "2.00",
+  });
+  expect(openExercises.status).toBe(201);
+  const startedActivity = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
+  expect(startedActivity.status).toBe(200);
+  expect((await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {})).status).toBe(200);
+  const firstQuestion = startedActivity.body.questions[0] as { id: string; type: string; alternatives: { id: string }[] };
+  const journeyAnswer =
+    firstQuestion.type === "MULTIPLE_CHOICE"
+      ? { kind: "ALTERNATIVE", alternativeId: firstQuestion.alternatives[0]!.id }
+      : firstQuestion.type === "CODE"
+        ? { kind: "CODE", source: text("código do aluno (012)", "class RespostaDaJornadaDoze {}") }
+        : { kind: "TEXT", text: text("resposta do aluno (012)", "Resposta do aluno da jornada doze") };
+  const savedAnswer = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, {
+    answers: [{ questionId: firstQuestion.id, answer: journeyAnswer, baseRevision: 0 }],
+  });
+  expect(savedAnswer.body.results[0].outcome).toBe("SAVED");
+  expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("ACTIVITY_CLOSED");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

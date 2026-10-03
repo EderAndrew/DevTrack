@@ -14,7 +14,6 @@ const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "entregas.visualizar",
   "notas.lancar",
   "notas.liberar",
-  "atividades.proprias.responder",
   "notas.proprias.visualizar",
 ]);
 

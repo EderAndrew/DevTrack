@@ -165,6 +165,8 @@ describe("005/SC-003 005/SC-004 catálogo acessível e operável pelo teclado", 
     expect(expected.length).toBeGreaterThan(REGISTRY.length);
     const seen = new Set<Element>();
     for (let i = 0; i < expected.length * 3 && !expected.every((element) => seen.has(element)); i += 1) {
+      // 012 CodeEditor: Tab indents inside the editor; Esc then Tab leaves it (exam-mode.md).
+      if (document.activeElement?.closest('[data-slot="code-editor"]')) await user.keyboard("{Escape}");
       await user.tab();
       const focused = document.activeElement;
       if (focused && container.contains(focused)) seen.add(focused);

@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import type { Answer, StudentAnswer, WorkQuestionType } from "@repo/contracts";
+import type { StudentAnswer } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { ACTIVITY_QUESTION_SELECT, decimalToCents, toQuestionRow } from "../activities/activity-query";
+import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import type { StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
 
 /** Why an existing activity is outside the student's context (`student_access.denied`, research P18). */
@@ -162,22 +163,9 @@ function toInput(activity: ActivityRow, attempt: AttemptRow | null, now: Date, c
   };
 }
 
-interface AnswerRow {
-  questionId: string;
-  questionType: WorkQuestionType;
-  text: string | null;
-  alternativeId: string | null;
-  source: string | null;
-  revision: number;
-}
-
-/** A saved answer back in the 011 `Answer` shape, by its question's type (the CHECK of `activity_answers`). */
-function toStudentAnswer(row: AnswerRow): StudentAnswer {
-  const answer: Answer =
-    row.questionType === "OPEN_ANSWER"
-      ? { kind: "TEXT", text: row.text ?? "" }
-      : row.questionType === "MULTIPLE_CHOICE"
-        ? { kind: "ALTERNATIVE", alternativeId: row.alternativeId }
-        : { kind: "CODE", source: row.source ?? "" };
-  return { questionId: row.questionId, answer, revision: row.revision };
-}
+/** A saved answer with its revision (research P8). */
+const toStudentAnswer = (row: AnswerRow & { questionId: string; revision: number }): StudentAnswer => ({
+  questionId: row.questionId,
+  answer: answerOfRow(row),
+  revision: row.revision,
+});

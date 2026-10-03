@@ -1,10 +1,13 @@
 import {
+  type Answer,
   type ActivityType,
   ActivityTypeSchema,
   type StudentActivityFilter,
   StudentActivityFilterSchema,
   type StudentActivityStatus,
   type StudentActivitySummary,
+  type StudentQuestion,
+  type WorkQuestionType,
 } from "@repo/contracts";
 import type { StatusVariant } from "@/components/ui/status";
 import { MY_ACTIVITIES_PATH } from "@/lib/navigation";
@@ -80,3 +83,34 @@ export const statusLabel = (item: Pick<StudentActivitySummary, "status" | "late"
 
 /** "0.90" → "0,90" (grades are shown with a comma). */
 export const formatGrade = (grade: string) => grade.replace(".", ",");
+
+/** Question types as the student reads them (012 contracts/web-ui.md). */
+export const QUESTION_TYPE_LABELS: Record<WorkQuestionType, string> = {
+  OPEN_ANSWER: "Pergunta e resposta",
+  MULTIPLE_CHOICE: "Múltipla escolha",
+  CODE: "Código",
+};
+
+/** "Vale 0,17". */
+export const valueLabel = (value: string) => `Vale ${formatGrade(value)}`;
+
+/**
+ * Whether the navigator shows the question as answered: the display side of the server's blank
+ * rule (contracts/student-status.md) — the server counts the blank questions at submission.
+ */
+export function isAnswered(question: Pick<StudentQuestion, "starterCode">, answer: Answer | null): boolean {
+  if (answer === null) return false;
+  if (answer.kind === "ALTERNATIVE") return answer.alternativeId !== null;
+  if (answer.kind === "TEXT") return answer.text.trim() !== "";
+  return answer.source.trim() !== "" && answer.source !== question.starterCode;
+}
+
+/** The answer a question starts with on screen: its starter code for code, empty otherwise. */
+export function emptyAnswer(question: Pick<StudentQuestion, "type" | "starterCode">): Answer {
+  if (question.type === "MULTIPLE_CHOICE") return { kind: "ALTERNATIVE", alternativeId: null };
+  if (question.type === "CODE") return { kind: "CODE", source: question.starterCode ?? "" };
+  return { kind: "TEXT", text: "" };
+}
+
+/** Limit of an open answer (011 `AnswerSchema`). */
+export const ESSAY_MAX_LENGTH = 20_000;

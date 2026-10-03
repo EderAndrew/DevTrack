@@ -310,7 +310,8 @@ library to the programming exercises spec, and no execution exists yet).
 **Decision**: `useAttemptAnswers` keeps the answers in component state, marks dirty questions and
 saves them after 1,5 s without typing, on question change and on `visibilitychange` to hidden;
 `SaveStatus` follows the exam-mode table. Unsent answers also go to `localStorage` under
-`devtrack:respostas:<userId>:<attemptId>` (wrapped in try/catch) and are replayed with their
+`devtrack:respostas:<userId>:<activityId>` (the activity's single attempt; the student view carries
+no attempt id) (wrapped in try/catch) and are replayed with their
 `baseRevision` when the page loads or `online` fires; the key is removed after a successful
 submit and every `devtrack:respostas:` key is removed on logout. The server stays the authority:
 a CONFLICT result replaces the local copy. No Redux (no global client state).
