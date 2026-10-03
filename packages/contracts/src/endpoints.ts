@@ -66,6 +66,7 @@ import {
   TeacherActivityListSchema,
   TeacherActivitySchema,
   TeacherAttemptSchema,
+  MarkExerciseResultsRequestSchema,
   UpdateActivityRequestSchema,
 } from "./activities/teacher.js";
 import {
@@ -1114,6 +1115,15 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission",
     params: ClassActivityAttemptParamsSchema,
     body: EmptyBodySchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+  /** 013 — open answers and code of an EXERCISE's attempt 1 marked right or wrong (research K8); no grade. */
+  "activities.markAttempt": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/marks",
+    params: ClassActivityAttemptParamsSchema,
+    body: MarkExerciseResultsRequestSchema,
     response: TeacherAttemptSchema,
     status: 200,
   },

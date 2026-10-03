@@ -229,6 +229,9 @@ export const AUDIT_EVENT_METADATA = {
     "alreadyScoredCount",
     "points",
   ],
+  // 013 — one per teacher mark that changes the result or the comment (research K8): `from`/`to` are
+  // results, `hasComment` a boolean; never the answer or the comment.
+  "exercise_result.marked": ["activityId", "questionId", "from", "to", "points", "hasComment"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

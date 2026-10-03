@@ -1,7 +1,17 @@
 "use client";
 
-import type { Answer, QuestionGradingView, RosterEntry, TeacherActivity, TeacherAttempt, TeacherQuestion } from "@repo/contracts";
-import { CheckCircle2, Clock, Inbox, UserCheck } from "lucide-react";
+import type {
+  Answer,
+  ExerciseResult,
+  MarkExerciseResultsRequest,
+  QuestionGradingView,
+  RosterEntry,
+  TeacherActivity,
+  TeacherAttempt,
+  TeacherExerciseResult,
+  TeacherQuestion,
+} from "@repo/contracts";
+import { Award, CheckCircle2, Clock, Cpu, Eye, Hourglass, Inbox, UserCheck, XCircle } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
@@ -18,6 +28,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
@@ -31,6 +43,18 @@ import {
   gradeFieldId,
   toGradeSubmission,
 } from "../schemas/attempt-grading";
+import {
+  commentFieldId,
+  EXERCISE_RESULT_LABELS,
+  EXERCISE_RESULT_VARIANTS,
+  isMarkable,
+  type MarkChoice,
+  markDefaults,
+  markFieldName,
+  type MarkValues,
+  pendingMarksLabel,
+  toMarkRequest,
+} from "../schemas/exercise-marks";
 import { TextareaField } from "./form-fields";
 
 export const GRADING_CONFLICT_NOTICE = "Esta correção mudou em outra aba. Mostramos a versão atual; revise antes de salvar.";
@@ -41,6 +65,8 @@ export interface AttemptReviewProps {
   attemptId: string;
   /** `notas.lancar`: grade and accept (UX only; the API authorizes). */
   canGrade: boolean;
+  /** `exercicios.corrigir`: mark an Exercício's answers right or wrong (013; UX only). */
+  canMark: boolean;
 }
 
 /**
@@ -48,9 +74,11 @@ export interface AttemptReviewProps {
  * [attemptId]`): each answer next to the answer key, the automatic results marked "Corrigida
  * automaticamente", a grade ("0,00 a 0,05") and feedback per question, the general feedback and
  * "Salvar correção". A not-submitted attempt is read-only ("Não entregue") and, when the student can
- * no longer submit, "Aceitar como entrega" (FR-006b). Links to the previous and next student.
+ * no longer submit, "Aceitar como entrega" (FR-006b). An Exercício (013/US3) has no grade: each
+ * answer shows its result, and the open answers and code of the first conclusion are marked "Certo"
+ * or "Errado" with an optional comment. Links to the previous and next student.
  */
-export function AttemptReview({ classId, activityId, attemptId, canGrade }: AttemptReviewProps) {
+export function AttemptReview({ classId, activityId, attemptId, canGrade, canMark }: AttemptReviewProps) {
   const activityQuery = useActivity(classId, activityId);
   const attemptQuery = useAttempt(classId, activityId, attemptId);
   const actions = useAttemptActions(classId, activityId, attemptId);
@@ -71,6 +99,7 @@ export function AttemptReview({ classId, activityId, attemptId, canGrade }: Atte
   const attempt = attemptQuery.data;
   const entry = activity.roster.find((item) => item.attemptId === attempt.id);
   const submission = attempt.submission;
+  const isExercise = activity.type === "EXERCISE";
 
   const accept = async () => {
     setNotice(null);
@@ -81,6 +110,16 @@ export function AttemptReview({ classId, activityId, attemptId, canGrade }: Atte
     } catch (caught) {
       setError(messageForError(caught));
     }
+  };
+  /** Throws on a refusal: the marking form shows it in its error summary. */
+  const saveMarks = async (marks: MarkExerciseResultsRequest["marks"]) => {
+    setNotice(null);
+    if (marks.length === 0) {
+      setNotice("Nenhuma alteração para salvar.");
+      return;
+    }
+    await actions.mark.mutateAsync({ marks });
+    setNotice("Correção salva.");
   };
   const save = async (request: Parameters<typeof actions.grade.mutateAsync>[0]) => {
     setNotice(null);
@@ -112,7 +151,9 @@ export function AttemptReview({ classId, activityId, attemptId, canGrade }: Atte
           {notice ?? ""}
         </p>
         <div className="flex flex-wrap gap-2">
-          {submission ? (
+          {isExercise ? (
+            <ExerciseBadge concluded={attempt.exercise !== null} />
+          ) : submission ? (
             <Badge variant="success">
               <CheckCircle2 aria-hidden="true" />
               {submission.late ? "Entregue com atraso" : "Entregue"}
@@ -148,13 +189,27 @@ export function AttemptReview({ classId, activityId, attemptId, canGrade }: Atte
             </Item>
           ) : null}
           {submission ? <Item term="Questões em branco">{submission.blankCount}</Item> : null}
+          {attempt.exercise ? <Item term="Concluída em">{formatLongDateTime(attempt.exercise.completedAt)}</Item> : null}
+          {attempt.exercise?.number === 1 ? (
+            <>
+              <Item term="Pontos">
+                {attempt.exercise.results.reduce((sum, row) => sum + row.points, 0)} de {formatPoints(activity.possiblePoints ?? 0)}
+              </Item>
+              <Item term="Correção">{pendingMarksLabel(attempt.exercise.results.filter((row) => row.result === "PENDING_TEACHER").length)}</Item>
+            </>
+          ) : null}
         </dl>
+        {attempt.exercise && attempt.exercise.number > 1 ? (
+          <p className="m-0">Tentativa {attempt.exercise.number}: prática. Não vale pontos e não vai para a correção.</p>
+        ) : null}
         {!submission && canGrade && entry?.status === "MISSED" && attempt.answers.length > 0 && attempt.lastSavedAt ? (
           <AcceptAction lastSavedAt={attempt.lastSavedAt} onConfirm={accept} />
         ) : null}
       </div>
 
-      {submission && canGrade ? (
+      {isExercise ? (
+        <ExerciseReview activity={activity} attempt={attempt} canMark={canMark} onSave={saveMarks} />
+      ) : submission && canGrade ? (
         // Keyed by version: a save or another tab's change loads the correction again.
         <GradingForm key={submission.version} activity={activity} attempt={attempt} onSave={save} />
       ) : (
@@ -282,14 +337,191 @@ function GradingForm({
   );
 }
 
+function ExerciseBadge({ concluded }: { concluded: boolean }) {
+  return concluded ? (
+    <Badge variant="success">
+      <CheckCircle2 aria-hidden="true" />
+      Concluída
+    </Badge>
+  ) : (
+    <Badge variant="warning">
+      <Inbox aria-hidden="true" />
+      Não concluída
+    </Badge>
+  );
+}
+
+/**
+ * The Exercício's answers (013/US3): with `exercicios.corrigir` and something to mark on the first
+ * conclusion, the marking form; otherwise each result read-only.
+ */
+function ExerciseReview({
+  activity,
+  attempt,
+  canMark,
+  onSave,
+}: {
+  activity: TeacherActivity;
+  attempt: TeacherAttempt;
+  canMark: boolean;
+  onSave: (marks: MarkExerciseResultsRequest["marks"]) => Promise<void>;
+}) {
+  const results = new Map((attempt.exercise?.results ?? []).map((row) => [row.questionId, row]));
+  const markable = attempt.exercise !== null && activity.questions.some((question) => {
+    const row = results.get(question.id);
+    return row !== undefined && isMarkable(row, question);
+  });
+  if (canMark && markable) {
+    // Keyed by the stored marks: a save or another tab's change loads them again.
+    const key = (attempt.exercise?.results ?? []).map((row) => `${row.result}:${row.decidedAt ?? ""}:${row.comment ?? ""}`).join("|");
+    return <MarkingForm key={key} activity={activity} attempt={attempt} results={results} onSave={onSave} />;
+  }
+  return (
+    <ol aria-label="Respostas" className="m-0 flex list-none flex-col gap-4 p-0">
+      {activity.questions.map((question) => (
+        <QuestionReview key={question.id} question={question} attempt={attempt} result={results.get(question.id)} />
+      ))}
+    </ol>
+  );
+}
+
+function MarkingForm({
+  activity,
+  attempt,
+  results,
+  onSave,
+}: {
+  activity: TeacherActivity;
+  attempt: TeacherAttempt;
+  results: Map<string, TeacherExerciseResult>;
+  onSave: (marks: MarkExerciseResultsRequest["marks"]) => Promise<void>;
+}) {
+  const [values, setValues] = useState<MarkValues>(() => markDefaults(attempt, activity.questions));
+  const [errors, setErrors] = useState<FormError[]>([]);
+  const [pending, setPending] = useState(false);
+  const setMark = (questionId: string, change: Partial<MarkValues[string]>) =>
+    setValues((current) => ({ ...current, [questionId]: { ...(current[questionId] ?? { result: "", comment: "" }), ...change } }));
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending) return;
+    setErrors([]);
+    setPending(true);
+    try {
+      await onSave(toMarkRequest(values, attempt));
+    } catch (caught) {
+      setErrors([{ message: messageForError(caught) }]);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <form noValidate aria-label="Correção" className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
+      <ErrorSummary errors={errors} title="Não foi possível salvar a correção" />
+      <ol aria-label="Respostas" className="m-0 flex list-none flex-col gap-4 p-0">
+        {activity.questions.map((question) => {
+          const row = results.get(question.id);
+          const typed = values[question.id];
+          if (!row || !typed || !isMarkable(row, question)) {
+            return <QuestionReview key={question.id} question={question} attempt={attempt} result={row} />;
+          }
+          const name = markFieldName(question.position);
+          const commentId = commentFieldId(question.position);
+          return (
+            <QuestionReview key={question.id} question={question} attempt={attempt} result={row} marking>
+              <div className="max-w-160">
+                <RadioGroup legend={`Correção do exercício ${question.position + 1}`} className="mb-4">
+                  {(["CORRECT", "WRONG"] as const satisfies readonly MarkChoice[]).map((choice) => (
+                    <div key={choice} className="flex min-h-11 items-center gap-2">
+                      <Radio
+                        id={`${name}-${choice}`}
+                        name={name}
+                        value={choice}
+                        checked={typed.result === choice}
+                        onChange={() => setMark(question.id, { result: choice })}
+                      />
+                      <Label htmlFor={`${name}-${choice}`}>{EXERCISE_RESULT_LABELS[choice]}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+                <TextareaField
+                  id={commentId}
+                  name={commentId}
+                  label={`Comentário do exercício ${question.position + 1} (opcional)`}
+                  value={typed.comment}
+                  onChange={(event) => setMark(question.id, { comment: event.target.value })}
+                />
+              </div>
+            </QuestionReview>
+          );
+        })}
+      </ol>
+      <div className="max-w-160">
+        <SubmitButton pending={pending} pendingLabel="Salvando…">
+          Salvar correção
+        </SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+const RESULT_ICONS: Record<ExerciseResult, typeof CheckCircle2> = {
+  CORRECT: CheckCircle2,
+  WRONG: XCircle,
+  PENDING_TEACHER: Hourglass,
+  UNSCORED: Eye,
+};
+
+/** An exercise's result by text and icon, never by color alone; who decided it and "já pontuado". */
+function ExerciseResultBadges({ row, question }: { row: TeacherExerciseResult; question: TeacherQuestion }) {
+  const Icon = RESULT_ICONS[row.result];
+  return (
+    <>
+      <Badge variant={EXERCISE_RESULT_VARIANTS[row.result]}>
+        <Icon aria-hidden="true" />
+        {EXERCISE_RESULT_LABELS[row.result]}
+      </Badge>
+      {row.nature === "RULE_RESULT" && row.scoring && question.type === "MULTIPLE_CHOICE" ? (
+        <Badge variant="neutral">
+          <Cpu aria-hidden="true" />
+          Corrigido automaticamente
+        </Badge>
+      ) : null}
+      {row.alreadyScored ? (
+        <Badge variant="neutral">
+          <Award aria-hidden="true" />
+          Já pontuado em outra atividade
+        </Badge>
+      ) : null}
+      {row.scoring ? <span>{formatPoints(row.points)}</span> : null}
+    </>
+  );
+}
+
 const GRADING_LABELS: Record<QuestionGradingView["status"], string> = {
   GRADED: "Corrigida automaticamente",
   PENDING_TEACHER: "Correção pendente",
   DECIDED: "Corrigida pelo professor",
 };
 
-/** One question: the student's answer next to the answer key, and its grading once submitted. */
-function QuestionReview({ question, attempt, children }: { question: TeacherQuestion; attempt: TeacherAttempt; children?: ReactNode }) {
+/**
+ * One question: the student's answer next to the answer key, and its grading once submitted or, for
+ * an Exercício, its result (the teacher's comment read-only unless `marking`).
+ */
+function QuestionReview({
+  question,
+  attempt,
+  result,
+  marking = false,
+  children,
+}: {
+  question: TeacherQuestion;
+  attempt: TeacherAttempt;
+  result?: TeacherExerciseResult;
+  marking?: boolean;
+  children?: ReactNode;
+}) {
   const answer = attempt.answers.find((item) => item.questionId === question.id)?.answer ?? null;
   const grading = attempt.submission?.gradings.find((item) => item.questionId === question.id) ?? null;
   const headingId = `questao-${question.position + 1}-titulo`;
@@ -297,13 +529,14 @@ function QuestionReview({ question, attempt, children }: { question: TeacherQues
     <li aria-labelledby={headingId} className="flex flex-col gap-2 rounded-md border border-border p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h3 id={headingId} className="m-0 text-h3">
-          Questão {question.position + 1}
+          {question.points !== null ? "Exercício" : "Questão"} {question.position + 1}
         </h3>
         <span>{QUESTION_TYPE_LABELS[question.type]}</span>
         <span>Vale {question.value !== null ? formatGrade(question.value ?? "0.00") : formatPoints(question.points ?? 0)}</span>
         {grading ? (
           <Badge variant={grading.status === "PENDING_TEACHER" ? "warning" : "neutral"}>{GRADING_LABELS[grading.status]}</Badge>
         ) : null}
+        {result ? <ExerciseResultBadges row={result} question={question} /> : null}
       </div>
       <dl className="m-0 flex flex-col gap-2">
         <Item term="Enunciado">{question.statement}</Item>
@@ -332,6 +565,7 @@ function QuestionReview({ question, attempt, children }: { question: TeacherQues
             {grading.feedback ? <Item term="Feedback">{grading.feedback}</Item> : null}
           </>
         ) : null}
+        {result?.comment && !marking ? <Item term="Comentário do professor">{result.comment}</Item> : null}
       </dl>
       {children}
     </li>

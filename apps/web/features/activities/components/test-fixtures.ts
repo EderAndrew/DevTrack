@@ -1,4 +1,4 @@
-import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, WorkSummary } from "@repo/contracts";
+import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, TeacherQuestion, WorkSummary } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -281,6 +281,90 @@ export const teacherAttempt = (overrides: Partial<TeacherAttempt> = {}): Teacher
   exercise: null,
   ...overrides,
 });
+
+export const EXERCISE_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd2";
+export const MARK_CHOICE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab00";
+export const MARK_OPEN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab01";
+export const MARK_CODE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab02";
+
+/**
+ * The Exercício of `exerciseActivity()` with one question of each type: a multiple choice (Básico,
+ * 15), an open answer (Intermediário, 30) and a code (Avançado, 60); Bruno and Carla concluded.
+ */
+export const markingActivity = (overrides: Partial<TeacherActivity> = {}): TeacherActivity => {
+  const base = exerciseActivity();
+  const [choice, open, code] = base.questions as [TeacherQuestion, TeacherQuestion, TeacherQuestion];
+  return exerciseActivity({
+    questions: [
+      { ...choice, id: MARK_CHOICE_ID, statement: "Qual palavra declara herança?" },
+      {
+        ...open,
+        id: MARK_OPEN_ID,
+        type: "OPEN_ANSWER",
+        gradingStrategy: "AI_REVIEW",
+        statement: "Explique o encapsulamento.",
+        expectedAnswer: "Esconder o estado atrás de métodos.",
+        explanation: "O estado fica privado.",
+        alternatives: [],
+      },
+      {
+        ...code,
+        id: MARK_CODE_ID,
+        type: "CODE",
+        gradingStrategy: "TEST_CASES",
+        statement: "Escreva a classe Conta.",
+        starterCode: "class Conta {}",
+        expectedSolution: "class Conta { private saldo; }",
+        explanation: "O saldo é privado.",
+        alternatives: [],
+      },
+    ],
+    roster: [
+      base.roster[0]!,
+      { ...base.roster[1]!, attemptId: EXERCISE_ATTEMPT_ID },
+      { ...base.roster[1]!, studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3", name: "Carla Dias", attemptId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd4" },
+    ],
+    ...overrides,
+  });
+};
+
+type ExerciseBlock = NonNullable<TeacherAttempt["exercise"]>;
+type ExerciseRow = ExerciseBlock["results"][number];
+
+/** Bruno's first conclusion: the multiple choice right by the rule, the open answer waiting, the code marked wrong. */
+export const exerciseAttempt = (results: Partial<Record<string, Partial<ExerciseRow>>> = {}, block: Partial<ExerciseBlock> = {}): TeacherAttempt => {
+  const row = (questionId: string, fields: Partial<ExerciseRow>): ExerciseRow => ({
+    questionId,
+    result: "PENDING_TEACHER",
+    points: 0,
+    scoring: true,
+    alreadyScored: false,
+    nature: null,
+    comment: null,
+    decidedAt: null,
+    ...fields,
+    ...results[questionId],
+  });
+  return teacherAttempt({
+    id: EXERCISE_ATTEMPT_ID,
+    answers: [
+      { questionId: MARK_CHOICE_ID, answer: { kind: "ALTERNATIVE", alternativeId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1" }, savedAt: "2026-10-05T11:30:00.000Z" },
+      { questionId: MARK_OPEN_ID, answer: { kind: "TEXT", text: "Proteger os atributos." }, savedAt: "2026-10-05T11:40:00.000Z" },
+      { questionId: MARK_CODE_ID, answer: { kind: "CODE", source: "class Conta { saldo; }" }, savedAt: "2026-10-05T11:58:00.000Z" },
+    ],
+    submission: null,
+    exercise: {
+      number: 1,
+      completedAt: "2026-10-05T12:00:00.000Z",
+      results: [
+        row(MARK_CHOICE_ID, { result: "CORRECT", points: 15, nature: "RULE_RESULT" }),
+        row(MARK_OPEN_ID, {}),
+        row(MARK_CODE_ID, { result: "WRONG", nature: "HUMAN_DECISION", comment: "Faltou o private.", decidedAt: "2026-10-05T13:00:00.000Z" }),
+      ],
+      ...block,
+    },
+  });
+};
 
 export interface Call {
   method: string;

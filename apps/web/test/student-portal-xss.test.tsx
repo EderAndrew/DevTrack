@@ -75,7 +75,7 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
         [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, attempt),
       }).fetch,
     );
-    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} />);
+    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
     await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
     expect(container.querySelector("script, img")).toBeNull();
     expect(screen.getByText(SCRIPT)).toBeTruthy();

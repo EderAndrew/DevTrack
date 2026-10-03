@@ -241,22 +241,22 @@ pontos e situação dos dois alunos.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T027 [P] [US3] `apps/api/test/integration/013-us3-marks.spec.ts`: `013/US3-1`…`013/US3-5`,
+- [X] T027 [P] [US3] `apps/api/test/integration/013-us3-marks.spec.ts`: `013/US3-1`…`013/US3-5`,
   `013/FR-016`, `013/FR-017` (`NOT_MARKABLE` para MC, branco, prática e "já pontuado"; marca igual
   sem evento; mudança auditada com `from`/`to`; rotas de nota, liberação e aceitar entrega → 409
   em EXERCISE; marcação em atividade cancelada → 409, em encerrada → 200).
-- [ ] T028 [P] [US3] Linhas do `MATRIX`/`route-declarations` para `PUT …/attempts/:attemptId/marks`;
+- [X] T028 [P] [US3] Linhas do `MATRIX`/`route-declarations` para `PUT …/attempts/:attemptId/marks`;
   teste web `apps/web/features/activities/components/attempt-review.test.tsx` (rádios Certo/Errado,
   comentário, sem campo de nota, axe e teclado).
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] `apps/api/src/modules/activities/attempts-review.service.ts` e
+- [X] T029 [US3] `apps/api/src/modules/activities/attempts-review.service.ts` e
   `attempts-review.controller.ts`: `PUT …/marks` (K8) com `exercicios.corrigir`, auditoria
   `exercise_result.marked`, limite de escrita do professor; `GET` da tentativa com o bloco
   `exercise`; recusa de `grades`/`accept-submission`/`release` para EXERCISE; `roster.ts` com
   `COMPLETED`, `pointsEarned` e `pendingMarks`; endpoint no catálogo.
-- [ ] T030 [US3] Web `apps/web/features/activities/` (attempt review e roster): marcação por
+- [X] T030 [US3] Web `apps/web/features/activities/` (attempt review e roster): marcação por
   questão, "Já pontuado em outra atividade" só leitura, contagem "aguardando correção".
 
 **Checkpoint**: MVP — exercício → pontos completo (US1–US3).

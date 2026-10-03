@@ -3,12 +3,15 @@ import {
   type ActivityStatus,
   type ActivityType,
   centsToGrade,
+  type ExerciseResult,
   type GradeSubmissionRequest,
   gradeToCents,
   type LatePolicy,
+  type MarkExerciseResultsRequest,
   type PendingReason,
   type QuestionGrading,
   type TeacherAttempt,
+  type WorkQuestionType,
 } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
@@ -28,13 +31,16 @@ import { decimalToCents, requiredCents } from "./activity-query";
 import { type AssignmentFacts, assignmentSchedule } from "./status/facts";
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
+import { pointsFor } from "./results/exercise-results";
 import { registerSubmission } from "./submission/register-submission";
 
 const HOUR_SEC = 3_600;
 
 const ATTEMPT_SELECT = {
   id: true,
+  number: true,
   status: true,
+  completedAt: true,
   startedAt: true,
   lastSavedAt: true,
   student: { select: { userId: true, user: { select: { name: true } } } },
@@ -58,6 +64,11 @@ const ATTEMPT_SELECT = {
         select: { questionId: true, status: true, nature: true, finalGrade: true, teacherGrade: true, pendingReason: true, feedback: true },
       },
     },
+  },
+  // EXERCISE: one result per question of a concluded attempt (013 K6).
+  results: {
+    orderBy: { question: { position: "asc" } },
+    select: { questionId: true, result: true, points: true, scoring: true, nature: true, comment: true, decidedAt: true },
   },
 } as const satisfies Prisma.ActivityAttemptSelect;
 
@@ -266,7 +277,74 @@ export class AttemptsReviewService {
     });
   }
 
-  /** Grading and accepting count with the other teacher writes (research P20). */
+  /**
+   * The teacher's right or wrong on the open answers and code of an EXERCISE's attempt 1, with an
+   * optional comment (013/FR-017, research K7, K8), all or nothing: the activity `FOR SHARE` (a
+   * cancellation waits) and the attempt's results `FOR UPDATE`. An ASSIGNMENT or a CANCELLED activity
+   * → `409 INVALID_STATE_TRANSITION` (a CLOSED one is still marked); an attempt that is not a
+   * concluded attempt 1, or a row that doesn't wait for the teacher (multiple choice, blank, practice,
+   * already scored) → `422 NOT_MARKABLE`; a question of another activity → `422 UNKNOWN_QUESTION`.
+   * The body states the absolute result, so a mark equal to the stored one (result and comment) is a
+   * no-op; each change counts at once (no release) and writes one `exercise_result.marked`.
+   */
+  async mark(
+    auth: AuthContext,
+    classId: string,
+    activityId: string,
+    attemptId: string,
+    body: MarkExerciseResultsRequest,
+    requestId: string | null,
+  ): Promise<TeacherAttempt> {
+    const teacherId = auth.userId;
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    await this.assertWriteRate(teacherId);
+    return this.prisma.runInTransaction(async (tx) => {
+      const activity = await lockActivity(tx, classId, activityId, "SHARE");
+      if (activity.type !== "EXERCISE" || activity.status === "CANCELLED") throw invalidStateTransition();
+      const attempt = await tx.activityAttempt.findFirst({ where: { id: attemptId, activityId }, select: { number: true, status: true } });
+      if (!attempt) throw notFound();
+      // Only the first conclusion scores and waits for the teacher (013/FR-008).
+      if (attempt.status !== "SUBMITTED" || attempt.number !== 1) throw new AppException("NOT_MARKABLE");
+
+      const rows = await tx.$queryRaw<MarkableRow[]>`
+        SELECT r.question_id, r.question_points, r.scoring, r.result::text AS result, r.nature::text AS nature, r.comment,
+               q.type::text AS question_type
+        FROM exercise_question_results r
+        JOIN class_activity_questions q ON q.id = r.question_id
+        WHERE r.attempt_id = ${attemptId}::uuid
+        FOR UPDATE OF r`;
+      const byQuestion = new Map(rows.map((row) => [row.question_id, row]));
+      const changed: { row: MarkableRow; result: "CORRECT" | "WRONG"; comment: string | null }[] = [];
+      for (const mark of body.marks) {
+        const row = byQuestion.get(mark.questionId);
+        if (!row) throw new AppException("UNKNOWN_QUESTION");
+        if (!isMarkable(row)) throw new AppException("NOT_MARKABLE");
+        const comment = mark.comment === undefined ? row.comment : feedbackOf(mark.comment);
+        if (row.result !== mark.result || comment !== row.comment) changed.push({ row, result: mark.result, comment });
+      }
+
+      const now = this.clock.now();
+      for (const { row, result, comment } of changed) {
+        const points = pointsFor(result, true, row.question_points);
+        await tx.exerciseQuestionResult.update({
+          where: { attemptId_questionId: { attemptId, questionId: row.question_id } },
+          data: { result, points, nature: "HUMAN_DECISION", comment, decidedById: teacherId, decidedAt: now },
+        });
+        await this.audit.record(tx, {
+          type: "exercise_result.marked",
+          actorType: "USER",
+          actorUserId: teacherId,
+          targetType: "ACTIVITY_ATTEMPT",
+          targetId: attemptId,
+          requestId,
+          metadata: { activityId, questionId: row.question_id, from: row.result, to: result, points, hasComment: comment !== null },
+        });
+      }
+      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+    });
+  }
+
+  /** Grading, accepting and marking count with the other teacher writes (research P20). */
   private async assertWriteRate(teacherId: string): Promise<void> {
     const limit = await this.rateLimit.hit("activity-teacher-writes", teacherId, {
       limit: this.config.rateLimit.activityTeacherWritesPerHour,
@@ -318,6 +396,24 @@ async function lockActivity(tx: Tx, classId: string, activityId: string, mode: "
     classActive: row.class_status === "ACTIVE",
   };
 }
+
+/** A result of the attempt under its row lock, with its question's type. */
+interface MarkableRow {
+  question_id: string;
+  question_points: number;
+  scoring: boolean;
+  result: ExerciseResult;
+  nature: "RULE_RESULT" | "HUMAN_DECISION" | null;
+  comment: string | null;
+  question_type: WorkQuestionType;
+}
+
+/**
+ * The teacher marks the scoring row of an open answer or a code that was answered (013/FR-009,
+ * FR-017): a multiple choice and a blank are decided by the rule (RULE_RESULT); practice and
+ * "já pontuado" rows never score.
+ */
+const isMarkable = (row: MarkableRow): boolean => row.scoring && row.question_type !== "MULTIPLE_CHOICE" && row.nature !== "RULE_RESULT";
 
 /** A stored grading in the 011 shape (no suggestion: 012 runs no AI). */
 function toQuestionGrading(row: GradingRecord): QuestionGrading {
@@ -373,7 +469,23 @@ function toTeacherAttempt(attempt: AttemptRecord): TeacherAttempt {
         feedback: grading.feedback,
       })),
     },
-    // The EXERCISE results arrive with the teacher's marks (013 US3).
-    exercise: null,
+    // EXERCISE: a concluded attempt's results (013/FR-016); attempt 1 without the scoring slot is "já pontuado".
+    exercise:
+      attempt.completedAt === null
+        ? null
+        : {
+            number: attempt.number,
+            completedAt: attempt.completedAt.toISOString(),
+            results: attempt.results.map((row) => ({
+              questionId: row.questionId,
+              result: row.result,
+              points: row.points,
+              scoring: row.scoring,
+              alreadyScored: attempt.number === 1 && !row.scoring,
+              nature: row.nature,
+              comment: row.comment,
+              decidedAt: row.decidedAt?.toISOString() ?? null,
+            })),
+          },
   };
 }

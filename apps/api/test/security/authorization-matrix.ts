@@ -285,6 +285,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId", access: "entregas.visualizar" },
   { method: "PUT", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/grades", access: "notas.lancar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission", access: "notas.lancar" },
+  // 013 — the teacher marks open answers and code right or wrong (contracts/permissions.md).
+  { method: "PUT", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/marks", access: "exercicios.corrigir" },
   // 012 — the student portal (contracts/permissions.md).
   { method: "GET", path: "/me/dashboard", access: "atividades.proprias.visualizar" },
   { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },

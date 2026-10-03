@@ -585,12 +585,16 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(editedActivity.status).toBe(200);
   expect((await teacherClient.post(`${activitiesPath}/${appliedWork.body.id}/close`, {})).status).toBe(200);
   const journeyTeacherId = (await t.prisma.user.findUniqueOrThrow({ where: { email: teacherEmail }, select: { id: true } })).id;
-  const approvedExercises = await t.prisma.exercise.findMany({
-    where: { teacherId: journeyTeacherId, status: "APPROVED" },
-    select: { id: true },
-    orderBy: { id: "asc" },
-    take: 2,
-  });
+  // Two approved exercises, an open answer or code first: its answer waits for the teacher's mark (013/US3).
+  const approvedExercises = (
+    await t.prisma.exercise.findMany({
+      where: { teacherId: journeyTeacherId, status: "APPROVED" },
+      select: { id: true, type: true },
+      orderBy: { id: "asc" },
+    })
+  )
+    .sort((a, b) => Number(a.type === "MULTIPLE_CHOICE") - Number(b.type === "MULTIPLE_CHOICE"))
+    .slice(0, 2);
   // 013/US1 — exercises go out without grade or deadline (`activity.published` with `possiblePoints`).
   const exerciseSource = { type: "EXERCISE" as const, exerciseIds: approvedExercises.map((exercise) => exercise.id) };
   const appliedExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
@@ -721,7 +725,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // (`activity_attempt.progress_saved`, counts only) and is refused on the closed work
   // (`activity_submission.rejected` with the code). The answer is content the scans keep out of logs
   // and audit. Since 013 only a work is submitted, graded and released: the exercises below are
-  // practice, started, saved and concluded (013/US2); the teacher's marks join with 013 US3.
+  // practice, started, saved, concluded (013/US2) and marked by the teacher (013/US3).
   const openExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(openExercises.status).toBe(201);
   const startedExercises = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
@@ -761,6 +765,21 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await classStudentClient.post(`${practicePath}/attempts/1/complete`, { answers: [] })).status).toBe(200);
   expect((await classStudentClient.post(`${practicePath}/attempts`, { afterNumber: 1 })).body.attempt.number).toBe(2);
   expect((await classStudentClient.get(`${practicePath}/attempts/1`)).body.first).toBe(true);
+  // 013/US3 — the teacher marks the answers of attempt 1 waiting for a mark right, with a comment
+  // (`exercise_result.marked` per change, `from`/`to` and `hasComment`, never the comment).
+  const practiceAttemptId = (await teacherClient.get(`${activitiesPath}/${openExercises.body.id}`)).body.roster[0].attemptId as string;
+  const practiceReviewPath = `${activitiesPath}/${openExercises.body.id}/attempts/${practiceAttemptId}`;
+  const practiceResults = (await teacherClient.get(practiceReviewPath)).body.exercise.results as { questionId: string; result: string }[];
+  const awaitingMarks = practiceResults.filter((row) => row.result === "PENDING_TEACHER");
+  expect(awaitingMarks.length).toBeGreaterThan(0);
+  const marked = await teacherClient.put(`${practiceReviewPath}/marks`, {
+    marks: awaitingMarks.map((row) => ({
+      questionId: row.questionId,
+      result: "CORRECT",
+      comment: text("comentário da marcação (013)", "Comentário da marcação da jornada treze"),
+    })),
+  });
+  expect(marked.status).toBe(200);
   // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
   const submitPath = `/api/me/activities/${openWork.body.id}/attempt/submit`;
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");

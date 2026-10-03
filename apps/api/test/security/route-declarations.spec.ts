@@ -177,6 +177,7 @@ describe("route access declarations", () => {
         "GET /classes/:classId/activities/:activityId/attempts/:attemptId",
         "PUT /classes/:classId/activities/:activityId/attempts/:attemptId/grades",
         "POST /classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission",
+        "PUT /classes/:classId/activities/:activityId/attempts/:attemptId/marks",
         "GET /me/dashboard",
         "GET /me/activities",
         "GET /me/activities/:activityId",

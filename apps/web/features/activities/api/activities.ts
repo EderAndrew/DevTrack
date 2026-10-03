@@ -3,6 +3,7 @@ import type {
   CreateActivityRequest,
   ExercisePage,
   GradeSubmissionRequest,
+  MarkExerciseResultsRequest,
   ScopeCheck,
   TeacherActivity,
   TeacherActivityList,
@@ -38,6 +39,9 @@ export const attemptsApi = {
   /** The teacher's grades at the submission's `version` (research P13). */
   grade: (classId: string, activityId: string, attemptId: string, body: GradeSubmissionRequest) =>
     apiClient.put<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/grades`, body),
+  /** 013: open answers and code of an Exercício's first conclusion marked right or wrong (FR-017). */
+  mark: (classId: string, activityId: string, attemptId: string, body: MarkExerciseResultsRequest) =>
+    apiClient.put<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/marks`, body),
   /** The saved answers become a late submission (FR-006b). */
   accept: (classId: string, activityId: string, attemptId: string) =>
     apiClient.post<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/accept-submission`, {}),

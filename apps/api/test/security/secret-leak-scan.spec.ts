@@ -158,6 +158,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "código do aluno (012)",
         "feedback da questão (012)",
         "feedback geral (012)",
+        // 013: the teacher's comment on a marked exercise.
+        "comentário da marcação (013)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -167,6 +169,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.work.findMany({ select: { title: true } }))).toContain("Trabalho manual da jornada onze");
+    expect(serialize(await t.prisma.exerciseQuestionResult.findMany({ select: { comment: true } }))).toContain("Comentário da marcação da jornada treze");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );
