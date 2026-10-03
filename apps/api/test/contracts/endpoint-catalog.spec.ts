@@ -30,7 +30,7 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     const phase007 = Object.keys(endpoints).filter((key) => /^curriculumAi\./.test(key));
     const phase010 = Object.keys(endpoints).filter((key) => /^(exercises|exerciseBatches|programmingLanguages)\./.test(key));
     const phase011 = Object.keys(endpoints).filter((key) => /^(works|workGeneration[A-Z]\w*)\./.test(key));
-    const phase012 = Object.keys(endpoints).filter((key) => /^activities\./.test(key));
+    const phase012 = Object.keys(endpoints).filter((key) => /^(activities|myActivities)\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
     expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length);
     expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length);

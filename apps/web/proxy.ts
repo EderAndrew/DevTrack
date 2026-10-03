@@ -24,5 +24,7 @@ export const config = {
     "/exercicios/:path*",
     "/trabalhos/:path*",
     "/minhas-turmas",
+    "/painel",
+    "/minhas-atividades/:path*",
   ],
 };

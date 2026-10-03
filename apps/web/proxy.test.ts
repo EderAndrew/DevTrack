@@ -16,6 +16,8 @@ describe("proxy (UX only)", () => {
       "/exercicios/:path*",
       "/trabalhos/:path*",
       "/minhas-turmas",
+      "/painel",
+      "/minhas-atividades/:path*",
     ]);
   });
 

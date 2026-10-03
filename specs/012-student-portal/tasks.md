@@ -294,7 +294,7 @@ filtros e ausência de turmas alheias.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T026 [P] [US2] `apps/api/test/integration/012-us2-dashboard.spec.ts`: contadores 3/2/1/8
+- [X] T026 [P] [US2] `apps/api/test/integration/012-us2-dashboard.spec.ts`: contadores 3/2/1/8
   (concluídas = entregues + corrigidas, montadas com `createActivity` e linhas de
   tentativa/entrega), próximas por prazo (≤ 5), atrasadas que aceitam entrega à parte, `urgent`
   com 47 h e 49 h; turma sem matrícula, matrícula REMOVED, agendada e cancelada não aparecem;
@@ -302,21 +302,31 @@ filtros e ausência de turmas alheias.
   antes da liberação; aluno sem atividades → listas vazias; conta STUDENT + TEACHER vê só as de
   aluno; `GET /me/activities/:id` de outra turma → 404 e `student_access.denied`
   (`012/US2-1`…`012/US2-6`, `012/FR-007`…`012/FR-012`).
-- [ ] T027 [P] [US2] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET
+  Nota de implementação: tentativas e entregas são escritas direto no banco por
+  `createAttemptRow` (`apps/api/test/helpers/activities.ts`) até US3/US4; o caso agendado da US1-4
+  do lado do aluno (não listada, `GET` por id → 404 `NOT_PUBLISHED`) está aqui.
+- [X] T027 [P] [US2] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET
   /me/dashboard`, `GET /me/activities`, `GET /me/activities/:activityId`.
 
 ### Implementation for User Story 2
 
-- [ ] T028 [US2] `apps/api/src/modules/student-activities/student-activity-loader.ts` (research
+- [X] T028 [US2] `apps/api/src/modules/student-activities/student-activity-loader.ts` (research
   P16, P18): duas consultas a partir do usuário da sessão (matrículas ACTIVE → atividades
   publicadas não canceladas com turma, disciplina e professor; tentativas, entregas e correções
   do aluno), situação por `status/`, filtro, ordem `deadline, id`, cursor `deadline|id`; e
   `deniedAccess` (busca sem escopo só para decidir a auditoria `student_access.denied`, tipo +
   contrato + jornada).
-- [ ] T029 [US2] `apps/api/src/modules/student-activities/my-activities.{service,controller}.ts`:
+  Nota de implementação: o alvo de `student_access.denied` lista os tipos possíveis no contrato
+  (`CLASS_ACTIVITY \| ACTIVITY_ATTEMPT \| ACTIVITY_SUBMISSION`) e `audit-coverage.spec.ts` aceita
+  um alvo entre eles; o evento é gravado fora de transação de domínio. A jornada abre como aluno o
+  painel, a lista e o id da atividade cancelada.
+- [X] T029 [US2] `apps/api/src/modules/student-activities/my-activities.{service,controller}.ts`:
   `dashboard` (primeiro nome, contadores, próximas, atrasadas abertas, `serverNow`), `list` e
   `get` (visão do aluno, ainda sem tentativa); entradas em `endpoints.ts`.
-- [ ] T030 [P] [US2] Web: `apps/web/features/student-activities/{api,hooks,schemas,components}`,
+  Nota de implementação: `get` já devolve a tentativa e as respostas salvas quando existem
+  (`toStudentAnswer` no loader); o cursor reaproveita `encodeCursor` de `platform/database/keyset.ts`
+  com o prazo; `notas.proprias.visualizar` é lida pelo `PermissionResolver` para o bloco `result`.
+- [X] T030 [P] [US2] Web: `apps/web/features/student-activities/{api,hooks,schemas,components}`,
   páginas `apps/web/app/(student)/painel/page.tsx` e `…/minhas-atividades/page.tsx`
   (contracts/web-ui.md: contadores como links, cartões com selo "Vence em menos de 48 horas" com
   texto e ícone, filtros na URL, "Carregar mais", estados carregando/vazio/erro/sem conexão);
@@ -325,7 +335,11 @@ filtros e ausência de turmas alheias.
   `apps/web/components/layout/student-layout.tsx` (Painel, Minhas atividades, Histórico, Minhas
   turmas, Meu perfil); `AREAS` e `apps/web/proxy.ts` com as rotas novas; datas por extenso no
   fuso do navegador.
-- [ ] T031 [P] [US2] Testes web em `apps/web/features/student-activities/components/*.test.tsx`
+  Nota de implementação: o item "Histórico" do menu entra com a página `/historico` (US6, T052);
+  até lá o menu é Painel, Minhas atividades, Minhas turmas, Meu perfil. Os cartões levam a
+  `/minhas-atividades/[id]`, página da US3. Os filtros na URL usam `?situacao=` e `?tipo=` em
+  português; "sem conexão" é o `NETWORK_ERROR` do cliente, distinto do erro de carga.
+- [X] T031 [P] [US2] Testes web em `apps/web/features/student-activities/components/*.test.tsx`
   e `apps/web/lib/navigation.test.ts`: "Nenhuma atividade pendente." ≠ "Não foi possível carregar
   suas atividades.", a próxima atividade e o prazo na primeira seção do painel, sem rolagem, como
   verificação substituta do tempo de 10 s (`012/SC-001`; a largura de celular entra na T062),

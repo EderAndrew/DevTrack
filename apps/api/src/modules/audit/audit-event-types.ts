@@ -190,6 +190,8 @@ export const AUDIT_EVENT_METADATA = {
   "activity.updated": ["classId", "fields"],
   "activity.closed": ["classId", "submittedCount", "missedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount"],
+  // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
+  "student_access.denied": ["route", "reason"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

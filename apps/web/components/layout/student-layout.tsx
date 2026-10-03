@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { cn } from "@/lib/utils";
-import { HOME_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
+import { DASHBOARD_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
 
 const CONTENT = "mx-auto w-full max-w-240 flex-1 px-(--gutter) py-6";
 
@@ -20,14 +20,21 @@ export interface StudentLayoutProps {
 /**
  * Frame of the student screens (005 contracts/layouts.md "StudentLayout"): a top bar with the
  * brand, the student menu and "Sair", and the content at reading width. No side menu and no
- * teacher or administration item. "Minhas turmas" follows the permission the menu already uses
- * (UX only; the API authorizes).
+ * teacher or administration item: Painel, Minhas atividades (012), Minhas turmas and Meu perfil,
+ * each behind the permission its page needs (UX only; the API authorizes).
  */
 export function StudentLayout({ me, preview = false, children }: StudentLayoutProps) {
   const pathname = usePathname();
-  const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
+  const can = (permission: string) => Boolean(me?.emailVerified && me.permissions.includes(permission));
+  const ownActivities = can("atividades.proprias.visualizar");
   const items = [
-    ...(ownClasses ? [{ href: MY_CLASSES_PATH, label: "Minhas turmas" }] : []),
+    ...(ownActivities
+      ? [
+          { href: DASHBOARD_PATH, label: "Painel" },
+          { href: MY_ACTIVITIES_PATH, label: "Minhas atividades" },
+        ]
+      : []),
+    ...(can("turmas.proprias.listar") ? [{ href: MY_CLASSES_PATH, label: "Minhas turmas" }] : []),
     { href: HOME_PATH, label: "Meu perfil" },
   ];
 
@@ -41,7 +48,7 @@ export function StudentLayout({ me, preview = false, children }: StudentLayoutPr
           <nav aria-label="Menu do aluno" className="flex-1">
             <ul className="m-0 flex list-none flex-wrap gap-x-1 gap-y-1 p-0">
               {items.map((item) => {
-                const current = pathname === item.href;
+                const current = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <li key={item.href}>
                     <Link

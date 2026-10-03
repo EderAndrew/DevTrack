@@ -275,6 +275,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PATCH", path: "/classes/:classId/activities/:activityId", access: "atividades.aplicar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/close", access: "atividades.aplicar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/cancel", access: "atividades.aplicar" },
+  // 012 — the student portal (contracts/permissions.md).
+  { method: "GET", path: "/me/dashboard", access: "atividades.proprias.visualizar" },
+  { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },
+  { method: "GET", path: "/me/activities/:activityId", access: "atividades.proprias.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

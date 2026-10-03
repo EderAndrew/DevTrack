@@ -232,3 +232,50 @@ export async function createActivity(
     return { activity, questionIds, alternativeIds, correctAlternativeIds };
   });
 }
+
+export interface SubmissionRowOptions {
+  submittedAt?: Date;
+  late?: boolean;
+  /** Integer hundredths; default 0. */
+  gradeCents?: number;
+  /** Default false: every question graded. */
+  gradePartial?: boolean;
+  generalFeedback?: string | null;
+  blankCount?: number;
+  /** FR-006b: the teacher who accepted it (the submission is then late). */
+  acceptedById?: string;
+}
+
+/**
+ * An attempt of `studentUserId` written straight to the database (012 US2, T026): IN_PROGRESS, or
+ * SUBMITTED with its submission when `submission` is given. The routes that write them arrive with
+ * US3 and US4.
+ */
+export async function createAttemptRow(
+  t: TestApp,
+  activityId: string,
+  studentUserId: string,
+  options: { startedAt?: Date; submission?: SubmissionRowOptions } = {},
+): Promise<{ attemptId: string; submissionId: string | null }> {
+  const startedAt = options.startedAt ?? new Date();
+  const attempt = await t.prisma.activityAttempt.create({
+    data: { activityId, studentUserId, startedAt, status: options.submission ? "SUBMITTED" : "IN_PROGRESS" },
+  });
+  if (!options.submission) return { attemptId: attempt.id, submissionId: null };
+  const submission = options.submission;
+  const created = await t.prisma.activitySubmission.create({
+    data: {
+      attemptId: attempt.id,
+      activityId,
+      studentUserId,
+      submittedAt: submission.submittedAt ?? startedAt,
+      late: submission.late ?? Boolean(submission.acceptedById),
+      blankCount: submission.blankCount ?? 0,
+      acceptedById: submission.acceptedById ?? null,
+      grade: cents(submission.gradeCents ?? 0),
+      gradePartial: submission.gradePartial ?? false,
+      generalFeedback: submission.generalFeedback ?? null,
+    },
+  });
+  return { attemptId: attempt.id, submissionId: created.id };
+}

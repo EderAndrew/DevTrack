@@ -36,7 +36,6 @@ const PENDING_012 = new Set<string>([
   "activity_attempt.progress_saved",
   "activity_submission.created",
   "activity_submission.rejected",
-  "student_access.denied",
   "activity_submission.graded",
   "activity_submission.accepted_by_teacher",
   "activity_result.released",
@@ -47,8 +46,8 @@ const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012]);
 interface ContractRow {
   type: string;
   actors: string[];
-  /** null = "—" (no target). */
-  target: string | null;
+  /** null = "—" (no target); several when the event targets the resource it was about (012). */
+  target: string[] | null;
   metadata: string[];
 }
 
@@ -72,7 +71,7 @@ function contractRows(file: string): ContractRow[] {
         .map((cell) => cell.trim());
       const [typeCell, actorCell, targetCell, metadataCell] = hasSpecName ? [cells[0], ...cells.slice(2)] : cells;
       const actors = actorCell!.split(/\\\|/).map((a) => a.trim());
-      const target = targetCell === "—" ? null : targetCell!;
+      const target = targetCell === "—" ? null : targetCell!.replace(/\([^)]*\)/g, "").split(/\\\|/).map((t) => t.trim());
       // Allowed keys are the backticked words outside parentheses (those list values).
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""));
       return backticked(typeCell!).map((type) => ({ type, actors, target, metadata }));
@@ -132,7 +131,8 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
         if (event.actorType === "USER") expect(event.actorUserId).not.toBeNull();
-        expect(event.targetType).toBe(row.target);
+        if (row.target) expect(row.target).toContain(event.targetType);
+        else expect(event.targetType).toBeNull();
         if (row.target) expect(event.targetId).not.toBeNull();
         expect(event.occurredAt).toBeInstanceOf(Date);
         expect(Math.abs(Date.now() - event.occurredAt.getTime())).toBeLessThan(10 * 60 * 1000);

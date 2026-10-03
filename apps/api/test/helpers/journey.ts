@@ -709,8 +709,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   }
 
   // 003/US7 — the new student sees the class in "Minhas turmas".
-  const myClasses = await api(t, { cookie: keepCookie(classAccepted) }).get("/api/me/classes");
+  const classStudentClient = api(t, { cookie: keepCookie(classAccepted) });
+  const myClasses = await classStudentClient.get("/api/me/classes");
   expect(myClasses.body.items.map((c: { id: string }) => c.id)).toEqual([classId]);
+  // 012/US2 — the student's dashboard and list show the closed work (overdue), never the cancelled
+  // exercises, whose id answers 404 and writes `student_access.denied` (route pattern and reason).
+  expect((await classStudentClient.get("/api/me/dashboard")).body.counts).toEqual({ pending: 0, inProgress: 0, overdue: 1, completed: 0 });
+  expect((await classStudentClient.get("/api/me/activities")).body.items.map((a: { id: string }) => a.id)).toEqual([appliedWork.body.id]);
+  expect((await classStudentClient.get(`/api/me/activities/${appliedExercises.body.id}`)).status).toBe(404);
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

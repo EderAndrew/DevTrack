@@ -173,6 +173,9 @@ describe("route access declarations", () => {
         "PATCH /classes/:classId/activities/:activityId",
         "POST /classes/:classId/activities/:activityId/close",
         "POST /classes/:classId/activities/:activityId/cancel",
+        "GET /me/dashboard",
+        "GET /me/activities",
+        "GET /me/activities/:activityId",
       ]),
     );
   });

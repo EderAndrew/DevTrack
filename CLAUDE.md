@@ -8,9 +8,10 @@ Last updated: 2026-10-02 (011 implemented; 012 in progress)
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
 test names are in Portuguese). Features 001–011 in `specs/` are implemented; 012-student-portal
-is the active feature (setup and foundational phases, T001–T019, done: schema, contracts, pure
-status/snapshot/grading/view rules, modules with no routes yet). Later work starts a new feature
-through `/speckit-specify`.
+is the active feature (T001–T031 done: schema, contracts, pure status/snapshot/grading/view rules,
+US1 the teacher applies, edits, closes and cancels an activity, US2 the student's dashboard and
+"Minhas atividades"; answering and submitting come next). Later work starts a new feature through
+`/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).

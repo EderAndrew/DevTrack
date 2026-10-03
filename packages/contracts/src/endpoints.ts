@@ -66,6 +66,12 @@ import {
   TeacherActivitySchema,
   UpdateActivityRequestSchema,
 } from "./activities/teacher.js";
+import {
+  StudentActivityListQuerySchema,
+  StudentActivityPageSchema,
+  StudentActivitySchema,
+  StudentDashboardSchema,
+} from "./activities/student.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -207,6 +213,10 @@ export type ClassParams = z.infer<typeof ClassParamsSchema>;
 /** An activity under its class (012). */
 export const ClassActivityParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema });
 export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
+
+/** One of the session student's activities (012). */
+export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
+export type MyActivityParams = z.infer<typeof MyActivityParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -1055,6 +1065,26 @@ export const endpoints = {
     params: ClassActivityParamsSchema,
     body: EmptyBodySchema,
     response: TeacherActivitySchema,
+    status: 200,
+  },
+
+  // 012 — the student portal: only the session student's ACTIVE enrollments (research P18).
+  /** Counts, the next five by deadline and the overdue ones still accepting a submission (FR-010, P17). */
+  "myActivities.dashboard": { method: "GET", path: "/me/dashboard", response: StudentDashboardSchema, status: 200 },
+  /** "Minhas atividades": by deadline, filtered by situation and type, keyset cursor (FR-012, P16). */
+  "myActivities.list": {
+    method: "GET",
+    path: "/me/activities",
+    query: StudentActivityListQuerySchema,
+    response: StudentActivityPageSchema,
+    status: 200,
+  },
+  /** The student view of one activity; out of context → 404 and `student_access.denied` (FR-008). */
+  "myActivities.get": {
+    method: "GET",
+    path: "/me/activities/:activityId",
+    params: MyActivityParamsSchema,
+    response: StudentActivitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
