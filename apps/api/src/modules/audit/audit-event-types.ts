@@ -172,6 +172,24 @@ export const AUDIT_EVENT_METADATA = {
     "regeneratedFromId",
   ],
   "work_generation.generated": ["executionId", "workId", "questionCount"],
+  // 012 — class activities. Only ids, counts, enums, booleans and codes (grades as integer
+  // hundredths): never titles, instructions, statements, answers, answer keys or feedback.
+  "activity.published": [
+    "classId",
+    "type",
+    "executionMode",
+    "sourceWorkId",
+    "sourceExerciseCount",
+    "questionCount",
+    "totalCents",
+    "latePolicy",
+    "scheduled",
+    "outOfScopeTopicCount",
+    "hasPlan",
+  ],
+  "activity.updated": ["classId", "fields"],
+  "activity.closed": ["classId", "submittedCount", "missedCount"],
+  "activity.cancelled": ["classId", "from", "submittedCount"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -216,4 +234,7 @@ export type AuditTargetType =
   | "EXERCISE"
   | "EXERCISE_BATCH"
   | "WORK"
-  | "WORK_GENERATION_REQUEST";
+  | "WORK_GENERATION_REQUEST"
+  | "CLASS_ACTIVITY"
+  | "ACTIVITY_ATTEMPT"
+  | "ACTIVITY_SUBMISSION";

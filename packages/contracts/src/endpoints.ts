@@ -58,6 +58,14 @@ import {
   TaskOverrideRequestSchema,
 } from "./ai/operations.js";
 import { AiProposalListQuerySchema, AiProposalPageSchema, AiProposalViewSchema, DecideAiProposalRequestSchema } from "./ai/proposals.js";
+import {
+  ActivitySourceSchema,
+  CreateActivityRequestSchema,
+  ScopeCheckSchema,
+  TeacherActivityListSchema,
+  TeacherActivitySchema,
+  UpdateActivityRequestSchema,
+} from "./activities/teacher.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -191,6 +199,14 @@ export type UserIdParams = z.infer<typeof UserIdParamsSchema>;
 /** A Curriculum Agent proposal under the syllabus document it targets (007). */
 export const CurriculumProposalParamsSchema = z.strictObject({ id: UuidSchema, proposalId: UuidSchema });
 export type CurriculumProposalParams = z.infer<typeof CurriculumProposalParamsSchema>;
+
+/** A class's activities (012); the names of contracts/http-api.md. */
+export const ClassParamsSchema = z.strictObject({ classId: UuidSchema });
+export type ClassParams = z.infer<typeof ClassParamsSchema>;
+
+/** An activity under its class (012). */
+export const ClassActivityParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema });
+export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -977,6 +993,68 @@ export const endpoints = {
     path: "/work-generation-requests/:id",
     params: IdParamsSchema,
     response: WorkGenerationRequestViewSchema,
+    status: 200,
+  },
+
+  // 012 — class activities, the teacher's side.
+  /** Every activity of the class, all statuses, by deadline (latest first), with the roster counts (US1). */
+  "activities.list": {
+    method: "GET",
+    path: "/classes/:classId/activities",
+    params: ClassParamsSchema,
+    response: TeacherActivityListSchema,
+    status: 200,
+  },
+  /** Topics of the source outside the class's taught scope (FR-005a, research P5). */
+  "activities.scopeCheck": {
+    method: "POST",
+    path: "/classes/:classId/activities/scope-check",
+    params: ClassParamsSchema,
+    body: ActivitySourceSchema,
+    response: ScopeCheckSchema,
+    status: 200,
+  },
+  /** 201 for a new activity; 200 when the same idempotency key returns the one it created (FR-005). */
+  "activities.create": {
+    method: "POST",
+    path: "/classes/:classId/activities",
+    params: ClassParamsSchema,
+    body: CreateActivityRequestSchema,
+    response: TeacherActivitySchema,
+    status: 201,
+  },
+  "activities.get": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId",
+    params: ClassActivityParamsSchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** Title, instructions, deadline, late policy; the publication only while scheduled (FR-004). */
+  "activities.update": {
+    method: "PATCH",
+    path: "/classes/:classId/activities/:activityId",
+    params: ClassActivityParamsSchema,
+    body: UpdateActivityRequestSchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** ACTIVE → CLOSED; already CLOSED → 200 with no event. */
+  "activities.close": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/close",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** ACTIVE | CLOSED → CANCELLED; already CANCELLED → 200 with no event. */
+  "activities.cancel": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/cancel",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

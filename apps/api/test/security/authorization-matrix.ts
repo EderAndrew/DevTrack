@@ -266,6 +266,15 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/work-generation-requests", access: "ia.trabalhos.gerar" },
   { method: "GET", path: "/work-generation-requests", access: "trabalhos.visualizar" },
   { method: "GET", path: "/work-generation-requests/:id", access: "trabalhos.visualizar" },
+
+  // 012 — class activities, the teacher's side (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities", access: "atividades.visualizar" },
+  { method: "POST", path: "/classes/:classId/activities/scope-check", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities", access: "atividades.aplicar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId", access: "atividades.visualizar" },
+  { method: "PATCH", path: "/classes/:classId/activities/:activityId", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/close", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/cancel", access: "atividades.aplicar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

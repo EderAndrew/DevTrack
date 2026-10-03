@@ -165,6 +165,14 @@ describe("route access declarations", () => {
         "POST /work-generation-requests",
         "GET /work-generation-requests",
         "GET /work-generation-requests/:id",
+        // 012
+        "GET /classes/:classId/activities",
+        "POST /classes/:classId/activities/scope-check",
+        "POST /classes/:classId/activities",
+        "GET /classes/:classId/activities/:activityId",
+        "PATCH /classes/:classId/activities/:activityId",
+        "POST /classes/:classId/activities/:activityId/close",
+        "POST /classes/:classId/activities/:activityId/cancel",
       ]),
     );
   });

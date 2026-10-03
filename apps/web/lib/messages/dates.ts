@@ -21,3 +21,15 @@ const calendarDate = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", time
 
 /** A calendar date of the contract ("YYYY-MM-DD", no time zone) as "dd/mm/aaaa". */
 export const formatDate = (isoDate: string) => calendarDate.format(new Date(`${isoDate}T00:00:00Z`));
+
+const longDay = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * An instant of the contract written out in the browser's time zone (012 contracts/web-ui.md):
+ * "sexta-feira, 10 de outubro, 23:59".
+ */
+export const formatLongDateTime = (iso: string) => {
+  const date = new Date(iso);
+  return `${longDay.format(date)}, ${clock.format(date)}`;
+};

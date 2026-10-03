@@ -10,11 +10,59 @@ import type {
 } from "../../src/generated/prisma/client";
 import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestUser } from "./factories";
 import { languageId } from "./exercises";
-import type { TestApp } from "./test-app";
+import type { api, TestApp } from "./test-app";
 
 // ── 012: class activities, written straight to the database (tasks T018) ─────────────────
-// The helpers that go through the routes (`applyWork`, `startAttempt`, `submitAttempt`…) arrive
-// with their routes (T022, T034, T043).
+// The helpers that go through the routes arrive with them: `applyWork`/`applyExercises` (T022),
+// `startAttempt`/`saveAnswers` (T034), `submitAttempt` (T043).
+
+type ApiClient = ReturnType<typeof api>;
+
+/** Far enough for any clock of the suites. */
+export const FAR_DEADLINE = "2030-12-31T23:59:00.000Z";
+
+export interface ApplyOverrides {
+  idempotencyKey?: string;
+  title?: string;
+  instructions?: string | null;
+  totalGrade?: string;
+  /** Default null: published now, by the server clock. */
+  publishAt?: string | null;
+  deadline?: string;
+  latePolicy?: ActivityLatePolicy;
+  acknowledgeOutOfScope?: boolean;
+}
+
+const applyBody = (source: object, overrides: ApplyOverrides) => ({
+  idempotencyKey: randomUUID(),
+  source,
+  title: "Atividade aplicada",
+  instructions: "Leia com atenção.",
+  publishAt: null,
+  deadline: FAR_DEADLINE,
+  latePolicy: "REJECT",
+  acknowledgeOutOfScope: false,
+  ...overrides,
+});
+
+/** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1). */
+export function applyWork(client: ApiClient, classId: string, workId: string, overrides: ApplyOverrides = {}) {
+  return client.post(`/api/classes/${classId}/activities`, applyBody({ type: "ASSIGNMENT", workId }, overrides));
+}
+
+/** `POST /classes/:classId/activities` with 1–10 exercises in this order; `totalGrade` undefined omits it. */
+export function applyExercises(
+  client: ApiClient,
+  classId: string,
+  exerciseIds: string[],
+  totalGrade: string | undefined,
+  overrides: ApplyOverrides = {},
+) {
+  return client.post(
+    `/api/classes/${classId}/activities`,
+    applyBody({ type: "EXERCISE", exerciseIds }, { ...(totalGrade === undefined ? {} : { totalGrade }), ...overrides }),
+  );
+}
 
 export interface ClassWithStudents {
   schoolClass: SchoolClass;

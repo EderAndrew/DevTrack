@@ -565,6 +565,38 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   });
   await planWrite("post", `/topics/${taught!.id}/complete`);
   await planWrite("post", `/topics/${taught!.id}/reopen`);
+  // 012/US1 — the teacher applies the manual work (its topic not taught yet, so confirmed) and two
+  // exercises to the class, edits, closes and cancels: `activity.published`, `activity.updated`,
+  // `activity.closed` and `activity.cancelled`, with ids, counts and enums only.
+  const activitiesPath = `/api/classes/${classId}/activities`;
+  const activityBody = (source: object) => ({
+    idempotencyKey: randomUUID(),
+    source,
+    title: text("título da atividade (012)", "Atividade da jornada doze"),
+    instructions: text("instruções da atividade (012)", "Instruções da atividade da jornada doze"),
+    publishAt: null,
+    deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(),
+    latePolicy: "REJECT",
+    acknowledgeOutOfScope: true,
+  });
+  const appliedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
+  expect(appliedWork.status).toBe(201);
+  const editedActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 1, latePolicy: "ACCEPT_MARKED" });
+  expect(editedActivity.status).toBe(200);
+  expect((await teacherClient.post(`${activitiesPath}/${appliedWork.body.id}/close`, {})).status).toBe(200);
+  const journeyTeacherId = (await t.prisma.user.findUniqueOrThrow({ where: { email: teacherEmail }, select: { id: true } })).id;
+  const approvedExercises = await t.prisma.exercise.findMany({
+    where: { teacherId: journeyTeacherId, status: "APPROVED" },
+    select: { id: true },
+    orderBy: { id: "asc" },
+    take: 2,
+  });
+  const appliedExercises = await teacherClient.post(activitiesPath, {
+    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
+    totalGrade: "2.00",
+  });
+  expect(appliedExercises.status).toBe(201);
+  expect((await teacherClient.post(`${activitiesPath}/${appliedExercises.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

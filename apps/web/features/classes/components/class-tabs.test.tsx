@@ -30,6 +30,16 @@ describe("004/US1 ClassTabs — seções da turma", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("012/US1 com atividades.visualizar mostra Atividades, atual também em uma atividade e em Nova atividade", () => {
+    navigation.pathname = "/turmas/c1/atividades/nova";
+    renderWithProviders(<ClassTabs classId="c1" showPlanning={false} showActivities />);
+    expect(tabs()).toEqual([
+      ["Alunos", "/turmas/c1", null],
+      ["Convites", "/turmas/c1/convites", null],
+      ["Atividades", "/turmas/c1/atividades", "page"],
+    ]);
+  });
+
   it("sem planejamento.visualizar mostra só Alunos e Convites; Alunos é a página da turma", () => {
     renderWithProviders(<ClassTabs classId="c1" showPlanning={false} />);
     expect(tabs()).toEqual([

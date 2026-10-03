@@ -225,7 +225,7 @@ aplicar e publicar; editar o trabalho no banco não muda a atividade.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T020 [P] [US1] `apps/api/test/integration/012-us1-apply.spec.ts`: aplicar trabalho APPROVED
+- [X] T020 [P] [US1] `apps/api/test/integration/012-us1-apply.spec.ts`: aplicar trabalho APPROVED
   com publicação imediata → 201, snapshot completo, auditado `activity.published`; editar e
   arquivar o trabalho no banco não muda a atividade; DRAFT/ARCHIVED → `422 SOURCE_NOT_APPROVED`,
   de outro professor ou turma de outro professor → 404; agendada para amanhã não aparece no
@@ -238,13 +238,17 @@ aplicar e publicar; editar o trabalho no banco não muda a atividade.
   data de publicação só enquanto agendada (`422 ALREADY_PUBLISHED`), versão antiga → `409
   ACTIVITY_VERSION_CONFLICT`; encerrar e cancelar com as transições válidas e inválidas e os
   no-ops (`012/US1-1`…`012/US1-8`, `012/FR-001`…`012/FR-005a`).
-- [ ] T021 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET/POST
+  Nota de implementação: o aluno ainda não tem rota na US1, então a US1-4 confere a fase pelo
+  relógio (SCHEDULED → PUBLISHED) e `isVisibleToStudents`; a ausência no `GET` do aluno fica na
+  T026. Prazo ≤ publicação com as duas datas no corpo é recusado pelo contrato compartilhado (400,
+  T010); o `422 INVALID_SCHEDULE` vem do servidor com "publicar agora" e no PATCH.
+- [X] T021 [P] [US1] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `GET/POST
   /classes/:classId/activities`, `POST …/scope-check`, `GET/PATCH …/:activityId`, `POST
   …/close`, `POST …/cancel`.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] `apps/api/src/modules/activities/activities.service.ts`: `scopeCheck`, `create`
+- [X] T022 [US1] `apps/api/src/modules/activities/activities.service.ts`: `scopeCheck`, `create`
   numa transação (turma por `ClassContextPolicy`, fonte do professor APPROVED lida por
   `snapshot/` com o filtro do professor, disciplina, escopo recalculado, `write-snapshot.ts`
   gravando atividade e snapshot, idempotência por chave, limite `activityTeacherWritesPerHour`;
@@ -252,9 +256,16 @@ aplicar e publicar; editar o trabalho no banco não muda a atividade.
   `list`, `get`, `update` (versão sob lock), `close` e `cancel` (atividade `FOR UPDATE`);
   auditoria `activity.published`, `activity.updated`, `activity.closed`, `activity.cancelled`
   (tipos + contrato + jornada); `Prisma.Decimal` ↔ centésimos só na borda.
-- [ ] T023 [US1] Rotas em `apps/api/src/modules/activities/activities.controller.ts` e entradas
+  Nota de implementação: a lista de alunos e os contadores (`roster.ts`, `deriveRosterStatus`)
+  entraram já aqui, porque `TeacherActivity` os exige; a T047 fica com a liberação. A fonte é lida
+  sob `FOR SHARE` (`snapshot/read-source.ts`), a turma sob `FOR SHARE` e a atividade sob `FOR
+  UPDATE`; a mesma chave em outra turma → 404. `audit-coverage.spec.ts` lê o contrato da 012 com
+  `PENDING_012` (os 9 tipos das histórias seguintes). As suítes `us1-email-verification` e
+  `us2-auth-sessions` (MeView de STUDENT) receberam as 3 permissões semeadas na T006, e a matriz
+  da 003 deixa as rotas `/classes/:classId/activities` para a `012-isolation`.
+- [X] T023 [US1] Rotas em `apps/api/src/modules/activities/activities.controller.ts` e entradas
   em `packages/contracts/src/endpoints.ts`.
-- [ ] T024 [P] [US1] Web: `apps/web/features/activities/{api,hooks,schemas,components}` e as
+- [X] T024 [P] [US1] Web: `apps/web/features/activities/{api,hooks,schemas,components}` e as
   páginas `apps/web/app/(app)/turmas/[id]/atividades/page.tsx`, `…/atividades/nova/page.tsx` e
   `…/atividades/[activityId]/page.tsx` (dados, edição, questões com gabarito, Encerrar,
   Cancelar com `variant="danger"`), conforme contracts/web-ui.md; o passo 1 lista trabalhos e
@@ -262,7 +273,9 @@ aplicar e publicar; editar o trabalho no banco não muda a atividade.
   `features/activities/api`; o valor de cada questão de Exercício pré-visto com
   `distributeGrade`; a lista "Tópicos ainda não concluídos" e a caixa "Entendo e quero aplicar
   mesmo assim"; link "Atividades" na página da turma.
-- [ ] T025 [P] [US1] Testes web em `apps/web/features/activities/components/*.test.tsx`: erros
+  Nota de implementação: "Atividades" é uma aba de `ClassTabs` (com `atividades.visualizar`);
+  as datas por extenso vêm de `formatLongDateTime` em `lib/messages/dates.ts`.
+- [X] T025 [P] [US1] Testes web em `apps/web/features/activities/components/*.test.tsx`: erros
   por campo ligados (`expectFieldErrorLinked`), nota com vírgula, data de publicação e prazo,
   confirmação de escopo obrigatória, cancelar pede confirmação, axe e ordem de Tab
   (`012/US1-5`, `012/US1-7`, `012/US1-8`).

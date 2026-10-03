@@ -18,6 +18,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/010-exercise-bank/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/011-work-bank/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/012-student-portal/contracts/audit-events.md"),
 ];
 
 /**
@@ -28,7 +29,20 @@ const PENDING_010 = new Set<string>([]);
 
 /** 011 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_011 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011]);
+
+/** 012 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_012 = new Set<string>([
+  "activity_attempt.started",
+  "activity_attempt.progress_saved",
+  "activity_submission.created",
+  "activity_submission.rejected",
+  "student_access.denied",
+  "activity_submission.graded",
+  "activity_submission.accepted_by_teacher",
+  "activity_result.released",
+  "activity_result.viewed",
+]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012]);
 
 interface ContractRow {
   type: string;
@@ -47,7 +61,7 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  */
 function contractRows(file: string): ContractRow[] {
   const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
-  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the request \|/m.test(text);
+  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the (request|spec) \|/m.test(text);
   return text
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
@@ -79,7 +93,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010 e 011 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011 e 012 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });

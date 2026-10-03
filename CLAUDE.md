@@ -2,13 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-01 (011 implemented)
+Last updated: 2026-10-02 (011 implemented; 012 in progress)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–011 in `specs/` are all implemented; later work starts
-a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–011 in `specs/` are implemented; 012-student-portal
+is the active feature (setup and foundational phases, T001–T019, done: schema, contracts, pure
+status/snapshot/grading/view rules, modules with no routes yet). Later work starts a new feature
+through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -41,7 +43,7 @@ failed all three (2026-09-29 and 2026-10-01): called with tools its answers brea
 without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -150,6 +152,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   the API modules, the contracts and the web features (no imports either way), and forbids code
   execution, model choice and float arithmetic (`parseFloat`, `Number(`, `.toNumber()`) in
   `works`/`work-ai`.
+- `apps/api/test/activities-boundary.spec.ts` (012) lets `activities`/`student-activities` (API
+  and web) reach the banks only through their snapshot readers and the pure `works/grading` and
+  `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
+  grades, and students are answered only through the student-view allowlist.
 - E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
   replaying its generator's `sql-joins-sem-linguagem` case)
   run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
@@ -195,7 +201,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   enrollments and "Minhas turmas", `ai` for the 006 executions, proposals and operations,
   `curriculum` for 004 subjects, syllabus, class meetings and class plans plus the 007
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
-  bank, its generation requests, the exact grade helpers and the grading result shapes), with
+  bank, its generation requests, the exact grade helpers and the grading result shapes, and
+  `activities` for the 012 teacher and student shapes of class activities), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no

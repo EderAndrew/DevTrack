@@ -122,6 +122,10 @@ export const TeacherActivitySummarySchema = z.strictObject({
 });
 export type TeacherActivitySummary = z.infer<typeof TeacherActivitySummarySchema>;
 
+/** `GET /classes/:classId/activities`: every status, by deadline (latest first). */
+export const TeacherActivityListSchema = z.strictObject({ items: z.array(TeacherActivitySummarySchema) });
+export type TeacherActivityList = z.infer<typeof TeacherActivityListSchema>;
+
 /** The full snapshot question, with its answer key: teacher routes only. */
 export const TeacherQuestionSchema = z.strictObject({
   id: UuidSchema,

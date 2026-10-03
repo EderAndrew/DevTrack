@@ -20,7 +20,11 @@ export default async function ClassLayout({ params, children }: { params: Promis
         canChangeStatus={me.permissions.includes("turmas.alterar_situacao")}
         canInvite={me.permissions.includes("turmas.convidar_aluno")}
       />
-      <ClassTabs classId={id} showPlanning={me.permissions.includes("planejamento.visualizar")} />
+      <ClassTabs
+        classId={id}
+        showPlanning={me.permissions.includes("planejamento.visualizar")}
+        showActivities={me.permissions.includes("atividades.visualizar")}
+      />
       {children}
     </section>
   );
