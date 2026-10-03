@@ -272,24 +272,24 @@ nada de outra turma nem de removidos.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T031 [P] [US4] `apps/api/test/integration/013-us4-ranking.spec.ts`: `013/US4-1`…`013/US4-7`,
+- [X] T031 [P] [US4] `apps/api/test/integration/013-us4-ranking.spec.ts`: `013/US4-1`…`013/US4-7`,
   `013/FR-018`…`013/FR-021`, `013/FR-023`, `013/SC-005` (removido e readmitido; atividade
   cancelada; sem `ranking.turma.visualizar` → `rankings: []`). Casos de borda: turma com um só
   aluno (1º lugar), todos com 0 ponto (todos em 1º, com o aviso), turma INACTIVE/ARCHIVED
   (ranking visível só para consulta).
-- [ ] T032 [P] [US4] Linhas do `MATRIX`/`route-declarations` para `GET
+- [X] T032 [P] [US4] Linhas do `MATRIX`/`route-declarations` para `GET
   /me/classes/:classId/ranking`; testes web `apps/web/features/ranking/components/ranking-table.test.tsx`
   e `ranking-card.test.tsx` (linha "Você" por texto; todos com 0 → lista + "Ainda não há pontos
   nesta turma."; sem aluno ativo → "Esta turma ainda não tem alunos."; axe, teclado).
 
 ### Implementation for User Story 4
 
-- [ ] T033 [US4] `apps/api/src/modules/ranking/ranking.service.ts` e `ranking.controller.ts`: a
+- [X] T033 [US4] `apps/api/src/modules/ranking/ranking.service.ts` e `ranking.controller.ts`: a
   consulta única (matrículas ACTIVE + `users.name` + Σ pontos de atividades não canceladas) →
   `rankClass` (K11, K12); `GET /me/classes/:classId/ranking`; endpoint no catálogo.
-- [ ] T034 [US4] `apps/api/src/modules/student-activities/my-activities.service.ts`: bloco
+- [X] T034 [US4] `apps/api/src/modules/student-activities/my-activities.service.ts`: bloco
   `rankings` do painel pelo `RankingService`, uma entrada por turma ACTIVE, top 5 (K13).
-- [ ] T035 [US4] Web: `apps/web/features/ranking/{api,hooks,components}` (`RankingTable`,
+- [X] T035 [US4] Web: `apps/web/features/ranking/{api,hooks,components}` (`RankingTable`,
   `RankingCard`), cartões no `/painel`, link "Ranking" em `/minhas-turmas` e a página
   `apps/web/app/(student)/minhas-turmas/[id]/ranking/page.tsx`.
 

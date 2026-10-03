@@ -81,4 +81,17 @@ describe("003/US7-1 003/SC-011 MyClasses — Minhas turmas (FR-038)", () => {
     expect(await screen.findByText("Álgebra")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("013/FR-021 com ranking.turma.visualizar, cada turma leva o link \"Ranking\"; sem ela, nenhum", async () => {
+    fetchMock.mockImplementation(async () => json(200, { items: [FISICA, ALGEBRA] }));
+    const { unmount } = renderWithProviders(<MyClasses welcome={false} showRanking />);
+    const link = await screen.findByRole("link", { name: "Ranking de Álgebra" });
+    expect(link.getAttribute("href")).toBe(`/minhas-turmas/${ALGEBRA.id}/ranking`);
+    expect(screen.getByRole("link", { name: "Ranking de Física" })).toBeTruthy();
+    unmount();
+
+    renderWithProviders(<MyClasses welcome={false} />);
+    await screen.findByText("Álgebra");
+    expect(screen.queryByRole("link", { name: /Ranking/ })).toBeNull();
+  });
 });

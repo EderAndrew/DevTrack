@@ -107,4 +107,36 @@ describe("012/US2 painel do aluno", () => {
     const counters = within(screen.getByRole("navigation", { name: "Resumo das suas atividades" })).getAllByRole("link");
     await expectTabOrder(user, [...counters, screen.getByRole("link", { name: "Iniciar" })]);
   });
+
+  it("013/US4-5 013/FR-021 um cartão de ranking por turma, depois das atividades, com o link para a tela completa", async () => {
+    const poo = { id: "11111111-1111-4111-8111-111111111111", name: "POO Noturno" };
+    const bd = { id: "22222222-2222-4222-8222-222222222222", name: "Banco de Dados" };
+    const { container } = setup(
+      json(
+        200,
+        dashboard({
+          rankings: [
+            { class: bd, top: [{ position: 1, name: "Bruna Costa", points: 60, isViewer: true }] },
+            { class: poo, top: [{ position: 1, name: "Ana Lima", points: 105, isViewer: false }, { position: 2, name: "Bruna Costa", points: 30, isViewer: true }] },
+          ],
+        }),
+      ),
+    );
+    const section = await screen.findByRole("region", { name: "Ranking das turmas" });
+    expect(container.querySelector("section")!.textContent).toContain("Próximas atividades");
+    const cards = within(section).getAllByRole("region");
+    expect(cards.map((card) => card.getAttribute("aria-labelledby") && within(card).getByRole("heading").textContent)).toEqual([
+      "Ranking — Banco de Dados",
+      "Ranking — POO Noturno",
+    ]);
+    expect(within(cards[1]!).getByText("Ana Lima")).toBeTruthy();
+    expect(within(cards[1]!).queryByText("60")).toBeNull();
+    expect(within(section).getByRole("link", { name: "Ver ranking completo de POO Noturno" }).getAttribute("href")).toBe(`/minhas-turmas/${poo.id}/ranking`);
+  });
+
+  it("013/FR-021 sem rankings (sem a permissão ou sem turma ativa), nenhuma seção de ranking", async () => {
+    setup(json(200, dashboard()));
+    await screen.findByRole("heading", { level: 1, name: "Olá, Bruna" });
+    expect(screen.queryByRole("region", { name: "Ranking das turmas" })).toBeNull();
+  });
 });

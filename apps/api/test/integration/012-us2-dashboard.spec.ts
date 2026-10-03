@@ -239,15 +239,16 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
   });
 
   it("012/US2-5 aluno sem atividades: dashboard e lista vazios", async () => {
-    const body = await dashboard();
+    const { rankings, ...body } = await dashboard();
     expect(body).toEqual({
       firstName: "Bruna",
       counts: { pending: 0, inProgress: 0, overdue: 0, completed: 0 },
       next: [],
       overdueOpen: [],
-      rankings: [],
       serverNow: START,
     });
+    // 013/FR-021: the class ranking is there even without activities, everyone at 0.
+    expect(rankings.flatMap((entry) => entry.top).every((row) => row.points === 0)).toBe(true);
     expect(await list()).toEqual({ items: [], nextCursor: null });
   });
 

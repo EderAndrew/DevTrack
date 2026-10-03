@@ -79,6 +79,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
+import { ClassRankingSchema } from "./ranking/index.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1199,6 +1200,14 @@ export const endpoints = {
     path: "/me/activities/:activityId/attempts/:number",
     params: MyAttemptParamsSchema,
     response: StudentExerciseAttemptSchema,
+    status: 200,
+  },
+  /** 013 — the ranking of a class where the session student holds an ACTIVE enrollment (FR-019–FR-021). */
+  "ranking.mine": {
+    method: "GET",
+    path: "/me/classes/:classId/ranking",
+    params: ClassParamsSchema,
+    response: ClassRankingSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

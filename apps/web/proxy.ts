@@ -23,7 +23,7 @@ export const config = {
     "/disciplinas/:path*",
     "/exercicios/:path*",
     "/trabalhos/:path*",
-    "/minhas-turmas",
+    "/minhas-turmas/:path*",
     "/painel",
     "/minhas-atividades/:path*",
     "/historico",

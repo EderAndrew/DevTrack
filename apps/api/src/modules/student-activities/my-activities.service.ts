@@ -16,6 +16,7 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
+import { RankingService } from "../ranking/ranking.service";
 import { toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
 import { StudentActivityLoader } from "./student-activity-loader";
 
@@ -58,6 +59,7 @@ export class MyActivitiesService {
     private readonly loader: StudentActivityLoader,
     private readonly permissions: PermissionResolver,
     private readonly audit: AuditService,
+    private readonly ranking: RankingService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -76,8 +78,7 @@ export class MyActivitiesService {
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
-      // The class rankings arrive with 013 US4.
-      rankings: [],
+      rankings: await this.ranking.dashboardFor(userId),
       serverNow: now.toISOString(),
     };
   }

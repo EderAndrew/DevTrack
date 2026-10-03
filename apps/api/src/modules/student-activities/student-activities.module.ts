@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ActivitiesModule } from "../activities/activities.module";
+import { RankingModule } from "../ranking/ranking.module";
 import { AttemptsController, ExerciseAttemptsController } from "./attempts.controller";
 import { AttemptsService } from "./attempts.service";
 import { MyActivitiesController } from "./my-activities.controller";
@@ -13,7 +14,7 @@ import { StudentActivityLoader } from "./student-activity-loader";
  * EXERCISE is practiced in numbered attempts: retry, conclusion and the concluded attempt.
  */
 @Module({
-  imports: [ActivitiesModule],
+  imports: [ActivitiesModule, RankingModule],
   controllers: [MyActivitiesController, AttemptsController, ExerciseAttemptsController],
   providers: [StudentActivityLoader, MyActivitiesService, AttemptsService],
 })
