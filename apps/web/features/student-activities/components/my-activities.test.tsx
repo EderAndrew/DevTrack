@@ -45,7 +45,7 @@ describe("012/US2 Minhas atividades", () => {
       "POO Noturno · Programação Orientada a Objetos",
       "Ana Professora",
       formatLongDateTime(graded.publishedAt),
-      formatLongDateTime(graded.deadline),
+      formatLongDateTime(graded.deadline!),
       "Corrigida com atraso",
       "0,90 de 1,00",
       "Com feedback",

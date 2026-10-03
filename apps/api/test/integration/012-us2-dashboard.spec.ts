@@ -31,12 +31,15 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
   let work: WorkFixture;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
-  /** An activity of `schoolClass` published a day ago (or a day before its deadline), due `dueIn` from now. */
+  /**
+   * An activity of `schoolClass` published a day ago (or a day before its deadline), due `dueIn` from
+   * now: an ASSIGNMENT of `work` by default; an EXERCISE has no deadline (013), only the publication.
+   */
   const activity = (schoolClass: SchoolClass, dueIn: number, options: CreateActivityOptions = {}) =>
     createActivity(t, schoolClass, {
       publishAt: at(Math.min(-DAY, dueIn - DAY)),
       deadline: at(dueIn),
-      ...(options.type === "ASSIGNMENT" ? { sourceWorkId: work.id, sourceSubjectId: work.subjectId } : {}),
+      ...(options.type === "EXERCISE" ? {} : { sourceWorkId: work.id, sourceSubjectId: work.subjectId }),
       ...options,
     }).then((created) => created.activity);
   const inProgress = (activityId: string, who = student) => createAttemptRow(t, activityId, who.id, { startedAt: at(-HOUR) });
@@ -178,6 +181,7 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
       submittedAt: null,
       totalGrade: "1.00",
       result: null,
+      points: null,
     });
     // A class without subject.
     const exercise = (await list("?type=EXERCISE")).items.find((entry) => entry.class.id === classA.id)!;
@@ -241,6 +245,7 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
       counts: { pending: 0, inProgress: 0, overdue: 0, completed: 0 },
       next: [],
       overdueOpen: [],
+      rankings: [],
       serverNow: START,
     });
     expect(await list()).toEqual({ items: [], nextCursor: null });

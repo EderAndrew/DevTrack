@@ -82,6 +82,8 @@ const EXPECTED_MODELS = [
   "ActivityAnswer",
   "ActivitySubmission",
   "ActivityQuestionGrading",
+  // 013 — the result of each exercise of a concluded practice attempt (points and the ranking).
+  "ExerciseQuestionResult",
 ];
 
 /**

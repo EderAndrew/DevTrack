@@ -64,7 +64,7 @@ export function ActivityCard({ item, detailed = false, headingLevel: Heading = "
           </>
         ) : null}
         <dt className="text-text-secondary">Prazo</dt>
-        <dd className="m-0">{formatLongDateTime(item.deadline)}</dd>
+        <dd className="m-0">{item.deadline ? formatLongDateTime(item.deadline) : "Sem prazo"}</dd>
         <dt className="text-text-secondary">Situação</dt>
         <dd className="m-0">
           <Status variant={STATUS_VARIANTS[item.status]}>{statusLabel(item)}</Status>
@@ -73,7 +73,7 @@ export function ActivityCard({ item, detailed = false, headingLevel: Heading = "
           <>
             <dt className="text-text-secondary">Nota</dt>
             <dd className="m-0">
-              {formatGrade(item.result.grade)} de {formatGrade(item.totalGrade)}
+              {formatGrade(item.result.grade)} de {formatGrade(item.totalGrade ?? "0.00")}
             </dd>
           </>
         ) : null}

@@ -569,14 +569,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // exercises to the class, edits, closes and cancels: `activity.published`, `activity.updated`,
   // `activity.closed` and `activity.cancelled`, with ids, counts and enums only.
   const activitiesPath = `/api/classes/${classId}/activities`;
-  const activityBody = (source: object) => ({
+  // A work (ASSIGNMENT) has a deadline and a late policy; exercises (EXERCISE) have neither since 013.
+  const activityBody = (source: { type: "ASSIGNMENT"; workId: string } | { type: "EXERCISE"; exerciseIds: string[] }) => ({
     idempotencyKey: randomUUID(),
     source,
     title: text("título da atividade (012)", "Atividade da jornada doze"),
     instructions: text("instruções da atividade (012)", "Instruções da atividade da jornada doze"),
     publishAt: null,
-    deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(),
-    latePolicy: "REJECT",
+    ...(source.type === "ASSIGNMENT" ? { deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(), latePolicy: "REJECT" } : {}),
     acknowledgeOutOfScope: true,
   });
   const appliedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
@@ -591,10 +591,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     orderBy: { id: "asc" },
     take: 2,
   });
-  const appliedExercises = await teacherClient.post(activitiesPath, {
-    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
-    totalGrade: "2.00",
-  });
+  // 013/US1 — exercises go out without grade or deadline (`activity.published` with `possiblePoints`).
+  const exerciseSource = { type: "EXERCISE" as const, exerciseIds: approvedExercises.map((exercise) => exercise.id) };
+  const appliedExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(appliedExercises.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExercises.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
@@ -717,18 +716,21 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await classStudentClient.get("/api/me/dashboard")).body.counts).toEqual({ pending: 0, inProgress: 0, overdue: 1, completed: 0 });
   expect((await classStudentClient.get("/api/me/activities")).body.items.map((a: { id: string }) => a.id)).toEqual([appliedWork.body.id]);
   expect((await classStudentClient.get(`/api/me/activities/${appliedExercises.body.id}`)).status).toBe(404);
-  // 012/US3 — the teacher applies the exercises again; the student starts (and starts again: same
-  // attempt, no event), saves an answer (`activity_attempt.progress_saved`, counts only) and is
-  // refused on the closed work (`activity_submission.rejected` with the code). The answer is content
-  // the scans keep out of logs and audit.
-  const openExercises = await teacherClient.post(activitiesPath, {
-    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
-    totalGrade: "2.00",
-  });
+  // 012/US3 — the teacher applies the work again; the student starts (and starts again: same
+  // attempt, no event; `activity_attempt.started` with `attemptNumber`), saves an answer
+  // (`activity_attempt.progress_saved`, counts only) and is refused on the closed work
+  // (`activity_submission.rejected` with the code). The answer is content the scans keep out of logs
+  // and audit. Since 013 only a work is submitted, graded and released: the exercises below are
+  // practice, started and saved here; their conclusion and the teacher's marks join with 013 US2/US3.
+  const openExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(openExercises.status).toBe(201);
-  const startedActivity = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
+  const startedExercises = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
+  expect(startedExercises.status).toBe(200);
+  const openWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
+  expect(openWork.status).toBe(201);
+  const startedActivity = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {});
   expect(startedActivity.status).toBe(200);
-  expect((await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {})).status).toBe(200);
+  expect((await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {})).status).toBe(200);
   // Every question answered; both texts are registered whatever types the two exercises have.
   const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
   const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");
@@ -744,10 +746,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
             : { kind: "TEXT", text: studentText },
     }));
   const journeyAnswers = answersFor(startedActivity.body.questions);
-  const savedAnswer = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, { answers: journeyAnswers });
+  const savedAnswer = await classStudentClient.put(`/api/me/activities/${openWork.body.id}/attempt/answers`, { answers: journeyAnswers });
   expect(savedAnswer.body.results[0].outcome).toBe("SAVED");
+  const savedPractice = await classStudentClient.put(`/api/me/activities/${openExercises.body.id}/attempt/answers`, {
+    answers: answersFor(startedExercises.body.questions),
+  });
+  expect(savedPractice.body.results[0].outcome).toBe("SAVED");
   // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
-  const submitPath = `/api/me/activities/${openExercises.body.id}/attempt/submit`;
+  const submitPath = `/api/me/activities/${openWork.body.id}/attempt/submit`;
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");
   expect((await classStudentClient.post(submitPath, { answers: [] })).status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("ACTIVITY_CLOSED");
@@ -755,9 +761,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // (`activity_submission.graded`, grades in hundredths, never the feedback) and releases the result
   // (`activity_result.released`); a saved attempt of a closed activity is accepted as a late
   // submission (`activity_submission.accepted_by_teacher`).
-  const exercisesDetail = await teacherClient.get(`${activitiesPath}/${openExercises.body.id}`);
+  const exercisesDetail = await teacherClient.get(`${activitiesPath}/${openWork.body.id}`);
   const journeyAttemptId = exercisesDetail.body.roster[0].attemptId as string;
-  const attemptPath = `${activitiesPath}/${openExercises.body.id}/attempts/${journeyAttemptId}`;
+  const attemptPath = `${activitiesPath}/${openWork.body.id}/attempts/${journeyAttemptId}`;
   const reviewedAttempt = await teacherClient.get(attemptPath);
   expect(reviewedAttempt.status).toBe(200);
   const questionValues = new Map((exercisesDetail.body.questions as { id: string; value: string }[]).map((question) => [question.id, question.value]));
@@ -772,20 +778,17 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     generalFeedback: text("feedback geral (012)", "Feedback geral da jornada doze"),
   });
   expect(graded.status).toBe(200);
-  expect((await teacherClient.post(`${activitiesPath}/${openExercises.body.id}/release`, {})).status).toBe(200);
+  expect((await teacherClient.post(`${activitiesPath}/${openWork.body.id}/release`, {})).status).toBe(200);
   // 012/US6 — the student reads the released result (`activity_result.viewed`, once).
-  expect((await classStudentClient.get(`/api/me/activities/${openExercises.body.id}`)).body.status).toBe("GRADED");
+  expect((await classStudentClient.get(`/api/me/activities/${openWork.body.id}`)).body.status).toBe("GRADED");
   expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(1);
-  const acceptedExercises = await teacherClient.post(activitiesPath, {
-    ...activityBody({ type: "EXERCISE", exerciseIds: approvedExercises.map((exercise) => exercise.id) }),
-    totalGrade: "2.00",
-  });
-  const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedExercises.body.id}/attempt`, {});
+  const acceptedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
+  const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedWork.body.id}/attempt`, {});
   const acceptedAnswers = answersFor(acceptedStart.body.questions);
-  await classStudentClient.put(`/api/me/activities/${acceptedExercises.body.id}/attempt/answers`, { answers: acceptedAnswers });
-  expect((await teacherClient.post(`${activitiesPath}/${acceptedExercises.body.id}/close`, {})).status).toBe(200);
-  const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedExercises.body.id}`)).body.roster[0].attemptId as string;
-  const accepted = await teacherClient.post(`${activitiesPath}/${acceptedExercises.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
+  await classStudentClient.put(`/api/me/activities/${acceptedWork.body.id}/attempt/answers`, { answers: acceptedAnswers });
+  expect((await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/close`, {})).status).toBe(200);
+  const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedWork.body.id}`)).body.roster[0].attemptId as string;
+  const accepted = await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
   expect(accepted.body.submission.acceptedByTeacher).toBe(true);
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);

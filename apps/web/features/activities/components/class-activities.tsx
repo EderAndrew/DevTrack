@@ -118,7 +118,7 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
                 <TableCell>
                   <Situation status={activity.status} phase={activity.phase} />
                 </TableCell>
-                <TableCell>{formatLongDateTime(activity.deadline)}</TableCell>
+                <TableCell>{activity.deadline ? formatLongDateTime(activity.deadline) : "Sem prazo"}</TableCell>
                 <TableCell>
                   <Deliveries activity={activity} />
                 </TableCell>

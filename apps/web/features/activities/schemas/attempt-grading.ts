@@ -43,18 +43,19 @@ export function toGradeSubmission(
   const submission = attempt.submission!;
   const errors: FormError[] = [];
   const decisions: GradeSubmissionRequest["decisions"] = [];
+  // Only a Trabalho's questions are graded: they always have a value (an Exercício's are marked, 013).
   for (const question of questions) {
     const typed = values.questions[question.id] ?? { grade: "", feedback: "" };
     const input = typed.grade.trim();
     if (input === "") continue;
     const fieldId = gradeFieldId(question.position);
-    const range = `de 0,00 a ${formatGrade(question.value)}`;
+    const range = `de 0,00 a ${formatGrade(question.value ?? "0.00")}`;
     if (!GRADE_INPUT.test(input)) {
       errors.push({ fieldId, message: `Questão ${question.position + 1}: informe uma nota ${range}, com até duas casas decimais.` });
       continue;
     }
     const cents = gradeToCents(input.replace(",", "."));
-    if (cents > gradeToCents(question.value)) {
+    if (cents > gradeToCents(question.value ?? "0.00")) {
       errors.push({ fieldId, message: `Questão ${question.position + 1}: a nota deve ficar ${range}.` });
       continue;
     }

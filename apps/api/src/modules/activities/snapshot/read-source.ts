@@ -1,4 +1,4 @@
-import type { ActivitySource, GradeCents } from "@repo/contracts";
+import type { ActivitySource } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
 import { AppException, notFound } from "../../../platform/http/errors";
 import { decimalToCents } from "../activity-query";
@@ -21,13 +21,9 @@ export async function readSource(tx: Tx, teacherId: string, source: ActivitySour
   return source.type === "ASSIGNMENT" ? readWork(tx, teacherId, source.workId) : readExercises(tx, teacherId, source.exerciseIds);
 }
 
-/**
- * The snapshot of the content. An EXERCISE needs the teacher's total (Q3 = A); the scope check
- * only reads the questions' topics, so it passes one hundredth per question.
- */
-export function toSnapshot(content: SourceContent, totalCents: GradeCents | null): ActivitySnapshot {
-  if (content.type === "ASSIGNMENT") return snapshotFromWork(content.work);
-  return snapshotFromExercises(content.exercises, totalCents ?? content.exercises.length);
+/** The snapshot of the content: the work's grade, or the exercises' fixed points (013 K2). */
+export function toSnapshot(content: SourceContent): ActivitySnapshot {
+  return content.type === "ASSIGNMENT" ? snapshotFromWork(content.work) : snapshotFromExercises(content.exercises);
 }
 
 async function readWork(tx: Tx, teacherId: string, workId: string): Promise<SourceContent> {
@@ -94,6 +90,7 @@ async function readExercises(tx: Tx, teacherId: string, exerciseIds: string[]): 
     select: {
       id: true,
       type: true,
+      difficulty: true,
       statement: true,
       instructions: true,
       starterCode: true,

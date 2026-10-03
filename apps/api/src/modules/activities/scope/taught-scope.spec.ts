@@ -7,6 +7,8 @@ const question = (position: number, topicItemIds: string[]): SnapshotQuestion =>
   type: "OPEN_ANSWER",
   gradingStrategy: "AI_REVIEW",
   valueCents: 10,
+  difficulty: null,
+  points: null,
   statement: "x",
   instructions: null,
   starterCode: null,

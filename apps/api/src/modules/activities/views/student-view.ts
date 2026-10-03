@@ -16,7 +16,8 @@ import type { ActivityQuestionRow } from "./rows";
 // The only builders of what a student receives (research P15, 012/FR-030, FR-032): each one copies
 // an allowlist from the snapshot — never removes fields from the teacher's view. A new field reaches
 // students only when it is listed here. No answer key, explanation, trick flag, grading strategy,
-// private test case or pending reason, and no grade or feedback before the release.
+// private test case or pending reason, and no grade or feedback before the release. An EXERCISE
+// (013) shows points instead of a grade, deadline or late policy.
 
 /** One question as the student may see it: 011/FR-033 applied to the snapshot. */
 export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
@@ -24,7 +25,8 @@ export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
     id: row.id,
     position: row.position,
     type: row.type,
-    value: centsToGrade(row.valueCents),
+    value: row.valueCents === null ? null : centsToGrade(row.valueCents),
+    points: row.points,
     statement: row.statement,
     instructions: row.instructions,
     starterCode: row.starterCode,
@@ -47,9 +49,12 @@ export interface StudentActivityInput {
   subjectName: string | null;
   teacherName: string;
   publishAt: Date;
-  deadline: Date;
-  latePolicy: LatePolicy;
-  totalCents: GradeCents;
+  /** ASSIGNMENT only (013 K1). */
+  deadline: Date | null;
+  latePolicy: LatePolicy | null;
+  totalCents: GradeCents | null;
+  /** EXERCISE only: possible points, those of attempt 1 and whether a mark is pending (013/FR-015). */
+  points: { possible: number; earned: number; awaitingCorrection: boolean } | null;
   facts: ActivityFacts;
   /** The session holds `notas.proprias.visualizar`. */
   canSeeResults: boolean;
@@ -66,7 +71,9 @@ export interface StudentActivityInput {
 
 export interface StudentActivityDetailInput extends StudentActivityInput {
   questions: ActivityQuestionRow[];
-  attempt: { startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
+  attempt: { number: number; startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
+  /** EXERCISE: the concluded attempts, newest first (013/FR-005). */
+  completedAttempts: { number: number; completedAt: Date }[];
 }
 
 const SUMMARY_LENGTH = 160;
@@ -90,14 +97,14 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
     subjectName: input.subjectName,
     teacherName: input.teacherName,
     publishedAt: input.publishAt.toISOString(),
-    deadline: input.deadline.toISOString(),
+    deadline: input.deadline?.toISOString() ?? null,
     latePolicy: input.latePolicy,
     status: deriveStudentStatus(input.facts),
     late: input.submission?.late ?? false,
     canAnswer: canAnswer(input.facts),
     urgent: isUrgent(input.facts),
     submittedAt: input.submission?.submittedAt.toISOString() ?? null,
-    totalGrade: centsToGrade(input.totalCents),
+    totalGrade: input.totalCents === null ? null : centsToGrade(input.totalCents),
     result:
       visible && input.submission
         ? {
@@ -105,6 +112,7 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
             hasFeedback: input.submission.generalFeedback !== null || input.submission.gradings.some((grading) => grading.feedback !== null),
           }
         : null,
+    points: input.points && { ...input.points },
   };
 }
 
@@ -118,6 +126,7 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
     questions: [...input.questions].sort((a, b) => a.position - b.position).map(toStudentQuestion),
     attempt: input.attempt
       ? {
+          number: input.attempt.number,
           startedAt: input.attempt.startedAt.toISOString(),
           lastSavedAt: input.attempt.lastSavedAt?.toISOString() ?? null,
           answers: input.attempt.answers.map((answer) => ({ questionId: answer.questionId, answer: answer.answer, revision: answer.revision })),
@@ -143,5 +152,8 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
             })),
           }
         : null,
+    completedAttempts: input.completedAttempts.map((attempt) => ({ number: attempt.number, completedAt: attempt.completedAt.toISOString() })),
+    // The answer key of a concluded attempt arrives with the conclusion (013 US2).
+    lastResult: null,
   };
 }

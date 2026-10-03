@@ -6,6 +6,7 @@ import { topicPositions } from "./snapshot";
 const exercise = (id: string, type: ExerciseSource["type"], overrides: Partial<ExerciseSource> = {}): ExerciseSource => ({
   id,
   type,
+  difficulty: "BASIC",
   statement: `Enunciado ${id}`,
   instructions: type === "CODE" ? "Implemente" : null,
   starterCode: type === "CODE" ? "class A {}" : null,
@@ -26,19 +27,30 @@ const exercise = (id: string, type: ExerciseSource["type"], overrides: Partial<E
   ...overrides,
 });
 
-describe("012/FR-002 snapshot dos exercícios (research P2, P6)", () => {
-  it("012/US1-7 3 exercícios em 1,00 → 0,34 · 0,33 · 0,33, na ordem escolhida pelo professor", () => {
-    const snapshot = snapshotFromExercises([exercise("e3", "OPEN_ANSWER"), exercise("e1", "MULTIPLE_CHOICE"), exercise("e2", "CODE")], 100);
-    expect(snapshot.totalCents).toBe(100);
-    expect(snapshot.questions.map((q) => [q.position, q.sourceExerciseId, q.valueCents])).toEqual([
-      [0, "e3", 34],
-      [1, "e1", 33],
-      [2, "e2", 33],
+describe("013/FR-002 snapshot dos exercícios (012 research P2, P6; 013 research K2)", () => {
+  it("013/FR-002 cada exercício vale os pontos do seu nível, na ordem escolhida pelo professor, sem valor nem nota", () => {
+    const snapshot = snapshotFromExercises([
+      exercise("e3", "OPEN_ANSWER", { difficulty: "ADVANCED" }),
+      exercise("e1", "MULTIPLE_CHOICE", { difficulty: "BASIC" }),
+      exercise("e2", "CODE", { difficulty: "INTERMEDIATE" }),
+    ]);
+    expect(snapshot.totalCents).toBeNull();
+    expect(snapshot.questions.map((q) => [q.position, q.sourceExerciseId, q.difficulty, q.points, q.valueCents])).toEqual([
+      [0, "e3", "ADVANCED", 60, null],
+      [1, "e1", "BASIC", 15, null],
+      [2, "e2", "INTERMEDIATE", 30, null],
     ]);
   });
 
-  it("cada tipo leva a estratégia do tipo e só os campos dele; código sem casos de teste vai ao professor", () => {
-    const [open, choice, code] = snapshotFromExercises([exercise("a", "OPEN_ANSWER"), exercise("b", "MULTIPLE_CHOICE"), exercise("c", "CODE")], 90).questions;
+  it("013/FR-002 os pontos vêm do nível copiado: mudar o exercício depois não muda o snapshot", () => {
+    const source = exercise("a", "OPEN_ANSWER", { difficulty: "INTERMEDIATE" });
+    const snapshot = snapshotFromExercises([source]);
+    source.difficulty = "ADVANCED";
+    expect(snapshot.questions[0]).toMatchObject({ difficulty: "INTERMEDIATE", points: 30 });
+  });
+
+  it("cada tipo leva a estratégia do tipo e só os campos dele; código sem casos de teste", () => {
+    const [open, choice, code] = snapshotFromExercises([exercise("a", "OPEN_ANSWER"), exercise("b", "MULTIPLE_CHOICE"), exercise("c", "CODE")]).questions;
     expect(open).toMatchObject({ gradingStrategy: "AI_REVIEW", expectedAnswer: "Reuso", rubric: null, instructions: null, languageId: null, alternatives: [] });
     expect(choice).toMatchObject({ gradingStrategy: "EXACT_MATCH", expectedAnswer: null, alternatives: [
       { position: 0, text: "A", isCorrect: true },
@@ -49,7 +61,7 @@ describe("012/FR-002 snapshot dos exercícios (research P2, P6)", () => {
   });
 
   it("o tópico do exercício vira o tópico da questão", () => {
-    const snapshot = snapshotFromExercises([exercise("a", "OPEN_ANSWER"), exercise("b", "OPEN_ANSWER", { syllabusItemId: null })], 10);
+    const snapshot = snapshotFromExercises([exercise("a", "OPEN_ANSWER"), exercise("b", "OPEN_ANSWER", { syllabusItemId: null })]);
     expect(snapshot.questions.map((q) => q.topicItemIds)).toEqual([["item-a"], []]);
   });
 });
@@ -107,6 +119,7 @@ describe("012/FR-002 snapshot do trabalho", () => {
       [0, "OPEN_ANSWER", 25, "Cita superclasse"],
       [1, "CODE", 25, null],
     ]);
+    expect(snapshot.questions.every((q) => q.difficulty === null && q.points === null)).toBe(true);
     expect(snapshot.questions[1]!.testCases).toEqual([
       { position: 0, input: "1", expectedOutput: "2", visibility: "PUBLIC" },
       { position: 1, input: "2", expectedOutput: "4", visibility: "PRIVATE" },

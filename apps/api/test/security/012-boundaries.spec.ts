@@ -59,10 +59,7 @@ describe("012/FR-020 limites e campos do servidor", () => {
       idempotencyKey: crypto.randomUUID(),
       source: { type: "EXERCISE", exerciseIds: [crypto.randomUUID()] },
       title: "Atividade",
-      totalGrade: "1.00",
       publishAt: null,
-      deadline: at(DAY).toISOString(),
-      latePolicy: "REJECT",
       acknowledgeOutOfScope: true,
     };
     const writes = [

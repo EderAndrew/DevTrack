@@ -63,7 +63,7 @@ export function StudentHistory() {
                 {item.result ? (
                   <div className="flex flex-col items-start gap-1">
                     <span>
-                      {formatGrade(item.result.grade)} de {formatGrade(item.totalGrade)}
+                      {formatGrade(item.result.grade)} de {formatGrade(item.totalGrade ?? "0.00")}
                     </span>
                     {item.result.hasFeedback ? (
                       <Badge variant="info">

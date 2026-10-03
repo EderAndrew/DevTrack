@@ -1,6 +1,6 @@
 import { StudentActivitySchema, StudentActivitySummarySchema, TeacherQuestionSchema, TestCaseVisibilitySchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import type { ActivityFacts } from "../status/facts";
+import type { AssignmentFacts } from "../status/facts";
 import type { ActivityQuestionRow } from "./rows";
 import { type StudentActivityDetailInput, summaryOf, toStudentActivity, toStudentSummary } from "./student-view";
 import { toTeacherQuestion } from "./teacher-view";
@@ -16,6 +16,8 @@ const row = (overrides: Partial<ActivityQuestionRow>): ActivityQuestionRow => ({
   type: "OPEN_ANSWER",
   gradingStrategy: "AI_REVIEW",
   valueCents: 50,
+  difficulty: null,
+  points: null,
   statement: "Enunciado visível",
   instructions: null,
   starterCode: null,
@@ -63,7 +65,8 @@ const QUESTIONS: ActivityQuestionRow[] = [
   }),
 ];
 
-const facts = (overrides: Partial<ActivityFacts> = {}): ActivityFacts => ({
+const facts = (overrides: Partial<AssignmentFacts> = {}): AssignmentFacts => ({
+  type: "ASSIGNMENT",
   activityStatus: "ACTIVE",
   deadline: new Date("2026-10-10T23:59:00.000Z"),
   latePolicy: "REJECT",
@@ -87,10 +90,12 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   deadline: new Date("2026-10-10T23:59:00.000Z"),
   latePolicy: "REJECT",
   totalCents: 100,
+  points: null,
   facts: facts(),
   canSeeResults: true,
   questions: QUESTIONS,
-  attempt: { startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers: [] },
+  attempt: { number: 1, startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers: [] },
+  completedAttempts: [],
   submission: {
     submittedAt: new Date("2026-10-04T12:00:00.000Z"),
     late: false,

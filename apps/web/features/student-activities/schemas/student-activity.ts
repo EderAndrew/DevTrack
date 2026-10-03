@@ -95,7 +95,9 @@ export const QUESTION_TYPE_LABELS: Record<WorkQuestionType, string> = {
 };
 
 /** "Vale 0,17". */
-export const valueLabel = (value: string) => `Vale ${formatGrade(value)}`;
+/** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
+export const valueLabel = (question: { value: string | null; points: number | null }) =>
+  question.value !== null ? `Vale ${formatGrade(question.value)}` : `Vale ${question.points ?? 0} ${question.points === 1 ? "ponto" : "pontos"}`;
 
 /**
  * Whether the navigator shows the question as answered: the display side of the server's blank

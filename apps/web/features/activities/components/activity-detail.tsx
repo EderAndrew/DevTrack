@@ -32,6 +32,7 @@ import {
   activityEditDefaults,
   activityFormMessages,
   formatGrade,
+  formatPoints,
   LATE_POLICY_LABELS,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
@@ -131,9 +132,10 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
         <dl className="m-0 grid gap-2">
           <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
           <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
-          <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item>
-          <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item>
-          <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item>
+          {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
+          {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
+          {activity.totalGrade ? <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item> : null}
+          {activity.possiblePoints !== null ? <Item term="Pontos possíveis">{formatPoints(activity.possiblePoints)}</Item> : null}
           {activity.outOfScopeTopicCount > 0 ? (
             <Item term="Tópicos ainda não concluídos, confirmados ao aplicar">{activity.outOfScopeTopicCount}</Item>
           ) : null}
@@ -311,15 +313,19 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
         error={errorFor(EDIT_FIELD_IDS.publishAt)}
         {...register("publishAt")}
       />
-      <Field
-        id={EDIT_FIELD_IDS.deadline}
-        type="datetime-local"
-        label="Prazo de entrega"
-        required
-        error={errorFor(EDIT_FIELD_IDS.deadline)}
-        {...register("deadline")}
-      />
-      <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
+      {activity.deadline ? (
+        <>
+          <Field
+            id={EDIT_FIELD_IDS.deadline}
+            type="datetime-local"
+            label="Prazo de entrega"
+            required
+            error={errorFor(EDIT_FIELD_IDS.deadline)}
+            {...register("deadline")}
+          />
+          <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
+        </>
+      ) : null}
       <SubmitButton pending={formState.isSubmitting} pendingLabel="Salvando…">
         Salvar alterações
       </SubmitButton>

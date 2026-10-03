@@ -32,7 +32,7 @@ const submitted = (overrides = {}) =>
 const started = (overrides = {}) =>
   studentActivity({
     status: "IN_PROGRESS",
-    attempt: { startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+    attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
     ...overrides,
   });
 const saved = (questionId: string, revision = 1) =>
@@ -125,6 +125,7 @@ describe("012/US3 tela de responder a atividade", () => {
         200,
         started({
           attempt: {
+            number: 1,
             startedAt: "2026-10-02T11:00:00.000Z",
             lastSavedAt: "2026-10-02T11:30:00.000Z",
             answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "salva antes" }, revision: 2 }],
@@ -304,6 +305,7 @@ describe("012/US3 tela de responder a atividade", () => {
               ? started()
               : started({
                   attempt: {
+                    number: 1,
                     startedAt: "2026-10-02T11:00:00.000Z",
                     lastSavedAt: "2026-10-02T12:01:00.000Z",
                     answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "da outra aba" }, revision: 2 }],

@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { EnrollmentStatusSchema } from "../classes/enrollments.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { ExerciseDifficultySchema } from "../exercises/enums.js";
 import { TestCaseVisibilitySchema, WorkGradingStrategySchema, WorkQuestionTypeSchema } from "../works/enums.js";
-import { GRADE_MAX_CENTS, GradeOutputSchema, GradeStringSchema, gradeToCents } from "../works/grade.js";
+import { GRADE_MAX_CENTS, GradeOutputSchema, gradeToCents } from "../works/grade.js";
 import { AnswerSchema, GradingNatureSchema, PendingReasonSchema } from "../works/grading.js";
 import {
   ActivityGradingStatusSchema,
@@ -10,13 +11,17 @@ import {
   ActivityTypeSchema,
   AttemptStatusSchema,
   ExecutionModeSchema,
+  ExerciseResultSchema,
   LatePolicySchema,
   PublicationPhaseSchema,
   RosterStatusSchema,
 } from "./enums.js";
+import { PointsSchema } from "./points.js";
 
 // The teacher's side of class activities (012 contracts/http-api.md, "Teacher routes"). Grades use
 // the 011 arithmetic: integer hundredths in code, "0.50" strings on the wire (011 research W3).
+// Since 013 an EXERCISE activity has no grade, deadline, late policy or release: those fields are
+// null for it, and its questions carry the exercise's difficulty and fixed points (013 research K1, K2).
 
 export const ACTIVITY_EXERCISES_MIN = 1;
 export const ACTIVITY_EXERCISES_MAX = 10;
@@ -25,17 +30,16 @@ export const ACTIVITY_INSTRUCTIONS_MAX = 10_000;
 export const ACTIVITY_FEEDBACK_MAX = 5_000;
 
 /** The bank items to apply (research P2): one work, or 1–10 distinct exercises in the chosen order. */
-export const ActivitySourceSchema = z.discriminatedUnion("type", [
-  z.strictObject({ type: z.literal("ASSIGNMENT"), workId: UuidSchema }),
-  z.strictObject({
-    type: z.literal("EXERCISE"),
-    exerciseIds: z
-      .array(UuidSchema)
-      .min(ACTIVITY_EXERCISES_MIN)
-      .max(ACTIVITY_EXERCISES_MAX)
-      .refine((ids) => new Set(ids).size === ids.length, "DUPLICATE_EXERCISE"),
-  }),
-]);
+const AssignmentSourceSchema = z.strictObject({ type: z.literal("ASSIGNMENT"), workId: UuidSchema });
+const ExerciseSourceSchema = z.strictObject({
+  type: z.literal("EXERCISE"),
+  exerciseIds: z
+    .array(UuidSchema)
+    .min(ACTIVITY_EXERCISES_MIN)
+    .max(ACTIVITY_EXERCISES_MAX)
+    .refine((ids) => new Set(ids).size === ids.length, "DUPLICATE_EXERCISE"),
+});
+export const ActivitySourceSchema = z.discriminatedUnion("type", [AssignmentSourceSchema, ExerciseSourceSchema]);
 export type ActivitySource = z.infer<typeof ActivitySourceSchema>;
 
 /** Topics of the source outside the class's taught scope (FR-005a, research P5). */
@@ -54,32 +58,38 @@ const InstructionsSchema = z.string().max(ACTIVITY_INSTRUCTIONS_MAX);
 const deadlineAfterPublication = (body: { publishAt?: string | null; deadline?: string }) =>
   !body.publishAt || !body.deadline || Date.parse(body.deadline) > Date.parse(body.publishAt);
 
-export const CreateActivityRequestSchema = z
+const createCommon = {
+  idempotencyKey: UuidSchema,
+  title: TitleSchema,
+  instructions: InstructionsSchema.nullish(),
+  /** Null: now, by the server clock. */
+  publishAt: IsoDateTimeSchema.nullable(),
+  acknowledgeOutOfScope: z.boolean(),
+};
+
+/** An ASSIGNMENT keeps its work's grade (012), with a deadline and a late policy. */
+export const CreateAssignmentRequestSchema = z
   .strictObject({
-    idempotencyKey: UuidSchema,
-    source: ActivitySourceSchema,
-    title: TitleSchema,
-    instructions: InstructionsSchema.nullish(),
-    /** Required for EXERCISE (Q3 = A); an ASSIGNMENT keeps its work's grade. */
-    totalGrade: GradeStringSchema.optional(),
-    /** Null: now, by the server clock. */
-    publishAt: IsoDateTimeSchema.nullable(),
+    ...createCommon,
+    source: AssignmentSourceSchema,
     deadline: IsoDateTimeSchema,
     latePolicy: LatePolicySchema,
-    acknowledgeOutOfScope: z.boolean(),
   })
-  .superRefine((body, ctx) => {
-    if (body.source.type === "EXERCISE" && body.totalGrade === undefined) {
-      ctx.addIssue({ code: "custom", path: ["totalGrade"], message: "TOTAL_GRADE_REQUIRED" });
-    }
-    if (body.source.type === "ASSIGNMENT" && body.totalGrade !== undefined) {
-      ctx.addIssue({ code: "custom", path: ["totalGrade"], message: "TOTAL_GRADE_FROM_WORK" });
-    }
-    if (body.source.type === "EXERCISE" && body.totalGrade !== undefined && gradeToCents(body.totalGrade) < body.source.exerciseIds.length) {
-      ctx.addIssue({ code: "custom", path: ["totalGrade"], message: "GRADE_TOO_LOW_FOR_QUESTIONS" });
-    }
-    if (!deadlineAfterPublication(body)) ctx.addIssue({ code: "custom", path: ["deadline"], message: "INVALID_SCHEDULE" });
-  });
+  .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
+export type CreateAssignmentRequest = z.infer<typeof CreateAssignmentRequestSchema>;
+
+/**
+ * An EXERCISE is practice (013/FR-001): strict, so a `totalGrade`, `deadline` or `latePolicy` in the
+ * body is refused (400). The points come from the exercises' difficulty, never from the request.
+ */
+export const CreateExerciseActivityRequestSchema = z.strictObject({
+  ...createCommon,
+  source: ExerciseSourceSchema,
+});
+export type CreateExerciseActivityRequest = z.infer<typeof CreateExerciseActivityRequestSchema>;
+
+/** `POST /classes/:classId/activities`: a union by `source.type` (013 contracts/http-api.md). */
+export const CreateActivityRequestSchema = z.union([CreateAssignmentRequestSchema, CreateExerciseActivityRequestSchema]);
 export type CreateActivityRequest = z.infer<typeof CreateActivityRequestSchema>;
 
 export const UpdateActivityRequestSchema = z
@@ -89,6 +99,7 @@ export const UpdateActivityRequestSchema = z
     instructions: InstructionsSchema.nullable().optional(),
     /** Only while scheduled (`422 ALREADY_PUBLISHED`). */
     publishAt: IsoDateTimeSchema.optional(),
+    /** ASSIGNMENT only: an EXERCISE has neither, so the service answers 400 to them (013/FR-004). */
     deadline: IsoDateTimeSchema.optional(),
     latePolicy: LatePolicySchema.optional(),
   })
@@ -114,9 +125,12 @@ export const TeacherActivitySummarySchema = z.strictObject({
   /** Only for an ACTIVE activity. */
   phase: PublicationPhaseSchema.nullable(),
   publishAt: IsoDateTimeSchema,
-  deadline: IsoDateTimeSchema,
-  latePolicy: LatePolicySchema,
-  totalGrade: GradeOutputSchema,
+  /** ASSIGNMENT only; null for EXERCISE (013/FR-013). */
+  deadline: IsoDateTimeSchema.nullable(),
+  latePolicy: LatePolicySchema.nullable(),
+  totalGrade: GradeOutputSchema.nullable(),
+  /** EXERCISE only: the sum of its exercises' points (013/FR-003); null for ASSIGNMENT. */
+  possiblePoints: PointsSchema.nullable(),
   resultReleasedAt: IsoDateTimeSchema.nullable(),
   counts: RosterCountsSchema,
 });
@@ -132,7 +146,11 @@ export const TeacherQuestionSchema = z.strictObject({
   position: z.int().min(0),
   type: WorkQuestionTypeSchema,
   gradingStrategy: WorkGradingStrategySchema,
-  value: GradeOutputSchema,
+  /** ASSIGNMENT only; null for EXERCISE. */
+  value: GradeOutputSchema.nullable(),
+  /** EXERCISE only: the exercise's difficulty and fixed points, copied at application (013/FR-002). */
+  difficulty: ExerciseDifficultySchema.nullable(),
+  points: PointsSchema.nullable(),
   statement: z.string(),
   instructions: z.string().nullable(),
   starterCode: z.string().nullable(),
@@ -159,6 +177,10 @@ export const RosterEntrySchema = z.strictObject({
   submittedAt: IsoDateTimeSchema.nullable(),
   grade: GradeOutputSchema.nullable(),
   gradePartial: z.boolean().nullable(),
+  /** EXERCISE only: the points of the student's attempt 1 (013/FR-016); null for ASSIGNMENT. */
+  pointsEarned: PointsSchema.nullable(),
+  /** EXERCISE only: answers of attempt 1 waiting for the teacher's mark; null for ASSIGNMENT. */
+  pendingMarks: z.int().min(0).nullable(),
 });
 export type RosterEntry = z.infer<typeof RosterEntrySchema>;
 
@@ -184,6 +206,21 @@ export const QuestionGradingViewSchema = z.strictObject({
 });
 export type QuestionGradingView = z.infer<typeof QuestionGradingViewSchema>;
 
+/** One exercise of a concluded EXERCISE attempt, for the teacher (013 contracts/http-api.md). */
+export const TeacherExerciseResultSchema = z.strictObject({
+  questionId: UuidSchema,
+  result: ExerciseResultSchema,
+  points: PointsSchema,
+  /** The row that counts for this exercise in the class (attempt 1, slot free). */
+  scoring: z.boolean(),
+  /** Attempt 1, but the exercise already scored in another activity of the class (013/FR-010a). */
+  alreadyScored: z.boolean(),
+  nature: GradingNatureSchema.exclude(["SUGGESTION"]).nullable(),
+  comment: z.string().nullable(),
+  decidedAt: IsoDateTimeSchema.nullable(),
+});
+export type TeacherExerciseResult = z.infer<typeof TeacherExerciseResultSchema>;
+
 export const TeacherAttemptSchema = z.strictObject({
   id: UuidSchema,
   student: z.strictObject({ userId: UuidSchema, name: z.string() }),
@@ -204,6 +241,10 @@ export const TeacherAttemptSchema = z.strictObject({
       version: z.int().min(1),
       gradings: z.array(QuestionGradingViewSchema),
     })
+    .nullable(),
+  /** EXERCISE only: the concluded attempt's number, time and results; null otherwise (013/FR-016). */
+  exercise: z
+    .strictObject({ number: z.int().min(1), completedAt: IsoDateTimeSchema, results: z.array(TeacherExerciseResultSchema) })
     .nullable(),
 });
 export type TeacherAttempt = z.infer<typeof TeacherAttemptSchema>;
@@ -234,3 +275,24 @@ export const GradeSubmissionRequestSchema = z.strictObject({
   generalFeedback: z.string().max(ACTIVITY_FEEDBACK_MAX).nullish(),
 });
 export type GradeSubmissionRequest = z.infer<typeof GradeSubmissionRequestSchema>;
+
+export const EXERCISE_COMMENT_MAX = 2_000;
+
+/**
+ * `PUT …/attempts/:attemptId/marks` (013/FR-017, research K8): the teacher marks open answers and
+ * code of attempt 1 right or wrong — the absolute result, never a grade — with an optional comment.
+ */
+export const MarkExerciseResultsRequestSchema = z.strictObject({
+  marks: z
+    .array(
+      z.strictObject({
+        questionId: UuidSchema,
+        result: z.enum(["CORRECT", "WRONG"]),
+        comment: z.string().max(EXERCISE_COMMENT_MAX).nullish(),
+      }),
+    )
+    .min(1)
+    .max(ACTIVITY_EXERCISES_MAX)
+    .refine((marks) => new Set(marks.map((mark) => mark.questionId)).size === marks.length, "DUPLICATE_QUESTION"),
+});
+export type MarkExerciseResultsRequest = z.infer<typeof MarkExerciseResultsRequestSchema>;

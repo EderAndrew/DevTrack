@@ -87,7 +87,7 @@ describe("012/US3 aluno inicia, responde e salva uma atividade", () => {
 
     expect(view.status).toBe("IN_PROGRESS");
     expect(view.canAnswer).toBe(true);
-    expect(view.attempt).toEqual({ startedAt: START, lastSavedAt: null, answers: [] });
+    expect(view.attempt).toEqual({ number: 1, startedAt: START, lastSavedAt: null, answers: [] });
     const attempts = await t.prisma.activityAttempt.findMany({ where: { activityId: activity.id } });
     expect(attempts).toHaveLength(1);
     expect(attempts[0]).toMatchObject({ studentUserId: student.id, number: 1, status: "IN_PROGRESS", startedAt: new Date(START) });
@@ -98,7 +98,7 @@ describe("012/US3 aluno inicia, responde e salva uma atividade", () => {
       actorUserId: student.id,
       targetType: "ACTIVITY_ATTEMPT",
       targetId: attempts[0]!.id,
-      metadata: { activityId: activity.id, classId: schoolClass.id, afterDeadline: false },
+      metadata: { activityId: activity.id, classId: schoolClass.id, afterDeadline: false, attemptNumber: 1 },
     });
     expect(started!.requestId).not.toBeNull();
   });

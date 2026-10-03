@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import {
   type ActivityStatus,
+  type ActivityType,
   centsToGrade,
   type GradeSubmissionRequest,
   gradeToCents,
@@ -15,7 +16,7 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound, rateLimited } from "../../platform/http/errors";
+import { AppException, invalidStateTransition, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
@@ -23,8 +24,8 @@ import { ClassContextPolicy } from "../classes/class-context.policy";
 import { decideByTeacher } from "../works/grading/decide";
 import { GradingRuleError } from "../works/grading/strategy";
 import { computeWorkGrade } from "../works/grading/work-grade";
-import { decimalToCents } from "./activity-query";
-import type { ActivityFacts } from "./status/facts";
+import { decimalToCents, requiredCents } from "./activity-query";
+import { type AssignmentFacts, assignmentSchedule } from "./status/facts";
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
 import { registerSubmission } from "./submission/register-submission";
@@ -129,6 +130,8 @@ export class AttemptsReviewService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const activity = await lockActivity(tx, classId, activityId, "SHARE");
+      // An EXERCISE has no grade: its open answers are marked right or wrong (013/FR-017, K14).
+      if (activity.type === "EXERCISE") throw invalidStateTransition();
       const attempt = await tx.activityAttempt.findFirst({ where: { id: attemptId, activityId }, select: { id: true } });
       if (!attempt) throw notFound();
       const rows = await tx.$queryRaw<{ id: string; version: number; general_feedback: string | null }[]>`
@@ -155,7 +158,7 @@ export class AttemptsReviewService {
       const generalFeedbackChanged = generalFeedback !== submission.general_feedback;
       if (changed.length === 0 && !generalFeedbackChanged) return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
 
-      const grade = withRuleError(() => computeWorkGrade([...gradings.values()], decimalToCents(activity.totalGrade)));
+      const grade = withRuleError(() => computeWorkGrade([...gradings.values()], requiredCents(activity.totalGrade)));
       const now = this.clock.now();
       for (const item of changed) {
         await tx.activityQuestionGrading.update({
@@ -210,6 +213,8 @@ export class AttemptsReviewService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const activity = await lockActivity(tx, classId, activityId, "UPDATE");
+      // An EXERCISE attempt is concluded by the student, never accepted as a submission (013 K14).
+      if (activity.type === "EXERCISE") throw invalidStateTransition();
       const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; student_user_id: string }[]>`
         SELECT id, status::text AS status, student_user_id FROM activity_attempts
         WHERE id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;
@@ -219,10 +224,10 @@ export class AttemptsReviewService {
 
       const now = this.clock.now();
       const saved = await tx.activityAnswer.count({ where: { attemptId } });
-      const facts: ActivityFacts = {
+      const facts: AssignmentFacts = {
+        type: "ASSIGNMENT",
         activityStatus: activity.status,
-        deadline: activity.deadline,
-        latePolicy: activity.latePolicy,
+        ...assignmentSchedule(activity),
         classActive: activity.classActive,
         // FR-006b accepts saved answers: an attempt with none has nothing to deliver.
         attempt: saved > 0 ? { status: attempt.status } : null,
@@ -272,10 +277,12 @@ export class AttemptsReviewService {
 }
 
 interface LockedActivity {
+  type: ActivityType;
   status: ActivityStatus;
-  deadline: Date;
-  latePolicy: LatePolicy;
-  totalGrade: Prisma.Decimal;
+  /** ASSIGNMENT only (CHECK by type, 013 K1). */
+  deadline: Date | null;
+  latePolicy: LatePolicy | null;
+  totalGrade: Prisma.Decimal | null;
   resultReleasedAt: Date | null;
   classActive: boolean;
 }
@@ -283,9 +290,17 @@ interface LockedActivity {
 /** The activity of this class, with its class's status, `FOR SHARE` (grading) or `FOR UPDATE` (acceptance). */
 async function lockActivity(tx: Tx, classId: string, activityId: string, mode: "SHARE" | "UPDATE"): Promise<LockedActivity> {
   const rows = await tx.$queryRaw<
-    { status: ActivityStatus; deadline: Date; late_policy: LatePolicy; total_grade: Prisma.Decimal; result_released_at: Date | null; class_status: string }[]
+    {
+      type: ActivityType;
+      status: ActivityStatus;
+      deadline: Date | null;
+      late_policy: LatePolicy | null;
+      total_grade: Prisma.Decimal | null;
+      result_released_at: Date | null;
+      class_status: string;
+    }[]
   >`
-    SELECT ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.total_grade, ca.result_released_at,
+    SELECT ca.type::text AS type, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.total_grade, ca.result_released_at,
            c.status::text AS class_status
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
@@ -294,6 +309,7 @@ async function lockActivity(tx: Tx, classId: string, activityId: string, mode: "
   const row = rows[0];
   if (!row) throw notFound();
   return {
+    type: row.type,
     status: row.status,
     deadline: row.deadline,
     latePolicy: row.late_policy,
@@ -308,7 +324,7 @@ function toQuestionGrading(row: GradingRecord): QuestionGrading {
   return {
     questionId: row.questionId,
     strategy: row.question.gradingStrategy,
-    valueCents: decimalToCents(row.question.value),
+    valueCents: requiredCents(row.question.value),
     status: row.status,
     nature: row.nature,
     suggestedCents: null,
@@ -357,5 +373,7 @@ function toTeacherAttempt(attempt: AttemptRecord): TeacherAttempt {
         feedback: grading.feedback,
       })),
     },
+    // The EXERCISE results arrive with the teacher's marks (013 US3).
+    exercise: null,
   };
 }

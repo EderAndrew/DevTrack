@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { isSubmissionVersionConflict, useActivity, useAttempt, useAttemptActions } from "../hooks/use-activities";
-import { formatGrade, QUESTION_TYPE_LABELS, ROSTER_STATUS_LABELS } from "../schemas/activity-form";
+import { formatGrade, formatPoints, QUESTION_TYPE_LABELS, ROSTER_STATUS_LABELS } from "../schemas/activity-form";
 import {
   type AttemptGradingValues,
   attemptGradingDefaults,
@@ -143,7 +143,7 @@ export function AttemptReview({ classId, activityId, attemptId, canGrade }: Atte
           {submission ? <Item term="Entregue em">{formatLongDateTime(submission.submittedAt)}</Item> : null}
           {submission ? (
             <Item term="Nota">
-              {formatGrade(submission.grade)} de {formatGrade(activity.totalGrade)}
+              {formatGrade(submission.grade)} de {formatGrade(activity.totalGrade ?? "0.00")}
               {submission.gradePartial ? " (parcial)" : ""}
             </Item>
           ) : null}
@@ -245,7 +245,7 @@ function GradingForm({
                   id={gradeId}
                   name={gradeId}
                   label={`Nota da questão ${question.position + 1}`}
-                  hint={`0,00 a ${formatGrade(question.value)}`}
+                  hint={`0,00 a ${formatGrade(question.value ?? "0.00")}`}
                   inputMode="decimal"
                   autoComplete="off"
                   value={typed.grade}
@@ -300,7 +300,7 @@ function QuestionReview({ question, attempt, children }: { question: TeacherQues
           Questão {question.position + 1}
         </h3>
         <span>{QUESTION_TYPE_LABELS[question.type]}</span>
-        <span>Vale {formatGrade(question.value)}</span>
+        <span>Vale {question.value !== null ? formatGrade(question.value ?? "0.00") : formatPoints(question.points ?? 0)}</span>
         {grading ? (
           <Badge variant={grading.status === "PENDING_TEACHER" ? "warning" : "neutral"}>{GRADING_LABELS[grading.status]}</Badge>
         ) : null}
@@ -328,7 +328,7 @@ function QuestionReview({ question, attempt, children }: { question: TeacherQues
         {question.explanation !== null ? <Item term="Explicação">{question.explanation}</Item> : null}
         {grading && !children ? (
           <>
-            <Item term="Nota">{grading.finalGrade === null ? "Correção pendente" : `${formatGrade(grading.finalGrade)} de ${formatGrade(question.value)}`}</Item>
+            <Item term="Nota">{grading.finalGrade === null ? "Correção pendente" : `${formatGrade(grading.finalGrade)} de ${formatGrade(question.value ?? "0.00")}`}</Item>
             {grading.feedback ? <Item term="Feedback">{grading.feedback}</Item> : null}
           </>
         ) : null}

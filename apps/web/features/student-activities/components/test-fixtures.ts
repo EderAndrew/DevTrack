@@ -6,12 +6,12 @@ export const apiError = (status: number, code: string, message: string) => json(
 
 let sequence = 0;
 
-/** A student activity summary as the API answers it (012 contracts/http-api.md). */
+/** A student activity summary as the API answers it (012 contracts/http-api.md): a Trabalho by default (013 left Exercício without grade or deadline). */
 export const summary = (overrides: Partial<StudentActivitySummary> = {}): StudentActivitySummary => {
   sequence += 1;
   return {
     id: `aaaaaaaa-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
-    type: "EXERCISE",
+    type: "ASSIGNMENT",
     title: `Atividade ${sequence}`,
     summary: "Resolva os exercícios de herança.",
     class: { id: "11111111-1111-4111-8111-111111111111", name: "POO Noturno" },
@@ -27,6 +27,7 @@ export const summary = (overrides: Partial<StudentActivitySummary> = {}): Studen
     submittedAt: null,
     totalGrade: "1.00",
     result: null,
+    points: null,
     ...overrides,
   };
 };
@@ -36,6 +37,7 @@ export const dashboard = (overrides: Partial<StudentDashboard> = {}): StudentDas
   counts: { pending: 3, inProgress: 2, overdue: 1, completed: 8 },
   next: [],
   overdueOpen: [],
+  rankings: [],
   serverNow: "2026-10-02T12:00:00.000Z",
   ...overrides,
 });
@@ -73,6 +75,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         position: 0,
         type: "OPEN_ANSWER",
         value: "0.40",
+        points: null,
         statement: "Explique encapsulamento.",
         instructions: null,
         starterCode: null,
@@ -85,6 +88,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         position: 1,
         type: "MULTIPLE_CHOICE",
         value: "0.30",
+        points: null,
         statement: "O que é um objeto?",
         instructions: null,
         starterCode: null,
@@ -101,6 +105,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         position: 2,
         type: "CODE",
         value: "0.30",
+        points: null,
         statement: "Implemente a soma.",
         instructions: "Leia dois inteiros.",
         starterCode: "class Main {}",
@@ -112,6 +117,8 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
     attempt: null,
     submission: null,
     result: null,
+    completedAttempts: [],
+    lastResult: null,
     ...overrides,
   };
 };

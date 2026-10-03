@@ -132,10 +132,24 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
         <dd className="m-0">{ACTIVITY_TYPE_LABELS[activity.type]}</dd>
         <dt className="text-text-secondary">Publicada em</dt>
         <dd className="m-0">{formatLongDateTime(activity.publishedAt)}</dd>
-        <dt className="text-text-secondary">Prazo</dt>
-        <dd className="m-0">{formatLongDateTime(activity.deadline)}</dd>
-        <dt className="text-text-secondary">Nota total</dt>
-        <dd className="m-0">{formatGrade(activity.totalGrade)}</dd>
+        {activity.deadline ? (
+          <>
+            <dt className="text-text-secondary">Prazo</dt>
+            <dd className="m-0">{formatLongDateTime(activity.deadline)}</dd>
+          </>
+        ) : null}
+        {activity.totalGrade ? (
+          <>
+            <dt className="text-text-secondary">Nota total</dt>
+            <dd className="m-0">{formatGrade(activity.totalGrade)}</dd>
+          </>
+        ) : null}
+        {activity.points ? (
+          <>
+            <dt className="text-text-secondary">Pontos possíveis</dt>
+            <dd className="m-0">{activity.points.possible}</dd>
+          </>
+        ) : null}
       </dl>
       {activity.instructions ? (
         <div className="flex flex-col gap-1">
@@ -290,7 +304,7 @@ function AttemptAnswering({
         <QuestionHeader
           number={index + 1}
           typeLabel={QUESTION_TYPE_LABELS[question.type]}
-          valueLabel={valueLabel(question.value)}
+          valueLabel={valueLabel(question)}
           answered={isAnswered(question, answers.answerOf(question.id))}
           headingId={`questao-${question.id}`}
           headingRef={heading}

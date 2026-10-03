@@ -26,7 +26,6 @@ import {
   ActivityFormSchema,
   activityFormMessages,
   formatGrade,
-  previewValues,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
 } from "../schemas/activity-form";
@@ -35,7 +34,6 @@ import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields
 export const NEW_ACTIVITY_FIELD_IDS = {
   title: "atividade-titulo",
   instructions: "atividade-instrucoes",
-  totalGrade: "atividade-nota-total",
   publishAt: "atividade-publicacao",
   deadline: "atividade-prazo",
   acknowledgeOutOfScope: "atividade-confirmar-escopo",
@@ -325,7 +323,6 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       type: chosen.source.type,
       title: chosen.title,
       instructions: "",
-      totalGrade: "",
       publishMode: "NOW",
       publishAt: "",
       deadline: "",
@@ -335,8 +332,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
     },
   });
   const isExercise = chosen.source.type === "EXERCISE";
-  const [totalGrade, publishMode] = useWatch({ control, name: ["totalGrade", "publishMode"] });
-  const values = previewValues(totalGrade, chosen.questionCount);
+  const publishMode = useWatch({ control, name: "publishMode" });
 
   const onSubmit = handleSubmit(async (formValues) => {
     setErrors([]);
@@ -362,29 +358,6 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       </p>
       <Field id={FIELD_IDS.title} label="Título" required autoComplete="off" error={errorFor(FIELD_IDS.title)} {...register("title")} />
       <TextareaField id={FIELD_IDS.instructions} label="Instruções" hint="Opcional." error={errorFor(FIELD_IDS.instructions)} {...register("instructions")} />
-      {isExercise ? (
-        <>
-          <Field
-            id={FIELD_IDS.totalGrade}
-            label="Nota total"
-            hint="De 0,01 a 100,00, dividida entre as questões na ordem escolhida."
-            inputMode="decimal"
-            autoComplete="off"
-            required
-            error={errorFor(FIELD_IDS.totalGrade)}
-            {...register("totalGrade")}
-          />
-          {values ? (
-            <ul className="m-0 mb-4 pl-6" aria-label="Valor de cada questão">
-              {values.map((value, index) => (
-                <li key={index}>
-                  Questão {index + 1}: vale {value}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </>
-      ) : null}
       <RadioGroup legend="Publicação" className="mb-4">
         <div className="flex items-center gap-2">
           <Radio id="publicar-agora" value="NOW" {...register("publishMode")} />
@@ -405,15 +378,19 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           {...register("publishAt")}
         />
       ) : null}
-      <Field
-        id={FIELD_IDS.deadline}
-        type="datetime-local"
-        label="Prazo de entrega"
-        required
-        error={errorFor(FIELD_IDS.deadline)}
-        {...register("deadline")}
-      />
-      <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
+      {isExercise ? null : (
+        <>
+          <Field
+            id={FIELD_IDS.deadline}
+            type="datetime-local"
+            label="Prazo de entrega"
+            required
+            error={errorFor(FIELD_IDS.deadline)}
+            {...register("deadline")}
+          />
+          <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
+        </>
+      )}
       <ScopeNotice scope={chosen.scope} />
       {chosen.scope.outOfScope.length > 0 ? (
         <ConfirmationField

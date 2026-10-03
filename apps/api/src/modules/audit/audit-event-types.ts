@@ -183,6 +183,8 @@ export const AUDIT_EVENT_METADATA = {
     "questionCount",
     "totalCents",
     "latePolicy",
+    // 013: an EXERCISE carries its possible points instead of `totalCents` and `latePolicy`.
+    "possiblePoints",
     "scheduled",
     "outOfScopeTopicCount",
     "hasPlan",
@@ -190,10 +192,11 @@ export const AUDIT_EVENT_METADATA = {
   "activity.updated": ["classId", "fields"],
   "activity.closed": ["classId", "submittedCount", "missedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount"],
-  "activity_attempt.started": ["activityId", "classId", "afterDeadline"],
+  // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
-  // `operation`: START | SAVE | SUBMIT; `code`: the 409 code of the refusal.
+  // `operation`: START | SAVE | SUBMIT, and RETRY | COMPLETE of an EXERCISE (013); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.

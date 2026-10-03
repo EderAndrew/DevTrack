@@ -6,10 +6,7 @@ import {
   type ActivityType,
   ActivityTypeSchema,
   type CreateActivityRequest,
-  centsToGrade,
-  distributeGrade,
   GradeStringSchema,
-  gradeToCents,
   type LatePolicy,
   LatePolicySchema,
   type PublicationPhase,
@@ -51,17 +48,13 @@ export function activitySituation(status: ActivityStatus, phase: PublicationPhas
 /** "0.34" → "0,34" (grades are shown with a comma). */
 export const formatGrade = (grade: string) => grade.replace(".", ",");
 
+/** Practice points as an integer, never a grade (013 K18): "1 ponto", "30 pontos". */
+export const formatPoints = (points: number) => `${points} ${points === 1 ? "ponto" : "pontos"}`;
+
 /** What the teacher typed ("0,5", "1.00") as the contract's grade string, or null when invalid. */
 export function parseGradeInput(input: string): string | null {
   const grade = input.trim().replace(",", ".");
   return GradeStringSchema.safeParse(grade).success ? grade : null;
-}
-
-/** Each question's value of an Exercise, by position (the 011 rule the API applies), or null. */
-export function previewValues(totalGradeInput: string, count: number): string[] | null {
-  const grade = parseGradeInput(totalGradeInput);
-  if (grade === null || count === 0 || gradeToCents(grade) < count) return null;
-  return distributeGrade(gradeToCents(grade), count).map((cents) => formatGrade(centsToGrade(cents)));
 }
 
 /** A `datetime-local` value (the browser's time zone) as the contract's instant. */
@@ -79,35 +72,30 @@ const localDateTime = z.string().trim();
 
 /**
  * Step 2 of "Nova atividade" (contracts/web-ui.md). `type` and `needsAcknowledgement` come from
- * step 1 and the scope check; the total grade is the teacher's only for an Exercício (Q3 = A) and
- * accepts a comma; the deadline comes after the publication (now when "Publicar agora").
+ * step 1 and the scope check. A Trabalho has a deadline after the publication (now when "Publicar
+ * agora") and a late policy; an Exercício has neither, nor a grade (013/FR-001).
  */
 export const ActivityFormSchema = z
   .object({
     type: ActivityTypeSchema,
     title: z.string().trim().min(1).max(ACTIVITY_TITLE_MAX),
     instructions: z.string().max(ACTIVITY_INSTRUCTIONS_MAX),
-    totalGrade: z.string(),
     publishMode: z.enum(["NOW", "SCHEDULE"]),
     publishAt: localDateTime,
-    deadline: localDateTime.min(1),
+    deadline: localDateTime,
     latePolicy: LatePolicySchema,
     needsAcknowledgement: z.boolean(),
     acknowledgeOutOfScope: z.boolean(),
   })
   .superRefine((values, ctx) => {
-    if (values.type === "EXERCISE" && parseGradeInput(values.totalGrade) === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["totalGrade"],
-        message: values.totalGrade.trim() ? "Informe uma nota entre 0,01 e 100,00, com até duas casas." : "Informe a nota total.",
-      });
+    if (values.type === "ASSIGNMENT" && !values.deadline) {
+      ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
     }
     if (values.publishMode === "SCHEDULE" && !values.publishAt) {
       ctx.addIssue({ code: "custom", path: ["publishAt"], message: "Informe a data e a hora da publicação." });
     }
     const publication = values.publishMode === "SCHEDULE" && values.publishAt ? new Date(values.publishAt) : new Date();
-    if (values.deadline && new Date(values.deadline).getTime() <= publication.getTime()) {
+    if (values.type === "ASSIGNMENT" && values.deadline && new Date(values.deadline).getTime() <= publication.getTime()) {
       ctx.addIssue({ code: "custom", path: ["deadline"], message: SCHEDULE_MESSAGE });
     }
     if (values.needsAcknowledgement && !values.acknowledgeOutOfScope) {
@@ -125,30 +113,34 @@ export const activityFormMessages = fieldMessages({
   deadline: "Informe o prazo de entrega.",
 });
 
+/** The request by the source's type: a Trabalho with its deadline and late policy, an Exercício without them. */
 export function toCreateActivityRequest(values: ActivityFormValues, source: ActivitySource, idempotencyKey: string): CreateActivityRequest {
-  return {
+  const common = {
     idempotencyKey,
-    source,
     title: values.title.trim(),
     instructions: values.instructions.trim() || null,
-    ...(values.type === "EXERCISE" ? { totalGrade: parseGradeInput(values.totalGrade)! } : {}),
     publishAt: values.publishMode === "SCHEDULE" ? localToIso(values.publishAt) : null,
-    deadline: localToIso(values.deadline),
-    latePolicy: values.latePolicy,
     acknowledgeOutOfScope: values.acknowledgeOutOfScope,
   };
+  if (source.type === "EXERCISE") return { ...common, source };
+  return { ...common, source, deadline: localToIso(values.deadline), latePolicy: values.latePolicy };
 }
 
-/** The detail's edit form: the publication only while scheduled (`422 ALREADY_PUBLISHED` otherwise). */
+/**
+ * The detail's edit form: the publication only while scheduled (`422 ALREADY_PUBLISHED` otherwise);
+ * deadline and late policy only for a Trabalho (an Exercício has none, 013/FR-004).
+ */
 export const ActivityEditSchema = z
   .object({
     title: z.string().trim().min(1).max(ACTIVITY_TITLE_MAX),
     instructions: z.string().max(ACTIVITY_INSTRUCTIONS_MAX),
     publishAt: localDateTime,
-    deadline: localDateTime.min(1),
+    hasDeadline: z.boolean(),
+    deadline: localDateTime,
     latePolicy: LatePolicySchema,
   })
   .superRefine((values, ctx) => {
+    if (values.hasDeadline && !values.deadline) ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
     if (values.publishAt && values.deadline && new Date(values.deadline).getTime() <= new Date(values.publishAt).getTime()) {
       ctx.addIssue({ code: "custom", path: ["deadline"], message: SCHEDULE_MESSAGE });
     }
@@ -159,8 +151,9 @@ export const activityEditDefaults = (activity: TeacherActivity): ActivityEditVal
   title: activity.title,
   instructions: activity.instructions ?? "",
   publishAt: isoToLocal(activity.publishAt),
-  deadline: isoToLocal(activity.deadline),
-  latePolicy: activity.latePolicy,
+  hasDeadline: activity.deadline !== null,
+  deadline: activity.deadline ? isoToLocal(activity.deadline) : "",
+  latePolicy: activity.latePolicy ?? "REJECT",
 });
 
 /** Only what changed, with the version read; the publication only while scheduled. */
@@ -171,7 +164,7 @@ export function toUpdateActivityRequest(values: ActivityEditValues, activity: Te
     ...(values.title.trim() !== initial.title ? { title: values.title.trim() } : {}),
     ...(values.instructions !== initial.instructions ? { instructions: values.instructions.trim() || null } : {}),
     ...(activity.phase === "SCHEDULED" && values.publishAt !== initial.publishAt ? { publishAt: localToIso(values.publishAt) } : {}),
-    ...(values.deadline !== initial.deadline ? { deadline: localToIso(values.deadline) } : {}),
-    ...(values.latePolicy !== initial.latePolicy ? { latePolicy: values.latePolicy } : {}),
+    ...(initial.hasDeadline && values.deadline !== initial.deadline ? { deadline: localToIso(values.deadline) } : {}),
+    ...(initial.hasDeadline && values.latePolicy !== initial.latePolicy ? { latePolicy: values.latePolicy } : {}),
   };
 }

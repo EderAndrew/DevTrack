@@ -68,6 +68,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
             "atividades.proprias.responder",
             "atividades.proprias.visualizar",
             "notas.proprias.visualizar",
+            "ranking.turma.visualizar",
             "sessoes.proprias.listar",
             "sessoes.proprias.revogar",
             "turmas.proprias.listar",

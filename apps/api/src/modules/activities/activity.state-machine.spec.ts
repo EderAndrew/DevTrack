@@ -35,9 +35,12 @@ describe("012/FR-004 ciclo de vida da atividade da turma", () => {
     expect(() => ActivityStateMachine.assertEditable("CLOSED")).toThrow(expect.objectContaining({ code: "INVALID_STATE_TRANSITION" }));
   });
 
-  it("012/FR-003 o registro de tipos tem só Exercício e Trabalho, com a origem da nota de cada um", () => {
+  it("012/FR-003 o registro de tipos tem só Exercício e Trabalho", () => {
     expect(Object.keys(ACTIVITY_TYPES).sort()).toEqual(["ASSIGNMENT", "EXERCISE"]);
-    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ totalGradeSource: "SOURCE", sourceCount: { min: 1, max: 1 } });
-    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ totalGradeSource: "REQUEST", sourceCount: { min: 1, max: 10 } });
+  });
+
+  it("013/FR-001 Trabalho tem nota, prazo e uma tentativa; Exercício tem pontos, sem prazo, com tentativas de prática", () => {
+    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 } });
+    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 } });
   });
 });

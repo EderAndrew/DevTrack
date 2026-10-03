@@ -67,6 +67,10 @@ export const PERMISSIONS = [
   "atividades.proprias.visualizar",
   "atividades.proprias.responder",
   "notas.proprias.visualizar",
+  // 013 — exercise points and the class ranking (specs/013-exercise-points-ranking/contracts/permissions.md).
+  "exercicios.corrigir",
+  "ranking.visualizar",
+  "ranking.turma.visualizar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

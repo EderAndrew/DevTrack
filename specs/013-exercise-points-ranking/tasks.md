@@ -75,7 +75,7 @@ description: "Task list for 013 — Pontuação e Ranking dos Exercícios: exerc
 **Purpose**: migração com a conversão da 012, permissões, contratos, regras puras e a adaptação
 das suítes 012. ⚠️ Nenhuma história começa antes desta fase.
 
-- [ ] T004 Migração `apps/api/prisma/migrations/<ts>_exercise_points/migration.sql` e
+- [X] T004 Migração `apps/api/prisma/migrations/<ts>_exercise_points/migration.sql` e
   `apps/api/prisma/schema.prisma` (data-model.md): `total_grade`, `deadline`, `late_policy` e o
   `value` das questões anuláveis com CHECKs por tipo; `difficulty`/`points` nas questões com o
   CHECK do par; `class_activities_valid` (soma dos valores) só para ASSIGNMENT; troca de
@@ -87,35 +87,35 @@ das suítes 012. ⚠️ Nenhuma história começa antes desta fase.
   `nature`/`result` e o gatilho de colunas fixas; índices; seed de `exercicios.corrigir`,
   `ranking.visualizar` (TEACHER) e `ranking.turma.visualizar` (STUDENT); por último a conversão
   da 012 (research K17), com os gatilhos de imutabilidade desligados só nas próprias instruções.
-- [ ] T005 [P] `apps/api/test/integration/013-schema.spec.ts`: cada CHECK, UNIQUE e gatilho da
+- [X] T005 [P] `apps/api/test/integration/013-schema.spec.ts`: cada CHECK, UNIQUE e gatilho da
   T004 recusa o dado inválido (EXERCISE com nota/prazo, ASSIGNMENT sem; par nível/pontos errado;
   segunda tentativa aberta; tentativa 2 sem a 1 concluída; tentativa 2 em ASSIGNMENT; entrega
   numa atividade EXERCISE; resultado com pontos fora da regra; `PENDING_TEACHER` sem `scoring`;
   segundo `scoring` do mesmo exercício na turma; UPDATE de colunas fixas; DELETE de resultado).
-- [ ] T006 [P] `apps/api/test/integration/013-migration.spec.ts`: aplica as migrações até a 012,
+- [X] T006 [P] `apps/api/test/integration/013-migration.spec.ts`: aplica as migrações até a 012,
   semeia uma atividade de Exercício no formato 012 com tentativa, respostas, entrega, correções e
   liberação e uma de Trabalho igual; aplica a 013 e confere: Exercício sem nota, prazo, regra,
   liberação, tentativas e entregas, com nível e pontos vindos do banco; Trabalho intacto
   (research K17, spec Assumptions Q3).
-- [ ] T007 [P] Contratos em `packages/contracts/src/activities/teacher.ts`: `CreateActivity`
+- [X] T007 [P] Contratos em `packages/contracts/src/activities/teacher.ts`: `CreateActivity`
   como união por `source.type` (EXERCISE estrito, sem `totalGrade`, `deadline`, `latePolicy`),
   `UpdateActivity` sem prazo/regra para EXERCISE (refinamento no serviço), campos anuláveis e
   `possiblePoints`, `difficulty`, `points` no resumo/detalhe/questão, roster com `pointsEarned` e
   `pendingMarks`, `TeacherExerciseResult`, `MarkExerciseResults`, `exercise` em `TeacherAttempt`;
   testes no `packages/contracts/test/activities.spec.ts` (contracts/http-api.md).
-- [ ] T008 [P] Contratos em `packages/contracts/src/activities/student.ts` e o novo
+- [X] T008 [P] Contratos em `packages/contracts/src/activities/student.ts` e o novo
   `exercise-results.ts`: `points` no resumo e no detalhe, `attempt.number`, `completedAttempts`,
   `lastResult`, `StudentExerciseAttempt`, `RetryAttempt` (`{ afterNumber }`), `points` em
   `StudentQuestion`, `rankings` no `StudentDashboard`; teste de que `StudentQuestion` continua sem
   campos de gabarito.
-- [ ] T009 [P] Contratos em `packages/contracts/src/ranking/index.ts`: `RankingRowSchema`
+- [X] T009 [P] Contratos em `packages/contracts/src/ranking/index.ts`: `RankingRowSchema`
   (`position`, `name`, `points`, `isViewer`, estrito) e `ClassRankingSchema`; exportar no índice;
   teste de que linha com qualquer outro campo é recusada (`013/SC-007`).
-- [ ] T010 [P] Registro de tipos em `apps/api/src/modules/activities/activity-types.ts`
+- [X] T010 [P] Registro de tipos em `apps/api/src/modules/activities/activity-types.ts`
   (`scoring`, `hasDeadline`, `attempts`) e o mapeamento do snapshot em
   `apps/api/src/modules/activities/snapshot/from-exercises.ts` (nível e pontos, sem `value`), com
   testes em `snapshot/snapshot.spec.ts` (`013/FR-002`, research K1, K2).
-- [ ] T011 [P] Regras puras com testes exaustivos (contracts/student-status.md):
+- [X] T011 [P] Regras puras com testes exaustivos (contracts/student-status.md):
   ramo EXERCISE de `deriveStudentStatus`, `deriveRosterStatus` e `allowedOperation` em
   `apps/api/src/modules/activities/status/` (incluindo `retry`, `complete`, nunca `OVERDUE`); o
   novo `apps/api/src/modules/activities/results/exercise-results.ts` com
@@ -123,7 +123,7 @@ das suítes 012. ⚠️ Nenhuma história começa antes desta fase.
   para certo/errado, branco pela regra da 012 FR-023) e `pointsFor`; e
   `apps/api/src/modules/ranking/rank.ts` com `rankClass` (pontos desc, nome pt-BR sem
   acento/caixa, posições 1, 2, 2, 4) (`013/FR-009`, `013/FR-010`, `013/FR-014`, `013/FR-019`).
-- [ ] T012 Adaptar as suítes 012 que aplicam Exercício com nota/prazo
+- [X] T012 Adaptar as suítes 012 que aplicam Exercício com nota/prazo
   (`apps/api/test/integration/012-{schema,us1-apply,us2-dashboard}.spec.ts`,
   `apps/api/test/security/012-{boundaries,isolation,performance,student-view}.spec.ts`,
   `apps/api/test/helpers/activities.ts`, `apps/api/test/helpers/journey.ts` (as aplicações de
@@ -136,14 +136,14 @@ das suítes 012. ⚠️ Nenhuma história começa antes desta fase.
   de Exercício passa a usar Trabalho ou é movido para as suítes 013; o helper `applyExercises`
   deixa de mandar `totalGrade`/`deadline`/`latePolicy`; cada cenário 012 removido ganha nota no
   arquivo apontando o cenário 013 que o substitui.
-- [ ] T013 [P] Tipos de auditoria `exercise_attempt.completed` e `exercise_result.marked` e as
+- [X] T013 [P] Tipos de auditoria `exercise_attempt.completed` e `exercise_result.marked` e as
   extensões de `activity_attempt.started`, `activity_submission.rejected` e `activity.published`
   em `apps/api/src/modules/audit/audit-event-types.ts`, `test/helpers/journey.ts` e
   `contracts/audit-events.md` (research K15).
-- [ ] T014 [P] Módulo vazio `apps/api/src/modules/ranking/ranking.module.ts` registrado no
+- [X] T014 [P] Módulo vazio `apps/api/src/modules/ranking/ranking.module.ts` registrado no
   `AppModule`; `apps/api/test/activities-boundary.spec.ts` passa a cobrir `modules/ranking` e
   `features/ranking` (sem bancos, IA, execução de código nem ponto flutuante).
-- [ ] T015 Nota de emenda no topo de `specs/012-student-portal/spec.md` (Clarifications): "As
+- [X] T015 Nota de emenda no topo de `specs/012-student-portal/spec.md` (Clarifications): "As
   regras de Exercício (nota, prazo, tentativa única, liberação) foram substituídas pela 013" com
   os ids alterados (FR-001, FR-006, FR-009, FR-014–FR-016, FR-024a, FR-027–FR-030, FR-036,
   US1-7, US1-8) (plan, post-design re-check).

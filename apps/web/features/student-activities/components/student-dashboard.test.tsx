@@ -40,7 +40,7 @@ describe("012/US2 painel do aluno", () => {
     expect(within(firstSection).getByRole("heading", { level: 2 }).textContent).toBe("Próximas atividades");
     const card = within(firstSection).getAllByRole("article")[0]!;
     expect(within(card).getByRole("heading", { name: "Lista de herança" })).toBeTruthy();
-    expect(within(card).getByText(formatLongDateTime(first.deadline))).toBeTruthy();
+    expect(within(card).getByText(formatLongDateTime(first.deadline!))).toBeTruthy();
     expect(within(card).getByText("Pendente")).toBeTruthy();
     expect(within(card).getByRole("link", { name: "Iniciar" }).getAttribute("href")).toBe(`/minhas-atividades/${first.id}`);
   });

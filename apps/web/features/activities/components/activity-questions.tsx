@@ -2,7 +2,7 @@ import type { TeacherQuestion } from "@repo/contracts";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { formatGrade, QUESTION_TYPE_LABELS } from "../schemas/activity-form";
+import { formatGrade, formatPoints, QUESTION_TYPE_LABELS } from "../schemas/activity-form";
 
 /**
  * The activity's snapshot as the teacher reads it (contracts/web-ui.md, detail page): every
@@ -20,7 +20,7 @@ export function ActivityQuestions({ questions }: { questions: TeacherQuestion[] 
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h4 className="m-0 text-h3">Questão {question.position + 1}</h4>
               <span>{QUESTION_TYPE_LABELS[question.type]}</span>
-              <span>Vale {formatGrade(question.value)}</span>
+              <span>Vale {question.value !== null ? formatGrade(question.value) : formatPoints(question.points ?? 0)}</span>
               {question.isTrickQuestion ? (
                 <Badge variant="warning">
                   <AlertTriangle aria-hidden="true" />

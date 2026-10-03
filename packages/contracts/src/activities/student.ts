@@ -3,12 +3,17 @@ import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
 import { AnswerSchema } from "../works/grading.js";
+import { DashboardRankingSchema } from "../ranking/index.js";
 import { ActivityTypeSchema, LatePolicySchema, StudentActivityFilterSchema, StudentActivityStatusSchema } from "./enums.js";
+import { StudentExerciseAttemptSchema } from "./exercise-results.js";
+import { PointsSchema } from "./points.js";
 import { ACTIVITY_EXERCISES_MAX } from "./teacher.js";
 
 // The student's side (012 contracts/http-api.md, "Student routes"). Every shape here is built on the
 // server from an allowlist (research P15): no answer key, explanation, trick flag, grading strategy,
 // private test case or pending reason, and no grade or feedback before the release (FR-029, FR-030).
+// An EXERCISE (013) has no grade, deadline or late policy (null here) but points; its answer key
+// reaches the student only in a concluded attempt (`exercise-results.ts`).
 
 export const STUDENT_ACTIVITIES_PAGE_SIZE = 20;
 export const STUDENT_ACTIVITIES_PAGE_SIZE_MAX = 50;
@@ -20,7 +25,10 @@ export const StudentQuestionSchema = z.strictObject({
   id: UuidSchema,
   position: z.int().min(0),
   type: WorkQuestionTypeSchema,
-  value: GradeOutputSchema,
+  /** ASSIGNMENT only; null for EXERCISE. */
+  value: GradeOutputSchema.nullable(),
+  /** EXERCISE only: the question's fixed points (013/FR-003). */
+  points: PointsSchema.nullable(),
   statement: z.string(),
   instructions: z.string().nullable(),
   starterCode: z.string().nullable(),
@@ -42,17 +50,24 @@ export const StudentActivitySummarySchema = z.strictObject({
   subjectName: z.string().nullable(),
   teacherName: z.string(),
   publishedAt: IsoDateTimeSchema,
-  deadline: IsoDateTimeSchema,
-  latePolicy: LatePolicySchema,
+  /** ASSIGNMENT only; null for EXERCISE (013/FR-013). */
+  deadline: IsoDateTimeSchema.nullable(),
+  latePolicy: LatePolicySchema.nullable(),
   status: StudentActivityStatusSchema,
   late: z.boolean(),
   /** Start, save and submit allowed now (contracts/student-status.md). */
   canAnswer: z.boolean(),
   urgent: z.boolean(),
   submittedAt: IsoDateTimeSchema.nullable(),
-  totalGrade: GradeOutputSchema,
-  /** Only when the result is released and the grading complete. */
+  /** ASSIGNMENT only; null for EXERCISE. */
+  totalGrade: GradeOutputSchema.nullable(),
+  /** Only when the result is released and the grading complete; always null for EXERCISE. */
   result: z.strictObject({ grade: GradeOutputSchema, hasFeedback: z.boolean() }).nullable(),
+  /**
+   * EXERCISE only (null for ASSIGNMENT): the possible points, those of the first conclusion, and
+   * whether an answer of it waits for the teacher ("Pontos aguardando correção").
+   */
+  points: z.strictObject({ possible: PointsSchema, earned: PointsSchema, awaitingCorrection: z.boolean() }).nullable(),
 });
 export type StudentActivitySummary = z.infer<typeof StudentActivitySummarySchema>;
 
@@ -69,6 +84,8 @@ export const StudentDashboardSchema = z.strictObject({
   next: z.array(StudentActivitySummarySchema).max(DASHBOARD_NEXT_MAX),
   /** OVERDUE activities that still accept a submission, by deadline. */
   overdueOpen: z.array(StudentActivitySummarySchema),
+  /** One per class with ACTIVE enrollment; empty without `ranking.turma.visualizar` (013/FR-021). */
+  rankings: z.array(DashboardRankingSchema),
   serverNow: IsoDateTimeSchema,
 });
 export type StudentDashboard = z.infer<typeof StudentDashboardSchema>;
@@ -81,8 +98,14 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
   serverNow: IsoDateTimeSchema,
   /** In position order. */
   questions: z.array(StudentQuestionSchema),
+  /** The open attempt (for EXERCISE, the latest one when not concluded), or null. */
   attempt: z
-    .strictObject({ startedAt: IsoDateTimeSchema, lastSavedAt: IsoDateTimeSchema.nullable(), answers: z.array(StudentAnswerSchema) })
+    .strictObject({
+      number: z.int().min(1),
+      startedAt: IsoDateTimeSchema,
+      lastSavedAt: IsoDateTimeSchema.nullable(),
+      answers: z.array(StudentAnswerSchema),
+    })
     .nullable(),
   submission: z
     .strictObject({ submittedAt: IsoDateTimeSchema, late: z.boolean(), acceptedByTeacher: z.boolean(), blankCount: z.int().min(0) })
@@ -95,6 +118,10 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
       questions: z.array(z.strictObject({ questionId: UuidSchema, grade: GradeOutputSchema, feedback: z.string().nullable() })),
     })
     .nullable(),
+  /** EXERCISE only: the concluded attempts, newest first (empty for ASSIGNMENT). */
+  completedAttempts: z.array(z.strictObject({ number: z.int().min(1), completedAt: IsoDateTimeSchema })),
+  /** EXERCISE only: the latest concluded attempt with its answer key (013/FR-012). */
+  lastResult: StudentExerciseAttemptSchema.nullable(),
 });
 export type StudentActivity = z.infer<typeof StudentActivitySchema>;
 

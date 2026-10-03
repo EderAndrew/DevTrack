@@ -71,15 +71,18 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
       },
     });
 
-  /** A new activity row plus its questions, written by SQL in one transaction (deferred triggers). */
+  /**
+   * A new ASSIGNMENT row plus its questions, written by SQL in one transaction (deferred triggers),
+   * on the work and subject of the factory's activity (since 013 only an ASSIGNMENT has a grade).
+   */
   const writeActivity = (activity: { total: string; count: number; publishAt?: string; deadline?: string }, questions: { value: string; position: number }[]) =>
     t.prisma.$transaction(async (tx) => {
       const id = randomUUID();
       await tx.$executeRawUnsafe(
         `INSERT INTO "class_activities" ("id", "class_id", "teacher_id", "type", "title", "total_grade", "question_count",
-           "publish_at", "deadline", "late_policy", "idempotency_key", "updated_at")
-         VALUES ($1::uuid, $2::uuid, $3::uuid, 'EXERCISE', 'Atividade', $4::numeric, $5, $6::timestamptz, $7::timestamptz,
-           'REJECT', $8::uuid, now())`,
+           "publish_at", "deadline", "late_policy", "idempotency_key", "source_work_id", "source_subject_id", "updated_at")
+         VALUES ($1::uuid, $2::uuid, $3::uuid, 'ASSIGNMENT', 'Atividade', $4::numeric, $5, $6::timestamptz, $7::timestamptz,
+           'REJECT', $8::uuid, $9::uuid, $10::uuid, now())`,
         id,
         classId,
         teacherId,
@@ -88,6 +91,8 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
         activity.publishAt ?? "2026-10-01T00:00:00Z",
         activity.deadline ?? "2026-10-10T00:00:00Z",
         randomUUID(),
+        created.activity.sourceWorkId,
+        created.activity.sourceSubjectId,
       );
       for (const question of questions) {
         await tx.$executeRawUnsafe(
@@ -103,7 +108,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
   describe("atividade e snapshot (research P2, P6)", () => {
     it("o snapshot válido criado pela fábrica passa em todas as regras", async () => {
       const questions = await t.prisma.classActivityQuestion.findMany({ where: { activityId: activityId() }, orderBy: { position: "asc" } });
-      expect(questions.map((question) => [question.type, question.gradingStrategy, question.value.toFixed(2)])).toEqual([
+      expect(questions.map((question) => [question.type, question.gradingStrategy, question.value!.toFixed(2)])).toEqual([
         ["MULTIPLE_CHOICE", "EXACT_MATCH", "0.40"],
         ["OPEN_ANSWER", "AI_REVIEW", "0.30"],
         ["CODE", "TEST_CASES", "0.30"],
@@ -161,7 +166,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
         t.prisma.classActivityAlternative.update({ where: { id: created.alternativeIds[MC]![0]! }, data: { isCorrect: false } }),
       ).rejects.toThrow(/immutable/);
       await expect(t.prisma.classActivityQuestion.delete({ where: { id: q(OPEN) } })).rejects.toThrow(/immutable/);
-      await expect(t.prisma.classActivity.update({ where: { id: activityId() }, data: { type: "ASSIGNMENT" } })).rejects.toThrow();
+      await expect(t.prisma.classActivity.update({ where: { id: activityId() }, data: { type: "EXERCISE" } })).rejects.toThrow();
       await expect(t.prisma.classActivity.update({ where: { id: activityId() }, data: { totalGrade: "2.00" } })).rejects.toThrow(/immutable/);
       await expect(t.prisma.classActivity.update({ where: { id: activityId() }, data: { title: "Novo título" } })).resolves.toMatchObject({
         title: "Novo título",
@@ -178,10 +183,12 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
   });
 
   describe("tentativa, respostas e entrega (research P7–P9)", () => {
+    // 013 K3: numbered attempts exist only for EXERCISE; an ASSIGNMENT keeps one (trigger `activity_attempts_numbering`).
     it("012/FR-016 uma tentativa por aluno e atividade; number = 2 é recusado", async () => {
       await attempt();
       await expect(attempt()).rejects.toThrow();
-      await expect(attempt(student.id, "IN_PROGRESS", 2)).rejects.toThrow(/number_chk/);
+      await expect(attempt(student.id, "IN_PROGRESS", 2)).rejects.toThrow(/single attempt/);
+      await expect(attempt(student.id, "IN_PROGRESS", 0)).rejects.toThrow(/single attempt|number_chk/);
       await expect(attempt(other.id)).resolves.toBeTruthy();
     });
 

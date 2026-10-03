@@ -52,7 +52,7 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
       status: "GRADED",
       canAnswer: false,
       questions: [{ ...open!, statement: SCRIPT }],
-      attempt: { startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [{ questionId: open!.id, answer: { kind: "TEXT", text: SCRIPT }, revision: 1 }] },
+      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [{ questionId: open!.id, answer: { kind: "TEXT", text: SCRIPT }, revision: 1 }] },
       submission: { submittedAt: "2026-10-02T12:30:00.000Z", late: false, acceptedByTeacher: false, blankCount: 0 },
       result: { grade: "0.40", generalFeedback: SCRIPT, questions: [{ questionId: open!.id, grade: "0.40", feedback: SCRIPT }] },
     });

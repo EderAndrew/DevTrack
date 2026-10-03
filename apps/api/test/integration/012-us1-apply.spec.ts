@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { TeacherActivity, WorkTeacherView } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { ActivityStateMachine } from "../../src/modules/activities/activity.state-machine";
-import { applyExercises, applyWork, createClassWithStudents, createCompletedTopics } from "../helpers/activities";
+import { applyExercises, applyWork, createClassWithStudents, createCompletedTopics, FAR_DEADLINE } from "../helpers/activities";
 import { DAY, FixedClock, HOUR } from "../helpers/clock";
 import { createExercise } from "../helpers/exercises";
 import { createClass, createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -144,14 +144,14 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
     }
     const draftExercise = await createExercise(t, teacher.id, { status: "DRAFT" });
     const approvedExercise = await createExercise(t, teacher.id);
-    const draftRes = await applyExercises(client, classId, [approvedExercise.id, draftExercise.id], "1.00");
+    const draftRes = await applyExercises(client, classId, [approvedExercise.id, draftExercise.id]);
     expect([draftRes.status, draftRes.body.code]).toEqual([422, "SOURCE_NOT_APPROVED"]);
 
     const stranger = await createUser(t, { roles: ["TEACHER"] });
     const strangersWork = await createWork(t, stranger.id);
     const strangersExercise = await createExercise(t, stranger.id);
     expect((await applyWork(client, classId, strangersWork.id)).status).toBe(404);
-    expect((await applyExercises(client, classId, [approvedExercise.id, strangersExercise.id], "1.00")).status).toBe(404);
+    expect((await applyExercises(client, classId, [approvedExercise.id, strangersExercise.id])).status).toBe(404);
     expect((await client.post(`${base()}/scope-check`, { type: "ASSIGNMENT", workId: strangersWork.id })).status).toBe(404);
 
     const strangersClass = await createClass(t, stranger.id, { subjectId: syllabus.subject.id });
@@ -218,20 +218,23 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
     expect(await events("activity.published")).toHaveLength(2);
   });
 
-  it("012/US1-7 012/FR-001 3 exercícios em 1,00 → 0,34 · 0,33 · 0,33 na ordem escolhida; nota total fora de 0,01–100,00 recusada", async () => {
-    const open = await createExercise(t, teacher.id, { type: "OPEN_ANSWER", syllabusItemId: syllabus.itemIds[0]! });
-    const choice = await createExercise(t, teacher.id, { syllabusItemId: syllabus.itemIds[1]! });
-    const code = await createExercise(t, teacher.id, { type: "CODE", syllabusItemId: syllabus.itemIds[2]! });
+  // 012/US1-7 (a grade split among the exercises) was replaced by 013/US1-1 and 013/FR-001 (spec
+  // 013, amendment of 012): an Exercise has no grade, deadline or late policy, only fixed points by
+  // difficulty. The scenario keeps its id and now checks the replacement; 013-us1-apply.spec.ts has the rest.
+  it("012/US1-7 013/US1-1 3 exercícios na ordem escolhida, sem nota: pontos pelo nível e nota total recusada", async () => {
+    const open = await createExercise(t, teacher.id, { type: "OPEN_ANSWER", difficulty: "ADVANCED", syllabusItemId: syllabus.itemIds[0]! });
+    const choice = await createExercise(t, teacher.id, { difficulty: "BASIC", syllabusItemId: syllabus.itemIds[1]! });
+    const code = await createExercise(t, teacher.id, { type: "CODE", difficulty: "INTERMEDIATE", syllabusItemId: syllabus.itemIds[2]! });
     const order = [code.id, open.id, choice.id];
 
-    const res = await applyExercises(client, classId, order, "1.00");
+    const res = await applyExercises(client, classId, order);
     expect(res.status).toBe(201);
     const activity = res.body as TeacherActivity;
-    expect(activity).toMatchObject({ type: "EXERCISE", totalGrade: "1.00", source: { exerciseIds: order } });
-    expect(activity.questions.map((q) => [q.type, q.gradingStrategy, q.value])).toEqual([
-      ["CODE", "TEST_CASES", "0.34"],
-      ["OPEN_ANSWER", "AI_REVIEW", "0.33"],
-      ["MULTIPLE_CHOICE", "EXACT_MATCH", "0.33"],
+    expect(activity).toMatchObject({ type: "EXERCISE", totalGrade: null, deadline: null, latePolicy: null, possiblePoints: 105, source: { exerciseIds: order } });
+    expect(activity.questions.map((q) => [q.type, q.gradingStrategy, q.value, q.difficulty, q.points])).toEqual([
+      ["CODE", "TEST_CASES", null, "INTERMEDIATE", 30],
+      ["OPEN_ANSWER", "AI_REVIEW", null, "ADVANCED", 60],
+      ["MULTIPLE_CHOICE", "EXACT_MATCH", null, "BASIC", 15],
     ]);
     // Exercises carry no rubric and no test cases (research P2); the topic is the exercise's item.
     expect(activity.questions[0]!.testCases).toEqual([]);
@@ -241,18 +244,16 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       [syllabus.itemIds[0]],
       [syllabus.itemIds[1]],
     ]);
-    expect((await events("activity.published"))[0]!.metadata).toMatchObject({ type: "EXERCISE", sourceExerciseCount: 3, totalCents: 100 });
+    expect((await events("activity.published"))[0]!.metadata).toMatchObject({ type: "EXERCISE", sourceExerciseCount: 3, possiblePoints: 105 });
 
-    for (const totalGrade of ["0.00", "100.01", "1.005", "0,50"]) {
-      const refused = await applyExercises(client, classId, order, totalGrade);
-      expect([refused.status, refused.body.code], totalGrade).toEqual([400, "VALIDATION_ERROR"]);
+    for (const field of [{ totalGrade: "1.00" }, { deadline: FAR_DEADLINE }, { latePolicy: "REJECT" as const }]) {
+      const refused = await applyExercises(client, classId, order, field);
+      expect([refused.status, refused.body.code], JSON.stringify(field)).toEqual([400, "VALIDATION_ERROR"]);
     }
-    expect((await applyExercises(client, classId, order, "100.00")).status).toBe(201);
-    expect((await applyExercises(client, classId, order, undefined)).status).toBe(400);
     expect((await applyWork(client, classId, work.id, { totalGrade: "5.00" })).status).toBe(400);
     const eleven = Array.from({ length: 11 }, () => randomUUID());
-    expect((await applyExercises(client, classId, eleven, "1.00")).status).toBe(400);
-    expect((await applyExercises(client, classId, [open.id, open.id], "1.00")).status).toBe(400);
+    expect((await applyExercises(client, classId, eleven)).status).toBe(400);
+    expect((await applyExercises(client, classId, [open.id, open.id])).status).toBe(400);
   });
 
   it("012/US1-8 012/FR-024a a regra de atraso fica registrada na atividade e muda enquanto ela está ativa", async () => {
@@ -326,7 +327,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       expect(intoNoSubject.body.code).toBe("SUBJECT_MISMATCH");
       // Exercises have no subject: only the scope flag applies (research P5).
       const exercise = await createExercise(t, teacher.id, { syllabusItemId: otherSyllabus.itemIds[0]! });
-      expect((await applyExercises(client, noSubject, [exercise.id], "1.00", { acknowledgeOutOfScope: true })).status).toBe(201);
+      expect((await applyExercises(client, noSubject, [exercise.id], { acknowledgeOutOfScope: true })).status).toBe(201);
     });
   });
 
