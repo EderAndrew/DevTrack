@@ -561,7 +561,7 @@ na liberada e não está em nenhuma resposta da API antes disso.
 - [X] T052 [P] [US6] Web: página `apps/web/app/(student)/historico/page.tsx` e o resultado em
   `minhas-atividades/[id]` (nota "0,45 de 0,50", nota e feedback por questão, feedback geral,
   selo "Com feedback" na lista); testes com axe, Tab e os estados vazio/erro (`012/US6-2`).
-
+ 
 **Checkpoint**: ciclo completo do ponto de vista do aluno.
 
 ---

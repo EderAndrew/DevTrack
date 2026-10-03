@@ -36,18 +36,34 @@ Nenhuma URL muda. Os grupos de rota só escolhem a moldura (research V13).
 
 ## StudentLayout (`components/layout/student-layout.tsx`)
 
+> Emenda de 2026-10-03 (pedido do produto): o layout do aluno passou a usar o mesmo menu
+> lateral do AppShell, no lugar da barra superior com os itens em linha. Continua sem itens de
+> professor ou administração (FR-024, US5): só muda a forma da navegação.
+
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ DevTrack      Minhas turmas   Meu perfil          [Sair]    │
-├────────────────────────────────────────────────────────────┤
-│        Minhas turmas                                  (h1) │
-│        conteúdo (largura ≤ --reading-max… 960 px)          │
-└────────────────────────────────────────────────────────────┘
+┌──────────────┬──────────────────────────────────────────────┐
+│ DevTrack     │ [≡]  Painel                          (Topbar) │
+│              ├──────────────────────────────────────────────┤
+│ ▸ Painel     │        Olá, Ana                          (h1) │
+│ ▸ Minhas     │        conteúdo (largura ≤ 960 px)            │
+│   atividades │                                               │
+│ ▸ Histórico  │                                               │
+│ ▸ Minhas     │                                               │
+│   turmas     │                                               │
+│ ▸ Meu perfil │                                               │
+│ Ana Souza    │                                               │
+│ [Sair]       │                                               │
+└──────────────┴──────────────────────────────────────────────┘
 ```
 
-- Sem menu lateral, sem itens de professor ou administração, sem "Usuários".
-- `<nav aria-label="Menu do aluno">` com `aria-current="page"`; em telas estreitas os
-  itens quebram linha, sem menu escondido.
+- Menu lateral com os primitivos do `AppSidebar` (recolhível a ícones, escolha lembrada no
+  cookie `sidebar_state`, abaixo de `md` vira `Sheet`), dentro de `<nav aria-label="Menu do
+  aluno">` com `aria-current="page"`. Itens por permissão, nunca por papel: Painel, Minhas
+  atividades e Histórico (`atividades.proprias.visualizar`), Minhas turmas
+  (`turmas.proprias.listar`) e Meu perfil; nome do usuário e "Sair" no rodapé.
+- Sem itens de professor ou administração, sem "Usuários", sem "Menu principal".
+- `Topbar` do AppShell (botão do menu, Ctrl/⌘+B, e o nome da área); área principal
+  `<main id="conteudo" tabIndex={-1}>` com a largura de leitura (960 px).
 
 ## Escolha do layout de conta (`app/(account)/layout.tsx`)
 

@@ -511,6 +511,10 @@ function SidebarMenuButton({
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot.Root : "button"
   const { isMobile, state } = useSidebar()
+  const [tooltipOpen, setTooltipOpen] = React.useState(false)
+  // The tooltip only shows on the collapsed desktop menu. Elsewhere it stays closed (controlled):
+  // a hidden tooltip opened on focus would take the first Escape meant for the mobile panel.
+  const tooltipShown = state === "collapsed" && !isMobile
 
   const button = (
     <Comp
@@ -534,14 +538,9 @@ function SidebarMenuButton({
   }
 
   return (
-    <Tooltip>
+    <Tooltip open={tooltipShown && tooltipOpen} onOpenChange={setTooltipOpen}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
-      />
+      <TooltipContent side="right" align="center" {...tooltip} />
     </Tooltip>
   )
 }

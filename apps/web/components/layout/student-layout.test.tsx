@@ -1,12 +1,13 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../test/a11y";
 import { expectTabOrder } from "../../test/keyboard";
 import { renderWithProviders } from "../../test/render";
 import { StudentLayout, type StudentLayoutProps } from "./student-layout";
 
-// 005 US5 (FR-024; contracts/layouts.md "StudentLayout"; research V13).
+// 005 US5 (FR-024; contracts/layouts.md "StudentLayout", amended 2026-10-03: the AppShell's side
+// menu with only the student's items; research V13).
 
 const navigation = vi.hoisted(() => ({ pathname: "/minhas-turmas" }));
 vi.mock("next/navigation", () => ({
@@ -25,9 +26,12 @@ const STUDENT = [
 ];
 
 const me = (permissions: string[], emailVerified = true): StudentLayoutProps["me"] => ({
+  name: "Bruno Lima",
   emailVerified,
   permissions,
 });
+
+let mobile = false;
 
 function renderLayout(props: Partial<StudentLayoutProps> = {}) {
   return renderWithProviders(
@@ -42,14 +46,26 @@ const studentMenu = () => screen.getByRole("navigation", { name: "Menu do aluno"
 describe("005/US5-1 layout do aluno", () => {
   beforeEach(() => {
     navigation.pathname = "/minhas-turmas";
+    mobile = false;
+    document.cookie = "sidebar_state=; path=/; max-age=0";
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: mobile,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
   });
+  afterEach(() => vi.unstubAllGlobals());
 
-  it("barra com a marca, menu do aluno, Sair e a área principal", async () => {
+  it("menu lateral com a marca, os itens do aluno, o nome e Sair; barra superior com o botão do menu; área principal", async () => {
     const { container } = renderLayout();
+    expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
+    expect(screen.getByText("Bruno Lima")).toBeTruthy();
     const banner = screen.getByRole("banner");
-    expect(within(banner).getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
-    expect(banner.contains(studentMenu())).toBe(true);
-    expect(within(banner).getByRole("button", { name: "Sair" })).toBeTruthy();
+    expect(within(banner).getByRole("button", { name: "Abrir ou fechar o menu" })).toBeTruthy();
+    expect(within(banner).getByText("Minhas turmas")).toBeTruthy();
+    expect(banner.contains(studentMenu())).toBe(false);
     const links = within(studentMenu()).getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual(["Painel", "Minhas atividades", "Histórico", "Minhas turmas", "Meu perfil"]);
     const main = screen.getByRole("main");
@@ -72,11 +88,10 @@ describe("005/US5-1 layout do aluno", () => {
     expect(within(menus.at(-1)!).getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("sem menu lateral nem itens de professor ou administração", () => {
+  it("sem itens nem menu de professor ou administração", () => {
     const { container } = renderLayout();
     expect(screen.queryByRole("navigation", { name: "Menu principal" })).toBeNull();
-    expect(container.querySelector('[data-slot="sidebar"]')).toBeNull();
-    expect(container.textContent).not.toMatch(/Professores|Gestores|Usuários|disciplinas/);
+    expect(container.textContent).not.toMatch(/Professores|Gestores|Usuários|disciplinas|Operação de IA|Banco de/);
     expect(within(studentMenu()).queryByRole("link", { name: /disciplinas|^Turmas$/ })).toBeNull();
   });
 
@@ -105,7 +120,38 @@ describe("005/US5-1 layout do aluno", () => {
     expect(screen.getByRole("main").getAttribute("class")).toMatch(/\bmax-w-240\b/);
   });
 
-  it("ordem de tabulação: marca, menu, Sair e conteúdo", async () => {
+  it("recolhido só com ícones e nomes acessíveis; a escolha fica no cookie sidebar_state", async () => {
+    const user = userEvent.setup();
+    renderLayout();
+    await user.click(screen.getByRole("button", { name: "Abrir ou fechar o menu" }));
+    expect(document.cookie).toMatch(/sidebar_state=false/);
+    expect(within(studentMenu()).getByRole("link", { name: "Histórico" })).toBeTruthy();
+  });
+
+  it("em tela estreita o menu abre e fecha como painel", async () => {
+    mobile = true;
+    const user = userEvent.setup();
+    renderLayout();
+    expect(screen.queryByRole("navigation", { name: "Menu do aluno" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Abrir ou fechar o menu" }));
+    const panel = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(panel).getByRole("navigation", { name: "Menu do aluno" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("em tela estreita, um Escape com o foco num item do menu fecha o painel", async () => {
+    mobile = true;
+    const user = userEvent.setup();
+    renderLayout();
+    await user.click(screen.getByRole("button", { name: "Abrir ou fechar o menu" }));
+    const panel = screen.getByRole("dialog", { name: "Menu" });
+    within(panel).getByRole("link", { name: "Histórico" }).focus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("ordem de tabulação: marca, menu, Sair, botão do menu e conteúdo", async () => {
     const user = userEvent.setup();
     renderLayout();
     await expectTabOrder(user, [
@@ -116,6 +162,7 @@ describe("005/US5-1 layout do aluno", () => {
       screen.getByRole("link", { name: "Minhas turmas" }),
       screen.getByRole("link", { name: "Meu perfil" }),
       screen.getByRole("button", { name: "Sair" }),
+      screen.getByRole("button", { name: "Abrir ou fechar o menu" }),
     ]);
   });
 });

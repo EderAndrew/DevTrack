@@ -268,6 +268,10 @@ shadcn/ui, Lucide). Nenhuma dependência npm nova; entram só dois arquivos de f
 - **Alternatives considered**: escolher pelo papel (`STUDENT`) no navegador (proibido pela
   constituição); um único layout com itens escondidos (o aluno veria a estrutura
   administrativa).
+- **Emenda (2026-10-03)**: a navegação do `StudentLayout` passou da barra superior para o
+  menu lateral do AppShell (mesmos primitivos, recolhível, `Sheet` em tela estreita), só com
+  os itens do aluno, a pedido do produto: a mesma forma de navegar em todas as áreas. Os
+  grupos de rota, a escolha por permissões e a ausência de itens administrativos não mudam.
 
 ## V14. Catálogo visual
 

@@ -180,7 +180,7 @@ test.describe("012 portal do aluno", () => {
     await page.context().close();
   });
 
-  test("012/FR-034 largura de celular: painel, atividade e histórico sem rolagem horizontal, navegáveis por Tab", async ({ browser }) => {
+  test("012/FR-034 largura de celular: painel, atividade e histórico sem rolagem horizontal, menu em painel navegável por Tab", async ({ browser }) => {
     test.setTimeout(120_000);
     const activityId = await applyWorkThroughApi(browser, seed);
     const context = await browser.newContext({ viewport: { width: 360, height: 740 } });
@@ -193,7 +193,13 @@ test.describe("012 portal do aluno", () => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       expect(await fitsTheScreen(), path).toBe(true);
-      await tabTo(page, page.getByRole("navigation", { name: "Menu do aluno" }).getByRole("link", { name: "Histórico" }));
+      // On a phone the side menu opens as a panel from the Topbar's button, by keyboard too.
+      await tabTo(page, page.getByRole("button", { name: "Abrir ou fechar o menu" }));
+      await page.keyboard.press("Enter");
+      const panel = page.getByRole("dialog", { name: "Menu" });
+      await tabTo(page, panel.getByRole("navigation", { name: "Menu do aluno" }).getByRole("link", { name: "Histórico" }));
+      await page.keyboard.press("Escape");
+      await expect(panel).toBeHidden();
     }
     await page.goto(`/minhas-atividades/${activityId}`);
     await tabTo(page, page.getByRole("button", { name: "Iniciar atividade" }));

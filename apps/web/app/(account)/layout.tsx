@@ -10,8 +10,14 @@ import { getMeForNavigation } from "@/features/auth/api/server";
  */
 export default async function AccountLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [me, cookieStore] = await Promise.all([getMeForNavigation(), cookies()]);
-  if (accountLayoutFor(me) === "student") return <StudentLayout me={me}>{children}</StudentLayout>;
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  if (accountLayoutFor(me) === "student") {
+    return (
+      <StudentLayout me={me} defaultOpen={defaultOpen}>
+        {children}
+      </StudentLayout>
+    );
+  }
   return (
     <AppShell me={me} defaultOpen={defaultOpen}>
       {children}
