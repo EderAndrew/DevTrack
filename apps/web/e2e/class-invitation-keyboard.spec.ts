@@ -32,7 +32,7 @@ test("002/US5-2 003/US3-2 aceite do convite de turma, saída e login só com o t
   // The acceptance signed the student in and led to "Minhas turmas" (003/FR-038).
   await expect(page).toHaveURL("/minhas-turmas?bem-vindo=1");
   await expect(page.getByRole("heading", { level: 1, name: "Minhas turmas" })).toBeVisible();
-  // The student layout: its own menu, no side menu (005/US5-1).
+  // The student layout: its own side menu with the student's items only, not the "Menu principal" (005/US5-1).
   await expect(page.getByRole("navigation", { name: "Menu principal" })).toHaveCount(0);
   await tabTo(page, page.getByRole("navigation", { name: "Menu do aluno" }).getByRole("link", { name: "Meu perfil" }));
   await page.keyboard.press("Enter");
@@ -45,6 +45,7 @@ test("002/US5-2 003/US3-2 aceite do convite de turma, saída e login só com o t
   await typeInto(page, page.locator("#senha"), account.password);
   await page.keyboard.press("Enter");
 
-  await expect(page).toHaveURL("/conta/perfil");
-  await expect(page.getByRole("heading", { level: 1, name: "Meu perfil" })).toBeVisible();
+  // A student's start page is the "Painel" since 012 (research P23).
+  await expect(page).toHaveURL("/painel");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

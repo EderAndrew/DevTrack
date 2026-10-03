@@ -59,7 +59,15 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
         email,
         emailVerified: false,
         roles: [{ key: "STUDENT", status: "ACTIVE" }],
-        permissions: ["sessoes.proprias.listar", "sessoes.proprias.revogar", "turmas.proprias.listar"],
+        // 012: the student's activity and grade permissions (contracts/permissions.md).
+        permissions: [
+          "atividades.proprias.responder",
+          "atividades.proprias.visualizar",
+          "notas.proprias.visualizar",
+          "sessoes.proprias.listar",
+          "sessoes.proprias.revogar",
+          "turmas.proprias.listar",
+        ],
       });
 
       const blocked = await api(t, { cookie }).get("/api/fixture-us1/sessions");

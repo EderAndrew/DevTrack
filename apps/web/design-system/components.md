@@ -1396,3 +1396,373 @@ Para aplicar a proposta ao domínio: aprovar só registra a decisão do professo
 Cada caixa tem `Label` e a descrição ligada por `aria-describedby`. Toda ação abre um
 `AlertDialog` que prende o foco e o devolve ao botão. O conteúdo vem de um modelo e é
 mostrado só como texto, nunca como HTML.
+
+## ExamProgress
+
+`components/ui/assessment/question-navigator.tsx` (012, grupo "Avaliação"; `ExamProgress` de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: "Questão N de M" (`text-label`), "N de M respondidas" (`text-caption`) e o `Progress`.
+
+### Estados
+
+Início (nenhuma respondida) e parcial; atualiza a cada resposta sem mover o foco.
+
+### Quando usar
+
+No topo da tela de responder uma atividade, acima do `QuestionNavigator`.
+
+### Quando não usar
+
+Para progresso de envio ou de processamento: use `Progress` ou `Spinner`.
+
+### Exemplo
+
+```tsx
+<ExamProgress current={index + 1} total={questions.length} answered={answeredCount} />
+```
+
+### Acessibilidade
+
+O `Progress` tem o nome "Questões respondidas" e `aria-valuetext` "N de M respondidas".
+
+## QuestionNavigator
+
+`components/ui/assessment/question-navigator.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma: um botão de 40 px por questão, numerado "01", "02"…, dentro de `<nav aria-label="Questões">`.
+
+### Estados
+
+Atual (quadrado, borda 2 px `--primary`, fundo `--primary-subtle`, número em negrito), respondida
+(círculo cheio `--primary` com `Check`) e não respondida (círculo vazado `--border-control`).
+Os estados de revisão, bloqueada e invalidada ficam para a feature de provas.
+
+### Quando usar
+
+Para navegar entre as questões de uma atividade e ver quais estão respondidas (012/FR-022).
+
+### Quando não usar
+
+Para paginar listas: use `Pagination`.
+
+### Exemplo
+
+```tsx
+<QuestionNavigator questions={questions.map((q) => ({ id: q.id, answered: isAnswered(q) }))} currentIndex={index} onSelect={goTo} />
+```
+
+### Acessibilidade
+
+Cada botão diz o número e o estado ("Questão 4, atual, não respondida"); a atual tem
+`aria-current="step"`. Tab percorre os botões; setas, Home e End movem o foco.
+
+## QuestionHeader
+
+`components/ui/assessment/question.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma: "Questão N" (`text-h2`), tipo e valor em `text-caption` ("Múltipla escolha · Vale 0,17").
+
+### Estados
+
+Com o `QuestionStatus` (quando recebe `answered`) ou sem ele.
+
+### Quando usar
+
+No início de cada questão da tela de responder ou de revisar uma atividade.
+
+### Quando não usar
+
+Como título da página: o `<h1>` vem do `PageHeader`.
+
+### Exemplo
+
+```tsx
+<QuestionHeader number={4} typeLabel="Múltipla escolha" valueLabel="Vale 0,17" answered={false} />
+```
+
+### Acessibilidade
+
+O título é um `<h2>`; o estado da resposta vem em palavras, nunca só por cor.
+
+## QuestionStatus
+
+`components/ui/assessment/question.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma, sobre o `Status`: "Respondida" (`success`) ou "Não respondida" (`neutral`).
+
+### Estados
+
+Não respondida e respondida.
+
+### Quando usar
+
+Ao lado do título da questão para dizer se há resposta salva.
+
+### Quando não usar
+
+Para a situação da atividade ou da tentativa: use `AttemptStatus`.
+
+### Exemplo
+
+```tsx
+<QuestionStatus answered={hasAnswer} />
+```
+
+### Acessibilidade
+
+O texto diz o estado; o ponto colorido é decorativo (`aria-hidden`).
+
+## QuestionStatement
+
+`components/ui/assessment/question.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma: o enunciado em `text-reading`, até `--reading-max`, com as quebras de linha preservadas.
+
+### Estados
+
+Só texto com quebras de linha.
+
+### Quando usar
+
+Para o enunciado de uma questão mostrada ao aluno.
+
+### Quando não usar
+
+Para conteúdo com HTML ou Markdown: o enunciado é sempre texto.
+
+### Exemplo
+
+```tsx
+<QuestionStatement>{question.statement}</QuestionStatement>
+```
+
+### Acessibilidade
+
+O texto é renderizado como texto (nunca `dangerouslySetInnerHTML`), na ordem de leitura.
+
+## MultipleChoiceAnswer
+
+`components/ui/assessment/answers.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma resposta (`Radio` dentro de `RadioGroup`); a linha inteira é o alvo (≥ 44 px), com a letra e o texto.
+
+### Estados
+
+Escolhida (borda `--primary`, fundo `--primary-subtle` e o rádio marcado) e desabilitada.
+
+### Quando usar
+
+Para responder uma questão de múltipla escolha.
+
+### Quando não usar
+
+Para filtros ou formulários comuns: use `RadioGroup` direto.
+
+### Exemplo
+
+```tsx
+<MultipleChoiceAnswer name={question.id} alternatives={question.alternatives} value={choice} onChange={setChoice} />
+```
+
+### Acessibilidade
+
+`<fieldset>` com `<legend>` "Alternativas"; cada rádio tem o rótulo da linha; as setas trocam a escolha.
+
+## EssayAnswer
+
+`components/ui/assessment/answers.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma: `Label`, `Textarea` e o contador "N de M caracteres".
+
+### Estados
+
+Com contador; o limite vem de `maxLength`.
+
+### Quando usar
+
+Para respostas de texto (Pergunta e resposta).
+
+### Quando não usar
+
+Para código: use `CodeAnswer`.
+
+### Exemplo
+
+```tsx
+<EssayAnswer id={`resposta-${question.id}`} value={text} onChange={setText} maxLength={20_000} />
+```
+
+### Acessibilidade
+
+O contador está ligado por `aria-describedby`; o restante é anunciado só a cada 10% do limite.
+
+## CodeAnswer
+
+`components/ui/assessment/answers.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma na 012: o `CodeEditor` com a linguagem no rótulo e os "Casos de teste públicos" (entrada e
+saída esperada, somente leitura). Saída, erros e resultado da execução chegam com o Code Runner.
+
+### Estados
+
+Com casos públicos ou sem eles.
+
+### Quando usar
+
+Para responder uma questão de código.
+
+### Quando não usar
+
+Para mostrar código sem edição: use um bloco de código no enunciado.
+
+### Exemplo
+
+```tsx
+<CodeAnswer id={`codigo-${question.id}`} language={question.language?.name ?? null} value={source} onChange={setSource} publicTestCases={question.publicTestCases} />
+```
+
+### Acessibilidade
+
+Os casos ficam numa seção com título; a fonte monoespaçada só aparece no editor e nos casos.
+
+## CodeEditor
+
+`components/ui/assessment/code-editor.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+Uma: `Textarea` em `text-code` com números de linha em `--text-secondary`; sem biblioteca de editor.
+
+### Estados
+
+Editável e desabilitado.
+
+### Quando usar
+
+Dentro de `CodeAnswer` ou onde o aluno escreve código.
+
+### Quando não usar
+
+Para texto comum: use `Textarea`.
+
+### Exemplo
+
+```tsx
+<CodeEditor id="codigo" value={source} onChange={setSource} />
+```
+
+### Acessibilidade
+
+Tab indenta; Esc e depois Tab sai do editor, como diz a descrição ligada por `aria-describedby`.
+O foco usa o contorno oficial em volta do editor.
+
+## SaveStatus
+
+`components/ui/assessment/save-status.tsx` (012, grupo "Avaliação"; textos oficiais de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: ícone e texto em `text-body-sm`, sem fundo.
+
+### Estados
+
+Salvando ("Salvando…" só após 400 ms), salvo ("Resposta salva") e erro ao salvar (texto oficial e
+"Tentar novamente").
+
+### Quando usar
+
+Na tela de responder, para mostrar o salvamento automático das respostas (012/FR-018).
+
+### Quando não usar
+
+Para confirmar ações pontuais: use `Toast`.
+
+### Exemplo
+
+```tsx
+<SaveStatus state={saveState} onRetry={retry} />
+```
+
+### Acessibilidade
+
+"Resposta salva" é anunciado por `role="status"` no máximo a cada 10 s; o erro vem em
+`role="alert"`, imediato; "Salvando…" não é anunciado.
+
+## AttemptStatus
+
+`components/ui/assessment/save-status.tsx` (012, grupo "Avaliação")
+
+### Variantes
+
+`IN_PROGRESS` "Em andamento" (`info`), `SUBMITTED` "Entregue" (`success`), `SUBMITTED_LATE`
+"Entregue com atraso" (`warning`) e `CLOSED` "Encerrada" (`neutral`).
+
+### Estados
+
+Só as variantes.
+
+### Quando usar
+
+Para o estado da tentativa do aluno na tela da atividade.
+
+### Quando não usar
+
+Para a situação da atividade nas listas: use `Status` com o rótulo da situação.
+
+### Exemplo
+
+```tsx
+<AttemptStatus state="IN_PROGRESS" />
+```
+
+### Acessibilidade
+
+O estado vem em palavras; a cor só acompanha.
+
+## AssessmentFooter
+
+`components/ui/assessment/assessment-footer.tsx` (012, grupo "Avaliação"; `ExamFooter` do modo NORMAL)
+
+### Variantes
+
+Uma: "Anterior" (`secondary`), "Próxima" (`primary`) e o espaço da ação de entregar.
+
+### Estados
+
+Primeira questão (sem "Anterior"), no meio e última (sem "Próxima").
+
+### Quando usar
+
+No fim de cada questão da tela de responder.
+
+### Quando não usar
+
+Em formulários comuns: use os botões do formulário.
+
+### Exemplo
+
+```tsx
+<AssessmentFooter hasPrevious={index > 0} hasNext={index < last} onPrevious={previous} onNext={next} submit={submitButton} />
+```
+
+### Acessibilidade
+
+`<footer>` com botões nomeados por texto; entregar sempre pede confirmação em `AlertDialog`.

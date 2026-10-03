@@ -18,6 +18,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/007-curriculum-agent/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/010-exercise-bank/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/011-work-bank/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/012-student-portal/contracts/audit-events.md"),
 ];
 
 /**
@@ -28,13 +29,16 @@ const PENDING_010 = new Set<string>([]);
 
 /** 011 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_011 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011]);
+
+/** 012 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_012 = new Set<string>([]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012]);
 
 interface ContractRow {
   type: string;
   actors: string[];
-  /** null = "—" (no target). */
-  target: string | null;
+  /** null = "—" (no target); several when the event targets the resource it was about (012). */
+  target: string[] | null;
   metadata: string[];
 }
 
@@ -47,7 +51,7 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  */
 function contractRows(file: string): ContractRow[] {
   const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
-  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the request \|/m.test(text);
+  const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the (request|spec) \|/m.test(text);
   return text
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
@@ -58,7 +62,7 @@ function contractRows(file: string): ContractRow[] {
         .map((cell) => cell.trim());
       const [typeCell, actorCell, targetCell, metadataCell] = hasSpecName ? [cells[0], ...cells.slice(2)] : cells;
       const actors = actorCell!.split(/\\\|/).map((a) => a.trim());
-      const target = targetCell === "—" ? null : targetCell!;
+      const target = targetCell === "—" ? null : targetCell!.replace(/\([^)]*\)/g, "").split(/\\\|/).map((t) => t.trim());
       // Allowed keys are the backticked words outside parentheses (those list values).
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""));
       return backticked(typeCell!).map((type) => ({ type, actors, target, metadata }));
@@ -79,7 +83,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010 e 011 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011 e 012 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });
@@ -118,7 +122,8 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       for (const event of found) {
         expect(row.actors).toContain(event.actorType);
         if (event.actorType === "USER") expect(event.actorUserId).not.toBeNull();
-        expect(event.targetType).toBe(row.target);
+        if (row.target) expect(row.target).toContain(event.targetType);
+        else expect(event.targetType).toBeNull();
         if (row.target) expect(event.targetId).not.toBeNull();
         expect(event.occurredAt).toBeInstanceOf(Date);
         expect(Math.abs(Date.now() - event.occurredAt.getTime())).toBeLessThan(10 * 60 * 1000);
@@ -129,26 +134,57 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       }
     });
 
+    /**
+     * Metadata values that are not ids, integers, booleans, one-word codes (enum values, error
+     * codes, field names, catalog keys) or, when `routes`, route patterns such as
+     * `/me/activities/:activityId`: never free text.
+     */
+    const offendingMetadata = (found: AuditEvent[], routes = false) => {
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+      const route = /^(\/:?[a-z][A-Za-z-]*)+$/;
+      const offending: string[] = [];
+      const visit = (type: string, path: string, value: unknown) => {
+        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
+        if (typeof value === "string" && (uuid.test(value) || code.test(value) || (routes && route.test(value)))) return;
+        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
+        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
+        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
+      };
+      for (const event of found) visit(event.type, "metadata", event.metadata);
+      return offending;
+    };
+
     it("011 work.* e work_generation.*: os 7 tipos gravados, metadata só com ids, contagens, enums e códigos", () => {
       const types = rows.map((row) => row.type).filter((type) => /^work(_generation)?\./.test(type));
       expect(types.sort()).toEqual(
         ["work.approved", "work.archived", "work.created", "work.edited", "work.restored", "work_generation.generated", "work_generation.requested"],
       );
-      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-      // Enum values, error/warning codes, field names and catalog keys: one word, no spaces.
-      const code = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
-      const offending: string[] = [];
-      const visit = (type: string, path: string, value: unknown) => {
-        if (value === null || typeof value === "boolean" || Number.isInteger(value)) return;
-        if (typeof value === "string" && (uuid.test(value) || code.test(value))) return;
-        if (Array.isArray(value)) return value.forEach((item, index) => visit(type, `${path}[${index}]`, item));
-        if (typeof value === "object") return Object.entries(value).forEach(([key, item]) => visit(type, `${path}.${key}`, item));
-        offending.push(`${type} ${path}: ${JSON.stringify(value)}`);
-      };
       const found = events.filter((event) => types.includes(event.type));
       expect(new Set(found.map((event) => event.type)).size).toBe(7);
-      for (const event of found) visit(event.type, "metadata", event.metadata);
-      expect(offending).toEqual([]);
+      expect(offendingMetadata(found)).toEqual([]);
+    });
+
+    it("012/SC-011 os 13 tipos da 012 gravados, metadata só com ids, contagens, enums, booleanos e códigos", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^(activity|activity_attempt|activity_submission|activity_result|student_access)\./.test(type));
+      expect(types.sort()).toEqual([
+        "activity.cancelled",
+        "activity.closed",
+        "activity.published",
+        "activity.updated",
+        "activity_attempt.progress_saved",
+        "activity_attempt.started",
+        "activity_result.released",
+        "activity_result.viewed",
+        "activity_submission.accepted_by_teacher",
+        "activity_submission.created",
+        "activity_submission.graded",
+        "activity_submission.rejected",
+        "student_access.denied",
+      ]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(13);
+      expect(offendingMetadata(found, true)).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

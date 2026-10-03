@@ -125,7 +125,7 @@ set (research P18). A cancelled, scheduled, other-class or other-student resourc
 | Method & path | Permission | Body → Response | Errors |
 |---|---|---|---|
 | `GET /me/dashboard` | `atividades.proprias.visualizar` | → `StudentDashboard` | — |
-| `GET /me/activities?status=&type=&cursor=&limit=` | `atividades.proprias.visualizar` | → `{ items: StudentActivitySummary[], nextCursor }` | 400 |
+| `GET /me/activities?status=&type=&cursor=&pageSize=` | `atividades.proprias.visualizar` | → `{ items: StudentActivitySummary[], nextCursor }` | 400 |
 | `GET /me/activities/:activityId` | `atividades.proprias.visualizar` | → `StudentActivity` | 404 |
 | `POST /me/activities/:activityId/attempt` | `atividades.proprias.responder` | `{}` → `StudentActivity` (existing attempt → 200, same attempt) | 404, 409 `DEADLINE_PASSED` / `ACTIVITY_CLOSED` / `CLASS_NOT_ACTIVE`, 429 |
 | `PUT /me/activities/:activityId/attempt/answers` | `atividades.proprias.responder` | `SaveAnswers` → `SaveAnswersResult` | 404, 409 `NOT_STARTED` / `ATTEMPT_ALREADY_SUBMITTED` / `DEADLINE_PASSED` / `ACTIVITY_CLOSED` / `CLASS_NOT_ACTIVE`, 422 `INVALID_ANSWER`, 429 |

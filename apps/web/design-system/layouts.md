@@ -77,23 +77,30 @@ existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu.
 `components/layout/student-layout.tsx`
 
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ DevTrack      Minhas turmas   Meu perfil          [Sair]    │
-├────────────────────────────────────────────────────────────┤
-│        Minhas turmas                                  (h1) │
-│        conteúdo (largura ≤ 960 px)                         │
-└────────────────────────────────────────────────────────────┘
+┌──────────────┬──────────────────────────────────────────────┐
+│ DevTrack     │ [≡]  Painel                          (Topbar) │
+│ ▸ Painel     ├──────────────────────────────────────────────┤
+│ ▸ Minhas     │        Olá, Ana                          (h1) │
+│   atividades │        conteúdo (largura ≤ 960 px)            │
+│ ▸ Histórico  │                                               │
+│ ▸ Minhas     │                                               │
+│   turmas     │                                               │
+│ ▸ Meu perfil │                                               │
+│ Ana · [Sair] │                                               │
+└──────────────┴──────────────────────────────────────────────┘
 ```
 
 ### Variantes
 
-Uma estrutura: barra superior com a marca, o menu do aluno e "Sair", e o conteúdo até
-960 px. `preview` só no catálogo.
+O mesmo menu lateral do `AppShell` (primitivos de `components/ui/sidebar`), só com os itens
+do aluno, a `Topbar` e o conteúdo até 960 px. `defaultOpen` vem do cookie `sidebar_state`,
+como no AppShell; `preview` só no catálogo.
 
 ### Estados
 
-Item atual do menu com `aria-current="page"` e sublinhado; em telas estreitas os itens
-quebram linha, sem menu escondido. Sem e-mail confirmado, só "Meu perfil" aparece.
+Expandido, recolhido a ícones (os nomes ficam como nomes acessíveis e dicas) e, em telas
+estreitas, aberto como painel pelo botão da `Topbar`. Item atual com `aria-current="page"` e o
+estilo ativo. Sem e-mail confirmado, só "Meu perfil" aparece.
 
 ### Quando usar
 
@@ -116,6 +123,6 @@ return <StudentLayout me={me}>{children}</StudentLayout>;
 
 ### Acessibilidade
 
-Regiões: `banner` com `nav` "Menu do aluno" e `<main id="conteudo" tabIndex={-1}>`; ordem
-de foco: marca, itens do menu, "Sair" e conteúdo. Nenhum item de professor ou
-administração, nem menu lateral.
+Regiões: o menu lateral com `nav` "Menu do aluno", a `Topbar` (`banner`) e `<main
+id="conteudo" tabIndex={-1}>`; ordem de foco: marca, itens do menu, "Sair", botão do menu e
+conteúdo. Nenhum item de professor ou administração.

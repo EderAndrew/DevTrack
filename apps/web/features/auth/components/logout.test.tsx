@@ -50,6 +50,18 @@ describe("002/US4-4 logout e \"sair de todos\" descartam o cache (FR-024)", () =
     expect(router.refresh).toHaveBeenCalled();
   });
 
+  it("012/FR-019 Sair apaga as respostas não enviadas guardadas neste navegador", async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    window.localStorage.setItem("devtrack:respostas:aluno:atividade", "[]");
+    window.localStorage.setItem("outra-preferencia", "fica");
+    renderWithProviders(<LogoutButton />, { queryClient: withPreviousSession() });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Sair" }));
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith("/entrar"));
+    expect(window.localStorage.getItem("devtrack:respostas:aluno:atividade")).toBeNull();
+    expect(window.localStorage.getItem("outra-preferencia")).toBe("fica");
+    window.localStorage.clear();
+  });
+
   it("Sair com a sessão já encerrada (401) também limpa e sai", async () => {
     fetchMock.mockResolvedValue(reply(401, { statusCode: 401, code: "UNAUTHENTICATED", message: "x" }));
     const queryClient = withPreviousSession();

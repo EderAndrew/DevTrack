@@ -71,6 +71,9 @@ export const configSchema = z.object({
   RATE_LIMIT_CURRICULUM_AI_PER_HOUR: positiveInt(10),
   RATE_LIMIT_EXERCISE_AI_PER_HOUR: positiveInt(10),
   RATE_LIMIT_WORK_AI_PER_HOUR: positiveInt(10),
+  RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE: positiveInt(60),
+  RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR: positiveInt(20),
+  RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR: positiveInt(300),
   AI_AGENT_EXECUTIONS_PER_HOUR: positiveInt(100),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
@@ -135,6 +138,12 @@ export interface AppConfig {
     exerciseAiPerHour: number;
     /** Work generation (011 research W18): requests per teacher per hour. */
     workAiPerHour: number;
+    /** Class activities (012 research P20): answer saves per student per minute. */
+    activitySavesPerMinute: number;
+    /** Starts and submissions per student per hour. */
+    activitySubmitsPerHour: number;
+    /** Every teacher write of 012 (apply, edit, close, cancel, grade, accept, release) per teacher per hour. */
+    activityTeacherWritesPerHour: number;
     /** Executions per agent per hour, all users together (008 research G9). */
     aiAgentPerHour: number;
   };
@@ -243,6 +252,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       curriculumAiPerHour: e.RATE_LIMIT_CURRICULUM_AI_PER_HOUR,
       exerciseAiPerHour: e.RATE_LIMIT_EXERCISE_AI_PER_HOUR,
       workAiPerHour: e.RATE_LIMIT_WORK_AI_PER_HOUR,
+      activitySavesPerMinute: e.RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE,
+      activitySubmitsPerHour: e.RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR,
+      activityTeacherWritesPerHour: e.RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR,
       aiAgentPerHour: e.AI_AGENT_EXECUTIONS_PER_HOUR,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,

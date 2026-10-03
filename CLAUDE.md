@@ -2,13 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-01 (011 implemented)
+Last updated: 2026-10-03 (012 implemented)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–011 in `specs/` are all implemented; later work starts
-a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–012 in `specs/` are implemented. Later work starts a
+new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -17,8 +17,8 @@ a new feature through `/speckit-specify`.
 - 004 subjects, syllabus upload/extraction/review, class calendar, class plan with manual topics
   and coverage; US9 (2026-09-24 amendment) marks a topic's class completed. A teacher lands on
   "Minhas disciplinas" after login.
-- 005 design system and the Exam Mode visual contract (exam components are specified only; the
-  assessments feature builds them).
+- 005 design system and the Exam Mode visual contract; 012 built its NORMAL-mode subset in
+  `apps/web/components/ui/assessment/` (timer, review flag and focus warnings wait for exams).
 - 006 AI foundation with no domain agent and no real provider (tests use the reference agents and
   fake provider in `apps/api/test/fixtures/ai`).
 - 007 Curriculum Agent ("Preencher com IA" → L2 proposal → `AI_ASSISTED` 004 draft); 008 OpenRouter
@@ -30,6 +30,13 @@ a new feature through `/speckit-specify`.
   topics of one confirmed syllabus revision, the total grade split in exact hundredths, manual or
   "Criar trabalho com IA" through `work-generator` into a DRAFT the teacher approves, "Ver como
   aluno" without the answer key, and the grading strategies as domain rules for 012.
+- 012 the student portal and class activities: the teacher applies an approved work or 1–10
+  approved exercises to a class as a snapshot (deadline, scheduled publication, late policy,
+  taught-scope topics flagged), edits, closes, cancels, grades the pending questions and releases
+  the result, and accepts a saved attempt as a late submission; the student gets "Painel",
+  "Minhas atividades" and "Histórico", answers with autosave, revisions and an offline buffer,
+  submits once, and sees the grade and feedback only after the release with complete grading.
+  Exams, controlled mode, AI grading and code execution are later features.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
 the admin enables them. All three tasks are BASIC. `openai-basic` passed all three release gates and,
@@ -41,7 +48,7 @@ failed all three (2026-09-29 and 2026-10-01): called with tools its answers brea
 without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -138,7 +145,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010 and 011; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011 and 012; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -150,6 +157,13 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   the API modules, the contracts and the web features (no imports either way), and forbids code
   execution, model choice and float arithmetic (`parseFloat`, `Number(`, `.toNumber()`) in
   `works`/`work-ai`.
+- `apps/api/test/activities-boundary.spec.ts` (012) lets `activities`/`student-activities` (API
+  and web) reach the banks only through their snapshot readers and the pure `works/grading` and
+  `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
+  grades, and students are answered only through the student-view allowlist; it also keeps exams,
+  controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
+- `apps/web/test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML
+  render as text, and no `dangerouslySetInnerHTML` in the 012 features or `components/ui/assessment`.
 - E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
   replaying its generator's `sql-joins-sem-linguagem` case)
   run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
@@ -195,7 +209,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   enrollments and "Minhas turmas", `ai` for the 006 executions, proposals and operations,
   `curriculum` for 004 subjects, syllabus, class meetings and class plans plus the 007
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
-  bank, its generation requests, the exact grade helpers and the grading result shapes), with
+  bank, its generation requests, the exact grade helpers and the grading result shapes, and
+  `activities` for the 012 teacher and student shapes of class activities), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -226,7 +241,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -256,6 +271,11 @@ the removal conditions are in `DEPENDENCIES.md`.
 - Schema changes only via Prisma migrations. Subjects/languages/technologies are data, never enums
   or conditionals in code.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
+- Students never see a grade or feedback before the release with complete grading (and
+  `notas.proprias.visualizar`), and never an answer key: every student shape is built in
+  `activities/views/student-view.ts` by copying an allowlist, never by stripping the teacher view.
+  Deadlines, publication phases and statuses come from the injected server `Clock`, never the
+  browser's; statuses are derived on every read, never stored.
 - UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
   radii, shadows or fonts, and no recreated controls. An exception needs a
   `ds-exception: <reason>` marker on (or just above) the line and a row in
@@ -263,7 +283,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
-- 012-student-portal (planned): class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
+- 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
 - 011-work-bank: private work bank apart from the exercise bank — works of 1–10 questions (open answer, multiple choice, code with test cases) linked to items of one confirmed syllabus revision, total grade split in exact hundredths (`numeric(5,2)`, integer cents in code), manual or AI (`work-generator` through the existing gateway and policy) into DRAFT works approved by the teacher; server-built student view without answer key; grading strategies (EXACT_MATCH, TEST_CASES, AI_REVIEW) as domain rules for 012
 - 010-exercise-bank: private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 

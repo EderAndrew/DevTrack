@@ -172,6 +172,47 @@ export const AUDIT_EVENT_METADATA = {
     "regeneratedFromId",
   ],
   "work_generation.generated": ["executionId", "workId", "questionCount"],
+  // 012 — class activities. Only ids, counts, enums, booleans and codes (grades as integer
+  // hundredths): never titles, instructions, statements, answers, answer keys or feedback.
+  "activity.published": [
+    "classId",
+    "type",
+    "executionMode",
+    "sourceWorkId",
+    "sourceExerciseCount",
+    "questionCount",
+    "totalCents",
+    "latePolicy",
+    "scheduled",
+    "outOfScopeTopicCount",
+    "hasPlan",
+  ],
+  "activity.updated": ["classId", "fields"],
+  "activity.closed": ["classId", "submittedCount", "missedCount"],
+  "activity.cancelled": ["classId", "from", "submittedCount"],
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline"],
+  // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
+  "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
+  // `operation`: START | SAVE | SUBMIT; `code`: the 409 code of the refusal.
+  "activity_submission.rejected": ["operation", "code"],
+  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
+  // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
+  "student_access.denied": ["route", "reason"],
+  // Grades as integer hundredths, never feedback text.
+  "activity_submission.graded": [
+    "activityId",
+    "decidedCount",
+    "overriddenRuleCount",
+    "gradeCents",
+    "partial",
+    "afterRelease",
+    "generalFeedbackChanged",
+  ],
+  // `reason`: DEADLINE_PASSED | ACTIVITY_CLOSED (spec FR-006b).
+  "activity_submission.accepted_by_teacher": ["activityId", "attemptId", "reason", "blankCount", "questionCount", "pendingTeacherCount"],
+  "activity_result.released": ["classId", "submittedCount", "completeCount"],
+  // The first read of a visible result by the student (research P19).
+  "activity_result.viewed": ["activityId"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -216,4 +257,7 @@ export type AuditTargetType =
   | "EXERCISE"
   | "EXERCISE_BATCH"
   | "WORK"
-  | "WORK_GENERATION_REQUEST";
+  | "WORK_GENERATION_REQUEST"
+  | "CLASS_ACTIVITY"
+  | "ACTIVITY_ATTEMPT"
+  | "ACTIVITY_SUBMISSION";

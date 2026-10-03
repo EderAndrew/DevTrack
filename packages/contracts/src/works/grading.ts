@@ -30,6 +30,8 @@ export const PendingReasonSchema = z.enum([
   "NO_TEST_CASES",
   "AI_REVIEW_FAILED",
   "AI_REVIEW_OUT_OF_RANGE",
+  /** No reviewer exists yet (012 has no AI): the teacher grades, as with no Code Runner. */
+  "AI_REVIEW_UNAVAILABLE",
 ]);
 export type PendingReason = z.infer<typeof PendingReasonSchema>;
 

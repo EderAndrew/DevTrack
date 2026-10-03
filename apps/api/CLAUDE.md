@@ -217,6 +217,33 @@ tool scope, injection through the topic (`010-injection.spec.ts`: the text reach
 block; an answer that obeys it is refused whole), concurrency, student view, performance and no model choice; the
 journey's topic and exercise texts are scanned out of logs, audit and "Operação de IA" (`secret-leak-scan.spec.ts`,
 `006-ai-admin-scan.spec.ts`), and `010-sc003-boundaries.spec.ts` runs every rule boundary on each path.
+Class activities (012) fixtures live in `test/helpers/activities.ts`: `createActivity(t, schoolClass, options)` writes an
+activity and its snapshot in one transaction (default an EXERCISE published a day ago, due in a week, REJECT; an
+ASSIGNMENT needs `sourceWorkId` and `sourceSubjectId`, CHECK), `createAttemptRow` an attempt and optionally its
+submission (no gradings), `createClassWithStudents` and `createCompletedTopics` (the taught scope); the route helpers are
+`applyWork`/`applyExercises`, `startAttempt`, `saveAnswers`, `submitAttempt`, `getAttempt`, `gradeAttempt`,
+`acceptSubmission` and `releaseResult`. Suites pass `createTestApp({ clock })` a `FixedClock` (`test/helpers/clock.ts`,
+`set`/`advance`, `MINUTE`/`HOUR`/`DAY`): the server clock decides deadlines, phases and statuses, never the test's
+real time. Triggers to remember when writing rows by hand: an answer can't be written once its attempt is SUBMITTED
+(write the answers, then mark the attempt and insert the submission), `deadline > publish_at`, the question count and
+the values' sum are checked at commit, and a submission's submitted facts are immutable.
+The save protocol (research P8): each answer carries the `baseRevision` the tab read; equal content → UNCHANGED, the
+stored revision → SAVED with `revision + 1`, otherwise CONFLICT with the server's answer, all under the attempt's row
+lock. The submit (P9) writes the pending answers by the same rule (a CONFLICT aborts it with
+`409 ANSWER_CHANGED_ELSEWHERE`), then `registerSubmission` (`activities/submission/`), shared with the teacher's
+"Aceitar como entrega": attempt SUBMITTED, blanks counted, multiple choice graded by the 011 registry with no AI and no
+runner (`NO_AUTOMATION_PORTS`), the rest pending for the teacher, the grade summed in hundredths. The teacher's grades
+(`AttemptsReviewService.grade`) go through `decideByTeacher` at the submission's `version`; release is the whole
+activity; the student's `result` exists only when released, complete and with `notas.proprias.visualizar`, and its
+first read writes `activity_result.viewed` once (conditional UPDATE of `result_viewed_at`).
+012 suites: one per story (`012-us1-apply` … `012-us6-history`), `012-schema`, and in `test/security/` isolation
+(teachers A and B, students A1, A2, B1, scheduled and cancelled activities), student view (answer-key markers
+`MARCADOR-RESPOSTA-012`, `-RUBRICA-`, `-SOLUCAO-`, `-PRIVADO-`, `-EXPLICACAO-012` in every situation), boundaries
+(server fields in bodies, sizes, 0/1/10/11 answers), rate limits, concurrency, XSS and performance (10 classes × 50
+activities, a roster of 60, 100 saves). `test/activities-boundary.spec.ts` keeps `activities`/`student-activities` (API
+and web) away from the exercise and AI modules, allows only `works/grading` and `works/types` of the work bank, forbids
+code execution and float arithmetic, keeps the student portal on the student view, and keeps exams, controlled mode and
+focus/fullscreen/clipboard monitoring out (SC-012).
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -278,6 +305,9 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   the boundaries and the security suites described above; `test/works-boundary.spec.ts` keeps works
   and exercises apart in api, contracts and web, and forbids code execution, model choice and
   float arithmetic in `works`/`work-ai`.
+- 012: one file per story (`012-us1-apply` … `012-us6-history`), the schema's DB rules, and the security suites
+  described above; the journey applies both sources, starts, saves, submits, grades, accepts, releases and reads the
+  result, and its answers and feedback are scanned out of logs and audit.
 
 ## Modules (moved from the root CLAUDE.md)
 
@@ -381,3 +411,10 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   production), prompt and `read-work-generation-request` tool; `validate-generated-work`, the
   `materialize` hook that writes the DRAFT work in the runner's transaction, and
   `WorkProposalCloser`). Neither names a tier, family or catalog key (`011-no-model-choice.spec.ts`).
+- 012 modules: `activities` (the teacher's side: `ActivitiesService` applies a source as a snapshot under
+  `ClassContextPolicy`, edits, closes, cancels and releases under the activity's row lock; `AttemptsReviewService`
+  opens, grades and accepts attempts; pure rules in `status/` (student and roster status, operations, answers),
+  `snapshot/`, `scope/` (taught scope), `grading/` (the bridge to the 011 registry), `submission/` and the teacher and
+  student `views/` (the student view copies an allowlist)) and `student-activities` (`/me/…`: `StudentActivityLoader`
+  starts every query from the session user's ACTIVE enrollments, `MyActivitiesService` builds the dashboard, list and
+  activity, `AttemptsService` starts, saves and submits; out of context → 404 and `student_access.denied`).

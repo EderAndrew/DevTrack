@@ -7,6 +7,7 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { configureApp } from "../../src/app.setup";
+import { CLOCK, type Clock } from "../../src/platform/clock/clock";
 import { type AppConfig, loadConfig } from "../../src/platform/config/config.schema";
 import { PrismaService } from "../../src/platform/database/prisma.service";
 import { InMemoryMailer } from "../../src/platform/mail/in-memory.mailer";
@@ -34,6 +35,8 @@ export interface TestAppOptions {
   controllers?: Type[];
   /** Providers replaced by fixed values (e.g. the login delay). */
   overrides?: { provide: unknown; useValue: unknown }[];
+  /** The server clock of request-driven rules (012 research P10); `FixedClock` in test/helpers/clock.ts. */
+  clock?: Clock;
 }
 
 export interface TestApp {
@@ -89,6 +92,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     // The reading worker compiled by the global setup (test/helpers/syllabus-worker.ts).
     .overrideProvider(SYLLABUS_WORKER_PATH)
     .useValue(TEST_WORKER_PATH);
+  if (options.clock) builder = builder.overrideProvider(CLOCK).useValue(options.clock);
   for (const { provide, useValue } of options.overrides ?? []) {
     builder = builder.overrideProvider(provide).useValue(useValue);
   }

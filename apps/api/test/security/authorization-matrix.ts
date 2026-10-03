@@ -90,6 +90,22 @@ export const WORK_BANK = [
   "ia.trabalhos.gerar",
 ] as const satisfies PermissionKey[];
 
+/** 012: class activities — the teacher applies, receives, grades and releases (MANAGER and ADMIN get none). */
+export const CLASS_ACTIVITIES = [
+  "atividades.visualizar",
+  "atividades.aplicar",
+  "entregas.visualizar",
+  "notas.lancar",
+  "notas.liberar",
+] as const satisfies PermissionKey[];
+
+/** 012: the student portal — the student's own activities, answers and released results. */
+export const STUDENT_PORTAL = [
+  "atividades.proprias.visualizar",
+  "atividades.proprias.responder",
+  "notas.proprias.visualizar",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -102,8 +118,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK],
-  STUDENT: [...SESSOES, "turmas.proprias.listar"],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */
@@ -250,6 +266,26 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/work-generation-requests", access: "ia.trabalhos.gerar" },
   { method: "GET", path: "/work-generation-requests", access: "trabalhos.visualizar" },
   { method: "GET", path: "/work-generation-requests/:id", access: "trabalhos.visualizar" },
+
+  // 012 — class activities, the teacher's side (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities", access: "atividades.visualizar" },
+  { method: "POST", path: "/classes/:classId/activities/scope-check", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities", access: "atividades.aplicar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId", access: "atividades.visualizar" },
+  { method: "PATCH", path: "/classes/:classId/activities/:activityId", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/close", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/cancel", access: "atividades.aplicar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/release", access: "notas.liberar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId", access: "entregas.visualizar" },
+  { method: "PUT", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/grades", access: "notas.lancar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission", access: "notas.lancar" },
+  // 012 — the student portal (contracts/permissions.md).
+  { method: "GET", path: "/me/dashboard", access: "atividades.proprias.visualizar" },
+  { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },
+  { method: "GET", path: "/me/activities/:activityId", access: "atividades.proprias.visualizar" },
+  { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
+  { method: "PUT", path: "/me/activities/:activityId/attempt/answers", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/attempt/submit", access: "atividades.proprias.responder" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

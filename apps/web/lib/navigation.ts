@@ -7,9 +7,25 @@ export const SUBJECTS_PATH = "/disciplinas";
 /** The app root: picks the start page from the session's permissions (`startPathFor`). */
 export const START_PATH = "/";
 
-/** Start page after login: "Minhas disciplinas" for a teacher, otherwise the profile. UX only. */
+/** "Painel": the student's start page (012 research P23). */
+export const DASHBOARD_PATH = "/painel";
+
+/** "Minhas atividades" of a student (012 US2). */
+export const MY_ACTIVITIES_PATH = "/minhas-atividades";
+
+/** "Histórico": the student's submitted activities (012 US6). */
+export const HISTORY_PATH = "/historico";
+
+/**
+ * Start page after login: "Minhas disciplinas" for a teacher, the "Painel" for a student (who has
+ * no subjects), otherwise the profile. UX only.
+ */
 export const startPathFor = (permissions: readonly string[]): string =>
-  permissions.includes("disciplinas.visualizar") ? SUBJECTS_PATH : HOME_PATH;
+  permissions.includes("disciplinas.visualizar")
+    ? SUBJECTS_PATH
+    : permissions.includes("atividades.proprias.visualizar")
+      ? DASHBOARD_PATH
+      : HOME_PATH;
 
 /** "Minhas turmas" of a student (003 US7); an accepted class invitation lands here with `?bem-vindo=1`. */
 export const MY_CLASSES_PATH = "/minhas-turmas";
@@ -47,6 +63,9 @@ export const AREAS = [
   { prefix: AI_OPERATIONS_AREA.href, name: AI_OPERATIONS_AREA.label },
   { prefix: "/conta", name: "Minha conta" },
   { prefix: MY_CLASSES_PATH, name: "Minhas turmas" },
+  { prefix: DASHBOARD_PATH, name: "Painel" },
+  { prefix: MY_ACTIVITIES_PATH, name: "Minhas atividades" },
+  { prefix: HISTORY_PATH, name: "Histórico" },
 ] as const;
 
 /** Name of the area a path belongs to (the prefix itself or a page below it), or `null`. */

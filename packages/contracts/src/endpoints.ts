@@ -58,6 +58,25 @@ import {
   TaskOverrideRequestSchema,
 } from "./ai/operations.js";
 import { AiProposalListQuerySchema, AiProposalPageSchema, AiProposalViewSchema, DecideAiProposalRequestSchema } from "./ai/proposals.js";
+import {
+  ActivitySourceSchema,
+  CreateActivityRequestSchema,
+  ScopeCheckSchema,
+  GradeSubmissionRequestSchema,
+  TeacherActivityListSchema,
+  TeacherActivitySchema,
+  TeacherAttemptSchema,
+  UpdateActivityRequestSchema,
+} from "./activities/teacher.js";
+import {
+  SaveAnswersRequestSchema,
+  SaveAnswersResultSchema,
+  StudentActivityListQuerySchema,
+  StudentActivityPageSchema,
+  StudentActivitySchema,
+  StudentDashboardSchema,
+  SubmitAttemptRequestSchema,
+} from "./activities/student.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -191,6 +210,22 @@ export type UserIdParams = z.infer<typeof UserIdParamsSchema>;
 /** A Curriculum Agent proposal under the syllabus document it targets (007). */
 export const CurriculumProposalParamsSchema = z.strictObject({ id: UuidSchema, proposalId: UuidSchema });
 export type CurriculumProposalParams = z.infer<typeof CurriculumProposalParamsSchema>;
+
+/** A class's activities (012); the names of contracts/http-api.md. */
+export const ClassParamsSchema = z.strictObject({ classId: UuidSchema });
+export type ClassParams = z.infer<typeof ClassParamsSchema>;
+
+/** An activity under its class (012). */
+export const ClassActivityParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema });
+export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
+
+/** A student's attempt under its activity (012). */
+export const ClassActivityAttemptParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, attemptId: UuidSchema });
+export type ClassActivityAttemptParams = z.infer<typeof ClassActivityAttemptParamsSchema>;
+
+/** One of the session student's activities (012). */
+export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
+export type MyActivityParams = z.infer<typeof MyActivityParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -977,6 +1012,150 @@ export const endpoints = {
     path: "/work-generation-requests/:id",
     params: IdParamsSchema,
     response: WorkGenerationRequestViewSchema,
+    status: 200,
+  },
+
+  // 012 — class activities, the teacher's side.
+  /** Every activity of the class, all statuses, by deadline (latest first), with the roster counts (US1). */
+  "activities.list": {
+    method: "GET",
+    path: "/classes/:classId/activities",
+    params: ClassParamsSchema,
+    response: TeacherActivityListSchema,
+    status: 200,
+  },
+  /** Topics of the source outside the class's taught scope (FR-005a, research P5). */
+  "activities.scopeCheck": {
+    method: "POST",
+    path: "/classes/:classId/activities/scope-check",
+    params: ClassParamsSchema,
+    body: ActivitySourceSchema,
+    response: ScopeCheckSchema,
+    status: 200,
+  },
+  /** 201 for a new activity; 200 when the same idempotency key returns the one it created (FR-005). */
+  "activities.create": {
+    method: "POST",
+    path: "/classes/:classId/activities",
+    params: ClassParamsSchema,
+    body: CreateActivityRequestSchema,
+    response: TeacherActivitySchema,
+    status: 201,
+  },
+  "activities.get": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId",
+    params: ClassActivityParamsSchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** Title, instructions, deadline, late policy; the publication only while scheduled (FR-004). */
+  "activities.update": {
+    method: "PATCH",
+    path: "/classes/:classId/activities/:activityId",
+    params: ClassActivityParamsSchema,
+    body: UpdateActivityRequestSchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** ACTIVE → CLOSED; already CLOSED → 200 with no event. */
+  "activities.close": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/close",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** ACTIVE | CLOSED → CANCELLED; already CANCELLED → 200 with no event. */
+  "activities.cancel": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/cancel",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** The result to the class, whole activity (FR-006, research P14); already released → 200 with no event. */
+  "activities.release": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/release",
+    params: ClassActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherActivitySchema,
+    status: 200,
+  },
+  /** One student's attempt: answers, gradings and submission (US5); the answer key is in the activity. */
+  "activities.getAttempt": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+  /** The teacher's grades and feedback at the submission's `version` (research P13). */
+  "activities.gradeAttempt": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/grades",
+    params: ClassActivityAttemptParamsSchema,
+    body: GradeSubmissionRequestSchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+  /** The saved answers become a late submission accepted by the teacher (FR-006b); already submitted → 200. */
+  "activities.acceptSubmission": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission",
+    params: ClassActivityAttemptParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
+
+  // 012 — the student portal: only the session student's ACTIVE enrollments (research P18).
+  /** Counts, the next five by deadline and the overdue ones still accepting a submission (FR-010, P17). */
+  "myActivities.dashboard": { method: "GET", path: "/me/dashboard", response: StudentDashboardSchema, status: 200 },
+  /** "Minhas atividades": by deadline, filtered by situation and type, keyset cursor (FR-012, P16). */
+  "myActivities.list": {
+    method: "GET",
+    path: "/me/activities",
+    query: StudentActivityListQuerySchema,
+    response: StudentActivityPageSchema,
+    status: 200,
+  },
+  /** The student view of one activity; out of context → 404 and `student_access.denied` (FR-008). */
+  "myActivities.get": {
+    method: "GET",
+    path: "/me/activities/:activityId",
+    params: MyActivityParamsSchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /** Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). */
+  "myActivities.start": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt",
+    params: MyActivityParamsSchema,
+    body: EmptyBodySchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /** Saves up to 10 answers with their `baseRevision`: SAVED / UNCHANGED / CONFLICT each (research P8). */
+  "myActivities.saveAnswers": {
+    method: "PUT",
+    path: "/me/activities/:activityId/attempt/answers",
+    params: MyActivityParamsSchema,
+    body: SaveAnswersRequestSchema,
+    response: SaveAnswersResultSchema,
+    status: 200,
+  },
+  /** The single submission with the pending answers; already submitted → 200 with the same one (FR-025). */
+  "myActivities.submit": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/submit",
+    params: MyActivityParamsSchema,
+    body: SubmitAttemptRequestSchema,
+    response: StudentActivitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

@@ -68,8 +68,20 @@ servidor o entregará ao aluno, sem gabarito, rubrica, solução, casos de teste
 explicação. As estratégias de correção de cada tipo (comparação exata, casos de teste num
 executor isolado e nota sugerida pela IA que o professor decide) ficaram prontas como regras do
 domínio para a fase de aplicação. O gerador de trabalhos passou pela etapa de liberação com o
-modelo básico aprovado e também começa desabilitado. A aplicação de trabalhos e avaliações às
-turmas vem nas próximas fases.
+modelo básico aprovado e também começa desabilitado. A **fase 012 — portal do aluno** fecha o
+ciclo professor → aluno: o professor aplica à turma um trabalho aprovado ou de 1 a 10 exercícios
+aprovados como uma cópia congelada, com prazo, publicação imediata ou agendada e a regra de entrega
+atrasada (não aceitar, ou aceitar e marcar), e é avisado dos tópicos ainda não concluídos no
+planejamento da turma. O aluno ganha o "Painel", "Minhas atividades" e o "Histórico", com a
+situação de cada atividade calculada pelo relógio do servidor (pendente, em andamento, atrasada,
+entregue, corrigida). Ele responde com salvamento automático, mantém as respostas no navegador
+quando fica sem conexão e entrega uma única vez, com confirmação. As Múltiplas escolhas são
+corrigidas na entrega pela regra da fase 011, sem IA; as demais questões ficam com o professor,
+que vê a situação de cada aluno, abre cada entrega ao lado do gabarito, dá nota e feedback, aceita
+como entrega a tentativa de quem perdeu o prazo por uma falha e libera o resultado. A nota e o
+feedback só chegam ao aluno depois da liberação com a correção completa, e nenhuma resposta da
+API ao aluno traz gabarito. Provas, modo controlado, IA na correção e execução de código ficam
+para as próximas fases.
 
 ## Pré-requisitos
 
@@ -96,6 +108,7 @@ turmas vem nas próximas fases.
 | `specs/009-ai-model-policy/` | O mesmo para a fase 009 (política de modelos de IA; decisões H1–H16) |
 | `specs/010-exercise-bank/` | O mesmo para a fase 010 (banco de exercícios; decisões X1–X20) |
 | `specs/011-work-bank/` | O mesmo para a fase 011 (banco de trabalhos; decisões W1–W22) |
+| `specs/012-student-portal/` | O mesmo para a fase 012 (portal do aluno e atividades da turma; decisões P1–P24) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
