@@ -1652,7 +1652,8 @@ Uma: `Textarea` em `text-code` com números de linha em `--text-secondary`; sem 
 
 ### Estados
 
-Editável e desabilitado.
+Editável, desabilitado e somente leitura (`readOnly`, 013: o gabarito depois da conclusão; Tab
+segue para o próximo elemento e a dica de indentação some).
 
 ### Quando usar
 

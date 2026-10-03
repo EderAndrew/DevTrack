@@ -292,6 +292,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
   { method: "PUT", path: "/me/activities/:activityId/attempt/answers", access: "atividades.proprias.responder" },
   { method: "POST", path: "/me/activities/:activityId/attempt/submit", access: "atividades.proprias.responder" },
+  // 013 — practice attempts of an EXERCISE (contracts/permissions.md).
+  { method: "POST", path: "/me/activities/:activityId/attempts", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/attempts/:number/complete", access: "atividades.proprias.responder" },
+  { method: "GET", path: "/me/activities/:activityId/attempts/:number", access: "atividades.proprias.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

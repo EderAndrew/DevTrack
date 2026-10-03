@@ -10,12 +10,14 @@ const INDENT = "  "
  * The code editor of Exam Mode (`CodeEditor`, 012 research P21): a textarea in `text-code` with a
  * line-number gutter, no editor library and no colors outside the tokens. Tab indents; Esc then Tab
  * leaves the editor (said in the description). The code is text only: nothing here runs it.
+ * `readOnly` (013, the answer key after a conclusion) keeps Tab moving the focus and drops the hint.
  */
 function CodeEditor({
   id,
   value,
   onChange,
   disabled,
+  readOnly,
   className,
   "aria-describedby": describedBy,
   ...props
@@ -30,6 +32,7 @@ function CodeEditor({
   const lines = Math.max(1, value.split("\n").length)
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (readOnly) return
     if (event.key === "Escape") {
       escaped.current = true
       return
@@ -64,11 +67,12 @@ function CodeEditor({
           id={id}
           value={value}
           disabled={disabled}
+          readOnly={readOnly}
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
           wrap="off"
-          aria-describedby={[hintId, describedBy].filter(Boolean).join(" ")}
+          aria-describedby={[readOnly ? null : hintId, describedBy].filter(Boolean).join(" ") || undefined}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
           onScroll={(event) => {
@@ -78,9 +82,11 @@ function CodeEditor({
           {...props}
         />
       </div>
-      <p id={hintId} className="m-0 text-caption text-text-secondary">
-        Tab indenta o código; Esc e depois Tab sai do editor.
-      </p>
+      {readOnly ? null : (
+        <p id={hintId} className="m-0 text-caption text-text-secondary">
+          Tab indenta o código; Esc e depois Tab sai do editor.
+        </p>
+      )}
     </div>
   )
 }

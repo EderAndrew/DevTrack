@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { ClassActivities } from "./class-activities";
-import { activity, apiError, CLASS_ID, json, routedFetch } from "./test-fixtures";
+import { activity, apiError, CLASS_ID, exerciseActivity, json, routedFetch } from "./test-fixtures";
 
 const PATH = `GET /api/classes/${CLASS_ID}/activities`;
 const summary = (overrides: object) => {
@@ -62,5 +62,21 @@ describe("012/US1 ClassActivities — atividades da turma", () => {
     await screen.findByRole("alert");
     await userEvent.setup().click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(await screen.findByText("Nenhuma atividade nesta turma.")).toBeTruthy();
+  });
+});
+
+describe("013/US1 ClassActivities — Exercício na lista da turma", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/FR-004 Exercício: \"Sem prazo\", \"Concluíram: 12 de 30\" e \"Aguardando correção: 3\", sem resultado liberado", async () => {
+    const { instructions: _i, version: _v, outOfScopeTopicCount: _o, source: _s, questions: _q, roster: _r, ...exercise } = exerciseActivity();
+    vi.stubGlobal("fetch", routedFetch({ [PATH]: json(200, { items: [exercise] }) }).fetch);
+    const { container } = renderWithProviders(<ClassActivities classId={CLASS_ID} canApply />);
+    const row = within(await screen.findByRole("table")).getAllByRole("row")[1]!;
+    expect(within(row).getByText("Sem prazo")).toBeTruthy();
+    expect(within(row).getByText("Concluíram: 12 de 30")).toBeTruthy();
+    expect(within(row).getByText("Aguardando correção: 3")).toBeTruthy();
+    expect(within(row).queryByText(/Correção pendente|Resultado liberado/)).toBeNull();
+    await expectNoA11yViolations(container);
   });
 });

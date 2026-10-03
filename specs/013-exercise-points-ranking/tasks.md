@@ -161,20 +161,20 @@ nota/prazo/regra; alunos veem; mudar o nível no banco não muda a atividade.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T016 [P] [US1] `apps/api/test/integration/013-us1-apply.spec.ts`: `013/US1-1`…`013/US1-5`,
+- [X] T016 [P] [US1] `apps/api/test/integration/013-us1-apply.spec.ts`: `013/US1-1`…`013/US1-5`,
   `013/FR-001`, `013/FR-003`, `013/FR-004` (pedido com `totalGrade`, `deadline` ou `latePolicy`
   → 400; edição de prazo/regra em EXERCISE → 400; Trabalho igual à 012).
-- [ ] T017 [P] [US1] Testes web em `apps/web/features/activities/components/new-activity.test.tsx`
+- [X] T017 [P] [US1] Testes web em `apps/web/features/activities/components/new-activity.test.tsx`
   e `activity-detail.test.tsx`: Exercício sem os campos de nota/prazo/atraso, "Vale 30 pontos" por
   exercício e "Total: 105 pontos"; detalhe sem "Liberar resultado"; axe e teclado (`013/FR-003`).
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] `apps/api/src/modules/activities/activities.service.ts` e
+- [X] T018 [US1] `apps/api/src/modules/activities/activities.service.ts` e
   `activities.controller.ts`: criação e edição pelo registro de tipos (K1), `possiblePoints`,
   auditoria `activity.published` com `possiblePoints`; `views/teacher-view.ts` com nível, pontos e
   campos anuláveis.
-- [ ] T019 [US1] Web `apps/web/features/activities/` (schemas, hooks, `new-activity`,
+- [X] T019 [US1] Web `apps/web/features/activities/` (schemas, hooks, `new-activity`,
   `class-activities`, `activity-detail`): formulário por tipo, pré-visualização dos pontos com
   `EXERCISE_POINTS`, lista com "Sem prazo" (contracts/web-ui.md).
 
@@ -192,17 +192,17 @@ pontos iguais; mesmo exercício em outra atividade → "já pontuado".
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T020 [P] [US2] `apps/api/test/integration/013-us2-practice.spec.ts`: `013/US2-1`…`013/US2-9`,
+- [X] T020 [P] [US2] `apps/api/test/integration/013-us2-practice.spec.ts`: `013/US2-1`…`013/US2-9`,
   `013/FR-005`…`013/FR-015`, `013/FR-010a` (inclui a atividade cancelada: pontos saem e o
   exercício não migra; e a submissão 012 de EXERCISE → 409). Casos de borda: atividade encerrada
   (iniciar, refazer e concluir → 409 `ACTIVITY_CLOSED`; pontos já ganhos continuam; pendências
   marcáveis), matrícula removida com tentativa aberta (404 e nada pontua), aluno matriculado
   depois da publicação (pratica normalmente), turma INACTIVE/ARCHIVED (só leitura,
   `CLASS_NOT_ACTIVE`).
-- [ ] T021 [P] [US2] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST
+- [X] T021 [P] [US2] Linhas do `MATRIX` e de `route-declarations.spec.ts` para `POST
   /me/activities/:activityId/attempts`, `POST …/attempts/:number/complete` e `GET
   …/attempts/:number`.
-- [ ] T022 [P] [US2] Testes web em
+- [X] T022 [P] [US2] Testes web em
   `apps/web/features/student-activities/components/activity-answering.test.tsx` e
   `exercise-result.test.tsx`: sem prazo nem nota; diálogo "Concluir exercícios" com a contagem
   em branco; tela de resultado com os rótulos por texto e ícone, gabarito, explicação, "Você
@@ -210,20 +210,20 @@ pontos iguais; mesmo exercício em outra atividade → "já pontuado".
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] `apps/api/src/modules/activities/results/complete-attempt.ts`: a transação de
+- [X] T023 [US2] `apps/api/src/modules/activities/results/complete-attempt.ts`: a transação de
   conclusão (K5) — travas da 012, respostas pela regra de revisão, `completed_at`, resultados com
   o `INSERT … ON CONFLICT … WHERE scoring DO NOTHING` e o fallback "já pontuado" (K6), auditoria
   `exercise_attempt.completed`; conclusão repetida devolve a mesma.
-- [ ] T024 [US2] `apps/api/src/modules/student-activities/attempts.service.ts` e
+- [X] T024 [US2] `apps/api/src/modules/student-activities/attempts.service.ts` e
   `attempts.controller.ts`: início da tentativa 1 para EXERCISE sem prazo; `POST
   /me/activities/:activityId/attempts` (K4); `POST …/attempts/:number/complete`; `GET
   …/attempts/:number`; submit 012 de EXERCISE → 409; limite `exerciseAttemptsPerHour` (K16);
   entradas em `packages/contracts/src/endpoints.ts`.
-- [ ] T025 [US2] `apps/api/src/modules/activities/views/student-view.ts`
+- [X] T025 [US2] `apps/api/src/modules/activities/views/student-view.ts`
   (`toStudentExerciseResult`, K10) e `student-activities/student-activity-loader.ts` /
   `my-activities.service.ts`: `points`, `completedAttempts`, `lastResult`, situação EXERCISE e a
   ordem das "próximas" (K9, `013/FR-015`).
-- [ ] T026 [US2] Web `apps/web/features/student-activities/`: hooks de concluir/refazer e da
+- [X] T026 [US2] Web `apps/web/features/student-activities/`: hooks de concluir/refazer e da
   tentativa por número, página da atividade por tipo (sem avisos de prazo), `exercise-result`,
   cartões e lista com pontos; o buffer offline da 012 limpo na conclusão (contracts/web-ui.md).
 

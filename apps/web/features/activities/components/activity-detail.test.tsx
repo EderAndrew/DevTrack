@@ -5,7 +5,17 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ActivityDetail, EDIT_FIELD_IDS, VERSION_CONFLICT_NOTICE } from "./activity-detail";
-import { ACTIVITY_ID, ATTEMPT_ID, activity, apiError, CLASS_ID, gradingActivity, json, routedFetch } from "./test-fixtures";
+import {
+  ACTIVITY_ID,
+  ATTEMPT_ID,
+  activity,
+  apiError,
+  CLASS_ID,
+  exerciseActivity,
+  gradingActivity,
+  json,
+  routedFetch,
+} from "./test-fixtures";
 
 const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
@@ -153,5 +163,78 @@ describe("012/US5 ActivityDetail — alunos e liberação do resultado", () => {
     setup({}, true, false);
     await screen.findByRole("heading", { name: "Lista de herança" });
     expect(screen.queryByRole("button", { name: "Liberar resultado" })).toBeNull();
+  });
+});
+
+describe("013/US1 ActivityDetail — Exercício com pontos, sem nota, prazo nem liberação", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/FR-003 mostra o nível e os pontos de cada exercício e o total; nada de prazo, regra, nota ou resultado", async () => {
+    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) }, true, true);
+    expect(await screen.findByRole("heading", { name: "Lista de prática" })).toBeTruthy();
+    expect(screen.getByText("105 pontos", { selector: "dd" })).toBeTruthy();
+    for (const term of ["Prazo", "Entrega atrasada", "Nota total", "Resultado"]) {
+      expect(screen.queryByText(term, { selector: "dt" }), term).toBeNull();
+    }
+    expect(screen.queryByRole("button", { name: "Liberar resultado" })).toBeNull();
+
+    const questions = screen.getByRole("region", { name: "Questões e gabarito" });
+    expect(within(questions).getByText("Básico")).toBeTruthy();
+    expect(within(questions).getByText("Vale 15 pontos")).toBeTruthy();
+    expect(within(questions).getByText("Intermediário")).toBeTruthy();
+    expect(within(questions).getByText("Vale 30 pontos")).toBeTruthy();
+    expect(within(questions).getByText("Avançado")).toBeTruthy();
+    expect(within(questions).getByText("Vale 60 pontos")).toBeTruthy();
+  });
+
+  it("013/US1-5 013/FR-004 a edição traz título, instruções e publicação; nunca prazo nem regra de atraso", async () => {
+    const scheduled = exerciseActivity({ phase: "SCHEDULED", publishAt: "2030-10-01T12:00:00.000Z" });
+    const { api, user } = setup({
+      [`GET ${PATH}`]: json(200, scheduled),
+      [`PATCH ${PATH}`]: json(200, exerciseActivity({ title: "Lista revisada", version: 3 })),
+    });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    expect(document.getElementById(EDIT_FIELD_IDS.deadline)).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Não aceitar" })).toBeNull();
+    expect(field(EDIT_FIELD_IDS.publishAt).readOnly).toBe(false);
+
+    await user.clear(field(EDIT_FIELD_IDS.title));
+    await user.type(field(EDIT_FIELD_IDS.title), "Lista revisada");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByText("Alterações salvas.")).toBeTruthy();
+    expect(api.writes()[0]!.body).toEqual({ version: 2, title: "Lista revisada" });
+  });
+
+  it("013/FR-016 a turma do Exercício: quem concluiu, pontos e respostas aguardando correção, sem nota", async () => {
+    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) });
+    expect(await screen.findByText("Concluíram: 12 de 30")).toBeTruthy();
+    const roster = screen.getByRole("table", { name: /Situação de cada aluno/ });
+    expect(within(roster).queryByRole("columnheader", { name: "Nota" })).toBeNull();
+    const bruno = within(roster).getByRole("link", { name: "Bruno Lima" }).closest("tr")!;
+    expect(within(bruno).getByText("Concluiu")).toBeTruthy();
+    expect(within(bruno).getByText("15 pontos")).toBeTruthy();
+    expect(within(bruno).getByText("1")).toBeTruthy();
+    const ana = within(roster).getByText("Ana Souza").closest("tr")!;
+    expect(within(ana).getByText("0 pontos")).toBeTruthy();
+  });
+
+  it("013/FR-004 encerrar um Exercício avisa que os pontos ganhos continuam", async () => {
+    const { user } = setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) });
+    await user.click(await screen.findByRole("button", { name: "Encerrar atividade" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Encerrar esta atividade?" });
+    expect(within(dialog).getByText(/Os pontos já ganhos continuam valendo\./)).toBeTruthy();
+  });
+
+  it("013/FR-003 SC-012 Exercício sem violações de acessibilidade e na ordem de Tab", async () => {
+    const { user, container } = setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      screen.getByRole("button", { name: "Encerrar atividade" }),
+      screen.getByRole("button", { name: "Cancelar atividade" }),
+      field(EDIT_FIELD_IDS.title),
+      field(EDIT_FIELD_IDS.instructions),
+      screen.getByRole("button", { name: "Salvar alterações" }),
+    ]);
   });
 });

@@ -13,6 +13,7 @@ import {
   actionLabel,
   activityHref,
   formatGrade,
+  pointsSummary,
   statusLabel,
 } from "../schemas/student-activity";
 
@@ -69,6 +70,15 @@ export function ActivityCard({ item, detailed = false, headingLevel: Heading = "
         <dd className="m-0">
           <Status variant={STATUS_VARIANTS[item.status]}>{statusLabel(item)}</Status>
         </dd>
+        {item.points ? (
+          <>
+            <dt className="text-text-secondary">Pontos</dt>
+            <dd className="m-0">
+              {pointsSummary(item.points)}
+              {item.points.awaitingCorrection ? " · Aguardando correção" : ""}
+            </dd>
+          </>
+        ) : null}
         {item.result ? (
           <>
             <dt className="text-text-secondary">Nota</dt>

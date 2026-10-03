@@ -85,6 +85,26 @@ export function submitAttempt(client: ApiClient, activityId: string, answers: { 
   return client.post(`/api/me/activities/${activityId}/attempt/submit`, { answers });
 }
 
+/** `POST /me/activities/:activityId/attempts/:number/complete` ("Concluir exercícios", 013/US2, research K5). */
+export function completeAttempt(
+  client: ApiClient,
+  activityId: string,
+  number: number,
+  answers: { questionId: string; answer: Answer; baseRevision: number }[] = [],
+) {
+  return client.post(`/api/me/activities/${activityId}/attempts/${number}/complete`, { answers });
+}
+
+/** `POST /me/activities/:activityId/attempts` ("Refazer" after attempt `afterNumber`, 013/US2, research K4). */
+export function retryAttempt(client: ApiClient, activityId: string, afterNumber: number) {
+  return client.post(`/api/me/activities/${activityId}/attempts`, { afterNumber });
+}
+
+/** `GET /me/activities/:activityId/attempts/:number`: a concluded attempt with its answer key (013/FR-012). */
+export function getExerciseAttempt(client: ApiClient, activityId: string, number: number) {
+  return client.get(`/api/me/activities/${activityId}/attempts/${number}`);
+}
+
 /** `…/activities/:activityId` of the teacher's class, the base of the 012/US5 routes. */
 const teacherActivityPath = (classId: string, activityId: string) => `/api/classes/${classId}/activities/${activityId}`;
 

@@ -35,7 +35,7 @@ const PENDING_011 = new Set<string>([]);
 const PENDING_012 = new Set<string>([]);
 
 /** 013 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_013 = new Set<string>(["exercise_attempt.completed", "exercise_result.marked"]);
+const PENDING_013 = new Set<string>(["exercise_result.marked"]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013]);
 
 interface ContractRow {

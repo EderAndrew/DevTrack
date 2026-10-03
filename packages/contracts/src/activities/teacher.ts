@@ -116,6 +116,17 @@ export const RosterCountsSchema = z.strictObject({
 });
 export type RosterCounts = z.infer<typeof RosterCountsSchema>;
 
+/**
+ * EXERCISE only (013 contracts/web-ui.md, "Concluíram: 12 de 30", "Aguardando correção: 3"): the
+ * students with an ACTIVE enrollment who concluded attempt 1, and the students whose attempt 1 has
+ * an answer waiting for the teacher's mark. The 012 counts stay as they are for both types.
+ */
+export const ExerciseRosterCountsSchema = z.strictObject({
+  completed: z.int().min(0),
+  pendingMarks: z.int().min(0),
+});
+export type ExerciseRosterCounts = z.infer<typeof ExerciseRosterCountsSchema>;
+
 export const TeacherActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
@@ -133,6 +144,8 @@ export const TeacherActivitySummarySchema = z.strictObject({
   possiblePoints: PointsSchema.nullable(),
   resultReleasedAt: IsoDateTimeSchema.nullable(),
   counts: RosterCountsSchema,
+  /** EXERCISE only; null for ASSIGNMENT. */
+  exerciseCounts: ExerciseRosterCountsSchema.nullable(),
 });
 export type TeacherActivitySummary = z.infer<typeof TeacherActivitySummarySchema>;
 

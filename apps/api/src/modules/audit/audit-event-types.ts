@@ -216,6 +216,19 @@ export const AUDIT_EVENT_METADATA = {
   "activity_result.released": ["classId", "submittedCount", "completeCount"],
   // The first read of a visible result by the student (research P19).
   "activity_result.viewed": ["activityId"],
+  // 013 — an EXERCISE attempt concluded (research K15): counts and points only, never an answer or the answer key.
+  "exercise_attempt.completed": [
+    "activityId",
+    "classId",
+    "attemptNumber",
+    "first",
+    "questionCount",
+    "blankCount",
+    "correctCount",
+    "pendingCount",
+    "alreadyScoredCount",
+    "points",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

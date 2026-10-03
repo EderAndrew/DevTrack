@@ -25,9 +25,22 @@ function Situation({ status, phase }: { status: ActivityStatus; phase: Publicati
   return <Status variant={SITUATION_VARIANTS[label]}>{label}</Status>;
 }
 
-/** "12 de 30", the pending grading and the release, in words. */
+/**
+ * A Trabalho: "12 de 30", the pending grading and the release, in words. An Exercício (013
+ * contracts/web-ui.md): "Concluíram: 12 de 30" and "Aguardando correção: 3", with no release.
+ */
 function Deliveries({ activity }: { activity: TeacherActivitySummary }) {
-  const { counts } = activity;
+  const { counts, exerciseCounts } = activity;
+  if (exerciseCounts) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span>
+          Concluíram: {exerciseCounts.completed} de {counts.enrolled}
+        </span>
+        {exerciseCounts.pendingMarks > 0 ? <span>Aguardando correção: {exerciseCounts.pendingMarks}</span> : null}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-1">
       <span>
@@ -105,7 +118,7 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
               <TableHead scope="col">Tipo</TableHead>
               <TableHead scope="col">Situação</TableHead>
               <TableHead scope="col">Prazo</TableHead>
-              <TableHead scope="col">Entregas</TableHead>
+              <TableHead scope="col">Entregas e conclusões</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

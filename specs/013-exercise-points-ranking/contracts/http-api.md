@@ -25,7 +25,7 @@ RankingRow = { position: int ≥ 1, name: string, points: Points, isViewer: bool
 |---|---|---|
 | `POST /classes/:classId/activities` | `atividades.aplicar` | `CreateActivity` becomes a union by `source.type` (below) |
 | `PATCH /classes/:classId/activities/:activityId` | `atividades.aplicar` | EXERCISE: `deadline`, `latePolicy` → `400`; `publishAt` only while scheduled (012) |
-| `GET /classes/:classId/activities[/:activityId]` | `atividades.visualizar` | EXERCISE: `totalGrade`, `deadline`, `latePolicy`, `resultReleasedAt` are `null`; adds `possiblePoints`; questions carry `difficulty`, `points`, `value: null`; roster adds `pointsEarned`, `pendingMarks` |
+| `GET /classes/:classId/activities[/:activityId]` | `atividades.visualizar` | EXERCISE: `totalGrade`, `deadline`, `latePolicy`, `resultReleasedAt` are `null`; adds `possiblePoints` and `exerciseCounts: { completed, pendingMarks } \| null` (students who concluded attempt 1 / whose attempt 1 waits for a mark; null for ASSIGNMENT); questions carry `difficulty`, `points`, `value: null`; roster adds `pointsEarned`, `pendingMarks` |
 | `GET …/activities/:activityId/attempts/:attemptId` | `entregas.visualizar` | EXERCISE: `submission: null`; adds `exercise: { number, completedAt, results: TeacherExerciseResult[] }` |
 | `PUT …/activities/:activityId/attempts/:attemptId/marks` (new) | `exercicios.corrigir` | `MarkExerciseResults` → `TeacherAttempt` |
 | `PUT …/attempts/:attemptId/grades`, `POST …/accept-submission`, `POST …/release` | (012) | EXERCISE → `409 INVALID_STATE_TRANSITION` |

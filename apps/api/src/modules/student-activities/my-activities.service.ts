@@ -8,6 +8,7 @@ import {
   type StudentActivityStatus,
   type StudentActivitySummary,
   type StudentDashboard,
+  type StudentExerciseAttempt,
 } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { decodeNameCursor, encodeNameCursor } from "../../platform/database/keyset";
@@ -15,11 +16,12 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
-import { toStudentActivity, toStudentSummary } from "../activities/views/student-view";
+import { toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
 const GET_ROUTE = "/me/activities/:activityId";
+const GET_ATTEMPT_ROUTE = "/me/activities/:activityId/attempts/:number";
 
 /** "Minhas atividades" filter → the statuses it covers (`COMPLETED` = SUBMITTED + GRADED + an EXERCISE's COMPLETED). */
 const FILTER_STATUSES: Record<NonNullable<StudentActivityListQuery["status"]>, readonly StudentActivityStatus[]> = {
@@ -105,6 +107,24 @@ export class MyActivitiesService {
       if (view.result) await this.recordFirstView(userId, activityId, now, requestId);
       return view;
     }
+    return this.denied(userId, activityId, now, GET_ROUTE, requestId);
+  }
+
+  /**
+   * A concluded attempt of the session student, with its answer key (013/FR-012, research K10). Out
+   * of context → 404 and `student_access.denied`; an attempt that doesn't exist, isn't concluded or
+   * of a Trabalho → plain 404.
+   */
+  async getAttempt(userId: string, activityId: string, number: number, requestId: string | null): Promise<StudentExerciseAttempt> {
+    const now = this.clock.now();
+    const { inContext, found } = await this.loader.loadConcluded(userId, activityId, number, now);
+    if (found) return toStudentExerciseAttempt(found.questions, found.attempt);
+    if (inContext) throw notFound();
+    return this.denied(userId, activityId, now, GET_ATTEMPT_ROUTE, requestId);
+  }
+
+  /** 404, auditing `student_access.denied` when the activity exists (research P18). */
+  private async denied(userId: string, activityId: string, now: Date, route: string, requestId: string | null): Promise<never> {
     const reason = await this.loader.deniedReason(userId, activityId, now);
     if (reason) {
       // Its own write: there is no domain change to commit with (contracts/audit-events.md).
@@ -115,7 +135,7 @@ export class MyActivitiesService {
         targetType: "CLASS_ACTIVITY",
         targetId: activityId,
         requestId,
-        metadata: { route: GET_ROUTE, reason },
+        metadata: { route, reason },
       });
     }
     throw notFound();

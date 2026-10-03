@@ -199,3 +199,56 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     ]);
   });
 });
+
+describe("013/US1 NewActivity — exercícios valem pontos pelo nível", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/US1-1 013/FR-003 cada exercício escolhido mostra o nível e \"Vale N pontos\"; o total soma 105", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("radio", { name: "Exercício" }));
+    expect(await screen.findByRole("checkbox", { name: /Intermediário: O que é polimorfismo/ })).toBeTruthy();
+    await user.click(screen.getByRole("checkbox", { name: /O que é herança/ }));
+    const order = screen.getByRole("heading", { name: "Ordem das questões" }).parentElement!;
+    expect(within(order).getByText("Básico · Vale 15 pontos")).toBeTruthy();
+    expect(within(order).getByText("Total: 15 pontos")).toBeTruthy();
+
+    await user.click(screen.getByRole("checkbox", { name: /O que é polimorfismo/ }));
+    await user.click(screen.getByRole("checkbox", { name: /O que é uma interface/ }));
+    expect(within(order).getByText("Intermediário · Vale 30 pontos")).toBeTruthy();
+    expect(within(order).getByText("Avançado · Vale 60 pontos")).toBeTruthy();
+    expect(within(order).getByText("Total: 105 pontos")).toBeTruthy();
+
+    // Unchecking one takes its points out of the total.
+    await user.click(screen.getByRole("checkbox", { name: /O que é uma interface/ }));
+    expect(within(order).getByText("Total: 45 pontos")).toBeTruthy();
+  });
+
+  it("013/FR-001 013/FR-003 o passo 2 do Exercício mostra o total e nenhum campo de nota, prazo ou atraso", async () => {
+    const { api, user } = setup();
+    await chooseExercises(user);
+    expect(screen.getByText(/^Total: 105 pontos\./)).toBeTruthy();
+    expect(screen.queryByLabelText(/Nota total/)).toBeNull();
+    expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    await user.type(field(NEW_ACTIVITY_FIELD_IDS.title), "Prática");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(Object.keys(api.writes()[1]!.body as object).sort()).toEqual([
+      "acknowledgeOutOfScope",
+      "idempotencyKey",
+      "instructions",
+      "publishAt",
+      "source",
+      "title",
+    ]);
+  });
+
+  it("013/FR-003 SC-012 escolha de exercícios com pontos sem violações de acessibilidade", async () => {
+    const { user, container } = setup();
+    await user.click(await screen.findByRole("radio", { name: "Exercício" }));
+    await user.click(await screen.findByRole("checkbox", { name: /O que é herança/ }));
+    await user.click(screen.getByRole("checkbox", { name: /O que é polimorfismo/ }));
+    await screen.findByText("Total: 45 pontos");
+    await expectNoA11yViolations(container);
+  });
+});

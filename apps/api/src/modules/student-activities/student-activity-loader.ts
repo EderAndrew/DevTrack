@@ -5,7 +5,8 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import { ACTIVITY_QUESTION_SELECT, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
 import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
-import type { StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
+import type { ActivityQuestionRow } from "../activities/views/rows";
+import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
 
 /** Why an existing activity is outside the student's context (`student_access.denied`, research P18). */
 export type DeniedReason = "NOT_ENROLLED" | "NOT_PUBLISHED" | "CANCELLED";
@@ -35,8 +36,8 @@ const ATTEMPT_SELECT = {
   startedAt: true,
   lastSavedAt: true,
   completedAt: true,
-  /** EXERCISE: the results of a concluded attempt, for its points (013 K6). */
-  results: { select: { result: true, points: true } },
+  /** EXERCISE: the results of a concluded attempt, for its points and its result view (013 K6, K10). */
+  results: { select: { questionId: true, result: true, points: true, scoring: true, comment: true } },
   submission: {
     select: {
       submittedAt: true,
@@ -83,12 +84,9 @@ export class StudentActivityLoader {
     const latest = attempts.at(-1) ?? null;
     // ASSIGNMENT: its one attempt, submitted or not (012). EXERCISE: the open attempt only (013).
     const attempt = activity.type === "EXERCISE" && latest?.status !== "IN_PROGRESS" ? null : latest;
-    const answers = attempt
-      ? await this.prisma.activityAnswer.findMany({
-          where: { attemptId: attempt.id },
-          select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
-        })
-      : [];
+    const answers = attempt ? await this.answersOf(attempt.id) : [];
+    // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
+    const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     return {
       ...toInput(activity, attempts, now, canSeeResults),
       questions: activity.questions.map(toQuestionRow),
@@ -98,7 +96,50 @@ export class StudentActivityLoader {
       completedAttempts: attempts
         .flatMap((row) => (row.completedAt ? [{ number: row.number, completedAt: row.completedAt }] : []))
         .sort((a, b) => b.number - a.number),
+      lastResult: concluded ? await this.concludedInput(concluded) : null,
     };
+  }
+
+  /**
+   * One concluded attempt of the session student in an EXERCISE activity of their context, with the
+   * snapshot questions (013 `GET /me/activities/:activityId/attempts/:number`); null when the activity
+   * is out of context, is not an EXERCISE, or the attempt doesn't exist or isn't concluded (→ 404).
+   */
+  async loadConcluded(
+    studentUserId: string,
+    activityId: string,
+    number: number,
+    now: Date,
+  ): Promise<{ inContext: boolean; found: { questions: ActivityQuestionRow[]; attempt: ConcludedAttemptInput } | null }> {
+    const activity = await this.prisma.classActivity.findFirst({
+      where: { id: activityId, ...visibleTo(studentUserId, now) },
+      select: { type: true, questions: { orderBy: { position: "asc" }, select: ACTIVITY_QUESTION_SELECT } },
+    });
+    if (!activity) return { inContext: false, found: null };
+    if (activity.type !== "EXERCISE") return { inContext: true, found: null };
+    const attempt = await this.prisma.activityAttempt.findFirst({
+      where: { activityId, studentUserId, number, completedAt: { not: null } },
+      select: ATTEMPT_SELECT,
+    });
+    if (!attempt) return { inContext: true, found: null };
+    return { inContext: true, found: { questions: activity.questions.map(toQuestionRow), attempt: await this.concludedInput(attempt) } };
+  }
+
+  private async concludedInput(attempt: AttemptRow): Promise<ConcludedAttemptInput> {
+    const answers = await this.answersOf(attempt.id);
+    return {
+      number: attempt.number,
+      completedAt: attempt.completedAt!,
+      results: attempt.results,
+      answers: answers.map((row) => ({ questionId: row.questionId, answer: answerOfRow(row) })),
+    };
+  }
+
+  private answersOf(attemptId: string) {
+    return this.prisma.activityAnswer.findMany({
+      where: { attemptId },
+      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
+    });
   }
 
   /**

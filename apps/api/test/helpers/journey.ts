@@ -721,7 +721,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // (`activity_attempt.progress_saved`, counts only) and is refused on the closed work
   // (`activity_submission.rejected` with the code). The answer is content the scans keep out of logs
   // and audit. Since 013 only a work is submitted, graded and released: the exercises below are
-  // practice, started and saved here; their conclusion and the teacher's marks join with 013 US2/US3.
+  // practice, started, saved and concluded (013/US2); the teacher's marks join with 013 US3.
   const openExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(openExercises.status).toBe(201);
   const startedExercises = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
@@ -752,6 +752,15 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     answers: answersFor(startedExercises.body.questions),
   });
   expect(savedPractice.body.results[0].outcome).toBe("SAVED");
+  // 013/US2 — the student concludes the practice (`exercise_attempt.completed`, counts and points
+  // only); a repeat is the same conclusion, "Refazer" opens attempt 2 and the answer key of attempt 1
+  // is read.
+  const practicePath = `/api/me/activities/${openExercises.body.id}`;
+  const concluded = await classStudentClient.post(`${practicePath}/attempts/1/complete`, { answers: [] });
+  expect([concluded.status, concluded.body.lastResult.number]).toEqual([200, 1]);
+  expect((await classStudentClient.post(`${practicePath}/attempts/1/complete`, { answers: [] })).status).toBe(200);
+  expect((await classStudentClient.post(`${practicePath}/attempts`, { afterNumber: 1 })).body.attempt.number).toBe(2);
+  expect((await classStudentClient.get(`${practicePath}/attempts/1`)).body.first).toBe(true);
   // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
   const submitPath = `/api/me/activities/${openWork.body.id}/attempt/submit`;
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");
@@ -781,7 +790,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await teacherClient.post(`${activitiesPath}/${openWork.body.id}/release`, {})).status).toBe(200);
   // 012/US6 — the student reads the released result (`activity_result.viewed`, once).
   expect((await classStudentClient.get(`/api/me/activities/${openWork.body.id}`)).body.status).toBe("GRADED");
-  expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(1);
+  // The graded work and the concluded exercises (013/FR-015).
+  expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(2);
   const acceptedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
   const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedWork.body.id}/attempt`, {});
   const acceptedAnswers = answersFor(acceptedStart.body.questions);

@@ -5,6 +5,7 @@ import {
   type ExerciseResult,
   centsToGrade,
   type EnrollmentStatus,
+  type ExerciseRosterCounts,
   type LatePolicy,
   type RosterCounts,
   type RosterEntry,
@@ -83,7 +84,7 @@ export function buildRoster(
   attempts: readonly RosterAttempt[],
   classActive: boolean,
   now: Date,
-): { roster: RosterEntry[]; counts: RosterCounts } {
+): { roster: RosterEntry[]; counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null } {
   const byStudent = new Map<string, RosterAttempt[]>();
   for (const attempt of attempts.filter((a) => a.activityId === activity.id)) {
     byStudent.set(attempt.studentUserId, [...(byStudent.get(attempt.studentUserId) ?? []), attempt]);
@@ -111,6 +112,7 @@ export function buildRoster(
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;
+  const active = roster.filter((entry) => entry.enrollment === "ACTIVE");
   return {
     roster,
     counts: {
@@ -121,6 +123,13 @@ export function buildRoster(
       missed: count("MISSED"),
       pendingGrading: roster.filter((entry) => entry.gradePartial === true).length,
     },
+    // "Concluíram: 12 de 30" counts the class's students; a mark waits whoever wrote the answer.
+    exerciseCounts: exercise
+      ? {
+          completed: active.filter((entry) => entry.status === "COMPLETED").length,
+          pendingMarks: roster.filter((entry) => (entry.pendingMarks ?? 0) > 0).length,
+        }
+      : null,
   };
 }
 

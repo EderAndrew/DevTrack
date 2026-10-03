@@ -6,6 +6,7 @@ import {
   type ActivityType,
   ActivityTypeSchema,
   type CreateActivityRequest,
+  type ExerciseDifficulty,
   GradeStringSchema,
   type LatePolicy,
   LatePolicySchema,
@@ -28,6 +29,12 @@ export const QUESTION_TYPE_LABELS: Record<WorkQuestionType, string> = {
   OPEN_ANSWER: "Pergunta e resposta",
   MULTIPLE_CHOICE: "Múltipla escolha",
   CODE: "Código",
+};
+/** The exercise's level as the bank names it (010); kept here, since activities never import the bank's feature. */
+export const DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
+  BASIC: "Básico",
+  INTERMEDIATE: "Intermediário",
+  ADVANCED: "Avançado",
 };
 export const ROSTER_STATUS_LABELS: Record<RosterStatus, string> = {
   NOT_STARTED: "Não iniciou",

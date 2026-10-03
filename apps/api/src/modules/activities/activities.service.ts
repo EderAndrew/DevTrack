@@ -22,6 +22,7 @@ import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { ACTIVITY_HEADER_SELECT, ACTIVITY_QUESTION_SELECT, type ActivityHeader, toQuestionRow } from "./activity-query";
+import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
 import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
@@ -78,7 +79,7 @@ export class ActivitiesService {
     const now = this.clock.now();
     return {
       items: headers.map((header) =>
-        toTeacherActivitySummary(header, buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now).counts, now),
+        toTeacherActivitySummary(header, buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now), now),
       ),
     };
   }
@@ -127,9 +128,12 @@ export class ActivitiesService {
 
     const now = this.clock.now();
     const publishAt = body.publishAt ? new Date(body.publishAt) : now;
-    // An ASSIGNMENT has a deadline after the publication; an EXERCISE has neither deadline nor late policy (013/FR-001).
+    // A type with a deadline (ASSIGNMENT) has it after the publication; an EXERCISE has neither deadline nor late
+    // policy (013/FR-001, K1). The contract's union already refused a body that doesn't match its type.
     const schedule: { deadline: Date; latePolicy: LatePolicy } | null =
-      "deadline" in body ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy } : null;
+      ACTIVITY_TYPES[body.source.type].hasDeadline && "deadline" in body
+        ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy }
+        : null;
     if (schedule && schedule.deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
     await this.assertWriteRate(teacherId);
 
@@ -176,7 +180,7 @@ export class ActivitiesService {
             ...(content.type === "ASSIGNMENT" ? { sourceWorkId: content.workId } : { sourceExerciseCount: content.exerciseIds.length }),
             questionCount: snapshot.questions.length,
             // A grade and a late policy (ASSIGNMENT) or the possible points (EXERCISE, 013 K15).
-            ...(snapshot.totalCents !== null && schedule
+            ...(ACTIVITY_TYPES[content.type].scoring === "GRADE" && snapshot.totalCents !== null && schedule
               ? { totalCents: snapshot.totalCents, latePolicy: schedule.latePolicy }
               : { possiblePoints: snapshot.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) }),
             scheduled: publishAt.getTime() > now.getTime(),
@@ -216,7 +220,7 @@ export class ActivitiesService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
-      if (current.deadline === null && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
+      if (!ACTIVITY_TYPES[current.type].hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
       if (current.version !== body.version) throw new AppException("ACTIVITY_VERSION_CONFLICT");
       ActivityStateMachine.assertEditable(current.status);
 
@@ -286,7 +290,7 @@ export class ActivitiesService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
-      if (current.status === "CANCELLED" || current.type === "EXERCISE") throw invalidStateTransition();
+      if (current.status === "CANCELLED" || ACTIVITY_TYPES[current.type].scoring !== "GRADE") throw invalidStateTransition();
       if (current.resultReleasedAt !== null) return this.get(teacherId, classId, activityId, tx);
 
       await tx.classActivity.update({

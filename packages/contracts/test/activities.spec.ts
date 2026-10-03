@@ -184,10 +184,14 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     possiblePoints: 105,
     resultReleasedAt: null,
     counts,
+    exerciseCounts: { completed: 0, pendingMarks: 0 },
   };
 
   it("013/FR-013 o Exercício vem sem nota, prazo e regra, com os pontos possíveis", () => {
     expect(accepts(TeacherActivitySummarySchema, summary)).toBe(true);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, exerciseCounts: null })).toBe(true);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, exerciseCounts: { completed: -1, pendingMarks: 0 } })).toBe(false);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, exerciseCounts: undefined })).toBe(false);
     expect(accepts(TeacherActivitySummarySchema, { ...summary, possiblePoints: 1.5 })).toBe(false);
     expect(accepts(TeacherActivitySummarySchema, { ...summary, possiblePoints: undefined })).toBe(false);
   });

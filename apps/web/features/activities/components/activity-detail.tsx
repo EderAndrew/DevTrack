@@ -87,6 +87,7 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
     );
   }
   const activity = query.data;
+  const isExercise = activity.type === "EXERCISE";
 
   const conflict = async () => {
     await actions.reload();
@@ -140,13 +141,16 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
             <Item term="Tópicos ainda não concluídos, confirmados ao aplicar">{activity.outOfScopeTopicCount}</Item>
           ) : null}
           {activity.instructions ? <Item term="Instruções">{activity.instructions}</Item> : null}
-          <Item term="Resultado">
-            {activity.resultReleasedAt ? `Liberado em ${formatLongDateTime(activity.resultReleasedAt)}` : "Ainda não liberado"}
-          </Item>
+          {isExercise ? null : (
+            <Item term="Resultado">
+              {activity.resultReleasedAt ? `Liberado em ${formatLongDateTime(activity.resultReleasedAt)}` : "Ainda não liberado"}
+            </Item>
+          )}
         </dl>
         <div className="flex flex-wrap gap-2">
           {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
-          {canRelease ? <ReleaseAction activity={activity} actions={actions} run={run} /> : null}
+          {/* An Exercício scores points as soon as they are known: there is no result to release (013 K14). */}
+          {canRelease && !isExercise ? <ReleaseAction activity={activity} actions={actions} run={run} /> : null}
         </div>
       </div>
 
@@ -185,8 +189,9 @@ function LifecycleActions({
             <AlertDialogHeader>
               <AlertDialogTitle>Encerrar esta atividade?</AlertDialogTitle>
               <AlertDialogDescription>
-                Os alunos não poderão mais salvar respostas nem entregar, mesmo antes do prazo. As entregas feitas
-                continuam com você.
+                {activity.type === "EXERCISE"
+                  ? "Os alunos não poderão mais praticar nem concluir estes exercícios. Os pontos já ganhos continuam valendo."
+                  : "Os alunos não poderão mais salvar respostas nem entregar, mesmo antes do prazo. As entregas feitas continuam com você."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -333,15 +338,22 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
   );
 }
 
-/** Each student's situation, in words (FR-006), with a link to the attempt of those who started. */
+/**
+ * Each student's situation, in words (FR-006), with a link to the attempt of those who started. A
+ * Trabalho shows the submission and the grade; an Exercício the points of attempt 1 and the answers
+ * waiting for the teacher's mark (013 contracts/web-ui.md), never a grade.
+ */
 function Roster({ classId, activity }: { classId: string; activity: TeacherActivity }) {
+  const exercise = activity.exerciseCounts;
   return (
     <section aria-labelledby="alunos-titulo" className="flex flex-col gap-2">
       <h3 id="alunos-titulo" className="m-0 text-h3">
         Alunos
       </h3>
       <p className="m-0">
-        Entregas: {activity.counts.submitted + activity.counts.submittedLate} de {activity.counts.enrolled}
+        {exercise
+          ? `Concluíram: ${exercise.completed} de ${activity.counts.enrolled}`
+          : `Entregas: ${activity.counts.submitted + activity.counts.submittedLate} de ${activity.counts.enrolled}`}
       </p>
       {activity.roster.length === 0 ? (
         <p className="m-0">Nenhum aluno matriculado nesta turma.</p>
@@ -352,8 +364,17 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
             <TableRow>
               <TableHead scope="col">Aluno</TableHead>
               <TableHead scope="col">Situação</TableHead>
-              <TableHead scope="col">Entregue em</TableHead>
-              <TableHead scope="col">Nota</TableHead>
+              {exercise ? (
+                <>
+                  <TableHead scope="col">Pontos</TableHead>
+                  <TableHead scope="col">Aguardando correção</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead scope="col">Entregue em</TableHead>
+                  <TableHead scope="col">Nota</TableHead>
+                </>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -368,10 +389,19 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                   {entry.enrollment === "REMOVED" ? " (removido da turma)" : ""}
                 </TableCell>
                 <TableCell>{ROSTER_STATUS_LABELS[entry.status]}</TableCell>
-                <TableCell>{entry.submittedAt ? formatLongDateTime(entry.submittedAt) : "—"}</TableCell>
-                <TableCell>
-                  {entry.grade === null ? "—" : entry.gradePartial ? "Correção pendente" : formatGrade(entry.grade)}
-                </TableCell>
+                {exercise ? (
+                  <>
+                    <TableCell>{formatPoints(entry.pointsEarned ?? 0)}</TableCell>
+                    <TableCell>{entry.pendingMarks ? entry.pendingMarks : "—"}</TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell>{entry.submittedAt ? formatLongDateTime(entry.submittedAt) : "—"}</TableCell>
+                    <TableCell>
+                      {entry.grade === null ? "—" : entry.gradePartial ? "Correção pendente" : formatGrade(entry.grade)}
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
           </TableBody>

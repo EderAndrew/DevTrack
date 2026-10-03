@@ -1,11 +1,14 @@
 import {
+  type Answer,
   centsToGrade,
   type ActivityType,
+  type ExerciseResult,
   type GradeCents,
   type LatePolicy,
   type StudentActivity,
   type StudentActivitySummary,
   type StudentAnswer,
+  type StudentExerciseAttempt,
   type StudentQuestion,
 } from "@repo/contracts";
 import type { ActivityFacts } from "../status/facts";
@@ -74,6 +77,16 @@ export interface StudentActivityDetailInput extends StudentActivityInput {
   attempt: { number: number; startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
   /** EXERCISE: the concluded attempts, newest first (013/FR-005). */
   completedAttempts: { number: number; completedAt: Date }[];
+  /** EXERCISE: the latest concluded attempt of the session student, with its results (013/FR-012). */
+  lastResult: ConcludedAttemptInput | null;
+}
+
+/** A concluded EXERCISE attempt of the session student, as loaded (013 K6, K10). */
+export interface ConcludedAttemptInput {
+  number: number;
+  completedAt: Date;
+  results: { questionId: string; result: ExerciseResult; points: number; scoring: boolean; comment: string | null }[];
+  answers: { questionId: string; answer: Answer }[];
 }
 
 const SUMMARY_LENGTH = 160;
@@ -153,7 +166,48 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
           }
         : null,
     completedAttempts: input.completedAttempts.map((attempt) => ({ number: attempt.number, completedAt: attempt.completedAt.toISOString() })),
-    // The answer key of a concluded attempt arrives with the conclusion (013 US2).
-    lastResult: null,
+    lastResult: input.lastResult && toStudentExerciseAttempt(input.questions, input.lastResult),
+  };
+}
+
+/**
+ * A concluded EXERCISE attempt as its student sees it (013/FR-012, research K10): per question, the
+ * student's answer, the result and points, "já pontuado", the answer key of its own type only (the
+ * correct alternative, the expected answer or the reference solution), the explanation and the
+ * teacher's comment. Copied field by field from the snapshot; never built for an attempt that is
+ * not concluded, nor for another student's (the loader reads only the session student's). No rubric,
+ * test case, trick flag or grading strategy, and no grade.
+ */
+export function toStudentExerciseAttempt(questions: readonly ActivityQuestionRow[], attempt: ConcludedAttemptInput): StudentExerciseAttempt {
+  const first = attempt.number === 1;
+  const results = new Map(attempt.results.map((row) => [row.questionId, row]));
+  const answers = new Map(attempt.answers.map((row) => [row.questionId, row.answer]));
+  return {
+    number: attempt.number,
+    completedAt: attempt.completedAt.toISOString(),
+    first,
+    pointsEarned: first ? attempt.results.reduce((sum, row) => sum + row.points, 0) : 0,
+    questions: [...questions]
+      .sort((a, b) => a.position - b.position)
+      .flatMap((question) => {
+        const result = results.get(question.id);
+        if (!result) return [];
+        return [
+          {
+            questionId: question.id,
+            position: question.position,
+            answer: answers.get(question.id) ?? null,
+            result: result.result,
+            points: result.points,
+            alreadyScored: first && !result.scoring,
+            correctAlternativeId:
+              question.type === "MULTIPLE_CHOICE" ? (question.alternatives.find((alternative) => alternative.isCorrect)?.id ?? null) : null,
+            expectedAnswer: question.type === "OPEN_ANSWER" ? question.expectedAnswer : null,
+            expectedSolution: question.type === "CODE" ? question.expectedSolution : null,
+            explanation: question.explanation ?? "",
+            teacherComment: result.comment,
+          },
+        ];
+      }),
   };
 }

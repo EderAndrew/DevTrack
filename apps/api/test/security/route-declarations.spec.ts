@@ -183,6 +183,9 @@ describe("route access declarations", () => {
         "POST /me/activities/:activityId/attempt",
         "PUT /me/activities/:activityId/attempt/answers",
         "POST /me/activities/:activityId/attempt/submit",
+        "POST /me/activities/:activityId/attempts",
+        "POST /me/activities/:activityId/attempts/:number/complete",
+        "GET /me/activities/:activityId/attempts/:number",
       ]),
     );
   });

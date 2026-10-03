@@ -1,7 +1,7 @@
 "use client";
 
 import type { ActivitySource, ActivityType, ExerciseTeacherView, ScopeCheck, WorkSummary } from "@repo/contracts";
-import { ACTIVITY_EXERCISES_MAX, ActivityTypeSchema } from "@repo/contracts";
+import { ACTIVITY_EXERCISES_MAX, ActivityTypeSchema, EXERCISE_POINTS, possiblePoints } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import Link from "next/link";
@@ -25,7 +25,9 @@ import {
   type ActivityFormValues,
   ActivityFormSchema,
   activityFormMessages,
+  DIFFICULTY_LABELS,
   formatGrade,
+  formatPoints,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
 } from "../schemas/activity-form";
@@ -53,15 +55,18 @@ interface ChosenSource {
   /** The work's title, prefilled in step 2. */
   title: string;
   questionCount: number;
+  /** An Exercício's total by the exercises' levels (013/FR-003); null for a Trabalho, which has a grade. */
+  possiblePoints: number | null;
   scope: ScopeCheck;
 }
 
 /**
  * "Nova atividade" (012 contracts/web-ui.md, `/turmas/[id]/atividades/nova`, US1). Step 1: the
  * type and the source, an APPROVED work of the class's subject or 1–10 APPROVED exercises in the
- * order chosen, then the scope check. Step 2: título (prefilled from the work), instruções, nota
- * total of an Exercício with each question's value, publication now or scheduled, prazo, entrega
- * atrasada, and the topics not yet taught with the required confirmation. "Publicar atividade"
+ * order chosen, each with its level and fixed points and the total (013/FR-003), then the scope
+ * check. Step 2: título (prefilled from the work), instruções, publication now or scheduled, prazo
+ * and entrega atrasada of a Trabalho only (an Exercício has neither, 013/FR-001), and the topics not
+ * yet taught with the required confirmation. "Publicar atividade"
  * sends one idempotency key per form, so a double click creates one activity.
  */
 export function NewActivity({ classId }: { classId: string }) {
@@ -132,6 +137,7 @@ function SourceStep({
         source,
         title: work?.title ?? "",
         questionCount: work ? work.questionCount : selected.length,
+        possiblePoints: type === "EXERCISE" ? possiblePoints(selected.map((exercise) => exercise.difficulty)) : null,
         scope,
       });
     } catch (caught) {
@@ -229,7 +235,7 @@ function SourceStep({
                       onChange={(event) => toggle(exercise, event.target.checked)}
                     />
                     <Label htmlFor={`exercicio-${exercise.id}`}>
-                      {QUESTION_TYPE_LABELS[exercise.type]}: {excerpt(exercise.statement)}
+                      {QUESTION_TYPE_LABELS[exercise.type]} · {DIFFICULTY_LABELS[exercise.difficulty]}: {excerpt(exercise.statement)}
                     </Label>
                   </div>
                 );
@@ -244,6 +250,9 @@ function SourceStep({
                   <li key={exercise.id}>
                     <div className="flex flex-wrap items-center gap-2">
                       <span>{excerpt(exercise.statement)}</span>
+                      <span className="text-text-secondary">
+                        {DIFFICULTY_LABELS[exercise.difficulty]} · Vale {formatPoints(EXERCISE_POINTS[exercise.difficulty])}
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -268,6 +277,9 @@ function SourceStep({
                   </li>
                 ))}
               </ol>
+              <p className="m-0 mt-2 font-semibold">
+                Total: {formatPoints(possiblePoints(selected.map((exercise) => exercise.difficulty)))}
+              </p>
             </div>
           ) : null}
         </div>
@@ -356,6 +368,11 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
         {ACTIVITY_TYPE_LABELS[chosen.source.type]} com {chosen.questionCount}{" "}
         {chosen.questionCount === 1 ? "questão" : "questões"}.
       </p>
+      {chosen.possiblePoints !== null ? (
+        <p className="m-0 mb-4">
+          Total: {formatPoints(chosen.possiblePoints)}. Cada exercício vale os pontos do seu nível; não há nota nem prazo.
+        </p>
+      ) : null}
       <Field id={FIELD_IDS.title} label="Título" required autoComplete="off" error={errorFor(FIELD_IDS.title)} {...register("title")} />
       <TextareaField id={FIELD_IDS.instructions} label="Instruções" hint="Opcional." error={errorFor(FIELD_IDS.instructions)} {...register("instructions")} />
       <RadioGroup legend="Publicação" className="mb-4">

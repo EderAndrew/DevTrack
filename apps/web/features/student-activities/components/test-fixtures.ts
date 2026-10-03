@@ -1,4 +1,4 @@
-import type { StudentActivity, StudentActivitySummary, StudentDashboard } from "@repo/contracts";
+import type { StudentActivity, StudentActivitySummary, StudentDashboard, StudentExerciseAttempt, StudentQuestion } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -119,6 +119,81 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
     result: null,
     completedAttempts: [],
     lastResult: null,
+    ...overrides,
+  };
+};
+
+/**
+ * An Exercício as the student sees it (013): no deadline, grade or late policy; the same three
+ * questions worth 15, 30 and 60 points; no attempt.
+ */
+export const exerciseActivity = (overrides: Partial<StudentActivity> = {}): StudentActivity => {
+  const base = studentActivity();
+  const points = [15, 30, 60];
+  return studentActivity({
+    type: "EXERCISE",
+    title: "Prática de herança",
+    deadline: null,
+    latePolicy: null,
+    totalGrade: null,
+    points: { possible: 105, earned: 0, awaitingCorrection: false },
+    questions: base.questions.map((question, index) => ({ ...question, value: null, points: points[index]! })),
+    ...overrides,
+  });
+};
+
+/**
+ * Attempt 1 concluded: the open answer waiting for the teacher, the multiple choice right (30), the
+ * code blank; with the answer key, the explanation and a teacher's comment on the multiple choice.
+ */
+export const exerciseAttempt = (overrides: Partial<StudentExerciseAttempt> = {}): StudentExerciseAttempt => {
+  const [open, choice, code] = studentActivity().questions as [StudentQuestion, StudentQuestion, StudentQuestion];
+  return {
+    number: 1,
+    completedAt: "2026-10-03T14:05:00.000Z",
+    first: true,
+    pointsEarned: 30,
+    questions: [
+      {
+        questionId: open.id,
+        position: 0,
+        answer: { kind: "TEXT", text: "Esconder o estado." },
+        result: "PENDING_TEACHER",
+        points: 0,
+        alreadyScored: false,
+        correctAlternativeId: null,
+        expectedAnswer: "Proteger o estado atrás de métodos.",
+        expectedSolution: null,
+        explanation: "Encapsular é esconder detalhes.",
+        teacherComment: null,
+      },
+      {
+        questionId: choice.id,
+        position: 1,
+        answer: { kind: "ALTERNATIVE", alternativeId: choice.alternatives[0]!.id },
+        result: "CORRECT",
+        points: 30,
+        alreadyScored: false,
+        correctAlternativeId: choice.alternatives[0]!.id,
+        expectedAnswer: null,
+        expectedSolution: null,
+        explanation: "Um objeto é uma instância.",
+        teacherComment: "Muito bem.",
+      },
+      {
+        questionId: code.id,
+        position: 2,
+        answer: null,
+        result: "WRONG",
+        points: 0,
+        alreadyScored: false,
+        correctAlternativeId: null,
+        expectedAnswer: null,
+        expectedSolution: "class Soma {}",
+        explanation: "Some os dois.",
+        teacherComment: null,
+      },
+    ],
     ...overrides,
   };
 };

@@ -1,5 +1,6 @@
 import {
   centsToGrade,
+  type ExerciseRosterCounts,
   type RosterCounts,
   type RosterEntry,
   type TeacherActivity,
@@ -7,6 +8,7 @@ import {
   type TeacherQuestion,
 } from "@repo/contracts";
 import { type ActivityHeader, nullableCents } from "../activity-query";
+import { ACTIVITY_TYPES } from "../activity-types";
 import { ActivityStateMachine } from "../activity.state-machine";
 import type { ActivityQuestionRow } from "./rows";
 
@@ -37,13 +39,17 @@ export function toTeacherQuestion(row: ActivityQuestionRow): TeacherQuestion {
 
 /** The sum of an EXERCISE's points (013/FR-003); null for an ASSIGNMENT, which has a grade instead. */
 const possiblePointsOf = (header: ActivityHeader): number | null =>
-  header.type === "EXERCISE" ? header.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) : null;
+  ACTIVITY_TYPES[header.type].scoring === "POINTS" ? header.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) : null;
 
 /**
  * One line of the class's activity list; the phase by the server clock (research P4). An EXERCISE
  * has no grade, deadline or late policy, only its possible points (013/FR-013).
  */
-export function toTeacherActivitySummary(header: ActivityHeader, counts: RosterCounts, now: Date): TeacherActivitySummary {
+export function toTeacherActivitySummary(
+  header: ActivityHeader,
+  roster: { counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null },
+  now: Date,
+): TeacherActivitySummary {
   const totalCents = nullableCents(header.totalGrade);
   return {
     id: header.id,
@@ -58,7 +64,8 @@ export function toTeacherActivitySummary(header: ActivityHeader, counts: RosterC
     totalGrade: totalCents === null ? null : centsToGrade(totalCents),
     possiblePoints: possiblePointsOf(header),
     resultReleasedAt: header.resultReleasedAt?.toISOString() ?? null,
-    counts,
+    counts: roster.counts,
+    exerciseCounts: roster.exerciseCounts,
   };
 }
 
@@ -69,12 +76,12 @@ export function toTeacherActivitySummary(header: ActivityHeader, counts: RosterC
 export function toTeacherActivity(
   header: ActivityHeader,
   questions: readonly (ActivityQuestionRow & { sourceExerciseId: string | null })[],
-  roster: { roster: RosterEntry[]; counts: RosterCounts },
+  roster: { roster: RosterEntry[]; counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null },
   now: Date,
 ): TeacherActivity {
   const ordered = [...questions].sort((a, b) => a.position - b.position);
   return {
-    ...toTeacherActivitySummary(header, roster.counts, now),
+    ...toTeacherActivitySummary(header, roster, now),
     instructions: header.instructions,
     version: header.version,
     outOfScopeTopicCount: header.outOfScopeTopicCount,
