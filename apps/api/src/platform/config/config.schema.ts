@@ -74,6 +74,7 @@ export const configSchema = z.object({
   RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE: positiveInt(60),
   RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR: positiveInt(20),
   RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR: positiveInt(300),
+  RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR: positiveInt(60),
   AI_AGENT_EXECUTIONS_PER_HOUR: positiveInt(100),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
@@ -144,6 +145,8 @@ export interface AppConfig {
     activitySubmitsPerHour: number;
     /** Every teacher write of 012 (apply, edit, close, cancel, grade, accept, release) per teacher per hour. */
     activityTeacherWritesPerHour: number;
+    /** EXERCISE practice (013 research K16): start, retry and complete per student per hour. */
+    exerciseAttemptsPerHour: number;
     /** Executions per agent per hour, all users together (008 research G9). */
     aiAgentPerHour: number;
   };
@@ -255,6 +258,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       activitySavesPerMinute: e.RATE_LIMIT_ACTIVITY_SAVES_PER_MINUTE,
       activitySubmitsPerHour: e.RATE_LIMIT_ACTIVITY_SUBMITS_PER_HOUR,
       activityTeacherWritesPerHour: e.RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR,
+      exerciseAttemptsPerHour: e.RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR,
       aiAgentPerHour: e.AI_AGENT_EXECUTIONS_PER_HOUR,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,

@@ -38,6 +38,7 @@ export const ROSTER_STATUS_LABELS: Record<RosterStatus, string> = {
   SUBMITTED: "Entregou",
   SUBMITTED_LATE: "Entregou com atraso",
   MISSED: "Não entregou",
+  COMPLETED: "Concluiu",
 };
 
 /** The teacher's situation of an activity: the phase while ACTIVE, else the status. */

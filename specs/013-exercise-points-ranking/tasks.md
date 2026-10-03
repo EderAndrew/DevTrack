@@ -49,18 +49,18 @@ description: "Task list for 013 — Pontuação e Ranking dos Exercícios: exerc
 
 **Purpose**: vocabulário de pontos, configuração e códigos de erro.
 
-- [ ] T001 Criar `packages/contracts/src/activities/points.ts` com `EXERCISE_POINTS`
+- [X] T001 Criar `packages/contracts/src/activities/points.ts` com `EXERCISE_POINTS`
   (`BASIC` 15, `INTERMEDIATE` 30, `ADVANCED` 60), `PointsSchema` (inteiro ≥ 0) e
   `possiblePoints(difficulties)`; acrescentar em `packages/contracts/src/activities/enums.ts`
   `COMPLETED` a `StudentActivityStatusSchema` e `RosterStatusSchema` e o novo
   `ExerciseResultSchema` (`CORRECT`, `WRONG`, `PENDING_TEACHER`, `UNSCORED`); exportar em
   `packages/contracts/src/index.ts`; testes em `packages/contracts/test/activities.spec.ts`
   (valores exatos, soma 15+30+60 = 105, recusa de decimal e negativo) (`013/FR-002`).
-- [ ] T002 [P] Acrescentar `RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR` (60,
+- [X] T002 [P] Acrescentar `RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR` (60,
   `rateLimit.exerciseAttemptsPerHour`) em `apps/api/src/platform/config/config.schema.ts` e
   `apps/api/.env.example`, com teste em `apps/api/test/integration/platform.spec.ts`
   (contracts/configuration.md).
-- [ ] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+- [X] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts` (com o teste
   `apps/web/lib/messages/error-messages.test.ts`): `ATTEMPT_NOT_COMPLETED` ("Conclua a tentativa
   atual antes de refazer."), `NOT_LATEST_ATTEMPT` ("Esta tentativa já foi refeita. Carregamos a

@@ -21,6 +21,7 @@ export const STATUS_LABELS: Record<StudentActivityStatus, string> = {
   OVERDUE: "Atrasada",
   SUBMITTED: "Entregue",
   GRADED: "Corrigida",
+  COMPLETED: "Concluída",
 };
 export const STATUS_VARIANTS: Record<StudentActivityStatus, StatusVariant> = {
   PENDING: "info",
@@ -28,6 +29,7 @@ export const STATUS_VARIANTS: Record<StudentActivityStatus, StatusVariant> = {
   OVERDUE: "danger",
   SUBMITTED: "success",
   GRADED: "success",
+  COMPLETED: "success",
 };
 
 /** "Situação" filter of "Minhas atividades": the label and the URL value (`?situacao=`). */
@@ -73,6 +75,7 @@ export function actionLabel(item: Pick<StudentActivitySummary, "status" | "canAn
     case "SUBMITTED":
       return "Ver entrega";
     case "GRADED":
+    case "COMPLETED":
       return "Ver resultado";
   }
 }

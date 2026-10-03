@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   ActivityGradingStatusSchema,
   CreateActivityRequestSchema,
+  EXERCISE_POINTS,
+  ExerciseResultSchema,
+  PointsSchema,
+  possiblePoints,
   GradeSubmissionRequestSchema,
   SaveAnswersRequestSchema,
   StudentActivityListQuerySchema,
@@ -26,9 +30,10 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(ActivityStatusSchema.options).toEqual(["ACTIVE", "CLOSED", "CANCELLED"]);
     expect(PublicationPhaseSchema.options).toEqual(["SCHEDULED", "PUBLISHED"]);
     expect(LatePolicySchema.options).toEqual(["REJECT", "ACCEPT_MARKED"]);
-    expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED"]);
+    // 013 adds COMPLETED to both statuses (an EXERCISE with a concluded attempt).
+    expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
     expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
-    expect(RosterStatusSchema.options).toEqual(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED"]);
+    expect(RosterStatusSchema.options).toEqual(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED"]);
     expect(AttemptStatusSchema.options).toEqual(["IN_PROGRESS", "SUBMITTED"]);
     expect(ActivityGradingStatusSchema.options).toEqual(["GRADED", "PENDING_TEACHER", "DECIDED"]);
   });
@@ -53,6 +58,27 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     ];
     const values = schemas.flatMap((schema) => schema.options.map(String));
     expect(values.filter((value) => /EXAM|PROVA|CONTROL/.test(value))).toEqual([]);
+  });
+});
+
+describe("013 pontos dos exercícios (research K2)", () => {
+  it("013/FR-002 cada nível vale pontos fixos: Básico 15, Intermediário 30, Avançado 60", () => {
+    expect(EXERCISE_POINTS).toEqual({ BASIC: 15, INTERMEDIATE: 30, ADVANCED: 60 });
+  });
+
+  it("013/FR-003 o total possível é a soma dos pontos dos exercícios", () => {
+    expect(possiblePoints(["BASIC", "INTERMEDIATE", "ADVANCED"])).toBe(105);
+    expect(possiblePoints(["BASIC", "BASIC"])).toBe(30);
+    expect(possiblePoints([])).toBe(0);
+  });
+
+  it("pontos são inteiros não negativos: decimal e negativo são recusados", () => {
+    for (const value of [0, 15, 105]) expect(PointsSchema.safeParse(value).success, String(value)).toBe(true);
+    for (const value of [1.5, -15, "15", null]) expect(PointsSchema.safeParse(value).success, String(value)).toBe(false);
+  });
+
+  it("013/FR-009 o resultado de um exercício tem exatamente os valores do data-model", () => {
+    expect(ExerciseResultSchema.options).toEqual(["CORRECT", "WRONG", "PENDING_TEACHER", "UNSCORED"]);
   });
 });
 
