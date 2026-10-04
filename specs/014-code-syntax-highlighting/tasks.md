@@ -38,15 +38,15 @@ críticas da 012; SC-001–SC-007).
 
 **Purpose**: dependências, regra de importação e ambiente de teste.
 
-- [ ] T001 Adicionar a `apps/web/package.json` (`pnpm --filter web add`) `@codemirror/state`,
+- [X] T001 Adicionar a `apps/web/package.json` (`pnpm --filter web add`) `@codemirror/state`,
   `@codemirror/view`, `@codemirror/language`, `@codemirror/commands`, `@lezer/highlight` e
   `@codemirror/lang-{java,python,javascript,cpp,php,rust,go,html}`; `pnpm audit` sem alta/crítica;
   uma linha por pacote direto em `DEPENDENCIES.md` (licença MIT, finalidade, por que não é trivial,
   carregado só nas telas com código — research L1, L11).
-- [ ] T002 [P] Regra ESLint em `apps/web/eslint.config.js`: `no-restricted-imports` de `@codemirror/*`
+- [X] T002 [P] Regra ESLint em `apps/web/eslint.config.js`: `no-restricted-imports` de `@codemirror/*`
   e `@lezer/*` fora de `components/ui/code/load-*.ts` (research L6); caso fixado em
   `apps/web/test/lint-boundaries.test.ts` (um import estático numa feature é apontado; o loader passa).
-- [ ] T003 [P] Polyfills do jsdom para o CodeMirror em `apps/web/test/setup.ts`
+- [X] T003 [P] Polyfills do jsdom para o CodeMirror em `apps/web/test/setup.ts`
   (`Range.prototype.getClientRects`/`getBoundingClientRect`, `document.createRange` quando faltar —
   research L13), sem quebrar as suítes atuais.
 
