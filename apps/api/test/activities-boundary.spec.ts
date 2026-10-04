@@ -6,13 +6,15 @@ import { API_ROOT } from "./helpers/env";
 /**
  * 012 research P1, P12, P15, P24: the class activity modules read the banks only through their own
  * snapshot readers and the pure 011 grading rules, run no code and call no AI (FR-036), never do
- * float arithmetic on grades, and answer students only through the student-view allowlist.
+ * float arithmetic on grades, and answer students only through the student-view allowlist. 013 adds
+ * the ranking (API and web), which reads no bank at all and counts points as integers.
  */
 
 const REPO_ROOT = resolve(API_ROOT, "../..");
 const WEB_ROOT = join(REPO_ROOT, "apps/web");
 
-const ACTIVITIES_API = ["apps/api/src/modules/activities", "apps/api/src/modules/student-activities"];
+const RANKING_API = ["apps/api/src/modules/ranking"];
+const ACTIVITIES_API = ["apps/api/src/modules/activities", "apps/api/src/modules/student-activities", ...RANKING_API];
 const STUDENT_API = ["apps/api/src/modules/student-activities"];
 const FORBIDDEN_API = [
   "apps/api/src/modules/exercises",
@@ -22,7 +24,7 @@ const FORBIDDEN_API = [
 ];
 /** The only parts of the work bank the activities may use: the pure grading rules and the type registry. */
 const ALLOWED_WORKS = ["apps/api/src/modules/works/grading", "apps/api/src/modules/works/types"];
-const ACTIVITIES_WEB = ["apps/web/features/activities", "apps/web/features/student-activities"];
+const ACTIVITIES_WEB = ["apps/web/features/activities", "apps/web/features/student-activities", "apps/web/features/ranking"];
 const BANKS_WEB = ["apps/web/features/works", "apps/web/features/exercises"];
 
 function sources(dir: string): string[] {
@@ -72,6 +74,12 @@ describe("012/FR-036 fronteiras dos módulos de atividades (research P1, P24)", 
   it("varre os módulos de atividades", () => {
     expect(sources(ACTIVITIES_API[0]!)).toContain("apps/api/src/modules/activities/activities.module.ts");
     expect(sources(ACTIVITIES_API[1]!)).toContain("apps/api/src/modules/student-activities/student-activities.module.ts");
+    expect(sources(RANKING_API[0]!)).toContain("apps/api/src/modules/ranking/ranking.module.ts");
+  });
+
+  it("013 o ranking não importa nada dos bancos (nem as regras de correção)", () => {
+    const banks = [...FORBIDDEN_API, "apps/api/src/modules/works"];
+    expect(imports(RANKING_API).filter(({ target }) => inside(target, banks)).map(describeImport)).toEqual([]);
   });
 
   it("nenhum import dos módulos de exercícios, de IA nem da geração de trabalhos", () => {

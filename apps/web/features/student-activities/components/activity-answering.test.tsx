@@ -5,8 +5,16 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { readPendingAnswers, writePendingAnswers } from "../store/pending-answers";
-import { ActivityAnswering, CHANGED_ELSEWHERE, CONFLICT_ALERT, DEADLINE_WARNINGS, OFFLINE_ALERT, SUBMIT_CONFIRMATION } from "./activity-answering";
-import { apiError, json, routedFetch, studentActivity } from "./test-fixtures";
+import {
+  ActivityAnswering,
+  CHANGED_ELSEWHERE,
+  COMPLETE_CONFIRMATION,
+  CONFLICT_ALERT,
+  DEADLINE_WARNINGS,
+  OFFLINE_ALERT,
+  SUBMIT_CONFIRMATION,
+} from "./activity-answering";
+import { apiError, exerciseActivity, exerciseAttempt, json, routedFetch, studentActivity } from "./test-fixtures";
 
 // 012/US3 — the answering screen: start, answer each type, navigate, autosave status, offline and
 // conflict alerts, refusals with the API's reason, deadline warnings from the server clock.
@@ -32,7 +40,7 @@ const submitted = (overrides = {}) =>
 const started = (overrides = {}) =>
   studentActivity({
     status: "IN_PROGRESS",
-    attempt: { startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+    attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
     ...overrides,
   });
 const saved = (questionId: string, revision = 1) =>
@@ -125,6 +133,7 @@ describe("012/US3 tela de responder a atividade", () => {
         200,
         started({
           attempt: {
+            number: 1,
             startedAt: "2026-10-02T11:00:00.000Z",
             lastSavedAt: "2026-10-02T11:30:00.000Z",
             answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "salva antes" }, revision: 2 }],
@@ -304,6 +313,7 @@ describe("012/US3 tela de responder a atividade", () => {
               ? started()
               : started({
                   attempt: {
+                    number: 1,
                     startedAt: "2026-10-02T11:00:00.000Z",
                     lastSavedAt: "2026-10-02T12:01:00.000Z",
                     answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "da outra aba" }, revision: 2 }],
@@ -370,5 +380,89 @@ describe("012/US3 tela de responder a atividade", () => {
       expect(await screen.findByText(/Atividade entregue em/)).toBeTruthy();
       expect(screen.queryByRole("region", { name: "Resultado" })).toBeNull();
     });
+  });
+});
+
+describe("013/US2 responder e concluir um Exercício", () => {
+  const exercise = exerciseActivity();
+  const COMPLETE = `POST /api/me/activities/${exercise.id}/attempts/1/complete`;
+  const practicing = (overrides = {}) =>
+    exerciseActivity({
+      status: "IN_PROGRESS",
+      serverNow: "2030-12-31T23:55:00.000Z",
+      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+      ...overrides,
+    });
+  const concluded = exerciseActivity({
+    status: "COMPLETED",
+    points: { possible: 105, earned: 30, awaitingCorrection: true },
+    completedAttempts: [{ number: 1, completedAt: "2026-10-03T14:05:00.000Z" }],
+    lastResult: exerciseAttempt(),
+  });
+
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("online"));
+  });
+
+  it("013/US2-1 013/FR-013 sem prazo, nota, contagem de tempo nem aviso de prazo; cada exercício vale os pontos do nível", async () => {
+    const { container } = setup({ [GET]: json(200, practicing()) });
+    expect(await screen.findByRole("heading", { level: 1, name: "Prática de herança" })).toBeTruthy();
+    expect(screen.getByText("Vale até 105 pontos")).toBeTruthy();
+    expect(screen.getByText("Pergunta e resposta · Vale 15 pontos")).toBeTruthy();
+    expect(screen.queryByText(/Prazo|Nota total|Faltam|Falta 1 minuto|Entregar/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Concluir exercícios" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("013/US2-8 013/FR-007 \"Concluir exercícios\" confirma com os exercícios em branco e envia as respostas pendentes", async () => {
+    const fetchSpy = setup({ [GET]: json(200, practicing()), [COMPLETE]: json(200, concluded) });
+    const { user } = fetchSpy;
+    await user.type(await screen.findByLabelText("Sua resposta"), "Esconder o estado.");
+    await user.click(screen.getByRole("button", { name: "Concluir exercícios" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Concluir estes exercícios?" });
+    expect(within(dialog).getByText(COMPLETE_CONFIRMATION)).toBeTruthy();
+    expect(within(dialog).getByText("2 exercícios em branco valem 0 ponto nesta conclusão.")).toBeTruthy();
+    expect(fetchSpy.api.calls.some((call) => `${call.method} ${call.url}` === COMPLETE)).toBe(false);
+
+    await user.click(within(dialog).getByRole("button", { name: "Concluir" }));
+    expect(await screen.findByRole("heading", { name: "Resultado da tentativa 1" })).toBeTruthy();
+    const sent = (vi.mocked(fetch).mock.calls.find(([url, init]) => `${init?.method} ${url}` === COMPLETE)![1]?.body) as string;
+    expect(JSON.parse(sent).answers).toEqual([{ questionId: open.id, answer: { kind: "TEXT", text: "Esconder o estado." }, baseRevision: 0 }]);
+    // The offline buffer of the activity is cleared with the conclusion.
+    expect(readPendingAnswers("aluno-1", exercise.id)).toEqual([]);
+  });
+
+  it("013/FR-007 conclusão recusada (atividade encerrada) mostra o motivo e mantém as respostas", async () => {
+    const { user } = setup({ [GET]: json(200, practicing()), [COMPLETE]: apiError(409, "ACTIVITY_CLOSED", "x") });
+    await user.click(await screen.findByRole("button", { name: "Concluir exercícios" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Concluir" }));
+    expect(await screen.findByText("Suas respostas continuam salvas.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Concluir exercícios" })).toBeTruthy();
+  });
+
+  it("013/SC-008 ciclo praticar → concluir → ver gabarito → refazer só com o teclado", async () => {
+    const retried = exerciseActivity({
+      ...concluded,
+      attempt: { number: 2, startedAt: "2026-10-03T15:00:00.000Z", lastSavedAt: null, answers: [] },
+    });
+    const { user } = setup({
+      [GET]: json(200, practicing()),
+      [COMPLETE]: json(200, concluded),
+      [`POST /api/me/activities/${exercise.id}/attempts`]: json(200, retried),
+    });
+    await screen.findByRole("button", { name: "Concluir exercícios" });
+    const concludeButton = screen.getByRole("button", { name: "Concluir exercícios" });
+    await expectTabOrder(user, [concludeButton]);
+    concludeButton.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("alertdialog");
+    await user.keyboard("{Tab}{Enter}");
+    const retry = await screen.findByRole("button", { name: "Refazer" });
+    retry.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("Tentativa 2. Refazer não vale pontos.")).toBeTruthy();
   });
 });

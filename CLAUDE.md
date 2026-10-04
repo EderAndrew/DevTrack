@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-03 (012 implemented)
+Last updated: 2026-10-03 (013 implemented)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–012 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–013 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -36,6 +36,13 @@ new feature through `/speckit-specify`.
   the result, and accepts a saved attempt as a late submission; the student gets "Painel",
   "Minhas atividades" and "Histórico", answers with autosave, revisions and an offline buffer,
   submits once, and sees the grade and feedback only after the release with complete grading.
+- 013 exercise points and the class ranking (amends 012 for EXERCISE activities; works don't
+  change): an applied exercise set has no grade, deadline or late policy, each exercise is worth
+  15/30/60 points by its difficulty; the student practices in numbered attempts ("Concluir
+  exercícios", answer key and explanation after each conclusion, "Refazer"); only attempt 1 scores,
+  and a bank exercise scores once per student and class; the teacher marks open answer and code
+  right or wrong with a comment (no release); the class ranking (position, name, points) is derived
+  on read: top 5 on the student's dashboard, the full page for students and teachers.
   Exams, controlled mode, AI grading and code execution are later features.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
@@ -48,7 +55,7 @@ failed all three (2026-09-29 and 2026-10-01): called with tools its answers brea
 without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012, K1–K18 in 013), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -59,7 +66,7 @@ spec first.
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
 
-`.specify/memory/constitution.md` (v3.2.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.3.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -145,7 +152,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011 and 012; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012 and 013; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -163,7 +170,8 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   grades, and students are answered only through the student-view allowlist; it also keeps exams,
   controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
 - `apps/web/test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML
-  render as text, and no `dangerouslySetInnerHTML` in the 012 features or `components/ui/assessment`.
+  render as text (since 013 also the exercise result, the teacher's marks and the ranking names), and
+  no `dangerouslySetInnerHTML` in the 012 features, `features/ranking` or `components/ui/assessment`.
 - E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
   replaying its generator's `sql-joins-sem-linguagem` case)
   run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
@@ -210,7 +218,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `curriculum` for 004 subjects, syllabus, class meetings and class plans plus the 007
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
   bank, its generation requests, the exact grade helpers and the grading result shapes, and
-  `activities` for the 012 teacher and student shapes of class activities), with
+  `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
+  exercise results, and `ranking` for the 013 class ranking), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -241,7 +250,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -272,10 +281,18 @@ the removal conditions are in `DEPENDENCIES.md`.
   or conditionals in code.
 - No Redis, queues, WebSockets or new dependencies without a spec that requires them.
 - Students never see a grade or feedback before the release with complete grading (and
-  `notas.proprias.visualizar`), and never an answer key: every student shape is built in
+  `notas.proprias.visualizar`), and never an answer key of a work; an exercise's key reaches them
+  only in their own concluded attempt (013 K10). Every student shape is built in
   `activities/views/student-view.ts` by copying an allowlist, never by stripping the teacher view.
   Deadlines, publication phases and statuses come from the injected server `Clock`, never the
   browser's; statuses are derived on every read, never stored.
+- Exercise points are never a grade (013): no `notas.*` permission, grade, deadline or late policy
+  on an EXERCISE activity; points are integers fixed by difficulty (`EXERCISE_POINTS`, 15/30/60),
+  copied into the snapshot. The first conclusion is attempt number 1 concluded (one open attempt at
+  a time, attempt n only after n − 1 is concluded), never a flag; a bank exercise scores once per
+  student and class (partial UNIQUE on `exercise_question_results … WHERE scoring`), and a
+  cancelled activity's points stop counting without moving elsewhere. The ranking is derived on
+  every read and carries only position, name, points and `isViewer`.
 - UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
   radii, shadows or fonts, and no recreated controls. An exception needs a
   `ds-exception: <reason>` marker on (or just above) the line and a row in
@@ -283,9 +300,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
+- 013-exercise-points-ranking: exercises earn points instead of grades — EXERCISE activities lose grade, deadline and late policy; fixed points by the exercise difficulty (15/30/60), numbered practice attempts where only attempt 1 scores and a bank exercise scores once per student and class; answer key after each conclusion; the teacher marks open answer and code right or wrong (no release); class ranking derived on read (top 5 on the dashboard, full page)
 - 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
 - 011-work-bank: private work bank apart from the exercise bank — works of 1–10 questions (open answer, multiple choice, code with test cases) linked to items of one confirmed syllabus revision, total grade split in exact hundredths (`numeric(5,2)`, integer cents in code), manual or AI (`work-generator` through the existing gateway and policy) into DRAFT works approved by the teacher; server-built student view without answer key; grading strategies (EXACT_MATCH, TEST_CASES, AI_REVIEW) as domain rules for 012
-- 010-exercise-bank: private exercise bank — manual sets of 3–10 or single exercises (open answer, multiple choice, code; difficulty and cognitive objective), AI generation from a syllabus item through the existing gateway and model policy into DRAFT batches reviewed and approved by the teacher; student view never carries answers; syllabus language catalog, proposed by Curriculum Agent v3
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

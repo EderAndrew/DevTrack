@@ -16,7 +16,7 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
   return (
     <section>
       <PageHeader title="Minhas turmas" />
-      <MyClasses welcome={welcome === "1"} />
+      <MyClasses welcome={welcome === "1"} showRanking={me.permissions.includes("ranking.turma.visualizar")} />
     </section>
   );
 }

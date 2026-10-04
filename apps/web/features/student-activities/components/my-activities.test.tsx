@@ -45,7 +45,7 @@ describe("012/US2 Minhas atividades", () => {
       "POO Noturno · Programação Orientada a Objetos",
       "Ana Professora",
       formatLongDateTime(graded.publishedAt),
-      formatLongDateTime(graded.deadline),
+      formatLongDateTime(graded.deadline!),
       "Corrigida com atraso",
       "0,90 de 1,00",
       "Com feedback",
@@ -111,5 +111,29 @@ describe("012/US2 Minhas atividades", () => {
       screen.getByRole("link", { name: "Iniciar" }),
       screen.getByRole("button", { name: "Carregar mais" }),
     ]);
+  });
+});
+
+describe("013/US2 Minhas atividades — Exercício com pontos", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/FR-015 Exercício: \"Sem prazo\", \"Pontos: 45 de 105\" com aguardando correção, sem nota; ação Ver resultado", async () => {
+    const practice = summary({
+      title: "Prática de herança",
+      type: "EXERCISE",
+      deadline: null,
+      latePolicy: null,
+      totalGrade: null,
+      status: "COMPLETED",
+      points: { possible: 105, earned: 45, awaitingCorrection: true },
+    });
+    const { container } = setup({ "GET /api/me/activities": json(200, { items: [practice], nextCursor: null }) });
+    const card = (await screen.findByRole("heading", { name: "Prática de herança" })).closest("article") as HTMLElement;
+    expect(within(card).getByText("Sem prazo")).toBeTruthy();
+    expect(within(card).getByText("45 de 105 · Aguardando correção")).toBeTruthy();
+    expect(within(card).getByText("Concluída")).toBeTruthy();
+    expect(within(card).queryByText("Nota")).toBeNull();
+    expect(within(card).getByRole("link", { name: "Ver resultado" })).toBeTruthy();
+    await expectNoA11yViolations(container);
   });
 });

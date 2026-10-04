@@ -6,6 +6,7 @@ import type {
   StudentActivityFilter,
   StudentActivityPage,
   StudentDashboard,
+  StudentExerciseAttempt,
   SubmitAttemptRequest,
 } from "@repo/contracts";
 import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
@@ -35,6 +36,15 @@ export const studentActivitiesApi = {
   /** The single submission with the pending answers; a repeat returns the same one (FR-025). */
   submit: (activityId: string, body: SubmitAttemptRequest) =>
     apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempt/submit`, body),
+  /** "Refazer" an Exercício (013, research K4): a repeat returns the attempt it already opened. */
+  retry: (activityId: string, afterNumber: number) =>
+    apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempts`, { afterNumber }),
+  /** "Concluir exercícios" with the pending answers; a repeat returns the same conclusion (013/FR-007). */
+  complete: (activityId: string, number: number, body: SubmitAttemptRequest) =>
+    apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempts/${number}/complete`, body),
+  /** A concluded attempt with its answer key (013/FR-012). */
+  attempt: (activityId: string, number: number) =>
+    apiClient.get<StudentExerciseAttempt>(`/me/activities/${activityId}/attempts/${number}`),
 };
 
 export type { ApiError };

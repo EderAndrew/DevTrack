@@ -23,6 +23,9 @@ services:
       POSTGRES_USER: devtrack
       POSTGRES_PASSWORD: devtrack
       POSTGRES_DB: devtrack_test
+    # Each TRUNCATE of resetDb leaves an empty file until the next checkpoint; with the default 5 min
+    # a full API run exhausts the tmpfs inodes ("No space left on device" with the disk half empty).
+    command: ["postgres", "-c", "checkpoint_timeout=30s"]
     ports:
       - "${POSTGRES_TEST_PORT:-5433}:5432"
     tmpfs:

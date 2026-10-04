@@ -6,13 +6,20 @@ import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { feedbackFieldId, GENERAL_FEEDBACK_FIELD_ID, gradeFieldId } from "../schemas/attempt-grading";
 import { AttemptReview, GRADING_CONFLICT_NOTICE } from "./attempt-review";
+import { commentFieldId } from "../schemas/exercise-marks";
 import {
   ACTIVITY_ID,
   ATTEMPT_ID,
   apiError,
   CLASS_ID,
+  EXERCISE_ATTEMPT_ID,
+  exerciseAttempt,
   gradingActivity,
   json,
+  MARK_CHOICE_ID,
+  MARK_CODE_ID,
+  MARK_OPEN_ID,
+  markingActivity,
   OPEN_QUESTION_ID,
   routedFetch,
   teacherAttempt,
@@ -22,14 +29,14 @@ const ACTIVITY_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const ATTEMPT_PATH = `${ACTIVITY_PATH}/attempts/${ATTEMPT_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 
-function setup(routes: Parameters<typeof routedFetch>[0] = {}, canGrade = true) {
+function setup(routes: Parameters<typeof routedFetch>[0] = {}, canGrade = true, canMark = false) {
   const api = routedFetch({
     [`GET ${ACTIVITY_PATH}`]: json(200, gradingActivity()),
     [`GET ${ATTEMPT_PATH}`]: json(200, teacherAttempt()),
     ...routes,
   });
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={canGrade} />);
+  const view = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={canGrade} canMark={canMark} />);
   return { ...view, api, user: userEvent.setup() };
 }
 
@@ -131,7 +138,7 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
       [`POST ${missedPath}/accept-submission`]: json(200, accepted),
     });
     vi.stubGlobal("fetch", api.fetch);
-    renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={missedId} canGrade />);
+    renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={missedId} canGrade canMark={false} />);
     const user = userEvent.setup();
 
     expect(await screen.findByText("Não entregue")).toBeTruthy();
@@ -182,6 +189,130 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
       field(gradeFieldId(1)),
       field(feedbackFieldId(1)),
       field(GENERAL_FEEDBACK_FIELD_ID),
+      screen.getByRole("button", { name: "Salvar correção" }),
+      screen.getByRole("link", { name: "Próximo aluno: Carla Dias" }),
+    ]);
+  });
+});
+
+const EXERCISE_ATTEMPT_PATH = `${ACTIVITY_PATH}/attempts/${EXERCISE_ATTEMPT_ID}`;
+const radio = (position: number, label: "Certo" | "Errado") =>
+  within(screen.getByRole("group", { name: `Correção do exercício ${position + 1}` })).getByRole("radio", { name: label }) as HTMLInputElement;
+
+function setupExercise(routes: Parameters<typeof routedFetch>[0] = {}, canMark = true) {
+  const api = routedFetch({
+    [`GET ${ACTIVITY_PATH}`]: json(200, markingActivity()),
+    [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, exerciseAttempt()),
+    ...routes,
+  });
+  vi.stubGlobal("fetch", api.fetch);
+  const view = renderWithProviders(
+    <AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={EXERCISE_ATTEMPT_ID} canGrade={false} canMark={canMark} />,
+  );
+  return { ...view, api, user: userEvent.setup() };
+}
+
+describe("013/US3 AttemptReview — Exercício: Certo ou Errado por resposta", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/US3-5 013/FR-016 resposta ao lado do gabarito; múltipla escolha automática; aberta e código com Certo/Errado e comentário; nenhum campo de nota", async () => {
+    setupExercise();
+    expect(await screen.findByRole("form", { name: "Correção" })).toBeTruthy();
+    const choice = screen.getByRole("listitem", { name: "Exercício 1" });
+    expect(within(choice).getByText("Certo")).toBeTruthy();
+    expect(within(choice).getByText("Corrigido automaticamente")).toBeTruthy();
+    expect(within(choice).queryByRole("radio")).toBeNull();
+    const open = screen.getByRole("listitem", { name: "Exercício 2" });
+    expect(within(open).getByText("Aguardando correção")).toBeTruthy();
+    expect(within(open).getByText("Proteger os atributos.")).toBeTruthy();
+    expect(within(open).getByText("Esconder o estado atrás de métodos.")).toBeTruthy();
+    expect([radio(1, "Certo").checked, radio(1, "Errado").checked]).toEqual([false, false]);
+    expect([radio(2, "Certo").checked, radio(2, "Errado").checked]).toEqual([false, true]);
+    expect((document.getElementById(commentFieldId(2)) as HTMLTextAreaElement).value).toBe("Faltou o private.");
+    expect(screen.getByLabelText("Comentário do exercício 2 (opcional)")).toBeTruthy();
+
+    expect(screen.getByText("Vale 30 pontos")).toBeTruthy();
+    expect(screen.getByText("15 de 105 pontos")).toBeTruthy();
+    expect(screen.getByText("1 resposta aguardando correção")).toBeTruthy();
+    for (const label of [/^Nota/, /Feedback geral/]) expect(screen.queryByLabelText(label)).toBeNull();
+    expect(screen.queryByText(/Liberar resultado|Aceitar como entrega|Não entregue/)).toBeNull();
+  });
+
+  it("013/US3-1 013/FR-017 salvar correção envia só as marcações alteradas, com o comentário", async () => {
+    const marked = exerciseAttempt({ [MARK_OPEN_ID]: { result: "CORRECT", points: 30, nature: "HUMAN_DECISION", comment: "Boa.", decidedAt: "2026-10-05T14:00:00.000Z" } });
+    const { api, user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, marked) });
+    await screen.findByRole("form", { name: "Correção" });
+    await user.click(radio(1, "Certo"));
+    await user.type(document.getElementById(commentFieldId(1))!, "Boa.");
+    await user.click(screen.getByRole("button", { name: "Salvar correção" }));
+    expect(await screen.findByText("Correção salva.")).toBeTruthy();
+    expect(api.writes().map((call) => [call.method, call.url, call.body])).toEqual([
+      ["PUT", `${EXERCISE_ATTEMPT_PATH}/marks`, { marks: [{ questionId: MARK_OPEN_ID, result: "CORRECT", comment: "Boa." }] }],
+    ]);
+    expect(screen.getByText("45 de 105 pontos")).toBeTruthy();
+    expect(radio(1, "Certo").checked).toBe(true);
+  });
+
+  it("013/US3-2 mudar uma marcação feita envia o novo resultado e o comentário atual; nada alterado não envia nada", async () => {
+    const { api, user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, exerciseAttempt()) });
+    await screen.findByRole("form", { name: "Correção" });
+    await user.click(screen.getByRole("button", { name: "Salvar correção" }));
+    expect(await screen.findByText("Nenhuma alteração para salvar.")).toBeTruthy();
+    expect(api.writes()).toEqual([]);
+
+    await user.click(radio(2, "Certo"));
+    await user.clear(document.getElementById(commentFieldId(2))!);
+    await user.click(screen.getByRole("button", { name: "Salvar correção" }));
+    await screen.findByText("Correção salva.");
+    expect(api.writes()[0]!.body).toEqual({ marks: [{ questionId: MARK_CODE_ID, result: "CORRECT", comment: null }] });
+  });
+
+  it("013/FR-017 recusa do servidor aparece no resumo de erros", async () => {
+    const { user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: apiError(409, "INVALID_STATE_TRANSITION", "x") });
+    await screen.findByRole("form", { name: "Correção" });
+    await user.click(radio(1, "Errado"));
+    await user.click(screen.getByRole("button", { name: "Salvar correção" }));
+    expect(await screen.findByText("Não foi possível salvar a correção")).toBeTruthy();
+  });
+
+  it("013/FR-010a já pontuado em outra atividade: só leitura, sem Certo/Errado", async () => {
+    const attempt = exerciseAttempt({ [MARK_OPEN_ID]: { result: "UNSCORED", scoring: false, alreadyScored: true } });
+    setupExercise({ [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, attempt) });
+    const open = await screen.findByRole("listitem", { name: "Exercício 2" });
+    expect(within(open).getByText("Já pontuado em outra atividade")).toBeTruthy();
+    expect(within(open).queryByRole("radio")).toBeNull();
+    expect(screen.getByRole("group", { name: "Correção do exercício 3" })).toBeTruthy();
+  });
+
+  it("013/US3-3 tentativa de refazer: prática, sem correção do professor", async () => {
+    const practice = exerciseAttempt(
+      { [MARK_OPEN_ID]: { result: "UNSCORED", scoring: false }, [MARK_CODE_ID]: { result: "UNSCORED", scoring: false, nature: null, comment: null, decidedAt: null }, [MARK_CHOICE_ID]: { scoring: false, points: 0 } },
+      { number: 2 },
+    );
+    setupExercise({ [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, practice) });
+    expect(await screen.findByText("Tentativa 2: prática. Não vale pontos e não vai para a correção.")).toBeTruthy();
+    expect(screen.queryByRole("form", { name: "Correção" })).toBeNull();
+    expect(screen.getAllByText("Compare com o gabarito")).toHaveLength(2);
+  });
+
+  it("sem exercicios.corrigir a marcação aparece só para leitura", async () => {
+    setupExercise({}, false);
+    const code = await screen.findByRole("listitem", { name: "Exercício 3" });
+    expect(screen.queryByRole("form", { name: "Correção" })).toBeNull();
+    expect(within(code).getByText("Errado")).toBeTruthy();
+    expect(within(code).getByText("Faltou o private.")).toBeTruthy();
+  });
+
+  it("013/US3 SC-012 sem violações de acessibilidade e na ordem de Tab", async () => {
+    const { user, container } = setupExercise();
+    await screen.findByRole("form", { name: "Correção" });
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      screen.getByRole("link", { name: "Voltar para Lista de prática" }),
+      radio(1, "Certo"),
+      document.getElementById(commentFieldId(1))!,
+      radio(2, "Errado"),
+      document.getElementById(commentFieldId(2))!,
       screen.getByRole("button", { name: "Salvar correção" }),
       screen.getByRole("link", { name: "Próximo aluno: Carla Dias" }),
     ]);

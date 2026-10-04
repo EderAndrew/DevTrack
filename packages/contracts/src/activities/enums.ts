@@ -28,17 +28,21 @@ export type LatePolicy = z.infer<typeof LatePolicySchema>;
 
 /**
  * The student's situation in an activity, derived on every read (012/FR-014, contracts/student-status.md):
- * PENDENTE, EM_ANDAMENTO, ATRASADO, ENTREGUE, CORRIGIDO. Labels live in the web.
+ * PENDENTE, EM_ANDAMENTO, ATRASADO, ENTREGUE, CORRIGIDO; and CONCLUÍDA, only for an EXERCISE with a
+ * concluded attempt (013/FR-014). Labels live in the web.
  */
-export const StudentActivityStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED"]);
+export const StudentActivityStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
 export type StudentActivityStatus = z.infer<typeof StudentActivityStatusSchema>;
 
 /** The filter of "Minhas atividades": `COMPLETED` is SUBMITTED + GRADED ("entregues/concluídas"). */
 export const StudentActivityFilterSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
 export type StudentActivityFilter = z.infer<typeof StudentActivityFilterSchema>;
 
-/** Each student's situation in the teacher's roster of an activity (contracts/student-status.md). */
-export const RosterStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED"]);
+/**
+ * Each student's situation in the teacher's roster of an activity (contracts/student-status.md);
+ * `COMPLETED` only for an EXERCISE whose attempt 1 is concluded (013 contracts/student-status.md).
+ */
+export const RosterStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED"]);
 export type RosterStatus = z.infer<typeof RosterStatusSchema>;
 
 /** A student's attempt: never back from SUBMITTED (research P7, P9). */
@@ -51,3 +55,11 @@ export type AttemptStatus = z.infer<typeof AttemptStatusSchema>;
  */
 export const ActivityGradingStatusSchema = z.enum(["GRADED", "PENDING_TEACHER", "DECIDED"]);
 export type ActivityGradingStatus = z.infer<typeof ActivityGradingStatusSchema>;
+
+/**
+ * The result of an exercise in a concluded EXERCISE attempt (013 research K6): right or wrong by the
+ * rule or the teacher, waiting for the teacher (open answer or code of the scoring attempt), or not
+ * scored (open answer or code of a practice attempt: "Compare com o gabarito").
+ */
+export const ExerciseResultSchema = z.enum(["CORRECT", "WRONG", "PENDING_TEACHER", "UNSCORED"]);
+export type ExerciseResult = z.infer<typeof ExerciseResultSchema>;

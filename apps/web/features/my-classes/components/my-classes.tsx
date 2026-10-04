@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Notice } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { classRankingHref } from "@/features/ranking/schemas/ranking";
 import { formatDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useMyClasses } from "../hooks/use-my-classes";
@@ -11,13 +13,15 @@ import { useMyClasses } from "../hooks/use-my-classes";
 export interface MyClassesProps {
   /** Arrived from an accepted class invitation (`?bem-vindo=1`, FR-038). */
   welcome: boolean;
+  /** Holds `ranking.turma.visualizar`: each class links its "Ranking" (013/FR-021). */
+  showRanking?: boolean;
 }
 
 /**
  * "Minhas turmas" (003 US7): the classes of the student's active enrollments, most recent first,
  * as the API orders them. Only the class and its teacher; nothing about other students.
  */
-export function MyClasses({ welcome }: MyClassesProps) {
+export function MyClasses({ welcome, showRanking = false }: MyClassesProps) {
   const classes = useMyClasses();
   const items = classes.data?.items ?? [];
 
@@ -55,6 +59,7 @@ export function MyClasses({ welcome }: MyClassesProps) {
               <TableHead scope="col">Período</TableHead>
               <TableHead scope="col">Professor</TableHead>
               <TableHead scope="col">Entrada</TableHead>
+              {showRanking ? <TableHead scope="col">Ranking</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -66,6 +71,13 @@ export function MyClasses({ welcome }: MyClassesProps) {
                 <TableCell>{item.period ?? "—"}</TableCell>
                 <TableCell>{item.teacherName}</TableCell>
                 <TableCell>{formatDateTime(item.enrolledAt)}</TableCell>
+                {showRanking ? (
+                  <TableCell>
+                    <Link href={classRankingHref(item.id)} aria-label={`Ranking de ${item.name}`}>
+                      Ranking
+                    </Link>
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))}
           </TableBody>

@@ -2,11 +2,11 @@ import type { TeacherQuestion } from "@repo/contracts";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { formatGrade, QUESTION_TYPE_LABELS } from "../schemas/activity-form";
+import { DIFFICULTY_LABELS, formatGrade, formatPoints, QUESTION_TYPE_LABELS } from "../schemas/activity-form";
 
 /**
  * The activity's snapshot as the teacher reads it (contracts/web-ui.md, detail page): every
- * question with its value and answer key, read-only. Never reaches a student page.
+ * question with its value (a Trabalho) or its level and points (an Exercício, 013/FR-003) and answer key, read-only. Never reaches a student page.
  */
 export function ActivityQuestions({ questions }: { questions: TeacherQuestion[] }) {
   return (
@@ -20,7 +20,8 @@ export function ActivityQuestions({ questions }: { questions: TeacherQuestion[] 
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h4 className="m-0 text-h3">Questão {question.position + 1}</h4>
               <span>{QUESTION_TYPE_LABELS[question.type]}</span>
-              <span>Vale {formatGrade(question.value)}</span>
+              {question.difficulty ? <span>{DIFFICULTY_LABELS[question.difficulty]}</span> : null}
+              <span>Vale {question.value !== null ? formatGrade(question.value) : formatPoints(question.points ?? 0)}</span>
               {question.isTrickQuestion ? (
                 <Badge variant="warning">
                   <AlertTriangle aria-hidden="true" />

@@ -80,8 +80,18 @@ corrigidas na entrega pela regra da fase 011, sem IA; as demais questões ficam 
 que vê a situação de cada aluno, abre cada entrega ao lado do gabarito, dá nota e feedback, aceita
 como entrega a tentativa de quem perdeu o prazo por uma falha e libera o resultado. A nota e o
 feedback só chegam ao aluno depois da liberação com a correção completa, e nenhuma resposta da
-API ao aluno traz gabarito. Provas, modo controlado, IA na correção e execução de código ficam
-para as próximas fases.
+API ao aluno traz gabarito. A **fase 013 — pontuação e ranking dos exercícios** muda os
+exercícios aplicados: eles deixam de ter nota, prazo e regra de atraso e passam a valer pontos
+fixos pelo nível (Básico 15, Intermediário 30, Avançado 60). O aluno pratica quantas vezes quiser:
+cada tentativa termina em "Concluir exercícios", mostra o resultado de cada exercício com o
+gabarito e a explicação, e "Refazer" abre uma tentativa nova. Só a primeira conclusão pontua, e um
+exercício do banco pontua uma vez por aluno e turma, mesmo aplicado de novo. A Múltipla escolha é
+certa ou errada pela regra; Pergunta e resposta e Código ficam aguardando o professor marcar certo
+ou errado, com comentário, e os pontos entram na hora, sem liberação. Cada turma tem um ranking
+calculado a cada consulta (posição, nome e pontos, com empate dividindo a posição): o painel do
+aluno mostra do 1º ao 5º lugar, "Ranking" mostra a turma inteira com a linha do aluno marcada, e o
+professor vê o ranking de cada turma sua. Os Trabalhos seguem como na fase 012. Provas, modo
+controlado, IA na correção e execução de código ficam para as próximas fases.
 
 ## Pré-requisitos
 
@@ -109,6 +119,7 @@ para as próximas fases.
 | `specs/010-exercise-bank/` | O mesmo para a fase 010 (banco de exercícios; decisões X1–X20) |
 | `specs/011-work-bank/` | O mesmo para a fase 011 (banco de trabalhos; decisões W1–W22) |
 | `specs/012-student-portal/` | O mesmo para a fase 012 (portal do aluno e atividades da turma; decisões P1–P24) |
+| `specs/013-exercise-points-ranking/` | O mesmo para a fase 013 (pontos dos exercícios e ranking da turma; decisões K1–K18) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |

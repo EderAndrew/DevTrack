@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Answer } from "@repo/contracts";
+import { type Answer, EXERCISE_POINTS, type ExerciseDifficulty } from "@repo/contracts";
 import type {
   ActivityLatePolicy,
   ActivityQuestionType,
@@ -10,7 +10,8 @@ import type {
   WorkTestCaseVisibility,
 } from "../../src/generated/prisma/client";
 import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestUser } from "./factories";
-import { languageId } from "./exercises";
+import { createExercise, languageId } from "./exercises";
+import { createWork } from "./works";
 import type { api, TestApp } from "./test-app";
 
 // ── 012: class activities, written straight to the database (tasks T018) ─────────────────
@@ -22,6 +23,11 @@ type ApiClient = ReturnType<typeof api>;
 /** Far enough for any clock of the suites. */
 export const FAR_DEADLINE = "2030-12-31T23:59:00.000Z";
 
+/**
+ * Body overrides of `POST /classes/:classId/activities`. A key set to `undefined` is left out of the
+ * body; a server or forbidden field (`totalGrade`, an EXERCISE `deadline`) goes in as given, for the
+ * tests that expect the 400.
+ */
 export interface ApplyOverrides {
   idempotencyKey?: string;
   title?: string;
@@ -34,35 +40,34 @@ export interface ApplyOverrides {
   acknowledgeOutOfScope?: boolean;
 }
 
-const applyBody = (source: object, overrides: ApplyOverrides) => ({
-  idempotencyKey: randomUUID(),
-  source,
-  title: "Atividade aplicada",
-  instructions: "Leia com atenção.",
-  publishAt: null,
-  deadline: FAR_DEADLINE,
-  latePolicy: "REJECT",
-  acknowledgeOutOfScope: false,
-  ...overrides,
-});
+const applyBody = (source: object, defaults: object, overrides: ApplyOverrides) =>
+  Object.fromEntries(
+    Object.entries({
+      idempotencyKey: randomUUID(),
+      source,
+      title: "Atividade aplicada",
+      instructions: "Leia com atenção.",
+      publishAt: null,
+      acknowledgeOutOfScope: false,
+      ...defaults,
+      ...overrides,
+    }).filter(([, value]) => value !== undefined),
+  );
 
-/** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1). */
+/** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1): deadline far ahead, REJECT. */
 export function applyWork(client: ApiClient, classId: string, workId: string, overrides: ApplyOverrides = {}) {
-  return client.post(`/api/classes/${classId}/activities`, applyBody({ type: "ASSIGNMENT", workId }, overrides));
-}
-
-/** `POST /classes/:classId/activities` with 1–10 exercises in this order; `totalGrade` undefined omits it. */
-export function applyExercises(
-  client: ApiClient,
-  classId: string,
-  exerciseIds: string[],
-  totalGrade: string | undefined,
-  overrides: ApplyOverrides = {},
-) {
   return client.post(
     `/api/classes/${classId}/activities`,
-    applyBody({ type: "EXERCISE", exerciseIds }, { ...(totalGrade === undefined ? {} : { totalGrade }), ...overrides }),
+    applyBody({ type: "ASSIGNMENT", workId }, { deadline: FAR_DEADLINE, latePolicy: "REJECT" }, overrides),
   );
+}
+
+/**
+ * `POST /classes/:classId/activities` with 1–10 exercises in this order (013/FR-001): no grade,
+ * deadline or late policy unless an override puts one in on purpose.
+ */
+export function applyExercises(client: ApiClient, classId: string, exerciseIds: string[], overrides: ApplyOverrides = {}) {
+  return client.post(`/api/classes/${classId}/activities`, applyBody({ type: "EXERCISE", exerciseIds }, {}, overrides));
 }
 
 /** `POST /me/activities/:activityId/attempt` as the student of `client` (012/US3). */
@@ -78,6 +83,26 @@ export function saveAnswers(client: ApiClient, activityId: string, answers: { qu
 /** `POST /me/activities/:activityId/attempt/submit` with the pending answers (012/US4, research P9). */
 export function submitAttempt(client: ApiClient, activityId: string, answers: { questionId: string; answer: Answer; baseRevision: number }[] = []) {
   return client.post(`/api/me/activities/${activityId}/attempt/submit`, { answers });
+}
+
+/** `POST /me/activities/:activityId/attempts/:number/complete` ("Concluir exercícios", 013/US2, research K5). */
+export function completeAttempt(
+  client: ApiClient,
+  activityId: string,
+  number: number,
+  answers: { questionId: string; answer: Answer; baseRevision: number }[] = [],
+) {
+  return client.post(`/api/me/activities/${activityId}/attempts/${number}/complete`, { answers });
+}
+
+/** `POST /me/activities/:activityId/attempts` ("Refazer" after attempt `afterNumber`, 013/US2, research K4). */
+export function retryAttempt(client: ApiClient, activityId: string, afterNumber: number) {
+  return client.post(`/api/me/activities/${activityId}/attempts`, { afterNumber });
+}
+
+/** `GET /me/activities/:activityId/attempts/:number`: a concluded attempt with its answer key (013/FR-012). */
+export function getExerciseAttempt(client: ApiClient, activityId: string, number: number) {
+  return client.get(`/api/me/activities/${activityId}/attempts/${number}`);
 }
 
 /** `…/activities/:activityId` of the teacher's class, the base of the 012/US5 routes. */
@@ -142,8 +167,12 @@ export async function createCompletedTopics(t: TestApp, classId: string, revisio
 
 export interface ActivityQuestionSpec {
   type: ActivityQuestionType;
-  /** Integer hundredths; default: the activity's total split evenly is the caller's job, 100 when alone. */
+  /** ASSIGNMENT: integer hundredths; default 100 (the activity's total is their sum). */
   valueCents?: number;
+  /** EXERCISE: the exercise's difficulty, which fixes its points (013 K2); default BASIC. */
+  difficulty?: ExerciseDifficulty;
+  /** EXERCISE: the bank exercise it was copied from; default a new APPROVED one of the teacher. */
+  sourceExerciseId?: string;
   statement?: string;
   /** MULTIPLE_CHOICE: texts in order; default 3 alternatives. */
   alternatives?: string[];
@@ -162,16 +191,18 @@ export interface ActivityQuestionSpec {
 }
 
 export interface CreateActivityOptions {
+  /** Default ASSIGNMENT: the 012 graded activity (013 left EXERCISE without grade or deadline). */
   type?: ClassActivityType;
   title?: string;
   instructions?: string | null;
-  /** Default: one MULTIPLE_CHOICE question worth 1.00. */
+  /** Default: one MULTIPLE_CHOICE question worth 1.00 (ASSIGNMENT) or BASIC (EXERCISE). */
   questions?: ActivityQuestionSpec[];
   publishAt?: Date;
+  /** ASSIGNMENT only (CHECK by type); default in a week. */
   deadline?: Date;
   latePolicy?: ActivityLatePolicy;
   status?: ClassActivityStatus;
-  /** ASSIGNMENT only (CHECK). */
+  /** ASSIGNMENT only (CHECK); default a new APPROVED work of the teacher, with its subject. */
   sourceWorkId?: string;
   sourceSubjectId?: string;
   resultReleasedAt?: Date | null;
@@ -192,8 +223,10 @@ const cents = (value: number) => (value / 100).toFixed(2);
 
 /**
  * Writes a class activity and its snapshot in one transaction (the deferred triggers check the
- * question count, the value sum and the alternatives at commit), for the student stories that don't
- * go through the teacher's routes. Default: an EXERCISE published a day ago, due in a week, REJECT.
+ * question count, the fields of each type, the value sum and the alternatives at commit), for the
+ * stories that don't go through the teacher's routes. Default: an ASSIGNMENT published a day ago,
+ * due in a week, REJECT. An EXERCISE has no grade, deadline or late policy, and each question
+ * carries a bank exercise with its difficulty and points (013 K1, K2).
  */
 export async function createActivity(
   t: TestApp,
@@ -201,28 +234,45 @@ export async function createActivity(
   options: CreateActivityOptions = {},
 ): Promise<CreatedActivity> {
   const now = Date.now();
-  const specs = options.questions ?? [{ type: "MULTIPLE_CHOICE" as const, valueCents: 100 }];
+  const type = options.type ?? "ASSIGNMENT";
+  const exercise = type === "EXERCISE";
+  const specs = options.questions ?? [{ type: "MULTIPLE_CHOICE" as const }];
   const values = specs.map((spec) => spec.valueCents ?? 100);
   const totalCents = values.reduce((sum, value) => sum + value, 0);
   const java = specs.some((spec) => spec.type === "CODE") ? await languageId(t, "java") : null;
   const status = options.status ?? "ACTIVE";
+  let sourceWorkId = options.sourceWorkId ?? null;
+  let sourceSubjectId = options.sourceSubjectId ?? null;
+  if (!exercise && sourceWorkId === null) {
+    const work = await createWork(t, schoolClass.teacherId, sourceSubjectId ? { subjectId: sourceSubjectId } : {});
+    sourceWorkId = work.id;
+    sourceSubjectId = work.subjectId;
+  }
+  const sourceExerciseIds: (string | null)[] = [];
+  for (const spec of specs) {
+    sourceExerciseIds.push(
+      exercise
+        ? (spec.sourceExerciseId ?? (await createExercise(t, schoolClass.teacherId, { type: spec.type, difficulty: spec.difficulty ?? "BASIC" })).id)
+        : null,
+    );
+  }
 
   return t.prisma.$transaction(async (tx) => {
     const activity = await tx.classActivity.create({
       data: {
         classId: schoolClass.id,
         teacherId: schoolClass.teacherId,
-        type: options.type ?? "EXERCISE",
+        type,
         status,
         title: options.title ?? "Atividade de teste",
         instructions: options.instructions ?? null,
-        totalGrade: cents(totalCents),
+        totalGrade: exercise ? null : cents(totalCents),
         questionCount: specs.length,
         publishAt: options.publishAt ?? new Date(now - 24 * 3_600_000),
-        deadline: options.deadline ?? new Date(now + 7 * 24 * 3_600_000),
-        latePolicy: options.latePolicy ?? "REJECT",
-        sourceWorkId: options.sourceWorkId ?? null,
-        sourceSubjectId: options.sourceSubjectId ?? null,
+        deadline: exercise ? null : (options.deadline ?? new Date(now + 7 * 24 * 3_600_000)),
+        latePolicy: exercise ? null : (options.latePolicy ?? "REJECT"),
+        sourceWorkId,
+        sourceSubjectId,
         outOfScopeTopicCount: options.outOfScopeTopicCount ?? 0,
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
@@ -242,7 +292,10 @@ export async function createActivity(
           position,
           type: spec.type,
           gradingStrategy: STRATEGY[spec.type],
-          value: cents(values[position]!),
+          value: exercise ? null : cents(values[position]!),
+          difficulty: exercise ? (spec.difficulty ?? "BASIC") : null,
+          points: exercise ? EXERCISE_POINTS[spec.difficulty ?? "BASIC"] : null,
+          sourceExerciseId: sourceExerciseIds[position],
           statement: spec.statement ?? `Enunciado ${position + 1}`,
           expectedAnswer: spec.type === "OPEN_ANSWER" ? (spec.expectedAnswer ?? "Resposta esperada") : null,
           rubric: spec.type === "OPEN_ANSWER" ? (spec.rubric ?? null) : null,
@@ -293,18 +346,27 @@ export interface SubmissionRowOptions {
 
 /**
  * An attempt of `studentUserId` written straight to the database (012 US2, T026): IN_PROGRESS, or
- * SUBMITTED with its submission when `submission` is given. The routes that write them arrive with
- * US3 and US4.
+ * SUBMITTED with its submission when `submission` is given (ASSIGNMENT). An EXERCISE attempt takes
+ * its `number` and, concluded, `completedAt` instead of a submission (013 K3); the numbering trigger
+ * needs attempt n − 1 concluded first.
  */
 export async function createAttemptRow(
   t: TestApp,
   activityId: string,
   studentUserId: string,
-  options: { startedAt?: Date; submission?: SubmissionRowOptions } = {},
+  options: { startedAt?: Date; submission?: SubmissionRowOptions; number?: number; completedAt?: Date } = {},
 ): Promise<{ attemptId: string; submissionId: string | null }> {
   const startedAt = options.startedAt ?? new Date();
+  const concluded = Boolean(options.submission || options.completedAt);
   const attempt = await t.prisma.activityAttempt.create({
-    data: { activityId, studentUserId, startedAt, status: options.submission ? "SUBMITTED" : "IN_PROGRESS" },
+    data: {
+      activityId,
+      studentUserId,
+      number: options.number ?? 1,
+      startedAt,
+      status: concluded ? "SUBMITTED" : "IN_PROGRESS",
+      completedAt: options.completedAt ?? null,
+    },
   });
   if (!options.submission) return { attemptId: attempt.id, submissionId: null };
   const submission = options.submission;

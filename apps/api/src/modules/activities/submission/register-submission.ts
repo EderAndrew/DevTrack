@@ -1,6 +1,6 @@
 import { type Answer, centsToGrade } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
-import { decimalToCents } from "../activity-query";
+import { requiredCents } from "../activity-query";
 import { type GradingQuestion, gradeSubmission } from "../grading/grade-submission";
 import { answerOfRow, isBlankAnswer } from "../status/answers";
 
@@ -61,7 +61,7 @@ export async function registerSubmission(tx: Tx, input: RegisterSubmissionInput)
     id: question.id,
     type: question.type,
     gradingStrategy: question.gradingStrategy,
-    valueCents: decimalToCents(question.value),
+    valueCents: requiredCents(question.value),
     statement: question.statement,
     expectedAnswer: question.expectedAnswer,
     rubric: question.rubric,
@@ -69,7 +69,7 @@ export async function registerSubmission(tx: Tx, input: RegisterSubmissionInput)
     correctAlternativeId: question.alternatives[0]?.id ?? null,
     testCases: question.testCases,
   }));
-  const grading = await gradeSubmission(gradingQuestions, answers, decimalToCents(activity.totalGrade));
+  const grading = await gradeSubmission(gradingQuestions, answers, requiredCents(activity.totalGrade));
 
   await tx.activityAttempt.update({ where: { id: input.attemptId }, data: { status: "SUBMITTED" } });
   const submission = await tx.activitySubmission.create({

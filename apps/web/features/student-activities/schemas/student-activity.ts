@@ -2,6 +2,7 @@ import {
   type Answer,
   type ActivityType,
   ActivityTypeSchema,
+  type ExerciseResult,
   type StudentActivityFilter,
   StudentActivityFilterSchema,
   type StudentActivityStatus,
@@ -21,6 +22,7 @@ export const STATUS_LABELS: Record<StudentActivityStatus, string> = {
   OVERDUE: "Atrasada",
   SUBMITTED: "Entregue",
   GRADED: "Corrigida",
+  COMPLETED: "Concluída",
 };
 export const STATUS_VARIANTS: Record<StudentActivityStatus, StatusVariant> = {
   PENDING: "info",
@@ -28,6 +30,7 @@ export const STATUS_VARIANTS: Record<StudentActivityStatus, StatusVariant> = {
   OVERDUE: "danger",
   SUBMITTED: "success",
   GRADED: "success",
+  COMPLETED: "success",
 };
 
 /** "Situação" filter of "Minhas atividades": the label and the URL value (`?situacao=`). */
@@ -73,6 +76,7 @@ export function actionLabel(item: Pick<StudentActivitySummary, "status" | "canAn
     case "SUBMITTED":
       return "Ver entrega";
     case "GRADED":
+    case "COMPLETED":
       return "Ver resultado";
   }
 }
@@ -91,8 +95,29 @@ export const QUESTION_TYPE_LABELS: Record<WorkQuestionType, string> = {
   CODE: "Código",
 };
 
-/** "Vale 0,17". */
-export const valueLabel = (value: string) => `Vale ${formatGrade(value)}`;
+/** Practice points as an integer, never a grade (013 K18): "1 ponto", "30 pontos". */
+export const formatPoints = (points: number) => `${points} ${points === 1 ? "ponto" : "pontos"}`;
+
+/** An Exercício's result per question (013 contracts/student-status.md), said in words. */
+export const RESULT_LABELS: Record<ExerciseResult, string> = {
+  CORRECT: "Certo",
+  WRONG: "Errado",
+  PENDING_TEACHER: "Aguardando correção",
+  UNSCORED: "Compare com o gabarito",
+};
+export const RESULT_VARIANTS: Record<ExerciseResult, StatusVariant> = {
+  CORRECT: "success",
+  WRONG: "danger",
+  PENDING_TEACHER: "warning",
+  UNSCORED: "info",
+};
+
+/** "Pontos: 45 de 105" of an Exercício's card (013 contracts/web-ui.md). */
+export const pointsSummary = (points: { possible: number; earned: number }) => `${points.earned} de ${points.possible}`;
+
+/** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
+export const valueLabel = (question: { value: string | null; points: number | null }) =>
+  question.value !== null ? `Vale ${formatGrade(question.value)}` : `Vale ${formatPoints(question.points ?? 0)}`;
 
 /**
  * Whether the navigator shows the question as answered: the display side of the server's blank

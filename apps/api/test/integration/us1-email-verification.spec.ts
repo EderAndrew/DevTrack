@@ -64,6 +64,7 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
           "atividades.proprias.responder",
           "atividades.proprias.visualizar",
           "notas.proprias.visualizar",
+          "ranking.turma.visualizar",
           "sessoes.proprias.listar",
           "sessoes.proprias.revogar",
           "turmas.proprias.listar",

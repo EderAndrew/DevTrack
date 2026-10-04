@@ -109,6 +109,16 @@ describe("012/SC-003 012/SC-004 visão do aluno sem gabarito", () => {
       ]);
       scan("em andamento", [started, saved, ...(await reads())]);
 
+      if (type === "EXERCISE") {
+        // Since 013 an Exercise is concluded, never submitted, graded or released: the answer key
+        // after a conclusion is 013's (013-student-view.spec.ts). Submitting is refused, without a key.
+        const refused = await submitAttempt(client, activity.id);
+        expect([refused.status, refused.body.code]).toEqual([409, "INVALID_STATE_TRANSITION"]);
+        expect(JSON.stringify(refused.body)).not.toMatch(ANSWER_KEY_MARKERS);
+        scan("entrega recusada", await reads());
+        return;
+      }
+
       const submitted = await submitAttempt(client, activity.id, [
         { questionId: questionIds[2]!, answer: { kind: "CODE", source: "class Main { }" }, baseRevision: 0 },
       ]);

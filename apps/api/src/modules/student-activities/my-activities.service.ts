@@ -8,30 +8,43 @@ import {
   type StudentActivityStatus,
   type StudentActivitySummary,
   type StudentDashboard,
+  type StudentExerciseAttempt,
 } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
-import { decodeCursor, encodeCursor } from "../../platform/database/keyset";
+import { decodeNameCursor, encodeNameCursor } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
-import { toStudentActivity, toStudentSummary } from "../activities/views/student-view";
+import { RankingService } from "../ranking/ranking.service";
+import { toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
 const GET_ROUTE = "/me/activities/:activityId";
+const GET_ATTEMPT_ROUTE = "/me/activities/:activityId/attempts/:number";
 
-/** "Minhas atividades" filter → the statuses it covers (`COMPLETED` = SUBMITTED + GRADED). */
+/** "Minhas atividades" filter → the statuses it covers (`COMPLETED` = SUBMITTED + GRADED + an EXERCISE's COMPLETED). */
 const FILTER_STATUSES: Record<NonNullable<StudentActivityListQuery["status"]>, readonly StudentActivityStatus[]> = {
   PENDING: ["PENDING"],
   IN_PROGRESS: ["IN_PROGRESS"],
   OVERDUE: ["OVERDUE"],
-  COMPLETED: ["SUBMITTED", "GRADED"],
+  COMPLETED: ["SUBMITTED", "GRADED", "COMPLETED"],
 };
 
-/** Nearest deadline first, then id (research P16). */
+const MAX_EPOCH_MS = 8_640_000_000_000_000;
+
+/**
+ * The list's order as one text key (research P16, 013 K9): nearest deadline first; the activities
+ * without a deadline (EXERCISE) after them, newest publication first. ISO dates of this range and the
+ * zero-padded inverted publication sort as text.
+ */
+const orderKey = (item: StudentActivitySummary): string =>
+  item.deadline !== null ? `0|${item.deadline}` : `1|${String(MAX_EPOCH_MS - Date.parse(item.publishedAt)).padStart(16, "0")}`;
+
+/** By `orderKey`, then id. */
 const byDeadline = (a: StudentActivitySummary, b: StudentActivitySummary) =>
-  a.deadline.localeCompare(b.deadline) || a.id.localeCompare(b.id);
+  orderKey(a).localeCompare(orderKey(b)) || a.id.localeCompare(b.id);
 
 /**
  * The student's dashboard, list and activity (012 US2, research P16–P18). Everything comes from
@@ -46,6 +59,7 @@ export class MyActivitiesService {
     private readonly loader: StudentActivityLoader,
     private readonly permissions: PermissionResolver,
     private readonly audit: AuditService,
+    private readonly ranking: RankingService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -60,27 +74,28 @@ export class MyActivitiesService {
         pending: count("PENDING"),
         inProgress: count("IN_PROGRESS"),
         overdue: count("OVERDUE"),
-        completed: count("SUBMITTED", "GRADED"),
+        completed: count("SUBMITTED", "GRADED", "COMPLETED"),
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
+      rankings: await this.ranking.dashboardFor(userId),
       serverNow: now.toISOString(),
     };
   }
 
   async list(userId: string, query: StudentActivityListQuery): Promise<StudentActivityPage> {
-    const after = query.cursor === undefined ? null : decodeCursor(query.cursor);
+    const after = query.cursor === undefined ? null : decodeNameCursor(query.cursor);
     const statuses = query.status ? FILTER_STATUSES[query.status] : null;
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
     const matching = (await this.summaries(userId, this.clock.now()))
       .filter((item) => (statuses === null || statuses.includes(item.status)) && (query.type === undefined || item.type === query.type))
       .sort(byDeadline)
-      .filter((item) => after === null || isAfter(item, after.createdAt.toISOString(), after.id));
+      .filter((item) => after === null || isAfter(item, after.name, after.id));
     const items = matching.slice(0, pageSize);
     const last = items.at(-1);
     return {
       items,
-      nextCursor: matching.length > pageSize && last ? encodeCursor({ createdAt: new Date(last.deadline), id: last.id }) : null,
+      nextCursor: matching.length > pageSize && last ? encodeNameCursor({ name: orderKey(last), id: last.id }) : null,
     };
   }
 
@@ -93,6 +108,24 @@ export class MyActivitiesService {
       if (view.result) await this.recordFirstView(userId, activityId, now, requestId);
       return view;
     }
+    return this.denied(userId, activityId, now, GET_ROUTE, requestId);
+  }
+
+  /**
+   * A concluded attempt of the session student, with its answer key (013/FR-012, research K10). Out
+   * of context → 404 and `student_access.denied`; an attempt that doesn't exist, isn't concluded or
+   * of a Trabalho → plain 404.
+   */
+  async getAttempt(userId: string, activityId: string, number: number, requestId: string | null): Promise<StudentExerciseAttempt> {
+    const now = this.clock.now();
+    const { inContext, found } = await this.loader.loadConcluded(userId, activityId, number, now);
+    if (found) return toStudentExerciseAttempt(found.questions, found.attempt);
+    if (inContext) throw notFound();
+    return this.denied(userId, activityId, now, GET_ATTEMPT_ROUTE, requestId);
+  }
+
+  /** 404, auditing `student_access.denied` when the activity exists (research P18). */
+  private async denied(userId: string, activityId: string, now: Date, route: string, requestId: string | null): Promise<never> {
     const reason = await this.loader.deniedReason(userId, activityId, now);
     if (reason) {
       // Its own write: there is no domain change to commit with (contracts/audit-events.md).
@@ -103,7 +136,7 @@ export class MyActivitiesService {
         targetType: "CLASS_ACTIVITY",
         targetId: activityId,
         requestId,
-        metadata: { route: GET_ROUTE, reason },
+        metadata: { route, reason },
       });
     }
     throw notFound();
@@ -143,6 +176,8 @@ export class MyActivitiesService {
   }
 }
 
-/** Strictly after the cursor's `(deadline, id)` in the list's order. */
-const isAfter = (item: StudentActivitySummary, deadline: string, id: string) =>
-  item.deadline > deadline || (item.deadline === deadline && item.id > id);
+/** Strictly after the cursor's `(orderKey, id)` in the list's order. */
+const isAfter = (item: StudentActivitySummary, key: string, id: string) => {
+  const order = orderKey(item).localeCompare(key);
+  return order > 0 || (order === 0 && item.id.localeCompare(id) > 0);
+};

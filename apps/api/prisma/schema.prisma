@@ -279,6 +279,7 @@ model User {
   classActivitiesReleased ClassActivity[]           @relation("ClassActivityReleasedBy")
   submissionsAccepted     ActivitySubmission[]      @relation("ActivitySubmissionAcceptedBy")
   gradingsDecided         ActivityQuestionGrading[] @relation("ActivityGradingDecidedBy")
+  exerciseResultsMarked   ExerciseQuestionResult[]  @relation("ExerciseResultDecidedBy")
 
   @@map("users")
 }
@@ -388,13 +389,14 @@ model SchoolClass {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  teacher     User              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  subject     Subject?          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  invitations ClassInvitation[]
-  enrollments Enrollment[]
-  meetings    ClassMeeting[]
-  plan        ClassPlan?
-  activities  ClassActivity[]
+  teacher         User                     @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject         Subject?                 @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  invitations     ClassInvitation[]
+  enrollments     Enrollment[]
+  meetings        ClassMeeting[]
+  plan            ClassPlan?
+  activities      ClassActivity[]
+  exerciseResults ExerciseQuestionResult[]
 
   @@index([teacherId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([teacherId, academicYear])
@@ -1565,6 +1567,7 @@ model Exercise {
   reviewedBy        User?                    @relation("ExerciseReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
   alternatives      ExerciseAlternative[]
   activityQuestions ClassActivityQuestion[]
+  activityResults   ExerciseQuestionResult[]
 
   @@unique([generationBatchId, generationItemId])
   @@index([teacherId, status, updatedAt(sort: Desc), id])
@@ -1984,21 +1987,22 @@ model ClassActivity {
   /// 1–200 characters (CHECK).
   title                String
   instructions         String?
-  /// 0.01–100.00; the questions' values add up to it (deferred trigger).
-  totalGrade           Decimal               @map("total_grade") @db.Decimal(5, 2)
+  /// ASSIGNMENT only (CHECK by type, 013 K1): 0.01–100.00; the questions' values add up to it (deferred trigger).
+  totalGrade           Decimal?              @map("total_grade") @db.Decimal(5, 2)
   /// 1–10, equal to the number of questions (deferred trigger).
   questionCount        Int                   @map("question_count")
   publishAt            DateTime              @map("publish_at") @db.Timestamptz(6)
-  /// After `publishAt` (CHECK).
-  deadline             DateTime              @db.Timestamptz(6)
-  latePolicy           ActivityLatePolicy    @map("late_policy")
+  /// ASSIGNMENT only (CHECK by type, 013 K1); after `publishAt` (CHECK).
+  deadline             DateTime?             @db.Timestamptz(6)
+  /// ASSIGNMENT only (CHECK by type, 013 K1).
+  latePolicy           ActivityLatePolicy?   @map("late_policy")
   /// Set iff ASSIGNMENT (CHECK); informative, the content lives in the snapshot.
   sourceWorkId         String?               @map("source_work_id") @db.Uuid
   /// The work's subject, equal to the class's (research P5).
   sourceSubjectId      String?               @map("source_subject_id") @db.Uuid
   /// Topics outside the taught scope that the teacher acknowledged (FR-005a).
   outOfScopeTopicCount Int                   @default(0) @map("out_of_scope_topic_count")
-  /// Set together (CHECK); governs what the students see (research P14).
+  /// Set together (CHECK), never for EXERCISE; governs what the students see (research P14).
   resultReleasedAt     DateTime?             @map("result_released_at") @db.Timestamptz(6)
   resultReleasedById   String?               @map("result_released_by_id") @db.Uuid
   closedAt             DateTime?             @map("closed_at") @db.Timestamptz(6)
@@ -2031,8 +2035,11 @@ model ClassActivityQuestion {
   type             ActivityQuestionType
   /// The type's strategy (CHECK, 011 W7).
   gradingStrategy  WorkGradingStrategy  @map("grading_strategy")
-  /// 0.01–100.00 (CHECK).
-  value            Decimal              @db.Decimal(5, 2)
+  /// ASSIGNMENT only, 0.01–100.00 (CHECK; by type in the deferred trigger, 013 K1).
+  value            Decimal?             @db.Decimal(5, 2)
+  /// EXERCISE only: the exercise's difficulty and its fixed points (CHECK of the pair, 013 K2).
+  difficulty       ExerciseDifficulty?
+  points           Int?
   statement        String
   /// `instructions`, `starterCode` only CODE; `expectedSolution`, `languageId` iff CODE (CHECK).
   instructions     String?
@@ -2045,22 +2052,24 @@ model ClassActivityQuestion {
   explanation      String?
   /// Only MULTIPLE_CHOICE (CHECK). Teacher only.
   isTrickQuestion  Boolean              @default(false) @map("is_trick_question")
-  /// The exercise it was copied from; a work's questions point to the activity's `sourceWorkId`.
+  /// The exercise it was copied from, iff EXERCISE (deferred trigger); a work's questions point to the activity's `sourceWorkId`.
   sourceExerciseId String?              @map("source_exercise_id") @db.Uuid
 
-  activity       ClassActivity                @relation(fields: [activityId], references: [id], onDelete: Restrict)
-  language       ProgrammingLanguage?         @relation(fields: [languageId], references: [id], onDelete: Restrict)
-  sourceExercise Exercise?                    @relation(fields: [sourceExerciseId], references: [id], onDelete: Restrict)
-  alternatives   ClassActivityAlternative[]
-  testCases      ClassActivityTestCase[]
-  topics         ClassActivityQuestionTopic[]
-  answers        ActivityAnswer[]
-  gradings       ActivityQuestionGrading[]
+  activity        ClassActivity                @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  language        ProgrammingLanguage?         @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  sourceExercise  Exercise?                    @relation(fields: [sourceExerciseId], references: [id], onDelete: Restrict)
+  alternatives    ClassActivityAlternative[]
+  testCases       ClassActivityTestCase[]
+  topics          ClassActivityQuestionTopic[]
+  answers         ActivityAnswer[]
+  gradings        ActivityQuestionGrading[]
+  exerciseResults ExerciseQuestionResult[]
 
   @@unique([activityId, position])
-  /// Targets of the answers' and gradings' composite FKs (research P8).
+  /// Targets of the answers', gradings' and results' composite FKs (research P8, 013 K6).
   @@unique([id, activityId])
   @@unique([id, activityId, type])
+  @@unique([id, activityId, points])
   @@map("class_activity_questions")
 }
 
@@ -2111,7 +2120,8 @@ model ClassActivityQuestionTopic {
   @@map("class_activity_question_topics")
 }
 
-/// A student's attempt; one per activity in 012 (`number = 1`, CHECK). Never back from SUBMITTED (trigger).
+/// A student's attempt: ASSIGNMENT only number 1; EXERCISE numbered practice attempts, attempt n > 1 only
+/// after n − 1 concluded, one IN_PROGRESS at a time (triggers and partial UNIQUE, 013 K3). Never back from SUBMITTED.
 model ActivityAttempt {
   id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   activityId            String                @map("activity_id") @db.Uuid
@@ -2122,13 +2132,16 @@ model ActivityAttempt {
   lastSavedAt           DateTime?             @map("last_saved_at") @db.Timestamptz(6)
   /// Throttles `activity_attempt.progress_saved` to one per 15 minutes (research P19).
   lastProgressAuditedAt DateTime?             @map("last_progress_audited_at") @db.Timestamptz(6)
+  /// Set iff a concluded EXERCISE attempt (trigger, server clock, 013 K3); ASSIGNMENT keeps its time in the submission.
+  completedAt           DateTime?             @map("completed_at") @db.Timestamptz(6)
   createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  activity   ClassActivity       @relation(fields: [activityId], references: [id], onDelete: Restrict)
-  student    StudentProfile      @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  activity   ClassActivity            @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  student    StudentProfile           @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
   answers    ActivityAnswer[]
   submission ActivitySubmission?
+  results    ExerciseQuestionResult[]
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2224,4 +2237,53 @@ model ActivityQuestionGrading {
 
   @@id([submissionId, questionId])
   @@map("activity_question_gradings")
+}
+
+/// The result of an exercise in a concluded EXERCISE attempt (013 K6).
+enum ExerciseResult {
+  CORRECT
+  WRONG
+  PENDING_TEACHER
+  UNSCORED
+
+  @@map("exercise_result")
+}
+
+/// One per question of a concluded EXERCISE attempt (013 research K6). The `scoring` row of a bank
+/// exercise is unique per student and class (partial UNIQUE, FR-010a); `points` is the question's
+/// points only for a CORRECT scoring row (CHECK). Never deleted; only the teacher's mark of a scoring
+/// open answer or code row changes (trigger).
+model ExerciseQuestionResult {
+  attemptId        String                 @map("attempt_id") @db.Uuid
+  questionId       String                 @map("question_id") @db.Uuid
+  activityId       String                 @map("activity_id") @db.Uuid
+  /// The question's points, carried by the composite FK.
+  questionPoints   Int                    @map("question_points")
+  /// The activity's class (trigger).
+  classId          String                 @map("class_id") @db.Uuid
+  studentUserId    String                 @map("student_user_id") @db.Uuid
+  /// The question's exercise (trigger).
+  sourceExerciseId String                 @map("source_exercise_id") @db.Uuid
+  /// The row that counts for this exercise in this class: attempt 1 with the slot free.
+  scoring          Boolean
+  result           ExerciseResult
+  points           Int
+  /// RULE_RESULT or HUMAN_DECISION; null while pending or unscored (CHECK).
+  nature           ActivityGradingNature?
+  /// The teacher's, ≤ 2 000 (CHECK).
+  comment          String?
+  decidedById      String?                @map("decided_by_id") @db.Uuid
+  decidedAt        DateTime?              @map("decided_at") @db.Timestamptz(6)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  attempt        ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  question       ClassActivityQuestion @relation(fields: [questionId, activityId, questionPoints], references: [id, activityId, points], onDelete: Restrict)
+  schoolClass    SchoolClass           @relation(fields: [classId], references: [id], onDelete: Restrict)
+  sourceExercise Exercise              @relation(fields: [sourceExerciseId], references: [id], onDelete: Restrict)
+  decidedBy      User?                 @relation("ExerciseResultDecidedBy", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@id([attemptId, questionId])
+  @@index([activityId])
+  @@map("exercise_question_results")
 }

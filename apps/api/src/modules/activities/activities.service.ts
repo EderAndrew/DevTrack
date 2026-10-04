@@ -2,8 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import {
   type ActivitySource,
   type ActivityStatus,
+  type ActivityType,
   type CreateActivityRequest,
-  gradeToCents,
+  type LatePolicy,
   type ScopeCheck,
   type TeacherActivity,
   type TeacherActivitySummary,
@@ -15,12 +16,13 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, invalidStateTransition, notFound, rateLimited } from "../../platform/http/errors";
+import { AppException, invalidStateTransition, notFound, rateLimited, validationError } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { ACTIVITY_HEADER_SELECT, ACTIVITY_QUESTION_SELECT, type ActivityHeader, toQuestionRow } from "./activity-query";
+import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
 import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
@@ -36,10 +38,12 @@ const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClie
 type EditableField = "deadline" | "instructions" | "latePolicy" | "publishAt" | "title";
 
 interface LockedActivity {
+  type: ActivityType;
   status: ActivityStatus;
   version: number;
   publishAt: Date;
-  deadline: Date;
+  /** ASSIGNMENT only (013 K1). */
+  deadline: Date | null;
   resultReleasedAt: Date | null;
 }
 
@@ -68,13 +72,14 @@ export class ActivitiesService {
     const headers = await this.prisma.classActivity.findMany({
       where: { classId },
       select: ACTIVITY_HEADER_SELECT,
-      orderBy: [{ deadline: "desc" }, { id: "desc" }],
+      // An EXERCISE has no deadline (013 K1): it comes first, newest publication first.
+      orderBy: [{ deadline: { sort: "desc", nulls: "first" } }, { publishAt: "desc" }, { id: "desc" }],
     });
     const { students, attempts } = await loadRosterData(this.prisma, classId, headers.map((header) => header.id));
     const now = this.clock.now();
     return {
       items: headers.map((header) =>
-        toTeacherActivitySummary(header, buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now).counts, now),
+        toTeacherActivitySummary(header, buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now), now),
       ),
     };
   }
@@ -99,7 +104,7 @@ export class ActivitiesService {
     return this.prisma.runInTransaction(async (tx) => {
       const content = await readSource(tx, teacherId, source);
       assertSameSubject(schoolClass.subjectId, content);
-      return scopeCheckOf(tx, classId, toSnapshot(content, null).questions);
+      return scopeCheckOf(tx, classId, toSnapshot(content).questions);
     });
   }
 
@@ -123,8 +128,13 @@ export class ActivitiesService {
 
     const now = this.clock.now();
     const publishAt = body.publishAt ? new Date(body.publishAt) : now;
-    const deadline = new Date(body.deadline);
-    if (deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+    // A type with a deadline (ASSIGNMENT) has it after the publication; an EXERCISE has neither deadline nor late
+    // policy (013/FR-001, K1). The contract's union already refused a body that doesn't match its type.
+    const schedule: { deadline: Date; latePolicy: LatePolicy } | null =
+      ACTIVITY_TYPES[body.source.type].hasDeadline && "deadline" in body
+        ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy }
+        : null;
+    if (schedule && schedule.deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
     await this.assertWriteRate(teacherId);
 
     let activityId: string;
@@ -134,7 +144,7 @@ export class ActivitiesService {
         if (schoolClass.status !== "ACTIVE") throw new AppException("CLASS_NOT_ACTIVE");
         const content = await readSource(tx, teacherId, body.source);
         assertSameSubject(schoolClass.subjectId, content);
-        const snapshot = toSnapshot(content, body.totalGrade === undefined ? null : gradeToCents(body.totalGrade));
+        const snapshot = toSnapshot(content);
         const scope = await scopeCheckOf(tx, classId, snapshot.questions);
         if (scope.outOfScope.length > 0 && !body.acknowledgeOutOfScope) throw new AppException("OUT_OF_SCOPE_NOT_ACKNOWLEDGED");
 
@@ -147,8 +157,8 @@ export class ActivitiesService {
             title: body.title,
             instructions: body.instructions ?? null,
             publishAt,
-            deadline,
-            latePolicy: body.latePolicy,
+            deadline: schedule?.deadline ?? null,
+            latePolicy: schedule?.latePolicy ?? null,
             sourceWorkId: content.type === "ASSIGNMENT" ? content.workId : null,
             sourceSubjectId: content.type === "ASSIGNMENT" ? content.subjectId : null,
             outOfScopeTopicCount: scope.outOfScope.length,
@@ -169,8 +179,10 @@ export class ActivitiesService {
             executionMode: "NORMAL",
             ...(content.type === "ASSIGNMENT" ? { sourceWorkId: content.workId } : { sourceExerciseCount: content.exerciseIds.length }),
             questionCount: snapshot.questions.length,
-            totalCents: snapshot.totalCents,
-            latePolicy: body.latePolicy,
+            // A grade and a late policy (ASSIGNMENT) or the possible points (EXERCISE, 013 K15).
+            ...(ACTIVITY_TYPES[content.type].scoring === "GRADE" && snapshot.totalCents !== null && schedule
+              ? { totalCents: snapshot.totalCents, latePolicy: schedule.latePolicy }
+              : { possiblePoints: snapshot.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) }),
             scheduled: publishAt.getTime() > now.getTime(),
             outOfScopeTopicCount: scope.outOfScope.length,
             hasPlan: scope.hasPlan,
@@ -192,7 +204,8 @@ export class ActivitiesService {
   /**
    * Title, instructions, deadline and late policy of an ACTIVE activity, at the version the teacher
    * read (FR-004, FR-024a); the publication date only while it is still scheduled (`422
-   * ALREADY_PUBLISHED`); the deadline stays after the publication (`422 INVALID_SCHEDULE`).
+   * ALREADY_PUBLISHED`); the deadline stays after the publication (`422 INVALID_SCHEDULE`). An
+   * EXERCISE has no deadline or late policy: either in the body → 400 (013/FR-004).
    * Nothing changed → the activity as it is, no event and no new version.
    */
   async update(
@@ -207,6 +220,7 @@ export class ActivitiesService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
+      if (!ACTIVITY_TYPES[current.type].hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
       if (current.version !== body.version) throw new AppException("ACTIVITY_VERSION_CONFLICT");
       ActivityStateMachine.assertEditable(current.status);
 
@@ -217,7 +231,7 @@ export class ActivitiesService {
       const publishAt = body.publishAt === undefined ? current.publishAt : new Date(body.publishAt);
       const deadline = body.deadline === undefined ? current.deadline : new Date(body.deadline);
       const changed: EditableField[] = [];
-      if (deadline.getTime() !== current.deadline.getTime()) changed.push("deadline");
+      if (deadline?.getTime() !== current.deadline?.getTime()) changed.push("deadline");
       if (body.instructions !== undefined && body.instructions !== stored.instructions) changed.push("instructions");
       if (body.latePolicy !== undefined && body.latePolicy !== stored.latePolicy) changed.push("latePolicy");
       if (publishAt.getTime() !== current.publishAt.getTime()) changed.push("publishAt");
@@ -228,7 +242,7 @@ export class ActivitiesService {
       if (changed.includes("publishAt") && ActivityStateMachine.phase(current.status, current.publishAt, now) !== "SCHEDULED") {
         throw new AppException("ALREADY_PUBLISHED");
       }
-      if (deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+      if (deadline && deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
 
       await tx.classActivity.update({
         where: { id: activityId },
@@ -268,7 +282,7 @@ export class ActivitiesService {
    * Releases the activity's result to the class (FR-006, research P14): the whole activity at once;
    * each student sees it once their grading is complete. Already released → as it is, no event;
    * CANCELLED → `409 INVALID_STATE_TRANSITION`. The activity `FOR UPDATE` serializes it with close
-   * and cancel; its edit `version` doesn't change.
+   * and cancel; its edit `version` doesn't change. An EXERCISE has no result to release (013 K14).
    */
   async release(auth: AuthContext, classId: string, activityId: string, requestId: string | null): Promise<TeacherActivity> {
     const teacherId = auth.userId;
@@ -276,7 +290,7 @@ export class ActivitiesService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
-      if (current.status === "CANCELLED") throw invalidStateTransition();
+      if (current.status === "CANCELLED" || ACTIVITY_TYPES[current.type].scoring !== "GRADE") throw invalidStateTransition();
       if (current.resultReleasedAt !== null) return this.get(teacherId, classId, activityId, tx);
 
       await tx.classActivity.update({
@@ -360,6 +374,7 @@ export class ActivitiesService {
 function rosterActivity(header: ActivityHeader) {
   return {
     id: header.id,
+    type: header.type,
     status: header.status,
     deadline: header.deadline,
     latePolicy: header.latePolicy,
@@ -382,10 +397,19 @@ async function lockClass(tx: Tx, teacherId: string, classId: string): Promise<{ 
 
 /** The activity of this class under `FOR UPDATE` (edits, transitions and release serialize). */
 async function lockActivity(tx: Tx, classId: string, activityId: string): Promise<LockedActivity> {
-  const rows = await tx.$queryRaw<{ status: ActivityStatus; version: number; publish_at: Date; deadline: Date; result_released_at: Date | null }[]>`
-    SELECT status::text AS status, version, publish_at, deadline, result_released_at FROM class_activities
+  const rows = await tx.$queryRaw<
+    { type: ActivityType; status: ActivityStatus; version: number; publish_at: Date; deadline: Date | null; result_released_at: Date | null }[]
+  >`
+    SELECT type::text AS type, status::text AS status, version, publish_at, deadline, result_released_at FROM class_activities
     WHERE id = ${activityId}::uuid AND class_id = ${classId}::uuid FOR UPDATE`;
   if (rows.length === 0) throw notFound();
   const row = rows[0]!;
-  return { status: row.status, version: row.version, publishAt: row.publish_at, deadline: row.deadline, resultReleasedAt: row.result_released_at };
+  return {
+    type: row.type,
+    status: row.status,
+    version: row.version,
+    publishAt: row.publish_at,
+    deadline: row.deadline,
+    resultReleasedAt: row.result_released_at,
+  };
 }

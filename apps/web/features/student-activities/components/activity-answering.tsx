@@ -25,12 +25,13 @@ import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
-import { useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
+import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   emptyAnswer,
   ESSAY_MAX_LENGTH,
   formatGrade,
+  formatPoints,
   isAnswered,
   MY_ACTIVITIES_PATH,
   QUESTION_TYPE_LABELS,
@@ -40,6 +41,7 @@ import {
 } from "../schemas/student-activity";
 import { clearPendingAnswers } from "../store/pending-answers";
 import { ActivityResult } from "./activity-result";
+import { ExerciseResult, RETRY_NOTICE } from "./exercise-result";
 import { Loading, LoadFailed } from "./load-states";
 
 export const OFFLINE_ALERT =
@@ -49,6 +51,15 @@ export const CONFLICT_ALERT = "Esta resposta foi alterada em outra aba. Carregam
 export const CHANGED_ELSEWHERE = ERROR_MESSAGES.ANSWER_CHANGED_ELSEWHERE;
 export const SUBMIT_CONFIRMATION =
   "Tem certeza de que deseja entregar esta atividade? Depois de entregue, não será possível alterar as respostas.";
+/** "Concluir exercícios" (013 contracts/web-ui.md): the answer key comes with the conclusion. */
+export const COMPLETE_CONFIRMATION = "Você vai ver o gabarito e não poderá mais alterar estas respostas.";
+/** "N exercícios em branco valem 0 ponto nesta conclusão." (013/US2-8). */
+export function blankExercisesNotice(blankCount: number): string {
+  if (blankCount === 0) return "Todos os exercícios estão respondidos.";
+  return blankCount === 1
+    ? "1 exercício em branco vale 0 ponto nesta conclusão."
+    : `${blankCount} exercícios em branco valem 0 ponto nesta conclusão.`;
+}
 export const DEADLINE_WARNINGS = {
   10: "Faltam 10 minutos para o prazo desta atividade.",
   1: "Falta 1 minuto para o prazo desta atividade.",
@@ -108,6 +119,9 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
         ) : null}
         {activity.attempt ? (
           <AttemptAnswering key={`${generation}:${revisionsKey(activity)}`} activity={activity} userId={userId} onChangedElsewhere={() => void onChangedElsewhere()} />
+        ) : activity.lastResult ? (
+          // An Exercício with no open attempt after a conclusion: its result and "Refazer" (013/US2).
+          <ExerciseResult activity={activity} />
         ) : (
           <StartAttempt activity={activity} />
         )}
@@ -132,10 +146,33 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
         <dd className="m-0">{ACTIVITY_TYPE_LABELS[activity.type]}</dd>
         <dt className="text-text-secondary">Publicada em</dt>
         <dd className="m-0">{formatLongDateTime(activity.publishedAt)}</dd>
-        <dt className="text-text-secondary">Prazo</dt>
-        <dd className="m-0">{formatLongDateTime(activity.deadline)}</dd>
-        <dt className="text-text-secondary">Nota total</dt>
-        <dd className="m-0">{formatGrade(activity.totalGrade)}</dd>
+        {activity.deadline ? (
+          <>
+            <dt className="text-text-secondary">Prazo</dt>
+            <dd className="m-0">{formatLongDateTime(activity.deadline)}</dd>
+          </>
+        ) : null}
+        {activity.totalGrade ? (
+          <>
+            <dt className="text-text-secondary">Nota total</dt>
+            <dd className="m-0">{formatGrade(activity.totalGrade)}</dd>
+          </>
+        ) : null}
+        {activity.points ? (
+          <>
+            <dt className="text-text-secondary">Pontos</dt>
+            <dd className="m-0">Vale até {formatPoints(activity.points.possible)}</dd>
+            {activity.completedAttempts.length > 0 ? (
+              <>
+                <dt className="text-text-secondary">Seus pontos</dt>
+                <dd className="m-0">
+                  {formatPoints(activity.points.earned)}
+                  {activity.points.awaitingCorrection ? " · Pontos aguardando correção" : ""}
+                </dd>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </dl>
       {activity.instructions ? (
         <div className="flex flex-col gap-1">
@@ -201,22 +238,27 @@ function AttemptAnswering({
   const question = questions[index]!;
   const answeredCount = questions.filter((item) => isAnswered(item, answers.answerOf(item.id))).length;
   const refused = answers.error !== null && isRefusal(answers.error.status);
-  const submit = useSubmitAttempt(activity.id);
+  // An Exercício is concluded, never submitted: no deadline, no grade, the answer key after (013/US2).
+  const isExercise = activity.type === "EXERCISE";
+  const submitAttempt = useSubmitAttempt(activity.id);
+  const completeAttempt = useCompleteAttempt(activity.id);
+  const submit = isExercise ? completeAttempt : submitAttempt;
   const [confirming, setConfirming] = useState(false);
   const blankCount = questions.length - answeredCount;
   const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
 
   const send = () => {
     setConfirming(false);
-    submit.mutate(
-      { answers: answers.takePending() },
-      {
-        onSuccess: () => clearPendingAnswers(userId, activity.id),
-        onError: (error) => {
-          if (apiErrorCode(error) === "ANSWER_CHANGED_ELSEWHERE") onChangedElsewhere();
-        },
+    const callbacks = {
+      // The offline buffer of this activity is done with once the server has the answers.
+      onSuccess: () => clearPendingAnswers(userId, activity.id),
+      onError: (error: unknown) => {
+        if (apiErrorCode(error) === "ANSWER_CHANGED_ELSEWHERE") onChangedElsewhere();
       },
-    );
+    };
+    const body = { answers: answers.takePending() };
+    if (isExercise) completeAttempt.mutate({ number: activity.attempt!.number, body }, callbacks);
+    else submitAttempt.mutate(body, callbacks);
   };
 
   useEffect(() => {
@@ -239,6 +281,13 @@ function AttemptAnswering({
         {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
       </div>
       <ActivityResult activity={activity} />
+      {isExercise && activity.attempt && activity.attempt.number > 1 ? (
+        <Alert variant="info">
+          <AlertTitle>
+            Tentativa {activity.attempt.number}. {RETRY_NOTICE}
+          </AlertTitle>
+        </Alert>
+      ) : null}
       {activity.submission ? (
         <Alert variant="success">
           <AlertTitle>
@@ -290,7 +339,7 @@ function AttemptAnswering({
         <QuestionHeader
           number={index + 1}
           typeLabel={QUESTION_TYPE_LABELS[question.type]}
-          valueLabel={valueLabel(question.value)}
+          valueLabel={valueLabel(question)}
           answered={isAnswered(question, answers.answerOf(question.id))}
           headingId={`questao-${question.id}`}
           headingRef={heading}
@@ -318,7 +367,7 @@ function AttemptAnswering({
               loading={submit.isPending}
               onClick={() => setConfirming(true)}
             >
-              Entregar atividade
+              {isExercise ? "Concluir exercícios" : "Entregar atividade"}
             </Button>
           ) : undefined
         }
@@ -326,19 +375,21 @@ function AttemptAnswering({
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Entregar atividade?</AlertDialogTitle>
-            <AlertDialogDescription>{SUBMIT_CONFIRMATION}</AlertDialogDescription>
+            <AlertDialogTitle>{isExercise ? "Concluir estes exercícios?" : "Entregar atividade?"}</AlertDialogTitle>
+            <AlertDialogDescription>{isExercise ? COMPLETE_CONFIRMATION : SUBMIT_CONFIRMATION}</AlertDialogDescription>
           </AlertDialogHeader>
           <p className="m-0 text-body">
-            {blankCount === 0
-              ? "Todas as questões estão respondidas."
-              : blankCount === 1
-                ? "1 questão em branco."
-                : `${blankCount} questões em branco.`}
+            {isExercise
+              ? blankExercisesNotice(blankCount)
+              : blankCount === 0
+                ? "Todas as questões estão respondidas."
+                : blankCount === 1
+                  ? "1 questão em branco."
+                  : `${blankCount} questões em branco.`}
           </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar às questões</AlertDialogCancel>
-            <AlertDialogAction onClick={send}>Entregar</AlertDialogAction>
+            <AlertDialogAction onClick={send}>{isExercise ? "Concluir" : "Entregar"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

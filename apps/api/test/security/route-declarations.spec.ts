@@ -177,12 +177,18 @@ describe("route access declarations", () => {
         "GET /classes/:classId/activities/:activityId/attempts/:attemptId",
         "PUT /classes/:classId/activities/:activityId/attempts/:attemptId/grades",
         "POST /classes/:classId/activities/:activityId/attempts/:attemptId/accept-submission",
+        "PUT /classes/:classId/activities/:activityId/attempts/:attemptId/marks",
         "GET /me/dashboard",
         "GET /me/activities",
         "GET /me/activities/:activityId",
         "POST /me/activities/:activityId/attempt",
         "PUT /me/activities/:activityId/attempt/answers",
         "POST /me/activities/:activityId/attempt/submit",
+        "POST /me/activities/:activityId/attempts",
+        "POST /me/activities/:activityId/attempts/:number/complete",
+        "GET /me/activities/:activityId/attempts/:number",
+        "GET /me/classes/:classId/ranking",
+        "GET /classes/:classId/ranking",
       ]),
     );
   });

@@ -1,4 +1,4 @@
-import type { GradeCents, TestCaseVisibility, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
+import type { ExerciseDifficulty, GradeCents, TestCaseVisibility, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
 
 /**
  * The content an activity copies from the teacher's banks (research P2): one shape for works and
@@ -10,7 +10,11 @@ export interface SnapshotQuestion {
   position: number;
   type: WorkQuestionType;
   gradingStrategy: WorkGradingStrategy;
-  valueCents: GradeCents;
+  /** ASSIGNMENT only; null for an EXERCISE question (013 K1). */
+  valueCents: GradeCents | null;
+  /** EXERCISE only: the exercise's difficulty and its fixed points (013 K2); null for ASSIGNMENT. */
+  difficulty: ExerciseDifficulty | null;
+  points: number | null;
   statement: string;
   instructions: string | null;
   starterCode: string | null;
@@ -28,7 +32,8 @@ export interface SnapshotQuestion {
 }
 
 export interface ActivitySnapshot {
-  totalCents: GradeCents;
+  /** ASSIGNMENT only: the work's grade; null for EXERCISE (013 K1). */
+  totalCents: GradeCents | null;
   questions: SnapshotQuestion[];
 }
 

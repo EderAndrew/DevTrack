@@ -12,6 +12,7 @@ export const studentActivitiesKeys = {
   dashboard: () => [...studentActivitiesKeys.all, "dashboard"] as const,
   list: (filters: StudentActivityListFilters) => [...studentActivitiesKeys.all, "list", filters.status, filters.type] as const,
   detail: (activityId: string) => [...studentActivitiesKeys.all, "detail", activityId] as const,
+  attempt: (activityId: string, number: number) => [...studentActivitiesKeys.all, "attempt", activityId, number] as const,
 };
 
 export const useStudentDashboard = () =>
@@ -58,3 +59,37 @@ export function useSubmitAttempt(activityId: string) {
     },
   });
 }
+
+/** "Concluir exercícios" (013/FR-007): idempotent, so a dropped connection is retried like the submission. */
+export function useCompleteAttempt(activityId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ number, body }: { number: number; body: SubmitAttemptRequest }) => studentActivitiesApi.complete(activityId, number, body),
+    retry: (failures, error) => isOffline(error) && failures < SUBMIT_RETRIES,
+    retryDelay: 1_000,
+    onSuccess: (activity) => {
+      queryClient.setQueryData(studentActivitiesKeys.detail(activityId), activity);
+      void queryClient.invalidateQueries({ queryKey: studentActivitiesKeys.all, refetchType: "none" });
+    },
+  });
+}
+
+/** "Refazer" (013/FR-005): names the attempt it follows, so a double click opens one attempt. */
+export function useRetryAttempt(activityId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (afterNumber: number) => studentActivitiesApi.retry(activityId, afterNumber),
+    onSuccess: (activity) => {
+      queryClient.setQueryData(studentActivitiesKeys.detail(activityId), activity);
+      void queryClient.invalidateQueries({ queryKey: studentActivitiesKeys.all, refetchType: "none" });
+    },
+  });
+}
+
+/** An earlier concluded attempt, read only when the student picks it (013/FR-012). */
+export const useExerciseAttempt = (activityId: string, number: number | null) =>
+  useQuery({
+    queryKey: studentActivitiesKeys.attempt(activityId, number ?? 0),
+    queryFn: () => studentActivitiesApi.attempt(activityId, number!),
+    enabled: number !== null,
+  });

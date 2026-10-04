@@ -76,24 +76,23 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${activity().id}`);
   });
 
-  it("012/US1-7 exercícios na ordem escolhida (com mover); nota com vírgula e o valor de cada questão pré-visto", async () => {
+  // 012/US1-7 (a total grade split among the exercises) was replaced by 013/US1-1 (spec 013): an
+  // Exercício goes out without grade, deadline or late policy; the points preview is 013's (US1).
+  it("012/US1-7 013/FR-001 exercícios na ordem escolhida, sem nota, prazo nem regra de atraso no formulário e no pedido", async () => {
     const { api, user } = setup();
     await chooseExercises(user);
     expect(api.writes()[0]!.body).toEqual({ type: "EXERCISE", exerciseIds: [EXERCISES[1]!.id, EXERCISES[0]!.id, EXERCISES[2]!.id] });
 
-    await user.type(screen.getByLabelText(/Nota total/), "1,00");
-    const values = screen.getByRole("list", { name: "Valor de cada questão" });
-    expect(within(values).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "Questão 1: vale 0,34",
-      "Questão 2: vale 0,33",
-      "Questão 3: vale 0,33",
-    ]);
+    expect(screen.queryByLabelText(/Nota total/)).toBeNull();
+    expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Não aceitar" })).toBeNull();
     // An Exercício has no work title to prefill.
     expect(field(NEW_ACTIVITY_FIELD_IDS.title).value).toBe("");
     await user.type(field(NEW_ACTIVITY_FIELD_IDS.title), "Lista de revisão");
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
-    expect(api.writes()[1]!.body).toMatchObject({ title: "Lista de revisão", totalGrade: "1.00", source: { type: "EXERCISE" } });
+    const sent = api.writes()[1]!.body as Record<string, unknown>;
+    expect(sent).toMatchObject({ title: "Lista de revisão", publishAt: null, source: { type: "EXERCISE" } });
+    for (const key of ["totalGrade", "deadline", "latePolicy"]) expect(sent).not.toHaveProperty(key);
   });
 
   it("012/US1-7 a ordem dos exercícios muda com os botões de mover", async () => {
@@ -106,16 +105,15 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     expect(api.writes()[0]!.body).toEqual({ type: "EXERCISE", exerciseIds: [EXERCISES[1]!.id, EXERCISES[0]!.id] });
   });
 
-  it("012/US1-5 erros por campo ligados: nota inválida, publicação agendada sem data e prazo antes da publicação", async () => {
+  it("012/US1-5 erros por campo ligados: publicação agendada sem data, prazo vazio e prazo antes da publicação", async () => {
     const { api, user, container } = setup();
-    await chooseExercises(user);
-    await user.type(screen.getByLabelText(/Nota total/), "0,005");
+    await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    await screen.findByRole("form", { name: "Dados da atividade" });
     await user.click(screen.getByRole("radio", { name: "Agendar" }));
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
-    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.totalGrade));
     expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.publishAt));
     expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.deadline));
-    expect(screen.getByText("Informe uma nota entre 0,01 e 100,00, com até duas casas.", { selector: "p" })).toBeTruthy();
 
     setValue(NEW_ACTIVITY_FIELD_IDS.publishAt, "2030-10-11T08:00");
     setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
@@ -194,13 +192,63 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     await expectTabOrder(user, [
       field(NEW_ACTIVITY_FIELD_IDS.title),
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
-      field(NEW_ACTIVITY_FIELD_IDS.totalGrade),
       screen.getByRole("radio", { name: "Publicar agora" }),
-      field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
       screen.getByRole("checkbox", { name: "Entendo e quero aplicar mesmo assim" }),
       screen.getByRole("button", { name: "Publicar atividade" }),
       screen.getByRole("button", { name: "Voltar" }),
     ]);
+  });
+});
+
+describe("013/US1 NewActivity — exercícios valem pontos pelo nível", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("013/US1-1 013/FR-003 cada exercício escolhido mostra o nível e \"Vale N pontos\"; o total soma 105", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("radio", { name: "Exercício" }));
+    expect(await screen.findByRole("checkbox", { name: /Intermediário: O que é polimorfismo/ })).toBeTruthy();
+    await user.click(screen.getByRole("checkbox", { name: /O que é herança/ }));
+    const order = screen.getByRole("heading", { name: "Ordem das questões" }).parentElement!;
+    expect(within(order).getByText("Básico · Vale 15 pontos")).toBeTruthy();
+    expect(within(order).getByText("Total: 15 pontos")).toBeTruthy();
+
+    await user.click(screen.getByRole("checkbox", { name: /O que é polimorfismo/ }));
+    await user.click(screen.getByRole("checkbox", { name: /O que é uma interface/ }));
+    expect(within(order).getByText("Intermediário · Vale 30 pontos")).toBeTruthy();
+    expect(within(order).getByText("Avançado · Vale 60 pontos")).toBeTruthy();
+    expect(within(order).getByText("Total: 105 pontos")).toBeTruthy();
+
+    // Unchecking one takes its points out of the total.
+    await user.click(screen.getByRole("checkbox", { name: /O que é uma interface/ }));
+    expect(within(order).getByText("Total: 45 pontos")).toBeTruthy();
+  });
+
+  it("013/FR-001 013/FR-003 o passo 2 do Exercício mostra o total e nenhum campo de nota, prazo ou atraso", async () => {
+    const { api, user } = setup();
+    await chooseExercises(user);
+    expect(screen.getByText(/^Total: 105 pontos\./)).toBeTruthy();
+    expect(screen.queryByLabelText(/Nota total/)).toBeNull();
+    expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    await user.type(field(NEW_ACTIVITY_FIELD_IDS.title), "Prática");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(Object.keys(api.writes()[1]!.body as object).sort()).toEqual([
+      "acknowledgeOutOfScope",
+      "idempotencyKey",
+      "instructions",
+      "publishAt",
+      "source",
+      "title",
+    ]);
+  });
+
+  it("013/FR-003 SC-012 escolha de exercícios com pontos sem violações de acessibilidade", async () => {
+    const { user, container } = setup();
+    await user.click(await screen.findByRole("radio", { name: "Exercício" }));
+    await user.click(await screen.findByRole("checkbox", { name: /O que é herança/ }));
+    await user.click(screen.getByRole("checkbox", { name: /O que é polimorfismo/ }));
+    await screen.findByText("Total: 45 pontos");
+    await expectNoA11yViolations(container);
   });
 });

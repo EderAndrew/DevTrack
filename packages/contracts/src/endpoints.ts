@@ -66,6 +66,7 @@ import {
   TeacherActivityListSchema,
   TeacherActivitySchema,
   TeacherAttemptSchema,
+  MarkExerciseResultsRequestSchema,
   UpdateActivityRequestSchema,
 } from "./activities/teacher.js";
 import {
@@ -77,6 +78,8 @@ import {
   StudentDashboardSchema,
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
+import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
+import { ClassRankingSchema } from "./ranking/index.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -226,6 +229,11 @@ export type ClassActivityAttemptParams = z.infer<typeof ClassActivityAttemptPara
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
 export type MyActivityParams = z.infer<typeof MyActivityParamsSchema>;
+
+/** A practice attempt by its number (013 research K3): a positive integer in the path. */
+export const AttemptNumberSchema = z.coerce.number().pipe(z.int().min(1).max(100_000));
+export const MyAttemptParamsSchema = z.strictObject({ activityId: UuidSchema, number: AttemptNumberSchema });
+export type MyAttemptParams = z.infer<typeof MyAttemptParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -1111,6 +1119,15 @@ export const endpoints = {
     response: TeacherAttemptSchema,
     status: 200,
   },
+  /** 013 — open answers and code of an EXERCISE's attempt 1 marked right or wrong (research K8); no grade. */
+  "activities.markAttempt": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/marks",
+    params: ClassActivityAttemptParamsSchema,
+    body: MarkExerciseResultsRequestSchema,
+    response: TeacherAttemptSchema,
+    status: 200,
+  },
 
   // 012 — the student portal: only the session student's ACTIVE enrollments (research P18).
   /** Counts, the next five by deadline and the overdue ones still accepting a submission (FR-010, P17). */
@@ -1156,6 +1173,49 @@ export const endpoints = {
     params: MyActivityParamsSchema,
     body: SubmitAttemptRequestSchema,
     response: StudentActivitySchema,
+    status: 200,
+  },
+  // 013 — practice attempts of an EXERCISE (research K4, K5, K10).
+  /** "Refazer": attempt `afterNumber + 1`; already created → 200 with the same one, no event. */
+  "myActivities.retry": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempts",
+    params: MyActivityParamsSchema,
+    body: RetryAttemptRequestSchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /** "Concluir exercícios" with the pending answers; already concluded → 200 with the same conclusion. */
+  "myActivities.complete": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempts/:number/complete",
+    params: MyAttemptParamsSchema,
+    body: SubmitAttemptRequestSchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /** A concluded attempt of the session student with its answer key (013/FR-012). */
+  "myActivities.getAttempt": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempts/:number",
+    params: MyAttemptParamsSchema,
+    response: StudentExerciseAttemptSchema,
+    status: 200,
+  },
+  /** 013 — the ranking of a class where the session student holds an ACTIVE enrollment (FR-019–FR-021). */
+  "ranking.mine": {
+    method: "GET",
+    path: "/me/classes/:classId/ranking",
+    params: ClassParamsSchema,
+    response: ClassRankingSchema,
+    status: 200,
+  },
+  /** 013 — the full ranking of one of the session teacher's classes (FR-022). */
+  "ranking.ofClass": {
+    method: "GET",
+    path: "/classes/:classId/ranking",
+    params: ClassParamsSchema,
+    response: ClassRankingSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

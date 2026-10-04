@@ -1,4 +1,4 @@
-import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, WorkSummary } from "@repo/contracts";
+import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, TeacherQuestion, WorkSummary } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -43,12 +43,12 @@ export const WORK: WorkSummary = {
   updatedAt: "2026-09-21T12:00:00.000Z",
 };
 
-export const exercise = (index: number, statement: string): ExerciseTeacherView => ({
+export const exercise = (index: number, statement: string, difficulty: ExerciseTeacherView["difficulty"] = "BASIC"): ExerciseTeacherView => ({
   id: `66666666-6666-4666-8666-66666666666${index}`,
   type: "MULTIPLE_CHOICE",
   statement,
   explanation: "Explicação",
-  difficulty: "BASIC",
+  difficulty,
   cognitiveObjective: "UNDERSTAND",
   origin: "MANUAL",
   status: "APPROVED",
@@ -75,7 +75,12 @@ export const exercise = (index: number, statement: string): ExerciseTeacherView 
   updatedAt: "2026-09-21T12:00:00.000Z",
 });
 
-export const EXERCISES = [exercise(1, "O que é herança?"), exercise(2, "O que é polimorfismo?"), exercise(3, "O que é uma interface?")];
+/** One of each level (013/FR-002): 15 + 30 + 60 = 105 points. */
+export const EXERCISES = [
+  exercise(1, "O que é herança?", "BASIC"),
+  exercise(2, "O que é polimorfismo?", "INTERMEDIATE"),
+  exercise(3, "O que é uma interface?", "ADVANCED"),
+];
 
 export const OUT_OF_SCOPE = { hasPlan: true, outOfScope: [{ syllabusItemId: ITEM_ID, title: "Polimorfismo", questionPositions: [1, 2] }] };
 
@@ -90,8 +95,10 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
   deadline: "2026-10-10T23:59:00.000Z",
   latePolicy: "REJECT",
   totalGrade: "1.00",
+  possiblePoints: null,
   resultReleasedAt: null,
   counts: { enrolled: 30, inProgress: 4, submitted: 10, submittedLate: 2, missed: 0, pendingGrading: 3 },
+  exerciseCounts: null,
   instructions: "Leia com atenção.",
   version: 2,
   outOfScopeTopicCount: 0,
@@ -103,6 +110,8 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
       type: "MULTIPLE_CHOICE",
       gradingStrategy: "EXACT_MATCH",
       value: "1.00",
+      difficulty: null,
+      points: null,
       statement: "Qual palavra declara herança?",
       instructions: null,
       starterCode: null,
@@ -131,10 +140,63 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
       submittedAt: null,
       grade: null,
       gradePartial: null,
+      pointsEarned: null,
+      pendingMarks: null,
     },
   ],
   ...overrides,
 });
+
+/**
+ * An Exercício (013): no grade, deadline, late policy or release; three questions of each level, a
+ * roster with one student who concluded (15 points, one answer waiting for a mark).
+ */
+export const exerciseActivity = (overrides: Partial<TeacherActivity> = {}): TeacherActivity => {
+  const base = activity();
+  const question = base.questions[0]!;
+  const levels = [
+    ["BASIC", 15],
+    ["INTERMEDIATE", 30],
+    ["ADVANCED", 60],
+  ] as const;
+  return activity({
+    type: "EXERCISE",
+    title: "Lista de prática",
+    deadline: null,
+    latePolicy: null,
+    totalGrade: null,
+    possiblePoints: 105,
+    counts: { enrolled: 30, inProgress: 4, submitted: 0, submittedLate: 0, missed: 0, pendingGrading: 0 },
+    exerciseCounts: { completed: 12, pendingMarks: 3 },
+    source: { exerciseIds: EXERCISES.map((item) => item.id) },
+    questions: levels.map(([difficulty, points], position) => ({
+      ...question,
+      id: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab0${position}`,
+      position,
+      value: null,
+      difficulty,
+      points,
+      statement: EXERCISES[position]!.statement,
+      topics: [],
+    })),
+    roster: [
+      { ...base.roster[0]!, pointsEarned: 0, pendingMarks: 0 },
+      {
+        studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
+        name: "Bruno Lima",
+        enrollment: "ACTIVE",
+        status: "COMPLETED",
+        attemptId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd2",
+        submittedAt: null,
+        grade: null,
+        gradePartial: null,
+        pointsEarned: 15,
+        pendingMarks: 1,
+      },
+    ],
+    ...overrides,
+  });
+};
 
 export const ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
 export const OPEN_QUESTION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
@@ -170,6 +232,8 @@ export const gradingActivity = (overrides: Partial<TeacherActivity> = {}): Teach
         submittedAt: "2026-10-05T12:00:00.000Z",
         grade: "0.50",
         gradePartial: true,
+        pointsEarned: null,
+        pendingMarks: null,
       },
       {
         studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
@@ -180,6 +244,8 @@ export const gradingActivity = (overrides: Partial<TeacherActivity> = {}): Teach
         submittedAt: null,
         grade: null,
         gradePartial: null,
+        pointsEarned: null,
+        pendingMarks: null,
       },
     ],
     ...overrides,
@@ -212,8 +278,93 @@ export const teacherAttempt = (overrides: Partial<TeacherAttempt> = {}): Teacher
       { questionId: OPEN_QUESTION_ID, status: "PENDING_TEACHER", nature: null, finalGrade: null, teacherGrade: null, pendingReason: "AI_REVIEW_UNAVAILABLE", feedback: null },
     ],
   },
+  exercise: null,
   ...overrides,
 });
+
+export const EXERCISE_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd2";
+export const MARK_CHOICE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab00";
+export const MARK_OPEN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab01";
+export const MARK_CODE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab02";
+
+/**
+ * The Exercício of `exerciseActivity()` with one question of each type: a multiple choice (Básico,
+ * 15), an open answer (Intermediário, 30) and a code (Avançado, 60); Bruno and Carla concluded.
+ */
+export const markingActivity = (overrides: Partial<TeacherActivity> = {}): TeacherActivity => {
+  const base = exerciseActivity();
+  const [choice, open, code] = base.questions as [TeacherQuestion, TeacherQuestion, TeacherQuestion];
+  return exerciseActivity({
+    questions: [
+      { ...choice, id: MARK_CHOICE_ID, statement: "Qual palavra declara herança?" },
+      {
+        ...open,
+        id: MARK_OPEN_ID,
+        type: "OPEN_ANSWER",
+        gradingStrategy: "AI_REVIEW",
+        statement: "Explique o encapsulamento.",
+        expectedAnswer: "Esconder o estado atrás de métodos.",
+        explanation: "O estado fica privado.",
+        alternatives: [],
+      },
+      {
+        ...code,
+        id: MARK_CODE_ID,
+        type: "CODE",
+        gradingStrategy: "TEST_CASES",
+        statement: "Escreva a classe Conta.",
+        starterCode: "class Conta {}",
+        expectedSolution: "class Conta { private saldo; }",
+        explanation: "O saldo é privado.",
+        alternatives: [],
+      },
+    ],
+    roster: [
+      base.roster[0]!,
+      { ...base.roster[1]!, attemptId: EXERCISE_ATTEMPT_ID },
+      { ...base.roster[1]!, studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3", name: "Carla Dias", attemptId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd4" },
+    ],
+    ...overrides,
+  });
+};
+
+type ExerciseBlock = NonNullable<TeacherAttempt["exercise"]>;
+type ExerciseRow = ExerciseBlock["results"][number];
+
+/** Bruno's first conclusion: the multiple choice right by the rule, the open answer waiting, the code marked wrong. */
+export const exerciseAttempt = (results: Partial<Record<string, Partial<ExerciseRow>>> = {}, block: Partial<ExerciseBlock> = {}): TeacherAttempt => {
+  const row = (questionId: string, fields: Partial<ExerciseRow>): ExerciseRow => ({
+    questionId,
+    result: "PENDING_TEACHER",
+    points: 0,
+    scoring: true,
+    alreadyScored: false,
+    nature: null,
+    comment: null,
+    decidedAt: null,
+    ...fields,
+    ...results[questionId],
+  });
+  return teacherAttempt({
+    id: EXERCISE_ATTEMPT_ID,
+    answers: [
+      { questionId: MARK_CHOICE_ID, answer: { kind: "ALTERNATIVE", alternativeId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1" }, savedAt: "2026-10-05T11:30:00.000Z" },
+      { questionId: MARK_OPEN_ID, answer: { kind: "TEXT", text: "Proteger os atributos." }, savedAt: "2026-10-05T11:40:00.000Z" },
+      { questionId: MARK_CODE_ID, answer: { kind: "CODE", source: "class Conta { saldo; }" }, savedAt: "2026-10-05T11:58:00.000Z" },
+    ],
+    submission: null,
+    exercise: {
+      number: 1,
+      completedAt: "2026-10-05T12:00:00.000Z",
+      results: [
+        row(MARK_CHOICE_ID, { result: "CORRECT", points: 15, nature: "RULE_RESULT" }),
+        row(MARK_OPEN_ID, {}),
+        row(MARK_CODE_ID, { result: "WRONG", nature: "HUMAN_DECISION", comment: "Faltou o private.", decidedAt: "2026-10-05T13:00:00.000Z" }),
+      ],
+      ...block,
+    },
+  });
+};
 
 export interface Call {
   method: string;

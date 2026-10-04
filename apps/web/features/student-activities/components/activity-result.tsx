@@ -19,7 +19,7 @@ export function ActivityResult({ activity }: { activity: StudentActivity }) {
         <div>
           <dt className="text-label text-text-secondary">Nota</dt>
           <dd className="m-0">
-            {formatGrade(result.grade)} de {formatGrade(activity.totalGrade)}
+            {formatGrade(result.grade)} de {formatGrade(activity.totalGrade ?? "0.00")}
           </dd>
         </div>
         {result.generalFeedback ? (
@@ -36,7 +36,7 @@ export function ActivityResult({ activity }: { activity: StudentActivity }) {
           return (
             <li key={item.questionId} className="flex flex-col gap-1">
               <span>
-                Questão {question.position + 1}: {formatGrade(item.grade)} de {formatGrade(question.value)}
+                Questão {question.position + 1}: {formatGrade(item.grade)} de {formatGrade(question.value ?? "0.00")}
               </span>
               {item.feedback ? <span className="whitespace-pre-wrap text-text-secondary">Feedback: {item.feedback}</span> : null}
             </li>

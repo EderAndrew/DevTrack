@@ -150,6 +150,17 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 12),
   },
+  {
+    feature: "013",
+    path: "specs/013-exercise-points-ranking/spec.md",
+    stories: 5,
+    scenarios: 28,
+    // No "### Acceptance Criteria Traceability" table, as in 008–012.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-008 (own position within 10 s) is timed by the E2E and the manual quickstart run.
+    successCriteria: sc(1, 9),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

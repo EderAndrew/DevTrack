@@ -10,14 +10,16 @@ export interface ClassTabsProps {
   showPlanning: boolean;
   /** Atividades (012, `atividades.visualizar`; UX only). */
   showActivities?: boolean;
+  /** Ranking (013, `ranking.visualizar`; UX only). */
+  showRanking?: boolean;
 }
 
 /**
  * Sections of a class page (004 contracts/web-ui.md): Alunos, Convites, Ementa, Calendário,
- * Planejamento and (012) Atividades. Each one is its own route under `/turmas/[id]`, so these are links, and the
+ * Planejamento, (012) Atividades and (013) Ranking. Each one is its own route under `/turmas/[id]`, so these are links, and the
  * current one is marked `aria-current="page"`.
  */
-export function ClassTabs({ classId, showPlanning, showActivities = false }: ClassTabsProps) {
+export function ClassTabs({ classId, showPlanning, showActivities = false, showRanking = false }: ClassTabsProps) {
   const pathname = usePathname();
   const base = `/turmas/${classId}`;
   const tabs = [
@@ -31,6 +33,7 @@ export function ClassTabs({ classId, showPlanning, showActivities = false }: Cla
         ]
       : []),
     ...(showActivities ? [{ href: `${base}/atividades`, label: "Atividades" }] : []),
+    ...(showRanking ? [{ href: `${base}/ranking`, label: "Ranking" }] : []),
   ];
 
   return (

@@ -1,6 +1,6 @@
 import { LatePolicySchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import type { ActivityFacts } from "./facts";
+import type { AssignmentFacts, ExerciseFacts } from "./facts";
 import { acceptanceRefusal, canAnswer, decideOperation, type StudentOperation } from "./operations";
 import { deriveRosterStatus } from "./roster-status";
 import { deriveStudentStatus, isResultVisible, isUrgent, URGENT_WITHIN_MS } from "./student-status";
@@ -9,7 +9,8 @@ const DEADLINE = new Date("2026-10-10T23:59:00.000Z");
 const at = (offsetMs: number) => new Date(DEADLINE.getTime() + offsetMs);
 const HOUR = 3_600_000;
 
-const facts = (overrides: Partial<ActivityFacts> = {}): ActivityFacts => ({
+const facts = (overrides: Partial<AssignmentFacts> = {}): AssignmentFacts => ({
+  type: "ASSIGNMENT",
   activityStatus: "ACTIVE",
   deadline: DEADLINE,
   latePolicy: "REJECT",
@@ -28,7 +29,7 @@ const submitted = (late = false, gradingComplete = false) => ({
 });
 
 /** Every combination of the facts, with the clock before, at and after the deadline. */
-function* everyCombination(): Generator<ActivityFacts> {
+function* everyCombination(): Generator<AssignmentFacts> {
   for (const activityStatus of ["ACTIVE", "CLOSED"] as const)
     for (const latePolicy of LatePolicySchema.options)
       for (const classActive of [true, false])
@@ -92,7 +93,7 @@ describe("012/FR-011 urgência", () => {
 });
 
 describe("012/FR-021 012/FR-024a o que o aluno pode fazer", () => {
-  const decide = (operation: StudentOperation, overrides: Partial<ActivityFacts>) => decideOperation(operation, facts(overrides));
+  const decide = (operation: StudentOperation, overrides: Partial<AssignmentFacts>) => decideOperation(operation, facts(overrides));
 
   it("dentro do prazo: iniciar, salvar e entregar; repetir o início devolve a mesma tentativa", () => {
     expect(decide("START", {})).toEqual({ kind: "ALLOWED" });
@@ -157,5 +158,127 @@ describe("012/FR-006 situação na lista do professor e aceite da tentativa", ()
     expect(acceptanceRefusal(facts({ ...inProgress, now: at(1), latePolicy: "ACCEPT_MARKED" }))).toBe("STUDENT_CAN_STILL_SUBMIT");
     expect(acceptanceRefusal(facts({ now: at(1) }))).toBe("NOT_STARTED");
     expect(acceptanceRefusal(facts({ ...submitted(true), now: at(1) }))).toBeNull();
+  });
+});
+
+// ── 013: EXERCISE (contracts/student-status.md, research K3, K4, K9) ─────────────────────────
+
+const exerciseFacts = (overrides: Partial<ExerciseFacts> = {}): ExerciseFacts => ({
+  type: "EXERCISE",
+  activityStatus: "ACTIVE",
+  classActive: true,
+  latestAttempt: null,
+  awaitingCorrection: false,
+  now: at(-3 * 24 * HOUR),
+  ...overrides,
+});
+const open = (number: number) => ({ latestAttempt: { number, status: "IN_PROGRESS" as const } });
+const done = (number: number) => ({ latestAttempt: { number, status: "SUBMITTED" as const } });
+
+/** No attempt, attempt 1 open, 1 concluded, 2 open (a retry), 2 and 3 concluded. */
+const EXERCISE_ATTEMPTS = [{}, open(1), done(1), open(2), done(2), done(3)];
+
+function* everyExerciseCombination(): Generator<ExerciseFacts> {
+  for (const activityStatus of ["ACTIVE", "CLOSED"] as const)
+    for (const classActive of [true, false])
+      for (const awaitingCorrection of [true, false])
+        for (const state of EXERCISE_ATTEMPTS) yield exerciseFacts({ activityStatus, classActive, awaitingCorrection, ...state });
+}
+
+describe("013/FR-014 situação do aluno no Exercício", () => {
+  it("013/FR-014 PENDENTE → EM_ANDAMENTO → CONCLUÍDA; uma nova tentativa aberta continua CONCLUÍDA", () => {
+    expect(deriveStudentStatus(exerciseFacts())).toBe("PENDING");
+    expect(deriveStudentStatus(exerciseFacts(open(1)))).toBe("IN_PROGRESS");
+    expect(deriveStudentStatus(exerciseFacts(done(1)))).toBe("COMPLETED");
+    expect(deriveStudentStatus(exerciseFacts(open(2)))).toBe("COMPLETED");
+    expect(deriveStudentStatus(exerciseFacts(done(3)))).toBe("COMPLETED");
+  });
+
+  it("013/FR-013 em todas as combinações: nunca ATRASADO, ENTREGUE ou CORRIGIDO, nunca urgente, nunca resultado de nota", () => {
+    for (const combination of everyExerciseCombination()) {
+      expect(["PENDING", "IN_PROGRESS", "COMPLETED"]).toContain(deriveStudentStatus(combination));
+      expect(isUrgent(combination)).toBe(false);
+      expect(isResultVisible(combination)).toBe(false);
+    }
+  });
+
+  it("encerrada sem tentativa continua PENDENTE (não há prazo para atrasar)", () => {
+    expect(deriveStudentStatus(exerciseFacts({ activityStatus: "CLOSED" }))).toBe("PENDING");
+  });
+});
+
+describe("013/FR-016 situação na lista do professor (Exercício)", () => {
+  it("não iniciou, em andamento, concluiu; nunca MISSED nem entregue", () => {
+    expect(deriveRosterStatus(exerciseFacts())).toBe("NOT_STARTED");
+    expect(deriveRosterStatus(exerciseFacts(open(1)))).toBe("IN_PROGRESS");
+    expect(deriveRosterStatus(exerciseFacts(done(1)))).toBe("COMPLETED");
+    expect(deriveRosterStatus(exerciseFacts(open(2)))).toBe("COMPLETED");
+    for (const combination of everyExerciseCombination()) {
+      expect(["NOT_STARTED", "IN_PROGRESS", "COMPLETED"]).toContain(deriveRosterStatus(combination));
+    }
+  });
+});
+
+describe("013/FR-005 013/FR-007 o que o aluno pode fazer no Exercício (research K4, K5)", () => {
+  const decide = (operation: StudentOperation, overrides: Partial<ExerciseFacts>, target?: number) =>
+    decideOperation(operation, exerciseFacts(overrides), target);
+
+  it("sem tentativa: iniciar; refazer, salvar e concluir → NOT_STARTED", () => {
+    expect(decide("START", {})).toEqual({ kind: "ALLOWED" });
+    expect(decide("RETRY", {}, 1)).toEqual({ kind: "REFUSED", code: "NOT_STARTED" });
+    expect(decide("SAVE", {})).toEqual({ kind: "REFUSED", code: "NOT_STARTED" });
+    expect(decide("COMPLETE", {}, 1)).toEqual({ kind: "REFUSED", code: "NOT_STARTED" });
+  });
+
+  it("tentativa n aberta: iniciar repete; salvar e concluir n; refazer → ATTEMPT_NOT_COMPLETED", () => {
+    expect(decide("START", open(1))).toEqual({ kind: "REPEAT" });
+    expect(decide("SAVE", open(1))).toEqual({ kind: "ALLOWED" });
+    expect(decide("COMPLETE", open(1), 1)).toEqual({ kind: "ALLOWED" });
+    expect(decide("COMPLETE", open(2), 3)).toEqual({ kind: "REFUSED", code: "NOT_STARTED" });
+    expect(decide("RETRY", open(1), 1)).toEqual({ kind: "REFUSED", code: "ATTEMPT_NOT_COMPLETED" });
+  });
+
+  it("013/FR-005 refazer depois da última concluída cria a próxima; repetir o pedido devolve a mesma (K4)", () => {
+    expect(decide("RETRY", done(1), 1)).toEqual({ kind: "ALLOWED" });
+    expect(decide("RETRY", open(2), 1)).toEqual({ kind: "REPEAT" });
+    expect(decide("RETRY", done(2), 1)).toEqual({ kind: "REFUSED", code: "NOT_LATEST_ATTEMPT" });
+    expect(decide("RETRY", done(2), 3)).toEqual({ kind: "REFUSED", code: "NOT_LATEST_ATTEMPT" });
+    expect(decide("RETRY", open(3), 1)).toEqual({ kind: "REFUSED", code: "ATTEMPT_NOT_COMPLETED" });
+  });
+
+  it("013/FR-007 concluir uma tentativa já concluída é repetição idempotente, mesmo encerrada ou com a turma inativa", () => {
+    expect(decide("COMPLETE", done(1), 1)).toEqual({ kind: "REPEAT" });
+    expect(decide("COMPLETE", open(2), 1)).toEqual({ kind: "REPEAT" });
+    expect(decide("COMPLETE", { ...done(2), activityStatus: "CLOSED" }, 2)).toEqual({ kind: "REPEAT" });
+    expect(decide("COMPLETE", { ...done(2), classActive: false }, 1)).toEqual({ kind: "REPEAT" });
+    expect(decide("SAVE", done(1))).toEqual({ kind: "REFUSED", code: "ATTEMPT_ALREADY_SUBMITTED" });
+  });
+
+  it("encerrada recusa com ACTIVITY_CLOSED e turma inativa com CLASS_NOT_ACTIVE; nunca DEADLINE_PASSED", () => {
+    for (const operation of ["SAVE", "RETRY"] as const) {
+      expect(decide(operation, { ...done(1), activityStatus: "CLOSED" }, 1)).toEqual({ kind: "REFUSED", code: "ACTIVITY_CLOSED" });
+      expect(decide(operation, { ...done(1), classActive: false }, 1)).toEqual({ kind: "REFUSED", code: "CLASS_NOT_ACTIVE" });
+    }
+    expect(decide("START", { activityStatus: "CLOSED" })).toEqual({ kind: "REFUSED", code: "ACTIVITY_CLOSED" });
+    for (const combination of everyExerciseCombination()) {
+      for (const operation of ["START", "SAVE", "RETRY", "COMPLETE"] as const) {
+        for (const target of [1, 2, 3]) {
+          const outcome = decideOperation(operation, combination, target);
+          if (outcome.kind === "REFUSED") expect(outcome.code).not.toBe("DEADLINE_PASSED");
+        }
+      }
+    }
+  });
+
+  it("entregar é do Trabalho e refazer/concluir são do Exercício: o outro tipo recusa", () => {
+    expect(decide("SUBMIT", open(1))).toEqual({ kind: "REFUSED", code: "INVALID_STATE_TRANSITION" });
+    expect(decideOperation("RETRY", facts(submitted()), 1)).toEqual({ kind: "REFUSED", code: "INVALID_STATE_TRANSITION" });
+    expect(decideOperation("COMPLETE", facts(inProgress), 1)).toEqual({ kind: "REFUSED", code: "INVALID_STATE_TRANSITION" });
+  });
+
+  it("canAnswer: turma e atividade ativas, mesmo depois de concluir (Refazer)", () => {
+    for (const combination of everyExerciseCombination()) {
+      expect(canAnswer(combination)).toBe(combination.classActive && combination.activityStatus === "ACTIVE");
+    }
   });
 });

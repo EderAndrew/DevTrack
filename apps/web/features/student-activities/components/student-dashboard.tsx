@@ -5,6 +5,7 @@ import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RankingCard } from "@/features/ranking/components/ranking-card";
 import { useStudentDashboard } from "../hooks/use-student-activities";
 import { myActivitiesHref } from "../schemas/student-activity";
 import { ActivityCard } from "./activity-card";
@@ -23,7 +24,7 @@ const COUNTERS: { key: keyof Dashboard["counts"]; label: string; filter: Student
  * The student's start page (012 US2, contracts/web-ui.md `/painel`): "Olá, {primeiro nome}", the
  * four counters (one row of links to the filtered list), the next activities by deadline as the
  * first section (SC-001: the next one and its deadline without scrolling) and the overdue ones that
- * still accept a submission.
+ * still accept a submission. Since 013, one ranking card per class (FR-021), after the activities.
  */
 export function StudentDashboard() {
   const query = useStudentDashboard();
@@ -45,7 +46,7 @@ export function StudentDashboard() {
     );
   }
 
-  const { firstName, counts, next, overdueOpen } = query.data;
+  const { firstName, counts, next, overdueOpen, rankings } = query.data;
   return (
     <>
       <PageHeader title={firstName ? `Olá, ${firstName}` : "Olá"} />
@@ -92,6 +93,21 @@ export function StudentDashboard() {
               {overdueOpen.map((item) => (
                 <li key={item.id}>
                   <ActivityCard item={item} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {rankings.length > 0 ? (
+          <section aria-labelledby="ranking-titulo" className="flex flex-col gap-3">
+            <h2 id="ranking-titulo" className="m-0 text-h2">
+              Ranking das turmas
+            </h2>
+            <ul className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">
+              {rankings.map((ranking) => (
+                <li key={ranking.class.id}>
+                  <RankingCard ranking={ranking} />
                 </li>
               ))}
             </ul>

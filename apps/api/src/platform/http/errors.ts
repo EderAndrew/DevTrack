@@ -137,6 +137,9 @@ export const ErrorCatalog = {
   ACTIVITY_CLOSED: { status: 409, message: "Esta atividade foi encerrada pelo professor." },
   INVALID_ANSWER: { status: 422, message: "Esta resposta não é válida para a questão." },
   STUDENT_CAN_STILL_SUBMIT: { status: 409, message: "Este aluno ainda pode entregar a atividade." },
+  ATTEMPT_NOT_COMPLETED: { status: 409, message: "Conclua a tentativa atual antes de refazer." },
+  NOT_LATEST_ATTEMPT: { status: 409, message: "Esta tentativa já foi refeita. Carregamos a mais recente." },
+  NOT_MARKABLE: { status: 422, message: "Esta resposta não precisa de correção do professor." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

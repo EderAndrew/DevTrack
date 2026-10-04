@@ -19,6 +19,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/010-exercise-bank/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/011-work-bank/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/012-student-portal/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/013-exercise-points-ranking/contracts/audit-events.md"),
 ];
 
 /**
@@ -32,7 +33,10 @@ const PENDING_011 = new Set<string>([]);
 
 /** 012 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_012 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012]);
+
+/** 013 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_013 = new Set<string>([]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013]);
 
 interface ContractRow {
   type: string;
@@ -69,6 +73,29 @@ function contractRows(file: string): ContractRow[] {
     });
 }
 
+/**
+ * A later feature may extend an earlier type (013 adds `attemptNumber` to 012's
+ * `activity_attempt.started`): its row adds actors, targets and metadata keys to the first one.
+ */
+function mergeExtensions(all: ContractRow[]): ContractRow[] {
+  const byType = new Map<string, ContractRow>();
+  for (const row of all) {
+    const first = byType.get(row.type);
+    if (!first) {
+      byType.set(row.type, { ...row });
+      continue;
+    }
+    const union = (a: string[], b: string[]) => [...new Set([...a, ...b])];
+    byType.set(row.type, {
+      type: row.type,
+      actors: union(first.actors, row.actors),
+      target: first.target && row.target ? union(first.target, row.target) : (first.target ?? row.target),
+      metadata: union(first.metadata, row.metadata),
+    });
+  }
+  return [...byType.values()];
+}
+
 /** Types of the "Tipos aposentados" tables: no longer written, so outside the catalogue (003 D13). */
 function retiredTypes(file: string): string[] {
   const [, retired = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m);
@@ -81,9 +108,9 @@ function retiredTypes(file: string): string[] {
 
 describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => {
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
-  const rows = CONTRACTS.flatMap(contractRows).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
+  const rows = mergeExtensions(CONTRACTS.flatMap(contractRows)).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010, 011 e 012 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011, 012 e 013 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });
@@ -185,6 +212,23 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       const found = events.filter((event) => types.includes(event.type));
       expect(new Set(found.map((event) => event.type)).size).toBe(13);
       expect(offendingMetadata(found, true)).toEqual([]);
+    });
+
+    it("013/SC-009 os 2 tipos da 013 gravados e as extensões da 012, metadata só com ids, contagens, enums, booleanos e códigos; ler o ranking não é auditado", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^exercise_(attempt|result)\./.test(type));
+      expect(types.sort()).toEqual(["exercise_attempt.completed", "exercise_result.marked"]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(2);
+      expect(offendingMetadata(found)).toEqual([]);
+      const completed = found.filter((event) => event.type === "exercise_attempt.completed").map((event) => event.metadata as Record<string, unknown>);
+      expect(completed.map((metadata) => [metadata.attemptNumber, metadata.first])).toContainEqual([1, true]);
+      expect(found.find((event) => event.type === "exercise_result.marked")?.metadata).toMatchObject({ from: "PENDING_TEACHER", to: "CORRECT", hasComment: true });
+      // 012 types extended by 013 (contracts/audit-events.md).
+      const started = events.filter((event) => event.type === "activity_attempt.started").map((event) => (event.metadata as { attemptNumber?: number }).attemptNumber);
+      expect(started).toContain(2);
+      const published = events.filter((event) => event.type === "activity.published").map((event) => event.metadata as Record<string, unknown>);
+      expect(published.some((metadata) => Number.isInteger(metadata.possiblePoints) && !("totalCents" in metadata) && !("latePolicy" in metadata))).toBe(true);
+      expect(events.filter((event) => /ranking/i.test(event.type) || /ranking/i.test(JSON.stringify(event.metadata)))).toEqual([]);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

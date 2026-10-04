@@ -2,9 +2,11 @@ import { Injectable } from "@nestjs/common";
 import type { StudentAnswer } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
-import { ACTIVITY_QUESTION_SELECT, decimalToCents, toQuestionRow } from "../activities/activity-query";
+import { ACTIVITY_QUESTION_SELECT, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
+import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
-import type { StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
+import type { ActivityQuestionRow } from "../activities/views/rows";
+import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
 
 /** Why an existing activity is outside the student's context (`student_access.denied`, research P18). */
 export type DeniedReason = "NOT_ENROLLED" | "NOT_PUBLISHED" | "CANCELLED";
@@ -22,14 +24,20 @@ const ACTIVITY_SELECT = {
   resultReleasedAt: true,
   schoolClass: { select: { id: true, name: true, status: true, subject: { select: { name: true } } } },
   teacher: { select: { name: true } },
+  /** The EXERCISE's possible points (013/FR-003). */
+  questions: { select: { points: true } },
 } as const satisfies Prisma.ClassActivitySelect;
 
 const ATTEMPT_SELECT = {
   id: true,
   activityId: true,
+  number: true,
   status: true,
   startedAt: true,
   lastSavedAt: true,
+  completedAt: true,
+  /** EXERCISE: the results of a concluded attempt, for its points and its result view (013 K6, K10). */
+  results: { select: { questionId: true, result: true, points: true, scoring: true, comment: true } },
   submission: {
     select: {
       submittedAt: true,
@@ -62,7 +70,7 @@ export class StudentActivityLoader {
   async loadAll(studentUserId: string, now: Date, canSeeResults: boolean): Promise<StudentActivityInput[]> {
     const activities = await this.prisma.classActivity.findMany({ where: visibleTo(studentUserId, now), select: ACTIVITY_SELECT });
     const attempts = await this.attemptsOf(studentUserId, activities.map((activity) => activity.id));
-    return activities.map((activity) => toInput(activity, attempts.get(activity.id) ?? null, now, canSeeResults));
+    return activities.map((activity) => toInput(activity, attempts.get(activity.id) ?? [], now, canSeeResults));
   }
 
   /** One activity in the student's context with its questions and saved answers, or null (→ 404). */
@@ -72,20 +80,66 @@ export class StudentActivityLoader {
       select: { ...ACTIVITY_SELECT, questions: { orderBy: { position: "asc" }, select: ACTIVITY_QUESTION_SELECT } },
     });
     if (!activity) return null;
-    const attempt = (await this.attemptsOf(studentUserId, [activity.id])).get(activity.id) ?? null;
-    const answers = attempt
-      ? await this.prisma.activityAnswer.findMany({
-          where: { attemptId: attempt.id },
-          select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
-        })
-      : [];
+    const attempts = (await this.attemptsOf(studentUserId, [activity.id])).get(activity.id) ?? [];
+    const latest = attempts.at(-1) ?? null;
+    // ASSIGNMENT: its one attempt, submitted or not (012). EXERCISE: the open attempt only (013).
+    const attempt = activity.type === "EXERCISE" && latest?.status !== "IN_PROGRESS" ? null : latest;
+    const answers = attempt ? await this.answersOf(attempt.id) : [];
+    // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
+    const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     return {
-      ...toInput(activity, attempt, now, canSeeResults),
+      ...toInput(activity, attempts, now, canSeeResults),
       questions: activity.questions.map(toQuestionRow),
       attempt: attempt
-        ? { startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
+        ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
         : null,
+      completedAttempts: attempts
+        .flatMap((row) => (row.completedAt ? [{ number: row.number, completedAt: row.completedAt }] : []))
+        .sort((a, b) => b.number - a.number),
+      lastResult: concluded ? await this.concludedInput(concluded) : null,
     };
+  }
+
+  /**
+   * One concluded attempt of the session student in an EXERCISE activity of their context, with the
+   * snapshot questions (013 `GET /me/activities/:activityId/attempts/:number`); null when the activity
+   * is out of context, is not an EXERCISE, or the attempt doesn't exist or isn't concluded (→ 404).
+   */
+  async loadConcluded(
+    studentUserId: string,
+    activityId: string,
+    number: number,
+    now: Date,
+  ): Promise<{ inContext: boolean; found: { questions: ActivityQuestionRow[]; attempt: ConcludedAttemptInput } | null }> {
+    const activity = await this.prisma.classActivity.findFirst({
+      where: { id: activityId, ...visibleTo(studentUserId, now) },
+      select: { type: true, questions: { orderBy: { position: "asc" }, select: ACTIVITY_QUESTION_SELECT } },
+    });
+    if (!activity) return { inContext: false, found: null };
+    if (activity.type !== "EXERCISE") return { inContext: true, found: null };
+    const attempt = await this.prisma.activityAttempt.findFirst({
+      where: { activityId, studentUserId, number, completedAt: { not: null } },
+      select: ATTEMPT_SELECT,
+    });
+    if (!attempt) return { inContext: true, found: null };
+    return { inContext: true, found: { questions: activity.questions.map(toQuestionRow), attempt: await this.concludedInput(attempt) } };
+  }
+
+  private async concludedInput(attempt: AttemptRow): Promise<ConcludedAttemptInput> {
+    const answers = await this.answersOf(attempt.id);
+    return {
+      number: attempt.number,
+      completedAt: attempt.completedAt!,
+      results: attempt.results,
+      answers: answers.map((row) => ({ questionId: row.questionId, answer: answerOfRow(row) })),
+    };
+  }
+
+  private answersOf(attemptId: string) {
+    return this.prisma.activityAnswer.findMany({
+      where: { attemptId },
+      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
+    });
   }
 
   /**
@@ -104,13 +158,17 @@ export class StudentActivityLoader {
     return activity.publishAt.getTime() > now.getTime() ? "NOT_PUBLISHED" : null;
   }
 
-  private async attemptsOf(studentUserId: string, activityIds: readonly string[]): Promise<Map<string, AttemptRow>> {
+  /** The student's attempts of each activity, by number (one for an ASSIGNMENT; 1..n for an EXERCISE). */
+  private async attemptsOf(studentUserId: string, activityIds: readonly string[]): Promise<Map<string, AttemptRow[]>> {
     if (activityIds.length === 0) return new Map();
     const rows = await this.prisma.activityAttempt.findMany({
       where: { studentUserId, activityId: { in: [...activityIds] } },
       select: ATTEMPT_SELECT,
+      orderBy: { number: "asc" },
     });
-    return new Map(rows.map((row) => [row.activityId, row]));
+    const byActivity = new Map<string, AttemptRow[]>();
+    for (const row of rows) byActivity.set(row.activityId, [...(byActivity.get(row.activityId) ?? []), row]);
+    return byActivity;
   }
 }
 
@@ -122,8 +180,36 @@ const visibleTo = (studentUserId: string, now: Date) =>
     schoolClass: { enrollments: { some: { studentUserId, status: "ACTIVE" } } },
   }) satisfies Prisma.ClassActivityWhereInput;
 
-function toInput(activity: ActivityRow, attempt: AttemptRow | null, now: Date, canSeeResults: boolean): StudentActivityInput {
-  const submission = attempt?.submission ?? null;
+/** The facts of the student's situation, by type (contracts/student-status.md). */
+function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date): ActivityFacts {
+  const latest = attempts.at(-1) ?? null;
+  const classActive = activity.schoolClass.status === "ACTIVE";
+  if (activity.type === "EXERCISE") {
+    return {
+      type: "EXERCISE",
+      activityStatus: activity.status,
+      classActive,
+      latestAttempt: latest && { number: latest.number, status: latest.status },
+      awaitingCorrection: (attempts[0]?.results ?? []).some((row) => row.result === "PENDING_TEACHER"),
+      now,
+    };
+  }
+  const submission = latest?.submission ?? null;
+  return {
+    type: "ASSIGNMENT",
+    activityStatus: activity.status,
+    ...assignmentSchedule(activity),
+    classActive,
+    attempt: latest && { status: latest.status },
+    submission: submission && { late: submission.late, gradingComplete: !submission.gradePartial },
+    released: activity.resultReleasedAt !== null,
+    now,
+  };
+}
+
+function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date, canSeeResults: boolean): StudentActivityInput {
+  const facts = factsOf(activity, attempts, now);
+  const submission = attempts[0]?.submission ?? null;
   return {
     id: activity.id,
     type: activity.type,
@@ -135,17 +221,16 @@ function toInput(activity: ActivityRow, attempt: AttemptRow | null, now: Date, c
     publishAt: activity.publishAt,
     deadline: activity.deadline,
     latePolicy: activity.latePolicy,
-    totalCents: decimalToCents(activity.totalGrade),
-    facts: {
-      activityStatus: activity.status,
-      deadline: activity.deadline,
-      latePolicy: activity.latePolicy,
-      classActive: activity.schoolClass.status === "ACTIVE",
-      attempt: attempt && { status: attempt.status },
-      submission: submission && { late: submission.late, gradingComplete: !submission.gradePartial },
-      released: activity.resultReleasedAt !== null,
-      now,
-    },
+    totalCents: nullableCents(activity.totalGrade),
+    points:
+      facts.type === "EXERCISE"
+        ? {
+            possible: activity.questions.reduce((sum, question) => sum + (question.points ?? 0), 0),
+            earned: (attempts[0]?.results ?? []).reduce((sum, row) => sum + row.points, 0),
+            awaitingCorrection: facts.awaitingCorrection,
+          }
+        : null,
+    facts,
     canSeeResults,
     submission: submission && {
       submittedAt: submission.submittedAt,

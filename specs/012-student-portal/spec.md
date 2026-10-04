@@ -57,6 +57,13 @@ servidor.
 
 ## Clarifications
 
+> **Emenda (2026-10-03, spec 013)**: as regras de Exercício (nota, prazo, tentativa única,
+> liberação) foram substituídas pela
+> [013 — Pontuação e Ranking dos Exercícios](../013-exercise-points-ranking/spec.md). Para
+> atividades de Exercício valem os requisitos da 013 no lugar destes ids desta spec: FR-001,
+> FR-006, FR-009, FR-014–FR-016, FR-024a, FR-027–FR-030, FR-036, US1-7 e US1-8. Trabalho não muda:
+> para ele todos os requisitos desta spec continuam valendo.
+
 ### Session 2026-10-01
 
 - Q: Quanto do lado do professor entra nesta feature? → A: **A** — aplicar/publicar, ver as

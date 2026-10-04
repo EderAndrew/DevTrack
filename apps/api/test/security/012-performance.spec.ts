@@ -4,6 +4,7 @@ import { createActivity, type CreatedActivity, startAttempt } from "../helpers/a
 import { DAY, FixedClock } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
+import { createWork } from "../helpers/works";
 
 const START = "2026-10-01T12:00:00.000Z";
 const CLASSES = 10;
@@ -45,13 +46,17 @@ describe("012 desempenho do portal do aluno e do detalhe do professor", () => {
       await createEnrollment(t, schoolClass.id, student.id);
       classes.push(schoolClass);
     }
+    // Graded activities (ASSIGNMENT) of one work: since 013 only they have a deadline and a submission.
+    const work = await createWork(t, teacher.id);
     await t.prisma.runInTransaction(async (tx) => {
       const activities = classes.flatMap((schoolClass, c) =>
         Array.from({ length: ACTIVITIES_PER_CLASS }, (_, i) => ({
           id: crypto.randomUUID(),
           classId: schoolClass.id,
           teacherId: teacher.id,
-          type: "EXERCISE" as const,
+          type: "ASSIGNMENT" as const,
+          sourceWorkId: work.id,
+          sourceSubjectId: work.subjectId,
           title: `Atividade ${c + 1}.${i + 1}`,
           instructions: "Leia com atenção.",
           totalGrade: "1.00",

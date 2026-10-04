@@ -33,7 +33,7 @@ export interface StudentPortalSeed {
  * Writes through the E2E API (behind the web's same-origin `/api/*` rewrite, with the session of
  * `page`): unsafe methods need the allowed `Origin` and a JSON body (OriginGuard, R6).
  */
-async function apiPost<T>(page: Page, path: string, data: object): Promise<T> {
+export async function apiPost<T>(page: Page, path: string, data: object): Promise<T> {
   const res = await page.request.post(`/api${path}`, { data, headers: { Origin: WEB_URL } });
   expect(res.status(), `${path}: ${await res.text()}`).toBeLessThan(300);
   return (await res.json()) as T;

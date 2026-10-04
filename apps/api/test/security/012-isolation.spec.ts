@@ -111,10 +111,7 @@ describe("012/SC-002 isolamento de atividades, tentativas e entregas", () => {
               idempotencyKey: crypto.randomUUID(),
               source: { type: "EXERCISE", exerciseIds: [crypto.randomUUID()] },
               title: "x",
-              totalGrade: "1.00",
               publishAt: null,
-              deadline: at(DAY).toISOString(),
-              latePolicy: "REJECT",
               acknowledgeOutOfScope: true,
             }),
         ],
@@ -181,7 +178,10 @@ describe("012/SC-002 isolamento de atividades, tentativas e entregas", () => {
     expect(list.body.items.map((item: { id: string }) => item.id)).toEqual([a.activity.activity.id]);
     const own = await client.get(`/api/me/activities/${a.activity.activity.id}`);
     expect([own.body.attempt, own.body.submission, own.body.status]).toEqual([null, null, "PENDING"]);
-    expect(JSON.stringify([list.body, own.body, (await client.get("/api/me/dashboard")).body])).not.toMatch(/Aluno A2|Aluno B1/);
+    // Since 013 (FR-020) the dashboard ranking names A1's classmates, and nothing else of them; never B1.
+    const { rankings, ...board } = (await client.get("/api/me/dashboard")).body;
+    expect(JSON.stringify([list.body, own.body, board])).not.toMatch(/Aluno A2|Aluno B1/);
+    expect(JSON.stringify(rankings)).not.toMatch(/Aluno B1/);
   });
 
   it("012/SC-002 papéis: ALUNO nas rotas do professor, PROFESSOR nas do aluno, ADMIN e GESTOR em todas → 403", async () => {

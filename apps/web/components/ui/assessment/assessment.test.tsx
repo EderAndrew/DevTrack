@@ -202,6 +202,26 @@ describe("CodeEditor", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "depois" }));
     await expectNoA11yViolations(container);
   });
+
+  it("013/FR-012 somente leitura (gabarito): Tab sai do editor, nada muda e sem a dica de indentação", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(
+      <>
+        <CodeEditor id="gab" aria-label="Solução de referência" value="class Soma {}" onChange={onChange} readOnly />
+        <button type="button">depois</button>
+      </>,
+    );
+    const editor = screen.getByRole("textbox", { name: "Solução de referência" }) as HTMLTextAreaElement;
+    expect(editor.readOnly).toBe(true);
+    expect(editor.getAttribute("aria-describedby")).toBeNull();
+    expect(screen.queryByText("Tab indenta o código; Esc e depois Tab sai do editor.")).toBeNull();
+    await user.click(editor);
+    await user.keyboard("x{Tab}");
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "depois" }));
+    await expectNoA11yViolations(container);
+  });
 });
 
 describe("012/FR-018 SaveStatus e AttemptStatus", () => {

@@ -7,6 +7,15 @@ export function decimalToCents(value: Prisma.Decimal): GradeCents {
   return gradeToCents(value.toFixed(2));
 }
 
+/** A nullable grade column (null for EXERCISE since 013 K1) in hundredths. */
+export const nullableCents = (value: Prisma.Decimal | null): GradeCents | null => (value === null ? null : decimalToCents(value));
+
+/** A grade column that is NOT NULL for an ASSIGNMENT by the CHECK by type (013 K1). */
+export function requiredCents(value: Prisma.Decimal | null): GradeCents {
+  if (value === null) throw new Error("an ASSIGNMENT grade column is NOT NULL (CHECK)");
+  return decimalToCents(value);
+}
+
 /** A snapshot question with everything the views read: answer key, test cases, language and topics. */
 export const ACTIVITY_QUESTION_SELECT = {
   id: true,
@@ -14,6 +23,8 @@ export const ACTIVITY_QUESTION_SELECT = {
   type: true,
   gradingStrategy: true,
   value: true,
+  difficulty: true,
+  points: true,
   statement: true,
   instructions: true,
   starterCode: true,
@@ -42,7 +53,9 @@ export function toQuestionRow(row: QuestionRow): ActivityQuestionRow & { sourceE
     position: row.position,
     type: row.type,
     gradingStrategy: row.gradingStrategy,
-    valueCents: decimalToCents(row.value),
+    valueCents: nullableCents(row.value),
+    difficulty: row.difficulty,
+    points: row.points,
     statement: row.statement,
     instructions: row.instructions,
     starterCode: row.starterCode,
@@ -76,6 +89,8 @@ export const ACTIVITY_HEADER_SELECT = {
   outOfScopeTopicCount: true,
   resultReleasedAt: true,
   version: true,
+  /** The EXERCISE's points, summed into `possiblePoints` (013/FR-003). */
+  questions: { select: { points: true } },
 } as const satisfies Prisma.ClassActivitySelect;
 
 export type ActivityHeader = Prisma.ClassActivityGetPayload<{ select: typeof ACTIVITY_HEADER_SELECT }>;

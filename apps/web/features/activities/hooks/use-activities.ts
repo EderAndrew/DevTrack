@@ -1,6 +1,14 @@
 "use client";
 
-import type { ActivitySource, CreateActivityRequest, GradeSubmissionRequest, TeacherActivity, TeacherAttempt, UpdateActivityRequest } from "@repo/contracts";
+import type {
+  ActivitySource,
+  CreateActivityRequest,
+  GradeSubmissionRequest,
+  MarkExerciseResultsRequest,
+  TeacherActivity,
+  TeacherAttempt,
+  UpdateActivityRequest,
+} from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi, activitySourcesApi, attemptsApi, isActivityVersionConflict, isSubmissionVersionConflict } from "../api/activities";
 
@@ -74,7 +82,7 @@ export const useAttempt = (classId: string, activityId: string, attemptId: strin
   });
 
 /**
- * Grade and accept one attempt: the returned attempt is cached and the activity (roster, counts)
+ * Grade, accept and mark one attempt: the returned attempt is cached and the activity (roster, counts)
  * is stale; `reload` reads the attempt again after a version conflict.
  */
 export function useAttemptActions(classId: string, activityId: string, attemptId: string) {
@@ -90,6 +98,10 @@ export function useAttemptActions(classId: string, activityId: string, attemptId
       onSuccess: afterChange,
     }),
     accept: useMutation({ mutationFn: () => attemptsApi.accept(classId, activityId, attemptId), onSuccess: afterChange }),
+    mark: useMutation({
+      mutationFn: (body: MarkExerciseResultsRequest) => attemptsApi.mark(classId, activityId, attemptId, body),
+      onSuccess: afterChange,
+    }),
     reload: () => queryClient.invalidateQueries({ queryKey: activitiesKeys.attempt(classId, activityId, attemptId) }),
   };
 }
