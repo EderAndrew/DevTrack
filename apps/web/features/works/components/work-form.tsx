@@ -369,6 +369,7 @@ export function WorkForm({ edit }: { edit?: WorkEdit } = {}) {
             }
             onMove={(to) => moveQuestion(index, to)}
             typeLocked={Boolean(questionValuesWatch[index]?.questionId)}
+            readOnly={readOnly}
             inactiveLanguage={
               edit?.work.questions.find(
                 (saved) => saved.id === questionValuesWatch[index]?.questionId,

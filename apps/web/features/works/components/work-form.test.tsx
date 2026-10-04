@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { codeEditorByLabel, codeMirrorText, syntaxSegments, typeCode } from "../../../test/code-editor";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import {
@@ -10,6 +11,7 @@ import {
   JAVA,
   json,
   POO,
+  PYTHON,
   workApiMock,
   workView,
 } from "./test-fixtures";
@@ -70,7 +72,9 @@ async function fillCode(
   const scope = within(question(n));
   await user.selectOptions(scope.getByLabelText(/^Tipo/), "Código");
   await user.type(scope.getByLabelText(/^Enunciado/), `Código ${n}`);
-  await user.type(scope.getByLabelText(/^Solução esperada/), "class A {{}");
+  const solution = await codeEditorByLabel(/^Solução esperada/, question(n));
+  solution.focus();
+  await typeCode(user, "class A {}");
   if (language) {
     await scope.findByRole("option", { name: language });
     await user.selectOptions(
@@ -583,5 +587,135 @@ describe("011/US2 WorkForm — valor de cada questão", () => {
     expect(values()).toEqual(["Vale 0,01", "Vale 0,01"]);
     await addQuestion(user);
     expect(values()).toEqual([null, null, null]);
+  });
+});
+
+describe("014/US3 WorkForm — a questão de Código com o código colorido", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const writes: { url: string; body: unknown }[] = [];
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    router.push.mockReset();
+    writes.length = 0;
+    fetchMock.mockImplementation(
+      workApiMock((url, body) => {
+        writes.push({ url, body });
+        return json(201, workView());
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Question 1 as Código in `language`; its two code editors once CodeMirror has loaded. */
+  async function codeQuestion(user: UserEvent, language: string) {
+    const scope = within(question(1));
+    await user.selectOptions(scope.getByLabelText(/^Tipo/), "Código");
+    await scope.findByRole("option", { name: language });
+    await user.selectOptions(scope.getByRole("combobox", { name: /^Linguagem/ }), language);
+    return {
+      starter: await codeEditorByLabel(/^Código inicial/, question(1)),
+      solution: await codeEditorByLabel(/^Solução esperada/, question(1)),
+    };
+  }
+
+  it("014/US3-1 014/US3-2 os campos de código usam a gramática da linguagem escolhida, e trocá-la muda o realce sem mudar o texto", async () => {
+    const { container } = renderWithProviders(<WorkForm />);
+    const user = userEvent.setup();
+    const { starter, solution } = await codeQuestion(user, "Python");
+    starter.focus();
+    await typeCode(user, "def main():");
+    solution.focus();
+    await typeCode(user, "def f(): // nota");
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    expect(syntaxSegments(starter)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]]));
+    expect(solution.closest(".cm-editor")!.querySelector(".cm-lineNumbers")).toBeTruthy();
+
+    await user.selectOptions(within(question(1)).getByRole("combobox", { name: /^Linguagem/ }), "Java");
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["// nota", "text-syntax-comment"]])));
+    expect(syntaxSegments(solution)).not.toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]]));
+    expect(codeMirrorText(solution)).toBe("def f(): // nota");
+    expect(codeMirrorText(starter)).toBe("def main():");
+    await expectNoA11yViolations(container);
+  });
+
+  it("014/US3-3 solução vazia: erro ligado ao editor e o link do resumo leva o foco a ele", async () => {
+    renderWithProviders(<WorkForm />);
+    const user = userEvent.setup();
+    const { solution } = await codeQuestion(user, "Java");
+    await user.click(screen.getByRole("button", { name: "Salvar e aprovar" }));
+    const summary = await screen.findByRole("group", { name: summaryTitle });
+    await waitFor(() => expectFieldErrorLinked(solution));
+    await user.click(within(summary).getByRole("link", { name: "Questão 1: Informe a solução esperada." }));
+    expect(document.activeElement).toBe(solution);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("014/US3-4 o corpo enviado traz o texto exato do código", async () => {
+    renderWithProviders(<WorkForm />);
+    const user = userEvent.setup();
+    await fillHeader(user);
+    await user.type(within(question(1)).getByLabelText(/^Enunciado/), "Some");
+    const { starter, solution } = await codeQuestion(user, "Python");
+    starter.focus();
+    await typeCode(user, "def soma(a, b):\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "pass  ");
+    solution.focus();
+    await typeCode(user, "def soma(a, b):\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "return a + b  # ação {ok}");
+    await user.click(screen.getByRole("button", { name: "Salvar como rascunho" }));
+
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    expect((writes[0]!.body as { questions: object[] }).questions[0]).toMatchObject({
+      type: "CODE",
+      starterCode: "def soma(a, b):\n  pass  ",
+      expectedSolution: "def soma(a, b):\n  return a + b  # ação {ok}",
+      languageId: PYTHON.id,
+    });
+  });
+
+  it("014/US3-1 trabalho arquivado: código inicial e solução coloridos e não editáveis", async () => {
+    const onSave = vi.fn();
+    const work = workView({
+      status: "ARCHIVED",
+      archivedFromStatus: "APPROVED",
+      questions: [
+        {
+          id: "00000000-0000-4000-e000-000000000003",
+          position: 0,
+          type: "CODE",
+          gradingStrategy: "TEST_CASES",
+          value: "10.00",
+          statement: "Implemente.",
+          explanation: null,
+          topicItemIds: [],
+          isTrickQuestion: false,
+          instructions: null,
+          starterCode: "class A {\n}",
+          expectedSolution: "class B extends A {} // ok",
+          language: { id: JAVA.id, name: JAVA.name, highlight: "java" },
+          testCases: [],
+        },
+      ],
+    });
+    const { container } = renderWithProviders(<WorkForm edit={{ work, onSave, readOnly: true }} />);
+    const user = userEvent.setup();
+    const starter = await codeEditorByLabel(/^Código inicial/);
+    const solution = await codeEditorByLabel(/^Solução esperada/);
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["extends", "text-syntax-keyword"], ["// ok", "text-syntax-comment"]])));
+    for (const editor of [starter, solution]) {
+      expect(editor.getAttribute("contenteditable")).not.toBe("true");
+      expect(editor.getAttribute("aria-disabled")).toBe("true");
+      expect(editor.getAttribute("aria-readonly")).toBe("true");
+    }
+    solution.focus();
+    await typeCode(user, "x");
+    expect(codeMirrorText(solution)).toBe("class B extends A {} // ok");
+    expect(codeMirrorText(starter)).toBe("class A {\n}");
+    expect(onSave).not.toHaveBeenCalled();
+    await expectNoA11yViolations(container);
   });
 });

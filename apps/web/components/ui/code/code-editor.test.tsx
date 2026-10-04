@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -240,5 +240,20 @@ describe("014/US1 CodeEditor colorido", () => {
     expect(lastCall(onChange)).toBe('String s = "x";');
     expect(syntaxSegments(content)).toEqual([]);
     await expectNoA11yViolations(container);
+  });
+
+  it("014/US3-2 a linguagem escolhida antes de o editor carregar ainda colore, e trocá-la não muda o texto", async () => {
+    const onChange = vi.fn();
+    const editor = (highlight: string | null) => (
+      <CodeEditor id="ed" aria-label="Solução esperada" highlight={highlight} value={"class A {} // ok"} onChange={onChange} />
+    );
+    const { container, rerender } = render(editor(null));
+    rerender(editor("java"));
+    const content = await codeMirrorContent(container);
+    await waitFor(() => expect(syntaxSegments(content)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]])));
+    rerender(editor("python"));
+    await waitFor(() => expect(syntaxSegments(content)).not.toEqual(expect.arrayContaining([["// ok", "text-syntax-comment"]])));
+    expect(codeMirrorText(content)).toBe("class A {} // ok");
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

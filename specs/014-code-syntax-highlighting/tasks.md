@@ -202,10 +202,10 @@ da IA e trabalho, com o realce da linguagem escolhida.
 **Independent Test**: criar um exercício de Código em Python, digitar, trocar para JavaScript (texto
 mantido, realce muda), salvar e reabrir.
 
-- [ ] T019 [US3] `apps/web/test/keyboard.ts`: `expectFieldErrorLinked` aceita o campo ligado por
+- [X] T019 [US3] `apps/web/test/keyboard.ts`: `expectFieldErrorLinked` aceita o campo ligado por
   `aria-labelledby` (conteúdo editável) além de `<label for>`; `apps/web/test/keyboard.test.tsx` cobre
   os dois casos.
-- [ ] T020 [P] [US3] Testes primeiro: em `apps/web/features/exercises/components/exercise-form.test.tsx`
+- [X] T020 [P] [US3] Testes primeiro: em `apps/web/features/exercises/components/exercise-form.test.tsx`
   `014/US3-1` os dois campos de código usam o editor com a gramática da linguagem escolhida,
   `014/US3-2` trocar a linguagem muda o realce e mantém o texto, `014/US3-3` erro de solução vazia
   ligado ao editor e foco nele no envio, `014/US3-4` o corpo enviado traz o texto exato; o mesmo
@@ -215,7 +215,7 @@ mantido, realce muda), salvar e reabrir.
   "Código inicial" e a "Solução esperada" coloridos e **não editáveis** (conteúdo sem
   `contenteditable="true"`, com `aria-disabled`/`aria-readonly`; digitar não muda o valor do
   formulário) — spec, Edge Cases, "Editor desabilitado".
-- [ ] T021 [US3] `CodeEditor` num `Field` com `Controller` do React Hook Form (ref de foco, erro, dica)
+- [X] T021 [US3] `CodeEditor` num `Field` com `Controller` do React Hook Form (ref de foco, erro, dica)
   em `apps/web/features/exercises/components/exercise-form.tsx`,
   `apps/web/features/exercises/components/draft-editor.tsx` e
   `apps/web/features/works/components/work-question-card.tsx` (o `highlight` vem da linguagem escolhida

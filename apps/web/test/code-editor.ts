@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 
 // 014 (research L13): helpers for the CodeMirror editor in jsdom. CodeMirror reads what was typed
@@ -11,6 +11,15 @@ export async function codeMirrorContent(container: Element = document.body): Pro
     if (!container.querySelector(".cm-content")) throw new Error("o CodeMirror ainda não carregou");
   });
   return container.querySelector<HTMLElement>(".cm-content")!;
+}
+
+/** The CodeMirror content of the `CodeEditor` named `name` (its form label), once it has loaded. */
+export async function codeEditorByLabel(name: RegExp | string, container: HTMLElement = document.body): Promise<HTMLElement> {
+  return waitFor(() => {
+    const field = within(container).getByRole("textbox", { name });
+    if (!field.classList.contains("cm-content")) throw new Error("o CodeMirror ainda não carregou");
+    return field;
+  });
 }
 
 /** Types `text` into the focused editor one character at a time (`{`, `[` escaped, `\n` = Enter). */

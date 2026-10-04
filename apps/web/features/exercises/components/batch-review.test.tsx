@@ -1,12 +1,13 @@
 import type { ExerciseBatchDetail } from "@repo/contracts";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
-import { expectTabOrder } from "../../../test/keyboard";
+import { codeEditorByLabel, codeMirrorText, syntaxSegments, typeCode } from "../../../test/code-editor";
+import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { BatchReview } from "./batch-review";
-import { apiError, batchView, exerciseView, json, POO_REVISION } from "./test-fixtures";
+import { apiError, batchView, exerciseView, JAVA, json, POO_REVISION } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -202,5 +203,84 @@ describe("010/US4 BatchReview — revisar o lote gerado", () => {
       within(first).getByRole("button", { name: "Excluir exercício 1" }),
       screen.getByLabelText("Selecionar exercício 2"),
     ]);
+  });
+});
+
+describe("014/US3 BatchReview — o rascunho de código da IA se edita com cores", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const writes: { method: string; url: string; body: unknown }[] = [];
+  const code = exerciseView({
+    ...ai,
+    type: "CODE",
+    statement: "Implemente a classe.",
+    expectedAnswer: null,
+    instructions: "Use herança.",
+    starterCode: "class Animal {\n}",
+    expectedSolution: "class Cao extends Animal {} // ok",
+    language: { id: JAVA.id, name: JAVA.name, highlight: "java" },
+  });
+
+  beforeEach(() => {
+    writes.length = 0;
+    const detail: ExerciseBatchDetail = {
+      batch: batchView({ id: BATCH_ID, status: "GENERATED", pendingReview: 1, total: 1 }),
+      exercises: [code],
+    };
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async (input, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET") return json(200, detail);
+      writes.push({ method, url: String(input), body: JSON.parse(String(init!.body)) });
+      return json(200, code);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const edit = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole("button", { name: "Editar exercício 1" }));
+    return { starter: await codeEditorByLabel(/^Código inicial/), solution: await codeEditorByLabel(/^Solução esperada/) };
+  };
+
+  it("014/US3-1 código inicial e solução esperada do rascunho no editor com a gramática da linguagem do exercício", async () => {
+    const { container } = renderWithProviders(<BatchReview batchId={BATCH_ID} />);
+    const { starter, solution } = await edit(userEvent.setup());
+    expect(codeMirrorText(starter)).toBe("class Animal {\n}");
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["extends", "text-syntax-keyword"], ["// ok", "text-syntax-comment"]])));
+    expect(syntaxSegments(starter)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]]));
+    await expectNoA11yViolations(container);
+  });
+
+  it("014/US3-3 solução apagada: erro ligado ao editor, sem envio", async () => {
+    renderWithProviders(<BatchReview batchId={BATCH_ID} />);
+    const user = userEvent.setup();
+    const { solution } = await edit(user);
+    solution.focus();
+    await user.keyboard("{Control>}a{/Control}{Backspace}");
+    expect(codeMirrorText(solution)).toBe("");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByText("Corrija os itens abaixo")).toBeTruthy();
+    await waitFor(() => expectFieldErrorLinked(solution));
+    await user.click(screen.getByRole("link", { name: "Informe a solução esperada." }));
+    expect(document.activeElement).toBe(solution);
+    expect(writes).toEqual([]);
+  });
+
+  it("014/US3-4 o corpo enviado traz o texto exato do código", async () => {
+    renderWithProviders(<BatchReview batchId={BATCH_ID} />);
+    const user = userEvent.setup();
+    const { solution } = await edit(user);
+    solution.focus();
+    await user.keyboard("{Control>}{End}{/Control}");
+    await typeCode(user, "\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "/* fim */  ");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]!.body).toMatchObject({
+      starterCode: "class Animal {\n}",
+      expectedSolution: "class Cao extends Animal {} // ok\n  /* fim */  ",
+      version: 3,
+    });
   });
 });

@@ -116,6 +116,7 @@ function CodeEditor({
         const backward = field.selectionDirection === "backward"
         const carry: Carry = {
           grammar: support,
+          highlight,
           focused,
           selection: {
             anchor: backward ? field.selectionEnd : field.selectionStart,
@@ -148,7 +149,8 @@ function CodeEditor({
       onChange: (next) => latest.current.onChange(next),
     })
     appliedAttributes.current = attributes
-    loadedHighlight.current = highlight
+    // The grammar of the highlight when the load started: a language chosen meanwhile loads below.
+    loadedHighlight.current = carry.highlight
     if (carry.focused) instance.current.focus()
   })
 
@@ -228,6 +230,7 @@ function CodeEditor({
 
 interface Carry {
   grammar: Awaited<ReturnType<NonNullable<ReturnType<typeof grammarLoader>>>> | null
+  highlight: CodeHighlight
   focused: boolean
   selection: { anchor: number; head: number }
 }

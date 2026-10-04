@@ -45,6 +45,7 @@ import {
   exerciseFormSchema,
   toExerciseInput,
 } from "../schemas/exercise-form";
+import { CodeField } from "./code-field";
 
 type Form = UseFormReturn<ExerciseFormValues>;
 type CardField = Exclude<keyof ExerciseCardValues, "alternatives">;
@@ -273,8 +274,10 @@ interface CardProps {
 
 function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
   const { register, control } = form;
-  const type = useWatch({ control, name: `cards.${index}.type` });
+  const [type, languageId] = useWatch({ control, name: [`cards.${index}.type`, `cards.${index}.languageId`] });
   const languages = useProgrammingLanguages();
+  // The chosen language's grammar colors the code fields and changes with it (014/US3-2).
+  const highlight = languages.data?.find((language) => language.id === languageId)?.highlight ?? null;
   const id = (field: CardField) => cardFieldId(index, field);
   const headingId = `exercicio-${index + 1}-titulo`;
 
@@ -349,14 +352,15 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
         {type === "CODE" ? (
           <>
             <TextareaField id={id("instructions")} label="Instruções" required error={errorFor(id("instructions"))} {...register(`cards.${index}.instructions`)} />
-            <TextareaField id={id("starterCode")} label="Código inicial" hint="Opcional." spellCheck={false} {...register(`cards.${index}.starterCode`)} />
-            <TextareaField
+            <CodeField id={id("starterCode")} label="Código inicial" hint="Opcional." control={control} name={`cards.${index}.starterCode`} highlight={highlight} />
+            <CodeField
               id={id("expectedSolution")}
               label="Solução esperada"
               required
-              spellCheck={false}
               error={errorFor(id("expectedSolution"))}
-              {...register(`cards.${index}.expectedSolution`)}
+              control={control}
+              name={`cards.${index}.expectedSolution`}
+              highlight={highlight}
             />
             <SelectField
               id={id("languageId")}
