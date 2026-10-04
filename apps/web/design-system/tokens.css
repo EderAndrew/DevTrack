@@ -326,7 +326,8 @@
 
 /*
  * High contrast (014/FR-019): the system palette replaces the syntax colors; the code keeps its
- * meaning without them (the text is the same).
+ * meaning without them (the text is the same). The focus outline of the editor and of a scrollable
+ * CodeBlock takes the system's highlight color (the selector outweighs CodeMirror's theme class).
  */
 @media (forced-colors: active) {
   .text-syntax-keyword,
@@ -338,5 +339,10 @@
   .text-syntax-operator,
   .text-syntax-punctuation {
     color: CanvasText;
+  }
+
+  [data-slot="code-editor"] .cm-editor.cm-focused,
+  [data-slot="code-block-scroll"]:focus-visible {
+    outline-color: Highlight;
   }
 }

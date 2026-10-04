@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AttemptReview } from "@/features/activities/components/attempt-review";
 import {
@@ -28,11 +28,23 @@ import {
   routedFetch as studentFetch,
   studentActivity,
 } from "@/features/student-activities/components/test-fixtures";
+import { CodeBlock } from "@/components/ui/code/code-block";
+import { CodeEditor } from "@/components/ui/code/code-editor";
+import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
 
 const SCRIPT = `<script>alert("xss")</script><img src=x onerror="alert(1)">`;
 const WEB_ROOT = resolve(__dirname, "..");
-const SCANNED = ["features/activities", "features/student-activities", "features/ranking", "components/ui/assessment"];
+// Since 014 also the code components and the bank screens that show or edit code.
+const SCANNED = [
+  "features/activities",
+  "features/student-activities",
+  "features/ranking",
+  "components/ui/assessment",
+  "components/ui/code",
+  "features/exercises",
+  "features/works",
+];
 
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -51,7 +63,7 @@ function filesUnder(dir: string): string[] {
 describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013 e nos componentes de avaliação", () => {
+  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código e nos bancos (014)", () => {
     const offenders = SCANNED.flatMap((dir) => filesUnder(join(WEB_ROOT, dir)))
       .filter((file) => !/\.test\.tsx?$/.test(file))
       .filter((file) => readFileSync(file, "utf8").includes("dangerouslySetInnerHTML"));
@@ -150,5 +162,20 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
     const card = renderWithProviders(<RankingCard ranking={{ class: { id: CLASS_ID, name: SCRIPT }, top: rows }} />);
     expect(card.container.querySelector("script, img")).toBeNull();
     expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(["html", "java"])("014/SC-003 código com <script> e HTML em %s aparece como texto no editor e no CodeBlock", async (highlight) => {
+    const code = `${SCRIPT}\n<b onclick="alert(2)">negrito</b>`;
+    const editor = render(<CodeEditor id="xss" aria-label="Código" highlight={highlight} value={code} onChange={() => undefined} />);
+    const content = await codeMirrorContent(editor.container);
+    await waitFor(() => expect(content.querySelector("span[class]")).toBeTruthy());
+    expect(codeMirrorText(content)).toBe(code);
+    expect(document.querySelector("script, img, b")).toBeNull();
+    editor.unmount();
+
+    const block = render(<CodeBlock code={code} highlight={highlight} label="Código" />);
+    await waitFor(() => expect(block.container.querySelector("code span")).toBeTruthy());
+    expect(block.container.querySelector("code")!.textContent).toBe(code);
+    expect(document.querySelector("script, img, b")).toBeNull();
   });
 });

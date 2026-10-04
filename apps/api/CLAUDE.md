@@ -265,6 +265,12 @@ only in the student's own concluded attempt, `-RUBRICA-` and `-PRIVADO-` never),
 `result`, `scoring`, `first`, `totalGrade`, `deadline` → 400, comment ≤ 2 000, 1–10 marks), rate limits, concurrency (10
 conclusions, 10 retries, two activities with one exercise, save × complete, mark × cancel) and performance (a ranking of
 200 < 300 ms, a dashboard of 10 classes < 1 s, conclusion p95 < 500 ms).
+Code highlighting (014) adds only data: `programming_languages.highlight` (text NULL, CHECK
+`^[a-z][a-z0-9-]{0,31}$`, seeded for the 13 languages) is selected with every language
+(`exercise-query.ts`, `work-query.ts`, `activity-query.ts`, `activities/views/rows.ts`, the language lists) and
+copied into the teacher views and, listed explicitly, into the three student allowlists
+(`exercises`, `works` and `activities` `views/student-view.ts`); it carries no answer key.
+`014-highlight.spec.ts` checks every route that returns a language. The request bodies never take it (400).
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

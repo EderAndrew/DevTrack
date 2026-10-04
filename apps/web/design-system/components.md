@@ -1630,12 +1630,12 @@ Para responder uma questão de código.
 
 ### Quando não usar
 
-Para mostrar código sem edição: use um bloco de código no enunciado.
+Para mostrar código sem edição: use `CodeBlock`.
 
 ### Exemplo
 
 ```tsx
-<CodeAnswer id={`codigo-${question.id}`} language={question.language?.name ?? null} value={source} onChange={setSource} publicTestCases={question.publicTestCases} />
+<CodeAnswer id={`codigo-${question.id}`} language={question.language?.name ?? null} highlight={question.language?.highlight ?? null} value={source} onChange={setSource} publicTestCases={question.publicTestCases} />
 ```
 
 ### Acessibilidade
@@ -1644,35 +1644,85 @@ Os casos ficam numa seção com título; a fonte monoespaçada só aparece no ed
 
 ## CodeEditor
 
-`components/ui/assessment/code-editor.tsx` (012, grupo "Avaliação")
+`components/ui/code/code-editor.tsx` (012, grupo "Avaliação"; desde a 014 com CodeMirror 6 e
+reexportado por `components/ui/assessment/code-editor.tsx`)
 
 ### Variantes
 
-Uma: `Textarea` em `text-code` com números de linha em `--text-secondary`; sem biblioteca de editor.
+Por gramática (014): a chave `highlight` da linguagem (dado do catálogo, `language.highlight`)
+escolhe as cores — Java, Python e as demais de `grammars.ts`; `null` é o mesmo editor sem cores.
+O CodeMirror 6 é carregado sob demanda só por `load-editor.ts` (regra ESLint); até chegar, e para
+sempre se falhar, o editor é o `Textarea` da 012 com números de linha. As cores vêm só dos tokens
+`--syntax-*` (`text-syntax-*`) e o tema do editor só de `var(--…)` (`editor-theme.ts`).
 
 ### Estados
 
-Editável, desabilitado e somente leitura (`readOnly`, 013: o gabarito depois da conclusão; Tab
-segue para o próximo elemento e a dica de indentação some).
+Editável, desabilitado (`disabled` ou dentro de um `<fieldset disabled>`: sem
+`contenteditable`, com `aria-disabled` e `aria-readonly`, borda tracejada) e somente leitura
+(`readOnly`, 013: fica o `Textarea`; para ler código use `CodeBlock`).
 
 ### Quando usar
 
-Dentro de `CodeAnswer` ou onde o aluno escreve código.
+Onde se escreve código: `CodeAnswer` do aluno e os campos "Código inicial" e "Solução esperada"
+dos formulários do banco (exercício, rascunho da IA, questão de trabalho), com o `highlight` da
+linguagem escolhida — trocar a linguagem muda as cores, nunca o texto.
 
 ### Quando não usar
 
-Para texto comum: use `Textarea`.
+Para texto comum: use `Textarea`. Para mostrar código sem edição: use `CodeBlock`.
 
 ### Exemplo
 
 ```tsx
-<CodeEditor id="codigo" value={source} onChange={setSource} />
+<CodeEditor id="codigo" aria-labelledby="codigo-rotulo" highlight={language?.highlight ?? null} value={source} onChange={setSource} />
 ```
 
 ### Acessibilidade
 
-Tab indenta; Esc e depois Tab sai do editor, como diz a descrição ligada por `aria-describedby`.
-O foco usa o contorno oficial em volta do editor.
+Tab indenta (dois espaços); Esc e depois Tab sai do editor, como diz a dica ligada por
+`aria-describedby`; Shift+Tab volta. O conteúdo editável recebe `aria-labelledby` (o rótulo do
+campo: um `<label for>` não alcança um `contenteditable`), `aria-describedby` e `aria-invalid`;
+o leitor de tela lê o texto, nunca as cores. Nada do que se digita é alterado: sem fechar
+parênteses, completar ou indentar sozinho. Foco com o contorno oficial; em alto contraste, as
+cores do sistema.
+
+## CodeBlock
+
+`components/ui/code/code-block.tsx` (014, grupo "Avaliação")
+
+### Variantes
+
+Por gramática, como o `CodeEditor`: Java, Python e as demais de `grammars.ts`; sem gramática, o
+texto puro em `--foreground`. As cores são `<span class="text-syntax-…">` gerados pelos
+analisadores Lezer (`load-highlighter.ts`), nunca HTML vindo do código.
+
+### Estados
+
+Texto puro até a gramática carregar (ou se falhar); colorido depois. Com linha longa, rola na
+horizontal dentro do bloco e vira uma região focável com nome.
+
+### Quando usar
+
+Para ler código: resultado do exercício (resposta, código inicial, solução de referência),
+tentativa do aluno na visão do professor, questões da atividade, leitura do exercício no banco e
+"Ver como aluno".
+
+### Quando não usar
+
+Para editar código: use `CodeEditor`. Para saída de execução ou casos de teste: texto em
+`text-code`.
+
+### Exemplo
+
+```tsx
+<CodeBlock code={exercise.expectedSolution} highlight={exercise.language?.highlight ?? null} label="Solução de referência" />
+```
+
+### Acessibilidade
+
+Um grupo com o rótulo; a coluna de números é `aria-hidden` e não selecionável, então copiar traz só
+o código. `tabIndex=0` só quando o código transborda (região rolável com nome); senão o Tab segue
+adiante. Em alto contraste, as cores e o contorno de foco são os do sistema.
 
 ## SaveStatus
 

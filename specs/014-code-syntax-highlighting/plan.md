@@ -12,7 +12,7 @@ CodeMirror 6 for editing, its Lezer parsers for read-only code rendered as React
 `dangerouslySetInnerHTML`). Each catalog language gets a grammar key as data
 (`programming_languages.highlight`, seeded: frameworks map to the language they're written in), every
 language object in the API responses carries it, and a web registry maps grammar keys to lazy
-loaders. Colors are nine new semantic tokens with light/dark values (all ≥ 4.5:1) and a forced-colors
+loaders. Colors are eight new semantic tokens with light/dark values (all ≥ 4.5:1) and a forced-colors
 fallback; the editor's theme uses only tokens. CodeMirror loads on demand: the answering screen shows
 the current textarea at once and swaps to the colored editor when the chunk arrives (or stays a
 textarea if it fails). Nothing typed is changed (no auto-close, auto-indent, completion or lint);
@@ -38,7 +38,7 @@ keyboard, 360 px and timings
 only from tokens; no language as a code conditional (catalog data); no execution, completion, lint or
 formatting
 **Scale/Scope**: 1 migration (1 column), 7 contract shapes + their API views, 2 design-system
-components (1 new, 1 rewritten), 9 tokens, ~11 screens switched, 1 E2E
+components (1 new, 1 rewritten), 8 tokens, ~11 screens switched, 1 E2E
 
 ## Constitution Check
 

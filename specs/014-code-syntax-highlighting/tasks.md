@@ -233,13 +233,13 @@ mantido, realce muda), salvar e reabrir.
 
 **Independent Test**: vitrine e uma questão de Código nos dois temas, alto contraste e leitor de tela.
 
-- [ ] T022 [P] [US4] Design system: entrada `CodeBlock` em `apps/web/features/design-system/registry.ts`,
+- [X] T022 [P] [US4] Design system: entrada `CodeBlock` em `apps/web/features/design-system/registry.ts`,
   vitrine do `CodeEditor` e do `CodeBlock` (Java, Python, sem gramática) em
   `apps/web/features/design-system/components/assessment-showcase.tsx` (ou vitrine nova de código),
   seções em `apps/web/design-system/components.md` e a decisão da biblioteca em
   `apps/web/design-system/exam-mode.md`; `catalog.test.tsx` (axe e Tab) e `docs.test.ts` verdes
   (`014/FR-020`).
-- [ ] T023 [P] [US4] Testes em `apps/web/components/ui/code/code-a11y.test.tsx`: `014/US4-1` cada
+- [X] T023 [P] [US4] Testes em `apps/web/components/ui/code/code-a11y.test.tsx`: `014/US4-1` cada
   categoria usa a sua classe de token nos dois temas (contraste coberto pelo T008); `014/US4-2` o
   conteúdo lido é o texto das linhas, sem nomes de cor nem marcação, com o rótulo incluindo a
   linguagem; `014/US4-3` a folha de estilos tem a regra `forced-colors` para as classes de sintaxe e
@@ -269,18 +269,18 @@ mantido, realce muda), salvar e reabrir.
   linha de base; teclas digitadas **durante** a troca textarea → CodeMirror não se perdem e nenhuma
   espera mais de 50 ms; ≤ 50 ms por tecla num código de 10 000 caracteres (marcas de performance em
   volta de `keyboard.type`).
-- [ ] T025 [P] XSS: `apps/web/test/student-portal-xss.test.tsx` varre também `components/ui/code` e as
+- [X] T025 [P] XSS: `apps/web/test/student-portal-xss.test.tsx` varre também `components/ui/code` e as
   telas trocadas; código com `<script>`/HTML no editor e no `CodeBlock` como texto (`014/SC-003`).
-- [ ] T026 [P] `014/SC-007`: comparar o "First Load JS" do `next build` das rotas sem código antes e
+- [X] T026 [P] `014/SC-007`: comparar o "First Load JS" do `next build` das rotas sem código antes e
   depois (sem aumento) e registrar o resultado em `specs/014-code-syntax-highlighting/research.md`
   (L12); a regra ESLint do T002 impede o retrocesso, e o caso dela em
   `apps/web/test/lint-boundaries.test.ts` leva o título `014/SC-007` (o teste que a rastreabilidade
   encontra).
-- [ ] T027 Acrescentar a 014 ao `SPECS` de `apps/api/test/traceability.spec.ts` (4 histórias, cenários
+- [X] T027 Acrescentar a 014 ao `SPECS` de `apps/api/test/traceability.spec.ts` (4 histórias, cenários
   da spec, `successCriteria` SC-001–SC-007). Cada id já tem o seu teste nas tarefas: SC-001, SC-002 e
   SC-006 no E2E (T024), SC-003 no T025, SC-004 no T024, SC-005 no T008, SC-007 no T002/T026; esta
   tarefa só confere que o guard passa sem título novo.
-- [ ] T028 [P] Documentação: `CLAUDE.md` da raiz (014 no estado do projeto, research L1–L14, regras:
+- [X] T028 [P] Documentação: `CLAUDE.md` da raiz (014 no estado do projeto, research L1–L14, regras:
   realce só por tokens, gramática como dado do catálogo, CodeMirror só por `load-*.ts`, texto nunca
   alterado; em "Recent Changes", "eight `--syntax-*` tokens" no lugar de "nine", e o mesmo
   ajuste em `plan.md` e em research L5), `apps/api/CLAUDE.md` (`highlight` nos selects de linguagem e nas allowlists),

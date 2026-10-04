@@ -83,7 +83,7 @@ scroll region (`tabIndex=0`, labeled) as axe requires.
 
 ## L5 — Colors: syntax tokens and one highlighter
 
-**Decision**: nine semantic tokens in `tokens.css`, light and dark (values in
+**Decision**: eight semantic tokens in `tokens.css`, light and dark (values in
 contracts/design-tokens.md, each ≥ 4.5:1 over `--background`): `--syntax-keyword`, `--syntax-string`,
 `--syntax-number`, `--syntax-comment`, `--syntax-type`, `--syntax-function`, `--syntax-operator`,
 `--syntax-punctuation`, plain text = `--foreground`. A `tagHighlighter` maps Lezer tags to classes
@@ -171,6 +171,23 @@ character in a 10 000-character answer (performance marks around `keyboard.type`
 limits (≤ 300 ms more than the textarea baseline; ≤ 50 ms per keystroke). The other pages' first-load
 JS is compared before and after through `next build` output in the review (SC-007), backed by the
 ESLint rule of L6.
+
+**Result (2026-10-04, T026)**: Next.js 16 no longer prints "First Load JS", so it was computed from
+the build: per route, the gzip size of the union of `entryJSFiles` in its
+`page_client-reference-manifest.js`, for `17153aa` (before T001) and for US1–US4 done, same machine.
+- No route has CodeMirror or Lezer in its first load (searched for `cm-content`, `EditorView`,
+  `lezer` in the chunks): the editor and the grammars arrive only through `import()`.
+- Routes without code: +29 to +62 bytes gzip (≈ 0.03 %; `/` and `/_not-found` −5). The difference
+  is in the shared chunk and comes from `@repo/contracts`: `CodeHighlightSchema` and the `highlight`
+  field of the language objects (FR-002) in the response schemas of `endpoints.ts`, which every page
+  bundles. No editor or highlighting code.
+- Routes with code (`CodeEditor`/`CodeBlock` and the grammar registry, not CodeMirror): `/exercicios`
+  +1.2 KB, `/exercicios/[id]` +3.0 KB, `/exercicios/lotes/[id]` +3.0 KB, `/exercicios/novo` and
+  `/novo/avulso` +2.5 KB, `/minhas-atividades/[id]` +2.2 KB, `/trabalhos/[id]` +3.1 KB,
+  `/trabalhos/novo` and `/trabalhos/gerar` +2.5 KB, `/turmas/[id]/atividades/[activityId]` and its
+  `tentativas/[attemptId]` +1.4 KB, `/design-system` +2.7 KB.
+- Accepted by the product owner on 2026-10-04: the contract field's bytes on pages without code meet
+  SC-007's intent (no editor or highlighting code there).
 
 ## L13 — Tests in jsdom
 
