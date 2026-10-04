@@ -303,12 +303,12 @@ nada de outra turma nem de removidos.
 
 **Independent Test**: o ranking do professor é igual ao dos alunos; turma de outro professor → 404.
 
-- [ ] T036 [P] [US5] `apps/api/test/integration/013-us5-teacher-ranking.spec.ts`
+- [X] T036 [P] [US5] `apps/api/test/integration/013-us5-teacher-ranking.spec.ts`
   (`013/US5-1`, `013/US5-2`, `013/FR-022`) e linhas do `MATRIX`/`route-declarations` para `GET
   /classes/:classId/ranking`.
-- [ ] T037 [US5] `GET /classes/:classId/ranking` com `ranking.visualizar` e `ClassContextPolicy`
+- [X] T037 [US5] `GET /classes/:classId/ranking` com `ranking.visualizar` e `ClassContextPolicy`
   no `ranking.controller.ts`; endpoint no catálogo.
-- [ ] T038 [US5] Web: `apps/web/app/(app)/turmas/[id]/ranking/page.tsx` e o link "Ranking" na
+- [X] T038 [US5] Web: `apps/web/app/(app)/turmas/[id]/ranking/page.tsx` e o link "Ranking" na
   página da turma, com teste de página (axe, teclado).
 
 **Checkpoint**: todas as histórias funcionando.
@@ -317,47 +317,47 @@ nada de outra turma nem de removidos.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T039 [P] `apps/api/test/security/013-isolation.spec.ts` (contracts/permissions.md):
+- [X] T039 [P] `apps/api/test/security/013-isolation.spec.ts` (contracts/permissions.md):
   professores A e B, alunos A1, A2, B1 em ranking, tentativas por número e marcações → 404 com
   `student_access.denied` onde a 012 audita; STUDENT/TEACHER/ADMIN/MANAGER nas rotas do outro
   lado → 403 (`013/SC-006`).
-- [ ] T040 [P] `apps/api/test/security/013-student-view.spec.ts`: marcadores em todos os campos do
+- [X] T040 [P] `apps/api/test/security/013-student-view.spec.ts`: marcadores em todos os campos do
   gabarito; antes da conclusão nenhuma resposta do aluno os traz; depois, só a tentativa
   concluída do próprio aluno, só pelos campos de K10; nenhuma nota, prazo ou regra em EXERCISE
   (`013/SC-001`, `013/SC-004`, `013/FR-011`…`013/FR-013`).
-- [ ] T041 [P] `apps/api/test/security/013-concurrency.spec.ts`: 10 conclusões simultâneas da
+- [X] T041 [P] `apps/api/test/security/013-concurrency.spec.ts`: 10 conclusões simultâneas da
   mesma tentativa → uma conclusão e um evento; 10 "Refazer" simultâneos → uma tentativa; duas
   atividades com o mesmo exercício concluídas ao mesmo tempo → um só `scoring`; conclusão ×
   salvamento; marcação × cancelamento (`013/SC-003`, `013/US2-6`, `013/US2-7`).
-- [ ] T042 [P] `apps/api/test/security/013-boundaries.spec.ts` e
+- [X] T042 [P] `apps/api/test/security/013-boundaries.spec.ts` e
   `013-rate-limits.spec.ts`: campos de servidor (`points`, `result`, `scoring`, `first`,
   `totalGrade`, `deadline`) → 400; limites de comentário; tentativas acima do limite → 429 sem
   gravar.
-- [ ] T043 [P] `apps/api/test/security/013-performance.spec.ts`: ranking de turma com 200 alunos
+- [X] T043 [P] `apps/api/test/security/013-performance.spec.ts`: ranking de turma com 200 alunos
   < 300 ms; painel com 10 turmas < 1 s; conclusão p95 < 500 ms em 100 chamadas (plan).
-- [ ] T044 [P] `audit-coverage.spec.ts`, `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a
+- [X] T044 [P] `audit-coverage.spec.ts`, `test/helpers/journey.ts` e `secret-leak-scan.spec.ts`: a
   jornada aplica exercícios, conclui, refaz, marca e lê o ranking; os tipos novos cobertos, sem
   resposta, gabarito ou comentário nos metadados e logs (`013/SC-009`).
-- [ ] T045 [P] E2E `apps/web/e2e/exercise-points.spec.ts` com apoio em
+- [X] T045 [P] E2E `apps/web/e2e/exercise-points.spec.ts` com apoio em
   `apps/web/e2e/support/`: professor aplica três níveis; aluno conclui, vê gabarito e 15 pontos,
   refaz sem ganhar; professor marca certo; ranking do aluno e do professor; ciclo praticar →
   concluir → ver gabarito → refazer só com teclado; 360 px sem rolagem horizontal (`013/SC-008`).
-- [ ] T046 [P] XSS: comentário do professor, nomes no ranking e respostas como texto
+- [X] T046 [P] XSS: comentário do professor, nomes no ranking e respostas como texto
   (`apps/web/test/student-portal-xss.test.tsx` ampliado para `features/ranking`).
-- [ ] T047 [P] `apps/api/test/contracts/endpoint-catalog.spec.ts`, `domain-boundary`,
+- [X] T047 [P] `apps/api/test/contracts/endpoint-catalog.spec.ts`, `domain-boundary`,
   `authorization-matrix`, `route-declarations` e `us7-matrix-completeness` verdes com as rotas e
   permissões novas.
-- [ ] T048 [P] Conferir por `git diff main` que bancos (010/011) e o comportamento de Trabalho não
+- [X] T048 [P] Conferir por `git diff main` que bancos (010/011) e o comportamento de Trabalho não
   mudaram: suítes `010-*`, `011-*` e as partes de Trabalho da 012 passam sem alteração.
-- [ ] T049 [P] Documentação: `apps/api/CLAUDE.md` (resultados de exercício, ranking, suítes
+- [X] T049 [P] Documentação: `apps/api/CLAUDE.md` (resultados de exercício, ranking, suítes
   `013-*`), `CLAUDE.md` da raiz (estado 013, research K1–K18, regras fáceis de errar: pontos
   nunca nota, primeira conclusão = tentativa 1, uma vez por turma), `README.md`.
-- [ ] T050 Acrescentar a 013 ao `SPECS` de `apps/api/test/traceability.spec.ts` (5 histórias,
+- [X] T050 Acrescentar a 013 ao `SPECS` de `apps/api/test/traceability.spec.ts` (5 histórias,
   `successCriteria` SC-001–SC-009) e cobrir ids faltantes.
 - [ ] T051 Rodar o `quickstart.md` à mão (medindo, no celular e no desktop, o tempo do painel até
   a própria posição: `013/SC-008`, ≤ 10 s) e revisar `spec.md` × implementação (decisões de
   implementação registradas no research).
-- [ ] T052 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
+- [X] T052 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e
   `pnpm --filter web test:e2e` verdes.
 
 ---

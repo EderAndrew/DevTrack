@@ -214,6 +214,23 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(offendingMetadata(found, true)).toEqual([]);
     });
 
+    it("013/SC-009 os 2 tipos da 013 gravados e as extensões da 012, metadata só com ids, contagens, enums, booleanos e códigos; ler o ranking não é auditado", () => {
+      const types = rows.map((row) => row.type).filter((type) => /^exercise_(attempt|result)\./.test(type));
+      expect(types.sort()).toEqual(["exercise_attempt.completed", "exercise_result.marked"]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(2);
+      expect(offendingMetadata(found)).toEqual([]);
+      const completed = found.filter((event) => event.type === "exercise_attempt.completed").map((event) => event.metadata as Record<string, unknown>);
+      expect(completed.map((metadata) => [metadata.attemptNumber, metadata.first])).toContainEqual([1, true]);
+      expect(found.find((event) => event.type === "exercise_result.marked")?.metadata).toMatchObject({ from: "PENDING_TEACHER", to: "CORRECT", hasComment: true });
+      // 012 types extended by 013 (contracts/audit-events.md).
+      const started = events.filter((event) => event.type === "activity_attempt.started").map((event) => (event.metadata as { attemptNumber?: number }).attemptNumber);
+      expect(started).toContain(2);
+      const published = events.filter((event) => event.type === "activity.published").map((event) => event.metadata as Record<string, unknown>);
+      expect(published.some((metadata) => Number.isInteger(metadata.possiblePoints) && !("totalCents" in metadata) && !("latePolicy" in metadata))).toBe(true);
+      expect(events.filter((event) => /ranking/i.test(event.type) || /ranking/i.test(JSON.stringify(event.metadata)))).toEqual([]);
+    });
+
     it("UPDATE em audit_events é recusado pelo trigger", async () => {
       await expect(t.prisma.$executeRawUnsafe("UPDATE audit_events SET type = 'auth.signup'")).rejects.toThrow(
         /append-only/,

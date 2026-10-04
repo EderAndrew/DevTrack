@@ -205,7 +205,7 @@ describe("013/US4 aluno vê o ranking da turma", () => {
     expect((await ranking(outsider, "00000000-0000-4000-8000-000000000000")).body).toEqual(res.body);
   });
 
-  it("013/US4-7 013/FR-020 a resposta tem só posição, nome e pontos (e a marca de quem vê): nenhum e-mail, id, resposta ou nota", async () => {
+  it("013/US4-7 013/FR-020 013/SC-007 a resposta tem só posição, nome e pontos (e a marca de quem vê): nenhum e-mail, id, resposta ou nota", async () => {
     await playCast();
     const res = await ranking(clients[1]!);
     for (const row of (res.body as ClassRanking).rows) expect(Object.keys(row).sort()).toEqual(["isViewer", "name", "points", "position"]);

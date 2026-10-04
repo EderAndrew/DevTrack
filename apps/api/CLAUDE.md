@@ -244,6 +244,27 @@ activities, a roster of 60, 100 saves). `test/activities-boundary.spec.ts` keeps
 and web) away from the exercise and AI modules, allows only `works/grading` and `works/types` of the work bank, forbids
 code execution and float arithmetic, keeps the student portal on the student view, and keeps exams, controlled mode and
 focus/fullscreen/clipboard monitoring out (SC-012).
+Exercise points (013) change EXERCISE activities only: `createActivity(t, schoolClass, { type: "EXERCISE", questions })`
+writes no grade, deadline or late policy, and each question gets a bank exercise (`sourceExerciseId`, default a new
+APPROVED one) with its `difficulty` and `points`; the route helpers are `completeAttempt(client, id, number, answers)`
+("Concluir exercícios"), `retryAttempt(client, id, afterNumber)` ("Refazer") and `getExerciseAttempt`. An EXERCISE is
+never submitted, graded or released (`…/attempt/submit`, `…/grades`, `…/accept-submission`, `…/release` → 409): a
+conclusion writes the answers, sets the attempt SUBMITTED with `completed_at` and one `exercise_question_results` row per
+question (composite key `(attempt_id, question_id)`, no id or version; rows can't be deleted, so a suite that needs a
+fresh slot uses a new bank exercise). Attempt 1's rows take the class slot (`scoring`, partial UNIQUE per student,
+class and bank exercise); later attempts and an exercise already scored in another activity get `scoring = false`.
+Teacher marks (`PUT …/attempts/:attemptId/marks`) touch only scoring open-answer and code rows. The ranking
+(`modules/ranking`, pure `rank.ts`) sums the scoring rows of non-cancelled activities over the class's ACTIVE
+enrollments on every read. The rate limits (exercise attempts per hour, marks among the teacher's writes) count in
+`rate_limit_counters` with the database's `now()`, so a `FixedClock` doesn't move their window. Bulk data for the
+ranking (`013-performance`) needs a `student_profiles` row per user: enrollments reference the profile, not `users`.
+013 suites: one per story (`013-us1-apply` … `013-us5-teacher-ranking`), `013-schema`, `013-migration` (the 012 data
+converted in a scratch schema), and in `test/security/` isolation (A on B's ranking, attempts and marks; A1 on B's ranking
+and activity, on A2's attempts by number; roles), student view (`MARCADOR-RESPOSTA-013`, `-SOLUCAO-`, `-EXPLICACAO-`
+only in the student's own concluded attempt, `-RUBRICA-` and `-PRIVADO-` never), boundaries (server fields `points`,
+`result`, `scoring`, `first`, `totalGrade`, `deadline` → 400, comment ≤ 2 000, 1–10 marks), rate limits, concurrency (10
+conclusions, 10 retries, two activities with one exercise, save × complete, mark × cancel) and performance (a ranking of
+200 < 300 ms, a dashboard of 10 classes < 1 s, conclusion p95 < 500 ms).
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -308,6 +329,9 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
 - 012: one file per story (`012-us1-apply` … `012-us6-history`), the schema's DB rules, and the security suites
   described above; the journey applies both sources, starts, saves, submits, grades, accepts, releases and reads the
   result, and its answers and feedback are scanned out of logs and audit.
+- 013: one file per story (`013-us1-apply` … `013-us5-teacher-ranking`), the schema, the migration and the security
+  suites described above; the journey applies exercises, concludes, retries, marks with a comment and reads both
+  rankings, and `audit-coverage.spec.ts` checks the 013 metadata and that reading the ranking writes no event.
 
 ## Modules (moved from the root CLAUDE.md)
 
@@ -418,3 +442,10 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   student `views/` (the student view copies an allowlist)) and `student-activities` (`/me/…`: `StudentActivityLoader`
   starts every query from the session user's ACTIVE enrollments, `MyActivitiesService` builds the dashboard, list and
   activity, `AttemptsService` starts, saves and submits; out of context → 404 and `student_access.denied`).
+- 013 changes: `activities/activity-types.ts` (the type registry: `scoring` GRADE/POINTS, `hasDeadline`, `attempts`
+  SINGLE/PRACTICE, so services don't branch on EXERCISE), `activities/results/` (pure `resultFor`/`pointsFor`: multiple
+  choice through the 011 `EXACT_MATCH`, blanks by the 012 rule, answered open answer and code PENDING_TEACHER on the
+  scoring row or UNSCORED otherwise), the marks in `AttemptsReviewService`, `AttemptsService` retry and complete, and the
+  K10 `toStudentExerciseAttempt` in `views/student-view.ts`. `ranking` (new): `RankingService` (`forStudent`, ACTIVE
+  enrollment → else 404; `forTeacher`, `ClassContextPolicy`; `dashboardFor`, the top 5 of each ACTIVE class, empty
+  without `ranking.turma.visualizar`), one SQL query then `rankClass`; it reads results, enrollments and users only.

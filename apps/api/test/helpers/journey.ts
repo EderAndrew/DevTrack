@@ -780,6 +780,15 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     })),
   });
   expect(marked.status).toBe(200);
+  // 013/US4, US5 — the student and the teacher read the class ranking (never audited); the marked
+  // answer's points show at once (013/SC-005).
+  const studentRanking = await classStudentClient.get(`/api/me/classes/${classId}/ranking`);
+  expect(studentRanking.status).toBe(200);
+  const ownRow = (studentRanking.body.rows as { isViewer: boolean; points: number }[]).find((row) => row.isViewer);
+  expect(ownRow?.points).toBeGreaterThan(0);
+  expect((await classStudentClient.get("/api/me/dashboard")).body.rankings).toHaveLength(1);
+  const teacherRanking = await teacherClient.get(`/api/classes/${classId}/ranking`);
+  expect(teacherRanking.body.rows.map((row: { points: number }) => row.points)).toEqual(studentRanking.body.rows.map((row: { points: number }) => row.points));
   // 012/US4 — the student submits (`activity_submission.created`, counts only); a repeat is the same submission.
   const submitPath = `/api/me/activities/${openWork.body.id}/attempt/submit`;
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");

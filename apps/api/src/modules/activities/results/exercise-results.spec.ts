@@ -1,4 +1,4 @@
-import { type Answer, ExerciseResultSchema } from "@repo/contracts";
+import { type Answer, EXERCISE_POINTS, ExerciseResultSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { pointsFor, type ResultQuestion, resultFor } from "./exercise-results";
 
@@ -45,5 +45,19 @@ describe("013/FR-010 pontos tudo ou nada", () => {
     expect(pointsFor("CORRECT", true, 30)).toBe(30);
     for (const result of ["WRONG", "PENDING_TEACHER", "UNSCORED"] as const) expect(pointsFor(result, true, 30)).toBe(0);
     for (const result of ExerciseResultSchema.options) expect(pointsFor(result, false, 60)).toBe(0);
+  });
+});
+
+describe("013/SC-002 pontos por nível", () => {
+  it("013/SC-002 em todo nível, resultado e linha: 15, 30 ou 60 só para Certo na primeira conclusão; 0 em qualquer outro caso", () => {
+    expect(EXERCISE_POINTS).toEqual({ BASIC: 15, INTERMEDIATE: 30, ADVANCED: 60 });
+    for (const [difficulty, points] of Object.entries(EXERCISE_POINTS)) {
+      for (const result of ExerciseResultSchema.options) {
+        for (const scoring of [true, false]) {
+          const expected = scoring && result === "CORRECT" ? points : 0;
+          expect([difficulty, result, scoring, pointsFor(result, scoring, points)]).toEqual([difficulty, result, scoring, expected]);
+        }
+      }
+    }
   });
 });
