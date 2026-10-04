@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { codeMirrorContent, codeMirrorText, syntaxSegments, typeCode } from "../../../test/code-editor";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { readPendingAnswers, writePendingAnswers } from "../store/pending-answers";
@@ -122,7 +123,8 @@ describe("012/US3 tela de responder a atividade", () => {
     await user.click(screen.getByText("Uma instância de uma classe."));
     expect((screen.getByRole("radio", { name: /Uma instância/ }) as HTMLInputElement).checked).toBe(true);
     await user.click(within(navigator).getByRole("button", { name: "Questão 3, não respondida" }));
-    expect((screen.getByLabelText("Seu código (Java)") as HTMLTextAreaElement).value).toBe("class Main {}");
+    expect(codeMirrorText(await codeMirrorContent())).toBe("class Main {}");
+    expect(screen.getByRole("textbox", { name: "Sua resposta (Java)" })).toBeTruthy();
     expect(screen.getByText("Leia dois inteiros.")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Casos de teste públicos" })).toBeTruthy();
   });
@@ -464,5 +466,85 @@ describe("013/US2 responder e concluir um Exercício", () => {
     retry.focus();
     await user.keyboard("{Enter}");
     expect(await screen.findByText("Tentativa 2. Refazer não vale pontos.")).toBeTruthy();
+  });
+});
+
+describe("014/US1 a resposta de código colorida mantém tudo da 012", () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("online"));
+  });
+
+  const SOURCE = "class Main {\n\tint x = 1;  \n  // ação 😀\n}";
+  const answered = (source: string) =>
+    started({
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T11:00:00.000Z",
+        lastSavedAt: "2026-10-02T11:30:00.000Z",
+        answers: [{ questionId: code.id, answer: { kind: "CODE", source }, revision: 2 }],
+      },
+    });
+  const toCode = async (user: ReturnType<typeof userEvent.setup>) => {
+    const navigator = await screen.findByRole("navigation", { name: "Questões" });
+    await user.click(within(navigator).getAllByRole("button")[2]!);
+    return codeMirrorContent();
+  };
+  const putSources = (api: ReturnType<typeof routedFetch>) =>
+    api.calls
+      .filter((call) => call.method === "PUT")
+      .flatMap((call) => (JSON.parse(String(call.body)) as { answers: { answer: { source?: string } }[] }).answers)
+      .map((item) => item.answer.source);
+
+  it("014/US1-4 resposta salva, recarregada e do buffer offline volta idêntica", async () => {
+    const { user, api, unmount } = setup({ [GET]: json(200, started()), [SAVE]: saved(code.id) });
+    const content = await toCode(user);
+    expect(syntaxSegments(content)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]]));
+    content.focus();
+    await user.keyboard("{Control>}{End}{/Control}");
+    await typeCode(user, "\n// fim");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "ok  ");
+    await user.click(screen.getByRole("button", { name: "Anterior" }));
+    await vi.waitFor(() => expect(putSources(api)).toEqual(["class Main {}\n// fim  ok  "]));
+    unmount();
+
+    // Reloaded from the server: the same characters, tabs and trailing spaces.
+    const reloaded = setup({ [GET]: json(200, answered(SOURCE)) });
+    expect(codeMirrorText(await toCode(reloaded.user))).toBe(SOURCE);
+    reloaded.unmount();
+
+    // From the offline buffer of this browser.
+    writePendingAnswers("aluno-1", activity.id, [{ questionId: code.id, answer: { kind: "CODE", source: SOURCE }, baseRevision: 0 }]);
+    const buffered = setup({ [GET]: json(200, started()) });
+    expect(codeMirrorText(await toCode(buffered.user))).toBe(SOURCE);
+  });
+
+  it("014/US1-5 linguagem sem gramática (highlight null) responde sem cores", async () => {
+    const kotlin = { ...code, language: { name: "Kotlin", highlight: null } };
+    const { user, api } = setup({ [GET]: json(200, started({ questions: [open, multiple, kotlin] })), [SAVE]: saved(code.id) });
+    const content = await toCode(user);
+    expect(screen.getByRole("textbox", { name: "Sua resposta (Kotlin)" })).toBe(content);
+    content.focus();
+    await user.keyboard("{Control>}{End}{/Control}");
+    await typeCode(user, " fun main() {}");
+    expect(syntaxSegments(content)).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Anterior" }));
+    await vi.waitFor(() => expect(putSources(api)).toEqual(["class Main {} fun main() {}"]));
+  });
+
+  it("014/US1-6 colar <script> ou HTML aparece como texto e é salvo exato", async () => {
+    const { user, api } = setup({ [GET]: json(200, started()), [SAVE]: saved(code.id) });
+    const content = await toCode(user);
+    content.focus();
+    await user.keyboard("{Control>}a{/Control}");
+    const pasted = '<script>alert(1)</script><img src=x onerror="alert(2)">';
+    await user.paste(pasted);
+    expect(codeMirrorText(content)).toBe(pasted);
+    expect(document.querySelector("script, img")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Anterior" }));
+    await vi.waitFor(() => expect(putSources(api)).toEqual([pasted]));
   });
 });

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/toast";
@@ -161,6 +161,8 @@ describe("005/SC-003 005/SC-004 catálogo acessível e operável pelo teclado", 
   it("todo controle é alcançado por Tab e mantém o foco visível", async () => {
     const user = userEvent.setup();
     const { container } = renderInApp(<Catalog />);
+    // 014: each editable CodeEditor swaps its textarea for CodeMirror once the chunk loads.
+    await waitFor(() => expect(container.querySelector('[data-slot="code-editor"] textarea:not([readonly])')).toBeNull());
     const expected = tabbable(container);
     expect(expected.length).toBeGreaterThan(REGISTRY.length);
     const seen = new Set<Element>();

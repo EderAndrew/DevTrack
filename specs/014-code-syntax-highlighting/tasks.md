@@ -120,7 +120,7 @@ mudar nada do que a 012/013 garantem.
 **Independent Test**: aplicar um Exercício de Código em Java, responder, conferir cores, Tab, Esc +
 Tab, salvamento depois de recarregar e o texto salvo idêntico.
 
-- [ ] T011 [P] [US1] Testes primeiro em `apps/web/components/ui/code/code-editor.test.tsx`
+- [X] T011 [P] [US1] Testes primeiro em `apps/web/components/ui/code/code-editor.test.tsx`
   (contracts/web-ui.md): `014/US1-1` mostra o código inicial com números de linha e o rótulo com a
   linguagem; `014/US1-2` digitar `String nome = "Ana"; // aluno` em Java produz segmentos com
   `text-syntax-keyword`, `-string` e `-comment` e `onChange` recebe exatamente o texto; `014/US1-3` Tab
@@ -134,13 +134,13 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
   Ctrl/Cmd+Shift+Z) devolvem exatamente os textos anteriores no `onChange`, e recortar/colar
   (eventos `cut`/`paste`) emitem o texto exato; `aria-labelledby`, `aria-describedby` (dica + erro)
   e `aria-invalid` chegam ao conteúdo editável; axe sem violações.
-- [ ] T012 [P] [US1] Testes primeiro nas telas: em `apps/web/components/ui/assessment/assessment.test.tsx`
+- [X] T012 [P] [US1] Testes primeiro nas telas: em `apps/web/components/ui/assessment/assessment.test.tsx`
   `CodeAnswer` repassa `highlight` e o rótulo "Sua resposta (Java)"; em
   `apps/web/features/student-activities/components/activity-answering.test.tsx` `014/US1-4` resposta
   de código salva pelo autosave, recarregada e do buffer offline volta idêntica (reusando os fixtures
   da 012), `014/US1-5` linguagem com `highlight: null` responde sem cores, `014/US1-6` colar
   `<script>alert(1)</script>` aparece como texto (nenhum `script`/`img` no DOM).
-- [ ] T013 [US1] `apps/web/components/ui/code/code-editor.tsx` (research L2, L6, L7): textarea imediato,
+- [X] T013 [US1] `apps/web/components/ui/code/code-editor.tsx` (research L2, L6, L7): textarea imediato,
   troca para o CodeMirror carregado por `load-editor.ts` com a gramática de `grammars.ts`, extensões
   exatamente as de L2, `contentAttributes` de L7, `ref` com `focus()`; valor controlado (despacha
   substituição quando a prop muda de fora, como no CONFLICT da 012 e no "Refazer" da 013),
@@ -151,7 +151,7 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
   o componente verifica `closest("fieldset:disabled")` além da prop);
   `apps/web/components/ui/assessment/code-editor.tsx` reexporta; `CodeAnswer` em
   `apps/web/components/ui/assessment/answers.tsx` recebe `highlight` e põe a linguagem no rótulo.
-- [ ] T014 [US1] `apps/web/features/student-activities/components/activity-answering.tsx` passa
+- [X] T014 [US1] `apps/web/features/student-activities/components/activity-answering.tsx` passa
   `question.language?.highlight ?? null` ao `CodeAnswer`. T011 e T012 passam; as suítes 012/013 da tela
   de responder seguem verdes sem mudar expectativas.
 

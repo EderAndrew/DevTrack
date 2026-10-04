@@ -424,6 +424,7 @@ function AnswerArea({
       <CodeAnswer
         id={`resposta-${question.id}`}
         language={question.language?.name ?? null}
+        highlight={question.language?.highlight ?? null}
         value={answer.source}
         onChange={(source) => onChange({ kind: "CODE", source })}
         publicTestCases={question.publicTestCases}

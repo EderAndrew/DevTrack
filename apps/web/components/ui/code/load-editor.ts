@@ -1,4 +1,4 @@
-import { history, historyKeymap, insertNewline, standardKeymap } from "@codemirror/commands"
+import { history, historyKeymap, insertNewline, redo, standardKeymap } from "@codemirror/commands"
 import { type LanguageSupport, syntaxHighlighting } from "@codemirror/language"
 import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state"
 import { EditorView, keymap, lineNumbers } from "@codemirror/view"
@@ -11,6 +11,8 @@ import { createHighlighter } from "./highlighter"
 
 /** The 012 indentation step: Tab inserts two spaces. */
 const INDENT = "  "
+
+const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta"])
 
 /** Marks a change that came from the props (a value set from outside), not from typing. */
 const fromProps = Annotation.define<boolean>()
@@ -51,17 +53,36 @@ export const normalizeLineBreaks = (text: string) => text.replace(/\r\n?/g, "\n"
  * (CodeMirror's tab-focus mode); Shift+Tab is not bound, so it moves the focus back.
  */
 function editingExtensions(): Extension[] {
+  // Esc then Tab leaves, with no time limit, as in the 012 textarea (CodeMirror's own tab-focus
+  // mode lasts 2 s); any other key in between cancels it.
+  let escaped = false
   const tab = (view: EditorView) => {
-    if (view.state.readOnly) return false
+    if (view.state.readOnly || escaped) {
+      escaped = false
+      return false
+    }
     view.dispatch(view.state.replaceSelection(INDENT), { scrollIntoView: true, userEvent: "input" })
     return true
   }
   return [
     lineNumbers(),
     history(),
+    EditorView.domEventHandlers({
+      keydown(event) {
+        if (event.key === "Escape") escaped = true
+        else if (event.key !== "Tab" && !MODIFIERS.has(event.key)) escaped = false
+        return false
+      },
+      blur() {
+        escaped = false
+        return false
+      },
+    }),
     keymap.of([
       { key: "Tab", run: tab },
       { key: "Enter", run: insertNewline },
+      // Ctrl/Cmd+Shift+Z redoes on every platform (CodeMirror binds it only on Linux and macOS).
+      { key: "Mod-Shift-z", run: redo, preventDefault: true },
       ...historyKeymap,
       ...standardKeymap.filter((binding) => binding.key !== "Enter"),
     ]),
