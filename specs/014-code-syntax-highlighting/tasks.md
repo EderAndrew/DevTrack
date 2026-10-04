@@ -285,7 +285,7 @@ mantido, realce muda), salvar e reabrir.
   alterado; em "Recent Changes", "eight `--syntax-*` tokens" no lugar de "nine", e o mesmo
   ajuste em `plan.md` e em research L5), `apps/api/CLAUDE.md` (`highlight` nos selects de linguagem e nas allowlists),
   `README.md`.
-- [ ] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
+- [X] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
   revisar `spec.md` × implementação.
 - [X] T030 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`
   verdes.
