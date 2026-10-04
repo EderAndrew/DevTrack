@@ -92,7 +92,7 @@ describe("010/US6 010/SC-006 a visão do aluno nunca contém a resposta", () => 
   it("010/US6-3 código: enunciado, instruções, código inicial e linguagem, sem a solução nem a explicação", async () => {
     const view = toStudentView(await record(ids.CODE));
     expect(view).toMatchObject({ instructions: "Implemente a classe Cachorro.", starterCode: "class Cachorro {}", language: { name: "Java" } });
-    expect(Object.keys(view.language ?? {})).toEqual(["name"]);
+    expect(Object.keys(view.language ?? {})).toEqual(["name", "highlight"]);
     expect(JSON.stringify(view)).not.toContain(SOLUTION);
   });
 

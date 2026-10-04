@@ -33,7 +33,7 @@ export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
     statement: row.statement,
     instructions: row.instructions,
     starterCode: row.starterCode,
-    language: row.language ? { name: row.language.name } : null,
+    language: row.language ? { name: row.language.name, highlight: row.language.highlight } : null,
     publicTestCases: [...row.testCases]
       .filter((testCase) => testCase.visibility === "PUBLIC")
       .sort((a, b) => a.position - b.position)

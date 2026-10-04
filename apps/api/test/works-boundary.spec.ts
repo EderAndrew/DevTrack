@@ -246,13 +246,36 @@ describe("011/SC-013 o banco de exercícios (010) não muda com o banco de traba
     );
   });
 
+  /**
+   * Changes a later spec decided on purpose, by migration and table: 014 (research L3) gives each
+   * catalog language its grammar key — the `highlight` column, its CHECK and its seed, nothing else.
+   */
+  const ALLOWED: Record<string, Record<string, RegExp>> = {
+    "20261004120000_code_highlight": {
+      programming_languages: /^(ALTER TABLE "programming_languages" ADD (COLUMN "highlight" TEXT|CONSTRAINT "programming_languages_highlight_chk" CHECK \("highlight" ~ .*\))|UPDATE "programming_languages" AS l SET "highlight" = v\."highlight" FROM \(VALUES .*\) AS v\("key", "highlight"\) WHERE l\."key" = v\."key")$/,
+    },
+  };
+
   it("nenhuma migração depois da 010 altera, apaga ou escreve nas tabelas da 010", () => {
     expect(after010).toContain("20260930120000_work_bank");
     const found = after010.flatMap((name) => {
       const sql = readFileSync(join(MIGRATIONS, name, "migration.sql"), "utf8");
-      return TABLES_010.flatMap((table) => changes(sql, table).map((statement) => `${name}: ${statement.slice(0, 120)}`));
+      return TABLES_010.flatMap((table) =>
+        changes(sql, table)
+          .filter((statement) => !ALLOWED[name]?.[table]?.test(statement))
+          .map((statement) => `${name}: ${statement.slice(0, 120)}`),
+      );
     });
     expect(found).toEqual([]);
+  });
+
+  it("014: a exceção do catálogo cobre só a coluna highlight", () => {
+    const allowed = ALLOWED["20261004120000_code_highlight"]!.programming_languages!;
+    const sql = readFileSync(join(MIGRATIONS, "20261004120000_code_highlight", "migration.sql"), "utf8");
+    expect(changes(sql, "programming_languages")).toHaveLength(3);
+    expect(allowed.test('ALTER TABLE "programming_languages" ADD COLUMN "aliases2" TEXT')).toBe(false);
+    expect(allowed.test('ALTER TABLE "programming_languages" DROP COLUMN "highlight"')).toBe(false);
+    expect(allowed.test('UPDATE "programming_languages" SET "active" = false')).toBe(false);
   });
 
   it("controle: a varredura acha uma mudança numa tabela da 010 e ignora a referência de uma chave estrangeira", () => {

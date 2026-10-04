@@ -14,7 +14,7 @@ export interface ActivityQuestionRow {
   statement: string;
   instructions: string | null;
   starterCode: string | null;
-  language: { id: string; name: string } | null;
+  language: { id: string; name: string; highlight: string | null } | null;
   expectedAnswer: string | null;
   rubric: string | null;
   expectedSolution: string | null;

@@ -109,7 +109,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         statement: "Implemente a soma.",
         instructions: "Leia dois inteiros.",
         starterCode: "class Main {}",
-        language: { name: "Java" },
+        language: { name: "Java", highlight: "java" },
         publicTestCases: [{ input: "2 3", expectedOutput: "5" }],
         alternatives: [],
       },

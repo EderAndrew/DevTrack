@@ -4,8 +4,8 @@ import { revisionView } from "@/features/syllabus/components/test-fixtures";
 
 export { apiError, json };
 
-export const JAVA: ProgrammingLanguageView = { id: "00000000-0000-4000-a000-000000000001", key: "java", name: "Java" };
-export const PYTHON: ProgrammingLanguageView = { id: "00000000-0000-4000-a000-000000000002", key: "python", name: "Python" };
+export const JAVA: ProgrammingLanguageView = { id: "00000000-0000-4000-a000-000000000001", key: "java", name: "Java", highlight: "java" };
+export const PYTHON: ProgrammingLanguageView = { id: "00000000-0000-4000-a000-000000000002", key: "python", name: "Python", highlight: "python" };
 
 export const POO: SubjectView = subjectView("Programação Orientada a Objetos");
 

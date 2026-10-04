@@ -31,7 +31,9 @@ export const CODE: WorkQuestionTypeDefinition<"CODE"> = {
     instructions: record.instructions,
     starterCode: record.starterCode,
     expectedSolution: record.expectedSolution ?? "",
-    ...(record.language ? { language: { id: record.language.id, name: record.language.name } } : {}),
+    ...(record.language
+      ? { language: { id: record.language.id, name: record.language.name, highlight: record.language.highlight } }
+      : {}),
     testCases: byPosition(record.testCases).map(({ id, position, input, expectedOutput, visibility }) => ({
       id,
       position,
@@ -48,7 +50,7 @@ export const CODE: WorkQuestionTypeDefinition<"CODE"> = {
     };
     if (record.instructions !== null) fields.instructions = record.instructions;
     if (record.starterCode !== null) fields.starterCode = record.starterCode;
-    if (record.language) fields.language = { name: record.language.name };
+    if (record.language) fields.language = { name: record.language.name, highlight: record.language.highlight };
     return fields;
   },
 };

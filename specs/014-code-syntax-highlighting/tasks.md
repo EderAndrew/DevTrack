@@ -56,28 +56,29 @@ críticas da 012; SC-001–SC-007).
 
 **Purpose**: o dado da gramática de ponta a ponta, os tokens e as peças puras do realce.
 
-- [ ] T004 [P] Teste primeiro: `apps/api/test/integration/014-highlight.spec.ts` (`014/FR-002`,
+- [X] T004 [P] Teste primeiro: `apps/api/test/integration/014-highlight.spec.ts` (`014/FR-002`,
   `014/FR-003`): depois da migração, as 13 linguagens têm o `highlight` de data-model.md (Angular e
   Nest → `typescript`, Node → `javascript`, C → `cpp`, "HTML & CSS" → `html`); `GET
   /programming-languages` e `GET /works/programming-languages` trazem `highlight`; a visão do
   professor e a do aluno de um exercício de Código, de uma questão de Código de trabalho (incluindo
   "Ver como aluno") e de uma questão de Código de atividade (professor em
-  `GET /classes/:classId/activities/:activityId` e na tentativa
-  `GET /classes/:classId/activities/:activityId/attempts/:attemptId`; aluno em
-  `GET /me/activities/:activityId`) trazem `language.highlight`; uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
+  `GET /classes/:classId/activities/:activityId`; aluno em
+  `GET /me/activities/:activityId`) trazem `language.highlight` (a tentativa
+  `GET /classes/:classId/activities/:activityId/attempts/:attemptId` não traz questões nem linguagem:
+  a tela de revisão lê a linguagem de cada questão do detalhe da atividade); uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
   corpo de criação de exercício → 400.
-- [ ] T005 Migração `apps/api/prisma/migrations/<ts>_code_highlight/migration.sql`: coluna
+- [X] T005 Migração `apps/api/prisma/migrations/<ts>_code_highlight/migration.sql`: coluna
   `programming_languages.highlight text NULL` com CHECK `^[a-z][a-z0-9-]{0,31}$` e o `UPDATE` idempotente
   das 13 linhas; `highlight String?` em `ProgrammingLanguage` (`apps/api/prisma/schema.prisma`);
   `prisma generate`. Um caso em `apps/api/test/integration/014-highlight.spec.ts` para o CHECK (valor
   com maiúscula ou espaço recusado).
-- [ ] T006 [P] Contratos (contracts/http-api.md): `packages/contracts/src/common/code-highlight.ts`
+- [X] T006 [P] Contratos (contracts/http-api.md): `packages/contracts/src/common/code-highlight.ts`
   (`CodeHighlightSchema`) exportado pelo índice de `common`; `highlight` em
   `exercises/programming-languages.ts`, `exercises/exercises.ts` (visões do professor e do aluno),
   `works/works.ts` (professor e aluno), `activities/teacher.ts` e `activities/student.ts`;
   `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test` (boundary e duplicação
   verdes; nenhum import entre `exercises` e `works`).
-- [ ] T007 API (research L8, L10): `highlight` nos selects de linguagem de
+- [X] T007 API (research L8, L10): `highlight` nos selects de linguagem de
   `apps/api/src/modules/exercises/exercise-query.ts`, `apps/api/src/modules/works/work-query.ts`,
   `apps/api/src/modules/activities/activity-query.ts`, `apps/api/src/modules/activities/views/rows.ts`
   e nas listas de `apps/api/src/modules/exercises/programming-languages.service.ts` e
@@ -85,10 +86,11 @@ críticas da 012; SC-001–SC-007).
   allowlist, em `exercises/views/student-view.ts`, `works/views/student-view.ts` e
   `activities/views/student-view.ts`. T004 passa; `010-student-view`, `011-student-view` e
   `012-student-view` seguem verdes (o campo novo não carrega gabarito).
-- [ ] T008 [P] Tokens (contracts/design-tokens.md): os 8 `--syntax-*` em
+- [X] T008 [P] Tokens (contracts/design-tokens.md): os 8 `--syntax-*` em
   `apps/web/design-system/tokens.css` (claro em `:root`, escuro no bloco `prefers-color-scheme: dark` e
   em `:root[data-theme="dark"]`), utilitários `text-syntax-*` no tema Tailwind, `@media
-  (forced-colors: active)` com `CanvasText`; os 16 pares (8 × 2 temas) sobre `--background` em
+  (forced-colors: active)` com `CanvasText`; os pares de cada `--syntax-*` e do `--foreground` sobre `--background`, `--surface`,
+  `--primary-subtle` (seleção) e `--disabled-bg`, nos dois temas, em
   `apps/web/test/contrast.test.ts` (`014/FR-017`, `014/SC-005`); seção em
   `apps/web/design-system/tokens.md` (o `docs.test.ts` exige). O texto comum do código usa o
   `--foreground` existente (8 tokens novos, não 9). A seleção e a linha ativa do editor usam fundos
@@ -96,12 +98,12 @@ críticas da 012; SC-001–SC-007).
   sobre o fundo da seleção e da linha ativa entram no `contrast.test.ts` nos dois temas, ou a
   seleção troca a cor do texto por um token de primeiro plano já verificado — a escolha fica
   registrada em `tokens.md`.
-- [ ] T009 [P] Testes primeiro das peças puras em `apps/web/components/ui/code/code-pieces.test.ts`:
+- [X] T009 [P] Testes primeiro das peças puras em `apps/web/components/ui/code/code-pieces.test.ts`:
   `grammars` resolve as 9 chaves (`java`, `python`, `javascript`, `typescript`, `cpp`, `php`, `rust`,
   `go`, `html`) para um carregador e devolve `null` para chave desconhecida ou `null` (`014/FR-002`);
   o highlighter mapeia as tags Lezer das 8 categorias para as classes `text-syntax-*` (`014/FR-004`);
   todo valor de cor do tema do editor é `var(--…)` (`014/FR-016`).
-- [ ] T010 Implementar em `apps/web/components/ui/code/`: `grammars.ts` (chave → `import()` do
+- [X] T010 Implementar em `apps/web/components/ui/code/`: `grammars.ts` (chave → `import()` do
   `LanguageSupport`; `typescript` = `javascript({ typescript: true })`), `highlighter.ts`
   (`tagHighlighter` de research L5), `editor-theme.ts` (todas as cores do tema base do CodeMirror em
   tokens), `load-editor.ts` (o único ponto de `import()` do editor). T009 passa.

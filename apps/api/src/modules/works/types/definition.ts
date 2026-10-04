@@ -29,7 +29,7 @@ export interface WorkQuestionRecord {
   instructions: string | null;
   starterCode: string | null;
   expectedSolution: string | null;
-  language: { id: string; name: string } | null;
+  language: { id: string; name: string; highlight: string | null } | null;
   isTrickQuestion: boolean;
   /** Any order; the views sort by position. */
   alternatives: { id: string; position: number; text: string; isCorrect: boolean }[];

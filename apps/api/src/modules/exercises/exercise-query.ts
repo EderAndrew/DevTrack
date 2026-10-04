@@ -27,7 +27,7 @@ export const EXERCISE_RECORD_SELECT = {
   generationBatchId: true,
   createdAt: true,
   updatedAt: true,
-  language: { select: { id: true, name: true } },
+  language: { select: { id: true, name: true, highlight: true } },
   alternatives: { select: { id: true, text: true, isCorrect: true, position: true } },
   reviewedBy: { select: { name: true } },
   syllabusItem: {

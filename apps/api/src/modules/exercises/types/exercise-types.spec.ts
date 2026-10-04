@@ -62,7 +62,7 @@ function record(type: keyof typeof INPUTS): ExerciseRecord {
     generationBatchId: null,
     createdAt: new Date("2026-09-28T10:00:00Z"),
     updatedAt: new Date("2026-09-28T11:00:00Z"),
-    language: rows.columns.languageId ? { id: rows.columns.languageId, name: "Java" } : null,
+    language: rows.columns.languageId ? { id: rows.columns.languageId, name: "Java", highlight: "java" } : null,
     alternatives: rows.alternatives
       .map((alternative) => ({ id: `00000000-0000-4000-8000-00000000000${alternative.position}`, ...alternative }))
       .reverse(),
@@ -171,7 +171,7 @@ describe("010/FR-036 010/SC-006 visão do professor × visão do aluno", () => {
       difficulty: "INTERMEDIATE",
       instructions: "Implemente a classe",
       starterCode: "class Animal {",
-      language: { name: "Java" },
+      language: { name: "Java", highlight: "java" },
     });
   });
 

@@ -42,7 +42,7 @@ const PREVIEW: WorkStudentView = {
       statement: "Implemente a classe Cachorro.",
       instructions: "Cachorro deve estender Animal.",
       starterCode: "class Cachorro {}",
-      language: { name: "Java" },
+      language: { name: "Java", highlight: "java" },
       publicTestCases: [{ input: "falar()", expectedOutput: "au" }],
     },
   ],
