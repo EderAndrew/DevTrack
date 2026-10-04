@@ -7,13 +7,14 @@ import { CURRICULUM, MATRIX, type MatrixEntry, routeKey } from "./authorization-
 /**
  * The 003 rows of the matrix: every route of a teacher's classes and what hangs off them. The
  * 004 routes under a class (calendar, plan) need a plannable class and belong to the 004 matrix;
- * the 012 activities, to `012-isolation.spec.ts`.
+ * the 012 activities, to `012-isolation.spec.ts`; the 013 ranking, to `013-us5-teacher-ranking.spec.ts`.
  */
 const CLASS_ROUTES = MATRIX.filter(
   (entry) =>
     entry.path.startsWith("/classes") &&
     !(CURRICULUM as readonly string[]).includes(entry.access) &&
-    !entry.path.startsWith("/classes/:classId/activities"),
+    !entry.path.startsWith("/classes/:classId/activities") &&
+    entry.path !== "/classes/:classId/ranking",
 );
 
 /**

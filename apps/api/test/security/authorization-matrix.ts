@@ -300,6 +300,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me/activities/:activityId/attempts/:number", access: "atividades.proprias.visualizar" },
   // 013 — the class ranking of practice points (contracts/permissions.md).
   { method: "GET", path: "/me/classes/:classId/ranking", access: "ranking.turma.visualizar" },
+  { method: "GET", path: "/classes/:classId/ranking", access: "ranking.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

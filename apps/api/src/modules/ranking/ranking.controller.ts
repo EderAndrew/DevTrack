@@ -16,3 +16,15 @@ export class MyRankingController {
     return this.ranking.forStudent(ctx.auth!.userId, classId);
   }
 }
+
+/** The teacher's ranking of one of their classes (013/FR-022); `ClassContextPolicy` scopes it → 404. */
+@Controller("classes")
+export class ClassRankingController {
+  constructor(private readonly ranking: RankingService) {}
+
+  @Get(":classId/ranking")
+  @RequirePermissions("ranking.visualizar")
+  get(@Param("classId", new ZodValidationPipe(UuidSchema)) classId: string, @Ctx() ctx: RequestContext): Promise<ClassRanking> {
+    return this.ranking.forTeacher(ctx.auth!.userId, classId);
+  }
+}

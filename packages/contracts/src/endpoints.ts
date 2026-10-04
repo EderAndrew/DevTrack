@@ -1210,6 +1210,14 @@ export const endpoints = {
     response: ClassRankingSchema,
     status: 200,
   },
+  /** 013 — the full ranking of one of the session teacher's classes (FR-022). */
+  "ranking.ofClass": {
+    method: "GET",
+    path: "/classes/:classId/ranking",
+    params: ClassParamsSchema,
+    response: ClassRankingSchema,
+    status: 200,
+  },
 } as const satisfies Record<string, EndpointContract>;
 
 export type EndpointKey = keyof typeof endpoints;

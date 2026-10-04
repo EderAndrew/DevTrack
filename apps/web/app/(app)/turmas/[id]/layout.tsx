@@ -24,6 +24,7 @@ export default async function ClassLayout({ params, children }: { params: Promis
         classId={id}
         showPlanning={me.permissions.includes("planejamento.visualizar")}
         showActivities={me.permissions.includes("atividades.visualizar")}
+        showRanking={me.permissions.includes("ranking.visualizar")}
       />
       {children}
     </section>

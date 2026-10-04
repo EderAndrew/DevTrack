@@ -40,6 +40,17 @@ describe("004/US1 ClassTabs — seções da turma", () => {
     ]);
   });
 
+  it("013/US5 com ranking.visualizar mostra Ranking ao lado de Atividades, atual na própria página", () => {
+    navigation.pathname = "/turmas/c1/ranking";
+    renderWithProviders(<ClassTabs classId="c1" showPlanning={false} showActivities showRanking />);
+    expect(tabs()).toEqual([
+      ["Alunos", "/turmas/c1", null],
+      ["Convites", "/turmas/c1/convites", null],
+      ["Atividades", "/turmas/c1/atividades", null],
+      ["Ranking", "/turmas/c1/ranking", "page"],
+    ]);
+  });
+
   it("sem planejamento.visualizar mostra só Alunos e Convites; Alunos é a página da turma", () => {
     renderWithProviders(<ClassTabs classId="c1" showPlanning={false} />);
     expect(tabs()).toEqual([

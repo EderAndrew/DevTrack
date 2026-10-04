@@ -3,6 +3,7 @@ import { type ClassRanking, type DashboardRanking, RANKING_TOP_MAX, type Ranking
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
+import { ClassContextPolicy } from "../classes/class-context.policy";
 import { rankClass } from "./rank";
 
 /** One ACTIVE enrollment with its points in the class: what the single query answers. */
@@ -24,7 +25,18 @@ export class RankingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionResolver,
+    private readonly classes: ClassContextPolicy,
   ) {}
+
+  /**
+   * The full ranking of one of the session teacher's classes, whatever its status: the same rows the
+   * students see, none marked as the viewer's (FR-022, US5). Another teacher's class → 404.
+   */
+  async forTeacher(teacherId: string, classId: string): Promise<ClassRanking> {
+    const schoolClass = await this.classes.findOwnedOrNotFound(teacherId, classId);
+    const rows = await this.rowsByClass([classId], null);
+    return { class: { id: schoolClass.id, name: schoolClass.name }, rows: rows.get(classId) ?? [] };
+  }
 
   /**
    * "Ranking" of a class where the session student holds an ACTIVE enrollment, whatever the class's
