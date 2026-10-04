@@ -79,6 +79,8 @@ they diverge the spec wins and the ADR is fixed.
 hand-maintained.
 
 ## Active Technologies
+- TypeScript 7 on Node.js 24 LTS + web: Next.js 16, React 19, React Hook Form 7, shadcn/ui, Lucide; new: CodeMirror 6 (`@codemirror/{state,view,language,commands}`, `@lezer/highlight`, `@codemirror/lang-{java,python,javascript,cpp,php,rust,go,html}`), lazy-loaded (014-code-syntax-highlighting)
+- PostgreSQL 17 — one migration: `programming_languages.highlight` (text NULL, CHECK) + seed (014-code-syntax-highlighting)
 
 ## Stack notes
 
@@ -300,9 +302,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
+- 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; nine `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
 - 013-exercise-points-ranking: exercises earn points instead of grades — EXERCISE activities lose grade, deadline and late policy; fixed points by the exercise difficulty (15/30/60), numbered practice attempts where only attempt 1 scores and a bank exercise scores once per student and class; answer key after each conclusion; the teacher marks open answer and code right or wrong (no release); class ranking derived on read (top 5 on the dashboard, full page)
 - 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
-- 011-work-bank: private work bank apart from the exercise bank — works of 1–10 questions (open answer, multiple choice, code with test cases) linked to items of one confirmed syllabus revision, total grade split in exact hundredths (`numeric(5,2)`, integer cents in code), manual or AI (`work-generator` through the existing gateway and policy) into DRAFT works approved by the teacher; server-built student view without answer key; grading strategies (EXACT_MATCH, TEST_CASES, AI_REVIEW) as domain rules for 012
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
