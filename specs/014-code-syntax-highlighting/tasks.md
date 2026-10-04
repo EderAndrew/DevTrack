@@ -61,8 +61,10 @@ críticas da 012; SC-001–SC-007).
   Nest → `typescript`, Node → `javascript`, C → `cpp`, "HTML & CSS" → `html`); `GET
   /programming-languages` e `GET /works/programming-languages` trazem `highlight`; a visão do
   professor e a do aluno de um exercício de Código, de uma questão de Código de trabalho (incluindo
-  "Ver como aluno") e de uma questão de Código de atividade (professor, `GET /me/activities/:id`)
-  trazem `language.highlight`; uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
+  "Ver como aluno") e de uma questão de Código de atividade (professor em
+  `GET /classes/:classId/activities/:activityId` e na tentativa
+  `GET /classes/:classId/activities/:activityId/attempts/:attemptId`; aluno em
+  `GET /me/activities/:activityId`) trazem `language.highlight`; uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
   corpo de criação de exercício → 400.
 - [ ] T005 Migração `apps/api/prisma/migrations/<ts>_code_highlight/migration.sql`: coluna
   `programming_languages.highlight text NULL` com CHECK `^[a-z][a-z0-9-]{0,31}$` e o `UPDATE` idempotente
@@ -88,7 +90,12 @@ críticas da 012; SC-001–SC-007).
   em `:root[data-theme="dark"]`), utilitários `text-syntax-*` no tema Tailwind, `@media
   (forced-colors: active)` com `CanvasText`; os 16 pares (8 × 2 temas) sobre `--background` em
   `apps/web/test/contrast.test.ts` (`014/FR-017`, `014/SC-005`); seção em
-  `apps/web/design-system/tokens.md` (o `docs.test.ts` exige).
+  `apps/web/design-system/tokens.md` (o `docs.test.ts` exige). O texto comum do código usa o
+  `--foreground` existente (8 tokens novos, não 9). A seleção e a linha ativa do editor usam fundos
+  de token: ou o texto mantém a cor de sintaxe e os pares de cada `--syntax-*` (e do `--foreground`)
+  sobre o fundo da seleção e da linha ativa entram no `contrast.test.ts` nos dois temas, ou a
+  seleção troca a cor do texto por um token de primeiro plano já verificado — a escolha fica
+  registrada em `tokens.md`.
 - [ ] T009 [P] Testes primeiro das peças puras em `apps/web/components/ui/code/code-pieces.test.ts`:
   `grammars` resolve as 9 chaves (`java`, `python`, `javascript`, `typescript`, `cpp`, `php`, `rust`,
   `go`, `html`) para um carregador e devolve `null` para chave desconhecida ou `null` (`014/FR-002`);
@@ -118,8 +125,13 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
   insere dois espaços e o foco fica, Esc + Tab sai, Shift+Tab volta; `014/FR-007` Enter não indenta e
   aspas/parênteses não se fecham; `014/FR-014` antes do chunk e com o `import()` rejeitado o editor é o
   textarea da 012 e continua emitindo o mesmo `onChange`; a troca textarea → CodeMirror mantém valor,
-  seleção e foco; `disabled` não edita e o estado não é só cor; `aria-labelledby`, `aria-describedby`
-  (dica + erro) e `aria-invalid` chegam ao conteúdo editável; axe sem violações.
+  seleção e foco e **não emite `onChange`**; `disabled` não edita e o estado não é só cor;
+  `014/FR-007` valor inicial com `\r\n` (código guardado assim): montar, trocar para o CodeMirror e
+  re-renderizar com o mesmo `value` não emite `onChange` sem digitação nem move o cursor, e ao
+  digitar o valor emitido é o texto com `\n`; `014/FR-012` desfazer e refazer (Ctrl/Cmd+Z,
+  Ctrl/Cmd+Shift+Z) devolvem exatamente os textos anteriores no `onChange`, e recortar/colar
+  (eventos `cut`/`paste`) emitem o texto exato; `aria-labelledby`, `aria-describedby` (dica + erro)
+  e `aria-invalid` chegam ao conteúdo editável; axe sem violações.
 - [ ] T012 [P] [US1] Testes primeiro nas telas: em `apps/web/components/ui/assessment/assessment.test.tsx`
   `CodeAnswer` repassa `highlight` e o rótulo "Sua resposta (Java)"; em
   `apps/web/features/student-activities/components/activity-answering.test.tsx` `014/US1-4` resposta
@@ -129,7 +141,12 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
 - [ ] T013 [US1] `apps/web/components/ui/code/code-editor.tsx` (research L2, L6, L7): textarea imediato,
   troca para o CodeMirror carregado por `load-editor.ts` com a gramática de `grammars.ts`, extensões
   exatamente as de L2, `contentAttributes` de L7, `ref` com `focus()`; valor controlado (despacha
-  substituição quando a prop muda de fora, como no CONFLICT da 012 e no "Refazer" da 013);
+  substituição quando a prop muda de fora, como no CONFLICT da 012 e no "Refazer" da 013),
+  comparando a prop e o documento **depois de normalizar as quebras de linha** (`\r\n`/`\r` → `\n`),
+  para que um código guardado com `\r\n` não gere substituição a cada render nem `onChange` sem
+  digitação; a troca textarea → CodeMirror não emite `onChange`; `disabled` também quando o editor
+  está dentro de um `<fieldset disabled>` (o `contenteditable` não herda o `disabled` do fieldset:
+  o componente verifica `closest("fieldset:disabled")` além da prop);
   `apps/web/components/ui/assessment/code-editor.tsx` reexporta; `CodeAnswer` em
   `apps/web/components/ui/assessment/answers.tsx` recebe `highlight` e põe a linguagem no rótulo.
 - [ ] T014 [US1] `apps/web/features/student-activities/components/activity-answering.tsx` passa
@@ -191,12 +208,18 @@ mantido, realce muda), salvar e reabrir.
   `014/US3-2` trocar a linguagem muda o realce e mantém o texto, `014/US3-3` erro de solução vazia
   ligado ao editor e foco nele no envio, `014/US3-4` o corpo enviado traz o texto exato; o mesmo
   para o rascunho da IA em `apps/web/features/exercises/components/batch-review.test.tsx` e para a
-  questão de Código em `apps/web/features/works/components/work-form.test.tsx`.
+  questão de Código em `apps/web/features/works/components/work-form.test.tsx`; ainda em
+  `work-form.test.tsx`, um trabalho arquivado (formulário só leitura, `<fieldset disabled>`) mostra o
+  "Código inicial" e a "Solução esperada" coloridos e **não editáveis** (conteúdo sem
+  `contenteditable="true"`, com `aria-disabled`/`aria-readonly`; digitar não muda o valor do
+  formulário) — spec, Edge Cases, "Editor desabilitado".
 - [ ] T021 [US3] `CodeEditor` num `Field` com `Controller` do React Hook Form (ref de foco, erro, dica)
   em `apps/web/features/exercises/components/exercise-form.tsx`,
   `apps/web/features/exercises/components/draft-editor.tsx` e
   `apps/web/features/works/components/work-question-card.tsx` (o `highlight` vem da linguagem escolhida
-  na lista do catálogo); casos de teste continuam `TextareaField`. T020 passa.
+  na lista do catálogo); em `work-question-card.tsx` cada `CodeEditor` recebe também
+  `disabled={readOnly}` do `work-form` (além da detecção do fieldset no componente); casos de teste
+  continuam `TextareaField`. T020 passa.
 
 **Checkpoint**: o professor escreve e lê o gabarito com cores.
 
@@ -217,8 +240,9 @@ mantido, realce muda), salvar e reabrir.
 - [ ] T023 [P] [US4] Testes em `apps/web/components/ui/code/code-a11y.test.tsx`: `014/US4-1` cada
   categoria usa a sua classe de token nos dois temas (contraste coberto pelo T008); `014/US4-2` o
   conteúdo lido é o texto das linhas, sem nomes de cor nem marcação, com o rótulo incluindo a
-  linguagem; `014/US4-3` a folha de estilos tem a regra `forced-colors` para as classes de sintaxe;
-  `014/FR-018` o código sem as classes é o mesmo texto.
+  linguagem; `014/US4-3` a folha de estilos tem a regra `forced-colors` para as classes de sintaxe e
+  para o contorno de foco do editor e do `CodeBlock` rolável (cor do sistema, ex. `Highlight`, ou o
+  contorno padrão sem `outline: none`); `014/FR-018` o código sem as classes é o mesmo texto.
 
 **Checkpoint**: todas as histórias funcionando.
 
@@ -230,19 +254,34 @@ mantido, realce muda), salvar e reabrir.
   com um exercício de Código em Java): `014/US1-2` spans de sintaxe visíveis no editor do aluno,
   `014/US1-3` Tab e Esc + Tab, `014/US1-4` recarregar devolve o texto idêntico, `014/US2-1` resultado
   colorido, `014/US2-2` tentativa colorida para o professor, `014/US3-2` formulário do banco trocando a
-  linguagem, `014/US4-4` 360 px sem rolagem horizontal, `014/SC-004` pronto para digitar ≤ 300 ms a
-  mais que o textarea (marca medida antes da troca) e ≤ 50 ms por tecla num código de 10 000
-  caracteres.
+  linguagem, `014/US4-4` 360 px sem rolagem horizontal; `014/SC-001` um exercício em Java colorido e
+  um de linguagem com `highlight` NULL (linha do seed alterada só no banco do E2E) sem cor e
+  funcionando, no editor do aluno, no resultado e na tentativa; `014/SC-002` ida e volta do texto
+  (digitar e colar → recarregar, offline → reconectar, concluir) caractere por caractere, com
+  tabulações, espaços no fim da linha, acentos e emoji; `014/SC-006` responder, entrar e sair do
+  editor (Tab, Esc + Tab, Shift+Tab) e ler o gabarito só com o teclado, em viewport de desktop e de
+  celular; `014/FR-012` em viewport de celular com toque (`hasTouch`): tocar no editor dá o foco,
+  digitar e desfazer funcionam; `014/SC-004` com duas medidas na mesma máquina — linha de base com o
+  chunk do CodeMirror bloqueado (`page.route` abortando `@codemirror`, o editor fica o textarea) e a
+  execução normal: navegação → editor focável e aceitando a primeira tecla ≤ 300 ms a mais que a
+  linha de base; teclas digitadas **durante** a troca textarea → CodeMirror não se perdem e nenhuma
+  espera mais de 50 ms; ≤ 50 ms por tecla num código de 10 000 caracteres (marcas de performance em
+  volta de `keyboard.type`).
 - [ ] T025 [P] XSS: `apps/web/test/student-portal-xss.test.tsx` varre também `components/ui/code` e as
   telas trocadas; código com `<script>`/HTML no editor e no `CodeBlock` como texto (`014/SC-003`).
 - [ ] T026 [P] `014/SC-007`: comparar o "First Load JS" do `next build` das rotas sem código antes e
   depois (sem aumento) e registrar o resultado em `specs/014-code-syntax-highlighting/research.md`
-  (L12); a regra ESLint do T002 impede o retrocesso.
+  (L12); a regra ESLint do T002 impede o retrocesso, e o caso dela em
+  `apps/web/test/lint-boundaries.test.ts` leva o título `014/SC-007` (o teste que a rastreabilidade
+  encontra).
 - [ ] T027 Acrescentar a 014 ao `SPECS` de `apps/api/test/traceability.spec.ts` (4 histórias, cenários
-  da spec, `successCriteria` SC-001–SC-007) e cobrir ids faltantes.
+  da spec, `successCriteria` SC-001–SC-007). Cada id já tem o seu teste nas tarefas: SC-001, SC-002 e
+  SC-006 no E2E (T024), SC-003 no T025, SC-004 no T024, SC-005 no T008, SC-007 no T002/T026; esta
+  tarefa só confere que o guard passa sem título novo.
 - [ ] T028 [P] Documentação: `CLAUDE.md` da raiz (014 no estado do projeto, research L1–L14, regras:
   realce só por tokens, gramática como dado do catálogo, CodeMirror só por `load-*.ts`, texto nunca
-  alterado), `apps/api/CLAUDE.md` (`highlight` nos selects de linguagem e nas allowlists),
+  alterado; em "Recent Changes", "eight `--syntax-*` tokens" no lugar de "nine", e o mesmo
+  ajuste em `plan.md` e em research L5), `apps/api/CLAUDE.md` (`highlight` nos selects de linguagem e nas allowlists),
   `README.md`.
 - [ ] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
   revisar `spec.md` × implementação.

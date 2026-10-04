@@ -210,7 +210,7 @@ sistema.
   Linguagem sem regra, ou item sem linguagem, aparece sem cor e com todo o resto igual.
 - **FR-003**: Os frameworks e conjuntos do catálogo (Angular, Nest, Node, "HTML & CSS") DEVEM usar a
   regra da linguagem em que o código é escrito (TypeScript, TypeScript, JavaScript e HTML com CSS,
-  respectivamente), definida como dado do catálogo.
+  respectivamente), e C DEVE usar a regra de C++, definidas como dado do catálogo.
 - **FR-004**: O realce DEVE distinguir pelo menos: palavra-chave, texto entre aspas, número,
   comentário, tipo, função, operador e pontuação, e o texto comum. Cada categoria DEVE ter uma cor
   semântica própria do design system.
@@ -336,8 +336,9 @@ sistema.
   dois) é do plano, com as restrições desta spec: licença compatível, sem cores próprias fora dos
   tokens, acessível por teclado e leitor de tela, carregada só onde há código.
 - As regras de realce das linguagens do catálogo atual são as da biblioteca escolhida; a ligação
-  linguagem → regra fica no catálogo (10 linguagens com regra própria e os 4 frameworks/conjuntos
-  apontando para a da sua linguagem). Uma linguagem nova sem regra disponível fica sem cor.
+  linguagem → regra fica no catálogo (13 entradas: 9 linguagens com regra própria, C usando a de
+  C++ e os 4 frameworks/conjuntos apontando para a da sua linguagem). Uma linguagem nova sem regra
+  disponível fica sem cor.
 - Não há escolha de tema de cores pelo usuário: as cores seguem o tema claro ou escuro da plataforma
   e o alto contraste do sistema.
 - Os casos de teste (entrada e saída esperada) não são código de uma linguagem e continuam em campos
