@@ -1,12 +1,12 @@
 import type { ExerciseTeacherView } from "@repo/contracts";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ExerciseDetail } from "./exercise-detail";
-import { apiError, exerciseView, json } from "./test-fixtures";
+import { apiError, exerciseView, JAVA, json } from "./test-fixtures";
 
 const approved = exerciseView({ statement: "Explique a herança", expectedAnswer: "Reuso por extensão", version: 4 });
 
@@ -105,5 +105,28 @@ describe("010/US5 ExerciseDetail — ver, editar, arquivar e restaurar", () => {
     renderWithProviders(<ExerciseDetail exerciseId={approved.id} canEdit />);
     const user = userEvent.setup();
     await expectTabOrder(user, [await screen.findByRole("button", { name: "Editar" }), screen.getByRole("button", { name: "Arquivar" })]);
+  });
+
+  it("014/US2-3 o código inicial e a solução esperada aparecem coloridos pela linguagem, só leitura", async () => {
+    current = {
+      ...approved,
+      type: "CODE",
+      expectedAnswer: null,
+      instructions: "Escreva a classe.",
+      starterCode: "class Conta {}",
+      expectedSolution: "class Conta { private int saldo; }",
+      language: JAVA,
+    };
+    const { container } = renderWithProviders(<ExerciseDetail exerciseId={approved.id} canEdit />);
+    const starter = await screen.findByRole("group", { name: "Código inicial" });
+    const solution = screen.getByRole("group", { name: "Solução esperada" });
+    await waitFor(() => {
+      expect(starter.querySelector(".text-syntax-keyword")).toBeTruthy();
+      expect(solution.querySelector(".text-syntax-type")).toBeTruthy();
+    });
+    expect(starter.querySelector("pre code")!.textContent).toBe("class Conta {}");
+    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private int saldo; }");
+    expect(container.querySelector("textarea, [contenteditable]")).toBeNull();
+    await expectNoA11yViolations(container);
   });
 });

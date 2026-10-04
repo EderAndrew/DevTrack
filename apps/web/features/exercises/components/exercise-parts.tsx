@@ -2,6 +2,7 @@ import type { ExerciseStatus, ExerciseTeacherView } from "@repo/contracts";
 import { AlertTriangle, Pencil, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { CodeBlock } from "@/components/ui/code/code-block";
 import { Status, type StatusVariant } from "@/components/ui/status";
 import { COGNITIVE_OBJECTIVE_LABELS, DIFFICULTY_LABELS } from "../schemas/exercise-form";
 
@@ -63,8 +64,16 @@ export function ExerciseContent({ exercise }: { exercise: ExerciseTeacherView })
         </Item>
       ) : null}
       {exercise.instructions !== null ? <Item term="Instruções">{exercise.instructions}</Item> : null}
-      {exercise.starterCode !== null ? <Item term="Código inicial">{exercise.starterCode}</Item> : null}
-      {exercise.expectedSolution !== null ? <Item term="Solução esperada">{exercise.expectedSolution}</Item> : null}
+      {exercise.starterCode !== null ? (
+        <Item term="Código inicial">
+          <CodeBlock label="Código inicial" code={exercise.starterCode} highlight={exercise.language?.highlight} />
+        </Item>
+      ) : null}
+      {exercise.expectedSolution !== null ? (
+        <Item term="Solução esperada">
+          <CodeBlock label="Solução esperada" code={exercise.expectedSolution} highlight={exercise.language?.highlight} />
+        </Item>
+      ) : null}
       {exercise.language ? <Item term="Linguagem">{exercise.language.name}</Item> : null}
       <Item term="Explicação">{exercise.explanation}</Item>
     </dl>

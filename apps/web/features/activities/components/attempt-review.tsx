@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/code/code-block";
 import { Label } from "@/components/ui/label";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -545,7 +546,11 @@ function QuestionReview({
         </Item>
         {question.expectedAnswer !== null ? <Item term="Resposta esperada">{question.expectedAnswer}</Item> : null}
         {question.rubric !== null ? <Item term="Rubrica">{question.rubric}</Item> : null}
-        {question.expectedSolution !== null ? <Item term="Solução esperada">{question.expectedSolution}</Item> : null}
+        {question.expectedSolution !== null ? (
+          <Item term="Solução esperada">
+            <CodeBlock label="Solução esperada" code={question.expectedSolution} highlight={question.language?.highlight} />
+          </Item>
+        ) : null}
         {question.testCases.length > 0 ? (
           <Item term="Casos de teste">
             <ul className="m-0 pl-6">
@@ -588,7 +593,7 @@ function StudentAnswer({ question, answer }: { question: TeacherQuestion; answer
     );
   }
   if (answer?.kind === "TEXT" && answer.text.trim() !== "") return <>{answer.text}</>;
-  if (answer?.kind === "CODE" && answer.source.trim() !== "") return <>{answer.source}</>;
+  if (answer?.kind === "CODE" && answer.source.trim() !== "") return <CodeBlock label="Resposta do aluno" code={answer.source} highlight={question.language?.highlight} />;
   return <>Em branco</>;
 }
 

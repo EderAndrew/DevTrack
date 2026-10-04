@@ -4,9 +4,9 @@ import type { Answer, ExerciseResult as ExerciseResultValue, StudentActivity, St
 import { Award, BookOpen, CircleCheck, CircleX, Clock, RotateCcw, type LucideIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CodeEditor } from "@/components/ui/assessment/code-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/code/code-block";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useExerciseAttempt, useRetryAttempt } from "../hooks/use-student-activities";
@@ -139,7 +139,7 @@ function AttemptResult({ activity, attempt }: { activity: StudentActivity; attem
                 <p className="m-0 text-reading whitespace-pre-wrap">{question.statement}</p>
                 <dl className="m-0 flex flex-col gap-3">
                   <Entry term="Sua resposta">
-                    <AnswerText question={question} answer={item.answer} id={`${headingId}-resposta`} label="Sua resposta" />
+                    <AnswerText question={question} answer={item.answer} label="Sua resposta" />
                   </Entry>
                   <Entry term="Gabarito">
                     {question.type === "MULTIPLE_CHOICE" ? (
@@ -148,13 +148,7 @@ function AttemptResult({ activity, attempt }: { activity: StudentActivity; attem
                         {question.alternatives.find((alternative) => alternative.id === item.correctAlternativeId)?.text ?? "—"}
                       </p>
                     ) : question.type === "CODE" ? (
-                      <CodeEditor
-                        id={`${headingId}-solucao`}
-                        aria-label="Solução de referência"
-                        value={item.expectedSolution ?? ""}
-                        onChange={() => undefined}
-                        readOnly
-                      />
+                      <CodeBlock label="Solução de referência" code={item.expectedSolution ?? ""} highlight={question.language?.highlight} />
                     ) : (
                       <p className="m-0 whitespace-pre-wrap">{item.expectedAnswer ?? "—"}</p>
                     )}
@@ -180,12 +174,12 @@ function AttemptResult({ activity, attempt }: { activity: StudentActivity; attem
 }
 
 /** The student's own answer as text; a blank one says so. */
-function AnswerText({ question, answer, id, label }: { question: StudentQuestion; answer: Answer | null; id: string; label: string }) {
+function AnswerText({ question, answer, label }: { question: StudentQuestion; answer: Answer | null; label: string }) {
   if (answer === null || !isAnswered(question, answer)) return <p className="m-0 text-text-secondary">Em branco</p>;
   if (answer.kind === "ALTERNATIVE") {
     return <p className="m-0">{question.alternatives.find((alternative) => alternative.id === answer.alternativeId)?.text ?? "—"}</p>;
   }
-  if (answer.kind === "CODE") return <CodeEditor id={id} aria-label={label} value={answer.source} onChange={() => undefined} readOnly />;
+  if (answer.kind === "CODE") return <CodeBlock label={label} code={answer.source} highlight={question.language?.highlight} />;
   return <p className="m-0 whitespace-pre-wrap">{answer.text}</p>;
 }
 

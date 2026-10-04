@@ -1,5 +1,5 @@
 import type { WorkStudentView } from "@repo/contracts";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
@@ -115,7 +115,11 @@ describe("011/US6 StudentPreview — Ver como aluno", () => {
     expect(
       within(questions[2]!).getByText("Cachorro deve estender Animal."),
     ).toBeTruthy();
-    expect(within(questions[2]!).getByText("class Cachorro {}")).toBeTruthy();
+    expect(
+      within(questions[2]!)
+        .getByRole("group", { name: "Código inicial" })
+        .querySelector("pre code")!.textContent,
+    ).toBe("class Cachorro {}");
     expect(within(questions[2]!).getByText("Java")).toBeTruthy();
     expect(
       within(questions[2]!).getByText("Entrada: falar() · Saída esperada: au"),
@@ -159,5 +163,27 @@ describe("011/US6 StudentPreview — Ver como aluno", () => {
     );
     renderWithProviders(<StudentPreview workId={WORK_ID} />);
     expect((await screen.findByRole("alert")).textContent).not.toBe("");
+  });
+
+  it("014/US2-3 \"Ver como aluno\" mostra o código inicial colorido e continua sem a solução", async () => {
+    serve({
+      ...PREVIEW,
+      questions: PREVIEW.questions.map((question) => ({ ...question, ...LEAKED })),
+    });
+    const { container } = renderWithProviders(
+      <StudentPreview workId={WORK_ID} />,
+    );
+    const starter = await screen.findByRole("group", {
+      name: "Código inicial",
+    });
+    await waitFor(() =>
+      expect(starter.querySelector(".text-syntax-keyword")).toBeTruthy(),
+    );
+    expect(starter.querySelector("pre code")!.textContent).toBe(
+      "class Cachorro {}",
+    );
+    expect(screen.queryByRole("group", { name: "Solução esperada" })).toBeNull();
+    expect(container.textContent).not.toMatch(/MARCADOR-SOLUCAO-011/);
+    expect(container.querySelector("textarea, [contenteditable]")).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import type { TeacherQuestion } from "@repo/contracts";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { CodeBlock } from "@/components/ui/code/code-block";
 import { DIFFICULTY_LABELS, formatGrade, formatPoints, QUESTION_TYPE_LABELS } from "../schemas/activity-form";
 
 /**
@@ -47,8 +48,16 @@ export function ActivityQuestions({ questions }: { questions: TeacherQuestion[] 
               {question.rubric !== null ? <Item term="Rubrica">{question.rubric}</Item> : null}
               {question.instructions !== null ? <Item term="Instruções">{question.instructions}</Item> : null}
               {question.language ? <Item term="Linguagem">{question.language.name}</Item> : null}
-              {question.starterCode !== null ? <Item term="Código inicial">{question.starterCode}</Item> : null}
-              {question.expectedSolution !== null ? <Item term="Solução esperada">{question.expectedSolution}</Item> : null}
+              {question.starterCode !== null ? (
+                <Item term="Código inicial">
+                  <CodeBlock label="Código inicial" code={question.starterCode} highlight={question.language?.highlight} />
+                </Item>
+              ) : null}
+              {question.expectedSolution !== null ? (
+                <Item term="Solução esperada">
+                  <CodeBlock label="Solução esperada" code={question.expectedSolution} highlight={question.language?.highlight} />
+                </Item>
+              ) : null}
               {question.testCases.length > 0 ? (
                 <Item term="Casos de teste">
                   <ul className="m-0 pl-6">

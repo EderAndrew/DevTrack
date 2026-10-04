@@ -2,6 +2,7 @@
 
 import type { WorkQuestionStudentView, WorkStudentView } from "@repo/contracts";
 import type { ReactNode } from "react";
+import { CodeBlock } from "@/components/ui/code/code-block";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useWorkStudentPreview } from "../hooks/use-works";
 import { formatGrade, WORK_QUESTION_TYPE_LABELS } from "../schemas/work-form";
@@ -85,7 +86,13 @@ function StudentQuestion({
           <Item term="Linguagem">{question.language.name}</Item>
         ) : null}
         {question.starterCode !== undefined ? (
-          <Item term="Código inicial">{question.starterCode}</Item>
+          <Item term="Código inicial">
+            <CodeBlock
+              label="Código inicial"
+              code={question.starterCode}
+              highlight={question.language?.highlight}
+            />
+          </Item>
         ) : null}
         {question.publicTestCases && question.publicTestCases.length > 0 ? (
           <Item term="Casos de teste">

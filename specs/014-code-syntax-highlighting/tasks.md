@@ -166,23 +166,23 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
 **Independent Test**: concluir um Exercício de Código e abrir o resultado (aluno) e a tentativa
 (professor): código colorido, só leitura, copiar traz só o código.
 
-- [ ] T015 [P] [US2] Testes primeiro em `apps/web/components/ui/code/code-block.test.tsx`: segmentos
+- [X] T015 [P] [US2] Testes primeiro em `apps/web/components/ui/code/code-block.test.tsx`: segmentos
   com as classes de sintaxe depois do carregamento; texto puro antes e com o `import()` rejeitado;
   `014/US2-4` o texto do elemento de código (o que se copia) é o código exato, sem números de linha
   (coluna `aria-hidden` e não selecionável); `014/FR-009` código com `<script>`/HTML em `html` e em
   `java` vira texto; `\r\n` guardado aparece sem alteração; região rolável com nome e `tabIndex=0` só
   quando transborda; axe sem violações.
-- [ ] T016 [P] [US2] Testes primeiro nas telas: `014/US2-1` em
+- [X] T016 [P] [US2] Testes primeiro nas telas: `014/US2-1` em
   `apps/web/features/student-activities/components/exercise-result.test.tsx` (resposta e solução de
   referência em `CodeBlock`, Tab move o foco); `014/US2-2` em
   `apps/web/features/activities/components/attempt-review.test.tsx` (resposta do aluno e solução
   esperada); `014/US2-3` em `apps/web/features/activities/components/activity-detail.test.tsx`,
   `apps/web/features/exercises/components/exercise-detail.test.tsx` e
   `apps/web/features/works/components/student-preview.test.tsx` ("Ver como aluno" sem a solução).
-- [ ] T017 [US2] `apps/web/components/ui/code/code-block.tsx` (research L4): carrega a gramática,
+- [X] T017 [US2] `apps/web/components/ui/code/code-block.tsx` (research L4): carrega a gramática,
   `highlightTree` + highlighter → segmentos por linha → `<span>`s em `<pre><code>`, coluna de números
   `aria-hidden`/`select-none`, rótulo acessível, fallback texto puro.
-- [ ] T018 [US2] Trocar o código de leitura por `CodeBlock` em
+- [X] T018 [US2] Trocar o código de leitura por `CodeBlock` em
   `apps/web/features/student-activities/components/exercise-result.tsx`,
   `apps/web/features/activities/components/attempt-review.tsx`,
   `apps/web/features/activities/components/activity-questions.tsx`,

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
@@ -61,7 +61,7 @@ describe("013/US2 resultado da conclusão dos exercícios", () => {
     const code = exercise("Exercício 3");
     expect(within(code).getByText("Errado")).toBeTruthy();
     expect(within(code).getByText("Em branco")).toBeTruthy();
-    expect((within(code).getByRole("textbox", { name: "Solução de referência" }) as HTMLTextAreaElement).value).toBe("class Soma {}");
+    expect(within(code).getByRole("group", { name: "Solução de referência" }).querySelector("pre code")!.textContent).toBe("class Soma {}");
 
     // States never by color alone: each badge has its text and an icon.
     for (const label of ["Certo", "Errado", "Aguardando correção"]) {
@@ -125,8 +125,37 @@ describe("013/US2 resultado da conclusão dos exercícios", () => {
     });
     const retry = await screen.findByRole("button", { name: "Refazer" });
     await expectNoA11yViolations(container);
-    // The read-only editor of the answer key doesn't hold Tab: the focus goes on to "Refazer".
-    const solution = screen.getByRole("textbox", { name: "Solução de referência" });
-    await expectTabOrder(user, [solution, retry]);
+    // The read-only answer key doesn't hold Tab: the focus reaches "Refazer".
+    expect(screen.getByRole("group", { name: "Solução de referência" })).toBeTruthy();
+    await expectTabOrder(user, [retry]);
+  });
+});
+
+describe("014/US2 resultado com o código colorido", () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("014/US2-1 a resposta e a solução de referência aparecem coloridas, com números de linha, só leitura; Tab move o foco", async () => {
+    const source = "class Soma {\n  int soma(int a, int b) { return a + b; }\n}";
+    const attempt = exerciseAttempt();
+    attempt.questions[2] = { ...attempt.questions[2]!, answer: { kind: "CODE", source } };
+    const { user, container } = setup({ [GET]: json(200, concluded({ lastResult: attempt })) });
+    const retry = await screen.findByRole("button", { name: "Refazer" });
+    const code = exercise("Exercício 3");
+    const answer = within(code).getByRole("group", { name: "Sua resposta" });
+    const solution = within(code).getByRole("group", { name: "Solução de referência" });
+    await waitFor(() => {
+      expect(answer.querySelector(".text-syntax-keyword")).toBeTruthy();
+      expect(solution.querySelector(".text-syntax-keyword")).toBeTruthy();
+    });
+    expect(answer.querySelector("pre code")!.textContent).toBe(source);
+    expect(answer.querySelector('[data-slot="code-block-lines"]')!.textContent).toBe("123");
+    expect(solution.querySelector("pre code")!.textContent).toBe("class Soma {}");
+    expect(code.querySelector("textarea, [contenteditable]")).toBeNull();
+    await expectTabOrder(user, [retry]);
+    await expectNoA11yViolations(container);
   });
 });

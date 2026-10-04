@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
@@ -316,5 +316,45 @@ describe("013/US3 AttemptReview — Exercício: Certo ou Errado por resposta", (
       screen.getByRole("button", { name: "Salvar correção" }),
       screen.getByRole("link", { name: "Próximo aluno: Carla Dias" }),
     ]);
+  });
+});
+
+describe("014/US2 AttemptReview — código colorido", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("014/US2-2 a resposta do aluno e a solução esperada aparecem coloridas, uma abaixo da outra", async () => {
+    const base = markingActivity();
+    const java = { id: "00000000-0000-4000-a000-000000000001", name: "Java", highlight: "java" };
+    const withJava = { ...base, questions: base.questions.map((question) => (question.id === MARK_CODE_ID ? { ...question, language: java } : question)) };
+    const { container } = setupExercise({ [`GET ${ACTIVITY_PATH}`]: json(200, withJava) });
+    const code = await screen.findByRole("listitem", { name: "Exercício 3" });
+    const answer = within(code).getByRole("group", { name: "Resposta do aluno" });
+    const solution = within(code).getByRole("group", { name: "Solução esperada" });
+    await waitFor(() => {
+      expect(answer.querySelector(".text-syntax-keyword")).toBeTruthy();
+      expect(solution.querySelector(".text-syntax-keyword")).toBeTruthy();
+    });
+    expect(answer.querySelector("pre code")!.textContent).toBe("class Conta { saldo; }");
+    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
+    // Stacked in the reading order: the answer, then the answer key.
+    expect(answer.compareDocumentPosition(solution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(code.querySelector("[contenteditable]")).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("014/US2-2 linguagem sem gramática mostra o código puro; resposta de código em branco continua \"Em branco\"", async () => {
+    setupExercise({
+      [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, {
+        ...exerciseAttempt(),
+        answers: exerciseAttempt().answers.map((item) => (item.questionId === MARK_CODE_ID ? { ...item, answer: { kind: "CODE", source: "  " } } : item)),
+      }),
+    });
+    const code = await screen.findByRole("listitem", { name: "Exercício 3" });
+    expect(within(code).queryByRole("group", { name: "Resposta do aluno" })).toBeNull();
+    expect(within(code).getByText("Em branco")).toBeTruthy();
+    const solution = within(code).getByRole("group", { name: "Solução esperada" });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(solution.querySelector("span[class]")).toBeNull();
+    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
   });
 });
