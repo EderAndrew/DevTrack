@@ -219,7 +219,8 @@ test.describe("014 realce de sintaxe do código", () => {
     await expect(colored(solution).filter({ hasText: /^def$/ })).toHaveClass(/text-syntax-keyword/);
     await language.selectOption({ label: "Java" });
     await expect(colored(solution).filter({ hasText: "// nota" })).toHaveClass(/text-syntax-comment/);
-    await expect(colored(solution).filter({ hasText: /^def$/ })).toHaveCount(0);
+    // In Java `def` is a plain name (colored as a type), no longer a keyword.
+    await expect(solution.locator(".text-syntax-keyword").filter({ hasText: /^def$/ })).toHaveCount(0);
     expect(await editorText(solution)).toBe("def f(): // nota");
     await page.context().close();
   });
@@ -278,7 +279,15 @@ test.describe("014 realce de sintaxe do código", () => {
     await java.click();
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.insertText(`${"// linha de código comentada para medir a digitação\n".repeat(200)}`.slice(0, 10_000));
-    await expect.poll(async () => (await editorText(java)).length).toBe(10_000);
+    // CodeMirror renders only the visible lines: the length is read from the saved answer.
+    await expect
+      .poll(async () => {
+        const activity = (await (await page.request.get(`/api/me/activities/${activityId}`)).json()) as {
+          attempt: { answers: { answer: { source?: string } }[] } | null;
+        };
+        return activity.attempt?.answers[0]?.answer.source?.length;
+      })
+      .toBe(10_000);
     // Per key: from the keydown to the content's DOM update, measured in the page.
     await java.evaluate((content) => {
       const state = { pending: 0, latencies: [] as number[] };

@@ -252,7 +252,7 @@ mantido, realce muda), salvar e reabrir.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] E2E `apps/web/e2e/code-highlighting.spec.ts` (seed do `e2e/support/exercise-points-seed.ts`
+- [X] T024 [P] E2E `apps/web/e2e/code-highlighting.spec.ts` (seed do `e2e/support/exercise-points-seed.ts`
   com um exercício de Código em Java): `014/US1-2` spans de sintaxe visíveis no editor do aluno,
   `014/US1-3` Tab e Esc + Tab, `014/US1-4` recarregar devolve o texto idêntico, `014/US2-1` resultado
   colorido, `014/US2-2` tentativa colorida para o professor, `014/US3-2` formulário do banco trocando a
@@ -287,7 +287,7 @@ mantido, realce muda), salvar e reabrir.
   `README.md`.
 - [ ] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
   revisar `spec.md` × implementação.
-- [ ] T030 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`
+- [X] T030 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`
   verdes.
 
 ---
