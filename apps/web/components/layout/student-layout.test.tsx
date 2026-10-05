@@ -118,6 +118,7 @@ describe("005/US5-1 layout do aluno", () => {
   it("conteúdo na largura de leitura", () => {
     renderLayout();
     expect(screen.getByRole("main").getAttribute("class")).toMatch(/\bmax-w-240\b/);
+    expect(screen.getByRole("main").getAttribute("class")).toContain("has-[>[data-layout=wide]]:max-w-none");
   });
 
   it("recolhido só com ícones e nomes acessíveis; a escolha fica no cookie sidebar_state", async () => {
