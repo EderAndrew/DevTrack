@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { codeEditorByLabel, codeMirrorText, syntaxSegments, typeCode } from "../../../test/code-editor";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ExerciseForm } from "./exercise-form";
@@ -40,7 +41,9 @@ async function fillCode(user: UserEvent, n: number, language: string | null = "J
   await fillCommon(user, n, "Exercício de código", `Código ${n}`);
   const scope = within(card(n));
   await user.type(scope.getByLabelText(/^Instruções/), "Implemente.");
-  await user.type(scope.getByLabelText(/^Solução esperada/), "class A {{}");
+  const solution = await codeEditorByLabel(/^Solução esperada/, card(n));
+  solution.focus();
+  await typeCode(user, "class A {}");
   if (language) await user.selectOptions(scope.getByLabelText(/^Linguagem/), language);
 }
 
@@ -266,5 +269,128 @@ describe("010/US1 ExerciseForm — criar exercícios manualmente", () => {
       screen.getByRole("button", { name: "Salvar no banco" }),
       screen.getByRole("button", { name: "Salvar como rascunho" }),
     ]);
+  });
+});
+
+describe("014/US3 ExerciseForm — o professor escreve código colorido", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const writes: { url: string; body: unknown }[] = [];
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    router.push.mockReset();
+    writes.length = 0;
+    fetchMock.mockImplementation(
+      exerciseApiMock((url, body) => {
+        writes.push({ url, body });
+        return json(201, exerciseView());
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const exercise = () => within(screen.getByRole("group", { name: "Exercício" }));
+
+  /** A single Código exercise in `language`; the two code editors once CodeMirror has loaded. */
+  async function codeExercise(user: UserEvent, language: string) {
+    await user.selectOptions(exercise().getByLabelText(/^Tipo/), "Exercício de código");
+    await exercise().findByRole("option", { name: language });
+    await user.selectOptions(exercise().getByLabelText(/^Linguagem/), language);
+    return { starter: await codeEditorByLabel(/^Código inicial/), solution: await codeEditorByLabel(/^Solução esperada/) };
+  }
+
+  it("014/US3-1 código inicial e solução esperada usam o editor com a gramática da linguagem escolhida", async () => {
+    const { container } = renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    const { starter, solution } = await codeExercise(user, "Python");
+
+    starter.focus();
+    await typeCode(user, "def main():");
+    solution.focus();
+    await typeCode(user, "def main(): # pronto");
+    await waitFor(() => expect(syntaxSegments(starter)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    expect(syntaxSegments(solution)).toEqual(
+      expect.arrayContaining([
+        ["def", "text-syntax-keyword"],
+        ["# pronto", "text-syntax-comment"],
+      ]),
+    );
+    // Line numbers and the student's keyboard rules: Tab indents, Esc then Tab leaves.
+    expect(solution.closest(".cm-editor")!.querySelector(".cm-lineNumbers")).toBeTruthy();
+    expect(exercise().getAllByText("Tab indenta o código; Esc e depois Tab sai do editor.")).toHaveLength(2);
+    await user.keyboard("{Tab}");
+    expect(codeMirrorText(solution)).toBe("def main(): # pronto  ");
+    expect(document.activeElement).toBe(solution);
+    await user.keyboard("{Escape}");
+    await user.tab();
+    expect(document.activeElement).toBe(exercise().getByLabelText(/^Linguagem/));
+    await expectNoA11yViolations(container);
+  });
+
+  it("014/US3-2 trocar a linguagem muda o realce e mantém o texto", async () => {
+    renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    const { solution } = await codeExercise(user, "Python");
+    solution.focus();
+    await typeCode(user, "def f(): // nota");
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    expect(syntaxSegments(solution)).not.toEqual(expect.arrayContaining([["// nota", "text-syntax-comment"]]));
+
+    await user.selectOptions(exercise().getByLabelText(/^Linguagem/), "Java");
+    await waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["// nota", "text-syntax-comment"]])));
+    expect(syntaxSegments(solution)).not.toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]]));
+    expect(codeMirrorText(solution)).toBe("def f(): // nota");
+    expect(await codeEditorByLabel(/^Solução esperada/)).toBe(solution);
+  });
+
+  it("014/US3-3 solução vazia: o erro fica ligado ao editor e o link do resumo leva o foco a ele", async () => {
+    const { container } = renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    const { solution } = await codeExercise(user, "Java");
+    await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
+
+    const summary = await screen.findByRole("group", { name: "Não foi possível salvar o exercício" });
+    await waitFor(() => expectFieldErrorLinked(solution));
+    expect(document.getElementById(solution.getAttribute("aria-describedby")!.split(" ").find((id) => id.endsWith("-erro"))!)!.textContent).toBe(
+      "Informe a solução esperada.",
+    );
+    await user.click(within(summary).getByRole("link", { name: "Informe a solução esperada." }));
+    expect(document.activeElement).toBe(solution);
+    expect(writes).toHaveLength(0);
+    await expectNoA11yViolations(container);
+  });
+
+  it("014/US3-4 o corpo enviado traz o texto exato do código inicial e da solução", async () => {
+    renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    await user.type(exercise().getByLabelText(/^Enunciado/), "Some");
+    await user.selectOptions(exercise().getByLabelText(/^Dificuldade/), "Básico");
+    await user.selectOptions(exercise().getByLabelText(/^Objetivo cognitivo/), "Compreender");
+    await user.type(exercise().getByLabelText(/^Explicação/), "Porque sim.");
+    const { starter, solution } = await codeExercise(user, "Python");
+    await user.type(exercise().getByLabelText(/^Instruções/), "Some dois números.");
+
+    starter.focus();
+    await typeCode(user, "def soma(a, b):\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "pass  ");
+    solution.focus();
+    await typeCode(user, "def soma(a, b):\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "return a + b  # ação {ok}");
+    await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
+
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toEqual({
+      url: "/api/exercises",
+      body: expect.objectContaining({
+        type: "CODE",
+        starterCode: "def soma(a, b):\n  pass  ",
+        expectedSolution: "def soma(a, b):\n  return a + b  # ação {ok}",
+        languageId: PYTHON.id,
+        status: "APPROVED",
+      }),
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AiModelTierSchema,
+  CodeHighlightSchema,
   CognitiveObjectiveSchema,
   CreateExerciseRequestSchema,
   distributeExercises,
@@ -128,9 +129,21 @@ describe("010/SC-003 010/FR-004 010/FR-016 fronteiras da criação manual", () =
     expect(accepts(ExerciseListQuerySchema, { teacherId: ID })).toBe(false);
   });
 
-  it("linguagens do catálogo: id, chave e nome", () => {
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java" })).toBe(true);
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", aliases: [] })).toBe(false);
+  it("linguagens do catálogo: id, chave, nome e gramática (014)", () => {
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: "java" })).toBe(true);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null })).toBe(true);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java" })).toBe(false);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null, aliases: [] })).toBe(
+      false,
+    );
+  });
+
+  it("014/FR-002 a chave de gramática é minúscula, sem espaço, até 32 caracteres", () => {
+    for (const ok of ["java", "cpp", "html", "type-script2", "a"]) expect(accepts(CodeHighlightSchema, ok)).toBe(true);
+    for (const bad of ["Java", "java script", "2java", "-java", "", "a".repeat(33)]) {
+      expect(accepts(CodeHighlightSchema, bad)).toBe(false);
+    }
+    expect(accepts(CodeHighlightSchema, null)).toBe(true);
   });
 });
 

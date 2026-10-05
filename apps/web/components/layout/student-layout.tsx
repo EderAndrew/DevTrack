@@ -22,7 +22,8 @@ import {
 import { DASHBOARD_PATH, HISTORY_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
 import { Topbar } from "./topbar";
 
-const CONTENT = "mx-auto w-full max-w-240 flex-1 px-(--gutter) py-6";
+/** Up to 960 px; a page whose root has `data-layout="wide"` (the dashboard) takes the whole width, keeping the `--gutter`. */
+const CONTENT = "mx-auto w-full max-w-240 flex-1 px-(--gutter) py-6 has-[>[data-layout=wide]]:max-w-none";
 const LINK = "text-sidebar-foreground no-underline";
 
 export interface StudentLayoutProps {

@@ -38,6 +38,17 @@
   --disabled-border: #cbd5e1;
   --overlay: rgb(15 23 42 / 0.5);
 
+  /* Code syntax (014, contracts/design-tokens.md): text on --background, --surface, the selection
+     (--primary-subtle) and --disabled-bg ≥ 4.5:1; plain code text is --foreground. */
+  --syntax-keyword: #a626a4;
+  --syntax-string: #2f7a2f;
+  --syntax-number: #a1511a;
+  --syntax-comment: #5f6b7a;
+  --syntax-type: #0e6f8a;
+  --syntax-function: #3451b2;
+  --syntax-operator: #b42318;
+  --syntax-punctuation: #475569;
+
   /* shadcn/ui aliases: no value of their own */
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -121,6 +132,14 @@
     --disabled-fg: #94a3b8;
     --disabled-border: #334155;
     --overlay: rgb(0 0 0 / 0.6);
+    --syntax-keyword: #d8a8f0;
+    --syntax-string: #8fd18f;
+    --syntax-number: #f0b27a;
+    --syntax-comment: #94a3b8;
+    --syntax-type: #7fd4e8;
+    --syntax-function: #a5b8ff;
+    --syntax-operator: #ff9b94;
+    --syntax-punctuation: #cbd5e1;
     color-scheme: dark;
   }
 }
@@ -156,6 +175,14 @@
   --disabled-fg: #94a3b8;
   --disabled-border: #334155;
   --overlay: rgb(0 0 0 / 0.6);
+  --syntax-keyword: #d8a8f0;
+  --syntax-string: #8fd18f;
+  --syntax-number: #f0b27a;
+  --syntax-comment: #94a3b8;
+  --syntax-type: #7fd4e8;
+  --syntax-function: #a5b8ff;
+  --syntax-operator: #ff9b94;
+  --syntax-punctuation: #cbd5e1;
   color-scheme: dark;
 }
 
@@ -227,6 +254,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-syntax-keyword: var(--syntax-keyword);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-comment: var(--syntax-comment);
+  --color-syntax-type: var(--syntax-type);
+  --color-syntax-function: var(--syntax-function);
+  --color-syntax-operator: var(--syntax-operator);
+  --color-syntax-punctuation: var(--syntax-punctuation);
 
   /* Typography (research V6): size / line height / weight */
   --text-display: 2rem;
@@ -287,4 +322,27 @@
   line-height: 1.6;
   font-weight: --theme(--text-body--font-weight);
   max-width: var(--reading-max);
+}
+
+/*
+ * High contrast (014/FR-019): the system palette replaces the syntax colors; the code keeps its
+ * meaning without them (the text is the same). The focus outline of the editor and of a scrollable
+ * CodeBlock takes the system's highlight color (the selector outweighs CodeMirror's theme class).
+ */
+@media (forced-colors: active) {
+  .text-syntax-keyword,
+  .text-syntax-string,
+  .text-syntax-number,
+  .text-syntax-comment,
+  .text-syntax-type,
+  .text-syntax-function,
+  .text-syntax-operator,
+  .text-syntax-punctuation {
+    color: CanvasText;
+  }
+
+  [data-slot="code-editor"] .cm-editor.cm-focused,
+  [data-slot="code-block-scroll"]:focus-visible {
+    outline-color: Highlight;
+  }
 }

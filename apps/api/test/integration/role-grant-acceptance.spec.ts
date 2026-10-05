@@ -213,7 +213,10 @@ describe("RoleGrantAcceptance (R15, FR-044–FR-048)", () => {
       ]);
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
-      expect((rejected?.reason as AppException).code).toBe("TOKEN_INVALID");
+      // Called without the caller's invitation row lock: the loser either hits ON CONFLICT
+      // (TOKEN_INVALID) or, when it starts after the winner's commit, finds the verified account
+      // (SIGN_IN_REQUIRED). Both refuse; the identity below is what FR-044 guards.
+      expect(["TOKEN_INVALID", "SIGN_IN_REQUIRED"]).toContain((rejected?.reason as AppException).code);
 
       const users = await t.prisma.user.findMany({ where: { email } });
       expect(users).toHaveLength(1);

@@ -93,7 +93,8 @@ existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu.
 ### Variantes
 
 O mesmo menu lateral do `AppShell` (primitivos de `components/ui/sidebar`), só com os itens
-do aluno, a `Topbar` e o conteúdo até 960 px. `defaultOpen` vem do cookie `sidebar_state`,
+do aluno, a `Topbar` e o conteúdo até 960 px. Página larga: a raiz com `data-layout="wide"` ocupa a largura
+toda, mantendo o `--gutter` (hoje, o "Painel", com o ranking das turmas numa coluna à direita a partir de `xl`). `defaultOpen` vem do cookie `sidebar_state`,
 como no AppShell; `preview` só no catálogo.
 
 ### Estados

@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   if (!me) redirect(`/entrar?next=${encodeURIComponent(DASHBOARD_PATH)}`);
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Painel" />;
   return (
-    <section>
+    <section data-layout="wide">
       <StudentDashboard />
     </section>
   );

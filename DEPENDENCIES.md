@@ -5,7 +5,7 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-09-25** (fase 007, T001), Node 24.12, pnpm 11.25, lockfile do
+Última verificação: **2026-10-04** (fase 014, T001), Node 24.12, pnpm 11.25, lockfile do
 commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
@@ -194,3 +194,48 @@ Regra de fronteira (006 A15): continua valendo para qualquer SDK futuro. `@anthr
 segue na lista proibida do ESLint de `apps/api`, e `test/security/006-ai-boundary.spec.ts`
 exige que nem a API nem o web dependam de SDK de provedor. O provedor só é registrado quando
 `OPENROUTER_API_KEY` está definida; sem a chave, a IA fica indisponível sem impedir o startup.
+
+## 11. Editor e realce de código — fase 014 (`specs/014-code-syntax-highlighting`, L1, L11)
+
+O editor das questões de Código e o realce de leitura. A spec 005 deixou a escolha da biblioteca
+para uma spec; a 014 a fez (L1). Instaladas com versão exata (`pnpm --filter web add -E`), todas
+**MIT**, todas em `apps/web`, carregadas só por `import()` dinâmico em
+`components/ui/code/load-*.ts` (regra ESLint de L6): as telas sem código não baixam nada delas
+(SC-007).
+
+| Pacote | Versão | Para quê | Por que não é trivial |
+|--------|--------|----------|-----------------------|
+| `@codemirror/state` | 6.7.6 | Documento, seleção e transações do editor | Modelo de edição com histórico e normalização de quebras de linha |
+| `@codemirror/view` | 6.43.13 | O editor sobre `contenteditable`: teclado, toque, IME, teclado virtual, `contentAttributes` (ARIA) | Edição acessível em celular e desktop sem `textarea` sobreposto |
+| `@codemirror/language` | 6.12.4 | Liga a gramática ao editor e aplica o `HighlightStyle` | Análise incremental enquanto se digita (≤ 50 ms por tecla, SC-004) |
+| `@codemirror/commands` | 6.11.1 | `history()` e `insertNewline` (desfazer/refazer, Enter sem indentar) | Histórico de desfazer agrupado por transação |
+| `@lezer/highlight` | 1.2.5 | Tags de sintaxe, `tagHighlighter` → classes `text-syntax-*`, `highlightTree` para a leitura (L4, L5) | Liga a árvore da gramática aos tokens do design system sem tema da biblioteca |
+| `@codemirror/lang-java` | 6.0.2 | Gramática `java` | Parser Lezer da linguagem |
+| `@codemirror/lang-python` | 6.2.1 | Gramática `python` | idem |
+| `@codemirror/lang-javascript` | 6.2.5 | Gramáticas `javascript` e `typescript` | idem |
+| `@codemirror/lang-cpp` | 6.0.3 | Gramática `cpp` (C e C++) | idem |
+| `@codemirror/lang-php` | 6.0.2 | Gramática `php` | idem |
+| `@codemirror/lang-rust` | 6.0.2 | Gramática `rust` | idem |
+| `@codemirror/lang-go` | 6.0.1 | Gramática `go` | idem |
+| `@codemirror/lang-html` | 6.4.12 | Gramática `html` (HTML com CSS e JS embutidos) | idem |
+
+Transitivas novas, todas MIT: `@lezer/common`, `@lezer/lr`, os parsers `@lezer/{java,python,
+javascript,cpp,php,rust,go,html,css}`, `@codemirror/lang-css` (CSS dentro do HTML),
+`@codemirror/autocomplete` e `@codemirror/lint` (dependências declaradas das gramáticas; o editor
+não liga autocompletar nem lint, L2), `crelt`, `style-mod` e `w3c-keyname`.
+
+Tamanho, medido com o rolldown do workspace (minificado / gzip), só nas telas com código: o núcleo
+(`state`, `view`, `language`, `commands`, `highlight`) até 290 KB / 92 KB; cada gramática soma de
+66 KB / 24 KB (Go, Java) a 274 KB / 95 KB (PHP, que embute HTML, CSS e JS), e só a gramática da
+questão aberta é baixada. A medida final das rotas fica em research L12 (T026).
+
+`pnpm audit --prod --audit-level high`: a primeira execução apontou **1 crítica já existente**,
+fora das dependências novas: `next` 16.3.4, GHSA-vcvr-r3jv-pc5j (execução remota de código em
+`next/og` `ImageResponse`, vulneráveis `>=16.2.0 <16.3.6`; o web não usa `next/og`). Corrigida
+subindo `next` para **16.3.6** (patch) e `@next/eslint-plugin-next` para a mesma versão em
+`packages/eslint-config`. Depois: `No known vulnerabilities found`.
+
+Alternativas descartadas (L1): Monaco (pesado, fraco no celular, tema próprio); textarea com
+camada colorida (react-simple-code-editor + Prism/highlight.js: HTML por
+`dangerouslySetInnerHTML`, proibido pela 012/FR-035); Shiki (gramáticas TextMate + WASM, saída
+em HTML); CodeMirror 5 (sem manutenção).

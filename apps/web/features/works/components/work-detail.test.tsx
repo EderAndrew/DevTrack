@@ -18,7 +18,7 @@ import { VERSION_CONFLICT_NOTICE, WorkDetail } from "./work-detail";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const WORK_ID = "00000000-0000-4000-e000-000000000001";
-const KOTLIN = { id: "00000000-0000-4000-a000-000000000099", name: "Kotlin" };
+const KOTLIN = { id: "00000000-0000-4000-a000-000000000099", name: "Kotlin", highlight: null };
 
 /** A generated DRAFT, edited by the teacher: an open answer, a trick question and code without test cases in a language deactivated since. */
 const generated: WorkTeacherView = workView({

@@ -175,7 +175,7 @@ describe("011/US6 011/SC-007 a visão do aluno de um trabalho nunca contém o ga
       statement: "Implemente a classe Cachorro.",
       instructions: "Cachorro deve estender Animal.",
       starterCode: "class Cachorro {}",
-      language: { name: "Java" },
+      language: { name: "Java", highlight: "java" },
       publicTestCases: [
         { input: "falar()", expectedOutput: "au" },
         { input: "latir(2)", expectedOutput: "au au" },

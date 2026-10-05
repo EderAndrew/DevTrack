@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { CodeAnswer, EssayAnswer, MultipleChoiceAnswer } from "@/components/ui/assessment/answers";
 import { AssessmentFooter } from "@/components/ui/assessment/assessment-footer";
-import { CodeEditor } from "@/components/ui/assessment/code-editor";
 import { QuestionHeader, QuestionStatement, QuestionStatus } from "@/components/ui/assessment/question";
 import { ExamProgress, QuestionNavigator } from "@/components/ui/assessment/question-navigator";
 import { AttemptStatus, SaveStatus } from "@/components/ui/assessment/save-status";
@@ -126,29 +125,10 @@ export function CodeAnswerShowcase() {
         <CodeAnswer
           id="vitrine-codigo"
           language="Java"
+          highlight="java"
           value={value}
           onChange={setValue}
           publicTestCases={[{ input: "2 3", expectedOutput: "5" }]}
-        />
-      </Sample>
-    </Showcase>
-  );
-}
-
-export function CodeEditorShowcase() {
-  const [value, setValue] = useState("def soma(a, b):\n  return a + b");
-  return (
-    <Showcase id="code-editor">
-      <Sample name="editável" className="block">
-        <CodeEditor id="vitrine-editor" aria-label="Editor de código" value={value} onChange={setValue} />
-      </Sample>
-      <Sample name="desabilitado" className="block">
-        <CodeEditor
-          id="vitrine-editor-desabilitado"
-          aria-label="Editor de código desabilitado"
-          value="print('somente leitura')"
-          onChange={() => undefined}
-          disabled
         />
       </Sample>
     </Showcase>

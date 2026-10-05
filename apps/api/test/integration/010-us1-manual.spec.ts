@@ -172,7 +172,7 @@ describe("010/US1 criar exercícios manualmente", () => {
     const python = await languageId(t, "python");
     const res = await set([{ ...code(python), syllabusItemId: topic.itemId }, openAnswer(), openAnswer("Outra")]);
     expect(res.status).toBe(201);
-    expect(res.body.items[0].language).toEqual({ id: python, name: "Python" });
+    expect(res.body.items[0].language).toEqual({ id: python, name: "Python", highlight: "python" });
   });
 
   describe("010/US1-5 tópico da ementa", () => {
@@ -260,7 +260,7 @@ describe("010/US1 criar exercícios manualmente", () => {
     expect(res.body).toHaveLength(13);
     const names = res.body.map((language: { name: string }) => language.name);
     expect(names).toEqual([...names].sort((a: string, b: string) => a.localeCompare(b, "pt-BR")));
-    expect(res.body[0]).toEqual({ id: expect.any(String), key: expect.any(String), name: expect.any(String) });
+    expect(res.body[0]).toEqual({ id: expect.any(String), key: expect.any(String), name: expect.any(String), highlight: expect.any(String) });
   });
 
   it("010/US1-6 010/SC-001 nenhuma execução nem custo de IA depois de toda a criação manual", async () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import {
   TestCaseVisibilitySchema,
@@ -234,7 +235,7 @@ export const WorkQuestionTeacherViewSchema = z.strictObject({
   instructions: z.string().nullable().optional(),
   starterCode: z.string().nullable().optional(),
   expectedSolution: z.string().optional(),
-  language: z.strictObject({ id: UuidSchema, name: z.string() }).optional(),
+  language: z.strictObject({ id: UuidSchema, name: z.string(), highlight: CodeHighlightSchema }).optional(),
   testCases: z
     .array(
       z.strictObject({
@@ -288,7 +289,7 @@ export const WorkQuestionStudentViewSchema = z.strictObject({
   statement: z.string(),
   instructions: z.string().optional(),
   starterCode: z.string().optional(),
-  language: z.strictObject({ name: z.string() }).optional(),
+  language: z.strictObject({ name: z.string(), highlight: CodeHighlightSchema }).optional(),
   /** PUBLIC test cases only. */
   publicTestCases: z.array(z.strictObject({ input: z.string(), expectedOutput: z.string() })).optional(),
   /** Presentation order; never which one is correct. */

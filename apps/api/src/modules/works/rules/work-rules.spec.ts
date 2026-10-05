@@ -17,7 +17,7 @@ const question = (overrides: Partial<WorkQuestionRecord>): WorkQuestionRecord =>
   instructions: null,
   starterCode: null,
   expectedSolution: "a + b",
-  language: { id: LANGUAGE_ID, name: "Java" },
+  language: { id: LANGUAGE_ID, name: "Java", highlight: "java" },
   isTrickQuestion: false,
   alternatives: [],
   testCases: [],

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { CodeHighlight } from "@repo/contracts"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Radio, RadioGroup } from "@/components/ui/radio"
@@ -124,10 +125,12 @@ function EssayAnswer({
 /**
  * A code answer (`CodeAnswer`, 012 subset): the language, the editor with the starter code and the
  * public test cases, read-only. No output, error or result regions: nothing is executed in 012.
+ * Since 014 the editor colors the code by the language's grammar (`highlight`, catalog data).
  */
 function CodeAnswer({
   id,
   language,
+  highlight = null,
   value,
   onChange,
   publicTestCases,
@@ -136,6 +139,7 @@ function CodeAnswer({
 }: {
   id: string
   language: string | null
+  highlight?: CodeHighlight
   value: string
   onChange: (value: string) => void
   publicTestCases: readonly { input: string; expectedOutput: string }[]
@@ -145,8 +149,17 @@ function CodeAnswer({
   return (
     <div data-slot="code-answer" className={cn("flex flex-col gap-6", className)}>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={id}>Seu código{language ? ` (${language})` : ""}</Label>
-        <CodeEditor id={id} value={value} onChange={onChange} disabled={disabled} />
+        <Label id={`${id}-rotulo`} htmlFor={id}>
+          Sua resposta{language ? ` (${language})` : ""}
+        </Label>
+        <CodeEditor
+          id={id}
+          aria-labelledby={`${id}-rotulo`}
+          highlight={highlight}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
       </div>
       {publicTestCases.length > 0 ? (
         <section aria-labelledby={`${id}-casos`} className="flex flex-col gap-3 rounded-md border border-border p-4">

@@ -65,7 +65,7 @@ function questionRecord(type: TypeKey, position = 0): WorkQuestionRecord {
     instructions: rows.columns.instructions,
     starterCode: rows.columns.starterCode,
     expectedSolution: rows.columns.expectedSolution,
-    language: rows.columns.languageId ? { id: rows.columns.languageId, name: "Java" } : null,
+    language: rows.columns.languageId ? { id: rows.columns.languageId, name: "Java", highlight: "java" } : null,
     isTrickQuestion: rows.columns.isTrickQuestion,
     alternatives: rows.alternatives.map((row, index) => ({ id: uuid(20 + index), ...row })).reverse(),
     testCases: rows.testCases.map((row, index) => ({ id: uuid(40 + index), ...row })).reverse(),
@@ -164,7 +164,7 @@ describe("011 visões do professor e do aluno (research W14)", () => {
     const [code, choice] = [questionRecord("CODE", 0), questionRecord("MULTIPLE_CHOICE", 1)];
     const view = toWorkStudentView(workRecord([code, choice]));
     expect(view.questions[0]!.publicTestCases).toEqual([{ input: "1 2", expectedOutput: "3" }]);
-    expect(view.questions[0]).toMatchObject({ instructions: "Implemente a classe", starterCode: "class Animal {", language: { name: "Java" } });
+    expect(view.questions[0]).toMatchObject({ instructions: "Implemente a classe", starterCode: "class Animal {", language: { name: "Java", highlight: "java" } });
     expect(view.questions[1]!.alternatives!.map((a) => a.text)).toEqual(["Distrator", "Correta", "Outro distrator"]);
   });
 

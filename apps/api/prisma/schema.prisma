@@ -1506,6 +1506,8 @@ model ProgrammingLanguage {
   name      String   @unique
   /// Lowercase terms the 007 grounding looks for besides the name.
   aliases   String[] @default([])
+  /// Grammar key of the code colors (014 research L3); NULL = plain text. CHECK in the migration.
+  highlight String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

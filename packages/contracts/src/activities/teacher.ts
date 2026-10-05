@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { EnrollmentStatusSchema } from "../classes/enrollments.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ExerciseDifficultySchema } from "../exercises/enums.js";
@@ -167,7 +168,7 @@ export const TeacherQuestionSchema = z.strictObject({
   statement: z.string(),
   instructions: z.string().nullable(),
   starterCode: z.string().nullable(),
-  language: z.strictObject({ id: UuidSchema, name: z.string() }).nullable(),
+  language: z.strictObject({ id: UuidSchema, name: z.string(), highlight: CodeHighlightSchema }).nullable(),
   expectedAnswer: z.string().nullable(),
   rubric: z.string().nullable(),
   expectedSolution: z.string().nullable(),

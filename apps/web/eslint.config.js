@@ -76,8 +76,20 @@ const LAYOUT_LAYER = {
   message: LAYERS_MESSAGE,
 };
 
+// 014 L6: CodeMirror and its Lezer parsers reach the browser only on the pages that show code. They
+// are imported statically only in components/ui/code/load-*.ts, and those modules only through a
+// dynamic import() (which this rule doesn't see); type-only imports are erased and stay allowed.
+const LAZY_CODE_MESSAGE =
+  "CodeMirror/Lezer só por import() dinâmico de components/ui/code/load-*.ts (014 L6, SC-007): as telas sem código não os baixam.";
+const LAZY_CODE = [
+  { group: ["@codemirror/*", "@lezer/*"], allowTypeImports: true, message: LAZY_CODE_MESSAGE },
+  { group: ["**/code/load-*"], allowTypeImports: true, message: LAZY_CODE_MESSAGE },
+];
+// Inside components/ui/code a loader is a sibling ("./load-editor").
+const LAZY_CODE_SIBLING = { group: ["./load-*"], allowTypeImports: true, message: LAZY_CODE_MESSAGE };
+
 const restrictImports = (...patterns) => ({
-  "no-restricted-imports": ["error", { paths: [], patterns: [...STACK, ...patterns] }],
+  "no-restricted-imports": ["error", { paths: [], patterns: [...STACK, ...LAZY_CODE, ...patterns] }],
 });
 
 const FETCH_MESSAGE = "Só lib/api/client.ts usa fetch e XMLHttpRequest; chame as funções de features/*/api (FR-025).";
@@ -138,13 +150,24 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: [CONTRACTS_AS_VALUE], patterns: [...STACK, API_LAYER, SERVER_READS] },
+        { paths: [CONTRACTS_AS_VALUE], patterns: [...STACK, ...LAZY_CODE, API_LAYER, SERVER_READS] },
       ],
     },
   },
   {
     files: ["components/ui/**"],
     rules: restrictImports(API_LAYER, SERVER_READS, UI_LAYER),
+  },
+  {
+    files: ["components/ui/code/**"],
+    rules: restrictImports(API_LAYER, SERVER_READS, UI_LAYER, LAZY_CODE_SIBLING),
+  },
+  {
+    // The lazy modules themselves: the only static imports of CodeMirror and Lezer (014 L6).
+    files: ["components/ui/code/load-*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: [], patterns: [...STACK, API_LAYER, SERVER_READS, UI_LAYER] }],
+    },
   },
   {
     files: ["components/layout/**"],

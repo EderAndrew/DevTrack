@@ -22,6 +22,7 @@ import {
   exerciseFormSchema,
   toExerciseInput,
 } from "../schemas/exercise-form";
+import { CodeField } from "./code-field";
 
 type TextField = "statement" | "explanation" | "expectedAnswer" | "instructions" | "starterCode" | "expectedSolution";
 type EditorField = TextField | "difficulty" | "cognitiveObjective" | "correctAlternative";
@@ -179,8 +180,22 @@ export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exe
       {exercise.type === "CODE" ? (
         <>
           {text("instructions", "Instruções")}
-          {text("starterCode", "Código inicial", false)}
-          {text("expectedSolution", "Solução esperada")}
+          <CodeField
+            id={id("starterCode")}
+            label="Código inicial"
+            control={control}
+            name="starterCode"
+            highlight={exercise.language?.highlight ?? null}
+          />
+          <CodeField
+            id={id("expectedSolution")}
+            label="Solução esperada"
+            required
+            error={errors[id("expectedSolution")]}
+            control={control}
+            name="expectedSolution"
+            highlight={exercise.language?.highlight ?? null}
+          />
           <p className="m-0 mb-4 text-text-secondary">Linguagem: {exercise.language?.name ?? "—"}</p>
         </>
       ) : null}

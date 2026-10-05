@@ -56,7 +56,7 @@ const QUESTIONS: ActivityQuestionRow[] = [
     valueCents: 30,
     instructions: "Implemente",
     starterCode: "class A {}",
-    language: { id: id(30), name: "Java" },
+    language: { id: id(30), name: "Java", highlight: "java" },
     expectedSolution: "MARCADOR-SOLUCAO-012",
     testCases: [
       { position: 1, input: "MARCADOR-PRIVADO-012", expectedOutput: "MARCADOR-PRIVADO-012", visibility: "PRIVATE" },
@@ -133,7 +133,7 @@ describe("012/FR-030 012/FR-032 visão do aluno por lista fechada (research P15)
       { id: id(21), text: "Errada" },
       { id: id(22), text: "Outra" },
     ]);
-    expect(code).toMatchObject({ publicTestCases: [{ input: "1", expectedOutput: "2" }], language: { name: "Java" }, starterCode: "class A {}" });
+    expect(code).toMatchObject({ publicTestCases: [{ input: "1", expectedOutput: "2" }], language: { name: "Java", highlight: "java" }, starterCode: "class A {}" });
   });
 
   it("012/FR-029 012/SC-004 sem liberação, nenhuma nota nem feedback na resposta, mesmo com a correção feita", () => {

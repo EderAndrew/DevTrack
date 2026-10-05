@@ -28,7 +28,7 @@ export const ACTIVITY_QUESTION_SELECT = {
   statement: true,
   instructions: true,
   starterCode: true,
-  language: { select: { id: true, name: true } },
+  language: { select: { id: true, name: true, highlight: true } },
   expectedAnswer: true,
   rubric: true,
   expectedSolution: true,

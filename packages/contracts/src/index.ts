@@ -2,6 +2,7 @@ export * from "./common/primitives.js";
 export * from "./common/enums.js";
 export * from "./common/errors.js";
 export * from "./common/split-evenly.js";
+export * from "./common/code-highlight.js";
 export * from "./auth/requests.js";
 export * from "./auth/responses.js";
 export * from "./me/me.js";

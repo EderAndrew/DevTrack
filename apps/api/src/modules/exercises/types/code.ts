@@ -21,13 +21,15 @@ export const CODE: ExerciseTypeDefinition<"CODE"> = {
     instructions: record.instructions,
     starterCode: record.starterCode,
     expectedSolution: record.expectedSolution,
-    language: record.language ? { id: record.language.id, name: record.language.name } : null,
+    language: record.language
+      ? { id: record.language.id, name: record.language.name, highlight: record.language.highlight }
+      : null,
   }),
   studentFields: (record) => {
     const fields: StudentTypeFields = {};
     if (record.instructions !== null) fields.instructions = record.instructions;
     if (record.starterCode !== null) fields.starterCode = record.starterCode;
-    if (record.language) fields.language = { name: record.language.name };
+    if (record.language) fields.language = { name: record.language.name, highlight: record.language.highlight };
     return fields;
   },
 };

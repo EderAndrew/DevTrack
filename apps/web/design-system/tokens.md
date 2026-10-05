@@ -68,6 +68,30 @@ código novo, prefira o token oficial.
 | `--sidebar-border` | `--border` |
 | `--sidebar-ring` | `--ring` |
 
+### Sintaxe do código
+
+Cores do realce de sintaxe (014): só no código do `CodeEditor` e do `CodeBlock`, nunca em outro
+texto. O texto comum do código usa `--foreground`; os números de linha, `--text-secondary`. O
+destacador mapeia as tags do Lezer para estas classes (014 research L5).
+
+| Token | Claro | Escuro | Categoria |
+|-------|-------|--------|-----------|
+| `--syntax-keyword` (`text-syntax-keyword`) | `#A626A4` | `#D8A8F0` | palavra-chave, modificador, nome de tag HTML |
+| `--syntax-string` (`text-syntax-string`) | `#2F7A2F` | `#8FD18F` | texto entre aspas, caractere, expressão regular |
+| `--syntax-number` (`text-syntax-number`) | `#A1511A` | `#F0B27A` | número, booleano, `null`, átomo |
+| `--syntax-comment` (`text-syntax-comment`) | `#5F6B7A` | `#94A3B8` | comentário de linha, de bloco e de documentação |
+| `--syntax-type` (`text-syntax-type`) | `#0E6F8A` | `#7FD4E8` | tipo, classe, namespace, atributo HTML |
+| `--syntax-function` (`text-syntax-function`) | `#3451B2` | `#A5B8FF` | nome de função ou método chamado ou declarado, macro |
+| `--syntax-operator` (`text-syntax-operator`) | `#B42318` | `#FF9B94` | operador aritmético, lógico e de comparação |
+| `--syntax-punctuation` (`text-syntax-punctuation`) | `#475569` | `#CBD5E1` | pontuação, parênteses, colchetes, separadores |
+
+Contraste (`test/contrast.test.ts`, nos dois temas): cada `--syntax-*` e o `--foreground` sobre
+`--background`, `--surface`, `--primary-subtle` e `--disabled-bg` (4,5:1). **Seleção e editor
+desabilitado**: a seleção do editor pinta o fundo com `--primary-subtle` e o texto **mantém** a cor
+de sintaxe (por isso esses pares estão no teste); o editor desabilitado usa `--disabled-bg`. O
+editor não destaca a linha ativa. Em alto contraste (`forced-colors: active`) as classes
+`text-syntax-*` passam a `CanvasText`: o código sem cores é o mesmo código.
+
 ## Tipografia
 
 | Token (utilitário) | Tamanho / altura / peso | Família | Uso |

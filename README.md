@@ -91,7 +91,13 @@ ou errado, com comentário, e os pontos entram na hora, sem liberação. Cada tu
 calculado a cada consulta (posição, nome e pontos, com empate dividindo a posição): o painel do
 aluno mostra do 1º ao 5º lugar, "Ranking" mostra a turma inteira com a linha do aluno marcada, e o
 professor vê o ranking de cada turma sua. Os Trabalhos seguem como na fase 012. Provas, modo
-controlado, IA na correção e execução de código ficam para as próximas fases.
+controlado, IA na correção e execução de código ficam para as próximas fases. A **fase 014 —
+realce de sintaxe do código** colore o código das questões de Código onde ele aparece: no editor
+do aluno, no gabarito depois da conclusão, na tentativa que o professor revisa e nos formulários e
+na leitura dos bancos. A gramática de cada linguagem é um dado do catálogo; as cores vêm de oito
+tokens do design system, legíveis nos temas claro e escuro e trocadas pelas cores do sistema no
+alto contraste; o texto digitado nunca muda e, se a parte de realce não carregar, o editor continua
+funcionando sem cores. As telas sem código não baixam o editor.
 
 ## Pré-requisitos
 
@@ -120,6 +126,7 @@ controlado, IA na correção e execução de código ficam para as próximas fas
 | `specs/011-work-bank/` | O mesmo para a fase 011 (banco de trabalhos; decisões W1–W22) |
 | `specs/012-student-portal/` | O mesmo para a fase 012 (portal do aluno e atividades da turma; decisões P1–P24) |
 | `specs/013-exercise-points-ranking/` | O mesmo para a fase 013 (pontos dos exercícios e ranking da turma; decisões K1–K18) |
+| `specs/014-code-syntax-highlighting/` | O mesmo para a fase 014 (realce de sintaxe do código; decisões L1–L14) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |

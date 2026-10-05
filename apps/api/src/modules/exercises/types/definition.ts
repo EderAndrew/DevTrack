@@ -36,7 +36,7 @@ export interface ExerciseRecord {
   generationBatchId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  language: { id: string; name: string } | null;
+  language: { id: string; name: string; highlight: string | null } | null;
   /** Any order; the views sort by position. */
   alternatives: { id: string; text: string; isCorrect: boolean; position: number }[];
   reviewedBy: { name: string } | null;

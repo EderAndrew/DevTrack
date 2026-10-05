@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CodeHighlight,
   TestCaseVisibilitySchema,
   WORK_ALTERNATIVES_MAX,
   WORK_ALTERNATIVES_MIN,
@@ -29,7 +30,7 @@ import {
   WORK_QUESTION_TYPE_LABELS,
   type WorkFormValues,
 } from "../schemas/work-form";
-import { SelectField, TextareaField } from "./form-fields";
+import { CodeField, SelectField, TextareaField } from "./form-fields";
 import {
   alternativeFieldId,
   alternativesErrorId,
@@ -57,7 +58,9 @@ export interface WorkQuestionCardProps {
   /** A saved question (US5): its type can't change, so it is shown, not chosen. */
   typeLocked?: boolean;
   /** The saved question's language when it was deactivated since: still offered, for it only (FR-007). */
-  inactiveLanguage?: { id: string; name: string };
+  inactiveLanguage?: { id: string; name: string; highlight: CodeHighlight };
+  /** ARCHIVED or without `trabalhos.editar`: the code editors show the code without editing (014). */
+  readOnly?: boolean;
 }
 
 /**
@@ -75,13 +78,23 @@ export function WorkQuestionCard({
   onMove,
   typeLocked = false,
   inactiveLanguage,
+  readOnly = false,
 }: WorkQuestionCardProps) {
   const { register, control } = form;
-  const [type, isTrickQuestion] = useWatch({
+  const [type, isTrickQuestion, languageId] = useWatch({
     control,
-    name: [`questions.${index}.type`, `questions.${index}.isTrickQuestion`],
+    name: [
+      `questions.${index}.type`,
+      `questions.${index}.isTrickQuestion`,
+      `questions.${index}.languageId`,
+    ],
   });
   const languages = useWorkLanguages();
+  // The chosen language's grammar colors the code fields and changes with it (014/US3-2).
+  const highlight =
+    [...(languages.data ?? []), ...(inactiveLanguage ? [inactiveLanguage] : [])].find(
+      (language) => language.id === languageId,
+    )?.highlight ?? null;
   const id = (field: QuestionField) => questionFieldId(index, field);
   const heading = `Questão ${index + 1}`;
   const headingId = `questao-${index + 1}-titulo`;
@@ -210,20 +223,24 @@ export function WorkQuestionCard({
               error={errorFor(id("instructions"))}
               {...register(`questions.${index}.instructions`)}
             />
-            <TextareaField
+            <CodeField
               id={id("starterCode")}
               label="Código inicial"
               hint="Opcional."
-              spellCheck={false}
-              {...register(`questions.${index}.starterCode`)}
+              control={control}
+              name={`questions.${index}.starterCode`}
+              highlight={highlight}
+              disabled={readOnly}
             />
-            <TextareaField
+            <CodeField
               id={id("expectedSolution")}
               label="Solução esperada"
               required
-              spellCheck={false}
               error={errorFor(id("expectedSolution"))}
-              {...register(`questions.${index}.expectedSolution`)}
+              control={control}
+              name={`questions.${index}.expectedSolution`}
+              highlight={highlight}
+              disabled={readOnly}
             />
             <SelectField
               id={id("languageId")}

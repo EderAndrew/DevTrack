@@ -497,6 +497,7 @@ describe("011/US5 revisar, editar e aprovar o trabalho", () => {
       expect(kept.body.questions[0].language).toEqual({
         id: python,
         name: expect.any(String),
+        highlight: "python",
       });
 
       const added = await put(kept.body, {

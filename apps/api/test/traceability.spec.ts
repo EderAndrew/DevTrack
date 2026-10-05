@@ -161,6 +161,17 @@ const SPECS: FeatureSpec[] = [
     // SC-008 (own position within 10 s) is timed by the E2E and the manual quickstart run.
     successCriteria: sc(1, 9),
   },
+  {
+    feature: "014",
+    path: "specs/014-code-syntax-highlighting/spec.md",
+    stories: 4,
+    scenarios: 18,
+    // No "### Acceptance Criteria Traceability" table, as in 008–013.
+    rows: 0,
+    rowsWithoutIds: [],
+    // SC-001, SC-002, SC-004 and SC-006 are measured in the E2E (code-highlighting.spec.ts).
+    successCriteria: sc(1, 7),
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

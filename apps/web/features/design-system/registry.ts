@@ -14,7 +14,6 @@ import {
   ATTEMPT_STATES,
   AttemptStatusShowcase,
   CodeAnswerShowcase,
-  CodeEditorShowcase,
   EssayAnswerShowcase,
   ExamProgressShowcase,
   MultipleChoiceAnswerShowcase,
@@ -24,6 +23,7 @@ import {
   QuestionStatusShowcase,
   SaveStatusShowcase,
 } from "./components/assessment-showcase";
+import { CodeBlockShowcase, CodeEditorShowcase } from "./components/code-showcase";
 import {
   AlertDialogShowcase,
   CardShowcase,
@@ -549,10 +549,19 @@ export const REGISTRY: readonly CatalogEntry[] = [
     id: "code-editor",
     name: "CodeEditor",
     group: "assessment",
-    source: "components/ui/assessment/code-editor.tsx",
+    source: "components/ui/code/code-editor.tsx",
     showcase: CodeEditorShowcase,
-    variants: [],
+    variants: ["Java", "Python", "sem gramática"],
     states: ["editável", "desabilitado"],
+  },
+  {
+    id: "code-block",
+    name: "CodeBlock",
+    group: "assessment",
+    source: "components/ui/code/code-block.tsx",
+    showcase: CodeBlockShowcase,
+    variants: ["Java", "Python", "sem gramática"],
+    states: ["linha longa"],
   },
   {
     id: "save-status",

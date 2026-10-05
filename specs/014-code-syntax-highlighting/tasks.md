@@ -38,15 +38,15 @@ críticas da 012; SC-001–SC-007).
 
 **Purpose**: dependências, regra de importação e ambiente de teste.
 
-- [ ] T001 Adicionar a `apps/web/package.json` (`pnpm --filter web add`) `@codemirror/state`,
+- [X] T001 Adicionar a `apps/web/package.json` (`pnpm --filter web add`) `@codemirror/state`,
   `@codemirror/view`, `@codemirror/language`, `@codemirror/commands`, `@lezer/highlight` e
   `@codemirror/lang-{java,python,javascript,cpp,php,rust,go,html}`; `pnpm audit` sem alta/crítica;
   uma linha por pacote direto em `DEPENDENCIES.md` (licença MIT, finalidade, por que não é trivial,
   carregado só nas telas com código — research L1, L11).
-- [ ] T002 [P] Regra ESLint em `apps/web/eslint.config.js`: `no-restricted-imports` de `@codemirror/*`
+- [X] T002 [P] Regra ESLint em `apps/web/eslint.config.js`: `no-restricted-imports` de `@codemirror/*`
   e `@lezer/*` fora de `components/ui/code/load-*.ts` (research L6); caso fixado em
   `apps/web/test/lint-boundaries.test.ts` (um import estático numa feature é apontado; o loader passa).
-- [ ] T003 [P] Polyfills do jsdom para o CodeMirror em `apps/web/test/setup.ts`
+- [X] T003 [P] Polyfills do jsdom para o CodeMirror em `apps/web/test/setup.ts`
   (`Range.prototype.getClientRects`/`getBoundingClientRect`, `document.createRange` quando faltar —
   research L13), sem quebrar as suítes atuais.
 
@@ -56,28 +56,29 @@ críticas da 012; SC-001–SC-007).
 
 **Purpose**: o dado da gramática de ponta a ponta, os tokens e as peças puras do realce.
 
-- [ ] T004 [P] Teste primeiro: `apps/api/test/integration/014-highlight.spec.ts` (`014/FR-002`,
+- [X] T004 [P] Teste primeiro: `apps/api/test/integration/014-highlight.spec.ts` (`014/FR-002`,
   `014/FR-003`): depois da migração, as 13 linguagens têm o `highlight` de data-model.md (Angular e
   Nest → `typescript`, Node → `javascript`, C → `cpp`, "HTML & CSS" → `html`); `GET
   /programming-languages` e `GET /works/programming-languages` trazem `highlight`; a visão do
   professor e a do aluno de um exercício de Código, de uma questão de Código de trabalho (incluindo
   "Ver como aluno") e de uma questão de Código de atividade (professor em
-  `GET /classes/:classId/activities/:activityId` e na tentativa
-  `GET /classes/:classId/activities/:activityId/attempts/:attemptId`; aluno em
-  `GET /me/activities/:activityId`) trazem `language.highlight`; uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
+  `GET /classes/:classId/activities/:activityId`; aluno em
+  `GET /me/activities/:activityId`) trazem `language.highlight` (a tentativa
+  `GET /classes/:classId/activities/:activityId/attempts/:attemptId` não traz questões nem linguagem:
+  a tela de revisão lê a linguagem de cada questão do detalhe da atividade); uma linguagem com `highlight` NULL aparece com `null`; `highlight` no
   corpo de criação de exercício → 400.
-- [ ] T005 Migração `apps/api/prisma/migrations/<ts>_code_highlight/migration.sql`: coluna
+- [X] T005 Migração `apps/api/prisma/migrations/<ts>_code_highlight/migration.sql`: coluna
   `programming_languages.highlight text NULL` com CHECK `^[a-z][a-z0-9-]{0,31}$` e o `UPDATE` idempotente
   das 13 linhas; `highlight String?` em `ProgrammingLanguage` (`apps/api/prisma/schema.prisma`);
   `prisma generate`. Um caso em `apps/api/test/integration/014-highlight.spec.ts` para o CHECK (valor
   com maiúscula ou espaço recusado).
-- [ ] T006 [P] Contratos (contracts/http-api.md): `packages/contracts/src/common/code-highlight.ts`
+- [X] T006 [P] Contratos (contracts/http-api.md): `packages/contracts/src/common/code-highlight.ts`
   (`CodeHighlightSchema`) exportado pelo índice de `common`; `highlight` em
   `exercises/programming-languages.ts`, `exercises/exercises.ts` (visões do professor e do aluno),
   `works/works.ts` (professor e aluno), `activities/teacher.ts` e `activities/student.ts`;
   `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test` (boundary e duplicação
   verdes; nenhum import entre `exercises` e `works`).
-- [ ] T007 API (research L8, L10): `highlight` nos selects de linguagem de
+- [X] T007 API (research L8, L10): `highlight` nos selects de linguagem de
   `apps/api/src/modules/exercises/exercise-query.ts`, `apps/api/src/modules/works/work-query.ts`,
   `apps/api/src/modules/activities/activity-query.ts`, `apps/api/src/modules/activities/views/rows.ts`
   e nas listas de `apps/api/src/modules/exercises/programming-languages.service.ts` e
@@ -85,10 +86,11 @@ críticas da 012; SC-001–SC-007).
   allowlist, em `exercises/views/student-view.ts`, `works/views/student-view.ts` e
   `activities/views/student-view.ts`. T004 passa; `010-student-view`, `011-student-view` e
   `012-student-view` seguem verdes (o campo novo não carrega gabarito).
-- [ ] T008 [P] Tokens (contracts/design-tokens.md): os 8 `--syntax-*` em
+- [X] T008 [P] Tokens (contracts/design-tokens.md): os 8 `--syntax-*` em
   `apps/web/design-system/tokens.css` (claro em `:root`, escuro no bloco `prefers-color-scheme: dark` e
   em `:root[data-theme="dark"]`), utilitários `text-syntax-*` no tema Tailwind, `@media
-  (forced-colors: active)` com `CanvasText`; os 16 pares (8 × 2 temas) sobre `--background` em
+  (forced-colors: active)` com `CanvasText`; os pares de cada `--syntax-*` e do `--foreground` sobre `--background`, `--surface`,
+  `--primary-subtle` (seleção) e `--disabled-bg`, nos dois temas, em
   `apps/web/test/contrast.test.ts` (`014/FR-017`, `014/SC-005`); seção em
   `apps/web/design-system/tokens.md` (o `docs.test.ts` exige). O texto comum do código usa o
   `--foreground` existente (8 tokens novos, não 9). A seleção e a linha ativa do editor usam fundos
@@ -96,12 +98,12 @@ críticas da 012; SC-001–SC-007).
   sobre o fundo da seleção e da linha ativa entram no `contrast.test.ts` nos dois temas, ou a
   seleção troca a cor do texto por um token de primeiro plano já verificado — a escolha fica
   registrada em `tokens.md`.
-- [ ] T009 [P] Testes primeiro das peças puras em `apps/web/components/ui/code/code-pieces.test.ts`:
+- [X] T009 [P] Testes primeiro das peças puras em `apps/web/components/ui/code/code-pieces.test.ts`:
   `grammars` resolve as 9 chaves (`java`, `python`, `javascript`, `typescript`, `cpp`, `php`, `rust`,
   `go`, `html`) para um carregador e devolve `null` para chave desconhecida ou `null` (`014/FR-002`);
   o highlighter mapeia as tags Lezer das 8 categorias para as classes `text-syntax-*` (`014/FR-004`);
   todo valor de cor do tema do editor é `var(--…)` (`014/FR-016`).
-- [ ] T010 Implementar em `apps/web/components/ui/code/`: `grammars.ts` (chave → `import()` do
+- [X] T010 Implementar em `apps/web/components/ui/code/`: `grammars.ts` (chave → `import()` do
   `LanguageSupport`; `typescript` = `javascript({ typescript: true })`), `highlighter.ts`
   (`tagHighlighter` de research L5), `editor-theme.ts` (todas as cores do tema base do CodeMirror em
   tokens), `load-editor.ts` (o único ponto de `import()` do editor). T009 passa.
@@ -118,7 +120,7 @@ mudar nada do que a 012/013 garantem.
 **Independent Test**: aplicar um Exercício de Código em Java, responder, conferir cores, Tab, Esc +
 Tab, salvamento depois de recarregar e o texto salvo idêntico.
 
-- [ ] T011 [P] [US1] Testes primeiro em `apps/web/components/ui/code/code-editor.test.tsx`
+- [X] T011 [P] [US1] Testes primeiro em `apps/web/components/ui/code/code-editor.test.tsx`
   (contracts/web-ui.md): `014/US1-1` mostra o código inicial com números de linha e o rótulo com a
   linguagem; `014/US1-2` digitar `String nome = "Ana"; // aluno` em Java produz segmentos com
   `text-syntax-keyword`, `-string` e `-comment` e `onChange` recebe exatamente o texto; `014/US1-3` Tab
@@ -132,13 +134,13 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
   Ctrl/Cmd+Shift+Z) devolvem exatamente os textos anteriores no `onChange`, e recortar/colar
   (eventos `cut`/`paste`) emitem o texto exato; `aria-labelledby`, `aria-describedby` (dica + erro)
   e `aria-invalid` chegam ao conteúdo editável; axe sem violações.
-- [ ] T012 [P] [US1] Testes primeiro nas telas: em `apps/web/components/ui/assessment/assessment.test.tsx`
+- [X] T012 [P] [US1] Testes primeiro nas telas: em `apps/web/components/ui/assessment/assessment.test.tsx`
   `CodeAnswer` repassa `highlight` e o rótulo "Sua resposta (Java)"; em
   `apps/web/features/student-activities/components/activity-answering.test.tsx` `014/US1-4` resposta
   de código salva pelo autosave, recarregada e do buffer offline volta idêntica (reusando os fixtures
   da 012), `014/US1-5` linguagem com `highlight: null` responde sem cores, `014/US1-6` colar
   `<script>alert(1)</script>` aparece como texto (nenhum `script`/`img` no DOM).
-- [ ] T013 [US1] `apps/web/components/ui/code/code-editor.tsx` (research L2, L6, L7): textarea imediato,
+- [X] T013 [US1] `apps/web/components/ui/code/code-editor.tsx` (research L2, L6, L7): textarea imediato,
   troca para o CodeMirror carregado por `load-editor.ts` com a gramática de `grammars.ts`, extensões
   exatamente as de L2, `contentAttributes` de L7, `ref` com `focus()`; valor controlado (despacha
   substituição quando a prop muda de fora, como no CONFLICT da 012 e no "Refazer" da 013),
@@ -149,7 +151,7 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
   o componente verifica `closest("fieldset:disabled")` além da prop);
   `apps/web/components/ui/assessment/code-editor.tsx` reexporta; `CodeAnswer` em
   `apps/web/components/ui/assessment/answers.tsx` recebe `highlight` e põe a linguagem no rótulo.
-- [ ] T014 [US1] `apps/web/features/student-activities/components/activity-answering.tsx` passa
+- [X] T014 [US1] `apps/web/features/student-activities/components/activity-answering.tsx` passa
   `question.language?.highlight ?? null` ao `CodeAnswer`. T011 e T012 passam; as suítes 012/013 da tela
   de responder seguem verdes sem mudar expectativas.
 
@@ -164,23 +166,23 @@ Tab, salvamento depois de recarregar e o texto salvo idêntico.
 **Independent Test**: concluir um Exercício de Código e abrir o resultado (aluno) e a tentativa
 (professor): código colorido, só leitura, copiar traz só o código.
 
-- [ ] T015 [P] [US2] Testes primeiro em `apps/web/components/ui/code/code-block.test.tsx`: segmentos
+- [X] T015 [P] [US2] Testes primeiro em `apps/web/components/ui/code/code-block.test.tsx`: segmentos
   com as classes de sintaxe depois do carregamento; texto puro antes e com o `import()` rejeitado;
   `014/US2-4` o texto do elemento de código (o que se copia) é o código exato, sem números de linha
   (coluna `aria-hidden` e não selecionável); `014/FR-009` código com `<script>`/HTML em `html` e em
   `java` vira texto; `\r\n` guardado aparece sem alteração; região rolável com nome e `tabIndex=0` só
   quando transborda; axe sem violações.
-- [ ] T016 [P] [US2] Testes primeiro nas telas: `014/US2-1` em
+- [X] T016 [P] [US2] Testes primeiro nas telas: `014/US2-1` em
   `apps/web/features/student-activities/components/exercise-result.test.tsx` (resposta e solução de
   referência em `CodeBlock`, Tab move o foco); `014/US2-2` em
   `apps/web/features/activities/components/attempt-review.test.tsx` (resposta do aluno e solução
   esperada); `014/US2-3` em `apps/web/features/activities/components/activity-detail.test.tsx`,
   `apps/web/features/exercises/components/exercise-detail.test.tsx` e
   `apps/web/features/works/components/student-preview.test.tsx` ("Ver como aluno" sem a solução).
-- [ ] T017 [US2] `apps/web/components/ui/code/code-block.tsx` (research L4): carrega a gramática,
+- [X] T017 [US2] `apps/web/components/ui/code/code-block.tsx` (research L4): carrega a gramática,
   `highlightTree` + highlighter → segmentos por linha → `<span>`s em `<pre><code>`, coluna de números
   `aria-hidden`/`select-none`, rótulo acessível, fallback texto puro.
-- [ ] T018 [US2] Trocar o código de leitura por `CodeBlock` em
+- [X] T018 [US2] Trocar o código de leitura por `CodeBlock` em
   `apps/web/features/student-activities/components/exercise-result.tsx`,
   `apps/web/features/activities/components/attempt-review.tsx`,
   `apps/web/features/activities/components/activity-questions.tsx`,
@@ -200,10 +202,10 @@ da IA e trabalho, com o realce da linguagem escolhida.
 **Independent Test**: criar um exercício de Código em Python, digitar, trocar para JavaScript (texto
 mantido, realce muda), salvar e reabrir.
 
-- [ ] T019 [US3] `apps/web/test/keyboard.ts`: `expectFieldErrorLinked` aceita o campo ligado por
+- [X] T019 [US3] `apps/web/test/keyboard.ts`: `expectFieldErrorLinked` aceita o campo ligado por
   `aria-labelledby` (conteúdo editável) além de `<label for>`; `apps/web/test/keyboard.test.tsx` cobre
   os dois casos.
-- [ ] T020 [P] [US3] Testes primeiro: em `apps/web/features/exercises/components/exercise-form.test.tsx`
+- [X] T020 [P] [US3] Testes primeiro: em `apps/web/features/exercises/components/exercise-form.test.tsx`
   `014/US3-1` os dois campos de código usam o editor com a gramática da linguagem escolhida,
   `014/US3-2` trocar a linguagem muda o realce e mantém o texto, `014/US3-3` erro de solução vazia
   ligado ao editor e foco nele no envio, `014/US3-4` o corpo enviado traz o texto exato; o mesmo
@@ -213,7 +215,7 @@ mantido, realce muda), salvar e reabrir.
   "Código inicial" e a "Solução esperada" coloridos e **não editáveis** (conteúdo sem
   `contenteditable="true"`, com `aria-disabled`/`aria-readonly`; digitar não muda o valor do
   formulário) — spec, Edge Cases, "Editor desabilitado".
-- [ ] T021 [US3] `CodeEditor` num `Field` com `Controller` do React Hook Form (ref de foco, erro, dica)
+- [X] T021 [US3] `CodeEditor` num `Field` com `Controller` do React Hook Form (ref de foco, erro, dica)
   em `apps/web/features/exercises/components/exercise-form.tsx`,
   `apps/web/features/exercises/components/draft-editor.tsx` e
   `apps/web/features/works/components/work-question-card.tsx` (o `highlight` vem da linguagem escolhida
@@ -231,13 +233,13 @@ mantido, realce muda), salvar e reabrir.
 
 **Independent Test**: vitrine e uma questão de Código nos dois temas, alto contraste e leitor de tela.
 
-- [ ] T022 [P] [US4] Design system: entrada `CodeBlock` em `apps/web/features/design-system/registry.ts`,
+- [X] T022 [P] [US4] Design system: entrada `CodeBlock` em `apps/web/features/design-system/registry.ts`,
   vitrine do `CodeEditor` e do `CodeBlock` (Java, Python, sem gramática) em
   `apps/web/features/design-system/components/assessment-showcase.tsx` (ou vitrine nova de código),
   seções em `apps/web/design-system/components.md` e a decisão da biblioteca em
   `apps/web/design-system/exam-mode.md`; `catalog.test.tsx` (axe e Tab) e `docs.test.ts` verdes
   (`014/FR-020`).
-- [ ] T023 [P] [US4] Testes em `apps/web/components/ui/code/code-a11y.test.tsx`: `014/US4-1` cada
+- [X] T023 [P] [US4] Testes em `apps/web/components/ui/code/code-a11y.test.tsx`: `014/US4-1` cada
   categoria usa a sua classe de token nos dois temas (contraste coberto pelo T008); `014/US4-2` o
   conteúdo lido é o texto das linhas, sem nomes de cor nem marcação, com o rótulo incluindo a
   linguagem; `014/US4-3` a folha de estilos tem a regra `forced-colors` para as classes de sintaxe e
@@ -250,7 +252,7 @@ mantido, realce muda), salvar e reabrir.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] E2E `apps/web/e2e/code-highlighting.spec.ts` (seed do `e2e/support/exercise-points-seed.ts`
+- [X] T024 [P] E2E `apps/web/e2e/code-highlighting.spec.ts` (seed do `e2e/support/exercise-points-seed.ts`
   com um exercício de Código em Java): `014/US1-2` spans de sintaxe visíveis no editor do aluno,
   `014/US1-3` Tab e Esc + Tab, `014/US1-4` recarregar devolve o texto idêntico, `014/US2-1` resultado
   colorido, `014/US2-2` tentativa colorida para o professor, `014/US3-2` formulário do banco trocando a
@@ -267,25 +269,25 @@ mantido, realce muda), salvar e reabrir.
   linha de base; teclas digitadas **durante** a troca textarea → CodeMirror não se perdem e nenhuma
   espera mais de 50 ms; ≤ 50 ms por tecla num código de 10 000 caracteres (marcas de performance em
   volta de `keyboard.type`).
-- [ ] T025 [P] XSS: `apps/web/test/student-portal-xss.test.tsx` varre também `components/ui/code` e as
+- [X] T025 [P] XSS: `apps/web/test/student-portal-xss.test.tsx` varre também `components/ui/code` e as
   telas trocadas; código com `<script>`/HTML no editor e no `CodeBlock` como texto (`014/SC-003`).
-- [ ] T026 [P] `014/SC-007`: comparar o "First Load JS" do `next build` das rotas sem código antes e
+- [X] T026 [P] `014/SC-007`: comparar o "First Load JS" do `next build` das rotas sem código antes e
   depois (sem aumento) e registrar o resultado em `specs/014-code-syntax-highlighting/research.md`
   (L12); a regra ESLint do T002 impede o retrocesso, e o caso dela em
   `apps/web/test/lint-boundaries.test.ts` leva o título `014/SC-007` (o teste que a rastreabilidade
   encontra).
-- [ ] T027 Acrescentar a 014 ao `SPECS` de `apps/api/test/traceability.spec.ts` (4 histórias, cenários
+- [X] T027 Acrescentar a 014 ao `SPECS` de `apps/api/test/traceability.spec.ts` (4 histórias, cenários
   da spec, `successCriteria` SC-001–SC-007). Cada id já tem o seu teste nas tarefas: SC-001, SC-002 e
   SC-006 no E2E (T024), SC-003 no T025, SC-004 no T024, SC-005 no T008, SC-007 no T002/T026; esta
   tarefa só confere que o guard passa sem título novo.
-- [ ] T028 [P] Documentação: `CLAUDE.md` da raiz (014 no estado do projeto, research L1–L14, regras:
+- [X] T028 [P] Documentação: `CLAUDE.md` da raiz (014 no estado do projeto, research L1–L14, regras:
   realce só por tokens, gramática como dado do catálogo, CodeMirror só por `load-*.ts`, texto nunca
   alterado; em "Recent Changes", "eight `--syntax-*` tokens" no lugar de "nine", e o mesmo
   ajuste em `plan.md` e em research L5), `apps/api/CLAUDE.md` (`highlight` nos selects de linguagem e nas allowlists),
   `README.md`.
-- [ ] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
+- [X] T029 Rodar o `quickstart.md` à mão (celular e desktop, tema claro e escuro, alto contraste) e
   revisar `spec.md` × implementação.
-- [ ] T030 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`
+- [X] T030 `pnpm lint && pnpm check-types && pnpm build && pnpm test` e `pnpm --filter web test:e2e`
   verdes.
 
 ---

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
@@ -14,6 +14,8 @@ import {
   exerciseActivity,
   gradingActivity,
   json,
+  MARK_CODE_ID,
+  markingActivity,
   routedFetch,
 } from "./test-fixtures";
 
@@ -236,5 +238,27 @@ describe("013/US1 ActivityDetail — Exercício com pontos, sem nota, prazo nem 
       field(EDIT_FIELD_IDS.instructions),
       screen.getByRole("button", { name: "Salvar alterações" }),
     ]);
+  });
+});
+
+describe("014/US2 ActivityDetail — gabarito com o código colorido", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("014/US2-3 o código inicial e a solução esperada aparecem coloridos, só leitura", async () => {
+    const base = markingActivity();
+    const java = { id: "00000000-0000-4000-a000-000000000001", name: "Java", highlight: "java" };
+    const withJava = { ...base, questions: base.questions.map((question) => (question.id === MARK_CODE_ID ? { ...question, language: java } : question)) };
+    const { container } = setup({ [`GET ${PATH}`]: json(200, withJava) }, true, true);
+    const questions = await screen.findByRole("region", { name: "Questões e gabarito" });
+    const starter = within(questions).getByRole("group", { name: "Código inicial" });
+    const solution = within(questions).getByRole("group", { name: "Solução esperada" });
+    await waitFor(() => {
+      expect(starter.querySelector(".text-syntax-keyword")).toBeTruthy();
+      expect(solution.querySelector(".text-syntax-keyword")).toBeTruthy();
+    });
+    expect(starter.querySelector("pre code")!.textContent).toBe("class Conta {}");
+    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
+    expect(questions.querySelector("textarea, [contenteditable]")).toBeNull();
+    await expectNoA11yViolations(container);
   });
 });

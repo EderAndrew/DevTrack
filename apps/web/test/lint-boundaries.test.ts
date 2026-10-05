@@ -145,3 +145,45 @@ describe("005/FR-034 lint impõe as camadas do Design System", () => {
     expect(await violations("components/layout/a.tsx", importOf(source))).toEqual([]);
   });
 });
+
+describe("014/SC-007 lint mantém CodeMirror e Lezer fora das telas sem código (014 L6)", () => {
+  const CODEMIRROR = 'import { EditorView } from "@codemirror/view";\nexport const x = EditorView;\n';
+  const LEZER = 'import { tags } from "@lezer/highlight";\nexport const x = tags;\n';
+
+  it.each([
+    "features/x/components/a.tsx",
+    "app/x/page.tsx",
+    "components/ui/code/code-editor.tsx",
+    "components/ui/assessment/answers.tsx",
+    "features/x/components/a.test.tsx",
+  ])("import estático de @codemirror/* ou @lezer/* em %s é recusado", async (path) => {
+    expect(await violations(path, CODEMIRROR), path).not.toEqual([]);
+    expect(await violations(path, LEZER), path).not.toEqual([]);
+  });
+
+  it("os carregadores components/ui/code/load-*.ts importam CodeMirror e Lezer", async () => {
+    expect(await violations("components/ui/code/load-editor.ts", CODEMIRROR)).toEqual([]);
+    expect(await violations("components/ui/code/load-highlighter.ts", LEZER)).toEqual([]);
+    const sibling = 'import { x as y } from "./load-highlighter";\nexport const x = y;\n';
+    expect(await violations("components/ui/code/load-editor.ts", sibling)).toEqual([]);
+  });
+
+  it.each([
+    ["components/ui/code/code-editor.tsx", "./load-editor"],
+    ["components/ui/assessment/answers.tsx", "../code/load-editor"],
+    ["features/x/components/a.tsx", "@/components/ui/code/load-highlighter"],
+  ])("import estático de um carregador em %s (%s) é recusado", async (path, source) => {
+    expect(await violations(path, importOf(source))).not.toEqual([]);
+  });
+
+  it("import() dinâmico do carregador e import de tipo de @codemirror/* são permitidos", async () => {
+    const dynamic = 'export const load = () => import("./load-editor");\n';
+    const type = 'import type { Extension } from "@codemirror/state";\nexport const x = (e: Extension) => e;\n';
+    expect(await violations("components/ui/code/code-editor.tsx", dynamic)).toEqual([]);
+    expect(await violations("components/ui/code/code-editor.tsx", type)).toEqual([]);
+  });
+
+  it("um módulo load-* de outra pasta (features/x/components/load-states) não é afetado", async () => {
+    expect(await violations("features/x/components/a.tsx", importOf("./load-states"))).toEqual([]);
+  });
+});

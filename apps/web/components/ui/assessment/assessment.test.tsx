@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { codeMirrorContent, codeMirrorText, syntaxSegments } from "../../../test/code-editor";
 import { CodeAnswer, EssayAnswer, MultipleChoiceAnswer } from "./answers";
 import { AssessmentFooter } from "./assessment-footer";
 import { CodeEditor } from "./code-editor";
@@ -149,13 +150,14 @@ describe("012/FR-020 áreas de resposta", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("012/US3-8 CodeAnswer: linguagem, editor com o código inicial e casos públicos, sem saída nem execução", async () => {
+  it("012/US3-8 014/US1-1 CodeAnswer: linguagem no rótulo e nas cores, editor com o código inicial e casos públicos, sem saída nem execução", async () => {
     function Code() {
       const [value, setValue] = useState("class Main {}");
       return (
         <CodeAnswer
           id="q3"
           language="Java"
+          highlight="java"
           value={value}
           onChange={setValue}
           publicTestCases={[{ input: "1", expectedOutput: "2" }]}
@@ -163,8 +165,10 @@ describe("012/FR-020 áreas de resposta", () => {
       );
     }
     const { container } = render(<Code />);
-    const editor = screen.getByLabelText("Seu código (Java)") as HTMLTextAreaElement;
-    expect(editor.value).toBe("class Main {}");
+    const editor = await codeMirrorContent(container);
+    expect(screen.getByRole("textbox", { name: "Sua resposta (Java)" })).toBe(editor);
+    expect(codeMirrorText(editor)).toBe("class Main {}");
+    expect(syntaxSegments(editor)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]]));
     expect(screen.getByRole("heading", { name: "Casos de teste públicos" })).toBeTruthy();
     expect(screen.getByText("Saída esperada")).toBeTruthy();
     expect(container.textContent).not.toMatch(/Executar|Erro de execução|testes passaram/);
@@ -172,37 +176,9 @@ describe("012/FR-020 áreas de resposta", () => {
   });
 });
 
+// The editable editor (014: colored, CodeMirror) is tested in components/ui/code/code-editor.test.tsx;
+// read-only (the 013 answer key) stays the 012 textarea.
 describe("CodeEditor", () => {
-  function Editor() {
-    const [value, setValue] = useState("");
-    return (
-      <>
-        <label htmlFor="ed">Código</label>
-        <CodeEditor id="ed" value={value} onChange={setValue} />
-        <button type="button">depois</button>
-      </>
-    );
-  }
-
-  it("números de linha, Tab indenta, Esc e depois Tab sai do editor (dito na descrição)", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Editor />);
-    const editor = screen.getByLabelText("Código") as HTMLTextAreaElement;
-    expect(editor.getAttribute("aria-describedby")).toContain("ed-ajuda");
-    expect(screen.getByText("Tab indenta o código; Esc e depois Tab sai do editor.")).toBeTruthy();
-    expect(editor.className).toContain("font-mono");
-    await user.click(editor);
-    await user.keyboard("a{Tab}b");
-    expect(editor.value).toBe("a  b");
-    expect(document.activeElement).toBe(editor);
-    await user.keyboard("{Enter}c");
-    const gutter = container.querySelector('[data-slot="code-editor"] [aria-hidden="true"]');
-    expect(gutter?.textContent).toBe("12");
-    await user.keyboard("{Escape}{Tab}");
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "depois" }));
-    await expectNoA11yViolations(container);
-  });
-
   it("013/FR-012 somente leitura (gabarito): Tab sai do editor, nada muda e sem a dica de indentação", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

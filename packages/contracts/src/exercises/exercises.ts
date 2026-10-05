@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import {
   CognitiveObjectiveSchema,
@@ -158,7 +159,7 @@ export const ExerciseTeacherViewSchema = z.strictObject({
   instructions: z.string().nullable(),
   starterCode: z.string().nullable(),
   expectedSolution: z.string().nullable(),
-  language: z.strictObject({ id: UuidSchema, name: z.string() }).nullable(),
+  language: z.strictObject({ id: UuidSchema, name: z.string(), highlight: CodeHighlightSchema }).nullable(),
   /** Presentation order; empty unless MULTIPLE_CHOICE. */
   alternatives: z.array(ExerciseAlternativeViewSchema),
   isTrickQuestion: z.boolean(),
@@ -189,7 +190,7 @@ export const ExerciseStudentViewSchema = z.strictObject({
   difficulty: ExerciseDifficultySchema,
   instructions: z.string().optional(),
   starterCode: z.string().optional(),
-  language: z.strictObject({ name: z.string() }).optional(),
+  language: z.strictObject({ name: z.string(), highlight: CodeHighlightSchema }).optional(),
   /** Presentation order. */
   alternatives: z.array(z.strictObject({ id: UuidSchema, text: z.string() })).optional(),
 });

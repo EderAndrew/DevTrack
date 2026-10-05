@@ -90,6 +90,25 @@ describe.each(Object.entries(THEMES))(
   },
 );
 
+// 014 (contracts/design-tokens.md): each syntax color, and the plain code text, over every
+// background code sits on — the page, a surface, the editor's selection (`--primary-subtle`, the
+// text keeps its syntax color) and a disabled editor (`--disabled-bg`).
+const SYNTAX = ["keyword", "string", "number", "comment", "type", "function", "operator", "punctuation"].map((n) => `--syntax-${n}`);
+const CODE_BACKGROUNDS = ["--background", "--surface", "--primary-subtle", "--disabled-bg"];
+const SYNTAX_PAIRS: Pair[] = [...SYNTAX, "--foreground"].flatMap((text) =>
+  CODE_BACKGROUNDS.map((background): Pair => [text, background, 4.5]),
+);
+
+describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das cores de sintaxe do tema %s", (_theme, tokens) => {
+  it.each(SYNTAX_PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
+    const fg = resolve(tokens, foreground);
+    const bg = resolve(tokens, background);
+    expect(fg, foreground).toBeDefined();
+    expect(bg, background).toBeDefined();
+    expect(ratio(fg!, bg!)).toBeGreaterThanOrEqual(minimum);
+  });
+});
+
 describe("005/SC-002 tema escuro manual", () => {
   it(':root[data-theme="dark"] repete os valores do tema escuro do sistema', () => {
     expect(Object.keys(dark).length).toBeGreaterThan(0);

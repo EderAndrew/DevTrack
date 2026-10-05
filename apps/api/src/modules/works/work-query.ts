@@ -51,7 +51,7 @@ export const WORK_RECORD_SELECT = {
       instructions: true,
       starterCode: true,
       expectedSolution: true,
-      language: { select: { id: true, name: true } },
+      language: { select: { id: true, name: true, highlight: true } },
       isTrickQuestion: true,
       alternatives: {
         select: { id: true, position: true, text: true, isCorrect: true },

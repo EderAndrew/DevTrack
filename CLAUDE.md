@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-03 (013 implemented)
+Last updated: 2026-10-04 (014 implemented)
 
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–013 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–014 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -43,6 +43,12 @@ new feature through `/speckit-specify`.
   and a bank exercise scores once per student and class; the teacher marks open answer and code
   right or wrong with a comment (no release); the class ranking (position, name, points) is derived
   on read: top 5 on the student's dashboard, the full page for students and teachers.
+- 014 code syntax highlighting: the code of a Código question is colored wherever it appears — the
+  student's editor (`CodeEditor`, CodeMirror 6 loaded on demand, the 012 textarea until it arrives
+  or if it fails), read-only code (`CodeBlock`: Lezer parsers rendered as React spans; result,
+  teacher review, activity detail, bank reading, "Ver como aluno") and the bank forms ("Código
+  inicial", "Solução esperada", colored by the chosen language). The grammar is catalog data
+  (`programming_languages.highlight`, carried by every language object).
   Exams, controlled mode, AI grading and code execution are later features.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
@@ -55,7 +61,7 @@ failed all three (2026-09-29 and 2026-10-01): called with tools its answers brea
 without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012, K1–K18 in 013), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012, K1–K18 in 013, L1–L14 in 014), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -154,7 +160,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012 and 013; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013 and 014; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -172,8 +178,9 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   grades, and students are answered only through the student-view allowlist; it also keeps exams,
   controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
 - `apps/web/test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML
-  render as text (since 013 also the exercise result, the teacher's marks and the ranking names), and
-  no `dangerouslySetInnerHTML` in the 012 features, `features/ranking` or `components/ui/assessment`.
+  render as text (since 013 also the exercise result, the teacher's marks and the ranking names; since
+  014 code with HTML in the editor and in `CodeBlock`), and no `dangerouslySetInnerHTML` in the 012
+  features, `features/ranking`, `components/ui/assessment`, `components/ui/code` or the banks.
 - E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
   replaying its generator's `sql-joins-sem-linguagem` case)
   run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
@@ -295,6 +302,14 @@ the removal conditions are in `DEPENDENCIES.md`.
   student and class (partial UNIQUE on `exercise_question_results … WHERE scoring`), and a
   cancelled activity's points stop counting without moving elsewhere. The ranking is derived on
   every read and carries only position, name, points and `isViewer`.
+- Code highlighting (014): colors only through the eight `--syntax-*` tokens (`text-syntax-*`, with
+  a `forced-colors` rule) and the editor theme only through `var(--…)`; the web knows grammar keys
+  (`components/ui/code/grammars.ts`), never a language of the catalog (the link is the
+  `highlight` column); `@codemirror/*` and `@lezer/*` are imported statically only in
+  `components/ui/code/load-*.ts` (ESLint), everything else reaches them by `import()`; the typed
+  text is never altered (no auto-close, completion or auto-indent; only `\r\n` → `\n`); code is never
+  rendered as HTML. Form fields use `CodeEditor` named by `aria-labelledby` (`fieldLabelId`); Tab
+  indents inside it and Esc then Tab leaves (the `test/keyboard.ts` helpers do that).
 - UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
   radii, shadows or fonts, and no recreated controls. An exception needs a
   `ds-exception: <reason>` marker on (or just above) the line and a row in
@@ -302,7 +317,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   text; states never rely on color alone.
 
 ## Recent Changes
-- 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; nine `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
+- 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; eight `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
 - 013-exercise-points-ranking: exercises earn points instead of grades — EXERCISE activities lose grade, deadline and late policy; fixed points by the exercise difficulty (15/30/60), numbered practice attempts where only attempt 1 scores and a bank exercise scores once per student and class; answer key after each conclusion; the teacher marks open answer and code right or wrong (no release); class ranking derived on read (top 5 on the dashboard, full page)
 - 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
 

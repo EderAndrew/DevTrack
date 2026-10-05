@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
@@ -32,7 +33,7 @@ export const StudentQuestionSchema = z.strictObject({
   statement: z.string(),
   instructions: z.string().nullable(),
   starterCode: z.string().nullable(),
-  language: z.strictObject({ name: z.string() }).nullable(),
+  language: z.strictObject({ name: z.string(), highlight: CodeHighlightSchema }).nullable(),
   /** PUBLIC test cases only. */
   publicTestCases: z.array(z.strictObject({ input: z.string(), expectedOutput: z.string() })),
   /** Presentation order; never which one is correct. */

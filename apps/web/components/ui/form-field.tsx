@@ -4,6 +4,8 @@ import { FieldMessage } from "@/components/ui/field-message"
 import { Label } from "@/components/ui/label"
 
 export const fieldHintId = (id: string) => `${id}-dica`
+/** The label's id: names a control that `for` can't reach, such as the code editor (014). */
+export const fieldLabelId = (id: string) => `${id}-rotulo`
 export const fieldErrorId = (id: string) => `${id}-erro`
 export const fieldSuccessId = (id: string) => `${id}-sucesso`
 
@@ -44,7 +46,7 @@ function FormField({ id, label, description, error, success, required, className
 
   return (
     <div data-slot="form-field" className={cn("mb-4 flex flex-col gap-1", className)}>
-      <Label htmlFor={id} required={required}>
+      <Label id={fieldLabelId(id)} htmlFor={id} required={required}>
         {label}
       </Label>
       {description ? <FieldMessage id={fieldHintId(id)}>{description}</FieldMessage> : null}

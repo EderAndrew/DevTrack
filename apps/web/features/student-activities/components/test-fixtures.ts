@@ -45,6 +45,8 @@ export const dashboard = (overrides: Partial<StudentDashboard> = {}): StudentDas
 interface Call {
   method: string;
   url: string;
+  /** The raw request body (a JSON string), when there is one. */
+  body?: BodyInit | null;
 }
 
 /** `fetch` answering by "METHOD /api/path?query"; anything else is a 404. A function answers each call. */
@@ -53,7 +55,7 @@ export function routedFetch(routes: Record<string, Response | (() => Response | 
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const url = String(input);
-    calls.push({ method, url });
+    calls.push({ method, url, body: init?.body });
     const match = routes[`${method} ${url}`];
     if (!match) return apiError(404, "NOT_FOUND", "Não encontrado.");
     return typeof match === "function" ? match() : match.clone();
@@ -109,7 +111,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         statement: "Implemente a soma.",
         instructions: "Leia dois inteiros.",
         starterCode: "class Main {}",
-        language: { name: "Java" },
+        language: { name: "Java", highlight: "java" },
         publicTestCases: [{ input: "2 3", expectedOutput: "5" }],
         alternatives: [],
       },

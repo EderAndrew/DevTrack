@@ -101,10 +101,13 @@ estados sempre disponível ("Legenda" que abre um `Popover`).
   saída e erros em `text-code`; erro com `--danger-text` + `CircleAlert` e texto "Erro de
   execução"; resultado com `Status` ("3 de 5 testes passaram"). A fonte monoespaçada só
   existe dentro de editor, saída e erros.
-- `CodeEditor`: escolha da biblioteca fica para a feature de exercícios de programação
-  (spec 005, Clarifications); exigências visuais: `text-code`, números de linha em
-  `--text-secondary`, foco com o contorno oficial, Tab indenta e Esc seguido de Tab sai
-  do editor (anunciado no rótulo), sem tema próprio de cores fora dos tokens.
+- `CodeEditor`: a biblioteca é o CodeMirror 6, escolhida pela 014 (realce de sintaxe),
+  carregada sob demanda; até carregar, ou se falhar, fica o `Textarea` com números de
+  linha. Exigências visuais: `text-code`, números de linha em `--text-secondary`, foco com
+  o contorno oficial, Tab indenta e Esc seguido de Tab sai do editor (anunciado no
+  rótulo), cores do código só pelos tokens `--syntax-*` e tema do editor só por tokens,
+  sem tema próprio de cores; o texto digitado nunca é alterado (sem fechar parênteses,
+  completar ou indentar sozinho). Código só para leitura usa `CodeBlock`.
 
 ### SaveStatus (FR-028)
 
@@ -173,7 +176,8 @@ A 012 (portal do aluno, modo NORMAL) construiu em `apps/web/components/ui/assess
 `ExamProgress`, `QuestionNavigator` (estados atual, não respondida e respondida),
 `QuestionHeader`, `QuestionStatus`, `QuestionStatement`, `MultipleChoiceAnswer` (uma
 resposta), `EssayAnswer`, `CodeAnswer` (sem as regiões de saída, erros e resultado: nada é
-executado), `CodeEditor` (`Textarea` com números de linha, sem biblioteca), `SaveStatus`,
+executado), `CodeEditor` (`Textarea` com números de linha; colorido com CodeMirror 6 desde
+a 014, que também trouxe o `CodeBlock` de leitura), `SaveStatus`,
 `AttemptStatus` e `AssessmentFooter` (o `ExamFooter` do modo NORMAL). Continuam com a
 feature de provas: `ExamHeader`, `ExamTimer`, `ReviewFlag`, `ExamAlert`,
 `FocusViolationWarning` e os estados "marcada para revisão", "bloqueada" e "invalidada".

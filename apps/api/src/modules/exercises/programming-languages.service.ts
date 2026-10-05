@@ -11,7 +11,7 @@ export class ProgrammingLanguagesService {
   list(): Promise<ProgrammingLanguageList> {
     return this.prisma.programmingLanguage.findMany({
       where: { active: true },
-      select: { id: true, key: true, name: true },
+      select: { id: true, key: true, name: true, highlight: true },
       orderBy: [{ name: "asc" }, { id: "asc" }],
     });
   }
