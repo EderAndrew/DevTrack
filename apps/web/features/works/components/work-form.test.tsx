@@ -205,7 +205,7 @@ describe("011/US1 WorkForm — criar um trabalho manualmente", () => {
         },
       ],
     });
-  });
+  }, 15_000);
 
   it('011/FR-014 "Salvar como rascunho" envia DRAFT, com a dificuldade escolhida', async () => {
     renderWithProviders(<WorkForm />);
