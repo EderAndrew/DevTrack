@@ -24,6 +24,8 @@ type CodeEditorProps = {
   disabled?: boolean
   /** The 013 answer key: stays the plain textarea (read-only screens use `CodeBlock`). */
   readOnly?: boolean
+  /** Fixed height with a vertical scroll bar instead of growing with the code (the student's answer). */
+  fixedHeight?: boolean
   className?: string
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -50,6 +52,7 @@ function CodeEditor({
   highlight = null,
   disabled = false,
   readOnly = false,
+  fixedHeight = false,
   className,
   "aria-labelledby": labelledBy,
   "aria-label": label,
@@ -199,8 +202,8 @@ function CodeEditor({
           data-slot="code-editor-host"
           className={cn(
             "min-w-0 font-mono text-code",
-            "[&_.cm-editor]:min-h-48 [&_.cm-editor]:rounded-md [&_.cm-editor]:border [&_.cm-editor]:border-border-control",
-            "[&_.cm-scroller]:overflow-x-auto [&_.cm-gutters]:rounded-l-md",
+            "[&_.cm-editor]:rounded-md [&_.cm-editor]:border [&_.cm-editor]:border-border-control [&_.cm-gutters]:rounded-l-md",
+            fixedHeight ? "[&_.cm-editor]:h-[65dvh] [&_.cm-editor]:min-h-96 [&_.cm-scroller]:overflow-auto" : "[&_.cm-editor]:min-h-48 [&_.cm-scroller]:overflow-x-auto",
             invalid === true || invalid === "true" ? "[&_.cm-editor]:border-2 [&_.cm-editor]:border-danger" : null,
             off ? "cursor-not-allowed [&_.cm-editor]:border-dashed [&_.cm-editor]:border-disabled-border" : null,
           )}
@@ -213,6 +216,7 @@ function CodeEditor({
           onChange={onChange}
           disabled={off}
           readOnly={readOnly}
+          fixedHeight={fixedHeight}
           aria-labelledby={labelledBy}
           aria-label={label}
           aria-describedby={describedByIds}
@@ -246,6 +250,7 @@ function PlainEditor({
   onChange,
   disabled,
   readOnly,
+  fixedHeight,
   ref,
   ...aria
 }: {
@@ -254,6 +259,7 @@ function PlainEditor({
   onChange: (value: string) => void
   disabled: boolean
   readOnly: boolean
+  fixedHeight: boolean
   ref: React.Ref<HTMLTextAreaElement>
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -285,7 +291,12 @@ function PlainEditor({
   }
 
   return (
-    <div className="flex overflow-hidden rounded-md border border-border-control bg-background focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+    <div
+      className={cn(
+        "flex overflow-hidden rounded-md border border-border-control bg-background focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
+        fixedHeight ? "h-[65dvh] min-h-96" : null,
+      )}
+    >
       <div
         ref={gutter}
         aria-hidden="true"
@@ -310,7 +321,10 @@ function PlainEditor({
         onScroll={(event) => {
           if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop
         }}
-        className="min-h-48 flex-1 resize-y rounded-none border-0 font-mono text-code whitespace-pre focus-visible:outline-none"
+        className={cn(
+          "min-h-48 flex-1 rounded-none border-0 font-mono text-code whitespace-pre focus-visible:outline-none",
+          fixedHeight ? "h-full resize-none overflow-auto" : "resize-y",
+        )}
         {...aria}
       />
     </div>

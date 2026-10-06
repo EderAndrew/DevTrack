@@ -522,6 +522,21 @@ describe("014/US1 a resposta de código colorida mantém tudo da 012", () => {
     expect(codeMirrorText(await toCode(buffered.user))).toBe(SOURCE);
   });
 
+  it("questão de código: enunciado à esquerda e editor à direita; as outras empilhadas", async () => {
+    const { user } = setup({ [GET]: json(200, started()) });
+    const navigator = await screen.findByRole("navigation", { name: "Questões" });
+    const bodyOf = () => document.querySelector<HTMLElement>("[data-slot='question-body']")!;
+    expect(bodyOf().className).not.toContain("lg:grid-cols-2");
+
+    const content = await toCode(user);
+    const [statementSide, editorSide] = Array.from(bodyOf().children) as HTMLElement[];
+    expect(bodyOf().className).toContain("lg:grid-cols-2");
+    expect(statementSide!.textContent).toContain(code.statement);
+    expect(editorSide!.contains(content)).toBe(true);
+    expect(statementSide!.contains(content)).toBe(false);
+    expect(within(navigator).getAllByRole("button")).toHaveLength(3);
+  });
+
   it("014/US1-5 linguagem sem gramática (highlight null) responde sem cores", async () => {
     const kotlin = { ...code, language: { name: "Kotlin", highlight: null } };
     const { user, api } = setup({ [GET]: json(200, started({ questions: [open, multiple, kotlin] })), [SAVE]: saved(code.id) });

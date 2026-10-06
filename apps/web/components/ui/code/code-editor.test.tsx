@@ -63,6 +63,28 @@ describe("014/US1 CodeEditor colorido", () => {
     expect(content.getAttribute("aria-describedby")).toContain("ed-ajuda");
   });
 
+  it("fixedHeight: altura fixa com rolagem vertical no textarea e no CodeMirror; sem ela, cresce", async () => {
+    const source = Array.from({ length: 40 }, (_, line) => `int x${line} = ${line};`).join("\n");
+    const props = { id: "ed", "aria-label": "Sua resposta", highlight: "java", value: source, onChange: () => {} };
+    const fixed = render(<CodeEditor {...props} fixedHeight />);
+    const textarea = fixed.container.querySelector("textarea")!;
+    expect(textarea.parentElement!.className).toContain("h-[65dvh] min-h-96");
+    expect(textarea.className).toContain("resize-none");
+    expect(textarea.className).toContain("overflow-auto");
+    await codeMirrorContent(fixed.container);
+    const host = fixed.container.querySelector<HTMLElement>("[data-slot='code-editor-host']")!;
+    expect(host.className).toContain("[&_.cm-editor]:h-[65dvh] [&_.cm-editor]:min-h-96");
+    expect(host.className).toContain("[&_.cm-scroller]:overflow-auto");
+    fixed.unmount();
+
+    const growing = render(<CodeEditor {...props} />);
+    expect(growing.container.querySelector("textarea")!.className).toContain("resize-y");
+    await codeMirrorContent(growing.container);
+    const growingHost = growing.container.querySelector<HTMLElement>("[data-slot='code-editor-host']")!;
+    expect(growingHost.className).toContain("[&_.cm-editor]:min-h-48");
+    expect(growingHost.className).not.toContain("65dvh");
+  });
+
   it("014/US1-2 digitar Java colore palavra-chave, texto e comentário e o onChange recebe o texto exato", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

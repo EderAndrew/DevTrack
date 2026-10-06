@@ -159,6 +159,7 @@ function CodeAnswer({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          fixedHeight
         />
       </div>
       {publicTestCases.length > 0 ? (

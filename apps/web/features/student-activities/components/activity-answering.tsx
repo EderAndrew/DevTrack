@@ -344,15 +344,25 @@ function AttemptAnswering({
           headingId={`questao-${question.id}`}
           headingRef={heading}
         />
-        <QuestionStatement>{question.statement}</QuestionStatement>
-        {question.instructions ? <p className="m-0 text-body-sm text-text-secondary whitespace-pre-wrap">{question.instructions}</p> : null}
-        <AnswerArea
-          key={question.id}
-          question={question}
-          answer={answers.answerOf(question.id) ?? emptyAnswer(question)}
-          onChange={(answer) => answers.setAnswer(question.id, answer)}
-          disabled={!editable}
-        />
+        {/* A code question puts the statement on the left and the editor on the right from `lg` up. */}
+        <div
+          data-slot="question-body"
+          className={question.type === "CODE" ? "grid gap-6 lg:grid-cols-2 lg:items-start" : "flex flex-col gap-6"}
+        >
+          <div className="flex min-w-0 flex-col gap-3">
+            <QuestionStatement>{question.statement}</QuestionStatement>
+            {question.instructions ? <p className="m-0 text-body-sm text-text-secondary whitespace-pre-wrap">{question.instructions}</p> : null}
+          </div>
+          <div className="min-w-0">
+            <AnswerArea
+              key={question.id}
+              question={question}
+              answer={answers.answerOf(question.id) ?? emptyAnswer(question)}
+              onChange={(answer) => answers.setAnswer(question.id, answer)}
+              disabled={!editable}
+            />
+          </div>
+        </div>
       </article>
       <AssessmentFooter
         hasPrevious={index > 0}

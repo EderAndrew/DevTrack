@@ -14,7 +14,8 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   if (!me) redirect(`/entrar?next=${encodeURIComponent(activityHref(id))}`);
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Atividade" />;
   return (
-    <section>
+    // Wide: a code question shows the statement and the editor side by side.
+    <section data-layout="wide">
       <ActivityAnswering activityId={id} userId={me.id} />
     </section>
   );

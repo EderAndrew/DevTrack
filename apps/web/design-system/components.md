@@ -1661,6 +1661,10 @@ Editável, desabilitado (`disabled` ou dentro de um `<fieldset disabled>`: sem
 `contenteditable`, com `aria-disabled` e `aria-readonly`, borda tracejada) e somente leitura
 (`readOnly`, 013: fica o `Textarea`; para ler código use `CodeBlock`).
 
+Altura: por padrão o editor cresce com o código (mínimo `min-h-48`). Com `fixedHeight` a caixa
+tem altura fixa, 65% da altura da tela e nunca menos de `h-96` (`h-[65dvh] min-h-96`), e rola na vertical, no `Textarea` e no CodeMirror; o `CodeAnswer` do
+aluno usa assim, para o editor não empurrar o enunciado ao lado.
+
 ### Quando usar
 
 Onde se escreve código: `CodeAnswer` do aluno e os campos "Código inicial" e "Solução esperada"
