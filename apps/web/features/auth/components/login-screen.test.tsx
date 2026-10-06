@@ -12,7 +12,14 @@ describe("LoginScreen: início e login na mesma tela", () => {
     renderWithProviders(<Toaster><LoginScreen next="/conta/sessoes" /></Toaster>);
     const about = screen.getByRole("region", { name: "Sobre o DevTrack" });
     expect(about.textContent).toContain("DevTrack");
-    expect(about.textContent).toContain("Plataforma de ensino e avaliação configurável por professor.");
+    expect(about.textContent).toContain("Ensine. Avalie. Acompanhe a evolução.");
+    expect(about.textContent).toContain("Menos respostas prontas. Mais aprendizado real.");
+    expect(about.textContent).toContain(
+      "Um ambiente para atividades e avaliações que ajuda professores a acompanhar como cada aluno pensa, resolve problemas e evolui.",
+    );
+    expect(screen.getByText(/Desenvolvido por/).textContent).toBe(
+      `© ${new Date().getFullYear()} · Desenvolvido por Nativecode. Todos os direitos reservados.`,
+    );
     expect(screen.getByRole("heading", { level: 1, name: "Entrar" })).toBeTruthy();
     expect(screen.getByRole("form", { name: "Entrar" })).toBeTruthy();
   });
