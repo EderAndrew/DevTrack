@@ -115,6 +115,8 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
 pnpm --filter web test                                  # Vitest + jsdom + Testing Library + vitest-axe
+pnpm --filter web test test/contrast.test.ts            # single file (no `--`, same as the API)
+pnpm --filter web test -t "<test name>"                 # single test, or an id prefix such as "014/"
 
 # packages/contracts
 pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
@@ -125,6 +127,7 @@ docker compose up -d postgres-test mailpit
 pnpm build                                              # the E2E API runs apps/api/dist
 pnpm --filter web exec playwright install chromium      # first time only
 pnpm --filter web test:e2e
+pnpm --filter web test:e2e work-bank                    # one spec by path regex; the admin → teacher setup projects still run first
 ```
 
 The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
@@ -160,31 +163,11 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
   grades, and students are answered only through the student-view allowlist; it also keeps exams,
   controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
-- `apps/web/test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML
-  render as text (since 013 also the exercise result, the teacher's marks and the ranking names; since
-  014 code with HTML in the editor and in `CodeBlock`), and no `dangerouslySetInnerHTML` in the 012
-  features, `features/ranking`, `components/ui/assessment`, `components/ui/code` or the banks.
-- E2E AI flows (007 POO analysis, 010 `exercise-bank.spec.ts` and 011 `work-bank.spec.ts`, each
-  replaying its generator's `sql-joins-sem-linguagem` case)
-  run against `apps/web/e2e/openrouter-mock.ts`, the local mock of OpenRouter's chat completions
-  that the E2E API's `OPENROUTER_BASE_URL` points to (`MOCK_PRIMARY_DOWN=1` answers 503 to the
-  primary model; `MOCK_PRIMARY_MODEL` defaults to the catalog's cheapest BASIC id).
-- Web: `apps/web/test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs
-  the `SC-012` keyboard tests in each page's test file.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
-- Web: `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and
-  `test/contrast.test.ts` checks the token pairs of `tokens.css` for WCAG AA in both themes.
-- Web design system (`apps/web/test/design-system/`): `token-usage.test.ts` fails with file:line
-  on any color, font size, spacing step, radius, shadow, font family, breakpoint or icon size
-  outside the tokens (rule `valores`) and on a `<button>`, `<select>`, `<textarea>`, `<table>`,
-  checkbox or radio recreated outside `components/ui` (rule `controles`), and keeps the
-  `ds-exception` markers equal to `exceptions.md`; `identity.test.ts` pins fonts and icons (Lucide
-  only, `font-mono` only in `components/ui`); `docs.test.ts` checks that every token, catalog
-  entry and Exam Mode component is documented; `features/design-system/components/catalog.test.tsx`
-  runs axe and Tab over the whole catalog. A new foundational component needs a registry entry,
-  a showcase and a `components.md` section.
+- Web guards (XSS, keyboard helpers, ESLint layers, contrast, design-system scans, the E2E
+  OpenRouter mock): see `apps/web/CLAUDE.md`, loaded when working under `apps/web`.
 
 Unsafe HTTP methods need both an allowed `Origin` and `Content-Type: application/json` (send
 `{}` if there's no body), even from curl or scripts. Otherwise the API returns
@@ -202,7 +185,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   (`next.config.js`, which also sets `Referrer-Policy: no-referrer` on token-bearing pages, and
   raises the rewrite's body limit, `experimental.proxyClientMaxBodySize`, so a 10 MB syllabus
   upload is not cut; the API enforces the real limit).
-  `proxy.ts` only redirects for UX and never authorizes.
+  `proxy.ts` only redirects for UX and never authorizes. Design system, layers and the web stack:
+  see `apps/web/CLAUDE.md`.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
   contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
   `provisioning`, `admin-activation`, `health`, `classes` for classes, class invitations,
@@ -218,26 +202,6 @@ the removal conditions are in `DEPENDENCIES.md`.
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
   pnpm catalog. API controllers validate input with the contract schemas and services return the
   contract types. The package builds to `dist/`, which api and web import.
-- Web design system (005): every visual value comes from `apps/web/design-system/tokens.css`
-  (semantic colors with light and dark values, type scale, radii, shadows, layers, breakpoints,
-  motion, focus); the Tailwind default scales are reset there, so `bg-red-500`, `text-2xl` or
-  `shadow-lg` generate no CSS. Layers: tokens → `components/ui` (foundational components) →
-  `components/layout` → `features` → `app` (ESLint-enforced). `components/layout` holds `AppShell`
-  (side menu, `Topbar`, `main#conteudo`), `PageHeader` (every page's `<h1>`), `StudentLayout` and
-  `accountLayoutFor`. Route groups only choose the frame, never the URL: `app/(app)` AppShell,
-  `app/(student)` student layout, `app/(account)` either one by `STAFF_AREA_PERMISSIONS` (menu
-  permissions, never role names), `app/(catalog)/design-system` the visual catalog (built from
-  `features/design-system/registry.ts`; `notFound()` in production). Docs: `README.md`,
-  `tokens.md`, `components.md`, `layouts.md`, `exam-mode.md` and `exceptions.md` in
-  `apps/web/design-system/`.
-- Web (official stack): Tailwind + shadcn/ui (`components/ui`) + Lucide; TanStack Query for
-  server state; React Hook Form + `@hookform/resolvers`; native `fetch` only in
-  `lib/api/client.ts`. Redux Toolkit is not installed: add it only with the first spec that has
-  real global client state, and never make it authoritative over exam rules. Code goes in
-  `apps/web/features/<feature>/{api,components,hooks,schemas,store,types}`, with `app/` at the
-  root (no `src/`). Components call hooks, hooks call `features/*/api`, and only that layer
-  touches `lib/api` (ESLint-enforced). User-facing error text comes from the catalog in
-  `lib/messages/error-messages.ts`, keyed by the API error `code`.
 - Protected request pipeline: `OriginGuard → SessionGuard (401) → VerifiedGuard (403) →
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
@@ -285,19 +249,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   student and class (partial UNIQUE on `exercise_question_results … WHERE scoring`), and a
   cancelled activity's points stop counting without moving elsewhere. The ranking is derived on
   every read and carries only position, name, points and `isViewer`.
-- Code highlighting (014): colors only through the eight `--syntax-*` tokens (`text-syntax-*`, with
-  a `forced-colors` rule) and the editor theme only through `var(--…)`; the web knows grammar keys
-  (`components/ui/code/grammars.ts`), never a language of the catalog (the link is the
-  `highlight` column); `@codemirror/*` and `@lezer/*` are imported statically only in
-  `components/ui/code/load-*.ts` (ESLint), everything else reaches them by `import()`; the typed
-  text is never altered (no auto-close, completion or auto-indent; only `\r\n` → `\n`); code is never
-  rendered as HTML. Form fields use `CodeEditor` named by `aria-labelledby` (`fieldLabelId`); Tab
-  indents inside it and Esc then Tab leaves (the `test/keyboard.ts` helpers do that).
-- UI only with Design System tokens and components: no literal colors, sizes, spacing steps,
-  radii, shadows or fonts, and no recreated controls. An exception needs a
-  `ds-exception: <reason>` marker on (or just above) the line and a row in
-  `apps/web/design-system/exceptions.md`. Destructive actions use `variant="danger"` with explicit
-  text; states never rely on color alone.
+- UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
+  row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
+  `apps/web/CLAUDE.md`.
 
 ## Recent Changes
 - 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; eight `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
