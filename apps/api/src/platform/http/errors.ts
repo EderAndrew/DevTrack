@@ -140,6 +140,13 @@ export const ErrorCatalog = {
   ATTEMPT_NOT_COMPLETED: { status: 409, message: "Conclua a tentativa atual antes de refazer." },
   NOT_LATEST_ATTEMPT: { status: 409, message: "Esta tentativa já foi refeita. Carregamos a mais recente." },
   NOT_MARKABLE: { status: 422, message: "Esta resposta não precisa de correção do professor." },
+  AI_HELP_UNAVAILABLE: { status: 503, message: "A ajuda está indisponível agora; tente de novo em instantes." },
+  ACTIVITY_ALREADY_STARTED: { status: 409, message: "Não é possível mudar depois que um aluno iniciou." },
+  NOT_CONTROLLED: { status: 409, message: "Esta atividade não está em modo controlado." },
+  HELP_PENDING: { status: 409, message: "Aguarde a orientação anterior." },
+  HELP_EXHAUSTED: { status: 409, message: "Você já usou as 3 ajudas deste trabalho." },
+  HELP_NOT_ENABLED: { status: 409, message: "Esta atividade não tem ajuda da IA." },
+  TYPING_LIMIT_EXCEEDED: { status: 422, message: "Esse trecho não foi salvo porque parece ter sido colado. Digite a resposta." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

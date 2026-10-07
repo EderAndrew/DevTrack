@@ -76,6 +76,11 @@ export const configSchema = z.object({
   RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR: positiveInt(300),
   RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR: positiveInt(60),
   AI_AGENT_EXECUTIONS_PER_HOUR: positiveInt(100),
+  RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE: positiveInt(120),
+  RATE_LIMIT_WORK_HELP_PER_HOUR: positiveInt(20),
+  AI_WORK_HELP_EXECUTIONS_PER_HOUR: positiveInt(1500),
+  CONTROLLED_TYPING_BURST_CHARS: positiveInt(400),
+  CONTROLLED_TYPING_CHARS_PER_SECOND: positiveInt(15),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
   MAIL_RETRY_INTERVAL_SECONDS: nonNegativeInt(30),
   SYLLABUS_MAX_FILE_MB: positiveInt(10),
@@ -149,7 +154,18 @@ export interface AppConfig {
     exerciseAttemptsPerHour: number;
     /** Executions per agent per hour, all users together (008 research G9). */
     aiAgentPerHour: number;
+    /** Controlled mode (015 research F4): focus and clipboard events per student per minute. */
+    attemptEventsPerMinute: number;
+    /** AI help (015 research F12): help requests per student per hour, any outcome. */
+    workHelpPerHour: number;
+    /** Hourly limit of the `work-helper` agent, all students together, in place of `aiAgentPerHour` (F12). */
+    workHelpAgentPerHour: number;
   };
+  /**
+   * Controlled mode (015 research F7): an answer may grow `typingBurstChars` in one save plus
+   * `typingCharsPerSecond` for every second since its last save; more is refused as pasted.
+   */
+  controlledMode: { typingBurstChars: number; typingCharsPerSecond: number };
   maintenanceIntervalSeconds: number;
   /** Class invitation delivery retry worker interval (FR-019, D5); 0 disables it. */
   mailRetryIntervalSeconds: number;
@@ -260,6 +276,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       activityTeacherWritesPerHour: e.RATE_LIMIT_ACTIVITY_TEACHER_WRITES_PER_HOUR,
       exerciseAttemptsPerHour: e.RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR,
       aiAgentPerHour: e.AI_AGENT_EXECUTIONS_PER_HOUR,
+      attemptEventsPerMinute: e.RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE,
+      workHelpPerHour: e.RATE_LIMIT_WORK_HELP_PER_HOUR,
+      workHelpAgentPerHour: e.AI_WORK_HELP_EXECUTIONS_PER_HOUR,
+    },
+    controlledMode: {
+      typingBurstChars: e.CONTROLLED_TYPING_BURST_CHARS,
+      typingCharsPerSecond: e.CONTROLLED_TYPING_CHARS_PER_SECOND,
     },
     maintenanceIntervalSeconds: e.MAINTENANCE_INTERVAL_SECONDS,
     mailRetryIntervalSeconds: e.MAIL_RETRY_INTERVAL_SECONDS,

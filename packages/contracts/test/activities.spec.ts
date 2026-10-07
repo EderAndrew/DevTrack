@@ -26,6 +26,10 @@ import {
   ActivityTypeSchema,
   AttemptStatusSchema,
   ExecutionModeSchema,
+  AI_HELP_ALLOWANCE,
+  AiHelpAllowanceSchema,
+  SaveAnswerOutcomeSchema,
+  SaveAnswersResultSchema,
   LatePolicySchema,
   PublicationPhaseSchema,
   RosterStatusSchema,
@@ -36,7 +40,8 @@ import {
 describe("012 enums das atividades da turma e do portal do aluno", () => {
   it("têm exatamente os valores do data-model", () => {
     expect(ActivityTypeSchema.options).toEqual(["EXERCISE", "ASSIGNMENT"]);
-    expect(ExecutionModeSchema.options).toEqual(["NORMAL"]);
+    // 015 adds CONTROLLED (works only, 015/FR-001).
+    expect(ExecutionModeSchema.options).toEqual(["NORMAL", "CONTROLLED"]);
     expect(ActivityStatusSchema.options).toEqual(["ACTIVE", "CLOSED", "CANCELLED"]);
     expect(PublicationPhaseSchema.options).toEqual(["SCHEDULED", "PUBLISHED"]);
     expect(LatePolicySchema.options).toEqual(["REJECT", "ACCEPT_MARKED"]);
@@ -48,12 +53,13 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(ActivityGradingStatusSchema.options).toEqual(["GRADED", "PENDING_TEACHER", "DECIDED"]);
   });
 
-  it("012/FR-003 prova e modo controlado ficam reservados: nenhum enum os aceita", () => {
+  it("012/FR-003 015/FR-001 a prova continua reservada; o modo controlado existe desde a 015", () => {
     for (const value of ["EXAM", "PROVA", "QUIZ"]) expect(ActivityTypeSchema.safeParse(value).success, value).toBe(false);
-    for (const value of ["CONTROLLED", "CONTROLADO"]) expect(ExecutionModeSchema.safeParse(value).success, value).toBe(false);
+    expect(ExecutionModeSchema.safeParse("CONTROLLED").success).toBe(true);
+    expect(ExecutionModeSchema.safeParse("CONTROLADO").success).toBe(false);
   });
 
-  it("012/SC-012 nenhum enum da 012 tem valor de prova ou de modo controlado", () => {
+  it("012/SC-012 nenhum enum das atividades tem valor de prova; CONTROLLED só no modo de execução (015)", () => {
     const schemas = [
       ActivityTypeSchema,
       ExecutionModeSchema,
@@ -67,7 +73,28 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
       ActivityGradingStatusSchema,
     ];
     const values = schemas.flatMap((schema) => schema.options.map(String));
-    expect(values.filter((value) => /EXAM|PROVA|CONTROL/.test(value))).toEqual([]);
+    expect(values.filter((value) => /EXAM|PROVA/.test(value))).toEqual([]);
+    expect(values.filter((value) => /CONTROL/.test(value))).toEqual(["CONTROLLED"]);
+  });
+});
+
+describe("015 modo controlado e ajuda da IA (contracts/http-api.md)", () => {
+  it("015/FR-003 a ajuda da IA vale exatamente 3 ajudas, ou nenhuma", () => {
+    expect(AI_HELP_ALLOWANCE).toBe(3);
+    expect(accepts(AiHelpAllowanceSchema, 0)).toBe(true);
+    expect(accepts(AiHelpAllowanceSchema, 3)).toBe(true);
+    for (const value of [1, 2, 4, 5, -1, 3.5, "3"]) expect(accepts(AiHelpAllowanceSchema, value), String(value)).toBe(false);
+  });
+
+  it("015/FR-013c um salvamento acima do limite de digitação devolve a resposta guardada e sua revisão, sem a resposta", () => {
+    const savedAt = "2026-10-07T12:00:00.000Z";
+    const limited = { questionId: uuid(1), outcome: "TYPING_LIMIT_EXCEEDED", revision: 2 };
+    expect(SaveAnswerOutcomeSchema.options).toEqual(["SAVED", "UNCHANGED", "CONFLICT", "TYPING_LIMIT_EXCEEDED"]);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [limited] })).toBe(true);
+    // Never saved before: revision 0.
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: 0 }] })).toBe(true);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, answer: { kind: "TEXT", text: "colado" } }] })).toBe(false);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: -1 }] })).toBe(false);
   });
 });
 

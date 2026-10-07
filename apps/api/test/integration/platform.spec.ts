@@ -86,6 +86,41 @@ describe("startup configuration (FR-074)", () => {
     expect(failure({ ...env, RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR: "1.5" }).variables).toEqual(["RATE_LIMIT_EXERCISE_ATTEMPTS_PER_HOUR"]);
   });
 
+  it("015 controlled works and AI help: defaults of contracts/configuration.md, configurable, invalid stops the startup", () => {
+    const env = { ...process.env };
+    const variables = [
+      "CONTROLLED_TYPING_BURST_CHARS",
+      "CONTROLLED_TYPING_CHARS_PER_SECOND",
+      "RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE",
+      "RATE_LIMIT_WORK_HELP_PER_HOUR",
+      "AI_WORK_HELP_EXECUTIONS_PER_HOUR",
+    ];
+    for (const variable of variables) delete env[variable];
+    const config = loadConfig(env);
+    expect(config.controlledMode).toEqual({ typingBurstChars: 400, typingCharsPerSecond: 15 });
+    expect(config.rateLimit.attemptEventsPerMinute).toBe(120);
+    expect(config.rateLimit.workHelpPerHour).toBe(20);
+    expect(config.rateLimit.workHelpAgentPerHour).toBe(1500);
+
+    const custom = loadConfig({
+      ...env,
+      CONTROLLED_TYPING_BURST_CHARS: "200",
+      CONTROLLED_TYPING_CHARS_PER_SECOND: "8",
+      RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE: "30",
+      RATE_LIMIT_WORK_HELP_PER_HOUR: "5",
+      AI_WORK_HELP_EXECUTIONS_PER_HOUR: "50",
+    });
+    expect(custom.controlledMode).toEqual({ typingBurstChars: 200, typingCharsPerSecond: 8 });
+    expect(custom.rateLimit.attemptEventsPerMinute).toBe(30);
+    expect(custom.rateLimit.workHelpPerHour).toBe(5);
+    expect(custom.rateLimit.workHelpAgentPerHour).toBe(50);
+
+    for (const variable of variables) {
+      expect(failure({ ...env, [variable]: "0" }).variables).toEqual([variable]);
+      expect(failure({ ...env, [variable]: "1.5" }).variables).toEqual([variable]);
+    }
+  });
+
   it("accepts a complete environment", () => {
     const config = loadConfig({ ...process.env, DATABASE_URL: SECRET_DB_URL });
     expect(config.databaseUrl).toBe(SECRET_DB_URL);

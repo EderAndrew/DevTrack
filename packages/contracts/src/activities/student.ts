@@ -151,7 +151,7 @@ export const SaveAnswersRequestSchema = z.strictObject({
 });
 export type SaveAnswersRequest = z.infer<typeof SaveAnswersRequestSchema>;
 
-export const SaveAnswerOutcomeSchema = z.enum(["SAVED", "UNCHANGED", "CONFLICT"]);
+export const SaveAnswerOutcomeSchema = z.enum(["SAVED", "UNCHANGED", "CONFLICT", "TYPING_LIMIT_EXCEEDED"]);
 export type SaveAnswerOutcome = z.infer<typeof SaveAnswerOutcomeSchema>;
 
 export const SaveAnswersResultSchema = z.strictObject({
@@ -162,6 +162,11 @@ export const SaveAnswersResultSchema = z.strictObject({
       z.strictObject({ questionId: UuidSchema, outcome: z.literal("UNCHANGED"), revision: z.int().min(1) }),
       /** Another tab saved first: the server's answer replaces the tab's copy. */
       z.strictObject({ questionId: UuidSchema, outcome: z.literal("CONFLICT"), revision: z.int().min(1), answer: AnswerSchema }),
+      /**
+       * CONTROLLED mode (015/FR-013c, research F7): the answer grew faster than typing allows; the
+       * stored answer and its revision (0 when none) stay as they were.
+       */
+      z.strictObject({ questionId: UuidSchema, outcome: z.literal("TYPING_LIMIT_EXCEEDED"), revision: z.int().min(0) }),
     ]),
   ),
 });

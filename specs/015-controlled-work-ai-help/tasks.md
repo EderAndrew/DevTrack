@@ -48,13 +48,13 @@ constituição v3.4.0 (aplicada)
 
 **Purpose**: configuração, códigos de erro e contratos compartilhados.
 
-- [ ] T001 [P] Acrescentar em `apps/api/src/platform/config/config.schema.ts` e
+- [X] T001 [P] Acrescentar em `apps/api/src/platform/config/config.schema.ts` e
   `apps/api/.env.example` as 5 variáveis de `contracts/configuration.md`
   (`CONTROLLED_TYPING_BURST_CHARS` 400, `CONTROLLED_TYPING_CHARS_PER_SECOND` 15,
   `RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE` 120, `RATE_LIMIT_WORK_HELP_PER_HOUR` 20,
   `AI_WORK_HELP_EXECUTIONS_PER_HOUR` 1500), com teste de valores padrão e recusa de não positivos
   em `apps/api/test/integration/platform.spec.ts`.
-- [ ] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+- [X] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts` (com o teste
   `apps/web/lib/messages/error-messages.test.ts`): `AI_HELP_UNAVAILABLE` ("A ajuda está
   indisponível agora; tente de novo em instantes."), `ACTIVITY_ALREADY_STARTED` ("Não é possível
@@ -62,14 +62,16 @@ constituição v3.4.0 (aplicada)
   anterior."), `HELP_EXHAUSTED` ("Você já usou as 3 ajudas deste trabalho"), `HELP_NOT_ENABLED`,
   `TYPING_LIMIT_EXCEEDED` ("Esse trecho não foi salvo porque parece ter sido colado. Digite a
   resposta.").
-- [ ] T003 Contratos em `packages/contracts/src/activities/{enums,teacher,student}.ts`:
-  `ExecutionModeSchema` = `NORMAL | CONTROLLED`; `AiHelpAllowanceSchema` = `0 | 3`;
-  `CreateActivity`/`UpdateActivity` com `executionMode` e `aiHelpAllowance` (padrões NORMAL e 0;
-  recusados para EXERCISE por `superRefine`); `aiHelp` nas visões do professor e do aluno
-  (`used` no detalhe do aluno); `aiHelpUsed` na linha do roster; `TYPING_LIMIT_EXCEEDED` no
-  resultado por resposta de `SaveAnswersResult`; testes em
-  `packages/contracts/test/activities.spec.ts` (`015/FR-001`, `015/FR-002`, `015/FR-003`).
-- [ ] T004 [P] Criar `packages/contracts/src/attempt-integrity/{enums,events,views}.ts`
+- [X] T003 Contratos em `packages/contracts/src/activities/{enums,student}.ts`:
+  `ExecutionModeSchema` = `NORMAL | CONTROLLED`; `AiHelpAllowanceSchema` = `0 | 3` e
+  `AI_HELP_ALLOWANCE = 3`; `TYPING_LIMIT_EXCEEDED` no resultado por resposta de
+  `SaveAnswersResult` (a resposta guardada e a revisão voltam inalteradas); testes em
+  `packages/contracts/test/activities.spec.ts` (`015/FR-001`, `015/FR-003`), com os testes 012 de
+  modo controlado reservado (`012/FR-003`, `012/SC-012`) reescritos para a 015 (prova continua
+  reservada). Os campos novos dos corpos e das visões (`executionMode`/`aiHelpAllowance` em
+  criar/editar, `aiHelp` nas visões, `aiHelpUsed` no roster) entram na T015, junto com o serviço e
+  as visões que os honram, para nenhum contrato publicado prometer o que a API ainda não faz.
+- [X] T004 [P] Criar `packages/contracts/src/attempt-integrity/{enums,events,views}.ts`
   (`IntegrityEventTypeSchema` com os 14 tipos, `IntegrityEventInputSchema` sem
   `TYPING_LIMIT_EXCEEDED`, `RecordEventsRequestSchema` 1–50, `RecordEventsResultSchema`,
   `IntegritySummarySchema`, `IntegrityTimelineSchema`, `StudentIntegritySchema`) e
@@ -153,7 +155,7 @@ e conferir o gravado e o exibido.
 ### Tests for User Story 1 ⚠️
 
 - [ ] T013 [P] [US1] `apps/api/test/integration/015-us1-settings.spec.ts`: `015/US1-1` … `015/US1-6`
-  (aplicar com as duas opções; padrão NORMAL/0; ajuda indisponível → 422 `AI_HELP_UNAVAILABLE`;
+  (aplicar com as duas opções; padrão NORMAL/0; ajuda indisponível → 503 `AI_HELP_UNAVAILABLE`;
   editar antes do início e auditar `activity.settings_changed`, depois → 409
   `ACTIVITY_ALREADY_STARTED`; Exercício com opções → 400; franquia ≠ 3 → 400),
   `015/FR-005`, `015/FR-006`; `GET /work-help/availability` com o agente ativo, desabilitado e sem
@@ -165,7 +167,13 @@ e conferir o gravado e o exibido.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] `ActivitiesService.create/update` (`apps/api/src/modules/activities/activities.service.ts`):
+- [ ] T015 [US1] Contratos: `executionMode` (padrão NORMAL) e `aiHelpAllowance` (padrão 0) em
+  `CreateAssignmentRequest` e `UpdateActivityRequest` (o Exercício, estrito, continua recusando
+  ambos: 400), `aiHelp: { allowance }` nas visões do professor e do aluno (`used` no detalhe do
+  aluno), `executionMode` no resumo do aluno e `aiHelpUsed` (null no Exercício) no roster, em
+  `packages/contracts/src/activities/{teacher,student}.ts`, com testes em
+  `packages/contracts/test/activities.spec.ts` (`015/FR-002`, `015/FR-006`) e as fixtures web
+  (`features/*/components/test-fixtures.ts`). `ActivitiesService.create/update` (`apps/api/src/modules/activities/activities.service.ts`):
   aceitar e gravar `executionMode`/`aiHelpAllowance`, consultar `HelpAvailability` para franquia 3,
   recusar troca com tentativa existente sob o lock da atividade, auditar
   `activity.settings_changed` (tipo novo: `audit-event-types.ts`, `contracts/audit-events.md`,

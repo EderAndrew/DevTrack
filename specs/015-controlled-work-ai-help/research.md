@@ -48,7 +48,7 @@ number (rejected: spec FR-003 fixes 3).
 **Decision**: `GET /work-help/availability` (permission `atividades.aplicar`) answers
 `{ available, reason }` from the agent status and the task route (the 010/011 availability
 pattern). `ActivitiesService.create/update` asks the registered `HelpAvailability` hook when the
-body asks for allowance 3 and refuses with `422 AI_HELP_UNAVAILABLE`. The hook is registered by
+body asks for allowance 3 and refuses with `503 AI_HELP_UNAVAILABLE` (one status per code in the error catalog). The hook is registered by
 `work-help`; without it (no module) the answer is "unavailable".
 
 **Rationale**: FR-004 refuses a setting nobody can serve; the check lives on the server.

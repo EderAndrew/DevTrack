@@ -18,8 +18,8 @@ Shapes live in `packages/contracts/src/activities/` (changed), `src/attempt-inte
 
 | Method & path | Permission | Body → Response | Errors |
 |---|---|---|---|
-| `POST /classes/:classId/activities` | `atividades.aplicar` | + `executionMode`, `aiHelpAllowance` | 012 errors + 422 `AI_HELP_UNAVAILABLE` |
-| `PATCH /classes/:classId/activities/:activityId` | `atividades.aplicar` | + `executionMode`, `aiHelpAllowance` | 012 errors + 409 `ACTIVITY_ALREADY_STARTED`, 422 `AI_HELP_UNAVAILABLE` |
+| `POST /classes/:classId/activities` | `atividades.aplicar` | + `executionMode`, `aiHelpAllowance` | 012 errors + 503 `AI_HELP_UNAVAILABLE` |
+| `PATCH /classes/:classId/activities/:activityId` | `atividades.aplicar` | + `executionMode`, `aiHelpAllowance` | 012 errors + 409 `ACTIVITY_ALREADY_STARTED`, 503 `AI_HELP_UNAVAILABLE` |
 | `GET /work-help/availability` | `atividades.aplicar` | → `{ available: boolean, reason: "AGENT_DISABLED" \| "MODEL_UNAVAILABLE" \| null }` | — |
 | `GET /classes/:classId/activities/:activityId/integrity` | `entregas.visualizar` | → `{ items: IntegritySummary[] }` (one per ACTIVE student with an attempt) | 404 |
 | `GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity` | `entregas.visualizar` | → `IntegrityTimeline` | 404 |

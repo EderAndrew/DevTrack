@@ -10,9 +10,19 @@ import { z } from "zod";
 export const ActivityTypeSchema = z.enum(["EXERCISE", "ASSIGNMENT"]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 
-/** How the activity runs. The exams spec adds `CONTROLLED` (012/FR-003). */
-export const ExecutionModeSchema = z.enum(["NORMAL"]);
+/**
+ * How the activity runs. `CONTROLLED` exists since 015 for works only (015/FR-001, FR-002): fullscreen
+ * when available, screen exits and blocked copy/paste recorded, never blocking the attempt.
+ */
+export const ExecutionModeSchema = z.enum(["NORMAL", "CONTROLLED"]);
 export type ExecutionMode = z.infer<typeof ExecutionModeSchema>;
+
+/** AI help per student in a whole work, fixed by the platform (015/FR-003, research F2). */
+export const AI_HELP_ALLOWANCE = 3;
+
+/** An activity's AI help: none, or the platform's fixed allowance (015 research F2). */
+export const AiHelpAllowanceSchema = z.union([z.literal(0), z.literal(AI_HELP_ALLOWANCE)]);
+export type AiHelpAllowance = z.infer<typeof AiHelpAllowanceSchema>;
 
 /** The stored lifecycle; "agendada"/"publicada" is the derived `PublicationPhase` (research P4). */
 export const ActivityStatusSchema = z.enum(["ACTIVE", "CLOSED", "CANCELLED"]);

@@ -81,6 +81,8 @@ describe("006 contratos de IA", () => {
           "AI_PROPOSAL_APPLY_REQUIRED",
           // 009: an override outside the task's policy (FR-024).
           "AI_OVERRIDE_NOT_ALLOWED",
+          // 015: the AI help of a work can't be applied or served now (research F3).
+          "AI_HELP_UNAVAILABLE",
         ].sort(),
       );
     });
