@@ -339,6 +339,16 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   suites described above; the journey applies exercises, concludes, retries, marks with a comment and reads both
   rankings, and `audit-coverage.spec.ts` checks the 013 metadata and that reading the ranking writes no event.
 
+## AI release-gate results (moved from the root CLAUDE.md)
+
+All three tasks are BASIC. `openai-basic` passed all three release gates and, being the cheapest, is
+the primary of each; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
+2026-10-01 (the first run with OpenRouter credit) and is their same-tier fallback, but failed
+`work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
+(2026-09-29 and 2026-10-01): called with tools its answers break the output schema (rubric,
+explanation, alternatives) and once it skipped the read tool, although the same request without
+tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
+
 ## Modules (moved from the root CLAUDE.md)
 
 - 003 modules (`apps/api/src/modules`): `classes` (`ClassContextPolicy` scopes every lookup to the

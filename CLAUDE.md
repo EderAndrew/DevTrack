@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Last updated: 2026-10-04 (014 implemented)
-
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
@@ -26,42 +24,23 @@ new feature through `/speckit-specify`.
   cheapest approved model of the task's tier).
 - 010 the teacher's private exercise bank, with "Criar com IA" through `exercise-generator`; the
   Curriculum Agent v3 also proposes the syllabus's programming language.
-- 011 the teacher's private work bank, apart from the exercise bank: works of 1–10 questions on
-  topics of one confirmed syllabus revision, the total grade split in exact hundredths, manual or
-  "Criar trabalho com IA" through `work-generator` into a DRAFT the teacher approves, "Ver como
-  aluno" without the answer key, and the grading strategies as domain rules for 012.
-- 012 the student portal and class activities: the teacher applies an approved work or 1–10
-  approved exercises to a class as a snapshot (deadline, scheduled publication, late policy,
-  taught-scope topics flagged), edits, closes, cancels, grades the pending questions and releases
-  the result, and accepts a saved attempt as a late submission; the student gets "Painel",
-  "Minhas atividades" and "Histórico", answers with autosave, revisions and an offline buffer,
-  submits once, and sees the grade and feedback only after the release with complete grading.
-- 013 exercise points and the class ranking (amends 012 for EXERCISE activities; works don't
-  change): an applied exercise set has no grade, deadline or late policy, each exercise is worth
-  15/30/60 points by its difficulty; the student practices in numbered attempts ("Concluir
-  exercícios", answer key and explanation after each conclusion, "Refazer"); only attempt 1 scores,
-  and a bank exercise scores once per student and class; the teacher marks open answer and code
-  right or wrong with a comment (no release); the class ranking (position, name, points) is derived
-  on read: top 5 on the student's dashboard, the full page for students and teachers.
-- 014 code syntax highlighting: the code of a Código question is colored wherever it appears — the
-  student's editor (`CodeEditor`, CodeMirror 6 loaded on demand, the 012 textarea until it arrives
-  or if it fails), read-only code (`CodeBlock`: Lezer parsers rendered as React spans; result,
-  teacher review, activity detail, bank reading, "Ver como aluno") and the bank forms ("Código
-  inicial", "Solução esperada", colored by the chosen language). The grammar is catalog data
-  (`programming_languages.highlight`, carried by every language object).
-  Exams, controlled mode, AI grading and code execution are later features.
+- 011 the teacher's private work bank, apart from the exercise bank (1–10 questions, grade split in
+  exact hundredths, manual or "Criar trabalho com IA" through `work-generator`).
+- 012 the student portal and class activities (a work or 1–10 exercises applied to a class as a
+  snapshot; autosave, one submission, grade only after release).
+- 013 exercise points (15/30/60 by difficulty, only attempt 1 scores) and the class ranking.
+- 014 code syntax highlighting (`CodeEditor` with CodeMirror 6 on demand, read-only `CodeBlock`).
+
+Exams, controlled mode, AI grading and code execution are later features. The rules of 012–014 that
+are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
-the admin enables them. All three tasks are BASIC. `openai-basic` passed all three release gates and,
-being the cheapest, is the primary of each; `anthropic-basic` passed `curriculum-extraction` and
-`exercise-generation` on 2026-10-01 (the first run with OpenRouter credit) and is their same-tier
-fallback, but failed `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic`
-failed all three (2026-09-29 and 2026-10-01): called with tools its answers break the output schema
-(rubric, explanation, alternatives) and once it skipped the read tool, although the same request
-without tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
+the admin enables them. All three tasks are BASIC; each task's primary and fallback come from the 009
+catalog, backed by the release-gate evidence in `apps/api/test/fixtures/evaluations/` (current
+results per model: `apps/api/CLAUDE.md`).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
-`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions R1–R23 in 001, S1–S19 in 002, D1–D16 in 003, E1–E23 in 004, V1–V20 in 005, A1–A22 in 006, C1–C20 in 007, G1–G20 in 008, H1–H16 in 009, X1–X20 in 010, W1–W22 in 011, P1–P24 in 012, K1–K18 in 013, L1–L14 in 014), `data-model.md`,
+`spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions with a per-feature letter prefix, e.g. R1 in 001, L1 in 014), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
 spec first.
@@ -71,6 +50,9 @@ spec first.
 `SPEC → PLAN → TASKS → IMPLEMENTATION → TESTS → REVIEW`, driven by the `/speckit-*` skills in
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
+When a new feature starts implementation, add it to `SPECS` in `apps/api/test/traceability.spec.ts`
+(otherwise its scenario ids are never checked); `/speckit-specify` already points
+`.specify/feature.json` at it.
 
 `.specify/memory/constitution.md` (v3.3.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
@@ -100,7 +82,8 @@ still boots; the AI actions just show as unavailable and the manual flows keep w
 
 ```bash
 docker compose up -d postgres postgres-test mailpit     # dev DB :5432, test DB :5433 (tmpfs), Mailpit SMTP :1025 / UI :8025
-                                                        # ports overridable: POSTGRES_PORT, POSTGRES_TEST_PORT, MAILPIT_*_PORT
+                                                        # ports overridable when taken on the host (e.g. POSTGRES_PORT=5434):
+                                                        # POSTGRES_PORT, POSTGRES_TEST_PORT, MAILPIT_*_PORT
 pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # turbo across workspaces
 pnpm format                                             # prettier on ts/tsx/md
 
