@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { type Answer, EXERCISE_POINTS, type ExerciseDifficulty } from "@repo/contracts";
 import type {
+  ActivityExecutionMode,
   ActivityLatePolicy,
   ActivityQuestionType,
   ClassActivity,
@@ -207,6 +208,10 @@ export interface CreateActivityOptions {
   sourceSubjectId?: string;
   resultReleasedAt?: Date | null;
   outOfScopeTopicCount?: number;
+  /** ASSIGNMENT only (CHECK, 015 F2); default NORMAL. */
+  executionMode?: ActivityExecutionMode;
+  /** 0 or 3, ASSIGNMENT only (CHECK, 015 F2); default 0. */
+  aiHelpAllowance?: 0 | 3;
 }
 
 export interface CreatedActivity {
@@ -274,6 +279,8 @@ export async function createActivity(
         sourceWorkId,
         sourceSubjectId,
         outOfScopeTopicCount: options.outOfScopeTopicCount ?? 0,
+        executionMode: options.executionMode ?? "NORMAL",
+        aiHelpAllowance: options.aiHelpAllowance ?? 0,
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt

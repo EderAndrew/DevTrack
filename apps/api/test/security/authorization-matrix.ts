@@ -112,6 +112,9 @@ export const EXERCISE_POINTS_TEACHER = ["exercicios.corrigir", "ranking.visualiz
 /** 013: the student sees the ranking of their classes. */
 export const EXERCISE_POINTS_STUDENT = ["ranking.turma.visualizar"] as const satisfies PermissionKey[];
 
+/** 015: the student asks for and reads the AI help of a work. */
+export const WORK_HELP_STUDENT = ["ia.ajuda.pedir"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -125,7 +128,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
   TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER],
-  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */

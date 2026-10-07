@@ -98,9 +98,10 @@ export const AUDIT_EVENT_METADATA = {
   "ai_tool.called": ["toolKey", "sequence", "durationMs"],
   "ai_tool.failed": ["toolKey", "sequence", "status", "errorCode"],
   "ai_proposal.created": ["executionId", "agentKey", "proposalType", "itemCount"],
-  "ai_proposal.approved": ["itemCount"],
+  // 015 research F9: `settledBy: "DOMAIN_RULE"` when the agent's domain settled it (actor SYSTEM).
+  "ai_proposal.approved": ["itemCount", "settledBy"],
   "ai_proposal.partially_approved": ["itemCount", "acceptedCount"],
-  "ai_proposal.rejected": ["itemCount"],
+  "ai_proposal.rejected": ["itemCount", "settledBy"],
   "ai_proposal.expired": [],
   "ai_agent.enabled": ["agentKey", "version"],
   "ai_agent.disabled": ["agentKey", "version", "cancelledExecutions"],

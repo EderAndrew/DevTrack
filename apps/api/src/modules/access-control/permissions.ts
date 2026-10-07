@@ -71,6 +71,8 @@ export const PERMISSIONS = [
   "exercicios.corrigir",
   "ranking.visualizar",
   "ranking.turma.visualizar",
+  // 015 — the AI help of a work (specs/015-controlled-work-ai-help/contracts/permissions.md).
+  "ia.ajuda.pedir",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

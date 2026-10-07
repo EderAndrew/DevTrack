@@ -90,19 +90,19 @@ constituição v3.4.0 (aplicada)
 **Purpose**: migração, permissão, fundação de IA, hooks e guardas. ⚠️ Nenhuma história começa
 antes desta fase.
 
-- [ ] T005 Teste primeiro: `apps/api/test/integration/015-schema.spec.ts` com as regras do banco de
+- [X] T005 Teste primeiro: `apps/api/test/integration/015-schema.spec.ts` com as regras do banco de
   `data-model.md` — CHECKs de modo e de franquia por tipo; troca de modo/franquia permitida sem
   tentativa e recusada com tentativa (trigger); eventos só em tentativa IN_PROGRESS de atividade
   CONTROLLED, sem UPDATE/DELETE, `UNIQUE (attempt_id, client_event_id)`, `client_occurred_at` sse
   `buffered`; ajuda: um REQUESTED por tentativa (UNIQUE parcial), status terminal imutável,
   campos por status (CHECK), no máximo 3 DELIVERED por tentativa (trigger diferido), franquia 3
   exigida, tamanhos.
-- [ ] T006 Migração `apps/api/prisma/migrations/<ts>_controlled_work_ai_help/migration.sql` e
+- [X] T006 Migração `apps/api/prisma/migrations/<ts>_controlled_work_ai_help/migration.sql` e
   `apps/api/prisma/schema.prisma`: valor `CONTROLLED`, `ai_help_allowance`, enums
   `attempt_integrity_event_type` e `work_help_status`, tabelas `attempt_integrity_events` e
   `work_help_requests` com FKs compostas, índices, CHECKs e triggers (substituindo a regra de
   imutabilidade do modo da 012); seed da permissão `ia.ajuda.pedir` para STUDENT; T005 verde.
-- [ ] T007 [P] Fundação de IA (research F9): `proposal.settle?: "ON_MATERIALIZE"` em
+- [X] T007 [P] Fundação de IA (research F9): `proposal.settle?: "ON_MATERIALIZE"` em
   `apps/api/src/modules/ai/definitions/types.ts`, `materialize` podendo devolver
   `"APPROVE" | "REJECT"`; o runner (`execution/ai-execution.runner.ts`) grava a decisão na proposta
   na mesma transação, ator SYSTEM, auditada com `settledBy: "DOMAIN_RULE"` (atualizar
@@ -110,22 +110,22 @@ antes desta fase.
   metadados); testes com um agente de referência novo em `apps/api/test/fixtures/ai/` e em
   `apps/api/test/integration/015-ai-settle.spec.ts` (APPROVE, REJECT, throw desfaz tudo, agentes
   sem `settle` inalterados).
-- [ ] T008 [P] Limite por agente (research F12): `hourlyLimit?: (config) => number` em
+- [X] T008 [P] Limite por agente (research F12): `hourlyLimit?: (config) => number` em
   `AgentDefinition`, lido por `AiExecutionsService.request`
   (`apps/api/src/modules/ai/execution/ai-executions.service.ts`) no lugar de
   `rateLimit.aiAgentPerHour` quando presente; teste em
   `apps/api/test/integration/015-ai-settle.spec.ts` (agente com limite próprio passa de 100;
   os demais continuam no global).
-- [ ] T009 Hooks (research F1): `apps/api/src/modules/activities/help-availability.ts`
+- [X] T009 Hooks (research F1): `apps/api/src/modules/activities/help-availability.ts`
   (`HelpAvailability`: `register(fn)`, `check(): { available, reason }`, "indisponível" sem
   registro) e `apps/api/src/modules/student-activities/answer-save-guard.ts`
   (`AnswerSaveGuard`: `register(fn)`, `check(tx, attempt, answers, now)` que devolve por resposta
   `OK | TYPING_LIMIT_EXCEEDED`; sem registro, tudo OK), exportados pelos módulos; testes
   unitários ao lado.
-- [ ] T010 [P] Esqueletos `apps/api/src/modules/attempt-integrity/attempt-integrity.module.ts` e
+- [X] T010 [P] Esqueletos `apps/api/src/modules/attempt-integrity/attempt-integrity.module.ts` e
   `apps/api/src/modules/work-help/work-help.module.ts` registrados no `AppModule`;
   `productionAiDefinitions` passa a incluir `workHelpDefinitions()` (vazio até a US3).
-- [ ] T011 [P] Guardas: `SPECS` += 015 em `apps/api/test/traceability.spec.ts`; modelos
+- [X] T011 [P] Guardas: `SPECS` += 015 em `apps/api/test/traceability.spec.ts`; modelos
   `AttemptIntegrityEvent` e `WorkHelpRequest` na lista de `domain-boundary.spec.ts` lida de
   `specs/015-controlled-work-ai-help/data-model.md`; `apps/api/test/activities-boundary.spec.ts`
   emendado (research F18: `CONTROLLED` permitido nos enums e nas configurações de `activities`;
@@ -135,7 +135,7 @@ antes desta fase.
   `isCorrect`, `expectedAnswer`, `expectedSolution`, `explanation`, `rubric` nem casos privados;
   sem escolha de modelo; sem `parseFloat`/`Number(`) — títulos com `015/FR-030` (nada de prova,
   cronômetro, entrega automática ou bloqueio por eventos).
-- [ ] T012 [P] Helpers de teste `apps/api/test/helpers/integrity.ts` (`recordEvents`,
+- [X] T012 [P] Helpers de teste `apps/api/test/helpers/integrity.ts` (`recordEvents`,
   `getIntegritySummary`, `getTimeline`, `getOwnIntegrity`) e `apps/api/test/helpers/work-help.ts`
   (`createWorkHelpApp()` com o `work-helper` ACTIVE e um modelo do catálogo aprovado no fake,
   `requestHelp`, `getHelp`, `scriptHelp(provider, requestId, output)`, `validGuidance()`);

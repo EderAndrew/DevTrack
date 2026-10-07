@@ -67,6 +67,13 @@ Index `(attempt_id, requested_at)`.
 
 Derived: `used` = count of `DELIVERED` in the attempt; `pending` = a `REQUESTED` row exists.
 
+## Changed: `ai_proposals` (006, research F9)
+
+`ai_proposals_decided_by_chk` is relaxed: a proposal settled by its domain's rule
+(`proposal.settle: "ON_MATERIALIZE"`) is APPROVED or REJECTED with `decided_by_user_id` NULL (actor
+SYSTEM, `settledBy: "DOMAIN_RULE"` in the audit), so the 006 view shows no human decision. A
+PARTIALLY_APPROVED proposal still needs its decider; READY_FOR_REVIEW and EXPIRED never have one.
+
 ## State transitions
 
 ```text

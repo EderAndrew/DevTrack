@@ -31,6 +31,12 @@ interface FeatureSpec {
   rowsWithoutIds: number[];
   /** Success criteria that must appear in test titles. */
   successCriteria: string[];
+  /**
+   * A feature in implementation joins `SPECS` at its first phase (root CLAUDE.md): the scenarios of
+   * these stories and these success criteria wait for their story. A pending id that a test already
+   * covers fails, so the lists only shrink and are empty when the feature ends.
+   */
+  pending?: { stories: number[]; successCriteria: string[] };
 }
 
 const sc = (from: number, to: number) =>
@@ -172,6 +178,17 @@ const SPECS: FeatureSpec[] = [
     // SC-001, SC-002, SC-004 and SC-006 are measured in the E2E (code-highlighting.spec.ts).
     successCriteria: sc(1, 7),
   },
+  {
+    feature: "015",
+    path: "specs/015-controlled-work-ai-help/spec.md",
+    stories: 5,
+    scenarios: 39,
+    // No "### Acceptance Criteria Traceability" table, as in 008–014.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 11),
+    pending: { stories: [1, 2, 3, 4, 5], successCriteria: sc(1, 11) },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
@@ -299,8 +316,20 @@ describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério
       expect(rows.filter((row) => row.ids.length === 0).map((row) => row.number)).toEqual(spec.rowsWithoutIds);
     });
 
+    const pendingStories = new Set((spec.pending?.stories ?? []).map((story) => `US${story}`));
+    const scenarios = acceptanceScenarios(text);
+    const pendingScenarios = scenarios.filter((id) => pendingStories.has(id.split("-")[0]!)).map(key);
+    const pendingCriteria = (spec.pending?.successCriteria ?? []).map(key);
+
     it("todo cenário de aceite USn-k tem teste", () => {
-      expect(missing(acceptanceScenarios(text).map(key))).toEqual([]);
+      expect(missing(scenarios.map(key)).filter((id) => !pendingScenarios.includes(id))).toEqual([]);
+    });
+
+    it("histórias e critérios pendentes saem da lista quando todos os seus ids têm teste", () => {
+      const of = (story: string) => pendingScenarios.filter((id) => id.split("/").at(-1)!.startsWith(`${story}-`));
+      const done = [...pendingStories].filter((story) => missing(of(story)).length === 0);
+      expect(done, "histórias pendentes já cobertas").toEqual([]);
+      expect(pendingCriteria.filter((id) => covered.has(id)), "critérios pendentes já cobertos").toEqual([]);
     });
 
     it.each(rows.filter((row) => row.ids.length > 0).map((row) => [row.number, row] as const))(
@@ -314,7 +343,7 @@ describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério
     );
 
     it("os critérios de sucesso verificáveis aparecem em títulos de teste", () => {
-      expect(missing(spec.successCriteria.map(key))).toEqual([]);
+      expect(missing(spec.successCriteria.map(key)).filter((id) => !pendingCriteria.includes(id))).toEqual([]);
     });
   });
 

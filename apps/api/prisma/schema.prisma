@@ -1239,6 +1239,7 @@ model AiExecution {
   proposal                AiProposal?
   exerciseGenerationBatch ExerciseGenerationBatch?
   workGenerationRequest   WorkGenerationRequest?
+  workHelpRequest         WorkHelpRequest?
 
   @@unique([requestedByUserId, idempotencyKey])
   @@index([workspaceId, createdAt(sort: Desc), id])
@@ -1924,9 +1925,10 @@ enum ClassActivityType {
   @@map("class_activity_type")
 }
 
-/// `CONTROLLED` arrives with the exams spec (research P3).
+/// `CONTROLLED` only for ASSIGNMENT (CHECK, 015 F2): fullscreen focus page, events recorded.
 enum ActivityExecutionMode {
   NORMAL
+  CONTROLLED
 
   @@map("activity_execution_mode")
 }
@@ -1981,10 +1983,13 @@ enum ActivityGradingNature {
 model ClassActivity {
   id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   classId              String                @map("class_id") @db.Uuid
-  /// The class's teacher when applied; the class, type, mode, grade and source never change (trigger).
+  /// The class's teacher when applied; the class, type, grade and source never change (trigger).
   teacherId            String                @map("teacher_id") @db.Uuid
   type                 ClassActivityType
+  /// NORMAL unless ASSIGNMENT (CHECK); changes only before the first attempt (trigger, 015 F2).
   executionMode        ActivityExecutionMode @default(NORMAL) @map("execution_mode")
+  /// AI helps per student: 0 or 3 (CHECK), 0 unless ASSIGNMENT; changes only before the first attempt (trigger).
+  aiHelpAllowance      Int                   @default(0) @map("ai_help_allowance") @db.SmallInt
   status               ClassActivityStatus   @default(ACTIVE)
   /// 1–200 characters (CHECK).
   title                String
@@ -2066,6 +2071,8 @@ model ClassActivityQuestion {
   answers         ActivityAnswer[]
   gradings        ActivityQuestionGrading[]
   exerciseResults ExerciseQuestionResult[]
+  integrityEvents AttemptIntegrityEvent[]
+  helpRequests    WorkHelpRequest[]
 
   @@unique([activityId, position])
   /// Targets of the answers', gradings' and results' composite FKs (research P8, 013 K6).
@@ -2141,9 +2148,11 @@ model ActivityAttempt {
 
   activity   ClassActivity            @relation(fields: [activityId], references: [id], onDelete: Restrict)
   student    StudentProfile           @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
-  answers    ActivityAnswer[]
-  submission ActivitySubmission?
-  results    ExerciseQuestionResult[]
+  answers         ActivityAnswer[]
+  submission      ActivitySubmission?
+  results         ExerciseQuestionResult[]
+  integrityEvents AttemptIntegrityEvent[]
+  helpRequests    WorkHelpRequest[]
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2288,4 +2297,95 @@ model ExerciseQuestionResult {
   @@id([attemptId, questionId])
   @@index([activityId])
   @@map("exercise_question_results")
+}
+
+/// 015 research F4: what the controlled mode records. TYPING_LIMIT_EXCEEDED is the server's own (F7).
+enum AttemptIntegrityEventType {
+  SCREEN_LEFT
+  SCREEN_RETURNED
+  FULLSCREEN_EXITED
+  FULLSCREEN_ENTERED
+  PAGE_LEAVE_ATTEMPTED
+  CONNECTION_LOST
+  CONNECTION_RESTORED
+  PASTE_BLOCKED
+  COPY_BLOCKED
+  CUT_BLOCKED
+  DROP_BLOCKED
+  TYPING_LIMIT_EXCEEDED
+  FULLSCREEN_UNAVAILABLE
+  DETECTION_UNAVAILABLE
+
+  @@map("attempt_integrity_event_type")
+}
+
+/// 015 research F11: REQUESTED → one terminal status, then immutable (trigger).
+enum WorkHelpStatus {
+  REQUESTED
+  DELIVERED
+  OUT_OF_SCOPE
+  BLOCKED
+  FAILED
+
+  @@map("work_help_status")
+}
+
+/// A fact of a CONTROLLED attempt (015 F4), append-only (trigger): written only while the attempt is
+/// IN_PROGRESS, never changed or deleted. Exits and durations are derived on read, never stored.
+model AttemptIntegrityEvent {
+  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId        String                    @map("attempt_id") @db.Uuid
+  activityId       String                    @map("activity_id") @db.Uuid
+  studentUserId    String                    @map("student_user_id") @db.Uuid
+  /// The client's id (or the server's, for its own events); a resend is a no-op (UNIQUE).
+  clientEventId    String                    @map("client_event_id") @db.Uuid
+  type             AttemptIntegrityEventType
+  /// Only clipboard and typing events (CHECK); required for TYPING_LIMIT_EXCEEDED.
+  questionId       String?                   @map("question_id") @db.Uuid
+  /// Server clock.
+  recordedAt       DateTime                  @map("recorded_at") @db.Timestamptz(6)
+  /// The browser's time, set iff `buffered` (CHECK).
+  clientOccurredAt DateTime?                 @map("client_occurred_at") @db.Timestamptz(6)
+  buffered         Boolean                   @default(false)
+
+  attempt  ActivityAttempt        @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  question ClassActivityQuestion? @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+
+  @@unique([attemptId, clientEventId])
+  @@index([attemptId, recordedAt])
+  @@index([activityId])
+  @@map("attempt_integrity_events")
+}
+
+/// A student's request for AI help on one question of a work (015 F11). One REQUESTED per attempt
+/// (partial UNIQUE), at most 3 DELIVERED per attempt and only on an activity whose allowance is 3
+/// (deferred trigger); the text fields follow the status (CHECK) and a terminal status is final (trigger).
+model WorkHelpRequest {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId      String         @map("attempt_id") @db.Uuid
+  activityId     String         @map("activity_id") @db.Uuid
+  studentUserId  String         @map("student_user_id") @db.Uuid
+  questionId     String         @map("question_id") @db.Uuid
+  idempotencyKey String         @map("idempotency_key") @db.Uuid
+  /// The student's question, 1–500 characters (CHECK).
+  question       String
+  status         WorkHelpStatus @default(REQUESTED)
+  aiExecutionId  String?        @unique @map("ai_execution_id") @db.Uuid
+  /// ≤ 2 000, iff DELIVERED or OUT_OF_SCOPE (CHECK).
+  message        String?
+  /// ≤ 1 500, only DELIVERED (CHECK).
+  exampleCode    String?        @map("example_code")
+  /// BLOCKED: the leak-check code; FAILED: the execution's error code; null otherwise (CHECK).
+  reasonCode     String?        @map("reason_code")
+  requestedAt    DateTime       @map("requested_at") @db.Timestamptz(6)
+  /// Set iff not REQUESTED (CHECK).
+  resolvedAt     DateTime?      @map("resolved_at") @db.Timestamptz(6)
+
+  attempt     ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  questionRef ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+  aiExecution AiExecution?          @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, idempotencyKey])
+  @@index([attemptId, requestedAt])
+  @@map("work_help_requests")
 }

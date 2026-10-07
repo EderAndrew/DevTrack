@@ -59,10 +59,11 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
         email,
         emailVerified: false,
         roles: [{ key: "STUDENT", status: "ACTIVE" }],
-        // 012: the student's activity and grade permissions (contracts/permissions.md).
+        // 012: the student's activity and grade permissions (contracts/permissions.md); 015 the AI help.
         permissions: [
           "atividades.proprias.responder",
           "atividades.proprias.visualizar",
+          "ia.ajuda.pedir",
           "notas.proprias.visualizar",
           "ranking.turma.visualizar",
           "sessoes.proprias.listar",

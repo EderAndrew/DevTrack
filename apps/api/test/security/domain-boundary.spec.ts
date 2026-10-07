@@ -84,6 +84,9 @@ const EXPECTED_MODELS = [
   "ActivityQuestionGrading",
   // 013 — the result of each exercise of a concluded practice attempt (points and the ranking).
   "ExerciseQuestionResult",
+  // 015 (specs/015-controlled-work-ai-help/data-model.md) — the facts of a controlled attempt and the AI help requests.
+  "AttemptIntegrityEvent",
+  "WorkHelpRequest",
 ];
 
 /**
@@ -112,6 +115,8 @@ const ACADEMIC_PREFIXES = [
 ];
 /** Matched only as whole words, so `classification` does not count. */
 const ACADEMIC_WORDS = ["classe"];
+/** Words a prefix catches that are not academic (015: the code `example` of an AI help is not an `exam`). */
+const NOT_ACADEMIC = ["example", "examples"];
 
 const stripAccents = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
@@ -126,7 +131,7 @@ function words(identifier: string): string[] {
 
 function academicTerms(identifier: string): string[] {
   return words(identifier).filter(
-    (word) => ACADEMIC_WORDS.includes(word) || ACADEMIC_PREFIXES.some((prefix) => word.startsWith(prefix)),
+    (word) => ACADEMIC_WORDS.includes(word) || (!NOT_ACADEMIC.includes(word) && ACADEMIC_PREFIXES.some((prefix) => word.startsWith(prefix))),
   );
 }
 
@@ -184,6 +189,7 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
     }
     for (const name of [
       "classification",
+      "example_code",
       "provisioning",
       "RateLimitCounter",
       "notificationSentAt",
