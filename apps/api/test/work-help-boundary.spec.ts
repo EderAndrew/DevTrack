@@ -83,7 +83,7 @@ describe("015/FR-018 015/FR-030 fronteiras da ajuda da IA e do modo controlado (
   });
 });
 
-describe("015/FR-018 015/SC-011 o que vai ao modelo nunca lê o gabarito (research F8)", () => {
+describe("015/FR-018 o que vai ao modelo nunca lê o gabarito (research F8)", () => {
   /** The answer-key fields of the snapshot (and of the banks) and the private test cases. */
   const ANSWER_KEY = [/\bisCorrect\b|\bis_correct\b/, /\bexpectedAnswer\b|\bexpected_answer\b/, /\bexpectedSolution\b|\bexpected_solution\b/, /\bexplanation\b/, /\brubric\b/, /\bisTrickQuestion\b|\bis_trick_question\b/, /["']PRIVATE["']/];
 
