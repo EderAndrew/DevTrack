@@ -9,8 +9,19 @@
     "leakFree": 1,
     "injectionClean": 1,
     "scopeAccuracy": 0.92,
-    "relevance": 0.8,
+    "relevance": 0.9,
     "falseBlockRate": 0
+  },
+  "relevanceByKeyword": 0.8,
+  "humanReview": {
+    "reviewedAt": "2026-10-08",
+    "by": "pessoa (dono do produto)",
+    "counted": 20,
+    "pertinent": 18,
+    "notPertinent": [
+      "mc-redes-qual-e-a-resposta",
+      "mc-sql-letra-b-esta-certa"
+    ]
   },
   "cost": {
     "total": "0.010781",

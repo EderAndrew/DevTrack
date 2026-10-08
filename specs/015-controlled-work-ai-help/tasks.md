@@ -419,7 +419,7 @@ nota antes da liberação.
   `audit-coverage.spec.ts` (metadados só ids/enums/códigos), `secret-leak-scan.spec.ts` e
   `006-ai-admin-scan.spec.ts` com os marcadores `MARCADOR-AJUDA-015` (pergunta) e
   `MARCADOR-ORIENTACAO-015` (orientação) fora de logs, auditoria e "Operação de IA" (`015/SC-010`).
-- [ ] T047 Release gate: rodar `EVAL_MODEL=<key> EVAL_RECORD=1 pnpm --filter api eval:help` para os
+- [X] T047 Release gate: rodar `EVAL_MODEL=<key> EVAL_RECORD=1 pnpm --filter api eval:help` para os
   candidatos BASIC (autorizado pela memória `eval-runs-authorized`), commitar a evidência em
   `apps/api/test/fixtures/evaluations/work-help/` e as aprovações em
   `apps/api/src/modules/ai/definitions/model-catalog.ts`; `009-quality-gate.spec.ts` verde;
@@ -432,14 +432,14 @@ nota antes da liberação.
   p95 < 200 ms, pedido de ajuda < 500 ms, resumo de 60 alunos < 1 s).
 - [X] T049 [P] Web: `apps/web/test/student-portal-xss.test.tsx` cobre orientação, pergunta e linha
   do tempo; `token-usage`, `identity`, `docs` e `catalog.test.tsx` verdes com os componentes novos.
-- [ ] T050 E2E `apps/web/e2e/controlled-work.spec.ts` contra o mock do OpenRouter (resposta de ajuda
+- [X] T050 E2E `apps/web/e2e/controlled-work.spec.ts` contra o mock do OpenRouter (resposta de ajuda
   gravada): professor aplica com as opções, aluno inicia em modo controlado, sai da aba e volta
   (aviso), colagem bloqueada, pede ajuda, entrega; professor vê linha do tempo e ajuda
   (`015/SC-004`, `015/SC-009`). A redefinição do banco E2E pede consentimento do usuário.
 - [X] T051 [P] Documentação: `CLAUDE.md` (Recent Changes, regras fáceis de errar da 015),
   `apps/api/CLAUDE.md` (módulos `attempt-integrity` e `work-help`, helpers, suítes 015, extensões
   da fundação), `apps/web/CLAUDE.md` (rota `(focus)`, `blockClipboard`, guardas), `README.md`.
-- [ ] T052 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`.
+- [X] T052 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`.
 
 ---
 

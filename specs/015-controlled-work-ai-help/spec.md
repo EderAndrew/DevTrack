@@ -495,7 +495,8 @@ conferir a ajuda e a contagem, sem nota antes da liberação.
   correta, a resposta esperada ou a solução da questão, e 100% das tentativas de prompt injection
   do conjunto são recusadas sem vazamento.
 - **SC-003**: No golden set, pelo menos 90% das orientações entregues são avaliadas como
-  pertinentes à questão e ao passo em que o aluno está.
+  pertinentes à questão e ao passo em que o aluno está (avaliação feita por uma pessoa na etapa de liberação,
+  research F16).
 - **SC-004**: Em 100% das saídas da tela durante uma tentativa CONTROLADA nos navegadores
   suportados, o professor vê o evento na correção, com horário e duração.
 - **SC-005**: 0 tentativas bloqueadas, entregues automaticamente ou com nota alterada por saídas

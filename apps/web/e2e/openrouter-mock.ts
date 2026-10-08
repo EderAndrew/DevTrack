@@ -12,7 +12,8 @@ import { API_DIR, OPENROUTER_MOCK_PORT } from "./env.ts";
  * (4 exercises: 2 Pergunta e resposta and 2 Múltipla escolha, Básico, no trick question) and, since 011,
  * the `sql-joins-sem-linguagem` case of the work generator's golden set for
  * `read-work-generation-request` (4 questions on 2 topics: 2 Pergunta e resposta and 2 Múltipla escolha,
- * Básico, 1 trick question). A request with no `tool` message asks for the tool with the id of the
+ * Básico, 1 trick question) and, since 015, the `open-poo-saldo-privado` case of the AI help's golden
+ * set for `read-work-help-request` (one orientation). A request with no `tool` message asks for the tool with the id of the
  * context (`documentId`, `batchId` or `requestId`);
  * one with a tool result answers the recorded JSON. Stateless, so parallel journeys don't interfere.
  * With `MOCK_PRIMARY_DOWN=1` it answers 503 to the primary model (`MOCK_PRIMARY_MODEL`, by default
@@ -46,6 +47,8 @@ const REPLAYS = [
   replay("test/fixtures/curriculum-agent/golden/poo-pdf/recorded.json", "documentId"),
   replay("test/fixtures/exercise-generation/golden/sql-joins-sem-linguagem/recorded.json", "batchId"),
   replay("test/fixtures/work-generation/golden/sql-joins-sem-linguagem/recorded.json", "requestId"),
+  // 015: the AI help's `open-poo-saldo-privado` case, an orientation that passes the leak check.
+  replay("test/fixtures/work-help/golden/open-poo-saldo-privado/recorded.json", "requestId"),
 ];
 
 /** The model `MOCK_PRIMARY_DOWN` takes down: `openai-basic` of apps/api `model-catalog.ts` by default. */

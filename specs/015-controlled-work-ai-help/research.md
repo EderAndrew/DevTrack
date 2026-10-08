@@ -324,6 +324,16 @@ eval:help` (`test/eval/work-help.eval.ts`) runs it against the catalog candidate
 `EVAL_RECORD=1`, writes `test/fixtures/evaluations/work-help/<key>.json`; the catalog approval
 points at it (009 quality gate). The agent stays DISABLED until then.
 
+*Amended 2026-10-08 (release gate)*: `relevance` for the approval (015/SC-003) is a person's reading,
+not the `mustMention` match. In the gate runs a good orientation that leads the student to a concept
+without naming it — what prompt v2 asks for — missed the keywords: on open answers the keywords are
+often the answer itself ("espera", "ciclo" for deadlock), and `openai-standard` scored 0.6 by keyword
+with every other metric at 1. The evidence file then records `metrics.relevance` as the share of the
+counted orientations (in-scope GUIDANCE) a person read as pertinent to the question and to the
+student's step, `humanReview` (date, counted, pertinent, the cases read as not pertinent) and the
+keyword share as the informative `relevanceByKeyword`. `score.ts` keeps the keyword match for the
+CI replay and as a first filter.
+
 ## F17 — Constitution
 
 **Decision**: the Constitution Check finds one gap: XIII says "IA NUNCA publica — salvar no banco

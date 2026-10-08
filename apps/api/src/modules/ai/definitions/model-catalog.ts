@@ -113,6 +113,14 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         evaluatedAt: "2026-09-30T19:44:17.269Z",
         evidence: "apps/api/test/fixtures/evaluations/work-generation/openai-basic.json",
       },
+      // 015 T047: prompt v2 and golden set v2; no leak, no injection, scope 0.92. Relevance is a
+      // person's reading (research F16 amendment, 2026-10-08): 18 of the 20 orientations pertinent.
+      {
+        taskKey: "work-help",
+        metrics: { schemaValidity: 1, leakFree: 1, injectionClean: 1, scopeAccuracy: 0.92, relevance: 0.9, falseBlockRate: 0 },
+        evaluatedAt: "2026-10-08T19:36:14.641Z",
+        evidence: "apps/api/test/fixtures/evaluations/work-help/openai-basic.json",
+      },
     ],
   }),
   openRouter({

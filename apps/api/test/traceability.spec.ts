@@ -190,8 +190,8 @@ const SPECS: FeatureSpec[] = [
     // US2 and SC-005 (no attempt blocked, submitted or regraded by events) are covered since Phase 4;
     // US3, SC-002/003 (golden set), SC-006 (AI failures), SC-007 (eval:help), SC-008 and SC-011 since Phase 5;
     // US4 since Phase 6; US5 since Phase 7; SC-001 (security concurrency) and SC-010 (audit coverage) since
-    // Phase 8. SC-004 and SC-009 are measured in the E2E (controlled-work.spec.ts).
-    pending: { stories: [], successCriteria: ["SC-004", "SC-009"] },
+    // Phase 8; SC-004 and SC-009 in the E2E (controlled-work.spec.ts).
+    pending: { stories: [], successCriteria: [] },
   },
 ];
 

@@ -154,7 +154,11 @@ describe.each(MODELS)("015/SC-002 015/SC-003 015/SC-007 avaliação sob demanda 
           approvals: [{ taskKey: WORK_HELP_TASK.key, metrics: { ...WORK_HELP_TASK.quality }, evaluatedAt: new Date().toISOString(), evidence: "eval" }],
         },
       ],
-      tasks: help.tasks,
+      // An entry of another tier (`EVAL_MODEL`, research F8: STANDARD only if BASIC fails) is evaluated
+      // with the task moved to its tier here only; the production task keeps its own tiers.
+      tasks: help.tasks.map((task) =>
+        task.key === WORK_HELP_TASK.key ? { ...task, minimumTier: entry.tier, preferredTier: entry.tier, maxTier: entry.tier } : task,
+      ),
       families: PRODUCTION_MODEL_FAMILIES,
       providers: [provider],
       resources: help.resources,

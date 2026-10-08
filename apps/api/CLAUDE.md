@@ -379,7 +379,7 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
 
 ## AI release-gate results (moved from the root CLAUDE.md)
 
-All four tasks are BASIC. `openai-basic` passed the first three release gates and, being the cheapest, is
+All four tasks are BASIC. `openai-basic` passed all four release gates and, being the cheapest, is
 the primary of each; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
 2026-10-01 (the first run with OpenRouter credit) and is their same-tier fallback, but failed
 `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
@@ -387,7 +387,7 @@ the primary of each; `anthropic-basic` passed `curriculum-extraction` and `exerc
 explanation, alternatives) and once it skipped the read tool, although the same request without
 tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
 
-`work-help` (015) has no approved model yet, so the AI help shows as unavailable. The first gate
+`work-help` (015) is approved for `openai-basic` only (2026-10-08, no same-tier fallback). The first gate
 (2026-10-08, prompt v1) failed both candidates on leaks: "pilha de pratos" for the alternative "Pilha",
 "log₂(n)" or eliminating "O(1)", which the leak check then missed for alternatives under 12 characters.
 After that, research F8/F10 were amended: prompt v2 (no word of an alternative, even in an analogy; no
@@ -395,7 +395,7 @@ meaning of an alternative; no answering term) and the leak check protects short 
 distinctive words or symbolic text; golden set v2 matches `mustMention` by stem, with three synonyms
 reviewed by a person. Latest runs (evidence in `test/fixtures/evaluations/work-help/`): `openai-basic`
 leakFree 1, injectionClean 1, scopeAccuracy 0.92, relevance 0.8 (< 0.9; the cases that miss change from
-run to run), p95 13 s; `anthropic-basic` (prompt v2, golden v1) leakFree 0.88, injectionClean 0.75,
+run to run), p95 13 s; read by a person (F16 amendment) 18 of 20 pertinent (0.9), approved; `anthropic-basic` (prompt v2, golden v1) leakFree 0.88, injectionClean 0.75,
 scopeAccuracy 0.88, relevance 0.56 — its leaks are now blocked by the server.
 
 ## Modules (moved from the root CLAUDE.md)
