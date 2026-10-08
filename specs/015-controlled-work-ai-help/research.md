@@ -160,7 +160,10 @@ guidance of the same question in the attempt. Never the answer key, expected ans
 solution, explanation, rubric, private test cases, value, names or ids. The workspace of the
 execution is the student (006: always the session user).
 
-The prompt (pt-BR, versioned) makes the agent a tutor that never answers: explain the concept,
+The prompt (pt-BR, versioned; v2 since 2026-10-08, after the first release gate, adds that a
+multiple-choice orientation uses no word of any alternative, not even in an analogy, never
+describes what an alternative means, and never states the term, value or formula that answers)
+makes the agent a tutor that never answers: explain the concept,
 give an analogous example different from the question, ask guiding questions, comment the
 student's reasoning; never name, eliminate or rank alternatives, never confirm right/wrong,
 never write code that solves or completes the question; refuse (`OUT_OF_SCOPE`) anything not
@@ -202,7 +205,13 @@ when:
 - **Multiple choice**: it references any alternative by label (`alternativa|letra|opção|opcao|item`
   + `A`–`E`, or a line starting with `A)`/`(A)`), or contains any alternative's normalized text
   of ≥ 12 characters — any alternative, so it can't eliminate or rank them either
-  (`MC_ALTERNATIVE_REFERENCED`).
+  (`MC_ALTERNATIVE_REFERENCED`). *Amended 2026-10-08 after the first release gate* (both BASIC
+  candidates wrote "pilha de pratos" for the alternative "Pilha" and described "O(1)" to eliminate
+  it): a shorter alternative is protected too — by its distinctive words (≥ 3 letters, not a
+  common Portuguese word such as "não", "sim", "que"), all present as whole words in the guidance,
+  or, when it has no such word but has symbols (`O(1)`, `2^n`), by its own text between
+  non-alphanumeric boundaries. A short alternative with neither (`2`, `O1`) can't be checked and
+  relies on the prompt.
 - **Open answer**: it contains the whole normalized expected answer when that has ≥ 25
   characters, or shares any 8-token shingle with the expected answer or the explanation
   (`EXPECTED_ANSWER_OVERLAP`).

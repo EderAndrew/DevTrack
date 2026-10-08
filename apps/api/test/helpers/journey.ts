@@ -752,6 +752,16 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const eventsPath = `/api/me/activities/${openWork.body.id}/attempt/events`;
   expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
   expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
+  // 015/US2-10 — a paste blocked in a question's field (with the question, still no content), and an
+  // answer that grows faster than typing allows: refused, recorded by the server (SYSTEM actor).
+  const openAnswerId = (startedActivity.body.questions as { id: string; type: string }[]).find((question) => question.type !== "MULTIPLE_CHOICE")!;
+  const pasteEvent = { eventId: randomUUID(), type: "PASTE_BLOCKED", questionId: openAnswerId.id, clientOccurredAt: new Date().toISOString(), buffered: false };
+  expect((await classStudentClient.post(eventsPath, { events: [pasteEvent] })).status).toBe(200);
+  const pasted = "Texto colado de fora da jornada quinze. ".repeat(60);
+  const tooFast = await classStudentClient.put(`/api/me/activities/${openWork.body.id}/attempt/answers`, {
+    answers: [{ questionId: openAnswerId.id, baseRevision: 0, answer: openAnswerId.type === "CODE" ? { kind: "CODE", source: pasted } : { kind: "TEXT", text: pasted } }],
+  });
+  expect(tooFast.body.results[0].outcome).toBe("TYPING_LIMIT_EXCEEDED");
   // 015/US3 — the student asks the AI for help (`work_help.requested`: ids and the question's position,
   // never the question): an orientation is delivered (`work_help.delivered`), an off-topic question is
   // refused (`work_help.out_of_scope`), an orientation that names an alternative is blocked by the

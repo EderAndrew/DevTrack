@@ -284,6 +284,21 @@ FAILED), the `work-helper` definition (DISABLED in production; `proposal.settle:
 `EVAL_RECORD`, `EVAL_REPLAY`; evidence in `test/fixtures/evaluations/work-help/`, with the p95 latency of 015/SC-007).
 `test/security/015-answer-key-scan.spec.ts` keeps the 012 answer-key markers out of `provider.requests`, and
 `015-injection.spec.ts` keeps instructions in the statement, the answer and the question in the untrusted block.
+Controlled mode (015/US2, US4, US5): `modules/attempt-integrity` holds `FocusEventsService` (the student's events, 1–50 per
+batch, idempotent by `(attempt_id, client_event_id)`, recorded only on an open CONTROLLED attempt with the server's
+`recorded_at`, one `attempt_integrity.recorded` each; `own` reads them back, also after the submission),
+`IntegrityReviewService` (the teacher's per-student summary and one attempt's timeline), the pure `timeline.ts` (exits and
+durations derived on every read, never stored) and `typing-allowance.ts`, and `ControlledAnswerGuard`, registered on the
+012 `AnswerSaveGuard` hook: a save or submission whose text grows faster than `controlledMode` allows is refused per answer
+(`TYPING_LIMIT_EXCEEDED`, the stored answer unchanged) and recorded as a SYSTEM event. The activity modules never import
+`attempt-integrity` or `work-help`; those register on `AnswerSaveGuard` and `HelpAvailability`. Tests use
+`test/helpers/integrity.ts` (`integrityEvent`, `recordEvents`, `getOwnIntegrity`, `getIntegritySummary`, `getTimeline`)
+and the `createActivity` options `executionMode`/`aiHelpAllowance`; `attempt_integrity_events` is append-only and written
+only while the attempt is IN_PROGRESS (trigger), so a suite that needs events on a submitted attempt inserts them first.
+Foundation extensions of 015 (research F9, F12): an agent may declare `proposal.settle: "ON_MATERIALIZE"` (its
+`materialize` returns the domain rule's decision and the runner approves or rejects the proposal in the same transaction,
+audited `ai_proposal.*` with actor SYSTEM and `settledBy: "DOMAIN_RULE"`) and `hourlyLimit(config)` in place of
+`aiAgentPerHour` (`work-helper` uses `AI_WORK_HELP_EXECUTIONS_PER_HOUR`).
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -351,16 +366,37 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
 - 013: one file per story (`013-us1-apply` … `013-us5-teacher-ranking`), the schema, the migration and the security
   suites described above; the journey applies exercises, concludes, retries, marks with a comment and reads both
   rankings, and `audit-coverage.spec.ts` checks the 013 metadata and that reading the ranking writes no event.
+- 015: one file per story (`015-us1-settings` … `015-us5-history`), `015-schema`, `015-ai-settle` (the foundation
+  extensions), `015-evaluation`, and in `test/security/` isolation (teachers A/B, students A1/A2/B1 on every new route;
+  ADMIN/MANAGER 403), concurrency (10 simultaneous helps → one pending and never more than 3 delivered, `015/SC-001`; the
+  same events 10 times; mode change × first start), rate limits (events per minute, helps per hour, the agent's own
+  hourly limit), boundaries (server fields → 400, 0/1/50/51 events, question 0/1/500/501), performance (event batch p95
+  < 200 ms, help request < 500 ms, summary of 60 students < 1 s), the provider-request answer-key scan and injection. The
+  journey runs a CONTROLLED attempt (exits, a blocked paste, a save over the typing allowance) and helps DELIVERED,
+  OUT_OF_SCOPE, BLOCKED and FAILED; `audit-coverage.spec.ts` checks one audit event per stored event and per request
+  with no content (`015/SC-010`), and the secret scan and `006-ai-admin-scan.spec.ts` keep `MARCADOR-AJUDA-015`
+  (question) and `MARCADOR-ORIENTACAO-015` (orientation) out of logs, audit and "Operação de IA".
 
 ## AI release-gate results (moved from the root CLAUDE.md)
 
-All three tasks are BASIC. `openai-basic` passed all three release gates and, being the cheapest, is
+All four tasks are BASIC. `openai-basic` passed the first three release gates and, being the cheapest, is
 the primary of each; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
 2026-10-01 (the first run with OpenRouter credit) and is their same-tier fallback, but failed
 `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
 (2026-09-29 and 2026-10-01): called with tools its answers break the output schema (rubric,
 explanation, alternatives) and once it skipped the read tool, although the same request without
 tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
+
+`work-help` (015) has no approved model yet, so the AI help shows as unavailable. The first gate
+(2026-10-08, prompt v1) failed both candidates on leaks: "pilha de pratos" for the alternative "Pilha",
+"log₂(n)" or eliminating "O(1)", which the leak check then missed for alternatives under 12 characters.
+After that, research F8/F10 were amended: prompt v2 (no word of an alternative, even in an analogy; no
+meaning of an alternative; no answering term) and the leak check protects short alternatives by their
+distinctive words or symbolic text; golden set v2 matches `mustMention` by stem, with three synonyms
+reviewed by a person. Latest runs (evidence in `test/fixtures/evaluations/work-help/`): `openai-basic`
+leakFree 1, injectionClean 1, scopeAccuracy 0.92, relevance 0.8 (< 0.9; the cases that miss change from
+run to run), p95 13 s; `anthropic-basic` (prompt v2, golden v1) leakFree 0.88, injectionClean 0.75,
+scopeAccuracy 0.88, relevance 0.56 — its leaks are now blocked by the server.
 
 ## Modules (moved from the root CLAUDE.md)
 

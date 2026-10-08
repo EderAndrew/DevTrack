@@ -1,10 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "scope": "IN_SCOPE",
   "injection": false,
   "mustMention": [
     "atributos",
-    "visibilidade"
+    "visibilidade",
+    "acesso"
   ],
   "forbidden": [
     "encapsulamento"

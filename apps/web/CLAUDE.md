@@ -13,7 +13,9 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   Route groups only choose the frame, never the URL: `app/(app)` AppShell, `app/(student)` student
   layout, `app/(account)` either one by `STAFF_AREA_PERMISSIONS` (menu permissions, never role
   names), `app/(catalog)/design-system` the visual catalog (built from
-  `features/design-system/registry.ts`; `notFound()` in production). Docs: `README.md`,
+  `features/design-system/registry.ts`; `notFound()` in production), `app/(focus)` the controlled
+  mode's frame (015, no menu or topbar: `minhas-atividades/[id]/responder`, the page brings its own
+  header with "Sair"). Docs: `README.md`,
   `tokens.md`, `components.md`, `layouts.md`, `exam-mode.md` and `exceptions.md` in
   `design-system/`.
 - Official stack: Tailwind + shadcn/ui (`components/ui`) + Lucide; TanStack Query for server
@@ -40,13 +42,27 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   text is never altered (no auto-close, completion or auto-indent; only `\r\n` → `\n`); code is never
   rendered as HTML. Form fields use `CodeEditor` named by `aria-labelledby` (`fieldLabelId`); Tab
   indents inside it and Esc then Tab leaves (the `test/keyboard.ts` helpers do that).
+- Controlled mode and AI help (015): monitoring lives only in `features/controlled-attempt` (the pure
+  `focus-reducer.ts`, `use-focus-monitor`, `use-fullscreen`, `use-leave-guard`, `use-clipboard-block`,
+  and `use-integrity-events` with the offline queue in `store/pending-events.ts`) and in
+  `components/ui/assessment`; `features/activities`, `features/student-activities` and
+  `features/work-help` never listen to focus, fullscreen or the clipboard
+  (`apps/api/test/activities-boundary.spec.ts`). Copy, cut, paste and drop are blocked by capture-phase
+  document listeners and, in the code editor, by `CodeEditor`'s `blockClipboard` (passed through
+  `CodeAnswer`), fixed while mounted; nothing is ever read from the clipboard and typed text is never
+  altered. Event times shown to anyone come from the server's `recordedAt` ("Estamos registrando este
+  evento" until it arrives); no text calls an exit fraud or a violation. The AI help (`QuestionHelp`,
+  `HelpGuidance`) shows the orientation as text and its example in `CodeBlock`; whether a help is used,
+  pending or refused comes from the API.
 
 ## Guards
 
 - `test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML render
   as text (since 013 also the exercise result, the teacher's marks and the ranking names; since
-  014 code with HTML in the editor and in `CodeBlock`), and no `dangerouslySetInnerHTML` in the 012
-  features, `features/ranking`, `components/ui/assessment`, `components/ui/code` or the banks.
+  014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
+  orientation and its example on both screens), and no `dangerouslySetInnerHTML` in the 012
+  features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
+  `features/controlled-attempt` or `features/work-help`.
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and

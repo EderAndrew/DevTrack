@@ -113,7 +113,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(old.agentVersionRef.version).toBe(1);
   });
 
-  it("007/FR-051 produção sincroniza curriculum-agent v3, (010) exercise-generator v1 e (011) work-generator v1 e (015) work-helper v1 DESABILITADOS, de forma idempotente", async () => {
+  it("007/FR-051 produção sincroniza curriculum-agent v3, (010) exercise-generator v1 e (011) work-generator v1 e (015) work-helper v2 DESABILITADOS, de forma idempotente", async () => {
     const production = productionAiDefinitions(t.config);
     await syncWith(production);
     const agents = await t.prisma.aiAgent.findMany({ where: { status: { not: "DEPRECATED" } }, include: { currentVersion: true }, orderBy: { key: "asc" } });
@@ -121,7 +121,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
       ["curriculum-agent", "DISABLED", 3],
       ["exercise-generator", "DISABLED", 1],
       ["work-generator", "DISABLED", 1],
-      ["work-helper", "DISABLED", 1],
+      ["work-helper", "DISABLED", 2],
     ]);
     const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
     expect(tool.status).toBe("ENABLED");

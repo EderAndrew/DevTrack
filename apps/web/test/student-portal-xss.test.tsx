@@ -44,6 +44,9 @@ const SCANNED = [
   "components/ui/code",
   "features/exercises",
   "features/works",
+  // 015: the controlled mode and the AI help.
+  "features/controlled-attempt",
+  "features/work-help",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -177,5 +180,104 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
     await waitFor(() => expect(block.container.querySelector("code span")).toBeTruthy());
     expect(block.container.querySelector("code")!.textContent).toBe(code);
     expect(document.querySelector("script, img, b")).toBeNull();
+  });
+});
+
+/**
+ * 015/FR-029: the student's question to the AI, the orientation and its example, on the student's
+ * screen and in the teacher's review, render as text; the controlled mode's timeline carries no
+ * free text, and the review with it shows none of the question's HTML either.
+ */
+describe("015 ajuda da IA e registros como texto", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("tela do aluno: pergunta, orientação e exemplo com HTML aparecem como texto", async () => {
+    const base = studentActivity();
+    const [open] = base.questions;
+    const activity = studentActivity({
+      status: "IN_PROGRESS",
+      aiHelp: { allowance: 3, used: 1 },
+      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+    });
+    const help = {
+      allowance: 3,
+      used: 1,
+      pending: false,
+      items: [
+        {
+          id: "eeeeeeee-0000-4000-8000-000000000001",
+          questionId: open!.id,
+          question: SCRIPT,
+          status: "DELIVERED",
+          message: SCRIPT,
+          example: { code: SCRIPT },
+          requestedAt: "2026-10-02T11:10:00.000Z",
+          resolvedAt: "2026-10-02T11:10:05.000Z",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${activity.id}`]: json(200, activity),
+        [`GET /api/me/activities/${activity.id}/attempt/help`]: json(200, help),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+    await screen.findByText(`Sua pergunta: ${SCRIPT}`);
+    expect(screen.getAllByText(SCRIPT).length).toBeGreaterThan(0);
+    await waitFor(() => expect(container.querySelector("pre")?.textContent).toContain("<script>"));
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("tela do professor: pergunta e orientação com HTML aparecem como texto, ao lado da linha do tempo", async () => {
+    const path = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
+    const help = {
+      allowance: 3,
+      used: 1,
+      items: [
+        {
+          id: "eeeeeeee-0000-4000-8000-000000000002",
+          questionPosition: 0,
+          question: SCRIPT,
+          status: "DELIVERED",
+          message: SCRIPT,
+          example: { code: SCRIPT },
+          reasonCode: null,
+          requestedAt: "2026-10-02T12:04:00.000Z",
+          resolvedAt: "2026-10-02T12:04:05.000Z",
+        },
+      ],
+    };
+    const timeline = {
+      events: [{ type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:00:00.000Z", clientOccurredAt: null, buffered: false }],
+      intervals: [{ kind: "SCREEN", from: "2026-10-02T12:00:00.000Z", to: "2026-10-02T12:01:00.000Z", seconds: 60, open: true }],
+      totals: {
+        screenExits: 1,
+        timeAwaySeconds: 60,
+        fullscreenExits: 0,
+        disconnections: 0,
+        offlineSeconds: 0,
+        clipboardBlocks: 0,
+        typingLimitRejections: 0,
+        fullscreenUnavailable: false,
+        detectionUnavailable: false,
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      teacherFetch({
+        [`GET ${path}`]: json(200, gradingActivity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } })),
+        [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, teacherAttempt()),
+        [`GET ${path}/attempts/${ATTEMPT_ID}/integrity`]: json(200, timeline),
+        [`GET ${path}/attempts/${ATTEMPT_ID}/help`]: json(200, help),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
+    await screen.findByText(`Pergunta do aluno: ${SCRIPT}`);
+    expect(screen.getByText(`Orientação: ${SCRIPT}`)).toBeTruthy();
+    expect(await screen.findByRole("table", { name: "Eventos da tentativa, no horário do servidor." })).toBeTruthy();
+    await waitFor(() => expect(container.querySelector("pre")?.textContent).toContain("<script>"));
+    expect(container.querySelector("script, img")).toBeNull();
   });
 });

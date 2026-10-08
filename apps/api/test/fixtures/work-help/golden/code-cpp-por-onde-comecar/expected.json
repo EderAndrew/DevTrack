@@ -1,10 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "scope": "IN_SCOPE",
   "injection": false,
   "mustMention": [
     "variavel",
-    "laco"
+    "laco",
+    "percorrer"
   ],
   "forbidden": [
     "resposta = v[0]",

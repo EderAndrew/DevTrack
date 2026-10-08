@@ -6,6 +6,17 @@ import type { WorkHelpBlockReason } from "@repo/contracts";
 
 /** A multiple-choice alternative's text counts as quoted from this many normalized characters. */
 export const MIN_ALTERNATIVE_CHARS = 12;
+/** A shorter alternative is protected by its words of at least this many letters (F10, amended 2026-10-08). */
+export const MIN_ALTERNATIVE_WORD_CHARS = 3;
+/**
+ * Common Portuguese words that never protect a short alternative: an alternative "Sim" or "Não"
+ * would otherwise block nearly every orientation.
+ */
+export const COMMON_WORDS: ReadonlySet<string> = new Set([
+  "nao", "sim", "que", "uma", "uns", "umas", "dos", "das", "nos", "nas", "com", "sem", "por", "para", "pelo", "pela",
+  "como", "mais", "menos", "mas", "nem", "seu", "sua", "isso", "este", "esta", "esse", "essa", "todos", "todas",
+  "nenhum", "nenhuma", "ambos", "ambas", "outro", "outra", "acima", "anteriores",
+]);
 /** An open answer's whole expected answer counts as quoted from this many normalized characters. */
 export const MIN_WHOLE_ANSWER_CHARS = 25;
 /** Shared runs of this many normalized words with the expected answer or the explanation. */
@@ -53,7 +64,8 @@ export function checkLeak(key: LeakCheckKey, guidance: LeakCheckGuidance): WorkH
 
 /**
  * A label in any of its forms — "alternativa B", "letra c", "opção (D)", "item E", "(A)", a line that
- * starts with "B)" or "(b)" — or the text of any alternative of at least `MIN_ALTERNATIVE_CHARS`.
+ * starts with "B)" or "(b)" — or the text of any alternative of at least `MIN_ALTERNATIVE_CHARS`; a
+ * shorter one by `shortAlternativeQuoted`.
  * Lowercase "a" and "e" after a word are the Portuguese article and conjunction ("cada item a
  * seguir"), so only their uppercase or parenthesized forms count there.
  */
@@ -75,9 +87,28 @@ function referencesAlternative(text: string, alternatives: readonly string[]): b
   const padded = ` ${normalizeText(text)} `;
   return alternatives.some((alternative) => {
     const normalized = normalizeText(alternative);
-    return normalized.length >= MIN_ALTERNATIVE_CHARS && padded.includes(` ${normalized} `);
+    if (normalized.length >= MIN_ALTERNATIVE_CHARS) return padded.includes(` ${normalized} `);
+    return shortAlternativeQuoted(text, padded, alternative, normalized);
   });
 }
+
+/**
+ * A short alternative ("Pilha", "O(log n)", "O(1)"): every distinctive word of it (at least
+ * `MIN_ALTERNATIVE_WORD_CHARS` letters, not in `COMMON_WORDS`) appears as a whole word, so an analogy
+ * like "pilha de pratos" names it; with no such word but with symbols ("O(1)", "2^n"), its own text
+ * between non-alphanumeric boundaries. One with neither ("2", "O1") can't be checked.
+ */
+function shortAlternativeQuoted(text: string, padded: string, alternative: string, normalized: string): boolean {
+  const words = normalized.split(" ").filter((word) => word.length >= MIN_ALTERNATIVE_WORD_CHARS && /[a-z]/.test(word) && !COMMON_WORDS.has(word));
+  if (words.length > 0) return words.every((word) => padded.includes(` ${word} `));
+  const symbolic = collapsed(alternative);
+  if (!/[^a-z0-9 ]/.test(symbolic) || !/[a-z0-9]/.test(symbolic)) return false;
+  const escaped = symbolic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).test(collapsed(text));
+}
+
+/** Lowercase, accents removed, whitespace collapsed; punctuation kept. */
+const collapsed = (text: string) => withoutAccents(text.toLowerCase()).replace(/\s+/g, " ").trim();
 
 /**
  * The whole expected answer (from `MIN_WHOLE_ANSWER_CHARS`), or any run of `SHINGLE_TOKENS` words

@@ -245,6 +245,27 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(published.every((metadata) => metadata.aiHelpAllowance === 0 || metadata.aiHelpAllowance === 3)).toBe(true);
     });
 
+    it("015/SC-010 cada evento da tentativa e cada pedido de ajuda gera exatamente um evento de auditoria, sem conteúdo", async () => {
+      const stored = await t.prisma.attemptIntegrityEvent.findMany({ select: { attemptId: true, type: true } });
+      const recorded = events.filter((event) => event.type === "attempt_integrity.recorded");
+      expect(stored.map((row) => row.type)).toEqual(expect.arrayContaining(["SCREEN_LEFT", "SCREEN_RETURNED", "PASTE_BLOCKED", "TYPING_LIMIT_EXCEEDED"]));
+      // One per stored event (the resend of the same events recorded nothing), on the event's attempt.
+      const key = (attemptId: string | null, type: string) => `${attemptId} ${type}`;
+      expect(recorded.map((event) => key(event.targetId, (event.metadata as { eventType: string }).eventType)).sort()).toEqual(
+        stored.map((row) => key(row.attemptId, row.type)).sort(),
+      );
+      // The server's own record of a refused save is SYSTEM; the browser's events are the student's.
+      expect(recorded.filter((event) => (event.metadata as { eventType: string }).eventType === "TYPING_LIMIT_EXCEEDED").map((event) => event.actorType)).toEqual(["SYSTEM"]);
+      const helps = await t.prisma.workHelpRequest.findMany({ select: { id: true, status: true } });
+      expect(helps.map((help) => help.status).sort()).toEqual(["BLOCKED", "DELIVERED", "FAILED", "OUT_OF_SCOPE"]);
+      expect(events.filter((event) => event.type === "work_help.requested").map((event) => event.targetId).sort()).toEqual(helps.map((help) => help.id).sort());
+      const settled = events.filter((event) => /^work_help\.(delivered|out_of_scope|blocked|failed)$/.test(event.type));
+      expect(settled.map((event) => event.targetId).sort()).toEqual(helps.map((help) => help.id).sort());
+      const help015 = events.filter((event) => event.type.startsWith("work_help.") || event.type === "attempt_integrity.recorded");
+      expect(offendingMetadata(help015)).toEqual([]);
+      expect(JSON.stringify(help015.map((event) => event.metadata))).not.toMatch(/MARCADOR-(AJUDA|ORIENTACAO)-015|jornada quinze|Texto colado/);
+    });
+
     it("UPDATE em audit_events é recusado pelo trigger", async () => {
       await expect(t.prisma.$executeRawUnsafe("UPDATE audit_events SET type = 'auth.signup'")).rejects.toThrow(
         /append-only/,

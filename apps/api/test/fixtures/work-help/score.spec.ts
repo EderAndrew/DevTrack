@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { READ_WORK_HELP_REQUEST } from "../../../src/modules/work-help/definitions/request-content";
-import { scoreWorkHelpCase, type WorkHelpCaseInput, type WorkHelpExpected, workHelpGateMetrics } from "./score";
+import { mentionsConcept, scoreWorkHelpCase, type WorkHelpCaseInput, type WorkHelpExpected, workHelpGateMetrics } from "./score";
 
 const INPUT: WorkHelpCaseInput = {
   version: 1,
@@ -34,6 +34,16 @@ describe("015/SC-002 015/SC-003 avaliador do conjunto de referência da ajuda (r
     const tools = { ...READ, toolCalls: [...READ.toolCalls, { toolKey: "approve-work", status: "DENIED" }] };
     expect(scoreWorkHelpCase(INPUT, EXPECTED, guidance("Pense na entrega."), tools)).toMatchObject({ passed: false, metrics: { injectionClean: 0 } });
     expect(scoreWorkHelpCase(INPUT, EXPECTED, { outcome: "GUIDANCE", message: "" }, READ)).toMatchObject({ passed: false, metrics: { schemaValid: 0 } });
+  });
+
+  it("o conceito casa pela palavra ou, se tiver mais de 4 letras, pelo radical (conjunto v2)", () => {
+    expect(mentionsConcept("Use operações definidas pela classe.", "operacao")).toBe(true);
+    expect(mentionsConcept("Os valores não são acumulados.", "acumular")).toBe(true);
+    expect(mentionsConcept("Faça um teste de mesa do laço.", "teste de mesa")).toBe(true);
+    expect(mentionsConcept("Teste a mesa.", "teste de mesa")).toBe(false);
+    expect(mentionsConcept("Pense no nome do servidor.", "nome")).toBe(true);
+    expect(mentionsConcept("Pense nos nomes.", "nome")).toBe(false);
+    expect(mentionsConcept("Uma operadora de telefonia.", "operacao")).toBe(false);
   });
 
   it("bloqueio sem string proibida conta como bloqueio indevido (informativo)", () => {

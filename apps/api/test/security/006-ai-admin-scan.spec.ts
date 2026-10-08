@@ -11,7 +11,9 @@ import { createConfirmedTopic } from "../helpers/exercises";
 import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
 import { createWorkAiApp, requestWork, scriptWorkGeneration, workGenerationRequest } from "../helpers/work-ai";
 import { createConfirmedSyllabus } from "../helpers/works";
+import { createActivity, createClassWithStudents, startAttempt } from "../helpers/activities";
 import { createSubject, createUser, loginAs } from "../helpers/factories";
+import { createWorkHelpApp, requestHelp, scriptHelp, validGuidance } from "../helpers/work-help";
 import { api } from "../helpers/test-app";
 
 const INPUT_MARKER = "MARCADOR-ENTRADA-006";
@@ -224,5 +226,68 @@ describe("011/FR-024 a Operação de IA mostra o gerador de trabalhos sem conte�
     expect(responses.metrics.body.byTask.find((row: { taskKey: string }) => row.taskKey === "work-generation")).toMatchObject({ executions: 2 });
     expect((responses.agents.body as { key: string }[]).map((agent) => agent.key)).toContain("work-generator");
     expect((responses.tasks.body as { key: string }[]).map((task) => task.key)).toContain("work-generation");
+  });
+});
+
+/**
+ * 015/FR-028 015/SC-010 (T046): with the AI help asked by students of two teachers — one orientation
+ * delivered, one blocked by the leak check — "Operação de IA" shows the agent and its task with
+ * numbers only: no question, orientation, statement or answer key, and no user, request, attempt or
+ * execution id.
+ */
+describe("015/SC-010 a Operação de IA mostra a ajuda da IA sem pergunta nem orientação", () => {
+  let t: AiTestApp;
+  const QUESTION_MARKER = "MARCADOR-AJUDA-015";
+  const GUIDANCE_MARKER = "MARCADOR-ORIENTACAO-015";
+  const STATEMENT_MARKER = "MARCADOR-ENUNCIADO-ADMIN-015";
+  const EXPECTED = "MARCADOR-RESPOSTA-012 esconder o estado interno do objeto";
+  const forbidden: string[] = [QUESTION_MARKER, GUIDANCE_MARKER, STATEMENT_MARKER, "MARCADOR-RESPOSTA-012", FAKE_PROVIDER_CREDENTIAL];
+
+  beforeAll(async () => {
+    t = await createWorkHelpApp();
+    await resetAiDb(t);
+    for (const name of ["A", "B"]) {
+      const teacher = await createUser(t, { roles: ["TEACHER"], name: `Professor ${name}` });
+      const { schoolClass, students } = await createClassWithStudents(t, teacher.id);
+      const created = await createActivity(t, schoolClass, {
+        executionMode: "CONTROLLED",
+        aiHelpAllowance: 3,
+        questions: [{ type: "OPEN_ANSWER", valueCents: 100, statement: `${STATEMENT_MARKER} ${name}`, expectedAnswer: EXPECTED }],
+      });
+      const client = api(t, { cookie: await loginAs(t, students[0]!) });
+      expect((await startAttempt(client, created.activity.id)).status).toBe(200);
+      const res = await requestHelp(client, created.activity.id, { questionId: created.questionIds[0]!, question: `${QUESTION_MARKER} ${name}` });
+      expect(res.status, JSON.stringify(res.body)).toBe(202);
+      // Student A's orientation is delivered; student B's quotes the expected answer and is blocked.
+      scriptHelp(t.provider, res.body.id, validGuidance({ message: name === "A" ? `${GUIDANCE_MARKER} pense nos passos.` : `${GUIDANCE_MARKER} ${EXPECTED}` }));
+      await drain(t);
+      forbidden.push(teacher.id, teacher.email, students[0]!.id, students[0]!.email, res.body.id, created.activity.id, created.questionIds[0]!);
+    }
+    for (const row of await t.prisma.activityAttempt.findMany({ select: { id: true } })) forbidden.push(row.id);
+    for (const row of await t.prisma.aiExecution.findMany({ select: { id: true } })) forbidden.push(row.id);
+    expect((await t.prisma.workHelpRequest.findMany({ select: { status: true } })).map((row) => row.status).sort()).toEqual(["BLOCKED", "DELIVERED"]);
+  });
+  afterAll(() => t.close());
+
+  it("nenhuma rota de /ai/operations devolve pergunta, orientação, enunciado, gabarito, credencial ou id; o agente e a tarefa aparecem com números", async () => {
+    const admin = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["ADMIN"] })) });
+    const responses = {
+      health: await admin.get("/api/ai/operations/health"),
+      metrics: await admin.get("/api/ai/operations/metrics?period=30d"),
+      agents: await admin.get("/api/ai/operations/agents"),
+      modelConfigs: await admin.get("/api/ai/operations/model-configs"),
+      models: await admin.get("/api/ai/operations/models?period=30d"),
+      tasks: await admin.get("/api/ai/operations/tasks"),
+    };
+    for (const [path, res] of Object.entries(responses)) {
+      expect(res.status, path).toBe(200);
+      const text = JSON.stringify(res.body);
+      for (const value of forbidden) expect(text, `${path}: ${value}`).not.toContain(value);
+    }
+    // Not vacuous: the helper's two executions and its task are there.
+    expect(responses.metrics.body.byAgent.find((row: { agentKey: string }) => row.agentKey === "work-helper")).toMatchObject({ taskKey: "work-help", executions: 2 });
+    expect(responses.metrics.body.byTask.find((row: { taskKey: string }) => row.taskKey === "work-help")).toMatchObject({ executions: 2 });
+    expect((responses.agents.body as { key: string }[]).map((agent) => agent.key)).toContain("work-helper");
+    expect((responses.tasks.body as { key: string }[]).map((task) => task.key)).toContain("work-help");
   });
 });

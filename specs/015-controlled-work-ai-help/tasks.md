@@ -414,7 +414,7 @@ nota antes da liberação.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T046 Journey (`apps/api/test/helpers/journey.ts`) com uma tentativa CONTROLLED (eventos,
+- [X] T046 Journey (`apps/api/test/helpers/journey.ts`) com uma tentativa CONTROLLED (eventos,
   colagem bloqueada, limite de digitação) e ajudas DELIVERED, OUT_OF_SCOPE, BLOCKED e FAILED;
   `audit-coverage.spec.ts` (metadados só ids/enums/códigos), `secret-leak-scan.spec.ts` e
   `006-ai-admin-scan.spec.ts` com os marcadores `MARCADOR-AJUDA-015` (pergunta) e
@@ -424,19 +424,19 @@ nota antes da liberação.
   `apps/api/test/fixtures/evaluations/work-help/` e as aprovações em
   `apps/api/src/modules/ai/definitions/model-catalog.ts`; `009-quality-gate.spec.ts` verde;
   resultados em `apps/api/CLAUDE.md` ("AI release-gate results").
-- [ ] T048 [P] Segurança restante em `apps/api/test/security/`: `015-isolation.spec.ts` (professores
+- [X] T048 [P] Segurança restante em `apps/api/test/security/`: `015-isolation.spec.ts` (professores
   A/B, alunos A1/A2/B1 em todas as rotas novas; ADMIN/MANAGER 403), `015-concurrency.spec.ts` (10
   pedidos de ajuda simultâneos → ≤ 3 entregues, `015/SC-001`; eventos duplicados; troca de modo ×
   início), `015-rate-limits.spec.ts`, `015-boundaries.spec.ts` (campos do servidor → 400,
   tamanhos, 0/1/50/51 eventos, pergunta 0/1/500/501), `015-performance.spec.ts` (lote de eventos
   p95 < 200 ms, pedido de ajuda < 500 ms, resumo de 60 alunos < 1 s).
-- [ ] T049 [P] Web: `apps/web/test/student-portal-xss.test.tsx` cobre orientação, pergunta e linha
+- [X] T049 [P] Web: `apps/web/test/student-portal-xss.test.tsx` cobre orientação, pergunta e linha
   do tempo; `token-usage`, `identity`, `docs` e `catalog.test.tsx` verdes com os componentes novos.
 - [ ] T050 E2E `apps/web/e2e/controlled-work.spec.ts` contra o mock do OpenRouter (resposta de ajuda
   gravada): professor aplica com as opções, aluno inicia em modo controlado, sai da aba e volta
   (aviso), colagem bloqueada, pede ajuda, entrega; professor vê linha do tempo e ajuda
   (`015/SC-004`, `015/SC-009`). A redefinição do banco E2E pede consentimento do usuário.
-- [ ] T051 [P] Documentação: `CLAUDE.md` (Recent Changes, regras fáceis de errar da 015),
+- [X] T051 [P] Documentação: `CLAUDE.md` (Recent Changes, regras fáceis de errar da 015),
   `apps/api/CLAUDE.md` (módulos `attempt-integrity` e `work-help`, helpers, suítes 015, extensões
   da fundação), `apps/web/CLAUDE.md` (rota `(focus)`, `blockClipboard`, guardas), `README.md`.
 - [ ] T052 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`.

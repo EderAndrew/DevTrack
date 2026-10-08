@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   checkLeak,
   type LeakCheckKey,
+  COMMON_WORDS,
   MIN_ALTERNATIVE_CHARS,
+  MIN_ALTERNATIVE_WORD_CHARS,
   MIN_SOLUTION_LINE_CHARS,
   MIN_WHOLE_ANSWER_CHARS,
   normalizeText,
@@ -18,8 +20,9 @@ describe("015/FR-018 checagem de vazamento das orientações (research F10)", ()
   });
 
   it("os limiares são os da research F10", () => {
-    expect({ MIN_ALTERNATIVE_CHARS, MIN_WHOLE_ANSWER_CHARS, SHINGLE_TOKENS, SOLUTION_RUN_LINES, MIN_SOLUTION_LINE_CHARS }).toEqual({
+    expect({ MIN_ALTERNATIVE_CHARS, MIN_ALTERNATIVE_WORD_CHARS, MIN_WHOLE_ANSWER_CHARS, SHINGLE_TOKENS, SOLUTION_RUN_LINES, MIN_SOLUTION_LINE_CHARS }).toEqual({
       MIN_ALTERNATIVE_CHARS: 12,
+      MIN_ALTERNATIVE_WORD_CHARS: 3,
       MIN_WHOLE_ANSWER_CHARS: 25,
       SHINGLE_TOKENS: 8,
       SOLUTION_RUN_LINES: 3,
@@ -64,7 +67,8 @@ describe("015/FR-018 checagem de vazamento das orientações (research F10)", ()
       expect(blocked("Descarte o polimorfismo paramétrico.")).toBe("MC_ALTERNATIVE_REFERENCED");
     });
 
-    it("alternativas curtas (menos de 12 caracteres) não bloqueiam pela palavra", () => {
+    it("alternativa curta feita só de palavra comum (\"Sim\") não protege a palavra", () => {
+      expect(COMMON_WORDS.has("sim")).toBe(true);
       expect(blocked("Sim, faz sentido pensar no papel de cada classe.")).toBeNull();
     });
 
@@ -78,6 +82,37 @@ describe("015/FR-018 checagem de vazamento das orientações (research F10)", ()
       "A herança permite reaproveitar comportamento; o polimorfismo, tratar objetos diferentes de forma igual.",
     ])("orientação legítima não bloqueia: %s", (message) => {
       expect(blocked(message)).toBeNull();
+    });
+  });
+
+  describe("015/US3-3 Múltipla escolha com alternativas curtas (F10, emenda de 2026-10-08)", () => {
+    const structures: LeakCheckKey = { type: "MULTIPLE_CHOICE", alternatives: ["Fila", "Pilha", "Lista ligada", "Árvore binária"] };
+    const complexity: LeakCheckKey = { type: "MULTIPLE_CHOICE", alternatives: ["O(1)", "O(log n)", "O(n)", "O(n log n)"] };
+    const yesNo: LeakCheckKey = { type: "MULTIPLE_CHOICE", alternatives: ["Sim", "Não", "2", "O1"] };
+
+    it.each([
+      [structures, "Pense numa pilha de pratos: qual sai primeiro?"],
+      [structures, "É o oposto de uma FILA de banco."],
+      [complexity, "Quantas vezes dá para dividir n por 2? Como isso se relaciona com log₂(n)?"],
+      [complexity, "O(1) significaria que o tempo não depende de n."],
+      [complexity, "Descarte o(n): a busca não olha cada elemento."],
+    ])("a palavra distintiva ou o texto com símbolos de uma alternativa curta bloqueia (%#)", (key, message) => {
+      expect(checkLeak(key, guidance(message))).toBe("MC_ALTERNATIVE_REFERENCED");
+    });
+
+    it.each([
+      [structures, "Pense em pratos empilhados: qual consegue retirar primeiro?"],
+      [structures, "Quem chega primeiro numa fileira de cadeiras?"],
+      [complexity, "Quantas vezes dá para dividir o vetor ao meio até sobrar um elemento?"],
+      [complexity, "Compare o número de passos com o tamanho da entrada (n), sem contar cada item."],
+      [yesNo, "Não sei se entendi sua dúvida; sim, releia o enunciado com calma e anote 2 ideias."],
+    ])("orientação sem a palavra nem o texto da alternativa não bloqueia (%#)", (key, message) => {
+      expect(checkLeak(key, guidance(message))).toBeNull();
+    });
+
+    it("o texto com símbolos só conta entre fronteiras: \"O(n)\" não bloqueia \"Ao(n)\" nem \"O(n²)\"", () => {
+      const onlyLinear: LeakCheckKey = { type: "MULTIPLE_CHOICE", alternatives: ["O(n)", "O1"] };
+      expect(checkLeak(onlyLinear, guidance("Uma função Ao(n) é outra coisa; e O(n²)?"))).toBeNull();
     });
   });
 
