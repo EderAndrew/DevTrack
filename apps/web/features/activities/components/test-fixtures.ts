@@ -88,6 +88,7 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
   id: ACTIVITY_ID,
   type: "ASSIGNMENT",
   executionMode: "NORMAL",
+  aiHelp: { allowance: 0 },
   title: "Lista de herança",
   status: "ACTIVE",
   phase: "PUBLISHED",
@@ -142,6 +143,7 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
       gradePartial: null,
       pointsEarned: null,
       pendingMarks: null,
+      aiHelpUsed: 0,
     },
   ],
   ...overrides,
@@ -180,7 +182,7 @@ export const exerciseActivity = (overrides: Partial<TeacherActivity> = {}): Teac
       topics: [],
     })),
     roster: [
-      { ...base.roster[0]!, pointsEarned: 0, pendingMarks: 0 },
+      { ...base.roster[0]!, pointsEarned: 0, pendingMarks: 0, aiHelpUsed: null },
       {
         studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
         name: "Bruno Lima",
@@ -192,6 +194,7 @@ export const exerciseActivity = (overrides: Partial<TeacherActivity> = {}): Teac
         gradePartial: null,
         pointsEarned: 15,
         pendingMarks: 1,
+        aiHelpUsed: null,
       },
     ],
     ...overrides,
@@ -234,6 +237,7 @@ export const gradingActivity = (overrides: Partial<TeacherActivity> = {}): Teach
         gradePartial: true,
         pointsEarned: null,
         pendingMarks: null,
+        aiHelpUsed: 0,
       },
       {
         studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
@@ -246,6 +250,7 @@ export const gradingActivity = (overrides: Partial<TeacherActivity> = {}): Teach
         gradePartial: null,
         pointsEarned: null,
         pendingMarks: null,
+        aiHelpUsed: 0,
       },
     ],
     ...overrides,

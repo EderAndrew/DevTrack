@@ -1,6 +1,7 @@
 import {
   ACTIVITY_INSTRUCTIONS_MAX,
   ACTIVITY_TITLE_MAX,
+  AI_HELP_ALLOWANCE,
   type ActivitySource,
   type ActivityStatus,
   type ActivityType,
@@ -8,11 +9,13 @@ import {
   type CreateActivityRequest,
   type ExerciseDifficulty,
   GradeStringSchema,
+  type HelpAvailability,
   type LatePolicy,
   LatePolicySchema,
   type PublicationPhase,
   type RosterStatus,
   type TeacherActivity,
+  type TeacherActivitySummary,
   type UpdateActivityRequest,
   type WorkQuestionType,
 } from "@repo/contracts";
@@ -44,6 +47,49 @@ export const ROSTER_STATUS_LABELS: Record<RosterStatus, string> = {
   MISSED: "Não entregou",
   COMPLETED: "Concluiu",
 };
+
+// 015 contracts/web-ui.md: the work's options, "Como os alunos respondem".
+export const WORK_OPTIONS_LEGEND = "Como os alunos respondem";
+export const WORK_OPTION_TEXTS = {
+  controlled: {
+    label: "Modo controlado",
+    description: "O aluno responde em tela cheia; saídas da tela e tentativas de copiar ou colar ficam registradas. Copiar e colar ficam bloqueados.",
+  },
+  aiHelp: {
+    label: `Ajuda da IA (${AI_HELP_ALLOWANCE} perguntas por aluno)`,
+    description: "A IA orienta sem dar a resposta. Você verá as perguntas e as orientações na correção.",
+  },
+} as const;
+export const WORK_OPTIONS_LOCKED = "Não é possível mudar depois que um aluno iniciou.";
+
+const HELP_UNAVAILABLE_REASONS: Record<NonNullable<HelpAvailability["reason"]>, string> = {
+  AGENT_DISABLED: "o administrador ainda não ativou a ajuda da IA.",
+  MODEL_UNAVAILABLE: "nenhum modelo de IA está disponível agora.",
+};
+
+/** While the availability is being checked, the help box waits disabled. */
+export const HELP_CHECK_PENDING = "Verificando se a ajuda da IA está disponível…";
+
+/** Why the AI help can't be turned on now (FR-004); null when it can. `undefined` = the check failed. */
+export function helpUnavailableText(availability: HelpAvailability | undefined): string | null {
+  if (availability?.available) return null;
+  const reason = availability?.reason ? HELP_UNAVAILABLE_REASONS[availability.reason] : "não foi possível verificar agora.";
+  return `A ajuda da IA está indisponível: ${reason}`;
+}
+
+/** Only a Trabalho has a mode and an AI help (015/FR-002). */
+export const hasWorkOptions = (type: ActivityType) => type === "ASSIGNMENT";
+
+/** A student started it: the mode and the AI help can't change any more (015/FR-005). */
+export const activityStarted = (activity: TeacherActivity) => activity.roster.some((entry) => entry.attemptId !== null);
+
+/** The options turned on, as text (015/FR-006): never only an icon or a color. */
+export function workOptionBadges(activity: Pick<TeacherActivitySummary, "executionMode" | "aiHelp">): string[] {
+  return [
+    ...(activity.executionMode === "CONTROLLED" ? ["Modo controlado"] : []),
+    ...(activity.aiHelp.allowance > 0 ? [`Ajuda da IA: ${activity.aiHelp.allowance} por aluno`] : []),
+  ];
+}
 
 /** The teacher's situation of an activity: the phase while ACTIVE, else the status. */
 export function activitySituation(status: ActivityStatus, phase: PublicationPhase | null): string {
@@ -93,6 +139,9 @@ export const ActivityFormSchema = z
     latePolicy: LatePolicySchema,
     needsAcknowledgement: z.boolean(),
     acknowledgeOutOfScope: z.boolean(),
+    /** A Trabalho's options (015/FR-001): ignored for an Exercício. */
+    controlled: z.boolean(),
+    aiHelp: z.boolean(),
   })
   .superRefine((values, ctx) => {
     if (values.type === "ASSIGNMENT" && !values.deadline) {
@@ -120,7 +169,10 @@ export const activityFormMessages = fieldMessages({
   deadline: "Informe o prazo de entrega.",
 });
 
-/** The request by the source's type: a Trabalho with its deadline and late policy, an Exercício without them. */
+/**
+ * The request by the source's type: a Trabalho with its deadline, late policy, mode and AI help
+ * (015/FR-001), an Exercício without them.
+ */
 export function toCreateActivityRequest(values: ActivityFormValues, source: ActivitySource, idempotencyKey: string): CreateActivityRequest {
   const common = {
     idempotencyKey,
@@ -130,12 +182,20 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
     acknowledgeOutOfScope: values.acknowledgeOutOfScope,
   };
   if (source.type === "EXERCISE") return { ...common, source };
-  return { ...common, source, deadline: localToIso(values.deadline), latePolicy: values.latePolicy };
+  return {
+    ...common,
+    source,
+    deadline: localToIso(values.deadline),
+    latePolicy: values.latePolicy,
+    executionMode: values.controlled ? "CONTROLLED" : "NORMAL",
+    aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0,
+  };
 }
 
 /**
  * The detail's edit form: the publication only while scheduled (`422 ALREADY_PUBLISHED` otherwise);
- * deadline and late policy only for a Trabalho (an Exercício has none, 013/FR-004).
+ * deadline, late policy, mode and AI help only for a Trabalho (an Exercício has none, 013/FR-004,
+ * 015/FR-002), the last two only until a student starts (015/FR-005).
  */
 export const ActivityEditSchema = z
   .object({
@@ -145,6 +205,8 @@ export const ActivityEditSchema = z
     hasDeadline: z.boolean(),
     deadline: localDateTime,
     latePolicy: LatePolicySchema,
+    controlled: z.boolean(),
+    aiHelp: z.boolean(),
   })
   .superRefine((values, ctx) => {
     if (values.hasDeadline && !values.deadline) ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
@@ -161,6 +223,8 @@ export const activityEditDefaults = (activity: TeacherActivity): ActivityEditVal
   hasDeadline: activity.deadline !== null,
   deadline: activity.deadline ? isoToLocal(activity.deadline) : "",
   latePolicy: activity.latePolicy ?? "REJECT",
+  controlled: activity.executionMode === "CONTROLLED",
+  aiHelp: activity.aiHelp.allowance > 0,
 });
 
 /** Only what changed, with the version read; the publication only while scheduled. */
@@ -173,5 +237,9 @@ export function toUpdateActivityRequest(values: ActivityEditValues, activity: Te
     ...(activity.phase === "SCHEDULED" && values.publishAt !== initial.publishAt ? { publishAt: localToIso(values.publishAt) } : {}),
     ...(initial.hasDeadline && values.deadline !== initial.deadline ? { deadline: localToIso(values.deadline) } : {}),
     ...(initial.hasDeadline && values.latePolicy !== initial.latePolicy ? { latePolicy: values.latePolicy } : {}),
+    ...(hasWorkOptions(activity.type) && values.controlled !== initial.controlled
+      ? { executionMode: values.controlled ? "CONTROLLED" : "NORMAL" }
+      : {}),
+    ...(hasWorkOptions(activity.type) && values.aiHelp !== initial.aiHelp ? { aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0 } : {}),
   };
 }

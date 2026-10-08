@@ -1,4 +1,4 @@
-import { type GradeCents, gradeToCents } from "@repo/contracts";
+import { type AiHelpAllowance, AiHelpAllowanceSchema, type GradeCents, gradeToCents } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
 import type { ActivityQuestionRow } from "./views/rows";
 
@@ -9,6 +9,9 @@ export function decimalToCents(value: Prisma.Decimal): GradeCents {
 
 /** A nullable grade column (null for EXERCISE since 013 K1) in hundredths. */
 export const nullableCents = (value: Prisma.Decimal | null): GradeCents | null => (value === null ? null : decimalToCents(value));
+
+/** `smallint` → the platform's allowance: 0 or 3 by the CHECK (015 research F2), checked again here. */
+export const aiHelpAllowanceOf = (value: number): AiHelpAllowance => AiHelpAllowanceSchema.parse(value);
 
 /** A grade column that is NOT NULL for an ASSIGNMENT by the CHECK by type (013 K1). */
 export function requiredCents(value: Prisma.Decimal | null): GradeCents {
@@ -77,6 +80,7 @@ export const ACTIVITY_HEADER_SELECT = {
   classId: true,
   type: true,
   executionMode: true,
+  aiHelpAllowance: true,
   status: true,
   title: true,
   instructions: true,

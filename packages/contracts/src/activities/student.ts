@@ -5,10 +5,18 @@ import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
 import { AnswerSchema } from "../works/grading.js";
 import { DashboardRankingSchema } from "../ranking/index.js";
-import { ActivityTypeSchema, LatePolicySchema, StudentActivityFilterSchema, StudentActivityStatusSchema } from "./enums.js";
+import {
+  AI_HELP_ALLOWANCE,
+  ActivityTypeSchema,
+  AiHelpAllowanceSchema,
+  ExecutionModeSchema,
+  LatePolicySchema,
+  StudentActivityFilterSchema,
+  StudentActivityStatusSchema,
+} from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
 import { PointsSchema } from "./points.js";
-import { ACTIVITY_EXERCISES_MAX } from "./teacher.js";
+import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
 // The student's side (012 contracts/http-api.md, "Student routes"). Every shape here is built on the
 // server from an allowlist (research P15): no answer key, explanation, trick flag, grading strategy,
@@ -44,6 +52,10 @@ export type StudentQuestion = z.infer<typeof StudentQuestionSchema>;
 export const StudentActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
+  /** CONTROLLED: the work is answered in the focus page (015/FR-006, FR-007). */
+  executionMode: ExecutionModeSchema,
+  /** The AI help per student in this activity (015/FR-006); 0 when off. */
+  aiHelp: ActivityAiHelpSchema,
   title: z.string(),
   /** First 160 characters of the instructions, as plain text. */
   summary: z.string(),
@@ -95,6 +107,8 @@ export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answ
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
+  /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
+  aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
   instructions: z.string().nullable(),
   serverNow: IsoDateTimeSchema,
   /** In position order. */

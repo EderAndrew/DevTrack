@@ -39,6 +39,9 @@ export interface ApplyOverrides {
   deadline?: string;
   latePolicy?: ActivityLatePolicy;
   acknowledgeOutOfScope?: boolean;
+  /** 015: a work's mode and AI help; left out by default (NORMAL, 0). Any value goes in as given, for the 400s. */
+  executionMode?: string;
+  aiHelpAllowance?: number;
 }
 
 const applyBody = (source: object, defaults: object, overrides: ApplyOverrides) =>

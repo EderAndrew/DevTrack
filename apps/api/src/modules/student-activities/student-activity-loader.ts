@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { StudentAnswer } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
-import { ACTIVITY_QUESTION_SELECT, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
+import { ACTIVITY_QUESTION_SELECT, aiHelpAllowanceOf, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
 import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import type { ActivityQuestionRow } from "../activities/views/rows";
@@ -14,6 +14,8 @@ export type DeniedReason = "NOT_ENROLLED" | "NOT_PUBLISHED" | "CANCELLED";
 const ACTIVITY_SELECT = {
   id: true,
   type: true,
+  executionMode: true,
+  aiHelpAllowance: true,
   title: true,
   instructions: true,
   status: true,
@@ -38,6 +40,8 @@ const ATTEMPT_SELECT = {
   completedAt: true,
   /** EXERCISE: the results of a concluded attempt, for its points and its result view (013 K6, K10). */
   results: { select: { questionId: true, result: true, points: true, scoring: true, comment: true } },
+  /** ASSIGNMENT: the AI helps delivered in it (015/FR-020). */
+  _count: { select: { helpRequests: { where: { status: "DELIVERED" } } } },
   submission: {
     select: {
       submittedAt: true,
@@ -89,6 +93,7 @@ export class StudentActivityLoader {
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     return {
       ...toInput(activity, attempts, now, canSeeResults),
+      aiHelpUsed: attempts.reduce((sum, row) => sum + row._count.helpRequests, 0),
       questions: activity.questions.map(toQuestionRow),
       attempt: attempt
         ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
@@ -213,6 +218,8 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
   return {
     id: activity.id,
     type: activity.type,
+    executionMode: activity.executionMode,
+    aiHelpAllowance: aiHelpAllowanceOf(activity.aiHelpAllowance),
     title: activity.title,
     instructions: activity.instructions,
     class: { id: activity.schoolClass.id, name: activity.schoolClass.name },

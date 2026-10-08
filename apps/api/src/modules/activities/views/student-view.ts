@@ -2,6 +2,8 @@ import {
   type Answer,
   centsToGrade,
   type ActivityType,
+  type AiHelpAllowance,
+  type ExecutionMode,
   type ExerciseResult,
   type GradeCents,
   type LatePolicy,
@@ -46,6 +48,9 @@ export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
 export interface StudentActivityInput {
   id: string;
   type: ActivityType;
+  /** 015: NORMAL or CONTROLLED, and the AI help per student (always NORMAL and 0 for EXERCISE). */
+  executionMode: ExecutionMode;
+  aiHelpAllowance: AiHelpAllowance;
   title: string;
   instructions: string | null;
   class: { id: string; name: string };
@@ -73,6 +78,8 @@ export interface StudentActivityInput {
 }
 
 export interface StudentActivityDetailInput extends StudentActivityInput {
+  /** The AI helps delivered to the session student in this activity (015/FR-020). */
+  aiHelpUsed: number;
   questions: ActivityQuestionRow[];
   attempt: { number: number; startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
   /** EXERCISE: the concluded attempts, newest first (013/FR-005). */
@@ -104,6 +111,8 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
   return {
     id: input.id,
     type: input.type,
+    executionMode: input.executionMode,
+    aiHelp: { allowance: input.aiHelpAllowance },
     title: input.title,
     summary: summaryOf(input.instructions),
     class: { id: input.class.id, name: input.class.name },
@@ -134,6 +143,7 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
   const visible = resultVisible(input);
   return {
     ...summary,
+    aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
     questions: [...input.questions].sort((a, b) => a.position - b.position).map(toStudentQuestion),

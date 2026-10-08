@@ -24,15 +24,19 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { isActivityVersionConflict, useActivity, useActivityActions } from "../hooks/use-activities";
+import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability } from "../hooks/use-activities";
 import {
   ACTIVITY_TYPE_LABELS,
+  activityStarted,
   type ActivityEditValues,
   ActivityEditSchema,
   activityEditDefaults,
   activityFormMessages,
   formatGrade,
   formatPoints,
+  hasWorkOptions,
+  HELP_CHECK_PENDING,
+  helpUnavailableText,
   LATE_POLICY_LABELS,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
@@ -40,6 +44,7 @@ import {
 import { ActivityQuestions } from "./activity-questions";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
+import { WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
 export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostramos a versão atual; revise antes de continuar.";
 
@@ -48,11 +53,15 @@ export const EDIT_FIELD_IDS = {
   instructions: "editar-instrucoes",
   publishAt: "editar-publicacao",
   deadline: "editar-prazo",
+  controlled: "editar-modo-controlado",
+  aiHelp: "editar-ajuda-ia",
 } as const;
 
 const FIELD_OF_CODE: Record<string, string> = {
   INVALID_SCHEDULE: EDIT_FIELD_IDS.deadline,
   ALREADY_PUBLISHED: EDIT_FIELD_IDS.publishAt,
+  ACTIVITY_ALREADY_STARTED: EDIT_FIELD_IDS.controlled,
+  AI_HELP_UNAVAILABLE: EDIT_FIELD_IDS.aiHelp,
 };
 
 export interface ActivityDetailProps {
@@ -66,7 +75,8 @@ export interface ActivityDetailProps {
 
 /**
  * One activity of the class (012 contracts/web-ui.md, `/turmas/[id]/atividades/[activityId]`): its
- * data and edit (título, instruções, prazo, regra de atraso; publicação only while scheduled), the
+ * data and edit (título, instruções, prazo, regra de atraso; publicação only while scheduled; a
+ * Trabalho's mode and AI help, shown as text badges and editable until a student starts, 015), the
  * questions with the answer key, the students' situations with a link to each attempt, "Encerrar
  * atividade", "Liberar resultado" (confirmation with the submissions still pending) and "Cancelar
  * atividade" (danger, explicit text and confirmation). Another tab's change reloads it with a notice.
@@ -130,6 +140,7 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
           {notice ?? ""}
         </p>
         <ActivitySituation status={activity.status} phase={activity.phase} />
+        <WorkOptionBadges activity={activity} />
         <dl className="m-0 grid gap-2">
           <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
           <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
@@ -281,6 +292,8 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
     defaultValues: activityEditDefaults(activity),
   });
   const scheduled = activity.phase === "SCHEDULED";
+  const withOptions = hasWorkOptions(activity.type);
+  const availability = useHelpAvailability(withOptions);
 
   const onSubmit = handleSubmit(async (values) => {
     setErrors([]);
@@ -330,6 +343,16 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
           />
           <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
         </>
+      ) : null}
+      {withOptions ? (
+        <WorkOptionsFieldset
+          idPrefix="editar"
+          controlled={register("controlled")}
+          aiHelp={register("aiHelp")}
+          helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
+          aiHelpOn={activity.aiHelp.allowance > 0}
+          locked={activityStarted(activity)}
+        />
       ) : null}
       <SubmitButton pending={formState.isSubmitting} pendingLabel="Salvando…">
         Salvar alterações

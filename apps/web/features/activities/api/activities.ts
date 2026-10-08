@@ -3,6 +3,7 @@ import type {
   CreateActivityRequest,
   ExercisePage,
   GradeSubmissionRequest,
+  HelpAvailability,
   MarkExerciseResultsRequest,
   ScopeCheck,
   TeacherActivity,
@@ -29,6 +30,8 @@ export const activitiesApi = {
   cancel: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/cancel`, {}),
   /** The result to the class, the whole activity at once (FR-006). */
   release: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/release`, {}),
+  /** 015: whether a Trabalho can be applied or edited with the AI help now (research F3). */
+  helpAvailability: () => apiClient.get<HelpAvailability>("/work-help/availability"),
 };
 
 const attemptPath = (classId: string, activityId: string, attemptId: string) => `${base(classId)}/${activityId}/attempts/${attemptId}`;

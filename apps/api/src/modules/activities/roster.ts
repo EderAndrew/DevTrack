@@ -12,6 +12,7 @@ import {
 } from "@repo/contracts";
 import type { Tx } from "../../platform/database/transaction";
 import { decimalToCents } from "./activity-query";
+import { ACTIVITY_TYPES } from "./activity-types";
 import { type ActivityFacts, assignmentSchedule } from "./status/facts";
 import { deriveRosterStatus } from "./status/roster-status";
 
@@ -32,6 +33,8 @@ export interface RosterAttempt {
   submission: { submittedAt: Date; late: boolean; gradeCents: number; gradePartial: boolean } | null;
   /** EXERCISE: the results of a concluded attempt (013 K6); empty otherwise. */
   results: { result: ExerciseResult; points: number }[];
+  /** The AI helps delivered in this attempt (015/FR-020: only DELIVERED count). */
+  helpUsed: number;
 }
 
 export interface RosterActivity {
@@ -76,7 +79,8 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
  * an ACTIVE enrollment, plus the removed ones who started it (their work stays visible to the
  * teacher), by name. The status is derived with the server clock on every read. For an EXERCISE the
  * row points to attempt 1 — the one that scores and that the teacher marks — with its points and the
- * answers waiting for a mark (013/FR-016).
+ * answers waiting for a mark (013/FR-016). A work's row counts the AI helps delivered ("2 de 3",
+ * 015/FR-024).
  */
 export function buildRoster(
   activity: RosterActivity,
@@ -91,6 +95,7 @@ export function buildRoster(
   }
   for (const list of byStudent.values()) list.sort((a, b) => a.number - b.number);
   const exercise = activity.type === "EXERCISE";
+  const workOptions = ACTIVITY_TYPES[activity.type].workOptions;
   const roster = students
     .filter((student) => student.enrollment === "ACTIVE" || byStudent.has(student.studentUserId))
     .map((student): RosterEntry => {
@@ -109,6 +114,7 @@ export function buildRoster(
         gradePartial: submission ? submission.gradePartial : null,
         pointsEarned: exercise ? results.reduce((sum, row) => sum + row.points, 0) : null,
         pendingMarks: exercise ? results.filter((row) => row.result === "PENDING_TEACHER").length : null,
+        aiHelpUsed: workOptions ? (attempt?.helpUsed ?? 0) : null,
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;
@@ -165,12 +171,14 @@ export async function loadRosterData(
             status: true,
             submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true } },
             results: { select: { result: true, points: true } },
+            _count: { select: { helpRequests: { where: { status: "DELIVERED" } } } },
           },
         });
   return {
     students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId)),
-    attempts: attempts.map((attempt) => ({
+    attempts: attempts.map(({ _count, ...attempt }) => ({
       ...attempt,
+      helpUsed: _count.helpRequests,
       submission: attempt.submission && {
         submittedAt: attempt.submission.submittedAt,
         late: attempt.submission.late,

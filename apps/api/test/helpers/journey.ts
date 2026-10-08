@@ -583,6 +583,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(appliedWork.status).toBe(201);
   const editedActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 1, latePolicy: "ACCEPT_MARKED" });
   expect(editedActivity.status).toBe(200);
+  // 015/US1 — before any student starts, the work goes to the controlled mode (`activity.settings_changed`).
+  const controlledActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 2, executionMode: "CONTROLLED" });
+  expect(controlledActivity.body).toMatchObject({ executionMode: "CONTROLLED" });
   expect((await teacherClient.post(`${activitiesPath}/${appliedWork.body.id}/close`, {})).status).toBe(200);
   const journeyTeacherId = (await t.prisma.user.findUniqueOrThrow({ where: { email: teacherEmail }, select: { id: true } })).id;
   // Two approved exercises, an open answer or code first: its answer waits for the teacher's mark (013/US3).

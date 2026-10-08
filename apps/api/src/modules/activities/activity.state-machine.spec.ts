@@ -39,8 +39,8 @@ describe("012/FR-004 ciclo de vida da atividade da turma", () => {
     expect(Object.keys(ACTIVITY_TYPES).sort()).toEqual(["ASSIGNMENT", "EXERCISE"]);
   });
 
-  it("013/FR-001 Trabalho tem nota, prazo e uma tentativa; Exercício tem pontos, sem prazo, com tentativas de prática", () => {
-    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 } });
-    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 } });
+  it("013/FR-001 015/FR-002 Trabalho tem nota, prazo, uma tentativa e as opções da 015; Exercício tem pontos, sem prazo, com tentativas de prática e sem opções", () => {
+    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true });
+    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false });
   });
 });

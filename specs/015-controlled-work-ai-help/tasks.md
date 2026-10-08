@@ -154,20 +154,20 @@ e conferir o gravado e o exibido.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T013 [P] [US1] `apps/api/test/integration/015-us1-settings.spec.ts`: `015/US1-1` … `015/US1-6`
+- [X] T013 [P] [US1] `apps/api/test/integration/015-us1-settings.spec.ts`: `015/US1-1` … `015/US1-6`
   (aplicar com as duas opções; padrão NORMAL/0; ajuda indisponível → 503 `AI_HELP_UNAVAILABLE`;
   editar antes do início e auditar `activity.settings_changed`, depois → 409
   `ACTIVITY_ALREADY_STARTED`; Exercício com opções → 400; franquia ≠ 3 → 400),
   `015/FR-005`, `015/FR-006`; `GET /work-help/availability` com o agente ativo, desabilitado e sem
   modelo.
-- [ ] T014 [P] [US1] Web: `apps/web/features/activities/components/new-activity.test.tsx` e
+- [X] T014 [P] [US1] Web: `apps/web/features/activities/components/new-activity.test.tsx` e
   `activity-detail.test.tsx` — fieldset "Como os alunos respondem", textos de
   `contracts/web-ui.md`, ajuda desabilitada com motivo, oculto para Exercício, opções travadas
   depois do início, badges por texto; axe e teclado (`015/US1-1`, `015/US1-3`, `015/FR-006`).
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Contratos: `executionMode` (padrão NORMAL) e `aiHelpAllowance` (padrão 0) em
+- [X] T015 [US1] Contratos: `executionMode` (padrão NORMAL) e `aiHelpAllowance` (padrão 0) em
   `CreateAssignmentRequest` e `UpdateActivityRequest` (o Exercício, estrito, continua recusando
   ambos: 400), `aiHelp: { allowance }` nas visões do professor e do aluno (`used` no detalhe do
   aluno), `executionMode` no resumo do aluno e `aiHelpUsed` (null no Exercício) no roster, em
@@ -177,13 +177,14 @@ e conferir o gravado e o exibido.
   aceitar e gravar `executionMode`/`aiHelpAllowance`, consultar `HelpAvailability` para franquia 3,
   recusar troca com tentativa existente sob o lock da atividade, auditar
   `activity.settings_changed` (tipo novo: `audit-event-types.ts`, `contracts/audit-events.md`,
-  `journey.ts`) e os novos metadados de `activity.created`; visões do professor e do aluno
+  `journey.ts`) e os novos metadados de `activity.published`; `aiHelp.used` e `aiHelpUsed` já
+  contam as ajudas DELIVERED (zero até a US3); visões do professor e do aluno
   (`activities/views/{teacher-view,student-view}.ts`) com `executionMode` e `aiHelp`.
-- [ ] T016 [US1] `GET /work-help/availability` em
+- [X] T016 [US1] `GET /work-help/availability` em
   `apps/api/src/modules/work-help/work-help-availability.controller.ts` (status do agente e rota da
   tarefa) e registro no `HelpAvailability` no `onModuleInit` do `WorkHelpModule`; endpoint no
   catálogo e linha no `MATRIX`.
-- [ ] T017 [US1] Web: `apps/web/features/activities/api` e `hooks` (disponibilidade),
+- [X] T017 [US1] Web: `apps/web/features/activities/api` e `hooks` (disponibilidade),
   `components/new-activity.tsx` (fieldset, React Hook Form, validação do contrato) e
   `components/activity-detail.tsx` (badges, edição travada); T013 e T014 verdes.
 

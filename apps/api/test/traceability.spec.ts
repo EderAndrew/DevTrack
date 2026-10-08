@@ -187,7 +187,7 @@ const SPECS: FeatureSpec[] = [
     rows: 0,
     rowsWithoutIds: [],
     successCriteria: sc(1, 11),
-    pending: { stories: [1, 2, 3, 4, 5], successCriteria: sc(1, 11) },
+    pending: { stories: [2, 3, 4, 5], successCriteria: sc(1, 11) },
   },
 ];
 

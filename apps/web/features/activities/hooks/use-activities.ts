@@ -22,6 +22,7 @@ export const activitiesKeys = {
   attempt: (classId: string, activityId: string, attemptId: string) =>
     [...activitiesKeys.detail(classId, activityId), "attempts", attemptId] as const,
   works: (subjectId: string) => ["activities", "sources", "works", subjectId] as const,
+  helpAvailability: ["activities", "help-availability"] as const,
   exercises: (query: string) => ["activities", "sources", "exercises", query] as const,
 };
 
@@ -41,6 +42,10 @@ export const useApprovedWorks = (subjectId: string | null) =>
 
 export const useApprovedExercises = (query: string) =>
   useQuery({ queryKey: activitiesKeys.exercises(query), queryFn: () => activitySourcesApi.exercises(query) });
+
+/** Whether the AI help can be turned on (015/FR-004); asked only by a Trabalho's forms. */
+export const useHelpAvailability = (enabled: boolean) =>
+  useQuery({ queryKey: activitiesKeys.helpAvailability, queryFn: () => activitiesApi.helpAvailability(), enabled });
 
 export const useScopeCheck = (classId: string) =>
   useMutation({ mutationFn: (source: ActivitySource) => activitiesApi.scopeCheck(classId, source) });

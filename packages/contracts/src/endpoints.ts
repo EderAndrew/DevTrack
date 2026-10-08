@@ -80,6 +80,7 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
+import { HelpAvailabilitySchema } from "./work-help/help.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1216,6 +1217,13 @@ export const endpoints = {
     path: "/classes/:classId/ranking",
     params: ClassParamsSchema,
     response: ClassRankingSchema,
+    status: 200,
+  },
+  /** 015 — whether a work can be applied with the AI help now (research F3). */
+  "workHelp.availability": {
+    method: "GET",
+    path: "/work-help/availability",
+    response: HelpAvailabilitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

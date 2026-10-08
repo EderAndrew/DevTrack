@@ -21,7 +21,7 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     expect(catalog.filter((route) => !routes.includes(route))).toEqual([]);
   });
 
-  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048), as da 003, as da 004, as da 006, as da 007, as da 010, as da 011, as da 012 e as da 013, sem entradas repetidas", () => {
+  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048), as da 003, as da 004, as da 006, as da 007, as da 010, as da 011, as da 012, as da 013 e as da 015, sem entradas repetidas", () => {
     // 003 domains (classes, class invitations, enrollments, own classes) and 004 domains
     // (subjects, …); each story adds its routes.
     const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
@@ -32,9 +32,11 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     const phase011 = Object.keys(endpoints).filter((key) => /^(works|workGeneration[A-Z]\w*)\./.test(key));
     const phase012 = Object.keys(endpoints).filter((key) => /^(activities|myActivities)\./.test(key));
     const phase013 = Object.keys(endpoints).filter((key) => /^ranking\./.test(key));
+    // 015: the AI help (and, from US2, the controlled attempt's integrity routes).
+    const phase015 = Object.keys(endpoints).filter((key) => /^(workHelp|attemptIntegrity)\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
-    expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length);
-    expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length);
+    expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length);
+    expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length);
   });
 });
 

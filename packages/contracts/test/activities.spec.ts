@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ActivityAiHelpSchema,
   ActivityGradingStatusSchema,
   CreateActivityRequestSchema,
   EXERCISE_POINTS,
@@ -11,6 +12,7 @@ import {
   RetryAttemptRequestSchema,
   RosterEntrySchema,
   SaveAnswersRequestSchema,
+  StudentActivitySchema,
   StudentActivitySummarySchema,
   StudentDashboardSchema,
   StudentExerciseAttemptSchema,
@@ -95,6 +97,66 @@ describe("015 modo controlado e ajuda da IA (contracts/http-api.md)", () => {
     expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: 0 }] })).toBe(true);
     expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, answer: { kind: "TEXT", text: "colado" } }] })).toBe(false);
     expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: -1 }] })).toBe(false);
+  });
+});
+
+describe("015 opções do Trabalho na aplicação, na edição e nas visões (contracts/http-api.md)", () => {
+  const work = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: uuid(99),
+    source: { type: "ASSIGNMENT", workId: uuid(5) },
+    title: "Trabalho de POO",
+    publishAt: null,
+    acknowledgeOutOfScope: false,
+    deadline: "2026-10-10T23:59:00.000Z",
+    latePolicy: "REJECT",
+    ...overrides,
+  });
+  const exercises = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: uuid(99),
+    source: { type: "EXERCISE", exerciseIds: [uuid(1)] },
+    title: "Prática",
+    publishAt: null,
+    acknowledgeOutOfScope: false,
+    ...overrides,
+  });
+
+  it("015/FR-001 o Trabalho aceita modo e ajuda; sem eles, NORMAL e nenhuma ajuda", () => {
+    expect(CreateActivityRequestSchema.parse(work())).toMatchObject({ executionMode: "NORMAL", aiHelpAllowance: 0 });
+    expect(CreateActivityRequestSchema.parse(work({ executionMode: "CONTROLLED", aiHelpAllowance: 3 }))).toMatchObject({
+      executionMode: "CONTROLLED",
+      aiHelpAllowance: 3,
+    });
+    expect(accepts(UpdateActivityRequestSchema, { version: 1, executionMode: "CONTROLLED", aiHelpAllowance: 3 })).toBe(true);
+    expect(accepts(UpdateActivityRequestSchema, { version: 1, executionMode: "EXAM" })).toBe(false);
+  });
+
+  it("015/FR-003 outra quantidade de ajudas é recusada na aplicação e na edição", () => {
+    for (const value of [1, 2, 4, "3", null]) {
+      expect(accepts(CreateActivityRequestSchema, work({ aiHelpAllowance: value })), String(value)).toBe(false);
+      expect(accepts(UpdateActivityRequestSchema, { version: 1, aiHelpAllowance: value }), String(value)).toBe(false);
+    }
+  });
+
+  it("015/FR-002 o Exercício recusa modo controlado e ajuda da IA, até NORMAL e 0", () => {
+    expect(accepts(CreateActivityRequestSchema, exercises())).toBe(true);
+    for (const extra of [{ executionMode: "CONTROLLED" }, { executionMode: "NORMAL" }, { aiHelpAllowance: 3 }, { aiHelpAllowance: 0 }]) {
+      expect(accepts(CreateActivityRequestSchema, exercises(extra)), JSON.stringify(extra)).toBe(false);
+    }
+  });
+
+  it("015/FR-006 o professor e o aluno recebem o modo e a ajuda; o aluno, também as ajudas já usadas", () => {
+    expect(accepts(ActivityAiHelpSchema, { allowance: 3 })).toBe(true);
+    expect(accepts(ActivityAiHelpSchema, { allowance: 3, used: 1 })).toBe(false);
+    expect(accepts(ActivityAiHelpSchema, { allowance: 2 })).toBe(false);
+    const detail = StudentActivitySchema.shape.aiHelp;
+    expect(accepts(detail, { allowance: 3, used: 2 })).toBe(true);
+    expect(accepts(detail, { allowance: 3 })).toBe(false);
+    expect(accepts(detail, { allowance: 3, used: 4 })).toBe(false);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, 3)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, null)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, 4)).toBe(false);
+    expect(TeacherActivitySummarySchema.shape.aiHelp).toBe(ActivityAiHelpSchema);
+    expect(StudentActivitySummarySchema.shape.executionMode).toBe(ExecutionModeSchema);
   });
 });
 
@@ -201,6 +263,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     id: uuid(1),
     type: "EXERCISE",
     executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
     title: "Prática",
     status: "ACTIVE",
     phase: "PUBLISHED",
@@ -261,6 +324,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       gradePartial: null,
       pointsEarned: 45,
       pendingMarks: 1,
+      aiHelpUsed: null,
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -356,6 +420,8 @@ describe("013 contratos do aluno (contracts/http-api.md)", () => {
   const summary = {
     id: uuid(1),
     type: "EXERCISE",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
     title: "Prática",
     summary: "",
     class: { id: uuid(2), name: "Turma A" },

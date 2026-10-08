@@ -4,8 +4,9 @@ import { type AgentDefinition, defineAgent, defineCatalogModel } from "../../src
 import { curriculumAiDefinitions } from "../../src/modules/curriculum-ai/definitions/curriculum-agent";
 import { exerciseAiDefinitions } from "../../src/modules/exercise-ai/definitions/exercise-generator";
 import { workAiDefinitions } from "../../src/modules/work-ai/definitions/work-generator";
-import { workHelpDefinitions } from "../../src/modules/work-help/definitions/work-helper";
+import { WORK_HELPER_KEY, workHelpDefinitions } from "../../src/modules/work-help/definitions/work-helper";
 import { type FakeModelProvider, fakeOutput, fakeToolCall } from "../fixtures/ai/fake-model-provider";
+import { REFERENCE_L1 } from "../fixtures/ai/reference-agents";
 import { type AiExtraDefinitions, type AiTestApp, createAiTestApp } from "./ai";
 import { TEST_CURRICULUM_AGENT } from "./curriculum-ai";
 import { TEST_EXERCISE_GENERATOR } from "./exercise-ai";
@@ -19,8 +20,23 @@ type ApiClient = ReturnType<typeof api>;
 /** The key of the `work-helper`'s read tool (contracts/work-helper.md). */
 export const READ_WORK_HELP_REQUEST = "read-work-help-request";
 
+/**
+ * Until the real `work-helper` arrives (US3, T034): a read-only reference agent under its key, on the
+ * reference task, so the availability of US1 (research F3) has an agent and a route to look at. It
+ * leaves with US3, when `workHelpDefinitions()` registers the agent.
+ */
+const WORK_HELPER_STAND_IN = defineAgent({
+  ...REFERENCE_L1,
+  key: WORK_HELPER_KEY,
+  name: "Ajuda da IA (substituto de teste até a US3)",
+  prompt: { ...REFERENCE_L1.prompt, key: "work-helper-stand-in" },
+});
+
 /** The 015 agents (the real `work-helper` since US3), registered ACTIVE (production starts them DISABLED). */
-export const testWorkHelpAgents = (): AgentDefinition[] => workHelpDefinitions().agents.map((agent) => defineAgent({ ...agent, initialStatus: "ACTIVE" }));
+export const testWorkHelpAgents = (): AgentDefinition[] => {
+  const agents = workHelpDefinitions().agents;
+  return (agents.length > 0 ? agents : [WORK_HELPER_STAND_IN]).map((agent) => defineAgent({ ...agent, initialStatus: "ACTIVE" }));
+};
 
 /**
  * The test catalog entry of the earlier agents, approved for the 015 tasks too (`work-help` since
@@ -68,6 +84,11 @@ export function validGuidance(overrides: Partial<WorkHelperOutput> = {}): WorkHe
     example: null,
     ...overrides,
   };
+}
+
+/** `GET /work-help/availability` as the teacher of `client` (research F3). */
+export function getHelpAvailability(client: ApiClient) {
+  return client.get("/api/work-help/availability");
 }
 
 /** `POST /me/activities/:activityId/attempt/help` as the student of `client`; a fresh idempotency key unless given. */

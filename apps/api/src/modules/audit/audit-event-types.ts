@@ -179,6 +179,8 @@ export const AUDIT_EVENT_METADATA = {
     "classId",
     "type",
     "executionMode",
+    // 015: the work's AI help (0 or 3), next to its mode.
+    "aiHelpAllowance",
     "sourceWorkId",
     "sourceExerciseCount",
     "questionCount",
@@ -191,6 +193,8 @@ export const AUDIT_EVENT_METADATA = {
     "hasPlan",
   ],
   "activity.updated": ["classId", "fields"],
+  // 015: a work's mode or AI help changed before the first start (FR-005).
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance"],
   "activity.closed": ["classId", "submittedCount", "missedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.

@@ -20,6 +20,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/011-work-bank/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/012-student-portal/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/013-exercise-points-ranking/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/015-controlled-work-ai-help/contracts/audit-events.md"),
 ];
 
 /**
@@ -36,7 +37,17 @@ const PENDING_012 = new Set<string>([]);
 
 /** 013 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_013 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013]);
+
+/** 015 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_015 = new Set<string>([
+  "attempt_integrity.recorded",
+  "work_help.requested",
+  "work_help.delivered",
+  "work_help.out_of_scope",
+  "work_help.blocked",
+  "work_help.failed",
+]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015]);
 
 interface ContractRow {
   type: string;
@@ -110,7 +121,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = mergeExtensions(CONTRACTS.flatMap(contractRows)).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010, 011, 012 e 013 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011, 012, 013 e 015 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });
@@ -193,7 +204,9 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
 
     it("012/SC-011 os 13 tipos da 012 gravados, metadata só com ids, contagens, enums, booleanos e códigos", () => {
-      const types = rows.map((row) => row.type).filter((type) => /^(activity|activity_attempt|activity_submission|activity_result|student_access)\./.test(type));
+      const types = rows
+        .map((row) => row.type)
+        .filter((type) => /^(activity|activity_attempt|activity_submission|activity_result|student_access)\./.test(type) && type !== "activity.settings_changed");
       expect(types.sort()).toEqual([
         "activity.cancelled",
         "activity.closed",
@@ -229,6 +242,14 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       const published = events.filter((event) => event.type === "activity.published").map((event) => event.metadata as Record<string, unknown>);
       expect(published.some((metadata) => Number.isInteger(metadata.possiblePoints) && !("totalCents" in metadata) && !("latePolicy" in metadata))).toBe(true);
       expect(events.filter((event) => /ranking/i.test(event.type) || /ranking/i.test(JSON.stringify(event.metadata)))).toEqual([]);
+    });
+
+    it("015/US1-4 activity.settings_changed com o modo e a ajuda; activity.published com a ajuda, só enums e contagens", () => {
+      const changed = events.filter((event) => event.type === "activity.settings_changed");
+      expect(changed.map((event) => event.metadata)).toContainEqual(expect.objectContaining({ executionMode: "CONTROLLED", aiHelpAllowance: 0 }));
+      expect(offendingMetadata(changed)).toEqual([]);
+      const published = events.filter((event) => event.type === "activity.published").map((event) => event.metadata as Record<string, unknown>);
+      expect(published.every((metadata) => metadata.aiHelpAllowance === 0 || metadata.aiHelpAllowance === 3)).toBe(true);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

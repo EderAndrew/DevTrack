@@ -7,7 +7,7 @@ import {
   type TeacherActivitySummary,
   type TeacherQuestion,
 } from "@repo/contracts";
-import { type ActivityHeader, nullableCents } from "../activity-query";
+import { type ActivityHeader, aiHelpAllowanceOf, nullableCents } from "../activity-query";
 import { ACTIVITY_TYPES } from "../activity-types";
 import { ActivityStateMachine } from "../activity.state-machine";
 import type { ActivityQuestionRow } from "./rows";
@@ -55,6 +55,7 @@ export function toTeacherActivitySummary(
     id: header.id,
     type: header.type,
     executionMode: header.executionMode,
+    aiHelp: { allowance: aiHelpAllowanceOf(header.aiHelpAllowance) },
     title: header.title,
     status: header.status,
     phase: ActivityStateMachine.phase(header.status, header.publishAt, now),
