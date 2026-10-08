@@ -311,6 +311,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:classId/ranking", access: "ranking.visualizar" },
   // 015 — the teacher's apply and edit forms ask whether the AI help can be turned on (contracts/permissions.md).
   { method: "GET", path: "/work-help/availability", access: "atividades.aplicar" },
+  // 015/US4 — the controlled mode's records and the AI help of an attempt (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/integrity", access: "entregas.visualizar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity", access: "entregas.visualizar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help", access: "entregas.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

@@ -366,26 +366,28 @@ contagens, linha do tempo, ajudas e "não encontrado" para outro professor.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T039 [P] [US4] `apps/api/test/integration/015-us4-teacher-review.spec.ts`: `015/US4-1` …
+- [X] T039 [P] [US4] `apps/api/test/integration/015-us4-teacher-review.spec.ts`: `015/US4-1` …
   `015/US4-6` (resumo com saídas, tempo fora, quedas de conexão, bloqueios, tela cheia indisponível; linha do tempo
   com intervalos derivados; ajudas por questão com status e motivo; tentativa não entregue;
   outro professor → 404, aluno → 403; nota intocada), `015/FR-024`, `015/FR-025`, `015/FR-026`;
   `aiHelpUsed` no roster.
-- [ ] T040 [P] [US4] Web: `apps/web/features/activities/components/attempt-review.test.tsx` e
+- [X] T040 [P] [US4] Web: `apps/web/features/activities/components/attempt-review.test.tsx` e
   `activity-detail.test.tsx` — seção "Registros do modo controlado" com a nota "Uma saída não
   significa, sozinha, uso indevido.", linha do tempo, "Ajuda da IA" por questão, colunas do roster;
   sem "fraude"/"violação"/"cola" em nenhum texto; axe e teclado (`015/US4-2`, `015/US4-3`).
 
 ### Implementation for User Story 4
 
-- [ ] T041 [US4] `apps/api/src/modules/attempt-integrity/integrity-review.{controller,service}.ts`:
+- [X] T041 [US4] `apps/api/src/modules/attempt-integrity/integrity-review.{controller,service}.ts`:
   `GET …/activities/:activityId/integrity` e `GET …/attempts/:attemptId/integrity` sob
   `ClassContextPolicy` com `entregas.visualizar`; `apps/api/src/modules/work-help/work-help-review.controller.ts`:
   `GET …/attempts/:attemptId/help`; `aiHelpUsed` no roster (`apps/api/src/modules/activities/roster.ts`,
   contagem de DELIVERED); catálogo e `MATRIX`.
-- [ ] T042 [US4] Web: `features/activities/{api,hooks}` para integridade e ajuda;
+- [X] T042 [US4] Web: `features/activities/{api,hooks}` para integridade e ajuda;
   `components/attempt-review.tsx` (linha do tempo e ajudas com `CodeBlock`) e
   `components/activity-detail.tsx` (colunas do roster).
+  Feito: a linha do tempo e as ajudas ficam em `components/attempt-records.tsx` (as ajudas chegam a
+  cada questão da correção por um contexto); os textos em `schemas/attempt-records.ts`.
 
 **Checkpoint**: professor enxerga tudo o que foi registrado.
 

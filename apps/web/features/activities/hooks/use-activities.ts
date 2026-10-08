@@ -23,6 +23,10 @@ export const activitiesKeys = {
     [...activitiesKeys.detail(classId, activityId), "attempts", attemptId] as const,
   works: (subjectId: string) => ["activities", "sources", "works", subjectId] as const,
   helpAvailability: ["activities", "help-availability"] as const,
+  integritySummary: (classId: string, activityId: string) => [...activitiesKeys.detail(classId, activityId), "integrity"] as const,
+  attemptIntegrity: (classId: string, activityId: string, attemptId: string) =>
+    [...activitiesKeys.attempt(classId, activityId, attemptId), "integrity"] as const,
+  attemptHelp: (classId: string, activityId: string, attemptId: string) => [...activitiesKeys.attempt(classId, activityId, attemptId), "help"] as const,
   exercises: (query: string) => ["activities", "sources", "exercises", query] as const,
 };
 
@@ -110,3 +114,27 @@ export function useAttemptActions(classId: string, activityId: string, attemptId
     reload: () => queryClient.invalidateQueries({ queryKey: activitiesKeys.attempt(classId, activityId, attemptId) }),
   };
 }
+
+/** 015/US4: the controlled mode's counts of each student, for the roster (only a CONTROLLED work asks). */
+export const useIntegritySummary = (classId: string, activityId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: activitiesKeys.integritySummary(classId, activityId),
+    queryFn: () => activitiesApi.integritySummary(classId, activityId),
+    enabled,
+  });
+
+/** 015/US4: one attempt's timeline (CONTROLLED). */
+export const useAttemptIntegrity = (classId: string, activityId: string, attemptId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: activitiesKeys.attemptIntegrity(classId, activityId, attemptId),
+    queryFn: () => attemptsApi.integrity(classId, activityId, attemptId),
+    enabled,
+  });
+
+/** 015/US4: one attempt's requests of AI help (a work with the help on). */
+export const useAttemptHelp = (classId: string, activityId: string, attemptId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: activitiesKeys.attemptHelp(classId, activityId, attemptId),
+    queryFn: () => attemptsApi.help(classId, activityId, attemptId),
+    enabled,
+  });

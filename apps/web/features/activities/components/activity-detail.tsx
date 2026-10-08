@@ -1,6 +1,6 @@
 "use client";
 
-import type { TeacherActivity } from "@repo/contracts";
+import type { IntegritySummary, TeacherActivity } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ban, Lock, Send } from "lucide-react";
 import Link from "next/link";
@@ -24,7 +24,8 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability } from "../hooks/use-activities";
+import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability, useIntegritySummary } from "../hooks/use-activities";
+import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
 import {
   ACTIVITY_TYPE_LABELS,
   activityStarted,
@@ -368,6 +369,11 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
  */
 function Roster({ classId, activity }: { classId: string; activity: TeacherActivity }) {
   const exercise = activity.exerciseCounts;
+  // 015/US4: the controlled mode's counts (a CONTROLLED work) and the helps used (help on), per student.
+  const controlled = !exercise && activity.executionMode === "CONTROLLED";
+  const withHelp = !exercise && activity.aiHelp.allowance > 0;
+  const summary = useIntegritySummary(classId, activity.id, controlled);
+  const recordsOf = (studentUserId: string) => summary.data?.items.find((item) => item.studentUserId === studentUserId);
   return (
     <section aria-labelledby="alunos-titulo" className="flex flex-col gap-2">
       <h3 id="alunos-titulo" className="m-0 text-h3">
@@ -398,6 +404,14 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                   <TableHead scope="col">Nota</TableHead>
                 </>
               )}
+              {controlled ? (
+                <>
+                  <TableHead scope="col">Saídas da tela</TableHead>
+                  <TableHead scope="col">Quedas de conexão</TableHead>
+                  <TableHead scope="col">Copiar/colar bloqueados</TableHead>
+                </>
+              ) : null}
+              {withHelp ? <TableHead scope="col">Ajudas</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -425,12 +439,37 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                     </TableCell>
                   </>
                 )}
+                {controlled ? <IntegrityCells records={recordsOf(entry.studentUserId)} /> : null}
+                {withHelp ? <TableCell>{entry.aiHelpUsed === null ? "—" : helpsUsedLabel(entry.aiHelpUsed, activity.aiHelp.allowance)}</TableCell> : null}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
     </section>
+  );
+}
+
+/** A student's records in the roster (FR-024): counts with the time away or offline; "—" before the start. */
+function IntegrityCells({ records }: { records: IntegritySummary | undefined }) {
+  if (!records) {
+    return (
+      <>
+        <TableCell>—</TableCell>
+        <TableCell>—</TableCell>
+        <TableCell>—</TableCell>
+      </>
+    );
+  }
+  return (
+    <>
+      <TableCell>
+        {records.screenExits > 0 ? `${records.screenExits} (${formatDuration(records.timeAwaySeconds)} fora)` : "0"}
+        {records.fullscreenUnavailable ? " · Tela cheia indisponível" : ""}
+      </TableCell>
+      <TableCell>{records.disconnections > 0 ? `${records.disconnections} (${formatDuration(records.offlineSeconds)})` : "0"}</TableCell>
+      <TableCell>{records.clipboardBlocks}</TableCell>
+    </>
   );
 }
 

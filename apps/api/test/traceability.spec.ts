@@ -188,8 +188,9 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 11),
     // US2 and SC-005 (no attempt blocked, submitted or regraded by events) are covered since Phase 4;
-    // US3, SC-002/003 (golden set), SC-006 (AI failures), SC-007 (eval:help), SC-008 and SC-011 since Phase 5.
-    pending: { stories: [4, 5], successCriteria: ["SC-001", "SC-004", "SC-009", "SC-010"] },
+    // US3, SC-002/003 (golden set), SC-006 (AI failures), SC-007 (eval:help), SC-008 and SC-011 since Phase 5;
+    // US4 since Phase 6.
+    pending: { stories: [5], successCriteria: ["SC-001", "SC-004", "SC-009", "SC-010"] },
   },
 ];
 

@@ -80,9 +80,9 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
-import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema } from "./work-help/help.js";
+import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
-import { StudentIntegritySchema } from "./attempt-integrity/views.js";
+import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1102,6 +1102,31 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId",
     params: ClassActivityAttemptParamsSchema,
     response: TeacherAttemptSchema,
+    status: 200,
+  },
+  // 015 — what the teacher sees of the controlled mode and of the AI help (US4, research F13).
+  /** Per ACTIVE student with an attempt: exits, time away, drops, blocked gestures, refusals. */
+  "activities.integritySummary": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/integrity",
+    params: ClassActivityParamsSchema,
+    response: IntegritySummaryListSchema,
+    status: 200,
+  },
+  /** One attempt's events with the server's time, the derived intervals and the totals. */
+  "activities.attemptIntegrity": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity",
+    params: ClassActivityAttemptParamsSchema,
+    response: IntegrityTimelineSchema,
+    status: 200,
+  },
+  /** One attempt's helps: questions, orientations and why one was blocked or failed. */
+  "activities.attemptHelp": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherHelpStateSchema,
     status: 200,
   },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */

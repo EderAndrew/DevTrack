@@ -363,3 +363,54 @@ describe("015/US1 ActivityDetail — modo controlado e ajuda da IA do Trabalho",
     await expectNoA11yViolations(container);
   });
 });
+
+describe("015/US4 colunas do modo controlado e das ajudas na lista de alunos", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const STUDENT = "cccccccc-cccc-4ccc-8ccc-ccccccccccc1";
+  const ATTEMPT = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+  const started = activity({
+    executionMode: "CONTROLLED",
+    aiHelp: { allowance: 3 },
+    roster: [{ ...activity().roster[0]!, status: "IN_PROGRESS", attemptId: ATTEMPT, aiHelpUsed: 2 }],
+  });
+  const summary = {
+    items: [
+      {
+        studentUserId: STUDENT,
+        attemptId: ATTEMPT,
+        screenExits: 2,
+        timeAwaySeconds: 300,
+        fullscreenExits: 1,
+        disconnections: 1,
+        offlineSeconds: 45,
+        clipboardBlocks: 3,
+        typingLimitRejections: 0,
+        fullscreenUnavailable: true,
+        detectionUnavailable: false,
+      },
+    ],
+  };
+
+  it("015/US4-1 015/FR-024 saídas com tempo fora, quedas, bloqueios, tela cheia indisponível e \"2 de 3\" ajudas", async () => {
+    const { container } = setup({ [`GET ${PATH}`]: json(200, started), [`GET ${PATH}/integrity`]: json(200, summary) });
+    const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
+    for (const header of ["Saídas da tela", "Quedas de conexão", "Copiar/colar bloqueados", "Ajudas"]) {
+      expect(within(table).getByRole("columnheader", { name: header })).toBeTruthy();
+    }
+    await waitFor(() => expect(within(table).getByText("2 (5 min fora) · Tela cheia indisponível")).toBeTruthy());
+    expect(within(table).getByText("1 (45 s)")).toBeTruthy();
+    expect(within(table).getByText("3")).toBeTruthy();
+    expect(within(table).getByText("2 de 3")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b|suspeit/i);
+    await expectNoA11yViolations(container);
+  });
+
+  it("trabalho NORMAL sem ajuda: nenhuma coluna nova e nada consultado", async () => {
+    const { api } = setup();
+    const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
+    expect(within(table).queryByRole("columnheader", { name: "Saídas da tela" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Ajudas" })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/integrity"))).toBe(false);
+  });
+});
+
