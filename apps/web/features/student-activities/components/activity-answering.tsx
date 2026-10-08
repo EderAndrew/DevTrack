@@ -1,7 +1,7 @@
 "use client";
 
 import type { StudentActivity, StudentQuestion } from "@repo/contracts";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
+import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -49,6 +50,8 @@ export const OFFLINE_ALERT =
 export const CONFLICT_ALERT = "Esta resposta foi alterada em outra aba. Carregamos a versão mais recente.";
 /** The catalog's text for `ANSWER_CHANGED_ELSEWHERE`, kept after the screen reloads. */
 export const CHANGED_ELSEWHERE = ERROR_MESSAGES.ANSWER_CHANGED_ELSEWHERE;
+/** 015/FR-013c: the answer grew faster than typing and the server kept the saved one. */
+export const TYPING_LIMIT_MESSAGE = ERROR_MESSAGES.TYPING_LIMIT_EXCEEDED;
 export const SUBMIT_CONFIRMATION =
   "Tem certeza de que deseja entregar esta atividade? Depois de entregue, não será possível alterar as respostas.";
 /** "Concluir exercícios" (013 contracts/web-ui.md): the answer key comes with the conclusion. */
@@ -92,9 +95,62 @@ export function ActivityAnswering({ activityId, userId }: { activityId: string; 
   return <ActivityView activity={query.data} userId={userId} reload={() => query.refetch()} />;
 }
 
+/**
+ * A CONTROLLED work still open to answers (015/FR-007, F14): it is answered on the focus page, never
+ * here; this page shows what the mode does and starts it.
+ */
+const answeredInFocus = (activity: StudentActivity) =>
+  activity.executionMode === "CONTROLLED" && activity.canAnswer && activity.submission === null;
+
 function ActivityView({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
-  // Another tab changed an answer the submission carried (research P9): the server's answers come
-  // back on a fresh answering screen and the student reviews them before submitting again.
+  return (
+    <>
+      <PageHeader
+        title={activity.title}
+        breadcrumb={[{ label: "Minhas atividades", href: MY_ACTIVITIES_PATH }, { label: activity.title }]}
+        status={<Status variant={STATUS_VARIANTS[activity.status]}>{statusLabel(activity)}</Status>}
+      />
+      <div className="flex flex-col gap-8">
+        <ActivityDetails activity={activity} />
+        {answeredInFocus(activity) ? (
+          <ControlledStart activity={activity} />
+        ) : activity.attempt ? (
+          <AnsweringSession activity={activity} userId={userId} reload={reload} />
+        ) : activity.lastResult ? (
+          // An Exercício with no open attempt after a conclusion: its result and "Refazer" (013/US2).
+          <ExerciseResult activity={activity} />
+        ) : (
+          <StartAttempt activity={activity} />
+        )}
+      </div>
+    </>
+  );
+}
+
+/** What a CONTROLLED attempt adds to the answering screen (015, `features/controlled-attempt`). */
+export interface ControlledAnswering {
+  /** The clipboard is refused in the code editor (the page blocks the other fields). */
+  blockClipboard: boolean;
+  /** A message under a question's answer (the blocked paste or copy). */
+  questionNotice: (questionId: string) => ReactNode;
+}
+
+/**
+ * The attempt's answers with the recovery of 012 research P9: when another tab changed an answer the
+ * submission carried, the server's answers come back on a fresh answering screen and the student
+ * reviews them before submitting again. Shared by this page and the controlled mode's focus page.
+ */
+export function AnsweringSession({
+  activity,
+  userId,
+  reload,
+  controlled,
+}: {
+  activity: StudentActivity;
+  userId: string;
+  reload: () => Promise<unknown>;
+  controlled?: ControlledAnswering;
+}) {
   const [generation, setGeneration] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const onChangedElsewhere = async () => {
@@ -105,27 +161,18 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
   };
   return (
     <>
-      <PageHeader
-        title={activity.title}
-        breadcrumb={[{ label: "Minhas atividades", href: MY_ACTIVITIES_PATH }, { label: activity.title }]}
-        status={<Status variant={STATUS_VARIANTS[activity.status]}>{statusLabel(activity)}</Status>}
+      {changedElsewhere && activity.submission === null ? (
+        <Alert variant="warning">
+          <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
+        </Alert>
+      ) : null}
+      <AttemptAnswering
+        key={`${generation}:${revisionsKey(activity)}`}
+        activity={activity}
+        userId={userId}
+        controlled={controlled}
+        onChangedElsewhere={() => void onChangedElsewhere()}
       />
-      <div className="flex flex-col gap-8">
-        <ActivityDetails activity={activity} />
-        {changedElsewhere && activity.submission === null ? (
-          <Alert variant="warning">
-            <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
-          </Alert>
-        ) : null}
-        {activity.attempt ? (
-          <AttemptAnswering key={`${generation}:${revisionsKey(activity)}`} activity={activity} userId={userId} onChangedElsewhere={() => void onChangedElsewhere()} />
-        ) : activity.lastResult ? (
-          // An Exercício with no open attempt after a conclusion: its result and "Refazer" (013/US2).
-          <ExerciseResult activity={activity} />
-        ) : (
-          <StartAttempt activity={activity} />
-        )}
-      </div>
     </>
   );
 }
@@ -217,10 +264,12 @@ const isRefusal = (status: number) => status >= 400 && status < 500 && status !=
 function AttemptAnswering({
   activity,
   userId,
+  controlled,
   onChangedElsewhere,
 }: {
   activity: StudentActivity;
   userId: string;
+  controlled?: ControlledAnswering;
   onChangedElsewhere: () => void;
 }) {
   const editable = activity.canAnswer && activity.submission === null;
@@ -335,7 +384,7 @@ function AttemptAnswering({
         currentIndex={index}
         onSelect={goTo}
       />
-      <article aria-labelledby={`questao-${question.id}`} className="flex flex-col gap-6">
+      <article aria-labelledby={`questao-${question.id}`} data-question-id={question.id} className="flex flex-col gap-6">
         <QuestionHeader
           number={index + 1}
           typeLabel={QUESTION_TYPE_LABELS[question.type]}
@@ -360,7 +409,14 @@ function AttemptAnswering({
               answer={answers.answerOf(question.id) ?? emptyAnswer(question)}
               onChange={(answer) => answers.setAnswer(question.id, answer)}
               disabled={!editable}
+              blockClipboard={Boolean(controlled?.blockClipboard) && editable}
             />
+            {answers.typingRefused(question.id) ? (
+              <Alert variant="warning" className="mt-3">
+                <AlertTitle>{TYPING_LIMIT_MESSAGE}</AlertTitle>
+              </Alert>
+            ) : null}
+            {controlled?.questionNotice(question.id)}
           </div>
         </div>
       </article>
@@ -412,11 +468,13 @@ function AnswerArea({
   answer,
   onChange,
   disabled,
+  blockClipboard,
 }: {
   question: StudentQuestion;
   answer: ReturnType<typeof emptyAnswer>;
   onChange: (answer: ReturnType<typeof emptyAnswer>) => void;
   disabled: boolean;
+  blockClipboard: boolean;
 }) {
   if (answer.kind === "ALTERNATIVE") {
     return (
@@ -439,6 +497,7 @@ function AnswerArea({
         onChange={(source) => onChange({ kind: "CODE", source })}
         publicTestCases={question.publicTestCases}
         disabled={disabled}
+        blockClipboard={blockClipboard}
       />
     );
   }

@@ -301,6 +301,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/attempts", access: "atividades.proprias.responder" },
   { method: "POST", path: "/me/activities/:activityId/attempts/:number/complete", access: "atividades.proprias.responder" },
   { method: "GET", path: "/me/activities/:activityId/attempts/:number", access: "atividades.proprias.visualizar" },
+  // 015 — the controlled mode's events of the own attempt (contracts/permissions.md).
+  { method: "POST", path: "/me/activities/:activityId/attempt/events", access: "atividades.proprias.responder" },
+  { method: "GET", path: "/me/activities/:activityId/attempt/integrity", access: "atividades.proprias.visualizar" },
   // 013 — the class ranking of practice points (contracts/permissions.md).
   { method: "GET", path: "/me/classes/:classId/ranking", access: "ranking.turma.visualizar" },
   { method: "GET", path: "/classes/:classId/ranking", access: "ranking.visualizar" },

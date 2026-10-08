@@ -733,11 +733,20 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(openExercises.status).toBe(201);
   const startedExercises = await classStudentClient.post(`/api/me/activities/${openExercises.body.id}/attempt`, {});
   expect(startedExercises.status).toBe(200);
-  const openWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
+  // 015/US2 — this work is answered in the controlled mode: the student leaves the screen and comes back
+  // (`attempt_integrity.recorded` per event, its type and `buffered` only); a resend records nothing.
+  const openWork = await teacherClient.post(activitiesPath, { ...activityBody({ type: "ASSIGNMENT", workId: work.body.id }), executionMode: "CONTROLLED" });
   expect(openWork.status).toBe(201);
   const startedActivity = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {});
   expect(startedActivity.status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {})).status).toBe(200);
+  const integrityEvents = [
+    { eventId: randomUUID(), type: "SCREEN_LEFT", clientOccurredAt: new Date().toISOString(), buffered: false },
+    { eventId: randomUUID(), type: "SCREEN_RETURNED", clientOccurredAt: new Date().toISOString(), buffered: true },
+  ];
+  const eventsPath = `/api/me/activities/${openWork.body.id}/attempt/events`;
+  expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
+  expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
   // Every question answered; both texts are registered whatever types the two exercises have.
   const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
   const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");

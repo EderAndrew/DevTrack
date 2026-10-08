@@ -187,7 +187,8 @@ const SPECS: FeatureSpec[] = [
     rows: 0,
     rowsWithoutIds: [],
     successCriteria: sc(1, 11),
-    pending: { stories: [2, 3, 4, 5], successCriteria: sc(1, 11) },
+    // US2 and SC-005 (no attempt blocked, submitted or regraded by events) are covered since Phase 4.
+    pending: { stories: [3, 4, 5], successCriteria: sc(1, 11).filter((id) => id !== "SC-005") },
   },
 ];
 

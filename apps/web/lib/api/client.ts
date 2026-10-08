@@ -36,6 +36,8 @@ export interface ApiRequestOptions {
   /** Cookie header to forward on server-side calls. */
   cookie?: string;
   signal?: AbortSignal;
+  /** The request outlives the page (015: the page-leave event sent from `beforeunload`). */
+  keepalive?: boolean;
 }
 
 /** The contract's error body, but with any `code`: an API newer than this web may send codes it does not know yet. */
@@ -69,7 +71,7 @@ function errorFrom(status: number, payload: unknown, retryAfterHeader: string | 
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = "GET", body, baseUrl = "/api", cookie, signal } = options;
+  const { method = "GET", body, baseUrl = "/api", cookie, signal, keepalive } = options;
   const isForm = body instanceof FormData;
   const headers: Record<string, string> = { Accept: "application/json" };
   if (!isForm && (body !== undefined || method !== "GET")) headers["Content-Type"] = "application/json";
@@ -84,6 +86,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       credentials: "same-origin",
       cache: "no-store",
       signal,
+      ...(keepalive ? { keepalive } : {}),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;

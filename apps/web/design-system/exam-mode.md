@@ -181,3 +181,20 @@ a 014, que também trouxe o `CodeBlock` de leitura), `SaveStatus`,
 `AttemptStatus` e `AssessmentFooter` (o `ExamFooter` do modo NORMAL). Continuam com a
 feature de provas: `ExamHeader`, `ExamTimer`, `ReviewFlag`, `ExamAlert`,
 `FocusViolationWarning` e os estados "marcada para revisão", "bloqueada" e "invalidada".
+
+## O que já existe (015)
+
+A 015 (trabalho em modo controlado) construiu em `apps/web/components/ui/assessment/`:
+`FocusViolationWarning` (perda de foco e saída da tela cheia, com "Voltar para tela cheia") e
+`ExamAlert` ("Sair da avaliação?"; num trabalho não há cronômetro, então "o que fazer" diz "Fique
+para continuar ou saia; suas respostas salvas continuam guardadas."). O `CodeEditor` ganhou o
+bloqueio de copiar, recortar, colar e soltar, só na tentativa em modo controlado. Mensagens novas:
+
+| Situação | Variante | Texto | Onde |
+|----------|----------|-------|------|
+| colar ou soltar bloqueado | `warning` | "Colar não é permitido neste trabalho. Digite a sua resposta." | `Alert` junto do campo |
+| copiar ou recortar bloqueado | `info` | "Copiar não é permitido neste trabalho." | `Alert` junto do campo |
+| limite de digitação | `warning` | "Esse trecho não foi salvo porque parece ter sido colado. Digite a resposta." | na resposta |
+
+Continuam com a feature de provas: `ExamHeader`, `ExamTimer`, `ReviewFlag` e os estados "marcada
+para revisão", "bloqueada" e "invalidada".

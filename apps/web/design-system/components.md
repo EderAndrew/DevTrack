@@ -1821,3 +1821,71 @@ Em formulários comuns: use os botões do formulário.
 ### Acessibilidade
 
 `<footer>` com botões nomeados por texto; entregar sempre pede confirmação em `AlertDialog`.
+
+## FocusViolationWarning
+
+`components/ui/assessment/focus-violation-warning.tsx` (015, grupo "Avaliação"; textos oficiais de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: `Alert` `warning` com o título "Você saiu da tela da avaliação", a linha do registro e o que
+fazer.
+
+### Estados
+
+Registrado ("Este evento foi registrado às 14:32.", horário do servidor), registrando ("Estamos
+registrando este evento", sem confirmação do servidor) e saiu da tela cheia (com "Voltar para tela
+cheia").
+
+### Quando usar
+
+Na tentativa em modo controlado, quando o aluno volta depois de sair da tela (015/FR-011).
+
+### Quando não usar
+
+Para erros de salvamento ou de conexão: use `SaveStatus` ou `Alert`.
+
+### Exemplo
+
+```tsx
+<FocusViolationWarning recordedAt={recordedAt} onReturnToFullscreen={enterFullscreen} onDismiss={hide} />
+```
+
+### Acessibilidade
+
+`role="status"` (anúncio educado): não move o foco nem bloqueia a resposta; botões nomeados por
+texto; nenhum texto fala em violação, fraude ou cola.
+
+## ExamAlert
+
+`components/ui/assessment/exam-alert.tsx` (015, grupo "Avaliação"; textos oficiais de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: `AlertDialog` com título, linha do registro e o que fazer (`LEAVE_ATTEMPT`: "Sair da
+avaliação?").
+
+### Estados
+
+Sair da avaliação (pelo botão "Sair" ou pelo voltar do navegador).
+
+### Quando usar
+
+Quando um aviso do modo avaliação pede uma decisão do aluno (015/FR-012).
+
+### Quando não usar
+
+Para avisos que só informam: use `FocusViolationWarning` ou `Alert`.
+
+### Exemplo
+
+```tsx
+<ExamAlert open={open} onOpenChange={setOpen} text={LEAVE_ATTEMPT} confirmLabel="Sair da avaliação" onConfirm={leave} />
+```
+
+### Acessibilidade
+
+O foco abre em "Continuar respondendo" e volta para onde estava ao fechar; Esc fecha sem sair; a
+saída nunca é impedida.

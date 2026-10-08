@@ -81,6 +81,8 @@ import {
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { HelpAvailabilitySchema } from "./work-help/help.js";
+import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
+import { StudentIntegritySchema } from "./attempt-integrity/views.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1193,6 +1195,24 @@ export const endpoints = {
     params: MyAttemptParamsSchema,
     body: SubmitAttemptRequestSchema,
     response: StudentActivitySchema,
+    status: 200,
+  },
+  // 015 — the controlled mode of a work (research F4).
+  /** Records 1–50 events of the own open attempt of a CONTROLLED work with the server's time; a resend → the stored time. */
+  "myActivities.recordIntegrityEvents": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/events",
+    params: MyActivityParamsSchema,
+    body: RecordIntegrityEventsRequestSchema,
+    response: RecordIntegrityEventsResultSchema,
+    status: 200,
+  },
+  /** The session student's own events of the attempt, with the derived totals (015/FR-027). */
+  "myActivities.integrity": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/integrity",
+    params: MyActivityParamsSchema,
+    response: StudentIntegritySchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

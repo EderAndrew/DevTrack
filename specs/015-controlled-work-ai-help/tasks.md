@@ -202,11 +202,11 @@ uma vez, tentar colar, voltar, entregar; conferir avisos, eventos e a entrega no
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T018 [P] [US2] Unitários puros: `apps/api/src/modules/attempt-integrity/timeline.spec.ts`
+- [X] T018 [P] [US2] Unitários puros: `apps/api/src/modules/attempt-integrity/timeline.spec.ts`
   (pares saída → retorno, saída sem par termina no próximo evento ou na entrega, totais, eventos
   bufferizados fora de ordem) e `typing-allowance.spec.ts` (rajada, taxa por segundo, primeira
   resposta desde o início da tentativa, encolher sempre permitido, limites exatos) (`015/FR-013c`).
-- [ ] T019 [P] [US2] `apps/api/test/integration/015-us2-controlled.spec.ts`: `015/US2-3`,
+- [X] T019 [P] [US2] `apps/api/test/integration/015-us2-controlled.spec.ts`: `015/US2-3`,
   `015/US2-4`, `015/US2-5`, `015/US2-6`, `015/US2-8`, `015/US2-9` no servidor (eventos com
   horário do servidor, reenvio idempotente devolve o mesmo horário, bufferizado guarda o horário
   do navegador, NORMAL → 409 `NOT_CONTROLLED`, entregue → 409, nada bloqueia nem entrega a
@@ -215,7 +215,7 @@ uma vez, tentar colar, voltar, entregar; conferir avisos, eventos e a entrega no
   `015/FR-013c` (salvamento acima do limite → `TYPING_LIMIT_EXCEEDED` só naquela resposta, as
   outras salvam, evento registrado; entrega com pendente acima → 422; Múltipla escolha nunca
   checada; NORMAL nunca checado), `015/FR-010`, `015/FR-014`, `015/SC-005` (nenhuma tentativa bloqueada, entregue sozinha ou com nota alterada).
-- [ ] T020 [P] [US2] Web unitários: `apps/web/features/controlled-attempt/hooks/focus-reducer.test.ts`
+- [X] T020 [P] [US2] Web unitários: `apps/web/features/controlled-attempt/hooks/focus-reducer.test.ts`
   (blur + hidden em 1 s = uma saída; diálogos internos não contam; tela cheia), 
   `use-clipboard-block.test.ts` (paste/copy/cut/drop/dragstart e `beforeinput` de colagem
   bloqueados só no CONTROLLED, mensagem, um evento por gesto, nada lido da área de transferência),
@@ -223,7 +223,7 @@ uma vez, tentar colar, voltar, entregar; conferir avisos, eventos e a entrega no
   rede grava `CONNECTION_LOST` e o primeiro envio bem-sucedido acrescenta `CONNECTION_RESTORED`),
   `apps/web/components/ui/code/code-editor.test.tsx` (`blockClipboard`) (`015/US2-10`…`015/US2-12`,
   `015/FR-013a`, `015/FR-013b`).
-- [ ] T021 [P] [US2] Web componentes: `apps/web/components/ui/assessment/focus-violation-warning.test.tsx`
+- [X] T021 [P] [US2] Web componentes: `apps/web/components/ui/assessment/focus-violation-warning.test.tsx`
   e `exam-alert.test.tsx` (textos de `exam-mode.md`, horário do servidor ou "Estamos registrando
   este evento", "Voltar para tela cheia", axe, foco não roubado), e
   `apps/web/features/controlled-attempt/components/controlled-attempt.test.tsx` (`015/US2-1`,
@@ -233,31 +233,33 @@ uma vez, tentar colar, voltar, entregar; conferir avisos, eventos e a entrega no
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] `apps/api/src/modules/attempt-integrity/{timeline,typing-allowance}.ts` (puros) e
+- [X] T022 [US2] `apps/api/src/modules/attempt-integrity/{timeline,typing-allowance}.ts` (puros) e
   `controlled-answer-guard.ts` (implementa `AnswerSaveGuard` para atividades CONTROLLED, grava o
   evento `TYPING_LIMIT_EXCEEDED`), registrado no `onModuleInit`; `AttemptsService.save/submit`
   (`apps/api/src/modules/student-activities/attempts.service.ts`) consulta o hook sob o lock da
   tentativa e devolve o resultado por resposta / 422 na entrega.
-- [ ] T023 [US2] `focus-events.{controller,service}.ts` em `apps/api/src/modules/attempt-integrity/`:
+- [X] T023 [US2] `focus-events.{controller,service}.ts` em `apps/api/src/modules/attempt-integrity/`:
   `POST /me/activities/:activityId/attempt/events` (contexto pela matrícula ACTIVE e tentativa
   própria via `StudentActivityLoader`, `ON CONFLICT DO NOTHING`, horário do servidor, rate limit
   `attempt-events`, auditoria `attempt_integrity.recorded` — tipo novo nos três lugares) e
   `GET /me/activities/:activityId/attempt/integrity`; catálogo e `MATRIX`.
-- [ ] T024 [US2] Componentes de Exam Mode `apps/web/components/ui/assessment/{focus-violation-warning,exam-alert}.tsx`
+- [X] T024 [US2] Componentes de Exam Mode `apps/web/components/ui/assessment/{focus-violation-warning,exam-alert}.tsx`
   com entrada no `features/design-system/registry.ts`, showcase, seção em
   `apps/web/design-system/components.md` e `exam-mode.md` ("O que já existe (015)", mensagens de
   bloqueio de colagem e de limite de digitação na tabela).
-- [ ] T025 [US2] `CodeEditor` (`apps/web/components/ui/code/code-editor.tsx` e
+- [X] T025 [US2] `CodeEditor` (`apps/web/components/ui/code/code-editor.tsx` e
   `load-*.ts`): prop `blockClipboard` com `EditorView.domEventHandlers`; texto digitado intacto.
-- [ ] T026 [US2] `apps/web/features/controlled-attempt/`: `hooks/{focus-reducer,use-focus-monitor,use-fullscreen,use-clipboard-block}.ts`,
+- [X] T026 [US2] `apps/web/features/controlled-attempt/`: `hooks/{focus-reducer,use-focus-monitor,use-fullscreen,use-clipboard-block}.ts`,
   `store/pending-events.ts`, `api/integrity.ts`, `hooks/use-integrity-events.ts` (envio em lote,
   reenvio, quedas e retomadas de conexão), `components/controlled-attempt.tsx` (envolve `ActivityAnswering` com monitor,
   bloqueio, avisos e o "Sair" com `ExamAlert`).
-- [ ] T027 [US2] Rota de foco: `apps/web/app/(focus)/layout.tsx` (sem menu) e
+- [X] T027 [US2] Rota de foco: `apps/web/app/(focus)/layout.tsx` (sem menu) e
   `apps/web/app/(focus)/minhas-atividades/[id]/responder/page.tsx`; a página de detalhe do aluno
   (`apps/web/app/(student)/minhas-atividades/[id]/page.tsx` e o componente de detalhe que ela
   renderiza em `apps/web/features/student-activities/components/`) mostra o aviso do modo controlado e "Iniciar em modo controlado" (tela cheia pedida no clique, depois
-  navegação); `proxy.ts` manda o `/responder` de uma atividade NORMAL de volta ao detalhe;
+  navegação); `proxy.ts` manda o `/responder` de uma atividade NORMAL de volta ao detalhe
+  (implementado na própria página `/responder`, no servidor: o `proxy.ts` só vê o cookie e não
+  conhece o modo sem chamar a API; o `ControlledAttempt` repete a checagem no cliente);
   `activity-answering` trata o resultado `TYPING_LIMIT_EXCEEDED` mantendo o texto na tela.
 
 **Checkpoint**: modo controlado completo para o aluno; T018–T021 verdes.

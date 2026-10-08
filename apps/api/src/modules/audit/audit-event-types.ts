@@ -206,6 +206,8 @@ export const AUDIT_EVENT_METADATA = {
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
   "student_access.denied": ["route", "reason"],
+  // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
+  "attempt_integrity.recorded": ["eventType", "buffered"],
   // Grades as integer hundredths, never feedback text.
   "activity_submission.graded": [
     "activityId",

@@ -40,7 +40,6 @@ const PENDING_013 = new Set<string>([]);
 
 /** 015 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_015 = new Set<string>([
-  "attempt_integrity.recorded",
   "work_help.requested",
   "work_help.delivered",
   "work_help.out_of_scope",
