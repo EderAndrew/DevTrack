@@ -45,6 +45,7 @@ import { clearPendingAnswers } from "../store/pending-answers";
 import { ActivityResult } from "./activity-result";
 import { ExerciseResult, RETRY_NOTICE } from "./exercise-result";
 import { Loading, LoadFailed } from "./load-states";
+import { ScreenExitRecords } from "./student-history";
 
 export const OFFLINE_ALERT =
   "Você está sem conexão. Suas respostas ficam guardadas neste navegador e serão enviadas quando a conexão voltar.";
@@ -123,6 +124,8 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
         ) : (
           <StartAttempt activity={activity} />
         )}
+        {/* A delivered CONTROLLED work shows the student's own screen exits (015/US5-2). */}
+        {activity.executionMode === "CONTROLLED" && activity.submission ? <ScreenExitRecords activityId={activity.id} /> : null}
       </div>
     </>
   );

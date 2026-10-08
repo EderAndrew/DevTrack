@@ -400,12 +400,12 @@ contagens, linha do tempo, ajudas e "não encontrado" para outro professor.
 **Independent Test**: depois de entregar com 1 ajuda e 1 saída, abrir o histórico e conferir, sem
 nota antes da liberação.
 
-- [ ] T043 [P] [US5] `apps/api/test/integration/015-us5-history.spec.ts`: `015/US5-1`, `015/US5-2`,
+- [X] T043 [P] [US5] `apps/api/test/integration/015-us5-history.spec.ts`: `015/US5-1`, `015/US5-2`,
   `015/US5-3`, `015/FR-027` (ajudas e eventos próprios depois da entrega, nada de nota, feedback ou
   gabarito antes da liberação, outro aluno → 404).
-- [ ] T044 [P] [US5] Web `apps/web/features/student-activities/components/student-history.test.tsx`
+- [X] T044 [P] [US5] Web `apps/web/features/student-activities/components/student-history.test.tsx`
   (orientações por questão e "Saídas da tela registradas: n" com horários).
-- [ ] T045 [US5] Web `student-history.tsx` e a visão do aluno ligadas a `GET …/attempt/help` e
+- [X] T045 [US5] Web `student-history.tsx` e a visão do aluno ligadas a `GET …/attempt/help` e
   `GET …/attempt/integrity`; T043 e T044 verdes.
 
 **Checkpoint**: todas as histórias entregues.
