@@ -12,7 +12,7 @@ import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
 import { fakeDelay, fakeError, fakeOutput, fakeText, fakeToolCall, FAKE_PROVIDER_CREDENTIAL } from "../fixtures/ai/fake-model-provider";
 import { INSTRUCTIONS_MARKER } from "../fixtures/ai/reference-agents";
-import type { AiTestApp } from "./ai";
+import { type AiTestApp, drain } from "./ai";
 import { pooOutput, scriptCurriculumRun, seedGoldenDocument } from "./curriculum-ai";
 import { GOLDEN_MARKER } from "../fixtures/curriculum-agent/build-golden";
 import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch";
@@ -22,6 +22,7 @@ import { scriptWorkGeneration } from "./work-ai";
 import { toUpdateBody } from "./works";
 import { createConfirmedTopic } from "./exercises";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
+import { READ_WORK_HELP_REQUEST } from "../../src/modules/work-help/definitions/request-content";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
   createSyllabusDocument,
@@ -65,9 +66,9 @@ export interface JourneyResult {
  *
  * `t` must be created with a no-op LOGIN_DELAY (the rate-limit alert needs 10 failed logins).
  * Used by the SC-005 secret scan and the SC-008 audit coverage tests. `t` comes from
- * `createWorkAiApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
+ * `createWorkHelpApp` and was reset with `resetAiDb` (which emits `ai_registry.synced`): the 006
  * flows run the reference agents, the 007 flows the curriculum agent, the 010 ones the exercise
- * generator and the 011 ones the work generator, all on the fake provider.
+ * generator, the 011 ones the work generator and the 015 ones the AI help, all on the fake provider.
  */
 export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const secrets: JourneySecret[] = [];
@@ -735,7 +736,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(startedExercises.status).toBe(200);
   // 015/US2 — this work is answered in the controlled mode: the student leaves the screen and comes back
   // (`attempt_integrity.recorded` per event, its type and `buffered` only); a resend records nothing.
-  const openWork = await teacherClient.post(activitiesPath, { ...activityBody({ type: "ASSIGNMENT", workId: work.body.id }), executionMode: "CONTROLLED" });
+  const openWork = await teacherClient.post(activitiesPath, {
+    ...activityBody({ type: "ASSIGNMENT", workId: work.body.id }),
+    executionMode: "CONTROLLED",
+    aiHelpAllowance: 3,
+  });
   expect(openWork.status).toBe(201);
   const startedActivity = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {});
   expect(startedActivity.status).toBe(200);
@@ -747,6 +752,29 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const eventsPath = `/api/me/activities/${openWork.body.id}/attempt/events`;
   expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
   expect((await classStudentClient.post(eventsPath, { events: integrityEvents })).status).toBe(200);
+  // 015/US3 — the student asks the AI for help (`work_help.requested`: ids and the question's position,
+  // never the question): an orientation is delivered (`work_help.delivered`), an off-topic question is
+  // refused (`work_help.out_of_scope`), an orientation that names an alternative is blocked by the
+  // leak check (`work_help.blocked`, the reason code only) and a provider failure is reconciled on the
+  // next read (`work_help.failed`, the error code only). The questions and orientations are content.
+  const helpPath = `/api/me/activities/${openWork.body.id}/attempt/help`;
+  const questionOfType = (type: string) => (startedActivity.body.questions as { id: string; type: string }[]).find((question) => question.type === type)!.id;
+  const askHelp = async (type: string, question: string) => {
+    const res = await classStudentClient.post(helpPath, { questionId: questionOfType(type), question: text("pergunta da ajuda (015)", question), idempotencyKey: randomUUID() });
+    expect(res.status).toBe(202);
+    return res.body.id as string;
+  };
+  const answerHelp = async (requestId: string, outcome: "GUIDANCE" | "OUT_OF_SCOPE", message: string) => {
+    t.provider.script(fakeToolCall(READ_WORK_HELP_REQUEST, { requestId }), fakeOutput({ outcome, message: text("orientação da ajuda (015)", message), example: null }));
+    await drain(t);
+  };
+  await answerHelp(await askHelp("OPEN_ANSWER", "MARCADOR-AJUDA-015 como começo a resposta da jornada?"), "GUIDANCE", "MARCADOR-ORIENTACAO-015 pense no que a jornada pede primeiro.");
+  await answerHelp(await askHelp("OPEN_ANSWER", "Pergunta fora do assunto da jornada quinze"), "OUT_OF_SCOPE", "Recusa fora do assunto da jornada quinze");
+  await answerHelp(await askHelp("MULTIPLE_CHOICE", "Qual alternativa da jornada quinze?"), "GUIDANCE", "Orientação bloqueada: a alternativa A da jornada quinze");
+  await askHelp("MULTIPLE_CHOICE", "Pergunta que falha na jornada quinze");
+  t.provider.script(fakeError("INVALID_REQUEST"));
+  await drain(t);
+  expect((await classStudentClient.get(helpPath)).body).toMatchObject({ allowance: 3, used: 1, pending: false });
   // Every question answered; both texts are registered whatever types the two exercises have.
   const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
   const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "teste de mesa",
+    "acumular"
+  ],
+  "forbidden": [
+    "sum(notas)",
+    "soma += nota",
+    "soma = soma + nota"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Olhe a condição que você passou para o filter. Escolha um número par, como 8, e calcule à mão o que a sua expressão produz para ele. O resultado é igual ao valor com que você compara? Agora lembre qual operador do JavaScript dá o resto de uma divisão e pense no que o resto revela sobre um número ser par.",
+        "example": null
+      }
+    }
+  ]
+}

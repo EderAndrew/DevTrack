@@ -117,6 +117,7 @@ describe("008/US7 um novo agente reaproveita o gateway sem implementar infraestr
         "test/eval/curriculum-agent.eval.ts",
         "test/eval/exercise-generator.eval.ts",
         "test/eval/work-generator.eval.ts",
+        "test/eval/work-help.eval.ts",
         "test/security/008-openrouter-secret.spec.ts",
       ].sort(),
     );

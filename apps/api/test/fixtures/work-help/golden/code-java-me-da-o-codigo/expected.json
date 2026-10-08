@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "laco",
+    "variavel"
+  ],
+  "forbidden": [
+    "total += numero",
+    "return total"
+  ]
+}

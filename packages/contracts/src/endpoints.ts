@@ -80,7 +80,7 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
-import { HelpAvailabilitySchema } from "./work-help/help.js";
+import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
 import { StudentIntegritySchema } from "./attempt-integrity/views.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
@@ -1213,6 +1213,24 @@ export const endpoints = {
     path: "/me/activities/:activityId/attempt/integrity",
     params: MyActivityParamsSchema,
     response: StudentIntegritySchema,
+    status: 200,
+  },
+  // 015 — the AI help of a work (research F11).
+  /** 202 for a new request of help on a question of the own open attempt; 200 when the same key returns it. */
+  "myActivities.requestHelp": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/help",
+    params: MyActivityParamsSchema,
+    body: RequestHelpSchema,
+    response: StudentHelpItemSchema,
+    status: 202,
+  },
+  /** The session student's helps in the attempt: allowance, used (DELIVERED only), pending and items. */
+  "myActivities.help": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/help",
+    params: MyActivityParamsSchema,
+    response: StudentHelpStateSchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

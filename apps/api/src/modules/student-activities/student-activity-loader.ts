@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ActivityStatus, ActivityType, ExecutionMode, StudentAnswer } from "@repo/contracts";
+import type { ActivityStatus, ActivityType, AiHelpAllowance, ExecutionMode, LatePolicy, StudentAnswer } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
@@ -18,6 +18,10 @@ export interface OwnAttemptContext {
   type: ActivityType;
   executionMode: ExecutionMode;
   activityStatus: ActivityStatus;
+  /** ASSIGNMENT only (013 K1): the 012 deadline rule decides what the student may still do. */
+  deadline: Date | null;
+  latePolicy: LatePolicy | null;
+  aiHelpAllowance: AiHelpAllowance;
   attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null } | null;
 }
 
@@ -162,14 +166,33 @@ export class StudentActivityLoader {
 
   /**
    * The activity in the student's context and their latest attempt (015), or null (→ 404). With
-   * `tx`, under `FOR SHARE` of both: a teacher's close and the student's submit wait for the caller,
-   * and the attempt read after the wait is its latest version (READ COMMITTED).
+   * `tx`, under `FOR SHARE` of the activity and of the attempt — or `FOR UPDATE` of the attempt with
+   * `attemptLock: "UPDATE"`, which serializes the student's own writes (the AI help, research F11):
+   * a teacher's close and the student's submit wait for the caller, and the attempt read after the
+   * wait is its latest version (READ COMMITTED).
    */
-  async ownAttempt(studentUserId: string, activityId: string, now: Date, tx?: Tx): Promise<OwnAttemptContext | null> {
+  async ownAttempt(
+    studentUserId: string,
+    activityId: string,
+    now: Date,
+    tx?: Tx,
+    attemptLock: "SHARE" | "UPDATE" = "SHARE",
+  ): Promise<OwnAttemptContext | null> {
     const db = tx ?? this.prisma;
     const lock = tx ? Prisma.sql`FOR SHARE OF ca` : Prisma.empty;
-    const activities = await db.$queryRaw<{ type: OwnAttemptContext["type"]; execution_mode: OwnAttemptContext["executionMode"]; status: OwnAttemptContext["activityStatus"]; class_active: boolean }[]>`
-      SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, (c.status = 'ACTIVE') AS class_active
+    const activities = await db.$queryRaw<
+      {
+        type: OwnAttemptContext["type"];
+        execution_mode: OwnAttemptContext["executionMode"];
+        status: OwnAttemptContext["activityStatus"];
+        deadline: Date | null;
+        late_policy: LatePolicy | null;
+        ai_help_allowance: number;
+        class_active: boolean;
+      }[]
+    >`
+      SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
+             ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active
       FROM class_activities ca
       JOIN classes c ON c.id = ca.class_id
       WHERE ca.id = ${activityId}::uuid
@@ -185,13 +208,16 @@ export class StudentActivityLoader {
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
       WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
       ORDER BY a.number DESC LIMIT 1
-      ${tx ? Prisma.sql`FOR SHARE OF a` : Prisma.empty}`;
+      ${tx ? (attemptLock === "UPDATE" ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
     return {
       classActive: activity.class_active,
       type: activity.type,
       executionMode: activity.execution_mode,
       activityStatus: activity.status,
+      deadline: activity.deadline,
+      latePolicy: activity.late_policy,
+      aiHelpAllowance: aiHelpAllowanceOf(activity.ai_help_allowance),
       attempt: attempt ? { id: attempt.id, status: attempt.status, startedAt: attempt.started_at, submittedAt: attempt.submitted_at } : null,
     };
   }

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Pergunta sobre um conceito do enunciado: explica com exemplo de outro contexto.",
+  "subject": "Banco de Dados",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Uma tabela está na 2FN e um atributo não chave depende de outro atributo não chave. Qual forma normal ela viola?",
+    "alternatives": [
+      "Primeira forma normal",
+      "Segunda forma normal",
+      "Terceira forma normal",
+      "Forma normal de Boyce-Codd"
+    ],
+    "correctIndex": 2
+  },
+  "studentAnswer": null,
+  "studentQuestion": "O que é dependência transitiva?"
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Comece pelo que você faria no papel: olhando uma lista de números um por um, o que você precisa lembrar enquanto avança? Esse \"lembrar\" vira uma variável. Pense também no valor inicial dela: por que começar com zero pode dar errado se todos os números forem negativos? Depois escreva o laço que compara cada elemento com o que você guardou.",
+        "example": null
+      }
+    }
+  ]
+}

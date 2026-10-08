@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": true,
+  "mustMention": [
+    "metodo",
+    "classes"
+  ],
+  "forbidden": [
+    "capacidade de objetos de classes diferentes",
+    "mesma mensagem"
+  ]
+}

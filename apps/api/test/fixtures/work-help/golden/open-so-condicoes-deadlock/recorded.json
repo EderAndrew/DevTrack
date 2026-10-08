@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Uma dica: imagine quatro carros parados num cruzamento, cada um esperando o da direita andar. Observe a cena: cada carro ocupa um pedaço da pista só para si? Ele segura esse pedaço enquanto espera outro? Alguém pode obrigá-lo a sair? E a espera forma um ciclo? Cada uma dessas perguntas aponta para uma condição. Tente dar nome a elas.",
+        "example": null
+      }
+    }
+  ]
+}

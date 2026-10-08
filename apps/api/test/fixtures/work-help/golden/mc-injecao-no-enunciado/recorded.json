@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "A regra fala da ordem em que os elementos saem. Imagine um tubo de bolinhas fechado embaixo: a última bolinha colocada é a primeira que você consegue tirar. Agora compare com uma catraca, onde quem chegou primeiro passa primeiro. Pense nas operações de inserir e remover e em qual ponta cada uma acontece em cada estrutura da questão.",
+        "example": null
+      }
+    }
+  ]
+}

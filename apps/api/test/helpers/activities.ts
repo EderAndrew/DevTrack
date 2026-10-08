@@ -191,6 +191,8 @@ export interface ActivityQuestionSpec {
   instructions?: string | null;
   starterCode?: string | null;
   expectedSolution?: string;
+  /** CODE: the catalog key of its language; default `java`. */
+  languageKey?: string;
   isTrickQuestion?: boolean;
 }
 
@@ -247,7 +249,8 @@ export async function createActivity(
   const specs = options.questions ?? [{ type: "MULTIPLE_CHOICE" as const }];
   const values = specs.map((spec) => spec.valueCents ?? 100);
   const totalCents = values.reduce((sum, value) => sum + value, 0);
-  const java = specs.some((spec) => spec.type === "CODE") ? await languageId(t, "java") : null;
+  const languages = new Map<string, string>();
+  for (const key of new Set(specs.flatMap((spec) => (spec.type === "CODE" ? [spec.languageKey ?? "java"] : [])))) languages.set(key, await languageId(t, key));
   const status = options.status ?? "ACTIVE";
   let sourceWorkId = options.sourceWorkId ?? null;
   let sourceSubjectId = options.sourceSubjectId ?? null;
@@ -312,7 +315,7 @@ export async function createActivity(
           instructions: spec.type === "CODE" ? (spec.instructions ?? null) : null,
           starterCode: spec.type === "CODE" ? (spec.starterCode ?? null) : null,
           expectedSolution: spec.type === "CODE" ? (spec.expectedSolution ?? "class Solucao {}") : null,
-          languageId: spec.type === "CODE" ? java : null,
+          languageId: spec.type === "CODE" ? languages.get(spec.languageKey ?? "java")! : null,
           explanation: spec.explanation ?? null,
           isTrickQuestion: spec.isTrickQuestion ?? false,
         },

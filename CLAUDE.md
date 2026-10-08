@@ -113,6 +113,9 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:works
                                                         # 011 release gate of the work generator, same flags; evidence in
                                                         # test/fixtures/evaluations/work-generation/
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
+                                                        # 015 release gate of the AI help (work-helper), same flags; evidence in
+                                                        # test/fixtures/evaluations/work-help/, with each case's latency
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev

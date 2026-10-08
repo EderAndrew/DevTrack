@@ -12,8 +12,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  // 015: the help request and read routes arrive with US3 (T036).
-  "ia.ajuda.pedir",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

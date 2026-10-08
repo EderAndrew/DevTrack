@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "tabelas",
+    "cliente"
+  ],
+  "forbidden": [
+    "integridade referencial",
+    "chave primaria de outra tabela"
+  ]
+}

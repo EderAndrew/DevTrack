@@ -1,6 +1,6 @@
 # Data Model: 015 — Trabalho em Modo Controlado com Ajuda da IA
 
-One migration, `<ts>_controlled_work_ai_help`. New Prisma models (pinned by
+Migration `<ts>_controlled_work_ai_help`, plus `<ts>_work_help_execution_link` (the request's link to its execution, below). New Prisma models (pinned by
 `domain-boundary.spec.ts`): `AttemptIntegrityEvent`, `WorkHelpRequest`. Changed: `ClassActivity`
 (one column), enum `ActivityExecutionMode` (one value). New enums: `AttemptIntegrityEventType`,
 `WorkHelpStatus`.
@@ -53,7 +53,7 @@ ends at the next event or the submission), time away, clipboard and typing count
 | `idempotency_key` | uuid | `UNIQUE (attempt_id, idempotency_key)` |
 | `question` | text | 1–500 characters (CHECK), the student's text |
 | `status` | `work_help_status` | `REQUESTED`, `DELIVERED`, `OUT_OF_SCOPE`, `BLOCKED`, `FAILED` |
-| `ai_execution_id` | uuid NULL UNIQUE | FK → `ai_executions`; set at creation |
+| `ai_execution_id` | uuid NULL UNIQUE | FK → `ai_executions`; written once, from NULL, in the transaction that creates the request and its execution (the request exists first: the AI foundation checks the execution's resource) |
 | `message` | text NULL | ≤ 2 000; set iff `DELIVERED` or `OUT_OF_SCOPE` (CHECK) |
 | `example_code` | text NULL | ≤ 1 500; only `DELIVERED` (CHECK) |
 | `reason_code` | text NULL | `BLOCKED`: `MC_ALTERNATIVE_REFERENCED` / `EXPECTED_ANSWER_OVERLAP` / `SOLUTION_OVERLAP`; `FAILED`: the execution's error code; null otherwise (CHECK) |

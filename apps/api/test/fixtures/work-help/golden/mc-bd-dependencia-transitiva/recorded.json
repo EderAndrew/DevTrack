@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Dependência transitiva acontece quando um atributo depende da chave só por meio de outro atributo. Um exemplo de outro contexto: numa tabela de alunos com matrícula, código do curso e nome do curso, o nome do curso depende do código, que depende da matrícula. Para corrigir, você separaria os dados do curso em outra tabela. Agora releia o enunciado: que tipo de dependência ele descreve, e qual regra de normalização trata desse caso?",
+        "example": null
+      }
+    }
+  ]
+}

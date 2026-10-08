@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "iteradores",
+    "caracteres"
+  ],
+  "forbidden": [
+    "aeiou"
+  ]
+}

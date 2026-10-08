@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "variavel",
+    "laco"
+  ],
+  "forbidden": [
+    "resposta = v[0]",
+    "if (x > resposta)"
+  ]
+}

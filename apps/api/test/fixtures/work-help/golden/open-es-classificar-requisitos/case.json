@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Pergunta de critério: exemplo de outro sistema.",
+  "subject": "Engenharia de Software",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "Diferencie requisito funcional de requisito não funcional, com um exemplo de cada.",
+    "expectedAnswer": "Requisito funcional descreve o que o sistema deve fazer, como emitir um boleto; requisito não funcional descreve como ele deve ser, como responder em menos de dois segundos."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Como eu sei se um requisito é funcional ou não?"
+}

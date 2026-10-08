@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Vamos depurar juntos em vez de eu julgar o código. Faça um teste de mesa com a lista [6, 8]: anote o valor de soma antes do laço e depois de cada volta. O que acontece com o valor anterior a cada nova nota? Compare isso com o que você queria acumular.",
+        "example": null
+      }
+    }
+  ]
+}

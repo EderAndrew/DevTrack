@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "description": "Aluno marcou a alternativa errada e pergunta por quê: orientação sem conferir a resposta.",
+  "subject": "Programação em Python",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Após executar a = [1, 2]; b = a; b.append(3), qual é o valor de a?",
+    "alternatives": [
+      "[1, 2]",
+      "[1, 2, 3]",
+      "[3]",
+      "Ocorre um erro"
+    ],
+    "correctIndex": 1
+  },
+  "studentAnswer": {
+    "alternativeIndex": 0
+  },
+  "studentQuestion": "Por que a lista muda se eu só mexi no b?"
+}

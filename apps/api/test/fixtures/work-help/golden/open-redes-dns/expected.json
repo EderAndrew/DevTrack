@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "nome",
+    "servidor"
+  ],
+  "forbidden": [
+    "traduz nomes de dominio",
+    "endereco ip",
+    "enderecos ip"
+  ]
+}

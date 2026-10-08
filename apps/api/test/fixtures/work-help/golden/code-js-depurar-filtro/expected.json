@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "resto",
+    "condicao"
+  ],
+  "forbidden": [
+    "% 2 === 0",
+    "numero % 2"
+  ]
+}

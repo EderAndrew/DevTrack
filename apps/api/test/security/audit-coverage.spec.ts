@@ -7,7 +7,7 @@ import { AUDIT_EVENT_METADATA } from "../../src/modules/audit/audit-event-types"
 import { API_ROOT } from "../helpers/env";
 import { runFullJourney } from "../helpers/journey";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createWorkAiApp } from "../helpers/work-ai";
+import { createWorkHelpApp } from "../helpers/work-help";
 
 /** Audit catalogues of every feature; the service's catalogue is their union (003 D13). */
 const CONTRACTS = [
@@ -39,13 +39,7 @@ const PENDING_012 = new Set<string>([]);
 const PENDING_013 = new Set<string>([]);
 
 /** 015 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_015 = new Set<string>([
-  "work_help.requested",
-  "work_help.delivered",
-  "work_help.out_of_scope",
-  "work_help.blocked",
-  "work_help.failed",
-]);
+const PENDING_015 = new Set<string>([]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015]);
 
 interface ContractRow {
@@ -145,7 +139,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     let events: AuditEvent[];
 
     beforeAll(async () => {
-      t = await createWorkAiApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
+      t = await createWorkHelpApp({ overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }] });
       await resetAiDb(t);
       await runFullJourney(t);
       events = await t.prisma.auditEvent.findMany({ orderBy: { id: "asc" } });

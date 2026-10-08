@@ -10,6 +10,8 @@ import { FocusViolationWarning } from "@/components/ui/assessment/focus-violatio
 import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { AnsweringSession } from "@/features/student-activities/components/activity-answering";
+import { HelpCounter } from "@/features/work-help/components/help-counter";
+import { useWorkHelp } from "@/features/work-help/hooks/use-work-help";
 import { Loading, LoadFailed } from "@/features/student-activities/components/load-states";
 import { useStudentActivity } from "@/features/student-activities/hooks/use-student-activities";
 import { type ClipboardNotice, COPY_BLOCKED_MESSAGE, PASTE_BLOCKED_MESSAGE, useClipboardBlock } from "../hooks/use-clipboard-block";
@@ -85,9 +87,12 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
         title={activity.title}
         status={<Status variant="info">Modo controlado</Status>}
         actions={
-          <Button type="button" variant="outline" onClick={open ? askToLeave : leave}>
-            Sair
-          </Button>
+          <>
+            {activity.aiHelp.allowance > 0 ? <HeaderHelpCounter activityId={activity.id} allowance={activity.aiHelp.allowance} /> : null}
+            <Button type="button" variant="outline" onClick={open ? askToLeave : leave}>
+              Sair
+            </Button>
+          </>
         }
       />
       <div className="flex flex-col gap-6">
@@ -107,7 +112,8 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
           reload={reload}
           controlled={{
             blockClipboard: open,
-            questionNotice: (questionId) => (notice && notice.questionId === questionId ? <ClipboardAlert key={notice.key} notice={notice} /> : null),
+            questionNotice: (questionId) => noticeFor(notice, questionId, "ANSWER"),
+            helpNotice: (questionId) => noticeFor(notice, questionId, "HELP"),
           }}
         />
       </div>
@@ -115,6 +121,16 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
     </>
   );
 }
+
+/** The work's helps in the focus page's header (contracts/web-ui.md); the same query as each question's. */
+function HeaderHelpCounter({ activityId, allowance }: { activityId: string; allowance: number }) {
+  const help = useWorkHelp(activityId, true);
+  return <HelpCounter allowance={allowance} used={help.data?.used ?? 0} />;
+}
+
+/** The message of a gesture in a question's answer or in its "Pedir ajuda" field (015/US3-12). */
+const noticeFor = (notice: ClipboardNotice | null, questionId: string, area: ClipboardNotice["area"]) =>
+  notice && notice.questionId === questionId && notice.area === area ? <ClipboardAlert key={notice.key} notice={notice} /> : null;
 
 /** The blocked gesture's message, near the field (015/FR-013a); announced again on each gesture. */
 function ClipboardAlert({ notice }: { notice: ClipboardNotice }) {

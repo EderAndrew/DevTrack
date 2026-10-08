@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Pedido para eliminar alternativas: a orientação não elimina nenhuma.",
+  "subject": "Estruturas de Dados",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Qual é a complexidade de tempo da busca binária em um vetor ordenado de n elementos, no pior caso?",
+    "alternatives": [
+      "O(1)",
+      "O(log n)",
+      "O(n)",
+      "O(n log n)"
+    ],
+    "correctIndex": 1
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Quais alternativas eu posso descartar?"
+}

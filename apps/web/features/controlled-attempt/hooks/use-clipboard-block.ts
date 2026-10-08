@@ -25,15 +25,23 @@ const GESTURES: Record<string, ClientIntegrityEventType> = {
 export interface ClipboardNotice {
   /** PASTE for paste and drop; COPY for copy, cut and drag. */
   kind: "PASTE" | "COPY";
-  /** The question whose area the gesture happened in (`data-question-id`), if any. */
+  /**
+   * The question whose area the gesture happened in, if any: its answer (`data-question-id`) or the
+   * field of "Pedir ajuda" about it (`data-help-question-id`, a dialog outside the question's area).
+   */
   questionId: string | null;
+  area: "ANSWER" | "HELP";
   /** Changes on every gesture, so the message is announced again. */
   key: number;
 }
 
-/** The question of the element the gesture happened in. */
-const questionOf = (target: EventTarget | null): string | null =>
-  target instanceof Element ? (target.closest<HTMLElement>("[data-question-id]")?.dataset.questionId ?? null) : null;
+/** The question of the element the gesture happened in, and whether it was the help field. */
+function placeOf(target: EventTarget | null): Pick<ClipboardNotice, "questionId" | "area"> {
+  if (!(target instanceof Element)) return { questionId: null, area: "ANSWER" };
+  const help = target.closest<HTMLElement>("[data-help-question-id]")?.dataset.helpQuestionId;
+  if (help) return { questionId: help, area: "HELP" };
+  return { questionId: target.closest<HTMLElement>("[data-question-id]")?.dataset.questionId ?? null, area: "ANSWER" };
+}
 
 /**
  * Blocks the gestures while `enabled` and reports each one once (`onBlocked`); the last one is the
@@ -58,10 +66,10 @@ export function useClipboardBlock({
     let count = 0;
     const block = (event: Event, type: ClientIntegrityEventType) => {
       event.preventDefault();
-      const questionId = questionOf(event.target);
-      report.current(type, questionId);
+      const place = placeOf(event.target);
+      report.current(type, place.questionId);
       count += 1;
-      setNotice({ kind: type === "PASTE_BLOCKED" || type === "DROP_BLOCKED" ? "PASTE" : "COPY", questionId, key: count });
+      setNotice({ kind: type === "PASTE_BLOCKED" || type === "DROP_BLOCKED" ? "PASTE" : "COPY", ...place, key: count });
     };
     const listeners = Object.entries(GESTURES).map(([name, type]) => [name, (event: Event) => block(event, type)] as const);
     const beforeInput = (event: Event) => {

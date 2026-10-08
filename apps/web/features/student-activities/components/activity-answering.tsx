@@ -24,6 +24,7 @@ import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
 import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
+import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -133,6 +134,8 @@ export interface ControlledAnswering {
   blockClipboard: boolean;
   /** A message under a question's answer (the blocked paste or copy). */
   questionNotice: (questionId: string) => ReactNode;
+  /** The same message in the question's "Pedir ajuda" field (015/US3-12). */
+  helpNotice: (questionId: string) => ReactNode;
 }
 
 /**
@@ -419,6 +422,16 @@ function AttemptAnswering({
             {controlled?.questionNotice(question.id)}
           </div>
         </div>
+        {activity.aiHelp.allowance > 0 ? (
+          <QuestionHelp
+            key={question.id}
+            activityId={activity.id}
+            questionId={question.id}
+            highlight={question.language?.highlight ?? undefined}
+            canAsk={editable}
+            notice={controlled?.helpNotice(question.id)}
+          />
+        ) : null}
       </article>
       <AssessmentFooter
         hasPrevious={index > 0}

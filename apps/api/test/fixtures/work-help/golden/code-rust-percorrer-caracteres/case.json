@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "Pergunta sobre a linguagem: exemplo de outro problema.",
+  "subject": "Programação em Rust",
+  "question": {
+    "type": "CODE",
+    "languageKey": "rust",
+    "statement": "Implemente contar_vogais(texto: &str) -> usize, que conta as vogais (a, e, i, o, u) do texto, sem diferenciar maiúsculas.",
+    "starterCode": "fn contar_vogais(texto: &str) -> usize {\n    todo!()\n}",
+    "expectedSolution": "fn contar_vogais(texto: &str) -> usize {\n    texto\n        .chars()\n        .filter(|c| \"aeiouAEIOU\".contains(*c))\n        .count()\n}"
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Como eu percorro os caracteres de uma string em Rust?"
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Código do aluno com erro: aponta onde revisar sem corrigir.",
+  "subject": "Programação em JavaScript",
+  "question": {
+    "type": "CODE",
+    "languageKey": "javascript",
+    "statement": "Implemente filtrarPares(numeros), que devolve um novo array só com os números pares.",
+    "starterCode": "function filtrarPares(numeros) {\n  // seu código\n}",
+    "expectedSolution": "function filtrarPares(numeros) {\n  return numeros.filter((numero) => numero % 2 === 0);\n}"
+  },
+  "studentAnswer": {
+    "source": "function filtrarPares(numeros) {\n  return numeros.filter((numero) => numero / 2 === 0);\n}"
+  },
+  "studentQuestion": "Meu código devolve um array vazio, por quê?"
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "espera",
+    "ciclo"
+  ],
+  "forbidden": [
+    "exclusao mutua",
+    "nao preempcao",
+    "espera circular"
+  ]
+}

@@ -271,6 +271,19 @@ Code highlighting (014) adds only data: `programming_languages.highlight` (text 
 copied into the teacher views and, listed explicitly, into the three student allowlists
 (`exercises`, `works` and `activities` `views/student-view.ts`); it carries no answer key.
 `014-highlight.spec.ts` checks every route that returns a language. The request bodies never take it (400).
+AI help (015/US3): `modules/work-help` holds `WorkHelpService` (request + execution in one transaction through
+`beforeCreate`, under the attempt's `FOR UPDATE`; reads reconcile a request whose execution ended without completing to
+FAILED), the `work-helper` definition (DISABLED in production; `proposal.settle: "ON_MATERIALIZE"`, its rule injected by
+`work-help.definitions.ts` so `definitions/` never imports `help/`), prompt and
+`read-work-help-request` tool (only the student's view of the question, alternatives by letter), and `help/` (the pure
+`leak-check.ts` of research F10, `materialize`, `reconcile`, `views`). Tests use `test/helpers/work-help.ts`
+(`createWorkHelpApp()` registers the 007, 010, 011 and 015 agents ACTIVE, `requestHelp`, `getHelp`, `scriptHelp`,
+`validGuidance`); the journey (so audit coverage and the secret scan) runs on `createWorkHelpApp`. Golden set:
+`test/fixtures/work-help/` (25 cases, `score.ts` scores the model's own output before the server's check),
+`015-evaluation.spec.ts` replays it and `pnpm --filter api eval:help` runs it against the real models (`EVAL_MODEL`,
+`EVAL_RECORD`, `EVAL_REPLAY`; evidence in `test/fixtures/evaluations/work-help/`, with the p95 latency of 015/SC-007).
+`test/security/015-answer-key-scan.spec.ts` keeps the 012 answer-key markers out of `provider.requests`, and
+`015-injection.spec.ts` keeps instructions in the statement, the answer and the question in the untrusted block.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

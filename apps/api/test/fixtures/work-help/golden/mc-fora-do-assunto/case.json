@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Pergunta sem relação com a questão: recusa curta.",
+  "subject": "Engenharia de Software",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Qual comando Git cria um novo branch e já muda para ele?",
+    "alternatives": [
+      "git checkout -b",
+      "git commit -m",
+      "git merge",
+      "git push"
+    ],
+    "correctIndex": 0
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Quem ganhou o jogo de futebol ontem?"
+}

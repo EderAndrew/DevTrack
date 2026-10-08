@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "OUT_OF_SCOPE",
+        "message": "Aqui eu só ajudo com esta questão. Quer uma dica sobre como comparar o texto de trás para frente?",
+        "example": null
+      }
+    }
+  ]
+}

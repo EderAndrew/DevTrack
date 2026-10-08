@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "tabelas",
+    "relacionar"
+  ],
+  "forbidden": [
+    "inner join",
+    "esta errada",
+    "esta certa"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não vou escrever a solução, mas veja a ideia num problema diferente: contar quantos valores de um vetor são maiores que 10. Você precisa de uma variável que guarda o resultado parcial, de um laço que visita cada elemento e de um retorno no final. Compare com a sua questão: o que muda na variável e no que acontece dentro do laço?",
+        "example": {
+          "code": "int contarMaioresQueDez(int[] valores) {\n    int quantidade = 0;\n    for (int valor : valores) {\n        if (valor > 10) quantidade++;\n    }\n    return quantidade;\n}"
+        }
+      }
+    }
+  ]
+}

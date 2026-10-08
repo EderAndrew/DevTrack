@@ -113,7 +113,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
     expect(old.agentVersionRef.version).toBe(1);
   });
 
-  it("007/FR-051 produção sincroniza curriculum-agent v3, (010) exercise-generator v1 e (011) work-generator v1 DESABILITADOS, de forma idempotente", async () => {
+  it("007/FR-051 produção sincroniza curriculum-agent v3, (010) exercise-generator v1 e (011) work-generator v1 e (015) work-helper v1 DESABILITADOS, de forma idempotente", async () => {
     const production = productionAiDefinitions(t.config);
     await syncWith(production);
     const agents = await t.prisma.aiAgent.findMany({ where: { status: { not: "DEPRECATED" } }, include: { currentVersion: true }, orderBy: { key: "asc" } });
@@ -121,6 +121,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
       ["curriculum-agent", "DISABLED", 3],
       ["exercise-generator", "DISABLED", 1],
       ["work-generator", "DISABLED", 1],
+      ["work-helper", "DISABLED", 1],
     ]);
     const tool = await t.prisma.aiTool.findUniqueOrThrow({ where: { key: "read-curriculum-document" } });
     expect(tool.status).toBe("ENABLED");
@@ -158,7 +159,7 @@ describe("006/FR-008 registro sincronizado a partir do código", () => {
 });
 
 describe("006/SC-013 006/FR-067 as features 001–005 continuam iguais", () => {
-  it("com as definições de produção a API sobe sem agente ativo (007 curriculum-agent, 010 exercise-generator e 011 work-generator, desabilitados), e cada papel mantém as permissões da 001–005", async () => {
+  it("com as definições de produção a API sobe sem agente ativo (007 curriculum-agent, 010 exercise-generator, 011 work-generator e 015 work-helper, desabilitados), e cada papel mantém as permissões da 001–005", async () => {
     const t = await createTestApp();
     try {
       // A clean database: an agent an earlier test enabled would keep ACTIVE through the sync.
@@ -166,7 +167,7 @@ describe("006/SC-013 006/FR-067 as features 001–005 continuam iguais", () => {
       await t.get(AiRegistrySync).sync();
       expect(await t.prisma.aiAgent.count({ where: { status: { in: ["ACTIVE", "DRAFT"] } } })).toBe(0);
       const disabled = await t.prisma.aiAgent.findMany({ where: { status: "DISABLED" }, select: { key: true }, orderBy: { key: "asc" } });
-      expect(disabled.map((a) => a.key)).toEqual(["curriculum-agent", "exercise-generator", "work-generator"]);
+      expect(disabled.map((a) => a.key)).toEqual(["curriculum-agent", "exercise-generator", "work-generator", "work-helper"]);
       const aiKeys = new Set<string>([...AI_TEACHER, ...AI_OPERATIONS]);
       for (const role of ROLE_KEYS) {
         const rows = await t.prisma.rolePermission.findMany({ where: { role: { key: role } }, select: { permission: { select: { key: true } } } });

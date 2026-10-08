@@ -236,3 +236,31 @@ describe("015/US2 aluno responde em modo controlado", () => {
     expect(document.activeElement).toBe(exit);
   });
 });
+
+describe("015/US3-12 ajuda da IA dentro da página de foco", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    fullscreenDevice(true);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("015/US3-12 015/FR-013a abrir \"Pedir ajuda\" não conta como saída; colar no campo é bloqueado e registrado com a questão", async () => {
+    const withHelp = started({ aiHelp: { allowance: 3, used: 0 } });
+    const help = () => json(200, { allowance: 3, used: 0, pending: false, items: [] });
+    const { events, user } = focusPage(withHelp, { [`GET ${DETAIL}/attempt/help`]: help });
+    await user.click(await screen.findByRole("button", { name: "Pedir ajuda" }));
+    const dialog = screen.getByRole("dialog", { name: "Pedir ajuda à IA" });
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    fireEvent(within(dialog).getByRole("textbox"), paste);
+    expect(paste.defaultPrevented).toBe(true);
+    expect(within(dialog).getByText(PASTE_BLOCKED_MESSAGE)).toBeTruthy();
+    await waitFor(() => expect(events.map((event) => [event.type, event.questionId])).toEqual([["PASTE_BLOCKED", withHelp.questions[0]!.id]]));
+    expect(types(events)).not.toContain("SCREEN_LEFT");
+    // The header and the question show the same counter.
+    expect(screen.getAllByText("Ajudas restantes: 3 de 3")).toHaveLength(2);
+  });
+});
+

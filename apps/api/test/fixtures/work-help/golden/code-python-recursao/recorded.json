@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Recursão é quando uma função resolve um problema chamando a si mesma com uma versão menor dele, até chegar a um caso tão simples que a resposta é imediata: o caso base. Veja um exemplo diferente, que soma os números de 1 até n. Repare nas duas partes: quando parar e como diminuir o problema. Na sua questão, qual é o caso mais simples e como o problema fica menor a cada chamada?",
+        "example": {
+          "code": "def soma_ate(n):\n    if n == 1:\n        return 1\n    return n + soma_ate(n - 1)"
+        }
+      }
+    }
+  ]
+}

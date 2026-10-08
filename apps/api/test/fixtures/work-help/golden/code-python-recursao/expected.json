@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "caso base",
+    "chamada"
+  ],
+  "forbidden": [
+    "n * fatorial",
+    "fatorial(n - 1)"
+  ]
+}

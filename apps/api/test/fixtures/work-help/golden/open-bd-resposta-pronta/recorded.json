@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não vou entregar a resposta pronta, mas posso guiar você. Pense em duas tabelas: Pedidos e Clientes. Como um pedido sabe a qual cliente pertence? Que informação de Clientes precisaria aparecer em Pedidos? E o que deveria acontecer se alguém tentasse gravar um pedido para um cliente que não existe? Responda essas perguntas com suas palavras e você terá o núcleo da explicação.",
+        "example": null
+      }
+    }
+  ]
+}

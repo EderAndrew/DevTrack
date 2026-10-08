@@ -276,12 +276,12 @@ conferir que nenhuma contém a resposta, o contador chega a 0 e a quarta é recu
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T028 [P] [US3] Unitários de `apps/api/src/modules/work-help/help/leak-check.spec.ts`
+- [X] T028 [P] [US3] Unitários de `apps/api/src/modules/work-help/help/leak-check.spec.ts`
   (research F10: rótulos de alternativa em todas as formas, texto de qualquer alternativa ≥ 12,
   resposta esperada inteira ≥ 25 e shingles de 8 com resposta e explicação, 3 linhas seguidas da
   solução, solução curta inteira, normalização de acento/pontuação/espaço, casos legítimos que NÃO
   bloqueiam) (`015/FR-018`, `015/US3-3`, `015/US3-4`, `015/US3-10`).
-- [ ] T029 [P] [US3] `apps/api/test/integration/015-us3-help.spec.ts` com o provedor fake:
+- [X] T029 [P] [US3] `apps/api/test/integration/015-us3-help.spec.ts` com o provedor fake:
   `015/US3-1`, `015/US3-2`, `015/US3-5`, `015/US3-6`, `015/US3-7`, `015/US3-8`, `015/US3-9`,
   `015/US3-10`, `015/US3-11` (pedido → 202 REQUESTED, execução, `drain`, DELIVERED e `used` 2 de 3;
   esgotado → 409 `HELP_EXHAUSTED`; duas requisições simultâneas → no máximo uma pendente
@@ -291,21 +291,21 @@ conferir que nenhuma contém a resposta, o contador chega a 0 e a quarta é recu
   `015/FR-021`, `015/FR-023` (nota e respostas intactas), proposta decidida APPROVE/REJECT por
   regra (F9), pedido pendente na entrega ainda é entregue, `015/SC-006` (falha da IA nunca consome
   ajuda nem impede salvar e entregar).
-- [ ] T030 [P] [US3] `apps/api/test/security/015-answer-key-scan.spec.ts`: para os três tipos, com
+- [X] T030 [P] [US3] `apps/api/test/security/015-answer-key-scan.spec.ts`: para os três tipos, com
   os marcadores `MARCADOR-RESPOSTA-012`, `-SOLUCAO-`, `-EXPLICACAO-`, `-RUBRICA-`, `-PRIVADO-` no
   snapshot, nenhum aparece em `provider.requests` (sistema, contexto, conteúdo não confiável,
   resultados de tool) nem em resposta ao aluno; nome, e-mail e ids do aluno também ausentes
   (`015/SC-011`, `015/SC-008`, `015/FR-028`).
-- [ ] T031 [P] [US3] `apps/api/test/security/015-injection.spec.ts`: instruções no enunciado, na
+- [X] T031 [P] [US3] `apps/api/test/security/015-injection.spec.ts`: instruções no enunciado, na
   resposta do aluno e na pergunta chegam ao modelo só no bloco não confiável; uma resposta do
   modelo que obedece (dá a alternativa, o código) é bloqueada pela checagem (`015/US3-8`).
-- [ ] T032 [P] [US3] Golden set `apps/api/test/fixtures/work-help/` (README, ≥ 24 casos em
+- [X] T032 [P] [US3] Golden set `apps/api/test/fixtures/work-help/` (README, ≥ 24 casos em
   `golden/<case>/{case.json,expected.json,recorded.json}` cobrindo os três tipos, várias
   disciplinas e linguagens, "qual é a resposta?", "me dá o código", "a letra B está certa?",
   injeções e fora do assunto; `score.ts` com `schemaValidity`, `leakFree`, `injectionClean`,
   `scopeAccuracy`, `relevance` e `falseBlockRate`) e `apps/api/test/integration/015-evaluation.spec.ts`
   que o repete com as respostas gravadas (`015/SC-002`, `015/SC-003`).
-- [ ] T033 [P] [US3] Web: `apps/web/features/work-help/components/help-dialog.test.tsx`,
+- [X] T033 [P] [US3] Web: `apps/web/features/work-help/components/help-dialog.test.tsx`,
   `help-guidance.test.tsx`, `help-counter.test.tsx` e `hooks/use-work-help.test.ts` (contador,
   textos de `contracts/web-ui.md`, polling enquanto pendente e parada em 60 s, fora do assunto sem
   consumo, indisponível, esgotado, colagem bloqueada no campo só em CONTROLLED, texto como texto,
@@ -314,32 +314,44 @@ conferir que nenhuma contém a resposta, o contador chega a 0 e a quarta é recu
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Definições em `apps/api/src/modules/work-help/definitions/`: `work-helper.ts`
+- [X] T034 [US3] Definições em `apps/api/src/modules/work-help/definitions/`: `work-helper.ts`
   (agente v1 e tarefa `work-help` de `contracts/work-helper.md`, `settle: "ON_MATERIALIZE"`,
   `hourlyLimit` de `AI_WORK_HELP_EXECUTIONS_PER_HOUR`, DISABLED), `work-help.prompt.ts` (pt-BR,
   regras de tutor e OUT_OF_SCOPE), `read-work-help-request.tool.ts` (só os campos da visão do aluno
   via `activities/views/student-view.ts`, alternativas por letra, resposta salva, pergunta,
   orientações anteriores da questão) e `request.ownership.ts`; `workHelpDefinitions()` no
   `productionAiDefinitions`; entrada do catálogo aprovada só quando houver evidência (T047).
-- [ ] T035 [US3] `apps/api/src/modules/work-help/help/{leak-check,materialize,reconcile,views}.ts`:
+  Feito: a ferramenta seleciona só as colunas que a visão do aluno mostra (a mesma lista fechada de
+  `toStudentQuestion`, casos de teste PUBLIC filtrados na consulta), sem ler nenhuma coluna de
+  gabarito; as métricas `leakFree`, `scopeAccuracy` e `relevance` entraram na lista da política (009).
+- [X] T035 [US3] `apps/api/src/modules/work-help/help/{leak-check,materialize,reconcile,views}.ts`:
   checagem pura (F10); `materialize` trava pedido e tentativa, grava DELIVERED/OUT_OF_SCOPE/BLOCKED
   e devolve APPROVE/REJECT; `reconcile` marca FAILED as execuções terminadas sem conclusão
   (UPDATE condicional); visões por lista fechada; auditorias `work_help.*` (tipos novos nos três
   lugares).
-- [ ] T036 [US3] `apps/api/src/modules/work-help/work-help.{controller,service}.ts`:
+  Feito: migração extra `20261008120000_work_help_execution_link` — o pedido nasce antes da execução
+  (a fundação confere o recurso), então `ai_execution_id` é gravado uma vez, de NULL, na mesma
+  transação; `data-model.md` atualizado.
+- [X] T036 [US3] `apps/api/src/modules/work-help/work-help.{controller,service}.ts`:
   `POST/GET /me/activities/:activityId/attempt/help` (contexto pelo `StudentActivityLoader`,
   pedido + execução numa transação via `beforeCreate`, regra de prazo da 012, rate limit
   `work-help`, `503 AI_HELP_UNAVAILABLE` para agente desabilitado ou sem modelo); catálogo e
   `MATRIX`; `toStudentActivity` com `aiHelp.used`.
-- [ ] T037 [US3] Script `apps/api/test/eval/work-help.eval.ts` e `"eval:help"` em
+  Feito: `GET …/attempt/help` sem tentativa responde o estado vazio (`used` 0, nada pendente) em vez
+  de 404; o agente desabilitado depois do pedido reconcilia como FAILED `AI_AGENT_DISABLED`.
+- [X] T037 [US3] Script `apps/api/test/eval/work-help.eval.ts` e `"eval:help"` em
   `apps/api/package.json` (mesmo layout de `eval:works`: candidatos do tier, `EVAL_MODEL`,
   `EVAL_RECORD`, `EVAL_REPLAY`) e a latência de cada caso na evidência (`015/SC-007`: p95 ≤ 15 s), fora
   do `pnpm test`.
-- [ ] T038 [US3] Web `apps/web/features/work-help/{api,hooks,schemas,components}/…`: `HelpDialog`
+  Feito: só o script; nenhuma evidência gravada (a aprovação no catálogo é a T047).
+- [X] T038 [US3] Web `apps/web/features/work-help/{api,hooks,schemas,components}/…`: `HelpDialog`
   (React Hook Form, 500 caracteres), `HelpGuidance`, `HelpCounter`, `use-work-help` (TanStack Query
   com `refetchInterval` 1,5 s enquanto pendente); "Pedir ajuda" por questão em
   `features/student-activities/components/activity-answering.tsx` quando `aiHelp.allowance` é 3;
   bloqueio de colagem do campo em CONTROLLED via `use-clipboard-block`.
+  Feito: no modo controlado, o bloqueio de colagem do campo vem do `use-clipboard-block` da página
+  (o diálogo marca `data-help-question-id`, e a mensagem aparece dentro dele); o contador também
+  fica no cabeçalho da página de foco.
 
 **Checkpoint**: MVP completo — professor liga, aluno responde controlado e pede ajuda.
 

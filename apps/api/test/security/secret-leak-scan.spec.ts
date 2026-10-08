@@ -3,7 +3,7 @@ import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
 import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
-import { createWorkAiApp } from "../helpers/work-ai";
+import { createWorkHelpApp } from "../helpers/work-help";
 import { createUser, loginAs } from "../helpers/factories";
 import { api, testConfig } from "../helpers/test-app";
 
@@ -41,7 +41,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
   beforeAll(async () => {
     // 008/US4-1: the OpenRouter key is configured; the definitions keep the simulated provider (T022).
     const base = testConfig();
-    t = await createWorkAiApp({
+    t = await createWorkHelpApp({
       logs,
       config: { ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
       overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }],
@@ -160,6 +160,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "feedback geral (012)",
         // 013: the teacher's comment on a marked exercise.
         "comentário da marcação (013)",
+        // 015: the student's questions to the AI help and the orientations (MARCADOR-AJUDA-015, MARCADOR-ORIENTACAO-015).
+        "pergunta da ajuda (015)",
+        "orientação da ajuda (015)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -170,6 +173,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.work.findMany({ select: { title: true } }))).toContain("Trabalho manual da jornada onze");
     expect(serialize(await t.prisma.exerciseQuestionResult.findMany({ select: { comment: true } }))).toContain("Comentário da marcação da jornada treze");
+    const helps = serialize(await t.prisma.workHelpRequest.findMany({ select: { question: true, message: true } }));
+    expect(helps).toContain("MARCADOR-AJUDA-015");
+    expect(helps).toContain("MARCADOR-ORIENTACAO-015");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );

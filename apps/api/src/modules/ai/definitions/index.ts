@@ -2,7 +2,7 @@ import type { AppConfig } from "../../../platform/config/config.schema";
 import { curriculumAiDefinitions } from "../../curriculum-ai/definitions/curriculum-agent";
 import { exerciseAiDefinitions } from "../../exercise-ai/definitions/exercise-generator";
 import { workAiDefinitions } from "../../work-ai/definitions/work-generator";
-import { workHelpDefinitions } from "../../work-help/definitions/work-helper";
+import { workHelpDefinitions } from "../../work-help/work-help.definitions";
 import { OpenRouterProvider } from "../gateway/providers/openrouter.provider";
 import { MODEL_CATALOG } from "./model-catalog";
 import { PRODUCTION_MODEL_FAMILIES } from "./model-families";
