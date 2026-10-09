@@ -105,3 +105,28 @@ describe("015/US1 ClassActivities — opções do Trabalho na lista", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("016/US1 ClassActivities — chamada do Trabalho na lista", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("016/US1-1 016/FR-006 \"Aguardando chamada\" e \"n de m presentes\" por texto; Exercícios e trabalhos antigos sem nada novo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        [PATH]: json(200, {
+          items: [
+            summary({ releaseMode: "PRESENT_ONLY", attendance: { present: 0, enrolled: 3 } }),
+            summary({ id: "22222222-2222-4222-8222-222222222223", title: "Com chamada", releaseMode: "PRESENT_ONLY", attendance: { present: 2, enrolled: 3 } }),
+            summary({ id: "22222222-2222-4222-8222-222222222224", title: "Antigo" }),
+          ],
+        }),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<ClassActivities classId={CLASS_ID} canApply />);
+    const rows = within(await screen.findByRole("table")).getAllByRole("row").slice(1);
+    expect(within(rows[0]!).getByText("Aguardando chamada")).toBeTruthy();
+    expect(within(rows[1]!).getByText("2 de 3 presentes")).toBeTruthy();
+    expect(within(rows[2]!).queryByText(/chamada|presentes/)).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+});

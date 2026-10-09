@@ -719,11 +719,22 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const classStudentClient = api(t, { cookie: keepCookie(classAccepted) });
   const myClasses = await classStudentClient.get("/api/me/classes");
   expect(myClasses.body.items.map((c: { id: string }) => c.id)).toEqual([classId]);
-  // 012/US2 — the student's dashboard and list show the closed work (overdue), never the cancelled
-  // exercises, whose id answers 404 and writes `student_access.denied` (route pattern and reason).
-  expect((await classStudentClient.get("/api/me/dashboard")).body.counts).toEqual({ pending: 0, inProgress: 0, overdue: 1, completed: 0 });
-  expect((await classStudentClient.get("/api/me/activities")).body.items.map((a: { id: string }) => a.id)).toEqual([appliedWork.body.id]);
+  // 012/US2 — the student's dashboard and list never show the cancelled exercises, whose id answers 404
+  // and writes `student_access.denied` (route pattern and reason). Since 016 the closed work was
+  // released only to the students marked present (none): it is out of the student's context too
+  // (`student_access.denied` with `NOT_PRESENT`).
+  expect((await classStudentClient.get("/api/me/dashboard")).body.counts).toEqual({ pending: 0, inProgress: 0, overdue: 0, completed: 0 });
+  expect((await classStudentClient.get("/api/me/activities")).body.items).toEqual([]);
   expect((await classStudentClient.get(`/api/me/activities/${appliedExercises.body.id}`)).status).toBe(404);
+  expect((await classStudentClient.get(`/api/me/activities/${appliedWork.body.id}`)).status).toBe(404);
+  const classStudentId = (await t.prisma.user.findUniqueOrThrow({ where: { email: "aluno-convidado-jornada@example.test" }, select: { id: true } })).id;
+  /** 016/US1 — the teacher takes the attendance of a new work: marking releases it to the student. */
+  const attendancePath = (activityId: string) => `${activitiesPath}/${activityId}/attendance`;
+  const markPresent = async (activityId: string) => {
+    expect((await teacherClient.get(attendancePath(activityId))).body).toMatchObject({ releaseMode: "PRESENT_ONLY", present: 0, enrolled: 1 });
+    const marked = await teacherClient.post(attendancePath(activityId), { mark: [classStudentId], unmark: [] });
+    expect(marked.body).toMatchObject({ present: 1, enrolled: 1 });
+  };
   // 012/US3 — the teacher applies the work again; the student starts (and starts again: same
   // attempt, no event; `activity_attempt.started` with `attemptNumber`), saves an answer
   // (`activity_attempt.progress_saved`, counts only) and is refused on the closed work
@@ -742,6 +753,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     aiHelpAllowance: 3,
   });
   expect(openWork.status).toBe(201);
+  // 016/US1 — the work is invisible until the attendance (`attendance.marked`, ids only).
+  expect((await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {})).status).toBe(404);
+  await markPresent(openWork.body.id);
   const startedActivity = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {});
   expect(startedActivity.status).toBe(200);
   expect((await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt`, {})).status).toBe(200);
@@ -843,7 +857,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const submitPath = `/api/me/activities/${openWork.body.id}/attempt/submit`;
   expect((await classStudentClient.post(submitPath, { answers: [] })).body.status).toBe("SUBMITTED");
   expect((await classStudentClient.post(submitPath, { answers: [] })).status).toBe(200);
-  expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("ACTIVITY_CLOSED");
+  // Since 016 the closed work was never released to this student (not marked present): the same 404.
+  expect((await classStudentClient.post(`/api/me/activities/${appliedWork.body.id}/attempt`, {})).body.code).toBe("NOT_FOUND");
   // 012/US5 — the teacher opens the submission, grades the pending questions with feedback
   // (`activity_submission.graded`, grades in hundredths, never the feedback) and releases the result
   // (`activity_result.released`); a saved attempt of a closed activity is accepted as a late
@@ -871,10 +886,17 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // The graded work and the concluded exercises (013/FR-015).
   expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(2);
   const acceptedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
+  // 016/US2 — marked by mistake and unmarked before the start (`attendance.unmarked`), then marked again.
+  await markPresent(acceptedWork.body.id);
+  expect((await teacherClient.post(attendancePath(acceptedWork.body.id), { mark: [], unmark: [classStudentId] })).body).toMatchObject({ present: 0 });
+  await markPresent(acceptedWork.body.id);
   const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedWork.body.id}/attempt`, {});
   const acceptedAnswers = answersFor(acceptedStart.body.questions);
   await classStudentClient.put(`/api/me/activities/${acceptedWork.body.id}/attempt/answers`, { answers: acceptedAnswers });
   expect((await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/close`, {})).status).toBe(200);
+  // A save on the closed work it was released to: refused (`activity_submission.rejected` with the code).
+  const closedSave = await classStudentClient.put(`/api/me/activities/${acceptedWork.body.id}/attempt/answers`, { answers: acceptedAnswers });
+  expect(closedSave.body.code).toBe("ACTIVITY_CLOSED");
   const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedWork.body.id}`)).body.roster[0].attemptId as string;
   const accepted = await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
   expect(accepted.body.submission.acceptedByTeacher).toBe(true);

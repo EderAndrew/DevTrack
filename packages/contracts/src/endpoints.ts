@@ -83,6 +83,7 @@ import { ClassRankingSchema } from "./ranking/index.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
 import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
+import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1127,6 +1128,24 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help",
     params: ClassActivityAttemptParamsSchema,
     response: TeacherHelpStateSchema,
+    status: 200,
+  },
+  // 016 — the attendance of a work (US1, research M3, M5, M8); `409 ATTENDANCE_NOT_REQUIRED` unless PRESENT_ONLY.
+  /** The class's ACTIVE students with their presence and situation in the room. */
+  "activities.room": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attendance",
+    params: ClassActivityParamsSchema,
+    response: RoomSchema,
+    status: 200,
+  },
+  /** Marks (releases the work) and unmarks, all or nothing; answers the room after the batch. */
+  "activities.attendance": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/attendance",
+    params: ClassActivityParamsSchema,
+    body: AttendanceBatchSchema,
+    response: RoomSchema,
     status: 200,
   },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */

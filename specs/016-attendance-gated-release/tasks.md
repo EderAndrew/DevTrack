@@ -168,7 +168,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T010 [P] [US1] `apps/api/test/integration/016-us1-release.spec.ts`, cobrindo:
+- [X] T010 [P] [US1] `apps/api/test/integration/016-us1-release.spec.ts`, cobrindo:
   - os cenários `016/US1-1`, `016/US1-2`, `016/US1-3`, `016/US1-4`, `016/US1-5`, `016/US1-6` e
     `016/US1-7`;
   - `016/FR-001`, `016/FR-003`, `016/FR-006`, `016/FR-007`, `016/FR-008` e `016/FR-010`;
@@ -180,7 +180,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
   - o Exercício segue visível a todos e a rota de chamada responde `409 ATTENDANCE_NOT_REQUIRED`;
   - `student_access.denied` com `reason: NOT_PRESENT`;
   - um trabalho aplicado antes (fábrica, `ALL_ENROLLED`) segue visível.
-- [ ] T011 [P] [US1] `apps/api/test/security/016-isolation.spec.ts` (`016/SC-001`), com professores
+- [X] T011 [P] [US1] `apps/api/test/security/016-isolation.spec.ts` (`016/SC-001`), com professores
   A/B e alunos A1 (presente), A2 (não marcado) e B1.
   - A2 recebe 404, sem título nem existência, em todas as rotas do aluno:
     - lista, dashboard e detalhe;
@@ -192,7 +192,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] `apps/api/src/modules/attendance/attendance.{controller,service}.ts`. Vem
+- [X] T012 [US1] `apps/api/src/modules/attendance/attendance.{controller,service}.ts`. Vem
   primeiro porque o helper da T013 a usa. Nesta tarefa a atividade criada pela API ainda nasce
   `ALL_ENROLLED`, e as rotas são testadas com atividades da fábrica: `createActivity` em
   `apps/api/test/helpers/activities.ts` ganha a opção `releaseMode` (padrão `ALL_ENROLLED`).
@@ -211,7 +211,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
   - O teste cita `016/FR-002` (cada atividade tem a própria chamada: marcar na atividade A não
     libera a B da mesma turma) e `016/FR-020` (situação na sala de cada aluno).
   - Catálogo, `MATRIX` e `route-declarations`.
-- [ ] T013 [US1] Helpers de teste:
+- [X] T013 [US1] Helpers de teste:
   - `apps/api/test/helpers/attendance.ts`: `markPresent(client, classId, activityId, ids)`,
     `getRoom` e `unmark`.
   - `applyWork` em `apps/api/test/helpers/activities.ts` ganha `attendance?: "ALL" | "NONE"`,
@@ -220,7 +220,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
   - `journey.ts` passa a marcar a presença explicitamente.
   - O helper só marca quando a atividade criada vem com `releaseMode: "PRESENT_ONLY"`. Antes da
     T014 nenhuma vem assim, então a suíte continua verde entre as tarefas sem engolir erros.
-- [ ] T014 [US1] Atividades, em conjunto com a T015 (as duas mudam o que o aluno vê; a fase só
+- [X] T014 [US1] Atividades, em conjunto com a T015 (as duas mudam o que o aluno vê; a fase só
   fica verde com as duas):
   - `apps/api/src/modules/activities/activities.service.ts` cria todo ASSIGNMENT com
     `releaseMode: PRESENT_ONLY`;
@@ -228,7 +228,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
   - os resumos e o detalhe do professor ganham `releaseMode` e
     `attendance: { present, enrolled }`, numa contagem agregada sem N+1, em
     `apps/api/src/modules/activities/activity-query.ts`.
-- [ ] T015 [US1] Visibilidade (research M4), com o 404 da resposta igual ao de hoje, e T010–T011
+- [X] T015 [US1] Visibilidade (research M4), com o 404 da resposta igual ao de hoje, e T010–T011
   verdes ao final. A cláusula
   `release_mode = 'ALL_ENROLLED' OR EXISTS (presença)` entra em:
   - `visibleTo` e `ownAttempt` de
@@ -237,7 +237,7 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
 
   `deniedReason` ganha `NOT_PRESENT` e o tipo `DeniedReason` é atualizado. Ao final,
   `pnpm --filter api test` inteiro verde: as suítes 012/013/015 passam pelo helper da T013.
-- [ ] T016 [P] [US1] Testes web, escritos primeiro:
+- [X] T016 [P] [US1] Testes web, escritos primeiro:
   - `apps/web/features/attendance/components/attendance-tab.test.tsx`:
     - "Marcar todos" / "Desmarcar todos" e o contador;
     - o diálogo "Liberar o trabalho para n alunos?" e o envio só das diferenças;
@@ -246,16 +246,16 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
     "n de m presentes" por texto.
   - Os testes web das telas novas (T016, T023, T032, T036) citam `016/FR-023` nos títulos dos
     casos de estados (carregando, vazio, erro, sem conexão), axe e teclado.
-- [ ] T017 [US1] Web, com T016 verde:
+- [X] T017 [US1] Web, com T016 verde:
   - `apps/web/features/attendance/{api,hooks,schemas}`, com `useRoom` sondando a cada
     `ATTENDANCE_POLL_MS = 5000` só com a página visível;
   - `components/attendance-tab.tsx` com a lista de verificação antes da primeira liberação;
   - a aba "Chamada" no detalhe da atividade `PRESENT_ONLY` e os textos de lista e detalhe em
     `apps/web/features/activities/components/`.
-- [ ] T018 [US1] Web do aluno, com o teste do hook em
+- [X] T018 [US1] Web do aluno, com o teste do hook em
   `apps/web/features/student-activities/hooks/use-student-activities.test.tsx` (`016/FR-009`):
   "Minhas atividades" e o dashboard sondam a cada 5 s com a página visível.
-- [ ] T019 [US1] E2E existentes: `student-portal.spec.ts`, `controlled-work.spec.ts`,
+- [X] T019 [US1] E2E existentes: `student-portal.spec.ts`, `controlled-work.spec.ts`,
   `code-highlighting.spec.ts` e os demais que aplicam um trabalho pela interface ganham o passo
   "Chamada → Marcar todos → Liberar". Rodar só depois que o usuário consentir com a redefinição do
   banco E2E.

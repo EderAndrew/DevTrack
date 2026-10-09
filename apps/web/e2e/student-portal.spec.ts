@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { field, logIn } from "./fixtures/journeys.ts";
-import { applyWorkThroughApi, seedStudentPortal, type StudentPortalSeed, WORK_QUESTIONS } from "./support/student-portal-seed.ts";
+import { applyWorkThroughApi, releaseToPresent, seedStudentPortal, type StudentPortalSeed, WORK_QUESTIONS } from "./support/student-portal-seed.ts";
 
 const OFFLINE_ALERT =
   "Você está sem conexão. Suas respostas ficam guardadas neste navegador e serão enviadas quando a conexão voltar.";
@@ -61,6 +61,8 @@ test.describe("012 portal do aluno", () => {
     await teacherPage.getByRole("button", { name: "Publicar atividade" }).click();
     await expect(teacherPage).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
     const activityPath = new URL(teacherPage.url()).pathname;
+    // 016/US1: the work reaches only the students marked present.
+    await releaseToPresent(teacherPage);
 
     // The student lands on the dashboard and starts from the card.
     const context = await browser.newContext();

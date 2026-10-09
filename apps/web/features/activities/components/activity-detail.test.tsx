@@ -414,3 +414,31 @@ describe("015/US4 colunas do modo controlado e das ajudas na lista de alunos", (
   });
 });
 
+
+describe("016/US1 ActivityDetail — chamada de um Trabalho PRESENT_ONLY", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const ROOM_PATH = `GET ${PATH}/attendance`;
+  const room = { releaseMode: "PRESENT_ONLY", present: 0, enrolled: 1, students: [{ studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1", name: "Ana Souza", markedAt: null, roomStatus: "NOT_MARKED", attemptId: null, openPause: null }] };
+
+  it("016/US1-1 016/FR-006 016/FR-003 mostra \"Aguardando chamada\" e a seção Chamada com chamada.registrar", async () => {
+    const api = routedFetch({
+      [`GET ${PATH}`]: json(200, activity({ releaseMode: "PRESENT_ONLY", attendance: { present: 0, enrolled: 1 } })),
+      "GET /api/work-help/availability": json(200, { available: true, reason: null }),
+      [ROOM_PATH]: json(200, room),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const { container } = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply canTakeAttendance />);
+    const section = await screen.findByRole("region", { name: "Chamada" });
+    expect(await within(section).findByRole("checkbox", { name: "Ana Souza" })).toBeTruthy();
+    expect(screen.getAllByText("Aguardando chamada").length).toBeGreaterThan(0);
+    await expectNoA11yViolations(container);
+  });
+
+  it("016/FR-007 sem chamada.registrar, ou num trabalho ALL_ENROLLED, não há seção Chamada nem leitura da sala", async () => {
+    const { api } = setup();
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    expect(screen.queryByRole("region", { name: "Chamada" })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/attendance"))).toBe(false);
+  });
+});

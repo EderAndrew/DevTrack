@@ -21,6 +21,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { attendanceSummary } from "@/features/attendance/schemas/attendance";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
@@ -72,6 +74,8 @@ export interface ActivityDetailProps {
   canApply: boolean;
   /** `notas.liberar`: "Liberar resultado". */
   canRelease?: boolean;
+  /** `chamada.registrar`: the "Chamada" of a `PRESENT_ONLY` work (016). */
+  canTakeAttendance?: boolean;
 }
 
 /**
@@ -80,9 +84,10 @@ export interface ActivityDetailProps {
  * Trabalho's mode and AI help, shown as text badges and editable until a student starts, 015), the
  * questions with the answer key, the students' situations with a link to each attempt, "Encerrar
  * atividade", "Liberar resultado" (confirmation with the submissions still pending) and "Cancelar
- * atividade" (danger, explicit text and confirmation). Another tab's change reloads it with a notice.
+ * atividade" (danger, explicit text and confirmation), and the "Chamada" of a `PRESENT_ONLY` work
+ * (016). Another tab's change reloads it with a notice.
  */
-export function ActivityDetail({ classId, activityId, canApply, canRelease = false }: ActivityDetailProps) {
+export function ActivityDetail({ classId, activityId, canApply, canRelease = false, canTakeAttendance = false }: ActivityDetailProps) {
   const query = useActivity(classId, activityId);
   const actions = useActivityActions(classId, activityId);
   const [notice, setNotice] = useState<string | null>(null);
@@ -142,6 +147,7 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
         </p>
         <ActivitySituation status={activity.status} phase={activity.phase} />
         <WorkOptionBadges activity={activity} />
+        {activity.attendance ? <p className="m-0">{attendanceSummary(activity.attendance)}</p> : null}
         <dl className="m-0 grid gap-2">
           <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
           <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
@@ -171,6 +177,10 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
         <ActivityEditForm key={activity.version} activity={activity} onSave={save} />
       ) : null}
 
+      {/* 016: the attendance releases the work to each student marked present (FR-003). */}
+      {canTakeAttendance && activity.releaseMode === "PRESENT_ONLY" && activity.status === "ACTIVE" ? (
+        <AttendanceTab classId={classId} activityId={activity.id} />
+      ) : null}
       <Roster classId={classId} activity={activity} />
       <ActivityQuestions questions={activity.questions} />
     </section>

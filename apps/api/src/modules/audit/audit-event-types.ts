@@ -191,6 +191,8 @@ export const AUDIT_EVENT_METADATA = {
     "scheduled",
     "outOfScopeTopicCount",
     "hasPlan",
+    // 016: `PRESENT_ONLY` for every work applied since 016, `ALL_ENROLLED` for exercises (research M2).
+    "releaseMode",
   ],
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005).
@@ -204,8 +206,12 @@ export const AUDIT_EVENT_METADATA = {
   // `operation`: START | SAVE | SUBMIT, and RETRY | COMPLETE of an EXERCISE (013); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
-  // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
+  // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED,
+  // and NOT_PRESENT since 016 (a PRESENT_ONLY work without the student's presence).
   "student_access.denied": ["route", "reason"],
+  // 016 — the attendance of a work (research M3, M5): one per student a batch actually changed.
+  "attendance.marked": ["classId", "studentUserId"],
+  "attendance.unmarked": ["classId", "studentUserId"],
   // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
   "attempt_integrity.recorded": ["eventType", "buffered"],
   // 015 — the AI help (research F11): ids, counts and codes only, never the question or the orientation.

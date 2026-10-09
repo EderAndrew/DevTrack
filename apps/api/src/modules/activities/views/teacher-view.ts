@@ -1,4 +1,5 @@
 import {
+  type ActivityAttendanceCounts,
   centsToGrade,
   type ExerciseRosterCounts,
   type RosterCounts,
@@ -49,6 +50,7 @@ export function toTeacherActivitySummary(
   header: ActivityHeader,
   roster: { counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null },
   now: Date,
+  attendance: ActivityAttendanceCounts | null,
 ): TeacherActivitySummary {
   const totalCents = nullableCents(header.totalGrade);
   return {
@@ -56,9 +58,8 @@ export function toTeacherActivitySummary(
     type: header.type,
     executionMode: header.executionMode,
     aiHelp: { allowance: aiHelpAllowanceOf(header.aiHelpAllowance) },
-    // 016: every activity is ALL_ENROLLED until the release_mode column (T006) and US1 land.
-    releaseMode: "ALL_ENROLLED",
-    attendance: null,
+    releaseMode: header.releaseMode,
+    attendance,
     title: header.title,
     status: header.status,
     phase: ActivityStateMachine.phase(header.status, header.publishAt, now),
@@ -82,10 +83,11 @@ export function toTeacherActivity(
   questions: readonly (ActivityQuestionRow & { sourceExerciseId: string | null })[],
   roster: { roster: RosterEntry[]; counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null },
   now: Date,
+  attendance: ActivityAttendanceCounts | null,
 ): TeacherActivity {
   const ordered = [...questions].sort((a, b) => a.position - b.position);
   return {
-    ...toTeacherActivitySummary(header, roster, now),
+    ...toTeacherActivitySummary(header, roster, now, attendance),
     instructions: header.instructions,
     version: header.version,
     outOfScopeTopicCount: header.outOfScopeTopicCount,

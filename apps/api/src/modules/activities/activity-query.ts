@@ -1,5 +1,6 @@
-import { type AiHelpAllowance, AiHelpAllowanceSchema, type GradeCents, gradeToCents } from "@repo/contracts";
+import { type ActivityAttendanceCounts, type AiHelpAllowance, AiHelpAllowanceSchema, type GradeCents, gradeToCents } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
+import type { Tx } from "../../platform/database/transaction";
 import type { ActivityQuestionRow } from "./views/rows";
 
 /** `numeric(5,2)` → hundredths: the only way a grade leaves the database here (011 research W3). */
@@ -81,6 +82,7 @@ export const ACTIVITY_HEADER_SELECT = {
   type: true,
   executionMode: true,
   aiHelpAllowance: true,
+  releaseMode: true,
   status: true,
   title: true,
   instructions: true,
@@ -98,3 +100,23 @@ export const ACTIVITY_HEADER_SELECT = {
 } as const satisfies Prisma.ClassActivitySelect;
 
 export type ActivityHeader = Prisma.ClassActivityGetPayload<{ select: typeof ACTIVITY_HEADER_SELECT }>;
+
+/**
+ * The presences of each activity among the class's ACTIVE students (016 research M9), in one
+ * aggregate query whatever the number of activities: "Aguardando chamada" while 0, then "n de m
+ * presentes". Read straight from the table: `activities` never imports `attendance` (research M1).
+ */
+export async function loadPresentCounts(db: Tx, activityIds: readonly string[]): Promise<Map<string, number>> {
+  if (activityIds.length === 0) return new Map();
+  const rows = await db.$queryRaw<{ activity_id: string; present: number }[]>`
+    SELECT aa.activity_id, count(*)::int AS present
+    FROM activity_attendances aa
+    JOIN enrollments e ON e.class_id = aa.class_id AND e.student_user_id = aa.student_user_id AND e.status = 'ACTIVE'
+    WHERE aa.activity_id = ANY(${[...activityIds]}::uuid[])
+    GROUP BY aa.activity_id`;
+  return new Map(rows.map((row) => [row.activity_id, row.present]));
+}
+
+/** The counts of a `PRESENT_ONLY` work; null for `ALL_ENROLLED`, which takes no attendance. */
+export const attendanceOf = (header: Pick<ActivityHeader, "id" | "releaseMode">, present: ReadonlyMap<string, number>, enrolled: number): ActivityAttendanceCounts | null =>
+  header.releaseMode === "PRESENT_ONLY" ? { present: present.get(header.id) ?? 0, enrolled } : null;

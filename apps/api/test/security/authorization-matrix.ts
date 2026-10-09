@@ -318,6 +318,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:classId/activities/:activityId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help", access: "entregas.visualizar" },
+  // 016/US1 — the attendance of a work (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

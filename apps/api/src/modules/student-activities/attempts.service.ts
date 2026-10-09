@@ -25,7 +25,7 @@ import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
 import { registerSubmission } from "../activities/submission/register-submission";
 import { MyActivitiesService } from "./my-activities.service";
-import { StudentActivityLoader } from "./student-activity-loader";
+import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
 const MINUTE_SEC = 60;
 const HOUR_SEC = 3_600;
@@ -401,7 +401,10 @@ export class AttemptsService {
   }
 }
 
-/** Published, not cancelled, of a class where the student is ACTIVE (research P18); else `OutOfContext`. */
+/**
+ * Published, not cancelled, of a class where the student is ACTIVE (research P18), released to them
+ * (016 research M4: every enrollment, or marked present); else `OutOfContext`.
+ */
 async function lockContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<ContextRow> {
   const rows = await tx.$queryRaw<ContextRow[]>`
     SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.question_count,
@@ -412,6 +415,7 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
       AND ca.status <> 'CANCELLED'
       AND ca.publish_at <= ${now}
       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
+      AND ${releasedToSql(studentUserId)}
     FOR SHARE OF ca`;
   if (rows.length === 0) throw new OutOfContext();
   return rows[0]!;

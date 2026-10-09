@@ -1,4 +1,4 @@
-import type { ErrorBody, ErrorCode } from "@repo/contracts";
+import type { ErrorBody, ErrorCode, ErrorDetails } from "@repo/contracts";
 
 /**
  * Error catalogue of contracts/http-api.md (001, 003 and 004). Every error leaving the API has the shape
@@ -163,6 +163,8 @@ export class AppException extends Error {
     message: string = ErrorCatalog[code].message,
     /** Extra response headers, e.g. Retry-After for RATE_LIMITED. */
     readonly headers: Readonly<Record<string, string>> = {},
+    /** Only where the contract lists them (016 `ATTENDANCE_STARTED`). */
+    readonly details?: ErrorDetails,
   ) {
     super(message);
     this.name = "AppException";
@@ -170,7 +172,7 @@ export class AppException extends Error {
   }
 
   toBody(): ErrorBody {
-    return { statusCode: this.status, code: this.code, message: this.message };
+    return { statusCode: this.status, code: this.code, message: this.message, ...(this.details ? { details: this.details } : {}) };
   }
 }
 

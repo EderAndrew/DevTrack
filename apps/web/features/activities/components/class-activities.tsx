@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Status, type StatusVariant } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { attendanceSummary } from "@/features/attendance/schemas/attendance";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClassActivities } from "../hooks/use-activities";
@@ -61,7 +62,7 @@ export interface ClassActivitiesProps {
 
 /**
  * The class's activities (012 contracts/web-ui.md, `/turmas/[id]/atividades`): título (with a
- * Trabalho's mode and AI help as text, 015/FR-006), tipo, situação in words, prazo, entregas and the
+ * Trabalho's mode and AI help as text, 015/FR-006, and its attendance, 016/FR-006), tipo, situação in words, prazo, entregas and the
  * action "Nova atividade". Every status is listed, by
  * deadline (latest first), as the API orders them.
  */
@@ -130,6 +131,7 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
                   <div className="flex flex-col gap-1">
                     <Link href={`/turmas/${classId}/atividades/${activity.id}`}>{activity.title}</Link>
                     <WorkOptionBadges activity={activity} />
+                    {activity.attendance ? <span>{attendanceSummary(activity.attendance)}</span> : null}
                   </div>
                 </TableCell>
                 <TableCell>{ACTIVITY_TYPE_LABELS[activity.type]}</TableCell>

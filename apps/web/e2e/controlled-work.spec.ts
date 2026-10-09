@@ -1,6 +1,6 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { bootstrapAdmin, field, logIn } from "./fixtures/journeys.ts";
-import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
+import { apiPost, markAllPresentThroughApi, releaseToPresent, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** The orientation of the AI help's `open-poo-saldo-privado` case, replayed by e2e/openrouter-mock.ts. */
 const GUIDANCE_START = "Comece imaginando o contrário: e se qualquer parte do sistema pudesse escrever direto no saldo?";
@@ -104,6 +104,8 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     const activityPath = new URL(teacherPage.url()).pathname;
     const activityId = activityPath.split("/").at(-1)!;
     await expect(teacherPage.getByText("Modo controlado").first()).toBeVisible();
+    // 016/US1: the work reaches only the students marked present.
+    await releaseToPresent(teacherPage);
 
     // The student reads the notice and starts in the controlled mode: the focus page, no menu.
     const page = await (await browser.newContext()).newPage();
@@ -187,6 +189,7 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
       executionMode: "CONTROLLED",
       aiHelpAllowance: 3,
     });
+    await markAllPresentThroughApi(teacherPage, seed.classId, activity.id);
     await teacherPage.context().close();
 
     const page = await (await browser.newContext({ ...devices["Pixel 7"] })).newPage();

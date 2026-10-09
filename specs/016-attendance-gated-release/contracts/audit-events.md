@@ -2,15 +2,22 @@
 
 Metadata holds only ids, enums, counts and durations. It never holds the text of the "Outro" note.
 
+The actor is always a USER: the class's teacher for the attendance, a release and a teacher's pause;
+the student for a declared exit and a refused write.
+
 | Type | Actor | Target | Metadata |
 |---|---|---|---|
-| `attendance.marked` | USER (teacher) | CLASS_ACTIVITY | `classId`, `studentUserId` |
-| `attendance.unmarked` | USER (teacher) | CLASS_ACTIVITY | `classId`, `studentUserId` |
-| `attempt_pause.started` | USER (student or teacher) | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `initiatedBy`, `reason` |
-| `attempt_pause.released` | USER (teacher) | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `seconds` |
-| `attempt_pause.write_refused` | USER (student) | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `operation` (`EVENTS` \| `HELP`) |
+| `attendance.marked` | USER | CLASS_ACTIVITY | `classId`, `studentUserId` |
+| `attendance.unmarked` | USER | CLASS_ACTIVITY | `classId`, `studentUserId` |
+| `attempt_pause.started` | USER | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `initiatedBy`, `reason` |
+| `attempt_pause.released` | USER | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `seconds` |
+| `attempt_pause.write_refused` | USER | ACTIVITY_ATTEMPT | `activityId`, `pauseId`, `operation` (`EVENTS` \| `HELP`) |
 
 Changes to existing events:
+
+| Type | Actor | Target | Metadata added |
+|---|---|---|---|
+| `activity.published` | USER | CLASS_ACTIVITY | `releaseMode` |
 
 - `activity.published` gains `releaseMode`.
 - `activity.closed` and `activity.cancelled` gain `pausedCount`, the number of open pauses the

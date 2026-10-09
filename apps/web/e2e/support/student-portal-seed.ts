@@ -107,6 +107,29 @@ export async function applyWorkThroughApi(browser: Browser, seed: StudentPortalS
     latePolicy: "REJECT",
     acknowledgeOutOfScope: false,
   });
+  await markAllPresentThroughApi(teacherPage, seed.classId, activity.id);
   await teacherPage.context().close();
   return activity.id;
+}
+
+/**
+ * 016/US1: a work applied since 016 reaches only the students marked present. Marks every ACTIVE
+ * student of the class through the attendance route (the API side of "Marcar todos → Liberar").
+ */
+export async function markAllPresentThroughApi(page: Page, classId: string, activityId: string): Promise<void> {
+  const res = await page.request.get(`/api/classes/${classId}/activities/${activityId}/attendance`);
+  expect(res.status(), await res.text()).toBe(200);
+  const room = (await res.json()) as { students: { studentUserId: string; markedAt: string | null }[] };
+  const mark = room.students.filter((student) => student.markedAt === null).map((student) => student.studentUserId);
+  if (mark.length > 0) await apiPost(page, `/classes/${classId}/activities/${activityId}/attendance`, { mark, unmark: [] });
+}
+
+/** 016/US1 in the interface: on the work's page, "Chamada" → "Marcar todos" → "Liberar para os presentes" → "Liberar". */
+export async function releaseToPresent(page: Page): Promise<void> {
+  const attendance = page.getByRole("region", { name: "Chamada" });
+  await expect(attendance.getByText("Aguardando chamada")).toBeVisible();
+  await attendance.getByRole("button", { name: "Marcar todos", exact: true }).click();
+  await attendance.getByRole("button", { name: "Liberar para os presentes" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Liberar" }).click();
+  await expect(attendance.getByText(/^\d+ de \d+ presentes$/)).toBeVisible();
 }

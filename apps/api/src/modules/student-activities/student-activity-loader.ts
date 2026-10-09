@@ -25,8 +25,11 @@ export interface OwnAttemptContext {
   attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null } | null;
 }
 
-/** Why an existing activity is outside the student's context (`student_access.denied`, research P18). */
-export type DeniedReason = "NOT_ENROLLED" | "NOT_PUBLISHED" | "CANCELLED";
+/**
+ * Why an existing activity is outside the student's context (`student_access.denied`, research P18):
+ * since 016 also a `PRESENT_ONLY` work the student was not marked present in (research M4).
+ */
+export type DeniedReason = "NOT_ENROLLED" | "NOT_PUBLISHED" | "CANCELLED" | "NOT_PRESENT";
 
 const ACTIVITY_SELECT = {
   id: true,
@@ -199,6 +202,7 @@ export class StudentActivityLoader {
         AND ca.status <> 'CANCELLED'
         AND ca.publish_at <= ${now}
         AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
+        AND ${releasedToSql(studentUserId)}
       ${lock}`;
     const activity = activities[0];
     if (!activity) return null;
@@ -229,13 +233,18 @@ export class StudentActivityLoader {
   async deniedReason(studentUserId: string, activityId: string, now: Date): Promise<DeniedReason | null> {
     const activity = await this.prisma.classActivity.findUnique({
       where: { id: activityId },
-      select: { classId: true, status: true, publishAt: true },
+      select: { classId: true, status: true, publishAt: true, releaseMode: true },
     });
     if (!activity) return null;
     const enrolled = await this.prisma.enrollment.count({ where: { classId: activity.classId, studentUserId, status: "ACTIVE" } });
     if (enrolled === 0) return "NOT_ENROLLED";
     if (activity.status === "CANCELLED") return "CANCELLED";
-    return activity.publishAt.getTime() > now.getTime() ? "NOT_PUBLISHED" : null;
+    if (activity.publishAt.getTime() > now.getTime()) return "NOT_PUBLISHED";
+    if (activity.releaseMode === "PRESENT_ONLY") {
+      const present = await this.prisma.activityAttendance.count({ where: { activityId, studentUserId } });
+      if (present === 0) return "NOT_PRESENT";
+    }
+    return null;
   }
 
   /** The student's attempts of each activity, by number (one for an ASSIGNMENT; 1..n for an EXERCISE). */
@@ -252,13 +261,25 @@ export class StudentActivityLoader {
   }
 }
 
-/** Published, not cancelled activities of the classes where the student is ACTIVE (FR-007). */
+/**
+ * Published, not cancelled activities of the classes where the student is ACTIVE (FR-007), and since
+ * 016 released to them: every enrollment, or the student marked present (016/FR-008, research M4).
+ */
 const visibleTo = (studentUserId: string, now: Date) =>
   ({
     status: { not: "CANCELLED" },
     publishAt: { lte: now },
     schoolClass: { enrollments: { some: { studentUserId, status: "ACTIVE" } } },
+    OR: [{ releaseMode: "ALL_ENROLLED" }, { attendances: { some: { studentUserId } } }],
   }) satisfies Prisma.ClassActivityWhereInput;
+
+/**
+ * The same release clause for the raw queries over `class_activities ca` (016 research M4): here and
+ * in the attempts' `lockContext`, so start, save, submit, the 015 events and help see what the list sees.
+ */
+export const releasedToSql = (studentUserId: string) =>
+  Prisma.sql`(ca.release_mode = 'ALL_ENROLLED'
+    OR EXISTS (SELECT 1 FROM activity_attendances aa WHERE aa.activity_id = ca.id AND aa.student_user_id = ${studentUserId}::uuid))`;
 
 /** The facts of the student's situation, by type (contracts/student-status.md). */
 function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date): ActivityFacts {
