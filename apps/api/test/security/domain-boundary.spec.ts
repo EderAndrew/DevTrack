@@ -87,6 +87,9 @@ const EXPECTED_MODELS = [
   // 015 (specs/015-controlled-work-ai-help/data-model.md) — the facts of a controlled attempt and the AI help requests.
   "AttemptIntegrityEvent",
   "WorkHelpRequest",
+  // 016 (specs/016-attendance-gated-release/data-model.md) — the attendance of a work and the room exits of an attempt.
+  "ActivityAttendance",
+  "AttemptPause",
 ];
 
 /**

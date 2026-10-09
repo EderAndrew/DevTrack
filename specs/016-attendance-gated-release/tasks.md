@@ -101,7 +101,7 @@ description: "Task list for 016 — Lista de Chamada e Liberação do Trabalho a
 **Purpose**: migração, permissão, regra pura e esqueleto do módulo. ⚠️ Nenhuma história começa
 antes desta fase.
 
-- [ ] T005 Teste primeiro: `apps/api/test/integration/016-schema.spec.ts`, com as regras de
+- [X] T005 Teste primeiro: `apps/api/test/integration/016-schema.spec.ts`, com as regras de
   `data-model.md`. O teste cobre:
   - `release_mode`: o CHECK por tipo (EXERCISE sempre `ALL_ENROLLED`) e a imutabilidade.
   - `activity_attendances`: só em atividade `PRESENT_ONLY` ACTIVE, aluno com matrícula ACTIVE na
@@ -117,7 +117,7 @@ antes desta fase.
     `attempt_integrity_events` e `work_help_requests` é recusada com a pausa aberta e a atividade
     ACTIVE. A submissão de aceitação do professor (`accepted_by_id` preenchido) passa, com a
     atividade ACTIVE (prazo vencido, sem atraso) ou encerrada.
-- [ ] T006 Migração `apps/api/prisma/migrations/<ts>_attendance_gated_release/migration.sql` e
+- [X] T006 Migração `apps/api/prisma/migrations/<ts>_attendance_gated_release/migration.sql` e
   `apps/api/prisma/schema.prisma`, com T005 verde ao final. A migração cria:
   - o enum `activity_release_mode`, a coluna `class_activities.release_mode` (padrão
     `ALL_ENROLLED`, CHECK por tipo, entra nas colunas imutáveis do gatilho 012);
@@ -130,7 +130,7 @@ antes desta fase.
   Também na mesma tarefa:
   - `resetDb` (`apps/api/test/helpers/`) apaga as tabelas novas na ordem certa;
   - `domain-boundary.spec.ts` fixa `ActivityAttendance` e `AttemptPause`.
-- [ ] T007 [P] Regras puras com testes, todas recebendo `now` do chamador:
+- [X] T007 [P] Regras puras com testes, todas recebendo `now` do chamador:
   - `apps/api/src/modules/attendance/room-status.ts` + `room-status.spec.ts`: a tabela "Derived"
     de `data-model.md` (`NOT_MARKED`, `PRESENT`, `ANSWERING`, `OUT_OF_ROOM`, `SUBMITTED`).
   - `apps/api/src/modules/activities/status/pause-time.ts` + `pause-time.spec.ts` (research M1:
@@ -139,14 +139,14 @@ antes desta fase.
       professor, senão `closed_at`/`cancelled_at`, senão aberta);
     - `seconds` e `endedBy` (`RELEASE` | `ACCEPTED` | `ACTIVITY_CLOSED` | `null`);
     - o total fora por tentativa.
-- [ ] T008 [P] Esqueleto `apps/api/src/modules/attendance/attendance.module.ts`, registrado em
+- [X] T008 [P] Esqueleto `apps/api/src/modules/attendance/attendance.module.ts`, registrado em
   `AppModule`.
   - `apps/api/test/attendance-boundary.spec.ts` (research M12): `attendance` (API e
     `apps/web/features/attendance`) não importa módulos de IA, `work-help`, `attempt-integrity`,
     `works/grading`, bancos, execução de código nem aritmética de float.
   - `apps/api/test/activities-boundary.spec.ts`: acrescentar `attendance` aos módulos que
     `activities`/`student-activities` não podem importar.
-- [ ] T009 Acrescentar `016` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
+- [X] T009 Acrescentar `016` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
   CLAUDE.md), com `pending: { stories: [1, 2, 3, 4, 5], successCriteria: ["SC-001", …, "SC-010"] }`.
   - Cada história sai de `pending` na tarefa que escreve o último teste dela.
   - Cada SC sai de `pending` quando o teste que o cita entra.

@@ -28,6 +28,7 @@ import { StudentActivitiesModule } from "./modules/student-activities/student-ac
 import { RankingModule } from "./modules/ranking/ranking.module";
 import { AttemptIntegrityModule } from "./modules/attempt-integrity/attempt-integrity.module";
 import { WorkHelpModule } from "./modules/work-help/work-help.module";
+import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { ConfigModule } from "./platform/config/config.module";
 import type { AppConfig } from "./platform/config/config.schema";
 import { CryptoModule } from "./platform/crypto/crypto.module";
@@ -88,6 +89,7 @@ export class AppModule {
     RankingModule,
         AttemptIntegrityModule,
         WorkHelpModule,
+        AttendanceModule,
         RetentionModule,
         HealthModule,
       ],

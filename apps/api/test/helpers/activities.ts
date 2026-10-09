@@ -4,6 +4,7 @@ import type {
   ActivityExecutionMode,
   ActivityLatePolicy,
   ActivityQuestionType,
+  ActivityReleaseMode,
   ClassActivity,
   ClassActivityStatus,
   ClassActivityType,
@@ -217,6 +218,8 @@ export interface CreateActivityOptions {
   executionMode?: ActivityExecutionMode;
   /** 0 or 3, ASSIGNMENT only (CHECK, 015 F2); default 0. */
   aiHelpAllowance?: 0 | 3;
+  /** PRESENT_ONLY only for ASSIGNMENT (CHECK, 016 M2); default ALL_ENROLLED, as works applied before 016. */
+  releaseMode?: ActivityReleaseMode;
 }
 
 export interface CreatedActivity {
@@ -287,6 +290,7 @@ export async function createActivity(
         outOfScopeTopicCount: options.outOfScopeTopicCount ?? 0,
         executionMode: options.executionMode ?? "NORMAL",
         aiHelpAllowance: options.aiHelpAllowance ?? 0,
+        releaseMode: options.releaseMode ?? "ALL_ENROLLED",
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt

@@ -193,6 +193,19 @@ const SPECS: FeatureSpec[] = [
     // Phase 8; SC-004 and SC-009 in the E2E (controlled-work.spec.ts).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "016",
+    path: "specs/016-attendance-gated-release/spec.md",
+    stories: 5,
+    scenarios: 29,
+    // No "### Acceptance Criteria Traceability" table, as in 008–015.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 10),
+    // Joined in the Foundational phase (T009); each story leaves `pending` with its last test, each SC
+    // with the test that cites it, and the list is empty at T045.
+    pending: { stories: [1, 2, 3, 4, 5], successCriteria: sc(1, 10) },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
