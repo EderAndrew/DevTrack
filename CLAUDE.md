@@ -206,7 +206,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
   bank, its generation requests, the exact grade helpers and the grading result shapes, and
   `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
-  exercise results, and `ranking` for the 013 class ranking), with
+  exercise results, `ranking` for the 013 class ranking, and `attempt-integrity` and `work-help`
+  for the 015 integrity events and AI help requests), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
