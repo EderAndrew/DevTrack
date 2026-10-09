@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { AI_HELP_ALLOWANCE, type RequestHelp, type StudentHelpItem, type StudentHelpState } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
@@ -81,7 +80,9 @@ export class WorkHelpService {
     }
     await this.assertRate(studentUserId, requestId);
 
-    const helpId = randomUUID();
+    // Derived from the key, like the execution's: the help's id is the execution's resource, so
+    // concurrent requests with the same key must hash alike to replay instead of 409 KEY_REUSED.
+    const helpId = derivedUuid(`work-help-request:${studentUserId}:${activityId}:${body.idempotencyKey}`);
     try {
       const { created } = await this.executions.request(
         auth,

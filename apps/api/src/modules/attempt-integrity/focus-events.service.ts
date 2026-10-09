@@ -50,7 +50,7 @@ export class FocusEventsService {
       return await this.prisma.runInTransaction(async (tx) => {
         const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx);
         if (!context) throw new OutOfContext();
-        await this.assertRate(studentUserId, body.events.length);
+        await this.assertRate(tx, studentUserId, body.events.length);
         const attempt = openAttempt(context);
         await assertQuestions(tx, activityId, body.events);
         const own = { id: attempt.id, activityId, studentUserId };
@@ -93,13 +93,18 @@ export class FocusEventsService {
     return { events: timeline.events.map(toEventView), totals: timeline.totals };
   }
 
-  /** Events per student and minute, each event of the batch counted (contracts/configuration.md). */
-  private async assertRate(studentUserId: string, events: number): Promise<void> {
-    const state = await this.rateLimit.hit("attempt-events", studentUserId, {
-      limit: this.config.rateLimit.attemptEventsPerMinute,
-      windowSec: MINUTE_SEC,
-      weight: events,
-    });
+  /**
+   * Events per student and minute, each event of the batch counted (contracts/configuration.md). On
+   * the batch's `tx`: from the pool, concurrent batches holding their transactions filled it and
+   * each one waited for a second connection.
+   */
+  private async assertRate(tx: Tx, studentUserId: string, events: number): Promise<void> {
+    const state = await this.rateLimit.hit(
+      "attempt-events",
+      studentUserId,
+      { limit: this.config.rateLimit.attemptEventsPerMinute, windowSec: MINUTE_SEC, weight: events },
+      tx,
+    );
     if (state.blocked) throw rateLimited(state.retryAfterSec);
   }
 

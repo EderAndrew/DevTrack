@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../database/prisma.service";
+import type { Tx } from "../database/transaction";
 
 export interface RateLimitWindow {
   limit: number;
@@ -35,10 +36,14 @@ export class RateLimitService {
     private readonly crypto: CryptoService,
   ) {}
 
-  /** Counts `weight` events (default one) and returns the updated state. Atomic under concurrency. */
-  async hit(scope: string, value: string, { limit, windowSec, weight = 1 }: RateLimitWindow): Promise<RateLimitState> {
+  /**
+   * Counts `weight` events (default one) and returns the updated state. Atomic under concurrency.
+   * Inside a transaction pass its `tx`: the count then commits or rolls back with it, and the hit
+   * never waits for a second pool connection while the transaction holds its locks.
+   */
+  async hit(scope: string, value: string, { limit, windowSec, weight = 1 }: RateLimitWindow, db: Pick<Tx, "$queryRaw"> = this.prisma): Promise<RateLimitState> {
     const key = this.crypto.hmacKey(scope, value);
-    const rows = await this.prisma.$queryRaw<{ count: number; expires_at: Date }[]>`
+    const rows = await db.$queryRaw<{ count: number; expires_at: Date }[]>`
       INSERT INTO rate_limit_counters (key, window_start, count, expires_at)
       VALUES (${key}, now(), ${weight}, now() + make_interval(secs => ${windowSec}))
       ON CONFLICT (key) DO UPDATE SET
