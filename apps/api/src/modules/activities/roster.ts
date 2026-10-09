@@ -115,6 +115,9 @@ export function buildRoster(
         pointsEarned: exercise ? results.reduce((sum, row) => sum + row.points, 0) : null,
         pendingMarks: exercise ? results.filter((row) => row.result === "PENDING_TEACHER").length : null,
         aiHelpUsed: workOptions ? (attempt?.helpUsed ?? 0) : null,
+        // 016: filled by the attendance tasks (US1, US4); no attendance or pause exists before them.
+        markedAt: null,
+        pauses: { count: 0, secondsAway: 0, open: false },
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;

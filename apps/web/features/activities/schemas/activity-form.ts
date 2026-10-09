@@ -46,6 +46,7 @@ export const ROSTER_STATUS_LABELS: Record<RosterStatus, string> = {
   SUBMITTED_LATE: "Entregou com atraso",
   MISSED: "Não entregou",
   COMPLETED: "Concluiu",
+  ABSENT: "Ausente",
 };
 
 // 015 contracts/web-ui.md: the work's options, "Como os alunos respondem".

@@ -50,7 +50,8 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     // 013 adds COMPLETED to both statuses (an EXERCISE with a concluded attempt).
     expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
     expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
-    expect(RosterStatusSchema.options).toEqual(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED"]);
+    // 016 adds ABSENT (a PRESENT_ONLY work, not marked present and without an attempt).
+    expect(RosterStatusSchema.options).toEqual(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED", "ABSENT"]);
     expect(AttemptStatusSchema.options).toEqual(["IN_PROGRESS", "SUBMITTED"]);
     expect(ActivityGradingStatusSchema.options).toEqual(["GRADED", "PENDING_TEACHER", "DECIDED"]);
   });
@@ -264,6 +265,8 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     type: "EXERCISE",
     executionMode: "NORMAL",
     aiHelp: { allowance: 0 },
+    releaseMode: "ALL_ENROLLED",
+    attendance: null,
     title: "Prática",
     status: "ACTIVE",
     phase: "PUBLISHED",
@@ -325,6 +328,8 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       pointsEarned: 45,
       pendingMarks: 1,
       aiHelpUsed: null,
+      markedAt: null,
+      pauses: { count: 0, secondsAway: 0, open: false },
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -507,5 +512,134 @@ describe("013 contratos do aluno (contracts/http-api.md)", () => {
     };
     expect(accepts(StudentDashboardSchema, dashboard)).toBe(true);
     expect(accepts(StudentDashboardSchema, { ...dashboard, rankings: [{ ...dashboard.rankings[0], top: [1, 2, 3, 4, 5, 6].map(row) }] })).toBe(false);
+  });
+});
+
+describe("016 chamada nas visões das atividades (contracts/http-api.md)", () => {
+  const AT = "2026-10-09T13:00:00.000Z";
+  const counts = { enrolled: 2, inProgress: 0, submitted: 0, submittedLate: 0, missed: 0, pendingGrading: 0 };
+  const summary = {
+    id: uuid(1),
+    type: "ASSIGNMENT",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
+    releaseMode: "PRESENT_ONLY",
+    attendance: { present: 0, enrolled: 2 },
+    title: "Trabalho 1",
+    status: "ACTIVE",
+    phase: "PUBLISHED",
+    publishAt: "2026-10-01T00:00:00.000Z",
+    deadline: "2026-10-20T00:00:00.000Z",
+    latePolicy: "REJECT",
+    totalGrade: "10.00",
+    possiblePoints: null,
+    resultReleasedAt: null,
+    counts,
+    exerciseCounts: null,
+  };
+  const entry = {
+    studentUserId: uuid(3),
+    name: "Ana",
+    enrollment: "ACTIVE",
+    status: "ABSENT",
+    attemptId: null,
+    submittedAt: null,
+    grade: null,
+    gradePartial: null,
+    pointsEarned: null,
+    pendingMarks: null,
+    aiHelpUsed: 0,
+    markedAt: null,
+    pauses: { count: 0, secondsAway: 0, open: false },
+  };
+  const question = {
+    id: uuid(5),
+    position: 0,
+    type: "OPEN_ANSWER",
+    value: "10.00",
+    points: null,
+    statement: "Explique",
+    instructions: null,
+    starterCode: null,
+    language: null,
+    publicTestCases: [],
+    alternatives: [],
+  };
+  const pause = { id: uuid(6), initiatedBy: "STUDENT", reason: "WATER", note: null, startedAt: AT, endedAt: null };
+  const detail = (overrides: Record<string, unknown> = {}) => ({
+    id: uuid(1),
+    type: "ASSIGNMENT",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0, used: 0 },
+    title: "Trabalho 1",
+    summary: "",
+    class: { id: uuid(2), name: "Turma A" },
+    subjectName: null,
+    teacherName: "Prof",
+    publishedAt: "2026-10-01T00:00:00.000Z",
+    deadline: "2026-10-20T00:00:00.000Z",
+    latePolicy: "REJECT",
+    status: "IN_PROGRESS",
+    late: false,
+    canAnswer: true,
+    urgent: false,
+    submittedAt: null,
+    totalGrade: "10.00",
+    points: null,
+    instructions: null,
+    serverNow: AT,
+    questions: [question],
+    attempt: { number: 1, startedAt: AT, lastSavedAt: null, answers: [{ questionId: uuid(5), answer: { kind: "TEXT", text: "Herança" }, revision: 1 }] },
+    submission: null,
+    result: null,
+    completedAttempts: [],
+    lastResult: null,
+    pause: null,
+    pauses: [],
+    ...overrides,
+  });
+
+  it("016/FR-001 o Trabalho traz o modo de liberação e a chamada; null em ALL_ENROLLED", () => {
+    expect(accepts(TeacherActivitySummarySchema, summary)).toBe(true);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, releaseMode: "ALL_ENROLLED", attendance: null })).toBe(true);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, attendance: { present: -1, enrolled: 2 } })).toBe(false);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, releaseMode: undefined })).toBe(false);
+    expect(accepts(TeacherActivitySummarySchema, { ...summary, releaseMode: "EVERYONE" })).toBe(false);
+  });
+
+  it("016/FR-001 o modo de liberação é do servidor: releaseMode na aplicação ou na edição → 400", () => {
+    const work = {
+      idempotencyKey: uuid(99),
+      source: { type: "ASSIGNMENT", workId: uuid(9) },
+      title: "Trabalho 1",
+      publishAt: null,
+      acknowledgeOutOfScope: false,
+      deadline: "2026-10-20T00:00:00.000Z",
+      latePolicy: "REJECT",
+    };
+    expect(accepts(CreateActivityRequestSchema, work)).toBe(true);
+    for (const releaseMode of ["PRESENT_ONLY", "ALL_ENROLLED"]) {
+      expect(accepts(CreateActivityRequestSchema, { ...work, releaseMode }), releaseMode).toBe(false);
+      expect(accepts(UpdateActivityRequestSchema, { version: 1, releaseMode }), releaseMode).toBe(false);
+    }
+  });
+
+  it("016/FR-019 a linha do aluno: Ausente, horário da presença, número de pausas e tempo fora", () => {
+    expect(accepts(RosterEntrySchema, entry)).toBe(true);
+    expect(accepts(RosterEntrySchema, { ...entry, status: "IN_PROGRESS", attemptId: uuid(4), markedAt: AT, pauses: { count: 2, secondsAway: 300, open: true } })).toBe(true);
+    expect(accepts(RosterEntrySchema, { ...entry, markedAt: undefined })).toBe(false);
+    expect(accepts(RosterEntrySchema, { ...entry, pauses: { count: -1, secondsAway: 0, open: false } })).toBe(false);
+    expect(accepts(RosterEntrySchema, { ...entry, pauses: { count: 1, secondsAway: 1.5, open: false } })).toBe(false);
+    expect(accepts(RosterEntrySchema, { ...entry, pauses: undefined })).toBe(false);
+  });
+
+  it("016/FR-013 a atividade pausada vem sem questões e sem respostas; as pausas próprias depois da entrega", () => {
+    expect(accepts(StudentActivitySchema, detail())).toBe(true);
+    expect(accepts(StudentActivitySchema, detail({ pause, questions: [], attempt: { number: 1, startedAt: AT, lastSavedAt: null, answers: [] } }))).toBe(true);
+    expect(accepts(StudentActivitySchema, detail({ pause }))).toBe(false);
+    expect(accepts(StudentActivitySchema, detail({ pause, questions: [] }))).toBe(false);
+    expect(accepts(StudentActivitySchema, detail({ pauses: [{ ...pause, endedAt: AT }] }))).toBe(true);
+    expect(accepts(StudentActivitySchema, detail({ pause: undefined }))).toBe(false);
+    expect(accepts(StudentActivitySchema, detail({ pauses: [{ ...pause, releasedById: uuid(7) }] }))).toBe(false);
   });
 });

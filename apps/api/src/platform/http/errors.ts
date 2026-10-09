@@ -147,6 +147,10 @@ export const ErrorCatalog = {
   HELP_EXHAUSTED: { status: 409, message: "Você já usou as 3 ajudas deste trabalho." },
   HELP_NOT_ENABLED: { status: 409, message: "Esta atividade não tem ajuda da IA." },
   TYPING_LIMIT_EXCEEDED: { status: 422, message: "Esse trecho não foi salvo porque parece ter sido colado. Digite a resposta." },
+  ATTEMPT_PAUSED: { status: 409, message: "Atividade pausada. Peça ao professor para liberar o seu retorno." },
+  ATTENDANCE_STARTED: { status: 409, message: "O aluno já iniciou. Use Pausar aluno." },
+  ATTENDANCE_NOT_REQUIRED: { status: 409, message: "Esta atividade não usa lista de chamada." },
+  STUDENT_NOT_IN_CLASS: { status: 422, message: "Um dos alunos não está matriculado nesta turma." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

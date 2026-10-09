@@ -54,11 +54,11 @@ description: "Task list for 016 — Lista de Chamada e Liberação do Trabalho a
 
 **Purpose**: configuração, códigos de erro e contratos compartilhados.
 
-- [ ] T001 [P] Configuração `RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR` (padrão 20).
+- [X] T001 [P] Configuração `RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR` (padrão 20).
   - Acrescentar em `apps/api/src/platform/config/config.schema.ts` e `apps/api/.env.example`.
   - Teste de valor padrão e de recusa de não positivos em
     `apps/api/test/integration/platform.spec.ts`.
-- [ ] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+- [X] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts`, com o teste
   `apps/web/lib/messages/error-messages.test.ts`:
 
@@ -68,7 +68,7 @@ description: "Task list for 016 — Lista de Chamada e Liberação do Trabalho a
   | `ATTENDANCE_STARTED` | "O aluno já iniciou. Use Pausar aluno." |
   | `ATTENDANCE_NOT_REQUIRED` | — |
   | `STUDENT_NOT_IN_CLASS` | — |
-- [ ] T003 [P] Criar `packages/contracts/src/attendance/{enums,room,pauses}.ts`.
+- [X] T003 [P] Criar `packages/contracts/src/attendance/{enums,room,pauses}.ts`.
   - Enums: `ReleaseModeSchema` (`ALL_ENROLLED | PRESENT_ONLY`), `RoomStatusSchema`,
     `PauseInitiatorSchema` e `PauseReasonSchema` (com `StudentPauseReasonSchema`, sem `TEACHER`).
   - Chamada: `AttendanceBatchSchema` (`mark`/`unmark` com 0–200 itens cada, disjuntos, não ambos
@@ -80,7 +80,7 @@ description: "Task list for 016 — Lista de Chamada e Liberação do Trabalho a
   - Testes em `packages/contracts/test/attendance.spec.ts`: recusa dos campos do servidor
     (`markedAt`, `startedAt`, `releasedAt`, `initiatedBy`, `reason: "TEACHER"` no aluno), 0/1/200/201
     ids, nota 0/1/200/201, `016/FR-011`.
-- [ ] T004 Mudanças nos contratos de `packages/contracts/src/activities/` (`enums`, `teacher` e
+- [X] T004 Mudanças nos contratos de `packages/contracts/src/activities/` (`enums`, `teacher` e
   `student`).
   - `RosterStatusSchema` += `ABSENT`.
   - `TeacherActivitySummary`/`TeacherActivity` ganham `releaseMode` e

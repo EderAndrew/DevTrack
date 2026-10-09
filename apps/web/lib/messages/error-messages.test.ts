@@ -148,16 +148,23 @@ const PHASE_015_TEXTS = {
   TYPING_LIMIT_EXCEEDED: "Esse trecho não foi salvo porque parece ter sido colado. Digite a resposta.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS };
+const PHASE_016_TEXTS = {
+  ATTEMPT_PAUSED: "Atividade pausada. Peça ao professor para liberar o seu retorno.",
+  ATTENDANCE_STARTED: "O aluno já iniciou. Use Pausar aluno.",
+  ATTENDANCE_NOT_REQUIRED: "Esta atividade não usa lista de chamada.",
+  STUDENT_NOT_IN_CLASS: "Um dos alunos não está matriculado nesta turma.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 101 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013 e da 015", () => {
+  it("007/FR-040 cobre os 105 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015 e da 016", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(103);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(107);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

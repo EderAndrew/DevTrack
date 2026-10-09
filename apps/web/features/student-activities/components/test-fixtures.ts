@@ -124,6 +124,8 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
     result: null,
     completedAttempts: [],
     lastResult: null,
+    pause: null,
+    pauses: [],
     ...overrides,
   };
 };

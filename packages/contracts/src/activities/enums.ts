@@ -50,9 +50,11 @@ export type StudentActivityFilter = z.infer<typeof StudentActivityFilterSchema>;
 
 /**
  * Each student's situation in the teacher's roster of an activity (contracts/student-status.md);
- * `COMPLETED` only for an EXERCISE whose attempt 1 is concluded (013 contracts/student-status.md).
+ * `COMPLETED` only for an EXERCISE whose attempt 1 is concluded (013 contracts/student-status.md);
+ * `ABSENT` only for a `PRESENT_ONLY` work, a student not marked present and without an attempt,
+ * never counted as `MISSED` (016/FR-019, research M9).
  */
-export const RosterStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED"]);
+export const RosterStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED", "ABSENT"]);
 export type RosterStatus = z.infer<typeof RosterStatusSchema>;
 
 /** A student's attempt: never back from SUBMITTED (research P7, P9). */
