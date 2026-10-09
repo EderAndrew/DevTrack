@@ -108,7 +108,7 @@ export class AttemptsService {
   async start(studentUserId: string, activityId: string, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("START", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
-      await this.assertStartRate(context, studentUserId);
+      await this.assertStartRate(tx, context, studentUserId);
       const attempt = await findAttempt(tx, activityId, studentUserId, false);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("START", facts);
@@ -139,7 +139,7 @@ export class AttemptsService {
   saveAnswers(studentUserId: string, activityId: string, body: SaveAnswersRequest, requestId: string | null): Promise<SaveAnswersResult> {
     return this.guarded("SAVE", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
-      await this.assertRate("activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
+      await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
@@ -163,7 +163,7 @@ export class AttemptsService {
   async submit(studentUserId: string, activityId: string, body: SubmitAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("SUBMIT", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
-      await this.assertRate("activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
+      await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("SUBMIT", facts);
@@ -211,7 +211,7 @@ export class AttemptsService {
   async retry(studentUserId: string, activityId: string, afterNumber: number, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("RETRY", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
-      if (context.type === "EXERCISE") await this.assertStartRate(context, studentUserId);
+      if (context.type === "EXERCISE") await this.assertStartRate(tx, context, studentUserId);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       const outcome = decideOperation("RETRY", factsOf(context, attempt, now), afterNumber);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
@@ -250,7 +250,7 @@ export class AttemptsService {
   ): Promise<StudentActivity> {
     await this.guarded("COMPLETE", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
-      if (context.type === "EXERCISE") await this.assertStartRate(context, studentUserId);
+      if (context.type === "EXERCISE") await this.assertStartRate(tx, context, studentUserId);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       const outcome = decideOperation("COMPLETE", factsOf(context, attempt, now), number);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
@@ -384,15 +384,19 @@ export class AttemptsService {
    * Starts count with the submissions of an ASSIGNMENT (012, research P20) and with the practice
    * attempts of an EXERCISE (013 K16), per student and hour.
    */
-  private assertStartRate(context: ContextRow, studentUserId: string): Promise<void> {
+  private assertStartRate(tx: Tx, context: ContextRow, studentUserId: string): Promise<void> {
     return context.type === "EXERCISE"
-      ? this.assertRate("exercise-attempts", studentUserId, this.config.rateLimit.exerciseAttemptsPerHour, HOUR_SEC)
-      : this.assertRate("activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
+      ? this.assertRate(tx, "exercise-attempts", studentUserId, this.config.rateLimit.exerciseAttemptsPerHour, HOUR_SEC)
+      : this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
   }
 
-  /** Per student (research P20): saves per minute; starts and submissions per hour. */
-  private async assertRate(scope: string, studentUserId: string, limit: number, windowSec: number): Promise<void> {
-    const state = await this.rateLimit.hit(scope, studentUserId, { limit, windowSec });
+  /**
+   * Per student (research P20): saves per minute; starts and submissions per hour. On the
+   * operation's `tx`, which holds the attempt's locks: from the pool, 10 concurrent starts filled it
+   * and each waited for a second connection until the transaction timed out.
+   */
+  private async assertRate(tx: Tx, scope: string, studentUserId: string, limit: number, windowSec: number): Promise<void> {
+    const state = await this.rateLimit.hit(scope, studentUserId, { limit, windowSec }, tx);
     if (state.blocked) throw rateLimited(state.retryAfterSec);
   }
 }
