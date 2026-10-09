@@ -76,8 +76,8 @@ without late acceptance) or closed. The acceptance ends the pause by derivation 
 | Value | Rule |
 |---|---|
 | Attempt PAUSED | `IN_PROGRESS`, an open pause, and the activity ACTIVE |
-| A pause's end kind (`endedBy`) | `RELEASE` when `released_at` is set; else `ACCEPTED` when the attempt has a submission accepted by the teacher; else `ACTIVITY_CLOSED` when the activity is closed or cancelled; else `null` (open) |
-| A pause's end | `released_at`, else the accepted submission's `submitted_at`, else the activity's `closed_at` / `cancelled_at`, else still open |
+| A pause's end kind (`endedBy`) | `RELEASE` when `released_at` is set; else `ACCEPTED` when the attempt has a submission accepted by the teacher no later than the activity's close or cancellation; else `ACTIVITY_CLOSED` when the activity is closed or cancelled; else `null` (open) |
+| A pause's end | `released_at`, else the earlier of the accepted submission's `submitted_at` and the activity's `closed_at` / `cancelled_at` (either one lifts the paused-write refusal), else still open |
 | Pause duration, time away (`activities/status/pause-time.ts`) | end − `started_at` (open: now − `started_at`) |
 | `roomStatus` (`attendance/room-status.ts`) | no attendance → `NOT_MARKED`; attendance and no attempt → `PRESENT`; attempt `SUBMITTED` → `SUBMITTED`; open pause → `OUT_OF_ROOM`; otherwise `ANSWERING` |
 | Roster `ABSENT` (012 roster status) | `PRESENT_ONLY`, no attendance and no attempt; never `MISSED` |

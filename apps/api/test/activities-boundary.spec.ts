@@ -10,6 +10,8 @@ import { API_ROOT } from "./helpers/env";
  * the ranking (API and web), which reads no bank at all and counts points as integers. 015 (research
  * F1, F18) allows the CONTROLLED mode as a setting of a work, but its monitoring and the AI help live
  * in `attempt-integrity` and `work-help`, which the activity modules never import (they register hooks).
+ * 016 (research M1) keeps `attendance` out too: the activity modules read its tables in their own
+ * scoped queries, never its code.
  */
 
 const REPO_ROOT = resolve(API_ROOT, "../..");
@@ -26,6 +28,8 @@ const FORBIDDEN_API = [
   // 015 research F1: reached only through the `HelpAvailability` and `AnswerSaveGuard` hooks.
   "apps/api/src/modules/attempt-integrity",
   "apps/api/src/modules/work-help",
+  // 016 research M1: the visibility clause and the paused-write refusal read its tables, not its code.
+  "apps/api/src/modules/attendance",
 ];
 /** The only parts of the work bank the activities may use: the pure grading rules and the type registry. */
 const ALLOWED_WORKS = ["apps/api/src/modules/works/grading", "apps/api/src/modules/works/types"];
@@ -87,7 +91,7 @@ describe("012/FR-036 fronteiras dos módulos de atividades (research P1, P24)", 
     expect(imports(RANKING_API).filter(({ target }) => inside(target, banks)).map(describeImport)).toEqual([]);
   });
 
-  it("015/FR-030 nenhum import dos módulos de exercícios, de IA, da geração de trabalhos, do modo controlado nem da ajuda", () => {
+  it("015/FR-030 016/FR-024 nenhum import dos módulos de exercícios, de IA, da geração de trabalhos, do modo controlado, da ajuda nem da chamada", () => {
     expect(imports(ACTIVITIES_API).filter(({ target }) => inside(target, FORBIDDEN_API)).map(describeImport)).toEqual([]);
   });
 

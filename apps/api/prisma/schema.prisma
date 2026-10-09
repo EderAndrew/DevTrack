@@ -280,6 +280,9 @@ model User {
   submissionsAccepted     ActivitySubmission[]      @relation("ActivitySubmissionAcceptedBy")
   gradingsDecided         ActivityQuestionGrading[] @relation("ActivityGradingDecidedBy")
   exerciseResultsMarked   ExerciseQuestionResult[]  @relation("ExerciseResultDecidedBy")
+  attendancesMarked       ActivityAttendance[]      @relation("ActivityAttendanceMarkedBy")
+  pausesStarted           AttemptPause[]            @relation("AttemptPauseStartedBy")
+  pausesReleased          AttemptPause[]            @relation("AttemptPauseReleasedBy")
 
   @@map("users")
 }
@@ -362,9 +365,10 @@ model StudentProfile {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
   enrollments      Enrollment[]
   activityAttempts ActivityAttempt[]
+  attendances      ActivityAttendance[]
 
   @@map("student_profiles")
 }
@@ -396,6 +400,7 @@ model SchoolClass {
   meetings        ClassMeeting[]
   plan            ClassPlan?
   activities      ClassActivity[]
+  attendances     ActivityAttendance[]
   exerciseResults ExerciseQuestionResult[]
 
   @@index([teacherId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -1990,6 +1995,9 @@ model ClassActivity {
   executionMode        ActivityExecutionMode @default(NORMAL) @map("execution_mode")
   /// AI helps per student: 0 or 3 (CHECK), 0 unless ASSIGNMENT; changes only before the first attempt (trigger).
   aiHelpAllowance      Int                   @default(0) @map("ai_help_allowance") @db.SmallInt
+  /// PRESENT_ONLY only for ASSIGNMENT (CHECK); immutable (trigger). Every work applied since 016 is
+  /// PRESENT_ONLY; exercises and older works stay ALL_ENROLLED (016 M2).
+  releaseMode          ActivityReleaseMode   @default(ALL_ENROLLED) @map("release_mode")
   status               ClassActivityStatus   @default(ACTIVE)
   /// 1–200 characters (CHECK).
   title                String
@@ -2026,6 +2034,7 @@ model ClassActivity {
   resultReleasedBy User?                   @relation("ClassActivityReleasedBy", fields: [resultReleasedById], references: [id], onDelete: Restrict)
   questions        ClassActivityQuestion[]
   attempts         ActivityAttempt[]
+  attendances      ActivityAttendance[]
 
   @@unique([teacherId, idempotencyKey])
   @@index([classId, status, deadline])
@@ -2146,13 +2155,14 @@ model ActivityAttempt {
   createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  activity   ClassActivity            @relation(fields: [activityId], references: [id], onDelete: Restrict)
-  student    StudentProfile           @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  activity        ClassActivity            @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  student         StudentProfile           @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
   answers         ActivityAnswer[]
   submission      ActivitySubmission?
   results         ExerciseQuestionResult[]
   integrityEvents AttemptIntegrityEvent[]
   helpRequests    WorkHelpRequest[]
+  pauses          AttemptPause[]
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2388,4 +2398,82 @@ model WorkHelpRequest {
   @@unique([attemptId, idempotencyKey])
   @@index([attemptId, requestedAt])
   @@map("work_help_requests")
+}
+
+// ── 016: attendance-gated release and room exits (specs/016-attendance-gated-release/data-model.md) ──
+
+/// Who sees an activity (016 M2): every ACTIVE enrollment, or only the students marked present.
+enum ActivityReleaseMode {
+  ALL_ENROLLED
+  PRESENT_ONLY
+
+  @@map("activity_release_mode")
+}
+
+enum AttemptPauseInitiator {
+  STUDENT
+  TEACHER
+
+  @@map("attempt_pause_initiator")
+}
+
+/// `TEACHER` exactly when the teacher paused the student (CHECK).
+enum AttemptPauseReason {
+  BATHROOM
+  WATER
+  PHONE
+  OTHER
+  TEACHER
+
+  @@map("attempt_pause_reason")
+}
+
+/// A student marked present in a PRESENT_ONLY work (016 M3): the work is released to them. Only for an
+/// ACTIVE work of an ACTIVE class and a student with an ACTIVE enrollment there (trigger); never
+/// updated, and deleted only while the student has no attempt (trigger). The history lives in the audit.
+model ActivityAttendance {
+  activityId    String   @map("activity_id") @db.Uuid
+  studentUserId String   @map("student_user_id") @db.Uuid
+  /// The activity's class (trigger).
+  classId       String   @map("class_id") @db.Uuid
+  /// Server clock; kept on a repeated mark (`ON CONFLICT DO NOTHING`).
+  markedAt      DateTime @map("marked_at") @db.Timestamptz(6)
+  markedById    String   @map("marked_by_id") @db.Uuid
+
+  activity    ClassActivity  @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  student     StudentProfile @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  schoolClass SchoolClass    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  markedBy    User           @relation("ActivityAttendanceMarkedBy", fields: [markedById], references: [id], onDelete: Restrict)
+
+  @@id([activityId, studentUserId])
+  @@index([classId])
+  @@map("activity_attendances")
+}
+
+/// A room exit of an IN_PROGRESS attempt of an ACTIVE PRESENT_ONLY work (016 M6, trigger): declared by
+/// the student or opened by the teacher, released only by the teacher, once (trigger). One open pause
+/// per attempt (partial UNIQUE). While open and the activity ACTIVE, the attempt's writes are refused
+/// (triggers). PAUSED, the end and the duration are derived on read, never stored; never deleted.
+model AttemptPause {
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId     String                @map("attempt_id") @db.Uuid
+  activityId    String                @map("activity_id") @db.Uuid
+  studentUserId String                @map("student_user_id") @db.Uuid
+  initiatedBy   AttemptPauseInitiator @map("initiated_by")
+  reason        AttemptPauseReason
+  /// 1–200 characters, only with OTHER (CHECK).
+  note          String?
+  /// Server clock.
+  startedAt     DateTime              @map("started_at") @db.Timestamptz(6)
+  startedById   String                @map("started_by_id") @db.Uuid
+  /// Server clock; set with `releasedById` (CHECK), once.
+  releasedAt    DateTime?             @map("released_at") @db.Timestamptz(6)
+  releasedById  String?               @map("released_by_id") @db.Uuid
+
+  attempt    ActivityAttempt @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  startedBy  User            @relation("AttemptPauseStartedBy", fields: [startedById], references: [id], onDelete: Restrict)
+  releasedBy User?           @relation("AttemptPauseReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
+
+  @@index([activityId, releasedAt])
+  @@map("attempt_pauses")
 }
