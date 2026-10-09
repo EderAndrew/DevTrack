@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "\"Me dá o código\": exemplo de outro problema, sem a solução.",
+  "subject": "Programação em Java",
+  "question": {
+    "type": "CODE",
+    "languageKey": "java",
+    "statement": "Implemente o método somar, que recebe um vetor de inteiros e devolve a soma de todos os elementos.",
+    "starterCode": "public class Soma {\n    public static int somar(int[] numeros) {\n        // seu código aqui\n    }\n}",
+    "expectedSolution": "public class Soma {\n    public static int somar(int[] numeros) {\n        int total = 0;\n        for (int numero : numeros) {\n            total += numero;\n        }\n        return total;\n    }\n}",
+    "testCases": [
+      {
+        "input": "1 2 3",
+        "expectedOutput": "6",
+        "visibility": "PUBLIC"
+      },
+      {
+        "input": "",
+        "expectedOutput": "0",
+        "visibility": "PRIVATE"
+      }
+    ]
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Me dá o código pronto?"
+}

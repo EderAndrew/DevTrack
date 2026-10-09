@@ -1,6 +1,6 @@
 "use client";
 
-import type { TeacherActivity } from "@repo/contracts";
+import type { IntegritySummary, TeacherActivity } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ban, Lock, Send } from "lucide-react";
 import Link from "next/link";
@@ -24,15 +24,20 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { isActivityVersionConflict, useActivity, useActivityActions } from "../hooks/use-activities";
+import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability, useIntegritySummary } from "../hooks/use-activities";
+import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
 import {
   ACTIVITY_TYPE_LABELS,
+  activityStarted,
   type ActivityEditValues,
   ActivityEditSchema,
   activityEditDefaults,
   activityFormMessages,
   formatGrade,
   formatPoints,
+  hasWorkOptions,
+  HELP_CHECK_PENDING,
+  helpUnavailableText,
   LATE_POLICY_LABELS,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
@@ -40,6 +45,7 @@ import {
 import { ActivityQuestions } from "./activity-questions";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
+import { WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
 export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostramos a versão atual; revise antes de continuar.";
 
@@ -48,11 +54,15 @@ export const EDIT_FIELD_IDS = {
   instructions: "editar-instrucoes",
   publishAt: "editar-publicacao",
   deadline: "editar-prazo",
+  controlled: "editar-modo-controlado",
+  aiHelp: "editar-ajuda-ia",
 } as const;
 
 const FIELD_OF_CODE: Record<string, string> = {
   INVALID_SCHEDULE: EDIT_FIELD_IDS.deadline,
   ALREADY_PUBLISHED: EDIT_FIELD_IDS.publishAt,
+  ACTIVITY_ALREADY_STARTED: EDIT_FIELD_IDS.controlled,
+  AI_HELP_UNAVAILABLE: EDIT_FIELD_IDS.aiHelp,
 };
 
 export interface ActivityDetailProps {
@@ -66,7 +76,8 @@ export interface ActivityDetailProps {
 
 /**
  * One activity of the class (012 contracts/web-ui.md, `/turmas/[id]/atividades/[activityId]`): its
- * data and edit (título, instruções, prazo, regra de atraso; publicação only while scheduled), the
+ * data and edit (título, instruções, prazo, regra de atraso; publicação only while scheduled; a
+ * Trabalho's mode and AI help, shown as text badges and editable until a student starts, 015), the
  * questions with the answer key, the students' situations with a link to each attempt, "Encerrar
  * atividade", "Liberar resultado" (confirmation with the submissions still pending) and "Cancelar
  * atividade" (danger, explicit text and confirmation). Another tab's change reloads it with a notice.
@@ -130,6 +141,7 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
           {notice ?? ""}
         </p>
         <ActivitySituation status={activity.status} phase={activity.phase} />
+        <WorkOptionBadges activity={activity} />
         <dl className="m-0 grid gap-2">
           <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
           <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
@@ -281,6 +293,8 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
     defaultValues: activityEditDefaults(activity),
   });
   const scheduled = activity.phase === "SCHEDULED";
+  const withOptions = hasWorkOptions(activity.type);
+  const availability = useHelpAvailability(withOptions);
 
   const onSubmit = handleSubmit(async (values) => {
     setErrors([]);
@@ -331,6 +345,16 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
           <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
         </>
       ) : null}
+      {withOptions ? (
+        <WorkOptionsFieldset
+          idPrefix="editar"
+          controlled={register("controlled")}
+          aiHelp={register("aiHelp")}
+          helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
+          aiHelpOn={activity.aiHelp.allowance > 0}
+          locked={activityStarted(activity)}
+        />
+      ) : null}
       <SubmitButton pending={formState.isSubmitting} pendingLabel="Salvando…">
         Salvar alterações
       </SubmitButton>
@@ -345,6 +369,11 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
  */
 function Roster({ classId, activity }: { classId: string; activity: TeacherActivity }) {
   const exercise = activity.exerciseCounts;
+  // 015/US4: the controlled mode's counts (a CONTROLLED work) and the helps used (help on), per student.
+  const controlled = !exercise && activity.executionMode === "CONTROLLED";
+  const withHelp = !exercise && activity.aiHelp.allowance > 0;
+  const summary = useIntegritySummary(classId, activity.id, controlled);
+  const recordsOf = (studentUserId: string) => summary.data?.items.find((item) => item.studentUserId === studentUserId);
   return (
     <section aria-labelledby="alunos-titulo" className="flex flex-col gap-2">
       <h3 id="alunos-titulo" className="m-0 text-h3">
@@ -375,6 +404,14 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                   <TableHead scope="col">Nota</TableHead>
                 </>
               )}
+              {controlled ? (
+                <>
+                  <TableHead scope="col">Saídas da tela</TableHead>
+                  <TableHead scope="col">Quedas de conexão</TableHead>
+                  <TableHead scope="col">Copiar/colar bloqueados</TableHead>
+                </>
+              ) : null}
+              {withHelp ? <TableHead scope="col">Ajudas</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -402,12 +439,37 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                     </TableCell>
                   </>
                 )}
+                {controlled ? <IntegrityCells records={recordsOf(entry.studentUserId)} /> : null}
+                {withHelp ? <TableCell>{entry.aiHelpUsed === null ? "—" : helpsUsedLabel(entry.aiHelpUsed, activity.aiHelp.allowance)}</TableCell> : null}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
     </section>
+  );
+}
+
+/** A student's records in the roster (FR-024): counts with the time away or offline; "—" before the start. */
+function IntegrityCells({ records }: { records: IntegritySummary | undefined }) {
+  if (!records) {
+    return (
+      <>
+        <TableCell>—</TableCell>
+        <TableCell>—</TableCell>
+        <TableCell>—</TableCell>
+      </>
+    );
+  }
+  return (
+    <>
+      <TableCell>
+        {records.screenExits > 0 ? `${records.screenExits} (${formatDuration(records.timeAwaySeconds)} fora)` : "0"}
+        {records.fullscreenUnavailable ? " · Tela cheia indisponível" : ""}
+      </TableCell>
+      <TableCell>{records.disconnections > 0 ? `${records.disconnections} (${formatDuration(records.offlineSeconds)})` : "0"}</TableCell>
+      <TableCell>{records.clipboardBlocks}</TableCell>
+    </>
   );
 }
 

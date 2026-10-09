@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–014 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–015 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -30,12 +30,15 @@ new feature through `/speckit-specify`.
   snapshot; autosave, one submission, grade only after release).
 - 013 exercise points (15/30/60 by difficulty, only attempt 1 scores) and the class ranking.
 - 014 code syntax highlighting (`CodeEditor` with CodeMirror 6 on demand, read-only `CodeBlock`).
+- 015 per-work CONTROLLED mode (focus page, screen exits and blocked copy/paste as server-timed facts,
+  typing allowance on save) and AI help (3 orientations per student by `work-helper`, never the
+  answer key, a deterministic leak check before delivery).
 
-Exams, controlled mode, AI grading and code execution are later features. The rules of 012–014 that
+Exams, AI grading and code execution are later features. The rules of 012–015 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
-AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`) are registered DISABLED until
-the admin enables them. All three tasks are BASIC; each task's primary and fallback come from the 009
+AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
+DISABLED until the admin enables them. All four tasks are BASIC; each task's primary and fallback come from the 009
 catalog, backed by the release-gate evidence in `apps/api/test/fixtures/evaluations/` (current
 results per model: `apps/api/CLAUDE.md`).
 
@@ -54,7 +57,7 @@ When a new feature starts implementation, add it to `SPECS` in `apps/api/test/tr
 (otherwise its scenario ids are never checked); `/speckit-specify` already points
 `.specify/feature.json` at it.
 
-`.specify/memory/constitution.md` (v3.3.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.4.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -69,6 +72,8 @@ hand-maintained.
 ## Active Technologies
 - TypeScript 7 on Node.js 24 LTS + web: Next.js 16, React 19, React Hook Form 7, shadcn/ui, Lucide; new: CodeMirror 6 (`@codemirror/{state,view,language,commands}`, `@lezer/highlight`, `@codemirror/lang-{java,python,javascript,cpp,php,rust,go,html}`), lazy-loaded (014-code-syntax-highlighting)
 - PostgreSQL 17 — one migration: `programming_languages.highlight` (text NULL, CHECK) + seed (014-code-syntax-highlighting)
+- No new dependency (015-controlled-work-ai-help)
+- PostgreSQL 17 — one migration: `activity_execution_mode` += `CONTROLLED`, `class_activities.ai_help_allowance` (0 or 3), tables `attempt_integrity_events` (append-only) and `work_help_requests` (015-controlled-work-ai-help)
 
 ## Stack notes
 
@@ -111,6 +116,9 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:works
                                                         # 011 release gate of the work generator, same flags; evidence in
                                                         # test/fixtures/evaluations/work-generation/
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
+                                                        # 015 release gate of the AI help (work-helper), same flags; evidence in
+                                                        # test/fixtures/evaluations/work-help/, with each case's latency
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -146,7 +154,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013 and 014; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014 and 015; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -161,8 +169,11 @@ Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/activities-boundary.spec.ts` (012) lets `activities`/`student-activities` (API
   and web) reach the banks only through their snapshot readers and the pure `works/grading` and
   `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
-  grades, and students are answered only through the student-view allowlist; it also keeps exams,
-  controlled mode and timer/fullscreen/focus/clipboard code out (SC-012).
+  grades, and students are answered only through the student-view allowlist; it also keeps exams
+  and timer/fullscreen/focus/clipboard code out (SC-012). Since 015 the activity modules reach
+  `attempt-integrity` and `work-help` only through the hooks they register (`AnswerSaveGuard`,
+  `HelpAvailability`), and monitoring lives only in `attempt-integrity`, `features/controlled-attempt`
+  and `components/ui/assessment`.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -195,7 +206,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
   bank, its generation requests, the exact grade helpers and the grading result shapes, and
   `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
-  exercise results, and `ranking` for the 013 class ranking), with
+  exercise results, `ranking` for the 013 class ranking, and `attempt-integrity` and `work-help`
+  for the 015 integrity events and AI help requests), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -206,7 +218,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -249,14 +261,23 @@ the removal conditions are in `DEPENDENCIES.md`.
   student and class (partial UNIQUE on `exercise_question_results … WHERE scoring`), and a
   cancelled activity's points stop counting without moving elsewhere. The ranking is derived on
   every read and carries only position, name, points and `isViewer`.
+- Controlled mode and AI help (015): events and helps are facts for the teacher, never a grade,
+  discount, block, auto-submit or "fraud" label; times come from the server clock (a buffered event
+  keeps the browser's time only as `clientOccurredAt`), and exits and durations are derived on read,
+  never stored. Mode and help are fixed once a student starts (`409 ACTIVITY_ALREADY_STARTED`). The
+  `work-helper` sees exactly the student's view of the question, never the answer key; the leak check
+  (`work-help/help/leak-check.ts`) runs where the key lives and blocks before delivery. Only DELIVERED
+  counts toward the 3 (one REQUESTED per attempt, a DB trigger caps DELIVERED at 3); out-of-scope,
+  blocked and failed requests cost nothing. Audit metadata carries ids, enums and codes, never the
+  question or the orientation.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 015-controlled-work-ai-help: per-work teacher options — CONTROLLED mode (fullscreen focus page, screen exits and blocked copy/paste recorded as server-timed facts, typing allowance on save, never blocking the attempt) and AI help (3 orientations per student by the L2 `work-helper`, which never receives the answer key; deterministic leak check before delivery; teacher sees questions and orientations; the student sees their own helps and exits after the submission); constitution 3.4.0
 - 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; eight `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
 - 013-exercise-points-ranking: exercises earn points instead of grades — EXERCISE activities lose grade, deadline and late policy; fixed points by the exercise difficulty (15/30/60), numbered practice attempts where only attempt 1 scores and a bank exercise scores once per student and class; answer key after each conclusion; the teacher marks open answer and code right or wrong (no release); class ranking derived on read (top 5 on the dashboard, full page)
-- 012-student-portal: class activities — a teacher applies an approved work or 1–10 approved exercises to a class as a snapshot with deadline and late policy (taught-scope topics flagged); the student portal (dashboard, lists, answering with autosave and offline buffer, one idempotent submission, history) with statuses derived by the server clock; multiple choice graded by the 011 rules, the rest by the teacher, results visible only after release; no answer key ever in a student response
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

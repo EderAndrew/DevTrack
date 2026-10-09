@@ -135,6 +135,7 @@ function CodeAnswer({
   onChange,
   publicTestCases,
   disabled,
+  blockClipboard,
   className,
 }: {
   id: string
@@ -144,6 +145,8 @@ function CodeAnswer({
   onChange: (value: string) => void
   publicTestCases: readonly { input: string; expectedOutput: string }[]
   disabled?: boolean
+  /** A CONTROLLED attempt (015): the editor refuses paste, drop, copy and cut. */
+  blockClipboard?: boolean
   className?: string
 }) {
   return (
@@ -159,6 +162,7 @@ function CodeAnswer({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          blockClipboard={blockClipboard}
           fixedHeight
         />
       </div>

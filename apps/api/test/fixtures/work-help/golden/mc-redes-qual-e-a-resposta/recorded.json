@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não posso indicar a certa, mas posso ajudar você a chegar lá. Pense no que o TCP faz: ele garante que os dados cheguem completos e em ordem, controlando a conversa entre dois programas. Agora lembre o papel de cada camada: uma cuida do endereçamento entre máquinas, outra da entrega entre processos, outra do que o usuário usa diretamente. Em qual desses papéis entra a entrega confiável?",
+        "example": null
+      }
+    }
+  ]
+}

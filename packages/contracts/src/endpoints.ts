@@ -80,6 +80,9 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
+import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
+import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
+import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1101,6 +1104,31 @@ export const endpoints = {
     response: TeacherAttemptSchema,
     status: 200,
   },
+  // 015 — what the teacher sees of the controlled mode and of the AI help (US4, research F13).
+  /** Per ACTIVE student with an attempt: exits, time away, drops, blocked gestures, refusals. */
+  "activities.integritySummary": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/integrity",
+    params: ClassActivityParamsSchema,
+    response: IntegritySummaryListSchema,
+    status: 200,
+  },
+  /** One attempt's events with the server's time, the derived intervals and the totals. */
+  "activities.attemptIntegrity": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity",
+    params: ClassActivityAttemptParamsSchema,
+    response: IntegrityTimelineSchema,
+    status: 200,
+  },
+  /** One attempt's helps: questions, orientations and why one was blocked or failed. */
+  "activities.attemptHelp": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherHelpStateSchema,
+    status: 200,
+  },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */
   "activities.gradeAttempt": {
     method: "PUT",
@@ -1194,6 +1222,42 @@ export const endpoints = {
     response: StudentActivitySchema,
     status: 200,
   },
+  // 015 — the controlled mode of a work (research F4).
+  /** Records 1–50 events of the own open attempt of a CONTROLLED work with the server's time; a resend → the stored time. */
+  "myActivities.recordIntegrityEvents": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/events",
+    params: MyActivityParamsSchema,
+    body: RecordIntegrityEventsRequestSchema,
+    response: RecordIntegrityEventsResultSchema,
+    status: 200,
+  },
+  /** The session student's own events of the attempt, with the derived totals (015/FR-027). */
+  "myActivities.integrity": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/integrity",
+    params: MyActivityParamsSchema,
+    response: StudentIntegritySchema,
+    status: 200,
+  },
+  // 015 — the AI help of a work (research F11).
+  /** 202 for a new request of help on a question of the own open attempt; 200 when the same key returns it. */
+  "myActivities.requestHelp": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/help",
+    params: MyActivityParamsSchema,
+    body: RequestHelpSchema,
+    response: StudentHelpItemSchema,
+    status: 202,
+  },
+  /** The session student's helps in the attempt: allowance, used (DELIVERED only), pending and items. */
+  "myActivities.help": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/help",
+    params: MyActivityParamsSchema,
+    response: StudentHelpStateSchema,
+    status: 200,
+  },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */
   "myActivities.getAttempt": {
     method: "GET",
@@ -1216,6 +1280,13 @@ export const endpoints = {
     path: "/classes/:classId/ranking",
     params: ClassParamsSchema,
     response: ClassRankingSchema,
+    status: 200,
+  },
+  /** 015 — whether a work can be applied with the AI help now (research F3). */
+  "workHelp.availability": {
+    method: "GET",
+    path: "/work-help/availability",
+    response: HelpAvailabilitySchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Boa pergunta. Em Python, uma atribuição como b = a não faz cópia da lista: as duas variáveis passam a apontar para o mesmo objeto na memória. Para testar, rode no terminal x = {}; y = x; y['k'] = 9 e depois imprima x. Também experimente id(x) == id(y). O que esse resultado diz sobre a sua escolha?",
+        "example": null
+      }
+    }
+  ]
+}

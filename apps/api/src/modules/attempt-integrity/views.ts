@@ -1,0 +1,24 @@
+import type { IntegrityEventView, IntegrityInterval } from "@repo/contracts";
+import type { TimelineEvent, TimelineInterval } from "./timeline";
+
+/** A stored event with its question's position (clipboard and typing events only). */
+export interface StoredIntegrityEvent extends TimelineEvent {
+  questionPosition: number | null;
+}
+
+/** What the student and the teacher see of one event (015 research F13): facts, no label. */
+export const toEventView = (event: StoredIntegrityEvent): IntegrityEventView => ({
+  type: event.type,
+  questionPosition: event.questionPosition,
+  recordedAt: event.recordedAt.toISOString(),
+  clientOccurredAt: event.clientOccurredAt?.toISOString() ?? null,
+  buffered: event.buffered,
+});
+
+export const toIntervalView = (interval: TimelineInterval): IntegrityInterval => ({
+  kind: interval.kind,
+  from: interval.from.toISOString(),
+  to: interval.to.toISOString(),
+  seconds: interval.seconds,
+  open: interval.open,
+});

@@ -6,6 +6,7 @@ import type { Prisma } from "../../../generated/prisma/client";
 import { APP_CONFIG } from "../../../platform/config/config.module";
 import type { AppConfig } from "../../../platform/config/config.schema";
 import { PrismaService } from "../../../platform/database/prisma.service";
+import type { Tx } from "../../../platform/database/transaction";
 import { PermissionResolver } from "../../access-control/permission-resolver";
 import { AuditService } from "../../audit/audit.service";
 import {
@@ -491,7 +492,7 @@ export class AiExecutionRunner {
         });
         // 010 research X8: the domain's records, all or nothing with the proposal.
         if (proposal.materialize) {
-          await proposal
+          const settlement = await proposal
             .materialize(tx, {
               proposalId,
               executionId: claimed.id,
@@ -511,6 +512,9 @@ export class AiExecutionRunner {
               );
               throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
             });
+          if (proposal.settle === "ON_MATERIALIZE") await this.settle(tx, execution, proposalId, itemIds.length, settlement, now);
+        } else if (proposal.settle === "ON_MATERIALIZE") {
+          await this.settle(tx, execution, proposalId, itemIds.length, undefined, now);
         }
       } else if (!proposal && execution.outputSchemaVersionId) {
         await tx.aiExecutionOutput.create({
@@ -525,6 +529,27 @@ export class AiExecutionRunner {
       return;
     }
     aiLog(this.logger, "ai.execution_completed", { ...this.logBase(execution), status: "COMPLETED", durationMs: done.durationMs });
+  }
+
+  /**
+   * 015 research F9: the decision of the domain's rule on its proposal, in the completing
+   * transaction: no decider (nobody reviewed it), audited as SYSTEM with `settledBy: "DOMAIN_RULE"`.
+   * A `materialize` that returns no decision leaves nothing settled: FAILED, all rolled back.
+   */
+  private async settle(tx: Tx, execution: Loaded, proposalId: string, itemCount: number, settlement: unknown, now: Date): Promise<void> {
+    if (settlement !== "APPROVE" && settlement !== "REJECT") {
+      aiLog(this.logger, "ai.materialize_failed", { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", rejectReason: "NO_SETTLEMENT" }, "warn");
+      throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+    }
+    const approved = settlement === "APPROVE";
+    await tx.aiProposal.update({ where: { id: proposalId }, data: { status: approved ? "APPROVED" : "REJECTED", decidedAt: now } });
+    await this.audit.record(tx, {
+      type: approved ? "ai_proposal.approved" : "ai_proposal.rejected",
+      actorType: "SYSTEM",
+      targetType: "AI_PROPOSAL",
+      targetId: proposalId,
+      metadata: { itemCount, settledBy: "DOMAIN_RULE" },
+    });
   }
 
   /**

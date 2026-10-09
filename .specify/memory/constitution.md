@@ -1,32 +1,33 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.2.0 → 3.3.0
-Motivo (MINOR): o XXIV ganha uma exceção explícita e delimitada à regra "um aluno vê somente
-as próprias notas e respostas": o ranking de engajamento da turma, com posição, nome e total de
-pontos de prática obtidos em exercícios, pode ser visto pelos alunos com matrícula ativa na
-mesma turma. Pontos de prática não são nota nem resultado de avaliação. A exceção nunca alcança
-respostas, resultados por exercício, notas de trabalhos ou provas, nem outras turmas; o
-isolamento entre turmas e o 403 × 404 não mudam. É MINOR (e não PATCH) porque permite um acesso
-que o texto anterior não previa.
+Version change: 3.3.0 → 3.4.0
+Motivo (MINOR): o XIII ganha uma exceção explícita e delimitada à regra "IA NUNCA publica —
+publicar para alunos é ação do professor": uma orientação de estudo L2 pode chegar
+diretamente ao aluno durante uma atividade, desde que a spec da atividade e o professor a
+autorizem, o modelo nunca receba gabarito, resposta esperada, solução, explicação ou critérios
+de correção, a orientação passe por checagem determinística de vazamento antes da entrega, não
+altere resposta, nota, situação nem prazo, tenha limite fixo por atividade e seja visível ao
+professor. Conteúdo de banco e publicação de atividades continuam ação exclusiva do professor.
+É MINOR (e não PATCH) porque permite algo que o texto anterior proibia.
 
 Princípios modificados:
-  XXIV. Isolamento por Contexto Acadêmico — exceção do ranking de pontos de prática da turma.
+  XIII. Classificação de Risco das Operações — exceção da orientação de estudo ao aluno.
 
-Seções modificadas: Governance — histórico ganha a entrada 3.3.0.
+Seções modificadas: Governance — histórico ganha a entrada 3.4.0.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXIV cita a exceção do ranking
+  ✅ .specify/templates/plan-template.md  — gate XIII cita a exceção da orientação ao aluno
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.3.0
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.4.0
 
 Follow-ups:
-  - specs/013-exercise-points-ranking/plan.md: o item XXIV do Constitution Check passa a
-    citar a v3.3.0 (análise D1 da 013).
+  - specs/015-controlled-work-ai-help/plan.md: o item XIII do Constitution Check passa a
+    citar a v3.4.0; constitution-amendment-3.4.0.md marcado como aplicado.
 -->
 
 # DevTrack Constitution
@@ -242,6 +243,15 @@ Funcionalidades L2 (ex.: Professor Copilot gerando rascunhos de exercícios ou
 adaptações) PODEM existir desde que tenham spec própria, avaliação de risco e evals
 (Princípio XIX). Resultados de IA são sempre rascunhos: IA NUNCA publica — salvar no
 banco de questões ou publicar para alunos é ação do professor.
+
+- **Orientação ao aluno (exceção delimitada)**: uma orientação de estudo L2 PODE chegar
+  diretamente ao aluno durante uma atividade quando, cumulativamente: a spec da atividade a
+  autoriza e o professor a liga para aquela atividade; o modelo NUNCA recebe gabarito,
+  resposta esperada, solução, explicação ou critérios de correção; a orientação passa por
+  uma checagem determinística de vazamento da resposta antes da entrega; ela não altera
+  resposta, nota, situação nem prazo; há um limite fixo por atividade; e o professor vê as
+  perguntas e as orientações. Orientações não são conteúdo publicado: não entram em bancos
+  nem em atividades.
 
 ### XIV. IA como Componente Não Autoritativo
 
@@ -775,7 +785,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.3.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-03
+**Version**: 3.4.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-07
 
 Histórico:
 
@@ -804,3 +814,7 @@ Histórico:
 - **3.3.0** — XXIV: exceção explícita para o ranking de pontos de prática da turma
   (posição, nome e total), visível aos alunos matriculados nela, sem respostas, resultados
   por exercício nem notas.
+- **3.4.0** — XIII: exceção explícita para a orientação de estudo L2 entregue diretamente
+  ao aluno durante uma atividade (spec e professor a autorizam, sem gabarito para o modelo,
+  checagem determinística de vazamento, sem mudança de estado, limite fixo, visível ao
+  professor).

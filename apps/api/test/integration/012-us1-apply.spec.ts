@@ -109,6 +109,8 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       classId,
       type: "ASSIGNMENT",
       executionMode: "NORMAL",
+      // 015: the work's AI help, none unless the teacher turns it on.
+      aiHelpAllowance: 0,
       sourceWorkId: work.id,
       questionCount: 3,
       totalCents: 100,

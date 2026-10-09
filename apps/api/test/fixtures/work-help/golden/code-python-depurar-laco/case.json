@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Laço do aluno que sobrescreve em vez de acumular: teste de mesa.",
+  "subject": "Programação em Python",
+  "question": {
+    "type": "CODE",
+    "languageKey": "python",
+    "statement": "Escreva media(notas), que devolve a média de uma lista não vazia de notas.",
+    "starterCode": "def media(notas):\n    pass",
+    "expectedSolution": "def media(notas):\n    return sum(notas) / len(notas)"
+  },
+  "studentAnswer": {
+    "source": "def media(notas):\n    soma = 0\n    for nota in notas:\n        soma = nota\n    return soma / len(notas)"
+  },
+  "studentQuestion": "Meu laço está certo? O resultado sai errado."
+}

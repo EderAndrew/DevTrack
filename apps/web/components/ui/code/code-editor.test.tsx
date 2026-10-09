@@ -278,4 +278,47 @@ describe("014/US1 CodeEditor colorido", () => {
     expect(codeMirrorText(content)).toBe("class A {} // ok");
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  describe("015/FR-013a 015/FR-013b blockClipboard (modo controlado)", () => {
+    const clipboard = (type: "paste" | "drop" | "copy" | "cut") => new Event(type, { bubbles: true, cancelable: true });
+
+    it("015/US2-12 no CodeMirror colar, soltar, copiar e recortar não fazem nada; digitar e Tab seguem iguais", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const { container } = render(
+        <CodeEditor id="ed" aria-label="Sua resposta" highlight="java" value="" onChange={onChange} blockClipboard />,
+      );
+      const content = await codeMirrorContent(container);
+      for (const type of ["paste", "drop", "copy", "cut"] as const) {
+        const event = clipboard(type);
+        content.dispatchEvent(event);
+        expect(event.defaultPrevented, type).toBe(true);
+      }
+      expect(onChange).not.toHaveBeenCalled();
+      await user.click(content);
+      await typeCode(user, "int x;");
+      await user.keyboard("{Tab}");
+      expect(lastCall(onChange)).toBe("int x;  ");
+    });
+
+    it("no textarea (antes de o editor carregar ou se ele falhar) os mesmos gestos são recusados", () => {
+      const onChange = vi.fn();
+      render(<CodeEditor id="ed" aria-label="Sua resposta" readOnly={false} value="" onChange={onChange} blockClipboard />);
+      const field = screen.getByRole("textbox", { name: "Sua resposta" });
+      for (const type of ["paste", "drop", "copy", "cut"] as const) {
+        const event = clipboard(type);
+        field.dispatchEvent(event);
+        expect(event.defaultPrevented, type).toBe(true);
+      }
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("015/US2-9 sem blockClipboard (modo NORMAL) nada é recusado", async () => {
+      const { container } = render(<CodeEditor id="ed" aria-label="Sua resposta" highlight="java" value="" onChange={vi.fn()} />);
+      const content = await codeMirrorContent(container);
+      const event = clipboard("copy");
+      content.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
 });

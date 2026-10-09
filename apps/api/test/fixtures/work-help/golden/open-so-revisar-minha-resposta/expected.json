@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "memoria",
+    "raciocinio"
+  ],
+  "forbidden": [
+    "esta errada",
+    "esta certa",
+    "proprio espaco de memoria"
+  ]
+}

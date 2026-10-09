@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não posso avaliar a sua resposta, mas posso comentar o seu raciocínio. Você tratou os dois termos como sinônimos. Teste essa ideia: um navegador pode abrir vários programas separados e, dentro de um mesmo programa, várias tarefas podem acontecer ao mesmo tempo. O que muda entre esses casos? Pense especialmente na memória: quem enxerga os dados de quem? Revise sua resposta a partir dessa pergunta.",
+        "example": null
+      }
+    }
+  ]
+}

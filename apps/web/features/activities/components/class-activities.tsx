@@ -12,6 +12,7 @@ import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClassActivities } from "../hooks/use-activities";
 import { ACTIVITY_TYPE_LABELS, activitySituation } from "../schemas/activity-form";
+import { WorkOptionBadges } from "./work-options";
 
 const SITUATION_VARIANTS: Record<string, StatusVariant> = {
   Agendada: "info",
@@ -59,8 +60,9 @@ export interface ClassActivitiesProps {
 }
 
 /**
- * The class's activities (012 contracts/web-ui.md, `/turmas/[id]/atividades`): título, tipo,
- * situação in words, prazo, entregas and the action "Nova atividade". Every status is listed, by
+ * The class's activities (012 contracts/web-ui.md, `/turmas/[id]/atividades`): título (with a
+ * Trabalho's mode and AI help as text, 015/FR-006), tipo, situação in words, prazo, entregas and the
+ * action "Nova atividade". Every status is listed, by
  * deadline (latest first), as the API orders them.
  */
 export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
@@ -125,7 +127,10 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
             {items.map((activity) => (
               <TableRow key={activity.id}>
                 <TableCell>
-                  <Link href={`/turmas/${classId}/atividades/${activity.id}`}>{activity.title}</Link>
+                  <div className="flex flex-col gap-1">
+                    <Link href={`/turmas/${classId}/atividades/${activity.id}`}>{activity.title}</Link>
+                    <WorkOptionBadges activity={activity} />
+                  </div>
                 </TableCell>
                 <TableCell>{ACTIVITY_TYPE_LABELS[activity.type]}</TableCell>
                 <TableCell>

@@ -1,10 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../database/prisma.service";
+import type { Tx } from "../database/transaction";
 
 export interface RateLimitWindow {
   limit: number;
   windowSec: number;
+  /** How many events this hit counts (default 1), e.g. the events of one batch (015). */
+  weight?: number;
 }
 
 export interface RateLimitState {
@@ -33,14 +36,18 @@ export class RateLimitService {
     private readonly crypto: CryptoService,
   ) {}
 
-  /** Counts one event and returns the updated state. Atomic under concurrency. */
-  async hit(scope: string, value: string, { limit, windowSec }: RateLimitWindow): Promise<RateLimitState> {
+  /**
+   * Counts `weight` events (default one) and returns the updated state. Atomic under concurrency.
+   * Inside a transaction pass its `tx`: the count then commits or rolls back with it, and the hit
+   * never waits for a second pool connection while the transaction holds its locks.
+   */
+  async hit(scope: string, value: string, { limit, windowSec, weight = 1 }: RateLimitWindow, db: Pick<Tx, "$queryRaw"> = this.prisma): Promise<RateLimitState> {
     const key = this.crypto.hmacKey(scope, value);
-    const rows = await this.prisma.$queryRaw<{ count: number; expires_at: Date }[]>`
+    const rows = await db.$queryRaw<{ count: number; expires_at: Date }[]>`
       INSERT INTO rate_limit_counters (key, window_start, count, expires_at)
-      VALUES (${key}, now(), 1, now() + make_interval(secs => ${windowSec}))
+      VALUES (${key}, now(), ${weight}, now() + make_interval(secs => ${windowSec}))
       ON CONFLICT (key) DO UPDATE SET
-        count        = CASE WHEN rate_limit_counters.expires_at <= now() THEN 1 ELSE rate_limit_counters.count + 1 END,
+        count        = CASE WHEN rate_limit_counters.expires_at <= now() THEN ${weight} ELSE rate_limit_counters.count + ${weight} END,
         window_start = CASE WHEN rate_limit_counters.expires_at <= now() THEN now() ELSE rate_limit_counters.window_start END,
         expires_at   = CASE WHEN rate_limit_counters.expires_at <= now()
                             THEN now() + make_interval(secs => ${windowSec})

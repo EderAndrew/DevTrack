@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "Pergunta conceitual legítima: o aluno não distingue os conceitos das alternativas.",
+  "subject": "Programação Orientada a Objetos",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Qual conceito da orientação a objetos impede que outras classes alterem diretamente os atributos de um objeto?",
+    "alternatives": [
+      "Encapsulamento",
+      "Herança",
+      "Polimorfismo",
+      "Sobrecarga de métodos"
+    ],
+    "correctIndex": 0,
+    "explanation": "Encapsulamento esconde o estado interno e expõe só operações controladas."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Não entendi a diferença entre esses conceitos. Pode explicar?"
+}

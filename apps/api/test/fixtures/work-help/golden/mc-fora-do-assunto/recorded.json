@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "OUT_OF_SCOPE",
+        "message": "Essa pergunta não é sobre a questão. Posso ajudar você a pensar sobre branches no Git.",
+        "example": null
+      }
+    }
+  ]
+}

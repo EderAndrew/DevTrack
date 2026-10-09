@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Uma forma de pensar: pergunte se a frase descreve uma ação que o usuário consegue disparar ou uma qualidade que o sistema precisa ter o tempo todo. Num aplicativo de música, \"criar uma playlist\" e \"abrir em até um segundo\" são frases bem diferentes. Classifique cada uma e explique o critério que você usou. Depois escolha exemplos seus, de outro sistema, para a resposta.",
+        "example": null
+      }
+    }
+  ]
+}

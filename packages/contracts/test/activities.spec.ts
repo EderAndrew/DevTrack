@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ActivityAiHelpSchema,
   ActivityGradingStatusSchema,
   CreateActivityRequestSchema,
   EXERCISE_POINTS,
@@ -11,6 +12,7 @@ import {
   RetryAttemptRequestSchema,
   RosterEntrySchema,
   SaveAnswersRequestSchema,
+  StudentActivitySchema,
   StudentActivitySummarySchema,
   StudentDashboardSchema,
   StudentExerciseAttemptSchema,
@@ -26,6 +28,10 @@ import {
   ActivityTypeSchema,
   AttemptStatusSchema,
   ExecutionModeSchema,
+  AI_HELP_ALLOWANCE,
+  AiHelpAllowanceSchema,
+  SaveAnswerOutcomeSchema,
+  SaveAnswersResultSchema,
   LatePolicySchema,
   PublicationPhaseSchema,
   RosterStatusSchema,
@@ -36,7 +42,8 @@ import {
 describe("012 enums das atividades da turma e do portal do aluno", () => {
   it("têm exatamente os valores do data-model", () => {
     expect(ActivityTypeSchema.options).toEqual(["EXERCISE", "ASSIGNMENT"]);
-    expect(ExecutionModeSchema.options).toEqual(["NORMAL"]);
+    // 015 adds CONTROLLED (works only, 015/FR-001).
+    expect(ExecutionModeSchema.options).toEqual(["NORMAL", "CONTROLLED"]);
     expect(ActivityStatusSchema.options).toEqual(["ACTIVE", "CLOSED", "CANCELLED"]);
     expect(PublicationPhaseSchema.options).toEqual(["SCHEDULED", "PUBLISHED"]);
     expect(LatePolicySchema.options).toEqual(["REJECT", "ACCEPT_MARKED"]);
@@ -48,12 +55,13 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(ActivityGradingStatusSchema.options).toEqual(["GRADED", "PENDING_TEACHER", "DECIDED"]);
   });
 
-  it("012/FR-003 prova e modo controlado ficam reservados: nenhum enum os aceita", () => {
+  it("012/FR-003 015/FR-001 a prova continua reservada; o modo controlado existe desde a 015", () => {
     for (const value of ["EXAM", "PROVA", "QUIZ"]) expect(ActivityTypeSchema.safeParse(value).success, value).toBe(false);
-    for (const value of ["CONTROLLED", "CONTROLADO"]) expect(ExecutionModeSchema.safeParse(value).success, value).toBe(false);
+    expect(ExecutionModeSchema.safeParse("CONTROLLED").success).toBe(true);
+    expect(ExecutionModeSchema.safeParse("CONTROLADO").success).toBe(false);
   });
 
-  it("012/SC-012 nenhum enum da 012 tem valor de prova ou de modo controlado", () => {
+  it("012/SC-012 nenhum enum das atividades tem valor de prova; CONTROLLED só no modo de execução (015)", () => {
     const schemas = [
       ActivityTypeSchema,
       ExecutionModeSchema,
@@ -67,7 +75,88 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
       ActivityGradingStatusSchema,
     ];
     const values = schemas.flatMap((schema) => schema.options.map(String));
-    expect(values.filter((value) => /EXAM|PROVA|CONTROL/.test(value))).toEqual([]);
+    expect(values.filter((value) => /EXAM|PROVA/.test(value))).toEqual([]);
+    expect(values.filter((value) => /CONTROL/.test(value))).toEqual(["CONTROLLED"]);
+  });
+});
+
+describe("015 modo controlado e ajuda da IA (contracts/http-api.md)", () => {
+  it("015/FR-003 a ajuda da IA vale exatamente 3 ajudas, ou nenhuma", () => {
+    expect(AI_HELP_ALLOWANCE).toBe(3);
+    expect(accepts(AiHelpAllowanceSchema, 0)).toBe(true);
+    expect(accepts(AiHelpAllowanceSchema, 3)).toBe(true);
+    for (const value of [1, 2, 4, 5, -1, 3.5, "3"]) expect(accepts(AiHelpAllowanceSchema, value), String(value)).toBe(false);
+  });
+
+  it("015/FR-013c um salvamento acima do limite de digitação devolve a resposta guardada e sua revisão, sem a resposta", () => {
+    const savedAt = "2026-10-07T12:00:00.000Z";
+    const limited = { questionId: uuid(1), outcome: "TYPING_LIMIT_EXCEEDED", revision: 2 };
+    expect(SaveAnswerOutcomeSchema.options).toEqual(["SAVED", "UNCHANGED", "CONFLICT", "TYPING_LIMIT_EXCEEDED"]);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [limited] })).toBe(true);
+    // Never saved before: revision 0.
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: 0 }] })).toBe(true);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, answer: { kind: "TEXT", text: "colado" } }] })).toBe(false);
+    expect(accepts(SaveAnswersResultSchema, { savedAt, results: [{ ...limited, revision: -1 }] })).toBe(false);
+  });
+});
+
+describe("015 opções do Trabalho na aplicação, na edição e nas visões (contracts/http-api.md)", () => {
+  const work = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: uuid(99),
+    source: { type: "ASSIGNMENT", workId: uuid(5) },
+    title: "Trabalho de POO",
+    publishAt: null,
+    acknowledgeOutOfScope: false,
+    deadline: "2026-10-10T23:59:00.000Z",
+    latePolicy: "REJECT",
+    ...overrides,
+  });
+  const exercises = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: uuid(99),
+    source: { type: "EXERCISE", exerciseIds: [uuid(1)] },
+    title: "Prática",
+    publishAt: null,
+    acknowledgeOutOfScope: false,
+    ...overrides,
+  });
+
+  it("015/FR-001 o Trabalho aceita modo e ajuda; sem eles, NORMAL e nenhuma ajuda", () => {
+    expect(CreateActivityRequestSchema.parse(work())).toMatchObject({ executionMode: "NORMAL", aiHelpAllowance: 0 });
+    expect(CreateActivityRequestSchema.parse(work({ executionMode: "CONTROLLED", aiHelpAllowance: 3 }))).toMatchObject({
+      executionMode: "CONTROLLED",
+      aiHelpAllowance: 3,
+    });
+    expect(accepts(UpdateActivityRequestSchema, { version: 1, executionMode: "CONTROLLED", aiHelpAllowance: 3 })).toBe(true);
+    expect(accepts(UpdateActivityRequestSchema, { version: 1, executionMode: "EXAM" })).toBe(false);
+  });
+
+  it("015/FR-003 outra quantidade de ajudas é recusada na aplicação e na edição", () => {
+    for (const value of [1, 2, 4, "3", null]) {
+      expect(accepts(CreateActivityRequestSchema, work({ aiHelpAllowance: value })), String(value)).toBe(false);
+      expect(accepts(UpdateActivityRequestSchema, { version: 1, aiHelpAllowance: value }), String(value)).toBe(false);
+    }
+  });
+
+  it("015/FR-002 o Exercício recusa modo controlado e ajuda da IA, até NORMAL e 0", () => {
+    expect(accepts(CreateActivityRequestSchema, exercises())).toBe(true);
+    for (const extra of [{ executionMode: "CONTROLLED" }, { executionMode: "NORMAL" }, { aiHelpAllowance: 3 }, { aiHelpAllowance: 0 }]) {
+      expect(accepts(CreateActivityRequestSchema, exercises(extra)), JSON.stringify(extra)).toBe(false);
+    }
+  });
+
+  it("015/FR-006 o professor e o aluno recebem o modo e a ajuda; o aluno, também as ajudas já usadas", () => {
+    expect(accepts(ActivityAiHelpSchema, { allowance: 3 })).toBe(true);
+    expect(accepts(ActivityAiHelpSchema, { allowance: 3, used: 1 })).toBe(false);
+    expect(accepts(ActivityAiHelpSchema, { allowance: 2 })).toBe(false);
+    const detail = StudentActivitySchema.shape.aiHelp;
+    expect(accepts(detail, { allowance: 3, used: 2 })).toBe(true);
+    expect(accepts(detail, { allowance: 3 })).toBe(false);
+    expect(accepts(detail, { allowance: 3, used: 4 })).toBe(false);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, 3)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, null)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.aiHelpUsed, 4)).toBe(false);
+    expect(TeacherActivitySummarySchema.shape.aiHelp).toBe(ActivityAiHelpSchema);
+    expect(StudentActivitySummarySchema.shape.executionMode).toBe(ExecutionModeSchema);
   });
 });
 
@@ -174,6 +263,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     id: uuid(1),
     type: "EXERCISE",
     executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
     title: "Prática",
     status: "ACTIVE",
     phase: "PUBLISHED",
@@ -234,6 +324,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       gradePartial: null,
       pointsEarned: 45,
       pendingMarks: 1,
+      aiHelpUsed: null,
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -329,6 +420,8 @@ describe("013 contratos do aluno (contracts/http-api.md)", () => {
   const summary = {
     id: uuid(1),
     type: "EXERCISE",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
     title: "Prática",
     summary: "",
     class: { id: uuid(2), name: "Turma A" },

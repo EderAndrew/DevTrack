@@ -7,15 +7,19 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Status } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatLongDateTime } from "@/lib/messages/dates";
+import { occurredAt } from "@/features/activities/schemas/attempt-records";
+import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import type { StudentActivityListFilters } from "../api/student-activities";
-import { useStudentActivities } from "../hooks/use-student-activities";
+import { useOwnIntegrity, useStudentActivities } from "../hooks/use-student-activities";
 import { ACTIVITY_TYPE_LABELS, activityHref, formatGrade, STATUS_VARIANTS, statusLabel } from "../schemas/student-activity";
 import { LoadFailed, Loading } from "./load-states";
 
 const COMPLETED: StudentActivityListFilters = { status: "COMPLETED", type: null };
 
 export const HISTORY_EMPTY = "Você ainda não entregou nenhuma atividade.";
+/** 015/US5-2: what the teacher sees of the student's screen exits, told to the student too. */
+export const SCREEN_EXITS_NOTE = "O professor vê estes registros. Uma saída não significa, sozinha, uso indevido.";
+export const screenExitsLabel = (count: number) => `Saídas da tela registradas: ${count}`;
 
 /**
  * "Histórico" (012 US6, FR-031): the submitted activities (`status=COMPLETED`) with atividade, tipo,
@@ -95,5 +99,38 @@ export function StudentHistory() {
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The screen exits of a delivered CONTROLLED work (015/US5-2, FR-027): "Saídas da tela registradas:
+ * n" and the time of each exit, as the server recorded it (the browser's time only for an event
+ * kept offline). The orientations of the AI stay under their questions. Facts, never a verdict.
+ */
+export function ScreenExitRecords({ activityId }: { activityId: string }) {
+  const query = useOwnIntegrity(activityId, true);
+  if (query.isPending) return <Loading label="Carregando os registros da entrega…" />;
+  if (query.isError) return <LoadFailed error={query.error} onRetry={() => void query.refetch()} />;
+  const exits = query.data.events.filter((event) => event.type === "SCREEN_LEFT");
+  return (
+    <section aria-labelledby="saidas-registradas" className="flex flex-col gap-2">
+      <h2 id="saidas-registradas" className="m-0 text-h3">
+        {screenExitsLabel(query.data.totals.screenExits)}
+      </h2>
+      <p className="m-0 text-body-sm text-text-secondary">{SCREEN_EXITS_NOTE}</p>
+      {exits.length > 0 ? (
+        <ul aria-label="Horários das saídas" className="m-0 flex flex-col gap-1 pl-5">
+          {exits.map((event, index) => {
+            const at = occurredAt(event);
+            return (
+              <li key={`${index}-${event.recordedAt}`}>
+                <time dateTime={at}>{formatTime(at)}</time>
+                {at !== event.recordedAt ? " (horário do navegador)" : ""}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
   );
 }

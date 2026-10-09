@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useClass } from "@/features/classes/hooks/use-classes";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { useApprovedExercises, useApprovedWorks, useCreateActivity, useScopeCheck } from "../hooks/use-activities";
+import { useApprovedExercises, useApprovedWorks, useCreateActivity, useHelpAvailability, useScopeCheck } from "../hooks/use-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   type ActivityFormValues,
@@ -28,10 +28,14 @@ import {
   DIFFICULTY_LABELS,
   formatGrade,
   formatPoints,
+  hasWorkOptions,
+  helpUnavailableText,
+  HELP_CHECK_PENDING,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
 } from "../schemas/activity-form";
 import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
+import { WorkOptionsFieldset } from "./work-options";
 
 export const NEW_ACTIVITY_FIELD_IDS = {
   title: "atividade-titulo",
@@ -39,6 +43,8 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   publishAt: "atividade-publicacao",
   deadline: "atividade-prazo",
   acknowledgeOutOfScope: "atividade-confirmar-escopo",
+  controlled: "atividade-modo-controlado",
+  aiHelp: "atividade-ajuda-ia",
 } as const;
 const FIELD_IDS = NEW_ACTIVITY_FIELD_IDS;
 
@@ -46,6 +52,7 @@ const FIELD_IDS = NEW_ACTIVITY_FIELD_IDS;
 const FIELD_OF_CODE: Record<string, string> = {
   INVALID_SCHEDULE: FIELD_IDS.deadline,
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: FIELD_IDS.acknowledgeOutOfScope,
+  AI_HELP_UNAVAILABLE: FIELD_IDS.aiHelp,
 };
 
 const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 119)}…` : text);
@@ -66,8 +73,10 @@ interface ChosenSource {
  * order chosen, each with its level and fixed points and the total (013/FR-003), then the scope
  * check. Step 2: título (prefilled from the work), instruções, publication now or scheduled, prazo
  * and entrega atrasada of a Trabalho only (an Exercício has neither, 013/FR-001), and the topics not
- * yet taught with the required confirmation. "Publicar atividade"
- * sends one idempotency key per form, so a double click creates one activity.
+ * yet taught with the required confirmation. A Trabalho also chooses "Como os alunos respondem"
+ * (015/FR-001): the controlled mode and the AI help, disabled with its reason while unavailable
+ * (FR-004). "Publicar atividade" sends one idempotency key per form, so a double click creates one
+ * activity.
  */
 export function NewActivity({ classId }: { classId: string }) {
   const schoolClass = useClass(classId);
@@ -341,9 +350,13 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       latePolicy: "REJECT",
       needsAcknowledgement: chosen.scope.outOfScope.length > 0,
       acknowledgeOutOfScope: false,
+      controlled: false,
+      aiHelp: false,
     },
   });
   const isExercise = chosen.source.type === "EXERCISE";
+  const withOptions = hasWorkOptions(chosen.source.type);
+  const availability = useHelpAvailability(withOptions);
   const publishMode = useWatch({ control, name: "publishMode" });
 
   const onSubmit = handleSubmit(async (formValues) => {
@@ -408,6 +421,14 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
         </>
       )}
+      {withOptions ? (
+        <WorkOptionsFieldset
+          idPrefix="atividade"
+          controlled={register("controlled")}
+          aiHelp={register("aiHelp")}
+          helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
+        />
+      ) : null}
       <ScopeNotice scope={chosen.scope} />
       {chosen.scope.outOfScope.length > 0 ? (
         <ConfirmationField

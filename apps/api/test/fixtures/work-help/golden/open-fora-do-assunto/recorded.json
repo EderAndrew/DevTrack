@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "OUT_OF_SCOPE",
+        "message": "Só posso ajudar com esta questão do trabalho. Que tal perguntar algo sobre requisitos?",
+        "example": null
+      }
+    }
+  ]
+}

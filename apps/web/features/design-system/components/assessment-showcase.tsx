@@ -6,6 +6,9 @@ import { AssessmentFooter } from "@/components/ui/assessment/assessment-footer";
 import { QuestionHeader, QuestionStatement, QuestionStatus } from "@/components/ui/assessment/question";
 import { ExamProgress, QuestionNavigator } from "@/components/ui/assessment/question-navigator";
 import { AttemptStatus, SaveStatus } from "@/components/ui/assessment/save-status";
+import { ExamAlert, LEAVE_ATTEMPT } from "@/components/ui/assessment/exam-alert";
+import { FocusViolationWarning } from "@/components/ui/assessment/focus-violation-warning";
+import { Button } from "@/components/ui/button";
 import { Sample, Showcase } from "./sample";
 
 // 012 research P21: the Exam Mode components built for the student's answering screen (NORMAL mode).
@@ -170,6 +173,38 @@ export function AssessmentFooterShowcase() {
       </Sample>
       <Sample name="no meio" className="block">
         <AssessmentFooter hasPrevious hasNext onPrevious={() => undefined} onNext={() => undefined} />
+      </Sample>
+    </Showcase>
+  );
+}
+
+// 015 research F15: the warnings of the controlled mode (design-system/exam-mode.md).
+
+export function FocusViolationWarningShowcase() {
+  return (
+    <Showcase id="focus-violation-warning">
+      <Sample name="registrado" className="block">
+        <FocusViolationWarning recordedAt="2026-10-01T17:32:00.000Z" onDismiss={() => undefined} />
+      </Sample>
+      <Sample name="registrando" className="block">
+        <FocusViolationWarning recordedAt={null} />
+      </Sample>
+      <Sample name="saiu da tela cheia" className="block">
+        <FocusViolationWarning recordedAt="2026-10-01T17:32:00.000Z" onReturnToFullscreen={() => undefined} />
+      </Sample>
+    </Showcase>
+  );
+}
+
+export function ExamAlertShowcase() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Showcase id="exam-alert">
+      <Sample name="sair da avaliação">
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          Sair
+        </Button>
+        <ExamAlert open={open} onOpenChange={setOpen} text={LEAVE_ATTEMPT} confirmLabel="Sair da avaliação" onConfirm={() => undefined} />
       </Sample>
     </Showcase>
   );

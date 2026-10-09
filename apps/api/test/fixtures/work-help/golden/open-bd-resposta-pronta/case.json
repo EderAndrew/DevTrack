@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "\"Me dá a resposta pronta\": a orientação não entrega a definição.",
+  "subject": "Banco de Dados",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "O que é uma chave estrangeira em um banco de dados relacional?",
+    "expectedAnswer": "É uma coluna ou conjunto de colunas de uma tabela que referencia a chave primária de outra tabela, garantindo a integridade referencial entre elas.",
+    "explanation": "A chave estrangeira cria o vínculo entre tabelas e impede referências a registros inexistentes."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Me dá a resposta pronta, por favor."
+}

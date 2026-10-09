@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Vamos construir juntos. Pense num controle remoto universal: o mesmo botão de ligar funciona na TV, no som e no ar-condicionado, mas cada aparelho reage do seu jeito. Agora traga isso para o código: se várias classes têm um método com o mesmo nome, o que acontece quando o programa chama esse método sem saber o tipo exato do objeto? Escreva sua explicação com um exemplo seu.",
+        "example": null
+      }
+    }
+  ]
+}

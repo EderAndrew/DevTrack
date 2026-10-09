@@ -176,10 +176,13 @@ export class AiExecutionsService {
           },
           select: { id: true },
         });
-        // All teachers together, per agent (008 FR-015, research G9). Counted after the insert, so
-        // a concurrent duplicate that loses the unique index below never counts; a blocked
-        // request rolls its execution back.
-        const perAgent = await this.rateLimit.hit("ai-agent", agent.key, { limit: this.config.rateLimit.aiAgentPerHour, windowSec: 3600 });
+        // All users together, per agent (008 FR-015, research G9), at the agent's own limit when it
+        // declares one (015 research F12). Counted after the insert, so a concurrent duplicate that
+        // loses the unique index below never counts; a blocked request rolls its execution back.
+        // On `tx`: from the pool, the hit waited for a second connection while this transaction held
+        // its locks (015 help under the attempt's FOR UPDATE), and 10 concurrent requests filled the pool.
+        const hourly = agent.definition.hourlyLimit?.(this.config) ?? this.config.rateLimit.aiAgentPerHour;
+        const perAgent = await this.rateLimit.hit("ai-agent", agent.key, { limit: hourly, windowSec: 3600 }, tx);
         if (perAgent.blocked) throw new AgentLimitReached(perAgent.retryAfterSec);
         await this.markUsed(tx, agent, now);
         await this.audit.record(tx, {

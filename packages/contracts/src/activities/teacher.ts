@@ -7,9 +7,11 @@ import { TestCaseVisibilitySchema, WorkGradingStrategySchema, WorkQuestionTypeSc
 import { GRADE_MAX_CENTS, GradeOutputSchema, gradeToCents } from "../works/grade.js";
 import { AnswerSchema, GradingNatureSchema, PendingReasonSchema } from "../works/grading.js";
 import {
+  AI_HELP_ALLOWANCE,
   ActivityGradingStatusSchema,
   ActivityStatusSchema,
   ActivityTypeSchema,
+  AiHelpAllowanceSchema,
   AttemptStatusSchema,
   ExecutionModeSchema,
   ExerciseResultSchema,
@@ -68,20 +70,26 @@ const createCommon = {
   acknowledgeOutOfScope: z.boolean(),
 };
 
-/** An ASSIGNMENT keeps its work's grade (012), with a deadline and a late policy. */
+/**
+ * An ASSIGNMENT keeps its work's grade (012), with a deadline and a late policy. Since 015 the
+ * teacher also picks the mode and the AI help (015/FR-001, FR-003): NORMAL and none by default.
+ */
 export const CreateAssignmentRequestSchema = z
   .strictObject({
     ...createCommon,
     source: AssignmentSourceSchema,
     deadline: IsoDateTimeSchema,
     latePolicy: LatePolicySchema,
+    executionMode: ExecutionModeSchema.default("NORMAL"),
+    aiHelpAllowance: AiHelpAllowanceSchema.default(0),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type CreateAssignmentRequest = z.infer<typeof CreateAssignmentRequestSchema>;
 
 /**
  * An EXERCISE is practice (013/FR-001): strict, so a `totalGrade`, `deadline` or `latePolicy` in the
- * body is refused (400). The points come from the exercises' difficulty, never from the request.
+ * body is refused (400), and so are `executionMode` and `aiHelpAllowance` (015/FR-002). The points
+ * come from the exercises' difficulty, never from the request.
  */
 export const CreateExerciseActivityRequestSchema = z.strictObject({
   ...createCommon,
@@ -103,6 +111,12 @@ export const UpdateActivityRequestSchema = z
     /** ASSIGNMENT only: an EXERCISE has neither, so the service answers 400 to them (013/FR-004). */
     deadline: IsoDateTimeSchema.optional(),
     latePolicy: LatePolicySchema.optional(),
+    /**
+     * ASSIGNMENT only, like the deadline (015/FR-002); only while no student started it (`409
+     * ACTIVITY_ALREADY_STARTED`, 015/FR-005).
+     */
+    executionMode: ExecutionModeSchema.optional(),
+    aiHelpAllowance: AiHelpAllowanceSchema.optional(),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type UpdateActivityRequest = z.infer<typeof UpdateActivityRequestSchema>;
@@ -128,10 +142,16 @@ export const ExerciseRosterCountsSchema = z.strictObject({
 });
 export type ExerciseRosterCounts = z.infer<typeof ExerciseRosterCountsSchema>;
 
+/** The activity's AI help (015/FR-006): the allowance per student, 0 when off and always 0 for EXERCISE. */
+export const ActivityAiHelpSchema = z.strictObject({ allowance: AiHelpAllowanceSchema });
+export type ActivityAiHelp = z.infer<typeof ActivityAiHelpSchema>;
+
 export const TeacherActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
+  /** NORMAL, or CONTROLLED for a work (015/FR-006); always NORMAL for EXERCISE. */
   executionMode: ExecutionModeSchema,
+  aiHelp: ActivityAiHelpSchema,
   title: z.string(),
   status: ActivityStatusSchema,
   /** Only for an ACTIVE activity. */
@@ -195,6 +215,8 @@ export const RosterEntrySchema = z.strictObject({
   pointsEarned: PointsSchema.nullable(),
   /** EXERCISE only: answers of attempt 1 waiting for the teacher's mark; null for ASSIGNMENT. */
   pendingMarks: z.int().min(0).nullable(),
+  /** ASSIGNMENT only: the AI helps delivered to the student ("2 de 3", 015/FR-024); null for EXERCISE. */
+  aiHelpUsed: z.int().min(0).max(AI_HELP_ALLOWANCE).nullable(),
 });
 export type RosterEntry = z.infer<typeof RosterEntrySchema>;
 

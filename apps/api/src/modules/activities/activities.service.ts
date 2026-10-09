@@ -3,7 +3,9 @@ import {
   type ActivitySource,
   type ActivityStatus,
   type ActivityType,
+  type AiHelpAllowance,
   type CreateActivityRequest,
+  type ExecutionMode,
   type LatePolicy,
   type ScopeCheck,
   type TeacherActivity,
@@ -21,9 +23,10 @@ import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
-import { ACTIVITY_HEADER_SELECT, ACTIVITY_QUESTION_SELECT, type ActivityHeader, toQuestionRow } from "./activity-query";
+import { ACTIVITY_HEADER_SELECT, ACTIVITY_QUESTION_SELECT, type ActivityHeader, aiHelpAllowanceOf, toQuestionRow } from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
+import { HelpAvailability } from "./help-availability";
 import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
 import { readSource, type SourceContent, toSnapshot } from "./snapshot/read-source";
@@ -36,6 +39,14 @@ const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClie
 
 /** The fields a PATCH may change, in the order `activity.updated` lists them. */
 type EditableField = "deadline" | "instructions" | "latePolicy" | "publishAt" | "title";
+
+/** A work's 015 options (research F2): NORMAL and 0 unless the teacher turns them on. */
+interface WorkOptions {
+  executionMode: ExecutionMode;
+  aiHelpAllowance: AiHelpAllowance;
+}
+
+const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0 };
 
 interface LockedActivity {
   type: ActivityType;
@@ -62,6 +73,7 @@ export class ActivitiesService {
     private readonly audit: AuditService,
     private readonly rateLimit: RateLimitService,
     private readonly classes: ClassContextPolicy,
+    private readonly helpAvailability: HelpAvailability,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -112,8 +124,10 @@ export class ActivitiesService {
    * Applies the source to the class (FR-001, FR-002, FR-005, FR-005a), in the order of
    * contracts/http-api.md: the class (404), the same idempotency key (the activity it created,
    * `created: false`), the class ACTIVE (409), the schedule by the server clock (422), the hourly
-   * limit (429), then in one transaction the source (404, 422), the subject (422), the taught
-   * scope (422 unless acknowledged), the snapshot and `activity.published`.
+   * limit (429), the AI help when asked (503, 015/FR-004), then in one transaction the source (404,
+   * 422), the subject (422), the taught scope (422 unless acknowledged), the snapshot and
+   * `activity.published`. A work carries its mode and AI help (015/FR-001); an EXERCISE body can't
+   * (the contract refuses them, 015/FR-002).
    */
   async create(
     auth: AuthContext,
@@ -135,7 +149,12 @@ export class ActivitiesService {
         ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy }
         : null;
     if (schedule && schedule.deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+    const options: WorkOptions =
+      ACTIVITY_TYPES[body.source.type].workOptions && "executionMode" in body
+        ? { executionMode: body.executionMode, aiHelpAllowance: body.aiHelpAllowance }
+        : NO_WORK_OPTIONS;
     await this.assertWriteRate(teacherId);
+    if (options.aiHelpAllowance > 0) await this.assertHelpAvailable();
 
     let activityId: string;
     try {
@@ -162,6 +181,7 @@ export class ActivitiesService {
             sourceWorkId: content.type === "ASSIGNMENT" ? content.workId : null,
             sourceSubjectId: content.type === "ASSIGNMENT" ? content.subjectId : null,
             outOfScopeTopicCount: scope.outOfScope.length,
+            ...options,
             idempotencyKey: body.idempotencyKey,
           },
           snapshot,
@@ -176,7 +196,8 @@ export class ActivitiesService {
           metadata: {
             classId,
             type: content.type,
-            executionMode: "NORMAL",
+            executionMode: options.executionMode,
+            aiHelpAllowance: options.aiHelpAllowance,
             ...(content.type === "ASSIGNMENT" ? { sourceWorkId: content.workId } : { sourceExerciseCount: content.exerciseIds.length }),
             questionCount: snapshot.questions.length,
             // A grade and a late policy (ASSIGNMENT) or the possible points (EXERCISE, 013 K15).
@@ -205,7 +226,10 @@ export class ActivitiesService {
    * Title, instructions, deadline and late policy of an ACTIVE activity, at the version the teacher
    * read (FR-004, FR-024a); the publication date only while it is still scheduled (`422
    * ALREADY_PUBLISHED`); the deadline stays after the publication (`422 INVALID_SCHEDULE`). An
-   * EXERCISE has no deadline or late policy: either in the body → 400 (013/FR-004).
+   * EXERCISE has no deadline or late policy: either in the body → 400 (013/FR-004). A work's mode
+   * and AI help (015/FR-005) change only while no student started it (`409 ACTIVITY_ALREADY_STARTED`,
+   * checked under the activity's lock, as the trigger does), turning the help on asks the
+   * `HelpAvailability` hook (503), and the change writes `activity.settings_changed`.
    * Nothing changed → the activity as it is, no event and no new version.
    */
   async update(
@@ -220,14 +244,21 @@ export class ActivitiesService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
-      if (!ACTIVITY_TYPES[current.type].hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
+      const definition = ACTIVITY_TYPES[current.type];
+      if (!definition.hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
+      if (!definition.workOptions && (body.executionMode !== undefined || body.aiHelpAllowance !== undefined)) throw validationError();
       if (current.version !== body.version) throw new AppException("ACTIVITY_VERSION_CONFLICT");
       ActivityStateMachine.assertEditable(current.status);
 
       const stored = await tx.classActivity.findUniqueOrThrow({
         where: { id: activityId },
-        select: { title: true, instructions: true, latePolicy: true },
+        select: { title: true, instructions: true, latePolicy: true, executionMode: true, aiHelpAllowance: true },
       });
+      const options: WorkOptions = {
+        executionMode: body.executionMode ?? stored.executionMode,
+        aiHelpAllowance: body.aiHelpAllowance ?? aiHelpAllowanceOf(stored.aiHelpAllowance),
+      };
+      const optionsChanged = options.executionMode !== stored.executionMode || options.aiHelpAllowance !== stored.aiHelpAllowance;
       const publishAt = body.publishAt === undefined ? current.publishAt : new Date(body.publishAt);
       const deadline = body.deadline === undefined ? current.deadline : new Date(body.deadline);
       const changed: EditableField[] = [];
@@ -236,13 +267,17 @@ export class ActivitiesService {
       if (body.latePolicy !== undefined && body.latePolicy !== stored.latePolicy) changed.push("latePolicy");
       if (publishAt.getTime() !== current.publishAt.getTime()) changed.push("publishAt");
       if (body.title !== undefined && body.title !== stored.title) changed.push("title");
-      if (changed.length === 0) return this.get(teacherId, classId, activityId, tx);
+      if (changed.length === 0 && !optionsChanged) return this.get(teacherId, classId, activityId, tx);
 
       const now = this.clock.now();
       if (changed.includes("publishAt") && ActivityStateMachine.phase(current.status, current.publishAt, now) !== "SCHEDULED") {
         throw new AppException("ALREADY_PUBLISHED");
       }
       if (deadline && deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+      if (optionsChanged) {
+        if ((await tx.activityAttempt.count({ where: { activityId } })) > 0) throw new AppException("ACTIVITY_ALREADY_STARTED");
+        if (options.aiHelpAllowance > stored.aiHelpAllowance) await this.assertHelpAvailable();
+      }
 
       await tx.classActivity.update({
         where: { id: activityId },
@@ -250,20 +285,15 @@ export class ActivitiesService {
           ...(changed.includes("title") ? { title: body.title } : {}),
           ...(changed.includes("instructions") ? { instructions: body.instructions } : {}),
           ...(changed.includes("latePolicy") ? { latePolicy: body.latePolicy } : {}),
+          ...(optionsChanged ? options : {}),
           publishAt,
           deadline,
           version: { increment: 1 },
         },
       });
-      await this.audit.record(tx, {
-        type: "activity.updated",
-        actorType: "USER",
-        actorUserId: teacherId,
-        targetType: "CLASS_ACTIVITY",
-        targetId: activityId,
-        requestId,
-        metadata: { classId, fields: changed },
-      });
+      const event = { actorType: "USER", actorUserId: teacherId, targetType: "CLASS_ACTIVITY", targetId: activityId, requestId } as const;
+      if (changed.length > 0) await this.audit.record(tx, { ...event, type: "activity.updated", metadata: { classId, fields: changed } });
+      if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...options } });
       return this.get(teacherId, classId, activityId, tx);
     });
   }
@@ -358,6 +388,11 @@ export class ActivitiesService {
     if (!existing) return null;
     if (existing.classId !== classId) throw notFound();
     return { view: await this.get(teacherId, classId, existing.id), created: false };
+  }
+
+  /** The AI help can't be promised when the `work-helper` can't serve it (015/FR-004, research F3). */
+  private async assertHelpAvailable(): Promise<void> {
+    if (!(await this.helpAvailability.check()).available) throw new AppException("AI_HELP_UNAVAILABLE");
   }
 
   /** Apply, edit, close, cancel and release per teacher per hour (research P20). */

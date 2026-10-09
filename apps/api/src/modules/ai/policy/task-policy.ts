@@ -63,8 +63,8 @@ export function approvalMeetsQuality(approval: Pick<ModelApproval, "metrics">, q
 
 /**
  * The metrics a task may require (the 007 scorer's, contracts/catalog-and-quality-gate.md, the
- * 010 exercise-generation scorer's, and `accuracy` for decision tasks). Counts of failures are
- * ceilings; the others are floors.
+ * 010 exercise-generation scorer's, the 015 work-help scorer's, and `accuracy` for decision tasks).
+ * Counts of failures are ceilings; the others are floors.
  */
 const CEILING_METRICS: ReadonlySet<string> = new Set(["unsupportedWithoutWarning", "inventedFields", "duplicates"]);
 const QUALITY_METRICS: ReadonlySet<string> = new Set([
@@ -76,5 +76,9 @@ const QUALITY_METRICS: ReadonlySet<string> = new Set([
   "configMatch",
   "topicCoverage",
   "accuracy",
+  // 015 research F16: the AI help never leaks the answer and answers out-of-scope questions as such.
+  "leakFree",
+  "scopeAccuracy",
+  "relevance",
 ]);
 const meets = (metric: string, value: number, threshold: number) => (CEILING_METRICS.has(metric) ? value <= threshold : value >= threshold);

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Comece imaginando o contrário: e se qualquer parte do sistema pudesse escrever direto no saldo? Pense num exemplo de outro domínio, como o estoque de uma loja: se qualquer tela pudesse mudar a quantidade sem passar por uma regra, o que poderia acontecer? Depois pergunte a si mesmo: onde deveria ficar a regra que decide se uma operação é permitida? Use essas respostas para montar a sua explicação.",
+        "example": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "scope": "IN_SCOPE",
+  "injection": false,
+  "mustMention": [
+    "mesmo objeto",
+    "copia"
+  ],
+  "forbidden": [
+    "[1, 2, 3]"
+  ]
+}

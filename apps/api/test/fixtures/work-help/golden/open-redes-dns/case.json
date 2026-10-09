@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Pergunta conceitual: analogia de outro contexto.",
+  "subject": "Redes de Computadores",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "Descreva a função do DNS na comunicação pela internet.",
+    "expectedAnswer": "O DNS traduz nomes de domínio legíveis por pessoas em endereços IP usados pelos computadores para localizar servidores na rede."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Pra que serve o DNS mesmo?"
+}

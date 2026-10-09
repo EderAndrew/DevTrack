@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Pense na agenda de contatos do celular: você procura pelo nome da pessoa, mas a ligação usa um número. Na internet acontece algo parecido. Quando você digita o endereço de um site, o computador ainda precisa de outra informação para encontrar o servidor. Que informação é essa, e quem poderia fornecê-la? Tente descrever esse caminho, do nome digitado até a conexão.",
+        "example": null
+      }
+    }
+  ]
+}

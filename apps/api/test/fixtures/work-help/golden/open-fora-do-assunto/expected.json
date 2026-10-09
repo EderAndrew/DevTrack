@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "scope": "OUT_OF_SCOPE",
+  "injection": false,
+  "mustMention": [],
+  "forbidden": [
+    "desempenho, seguranca e usabilidade"
+  ]
+}

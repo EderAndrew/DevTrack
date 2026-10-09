@@ -26,9 +26,9 @@ The spec's names (FR-062) follow the project convention `entity.action`:
 | `ai_tool.called` | `AI_TOOL_CALLED` | SYSTEM | AI_EXECUTION | `toolKey`, `sequence`, `durationMs` |
 | `ai_tool.failed` | `AI_TOOL_FAILED` | SYSTEM | AI_EXECUTION | `toolKey`, `sequence`, `status` (`DENIED`\|`FAILED`\|`TIMED_OUT`), `errorCode` |
 | `ai_proposal.created` | `AI_PROPOSAL_CREATED` | SYSTEM | AI_PROPOSAL | `executionId`, `agentKey`, `proposalType`, `itemCount` |
-| `ai_proposal.approved` | `AI_PROPOSAL_APPROVED` | USER | AI_PROPOSAL | `itemCount` |
+| `ai_proposal.approved` | `AI_PROPOSAL_APPROVED` | USER \| SYSTEM | AI_PROPOSAL | `itemCount`, `settledBy` (015: `DOMAIN_RULE` when the agent's domain settles it, actor SYSTEM) |
 | `ai_proposal.partially_approved` | `AI_PROPOSAL_PARTIALLY_APPROVED` | USER | AI_PROPOSAL | `itemCount`, `acceptedCount` |
-| `ai_proposal.rejected` | `AI_PROPOSAL_REJECTED` | USER | AI_PROPOSAL | `itemCount` |
+| `ai_proposal.rejected` | `AI_PROPOSAL_REJECTED` | USER \| SYSTEM | AI_PROPOSAL | `itemCount`, `settledBy` (015, as above) |
 | `ai_proposal.expired` | — | SYSTEM | AI_PROPOSAL | — |
 | `ai_agent.enabled` | `AI_AGENT_ENABLED` | USER | AI_AGENT | `agentKey`, `version` |
 | `ai_agent.disabled` | `AI_AGENT_DISABLED` | USER | AI_AGENT | `agentKey`, `version`, `cancelledExecutions` |

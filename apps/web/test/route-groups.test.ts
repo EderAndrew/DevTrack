@@ -34,7 +34,7 @@ const matches = (url: string) =>
       : url === pattern,
   );
 
-const PROTECTED = ["(app)", "(student)", "(account)"];
+const PROTECTED = ["(app)", "(student)", "(account)", "(focus)"];
 
 describe("005/FR-036 005/SC-006 grupos de rota só escolhem a moldura", () => {
   it("toda tela interna, do aluno e de conta continua exigindo sessão no proxy", () => {
@@ -57,6 +57,8 @@ describe("005/FR-036 005/SC-006 grupos de rota só escolhem a moldura", () => {
     expect(urls.get("/conta/perfil")).toBe("(account)");
     expect(urls.get("/conta/sessoes")).toBe("(account)");
     expect(urls.get("/design-system")).toBe("(catalog)");
+    // 015 research F14: the controlled mode's page, without the student's menu.
+    expect(urls.get("/minhas-atividades/x/responder")).toBe("(focus)");
     expect(new Set(pages().map(([, url]) => url)).size).toBe(pages().length);
   });
 });

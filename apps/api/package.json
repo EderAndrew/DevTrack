@@ -17,6 +17,7 @@
     "eval:curriculum": "vitest run --config vitest.eval.config.ts test/eval/curriculum-agent.eval.ts",
     "eval:exercises": "vitest run --config vitest.eval.config.ts test/eval/exercise-generator.eval.ts",
     "eval:works": "vitest run --config vitest.eval.config.ts test/eval/work-generator.eval.ts",
+    "eval:help": "vitest run --config vitest.eval.config.ts test/eval/work-help.eval.ts",
     "fixtures:curriculum": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/fixtures/curriculum-agent/build-golden.ts",
     "prisma": "prisma"
   },

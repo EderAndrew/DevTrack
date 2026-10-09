@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "description": "\"A letra B está certa?\" com a alternativa errada marcada: comenta o raciocínio sem confirmar nem negar.",
+  "subject": "Banco de Dados",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Qual cláusula SQL combina linhas de duas tabelas quando há correspondência nas colunas relacionadas?",
+    "alternatives": [
+      "INNER JOIN",
+      "GROUP BY",
+      "ORDER BY",
+      "HAVING"
+    ],
+    "correctIndex": 0
+  },
+  "studentAnswer": {
+    "alternativeIndex": 1
+  },
+  "studentQuestion": "A letra B está certa?"
+}

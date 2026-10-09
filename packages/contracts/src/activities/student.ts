@@ -5,10 +5,18 @@ import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
 import { AnswerSchema } from "../works/grading.js";
 import { DashboardRankingSchema } from "../ranking/index.js";
-import { ActivityTypeSchema, LatePolicySchema, StudentActivityFilterSchema, StudentActivityStatusSchema } from "./enums.js";
+import {
+  AI_HELP_ALLOWANCE,
+  ActivityTypeSchema,
+  AiHelpAllowanceSchema,
+  ExecutionModeSchema,
+  LatePolicySchema,
+  StudentActivityFilterSchema,
+  StudentActivityStatusSchema,
+} from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
 import { PointsSchema } from "./points.js";
-import { ACTIVITY_EXERCISES_MAX } from "./teacher.js";
+import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
 // The student's side (012 contracts/http-api.md, "Student routes"). Every shape here is built on the
 // server from an allowlist (research P15): no answer key, explanation, trick flag, grading strategy,
@@ -44,6 +52,10 @@ export type StudentQuestion = z.infer<typeof StudentQuestionSchema>;
 export const StudentActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
+  /** CONTROLLED: the work is answered in the focus page (015/FR-006, FR-007). */
+  executionMode: ExecutionModeSchema,
+  /** The AI help per student in this activity (015/FR-006); 0 when off. */
+  aiHelp: ActivityAiHelpSchema,
   title: z.string(),
   /** First 160 characters of the instructions, as plain text. */
   summary: z.string(),
@@ -95,6 +107,8 @@ export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answ
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
+  /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
+  aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
   instructions: z.string().nullable(),
   serverNow: IsoDateTimeSchema,
   /** In position order. */
@@ -151,7 +165,7 @@ export const SaveAnswersRequestSchema = z.strictObject({
 });
 export type SaveAnswersRequest = z.infer<typeof SaveAnswersRequestSchema>;
 
-export const SaveAnswerOutcomeSchema = z.enum(["SAVED", "UNCHANGED", "CONFLICT"]);
+export const SaveAnswerOutcomeSchema = z.enum(["SAVED", "UNCHANGED", "CONFLICT", "TYPING_LIMIT_EXCEEDED"]);
 export type SaveAnswerOutcome = z.infer<typeof SaveAnswerOutcomeSchema>;
 
 export const SaveAnswersResultSchema = z.strictObject({
@@ -162,6 +176,11 @@ export const SaveAnswersResultSchema = z.strictObject({
       z.strictObject({ questionId: UuidSchema, outcome: z.literal("UNCHANGED"), revision: z.int().min(1) }),
       /** Another tab saved first: the server's answer replaces the tab's copy. */
       z.strictObject({ questionId: UuidSchema, outcome: z.literal("CONFLICT"), revision: z.int().min(1), answer: AnswerSchema }),
+      /**
+       * CONTROLLED mode (015/FR-013c, research F7): the answer grew faster than typing allows; the
+       * stored answer and its revision (0 when none) stay as they were.
+       */
+      z.strictObject({ questionId: UuidSchema, outcome: z.literal("TYPING_LIMIT_EXCEEDED"), revision: z.int().min(0) }),
     ]),
   ),
 });

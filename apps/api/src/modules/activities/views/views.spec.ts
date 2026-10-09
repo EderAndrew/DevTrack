@@ -81,6 +81,9 @@ const facts = (overrides: Partial<AssignmentFacts> = {}): AssignmentFacts => ({
 const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActivityDetailInput => ({
   id: id(100),
   type: "ASSIGNMENT",
+  executionMode: "CONTROLLED",
+  aiHelpAllowance: 3,
+  aiHelpUsed: 1,
   title: "Sistema Bancário",
   instructions: "Leia com atenção.",
   class: { id: id(200), name: "POO 2026" },

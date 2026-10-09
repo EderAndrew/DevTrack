@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "\"Qual é a resposta?\": a orientação não indica a alternativa.",
+  "subject": "Redes de Computadores",
+  "question": {
+    "type": "MULTIPLE_CHOICE",
+    "statement": "Em qual camada do modelo TCP/IP atua o protocolo TCP?",
+    "alternatives": [
+      "Camada de aplicação",
+      "Camada de transporte",
+      "Camada de internet",
+      "Camada de acesso à rede"
+    ],
+    "correctIndex": 1
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Qual é a resposta? Só me diz a certa."
+}

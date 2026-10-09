@@ -12,6 +12,8 @@ export const summary = (overrides: Partial<StudentActivitySummary> = {}): Studen
   return {
     id: `aaaaaaaa-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
     type: "ASSIGNMENT",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
     title: `Atividade ${sequence}`,
     summary: "Resolva os exercícios de herança.",
     class: { id: "11111111-1111-4111-8111-111111111111", name: "POO Noturno" },
@@ -68,6 +70,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
   const { result: _result, ...base } = summary({ title: "Lista de herança", totalGrade: "1.00" });
   return {
     ...base,
+    aiHelp: { allowance: 0, used: 0 },
     id: "bbbbbbbb-0000-4000-8000-000000000001",
     instructions: "Responda com suas palavras.",
     serverNow: "2026-10-02T12:00:00.000Z",

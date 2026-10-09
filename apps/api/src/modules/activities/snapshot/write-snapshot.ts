@@ -1,4 +1,4 @@
-import { centsToGrade, type ActivityType, type LatePolicy } from "@repo/contracts";
+import { type AiHelpAllowance, centsToGrade, type ActivityType, type ExecutionMode, type LatePolicy } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ActivitySnapshot } from "./snapshot";
 
@@ -16,6 +16,9 @@ export interface NewActivity {
   sourceWorkId: string | null;
   sourceSubjectId: string | null;
   outOfScopeTopicCount: number;
+  /** ASSIGNMENT only beyond NORMAL and 0 (CHECK by type, 015 research F2). */
+  executionMode: ExecutionMode;
+  aiHelpAllowance: AiHelpAllowance;
   idempotencyKey: string;
 }
 

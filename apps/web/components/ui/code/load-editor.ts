@@ -29,6 +29,11 @@ export interface CodeEditorSetup {
   readOnly: boolean
   /** ARIA and other attributes of the editable content (research L7). */
   attributes: Record<string, string>
+  /**
+   * A CONTROLLED attempt (015 research F6): paste, drop, copy and cut do nothing in the editor (the
+   * page's own listener records each gesture). Fixed for the editor's life.
+   */
+  blockClipboard?: boolean
   /** The whole text after each change typed, pasted, cut, undone or redone; never for `setValue`. */
   onChange: (value: string) => void
 }
@@ -91,6 +96,13 @@ function editingExtensions(): Extension[] {
   ]
 }
 
+/** Every clipboard gesture refused before CodeMirror's own handlers (015/FR-013a, FR-013b). */
+const refuse = (event: Event) => {
+  event.preventDefault();
+  return true;
+};
+const clipboardBlock = (): Extension => EditorView.domEventHandlers({ paste: refuse, drop: refuse, copy: refuse, cut: refuse });
+
 const editableExtensions = (editable: boolean, readOnly: boolean): Extension[] => [
   EditorView.editable.of(editable),
   EditorState.readOnly.of(readOnly || !editable),
@@ -113,6 +125,7 @@ export function createCodeEditor(setup: CodeEditorSetup): CodeEditorInstance {
       selection,
       extensions: [
         ...editingExtensions(),
+        setup.blockClipboard ? clipboardBlock() : [],
         grammar.of(setup.grammar ?? []),
         editable.of(editableExtensions(setup.editable, setup.readOnly)),
         attributes.of(EditorView.contentAttributes.of(setup.attributes)),

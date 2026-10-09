@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "description": "Aluno pede revisão de uma resposta equivocada: comenta o raciocínio sem dar a certa.",
+  "subject": "Sistemas Operacionais",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "Explique a diferença entre processo e thread em sistemas operacionais.",
+    "expectedAnswer": "Um processo é um programa em execução com seu próprio espaço de memória, enquanto uma thread é uma linha de execução dentro de um processo que compartilha a memória com as outras threads do mesmo processo.",
+    "explanation": "Threads são mais leves para criar e trocar, mas compartilhar memória exige sincronização."
+  },
+  "studentAnswer": {
+    "text": "Processo e thread são a mesma coisa, só muda o nome."
+  },
+  "studentQuestion": "Minha resposta está boa?"
+}

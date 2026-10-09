@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "Aluno sem saber começar: passos e armadilha, sem código.",
+  "subject": "Programação em C++",
+  "question": {
+    "type": "CODE",
+    "languageKey": "cpp",
+    "statement": "Escreva a função maior(const std::vector<int>& v) que devolve o maior elemento do vetor (não vazio).",
+    "starterCode": "int maior(const std::vector<int>& v) {\n    // implemente\n}",
+    "expectedSolution": "int maior(const std::vector<int>& v) {\n    int resposta = v[0];\n    for (int x : v) {\n        if (x > resposta) resposta = x;\n    }\n    return resposta;\n}"
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Não sei por onde começar."
+}

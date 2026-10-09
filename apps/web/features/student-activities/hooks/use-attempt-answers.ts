@@ -34,6 +34,11 @@ export interface AttemptAnswers {
   dismissConflict: () => void;
   /** Answers on screen not confirmed by the server yet. */
   pendingCount: number;
+  /**
+   * CONTROLLED mode (015/FR-013c): the server refused this answer as grown faster than typing; it
+   * stays on screen, unsaved, until a later save of the question goes through.
+   */
+  typingRefused: (questionId: string) => boolean;
   /** For the submission: stops the scheduled save and returns the unsent answers with their revisions. */
   takePending: () => PendingAnswer[];
 }
@@ -49,6 +54,7 @@ interface State {
   offline: boolean;
   error: ApiError | null;
   conflict: boolean;
+  typingRefused: Set<string>;
 }
 
 /**
@@ -98,8 +104,15 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
           current.answers.set(item.questionId, item.answer);
           current.dirty.delete(item.questionId);
           current.conflict = true;
+        } else if (item.outcome === "TYPING_LIMIT_EXCEEDED") {
+          // Kept on screen, not sent again by itself: the student types it (a resend would be refused too).
+          current.typingRefused.add(item.questionId);
+          if (sentAnswer && sameAnswer(current.answers.get(item.questionId) ?? null, sentAnswer)) current.dirty.delete(item.questionId);
         } else if (sentAnswer && sameAnswer(current.answers.get(item.questionId) ?? null, sentAnswer)) {
           current.dirty.delete(item.questionId);
+          current.typingRefused.delete(item.questionId);
+        } else {
+          current.typingRefused.delete(item.questionId);
         }
       }
       current.saved = true;
@@ -175,6 +188,7 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
       render();
     }, [render]),
     pendingCount: view.pendingCount,
+    typingRefused: (questionId) => view.typingRefused.has(questionId),
     takePending: useCallback(() => {
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
@@ -192,6 +206,7 @@ function viewOf(state: State) {
     error: state.error,
     conflict: state.conflict,
     pendingCount: state.dirty.size,
+    typingRefused: new Set(state.typingRefused),
   };
 }
 
@@ -206,7 +221,7 @@ function initialState(userId: string, activityId: string, serverAnswers: readonl
     revisions.set(pending.questionId, pending.baseRevision);
     dirty.add(pending.questionId);
   }
-  return { answers, revisions, dirty, saving: false, again: false, saved: false, offline: false, error: null, conflict: false };
+  return { answers, revisions, dirty, saving: false, again: false, saved: false, offline: false, error: null, conflict: false, typingRefused: new Set() };
 }
 
 /** The dirty answers with the revision the tab last saw (`0` for none). */

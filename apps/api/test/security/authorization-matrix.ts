@@ -112,6 +112,9 @@ export const EXERCISE_POINTS_TEACHER = ["exercicios.corrigir", "ranking.visualiz
 /** 013: the student sees the ranking of their classes. */
 export const EXERCISE_POINTS_STUDENT = ["ranking.turma.visualizar"] as const satisfies PermissionKey[];
 
+/** 015: the student asks for and reads the AI help of a work. */
+export const WORK_HELP_STUDENT = ["ia.ajuda.pedir"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -125,7 +128,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
   TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER],
-  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */
@@ -298,9 +301,20 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/attempts", access: "atividades.proprias.responder" },
   { method: "POST", path: "/me/activities/:activityId/attempts/:number/complete", access: "atividades.proprias.responder" },
   { method: "GET", path: "/me/activities/:activityId/attempts/:number", access: "atividades.proprias.visualizar" },
+  // 015 — the controlled mode's events of the own attempt (contracts/permissions.md).
+  { method: "POST", path: "/me/activities/:activityId/attempt/events", access: "atividades.proprias.responder" },
+  { method: "GET", path: "/me/activities/:activityId/attempt/integrity", access: "atividades.proprias.visualizar" },
+  { method: "POST", path: "/me/activities/:activityId/attempt/help", access: "ia.ajuda.pedir" },
+  { method: "GET", path: "/me/activities/:activityId/attempt/help", access: "ia.ajuda.pedir" },
   // 013 — the class ranking of practice points (contracts/permissions.md).
   { method: "GET", path: "/me/classes/:classId/ranking", access: "ranking.turma.visualizar" },
   { method: "GET", path: "/classes/:classId/ranking", access: "ranking.visualizar" },
+  // 015 — the teacher's apply and edit forms ask whether the AI help can be turned on (contracts/permissions.md).
+  { method: "GET", path: "/work-help/availability", access: "atividades.aplicar" },
+  // 015/US4 — the controlled mode's records and the AI help of an attempt (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/integrity", access: "entregas.visualizar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity", access: "entregas.visualizar" },
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help", access: "entregas.visualizar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

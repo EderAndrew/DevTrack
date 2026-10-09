@@ -358,3 +358,103 @@ describe("014/US2 AttemptReview — código colorido", () => {
     expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
   });
 });
+
+describe("015/US4 registros do modo controlado e ajudas da IA na correção", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const controlled = gradingActivity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } });
+  const timeline = {
+    events: [
+      { type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:00:00.000Z", clientOccurredAt: null, buffered: false },
+      { type: "SCREEN_RETURNED", questionPosition: null, recordedAt: "2026-10-02T12:02:00.000Z", clientOccurredAt: null, buffered: false },
+      { type: "PASTE_BLOCKED", questionPosition: 1, recordedAt: "2026-10-02T12:03:00.000Z", clientOccurredAt: null, buffered: false },
+      { type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:05:00.000Z", clientOccurredAt: null, buffered: false },
+    ],
+    intervals: [
+      { kind: "SCREEN", from: "2026-10-02T12:00:00.000Z", to: "2026-10-02T12:02:00.000Z", seconds: 120, open: false },
+      { kind: "SCREEN", from: "2026-10-02T12:05:00.000Z", to: "2026-10-02T12:05:30.000Z", seconds: 30, open: true },
+    ],
+    totals: {
+      screenExits: 2,
+      timeAwaySeconds: 150,
+      fullscreenExits: 0,
+      disconnections: 0,
+      offlineSeconds: 0,
+      clipboardBlocks: 1,
+      typingLimitRejections: 0,
+      fullscreenUnavailable: false,
+      detectionUnavailable: false,
+    },
+  };
+  const helps = {
+    allowance: 3,
+    used: 1,
+    items: [
+      {
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+        questionPosition: 1,
+        question: "Como começo? <b>agora</b>",
+        status: "DELIVERED",
+        message: "Pense no que a classe protege.",
+        example: { code: "int dobro(int x) { return x * 2; }" },
+        reasonCode: null,
+        requestedAt: "2026-10-02T12:04:00.000Z",
+        resolvedAt: "2026-10-02T12:04:05.000Z",
+      },
+      {
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+        questionPosition: 1,
+        question: "Qual é a resposta?",
+        status: "BLOCKED",
+        message: null,
+        example: null,
+        reasonCode: "EXPECTED_ANSWER_OVERLAP",
+        requestedAt: "2026-10-02T12:06:00.000Z",
+        resolvedAt: "2026-10-02T12:06:05.000Z",
+      },
+    ],
+  };
+  const routes = {
+    [`GET ${ACTIVITY_PATH}`]: json(200, controlled),
+    [`GET ${ATTEMPT_PATH}/integrity`]: json(200, timeline),
+    [`GET ${ATTEMPT_PATH}/help`]: json(200, helps),
+  };
+
+  it("015/US4-2 015/FR-025 a linha do tempo com horário, evento e duração, e o aviso de que uma saída não significa uso indevido", async () => {
+    const { container } = setup(routes);
+    const section = (await screen.findByRole("heading", { name: "Registros do modo controlado" })).closest("section")!;
+    expect(section.textContent).toContain("Registros de saída da tela. Uma saída não significa, sozinha, uso indevido.");
+    const table = await within(section).findByRole("table", { name: "Eventos da tentativa, no horário do servidor." });
+    const rows = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").slice(1).map((cell) => cell.textContent));
+    expect(rows).toEqual([
+      ["Saiu da tela", "2 min"],
+      ["Voltou à tela", "—"],
+      ["Colar bloqueado · questão 2", "—"],
+      ["Saiu da tela", "30 s (sem retorno registrado)"],
+    ]);
+    expect(section.textContent).toContain("2 (2 min 30 s fora)");
+    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b|suspeit/i);
+    await expectNoA11yViolations(container);
+  });
+
+  it("015/US4-3 015/FR-025 em cada questão, as perguntas, as orientações e o status; o total usado", async () => {
+    const { container } = setup(routes);
+    const help = await screen.findByRole("region", { name: "Ajuda da IA na questão 2" });
+    expect(within(help).getByText("Pergunta do aluno: Como começo? <b>agora</b>")).toBeTruthy();
+    expect(within(help).getByText("Orientação: Pense no que a classe protege.")).toBeTruthy();
+    expect(within(help).getByText("Entregue")).toBeTruthy();
+    expect(within(help).getByText("Bloqueada pela verificação")).toBeTruthy();
+    expect(help.querySelector("pre")?.textContent).toContain("return x * 2;");
+    expect(help.querySelector("b")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Ajuda da IA na questão 1" })).toBeNull();
+    expect(screen.getByText("1 de 3")).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("trabalho NORMAL sem ajuda: nenhum registro nem ajuda consultados", async () => {
+    const { api } = setup();
+    expect(await screen.findByRole("heading", { name: /Tentativa de/ })).toBeTruthy();
+    expect(screen.queryByText("Registros do modo controlado")).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/integrity") || call.url.endsWith("/help"))).toBe(false);
+  });
+});
+

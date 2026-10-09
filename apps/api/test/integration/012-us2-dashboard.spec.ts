@@ -166,6 +166,9 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
     expect(item).toEqual({
       id: lateAssignment.id,
       type: "ASSIGNMENT",
+      // 015: the mode and the AI help, NORMAL and none as in 012.
+      executionMode: "NORMAL",
+      aiHelp: { allowance: 0 },
       title: "Trabalho atrasado",
       summary: "Entregar o diagrama de classes.",
       class: { id: classA.id, name: "POO 2026.2" },

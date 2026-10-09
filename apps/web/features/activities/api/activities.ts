@@ -3,11 +3,15 @@ import type {
   CreateActivityRequest,
   ExercisePage,
   GradeSubmissionRequest,
+  HelpAvailability,
+  IntegritySummaryList,
+  IntegrityTimeline,
   MarkExerciseResultsRequest,
   ScopeCheck,
   TeacherActivity,
   TeacherActivityList,
   TeacherAttempt,
+  TeacherHelpState,
   UpdateActivityRequest,
   WorkPage,
 } from "@repo/contracts";
@@ -29,6 +33,10 @@ export const activitiesApi = {
   cancel: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/cancel`, {}),
   /** The result to the class, the whole activity at once (FR-006). */
   release: (classId: string, activityId: string) => apiClient.post<TeacherActivity>(`${base(classId)}/${activityId}/release`, {}),
+  /** 015: whether a Trabalho can be applied or edited with the AI help now (research F3). */
+  helpAvailability: () => apiClient.get<HelpAvailability>("/work-help/availability"),
+  /** 015: per student with an attempt, the controlled mode's counts and durations (US4). */
+  integritySummary: (classId: string, activityId: string) => apiClient.get<IntegritySummaryList>(`${base(classId)}/${activityId}/integrity`),
 };
 
 const attemptPath = (classId: string, activityId: string, attemptId: string) => `${base(classId)}/${activityId}/attempts/${attemptId}`;
@@ -45,6 +53,11 @@ export const attemptsApi = {
   /** The saved answers become a late submission (FR-006b). */
   accept: (classId: string, activityId: string, attemptId: string) =>
     apiClient.post<TeacherAttempt>(`${attemptPath(classId, activityId, attemptId)}/accept-submission`, {}),
+  /** 015: the attempt's controlled-mode events, intervals and totals (US4). */
+  integrity: (classId: string, activityId: string, attemptId: string) =>
+    apiClient.get<IntegrityTimeline>(`${attemptPath(classId, activityId, attemptId)}/integrity`),
+  /** 015: the attempt's requests of AI help per question (US4). */
+  help: (classId: string, activityId: string, attemptId: string) => apiClient.get<TeacherHelpState>(`${attemptPath(classId, activityId, attemptId)}/help`),
 };
 
 /**

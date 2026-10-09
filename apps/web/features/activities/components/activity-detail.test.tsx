@@ -23,7 +23,11 @@ const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 
 function setup(routes: Parameters<typeof routedFetch>[0] = {}, canApply = true, canRelease = false) {
-  const api = routedFetch({ [`GET ${PATH}`]: json(200, activity()), ...routes });
+  const api = routedFetch({
+    [`GET ${PATH}`]: json(200, activity()),
+    "GET /api/work-help/availability": json(200, { available: true, reason: null }),
+    ...routes,
+  });
   vi.stubGlobal("fetch", api.fetch);
   const view = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply={canApply} canRelease={canRelease} />);
   return { ...view, api, user: userEvent.setup() };
@@ -127,6 +131,9 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
       field(EDIT_FIELD_IDS.instructions),
       field(EDIT_FIELD_IDS.deadline),
       screen.getByRole("radio", { name: "Não aceitar" }),
+      // 015: a work nobody started keeps its mode and AI help editable.
+      screen.getByRole("checkbox", { name: "Modo controlado" }),
+      screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }),
       screen.getByRole("button", { name: "Salvar alterações" }),
     ]);
   });
@@ -262,3 +269,148 @@ describe("014/US2 ActivityDetail — gabarito com o código colorido", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("015/US1 ActivityDetail — modo controlado e ajuda da IA do Trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const helpBox = () => screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
+  const controlledBox = () => screen.getByRole("checkbox", { name: "Modo controlado" }) as HTMLInputElement;
+  const started = () =>
+    activity({
+      executionMode: "CONTROLLED",
+      aiHelp: { allowance: 3 },
+      roster: [{ ...activity().roster[0]!, status: "IN_PROGRESS", attemptId: ATTEMPT_ID }],
+    });
+
+  it("015/FR-006 015/US1-1 mostra \"Modo controlado\" e \"Ajuda da IA\" por texto; nada para um trabalho normal", async () => {
+    setup({ [`GET ${PATH}`]: json(200, activity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } })) }, false);
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    const options = screen.getByRole("list", { name: "Como os alunos respondem" });
+    expect(within(options).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Modo controlado", "Ajuda da IA: 3 por aluno"]);
+  });
+
+  it("015/FR-006 um trabalho normal sem ajuda não mostra as marcas", async () => {
+    setup({}, false);
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    expect(screen.queryByRole("list", { name: "Como os alunos respondem" })).toBeNull();
+  });
+
+  it("015/US1-4 liga as opções antes do primeiro início: só o que mudou, com a versão lida", async () => {
+    const { api, user } = setup({ [`PATCH ${PATH}`]: json(200, activity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 }, version: 3 })) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await waitFor(() => expect(helpBox().disabled).toBe(false));
+    await user.click(controlledBox());
+    await user.click(helpBox());
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByText("Alterações salvas.")).toBeTruthy();
+    expect(api.writes()[0]!.body).toEqual({ version: 2, executionMode: "CONTROLLED", aiHelpAllowance: 3 });
+  });
+
+  it("015/US1-4 depois que um aluno iniciou: opções travadas, com o motivo, e fora do pedido", async () => {
+    const { api, user } = setup({ [`GET ${PATH}`]: json(200, started()), [`PATCH ${PATH}`]: json(200, started()) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    const reason = screen.getByText("Não é possível mudar depois que um aluno iniciou.");
+    for (const box of [controlledBox(), helpBox()]) {
+      expect(box.disabled).toBe(true);
+      expect(box.checked).toBe(true);
+      expect(box.getAttribute("aria-describedby")!.split(" ")).toContain(reason.id);
+    }
+    await user.clear(field(EDIT_FIELD_IDS.title));
+    await user.type(field(EDIT_FIELD_IDS.title), "Outro título");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await screen.findByText("Alterações salvas.");
+    expect(api.writes()[0]!.body).toEqual({ version: 2, title: "Outro título" });
+  });
+
+  it("015/US1-4 a recusa do servidor (409 ACTIVITY_ALREADY_STARTED) aparece no resumo", async () => {
+    const { user } = setup({
+      [`PATCH ${PATH}`]: apiError(409, "ACTIVITY_ALREADY_STARTED", "Não é possível mudar depois que um aluno iniciou."),
+    });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await user.click(controlledBox());
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    const summary = (await screen.findByText("Não foi possível salvar")).closest("[role=group]") as HTMLElement;
+    expect(within(summary).getByText("Não é possível mudar depois que um aluno iniciou.")).toBeTruthy();
+  });
+
+  it("015/US1-3 ajuda indisponível: quem já tem a ajuda pode desligá-la; quem não tem não pode ligar", async () => {
+    const unavailable = json(200, { available: false, reason: "AGENT_DISABLED" });
+    const { api, user } = setup({
+      "GET /api/work-help/availability": unavailable,
+      [`GET ${PATH}`]: json(200, activity({ aiHelp: { allowance: 3 } })),
+      [`PATCH ${PATH}`]: json(200, activity({ version: 3 })),
+    });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await screen.findByText("A ajuda da IA está indisponível: o administrador ainda não ativou a ajuda da IA.");
+    expect(helpBox().disabled).toBe(false);
+    await user.click(helpBox());
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await screen.findByText("Alterações salvas.");
+    expect(api.writes()[0]!.body).toEqual({ version: 2, aiHelpAllowance: 0 });
+    // Saved without the help: it can't be turned on again while unavailable.
+    await waitFor(() => expect(helpBox().disabled).toBe(true));
+  });
+
+  it("015/FR-002 o Exercício não tem as opções na edição", async () => {
+    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    expect(screen.queryByRole("group", { name: "Como os alunos respondem" })).toBeNull();
+  });
+
+  it("015/US1-4 SC-012 opções travadas sem violações de acessibilidade", async () => {
+    const { container } = setup({ [`GET ${PATH}`]: json(200, started()) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await expectNoA11yViolations(container);
+  });
+});
+
+describe("015/US4 colunas do modo controlado e das ajudas na lista de alunos", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const STUDENT = "cccccccc-cccc-4ccc-8ccc-ccccccccccc1";
+  const ATTEMPT = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+  const started = activity({
+    executionMode: "CONTROLLED",
+    aiHelp: { allowance: 3 },
+    roster: [{ ...activity().roster[0]!, status: "IN_PROGRESS", attemptId: ATTEMPT, aiHelpUsed: 2 }],
+  });
+  const summary = {
+    items: [
+      {
+        studentUserId: STUDENT,
+        attemptId: ATTEMPT,
+        screenExits: 2,
+        timeAwaySeconds: 300,
+        fullscreenExits: 1,
+        disconnections: 1,
+        offlineSeconds: 45,
+        clipboardBlocks: 3,
+        typingLimitRejections: 0,
+        fullscreenUnavailable: true,
+        detectionUnavailable: false,
+      },
+    ],
+  };
+
+  it("015/US4-1 015/FR-024 saídas com tempo fora, quedas, bloqueios, tela cheia indisponível e \"2 de 3\" ajudas", async () => {
+    const { container } = setup({ [`GET ${PATH}`]: json(200, started), [`GET ${PATH}/integrity`]: json(200, summary) });
+    const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
+    for (const header of ["Saídas da tela", "Quedas de conexão", "Copiar/colar bloqueados", "Ajudas"]) {
+      expect(within(table).getByRole("columnheader", { name: header })).toBeTruthy();
+    }
+    await waitFor(() => expect(within(table).getByText("2 (5 min fora) · Tela cheia indisponível")).toBeTruthy());
+    expect(within(table).getByText("1 (45 s)")).toBeTruthy();
+    expect(within(table).getByText("3")).toBeTruthy();
+    expect(within(table).getByText("2 de 3")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b|suspeit/i);
+    await expectNoA11yViolations(container);
+  });
+
+  it("trabalho NORMAL sem ajuda: nenhuma coluna nova e nada consultado", async () => {
+    const { api } = setup();
+    const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
+    expect(within(table).queryByRole("columnheader", { name: "Saídas da tela" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Ajudas" })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/integrity"))).toBe(false);
+  });
+});
+

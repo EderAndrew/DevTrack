@@ -97,7 +97,20 @@ do aluno, no gabarito depois da conclusão, na tentativa que o professor revisa 
 na leitura dos bancos. A gramática de cada linguagem é um dado do catálogo; as cores vêm de oito
 tokens do design system, legíveis nos temas claro e escuro e trocadas pelas cores do sistema no
 alto contraste; o texto digitado nunca muda e, se a parte de realce não carregar, o editor continua
-funcionando sem cores. As telas sem código não baixam o editor.
+funcionando sem cores. As telas sem código não baixam o editor. A **fase 015 — trabalho em modo controlado com
+ajuda da IA** dá ao professor duas opções independentes ao aplicar um Trabalho, fixas depois que um
+aluno inicia. No **modo controlado**, o aluno responde numa tela sem o menu do portal, em tela cheia
+quando o dispositivo permite; trocar de aba, mudar de janela, sair da tela cheia e tentar sair da
+página ficam registrados com o horário do servidor, e copiar, recortar, colar e arrastar texto ficam
+bloqueados e registrados. O servidor também recusa uma resposta que cresce mais rápido do que se
+digita. Nada bloqueia, entrega ou muda a nota da tentativa: o professor vê na correção a linha do
+tempo com as saídas e a duração de cada uma, e decide o que elas significam. Com a **ajuda da IA**,
+cada aluno pode pedir 3 orientações no trabalho inteiro. O agente `work-helper` vê só o que o aluno
+vê, nunca o gabarito, e uma verificação determinística bloqueia a orientação que cite uma
+alternativa ou se pareça com a resposta esperada antes de ela chegar ao aluno; perguntas fora do
+assunto, orientações bloqueadas e falhas da IA não gastam ajuda. O professor vê cada pergunta e
+orientação na correção, e o aluno vê as próprias ajudas e saídas no histórico depois da entrega. A
+ajuda só fica disponível depois que um modelo passa no release gate da tarefa `work-help`.
 
 ## Pré-requisitos
 
@@ -127,6 +140,7 @@ funcionando sem cores. As telas sem código não baixam o editor.
 | `specs/012-student-portal/` | O mesmo para a fase 012 (portal do aluno e atividades da turma; decisões P1–P24) |
 | `specs/013-exercise-points-ranking/` | O mesmo para a fase 013 (pontos dos exercícios e ranking da turma; decisões K1–K18) |
 | `specs/014-code-syntax-highlighting/` | O mesmo para a fase 014 (realce de sintaxe do código; decisões L1–L14) |
+| `specs/015-controlled-work-ai-help/` | O mesmo para a fase 015 (modo controlado e ajuda da IA nos trabalhos; decisões F1–F18) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -179,6 +193,8 @@ OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api e
                                                 # etapa de liberação do gerador de exercícios (010), com o mesmo formato
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:works
                                                 # etapa de liberação do gerador de trabalhos (011), com o mesmo formato
+OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:help
+                                                # etapa de liberação da ajuda da IA (015), com a latência de cada caso
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
@@ -237,6 +253,12 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
 - Agente de ementa (007): o `curriculum-agent` é registrado desativado: o administrador o ativa em
   "Operação de IA" depois da etapa de liberação, que aprova um modelo do catálogo para a tarefa.
   `RATE_LIMIT_CURRICULUM_AI_PER_HOUR` (10) limita os pedidos por professor.
+- Modo controlado e ajuda da IA (015): `CONTROLLED_TYPING_BURST_CHARS` (400) e
+  `CONTROLLED_TYPING_CHARS_PER_SECOND` (15) definem quanto uma resposta pode crescer num salvamento;
+  `RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE` (120) limita os eventos por aluno,
+  `RATE_LIMIT_WORK_HELP_PER_HOUR` (20) os pedidos de ajuda por aluno e
+  `AI_WORK_HELP_EXECUTIONS_PER_HOUR` (1500) as execuções do `work-helper`, somando todos os alunos. O
+  `work-helper` é registrado desativado, como os demais agentes.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

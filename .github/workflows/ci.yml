@@ -19,7 +19,8 @@ jobs:
   ci:
     name: Lint, tipos, build e testes
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The full suite reached ~20 min with 015 (2026-10-08); keep headroom over it.
+    timeout-minutes: 40
     services:
       # Test database of the API suite (FR-036); same values as apps/api/.env.test.example.
       postgres:

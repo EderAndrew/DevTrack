@@ -13,9 +13,11 @@ export interface ActivityTypeDefinition {
   attempts: "SINGLE" | "PRACTICE";
   /** Bank items an activity of this type takes. */
   sourceCount: { min: number; max: number };
+  /** The 015 options: CONTROLLED mode and the AI help (ASSIGNMENT); an EXERCISE is always NORMAL with none (015/FR-002). */
+  workOptions: boolean;
 }
 
 export const ACTIVITY_TYPES: { readonly [T in ActivityType]: ActivityTypeDefinition } = {
-  ASSIGNMENT: { scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 } },
-  EXERCISE: { scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 } },
+  ASSIGNMENT: { scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true },
+  EXERCISE: { scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false },
 };

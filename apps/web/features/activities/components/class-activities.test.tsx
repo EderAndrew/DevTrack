@@ -80,3 +80,28 @@ describe("013/US1 ClassActivities — Exercício na lista da turma", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("015/US1 ClassActivities — opções do Trabalho na lista", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("015/FR-006 015/US1-1 o modo controlado e a ajuda da IA aparecem por texto na linha da atividade", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        [PATH]: json(200, {
+          items: [
+            summary({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } }),
+            summary({ id: "22222222-2222-4222-8222-222222222223", title: "Normal" }),
+          ],
+        }),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<ClassActivities classId={CLASS_ID} canApply />);
+    const rows = within(await screen.findByRole("table")).getAllByRole("row").slice(1);
+    expect(within(rows[0]!).getByText("Modo controlado")).toBeTruthy();
+    expect(within(rows[0]!).getByText("Ajuda da IA: 3 por aluno")).toBeTruthy();
+    expect(within(rows[1]!).queryByText("Modo controlado")).toBeNull();
+    expect(within(rows[1]!).queryByText(/Ajuda da IA/)).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+});

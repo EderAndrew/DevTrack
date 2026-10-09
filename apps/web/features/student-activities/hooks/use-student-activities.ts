@@ -2,6 +2,7 @@
 
 import type { SubmitAttemptRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { integrityApi } from "@/features/controlled-attempt/api/integrity";
 import { isOffline, type StudentActivityListFilters, studentActivitiesApi } from "../api/student-activities";
 
 export { isOffline };
@@ -13,6 +14,7 @@ export const studentActivitiesKeys = {
   list: (filters: StudentActivityListFilters) => [...studentActivitiesKeys.all, "list", filters.status, filters.type] as const,
   detail: (activityId: string) => [...studentActivitiesKeys.all, "detail", activityId] as const,
   attempt: (activityId: string, number: number) => [...studentActivitiesKeys.all, "attempt", activityId, number] as const,
+  integrity: (activityId: string) => [...studentActivitiesKeys.all, "integrity", activityId] as const,
 };
 
 export const useStudentDashboard = () =>
@@ -30,6 +32,10 @@ export const useStudentActivities = (filters: StudentActivityListFilters) =>
 /** One activity as the student sees it, with their attempt (012 US3). */
 export const useStudentActivity = (activityId: string) =>
   useQuery({ queryKey: studentActivitiesKeys.detail(activityId), queryFn: () => studentActivitiesApi.get(activityId) });
+
+/** The student's own records of a CONTROLLED attempt, read after the submission (015/US5, FR-027). */
+export const useOwnIntegrity = (activityId: string, enabled: boolean) =>
+  useQuery({ queryKey: studentActivitiesKeys.integrity(activityId), queryFn: () => integrityApi.own(activityId), enabled });
 
 /** "Iniciar atividade": the answer is the activity with the attempt; the lists change status. */
 export function useStartAttempt(activityId: string) {

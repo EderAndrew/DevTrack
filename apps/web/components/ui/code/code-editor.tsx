@@ -26,6 +26,11 @@ type CodeEditorProps = {
   readOnly?: boolean
   /** Fixed height with a vertical scroll bar instead of growing with the code (the student's answer). */
   fixedHeight?: boolean
+  /**
+   * A CONTROLLED attempt (015 research F6): paste, drop, copy and cut do nothing, in the textarea
+   * and in CodeMirror; the typed text is untouched. Fixed while the editor is mounted.
+   */
+  blockClipboard?: boolean
   className?: string
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -53,6 +58,7 @@ function CodeEditor({
   disabled = false,
   readOnly = false,
   fixedHeight = false,
+  blockClipboard = false,
   className,
   "aria-labelledby": labelledBy,
   "aria-label": label,
@@ -149,6 +155,7 @@ function CodeEditor({
       editable: !off,
       readOnly,
       attributes,
+      blockClipboard,
       onChange: (next) => latest.current.onChange(next),
     })
     appliedAttributes.current = attributes
@@ -217,6 +224,7 @@ function CodeEditor({
           disabled={off}
           readOnly={readOnly}
           fixedHeight={fixedHeight}
+          blockClipboard={blockClipboard}
           aria-labelledby={labelledBy}
           aria-label={label}
           aria-describedby={describedByIds}
@@ -251,6 +259,7 @@ function PlainEditor({
   disabled,
   readOnly,
   fixedHeight,
+  blockClipboard,
   ref,
   ...aria
 }: {
@@ -260,6 +269,7 @@ function PlainEditor({
   disabled: boolean
   readOnly: boolean
   fixedHeight: boolean
+  blockClipboard: boolean
   ref: React.Ref<HTMLTextAreaElement>
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -269,6 +279,7 @@ function PlainEditor({
   const gutter = React.useRef<HTMLDivElement>(null)
   const escaped = React.useRef(false)
   const lines = Math.max(1, value.split("\n").length)
+  const refuse = blockClipboard ? (event: React.SyntheticEvent) => event.preventDefault() : undefined
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (readOnly) return
@@ -318,6 +329,10 @@ function PlainEditor({
         wrap="off"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
+        onPaste={refuse}
+        onDrop={refuse}
+        onCopy={refuse}
+        onCut={refuse}
         onScroll={(event) => {
           if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop
         }}

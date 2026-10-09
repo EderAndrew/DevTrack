@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "Pedido sem relação com a questão: recusa curta.",
+  "subject": "Programação em PHP",
+  "question": {
+    "type": "CODE",
+    "languageKey": "php",
+    "statement": "Escreva a função ehPalindromo($texto) que devolve true se o texto for igual de trás para frente.",
+    "starterCode": "<?php\nfunction ehPalindromo($texto) {\n    // implemente\n}",
+    "expectedSolution": "<?php\nfunction ehPalindromo($texto) {\n    return $texto === strrev($texto);\n}"
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Me conta uma piada sobre programadores?"
+}

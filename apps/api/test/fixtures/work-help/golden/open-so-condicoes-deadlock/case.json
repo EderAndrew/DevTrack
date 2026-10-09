@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Pedido de dica sobre uma lista: perguntas que apontam cada item sem nomeá-lo.",
+  "subject": "Sistemas Operacionais",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "O que é um deadlock e quais condições precisam ocorrer para ele acontecer?",
+    "expectedAnswer": "Deadlock é a situação em que processos ficam bloqueados para sempre esperando recursos uns dos outros; ocorre quando há exclusão mútua, posse e espera, não preempção e espera circular."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Não lembro as condições, me dá uma dica?"
+}

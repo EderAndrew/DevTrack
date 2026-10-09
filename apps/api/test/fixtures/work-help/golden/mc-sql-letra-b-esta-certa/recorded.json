@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não posso confirmar respostas, mas vamos testar o seu raciocínio. A cláusula que você marcou serve para reunir linhas que têm o mesmo valor numa coluna, normalmente com COUNT ou SUM. Releia o enunciado e compare: ele pede para reunir linhas parecidas ou para relacionar informações que estão em tabelas diferentes? Pense em como você ligaria a tabela de pedidos à de clientes pela coluna id_cliente.",
+        "example": null
+      }
+    }
+  ]
+}

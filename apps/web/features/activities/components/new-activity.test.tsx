@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
@@ -24,9 +24,16 @@ const NO_SCOPE = { hasPlan: true, outOfScope: [] };
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 const setValue = (id: string, value: string) => fireEvent.change(field(id), { target: { value } });
 
-function setup(scope: object = NO_SCOPE, create: Response | ((body: unknown) => Response) = json(201, activity())) {
+const AVAILABLE = { available: true, reason: null };
+
+function setup(
+  scope: object = NO_SCOPE,
+  create: Response | ((body: unknown) => Response) = json(201, activity()),
+  availability: Response = json(200, AVAILABLE),
+) {
   const api = routedFetch({
     [`GET /api/classes/${CLASS_ID}`]: json(200, schoolClass()),
+    "GET /api/work-help/availability": availability,
     "GET /api/works?*": json(200, { items: [WORK], nextCursor: null }),
     "GET /api/exercises?*": json(200, { items: EXERCISES, nextCursor: null }),
     [`POST /api/classes/${CLASS_ID}/activities/scope-check`]: json(200, scope),
@@ -197,6 +204,121 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
       screen.getByRole("button", { name: "Publicar atividade" }),
       screen.getByRole("button", { name: "Voltar" }),
     ]);
+  });
+});
+
+/** Step 1 with the work, then "Continuar", up to the details form. */
+async function chooseWork(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
+  await user.click(screen.getByRole("button", { name: "Continuar" }));
+  await screen.findByRole("form", { name: "Dados da atividade" });
+}
+
+describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("015/US1-1 o Trabalho mostra \"Como os alunos respondem\" com as explicações; as duas ligadas vão no pedido", async () => {
+    const { api, user } = setup();
+    await chooseWork(user);
+    const options = screen.getByRole("group", { name: "Como os alunos respondem" });
+    const controlled = within(options).getByRole("checkbox", { name: "Modo controlado" });
+    const help = within(options).getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" });
+    expect(controlled.getAttribute("aria-describedby")).toBeTruthy();
+    expect(document.getElementById(controlled.getAttribute("aria-describedby")!)!.textContent).toBe(
+      "O aluno responde em tela cheia; saídas da tela e tentativas de copiar ou colar ficam registradas. Copiar e colar ficam bloqueados.",
+    );
+    await waitFor(() => expect((help as HTMLInputElement).disabled).toBe(false));
+    expect(document.getElementById(help.getAttribute("aria-describedby")!)!.textContent).toBe(
+      "A IA orienta sem dar a resposta. Você verá as perguntas e as orientações na correção.",
+    );
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(controlled);
+    await user.click(help);
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ executionMode: "CONTROLLED", aiHelpAllowance: 3 });
+  });
+
+  it("015/US1-2 sem mexer nas opções: NORMAL e nenhuma ajuda", async () => {
+    const { api, user } = setup();
+    await chooseWork(user);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ executionMode: "NORMAL", aiHelpAllowance: 0 });
+  });
+
+  it("015/US1-3 015/FR-004 ajuda indisponível: desabilitada com o motivo; o modo controlado continua", async () => {
+    const { user } = setup(NO_SCOPE, json(201, activity()), json(200, { available: false, reason: "AGENT_DISABLED" }));
+    await chooseWork(user);
+    const help = screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
+    const reason = await screen.findByText("A ajuda da IA está indisponível: o administrador ainda não ativou a ajuda da IA.");
+    expect(help.disabled).toBe(true);
+    expect(help.getAttribute("aria-describedby")!.split(" ")).toContain(reason.id);
+    expect((screen.getByRole("checkbox", { name: "Modo controlado" }) as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it("015/US1-3 sem modelo de IA, a ajuda também fica indisponível", async () => {
+    const { user } = setup(NO_SCOPE, json(201, activity()), json(200, { available: false, reason: "MODEL_UNAVAILABLE" }));
+    await chooseWork(user);
+    expect(await screen.findByText("A ajuda da IA está indisponível: nenhum modelo de IA está disponível agora.")).toBeTruthy();
+  });
+
+  it("015/US1-3 se a verificação falhar, a ajuda fica desabilitada e diz por quê", async () => {
+    const { user } = setup(NO_SCOPE, json(201, activity()), apiError(500, "INTERNAL_ERROR", "Erro interno."));
+    await chooseWork(user);
+    expect(await screen.findByText("A ajuda da IA está indisponível: não foi possível verificar agora.")).toBeTruthy();
+    expect((screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it("015/US1-3 a recusa do servidor (503 AI_HELP_UNAVAILABLE) aparece no resumo de erros", async () => {
+    const { user } = setup(
+      NO_SCOPE,
+      apiError(503, "AI_HELP_UNAVAILABLE", "A ajuda está indisponível agora; tente de novo em instantes."),
+    );
+    await chooseWork(user);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    const help = screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
+    await waitFor(() => expect(help.disabled).toBe(false));
+    await user.click(help);
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    const summary = (await screen.findByText("Não foi possível publicar a atividade")).closest("[role=group]") as HTMLElement;
+    expect(within(summary).getByText("A ajuda está indisponível agora; tente de novo em instantes.")).toBeTruthy();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("015/FR-002 o Exercício não tem as opções, nem no pedido", async () => {
+    const { api, user } = setup();
+    await chooseExercises(user);
+    expect(screen.queryByRole("group", { name: "Como os alunos respondem" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Modo controlado" })).toBeNull();
+    await user.type(field(NEW_ACTIVITY_FIELD_IDS.title), "Prática");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    const sent = api.writes()[1]!.body as object;
+    expect(sent).not.toHaveProperty("executionMode");
+    expect(sent).not.toHaveProperty("aiHelpAllowance");
+  });
+
+  it("015/US1-1 SC-012 passo 2 do Trabalho com as opções sem violações de acessibilidade e na ordem de Tab", async () => {
+    const { user, container } = setup();
+    await chooseWork(user);
+    const help = screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
+    await waitFor(() => expect(help.disabled).toBe(false));
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      field(NEW_ACTIVITY_FIELD_IDS.title),
+      field(NEW_ACTIVITY_FIELD_IDS.instructions),
+      screen.getByRole("radio", { name: "Publicar agora" }),
+      field(NEW_ACTIVITY_FIELD_IDS.deadline),
+      screen.getByRole("radio", { name: "Não aceitar" }),
+      screen.getByRole("checkbox", { name: "Modo controlado" }),
+      help,
+      screen.getByRole("button", { name: "Publicar atividade" }),
+      screen.getByRole("button", { name: "Voltar" }),
+    ]);
+    // Space toggles a box from the keyboard.
+    screen.getByRole("checkbox", { name: "Modo controlado" }).focus();
+    await user.keyboard(" ");
+    expect((screen.getByRole("checkbox", { name: "Modo controlado" }) as HTMLInputElement).checked).toBe(true);
   });
 });
 

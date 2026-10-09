@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "Aluno sem saber começar: perguntas que levam ao próximo passo.",
+  "subject": "Programação Orientada a Objetos",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "Explique por que é recomendado que o atributo saldo de uma classe ContaBancaria seja privado.",
+    "expectedAnswer": "Porque assim a própria classe controla todas as alterações do saldo por meio de métodos que validam as operações, evitando valores inválidos como saldo negativo indevido.",
+    "explanation": "O encapsulamento concentra as regras de negócio na classe e impede alterações diretas que quebrem a consistência do objeto."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Não sei como começar essa resposta."
+}

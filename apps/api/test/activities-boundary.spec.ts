@@ -7,7 +7,9 @@ import { API_ROOT } from "./helpers/env";
  * 012 research P1, P12, P15, P24: the class activity modules read the banks only through their own
  * snapshot readers and the pure 011 grading rules, run no code and call no AI (FR-036), never do
  * float arithmetic on grades, and answer students only through the student-view allowlist. 013 adds
- * the ranking (API and web), which reads no bank at all and counts points as integers.
+ * the ranking (API and web), which reads no bank at all and counts points as integers. 015 (research
+ * F1, F18) allows the CONTROLLED mode as a setting of a work, but its monitoring and the AI help live
+ * in `attempt-integrity` and `work-help`, which the activity modules never import (they register hooks).
  */
 
 const REPO_ROOT = resolve(API_ROOT, "../..");
@@ -21,6 +23,9 @@ const FORBIDDEN_API = [
   "apps/api/src/modules/exercise-ai",
   "apps/api/src/modules/work-ai",
   "apps/api/src/modules/ai",
+  // 015 research F1: reached only through the `HelpAvailability` and `AnswerSaveGuard` hooks.
+  "apps/api/src/modules/attempt-integrity",
+  "apps/api/src/modules/work-help",
 ];
 /** The only parts of the work bank the activities may use: the pure grading rules and the type registry. */
 const ALLOWED_WORKS = ["apps/api/src/modules/works/grading", "apps/api/src/modules/works/types"];
@@ -82,7 +87,7 @@ describe("012/FR-036 fronteiras dos módulos de atividades (research P1, P24)", 
     expect(imports(RANKING_API).filter(({ target }) => inside(target, banks)).map(describeImport)).toEqual([]);
   });
 
-  it("nenhum import dos módulos de exercícios, de IA nem da geração de trabalhos", () => {
+  it("015/FR-030 nenhum import dos módulos de exercícios, de IA, da geração de trabalhos, do modo controlado nem da ajuda", () => {
     expect(imports(ACTIVITIES_API).filter(({ target }) => inside(target, FORBIDDEN_API)).map(describeImport)).toEqual([]);
   });
 
@@ -133,26 +138,34 @@ describe("012/FR-036 nada é executado nem calculado em ponto flutuante (constit
   });
 });
 
-describe("012/SC-012 012/FR-036 nada de prova nem de modo controlado nesta feature", () => {
-  const WEB_SOURCES = ACTIVITIES_WEB.flatMap(sources).filter((file) => !/\.test\.tsx?$|test-fixtures\.ts$/.test(file));
-  /** Exam-mode monitoring that belongs to the exams spec (research P19): timer, fullscreen, focus, clipboard. */
+describe("012/SC-012 012/FR-036 015/FR-030 nada de prova; o monitoramento do modo controlado fica fora das atividades", () => {
+  /**
+   * 015 research F18: monitoring lives only in `attempt-integrity`, `features/controlled-attempt` and
+   * `components/ui/assessment`; the activity features and the AI help never detect focus, fullscreen
+   * or the clipboard themselves (the help field reuses the controlled-attempt hook).
+   */
+  const MONITORED_WEB = [...ACTIVITIES_WEB, "apps/web/features/work-help"];
+  const WEB_SOURCES = MONITORED_WEB.flatMap(sources).filter((file) => !/\.test\.tsx?$|test-fixtures\.ts$/.test(file));
+  const MONITORED_API = [...ACTIVITIES_API, "apps/api/src/modules/work-help"];
+  /** Exam-mode monitoring (012 research P19): timer, fullscreen, focus, clipboard. */
   const MONITORING = [/ExamTimer|FocusViolation|ReviewFlag/, /requestFullscreen|fullscreenchange|exitFullscreen/, /["']blur["']|onBlurCapture|hasFocus\s*\(/, /navigator\.clipboard|["'](copy|paste|cut)["']|\bon(Copy|Paste|Cut)\b/];
 
-  it("nenhuma rota do catálogo nem texto das telas de atividades fala de prova ou de modo controlado", () => {
+  it("nenhuma rota do catálogo nem texto das telas de atividades fala de prova; CONTROLLED é só uma configuração do trabalho", () => {
     const catalog = readFileSync(join(REPO_ROOT, "packages/contracts/src/endpoints.ts"), "utf8");
     const paths = [...catalog.matchAll(/path:\s*"([^"]+)"/g)].map((match) => match[1]!);
-    expect(paths.filter((path) => /exam|prova|controlled/i.test(path))).toEqual([]);
+    expect(paths.filter((path) => /exam|prova/i.test(path))).toEqual([]);
     const strings = WEB_SOURCES.flatMap((file) =>
-      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas|modo controlado|Modo controlado)\b[^"'`<>{}]*)["'`<]/g)].map(
+      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas)\b[^"'`<>{}]*)["'`<]/g)].map(
         (match) => `${file}: ${match[1]!.trim()}`,
       ),
     );
     expect(strings).toEqual([]);
-    expect(offendingLines(ACTIVITIES_API.flatMap(sources), [/["'](EXAM|CONTROLLED)["']/])).toEqual([]);
+    expect(offendingLines(MONITORED_API.flatMap(sources), [/["']EXAM["']/])).toEqual([]);
   });
 
-  it("nenhum cronômetro de prova, tela cheia, monitoramento de foco ou de área de transferência no portal do aluno", () => {
+  it("nenhum cronômetro de prova, tela cheia, monitoramento de foco ou de área de transferência nas atividades nem na ajuda", () => {
     expect(offendingLines(WEB_SOURCES, MONITORING)).toEqual([]);
+    expect(offendingLines(MONITORED_API.flatMap(sources), MONITORING)).toEqual([]);
   });
 
   it("controle: os padrões pegam o que devem", () => {

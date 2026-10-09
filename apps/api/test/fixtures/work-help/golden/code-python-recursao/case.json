@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "description": "Pergunta sobre o conceito (recursão): exemplo análogo.",
+  "subject": "Programação em Python",
+  "question": {
+    "type": "CODE",
+    "languageKey": "python",
+    "statement": "Escreva uma função recursiva fatorial(n) que devolve n! para n >= 0.",
+    "starterCode": "def fatorial(n):\n    pass",
+    "expectedSolution": "def fatorial(n):\n    if n == 0:\n        return 1\n    return n * fatorial(n - 1)",
+    "testCases": [
+      {
+        "input": "5",
+        "expectedOutput": "120",
+        "visibility": "PUBLIC"
+      }
+    ]
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Como funciona recursão? Nunca entendi."
+}

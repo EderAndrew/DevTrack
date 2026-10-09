@@ -2,7 +2,7 @@ import type { AiTaskUnavailableReason } from "@repo/contracts";
 import type { Abstract, Type } from "@nestjs/common";
 import type { AiModelConfigStatus, AiProviderStatus, AiResourceRef } from "@repo/contracts";
 import type { z } from "zod";
-import type { AiExecutionLimits } from "../../../platform/config/config.schema";
+import type { AiExecutionLimits, AppConfig } from "../../../platform/config/config.schema";
 import type { PrismaService } from "../../../platform/database/prisma.service";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ModelCapabilities, ModelCapability, ModelLifecycle, ModelMode, ModelTier } from "./model-families";
@@ -74,6 +74,11 @@ export interface AgentDefinition {
   /** What a denied tool call does to the execution (default `"fail"`, research A14). */
   onToolDenied?: "continue" | "fail";
   limits?: Partial<AiLimits>;
+  /**
+   * Executions per hour of this agent, all users together (015 research F12), in place of
+   * `AI_AGENT_EXECUTIONS_PER_HOUR`: an agent used by whole classes sizes its own cost guard.
+   */
+  hourlyLimit?: (config: AppConfig) => number;
   /** Required iff `riskLevel` is `L2_PROPOSAL` (research A13). */
   proposal?: {
     type: string;
@@ -95,12 +100,22 @@ export interface AgentDefinition {
      * that completes the execution and creates the proposal: a domain whose AI results are born
      * as drafts writes them here. The AI module knows nothing of those records. A throw rolls the
      * whole transaction back (no proposal, no records) and the execution ends FAILED.
+     * With `settle`, it returns the decision of the domain's rule.
      */
-    materialize?(tx: Tx, context: ProposalMaterializeContext): Promise<void>;
+    materialize?(tx: Tx, context: ProposalMaterializeContext): Promise<void | ProposalSettlement>;
+    /**
+     * 015 research F9: `"ON_MATERIALIZE"` — nobody reviews the proposal; `materialize` decides it by
+     * a deterministic rule and the runner records that decision in the same transaction (actor
+     * SYSTEM, `settledBy: "DOMAIN_RULE"`). `materialize` is then required and must return a decision.
+     */
+    settle?: "ON_MATERIALIZE";
   };
   /** Authorized metadata sent to the model as `context` (FR-057). */
   buildContext?(context: AiExecutionContext): Record<string, unknown>;
 }
+
+/** The decision a domain rule takes on its proposal (`proposal.settle`, 015 research F9). */
+export type ProposalSettlement = "APPROVE" | "REJECT";
 
 /** What `proposal.materialize` gets: the proposal just created and the execution it comes from. */
 export interface ProposalMaterializeContext {

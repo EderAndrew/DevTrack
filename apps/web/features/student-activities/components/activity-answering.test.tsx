@@ -563,3 +563,31 @@ describe("014/US1 a resposta de código colorida mantém tudo da 012", () => {
     await vi.waitFor(() => expect(putSources(api)).toEqual([pasted]));
   });
 });
+
+describe("015/US3 \"Pedir ajuda\" na tela de responder (modo NORMAL)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("015/US3-1 015/FR-015 com a ajuda ligada, cada questão tem \"Pedir ajuda\" e o contador do trabalho", async () => {
+    const help = json(200, { allowance: 3, used: 1, pending: false, items: [] });
+    const { user, container } = setup({
+      [GET]: json(200, started({ aiHelp: { allowance: 3, used: 1 } })),
+      [`GET /api/me/activities/${activity.id}/attempt/help`]: help,
+    });
+    expect(await screen.findByRole("button", { name: "Pedir ajuda" })).toBeTruthy();
+    expect(screen.getByText("Ajudas restantes: 2 de 3")).toBeTruthy();
+    await expectNoA11yViolations(container);
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(await screen.findByRole("button", { name: "Pedir ajuda" })).toBeTruthy();
+  });
+
+  it("015/US3-11 trabalho sem ajuda: \"Pedir ajuda\" não aparece e nada é consultado", async () => {
+    const { api } = setup({ [GET]: json(200, started()) });
+    expect(await screen.findByRole("navigation", { name: "Questões" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pedir ajuda" })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/attempt/help"))).toBe(false);
+  });
+});
+

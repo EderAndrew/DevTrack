@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Não posso eliminar opções por você, mas posso mostrar como pensar. A cada passo, a busca binária compara o valor procurado com o elemento do meio e descarta metade do que sobrou. Experimente com um vetor de 16 elementos: quantas vezes você consegue dividir 16 pela metade até sobrar um? E com 32? Observe como esse número cresce quando n dobra e relacione isso com as funções que você conhece.",
+        "example": null
+      }
+    }
+  ]
+}

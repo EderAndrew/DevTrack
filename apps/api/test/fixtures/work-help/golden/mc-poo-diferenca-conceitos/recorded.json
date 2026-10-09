@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-work-help-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "outcome": "GUIDANCE",
+        "message": "Pense no problema que cada ideia resolve. Uma trata de reaproveitar o comportamento de uma classe em outra; outra trata de um mesmo pedido gerar respostas diferentes conforme o objeto; outra trata de quem pode ler e mudar os dados de um objeto. Releia o enunciado: ele fala de quem pode mexer nos atributos. Qual dessas preocupações aparece ali? Que modificador de visibilidade, como private, ajuda nisso?",
+        "example": null
+      }
+    }
+  ]
+}

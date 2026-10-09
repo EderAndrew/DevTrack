@@ -98,9 +98,10 @@ export const AUDIT_EVENT_METADATA = {
   "ai_tool.called": ["toolKey", "sequence", "durationMs"],
   "ai_tool.failed": ["toolKey", "sequence", "status", "errorCode"],
   "ai_proposal.created": ["executionId", "agentKey", "proposalType", "itemCount"],
-  "ai_proposal.approved": ["itemCount"],
+  // 015 research F9: `settledBy: "DOMAIN_RULE"` when the agent's domain settled it (actor SYSTEM).
+  "ai_proposal.approved": ["itemCount", "settledBy"],
   "ai_proposal.partially_approved": ["itemCount", "acceptedCount"],
-  "ai_proposal.rejected": ["itemCount"],
+  "ai_proposal.rejected": ["itemCount", "settledBy"],
   "ai_proposal.expired": [],
   "ai_agent.enabled": ["agentKey", "version"],
   "ai_agent.disabled": ["agentKey", "version", "cancelledExecutions"],
@@ -178,6 +179,8 @@ export const AUDIT_EVENT_METADATA = {
     "classId",
     "type",
     "executionMode",
+    // 015: the work's AI help (0 or 3), next to its mode.
+    "aiHelpAllowance",
     "sourceWorkId",
     "sourceExerciseCount",
     "questionCount",
@@ -190,6 +193,8 @@ export const AUDIT_EVENT_METADATA = {
     "hasPlan",
   ],
   "activity.updated": ["classId", "fields"],
+  // 015: a work's mode or AI help changed before the first start (FR-005).
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance"],
   "activity.closed": ["classId", "submittedCount", "missedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
@@ -201,6 +206,14 @@ export const AUDIT_EVENT_METADATA = {
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED.
   "student_access.denied": ["route", "reason"],
+  // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
+  "attempt_integrity.recorded": ["eventType", "buffered"],
+  // 015 — the AI help (research F11): ids, counts and codes only, never the question or the orientation.
+  "work_help.requested": ["attemptId", "executionId", "questionPosition"],
+  "work_help.delivered": ["attemptId", "executionId", "used"],
+  "work_help.out_of_scope": ["attemptId", "executionId"],
+  "work_help.blocked": ["attemptId", "executionId", "reasonCode"],
+  "work_help.failed": ["attemptId", "executionId", "errorCode"],
   // Grades as integer hundredths, never feedback text.
   "activity_submission.graded": [
     "activityId",
@@ -279,4 +292,5 @@ export type AuditTargetType =
   | "WORK_GENERATION_REQUEST"
   | "CLASS_ACTIVITY"
   | "ACTIVITY_ATTEMPT"
-  | "ACTIVITY_SUBMISSION";
+  | "ACTIVITY_SUBMISSION"
+  | "WORK_HELP_REQUEST";

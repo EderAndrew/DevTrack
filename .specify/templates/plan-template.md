@@ -45,7 +45,7 @@ Verify against `.specify/memory/constitution.md` (mark each ✅ / ❌ / N/A):
 - [ ] **X. Evidence**: events recorded as observable facts; no single event treated as a conclusion; uncertainty represented
 - [ ] **XI. Human oversight**: critical pedagogical decisions stay with the teacher; results typed as FACT / RULE_RESULT / SUGGESTION / HUMAN_DECISION
 - [ ] **XII. Determinism first**: no AI where deterministic rules, tests or constraints suffice
-- [ ] **XIII. Risk level**: automated/AI operations classified L1/L2/L3; L3 authorized, audited, human-confirmed when critical
+- [ ] **XIII. Risk level**: automated/AI operations classified L1/L2/L3; L3 authorized, audited, human-confirmed when critical; AI results reach students only as drafts the teacher publishes, except a bounded L2 study orientation the activity's spec and teacher allow (no answer key to the model, deterministic leak check, no state change, fixed limit, visible to the teacher)
 - [ ] **XIV–XV. AI governance**: AI non-authoritative, least-privilege tools with schema/validation/timeout, grounded on identifiable sources
 - [ ] **XVI. Explicit states**: critical workflows use explicit states and validated transitions, not boolean flags
 - [ ] **XVII. Idempotency**: critical operations safe under retries/double submits

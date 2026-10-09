@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Pedido de outro trabalho: recusa curta.",
+  "subject": "Engenharia de Software",
+  "question": {
+    "type": "OPEN_ANSWER",
+    "statement": "Explique o que é um requisito não funcional.",
+    "expectedAnswer": "Requisito não funcional descreve qualidades ou restrições do sistema, como desempenho, segurança e usabilidade, e não uma função específica."
+  },
+  "studentAnswer": null,
+  "studentQuestion": "Você pode fazer meu trabalho de história sobre a Revolução Francesa?"
+}
