@@ -74,6 +74,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `programming_languages.highlight` (text NULL, CHECK) + seed (014-code-syntax-highlighting)
 - No new dependency (015-controlled-work-ai-help)
 - PostgreSQL 17 — one migration: `activity_execution_mode` += `CONTROLLED`, `class_activities.ai_help_allowance` (0 or 3), tables `attempt_integrity_events` (append-only) and `work_help_requests` (015-controlled-work-ai-help)
+- No new dependency (016-attendance-gated-release)
+- PostgreSQL 17 — one migration: `class_activities.release_mode` (`ALL_ENROLLED`/`PRESENT_ONLY`), tables `activity_attendances` and `attempt_pauses`, defense triggers on attempt writes while paused (016-attendance-gated-release)
 
 ## Stack notes
 
@@ -275,9 +277,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 016-attendance-gated-release: per-activity attendance — a new work is released only to the students the teacher marks present (late students marked later, unmark only before the start); exercises and older works stay open; "Sair da sala" pauses the attempt (reason declared by the student, or a teacher pause) and only the teacher releases the return, on every device; the deadline keeps running; PAUSED and durations derived on read; polling, no WebSocket
 - 015-controlled-work-ai-help: per-work teacher options — CONTROLLED mode (fullscreen focus page, screen exits and blocked copy/paste recorded as server-timed facts, typing allowance on save, never blocking the attempt) and AI help (3 orientations per student by the L2 `work-helper`, which never receives the answer key; deterministic leak check before delivery; teacher sees questions and orientations; the student sees their own helps and exits after the submission); constitution 3.4.0
 - 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; eight `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
-- 013-exercise-points-ranking: exercises earn points instead of grades — EXERCISE activities lose grade, deadline and late policy; fixed points by the exercise difficulty (15/30/60), numbered practice attempts where only attempt 1 scores and a bank exercise scores once per student and class; answer key after each conclusion; the teacher marks open answer and code right or wrong (no release); class ranking derived on read (top 5 on the dashboard, full page)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
