@@ -203,8 +203,9 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 10),
     // Joined in the Foundational phase (T009); each story leaves `pending` with its last test, each SC
-    // with the test that cites it, and the list is empty at T045.
-    pending: { stories: [1, 2, 3, 4, 5], successCriteria: sc(1, 10) },
+    // with the test that cites it, and the list is empty at T045. US1, SC-001 (isolation), SC-005 and
+    // SC-006 are covered since Phase 3.
+    pending: { stories: [2, 3, 4, 5], successCriteria: ["SC-002", "SC-003", "SC-004", "SC-007", "SC-008", "SC-009", "SC-010"] },
   },
 ];
 

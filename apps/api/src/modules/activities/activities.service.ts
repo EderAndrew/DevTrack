@@ -23,7 +23,15 @@ import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
-import { ACTIVITY_HEADER_SELECT, ACTIVITY_QUESTION_SELECT, type ActivityHeader, aiHelpAllowanceOf, toQuestionRow } from "./activity-query";
+import {
+  ACTIVITY_HEADER_SELECT,
+  ACTIVITY_QUESTION_SELECT,
+  type ActivityHeader,
+  aiHelpAllowanceOf,
+  attendanceOf,
+  loadPresentCounts,
+  toQuestionRow,
+} from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
 import { HelpAvailability } from "./help-availability";
@@ -88,10 +96,17 @@ export class ActivitiesService {
       orderBy: [{ deadline: { sort: "desc", nulls: "first" } }, { publishAt: "desc" }, { id: "desc" }],
     });
     const { students, attempts } = await loadRosterData(this.prisma, classId, headers.map((header) => header.id));
+    const present = await loadPresentCounts(this.prisma, headers.filter((header) => header.releaseMode === "PRESENT_ONLY").map((header) => header.id));
+    const enrolled = activeCount(students);
     const now = this.clock.now();
     return {
       items: headers.map((header) =>
-        toTeacherActivitySummary(header, buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now), now),
+        toTeacherActivitySummary(
+          header,
+          buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now),
+          now,
+          attendanceOf(header, present, enrolled),
+        ),
       ),
     };
   }
@@ -104,7 +119,8 @@ export class ActivitiesService {
     const { students, attempts } = await loadRosterData(db, classId, [activityId]);
     const now = this.clock.now();
     const roster = buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now);
-    return toTeacherActivity(header, questions.map(toQuestionRow), roster, now);
+    const present = header.releaseMode === "PRESENT_ONLY" ? await loadPresentCounts(db, [activityId]) : new Map<string, number>();
+    return toTeacherActivity(header, questions.map(toQuestionRow), roster, now, attendanceOf(header, present, activeCount(students)));
   }
 
   /**
@@ -182,6 +198,7 @@ export class ActivitiesService {
             sourceSubjectId: content.type === "ASSIGNMENT" ? content.subjectId : null,
             outOfScopeTopicCount: scope.outOfScope.length,
             ...options,
+            releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
             idempotencyKey: body.idempotencyKey,
           },
           snapshot,
@@ -198,6 +215,7 @@ export class ActivitiesService {
             type: content.type,
             executionMode: options.executionMode,
             aiHelpAllowance: options.aiHelpAllowance,
+            releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
             ...(content.type === "ASSIGNMENT" ? { sourceWorkId: content.workId } : { sourceExerciseCount: content.exerciseIds.length }),
             questionCount: snapshot.questions.length,
             // A grade and a late policy (ASSIGNMENT) or the possible points (EXERCISE, 013 K15).
@@ -406,6 +424,9 @@ export class ActivitiesService {
 }
 
 /** The facts of the roster that come from the activity header. */
+/** The class's ACTIVE students: the "m" of "n de m presentes" (016/FR-006). */
+const activeCount = (students: readonly { enrollment: string }[]) => students.filter((student) => student.enrollment === "ACTIVE").length;
+
 function rosterActivity(header: ActivityHeader) {
   return {
     id: header.id,

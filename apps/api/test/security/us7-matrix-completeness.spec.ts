@@ -12,8 +12,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  // 016 T006; leaves with the attendance routes (T012).
-  "chamada.registrar",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

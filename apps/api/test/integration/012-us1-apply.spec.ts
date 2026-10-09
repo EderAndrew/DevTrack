@@ -118,6 +118,8 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       scheduled: false,
       outOfScopeTopicCount: 0,
       hasPlan: true,
+      // 016: every work applied since 016 takes attendance (research M2).
+      releaseMode: "PRESENT_ONLY",
     });
   });
 

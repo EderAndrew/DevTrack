@@ -18,6 +18,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       activityId={activityId}
       canApply={me.permissions.includes("atividades.aplicar")}
       canRelease={me.permissions.includes("notas.liberar")}
+      canTakeAttendance={me.permissions.includes("chamada.registrar")}
     />
   );
 }

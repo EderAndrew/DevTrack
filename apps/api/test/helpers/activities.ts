@@ -14,10 +14,12 @@ import type {
 import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestUser } from "./factories";
 import { createExercise, languageId } from "./exercises";
 import { createWork } from "./works";
+import { markAllPresent } from "./attendance";
 import type { api, TestApp } from "./test-app";
 
 // ── 012: class activities, written straight to the database (tasks T018) ─────────────────
-// The helpers that go through the routes arrive with them: `applyWork`/`applyExercises` (T022),
+// The helpers that go through the routes arrive with them: `applyWork`/`applyExercises` (T022; since
+// 016 `applyWork` also marks the class present, T013),
 // `startAttempt`/`saveAnswers` (T034), `submitAttempt` (T043), the teacher's grading routes (T045).
 
 type ApiClient = ReturnType<typeof api>;
@@ -43,9 +45,15 @@ export interface ApplyOverrides {
   /** 015: a work's mode and AI help; left out by default (NORMAL, 0). Any value goes in as given, for the 400s. */
   executionMode?: string;
   aiHelpAllowance?: number;
+  /**
+   * 016: not part of the body. `"ALL"` (default) marks every ACTIVE student of the class present
+   * through the attendance route once a `PRESENT_ONLY` work is created, so the 012/013/015 suites
+   * keep seeing it as before 016; `"NONE"` leaves the work invisible to every student.
+   */
+  attendance?: "ALL" | "NONE";
 }
 
-const applyBody = (source: object, defaults: object, overrides: ApplyOverrides) =>
+const applyBody = (source: object, defaults: object, overrides: Omit<ApplyOverrides, "attendance">) =>
   Object.fromEntries(
     Object.entries({
       idempotencyKey: randomUUID(),
@@ -60,18 +68,24 @@ const applyBody = (source: object, defaults: object, overrides: ApplyOverrides) 
   );
 
 /** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1): deadline far ahead, REJECT. */
-export function applyWork(client: ApiClient, classId: string, workId: string, overrides: ApplyOverrides = {}) {
-  return client.post(
+export async function applyWork(client: ApiClient, classId: string, workId: string, overrides: ApplyOverrides = {}) {
+  const { attendance = "ALL", ...body } = overrides;
+  const res = await client.post(
     `/api/classes/${classId}/activities`,
-    applyBody({ type: "ASSIGNMENT", workId }, { deadline: FAR_DEADLINE, latePolicy: "REJECT" }, overrides),
+    applyBody({ type: "ASSIGNMENT", workId }, { deadline: FAR_DEADLINE, latePolicy: "REJECT" }, body),
   );
+  // Only a created (or replayed) work that takes attendance; the create's view keeps its own counts.
+  if (attendance === "ALL" && (res.status === 200 || res.status === 201) && res.body.releaseMode === "PRESENT_ONLY") {
+    await markAllPresent(client, classId, res.body.id);
+  }
+  return res;
 }
 
 /**
  * `POST /classes/:classId/activities` with 1–10 exercises in this order (013/FR-001): no grade,
  * deadline or late policy unless an override puts one in on purpose.
  */
-export function applyExercises(client: ApiClient, classId: string, exerciseIds: string[], overrides: ApplyOverrides = {}) {
+export function applyExercises(client: ApiClient, classId: string, exerciseIds: string[], overrides: Omit<ApplyOverrides, "attendance"> = {}) {
   return client.post(`/api/classes/${classId}/activities`, applyBody({ type: "EXERCISE", exerciseIds }, {}, overrides));
 }
 

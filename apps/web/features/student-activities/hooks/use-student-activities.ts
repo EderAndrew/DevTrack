@@ -2,6 +2,7 @@
 
 import type { SubmitAttemptRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { integrityApi } from "@/features/controlled-attempt/api/integrity";
 import { isOffline, type StudentActivityListFilters, studentActivitiesApi } from "../api/student-activities";
 
@@ -17,8 +18,14 @@ export const studentActivitiesKeys = {
   integrity: (activityId: string) => [...studentActivitiesKeys.all, "integrity", activityId] as const,
 };
 
+/**
+ * 016/FR-009 (research M8): a work appears as soon as the teacher marks the student present, so the
+ * dashboard and the list are read again every 5 s, never while the page is hidden.
+ */
+const POLL_WHILE_VISIBLE = { refetchInterval: ATTENDANCE_POLL_MS, refetchIntervalInBackground: false } as const;
+
 export const useStudentDashboard = () =>
-  useQuery({ queryKey: studentActivitiesKeys.dashboard(), queryFn: studentActivitiesApi.dashboard });
+  useQuery({ queryKey: studentActivitiesKeys.dashboard(), queryFn: studentActivitiesApi.dashboard, ...POLL_WHILE_VISIBLE });
 
 /** "Minhas atividades", page by page ("Carregar mais"). */
 export const useStudentActivities = (filters: StudentActivityListFilters) =>
@@ -27,6 +34,7 @@ export const useStudentActivities = (filters: StudentActivityListFilters) =>
     queryFn: ({ pageParam }) => studentActivitiesApi.list(filters, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
+    ...POLL_WHILE_VISIBLE,
   });
 
 /** One activity as the student sees it, with their attempt (012 US3). */

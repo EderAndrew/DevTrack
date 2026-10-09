@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { UuidSchema } from "./primitives.js";
 
 // Public error codes of the API, in the order of ErrorCatalog in
 // apps/api/src/platform/http/errors.ts (002 S8). User-facing texts are not part of the
@@ -112,10 +113,18 @@ export const ErrorCodeSchema = z.enum([
 ]);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
 
-/** Every error response of the API: {statusCode, code, message}, nothing else. */
+/**
+ * What a refusal names for the caller to act on, only where its contract says so: the students of
+ * the teacher's own class who already started (016 `409 ATTENDANCE_STARTED`). Ids only, never data.
+ */
+export const ErrorDetailsSchema = z.strictObject({ studentUserIds: z.array(UuidSchema).min(1) });
+export type ErrorDetails = z.infer<typeof ErrorDetailsSchema>;
+
+/** Every error response of the API: {statusCode, code, message}, plus `details` where a contract lists them. */
 export const ErrorBodySchema = z.strictObject({
   statusCode: z.int(),
   code: ErrorCodeSchema,
   message: z.string(),
+  details: ErrorDetailsSchema.optional(),
 });
 export type ErrorBody = z.infer<typeof ErrorBodySchema>;

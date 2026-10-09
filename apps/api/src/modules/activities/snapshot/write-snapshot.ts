@@ -1,4 +1,4 @@
-import { type AiHelpAllowance, centsToGrade, type ActivityType, type ExecutionMode, type LatePolicy } from "@repo/contracts";
+import { type AiHelpAllowance, centsToGrade, type ActivityType, type ExecutionMode, type LatePolicy, type ReleaseMode } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
 import type { ActivitySnapshot } from "./snapshot";
 
@@ -19,6 +19,8 @@ export interface NewActivity {
   /** ASSIGNMENT only beyond NORMAL and 0 (CHECK by type, 015 research F2). */
   executionMode: ExecutionMode;
   aiHelpAllowance: AiHelpAllowance;
+  /** PRESENT_ONLY only for ASSIGNMENT (CHECK by type, 016 research M2); fixed afterwards (trigger). */
+  releaseMode: ReleaseMode;
   idempotencyKey: string;
 }
 
