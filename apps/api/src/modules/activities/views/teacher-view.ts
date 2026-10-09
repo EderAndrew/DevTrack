@@ -56,6 +56,9 @@ export function toTeacherActivitySummary(
     type: header.type,
     executionMode: header.executionMode,
     aiHelp: { allowance: aiHelpAllowanceOf(header.aiHelpAllowance) },
+    // 016: every activity is ALL_ENROLLED until the release_mode column (T006) and US1 land.
+    releaseMode: "ALL_ENROLLED",
+    attendance: null,
     title: header.title,
     status: header.status,
     phase: ActivityStateMachine.phase(header.status, header.publishAt, now),

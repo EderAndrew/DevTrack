@@ -121,6 +121,16 @@ describe("startup configuration (FR-074)", () => {
     }
   });
 
+  it("016 RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR: 20 by default, configurable, and an invalid value stops the startup", () => {
+    const env = { ...process.env };
+    delete env.RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR;
+    expect(loadConfig(env).rateLimit.attemptPausesPerHour).toBe(20);
+    expect(loadConfig({ ...env, RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR: "3" }).rateLimit.attemptPausesPerHour).toBe(3);
+    for (const value of ["0", "-1", "1.5"]) {
+      expect(failure({ ...env, RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR: value }).variables).toEqual(["RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR"]);
+    }
+  });
+
   it("accepts a complete environment", () => {
     const config = loadConfig({ ...process.env, DATABASE_URL: SECRET_DB_URL });
     expect(config.databaseUrl).toBe(SECRET_DB_URL);

@@ -79,6 +79,7 @@ export const configSchema = z.object({
   RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE: positiveInt(120),
   RATE_LIMIT_WORK_HELP_PER_HOUR: positiveInt(20),
   AI_WORK_HELP_EXECUTIONS_PER_HOUR: positiveInt(1500),
+  RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR: positiveInt(20),
   CONTROLLED_TYPING_BURST_CHARS: positiveInt(400),
   CONTROLLED_TYPING_CHARS_PER_SECOND: positiveInt(15),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
@@ -160,6 +161,8 @@ export interface AppConfig {
     workHelpPerHour: number;
     /** Hourly limit of the `work-helper` agent, all students together, in place of `aiAgentPerHour` (F12). */
     workHelpAgentPerHour: number;
+    /** Room exits a student declares (016 research M11), per student per hour. */
+    attemptPausesPerHour: number;
   };
   /**
    * Controlled mode (015 research F7): an answer may grow `typingBurstChars` in one save plus
@@ -279,6 +282,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       attemptEventsPerMinute: e.RATE_LIMIT_ATTEMPT_EVENTS_PER_MINUTE,
       workHelpPerHour: e.RATE_LIMIT_WORK_HELP_PER_HOUR,
       workHelpAgentPerHour: e.AI_WORK_HELP_EXECUTIONS_PER_HOUR,
+      attemptPausesPerHour: e.RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR,
     },
     controlledMode: {
       typingBurstChars: e.CONTROLLED_TYPING_BURST_CHARS,

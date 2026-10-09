@@ -177,6 +177,9 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
         : null,
     completedAttempts: input.completedAttempts.map((attempt) => ({ number: attempt.number, completedAt: attempt.completedAt.toISOString() })),
     lastResult: input.lastResult && toStudentExerciseAttempt(input.questions, input.lastResult),
+    // 016: filled by the pause tasks (US3, US4); no pause exists before them.
+    pause: null,
+    pauses: [],
   };
 }
 

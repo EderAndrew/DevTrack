@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ReleaseModeSchema } from "../attendance/enums.js";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { EnrollmentStatusSchema } from "../classes/enrollments.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
@@ -146,12 +147,20 @@ export type ExerciseRosterCounts = z.infer<typeof ExerciseRosterCountsSchema>;
 export const ActivityAiHelpSchema = z.strictObject({ allowance: AiHelpAllowanceSchema });
 export type ActivityAiHelp = z.infer<typeof ActivityAiHelpSchema>;
 
+/** The attendance of a `PRESENT_ONLY` work (016 research M9): "Aguardando chamada" while `present` is 0. */
+export const ActivityAttendanceCountsSchema = z.strictObject({ present: z.int().min(0), enrolled: z.int().min(0) });
+export type ActivityAttendanceCounts = z.infer<typeof ActivityAttendanceCountsSchema>;
+
 export const TeacherActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
   /** NORMAL, or CONTROLLED for a work (015/FR-006); always NORMAL for EXERCISE. */
   executionMode: ExecutionModeSchema,
   aiHelp: ActivityAiHelpSchema,
+  /** Set by the server (016 research M2): `PRESENT_ONLY` for every work applied since 016. */
+  releaseMode: ReleaseModeSchema,
+  /** `PRESENT_ONLY` only; null for `ALL_ENROLLED`. */
+  attendance: ActivityAttendanceCountsSchema.nullable(),
   title: z.string(),
   status: ActivityStatusSchema,
   /** Only for an ACTIVE activity. */
@@ -217,6 +226,10 @@ export const RosterEntrySchema = z.strictObject({
   pendingMarks: z.int().min(0).nullable(),
   /** ASSIGNMENT only: the AI helps delivered to the student ("2 de 3", 015/FR-024); null for EXERCISE. */
   aiHelpUsed: z.int().min(0).max(AI_HELP_ALLOWANCE).nullable(),
+  /** When the student was marked present (016/FR-019); null when not marked or `ALL_ENROLLED`. */
+  markedAt: IsoDateTimeSchema.nullable(),
+  /** The student's room exits (016/FR-019): how many, the derived time away, and whether one is open. */
+  pauses: z.strictObject({ count: z.int().min(0), secondsAway: z.int().min(0), open: z.boolean() }),
 });
 export type RosterEntry = z.infer<typeof RosterEntrySchema>;
 

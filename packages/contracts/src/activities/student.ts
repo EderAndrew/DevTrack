@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StudentPauseSchema } from "../attendance/pauses.js";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { WorkQuestionTypeSchema } from "../works/enums.js";
@@ -106,6 +107,10 @@ export type StudentDashboard = z.infer<typeof StudentDashboardSchema>;
 export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answer: AnswerSchema, revision: z.int().min(1) });
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
+/**
+ * The detail of an activity for its student. While `pause` is open the questions and the answers are
+ * left out, on every device (016/FR-013).
+ */
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
   /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
   aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
@@ -137,7 +142,14 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
   completedAttempts: z.array(z.strictObject({ number: z.int().min(1), completedAt: IsoDateTimeSchema })),
   /** EXERCISE only: the latest concluded attempt with its answer key (013/FR-012). */
   lastResult: StudentExerciseAttemptSchema.nullable(),
-});
+  /** The open pause of the attempt, or null (016/FR-013). */
+  pause: StudentPauseSchema.nullable(),
+  /** The student's own pauses, oldest first, only after the submission (016/FR-021); empty before. */
+  pauses: z.array(StudentPauseSchema),
+}).refine(
+  (detail) => detail.pause === null || (detail.questions.length === 0 && (detail.attempt?.answers.length ?? 0) === 0),
+  "CONTENT_WHILE_PAUSED",
+);
 export type StudentActivity = z.infer<typeof StudentActivitySchema>;
 
 export const StudentActivityListQuerySchema = z.strictObject({
