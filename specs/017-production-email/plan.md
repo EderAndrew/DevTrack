@@ -62,7 +62,7 @@ feature makes that sending reliable, observable and provider-neutral:
 
 **Constraints**:
 - provider-neutral sending (SMTP only) and notice parsing behind adapters;
-- no address, name, link, token or Message-ID in logs, audit or rows other than the subject's;
+- no address, name, link or token in logs, audit or rows other than the subject's; the Message-ID only in `mail_deliveries.message_id`, never in logs, audit or responses;
 - the notice route is public: signature verified on the raw body before any DB access;
 - production refuses a development mail configuration.
 

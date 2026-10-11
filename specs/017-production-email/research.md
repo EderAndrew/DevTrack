@@ -89,7 +89,9 @@ reversible secrets at rest; rejected.
 table (`delivery-schedule.ts`, moved to `platform/mail/outbox`). A new
 `MAIL_SENDS_PER_MINUTE` (default 120) caps the sends of all instances per minute through the
 existing `rate_limit_counters` (one shared key); `0` pauses sending — rows stay `PENDING`, nothing
-is lost (FR-008). Order: `next_attempt_at, created_at`.
+is lost (FR-008). The first attempt (`attemptNow`, N3) takes one unit of the same budget; with no
+budget (or `0`) it sends nothing and the row stays `PENDING` for the worker, so a burst of class
+invitations never exceeds the cap. Order: `next_attempt_at, created_at`.
 
 **Rationale**: FR-003, FR-005, FR-008; Resend's default limit is a few requests per second, SES
 starts in sandbox with 1/s; 120/min fits both and the guide says how to raise it.
@@ -104,9 +106,9 @@ the database outbox is enough at this volume.
 keeps the last one in `message_id` (UNIQUE). Resend returns it in every notice as
 `data.message_id`; SES returns it in `mail.commonHeaders.messageId` when the identity's notifications
 include the original headers (the guide turns that on). A notice whose Message-ID is unknown is
-accepted and counted, with no effect (US2-7). A notice for an older attempt of the same delivery
-(`.{n}` lower than the current one) is recorded but only moves the status if it is worse (edge case
-"vários avisos").
+accepted and counted in the log, with no effect and no stored row (US2-7). A notice for an older
+attempt of the same delivery (`.{n}` lower than the current one) is recorded and applied by the N7
+table, where the first final reason stays (edge case "vários avisos").
 
 No `Resend-Idempotency-Key`: a key per delivery would make Resend drop a retry whose link is the only
 valid one (the token rotates per attempt, N3); a rare duplicate, whose newest link works, is the
@@ -160,10 +162,14 @@ columns `sent_at` (kept), `delivered_at`, `undelivered_at`, `undelivered_reason`
 | PENDING | FAILED | 7th temporary failure |
 | PENDING | UNDELIVERED (REJECTED) | permanent SMTP rejection (5xx) |
 | PENDING | DISCARDED / SUPERSEDED | `prepare` said no / a newer delivery of the subject |
+| PENDING (in flight) | DELIVERED / UNDELIVERED (BOUNCED, COMPLAINED) | notice for the current attempt, arriving before the SMTP result (the later result is ignored) |
 | SENT | DELIVERED | notice "delivered" |
 | SENT, DELIVERED | UNDELIVERED (BOUNCED) | notice "bounced, permanent" (DELIVERED only if it arrives later out of order) |
 | SENT, DELIVERED | UNDELIVERED (COMPLAINED) | notice "complained" |
 | UNDELIVERED (BOUNCED) | UNDELIVERED (COMPLAINED) | — never: the first final reason stays; later notices are only recorded |
+
+The `message_id` of an attempt is written when the attempt is claimed, before sending, so a notice
+that beats the SMTP result still finds its delivery.
 
 Notice mapping: Resend `email.delivered` → delivered; `email.bounced` with `bounce.type =
 Permanent` → bounced; other `email.bounced` and `email.delivery_delayed` → temporary (recorded

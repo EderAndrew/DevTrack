@@ -120,7 +120,7 @@ convidar outro endereço.
 6. **Given** o mesmo aviso do provedor entregue duas vezes, **When** ele chega de novo, **Then** o
    efeito é o da primeira vez e nada é duplicado.
 7. **Given** um aviso sobre um e-mail que o DevTrack não reconhece, **When** ele chega, **Then** é
-   aceito sem efeito e registrado só como contagem.
+   aceito sem efeito, não é guardado e é registrado só no log, como contagem.
 8. **Given** um aviso de que um e-mail de conta (confirmação, senha, ativação) voltou, **When** ele
    chega, **Then** o envio fica "não entregue" no registro, mas nada disso aparece para quem pediu
    o e-mail nem muda a resposta dos fluxos públicos (anti-enumeração).
@@ -192,12 +192,13 @@ sem alterar o sistema.
   conta como falha temporária e vai para nova tentativa.
 - **Recusa permanente na hora do envio** (endereço malformado aceito antes, domínio inexistente): o
   envio fica "não entregue" sem gastar as novas tentativas.
-- **Aviso fora de ordem**: um aviso de "não entregue" que chega antes do registro de "enviado" não
-  é perdido nem desfeito pelo "enviado" que chega depois.
+- **Aviso fora de ordem**: um aviso de "entregue" ou "não entregue" que chega antes do registro de
+  "enviado" não é perdido nem desfeito pelo "enviado" que chega depois; um aviso de "voltou" emitido
+  antes do aviso de "entregue", mas recebido depois dele, leva o envio a "não entregue".
 - **Aviso de entrega com atraso de dias**: aceito e aplicado ao envio, enquanto ele existir no
   registro.
-- **Vários avisos para o mesmo envio** (voltou e depois foi marcado como spam): vale o mais grave, e
-  todos ficam no registro do envio.
+- **Vários avisos para o mesmo envio** (voltou e depois foi marcado como spam): o envio fica "não
+  entregue" pelo primeiro motivo recebido; os avisos seguintes ficam só no registro do envio.
 - **Envio substituído** (convite reenviado): um aviso sobre o envio antigo não muda a situação do
   convite, que segue a do envio mais recente.
 - **Fila acumulada depois de uma queda longa**: os envios saem em ordem de criação, respeitando o
@@ -233,15 +234,16 @@ sem alterar o sistema.
 - **FR-008**: A fila DEVE respeitar um limite configurável de envios por minuto e DEVE poder ser
   desligada por configuração (os envios ficam pendentes, nada se perde).
 - **FR-009**: O conteúdo do e-mail (com o link de uso único) NÃO DEVE ser guardado na fila: o envio
-  guarda o tipo, o destinatário e a referência do que deve ser enviado, e o e-mail é montado na
-  hora de sair.
+  guarda o tipo e a referência do que deve ser enviado (o convite, a conta ou a ativação), nunca o
+  endereço, e o e-mail é montado na hora de sair.
 
 **Aviso de não entregue (US2)**
 
 - **FR-010**: O sistema DEVE receber avisos do provedor sobre cada envio: entregue, voltou
   (permanente), voltou (temporário) e marcado como spam.
-- **FR-011**: Todo aviso DEVE ser autenticado com um segredo compartilhado com o provedor; um aviso
-  sem autenticação válida, adulterado ou antigo demais DEVE ser recusado sem efeito.
+- **FR-011**: Todo aviso DEVE ser autenticado pela assinatura do provedor (segredo compartilhado no
+  Resend, certificado e tópico no SES); um aviso sem autenticação válida, adulterado ou antigo demais
+  DEVE ser recusado sem efeito.
 - **FR-012**: Os avisos DEVEM ser idempotentes pelo identificador do aviso do provedor: repetidos,
   produzem o efeito da primeira vez.
 - **FR-013**: Um aviso de "voltou (permanente)" ou "marcado como spam" DEVE levar o envio a "não
@@ -278,7 +280,7 @@ sem alterar o sistema.
   variáveis de ambiente, sem biblioteca de um provedor específico, de modo que trocar de provedor
   seja só trocar a configuração.
 - **FR-025**: Em produção, o sistema DEVE recusar iniciar sem conexão segura com o servidor de
-  envio, com um servidor local, sem remetente ou sem o segredo dos avisos.
+  envio, com um servidor local, sem remetente ou sem a configuração de autenticação dos avisos.
 - **FR-026**: Credenciais de envio e de aviso NUNCA DEVEM aparecer em logs, auditoria, respostas ou
   mensagens de erro.
 - **FR-027**: O repositório DEVE ter um guia de implantação de e-mail: conta e domínio no Resend,
@@ -318,8 +320,10 @@ sem alterar o sistema.
   janela, e só os campos conhecidos são usados. Nomes e turmas interpolados nos e-mails são
   escapados.
 - **States & transitions**: envio `PENDENTE → ENVIADO → (ENTREGUE | NÃO ENTREGUE)`,
-  `PENDENTE → (FALHOU | NÃO ENTREGUE | DESCARTADO | SUBSTITUÍDO)`; `ENTREGUE → NÃO ENTREGUE` só por
-  spam. Transições inválidas são recusadas.
+  `PENDENTE → (FALHOU | NÃO ENTREGUE | DESCARTADO | SUBSTITUÍDO)`, e `PENDENTE → (ENTREGUE | NÃO
+  ENTREGUE)` por um aviso que chega antes do resultado do envio; `ENTREGUE → NÃO ENTREGUE` por spam,
+  ou por um aviso de "voltou" emitido antes do aviso de "entregue" (chegada fora de ordem). Transições
+  inválidas são recusadas.
 - **Idempotency**: cada envio sai no máximo uma vez (reserva do envio pela fila); cada aviso do
   provedor tem efeito uma vez (identificador do aviso).
 - **Evidence vs. decisions**: a situação do envio é um FATO informado pelo provedor; quem decide
@@ -334,9 +338,9 @@ sem alterar o sistema.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Envio de e-mail**: um e-mail a sair ou que saiu; tipo (um dos seis), destinatário, referência
-  do que é enviado (convite, pedido de senha, confirmação, ativação), situação, tentativas, próxima
-  tentativa, último código de erro, identificador da mensagem no provedor, datas de envio e de
+- **Envio de e-mail**: um e-mail a sair ou que saiu; tipo (um dos seis), referência ao
+  destinatário e ao que é enviado (convite, conta ou ativação), situação, tentativas, próxima
+  tentativa, último código de erro, identificador da mensagem gerado pelo DevTrack, datas de envio e de
   entrega, motivo de não entrega. Substitui, para o convite de turma, o envio próprio da 003.
 - **Aviso do provedor**: um aviso recebido; identificador do aviso, provedor, tipo interno
   (entregue, voltou permanente, voltou temporário, spam), envio a que se refere, data do aviso e data
@@ -349,8 +353,8 @@ sem alterar o sistema.
 - **SC-001**: Com o servidor de envio fora do ar por até 6 horas, 100% dos e-mails pedidos nesse
   período chegam depois que ele volta, e nenhum sai duas vezes.
 - **SC-002**: Em 100% dos testes, a resposta de um fluxo público (confirmação, senha) é idêntica, em
-  conteúdo e em tempo, com o servidor de envio no ar, fora do ar ou lento, e para endereços
-  existentes ou não.
+  conteúdo e em tempo (dentro da tolerância do teste de anti-enumeração da 001), com o servidor de
+  envio no ar, fora do ar ou lento, e para endereços existentes ou não.
 - **SC-003**: Quem convidou vê um convite "Não entregue" em até 1 minuto depois do aviso do
   provedor.
 - **SC-004**: 100% dos avisos sem autenticação válida são recusados sem efeito, e 100% dos avisos

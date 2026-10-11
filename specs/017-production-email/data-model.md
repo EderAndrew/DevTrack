@@ -52,6 +52,7 @@ One migration (`<ts>_production_email`): two enums, one changed enum, two tables
 PENDING ──► SENT ──► DELIVERED
    │          │          │
    │          └──────────┴──► UNDELIVERED (BOUNCED | COMPLAINED)
+   ├──► DELIVERED | UNDELIVERED (BOUNCED | COMPLAINED)   (notice before the SMTP result)
    ├──► UNDELIVERED (REJECTED)
    ├──► FAILED
    ├──► DISCARDED
@@ -60,7 +61,12 @@ PENDING ──► SENT ──► DELIVERED
 
 `UNDELIVERED`, `FAILED`, `DISCARDED` and `SUPERSEDED` are final. `DELIVERED → UNDELIVERED` is only
 allowed with `COMPLAINED`, or with `BOUNCED` when the bounce notice is older than the delivery
-notice (out of order). Any other change → error `INVALID_STATE_TRANSITION`.
+notice (out of order). `PENDING → DELIVERED / UNDELIVERED (BOUNCED | COMPLAINED)` is allowed only
+by a notice whose Message-ID is the current attempt's (it arrived before the SMTP result, which is
+then ignored). Any other change → error `INVALID_STATE_TRANSITION`.
+
+`message_id` is written when the attempt is claimed, before sending; `sent_at` is set by whichever
+comes first, the SMTP result or the notice.
 
 ### Derived (never stored)
 
@@ -76,13 +82,15 @@ notice (out of order). Any other change → error `INVALID_STATE_TRANSITION`.
 | `provider` | `mail_notice_provider` NOT NULL | |
 | `notice_id` | text NOT NULL | the provider's id (`svix-id`, SNS `MessageId`), ≤ 200 chars |
 | `kind` | `mail_notice_kind` NOT NULL | |
-| `delivery_id` | uuid NULL FK `mail_deliveries` ON DELETE SET NULL | null when the Message-ID is unknown |
+| `delivery_id` | uuid NULL FK `mail_deliveries` ON DELETE SET NULL | set on insert; null only after the retention deletes the delivery |
 | `attempt` | int NULL | the `.{n}` of the Message-ID |
 | `occurred_at` | timestamptz NOT NULL | the provider's time of the event |
 | `received_at` | timestamptz NOT NULL | server clock |
 
 - UNIQUE `(provider, notice_id)`: a repeated notice is a no-op (FR-012).
-- Append-only (trigger), except the retention job.
+- Append-only (trigger); DELETE allowed only with `SET LOCAL devtrack.mail_purge = 'on'` (the
+  `mail-records` job, as the audit purge does with `devtrack.audit_purge`).
+- A valid notice whose Message-ID is unknown is not stored (log `mail.notice_unmatched` only).
 - Never stored: the raw body, the address, the subject, the bounce message.
 
 ## Retention (`mail-records`, research N13)

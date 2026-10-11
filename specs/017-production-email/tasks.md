@@ -77,13 +77,11 @@ description: "Task list for 017 — E-mail Real em Produção: fila única com n
   - `packages/contracts/src/classes/class-invitations.ts`: `DeliveryStateSchema` +=
     `UNDELIVERED`; novo `DeliveryIssueSchema` (`BOUNCED` | `COMPLAINED` | `REJECTED`);
     `ClassInvitationView.deliveryIssue` (não nulo sse `delivery = UNDELIVERED`, por `superRefine`);
-  - `packages/contracts/src/provisioning/invitations.ts`: `InvitationView` ganha `delivery` e
-    `deliveryIssue`, importados de `classes` (nunca redefinidos; `duplication.spec.ts` verde);
   - `packages/contracts/src/endpoints.ts`: `mail.notice` (`POST /mail/notices/:provider`,
     `ProviderNoticeParamsSchema` com `resend` | `ses`, resposta `EmptyResponseSchema`, sem corpo);
-  - `pnpm --filter @repo/contracts build`. As telas e serviços que leem esses campos ganham os
-    valores nas tarefas das histórias; até lá a API responde `deliveryIssue: null` e, no
-    provisioning, `delivery` derivado como na T013.
+  - `pnpm --filter @repo/contracts build`. A API responde `deliveryIssue: null` até a US2; o
+    `delivery` dos convites de professor e gestor entra no contrato na T016, junto com o serviço
+    que o preenche.
 
 ---
 
@@ -99,9 +97,11 @@ guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
     juntos; `discard_reason` sse `DISCARDED`; `message_id` UNIQUE;
   - o gatilho `mail_deliveries_transition`: todas as transições de `data-model.md` aceitas e as
     demais recusadas com `INVALID_STATE_TRANSITION` (finais imóveis; `DELIVERED → UNDELIVERED` só
-    com `COMPLAINED` ou `BOUNCED`; `UNDELIVERED → UNDELIVERED` com outro motivo recusado);
-  - `mail_notices`: UNIQUE `(provider, notice_id)`, `notice_id` ≤ 200, append-only (UPDATE e
-    DELETE recusados fora do papel da retenção), `delivery_id ON DELETE SET NULL`.
+    com `COMPLAINED` ou `BOUNCED`; `UNDELIVERED → UNDELIVERED` com outro motivo recusado;
+    `PENDING → DELIVERED` e `PENDING → UNDELIVERED (BOUNCED | COMPLAINED)` aceitos);
+  - `mail_notices`: UNIQUE `(provider, notice_id)`, `notice_id` ≤ 200, append-only (UPDATE
+    recusado; DELETE recusado sem `SET LOCAL devtrack.mail_purge = 'on'`),
+    `delivery_id ON DELETE SET NULL`.
 - [ ] T005 Teste primeiro: `apps/api/test/integration/017-migration.spec.ts`: as linhas de
   `class_invitation_deliveries` (uma por estado da 003) viram `CLASS_INVITATION` em
   `mail_deliveries` com os mesmos `id`, `status`, `attempts`, `next_attempt_at`, `last_error_code`,
@@ -169,7 +169,9 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
     `017/US1-7`;
   - `017/FR-001` (operação desfeita → nenhum envio), `017/FR-003` (as 7 tentativas e as esperas
     pelo `FixedClock`), `017/FR-004` (5xx → `UNDELIVERED (REJECTED)` sem nova tentativa),
-    `017/FR-006`, `017/FR-007`, `017/FR-008` (limite por minuto e `0` pausa sem perda) e
+    `017/FR-006`, `017/FR-007`, `017/FR-008` (limite por minuto e `0` pausa sem perda: 200
+    convites de turma criados num minuto com limite 120 → no máximo 120 envios no minuto, o
+    restante sai no worker; com `0`, nem a primeira tentativa sai) e
     `017/FR-009` (nenhuma coluna guarda endereço, nome, link, token ou hash);
   - `017/SC-001`: com o mailer fora por 6 h de relógio, todos os e-mails pedidos saem depois, um
     por envio.
@@ -199,9 +201,11 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
 - [ ] T013 [US1] `apps/api/src/platform/mail/outbox/mail-outbox.ts` (`MailOutbox`):
   - `schedule(tx, kind, subject)`: grava `PENDING`, `attempts = 0`, `next_attempt_at = now + 1
     min` e marca `SUPERSEDED` os pendentes do mesmo assunto e tipo;
-  - `attemptNow(deliveryId, prepared)`: depois do commit, reivindica a linha (`FOR UPDATE`,
-    `attempts 0 → 1`, prazo em voo), envia com `Message-ID <{id}.{attempt}@{domínio}>` e grava o
-    resultado só se a linha ainda está naquela tentativa;
+  - `attemptNow(deliveryId, prepared)`: depois do commit, consome uma unidade do orçamento de
+    `MAIL_SENDS_PER_MINUTE` (sem orçamento, não envia e a linha fica para o worker), reivindica a
+    linha (`FOR UPDATE`, `attempts 0 → 1`, `message_id = <{id}.{attempt}@{domínio}>`, prazo em
+    voo), envia com esse `Message-ID` e grava o resultado só se a linha ainda está `PENDING`
+    naquela tentativa (um aviso que chegou antes vence);
   - `record(result)`: `SENT` + `sent_at`; permanente → `UNDELIVERED (REJECTED)`; temporário →
     próxima espera ou `FAILED` na 7ª;
   - `latestDeliveryState(kind, subjectIds)` para as visões: a tabela "Derived" de
@@ -217,7 +221,8 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   - orçamento de `MAIL_SENDS_PER_MINUTE` por uma chave compartilhada em `rate_limit_counters`
     (`0` → não reivindica nada);
   - reivindica até `min(50, orçamento)` linhas devidas (`FOR UPDATE SKIP LOCKED`, ordem
-    `next_attempt_at, created_at`), chama `MailSubject.prepare` do tipo na mesma transação
+    `next_attempt_at, created_at`) gravando o `message_id` da tentativa na reivindicação, chama
+    `MailSubject.prepare` do tipo na mesma transação
     (descarta, substitui ou gera token novo), confirma e envia fora da transação;
   - `EAUTH`: um log `mail.auth_failed` por ciclo; logs `mail.delivery_failed` e
     `mail.delivery_exhausted` com `kind`, `deliveryId`, `attempt`, `errorName` (contracts
@@ -226,13 +231,16 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
     worker em `MailModule`.
 - [ ] T015 [P] [US1] Assunto `CLASS_INVITATION` em
   `apps/api/src/modules/class-invitations/class-invitation.mail-subject.ts`: trava o convite,
-  descarta se não está efetivamente `PENDING` (`ACCEPTED`/`REVOKED`, `CANCELLED` ou expirado),
+  descarta se não está efetivamente `PENDING` (`ACCEPTED`, `CANCELLED` ou expirado),
   gira `token_hash` e devolve o destinatário e os parâmetros do modelo. `class-invitations.service.ts`
   (criar e reenviar) chama `MailOutbox.schedule` + `attemptNow`; `class-invitation.view.ts` lê
   `latestDeliveryState`. Migrar `003-class-invitation-delivery.spec.ts`, `003-us2`, `003-us5`,
   `003-concurrency` e `secret-leak-scan.spec.ts` para `mail_deliveries`, mantendo cada caso e os
   seus ids da 003.
-- [ ] T016 [P] [US1] Assuntos `INVITATION_TEACHER` e `INVITATION_MANAGER` em
+- [ ] T016 [P] [US1] Contrato: `packages/contracts/src/provisioning/invitations.ts` ganha
+  `delivery` e `deliveryIssue`, importados de `classes` (nunca redefinidos; `duplication.spec.ts`
+  verde), e `pnpm --filter @repo/contracts build`. Assuntos `INVITATION_TEACHER` e
+  `INVITATION_MANAGER` em
   `apps/api/src/modules/provisioning/invitation.mail-subject.ts` (descarta se não `PENDING` ou
   expirado; gira `invitations.token_hash`); `invitation.service.ts` troca o `MailDispatcher` pela
   fila; `invitation.view.ts` passa a preencher `delivery` com `latestDeliveryState` (e
@@ -279,14 +287,17 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
   `snsSubscriptionConfirmation`.
 - [ ] T021 [P] [US2] `apps/api/test/integration/017-us2-notices.spec.ts`, cobrindo:
   - os cenários `017/US2-1`, `017/US2-2`, `017/US2-3`, `017/US2-4` (o campo que a tela usa para
-    pedir a confirmação), `017/US2-6`, `017/US2-7`, `017/US2-8` e `017/US2-9`;
+    pedir a confirmação), `017/US2-6`, `017/US2-7` (nenhuma linha em `mail_notices`), `017/US2-8` e
+    `017/US2-9`;
   - `017/FR-010`, `017/FR-012`, `017/FR-013` (temporário fica só no registro), `017/FR-014` (o
     mesmo cenário pelo Resend e pelo SES), `017/FR-015` (professor, ADMIN e gestor veem, cada um
     só os seus convites), `017/FR-017` e `017/FR-018` (as respostas públicas de confirmação e
     senha não mudam com um envio `UNDELIVERED`);
   - `017/SC-003`: o convite aparece `UNDELIVERED` na primeira leitura depois do aviso;
   - os casos de borda: aviso fora de ordem (bounce antes do delivered; o delivered depois não
-    desfaz), vários avisos (vale o mais grave, todos guardados), aviso de uma tentativa antiga e
+    desfaz; um bounce emitido antes do delivered e recebido depois leva a `UNDELIVERED`), aviso de
+    entregue/voltou antes do resultado do SMTP (aplicado; o `SENT` posterior é ignorado), vários
+    avisos (o primeiro motivo final fica, todos os avisos guardados), aviso de uma tentativa antiga e
     de um envio substituído (a situação do convite segue o envio mais recente), aviso de dias
     depois, tipos ignorados (`email.opened`, `email.clicked`, `email.sent`) não guardados.
 - [ ] T022 [P] [US2] `apps/api/test/security/017-notice-auth.spec.ts` (`017/US2-5`,
@@ -311,7 +322,8 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
   `warning` "Não entregue" com o texto do motivo (`contracts/web-ui.md`), nunca só cor; só em
   convite `PENDING`; "Reenviar" num `UNDELIVERED` abre o `AlertDialog` e só reenvia em
   "Reenviar", "Voltar" não chama a API; num convite sem problema, o reenvio da 003/001 segue
-  igual; `axe` sem violações.
+  igual; `axe` sem violações. Nas listas de professores e gestores (novas nisso): badge `neutral`
+  "Enviando" e `danger` "Envio falhou", sem badge para `SENT`.
 
 ### Implementation for User Story 2
 
@@ -336,11 +348,13 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
 - [ ] T027 [US2] `apps/api/src/platform/mail/notices/mail-notices.{controller,service}.ts`:
   - controller fino: `@Public()`, `@ProviderNotice()`, lê o corpo bruto e chama o serviço; `404`
     para o provedor não configurado; limite por IP de `RATE_LIMIT_MAIL_NOTICES_PER_MINUTE`;
-  - serviço: verifica antes de qualquer banco; `INSERT … ON CONFLICT DO NOTHING` em
-    `mail_notices` por `(provider, notice_id)`; liga pelo Message-ID (`message_id` da linha ou o
-    `{id}.{n}` de uma tentativa antiga); aplica a transição de N7 com `FOR UPDATE` (o mais grave
-    ganha, `DELIVERED` nunca desfaz `UNDELIVERED`); audita `mail_delivery.undelivered` com
-    `source: NOTICE`; Message-ID desconhecido → log `mail.notice_unmatched` e contagem;
+  - serviço: verifica antes de qualquer banco; liga pelo Message-ID **antes** do `INSERT`
+    (`message_id` da linha ou o `{id}.{n}` de uma tentativa antiga; desconhecido → log
+    `mail.notice_unmatched` e contagem, sem linha); `INSERT … ON CONFLICT DO NOTHING` em
+    `mail_notices` por `(provider, notice_id)`; aplica a transição de N7 com `FOR UPDATE` (o
+    primeiro motivo final fica, `DELIVERED` nunca desfaz `UNDELIVERED`, um envio ainda `PENDING`
+    na tentativa do aviso vai direto a `DELIVERED`/`UNDELIVERED` com `sent_at`); audita
+    `mail_delivery.undelivered` com `source: NOTICE`;
   - rota nova: `endpoints.ts` (T003), linha no `MATRIX` de `authorization-matrix.ts` (pública)
     e `route-declarations.spec.ts` com o motivo.
 - [ ] T028 [US2] Visões dos convites: `class-invitation.view.ts` e
@@ -350,7 +364,7 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
 - [ ] T029 [P] [US2] Web:
   - `apps/web/lib/messages/status-labels.ts`: "Não entregue" e os dois textos de motivo;
   - componente compartilhado `apps/web/features/invitations/components/delivery-status.tsx`
-    (`Badge` + texto) e `resend-confirm-dialog.tsx` (`AlertDialog`), usados por
+    (`Badge` + texto, os quatro estados de `contracts/web-ui.md`) e `resend-confirm-dialog.tsx` (`AlertDialog`), usados por
     `class-invitations-tab.tsx`, `teachers-admin.tsx` e `managers-admin.tsx`; se `features/`
     não aceitar uma pasta compartilhada pelas camadas do ESLint, ficam em
     `apps/web/components/invitations/`;
@@ -359,7 +373,7 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
   `mail:notice` em `apps/api/package.json` (quickstart passo 3): `--kind
   delivered|bounced|complained|failed --delivery <id> [--bad-signature]`, assina com o
   `MAIL_NOTICE_SECRET` local e posta na API; recusa `NODE_ENV=production`. Teste em
-  `apps/api/test/integration/017-us2-notices.spec.ts` (`017/FR-029`: não roda em produção).
+  `apps/api/test/integration/017-us2-notices.spec.ts` (não roda em produção).
 - [ ] T031 [US2] Rodar T020–T023 verdes e tirar a US2, `SC-003` e `SC-004` de `pending`.
 
 **Checkpoint**: MVP — a fila e o "Não entregue" funcionam de ponta a ponta com avisos assinados.
@@ -429,17 +443,17 @@ pendentes seguirem.
   - `017/FR-029`: `.env.test.example` e `apps/web/e2e/.env.e2e` apontam para o Mailpit.
 - [ ] T036 [P] [US4] `apps/api/test/security/secret-leak-scan.spec.ts` (`017/US4-5`,
   `017/FR-026`, `017/SC-007`): a senha do `SMTP_URL`, o `MAIL_NOTICE_SECRET`, os endereços, nomes,
-  links, tokens e Message-IDs dos seis e-mails nunca aparecem em logs, auditoria, linhas de
+  links e tokens dos seis e-mails nunca aparecem em logs, auditoria, linhas de
   `mail_deliveries`/`mail_notices` nem respostas, inclusive nos erros de SMTP (`EAUTH` com a URL),
-  no erro do carregador de configuração e nas recusas de aviso.
-- [ ] T037 [P] [US4] `apps/api/test/docs/017-email-guide.spec.ts` (`017/US4-1`, `017/FR-027`,
+  no erro do carregador de configuração e nas recusas de aviso; o Message-ID só aparece em
+  `mail_deliveries.message_id`, nunca em logs, auditoria ou respostas.
+- [ ] T037 [P] [US4] `apps/api/test/integration/017-email-guide.spec.ts` (`017/US4-1`, `017/FR-027`,
   `017/FR-028`, `017/SC-008`): `docs/deploy/email.md` existe, é linkado pelo `README.md` e cobre as
   seções obrigatórias (conta e domínio no Resend; SPF, DKIM, DMARC e return-path; as variáveis de
   `contracts/configuration.md`, todas citadas; o webhook e os 5 eventos; rastreamento desligado; a
   verificação `spf=pass`/`dkim=pass`/`dmarc=pass`; limites; a troca para o SES com identidade,
   DKIM, MAIL FROM, saída do sandbox, credenciais SMTP, configuration set sem rastreio, SNS com
-  cabeçalhos originais; a nota da LGPD). Se a pasta `test/docs` não existir, o teste fica em
-  `apps/api/test/integration/`.
+  cabeçalhos originais; a nota da LGPD).
 
 ### Implementation for User Story 4
 
@@ -462,9 +476,10 @@ pendentes seguirem.
 - [ ] T040 Retenção `mail-records` (`contracts/maintenance-jobs.md`, research N13) em
   `apps/api/src/platform/mail/retention/mail-records.job.ts`, registrado no
   `maintenance.service.ts`: avisos com mais de 90 dias; envios finais com mais de
-  `MAIL_RECORDS_RETENTION_DAYS`, exceto o último de um convite `PENDING`; lotes de 1 000;
+  `MAIL_RECORDS_RETENTION_DAYS`, exceto o último de um convite `PENDING`; lotes de 1 000, numa
+  transação com `SET LOCAL devtrack.mail_purge = 'on'`;
   `maintenance.job_completed` só com contagens. Teste em
-  `apps/api/test/integration/maintenance.spec.ts` (`017/FR-009` retenção) com `FixedClock`.
+  `apps/api/test/integration/maintenance.spec.ts` com `FixedClock`.
 - [ ] T041 Auditoria e journey: `apps/api/test/helpers/journey.ts` com envio que falha, descarte,
   rejeição SMTP e aviso de bounce; `audit-coverage.spec.ts`: os três tipos novos com metadados só
   de enums, contagens e códigos.
@@ -475,7 +490,9 @@ pendentes seguirem.
     permissões de 001;
   - a rota de avisos com `Origin` de fora e cookie de sessão não ganha sessão nem audita ator
     humano;
-  - desempenho do aviso: p95 < 200 ms em 100 avisos válidos (plan, Performance Goals).
+  - desempenho do aviso: p95 < 200 ms em 100 avisos válidos (plan, Performance Goals);
+  - `017/FR-030`: nenhuma rota envia e-mail fora dos seis tipos nem em lote, nenhuma tabela guarda
+    endereço bloqueado, nenhum receptor de e-mail, `mail_kind` tem exatamente os seis valores.
 - [ ] T043 E2E `apps/web/e2e/production-email.spec.ts` (`017/US2-1`, `017/US2-4`, `017/US3-1`):
   1. o professor convida um aluno; no Mailpit o e-mail tem HTML e texto com o mesmo link e nenhuma
      imagem externa;
@@ -503,7 +520,8 @@ pendentes seguirem.
 ## Dependencies & Execution Order
 
 - **Ordem das fases**: Setup (T001–T003) → Foundational (T004–T009) → histórias → Polish.
-- **US1 (T010–T019)**: depende da Foundational e destrava a US2 (o `message_id` e
+- **US1 (T010–T019)**: depende da Foundational (a T016 também muda o contrato do provisioning e
+  reconstrói `@repo/contracts`) e destrava a US2 (o `message_id` e
   `latestDeliveryState`). Dentro dela, T013 → T014 → T015–T018 (em paralelo) → T019.
 - **US2 (T020–T031)**: depende da US1. T024 → T025/T026 → T027 → T028 → T029; T030 depois da
   T027.
