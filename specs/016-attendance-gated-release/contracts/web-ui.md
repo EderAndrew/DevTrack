@@ -10,7 +10,7 @@
 
 ### "Chamada" tab
 
-The tab is in the activity detail of a `PRESENT_ONLY` work (`features/attendance`).
+The tab is in the activity detail of a `PRESENT_ONLY` work (`features/attendance`). Since the 012 amendment of 2026-10-11 it opens the activity's "Chamada e alunos" tab, above the roster.
 
 - **Before the release**: a checklist of the class with "Marcar todos" and "Desmarcar todos", the
   counter "n de m selecionados", and the primary button "Liberar para os presentes" (confirm dialog

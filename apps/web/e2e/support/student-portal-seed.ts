@@ -126,9 +126,13 @@ export async function markAllPresentThroughApi(page: Page, classId: string, acti
   if (mark.length > 0) await apiPost(page, `/classes/${classId}/activities/${activityId}/attendance`, { mark, unmark: [] });
 }
 
-/** 016/US1 in the interface: on the work's page, "Chamada" → "Marcar todos" → "Liberar para os presentes" → "Liberar". */
+/**
+ * 016/US1 in the interface: on the work's page, the tab "Chamada e alunos" → "Marcar todos" →
+ * "Liberar para os presentes" → "Liberar".
+ */
 export async function releaseToPresent(page: Page): Promise<void> {
-  const attendance = page.getByRole("region", { name: "Chamada" });
+  await page.getByRole("tab", { name: "Chamada e alunos" }).click();
+  const attendance = page.getByRole("region", { name: "Chamada", exact: true });
   await expect(attendance.getByText("Aguardando chamada")).toBeVisible();
   await attendance.getByRole("button", { name: "Marcar todos", exact: true }).click();
   await attendance.getByRole("button", { name: "Liberar para os presentes" }).click();

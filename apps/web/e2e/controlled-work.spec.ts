@@ -159,7 +159,7 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     await page.context().close();
 
     // The teacher sees the timeline and the help of question 2 in the review (015/SC-004).
-    await teacherPage.goto(activityPath);
+    await teacherPage.goto(`${activityPath}?aba=alunos`);
     await teacherPage.getByRole("link", { name: seed.student.name }).click();
     await expect(teacherPage.getByRole("heading", { name: `Tentativa de ${seed.student.name}` })).toBeVisible();
     const records = teacherPage.getByRole("region", { name: "Registros do modo controlado" });

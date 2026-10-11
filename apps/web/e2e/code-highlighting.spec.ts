@@ -126,7 +126,7 @@ test.describe("014 realce de sintaxe do código", () => {
 
     // The teacher's attempt: the student's code and the expected solution in color (US2-2).
     const teacherPage = await (await browser.newContext()).newPage();
-    await logIn(teacherPage, seed.teacher, `/turmas/${seed.classId}/atividades/${activityId}`);
+    await logIn(teacherPage, seed.teacher, `/turmas/${seed.classId}/atividades/${activityId}?aba=alunos`);
     await teacherPage.getByRole("link", { name: seed.student.name }).click();
     await expect(teacherPage.getByRole("heading", { name: `Tentativa de ${seed.student.name}` })).toBeVisible();
     const answers = teacherPage.getByRole("group", { name: "Resposta do aluno" });

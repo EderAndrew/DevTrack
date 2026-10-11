@@ -84,7 +84,7 @@ test.describe("013 pontos dos exercícios e ranking", () => {
     await expect(page.getByText("Refazer não vale pontos. Seus pontos nesta atividade: 15 pontos.")).toBeVisible();
 
     // The teacher marks the Intermediário right, with a comment: 30 more points, at once.
-    await teacherPage.goto(activityPath);
+    await teacherPage.goto(`${activityPath}?aba=alunos`);
     await teacherPage.getByRole("link", { name: seed.student.name }).click();
     await expect(teacherPage.getByRole("heading", { name: `Tentativa de ${seed.student.name}` })).toBeVisible();
     await teacherPage.getByRole("group", { name: "Correção do exercício 2" }).getByRole("radio", { name: "Certo" }).check();
