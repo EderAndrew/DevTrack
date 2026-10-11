@@ -81,6 +81,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `activity_execution_mode` += `CONTROLLED`, `class_activities.ai_help_allowance` (0 or 3), tables `attempt_integrity_events` (append-only) and `work_help_requests` (015-controlled-work-ai-help)
 - No new dependency (016-attendance-gated-release)
 - PostgreSQL 17 — one migration: `class_activities.release_mode` (`ALL_ENROLLED`/`PRESENT_ONLY`), tables `activity_attendances` and `attempt_pauses`, defense triggers on attempt writes while paused (016-attendance-gated-release)
+- No new dependency; `nodemailer` SMTP stays the only transport (Resend now, AWS SES later by configuration), `node:crypto` + `fetch` verify provider notices (017-production-email)
+- PostgreSQL 17 — one migration: `mail_deliveries` (replaces `class_invitation_deliveries`, all six e-mails) and `mail_notices` (append-only), `delivery_status` += `DELIVERED`/`UNDELIVERED`/`DISCARDED` (017-production-email)
 
 ## Stack notes
 
@@ -302,9 +304,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 017-production-email: real e-mail in production — one outbox with retries for all six e-mails (fresh link per attempt, nothing of the e-mail stored), provider notices (`POST /mail/notices/:provider`, signature on the raw body, our own Message-ID links them) mark invitations "Não entregue", HTML + text templates without external resources or tracking, production config guard, deploy guide (Resend → SES)
 - 016-attendance-gated-release: per-activity attendance — a new work is released only to the students the teacher marks present (late students marked later, unmark only before the start); exercises and older works stay open; "Sair da sala" pauses the attempt (reason declared by the student, or a teacher pause) and only the teacher releases the return, on every device; the deadline keeps running; PAUSED and durations derived on read; polling, no WebSocket
 - 015-controlled-work-ai-help: per-work teacher options — CONTROLLED mode (fullscreen focus page, screen exits and blocked copy/paste recorded as server-timed facts, typing allowance on save, never blocking the attempt) and AI help (3 orientations per student by the L2 `work-helper`, which never receives the answer key; deterministic leak check before delivery; teacher sees questions and orientations; the student sees their own helps and exits after the submission); constitution 3.4.0
-- 014-code-syntax-highlighting: syntax colors wherever code of a Código question appears (student editor, 013 answer key, teacher review, banks); CodeMirror 6 lazy-loaded for editing and its Lezer parsers rendering read-only code as React spans; grammar per language as catalog data (`programming_languages.highlight`), carried by every language object; eight `--syntax-*` tokens (light/dark, WCAG AA); typed text never altered
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
