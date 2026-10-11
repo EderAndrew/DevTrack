@@ -10,8 +10,11 @@ export const attendanceApi = {
   apply: (classId: string, activityId: string, batch: AttendanceBatch) => apiClient.post<Room>(attendancePath(classId, activityId), batch),
 };
 
-/** "Liberar retorno": keyed by the pause, so a double click never ends a later one (research M7). */
+/** "Pausar aluno" and "Liberar retorno"; a release is keyed by the pause, so a double click never ends a later one (research M7). */
 export const pausesApi = {
+  /** 201 for a new pause, 200 with the one already open (the student's own or another tab's). */
+  pauseStudent: (classId: string, activityId: string, studentUserId: string) =>
+    apiClient.post<TeacherPause>(`/classes/${classId}/activities/${activityId}/students/${studentUserId}/pause`, {}),
   release: (classId: string, activityId: string, pauseId: string) =>
     apiClient.post<TeacherPause>(`/classes/${classId}/activities/${activityId}/pauses/${pauseId}/release`, {}),
   /** "Saídas da sala" in the review (FR-021): each pause with its derived end and duration. */

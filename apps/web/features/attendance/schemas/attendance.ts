@@ -77,6 +77,15 @@ export const RESUME_CONTROLLED = "Retomar em modo controlado";
 /** The teacher's action on a student out of the room (FR-014). */
 export const RELEASE_RETURN = "Liberar retorno";
 
+// ── 016/US5: the teacher pauses a student (contracts/web-ui.md) ───────────────────────────
+
+/** The teacher's action on a student who is answering (FR-016), with a confirmation. */
+export const PAUSE_STUDENT = "Pausar aluno";
+export const CONFIRM_PAUSE = "Pausar";
+export const pauseQuestion = (name: string) => `Pausar ${name}?`;
+export const PAUSE_STUDENT_NOTICE =
+  "As questões saem da tela do aluno em todos os dispositivos até você liberar o retorno. As respostas salvas ficam guardadas e o prazo continua correndo.";
+
 /** "Saída às HH:MM", on the student's notice. */
 export const exitedAtLabel = (startedAt: string) => `Saída às ${formatTime(startedAt)}`;
 

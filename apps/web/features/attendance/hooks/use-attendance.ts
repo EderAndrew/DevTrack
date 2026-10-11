@@ -53,3 +53,12 @@ export function useReleasePause(classId: string, activityId: string) {
     onSettled: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
   });
 }
+
+/** "Pausar aluno" (FR-016): the room is read again, the student's page follows on its next poll. */
+export function usePauseStudent(classId: string, activityId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentUserId: string) => pausesApi.pauseStudent(classId, activityId, studentUserId),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
+  });
+}

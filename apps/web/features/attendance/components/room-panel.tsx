@@ -2,11 +2,34 @@
 
 import type { AttendanceBatch, Room, RoomStatus, RoomStudent } from "@repo/contracts";
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { messageForError } from "@/lib/messages/error-messages";
-import { useApplyAttendance, useReleasePause } from "../hooks/use-attendance";
-import { awayForLabel, MARK_PRESENT, outOfRoomLabel, PAUSE_REASON_LABELS, RELEASE_RETURN, ROOM_STATUS_LABELS, UNMARK } from "../schemas/attendance";
+import { useApplyAttendance, usePauseStudent, useReleasePause } from "../hooks/use-attendance";
+import {
+  awayForLabel,
+  CONFIRM_PAUSE,
+  MARK_PRESENT,
+  outOfRoomLabel,
+  PAUSE_REASON_LABELS,
+  PAUSE_STUDENT,
+  PAUSE_STUDENT_NOTICE,
+  pauseQuestion,
+  RELEASE_RETURN,
+  ROOM_STATUS_LABELS,
+  UNMARK,
+} from "../schemas/attendance";
 
 const STATUS_VARIANTS: Record<RoomStatus, "neutral" | "info" | "success" | "warning"> = {
   NOT_MARKED: "neutral",
@@ -29,13 +52,17 @@ export interface RoomPanelProps {
  * while the student is "Presente" (FR-005). A refused unmark — the student started meanwhile — shows
  * the catalog's message and reads the room again, which then offers the pause. Students out of the
  * room come first, as "Fora da sala — <motivo>, desde HH:MM" with the time away, and "Liberar
- * retorno" ends that pause (US3-4, US3-5, FR-014).
+ * retorno" ends that pause (US3-4, US3-5, FR-014). A student who is "Respondendo" can be paused by
+ * the teacher, after a confirmation, with the same effect and the reason "Pausado pelo professor"
+ * (US5, FR-016); a refusal (the student submitted meanwhile) shows the catalog's message and reads
+ * the room again.
  */
 export function RoomPanel({ classId, activityId, room }: RoomPanelProps) {
   const apply = useApplyAttendance(classId, activityId);
   const release = useReleasePause(classId, activityId);
+  const pause = usePauseStudent(classId, activityId);
   const [error, setError] = useState<string | null>(null);
-  const busy = apply.isPending || release.isPending;
+  const busy = apply.isPending || release.isPending || pause.isPending;
 
   const run = async (action: () => Promise<unknown>) => {
     setError(null);
@@ -82,6 +109,25 @@ export function RoomPanel({ classId, activityId, room }: RoomPanelProps) {
               >
                 {RELEASE_RETURN}
               </Button>
+            ) : null}
+            {row.roomStatus === "ANSWERING" ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" size="sm" variant="secondary" aria-label={`${PAUSE_STUDENT} ${row.name}`} disabled={busy}>
+                    {PAUSE_STUDENT}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{pauseQuestion(row.name)}</AlertDialogTitle>
+                    <AlertDialogDescription>{PAUSE_STUDENT_NOTICE}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => void run(() => pause.mutateAsync(row.studentUserId))}>{CONFIRM_PAUSE}</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             ) : null}
             {row.roomStatus === "NOT_MARKED" ? (
               <Button

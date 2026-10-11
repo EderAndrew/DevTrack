@@ -58,6 +58,13 @@ export function releasePause(client: ApiClient, classId: string, activityId: str
   return client.post(`/api/classes/${classId}/activities/${activityId}/pauses/${pauseId}/release`, {});
 }
 
+// ── 016/US5: the teacher pauses a student (tasks T037–T038) ───────────────────────────────────
+
+/** `POST …/students/:studentUserId/pause`: "Pausar aluno" (016/FR-016). */
+export function pauseStudent(client: ApiClient, classId: string, activityId: string, studentUserId: string) {
+  return client.post(`/api/classes/${classId}/activities/${activityId}/students/${studentUserId}/pause`, {});
+}
+
 // ── 016/US4: the pauses in the review (tasks T034–T035) ──────────────────────────────────────
 
 /** `GET …/attempts/:attemptId/pauses`: an attempt's room exits with their durations (016/FR-021). */
