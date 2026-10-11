@@ -422,7 +422,7 @@ correção.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T034 [P] [US4] `apps/api/test/integration/016-us4-review.spec.ts`: `016/US4-1`, `016/US4-2`,
+- [X] T034 [P] [US4] `apps/api/test/integration/016-us4-review.spec.ts`: `016/US4-1`, `016/US4-2`,
   `016/US4-3`, `016/US4-4`, `016/FR-019`, `016/FR-021` e `016/SC-008`.
   - `ABSENT` fora de `MISSED` e fora de `missedCount`.
   - `markedAt` e `pauses` por aluno.
@@ -432,13 +432,13 @@ correção.
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Roster e revisão:
+- [X] T035 [US4] Roster e revisão:
   - `apps/api/src/modules/activities/roster.ts` e `status/roster-status.ts` passam a ter `ABSENT`,
     `markedAt` e `pauses`, usando `activities/status/pause-time.ts` (T007, research M1).
   - `GET …/attempts/:attemptId/pauses` em `pauses.controller.ts`, com `entregas.visualizar`;
     catálogo e `MATRIX`.
   - `pauses` na visão do aluno depois da entrega, em `student-view.ts`.
-- [ ] T036 [US4] Web, com os testes primeiro:
+- [X] T036 [US4] Web, com os testes primeiro:
   - roster: o status "Ausente" e as colunas "Presença" e "Pausas", em
     `features/activities/components/activity-detail.tsx`;
   - "Saídas da sala" em `attempt-review.tsx`, com "Encerrada com a atividade";

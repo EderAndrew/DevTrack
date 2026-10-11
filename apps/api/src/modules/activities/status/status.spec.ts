@@ -151,6 +151,16 @@ describe("012/FR-006 situação na lista do professor e aceite da tentativa", ()
     expect(deriveRosterStatus(facts({ ...inProgress, now: at(1), latePolicy: "ACCEPT_MARKED" }))).toBe("IN_PROGRESS");
   });
 
+  it("016/FR-019 não marcado e sem tentativa é Ausente, mesmo depois do prazo ou do encerramento; nunca MISSED", () => {
+    expect(deriveRosterStatus(facts(), "NOT_MARKED")).toBe("ABSENT");
+    expect(deriveRosterStatus(facts({ now: at(1) }), "NOT_MARKED")).toBe("ABSENT");
+    expect(deriveRosterStatus(facts({ activityStatus: "CLOSED" }), "NOT_MARKED")).toBe("ABSENT");
+    // Marked, or an activity that takes no attendance: the 012 statuses.
+    expect(deriveRosterStatus(facts({ activityStatus: "CLOSED" }), "MARKED")).toBe("MISSED");
+    expect(deriveRosterStatus(facts({ activityStatus: "CLOSED" }), "NOT_REQUIRED")).toBe("MISSED");
+    expect(deriveRosterStatus(facts(inProgress), "MARKED")).toBe("IN_PROGRESS");
+  });
+
   it("012/FR-006b o professor só aceita a tentativa de quem não pode mais entregar", () => {
     expect(acceptanceRefusal(facts({ ...inProgress, now: at(1) }))).toBeNull();
     expect(acceptanceRefusal(facts({ ...inProgress, activityStatus: "CLOSED" }))).toBeNull();

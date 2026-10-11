@@ -7,6 +7,7 @@ import {
   type EnrollmentStatus,
   type ExerciseRosterCounts,
   type LatePolicy,
+  type ReleaseMode,
   type RosterCounts,
   type RosterEntry,
 } from "@repo/contracts";
@@ -14,7 +15,8 @@ import type { Tx } from "../../platform/database/transaction";
 import { decimalToCents } from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { type ActivityFacts, assignmentSchedule } from "./status/facts";
-import { deriveRosterStatus } from "./status/roster-status";
+import { type PauseFacts, pauseTime } from "./status/pause-time";
+import { deriveRosterStatus, type RosterPresence } from "./status/roster-status";
 
 /** A student of the class as the roster reads it: ACTIVE, or REMOVED (kept when they have an attempt). */
 export interface ClassStudent {
@@ -30,11 +32,20 @@ export interface RosterAttempt {
   /** 1 for an ASSIGNMENT; the practice attempt's number for an EXERCISE (013 K3). */
   number: number;
   status: AttemptStatus;
-  submission: { submittedAt: Date; late: boolean; gradeCents: number; gradePartial: boolean } | null;
+  submission: { submittedAt: Date; late: boolean; gradeCents: number; gradePartial: boolean; acceptedByTeacher: boolean } | null;
   /** EXERCISE: the results of a concluded attempt (013 K6); empty otherwise. */
   results: { result: ExerciseResult; points: number }[];
   /** The AI helps delivered in this attempt (015/FR-020: only DELIVERED count). */
   helpUsed: number;
+  /** 016: the attempt's room exits, as stored; their end and duration are derived (research M7). */
+  pauses: PauseFacts[];
+}
+
+/** 016: a presence in a `PRESENT_ONLY` activity (`activity_attendances`, research M9). */
+export interface RosterAttendance {
+  activityId: string;
+  studentUserId: string;
+  markedAt: Date;
 }
 
 export interface RosterActivity {
@@ -45,6 +56,10 @@ export interface RosterActivity {
   deadline: Date | null;
   latePolicy: LatePolicy | null;
   released: boolean;
+  /** 016: a `PRESENT_ONLY` work takes attendance, so a student never marked is ABSENT (FR-019). */
+  releaseMode: ReleaseMode;
+  /** The activity's `closed_at` or `cancelled_at`: an open pause ends there by derivation (016 M7). */
+  endedAt: Date | null;
 }
 
 /** One student's facts in the activity, by type (contracts/student-status.md). */
@@ -74,18 +89,32 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
   };
 }
 
+/** The room exits of one attempt for the roster: how many, the derived time away and whether one is open (016/FR-019). */
+function pausesOf(activity: RosterActivity, attempt: RosterAttempt | null, now: Date): RosterEntry["pauses"] {
+  const submission = attempt?.submission ?? null;
+  const context = { acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null, activityEndedAt: activity.endedAt };
+  const times = (attempt?.pauses ?? []).map((pause) => pauseTime(pause, context, now));
+  return {
+    count: times.length,
+    secondsAway: times.reduce((sum, time) => sum + time.seconds, 0),
+    open: times.some((time) => time.endedBy === null),
+  };
+}
+
 /**
  * Each student's situation in one activity (FR-006, contracts/student-status.md): the students with
  * an ACTIVE enrollment, plus the removed ones who started it (their work stays visible to the
  * teacher), by name. The status is derived with the server clock on every read. For an EXERCISE the
  * row points to attempt 1 — the one that scores and that the teacher marks — with its points and the
  * answers waiting for a mark (013/FR-016). A work's row counts the AI helps delivered ("2 de 3",
- * 015/FR-024).
+ * 015/FR-024). Since 016 a row carries the time of the presence and the pauses, and a student of a
+ * `PRESENT_ONLY` work never marked present is ABSENT, outside `missed` (FR-019, research M9).
  */
 export function buildRoster(
   activity: RosterActivity,
   students: readonly ClassStudent[],
   attempts: readonly RosterAttempt[],
+  attendances: readonly RosterAttendance[],
   classActive: boolean,
   now: Date,
 ): { roster: RosterEntry[]; counts: RosterCounts; exerciseCounts: ExerciseRosterCounts | null } {
@@ -94,6 +123,8 @@ export function buildRoster(
     byStudent.set(attempt.studentUserId, [...(byStudent.get(attempt.studentUserId) ?? []), attempt]);
   }
   for (const list of byStudent.values()) list.sort((a, b) => a.number - b.number);
+  const markedAt = new Map(attendances.filter((row) => row.activityId === activity.id).map((row) => [row.studentUserId, row.markedAt]));
+  const takesAttendance = activity.releaseMode === "PRESENT_ONLY";
   const exercise = activity.type === "EXERCISE";
   const workOptions = ACTIVITY_TYPES[activity.type].workOptions;
   const roster = students
@@ -103,11 +134,13 @@ export function buildRoster(
       const attempt = studentAttempts[0] ?? null;
       const submission = attempt?.submission ?? null;
       const results = attempt?.results ?? [];
+      const marked = markedAt.get(student.studentUserId) ?? null;
+      const presence: RosterPresence = !takesAttendance ? "NOT_REQUIRED" : marked ? "MARKED" : "NOT_MARKED";
       return {
         studentUserId: student.studentUserId,
         name: student.name,
         enrollment: student.enrollment,
-        status: deriveRosterStatus(rosterFacts(activity, studentAttempts, classActive, now)),
+        status: deriveRosterStatus(rosterFacts(activity, studentAttempts, classActive, now), presence),
         attemptId: attempt?.id ?? null,
         submittedAt: submission?.submittedAt.toISOString() ?? null,
         grade: submission ? centsToGrade(submission.gradeCents) : null,
@@ -115,9 +148,8 @@ export function buildRoster(
         pointsEarned: exercise ? results.reduce((sum, row) => sum + row.points, 0) : null,
         pendingMarks: exercise ? results.filter((row) => row.result === "PENDING_TEACHER").length : null,
         aiHelpUsed: workOptions ? (attempt?.helpUsed ?? 0) : null,
-        // 016: filled by the attendance tasks (US1, US4); no attendance or pause exists before them.
-        markedAt: null,
-        pauses: { count: 0, secondsAway: 0, open: false },
+        markedAt: marked?.toISOString() ?? null,
+        pauses: pausesOf(activity, attempt, now),
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;
@@ -143,14 +175,15 @@ export function buildRoster(
 }
 
 /**
- * The class's students (one row each: ACTIVE wins over an older REMOVED enrollment) and the
- * attempts of these activities, in two queries whatever the number of activities.
+ * The class's students (one row each: ACTIVE wins over an older REMOVED enrollment), the attempts
+ * of these activities with their pauses, and their presences (016), in three queries whatever the
+ * number of activities. The attendance table is read here, never through `attendance` (research M1).
  */
 export async function loadRosterData(
   db: Tx,
   classId: string,
   activityIds: readonly string[],
-): Promise<{ students: ClassStudent[]; attempts: RosterAttempt[] }> {
+): Promise<{ students: ClassStudent[]; attempts: RosterAttempt[]; attendances: RosterAttendance[] }> {
   const enrollments = await db.enrollment.findMany({
     where: { classId },
     select: { studentUserId: true, status: true, student: { select: { user: { select: { name: true } } } } },
@@ -172,12 +205,21 @@ export async function loadRosterData(
             studentUserId: true,
             number: true,
             status: true,
-            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true } },
+            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true } },
             results: { select: { result: true, points: true } },
+            pauses: { orderBy: { startedAt: "asc" }, select: { startedAt: true, releasedAt: true } },
             _count: { select: { helpRequests: { where: { status: "DELIVERED" } } } },
           },
         });
+  const attendances =
+    activityIds.length === 0
+      ? []
+      : await db.activityAttendance.findMany({
+          where: { activityId: { in: [...activityIds] } },
+          select: { activityId: true, studentUserId: true, markedAt: true },
+        });
   return {
+    attendances,
     students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId)),
     attempts: attempts.map(({ _count, ...attempt }) => ({
       ...attempt,
@@ -187,6 +229,7 @@ export async function loadRosterData(
         late: attempt.submission.late,
         gradeCents: decimalToCents(attempt.submission.grade),
         gradePartial: attempt.submission.gradePartial,
+        acceptedByTeacher: attempt.submission.acceptedById !== null,
       },
     })),
   };

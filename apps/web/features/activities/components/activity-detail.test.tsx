@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
+import { formatTime } from "@/lib/messages/dates";
 import { ActivityDetail, EDIT_FIELD_IDS, VERSION_CONFLICT_NOTICE } from "./activity-detail";
 import {
   ACTIVITY_ID,
@@ -440,5 +441,68 @@ describe("016/US1 ActivityDetail — chamada de um Trabalho PRESENT_ONLY", () =>
     await screen.findByRole("heading", { name: "Lista de herança" });
     expect(screen.queryByRole("region", { name: "Chamada" })).toBeNull();
     expect(api.calls.some((call) => call.url.endsWith("/attendance"))).toBe(false);
+  });
+});
+
+describe("016/US4 ActivityDetail — presença e pausas na lista de alunos", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const base = activity().roster[0]!;
+  const MARKED_AT = "2026-10-02T13:05:00.000Z";
+  const presentOnly = activity({
+    releaseMode: "PRESENT_ONLY",
+    attendance: { present: 2, enrolled: 3 },
+    counts: { enrolled: 3, inProgress: 1, submitted: 1, submittedLate: 0, missed: 0, pendingGrading: 1 },
+    roster: [
+      { ...base, studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1", name: "Ana Souza", status: "ABSENT" },
+      {
+        ...base,
+        studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
+        name: "Bruno Lima",
+        status: "SUBMITTED",
+        attemptId: ATTEMPT_ID,
+        submittedAt: "2026-10-02T14:00:00.000Z",
+        markedAt: MARKED_AT,
+        pauses: { count: 2, secondsAway: 420, open: false },
+      },
+      {
+        ...base,
+        studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
+        name: "Carla Dias",
+        status: "IN_PROGRESS",
+        attemptId: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3",
+        markedAt: MARKED_AT,
+        pauses: { count: 1, secondsAway: 90, open: true },
+      },
+    ],
+  });
+  const rowOf = (name: string) => within(screen.getByRole("table", { name: /Situação de cada aluno/ })).getByText(name).closest("tr")!;
+  const cells = (name: string) => within(rowOf(name)).getAllByRole("cell").map((cell) => cell.textContent);
+
+  it("016/US4-1 016/FR-019 \"Ausente\" separado de \"Não entregou\", com as colunas Presença e Pausas", async () => {
+    const { container } = setup({ [`GET ${PATH}`]: json(200, presentOnly) });
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    const table = screen.getByRole("table", { name: /Situação de cada aluno/ });
+    expect(within(table).getByRole("columnheader", { name: "Presença" })).toBeTruthy();
+    expect(within(table).getByRole("columnheader", { name: "Pausas" })).toBeTruthy();
+    expect(cells("Ana Souza")).toEqual(["Ana Souza", "Ausente", "—", "—", "—", "—"]);
+    expect(within(table).queryByText("Não entregou")).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("016/US4-2 016/FR-019 o horário da presença, o número de pausas e o tempo fora; \"Fora da sala\" com a pausa aberta", async () => {
+    setup({ [`GET ${PATH}`]: json(200, presentOnly) });
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    const marked = formatTime(MARKED_AT);
+    expect(cells("Bruno Lima").slice(4)).toEqual([marked, "2 (7 min fora)"]);
+    expect(cells("Carla Dias").slice(4)).toEqual([marked, "1 (1 min 30 s fora) · Fora da sala"]);
+  });
+
+  it("016/FR-019 um trabalho ALL_ENROLLED não mostra Presença nem Pausas", async () => {
+    setup();
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    const table = screen.getByRole("table", { name: /Situação de cada aluno/ });
+    expect(within(table).queryByRole("columnheader", { name: "Presença" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Pausas" })).toBeNull();
   });
 });

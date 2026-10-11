@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudentPause } from "@repo/contracts";
 import { History, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Status } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { occurredAt } from "@/features/activities/schemas/attempt-records";
+import { formatDuration, occurredAt } from "@/features/activities/schemas/attempt-records";
+import { NO_RETURN, PAUSE_REASON_LABELS, ROOM_EXITS_TITLE } from "@/features/attendance/schemas/attendance";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import type { StudentActivityListFilters } from "../api/student-activities";
 import { useOwnIntegrity, useStudentActivities } from "../hooks/use-student-activities";
@@ -131,6 +133,40 @@ export function ScreenExitRecords({ activityId }: { activityId: string }) {
           })}
         </ul>
       ) : null}
+    </section>
+  );
+}
+
+/** "Outro (texto)": the reason as the student chose it, with their own note. */
+const ownReason = (pause: StudentPause) => (pause.note ? `${PAUSE_REASON_LABELS[pause.reason]} (${pause.note})` : PAUSE_REASON_LABELS[pause.reason]);
+
+/**
+ * The student's own room exits in a delivered work (016 US4-4, FR-021): the reason, the exit, the
+ * return and the duration of each, from the server's times. Only their own; never the class's
+ * attendance nor another student's situation.
+ */
+export function OwnRoomExits({ pauses }: { pauses: readonly StudentPause[] }) {
+  if (pauses.length === 0) return null;
+  return (
+    <section aria-labelledby="saidas-sala" className="flex flex-col gap-2">
+      <h2 id="saidas-sala" className="m-0 text-h3">
+        {ROOM_EXITS_TITLE}
+      </h2>
+      <ul aria-label={ROOM_EXITS_TITLE} className="m-0 flex flex-col gap-1 pl-5">
+        {pauses.map((pause) => (
+          <li key={pause.id}>
+            {ownReason(pause)}: saída às <time dateTime={pause.startedAt}>{formatTime(pause.startedAt)}</time>
+            {pause.endedAt ? (
+              <>
+                , retorno às <time dateTime={pause.endedAt}>{formatTime(pause.endedAt)}</time> (
+                {formatDuration(Math.floor((Date.parse(pause.endedAt) - Date.parse(pause.startedAt)) / 1000))})
+              </>
+            ) : (
+              `, ${NO_RETURN}`
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

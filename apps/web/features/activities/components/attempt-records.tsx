@@ -1,11 +1,21 @@
 "use client";
 
-import type { CodeHighlight, IntegrityTimeline, TeacherHelpItem, TeacherQuestion } from "@repo/contracts";
+import type { AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
 import { createContext, useContext } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/ui/code/code-block";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAttemptPauses } from "@/features/attendance/hooks/use-attendance";
+import {
+  ENDED_WITH_ACCEPTANCE,
+  ENDED_WITH_ACTIVITY,
+  NO_ROOM_EXITS,
+  OUT_OF_ROOM,
+  PAUSE_INITIATOR_LABELS,
+  pauseReasonText,
+  ROOM_EXITS_TITLE,
+} from "@/features/attendance/schemas/attendance";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useAttemptIntegrity } from "../hooks/use-activities";
@@ -138,4 +148,73 @@ export function QuestionHelpRecords({ question }: { question: TeacherQuestion })
       </ol>
     </section>
   );
+}
+
+/**
+ * "Saídas da sala" (016 US4, FR-021): each pause of the attempt with its reason and note, who started
+ * it, the exit, the return and the duration, all derived by the server. A pause that the close, the
+ * cancellation or the acceptance ended says so. Records, never a verdict (SC-008).
+ */
+export function RoomExitRecords({ classId, activityId, attemptId }: { classId: string; activityId: string; attemptId: string }) {
+  const query = useAttemptPauses(classId, activityId, attemptId, true);
+  return (
+    <section aria-labelledby="saidas-sala-titulo" className="flex flex-col gap-2">
+      <h3 id="saidas-sala-titulo" className="m-0 text-h3">
+        {ROOM_EXITS_TITLE}
+      </h3>
+      {query.error ? (
+        <p role="alert" className="m-0">
+          {messageForError(query.error)}
+        </p>
+      ) : !query.data ? (
+        <div aria-busy="true">
+          <span className="sr-only">Carregando as saídas da sala…</span>
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ) : (
+        <RoomExits pauses={query.data} />
+      )}
+    </section>
+  );
+}
+
+function RoomExits({ pauses }: { pauses: AttemptPauses }) {
+  if (pauses.items.length === 0) return <p className="m-0">{NO_ROOM_EXITS}</p>;
+  return (
+    <>
+      <p className="m-0">Tempo total fora: {formatDuration(pauses.totalSecondsAway)}</p>
+      <Table>
+        <TableCaption>Saídas da sala desta tentativa, no horário do servidor.</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Motivo</TableHead>
+            <TableHead scope="col">Quem pausou</TableHead>
+            <TableHead scope="col">Saída</TableHead>
+            <TableHead scope="col">Retorno</TableHead>
+            <TableHead scope="col">Duração</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {pauses.items.map((pause) => (
+            <TableRow key={pause.id}>
+              <TableCell>{pauseReasonText(pause)}</TableCell>
+              <TableCell>{PAUSE_INITIATOR_LABELS[pause.initiatedBy]}</TableCell>
+              <TableCell>
+                <time dateTime={pause.startedAt}>{formatTime(pause.startedAt)}</time>
+              </TableCell>
+              <TableCell>{pauseEnd(pause)}</TableCell>
+              <TableCell>{formatDuration(pause.seconds)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
+  );
+}
+
+function pauseEnd(pause: TeacherPause) {
+  if (pause.endedAt === null) return OUT_OF_ROOM;
+  if (pause.endedBy === "ACTIVITY_CLOSED") return ENDED_WITH_ACTIVITY;
+  if (pause.endedBy === "ACCEPTED") return ENDED_WITH_ACCEPTANCE;
+  return <time dateTime={pause.endedAt}>{formatTime(pause.endedAt)}</time>;
 }

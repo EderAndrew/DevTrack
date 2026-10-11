@@ -95,7 +95,7 @@ export class ActivitiesService {
       // An EXERCISE has no deadline (013 K1): it comes first, newest publication first.
       orderBy: [{ deadline: { sort: "desc", nulls: "first" } }, { publishAt: "desc" }, { id: "desc" }],
     });
-    const { students, attempts } = await loadRosterData(this.prisma, classId, headers.map((header) => header.id));
+    const { students, attempts, attendances } = await loadRosterData(this.prisma, classId, headers.map((header) => header.id));
     const present = await loadPresentCounts(this.prisma, headers.filter((header) => header.releaseMode === "PRESENT_ONLY").map((header) => header.id));
     const enrolled = activeCount(students);
     const now = this.clock.now();
@@ -103,7 +103,7 @@ export class ActivitiesService {
       items: headers.map((header) =>
         toTeacherActivitySummary(
           header,
-          buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now),
+          buildRoster(rosterActivity(header), students, attempts, attendances, schoolClass.status === "ACTIVE", now),
           now,
           attendanceOf(header, present, enrolled),
         ),
@@ -116,9 +116,9 @@ export class ActivitiesService {
     const header = await db.classActivity.findFirst({ where: { id: activityId, classId }, select: ACTIVITY_HEADER_SELECT });
     if (!header) throw notFound();
     const questions = await db.classActivityQuestion.findMany({ where: { activityId }, select: ACTIVITY_QUESTION_SELECT });
-    const { students, attempts } = await loadRosterData(db, classId, [activityId]);
+    const { students, attempts, attendances } = await loadRosterData(db, classId, [activityId]);
     const now = this.clock.now();
-    const roster = buildRoster(rosterActivity(header), students, attempts, schoolClass.status === "ACTIVE", now);
+    const roster = buildRoster(rosterActivity(header), students, attempts, attendances, schoolClass.status === "ACTIVE", now);
     const present = header.releaseMode === "PRESENT_ONLY" ? await loadPresentCounts(db, [activityId]) : new Map<string, number>();
     return toTeacherActivity(header, questions.map(toQuestionRow), roster, now, attendanceOf(header, present, activeCount(students)));
   }
@@ -443,6 +443,8 @@ function rosterActivity(header: ActivityHeader) {
     deadline: header.deadline,
     latePolicy: header.latePolicy,
     released: header.resultReleasedAt !== null,
+    releaseMode: header.releaseMode,
+    endedAt: header.closedAt ?? header.cancelledAt,
   };
 }
 

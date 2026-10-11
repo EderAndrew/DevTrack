@@ -1,4 +1,4 @@
-import type { PauseReason, RoomStatus, StudentPauseReason } from "@repo/contracts";
+import type { PauseInitiator, PauseReason, RoomStatus, StudentPauseReason } from "@repo/contracts";
 import { formatTime } from "@/lib/messages/dates";
 
 // Texts and rules of the attendance (016 contracts/web-ui.md, "Chamada").
@@ -85,3 +85,26 @@ export const outOfRoomLabel = (reason: PauseReason, startedAt: string) => `Fora 
 
 /** Time away so far, in whole minutes ("há 3 min"); under a minute, "agora há pouco". */
 export const awayForLabel = (seconds: number) => (seconds < 60 ? "agora há pouco" : `há ${Math.floor(seconds / 60)} min`);
+
+// ── 016/US4: attendance and pauses when grading, and in the student's history (contracts/web-ui.md) ──
+
+export const PRESENCE_COLUMN = "Presença";
+export const PAUSES_COLUMN = "Pausas";
+export const OUT_OF_ROOM = "Fora da sala";
+export const ROOM_EXITS_TITLE = "Saídas da sala";
+export const NO_ROOM_EXITS = "Nenhuma saída da sala nesta tentativa.";
+/** A pause still open when the activity was closed or cancelled ends with it (research M7). */
+export const ENDED_WITH_ACTIVITY = "Encerrada com a atividade";
+/** A pause still open when the teacher accepted the saved attempt (012 FR-006b). */
+export const ENDED_WITH_ACCEPTANCE = "Encerrada com a aceitação da entrega";
+export const NO_RETURN = "sem retorno registrado";
+
+/** Who started the pause (FR-021): the student's declared exit or the teacher's pause. */
+export const PAUSE_INITIATOR_LABELS: Record<PauseInitiator, string> = {
+  STUDENT: "Aluno",
+  TEACHER: "Professor",
+};
+
+/** "Outro: <texto>" in the teacher's review; the reason alone otherwise. */
+export const pauseReasonText = (pause: { reason: PauseReason; note: string | null }) =>
+  pause.note ? `${PAUSE_REASON_LABELS[pause.reason]}: ${pause.note}` : PAUSE_REASON_LABELS[pause.reason];

@@ -1,4 +1,4 @@
-import type { AttendanceBatch, DeclareExit, MyPause, Room, StudentPause, TeacherPause } from "@repo/contracts";
+import type { AttemptPauses, AttendanceBatch, DeclareExit, MyPause, Room, StudentPause, TeacherPause } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
 
 const attendancePath = (classId: string, activityId: string) => `/classes/${classId}/activities/${activityId}/attendance`;
@@ -14,6 +14,9 @@ export const attendanceApi = {
 export const pausesApi = {
   release: (classId: string, activityId: string, pauseId: string) =>
     apiClient.post<TeacherPause>(`/classes/${classId}/activities/${activityId}/pauses/${pauseId}/release`, {}),
+  /** "Saídas da sala" in the review (FR-021): each pause with its derived end and duration. */
+  ofAttempt: (classId: string, activityId: string, attemptId: string) =>
+    apiClient.get<AttemptPauses>(`/classes/${classId}/activities/${activityId}/attempts/${attemptId}/pauses`),
 };
 
 const myPausePath = (activityId: string) => `/me/activities/${activityId}/attempt/pause`;

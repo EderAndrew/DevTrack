@@ -94,6 +94,9 @@ export const ACTIVITY_HEADER_SELECT = {
   sourceWorkId: true,
   outOfScopeTopicCount: true,
   resultReleasedAt: true,
+  /** 016: where an open pause ends by derivation (research M7). */
+  closedAt: true,
+  cancelledAt: true,
   version: true,
   /** The EXERCISE's points, summed into `possiblePoints` (013/FR-003). */
   questions: { select: { points: true } },

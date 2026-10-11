@@ -1,6 +1,6 @@
 "use client";
 
-import type { IntegritySummary, TeacherActivity } from "@repo/contracts";
+import type { IntegritySummary, RosterEntry, TeacherActivity } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ban, Lock, Send } from "lucide-react";
 import Link from "next/link";
@@ -22,9 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
-import { attendanceSummary } from "@/features/attendance/schemas/attendance";
+import { attendanceSummary, OUT_OF_ROOM, PAUSES_COLUMN, PRESENCE_COLUMN } from "@/features/attendance/schemas/attendance";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
-import { formatLongDateTime } from "@/lib/messages/dates";
+import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability, useIntegritySummary } from "../hooks/use-activities";
 import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
@@ -375,13 +375,16 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
 /**
  * Each student's situation, in words (FR-006), with a link to the attempt of those who started. A
  * Trabalho shows the submission and the grade; an Exercício the points of attempt 1 and the answers
- * waiting for the teacher's mark (013 contracts/web-ui.md), never a grade.
+ * waiting for the teacher's mark (013 contracts/web-ui.md), never a grade. A work that takes
+ * attendance (016/FR-019) adds the time of the presence and the room exits; "Ausente" is a status
+ * of its own, never "Não entregou".
  */
 function Roster({ classId, activity }: { classId: string; activity: TeacherActivity }) {
   const exercise = activity.exerciseCounts;
   // 015/US4: the controlled mode's counts (a CONTROLLED work) and the helps used (help on), per student.
   const controlled = !exercise && activity.executionMode === "CONTROLLED";
   const withHelp = !exercise && activity.aiHelp.allowance > 0;
+  const withAttendance = activity.releaseMode === "PRESENT_ONLY";
   const summary = useIntegritySummary(classId, activity.id, controlled);
   const recordsOf = (studentUserId: string) => summary.data?.items.find((item) => item.studentUserId === studentUserId);
   return (
@@ -422,6 +425,12 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                 </>
               ) : null}
               {withHelp ? <TableHead scope="col">Ajudas</TableHead> : null}
+              {withAttendance ? (
+                <>
+                  <TableHead scope="col">{PRESENCE_COLUMN}</TableHead>
+                  <TableHead scope="col">{PAUSES_COLUMN}</TableHead>
+                </>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -451,6 +460,12 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
                 )}
                 {controlled ? <IntegrityCells records={recordsOf(entry.studentUserId)} /> : null}
                 {withHelp ? <TableCell>{entry.aiHelpUsed === null ? "—" : helpsUsedLabel(entry.aiHelpUsed, activity.aiHelp.allowance)}</TableCell> : null}
+                {withAttendance ? (
+                  <>
+                    <TableCell>{entry.markedAt ? <time dateTime={entry.markedAt}>{formatTime(entry.markedAt)}</time> : "—"}</TableCell>
+                    <TableCell>{pausesText(entry)}</TableCell>
+                  </>
+                ) : null}
               </TableRow>
             ))}
           </TableBody>
@@ -458,6 +473,12 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
       )}
     </section>
   );
+}
+
+/** "2 (7 min fora)", with "Fora da sala" while one is open; "—" for a student never marked (016/FR-019). */
+function pausesText({ markedAt, pauses }: Pick<RosterEntry, "markedAt" | "pauses">): string {
+  if (pauses.count === 0) return markedAt ? "0" : "—";
+  return `${pauses.count} (${formatDuration(pauses.secondsAway)} fora)${pauses.open ? ` · ${OUT_OF_ROOM}` : ""}`;
 }
 
 /** A student's records in the roster (FR-024): counts with the time away or offline; "—" before the start. */

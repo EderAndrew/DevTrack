@@ -6,6 +6,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { ACTIVITY_QUESTION_SELECT, aiHelpAllowanceOf, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
 import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
+import { pauseTime } from "../activities/status/pause-time";
 import type { ActivityQuestionRow } from "../activities/views/rows";
 import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
 
@@ -66,6 +67,8 @@ const ACTIVITY_SELECT = {
   latePolicy: true,
   totalGrade: true,
   resultReleasedAt: true,
+  /** 016: an open pause of a submitted attempt ends at the close by derivation (research M7). */
+  closedAt: true,
   schoolClass: { select: { id: true, name: true, status: true, subject: { select: { name: true } } } },
   teacher: { select: { name: true } },
   /** The EXERCISE's possible points (013/FR-003). */
@@ -141,11 +144,23 @@ export class StudentActivityLoader {
     const answers = attempt && !pause ? await this.answersOf(attempt.id) : [];
     // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
+    // 016/FR-021: the own pauses, only after the submission; each end derived with the server's now.
+    const submission = attempt?.submission ?? null;
+    const pauses =
+      attempt && submission && activity.releaseMode === "PRESENT_ONLY"
+        ? await this.prisma.attemptPause.findMany({
+            where: { attemptId: attempt.id },
+            orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+            select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
+          })
+        : [];
+    const pauseEnd = { acceptedAt: submission?.acceptedById ? submission.submittedAt : null, activityEndedAt: activity.closedAt };
     return {
       ...toInput(activity, attempts, now, canSeeResults),
       aiHelpUsed: attempts.reduce((sum, row) => sum + row._count.helpRequests, 0),
       questions: pause ? [] : activity.questions.map(toQuestionRow),
       pause,
+      pauses: pauses.map(({ releasedAt, ...pause }) => ({ ...pause, endedAt: pauseTime({ ...pause, releasedAt }, pauseEnd, now).endedAt })),
       attempt: attempt
         ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
         : null,
