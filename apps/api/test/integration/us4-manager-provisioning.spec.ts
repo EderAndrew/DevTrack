@@ -56,6 +56,9 @@ describe("US4 — ADMIN provisiona MANAGER (FR-040–FR-056)", () => {
         expiresAt: expect.any(String),
         sendCount: 1,
         lastSentAt: expect.any(String),
+        // 017: the e-mail is scheduled with the invitation and goes out after the response.
+        delivery: "SENDING",
+        deliveryIssue: null,
         invitedBy: { id: admin.id, name: "Admin Teste" },
       });
       expect(Math.abs(new Date(res.body.expiresAt).getTime() - (before + 7 * 24 * 3600 * 1000))).toBeLessThan(60_000);

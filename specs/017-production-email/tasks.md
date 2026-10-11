@@ -166,7 +166,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T010 [P] [US1] `apps/api/test/integration/017-us1-outbox.spec.ts`, cobrindo:
+- [X] T010 [P] [US1] `apps/api/test/integration/017-us1-outbox.spec.ts`, cobrindo:
   - os cenários `017/US1-1`, `017/US1-2`, `017/US1-3`, `017/US1-4`, `017/US1-5`, `017/US1-6` e
     `017/US1-7`;
   - `017/FR-001` (operação desfeita → nenhum envio), `017/FR-003` (as 7 tentativas e as esperas
@@ -185,7 +185,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   envio fica `DISCARDED` e o link impresso continua funcionando depois de um `runOnce`). A redefinição de senha de um e-mail
   inexistente não agenda nada. Uma nova tentativa não muda `expires_at`, `send_count` nem
   `last_sent_at` do convite (003 FR-015).
-- [ ] T011 [P] [US1] `apps/api/test/security/017-concurrency.spec.ts` (`017/FR-005`):
+- [X] T011 [P] [US1] `apps/api/test/security/017-concurrency.spec.ts` (`017/FR-005`):
   - dois `runOnce` simultâneos nunca enviam a mesma tentativa;
   - a primeira tentativa (`attemptNow`) concorrendo com o worker sai uma vez;
   - um resultado atrasado de uma tentativa antiga não sobrescreve a atual;
@@ -193,7 +193,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
     duplicar;
   - dois pedidos seguidos do mesmo tipo e assunto: o primeiro fica `SUPERSEDED` e só o link do
     segundo chega.
-- [ ] T012 [P] [US1] `apps/api/test/security/017-performance.spec.ts` (`017/SC-002`, `017/FR-002`):
+- [X] T012 [P] [US1] `apps/api/test/security/017-performance.spec.ts` (`017/SC-002`, `017/FR-002`):
   confirmação e redefinição de senha respondem com o mesmo corpo e a mesma distribuição de tempo
   (a tolerância de `us1-enumeration.spec.ts`) com o mailer no ar, fora (`temporary`) e lento
   (atraso de 5 s), para e-mail existente e inexistente; o fluxo grava um INSERT e não espera o
@@ -201,7 +201,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] `apps/api/src/platform/mail/outbox/mail-outbox.ts` (`MailOutbox`):
+- [X] T013 [US1] `apps/api/src/platform/mail/outbox/mail-outbox.ts` (`MailOutbox`):
   - `schedule(tx, kind, subject)`: grava `PENDING`, `attempts = 0`, `next_attempt_at = now + 1
     min` e marca `SUPERSEDED` os pendentes do mesmo assunto e tipo;
   - `attemptNow(deliveryId, prepared)`: depois do commit, consome uma unidade do orçamento de
@@ -218,7 +218,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
     `mail_delivery.failed`, `mail_delivery.undelivered` (`source: SMTP`) e
     `mail_delivery.discarded`, ator `SYSTEM`, alvo `MAIL_DELIVERY`, metadados só com `kind`,
     `attempts`, `errorCode`, `reason` e `source`.
-- [ ] T014 [US1] `apps/api/src/platform/mail/outbox/mail-delivery.worker.ts`
+- [X] T014 [US1] `apps/api/src/platform/mail/outbox/mail-delivery.worker.ts`
   (`MailDeliveryWorker`, substitui `ClassInvitationDeliveryWorker`):
   - timer de `MAIL_RETRY_INTERVAL_SECONDS` (`0` desliga), `runOnce(now)` para os testes;
   - orçamento de `MAIL_SENDS_PER_MINUTE` por uma chave compartilhada em `rate_limit_counters`
@@ -232,7 +232,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
     `audit-events.md`).
   - Apagar `apps/api/src/modules/class-invitations/delivery.{service,worker}.ts` e registrar o
     worker em `MailModule`.
-- [ ] T015 [P] [US1] Assunto `CLASS_INVITATION` em
+- [X] T015 [P] [US1] Assunto `CLASS_INVITATION` em
   `apps/api/src/modules/class-invitations/class-invitation.mail-subject.ts`: trava o convite,
   descarta se não está efetivamente `PENDING` (`ACCEPTED`, `CANCELLED` ou expirado),
   gira `token_hash` e devolve o destinatário e os parâmetros do modelo. `class-invitations.service.ts`
@@ -240,7 +240,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   `latestDeliveryState`. Migrar `003-class-invitation-delivery.spec.ts`, `003-us2`, `003-us5`,
   `003-concurrency` e `secret-leak-scan.spec.ts` para `mail_deliveries`, mantendo cada caso e os
   seus ids da 003.
-- [ ] T016 [P] [US1] Contrato: `packages/contracts/src/provisioning/invitations.ts` ganha
+- [X] T016 [P] [US1] Contrato: `packages/contracts/src/provisioning/invitations.ts` ganha
   `delivery` e `deliveryIssue`, importados de `classes` (nunca redefinidos; `duplication.spec.ts`
   verde), e `pnpm --filter @repo/contracts build`. Assuntos `INVITATION_TEACHER` e
   `INVITATION_MANAGER` em
@@ -248,14 +248,14 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   expirado; gira `invitations.token_hash`); `invitation.service.ts` troca o `MailDispatcher` pela
   fila; `invitation.view.ts` passa a preencher `delivery` com `latestDeliveryState` (e
   `deliveryIssue: null` até a US2).
-- [ ] T017 [P] [US1] Assuntos `VERIFY_EMAIL` e `PASSWORD_RESET` em
+- [X] T017 [P] [US1] Assuntos `VERIFY_EMAIL` e `PASSWORD_RESET` em
   `apps/api/src/modules/auth/account.mail-subjects.ts`: descartam com `NOT_NEEDED` (e-mail já
   verificado) ou `REVOKED` (conta `SUSPENDED`), emitem um `user_tokens` novo do propósito pelo
   `user-token.service.ts` (que já invalida os antigos). `email-verification.service.ts` e
   `password-reset.service.ts` agendam na transação do pedido; a resposta não muda. Ajustar
   `apps/api/test/integration/mail-failure.spec.ts` (001) ao novo comportamento: mesma resposta, o
   envio fica `PENDING` e sai no `runOnce`.
-- [ ] T018 [P] [US1] Assunto `ADMIN_ACTIVATION` em
+- [X] T018 [P] [US1] Assunto `ADMIN_ACTIVATION` em
   `apps/api/src/modules/admin-bootstrap/admin-bootstrap.mail-subject.ts` (descarta se o bootstrap
   não está `PENDING` ou expirou; gira `token_hash`). `admin-bootstrap.service.ts` agenda e o CLI
   (`src/cli/admin-bootstrap.command.ts`) faz a primeira tentativa síncrona e informa o resultado;
@@ -264,7 +264,7 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   `DISCARDED (NOT_NEEDED)`, sai com o código 3 e a mensagem "e-mail não enviado; use o link
   impresso", e o link impresso continua valendo (nenhuma nova tentativa gira o token). Atualizar
   `us3-admin-bootstrap-cli.spec.ts` e `us3-admin-bootstrap.spec.ts`, com os dois casos.
-- [ ] T019 [US1] Remover `MailDispatcher` (`mail-dispatcher.ts`) e as suas importações; nenhum
+- [X] T019 [US1] Remover `MailDispatcher` (`mail-dispatcher.ts`) e as suas importações; nenhum
   envio fora da fila (`mail-boundary.spec.ts` ganha a regra: só `platform/mail/outbox` chama
   `Mailer.send`). Rodar T010–T012 verdes e tirar a US1, `SC-001` e `SC-002` de `pending`.
 

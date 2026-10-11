@@ -12,7 +12,8 @@ import { ClassContextPolicy } from "../classes/class-context.policy";
 import { normalizeEmail } from "../identity/email";
 import { ClassInvitationStateMachine } from "./class-invitation.state-machine";
 import { CLASS_INVITATION_VIEW_SELECT, effectiveStatus, toClassInvitationView } from "./class-invitation.view";
-import { DeliveryService, INVITATION_MAIL_SELECT, toInvitationMail } from "./delivery.service";
+import { MailOutbox } from "../../platform/mail/outbox/mail-outbox";
+import { ClassInvitationMailSubject, INVITATION_MAIL_SELECT } from "./class-invitation.mail-subject";
 import { InvitationRateLimit } from "./invitation-rate-limit";
 
 /** FR-012: a class invitation is valid for 7 days from its last send by the teacher. */
@@ -35,7 +36,7 @@ function statusFilter(status: ClassInvitationListQuery["status"], now: Date): Pr
 /**
  * Class invitations of the teacher's own classes (003 US2/US5, FR-010–FR-023). Tokens are stored
  * only as hashes; one PENDING invitation per class and e-mail is enforced by a partial unique
- * index. The e-mail goes out after commit through `DeliveryService`, with retries.
+ * index. The e-mail goes through the 017 outbox: first attempt after commit, then retries.
  */
 @Injectable()
 export class ClassInvitationsService {
@@ -43,7 +44,8 @@ export class ClassInvitationsService {
     private readonly prisma: PrismaService,
     private readonly context: ClassContextPolicy,
     private readonly audit: AuditService,
-    private readonly deliveries: DeliveryService,
+    private readonly outbox: MailOutbox,
+    private readonly mailSubject: ClassInvitationMailSubject,
     private readonly rateLimit: InvitationRateLimit,
   ) {}
 
@@ -102,7 +104,7 @@ export class ClassInvitationsService {
         requestId,
         metadata: { classId, email },
       });
-      const deliveryId = await this.deliveries.schedule(tx, created.id, now);
+      const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", created.id, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
         where: { id: created.id },
         select: { ...CLASS_INVITATION_VIEW_SELECT, ...INVITATION_MAIL_SELECT },
@@ -110,7 +112,7 @@ export class ClassInvitationsService {
       return { invitation, deliveryId };
     });
 
-    this.deliveries.attemptNow(deliveryId, invitation.id, token, toInvitationMail(invitation));
+    this.outbox.attemptNow(deliveryId, this.mailSubject.mail(invitation, token));
     return toClassInvitationView(invitation);
   }
 
@@ -195,7 +197,7 @@ export class ClassInvitationsService {
         requestId,
         metadata: { classId, sendCount: updated.sendCount },
       });
-      const deliveryId = await this.deliveries.schedule(tx, invitationId, now);
+      const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", invitationId, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
         where: { id: invitationId },
         select: { ...CLASS_INVITATION_VIEW_SELECT, ...INVITATION_MAIL_SELECT },
@@ -206,7 +208,7 @@ export class ClassInvitationsService {
     // The cancellation is committed; the teacher is told why nothing was sent.
     if (outcome.kind === "enrolled") throw alreadyEnrolled();
     const { invitation, deliveryId } = outcome;
-    this.deliveries.attemptNow(deliveryId, invitation.id, token, toInvitationMail(invitation));
+    this.outbox.attemptNow(deliveryId, this.mailSubject.mail(invitation, token));
     return toClassInvitationView(invitation);
   }
 
@@ -234,7 +236,7 @@ export class ClassInvitationsService {
       where: { id: invitationId },
       data: { status: "CANCELLED", cancelledAt: new Date(), cancelledById: teacherId, cancelReason: reason },
     });
-    await this.deliveries.supersedePending(tx, invitationId);
+    await this.outbox.supersedePending(tx, "CLASS_INVITATION", invitationId);
     await this.audit.record(tx, {
       type: "class_invitation.cancelled",
       actorType: "USER",

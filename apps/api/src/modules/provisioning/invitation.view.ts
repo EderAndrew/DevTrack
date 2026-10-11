@@ -1,5 +1,6 @@
 import type { InvitableRole, InvitationView } from "@repo/contracts";
 import type { InvitationStatus } from "../../generated/prisma/client";
+import type { DeliverySituation } from "../../platform/mail/outbox/delivery-state";
 
 /** Invitation row with what the views need. */
 export interface InvitationRow {
@@ -25,8 +26,11 @@ export function effectiveStatus(row: Pick<InvitationRow, "status" | "expiresAt">
   return row.status === "PENDING" && row.expiresAt <= now ? "EXPIRED" : row.status;
 }
 
-/** `InvitationView` of the contract — never the token or its hash; dates as ISO strings (002 S4). */
-export function toInvitationView(row: InvitationRow, now: Date = new Date()): InvitationView {
+/**
+ * `InvitationView` of the contract — never the token or its hash; dates as ISO strings (002 S4).
+ * `situation`: the derived situation of the invitation's e-mail (017, `MailOutbox.latestDeliveryState`).
+ */
+export function toInvitationView(row: InvitationRow, situation: DeliverySituation, now: Date = new Date()): InvitationView {
   return {
     id: row.id,
     email: row.email,
@@ -36,6 +40,8 @@ export function toInvitationView(row: InvitationRow, now: Date = new Date()): In
     expiresAt: row.expiresAt.toISOString(),
     sendCount: row.sendCount,
     lastSentAt: row.lastSentAt.toISOString(),
+    delivery: situation.delivery,
+    deliveryIssue: situation.deliveryIssue,
     invitedBy: { id: row.invitedBy.id, name: row.invitedBy.name },
   };
 }

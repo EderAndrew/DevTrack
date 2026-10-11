@@ -7,11 +7,15 @@ import { API_ROOT } from "./helpers/env";
  * 017/FR-024, plan Structure Decision: the outbox, the notices and the `Mailer` live in
  * `platform/mail`, which never imports a domain module (each module registers its `MailSubject`),
  * and the transport is standard SMTP: no provider package anywhere, and `nodemailer` only in
- * `smtp.mailer.ts`, so changing provider is changing variables.
+ * `smtp.mailer.ts`, so changing provider is changing variables. Every e-mail goes through the
+ * outbox: only `platform/mail/outbox` calls `Mailer.send` (T019), and no other code holds a `Mailer`.
  */
 
 const MAIL_DIR = "src/platform/mail";
 const SMTP_MAILER = "src/platform/mail/smtp.mailer.ts";
+const OUTBOX_DIR = "src/platform/mail/outbox/";
+/** The audit trail is a global, cross-cutting module: the outbox records its events there. */
+const ALLOWED_MODULES = ["src/modules/audit/"];
 /** Provider SDKs and their signature libraries (research N1, N7: we verify notices ourselves). */
 const PROVIDER_PACKAGE = /^(resend|svix|@aws-sdk\/.*|aws-sdk|@sendgrid\/.*|mailgun.*|postmark|nodemailer-.*-transport)$/;
 
@@ -50,7 +54,7 @@ describe("017/FR-024 fronteira do e-mail: platform/mail sem domínio e sem prove
       imports(file)
         .filter((specifier) => specifier.startsWith("."))
         .map((specifier) => relative(API_ROOT, resolve(join(API_ROOT, dirname(file)), specifier)))
-        .filter((target) => target.startsWith("src/modules"))
+        .filter((target) => target.startsWith("src/modules") && !ALLOWED_MODULES.some((allowed) => target.startsWith(allowed)))
         .map((target) => `${file} → ${target}`),
     );
     expect(offenders).toEqual([]);
@@ -75,6 +79,20 @@ describe("017/FR-024 fronteira do e-mail: platform/mail sem domínio e sem prove
   it("017/FR-024 nodemailer só em smtp.mailer.ts", () => {
     const users = production("src").filter((file) => imports(file).some((specifier) => packageOf(specifier) === "nodemailer"));
     expect(users).toEqual([SMTP_MAILER]);
+  });
+
+  it("017/FR-001 só a fila envia: Mailer.send apenas em platform/mail/outbox", () => {
+    const callers = production("src").filter((file) => /\bmailer\.send\(/i.test(readFileSync(join(API_ROOT, file), "utf8")));
+    expect(callers.filter((file) => !file.startsWith(OUTBOX_DIR))).toEqual([]);
+  });
+
+  it("017/FR-001 fora de platform/mail ninguém recebe um Mailer (só o tipo, para trocar o transporte no CLI)", () => {
+    const holders = production("src").filter((file) => {
+      if (file.startsWith(MAIL_DIR)) return false;
+      const text = readFileSync(join(API_ROOT, file), "utf8");
+      return /^import\s+\{[^}]*\bMailer\b[^}]*\}\s+from\s+["'][^"']*platform\/mail\/mailer["']/m.test(text);
+    });
+    expect(holders).toEqual([]);
   });
 
   it("a heurística reconhece pacotes de provedor e ignora os demais", () => {

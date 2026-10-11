@@ -1,15 +1,13 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { EmailVerifiedResponse, PublicAccepted } from "@repo/contracts";
-import { APP_CONFIG } from "../../platform/config/config.module";
-import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { tokenInvalid } from "../../platform/http/errors";
 import type { RequestContext } from "../../platform/http/request-context";
-import { webLinks } from "../../platform/mail/links";
-import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
+import { MailOutbox } from "../../platform/mail/outbox/mail-outbox";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
+import { AccountMailSubjects } from "./account.mail-subjects";
 import { PublicRateLimit } from "./public-rate-limit";
 import { UserTokenService } from "./user-token.service";
 
@@ -23,19 +21,15 @@ export const PUBLIC_ACCEPTED_MESSAGE = "Se o e-mail puder ser usado, enviaremos 
  */
 @Injectable()
 export class EmailVerificationService {
-  private readonly links: ReturnType<typeof webLinks>;
-
   constructor(
-    @Inject(APP_CONFIG) config: AppConfig,
     private readonly prisma: PrismaService,
     private readonly rateLimit: PublicRateLimit,
     private readonly users: UserRepository,
     private readonly tokens: UserTokenService,
     private readonly audit: AuditService,
-    private readonly mail: MailDispatcher,
-  ) {
-    this.links = webLinks(config.webOrigin);
-  }
+    private readonly outbox: MailOutbox,
+    private readonly mails: AccountMailSubjects,
+  ) {}
 
   async verify(token: string, ctx: RequestContext): Promise<EmailVerifiedResponse> {
     await this.prisma.runInTransaction(async (tx) => {
@@ -69,16 +63,12 @@ export class EmailVerificationService {
       const user = await this.users.findByEmail(email, tx);
       if (!user || user.emailVerifiedAt || user.status !== "ACTIVE") return null;
       const { token } = await this.tokens.issue(tx, user.id, "EMAIL_VERIFICATION");
-      return { name: user.name, token };
+      // 017: the e-mail is written with the request and sent after the commit, off the response path.
+      const deliveryId = await this.outbox.schedule(tx, "VERIFY_EMAIL", user.id);
+      return { deliveryId, mail: this.mails.verificationMail({ email, name: user.name }, token) };
     });
 
-    if (issued) {
-      this.mail.send({
-        to: email,
-        template: "verify-email",
-        params: { name: issued.name, link: this.links.verifyEmail(issued.token) },
-      });
-    }
+    if (issued) this.outbox.attemptNow(issued.deliveryId, issued.mail);
     return { message: PUBLIC_ACCEPTED_MESSAGE };
   }
 }

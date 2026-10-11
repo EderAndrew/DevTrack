@@ -1,15 +1,13 @@
-import { Inject, Injectable } from "@nestjs/common";
-import { APP_CONFIG } from "../../platform/config/config.module";
-import type { AppConfig } from "../../platform/config/config.schema";
+import { Injectable } from "@nestjs/common";
 import { generateToken, hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { advisoryXactLock, LockKey, type Tx } from "../../platform/database/transaction";
-import { webLinks } from "../../platform/mail/links";
-import { Mailer } from "../../platform/mail/mailer";
+import { MailOutbox } from "../../platform/mail/outbox/mail-outbox";
 import { RoleRepository } from "../access-control/role.repository";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { UserRepository } from "../identity/user.repository";
+import { AdminBootstrapMailSubject } from "./admin-bootstrap.mail-subject";
 
 /** FR-034: the activation link is valid for 24 hours. */
 export const ADMIN_ACTIVATION_TTL_MS = 24 * 3600 * 1000;
@@ -27,6 +25,8 @@ export interface BootstrapInput {
   operator: BootstrapOperator;
 }
 
+export type BootstrapMail = "SENT" | "RETRYING" | "NOT_SENT";
+
 export type BootstrapResult =
   | { outcome: "REFUSED" }
   | { outcome: "GRANTED"; userId: string }
@@ -35,7 +35,11 @@ export type BootstrapResult =
       expiresAt: Date;
       /** Only when the operator asked for it (`--print-link`). */
       link?: string;
-      mailDelivered: boolean;
+      /**
+       * The first attempt (017 research N3): `SENT`; `RETRYING` — not sent now, the API's worker
+       * tries again; `NOT_SENT` — refused for good, or discarded because the link was printed.
+       */
+      mail: BootstrapMail;
       cancelledPrevious: boolean;
     };
 
@@ -56,18 +60,14 @@ export async function hasActiveAdmin(tx: Tx): Promise<boolean> {
  */
 @Injectable()
 export class AdminBootstrapService {
-  private readonly links: ReturnType<typeof webLinks>;
-
   constructor(
-    @Inject(APP_CONFIG) config: AppConfig,
     private readonly prisma: PrismaService,
     private readonly users: UserRepository,
     private readonly roles: RoleRepository,
     private readonly audit: AuditService,
-    private readonly mailer: Mailer,
-  ) {
-    this.links = webLinks(config.webOrigin);
-  }
+    private readonly outbox: MailOutbox,
+    private readonly mailSubject: AdminBootstrapMailSubject,
+  ) {}
 
   async run({ email: rawEmail, printLink, operator }: BootstrapInput): Promise<BootstrapResult> {
     const email = normalizeEmail(rawEmail);
@@ -144,24 +144,25 @@ export class AdminBootstrapService {
           metadata: operatorMeta,
         });
       }
-      return { outcome: "PENDING" as const, token, expiresAt, cancelledPrevious };
+      const deliveryId = await this.outbox.schedule(tx, "ADMIN_ACTIVATION", bootstrap.id);
+      return { outcome: "PENDING" as const, token, expiresAt, cancelledPrevious, deliveryId };
     });
 
     if (result.outcome !== "PENDING") return result;
 
-    // Sent synchronously after commit: the command reports a failed delivery (exit 3).
-    const link = this.links.adminActivation(result.token);
-    let mailDelivered = true;
-    try {
-      await this.mailer.send({ to: email, template: "admin-activation", params: { link, expiresAt: result.expiresAt } });
-    } catch {
-      mailDelivered = false;
+    // The first attempt is made here, after the commit, so the command can report it (exit 3).
+    const outcome = await this.outbox.attemptSync(result.deliveryId, this.mailSubject.mail({ email, expiresAt: result.expiresAt }, result.token));
+    let mail: BootstrapMail = outcome === "SENT" ? "SENT" : outcome === "REJECTED" ? "NOT_SENT" : "RETRYING";
+    if (mail === "RETRYING" && printLink) {
+      // The printed link is the operator's channel: a retry would rotate the token and kill it.
+      await this.outbox.discardIfPending(result.deliveryId, "NOT_NEEDED");
+      mail = "NOT_SENT";
     }
     return {
       outcome: "PENDING",
       expiresAt: result.expiresAt,
-      ...(printLink ? { link } : {}),
-      mailDelivered,
+      ...(printLink ? { link: this.mailSubject.link(result.token) } : {}),
+      mail,
       cancelledPrevious: result.cancelledPrevious,
     };
   }

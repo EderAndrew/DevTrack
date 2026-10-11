@@ -1,18 +1,16 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { MessageResponse, PublicAccepted } from "@repo/contracts";
-import { APP_CONFIG } from "../../platform/config/config.module";
-import type { AppConfig } from "../../platform/config/config.schema";
 import { hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { tokenInvalid } from "../../platform/http/errors";
 import type { RequestContext } from "../../platform/http/request-context";
-import { webLinks } from "../../platform/mail/links";
-import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
+import { MailOutbox } from "../../platform/mail/outbox/mail-outbox";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { PasswordHasher } from "../identity/password-hasher";
 import { PasswordPolicy } from "../identity/password-policy";
 import { UserRepository } from "../identity/user.repository";
+import { AccountMailSubjects } from "./account.mail-subjects";
 import { PublicRateLimit } from "./public-rate-limit";
 import { SessionService } from "./session.service";
 import { PUBLIC_ACCEPTED_MESSAGE } from "./email-verification.service";
@@ -28,10 +26,7 @@ export const PASSWORD_RESET_DONE_MESSAGE = "Senha redefinida. Entre com a nova s
  */
 @Injectable()
 export class PasswordResetService {
-  private readonly links: ReturnType<typeof webLinks>;
-
   constructor(
-    @Inject(APP_CONFIG) config: AppConfig,
     private readonly prisma: PrismaService,
     private readonly rateLimit: PublicRateLimit,
     private readonly users: UserRepository,
@@ -40,10 +35,9 @@ export class PasswordResetService {
     private readonly hasher: PasswordHasher,
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
-    private readonly mail: MailDispatcher,
-  ) {
-    this.links = webLinks(config.webOrigin);
-  }
+    private readonly outbox: MailOutbox,
+    private readonly mails: AccountMailSubjects,
+  ) {}
 
   async request(rawEmail: string, ctx: RequestContext): Promise<PublicAccepted> {
     const email = normalizeEmail(rawEmail);
@@ -60,16 +54,12 @@ export class PasswordResetService {
         targetId: user.id,
         requestId: ctx.requestId,
       });
-      return { name: user.name, token };
+      // 017: the e-mail is written with the request and sent after the commit, off the response path.
+      const deliveryId = await this.outbox.schedule(tx, "PASSWORD_RESET", user.id);
+      return { deliveryId, mail: this.mails.resetMail({ email, name: user.name }, token) };
     });
 
-    if (issued) {
-      this.mail.send({
-        to: email,
-        template: "password-reset",
-        params: { name: issued.name, link: this.links.passwordResetConfirm(issued.token) },
-      });
-    }
+    if (issued) this.outbox.attemptNow(issued.deliveryId, issued.mail);
     return { message: PUBLIC_ACCEPTED_MESSAGE };
   }
 

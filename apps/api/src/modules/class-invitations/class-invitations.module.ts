@@ -6,8 +6,7 @@ import { ClassInvitationAcceptanceController } from "./class-invitation-acceptan
 import { ClassInvitationAcceptanceService } from "./class-invitation-acceptance.service";
 import { ClassInvitationsController } from "./class-invitations.controller";
 import { ClassInvitationsService } from "./class-invitations.service";
-import { DeliveryService } from "./delivery.service";
-import { ClassInvitationDeliveryWorker } from "./delivery.worker";
+import { ClassInvitationMailSubject } from "./class-invitation.mail-subject";
 import { InvitationRateLimit } from "./invitation-rate-limit";
 
 /** Class invitations (003 US2, US3, US5): creation, delivery with retries, resend, cancel and acceptance. */
@@ -17,8 +16,7 @@ import { InvitationRateLimit } from "./invitation-rate-limit";
   providers: [
     ClassInvitationsService,
     ClassInvitationAcceptanceService,
-    DeliveryService,
-    ClassInvitationDeliveryWorker,
+    ClassInvitationMailSubject,
     InvitationRateLimit,
   ],
 })

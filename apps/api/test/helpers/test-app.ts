@@ -11,7 +11,7 @@ import { CLOCK, type Clock } from "../../src/platform/clock/clock";
 import { type AppConfig, loadConfig } from "../../src/platform/config/config.schema";
 import { PrismaService } from "../../src/platform/database/prisma.service";
 import { InMemoryMailer } from "../../src/platform/mail/in-memory.mailer";
-import { MailDispatcher } from "../../src/platform/mail/mail-dispatcher";
+import { MailOutbox } from "../../src/platform/mail/outbox/mail-outbox";
 import { Mailer } from "../../src/platform/mail/mailer";
 import { SYLLABUS_WORKER_PATH } from "../../src/modules/syllabus/syllabus-worker-runner";
 import { ContractConformanceInterceptor } from "./contract-conformance.interceptor";
@@ -66,6 +66,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     maintenanceIntervalSeconds: 0,
     mailRetryIntervalSeconds: 0,
     ...overrides,
+    // 017: suites share the per-minute send budget through the database; only the FR-008 suites,
+    // which set it, should ever see it run out.
+    mail: { ...base.mail, sendsPerMinute: 1_000_000, ...overrides.mail },
     syllabus: { ...base.syllabus, processingIntervalSeconds: 0, ...overrides.syllabus },
     ai: {
       ...base.ai,
@@ -109,7 +112,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   await app.listen(0, "127.0.0.1");
   const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
 
-  const dispatcher = app.get(MailDispatcher);
+  const outbox = app.get(MailOutbox);
   return {
     app,
     http: app.getHttpServer() as Server,
@@ -119,7 +122,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     mailer: mailer as InMemoryMailer,
     origin: config.allowedOrigins[0]!,
     get: <T>(token: Type<T> | Abstract<T> | string | symbol) => app.get<T>(token as Type<T>),
-    flushMail: () => dispatcher.flush(),
+    flushMail: () => outbox.flush(),
     close: () => app.close(),
   };
 }

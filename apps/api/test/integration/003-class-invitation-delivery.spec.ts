@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { ClassInvitationDeliveryWorker } from "../../src/modules/class-invitations/delivery.worker";
+import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { createClass, createUser, loginAs } from "../helpers/factories";
 import { LogCapture } from "../helpers/log-capture";
@@ -12,16 +12,18 @@ const EMAIL = "aluno@example.test";
 /**
  * Class invitation delivery with retries (003/US2-6, 003/SC-007, contracts/mail-delivery.md).
  * The worker's interval is off in tests (`mailRetryIntervalSeconds = 0`); `runOnce(now)` is
- * called with the clock moved forward.
+ * called with the clock moved forward. Since 017 the delivery is a `CLASS_INVITATION` row of the
+ * one outbox (`MailDeliveryWorker`, 017/US1-7): a dead link is DISCARDED (with its reason) instead
+ * of SUPERSEDED, and the logs are `mail.delivery_*` with the kind instead of the invitation id.
  */
 describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
   const logs = new LogCapture();
   let t: TestApp;
-  let worker: ClassInvitationDeliveryWorker;
+  let worker: MailDeliveryWorker;
 
   beforeAll(async () => {
     t = await createTestApp({ logs });
-    worker = t.get(ClassInvitationDeliveryWorker);
+    worker = t.get(MailDeliveryWorker);
   });
   afterAll(() => t.close());
   beforeEach(async () => {
@@ -56,8 +58,8 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     expect(pending).toMatchObject({ status: "PENDING", attempts: 1, lastErrorCode: "ECONNREFUSED", sentAt: null });
     expect(pending!.nextAttemptAt!.getTime()).toBeGreaterThan(Date.now() + 50_000);
     expect(t.mailer.outbox).toHaveLength(0);
-    expect(logLines("class_invitation.delivery_failed")).toMatchObject([
-      { invitationId: id, deliveryId: pending!.id, attempt: 1, errorName: "ECONNREFUSED" },
+    expect(logLines("mail.delivery_failed")).toMatchObject([
+      { kind: "CLASS_INVITATION", deliveryId: pending!.id, attempt: 1, errorName: "ECONNREFUSED" },
     ]);
 
     const before = await invitationRow(id);
@@ -82,7 +84,7 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     expect(after.lastSentAt).toEqual(before.lastSentAt);
   });
 
-  it("convite cancelado antes da nova tentativa: entrega SUPERSEDED e nada é enviado", async () => {
+  it("017/US1-6 convite cancelado antes da nova tentativa: entrega DISCARDED (REVOKED) e nada é enviado", async () => {
     t.mailer.setFailing(true);
     const id = await invite();
     const invitation = await invitationRow(id);
@@ -94,17 +96,17 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
 
     t.mailer.setFailing(false);
     await worker.runOnce(later(2 * MINUTE));
-    expect(await deliveriesOf(id)).toMatchObject([{ status: "SUPERSEDED", nextAttemptAt: null }]);
+    expect(await deliveriesOf(id)).toMatchObject([{ status: "DISCARDED", discardReason: "REVOKED", nextAttemptAt: null }]);
     expect(t.mailer.outbox).toHaveLength(0);
     expect((await invitationRow(id)).tokenHash).toBe(hash);
   });
 
-  it("convite vencido antes da nova tentativa: SUPERSEDED, sem envio", async () => {
+  it("017/US1-6 convite vencido antes da nova tentativa: DISCARDED (EXPIRED), sem envio", async () => {
     t.mailer.setFailing(true);
     const id = await invite();
     t.mailer.setFailing(false);
     await worker.runOnce(later(8 * 24 * HOUR));
-    expect(await deliveriesOf(id)).toMatchObject([{ status: "SUPERSEDED" }]);
+    expect(await deliveriesOf(id)).toMatchObject([{ status: "DISCARDED", discardReason: "EXPIRED" }]);
     expect(t.mailer.outbox).toHaveLength(0);
   });
 
@@ -146,8 +148,8 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
       expect((await deliveriesOf(id))[0]!.attempts).toBe(attempt);
     }
     expect(await deliveriesOf(id)).toMatchObject([{ status: "FAILED", attempts: 7, nextAttemptAt: null }]);
-    expect(logLines("class_invitation.delivery_failed")).toHaveLength(6);
-    expect(logLines("class_invitation.delivery_exhausted")).toMatchObject([{ invitationId: id, attempt: 7 }]);
+    expect(logLines("mail.delivery_failed")).toHaveLength(6);
+    expect(logLines("mail.delivery_exhausted")).toMatchObject([{ kind: "CLASS_INVITATION", attempt: 7 }]);
 
     t.mailer.setFailing(false);
     await worker.runOnce(new Date(clock + 24 * HOUR));

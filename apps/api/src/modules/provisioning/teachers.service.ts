@@ -5,7 +5,8 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import type { AuthContext } from "../../platform/http/request-context";
 import { findOwnedOrNotFound } from "../access-control/resource-context";
 import { RoleLifecycleService } from "../access-control/role-lifecycle.service";
-import { INVITATION_INCLUDE, toInvitationView } from "./invitation.view";
+import { InvitationService } from "./invitation.service";
+import { INVITATION_INCLUDE } from "./invitation.view";
 
 const TEACHER_ASSIGNMENT_SELECT = {
   status: true,
@@ -30,6 +31,7 @@ export class TeachersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lifecycle: RoleLifecycleService,
+    private readonly invitationService: InvitationService,
   ) {}
 
   /** Teacher lifecycle as seen by MANAGER (FR-051, FR-007): INVITED is derived, never stored. */
@@ -94,7 +96,7 @@ export class TeachersService {
       displayName: teachingName(row),
       email: row.user.email,
       status: row.status,
-      invitations: invitations.map((invitation) => toInvitationView(invitation)),
+      invitations: await this.invitationService.views(invitations),
     };
   }
 

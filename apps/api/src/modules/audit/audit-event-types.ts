@@ -220,6 +220,11 @@ export const AUDIT_EVENT_METADATA = {
   "attempt_pause.write_refused": ["activityId", "pauseId", "operation"],
   // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
   "attempt_integrity.recorded": ["eventType", "buffered"],
+  // 017 — the outbox (contracts/audit-events.md): enums, counts and codes, never the address,
+  // a name, the link, the token or the Message-ID. `source`: SMTP | NOTICE.
+  "mail_delivery.failed": ["kind", "attempts", "errorCode"],
+  "mail_delivery.undelivered": ["kind", "reason", "source"],
+  "mail_delivery.discarded": ["kind", "reason"],
   // 015 — the AI help (research F11): ids, counts and codes only, never the question or the orientation.
   "work_help.requested": ["attemptId", "executionId", "questionPosition"],
   "work_help.delivered": ["attemptId", "executionId", "used"],
@@ -305,4 +310,5 @@ export type AuditTargetType =
   | "CLASS_ACTIVITY"
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"
-  | "WORK_HELP_REQUEST";
+  | "WORK_HELP_REQUEST"
+  | "MAIL_DELIVERY";

@@ -21,14 +21,15 @@ export type PrepareResult = { mail: PreparedMail } | { discard: DiscardReason };
  * `MailSubjectRegistry` in `onModuleInit`, as the 015 hooks register on the activity modules, so
  * `platform/mail` never imports a domain module.
  *
- * `prepare(tx, delivery)` runs inside the worker's claiming transaction: it locks the subject,
+ * `prepare(tx, delivery, now)` runs inside the worker's claiming transaction, `now` being the
+ * worker's clock (expiry is judged by it): it locks the subject,
  * decides whether the e-mail is still due and, if so, mints a fresh token on the subject (the
  * previous link dies) and answers the e-mail; otherwise it answers `{ discard: reason }`. It never
  * changes the delivery row itself.
  */
 export interface MailSubject {
   readonly kind: MailKind;
-  prepare(tx: Tx, delivery: DueDelivery): Promise<PrepareResult>;
+  prepare(tx: Tx, delivery: DueDelivery, now: Date): Promise<PrepareResult>;
 }
 
 /** Thrown when the worker meets a kind no module registered: a wiring bug, never a user error. */

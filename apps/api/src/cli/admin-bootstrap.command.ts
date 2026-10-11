@@ -59,7 +59,8 @@ export interface AdminBootstrapCliOptions {
 /**
  * `pnpm admin:bootstrap --email <email> [--print-link]` (contracts/cli-admin-bootstrap.md).
  * Exit codes: 0 done, 1 usage/configuration/database error, 2 ADMIN already active,
- * 3 activation e-mail not delivered (the bootstrap stays PENDING). The token is printed only
+ * 3 activation e-mail not sent now (the bootstrap stays PENDING; without `--print-link` the API
+ * tries the e-mail again, with it the printed link is the channel). The token is printed only
  * with `--print-link`; errors never include secrets or connection strings.
  */
 export async function runAdminBootstrapCli(
@@ -86,7 +87,8 @@ export async function runAdminBootstrapCli(
   let app;
   try {
     app = await NestFactory.createApplicationContext(
-      AppModule.forRoot({ ...config, maintenanceIntervalSeconds: 0 }, { mailer: options.mailer }),
+      // No timers in the command: the API runs the maintenance and the e-mail retries (017).
+      AppModule.forRoot({ ...config, maintenanceIntervalSeconds: 0, mailRetryIntervalSeconds: 0 }, { mailer: options.mailer }),
       { logger: ["error", "warn"] },
     );
   } catch {
@@ -112,10 +114,18 @@ export async function runAdminBootstrapCli(
         if (result.cancelledPrevious) io.out("Bootstrap pendente anterior cancelado");
         const until = dateTime.format(result.expiresAt);
         if (result.link) io.out(`Link de ativação: ${result.link}`);
-        if (!result.mailDelivered) {
+        if (result.mail === "RETRYING") {
           io.err(
-            `Aviso: não foi possível enviar o e-mail de ativação para ${args.email} (válido até ${until}). ` +
-              "Rode o comando de novo (o link atual será cancelado) ou use --print-link.",
+            `Aviso: não foi possível enviar agora o e-mail de ativação para ${args.email} (válido até ${until}); ` +
+              "o e-mail será tentado de novo pela API.",
+          );
+          return 3;
+        }
+        if (result.mail === "NOT_SENT") {
+          io.err(
+            result.link
+              ? `Aviso: e-mail não enviado; use o link impresso (válido até ${until}).`
+              : `Aviso: e-mail não enviado: ${args.email} recusou a mensagem. Rode o comando de novo com outro e-mail ou use --print-link.`,
           );
           return 3;
         }

@@ -7,6 +7,7 @@ import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverif
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
@@ -961,6 +962,25 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(
     (await api(t).post("/api/auth/password-reset/confirm", { token: resetToken, password: resetPassword })).status,
   ).toBe(200);
+
+  // 017/US1 — the outbox: an address the server refuses (UNDELIVERED, audited with source SMTP), a
+  // revoked invitation whose retry is discarded, and an e-mail that fails all 7 attempts (FAILED).
+  t.mailer.failNext(1, "permanent");
+  expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
+  await t.flushMail();
+  t.mailer.setFailing(true);
+  const revokedInvitation = await managerClient.post("/api/teacher-invitations", {
+    email: "prof-revogada-jornada@example.test",
+    displayName: "Professora Revogada",
+  });
+  await t.flushMail();
+  expect((await managerClient.post(`/api/teacher-invitations/${revokedInvitation.body.id}/revoke`)).status).toBe(200);
+  expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
+  await t.flushMail();
+  const mailWorker = t.get(MailDeliveryWorker);
+  let mailClock = Date.now();
+  for (let attempt = 2; attempt <= 7; attempt += 1) await mailWorker.runOnce(new Date((mailClock += 7 * 3_600_000)));
+  t.mailer.setFailing(false);
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

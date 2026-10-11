@@ -23,6 +23,8 @@ const invitation = (overrides: Partial<InvitationView> = {}): InvitationView => 
   expiresAt: "2026-09-28T12:00:00.000Z",
   sendCount: 1,
   lastSentAt: "2026-09-21T12:00:00.000Z",
+  delivery: "SENT",
+  deliveryIssue: null,
   invitedBy: { id: "a", name: "Admin" },
   ...overrides,
 });

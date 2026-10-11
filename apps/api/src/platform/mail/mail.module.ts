@@ -1,7 +1,9 @@
 import { type DynamicModule, Global, Module } from "@nestjs/common";
-import { MailDispatcher } from "./mail-dispatcher";
 import { Mailer } from "./mailer";
+import { MailDeliveryWorker } from "./outbox/mail-delivery.worker";
+import { MailOutbox } from "./outbox/mail-outbox";
 import { MailSubjectRegistry } from "./outbox/mail-subject";
+import { MailSendBudget } from "./outbox/send-budget";
 import { SmtpMailer } from "./smtp.mailer";
 
 /**
@@ -16,10 +18,12 @@ export class MailModule {
       module: MailModule,
       providers: [
         mailer ? { provide: Mailer, useValue: mailer } : { provide: Mailer, useClass: SmtpMailer },
-        MailDispatcher,
         MailSubjectRegistry,
+        MailSendBudget,
+        MailOutbox,
+        MailDeliveryWorker,
       ],
-      exports: [Mailer, MailDispatcher, MailSubjectRegistry],
+      exports: [Mailer, MailSubjectRegistry, MailOutbox, MailDeliveryWorker],
     };
   }
 }

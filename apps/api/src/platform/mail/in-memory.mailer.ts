@@ -30,6 +30,8 @@ export class InMemoryMailer extends Mailer {
   readonly failed: SentMail[] = [];
   private failuresLeft = 0;
   private failing = false;
+  /** Whether the failures of `failNext` are permanent refusals (017 research N8). */
+  private permanentFailures = false;
 
   async send(message: MailMessage): Promise<MailSendResult> {
     const rendered = renderTemplate(message.template, message.params as never);
@@ -41,17 +43,19 @@ export class InMemoryMailer extends Mailer {
       ...rendered,
     };
     if (this.failing || this.failuresLeft > 0) {
+      const permanent = !this.failing && this.permanentFailures;
       if (this.failuresLeft > 0) this.failuresLeft -= 1;
       this.failed.push(mail);
-      throw new MailUnavailableError();
+      throw permanent ? new MailSendError("EENVELOPE", true) : new MailUnavailableError();
     }
     this.outbox.push(mail);
     return "SENT";
   }
 
-  /** The next `count` sends fail. */
-  failNext(count: number): void {
+  /** The next `count` sends fail: the server down (`temporary`) or the address refused (`permanent`). */
+  failNext(count: number, mode: "temporary" | "permanent" = "temporary"): void {
     this.failuresLeft = count;
+    this.permanentFailures = mode === "permanent";
   }
 
   /** Every send fails until called with `false`. */

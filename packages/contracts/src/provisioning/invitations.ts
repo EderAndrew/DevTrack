@@ -8,6 +8,7 @@ import {
   TokenSchema,
   UuidSchema,
 } from "../common/primitives.js";
+import { DeliveryIssueSchema, DeliveryStateSchema, refineDeliveryIssue } from "../classes/class-invitations.js";
 
 /** Token of an e-mail link, for previews (invitation and admin activation). */
 export const TokenRequestSchema = z.strictObject({ token: TokenSchema });
@@ -25,18 +26,25 @@ export type InviteRequest = z.infer<typeof InviteRequestSchema>;
 export const InvitationListQuerySchema = z.strictObject({ status: InvitationStatusSchema.optional() });
 export type InvitationListQuery = z.infer<typeof InvitationListQuerySchema>;
 
-/** Never the token nor its hash. */
-export const InvitationViewSchema = z.strictObject({
-  id: UuidSchema,
-  email: z.email(),
-  displayName: z.string(),
-  role: InvitableRoleSchema,
-  status: InvitationStatusSchema,
-  expiresAt: IsoDateTimeSchema,
-  sendCount: z.int(),
-  lastSentAt: IsoDateTimeSchema,
-  invitedBy: z.strictObject({ id: UuidSchema, name: z.string() }),
-});
+/**
+ * Never the token nor its hash. `delivery`/`deliveryIssue` (017): the situation of the invitation's
+ * e-mail, as on class invitations; `deliveryIssue` is set exactly when `delivery` is UNDELIVERED.
+ */
+export const InvitationViewSchema = z
+  .strictObject({
+    id: UuidSchema,
+    email: z.email(),
+    displayName: z.string(),
+    role: InvitableRoleSchema,
+    status: InvitationStatusSchema,
+    expiresAt: IsoDateTimeSchema,
+    sendCount: z.int(),
+    lastSentAt: IsoDateTimeSchema,
+    delivery: DeliveryStateSchema,
+    deliveryIssue: DeliveryIssueSchema.nullable(),
+    invitedBy: z.strictObject({ id: UuidSchema, name: z.string() }),
+  })
+  .superRefine(refineDeliveryIssue);
 export type InvitationView = z.infer<typeof InvitationViewSchema>;
 
 export const InvitationListResponseSchema = z.strictObject({ items: z.array(InvitationViewSchema) });
