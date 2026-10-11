@@ -4,6 +4,7 @@ import type {
   ActivityType,
   ExecutionMode,
   LatePolicy,
+  ReleaseMode,
   SaveAnswersRequest,
   SaveAnswersResult,
   StudentActivity,
@@ -52,6 +53,8 @@ interface ContextRow {
   question_count: number;
   class_status: string;
   released: boolean;
+  /** 016: a `PRESENT_ONLY` work is released only to the students marked present. */
+  release_mode: ReleaseMode;
 }
 
 interface AttemptRow {
@@ -403,12 +406,15 @@ export class AttemptsService {
 
 /**
  * Published, not cancelled, of a class where the student is ACTIVE (research P18), released to them
- * (016 research M4: every enrollment, or marked present); else `OutOfContext`.
+ * (016 research M4: every enrollment, or marked present); else `OutOfContext`. A `PRESENT_ONLY` work
+ * also takes the student's presence `FOR SHARE` (016 research M5, T022): an unmark holding it `FOR
+ * UPDATE` is waited for, and once it commits the presence is gone and the answer is the same 404, never
+ * the start trigger's refusal of an attempt without a presence.
  */
 async function lockContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<ContextRow> {
   const rows = await tx.$queryRaw<ContextRow[]>`
     SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.question_count,
-           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released
+           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
     WHERE ca.id = ${activityId}::uuid
@@ -417,8 +423,16 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
       AND ${releasedToSql(studentUserId)}
     FOR SHARE OF ca`;
-  if (rows.length === 0) throw new OutOfContext();
-  return rows[0]!;
+  const context = rows[0];
+  if (!context) throw new OutOfContext();
+  if (context.release_mode === "PRESENT_ONLY") {
+    const presence = await tx.$queryRaw<unknown[]>`
+      SELECT 1 FROM activity_attendances
+      WHERE activity_id = ${activityId}::uuid AND student_user_id = ${studentUserId}::uuid
+      FOR SHARE`;
+    if (presence.length === 0) throw new OutOfContext();
+  }
+  return context;
 }
 
 /**

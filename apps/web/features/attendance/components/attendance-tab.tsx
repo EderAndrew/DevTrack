@@ -1,6 +1,6 @@
 "use client";
 
-import type { Room, RoomStatus } from "@repo/contracts";
+import type { Room } from "@repo/contracts";
 import { Send } from "lucide-react";
 import { useState } from "react";
 import {
@@ -14,7 +14,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -30,18 +29,10 @@ import {
   NO_STUDENTS,
   RELEASE_TO_PRESENT,
   releaseQuestion,
-  ROOM_STATUS_LABELS,
   selectedLabel,
   UNMARK_ALL,
 } from "../schemas/attendance";
-
-const STATUS_VARIANTS: Record<RoomStatus, "neutral" | "info" | "success" | "warning"> = {
-  NOT_MARKED: "neutral",
-  PRESENT: "info",
-  ANSWERING: "info",
-  OUT_OF_ROOM: "warning",
-  SUBMITTED: "success",
-};
+import { RoomPanel } from "./room-panel";
 
 export interface AttendanceTabProps {
   classId: string;
@@ -51,8 +42,8 @@ export interface AttendanceTabProps {
 /**
  * The "Chamada" of a `PRESENT_ONLY` work (016 contracts/web-ui.md): before the first release a
  * checklist of the class with "Marcar todos", "Desmarcar todos", the counter and "Liberar para os
- * presentes" (confirmed); afterwards each student's situation in the room, in words, refreshed every
- * 5 s. The checkboxes are only a draft until the batch, which sends the differences (research M5).
+ * presentes" (confirmed); afterwards the room panel (`RoomPanel`), refreshed every 5 s. The checkboxes
+ * are only a draft until the batch, which sends the differences (research M5).
  */
 export function AttendanceTab({ classId, activityId }: AttendanceTabProps) {
   const query = useRoom(classId, activityId);
@@ -79,7 +70,7 @@ export function AttendanceTab({ classId, activityId }: AttendanceTabProps) {
   } else if (query.data.present === 0) {
     body = <AttendanceChecklist classId={classId} activityId={activityId} room={query.data} />;
   } else {
-    body = <RoomList room={query.data} />;
+    body = <RoomPanel classId={classId} activityId={activityId} room={query.data} />;
   }
 
   return (
@@ -167,19 +158,5 @@ function AttendanceChecklist({ classId, activityId, room }: { classId: string; a
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-/** After the first release: each ACTIVE student by name with their situation in the room (FR-020). */
-function RoomList({ room }: { room: Room }) {
-  return (
-    <ul aria-label="Alunos da turma" className="m-0 flex list-none flex-col gap-2 p-0">
-      {room.students.map((row) => (
-        <li key={row.studentUserId} className="flex flex-wrap items-center gap-2">
-          <span>{row.name}</span>
-          <Badge variant={STATUS_VARIANTS[row.roomStatus]}>{ROOM_STATUS_LABELS[row.roomStatus]}</Badge>
-        </li>
-      ))}
-    </ul>
   );
 }
