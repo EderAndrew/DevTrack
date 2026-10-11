@@ -325,6 +325,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.responder" },
   { method: "GET", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.visualizar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/pauses/:pauseId/release", access: "chamada.registrar" },
+  // 016/US5 — "Pausar aluno" (contracts/permissions.md).
+  { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },
   // 016/US4 — the pauses of an attempt in the review (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses", access: "entregas.visualizar" },
 ];

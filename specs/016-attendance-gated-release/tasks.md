@@ -456,16 +456,16 @@ professor".
 **Independent Test**: pausar pelo professor, conferir que o aluno fica sem acesso em todo
 dispositivo, liberar e continuar.
 
-- [ ] T037 [P] [US5] `apps/api/test/integration/016-us5-teacher-pause.spec.ts`: `016/US5-1`,
+- [X] T037 [P] [US5] `apps/api/test/integration/016-us5-teacher-pause.spec.ts`: `016/US5-1`,
   `016/US5-2`, `016/US5-3` e `016/FR-016`.
   - Pausa com `initiatedBy: TEACHER`.
   - Sem tentativa ou entregue → 409.
   - Pausa já aberta → a mesma (200).
   - Auditoria `attempt_pause.started` com ator professor.
-- [ ] T038 [US5] `POST …/students/:studentUserId/pause` em `pauses.{controller,service}.ts`:
+- [X] T038 [US5] `POST …/students/:studentUserId/pause` em `pauses.{controller,service}.ts`:
   - mesma transação da pausa do aluno, com a tentativa do aluno-alvo `FOR UPDATE`;
   - catálogo e `MATRIX`.
-- [ ] T039 [US5] Web, com o teste primeiro:
+- [X] T039 [US5] Web, com o teste primeiro:
   - "Pausar aluno" com confirmação em `room-panel.tsx`;
   - o aluno pausado pelo professor vê o aviso na próxima sondagem ou no 409 de salvamento, com
     "Pausado pelo professor".

@@ -652,6 +652,27 @@ describe("016/US3 \"Sair da sala\" na tela de responder (modo NORMAL)", () => {
     expect(((await screen.findByLabelText("Sua resposta")) as HTMLTextAreaElement).value).toBe("salva");
   });
 
+  it("016/US5-1 016/FR-016 pausado pelo professor: a próxima sondagem troca as questões pelo aviso com \"Pausado pelo professor\"", async () => {
+    const byTeacher = { ...PAUSE, initiatedBy: "TEACHER" as const, reason: "TEACHER" as const };
+    let isPaused = false;
+    let polls = 0;
+    const { api } = setup({
+      [GET]: () => json(200, isPaused ? started({ pause: byTeacher, questions: [] }) : started()),
+      // The teacher pauses the student between the page's first read and its first poll.
+      [`GET ${PAUSE_PATH}`]: () => {
+        polls += 1;
+        isPaused = true;
+        return json(200, { pause: byTeacher });
+      },
+    });
+    expect(await screen.findByText(PAUSED_TITLE)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Motivo: Pausado pelo professor");
+    expect(screen.queryByRole("navigation", { name: "Questões" })).toBeNull();
+    expect(screen.queryByRole("button", { name: RESUME })).toBeNull();
+    expect(polls).toBeGreaterThan(0);
+    expect(api.calls.filter((call) => call.method !== "GET")).toEqual([]);
+  });
+
   it("016/FR-013 um 409 ATTEMPT_PAUSED ao salvar mostra o aviso e guarda a resposta não enviada (012 FR-019), enviada depois do retorno", async () => {
     let isPaused = false;
     let saves = 0;

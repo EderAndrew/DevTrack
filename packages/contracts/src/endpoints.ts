@@ -231,6 +231,10 @@ export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
 export const ClassActivityAttemptParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, attemptId: UuidSchema });
 export type ClassActivityAttemptParams = z.infer<typeof ClassActivityAttemptParamsSchema>;
 
+/** One student of the teacher's class in an activity (016/US5: "Pausar aluno"). */
+export const ClassActivityStudentParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, studentUserId: UuidSchema });
+export type ClassActivityStudentParams = z.infer<typeof ClassActivityStudentParamsSchema>;
+
 /** One room exit of an activity of the teacher's class (016 research M7: a release is keyed by pause). */
 export const ClassActivityPauseParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, pauseId: UuidSchema });
 export type ClassActivityPauseParams = z.infer<typeof ClassActivityPauseParamsSchema>;
@@ -1152,6 +1156,15 @@ export const endpoints = {
     body: AttendanceBatchSchema,
     response: RoomSchema,
     status: 200,
+  },
+  /** 016/US5: "Pausar aluno"; 201 for a new pause, 200 with the pause already open; not started or submitted → 409. */
+  "activities.pauseStudent": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause",
+    params: ClassActivityStudentParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherPauseSchema,
+    status: 201,
   },
   /** 016/US3: the teacher releases the return; an already released pause → 200 unchanged; closed → 409. */
   "activities.releasePause": {

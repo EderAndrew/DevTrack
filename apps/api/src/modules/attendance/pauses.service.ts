@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ActivityStatus, AttemptPauses, PauseInitiator, PauseReason, TeacherPause } from "@repo/contracts";
+import type { ActivityStatus, AttemptPauses, PauseInitiator, PauseReason, ReleaseMode, TeacherPause } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { AppException, notFound } from "../../platform/http/errors";
@@ -7,6 +7,8 @@ import { pauseTime } from "../activities/status/pause-time";
 import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { type StoredPause, toTeacherPause } from "./views";
+
+const PAUSE_SELECT = { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
 
 interface PauseRow {
   id: string;
@@ -20,8 +22,8 @@ interface PauseRow {
 }
 
 /**
- * The teacher's side of the room exits (016 US3, US4, FR-014, FR-021, research M7): releasing the
- * return and reading an attempt's pauses in the review. The class
+ * The teacher's side of the room exits (016 US3, US4, US5, FR-014, FR-016, FR-021, research M7):
+ * pausing a student, releasing the return and reading an attempt's pauses in the review. The class
  * goes through `ClassContextPolicy`, the activity is looked up by `(id, class_id)` and the pause by
  * `(id, activity_id)`, so another teacher's ids are a plain 404. The route is keyed by the pause and
  * idempotent: a released pause comes back unchanged, so a double click never ends a later one. A pause
@@ -36,6 +38,76 @@ export class PausesService {
     private readonly classes: ClassContextPolicy,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  /**
+   * "Pausar aluno" (016/US5, FR-016): the same pause as the student's declared exit, in the same
+   * transaction shape — the activity `FOR SHARE` (a close waits) and the target student's latest
+   * attempt `FOR UPDATE`, so it is ordered with every write of that attempt — with `initiatedBy:
+   * TEACHER` and the reason `TEACHER`. A student who is not an ACTIVE student of the class → 404. An
+   * open pause (the student's or the teacher's) comes back as it is, `created: false` (→ 200).
+   */
+  async pauseStudent(
+    teacherId: string,
+    classId: string,
+    activityId: string,
+    studentUserId: string,
+    requestId: string | null,
+  ): Promise<{ pause: TeacherPause; created: boolean }> {
+    return this.prisma.runInTransaction(async (tx) => {
+      await this.classes.findOwnedOrNotFound(teacherId, classId, tx);
+      const activities = await tx.$queryRaw<{ release_mode: ReleaseMode; status: ActivityStatus; class_active: boolean }[]>`
+        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (c.status = 'ACTIVE') AS class_active
+        FROM class_activities ca JOIN classes c ON c.id = ca.class_id
+        WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid
+        FOR SHARE OF ca`;
+      const activity = activities[0];
+      if (!activity) throw notFound();
+      const enrolled = await tx.$queryRaw<{ student_user_id: string }[]>`
+        SELECT student_user_id FROM enrollments
+        WHERE class_id = ${classId}::uuid AND student_user_id = ${studentUserId}::uuid AND status = 'ACTIVE'`;
+      if (!enrolled[0]) throw notFound();
+      if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");
+      const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED" }[]>`
+        SELECT id, status::text AS status FROM activity_attempts
+        WHERE activity_id = ${activityId}::uuid AND student_user_id = ${studentUserId}::uuid
+        ORDER BY number DESC LIMIT 1
+        FOR UPDATE`;
+      const attempt = attempts[0];
+      if (!attempt) throw new AppException("NOT_STARTED");
+      if (attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
+      if (activity.status !== "ACTIVE" || !activity.class_active) throw new AppException("ACTIVITY_CLOSED");
+
+      const now = this.clock.now();
+      // An IN_PROGRESS attempt of an ACTIVE activity: a pause with no release is open (never accepted or closed).
+      const context = { acceptedAt: null, activityEndedAt: null };
+      const open = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, releasedAt: null }, select: PAUSE_SELECT });
+      if (open) return { pause: toTeacherPause(open, context, now), created: false };
+
+      const pause: StoredPause = await tx.attemptPause.create({
+        data: {
+          attemptId: attempt.id,
+          activityId,
+          studentUserId,
+          initiatedBy: "TEACHER",
+          reason: "TEACHER",
+          note: null,
+          startedAt: now,
+          startedById: teacherId,
+        },
+        select: PAUSE_SELECT,
+      });
+      await this.audit.record(tx, {
+        type: "attempt_pause.started",
+        actorType: "USER",
+        actorUserId: teacherId,
+        targetType: "ACTIVITY_ATTEMPT",
+        targetId: attempt.id,
+        requestId,
+        metadata: { activityId, pauseId: pause.id, initiatedBy: "TEACHER", reason: "TEACHER" },
+      });
+      return { pause: toTeacherPause(pause, context, now), created: true };
+    });
+  }
 
   /**
    * Under the activity's `FOR SHARE` (a close waits, so a release never lands after it) and the

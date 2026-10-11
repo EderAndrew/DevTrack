@@ -49,7 +49,7 @@ describe("016/US2 RoomPanel — o painel da sala depois da primeira liberação"
 
     await screen.findByRole("button", { name: "Desmarcar Ana Souza" });
     expect(screen.getAllByRole("button", { name: /^Desmarcar/ })).toHaveLength(1);
-    expect(within(rowOf("Bruno Lima")).queryByRole("button")).toBeNull();
+    expect(within(rowOf("Bruno Lima")).queryByRole("button", { name: /Desmarcar/ })).toBeNull();
     expect(within(rowOf("Dora Melo")).queryByRole("button")).toBeNull();
     expect(within(rowOf("Caio Reis")).queryByRole("button", { name: /Desmarcar/ })).toBeNull();
 
@@ -82,7 +82,11 @@ describe("016/US2 RoomPanel — o painel da sala depois da primeira liberação"
     const { container } = render();
     await screen.findByRole("button", { name: "Marcar presente Caio Reis" });
     await expectNoA11yViolations(container);
-    await expectTabOrder(user, [screen.getByRole("button", { name: "Desmarcar Ana Souza" }), screen.getByRole("button", { name: "Marcar presente Caio Reis" })]);
+    await expectTabOrder(user, [
+      screen.getByRole("button", { name: "Desmarcar Ana Souza" }),
+      screen.getByRole("button", { name: "Pausar aluno Bruno Lima" }),
+      screen.getByRole("button", { name: "Marcar presente Caio Reis" }),
+    ]);
     await tabTo(user, screen.getByRole("button", { name: "Marcar presente Caio Reis" }));
     await user.keyboard("{Enter}");
     await waitFor(() => expect(api.writes()).toEqual([{ method: "POST", url: ATTENDANCE_PATH, body: { mark: [CAIO], unmark: [] } }]));
@@ -164,5 +168,96 @@ describe("016/US3 RoomPanel — quem está fora da sala", () => {
     await tabTo(user, release);
     await user.keyboard("{Enter}");
     expect((await screen.findByRole("alert")).textContent).toMatch(/encerrada/i);
+  });
+});
+
+describe("016/US5 RoomPanel — \"Pausar aluno\"", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const PAUSE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2";
+  const STARTED_AT = "2026-10-01T13:45:00.000Z";
+  const PAUSE_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/students/${BRUNO}/pause`;
+  const teacherPause = {
+    id: PAUSE_ID,
+    initiatedBy: "TEACHER" as const,
+    reason: "TEACHER" as const,
+    note: null,
+    startedAt: STARTED_AT,
+    endedAt: null,
+    endedBy: null,
+    seconds: 0,
+  };
+  const PAUSED = room([
+    RELEASED.students[0]!,
+    student(BRUNO, "Bruno Lima", { markedAt: MARKED_AT, roomStatus: "OUT_OF_ROOM", attemptId: ATTEMPT, openPause: teacherPause }),
+    RELEASED.students[2]!,
+  ]);
+
+  it("016/US5-1 016/FR-016 só quem está \"Respondendo\" tem \"Pausar aluno\"; confirmado, envia a pausa e a linha mostra \"Pausado pelo professor\"", async () => {
+    let reads = 0;
+    const api = routedFetch({
+      [`GET ${ATTENDANCE_PATH}`]: () => json(200, (reads += 1) === 1 ? RELEASED : PAUSED),
+      [`POST ${PAUSE_PATH}`]: json(201, teacherPause),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+
+    const pauseBruno = await screen.findByRole("button", { name: "Pausar aluno Bruno Lima" });
+    expect(screen.getAllByRole("button", { name: /^Pausar aluno/ })).toHaveLength(1);
+    await user.click(pauseBruno);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Pausar Bruno Lima?")).toBeTruthy();
+    expect(api.writes()).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Pausar" }));
+
+    expect(api.writes()).toEqual([{ method: "POST", url: PAUSE_PATH, body: {} }]);
+    await within(rowOf("Bruno Lima")).findByText(`Fora da sala — Pausado pelo professor, desde ${formatTime(STARTED_AT)}`);
+    expect(within(rowOf("Bruno Lima")).getByRole("button", { name: "Liberar retorno Bruno Lima" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pausar aluno Bruno Lima" })).toBeNull();
+  });
+
+  it("016/FR-016 \"Voltar\" fecha a confirmação sem pausar", async () => {
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, RELEASED) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Pausar aluno Bruno Lima" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(api.writes()).toEqual([]);
+  });
+
+  it("016/US5-3 a recusa (o aluno entregou nesse meio-tempo) aparece por texto e a sala é lida de novo", async () => {
+    const submitted = room([RELEASED.students[0]!, student(BRUNO, "Bruno Lima", { markedAt: MARKED_AT, roomStatus: "SUBMITTED", attemptId: ATTEMPT }), RELEASED.students[2]!]);
+    let reads = 0;
+    const api = routedFetch({
+      [`GET ${ATTENDANCE_PATH}`]: () => json(200, (reads += 1) === 1 ? RELEASED : submitted),
+      [`POST ${PAUSE_PATH}`]: apiError(409, "ATTEMPT_ALREADY_SUBMITTED", "Submitted."),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Pausar aluno Bruno Lima" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Pausar" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Esta atividade já foi entregue.");
+    await waitFor(() => expect(within(rowOf("Bruno Lima")).getByText("Entregou")).toBeTruthy());
+  });
+
+  it("016/FR-023 axe e teclado: Tab até \"Pausar aluno\", Enter abre a confirmação com o foco dentro e Enter confirma", async () => {
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, RELEASED), [`POST ${PAUSE_PATH}`]: json(201, teacherPause) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    const { container } = render();
+    const pause = await screen.findByRole("button", { name: "Pausar aluno Bruno Lima" });
+    await expectNoA11yViolations(container);
+    await tabTo(user, pause);
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await expectNoA11yViolations(document.body);
+    await tabTo(user, within(dialog).getByRole("button", { name: "Pausar" }));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(api.writes()).toEqual([{ method: "POST", url: PAUSE_PATH, body: {} }]));
   });
 });
