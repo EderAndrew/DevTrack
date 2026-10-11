@@ -10,7 +10,8 @@
    request minted, claiming the row (`FOR UPDATE`, `attempts 0 → 1`, `message_id`, in-flight
    deadline). It takes one unit of the `MAIL_SENDS_PER_MINUTE` budget; with no budget (or `0`) it
    sends nothing and the row stays `PENDING` for the worker. The admin bootstrap CLI does the same
-   synchronously and reports the outcome.
+   synchronously and reports the outcome; with `--print-link`, a failed or unsent first attempt
+   marks the delivery `DISCARDED (NOT_NEEDED)` instead, so no retry kills the printed link.
 3. `MailDeliveryWorker` every `MAIL_RETRY_INTERVAL_SECONDS` (`0` = off; tests call `runOnce(now)`)
    claims up to `min(50, budget of MAIL_SENDS_PER_MINUTE)` due rows (`FOR UPDATE SKIP LOCKED`, order
    `next_attempt_at, created_at`); per row, the kind's `MailSubject.prepare(tx, row)`:
@@ -49,7 +50,7 @@
 | `INVITATION_TEACHER` / `INVITATION_MANAGER` | `invitations` | not `PENDING`, expired | `invitations.token_hash` |
 | `VERIFY_EMAIL` | `users` | e-mail already verified, account `SUSPENDED` | new `user_tokens` (`EMAIL_VERIFICATION`) |
 | `PASSWORD_RESET` | `users` | account `SUSPENDED` | new `user_tokens` (`PASSWORD_RESET`) |
-| `ADMIN_ACTIVATION` | `admin_bootstraps` | not `PENDING`, expired | `admin_bootstraps.token_hash` |
+| `ADMIN_ACTIVATION` | `admin_bootstraps` | not `PENDING`, expired (a `--print-link` run never reaches a retry: the CLI discards it) | `admin_bootstraps.token_hash` |
 
 A retry does not change an invitation's `expires_at`, `send_count` or `last_sent_at` (003 FR-015).
 

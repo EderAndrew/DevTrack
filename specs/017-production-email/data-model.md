@@ -29,7 +29,7 @@ One migration (`<ts>_production_email`): two enums, one changed enum, two tables
 | `next_attempt_at` | timestamptz NULL | NOT NULL iff `PENDING` (CHECK) |
 | `last_error_code` | text NULL | `^[A-Za-z][A-Za-z0-9_]{0,63}$` (CHECK); never a message |
 | `message_id` | text NULL UNIQUE | our Message-ID of the last attempt (N5) |
-| `sent_at` | timestamptz NULL | set with `SENT` |
+| `sent_at` | timestamptz NULL | set with `SENT`, or by a notice that overtakes the SMTP result |
 | `delivered_at` | timestamptz NULL | set with `DELIVERED` |
 | `undelivered_at` | timestamptz NULL | set with `UNDELIVERED`, with `undelivered_reason` (CHECK) |
 | `undelivered_reason` | `undelivered_reason` NULL | |
@@ -61,9 +61,10 @@ PENDING ──► SENT ──► DELIVERED
 
 `UNDELIVERED`, `FAILED`, `DISCARDED` and `SUPERSEDED` are final. `DELIVERED → UNDELIVERED` is only
 allowed with `COMPLAINED`, or with `BOUNCED` when the bounce notice is older than the delivery
-notice (out of order). `PENDING → DELIVERED / UNDELIVERED (BOUNCED | COMPLAINED)` is allowed only
-by a notice whose Message-ID is the current attempt's (it arrived before the SMTP result, which is
-then ignored). Any other change → error `INVALID_STATE_TRANSITION`.
+notice (out of order). The trigger allows `PENDING → DELIVERED / UNDELIVERED (BOUNCED | COMPLAINED)`;
+that the change comes from a notice whose Message-ID is the current attempt's (it arrived before the
+SMTP result, which is then ignored) is checked by `MailNoticesService`, since the trigger cannot see
+the source. Any other change → error `INVALID_STATE_TRANSITION`.
 
 `message_id` is written when the attempt is claimed, before sending; `sent_at` is set by whichever
 comes first, the SMTP result or the notice.

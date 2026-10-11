@@ -179,7 +179,8 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   Por tipo (os seis), o teste verifica: a linha nasce na transação, a primeira tentativa sai
   depois do commit, a nova tentativa gera link novo e mata o anterior, e o descarte da tabela
   "Subjects" de `contracts/mail-delivery.md` (convite aceito/cancelado/expirado, e-mail já
-  verificado, conta `SUSPENDED`, bootstrap concluído). A redefinição de senha de um e-mail
+  verificado, conta `SUSPENDED`, bootstrap concluído; com `--print-link` e o mailer falhando, o
+  envio fica `DISCARDED` e o link impresso continua funcionando depois de um `runOnce`). A redefinição de senha de um e-mail
   inexistente não agenda nada. Uma nova tentativa não muda `expires_at`, `send_count` nem
   `last_sent_at` do convite (003 FR-015).
 - [ ] T011 [P] [US1] `apps/api/test/security/017-concurrency.spec.ts` (`017/FR-005`):
@@ -256,9 +257,11 @@ chamar `runOnce()`: os dois e-mails saem uma vez, o link recebido funciona e o a
   `apps/api/src/modules/admin-bootstrap/admin-bootstrap.mail-subject.ts` (descarta se o bootstrap
   não está `PENDING` ou expirou; gira `token_hash`). `admin-bootstrap.service.ts` agenda e o CLI
   (`src/cli/admin-bootstrap.command.ts`) faz a primeira tentativa síncrona e informa o resultado;
-  numa falha a linha fica `PENDING`, sai com o código 3 e a mensagem "o e-mail será tentado de
-  novo pela API" (`--print-link` igual). Atualizar `us3-admin-bootstrap-cli.spec.ts` e
-  `us3-admin-bootstrap.spec.ts`.
+  sem `--print-link`, numa falha (ou sem orçamento) a linha fica `PENDING`, sai com o código 3 e a
+  mensagem "o e-mail será tentado de novo pela API"; com `--print-link`, a falha marca o envio
+  `DISCARDED (NOT_NEEDED)`, sai com o código 3 e a mensagem "e-mail não enviado; use o link
+  impresso", e o link impresso continua valendo (nenhuma nova tentativa gira o token). Atualizar
+  `us3-admin-bootstrap-cli.spec.ts` e `us3-admin-bootstrap.spec.ts`, com os dois casos.
 - [ ] T019 [US1] Remover `MailDispatcher` (`mail-dispatcher.ts`) e as suas importações; nenhum
   envio fora da fila (`mail-boundary.spec.ts` ganha a regra: só `platform/mail/outbox` chama
   `Mailer.send`). Rodar T010–T012 verdes e tirar a US1, `SC-001` e `SC-002` de `pending`.
@@ -296,7 +299,8 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
   - `017/SC-003`: o convite aparece `UNDELIVERED` na primeira leitura depois do aviso;
   - os casos de borda: aviso fora de ordem (bounce antes do delivered; o delivered depois não
     desfaz; um bounce emitido antes do delivered e recebido depois leva a `UNDELIVERED`), aviso de
-    entregue/voltou antes do resultado do SMTP (aplicado; o `SENT` posterior é ignorado), vários
+    entregue/voltou antes do resultado do SMTP (aplicado; o `SENT` posterior é ignorado; um aviso de
+    uma tentativa que não é a atual nunca move um envio `PENDING`, regra do serviço), vários
     avisos (o primeiro motivo final fica, todos os avisos guardados), aviso de uma tentativa antiga e
     de um envio substituído (a situação do convite segue o envio mais recente), aviso de dias
     depois, tipos ignorados (`email.opened`, `email.clicked`, `email.sent`) não guardados.

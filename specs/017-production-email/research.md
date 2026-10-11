@@ -69,8 +69,11 @@ subject (the 003 rule, generalized):
 The **first attempt** keeps the 003 shape: the request already minted the token in its transaction,
 and `MailOutbox.attemptNow` sends it after commit, claiming the row (`attempts 0 → 1`). Retries by the
 worker call `prepare`. The admin bootstrap CLI makes the first attempt synchronously, as today, and
-reports it; a failure leaves the delivery `PENDING` for the API's worker (exit code 3, message: "o
-e-mail será tentado de novo pela API").
+reports it. Without `--print-link`, a failure (or no budget, N4) leaves the delivery `PENDING` for the
+API's worker (exit code 3, message: "o e-mail será tentado de novo pela API"). With `--print-link`,
+the printed link is the operator's channel and a retry would kill it (a retry mints a new token), so a
+failure marks the delivery `DISCARDED (NOT_NEEDED)` in the CLI and exits 3 with "e-mail não enviado;
+use o link impresso"; the printed link keeps working.
 
 **Rationale**: FR-006 (no stale or revoked link leaves), FR-009 (no stored link) and the anti-
 enumeration of 001 (password reset still schedules nothing for an unknown e-mail; the response and
