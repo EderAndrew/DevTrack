@@ -104,7 +104,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(raw.length).toBeGreaterThan(0);
     const sources = {
       class_invitations: serialize(await t.prisma.classInvitation.findMany()),
-      class_invitation_deliveries: serialize(await t.prisma.classInvitationDelivery.findMany()),
+      mail_deliveries: serialize(await t.prisma.mailDelivery.findMany()),
       enrollments: serialize(await t.prisma.enrollment.findMany()),
     };
     expect(leaks(raw, sources)).toEqual([]);

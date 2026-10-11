@@ -60,7 +60,7 @@ describe("003/SC-004 — concorrência de convites, aceites e remoções", () =>
     );
     await t.flushMail();
     expect(await t.prisma.classInvitation.count()).toBe(1);
-    expect(await t.prisma.classInvitationDelivery.count()).toBe(1);
+    expect(await t.prisma.mailDelivery.count()).toBe(1);
     expect(await t.prisma.auditEvent.count({ where: { type: "class_invitation.created" } })).toBe(1);
   });
 

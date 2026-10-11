@@ -10,7 +10,7 @@ export const CLASS_INVITATION_VIEW_SELECT = {
   sendCount: true,
   lastSentAt: true,
   createdAt: true,
-  deliveries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { status: true } },
+  deliveries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { status: true, undeliveredReason: true } },
 } as const satisfies Prisma.ClassInvitationSelect;
 
 export type ClassInvitationViewRow = Prisma.ClassInvitationGetPayload<{ select: typeof CLASS_INVITATION_VIEW_SELECT }>;
@@ -18,13 +18,18 @@ export type ClassInvitationViewRow = Prisma.ClassInvitationGetPayload<{ select: 
 /**
  * What the teacher sees of the latest delivery (D5). A latest delivery that was `SUPERSEDED`
  * never reached the student (the invitation stopped being pending first), so it reads as
- * `FAILED`; an invitation without deliveries has not been sent yet.
+ * `FAILED`; an invitation without deliveries has not been sent yet. 017: DELIVERED reads as SENT
+ * and UNDELIVERED carries its reason; DISCARDED reads as SUPERSEDED until T028 derives it from
+ * the previous delivery.
  */
 const DELIVERY_STATE: Readonly<Record<DeliveryStatus, DeliveryState>> = {
   PENDING: "SENDING",
   SENT: "SENT",
+  DELIVERED: "SENT",
+  UNDELIVERED: "UNDELIVERED",
   FAILED: "FAILED",
   SUPERSEDED: "FAILED",
+  DISCARDED: "FAILED",
 };
 
 /** Lazy expiry (D3, as R15): a PENDING invitation past `expiresAt` reads as EXPIRED. */
@@ -43,8 +48,7 @@ export function toClassInvitationView(row: ClassInvitationViewRow, now = new Dat
     sendCount: row.sendCount,
     lastSentAt: row.lastSentAt.toISOString(),
     delivery: latest ? DELIVERY_STATE[latest.status] : "SENDING",
-    // 017: the provider notices that fill it arrive with US2.
-    deliveryIssue: null,
+    deliveryIssue: latest?.status === "UNDELIVERED" ? latest.undeliveredReason : null,
     createdAt: row.createdAt.toISOString(),
   };
 }

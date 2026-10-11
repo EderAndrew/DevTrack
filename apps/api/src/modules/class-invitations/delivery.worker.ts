@@ -9,7 +9,7 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { generateToken, hashToken } from "../../platform/crypto/tokens";
 import { PrismaService } from "../../platform/database/prisma.service";
-import { inFlightDeadline, MAX_DELIVERY_ATTEMPTS } from "./delivery-schedule";
+import { inFlightDeadline, MAX_DELIVERY_ATTEMPTS } from "../../platform/mail/outbox/delivery-schedule";
 import { type DeliveryAttempt, DeliveryService, INVITATION_MAIL_SELECT, toInvitationMail } from "./delivery.service";
 
 const BATCH_SIZE = 50;
@@ -40,8 +40,8 @@ export class ClassInvitationDeliveryWorker implements OnApplicationBootstrap, On
   async runOnce(now = new Date()): Promise<number> {
     const attempts = await this.prisma.runInTransaction(async (tx) => {
       const due = await tx.$queryRaw<{ id: string; invitation_id: string; attempts: number }[]>`
-        SELECT id, invitation_id, attempts FROM class_invitation_deliveries
-        WHERE status = 'PENDING' AND next_attempt_at <= ${now}
+        SELECT id, class_invitation_id AS invitation_id, attempts FROM mail_deliveries
+        WHERE kind = 'CLASS_INVITATION' AND status = 'PENDING' AND next_attempt_at <= ${now}
         ORDER BY next_attempt_at, id
         LIMIT ${BATCH_SIZE}
         FOR UPDATE SKIP LOCKED`;
@@ -59,7 +59,7 @@ export class ClassInvitationDeliveryWorker implements OnApplicationBootstrap, On
         const current =
           invitation.status === "PENDING" && invitation.expiresAt > now && invitation.deliveries[0]?.id === delivery.id;
         if (!current) {
-          await tx.classInvitationDelivery.update({
+          await tx.mailDelivery.update({
             where: { id: delivery.id },
             data: { status: "SUPERSEDED", nextAttemptAt: null },
           });
@@ -67,7 +67,7 @@ export class ClassInvitationDeliveryWorker implements OnApplicationBootstrap, On
         }
         if (delivery.attempts >= MAX_DELIVERY_ATTEMPTS) {
           // The last attempt was lost (e.g. the API restarted mid-send): it counts as a failure.
-          await tx.classInvitationDelivery.update({
+          await tx.mailDelivery.update({
             where: { id: delivery.id },
             data: { status: "FAILED", nextAttemptAt: null },
           });
@@ -83,7 +83,7 @@ export class ClassInvitationDeliveryWorker implements OnApplicationBootstrap, On
         const attempt = delivery.attempts + 1;
         const token = generateToken();
         await tx.classInvitation.update({ where: { id: delivery.invitation_id }, data: { tokenHash: hashToken(token) } });
-        await tx.classInvitationDelivery.update({
+        await tx.mailDelivery.update({
           where: { id: delivery.id },
           data: { attempts: attempt, nextAttemptAt: inFlightDeadline(attempt, now) },
         });

@@ -5,7 +5,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const NOW = new Date("2026-09-23T12:00:00.000Z");
 
-describe("delivery-schedule (003/FR-019, contracts/mail-delivery.md)", () => {
+describe("delivery-schedule (003/FR-019, 017/FR-003, 017 contracts/mail-delivery.md)", () => {
   it.each([
     [1, 1 * MINUTE],
     [2, 5 * MINUTE],

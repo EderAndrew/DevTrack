@@ -115,8 +115,59 @@ enum DeliveryStatus {
   SENT
   FAILED
   SUPERSEDED
+  DELIVERED
+  UNDELIVERED
+  DISCARDED
 
   @@map("delivery_status")
+}
+
+/// The six e-mails of the outbox (017 data-model.md); each has exactly one subject column.
+enum MailKind {
+  VERIFY_EMAIL
+  PASSWORD_RESET
+  INVITATION_TEACHER
+  INVITATION_MANAGER
+  ADMIN_ACTIVATION
+  CLASS_INVITATION
+
+  @@map("mail_kind")
+}
+
+/// Why an e-mail did not reach the recipient (017, "Não entregue").
+enum UndeliveredReason {
+  BOUNCED
+  COMPLAINED
+  REJECTED
+
+  @@map("undelivered_reason")
+}
+
+/// Why a pending e-mail was dropped without sending (017 FR-006).
+enum DiscardReason {
+  EXPIRED
+  REVOKED
+  ACCEPTED
+  NOT_NEEDED
+
+  @@map("discard_reason")
+}
+
+enum MailNoticeProvider {
+  RESEND
+  SES
+
+  @@map("mail_notice_provider")
+}
+
+enum MailNoticeKind {
+  DELIVERED
+  BOUNCED
+  TEMPORARY
+  COMPLAINED
+  REJECTED
+
+  @@map("mail_notice_kind")
 }
 
 enum StudentStatus {
@@ -284,6 +335,8 @@ model User {
   pausesStarted           AttemptPause[]            @relation("AttemptPauseStartedBy")
   pausesReleased          AttemptPause[]            @relation("AttemptPauseReleasedBy")
 
+  mailDeliveries MailDelivery[]
+
   @@map("users")
 }
 
@@ -427,11 +480,11 @@ model ClassInvitation {
   createdAt        DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  schoolClass SchoolClass               @relation(fields: [classId], references: [id], onDelete: Restrict)
-  invitedBy   User                      @relation("ClassInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
-  acceptedBy  User?                     @relation("ClassInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
-  cancelledBy User?                     @relation("ClassInvitationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
-  deliveries  ClassInvitationDelivery[]
+  schoolClass SchoolClass    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  invitedBy   User           @relation("ClassInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy  User?          @relation("ClassInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+  cancelledBy User?          @relation("ClassInvitationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  deliveries  MailDelivery[]
   enrollments Enrollment[]
 
   @@index([classId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -439,23 +492,69 @@ model ClassInvitation {
   @@map("class_invitations")
 }
 
-/// One row per requested send (creation or resend). Never holds the token, the link or the body (D5).
-model ClassInvitationDelivery {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invitationId  String         @map("invitation_id") @db.Uuid
-  status        DeliveryStatus
-  attempts      Int            @default(0)
-  nextAttemptAt DateTime?      @map("next_attempt_at") @db.Timestamptz(6)
-  lastErrorCode String?        @map("last_error_code")
-  sentAt        DateTime?      @map("sent_at") @db.Timestamptz(6)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+/**
+ * One row per requested e-mail of any of the six kinds (017 data-model.md; replaces the 003
+ * `class_invitation_deliveries`). Exactly one subject column is set, the one of `kind` (CHECK);
+ * `kind` and the subject are immutable and the state follows research N7 (trigger
+ * `mail_deliveries_transition`). Never holds the address, the subject line, the link or the token.
+ */
+model MailDelivery {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind              MailKind
+  classInvitationId String?            @map("class_invitation_id") @db.Uuid
+  invitationId      String?            @map("invitation_id") @db.Uuid
+  userId            String?            @map("user_id") @db.Uuid
+  adminBootstrapId  String?            @map("admin_bootstrap_id") @db.Uuid
+  status            DeliveryStatus
+  attempts          Int                @default(0)
+  nextAttemptAt     DateTime?          @map("next_attempt_at") @db.Timestamptz(6)
+  lastErrorCode     String?            @map("last_error_code")
+  /// Our Message-ID of the last attempt (research N5), written when the attempt is claimed.
+  messageId         String?            @unique @map("message_id")
+  sentAt            DateTime?          @map("sent_at") @db.Timestamptz(6)
+  deliveredAt       DateTime?          @map("delivered_at") @db.Timestamptz(6)
+  undeliveredAt     DateTime?          @map("undelivered_at") @db.Timestamptz(6)
+  undeliveredReason UndeliveredReason? @map("undelivered_reason")
+  discardReason     DiscardReason?     @map("discard_reason")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  invitation ClassInvitation @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  classInvitation ClassInvitation? @relation(fields: [classInvitationId], references: [id], onDelete: Restrict)
+  invitation      Invitation?      @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  adminBootstrap  AdminBootstrap?  @relation(fields: [adminBootstrapId], references: [id], onDelete: Restrict)
+  notices         MailNotice[]
 
   @@index([status, nextAttemptAt])
+  @@index([classInvitationId, createdAt(sort: Desc)])
   @@index([invitationId, createdAt(sort: Desc)])
-  @@map("class_invitation_deliveries")
+  @@index([userId, kind])
+  @@index([adminBootstrapId])
+  @@map("mail_deliveries")
+}
+
+/**
+ * A provider notice about a delivery (017 research N6, N7): idempotent by `(provider, notice_id)`,
+ * append-only (trigger); deleted only by the `mail-records` job. Never the raw body, the address
+ * or the bounce message.
+ */
+model MailNotice {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider   MailNoticeProvider
+  noticeId   String             @map("notice_id")
+  kind       MailNoticeKind
+  /// Null only after the retention deleted the delivery.
+  deliveryId String?            @map("delivery_id") @db.Uuid
+  /// The `.{n}` of the Message-ID.
+  attempt    Int?
+  occurredAt DateTime           @map("occurred_at") @db.Timestamptz(6)
+  receivedAt DateTime           @map("received_at") @db.Timestamptz(6)
+
+  delivery MailDelivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, noticeId])
+  @@index([deliveryId])
+  @@map("mail_notices")
 }
 
 model Enrollment {
@@ -744,10 +843,11 @@ model Invitation {
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  invitedBy  User  @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
-  acceptedBy User? @relation("InvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
-  revokedBy  User? @relation("InvitationRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
+  role       Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy  User           @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy User?          @relation("InvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+  revokedBy  User?          @relation("InvitationRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
+  deliveries MailDelivery[]
 
   @@index([invitedById, status])
   @@index([email])
@@ -784,7 +884,8 @@ model AdminBootstrap {
   completedAt  DateTime?       @map("completed_at") @db.Timestamptz(6)
   cancelledAt  DateTime?       @map("cancelled_at") @db.Timestamptz(6)
 
-  targetUser User? @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetUser User?          @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
+  deliveries MailDelivery[]
 
   @@map("admin_bootstraps")
 }

@@ -92,7 +92,7 @@ description: "Task list for 017 — E-mail Real em Produção: fila única com n
 **Purpose**: migração, `Mailer` com Message-ID e erros classificados, contrato do assunto e o
 guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
 
-- [ ] T004 Teste primeiro: `apps/api/test/integration/017-schema.spec.ts`, com as regras de
+- [X] T004 Teste primeiro: `apps/api/test/integration/017-schema.spec.ts`, com as regras de
   `data-model.md`:
   - `mail_deliveries`: CHECK de exatamente um assunto e o do `kind`; `kind` imutável; `attempts`
     0–7; `next_attempt_at` NOT NULL sse `PENDING`; `last_error_code` no padrão; `undelivered_*`
@@ -104,13 +104,13 @@ guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
   - `mail_notices`: UNIQUE `(provider, notice_id)`, `notice_id` ≤ 200, append-only (UPDATE
     recusado; DELETE recusado sem `SET LOCAL devtrack.mail_purge = 'on'`),
     `delivery_id ON DELETE SET NULL`.
-- [ ] T005 Teste primeiro: `apps/api/test/integration/017-migration.spec.ts`: as linhas de
+- [X] T005 Teste primeiro: `apps/api/test/integration/017-migration.spec.ts`: as linhas de
   `class_invitation_deliveries` (uma por estado da 003) viram `CLASS_INVITATION` em
   `mail_deliveries` com os mesmos `id`, `status`, `attempts`, `next_attempt_at`, `last_error_code`,
   `sent_at` e datas; a tabela antiga deixa de existir. O teste aplica a migração sobre um banco
   na migração anterior (o padrão de teste de migração de `apps/api/CLAUDE.md`; se não houver, um
   script SQL equivalente que roda o `INSERT … SELECT` da migração sobre linhas semeadas).
-- [ ] T006 Migração `apps/api/prisma/migrations/<ts>_production_email/migration.sql` e
+- [X] T006 Migração `apps/api/prisma/migrations/<ts>_production_email/migration.sql` e
   `apps/api/prisma/schema.prisma`, com T004 e T005 verdes ao final:
   - enums `mail_kind`, `undelivered_reason`, `discard_reason`, `mail_notice_provider`,
     `mail_notice_kind`; `delivery_status` += `DELIVERED`, `UNDELIVERED`, `DISCARDED`;
@@ -124,7 +124,7 @@ guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
   - o código que usava `classInvitationDelivery` compila contra `mailDelivery` com
     `kind: CLASS_INVITATION` (troca mecânica em `class-invitations/delivery.service.ts` e
     `delivery.worker.ts`; a substituição real é a T014), e as suítes 003 seguem verdes.
-- [ ] T007 [P] `Mailer` (research N5, N8) em `apps/api/src/platform/mail/`:
+- [X] T007 [P] `Mailer` (research N5, N8) em `apps/api/src/platform/mail/`:
   - `mailer.ts`: a mensagem ganha `messageId` e `replyTo`; o resultado é `SENT` ou um erro
     tipado `MailSendError` com `permanent: boolean` e `code` (`EENVELOPE`, `ETIMEDOUT`, `EAUTH`,
     `ECONNECTION`, `SMTP_4XX`, `SMTP_5XX`);
@@ -135,7 +135,7 @@ guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
     `permanent` e `auth`;
   - teste unitário `smtp.mailer.spec.ts` da classificação com respostas SMTP simuladas
     (`017/FR-004`).
-- [ ] T008 [P] Contrato do assunto em `apps/api/src/platform/mail/outbox/mail-subject.ts`:
+- [X] T008 [P] Contrato do assunto em `apps/api/src/platform/mail/outbox/mail-subject.ts`:
   `MailSubject { kind; prepare(tx, delivery) → { to, template, params, link } | { discard:
   reason } }` e o registro `MailSubjectRegistry` (cada módulo registra o seu no `onModuleInit`,
   como os ganchos da 015). Mover `delivery-schedule.ts` e o seu teste de `class-invitations` para
@@ -143,7 +143,7 @@ guarda de rastreabilidade. ⚠️ Nenhuma história começa antes desta fase.
   - `apps/api/test/mail-boundary.spec.ts`: `src/platform/mail/**` não importa `src/modules/**`
     nem pacote de provedor (`resend`, `@aws-sdk/*`, `svix`); `nodemailer` só em
     `smtp.mailer.ts` (`017/FR-024`).
-- [ ] T009 Acrescentar `017` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
+- [X] T009 Acrescentar `017` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
   CLAUDE.md), com `stories: 4`, `scenarios: 25`, `rows: 0`, `successCriteria: sc(1, 8)` e
   `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-008"] }`.
   - Cada história sai de `pending` na tarefa que escreve o último teste dela.

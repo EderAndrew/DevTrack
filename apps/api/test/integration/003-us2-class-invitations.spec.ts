@@ -76,7 +76,7 @@ describe("003/US2 — professor convida aluno informando só o e-mail (FR-010–
       expect(row).toMatchObject({ classId: schoolClass.id, invitedById: teacher.id, status: "PENDING", sendCount: 1 });
       expect(row.tokenHash).toBe(hashToken(t.mailer.lastTokenFor("aluno@example.test", "class-invitation")!));
 
-      const deliveries = await t.prisma.classInvitationDelivery.findMany({ where: { invitationId: row.id } });
+      const deliveries = await t.prisma.mailDelivery.findMany({ where: { classInvitationId: row.id } });
       expect(deliveries).toMatchObject([{ status: "SENT", attempts: 1, nextAttemptAt: null }]);
 
       const events = await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.created" } });
@@ -202,7 +202,7 @@ describe("003/US2 — professor convida aluno informando só o e-mail (FR-010–
       expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
       expect(results.find((res) => res.status === 409)!.body.code).toBe("INVITATION_ALREADY_PENDING");
       expect(await t.prisma.classInvitation.count({ where: { status: "PENDING" } })).toBe(1);
-      expect(await t.prisma.classInvitationDelivery.count()).toBe(1);
+      expect(await t.prisma.mailDelivery.count()).toBe(1);
     });
   });
 

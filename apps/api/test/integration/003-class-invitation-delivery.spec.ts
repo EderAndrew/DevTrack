@@ -43,7 +43,7 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     return res.body.id as string;
   }
   const deliveriesOf = (invitationId: string) =>
-    t.prisma.classInvitationDelivery.findMany({ where: { invitationId }, orderBy: { createdAt: "asc" } });
+    t.prisma.mailDelivery.findMany({ where: { classInvitationId: invitationId }, orderBy: { createdAt: "asc" } });
   const invitationRow = (id: string) => t.prisma.classInvitation.findUniqueOrThrow({ where: { id } });
   const later = (ms: number) => new Date(Date.now() + ms);
   const logLines = (msg: string) => logs.lines().filter((line) => line.msg === msg);
@@ -122,16 +122,16 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
   it("1ª tentativa perdida (reinício da API): o worker assume depois de 1 min e conta como falha", async () => {
     const id = await invite();
     t.mailer.clear();
-    const [delivery] = await deliveriesOf(id);
-    await t.prisma.classInvitationDelivery.update({
-      where: { id: delivery!.id },
-      data: { status: "PENDING", attempts: 0, sentAt: null, nextAttemptAt: new Date(Date.now() + MINUTE) },
+    // What schedule() leaves when the API dies before the after-commit attempt: the invitation's
+    // latest delivery PENDING with no attempt (017: a SENT delivery can no longer go back to PENDING).
+    const lost = await t.prisma.mailDelivery.create({
+      data: { kind: "CLASS_INVITATION", classInvitationId: id, status: "PENDING", attempts: 0, nextAttemptAt: new Date(Date.now() + MINUTE) },
     });
 
     await worker.runOnce(new Date());
     expect(t.mailer.outbox).toHaveLength(0);
     await worker.runOnce(later(2 * MINUTE));
-    expect(await deliveriesOf(id)).toMatchObject([{ status: "SENT", attempts: 1 }]);
+    expect((await deliveriesOf(id)).find((row) => row.id === lost.id)).toMatchObject({ status: "SENT", attempts: 1 });
     expect(t.mailer.messagesFor(EMAIL)).toHaveLength(1);
   });
 

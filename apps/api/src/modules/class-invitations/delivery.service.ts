@@ -6,7 +6,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { webLinks } from "../../platform/mail/links";
 import { MailDispatcher } from "../../platform/mail/mail-dispatcher";
 import { Mailer } from "../../platform/mail/mailer";
-import { FIRST_ATTEMPT_GRACE_MS, inFlightDeadline, MAX_DELIVERY_ATTEMPTS } from "./delivery-schedule";
+import { FIRST_ATTEMPT_GRACE_MS, inFlightDeadline, MAX_DELIVERY_ATTEMPTS } from "../../platform/mail/outbox/delivery-schedule";
 
 /** What the `class-invitation` e-mail shows; never the token (it only goes into the link). */
 export interface InvitationMail {
@@ -76,8 +76,8 @@ export class DeliveryService {
    */
   async schedule(tx: Tx, invitationId: string, now = new Date()): Promise<string> {
     await this.supersedePending(tx, invitationId);
-    const delivery = await tx.classInvitationDelivery.create({
-      data: { invitationId, status: "PENDING", attempts: 0, nextAttemptAt: new Date(now.getTime() + FIRST_ATTEMPT_GRACE_MS) },
+    const delivery = await tx.mailDelivery.create({
+      data: { kind: "CLASS_INVITATION", classInvitationId: invitationId, status: "PENDING", attempts: 0, nextAttemptAt: new Date(now.getTime() + FIRST_ATTEMPT_GRACE_MS) },
       select: { id: true },
     });
     return delivery.id;
@@ -85,8 +85,8 @@ export class DeliveryService {
 
   /** Retires the invitation's pending deliveries (resend, cancel): they will never be sent. */
   async supersedePending(tx: Tx, invitationId: string): Promise<void> {
-    await tx.classInvitationDelivery.updateMany({
-      where: { invitationId, status: "PENDING" },
+    await tx.mailDelivery.updateMany({
+      where: { classInvitationId: invitationId, status: "PENDING" },
       data: { status: "SUPERSEDED", nextAttemptAt: null },
     });
   }
@@ -99,10 +99,10 @@ export class DeliveryService {
     this.dispatcher.afterCommit(async () => {
       const claimed = await this.prisma.runInTransaction(async (tx) => {
         const rows = await tx.$queryRaw<{ status: string; attempts: number }[]>`
-          SELECT status, attempts FROM class_invitation_deliveries WHERE id = ${deliveryId}::uuid FOR UPDATE`;
+          SELECT status, attempts FROM mail_deliveries WHERE id = ${deliveryId}::uuid FOR UPDATE`;
         const row = rows[0];
         if (row?.status !== "PENDING" || row.attempts !== 0) return false;
-        await tx.classInvitationDelivery.update({
+        await tx.mailDelivery.update({
           where: { id: deliveryId },
           data: { attempts: 1, nextAttemptAt: inFlightDeadline(1, new Date()) },
         });
@@ -137,14 +137,14 @@ export class DeliveryService {
     } catch (error) {
       const errorName = errorCode(error);
       const exhausted = attempt.attempt >= MAX_DELIVERY_ATTEMPTS;
-      await this.prisma.classInvitationDelivery.updateMany({
+      await this.prisma.mailDelivery.updateMany({
         where: current,
         data: exhausted ? { status: "FAILED", nextAttemptAt: null, lastErrorCode: errorName } : { lastErrorCode: errorName },
       });
       this.logFailure(exhausted, { invitationId, deliveryId, attempt: attempt.attempt, errorName });
       return;
     }
-    await this.prisma.classInvitationDelivery.updateMany({
+    await this.prisma.mailDelivery.updateMany({
       where: current,
       data: { status: "SENT", sentAt: new Date(), nextAttemptAt: null },
     });
