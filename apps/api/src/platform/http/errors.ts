@@ -151,6 +151,9 @@ export const ErrorCatalog = {
   ATTENDANCE_STARTED: { status: 409, message: "O aluno já iniciou. Use Pausar aluno." },
   ATTENDANCE_NOT_REQUIRED: { status: 409, message: "Esta atividade não usa lista de chamada." },
   STUDENT_NOT_IN_CLASS: { status: 422, message: "Um dos alunos não está matriculado nesta turma." },
+  // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
+  // only caller, so the text never says which check failed (contracts/http-api.md).
+  NOTICE_REJECTED: { status: 401, message: "Aviso recusado." },
   RATE_LIMITED: { status: 429, message: "Muitas tentativas. Tente novamente mais tarde." },
   INTERNAL_ERROR: { status: 500, message: "Erro interno. Tente novamente mais tarde." },
 } as const satisfies Record<ErrorCode, { status: number; message: string }>;

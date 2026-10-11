@@ -84,7 +84,9 @@ describe("006/SC-011 006/FR-015 006/FR-016 nenhum provedor real", () => {
     const schema = readFileSync(join(__dirname, "../../src/platform/config/config.schema.ts"), "utf8");
     expect(schema.match(/\bAI_\w*(API_KEY|SECRET|TOKEN)\w*/g) ?? []).toEqual([]);
     expect(schema.match(/\b(ANTHROPIC|OPENAI|GEMINI|GOOGLE_AI|MISTRAL|AZURE_OPENAI)_\w*/g) ?? []).toEqual([]);
-    expect([...new Set(schema.match(/\b\w+_(API_KEY|SECRET|TOKEN)\b/g))].filter((name) => name !== "APP_HMAC_SECRET").sort()).toEqual(["OPENROUTER_API_KEY"]);
+    // Not AI credentials: the app's own HMAC key and the e-mail provider's notice signing secret (017).
+    const NON_AI_SECRETS = ["APP_HMAC_SECRET", "MAIL_NOTICE_SECRET"];
+    expect([...new Set(schema.match(/\b\w+_(API_KEY|SECRET|TOKEN)\b/g))].filter((name) => !NON_AI_SECRETS.includes(name)).sort()).toEqual(["OPENROUTER_API_KEY"]);
     expect(Object.keys(t.config.ai).filter((key) => /key|secret|token|credential/i.test(key))).toEqual([]);
     expect(t.config.ai).not.toHaveProperty("anthropic");
     expect(t.config.ai.openrouter).toMatchObject({ apiKey: null, baseUrl: null });

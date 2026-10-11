@@ -52,4 +52,5 @@ export * from "./ai/executions.js";
 export * from "./ai/proposals.js";
 export * from "./ai/operations.js";
 export * from "./health/health.js";
+export * from "./mail/notices.js";
 export * from "./endpoints.js";

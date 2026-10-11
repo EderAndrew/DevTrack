@@ -45,6 +45,32 @@ const decimalAmount = z
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
+/** A DNS name such as `devtrack.app` (at least two labels), the right side of our Message-ID (017 research N5). */
+const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+/** Resend signing secret (017 research N7): `whsec_` and the base64 key, which signs the notices. */
+const resendSecret = z
+  .string()
+  .trim()
+  .regex(/^whsec_[A-Za-z0-9+/]+={0,2}$/, "must be whsec_<base64>")
+  .refine((value) => Buffer.from(value.slice("whsec_".length), "base64").length >= 16, {
+    message: "precisa ter ao menos 16 bytes após decodificação base64",
+  })
+  .transform((value) => Buffer.from(value.slice("whsec_".length), "base64"));
+
+/** SNS topic of the SES notices (017 research N7). */
+const snsTopicArn = z
+  .string()
+  .trim()
+  .regex(/^arn:aws[a-z-]*:sns:[a-z0-9-]+:\d{12}:[A-Za-z0-9_-]{1,256}$/, "must be an SNS topic ARN");
+
+/** Domain of `MAIL_FROM` (`Nome <a@b.c>` or `a@b.c`); null when it has none. */
+export function mailFromDomain(mailFrom: string): string | null {
+  const address = /<([^<>]+)>\s*$/.exec(mailFrom)?.[1] ?? mailFrom;
+  const domain = address.trim().split("@")[1]?.toLowerCase() ?? "";
+  return address.trim().split("@").length === 2 && DOMAIN.test(domain) ? domain : null;
+}
+
 export const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   PORT: z.coerce.number().int().min(0).max(65535).default(4000),
@@ -108,6 +134,26 @@ export const configSchema = z.object({
   AI_BUDGET_MONTHLY_USD: optional(decimalAmount),
   AI_BUDGET_PER_USER_MONTHLY_USD: optional(decimalAmount),
   AI_BUDGET_PER_AGENT_MONTHLY_USD: optional(decimalAmount),
+  // 017 (contracts/configuration.md): the outbox, provider notices and retention.
+  MAIL_REPLY_TO: optional(z.email()),
+  MAIL_MESSAGE_ID_DOMAIN: optional(z.string().trim().toLowerCase().regex(DOMAIN, "must be a domain")),
+  MAIL_SENDS_PER_MINUTE: nonNegativeInt(120),
+  MAIL_SEND_TIMEOUT_SECONDS: positiveInt(20),
+  MAIL_NOTICE_PROVIDER: z.enum(["resend", "ses", "none"]).default("none"),
+  MAIL_NOTICE_SECRET: optional(resendSecret),
+  MAIL_SES_TOPIC_ARN: optional(snsTopicArn),
+  RATE_LIMIT_MAIL_NOTICES_PER_MINUTE: positiveInt(600),
+  MAIL_RECORDS_RETENTION_DAYS: positiveInt(180),
+}).superRefine((e, ctx) => {
+  if (e.MAIL_NOTICE_PROVIDER === "resend" && !e.MAIL_NOTICE_SECRET) {
+    ctx.addIssue({ code: "custom", path: ["MAIL_NOTICE_SECRET"], message: "obrigatória com MAIL_NOTICE_PROVIDER=resend" });
+  }
+  if (e.MAIL_NOTICE_PROVIDER === "ses" && !e.MAIL_SES_TOPIC_ARN) {
+    ctx.addIssue({ code: "custom", path: ["MAIL_SES_TOPIC_ARN"], message: "obrigatória com MAIL_NOTICE_PROVIDER=ses" });
+  }
+  if (!e.MAIL_MESSAGE_ID_DOMAIN && !mailFromDomain(e.MAIL_FROM)) {
+    ctx.addIssue({ code: "custom", path: ["MAIL_MESSAGE_ID_DOMAIN"], message: "MAIL_FROM sem domínio: informe o domínio" });
+  }
 });
 
 type ParsedEnv = z.output<typeof configSchema>;
@@ -122,6 +168,23 @@ export interface AppConfig {
   allowedOrigins: string[];
   smtpUrl: string;
   mailFrom: string;
+  /**
+   * Production e-mail (017 contracts/configuration.md): reply address, the domain of our
+   * Message-ID (research N5), the send cap of all instances per minute (`0` pauses sending, N4),
+   * the SMTP timeout per message (N8), how long final deliveries are kept, and the provider whose
+   * notices are accepted (N6, N7) with its secret or topic. The secret is never logged.
+   */
+  mail: {
+    replyTo: string | null;
+    messageIdDomain: string;
+    sendsPerMinute: number;
+    sendTimeoutMs: number;
+    recordsRetentionDays: number;
+    notices:
+      | { provider: "none" }
+      | { provider: "resend"; secret: Buffer }
+      | { provider: "ses"; topicArn: string };
+  };
   trustProxyHops: number;
   rateLimit: {
     loginEmailOriginFailures: number;
@@ -163,6 +226,8 @@ export interface AppConfig {
     workHelpAgentPerHour: number;
     /** Room exits a student declares (016 research M11), per student per hour. */
     attemptPausesPerHour: number;
+    /** Provider notices (017 research N6): requests per IP per minute on `POST /mail/notices/:provider`. */
+    mailNoticesPerMinute: number;
   };
   /**
    * Controlled mode (015 research F7): an answer may grow `typingBurstChars` in one save plus
@@ -257,6 +322,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     allowedOrigins: e.ALLOWED_ORIGINS,
     smtpUrl: e.SMTP_URL,
     mailFrom: e.MAIL_FROM,
+    mail: {
+      replyTo: e.MAIL_REPLY_TO ?? null,
+      // The schema refused a MAIL_FROM without a domain when no MAIL_MESSAGE_ID_DOMAIN is set.
+      messageIdDomain: e.MAIL_MESSAGE_ID_DOMAIN ?? (mailFromDomain(e.MAIL_FROM) as string),
+      sendsPerMinute: e.MAIL_SENDS_PER_MINUTE,
+      sendTimeoutMs: e.MAIL_SEND_TIMEOUT_SECONDS * 1000,
+      recordsRetentionDays: e.MAIL_RECORDS_RETENTION_DAYS,
+      notices: noticeConfig(e),
+    },
     trustProxyHops: e.TRUST_PROXY_HOPS,
     rateLimit: {
       loginEmailOriginFailures: e.RATE_LIMIT_LOGIN_EMAIL_ORIGIN_FAILURES,
@@ -283,6 +357,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       workHelpPerHour: e.RATE_LIMIT_WORK_HELP_PER_HOUR,
       workHelpAgentPerHour: e.AI_WORK_HELP_EXECUTIONS_PER_HOUR,
       attemptPausesPerHour: e.RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR,
+      mailNoticesPerMinute: e.RATE_LIMIT_MAIL_NOTICES_PER_MINUTE,
     },
     controlledMode: {
       typingBurstChars: e.CONTROLLED_TYPING_BURST_CHARS,
@@ -325,4 +400,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     argon2: { memoryCost: 19_456, timeCost: 2, parallelism: 1 },
   };
+}
+
+function noticeConfig(e: ParsedEnv): AppConfig["mail"]["notices"] {
+  // The schema refused `resend` without a secret and `ses` without a topic.
+  if (e.MAIL_NOTICE_PROVIDER === "resend") return { provider: "resend", secret: e.MAIL_NOTICE_SECRET as Buffer };
+  if (e.MAIL_NOTICE_PROVIDER === "ses") return { provider: "ses", topicArn: e.MAIL_SES_TOPIC_ARN as string };
+  return { provider: "none" };
 }

@@ -58,7 +58,7 @@ description: "Task list for 017 — E-mail Real em Produção: fila única com n
 
 **Purpose**: configuração, códigos de erro e contratos compartilhados.
 
-- [ ] T001 [P] Variáveis de `contracts/configuration.md` em
+- [X] T001 [P] Variáveis de `contracts/configuration.md` em
   `apps/api/src/platform/config/config.schema.ts`, `apps/api/.env.example`,
   `apps/api/.env.test.example` e `apps/web/e2e/.env.e2e`:
   - `MAIL_REPLY_TO` (opcional, e-mail), `MAIL_MESSAGE_ID_DOMAIN` (padrão: domínio de `MAIL_FROM`),
@@ -71,14 +71,16 @@ description: "Task list for 017 — E-mail Real em Produção: fila única com n
     `MAIL_MESSAGE_ID_DOMAIN` derivado em `apps/api/test/integration/platform.spec.ts`
     (`017/FR-023`).
   - A guarda de produção (FR-025) fica na T038 (US4).
-- [ ] T002 [P] Código de erro `NOTICE_REJECTED` em `packages/contracts/src/common/errors.ts` e
+- [X] T002 [P] Código de erro `NOTICE_REJECTED` em `packages/contracts/src/common/errors.ts` e
   `apps/api/src/platform/http/errors.ts` (sem mensagem no web: o provedor é o único cliente).
-- [ ] T003 [P] Contratos (`contracts/http-api.md`) com testes em `packages/contracts/test/`:
+- [X] T003 [P] Contratos (`contracts/http-api.md`) com testes em `packages/contracts/test/`:
   - `packages/contracts/src/classes/class-invitations.ts`: `DeliveryStateSchema` +=
     `UNDELIVERED`; novo `DeliveryIssueSchema` (`BOUNCED` | `COMPLAINED` | `REJECTED`);
     `ClassInvitationView.deliveryIssue` (não nulo sse `delivery = UNDELIVERED`, por `superRefine`);
-  - `packages/contracts/src/endpoints.ts`: `mail.notice` (`POST /mail/notices/:provider`,
-    `ProviderNoticeParamsSchema` com `resend` | `ses`, resposta `EmptyResponseSchema`, sem corpo);
+  - `packages/contracts/src/mail/notices.ts`: `ProviderNoticeParamsSchema` (`resend` | `ses`) e,
+    em `common/primitives.ts`, `EmptyResponseSchema` (`{}`). A entrada `mail.notice` de
+    `endpoints.ts` (`POST /mail/notices/:provider`, sem corpo) entra na T027, com a rota: o guarda
+    `endpoint-catalog.spec.ts` exige que toda entrada do catálogo seja uma rota registrada;
   - `pnpm --filter @repo/contracts build`. A API responde `deliveryIssue: null` até a US2; o
     `delivery` dos convites de professor e gestor entra no contrato na T016, junto com o serviço
     que o preenche.
@@ -359,7 +361,7 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
     primeiro motivo final fica, `DELIVERED` nunca desfaz `UNDELIVERED`, um envio ainda `PENDING`
     na tentativa do aviso vai direto a `DELIVERED`/`UNDELIVERED` com `sent_at`); audita
     `mail_delivery.undelivered` com `source: NOTICE`;
-  - rota nova: `endpoints.ts` (T003), linha no `MATRIX` de `authorization-matrix.ts` (pública)
+  - rota nova: `mail.notice` em `endpoints.ts` (com os esquemas da T003), linha no `MATRIX` de `authorization-matrix.ts` (pública)
     e `route-declarations.spec.ts` com o motivo.
 - [ ] T028 [US2] Visões dos convites: `class-invitation.view.ts` e
   `provisioning/invitation.view.ts` preenchem `deliveryIssue` a partir de `latestDeliveryState`

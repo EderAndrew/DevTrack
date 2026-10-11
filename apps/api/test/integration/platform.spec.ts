@@ -131,6 +131,109 @@ describe("startup configuration (FR-074)", () => {
     }
   });
 
+  describe("017/FR-023 e-mail configuration", () => {
+    const MAIL_VARIABLES = [
+      "MAIL_REPLY_TO",
+      "MAIL_MESSAGE_ID_DOMAIN",
+      "MAIL_SENDS_PER_MINUTE",
+      "MAIL_SEND_TIMEOUT_SECONDS",
+      "MAIL_NOTICE_PROVIDER",
+      "MAIL_NOTICE_SECRET",
+      "MAIL_SES_TOPIC_ARN",
+      "RATE_LIMIT_MAIL_NOTICES_PER_MINUTE",
+      "MAIL_RECORDS_RETENTION_DAYS",
+    ];
+    const SECRET = "whsec_ZGV2dHJhY2stdGVzdC1tYWlsLW5vdGljZS1zZWNyZXQ=";
+    const ARN = "arn:aws:sns:sa-east-1:123456789012:devtrack-mail";
+    const bare = (): NodeJS.ProcessEnv => {
+      const env: NodeJS.ProcessEnv = { ...process.env, MAIL_FROM: "DevTrack <nao-responda@Mail.DevTrack.app>" };
+      for (const variable of MAIL_VARIABLES) delete env[variable];
+      return env;
+    };
+
+    it("017/FR-023 defaults: no reply address, Message-ID on the domain of MAIL_FROM, 120 sends/min, 20 s, no notice provider, 600 notices/min, 180 days", () => {
+      const config = loadConfig(bare());
+      expect(config.mail).toEqual({
+        replyTo: null,
+        messageIdDomain: "mail.devtrack.app",
+        sendsPerMinute: 120,
+        sendTimeoutMs: 20_000,
+        recordsRetentionDays: 180,
+        notices: { provider: "none" },
+      });
+      expect(config.rateLimit.mailNoticesPerMinute).toBe(600);
+      expect(loadConfig({ ...bare(), MAIL_FROM: "nao-responda@devtrack.app" }).mail.messageIdDomain).toBe("devtrack.app");
+    });
+
+    it("017/FR-023 every variable is configurable; MAIL_SENDS_PER_MINUTE=0 pauses sending", () => {
+      const config = loadConfig({
+        ...bare(),
+        MAIL_REPLY_TO: "contato@devtrack.app",
+        MAIL_MESSAGE_ID_DOMAIN: "Envio.DevTrack.app",
+        MAIL_SENDS_PER_MINUTE: "0",
+        MAIL_SEND_TIMEOUT_SECONDS: "5",
+        RATE_LIMIT_MAIL_NOTICES_PER_MINUTE: "30",
+        MAIL_RECORDS_RETENTION_DAYS: "30",
+      });
+      expect(config.mail).toMatchObject({
+        replyTo: "contato@devtrack.app",
+        messageIdDomain: "envio.devtrack.app",
+        sendsPerMinute: 0,
+        sendTimeoutMs: 5_000,
+        recordsRetentionDays: 30,
+      });
+      expect(config.rateLimit.mailNoticesPerMinute).toBe(30);
+    });
+
+    it("017/FR-023 notice provider: resend with its decoded secret, ses with its topic", () => {
+      const resend = loadConfig({ ...bare(), MAIL_NOTICE_PROVIDER: "resend", MAIL_NOTICE_SECRET: SECRET }).mail.notices;
+      expect(resend).toEqual({ provider: "resend", secret: Buffer.from("devtrack-test-mail-notice-secret") });
+      const ses = loadConfig({ ...bare(), MAIL_NOTICE_PROVIDER: "ses", MAIL_SES_TOPIC_ARN: ARN }).mail.notices;
+      expect(ses).toEqual({ provider: "ses", topicArn: ARN });
+    });
+
+    it("017/FR-023 refuses negative or fractional numbers, a bad reply address and an unknown provider", () => {
+      const cases: Array<[string, string]> = [
+        ["MAIL_SENDS_PER_MINUTE", "-1"],
+        ["MAIL_SENDS_PER_MINUTE", "1.5"],
+        ["MAIL_SEND_TIMEOUT_SECONDS", "0"],
+        ["MAIL_SEND_TIMEOUT_SECONDS", "-1"],
+        ["RATE_LIMIT_MAIL_NOTICES_PER_MINUTE", "0"],
+        ["MAIL_RECORDS_RETENTION_DAYS", "0"],
+        ["MAIL_RECORDS_RETENTION_DAYS", "-5"],
+        ["MAIL_REPLY_TO", "nao-e-email"],
+        ["MAIL_MESSAGE_ID_DOMAIN", "sem_dominio"],
+        ["MAIL_NOTICE_PROVIDER", "sendgrid"],
+      ];
+      for (const [variable, value] of cases) {
+        expect(failure({ ...bare(), [variable]: value }).variables).toEqual([variable]);
+      }
+    });
+
+    it("017/FR-023 refuses resend without a secret, ses without a topic, and a malformed secret or topic", () => {
+      expect(failure({ ...bare(), MAIL_NOTICE_PROVIDER: "resend" }).variables).toEqual(["MAIL_NOTICE_SECRET"]);
+      expect(failure({ ...bare(), MAIL_NOTICE_PROVIDER: "ses" }).variables).toEqual(["MAIL_SES_TOPIC_ARN"]);
+      for (const secret of ["ZGV2dHJhY2stdGVzdC1tYWlsLW5vdGljZS1zZWNyZXQ=", "whsec_", "whsec_não-base64!", "whsec_c2hvcnQ="]) {
+        const error = failure({ ...bare(), MAIL_NOTICE_PROVIDER: "resend", MAIL_NOTICE_SECRET: secret });
+        expect(error.variables).toEqual(["MAIL_NOTICE_SECRET"]);
+        expect(error.message).not.toContain(secret);
+      }
+      for (const arn of ["devtrack-mail", "arn:aws:sqs:sa-east-1:123456789012:devtrack-mail", "arn:aws:sns:sa-east-1:123:x"]) {
+        expect(failure({ ...bare(), MAIL_NOTICE_PROVIDER: "ses", MAIL_SES_TOPIC_ARN: arn }).variables).toEqual(["MAIL_SES_TOPIC_ARN"]);
+      }
+    });
+
+    it("017/FR-023 a MAIL_FROM without a domain needs MAIL_MESSAGE_ID_DOMAIN", () => {
+      expect(failure({ ...bare(), MAIL_FROM: "DevTrack <nao-responda>" }).variables).toEqual(["MAIL_MESSAGE_ID_DOMAIN"]);
+      const config = loadConfig({ ...bare(), MAIL_FROM: "DevTrack <nao-responda>", MAIL_MESSAGE_ID_DOMAIN: "devtrack.app" });
+      expect(config.mail.messageIdDomain).toBe("devtrack.app");
+    });
+
+    it("017/FR-023 the test environment accepts Resend notices with the fixed test secret", () => {
+      expect(loadConfig(process.env).mail.notices.provider).toBe("resend");
+    });
+  });
+
   it("accepts a complete environment", () => {
     const config = loadConfig({ ...process.env, DATABASE_URL: SECRET_DB_URL });
     expect(config.databaseUrl).toBe(SECRET_DB_URL);

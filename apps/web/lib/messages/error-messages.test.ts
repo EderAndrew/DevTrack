@@ -161,10 +161,17 @@ const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 105 códigos do contrato e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015 e da 016", () => {
+  it("007/FR-040 cobre os 105 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015 e da 016", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
-    expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(ErrorCodeSchema.options));
+    const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED");
+    expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
     expect(Object.keys(ERROR_MESSAGES)).toHaveLength(107);
+  });
+
+  it("017 NOTICE_REJECTED só chega ao provedor de e-mail: o web não tem texto para ele", () => {
+    expect(ErrorCodeSchema.options).toContain("NOTICE_REJECTED");
+    expect(Object.keys(ERROR_MESSAGES)).not.toContain("NOTICE_REJECTED");
+    expect(messageForError(apiError("NOTICE_REJECTED"))).toBe(PHASE_001_TEXTS[UNEXPECTED_RESPONSE]);
   });
 
   it.each(Object.entries(ALL_TEXTS))("%s → texto do catálogo, não o message da API", (code, text) => {

@@ -209,6 +209,18 @@ const SPECS: FeatureSpec[] = [
     // since Phase 8, and SC-004 and SC-010 in the E2E (attendance.spec.ts).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "017",
+    path: "specs/017-production-email/spec.md",
+    stories: 4,
+    scenarios: 25,
+    // No "### Acceptance Criteria Traceability" table, as in 008–016.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 8),
+    // Joined in the Setup phase (T001–T003); each story and SC leaves `pending` with the test that covers it.
+    pending: { stories: [1, 2, 3, 4], successCriteria: sc(1, 8) },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

@@ -43,3 +43,7 @@ export type IsoDate = z.infer<typeof IsoDateSchema>;
 /** Body of an action without input (`{}`): any field is rejected with 400 (003 US8-6). */
 export const EmptyBodySchema = z.strictObject({});
 export type EmptyBody = z.infer<typeof EmptyBodySchema>;
+
+/** Answer of an action with nothing to report: `200 {}` (017 `POST /mail/notices/:provider`). */
+export const EmptyResponseSchema = z.strictObject({});
+export type EmptyResponse = z.infer<typeof EmptyResponseSchema>;

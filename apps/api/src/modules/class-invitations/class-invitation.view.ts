@@ -43,6 +43,8 @@ export function toClassInvitationView(row: ClassInvitationViewRow, now = new Dat
     sendCount: row.sendCount,
     lastSentAt: row.lastSentAt.toISOString(),
     delivery: latest ? DELIVERY_STATE[latest.status] : "SENDING",
+    // 017: the provider notices that fill it arrive with US2.
+    deliveryIssue: null,
     createdAt: row.createdAt.toISOString(),
   };
 }

@@ -52,6 +52,7 @@ describe("003/US2 — professor convida aluno informando só o e-mail (FR-010–
         sendCount: 1,
         lastSentAt: expect.any(String),
         delivery: "SENDING",
+        deliveryIssue: null,
         createdAt: expect.any(String),
       });
       const expiresAt = new Date(res.body.expiresAt as string);

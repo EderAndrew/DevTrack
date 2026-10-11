@@ -27,6 +27,7 @@ const invitation = (email: string, overrides: Partial<ClassInvitationView> = {})
     sendCount: 1,
     lastSentAt: "2026-09-23T15:00:00.000Z",
     delivery: "SENT",
+    deliveryIssue: null,
     createdAt: "2026-09-23T15:00:00.000Z",
     ...overrides,
   };

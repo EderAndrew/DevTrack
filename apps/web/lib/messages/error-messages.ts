@@ -2,6 +2,8 @@ import type { AiErrorCode, CurriculumAiAvailability, CurriculumReviewWarningCode
 import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
+/** Codes only an e-mail provider receives (017 `POST /mail/notices/:provider`); the web never shows them. */
+type ProviderOnlyErrorCode = "NOTICE_REJECTED";
 
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
@@ -120,7 +122,7 @@ export const ERROR_MESSAGES = {
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
   [UNEXPECTED_RESPONSE]: "Erro inesperado. Tente novamente mais tarde.",
-} as const satisfies Record<ErrorCode | ClientErrorCode, string>;
+} as const satisfies Record<Exclude<ErrorCode, ProviderOnlyErrorCode> | ClientErrorCode, string>;
 
 const isKnownCode = (code: string): code is keyof typeof ERROR_MESSAGES => Object.hasOwn(ERROR_MESSAGES, code);
 
