@@ -1,0 +1,104 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ACTIVITY_ID, apiError, CLASS_ID, json, routedFetch } from "@/features/activities/components/test-fixtures";
+import { expectNoA11yViolations } from "../../../test/a11y";
+import { expectTabOrder, tabTo } from "../../../test/keyboard";
+import { renderWithProviders } from "../../../test/render";
+import { AttendanceTab } from "./attendance-tab";
+import { ANA, ATTENDANCE_PATH, BRUNO, CAIO, MARKED_AT, room, student } from "./test-fixtures";
+
+const ATTEMPT = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+const DONE = "dddddddd-dddd-4ddd-8ddd-ddddddddddd2";
+
+/** After the first release: Ana present, Bruno answering, Caio not marked. */
+const RELEASED = room([
+  student(ANA, "Ana Souza", { markedAt: MARKED_AT, roomStatus: "PRESENT" }),
+  student(BRUNO, "Bruno Lima", { markedAt: MARKED_AT, roomStatus: "ANSWERING", attemptId: ATTEMPT }),
+  student(CAIO, "Caio Reis"),
+]);
+
+const render = () => renderWithProviders(<AttendanceTab classId={CLASS_ID} activityId={ACTIVITY_ID} />);
+const rowOf = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
+
+describe("016/US2 RoomPanel — o painel da sala depois da primeira liberação", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("016/US2-2 016/FR-004 \"Marcar presente\" libera na hora: um lote de 1, sem diálogo, e a linha passa a \"Presente\"", async () => {
+    const after = room([...RELEASED.students.slice(0, 2), student(CAIO, "Caio Reis", { markedAt: MARKED_AT, roomStatus: "PRESENT" })]);
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, RELEASED), [`POST ${ATTENDANCE_PATH}`]: json(200, after) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+
+    await user.click(await screen.findByRole("button", { name: "Marcar presente Caio Reis" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(api.writes()).toEqual([{ method: "POST", url: ATTENDANCE_PATH, body: { mark: [CAIO], unmark: [] } }]);
+    await waitFor(() => expect(within(rowOf("Caio Reis")).getByText("Presente")).toBeTruthy());
+    expect(screen.getByText("3 de 3 presentes")).toBeTruthy();
+  });
+
+  it("016/US2-3 \"Desmarcar\" só aparece para quem está \"Presente\" e envia um lote de 1", async () => {
+    const withSubmitted = room([...RELEASED.students, student("cccccccc-cccc-4ccc-8ccc-ccccccccccc4", "Dora Melo", { markedAt: MARKED_AT, roomStatus: "SUBMITTED", attemptId: DONE })]);
+    const after = room([student(ANA, "Ana Souza"), ...withSubmitted.students.slice(1)]);
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, withSubmitted), [`POST ${ATTENDANCE_PATH}`]: json(200, after) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+
+    await screen.findByRole("button", { name: "Desmarcar Ana Souza" });
+    expect(screen.getAllByRole("button", { name: /^Desmarcar/ })).toHaveLength(1);
+    expect(within(rowOf("Bruno Lima")).queryByRole("button")).toBeNull();
+    expect(within(rowOf("Dora Melo")).queryByRole("button")).toBeNull();
+    expect(within(rowOf("Caio Reis")).queryByRole("button", { name: /Desmarcar/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Desmarcar Ana Souza" }));
+    expect(api.writes()).toEqual([{ method: "POST", url: ATTENDANCE_PATH, body: { mark: [], unmark: [ANA] } }]);
+    await waitFor(() => expect(within(rowOf("Ana Souza")).getByText("Não marcado")).toBeTruthy());
+  });
+
+  it("016/US2-4 016/FR-005 desmarcar quem já iniciou (409) mostra \"O aluno já iniciou. Use Pausar aluno.\" e relê a sala", async () => {
+    const started = room([student(ANA, "Ana Souza", { markedAt: MARKED_AT, roomStatus: "ANSWERING", attemptId: ATTEMPT }), ...RELEASED.students.slice(1)]);
+    let reads = 0;
+    const api = routedFetch({
+      [`GET ${ATTENDANCE_PATH}`]: () => json(200, (reads += 1) === 1 ? RELEASED : started),
+      [`POST ${ATTENDANCE_PATH}`]: apiError(409, "ATTENDANCE_STARTED", "Started."),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+
+    await user.click(await screen.findByRole("button", { name: "Desmarcar Ana Souza" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("O aluno já iniciou. Use Pausar aluno.");
+    await waitFor(() => expect(within(rowOf("Ana Souza")).getByText("Respondendo")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Desmarcar Ana Souza" })).toBeNull();
+  });
+
+  it("016/FR-023 axe e teclado: as ações de cada linha pelo Tab, e Enter marca o atrasado", async () => {
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, RELEASED), [`POST ${ATTENDANCE_PATH}`]: json(200, RELEASED) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    const { container } = render();
+    await screen.findByRole("button", { name: "Marcar presente Caio Reis" });
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [screen.getByRole("button", { name: "Desmarcar Ana Souza" }), screen.getByRole("button", { name: "Marcar presente Caio Reis" })]);
+    await tabTo(user, screen.getByRole("button", { name: "Marcar presente Caio Reis" }));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(api.writes()).toEqual([{ method: "POST", url: ATTENDANCE_PATH, body: { mark: [CAIO], unmark: [] } }]));
+  });
+
+  it("016/FR-023 sem conexão: a mensagem de conexão aparece e nada muda na linha", async () => {
+    let reads = 0;
+    vi.stubGlobal("fetch", async (_input: string | URL | Request, init?: RequestInit) => {
+      if ((init?.method ?? "GET") !== "GET") throw new TypeError("Failed to fetch");
+      reads += 1;
+      return json(200, RELEASED);
+    });
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Marcar presente Caio Reis" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/conex/i);
+    expect(within(rowOf("Caio Reis")).getByText("Não marcado")).toBeTruthy();
+    expect(reads).toBeGreaterThan(0);
+  });
+});

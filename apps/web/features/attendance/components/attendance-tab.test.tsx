@@ -1,4 +1,3 @@
-import type { Room } from "@repo/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,27 +6,9 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { AttendanceTab } from "./attendance-tab";
+import { ANA, ATTENDANCE_PATH, BRUNO, CAIO, room, student } from "./test-fixtures";
 
-const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/attendance`;
-const ANA = "cccccccc-cccc-4ccc-8ccc-ccccccccccc1";
-const BRUNO = "cccccccc-cccc-4ccc-8ccc-ccccccccccc2";
-const CAIO = "cccccccc-cccc-4ccc-8ccc-ccccccccccc3";
-
-const student = (studentUserId: string, name: string, overrides: Partial<Room["students"][number]> = {}): Room["students"][number] => ({
-  studentUserId,
-  name,
-  markedAt: null,
-  roomStatus: "NOT_MARKED",
-  attemptId: null,
-  openPause: null,
-  ...overrides,
-});
-const room = (students: Room["students"]): Room => ({
-  releaseMode: "PRESENT_ONLY",
-  present: students.filter((row) => row.markedAt !== null).length,
-  enrolled: students.length,
-  students,
-});
+const PATH = ATTENDANCE_PATH;
 const EMPTY_ROOM = room([student(ANA, "Ana Souza"), student(BRUNO, "Bruno Lima"), student(CAIO, "Caio Reis")]);
 
 const render = () => renderWithProviders(<AttendanceTab classId={CLASS_ID} activityId={ACTIVITY_ID} />);
@@ -87,7 +68,11 @@ describe("016/US1 AttendanceTab — chamada antes da primeira liberação", () =
     render();
     const list = await screen.findByRole("list", { name: "Alunos da turma" });
     const items = within(list).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual(["Ana SouzaRespondendo", "Bruno LimaEntregou", "Caio ReisNão marcado"]);
+    expect(items.map((item) => [within(item).getByText(/Souza|Lima|Reis/).textContent, item.querySelector("[data-room-status]")?.textContent])).toEqual([
+      ["Ana Souza", "Respondendo"],
+      ["Bruno Lima", "Entregou"],
+      ["Caio Reis", "Não marcado"],
+    ]);
     expect(screen.getByText("2 de 3 presentes")).toBeTruthy();
   });
 

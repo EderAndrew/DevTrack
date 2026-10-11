@@ -20,7 +20,10 @@ export const useRoom = (classId: string, activityId: string, enabled = true) =>
     refetchIntervalInBackground: false,
   });
 
-/** One batch; the answer is the room after it, and the activity's counts change ("n de m presentes"). */
+/**
+ * One batch; the answer is the room after it, and the activity's counts change ("n de m presentes").
+ * A refused batch (a student started meanwhile, 409 ATTENDANCE_STARTED) reads the room again.
+ */
 export function useApplyAttendance(classId: string, activityId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -29,5 +32,6 @@ export function useApplyAttendance(classId: string, activityId: string) {
       queryClient.setQueryData(attendanceKeys.room(classId, activityId), room);
       void queryClient.invalidateQueries({ queryKey: ["activities", classId] });
     },
+    onError: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
   });
 }

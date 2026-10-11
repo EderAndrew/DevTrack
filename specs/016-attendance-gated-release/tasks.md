@@ -275,14 +275,14 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T020 [P] [US2] `apps/api/test/integration/016-us2-late.spec.ts`: `016/US2-1`, `016/US2-2`,
+- [X] T020 [P] [US2] `apps/api/test/integration/016-us2-late.spec.ts`: `016/US2-1`, `016/US2-2`,
   `016/US2-3`, `016/US2-4`, `016/US2-5`, `016/FR-004`, `016/FR-005` e `016/SC-002`.
   - Marcar depois da publicação, depois do prazo e com outros respondendo.
   - O prazo é o da turma.
   - Desmarcar sem tentativa some com o trabalho e é auditado.
   - Desmarcar com tentativa → `409 ATTENDANCE_STARTED`.
   - Dois lotes iguais → uma presença.
-- [ ] T021 [P] [US2] `apps/api/test/security/016-concurrency.spec.ts` (parte da chamada,
+- [X] T021 [P] [US2] `apps/api/test/security/016-concurrency.spec.ts` (parte da chamada,
   `016/SC-007`):
   - 10 marcações simultâneas do mesmo aluno → uma linha e um evento de auditoria;
   - desmarcar × iniciar simultâneos → ou a tentativa existe e a presença fica, ou não há tentativa
@@ -290,9 +290,9 @@ os demais recebem 404 em todas as vias. Exercícios não mudam.
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Ajustes em `attendance.service.ts`, se T020–T021 exigirem: a ordem de travas entre
+- [X] T022 [US2] Ajustes em `attendance.service.ts`, se T020–T021 exigirem: a ordem de travas entre
   o lote e o início (presença `FOR UPDATE` no lote, `FOR SHARE` no gatilho de início).
-- [ ] T023 [US2] Web, com o teste `room-panel.test.tsx` primeiro: o painel da sala em
+- [X] T023 [US2] Web, com o teste `room-panel.test.tsx` primeiro: o painel da sala em
   `apps/web/features/attendance/components/room-panel.tsx`.
   - "Marcar presente" envia um lote de 1 na hora.
   - "Desmarcar" só aparece para "Presente".

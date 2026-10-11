@@ -9,6 +9,9 @@ export const ATTENDANCE_TITLE = "Chamada";
 export const MARK_ALL = "Marcar todos";
 export const UNMARK_ALL = "Desmarcar todos";
 export const RELEASE_TO_PRESENT = "Liberar para os presentes";
+/** The room panel's row actions (US2): release to a late student, undo a mistaken mark before the start. */
+export const MARK_PRESENT = "Marcar presente";
+export const UNMARK = "Desmarcar";
 export const NO_STUDENTS = "Nenhum aluno matriculado nesta turma.";
 export const ATTENDANCE_HINT = "Marque os alunos que estão em sala. Só eles veem o trabalho.";
 
