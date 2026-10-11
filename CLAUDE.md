@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–015 in `specs/` are implemented. Later work starts a
-new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–015 in `specs/` are implemented; 016
+(attendance-gated release) is in implementation on its branch (`tasks.md` shows which phases are
+done). Later work starts a new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -54,7 +55,9 @@ spec first.
 `.claude/skills/` (`speckit-specify`, `-clarify`, `-plan`, `-tasks`, `-analyze`, `-implement`, git
 helpers). Feature branches are named `NNN-short-name` and match `specs/NNN-short-name/`.
 When a new feature starts implementation, add it to `SPECS` in `apps/api/test/traceability.spec.ts`
-(otherwise its scenario ids are never checked); `/speckit-specify` already points
+at its first phase (otherwise its scenario ids are never checked), with the stories and SC ids still to
+come in `pending`; each leaves `pending` with the test that covers it (a pending id a test already
+covers fails), so the list is empty when the feature ends. `/speckit-specify` already points
 `.specify/feature.json` at it.
 
 `.specify/memory/constitution.md` (v3.4.0) is non-negotiable and overrides everything else; every
@@ -175,7 +178,12 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   and timer/fullscreen/focus/clipboard code out (SC-012). Since 015 the activity modules reach
   `attempt-integrity` and `work-help` only through the hooks they register (`AnswerSaveGuard`,
   `HelpAvailability`), and monitoring lives only in `attempt-integrity`, `features/controlled-attempt`
-  and `components/ui/assessment`.
+  and `components/ui/assessment`. Since 016 they read the attendance tables in their own scoped
+  queries, never import `attendance` code.
+- `apps/api/test/attendance-boundary.spec.ts` (016) keeps `attendance` (API) and
+  `features/attendance` (web) away from AI, AI help, controlled-mode monitoring, grading, the banks
+  and mail; no code execution or float arithmetic, and presence is only the teacher's mark (no
+  location, camera or QR code).
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
