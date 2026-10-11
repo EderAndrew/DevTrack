@@ -1,4 +1,4 @@
-import type { AttemptStatus, PauseInitiator, PauseReason, RoomStudent, TeacherPause } from "@repo/contracts";
+import type { AttemptStatus, PauseInitiator, PauseReason, RoomStudent, StudentPause, TeacherPause } from "@repo/contracts";
 import { type PauseEndContext, pauseTime } from "../activities/status/pause-time";
 import { deriveRoomStatus } from "./room-status";
 
@@ -24,6 +24,18 @@ export function toTeacherPause(pause: StoredPause, context: PauseEndContext, now
     endedAt: time.endedAt?.toISOString() ?? null,
     endedBy: time.endedBy,
     seconds: time.seconds,
+  };
+}
+
+/** What the student sees of their own open pause: their note, never who released it (contracts/http-api.md). */
+export function toStudentPause(pause: StoredPause): StudentPause {
+  return {
+    id: pause.id,
+    initiatedBy: pause.initiatedBy,
+    reason: pause.reason,
+    note: pause.note,
+    startedAt: pause.startedAt.toISOString(),
+    endedAt: pause.releasedAt?.toISOString() ?? null,
   };
 }
 

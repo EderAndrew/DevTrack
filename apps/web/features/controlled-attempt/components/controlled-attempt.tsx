@@ -2,13 +2,14 @@
 
 import type { StudentActivity } from "@repo/contracts";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { ExamAlert, LEAVE_ATTEMPT } from "@/components/ui/assessment/exam-alert";
 import { FocusViolationWarning } from "@/components/ui/assessment/focus-violation-warning";
 import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
+import { RESUME_CONTROLLED } from "@/features/attendance/schemas/attendance";
 import { AnsweringSession } from "@/features/student-activities/components/activity-answering";
 import { HelpCounter } from "@/features/work-help/components/help-counter";
 import { useWorkHelp } from "@/features/work-help/hooks/use-work-help";
@@ -27,6 +28,9 @@ import { activityHref } from "../schemas/controlled-attempt";
  * attempts recorded with the server's time and a warning after each, copy and paste blocked and
  * recorded, "Sair" and the browser's back confirmed by "Sair da avaliação?". Nothing here blocks,
  * submits or grades the attempt (FR-013). A NORMAL work, or one not started, goes back to its page.
+ * Since 016 a paused attempt is not monitored: "Sair da sala" stops the monitor before anything else
+ * and leaves fullscreen only after the pause, and the return asks for fullscreen by the student's
+ * click (FR-017, research M10).
  */
 export function ControlledAttempt({ activityId, userId }: { activityId: string; userId: string }) {
   const query = useStudentActivity(activityId);
@@ -57,18 +61,29 @@ export function ControlledAttempt({ activityId, userId }: { activityId: string; 
 
 function ControlledSession({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
   const router = useRouter();
-  const open = activity.canAnswer && activity.submission === null;
+  const paused = activity.pause !== null;
+  const open = activity.canAnswer && activity.submission === null && !paused;
+  // "Sair da sala" in progress: the monitor is off from the click on, until the student resumes.
+  const [exitingRoom, setExitingRoom] = useState(false);
+  const exiting = useRef(false);
+  const monitoring = open && !exitingRoom;
   const events = useIntegrityEvents({ userId, activityId: activity.id, enabled: open });
-  const monitor = useFocusMonitor({ enabled: open, record: (type) => events.record(type) });
+  // The ref stops recording at once, before the state turns the listeners off.
+  const monitor = useFocusMonitor({ enabled: monitoring, record: (type) => (exiting.current ? NOT_RECORDED : events.record(type)) });
   const clipboard = useClipboardBlock({ enabled: open, onBlocked: (type, questionId) => events.record(type, questionId ?? undefined) });
   const fullscreen = useFullscreen();
   const [leaving, setLeaving] = useState(false);
-  useLeaveGuard({ enabled: open, onLeaveAttempt: () => events.record("PAGE_LEAVE_ATTEMPTED"), onBack: () => setLeaving(true) });
+  useLeaveGuard({ enabled: monitoring, onLeaveAttempt: () => events.record("PAGE_LEAVE_ATTEMPTED"), onBack: () => setLeaving(true) });
 
-  // Submitted (or closed): the attempt is over, so is the fullscreen.
+  // Submitted, closed or paused (by the teacher too): the monitor is off by now, then the fullscreen ends.
   useEffect(() => {
     if (!open) void exitFullscreen();
   }, [open]);
+
+  const stopMonitor = (stopped: boolean) => {
+    exiting.current = stopped;
+    setExitingRoom(stopped);
+  };
 
   const leave = () => {
     setLeaving(false);
@@ -114,6 +129,20 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
             blockClipboard: open,
             questionNotice: (questionId) => noticeFor(notice, questionId, "ANSWER"),
             helpNotice: (questionId) => noticeFor(notice, questionId, "HELP"),
+            roomExit: {
+              stopMonitor: () => stopMonitor(true),
+              resumeMonitor: () => stopMonitor(false),
+              flushEvents: () => events.flush(),
+              leaveFullscreen: () => void exitFullscreen(),
+            },
+            resume: {
+              label: RESUME_CONTROLLED,
+              // Fullscreen only from the student's own click, as at the start (015 F14).
+              onResume: () => {
+                stopMonitor(false);
+                void enterFullscreen();
+              },
+            },
           }}
         />
       </div>
@@ -121,6 +150,9 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
     </>
   );
 }
+
+/** What the monitor gets back for an exit it must not record: the student declared it (016/FR-017). */
+const NOT_RECORDED = "";
 
 /** The work's helps in the focus page's header (contracts/web-ui.md); the same query as each question's. */
 function HeaderHelpCounter({ activityId, allowance }: { activityId: string; allowance: number }) {

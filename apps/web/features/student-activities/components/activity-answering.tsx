@@ -1,6 +1,6 @@
 "use client";
 
-import type { StudentActivity, StudentQuestion } from "@repo/contracts";
+import type { DeclareExit, StudentActivity, StudentQuestion } from "@repo/contracts";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,6 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
+import { ExitRoomDialog } from "@/features/attendance/components/exit-room-dialog";
+import { PausedNotice } from "@/features/attendance/components/paused-notice";
+import { useDeclareExit, useMyPause } from "@/features/attendance/hooks/use-my-pause";
+import { EXIT_ROOM } from "@/features/attendance/schemas/attendance";
 import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
@@ -114,7 +118,10 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
       />
       <div className="flex flex-col gap-8">
         <ActivityDetails activity={activity} />
-        {answeredInFocus(activity) ? (
+        {activity.pause ? (
+          // 016: paused, here or on the focus page, the attempt shows only the notice (FR-013).
+          <AnsweringSession activity={activity} userId={userId} reload={reload} />
+        ) : answeredInFocus(activity) ? (
           <ControlledStart activity={activity} />
         ) : activity.attempt ? (
           <AnsweringSession activity={activity} userId={userId} reload={reload} />
@@ -139,12 +146,21 @@ export interface ControlledAnswering {
   questionNotice: (questionId: string) => ReactNode;
   /** The same message in the question's "Pedir ajuda" field (015/US3-12). */
   helpNotice: (questionId: string) => ReactNode;
+  /**
+   * 016 "Sair da sala" (research M10): the monitor stops before anything else, the queued events are
+   * sent with the answers, and fullscreen ends only after the pause; a refused exit turns it back on.
+   */
+  roomExit: { stopMonitor: () => void; resumeMonitor: () => void; flushEvents: () => Promise<void>; leaveFullscreen: () => void };
+  /** 016: "Retomar em modo controlado" asks for fullscreen in the student's own click. */
+  resume: { label: string; onResume: () => void };
 }
 
 /**
  * The attempt's answers with the recovery of 012 research P9: when another tab changed an answer the
  * submission carried, the server's answers come back on a fresh answering screen and the student
  * reviews them before submitting again. Shared by this page and the controlled mode's focus page.
+ * Since 016 a paused attempt shows only the paused notice; a pause opened on another device or by
+ * the teacher arrives with the next poll of the own pause (research M8) and reads the activity again.
  */
 export function AnsweringSession({
   activity,
@@ -159,12 +175,39 @@ export function AnsweringSession({
 }) {
   const [generation, setGeneration] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const watching = activity.type === "ASSIGNMENT" && activity.canAnswer && activity.submission === null && activity.pause === null;
+  const watch = useMyPause(activity.id, watching, "watch");
+  /** The pause already acted on: a read from before the resume never reloads again. */
+  const handled = useRef<string | null>(null);
+  const openPause = watching ? (watch.data?.pause ?? null) : null;
+  useEffect(() => {
+    if (!openPause || handled.current === openPause.id) return;
+    handled.current = openPause.id;
+    void reload();
+  }, [openPause, reload]);
+
   const onChangedElsewhere = async () => {
     clearPendingAnswers(userId, activity.id);
     await reload();
     setChangedElsewhere(true);
     setGeneration((current) => current + 1);
   };
+  if (activity.pause) {
+    const pause = activity.pause;
+    return (
+      <PausedNotice
+        activityId={activity.id}
+        pause={pause}
+        deadline={activity.deadline}
+        resumeLabel={controlled?.resume.label}
+        onResume={() => {
+          handled.current = pause.id;
+          controlled?.resume.onResume();
+          void reload();
+        }}
+      />
+    );
+  }
   return (
     <>
       {changedElsewhere && activity.submission === null ? (
@@ -178,6 +221,10 @@ export function AnsweringSession({
         userId={userId}
         controlled={controlled}
         onChangedElsewhere={() => void onChangedElsewhere()}
+        onPaused={(pauseId) => {
+          if (pauseId) handled.current = pauseId;
+          void reload();
+        }}
       />
     </>
   );
@@ -272,11 +319,14 @@ function AttemptAnswering({
   userId,
   controlled,
   onChangedElsewhere,
+  onPaused,
 }: {
   activity: StudentActivity;
   userId: string;
   controlled?: ControlledAnswering;
   onChangedElsewhere: () => void;
+  /** The attempt is paused now (the own exit, with its id, or a refused write): read the activity again. */
+  onPaused: (pauseId?: string) => void;
 }) {
   const editable = activity.canAnswer && activity.submission === null;
   const answers = useAttemptAnswers({
@@ -301,6 +351,36 @@ function AttemptAnswering({
   const [confirming, setConfirming] = useState(false);
   const blankCount = questions.length - answeredCount;
   const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
+  // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007).
+  const canExitRoom = editable && !isExercise;
+  const [exitingRoom, setExitingRoom] = useState(false);
+  const declareExit = useDeclareExit(activity.id);
+  // A save or submission refused because the attempt is paused (another device, the teacher): the
+  // unsent answers stay in this browser (012 FR-019) and the notice replaces the questions.
+  const pausedRefusal = apiErrorCode(answers.error) === "ATTEMPT_PAUSED" || (submit.isError && apiErrorCode(submit.error) === "ATTEMPT_PAUSED");
+  const paused = useRef(onPaused);
+  useEffect(() => {
+    paused.current = onPaused;
+  });
+  useEffect(() => {
+    if (pausedRefusal) paused.current();
+  }, [pausedRefusal]);
+
+  /** Research M10's order: monitor off, answers and events sent, pause, then fullscreen off. */
+  const exitRoom = async (body: DeclareExit) => {
+    controlled?.roomExit.stopMonitor();
+    try {
+      await answers.flushNow();
+      await controlled?.roomExit.flushEvents();
+      const pause = await declareExit.mutateAsync(body);
+      controlled?.roomExit.leaveFullscreen();
+      setExitingRoom(false);
+      onPaused(pause.id);
+    } catch (error) {
+      controlled?.roomExit.resumeMonitor();
+      throw error;
+    }
+  };
 
   const send = () => {
     setConfirming(false);
@@ -333,7 +413,14 @@ function AttemptAnswering({
         <h2 id="respostas" className="m-0 text-h3">
           Respostas
         </h2>
-        {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
+          {canExitRoom ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setExitingRoom(true)}>
+              {EXIT_ROOM}
+            </Button>
+          ) : null}
+        </div>
       </div>
       <ActivityResult activity={activity} />
       {isExercise && activity.attempt && activity.attempt.number > 1 ? (
@@ -454,6 +541,7 @@ function AttemptAnswering({
           ) : undefined
         }
       />
+      {canExitRoom ? <ExitRoomDialog open={exitingRoom} onOpenChange={setExitingRoom} deadline={activity.deadline} onConfirm={exitRoom} /> : null}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>

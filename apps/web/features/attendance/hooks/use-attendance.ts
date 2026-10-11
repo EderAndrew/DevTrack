@@ -2,7 +2,7 @@
 
 import type { AttendanceBatch, Room } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { attendanceApi } from "../api/attendance";
+import { attendanceApi, pausesApi } from "../api/attendance";
 import { ATTENDANCE_POLL_MS } from "../schemas/attendance";
 
 /** Query keys: `["attendance", classId, activityId]`. */
@@ -33,5 +33,14 @@ export function useApplyAttendance(classId: string, activityId: string) {
       void queryClient.invalidateQueries({ queryKey: ["activities", classId] });
     },
     onError: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
+  });
+}
+
+/** "Liberar retorno" (FR-014): the room is read again, the student's notice follows on its next poll. */
+export function useReleasePause(classId: string, activityId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (pauseId: string) => pausesApi.release(classId, activityId, pauseId),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
   });
 }

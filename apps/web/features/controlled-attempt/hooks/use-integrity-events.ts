@@ -44,5 +44,6 @@ export function useIntegrityEvents({ userId, activityId, enabled }: { userId: st
     };
   }, [enabled, queue]);
 
-  return { record: queue.record, recordedAt: queue.recordedAt, pendingCount: queue.pendingCount() };
+  // `flush`: 016 "Sair da sala" sends what waits before the pause (research M10).
+  return { record: queue.record, recordedAt: queue.recordedAt, pendingCount: queue.pendingCount(), flush: queue.flush };
 }

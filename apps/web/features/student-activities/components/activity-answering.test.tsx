@@ -15,6 +15,7 @@ import {
   OFFLINE_ALERT,
   SUBMIT_CONFIRMATION,
 } from "./activity-answering";
+import { CONFIRM_EXIT, EXIT_ROOM, PAUSED_TITLE, RESUME, RETURN_RELEASED } from "@/features/attendance/schemas/attendance";
 import { apiError, exerciseActivity, exerciseAttempt, json, routedFetch, studentActivity } from "./test-fixtures";
 
 // 012/US3 — the answering screen: start, answer each type, navigate, autosave status, offline and
@@ -591,3 +592,92 @@ describe("015/US3 \"Pedir ajuda\" na tela de responder (modo NORMAL)", () => {
   });
 });
 
+
+describe("016/US3 \"Sair da sala\" na tela de responder (modo NORMAL)", () => {
+  const PAUSE_PATH = `/api/me/activities/${activity.id}/attempt/pause`;
+  const PAUSE = {
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    initiatedBy: "STUDENT" as const,
+    reason: "BATHROOM" as const,
+    note: null,
+    startedAt: "2026-10-02T13:42:00.000Z",
+    endedAt: null,
+  };
+  const paused = () => started({ pause: PAUSE, questions: [] });
+
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("online"));
+  });
+
+  it("016/US3-2 016/FR-012 \"Sair da sala\" envia a resposta pendente antes da pausa e a tela passa ao aviso", async () => {
+    let isPaused = false;
+    const { user, api } = setup({
+      [GET]: () => json(200, isPaused ? paused() : started()),
+      [SAVE]: () => saved(open.id),
+      [`POST ${PAUSE_PATH}`]: () => {
+        isPaused = true;
+        return json(201, PAUSE);
+      },
+      [`GET ${PAUSE_PATH}`]: () => json(200, { pause: isPaused ? PAUSE : null }),
+    });
+    await user.type(await screen.findByLabelText("Sua resposta"), "antes de sair");
+    await user.click(screen.getByRole("button", { name: EXIT_ROOM }));
+    await user.click(screen.getByRole("radio", { name: "Ir ao banheiro" }));
+    await user.click(screen.getByRole("button", { name: CONFIRM_EXIT }));
+    expect(await screen.findByText(PAUSED_TITLE)).toBeTruthy();
+    const writes = api.calls.filter((call) => call.method !== "GET");
+    expect(writes.map((call) => `${call.method} ${call.url}`)).toEqual([SAVE, `POST ${PAUSE_PATH}`]);
+    expect(JSON.parse(String(writes[0]!.body))).toEqual({ answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "antes de sair" }, baseRevision: 0 }] });
+    expect(JSON.parse(String(writes[1]!.body))).toEqual({ reason: "BATHROOM" });
+    expect(screen.queryByRole("navigation", { name: "Questões" })).toBeNull();
+  });
+
+  it("016/US3-3 016/US3-5 pausada em outro dispositivo: só o aviso; liberado, \"Retomar\" volta às questões com as respostas", async () => {
+    let isPaused = true;
+    const back = started({ attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [{ questionId: open.id, answer: { kind: "TEXT", text: "salva" }, revision: 1 }] } });
+    const { user } = setup({
+      [GET]: () => json(200, isPaused ? paused() : back),
+      [`GET ${PAUSE_PATH}`]: () => {
+        isPaused = false;
+        return json(200, { pause: null });
+      },
+    });
+    expect(await screen.findByText(PAUSED_TITLE)).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Questões" })).toBeNull();
+    expect(await screen.findByText(RETURN_RELEASED)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: RESUME }));
+    expect(((await screen.findByLabelText("Sua resposta")) as HTMLTextAreaElement).value).toBe("salva");
+  });
+
+  it("016/FR-013 um 409 ATTEMPT_PAUSED ao salvar mostra o aviso e guarda a resposta não enviada (012 FR-019), enviada depois do retorno", async () => {
+    let isPaused = false;
+    let saves = 0;
+    const { user, api } = setup({
+      [GET]: () => json(200, isPaused ? paused() : started()),
+      [SAVE]: () => {
+        saves += 1;
+        if (saves === 1) {
+          isPaused = true;
+          return apiError(409, "ATTEMPT_PAUSED", "x");
+        }
+        return saved(open.id);
+      },
+      // The teacher releases the return as soon as the notice asks.
+      [`GET ${PAUSE_PATH}`]: () => {
+        isPaused = false;
+        return json(200, { pause: null });
+      },
+    });
+    await user.type(await screen.findByLabelText("Sua resposta"), "não enviada");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(await screen.findByText(PAUSED_TITLE)).toBeTruthy();
+    expect(readPendingAnswers("aluno-1", activity.id)).toEqual([{ questionId: open.id, answer: { kind: "TEXT", text: "não enviada" }, baseRevision: 0 }]);
+
+    await user.click(await screen.findByRole("button", { name: RESUME }));
+    expect(((await screen.findByLabelText("Sua resposta")) as HTMLTextAreaElement).value).toBe("não enviada");
+    await vi.waitFor(() => expect(api.calls.filter((call) => call.method === "PUT")).toHaveLength(2));
+  });
+});

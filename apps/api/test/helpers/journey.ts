@@ -799,6 +799,16 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   t.provider.script(fakeError("INVALID_REQUEST"));
   await drain(t);
   expect((await classStudentClient.get(helpPath)).body).toMatchObject({ allowance: 3, used: 1, pending: false });
+  // 016/US3 — the student leaves the room (`attempt_pause.started`: ids and enums, never the note).
+  // While out, the events and the help are refused (`attempt_pause.write_refused` with the operation);
+  // the teacher releases the return (`attempt_pause.released` with the seconds away).
+  const exited = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt/pause`, { reason: "OTHER", note: "Fui buscar água na jornada" });
+  expect(exited.status).toBe(201);
+  const pausedEvent = { eventId: randomUUID(), type: "SCREEN_LEFT", clientOccurredAt: new Date().toISOString(), buffered: false };
+  expect((await classStudentClient.post(eventsPath, { events: [pausedEvent] })).body.code).toBe("ATTEMPT_PAUSED");
+  const pausedHelp = { questionId: questionOfType("OPEN_ANSWER"), question: "Posso pedir ajuda fora da sala?", idempotencyKey: randomUUID() };
+  expect((await classStudentClient.post(helpPath, pausedHelp)).body.code).toBe("ATTEMPT_PAUSED");
+  expect((await teacherClient.post(`${activitiesPath}/${openWork.body.id}/pauses/${exited.body.id}/release`, {})).status).toBe(200);
   // Every question answered; both texts are registered whatever types the two exercises have.
   const studentText = text("resposta do aluno (012)", "Resposta do aluno da jornada doze");
   const studentCode = text("código do aluno (012)", "class RespostaDaJornadaDoze {}");

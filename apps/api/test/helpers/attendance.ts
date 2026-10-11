@@ -40,3 +40,20 @@ export async function markAllPresent(client: ApiClient, classId: string, activit
   const marked = await markPresent(client, classId, activityId, ids);
   if (marked.status !== 200) throw new Error(`attendance of ${activityId}: ${marked.status} ${JSON.stringify(marked.body)}`);
 }
+
+// ── 016/US3: the room exits (pauses) of an attempt (tasks T024–T027) ─────────────────────────
+
+/** `POST /me/activities/:activityId/attempt/pause`: the student's declared exit (016/FR-011). */
+export function declareExit(client: ApiClient, activityId: string, body: Record<string, unknown> = { reason: "WATER" }) {
+  return client.post(`/api/me/activities/${activityId}/attempt/pause`, body);
+}
+
+/** `GET /me/activities/:activityId/attempt/pause`: the open pause of the own attempt, polled (research M8). */
+export function getMyPause(client: ApiClient, activityId: string) {
+  return client.get(`/api/me/activities/${activityId}/attempt/pause`);
+}
+
+/** `POST …/pauses/:pauseId/release`: the teacher releases the return (016/FR-014). */
+export function releasePause(client: ApiClient, classId: string, activityId: string, pauseId: string) {
+  return client.post(`/api/classes/${classId}/activities/${activityId}/pauses/${pauseId}/release`, {});
+}

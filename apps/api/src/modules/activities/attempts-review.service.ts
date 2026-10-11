@@ -248,6 +248,13 @@ export class AttemptsReviewService {
       };
       const refusal = acceptanceRefusal(facts);
       if (refusal) throw new AppException(refusal);
+      // 016 research M7: on an ACTIVE activity (deadline passed under REJECT) the acceptance ends an open
+      // pause by derivation; the defense trigger lets the teacher's submission through. After a close,
+      // the close had already ended it.
+      const openPauses =
+        activity.status === "ACTIVE"
+          ? await tx.$queryRaw<unknown[]>`SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attemptId}::uuid AND released_at IS NULL`
+          : [];
 
       const submission = await registerSubmission(tx, {
         attemptId,
@@ -271,6 +278,7 @@ export class AttemptsReviewService {
           blankCount: submission.blankCount,
           questionCount: submission.questionCount,
           pendingTeacherCount: submission.pendingTeacherCount,
+          pauseEnded: openPauses.length > 0,
         },
       });
       return this.getAttempt(teacherId, classId, activityId, attemptId, tx);

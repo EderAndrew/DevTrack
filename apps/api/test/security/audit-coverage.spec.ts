@@ -43,7 +43,7 @@ const PENDING_013 = new Set<string>([]);
 const PENDING_015 = new Set<string>([]);
 
 /** 016 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_016 = new Set<string>(["attempt_pause.started", "attempt_pause.released", "attempt_pause.write_refused"]);
+const PENDING_016 = new Set<string>([]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016]);
 
 interface ContractRow {

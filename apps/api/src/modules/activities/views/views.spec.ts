@@ -100,6 +100,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   attempt: { number: 1, startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers: [] },
   completedAttempts: [],
   lastResult: null,
+  pause: null,
   submission: {
     submittedAt: new Date("2026-10-04T12:00:00.000Z"),
     late: false,
@@ -176,6 +177,23 @@ describe("012/FR-030 012/FR-032 visão do aluno por lista fechada (research P15)
       expect(StudentActivitySchema.safeParse(toStudentActivity(input({ facts: facts({ released }) }))).success).toBe(true);
       expect(StudentActivitySummarySchema.safeParse(toStudentSummary(input({ facts: facts({ released }) }))).success).toBe(true);
     }
+  });
+
+  it("016/FR-022 com a pausa aberta, a visão traz o aviso e nenhuma questão nem resposta, mesmo que as receba", () => {
+    const answers = [{ questionId: id(1), answer: { kind: "TEXT" as const, text: "MARCADOR-RESPOSTA-ALUNO" }, revision: 2 }];
+    const view = toStudentActivity(
+      input({
+        facts: facts({ submission: null, attempt: { status: "IN_PROGRESS" } }),
+        submission: null,
+        attempt: { number: 1, startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers },
+        pause: { id: id(9), initiatedBy: "STUDENT", reason: "OTHER", note: "Fui ao bebedouro", startedAt: new Date("2026-10-05T11:50:00.000Z") },
+      }),
+    );
+    expect(view.pause).toEqual({ id: id(9), initiatedBy: "STUDENT", reason: "OTHER", note: "Fui ao bebedouro", startedAt: "2026-10-05T11:50:00.000Z", endedAt: null });
+    expect(view.questions).toEqual([]);
+    expect(view.attempt!.answers).toEqual([]);
+    expect(serialized(view)).not.toMatch(/MARCADOR/);
+    expect(StudentActivitySchema.safeParse(view).success).toBe(true);
   });
 
   it("o resumo são os primeiros 160 caracteres das instruções, sem quebras", () => {

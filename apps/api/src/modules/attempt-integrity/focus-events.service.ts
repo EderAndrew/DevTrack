@@ -8,7 +8,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
-import { type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
+import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { insertIntegrityEvents } from "./integrity-events";
 import { buildTimeline } from "./timeline";
 import { type StoredIntegrityEvent, toEventView } from "./views";
@@ -52,6 +52,8 @@ export class FocusEventsService {
         if (!context) throw new OutOfContext();
         await this.assertRate(tx, studentUserId, body.events.length);
         const attempt = openAttempt(context);
+        // 016/FR-017: no focus event while the student is out of the room (research M6, M10).
+        if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
         await assertQuestions(tx, activityId, body.events);
         const own = { id: attempt.id, activityId, studentUserId };
         await insertIntegrityEvents(tx, this.audit, {
@@ -79,6 +81,19 @@ export class FocusEventsService {
       });
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, EVENTS_ROUTE, requestId);
+      if (error instanceof AttemptPaused) {
+        // 016 contracts/audit-events.md: recorded on its own after the rollback, nothing else written.
+        await this.audit.record(this.prisma, {
+          type: "attempt_pause.write_refused",
+          actorType: "USER",
+          actorUserId: studentUserId,
+          targetType: "ACTIVITY_ATTEMPT",
+          targetId: error.attemptId,
+          requestId,
+          metadata: { activityId, pauseId: error.pauseId, operation: "EVENTS" },
+        });
+        throw new AppException("ATTEMPT_PAUSED");
+      }
       throw error;
     }
   }

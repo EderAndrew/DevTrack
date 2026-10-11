@@ -383,7 +383,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       const closed = await client.post(`${base()}/${activity.id}/close`, {});
       expect(closed.status).toBe(200);
       expect(closed.body).toMatchObject({ status: "CLOSED", phase: null });
-      expect((await events("activity.closed"))[0]!.metadata).toEqual({ classId, submittedCount: 0, missedCount: 2 });
+      expect((await events("activity.closed"))[0]!.metadata).toEqual({ classId, submittedCount: 0, missedCount: 2, pausedCount: 0 });
       expect((await client.post(`${base()}/${activity.id}/close`, {})).status).toBe(200);
       expect(await events("activity.closed")).toHaveLength(1);
 
@@ -392,7 +392,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
 
       const cancelled = await client.post(`${base()}/${activity.id}/cancel`, {});
       expect(cancelled.body.status).toBe("CANCELLED");
-      expect((await events("activity.cancelled"))[0]!.metadata).toEqual({ classId, from: "CLOSED", submittedCount: 0 });
+      expect((await events("activity.cancelled"))[0]!.metadata).toEqual({ classId, from: "CLOSED", submittedCount: 0, pausedCount: 0 });
       expect((await client.post(`${base()}/${activity.id}/cancel`, {})).status).toBe(200);
       expect(await events("activity.cancelled")).toHaveLength(1);
       const reopen = await client.post(`${base()}/${activity.id}/close`, {});
