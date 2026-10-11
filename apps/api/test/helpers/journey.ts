@@ -801,8 +801,12 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await classStudentClient.get(helpPath)).body).toMatchObject({ allowance: 3, used: 1, pending: false });
   // 016/US3 — the student leaves the room (`attempt_pause.started`: ids and enums, never the note).
   // While out, the events and the help are refused (`attempt_pause.write_refused` with the operation);
-  // the teacher releases the return (`attempt_pause.released` with the seconds away).
-  const exited = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt/pause`, { reason: "OTHER", note: "Fui buscar água na jornada" });
+  // the teacher releases the return (`attempt_pause.released` with the seconds away). The note of "Outro" is
+  // the student's content (MARCADOR-NOTA-016), kept out of logs and audit.
+  const exited = await classStudentClient.post(`/api/me/activities/${openWork.body.id}/attempt/pause`, {
+    reason: "OTHER",
+    note: text("nota de saída da sala (016)", "MARCADOR-NOTA-016 fui buscar água na jornada"),
+  });
   expect(exited.status).toBe(201);
   const pausedEvent = { eventId: randomUUID(), type: "SCREEN_LEFT", clientOccurredAt: new Date().toISOString(), buffered: false };
   expect((await classStudentClient.post(eventsPath, { events: [pausedEvent] })).body.code).toBe("ATTEMPT_PAUSED");
@@ -903,6 +907,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const acceptedStart = await classStudentClient.post(`/api/me/activities/${acceptedWork.body.id}/attempt`, {});
   const acceptedAnswers = answersFor(acceptedStart.body.questions);
   await classStudentClient.put(`/api/me/activities/${acceptedWork.body.id}/attempt/answers`, { answers: acceptedAnswers });
+  // 016/US5 — the teacher pauses the student (`attempt_pause.started` with `initiatedBy: TEACHER`) and
+  // releases the return (`attempt_pause.released`).
+  const teacherPause = await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/students/${classStudentId}/pause`, {});
+  expect([teacherPause.status, teacherPause.body.initiatedBy]).toEqual([201, "TEACHER"]);
+  expect((await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/pauses/${teacherPause.body.id}/release`, {})).status).toBe(200);
   expect((await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/close`, {})).status).toBe(200);
   // A save on the closed work it was released to: refused (`activity_submission.rejected` with the code).
   const closedSave = await classStudentClient.put(`/api/me/activities/${acceptedWork.body.id}/attempt/answers`, { answers: acceptedAnswers });

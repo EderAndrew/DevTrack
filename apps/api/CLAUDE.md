@@ -299,6 +299,19 @@ Foundation extensions of 015 (research F9, F12): an agent may declare `proposal.
 `materialize` returns the domain rule's decision and the runner approves or rejects the proposal in the same transaction,
 audited `ai_proposal.*` with actor SYSTEM and `settledBy: "DOMAIN_RULE"`) and `hourlyLimit(config)` in place of
 `aiAgentPerHour` (`work-helper` uses `AI_WORK_HELP_EXECUTIONS_PER_HOUR`).
+Attendance (016): `modules/attendance` holds `AttendanceService` (the room of the class's ACTIVE students and the
+mark/unmark batch, all or nothing, one `attendance.marked`/`unmarked` per student actually changed; unmark only
+without an attempt), `PausesService` (the teacher pauses a student, releases a return keyed by the pause and
+idempotent, and reads an attempt's pauses), `MyPauseService` ("Sair da sala" in the save/submit transaction shape:
+activity `FOR SHARE`, attempt `FOR UPDATE`; the open pause for the polling), the pure `room-status.ts` and `views.ts`
+(`roomStatus`, a pause's end and `seconds` derived with the server's `now`). The activity modules never import it:
+they read `activity_attendances` and `attempt_pauses` in their own scoped queries (visibility through an indexed
+`EXISTS`, the pause in the student view and the roster). `release_mode` is set on create (a new ASSIGNMENT is
+`PRESENT_ONLY`, never from the body); defense triggers refuse answer, submission, integrity-event and help writes
+while a pause is open. Tests use `test/helpers/attendance.ts` (`getRoom`, `postAttendance`, `markPresent`, `unmark`,
+`markAllPresent`, `declareExit`, `getMyPause`, `releasePause`, `pauseStudent`, `getAttemptPauses`), the
+`createActivity` option `releaseMode`, and `applyWork`, which marks the whole class present unless
+`attendance: "NONE"`, so the 012/013/015 suites see a new work as before 016.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -376,6 +389,17 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   OUT_OF_SCOPE, BLOCKED and FAILED; `audit-coverage.spec.ts` checks one audit event per stored event and per request
   with no content (`015/SC-010`), and the secret scan and `006-ai-admin-scan.spec.ts` keep `MARCADOR-AJUDA-015`
   (question) and `MARCADOR-ORIENTACAO-015` (orientation) out of logs, audit and "Operação de IA".
+- 016: one file per story (`016-us1-release` … `016-us5-teacher-pause`), `016-schema` (enum, CHECKs, triggers), and in
+  `test/security/` isolation (teachers A/B, students not marked present → 404 with `NOT_PRESENT`, roles 403), paused
+  writes (`016/SC-003`: no statement or answer from any session, every write refused by the API and by the triggers),
+  concurrency (`016/SC-007`), rate limits (declared exits per hour), boundaries (server fields → 400, 0/1/200/201 ids,
+  note 0/1/200/201, `reason: TEACHER` from the student, `016/FR-024`: no attendance or pause on an Exercício, the
+  deadline unchanged by a pause, no route beyond the contract) and performance (room of 60 p95 < 300 ms, batch of 60
+  < 500 ms, exit and release p95 < 200 ms, the student's list within the 012 limit). The journey marks, unmarks,
+  pauses (student with an "Outro" note, teacher) and releases; `audit-coverage.spec.ts` checks one event per change
+  with ids and enums only (`016/SC-009`), and the secret scan keeps `MARCADOR-NOTA-016` (the note) out of logs and
+  audit. `test/attendance-boundary.spec.ts` keeps `attendance` away from AI, help, monitoring, grading, banks and
+  mail.
 
 ## AI release-gate results (moved from the root CLAUDE.md)
 

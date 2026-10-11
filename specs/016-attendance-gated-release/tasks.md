@@ -476,13 +476,13 @@ dispositivo, liberar e continuar.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T040 Auditoria e journey (`016/SC-009`):
+- [X] T040 Auditoria e journey (`016/SC-009`):
   - `apps/api/test/helpers/journey.ts` com presença, desmarcação, pausa do aluno, pausa do
     professor e retorno;
   - `audit-coverage.spec.ts`: metadados só com ids e enums;
   - `secret-leak-scan.spec.ts` com o marcador `MARCADOR-NOTA-016` no texto de "Outro", fora de
     auditoria e logs.
-- [ ] T041 [P] Segurança restante em `apps/api/test/security/`:
+- [X] T041 [P] Segurança restante em `apps/api/test/security/`:
   - `016-boundaries.spec.ts`: campos do servidor → 400, 0/1/200/201 ids, nota 0/1/200/201, motivo
     fora da lista, `reason: TEACHER` vindo do aluno;
   - `016-performance.spec.ts`: sala de 60 alunos p95 < 300 ms, lote de 60 < 500 ms, pausa e
@@ -490,10 +490,10 @@ dispositivo, liberar e continuar.
   - `016/FR-024` em `016-boundaries.spec.ts`: Exercício sem chamada nem pausa (rotas →
     `409 ATTENDANCE_NOT_REQUIRED`), prazo igual antes e depois de uma pausa, nenhuma rota nova
     fora do catálogo de `contracts/http-api.md`.
-- [ ] T042 [P] Web: `apps/web/test/student-portal-xss.test.tsx` cobre a nota de "Outro" no painel,
+- [X] T042 [P] Web: `apps/web/test/student-portal-xss.test.tsx` cobre a nota de "Outro" no painel,
   na correção e no histórico. `token-usage`, `identity`, `docs` e `catalog.test.tsx` ficam verdes
   com os componentes novos.
-- [ ] T043 E2E `apps/web/e2e/attendance.spec.ts` (`016/SC-002`, `016/SC-004`, `016/SC-010`), com o
+- [X] T043 E2E `apps/web/e2e/attendance.spec.ts` (`016/SC-002`, `016/SC-004`, `016/SC-010`), com o
   professor e 2 alunos em contextos separados:
   1. o professor aplica e o aluno não vê;
   2. a chamada libera para um aluno;
@@ -505,13 +505,13 @@ dispositivo, liberar e continuar.
      liberar leva menos de 1 minuto de relógio no teste.
 
   A redefinição do banco E2E pede consentimento do usuário.
-- [ ] T044 [P] Documentação:
+- [X] T044 [P] Documentação:
   - `CLAUDE.md`: Project state com a 016, as regras fáceis de errar da chamada e da pausa, e o
     contrato `attendance` na lista de domínios;
   - `apps/api/CLAUDE.md`: módulo `attendance`, helpers e suítes 016;
   - `apps/web/CLAUDE.md`: `features/attendance` e a sondagem;
   - `README.md`.
-- [ ] T045 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`.
+- [X] T045 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`.
 
 ---
 

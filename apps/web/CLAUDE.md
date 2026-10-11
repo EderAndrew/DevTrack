@@ -54,15 +54,25 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   evento" until it arrives); no text calls an exit fraud or a violation. The AI help (`QuestionHelp`,
   `HelpGuidance`) shows the orientation as text and its example in `CodeBlock`; whether a help is used,
   pending or refused comes from the API.
+- Attendance (016): `features/attendance` holds the "Chamada" (`AttendanceTab`: the checklist with "Marcar todos" and
+  a confirmed "Liberar para os presentes" that sends only the differences, then `RoomPanel` with each student's
+  situation in words, "Marcar presente", "Desmarcar", "Liberar retorno" and "Pausar aluno"), `ExitRoomDialog` ("Sair
+  da sala", the closed list of reasons, "Outro" with up to 200 characters) and `PausedNotice` (no questions while
+  paused, "Retomar" after the release; CONTROLLED goes back to fullscreen only on the student's gesture). The room,
+  the student's dashboard and list and the open pause are polled every `ATTENDANCE_POLL_MS` (5 s) only while the
+  page is visible; there are no WebSockets. The answering page reads the pause from the activity and a
+  `409 ATTEMPT_PAUSED` on save, so a pause opened elsewhere (another device, the teacher) takes the questions off
+  the screen. Exercises never show "Chamada" or "Sair da sala".
 
 ## Guards
 
 - `test/student-portal-xss.test.tsx` (012/FR-035): answers, titles and feedback with HTML render
   as text (since 013 also the exercise result, the teacher's marks and the ranking names; since
   014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
-  orientation and its example on both screens), and no `dangerouslySetInnerHTML` in the 012
+  orientation and its example on both screens; since 016 the note of "Outro" on the room panel, in the review, on
+  the paused notice and in the history), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
-  `features/controlled-attempt` or `features/work-help`.
+  `features/controlled-attempt`, `features/work-help` or `features/attendance`.
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and

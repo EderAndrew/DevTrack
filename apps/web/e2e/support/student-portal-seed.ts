@@ -25,6 +25,8 @@ export interface StudentPortalSeed {
   student: Account;
   classId: string;
   className: string;
+  /** The subject the class offers and the work belongs to (a class of 016's attendance spec reuses it). */
+  subjectId: string;
   workId: string;
   workTitle: string;
 }
@@ -91,7 +93,7 @@ export async function seedStudentPortal(browser: Browser): Promise<StudentPortal
   await acceptClassInvitation(studentPage, student);
   await studentPage.context().close();
 
-  return { teacher, student, classId: schoolClass.id, className, workId: work.id, workTitle };
+  return { teacher, student, classId: schoolClass.id, className, subjectId: subject.id, workId: work.id, workTitle };
 }
 
 /** The teacher applies the seed's work to the class through the API (`Publicar agora`, due in a week); returns its id. */

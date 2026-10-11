@@ -110,7 +110,17 @@ vê, nunca o gabarito, e uma verificação determinística bloqueia a orientaç�
 alternativa ou se pareça com a resposta esperada antes de ela chegar ao aluno; perguntas fora do
 assunto, orientações bloqueadas e falhas da IA não gastam ajuda. O professor vê cada pergunta e
 orientação na correção, e o aluno vê as próprias ajudas e saídas no histórico depois da entrega. A
-ajuda só fica disponível depois que um modelo passa no release gate da tarefa `work-help`.
+ajuda só fica disponível depois que um modelo passa no release gate da tarefa `work-help`. A **fase 016 —
+lista de chamada e liberação do trabalho aos presentes** faz cada Trabalho novo esperar a chamada:
+na aba "Chamada" o professor marca os alunos que estão em sala ("Marcar todos" e desmarcar quem
+faltou) e libera; só os marcados veem o trabalho, e quem chega atrasado é marcado depois e passa a
+vê-lo na hora. Desmarcar só vale antes de o aluno iniciar. Durante o trabalho, "Sair da sala" pede o
+motivo (banheiro, água, telefone ou outro) e pausa a tentativa: as questões somem em todos os
+dispositivos do aluno e nada é salvo nem entregue até o professor liberar o retorno, e o aluno
+retoma de onde parou. O professor também pode pausar um aluno. O prazo continua correndo, nenhuma
+pausa muda a nota, e a correção mostra a presença, os ausentes e as saídas da sala com a duração de
+cada uma. As telas se atualizam por consulta a cada 5 segundos. Exercícios e trabalhos aplicados
+antes da fase 016 seguem abertos a todos os matriculados, sem chamada.
 
 ## Pré-requisitos
 
@@ -141,6 +151,7 @@ ajuda só fica disponível depois que um modelo passa no release gate da tarefa 
 | `specs/013-exercise-points-ranking/` | O mesmo para a fase 013 (pontos dos exercícios e ranking da turma; decisões K1–K18) |
 | `specs/014-code-syntax-highlighting/` | O mesmo para a fase 014 (realce de sintaxe do código; decisões L1–L14) |
 | `specs/015-controlled-work-ai-help/` | O mesmo para a fase 015 (modo controlado e ajuda da IA nos trabalhos; decisões F1–F18) |
+| `specs/016-attendance-gated-release/` | O mesmo para a fase 016 (lista de chamada, liberação aos presentes e pausa na saída da sala; decisões M1–M13) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -259,6 +270,8 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
   `RATE_LIMIT_WORK_HELP_PER_HOUR` (20) os pedidos de ajuda por aluno e
   `AI_WORK_HELP_EXECUTIONS_PER_HOUR` (1500) as execuções do `work-helper`, somando todos os alunos. O
   `work-helper` é registrado desativado, como os demais agentes.
+- Lista de chamada (016): `RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR` (20) limita as saídas da sala
+  declaradas por aluno.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 
