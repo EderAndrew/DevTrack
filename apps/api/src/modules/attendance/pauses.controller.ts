@@ -1,5 +1,5 @@
-import { Controller, HttpCode, Param, Post } from "@nestjs/common";
-import { EmptyBodySchema, type TeacherPause, UuidSchema } from "@repo/contracts";
+import { Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
+import { type AttemptPauses, EmptyBodySchema, type TeacherPause, UuidSchema } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodBody, ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
@@ -8,12 +8,12 @@ import { PausesService } from "./pauses.service";
 const idPipe = new ZodValidationPipe(UuidSchema);
 
 /** The teacher's side of the room exits (016 contracts/http-api.md, "Teacher routes"); another teacher's class → 404. */
-@Controller("classes/:classId/activities/:activityId/pauses")
+@Controller("classes/:classId/activities/:activityId")
 export class PausesController {
   constructor(private readonly pauses: PausesService) {}
 
   /** "Liberar retorno": idempotent, keyed by the pause (research M7). */
-  @Post(":pauseId/release")
+  @Post("pauses/:pauseId/release")
   @HttpCode(200)
   @RequirePermissions("chamada.registrar")
   release(
@@ -24,5 +24,17 @@ export class PausesController {
     @Ctx() ctx: RequestContext,
   ): Promise<TeacherPause> {
     return this.pauses.release(ctx.auth!.userId, classId, activityId, pauseId, ctx.requestId);
+  }
+
+  /** "Saídas da sala" in the review (016/FR-021): an attempt's pauses with their derived durations. */
+  @Get("attempts/:attemptId/pauses")
+  @RequirePermissions("entregas.visualizar")
+  forAttempt(
+    @Param("classId", idPipe) classId: string,
+    @Param("activityId", idPipe) activityId: string,
+    @Param("attemptId", idPipe) attemptId: string,
+    @Ctx() ctx: RequestContext,
+  ): Promise<AttemptPauses> {
+    return this.pauses.forAttempt(ctx.auth!.userId, classId, activityId, attemptId);
   }
 }

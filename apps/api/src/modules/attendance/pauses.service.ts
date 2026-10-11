@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ActivityStatus, PauseInitiator, PauseReason, TeacherPause } from "@repo/contracts";
+import type { ActivityStatus, AttemptPauses, PauseInitiator, PauseReason, TeacherPause } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { AppException, notFound } from "../../platform/http/errors";
@@ -20,7 +20,8 @@ interface PauseRow {
 }
 
 /**
- * The teacher's side of the room exits (016 US3, FR-014, research M7): releasing the return. The class
+ * The teacher's side of the room exits (016 US3, US4, FR-014, FR-021, research M7): releasing the
+ * return and reading an attempt's pauses in the review. The class
  * goes through `ClassContextPolicy`, the activity is looked up by `(id, class_id)` and the pause by
  * `(id, activity_id)`, so another teacher's ids are a plain 404. The route is keyed by the pause and
  * idempotent: a released pause comes back unchanged, so a double click never ends a later one. A pause
@@ -78,6 +79,34 @@ export class PausesService {
       });
       return released;
     });
+  }
+
+  /**
+   * An attempt's pauses, oldest first, each with its end and duration derived with the server's now,
+   * and their sum (016/FR-021). The attempt is looked up by `(id, activity_id)` inside the teacher's
+   * class, so any other id is a 404. A read: nothing is written or audited.
+   */
+  async forAttempt(teacherId: string, classId: string, activityId: string, attemptId: string): Promise<AttemptPauses> {
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    const attempt = await this.prisma.activityAttempt.findFirst({
+      where: { id: attemptId, activityId, activity: { classId } },
+      select: {
+        activity: { select: { closedAt: true, cancelledAt: true } },
+        submission: { select: { submittedAt: true, acceptedById: true } },
+        pauses: {
+          orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+          select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
+        },
+      },
+    });
+    if (!attempt) throw notFound();
+    const context = {
+      acceptedAt: attempt.submission?.acceptedById ? attempt.submission.submittedAt : null,
+      activityEndedAt: attempt.activity.closedAt ?? attempt.activity.cancelledAt,
+    };
+    const now = this.clock.now();
+    const items = attempt.pauses.map((pause) => toTeacherPause(pause, context, now));
+    return { items, totalSecondsAway: items.reduce((sum, pause) => sum + pause.seconds, 0) };
   }
 }
 

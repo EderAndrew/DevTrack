@@ -88,6 +88,11 @@ export interface OpenPauseInput {
   startedAt: Date;
 }
 
+/** 016: one of the session student's own pauses after the submission, its end derived (FR-021). */
+export interface OwnPauseInput extends OpenPauseInput {
+  endedAt: Date | null;
+}
+
 export interface StudentActivityDetailInput extends StudentActivityInput {
   /** The AI helps delivered to the session student in this activity (015/FR-020). */
   aiHelpUsed: number;
@@ -95,6 +100,8 @@ export interface StudentActivityDetailInput extends StudentActivityInput {
   questions: ActivityQuestionRow[];
   /** 016: the open pause of the student's attempt, or null. */
   pause: OpenPauseInput | null;
+  /** 016: the own pauses, oldest first; the loader reads them only after the submission. */
+  pauses: OwnPauseInput[];
   attempt: { number: number; startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
   /** EXERCISE: the concluded attempts, newest first (013/FR-005). */
   completedAttempts: { number: number; completedAt: Date }[];
@@ -201,8 +208,17 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
       startedAt: input.pause.startedAt.toISOString(),
       endedAt: null,
     },
-    // 016: the own pauses after the submission arrive with US4 (T035).
-    pauses: [],
+    // 016/FR-021: the history of the own exits, only once submitted; never who released them.
+    pauses: input.submission
+      ? input.pauses.map((pause) => ({
+          id: pause.id,
+          initiatedBy: pause.initiatedBy,
+          reason: pause.reason,
+          note: pause.note,
+          startedAt: pause.startedAt.toISOString(),
+          endedAt: pause.endedAt?.toISOString() ?? null,
+        }))
+      : [],
   };
 }
 

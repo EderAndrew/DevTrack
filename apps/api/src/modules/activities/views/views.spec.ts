@@ -101,6 +101,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   completedAttempts: [],
   lastResult: null,
   pause: null,
+  pauses: [],
   submission: {
     submittedAt: new Date("2026-10-04T12:00:00.000Z"),
     late: false,
@@ -194,6 +195,24 @@ describe("012/FR-030 012/FR-032 visão do aluno por lista fechada (research P15)
     expect(view.attempt!.answers).toEqual([]);
     expect(serialized(view)).not.toMatch(/MARCADOR/);
     expect(StudentActivitySchema.safeParse(view).success).toBe(true);
+  });
+
+  it("016/FR-021 as próprias pausas aparecem só depois da entrega, copiadas campo a campo", () => {
+    const pause = {
+      id: id(9),
+      initiatedBy: "TEACHER" as const,
+      reason: "TEACHER" as const,
+      note: null,
+      startedAt: new Date("2026-10-05T11:50:00.000Z"),
+      endedAt: new Date("2026-10-05T11:55:00.000Z"),
+    };
+    const submitted = toStudentActivity(input({ pauses: [pause] }));
+    expect(submitted.pauses).toEqual([
+      { id: id(9), initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: "2026-10-05T11:50:00.000Z", endedAt: "2026-10-05T11:55:00.000Z" },
+    ]);
+    expect(StudentActivitySchema.safeParse(submitted).success).toBe(true);
+    const answering = toStudentActivity(input({ facts: facts({ submission: null, attempt: { status: "IN_PROGRESS" } }), submission: null, pauses: [pause] }));
+    expect(answering.pauses).toEqual([]);
   });
 
   it("o resumo são os primeiros 160 caracteres das instruções, sem quebras", () => {

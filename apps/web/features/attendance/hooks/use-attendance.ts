@@ -8,6 +8,7 @@ import { ATTENDANCE_POLL_MS } from "../schemas/attendance";
 /** Query keys: `["attendance", classId, activityId]`. */
 export const attendanceKeys = {
   room: (classId: string, activityId: string) => ["attendance", classId, activityId] as const,
+  attemptPauses: (classId: string, activityId: string, attemptId: string) => ["attendance", classId, activityId, "pauses", attemptId] as const,
 };
 
 /** The room of a `PRESENT_ONLY` work, polled while the page is visible (FR-020, research M8). */
@@ -35,6 +36,14 @@ export function useApplyAttendance(classId: string, activityId: string) {
     onError: () => void queryClient.invalidateQueries({ queryKey: attendanceKeys.room(classId, activityId) }),
   });
 }
+
+/** An attempt's pauses for the review (FR-021), only for a `PRESENT_ONLY` work. */
+export const useAttemptPauses = (classId: string, activityId: string, attemptId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: attendanceKeys.attemptPauses(classId, activityId, attemptId),
+    queryFn: () => pausesApi.ofAttempt(classId, activityId, attemptId),
+    enabled,
+  });
 
 /** "Liberar retorno" (FR-014): the room is read again, the student's notice follows on its next poll. */
 export function useReleasePause(classId: string, activityId: string) {

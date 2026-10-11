@@ -195,3 +195,38 @@ describe("015/US5 aluno vê as próprias ajudas e saídas na entrega", () => {
     expect(api.calls.some((call) => call.url.endsWith("/attempt/integrity"))).toBe(false);
   });
 });
+
+// 016/US4 — the student's own room exits in the delivery the history opens (FR-021).
+
+describe("016/US4 aluno vê as próprias saídas da sala na entrega", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const normal = { ...delivered, executionMode: "NORMAL" as const, aiHelp: { allowance: 0 as const, used: 0 } };
+  const withPauses = {
+    ...normal,
+    pauses: [
+      { id: "eeeeeeee-0000-4000-8000-000000000001", initiatedBy: "STUDENT" as const, reason: "WATER" as const, note: null, startedAt: "2026-10-02T11:10:00.000Z", endedAt: "2026-10-02T11:14:00.000Z" },
+      { id: "eeeeeeee-0000-4000-8000-000000000002", initiatedBy: "STUDENT" as const, reason: "OTHER" as const, note: "Fui buscar o carregador", startedAt: "2026-10-02T11:30:00.000Z", endedAt: "2026-10-02T11:32:30.000Z" },
+      { id: "eeeeeeee-0000-4000-8000-000000000003", initiatedBy: "TEACHER" as const, reason: "TEACHER" as const, note: null, startedAt: "2026-10-02T12:00:00.000Z", endedAt: null },
+    ],
+  };
+
+  it("016/US4-4 016/FR-021 o motivo, a saída, o retorno e a duração de cada pausa", async () => {
+    const { container } = openDelivery({ [ACTIVITY]: json(200, withPauses) });
+    const list = await screen.findByRole("list", { name: "Saídas da sala" });
+    expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      `Beber água: saída às ${formatTime("2026-10-02T11:10:00.000Z")}, retorno às ${formatTime("2026-10-02T11:14:00.000Z")} (4 min)`,
+      `Outro (Fui buscar o carregador): saída às ${formatTime("2026-10-02T11:30:00.000Z")}, retorno às ${formatTime("2026-10-02T11:32:30.000Z")} (2 min 30 s)`,
+      `Pausado pelo professor: saída às ${formatTime("2026-10-02T12:00:00.000Z")}, sem retorno registrado`,
+    ]);
+    expect(screen.getByRole("heading", { name: "Saídas da sala" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("016/US4-4 sem pausas, nada aparece; o aluno nunca vê a chamada da turma", async () => {
+    openDelivery({ [ACTIVITY]: json(200, normal) });
+    expect(await screen.findByRole("heading", { name: delivered.title })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Saídas da sala" })).toBeNull();
+    expect(screen.queryByText(/Presença|Ausente|Chamada/)).toBeNull();
+  });
+});

@@ -1,9 +1,11 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import type { TeacherPause } from "@repo/contracts";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
+import { formatTime } from "@/lib/messages/dates";
 import { feedbackFieldId, GENERAL_FEEDBACK_FIELD_ID, gradeFieldId } from "../schemas/attempt-grading";
 import { AttemptReview, GRADING_CONFLICT_NOTICE } from "./attempt-review";
 import { commentFieldId } from "../schemas/exercise-marks";
@@ -458,3 +460,68 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
   });
 });
 
+
+describe("016/US4 \"Saídas da sala\" na correção", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const PAUSES = `GET ${ATTEMPT_PATH}/pauses`;
+  const presentOnly = gradingActivity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } });
+  const pause = (overrides: Partial<TeacherPause>): TeacherPause => ({
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    initiatedBy: "STUDENT",
+    reason: "WATER",
+    note: null,
+    startedAt: "2026-10-02T13:10:00.000Z",
+    endedAt: "2026-10-02T13:14:00.000Z",
+    endedBy: "RELEASE",
+    seconds: 240,
+    ...overrides,
+  });
+  const pauses = {
+    items: [
+      pause({}),
+      pause({ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2", reason: "OTHER", note: "Fui buscar o carregador", startedAt: "2026-10-02T13:30:00.000Z", endedAt: "2026-10-02T13:33:00.000Z", seconds: 180 }),
+      pause({ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3", initiatedBy: "TEACHER", reason: "TEACHER", startedAt: "2026-10-02T13:50:00.000Z", endedAt: "2026-10-02T14:00:00.000Z", endedBy: "ACTIVITY_CLOSED", seconds: 600 }),
+    ],
+    totalSecondsAway: 1020,
+  };
+
+  it("016/US4-2 016/FR-021 cada pausa com motivo, texto, quem pausou, saída, retorno e duração; \"Encerrada com a atividade\"", async () => {
+    const { container } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, pauses) });
+    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+    const table = await within(section).findByRole("table");
+    const rows = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent));
+    expect(rows).toEqual([
+      ["Beber água", "Aluno", formatTime("2026-10-02T13:10:00.000Z"), formatTime("2026-10-02T13:14:00.000Z"), "4 min"],
+      ["Outro: Fui buscar o carregador", "Aluno", formatTime("2026-10-02T13:30:00.000Z"), formatTime("2026-10-02T13:33:00.000Z"), "3 min"],
+      ["Pausado pelo professor", "Professor", formatTime("2026-10-02T13:50:00.000Z"), "Encerrada com a atividade", "10 min"],
+    ]);
+    expect(within(section).getByText("Tempo total fora: 17 min")).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("016/US4-3 016/SC-008 as pausas são registro: nenhuma nota ou rótulo muda, e o formulário de nota é o mesmo", async () => {
+    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, pauses) });
+    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+    await within(section).findByRole("table");
+    expect(section.textContent).not.toMatch(/fraude|cola|viola|suspeit|desconto/i);
+    await screen.findByRole("form", { name: "Correção" });
+    expect(field(gradeFieldId(0)).value).toBe("0,50");
+  });
+
+  it("016/FR-021 sem pausas: \"Nenhuma saída da sala\"; erro com a mensagem; ALL_ENROLLED não consulta as pausas", async () => {
+    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, { items: [], totalSecondsAway: 0 }) });
+    expect(await screen.findByText("Nenhuma saída da sala nesta tentativa.")).toBeTruthy();
+    vi.unstubAllGlobals();
+    cleanup();
+    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: apiError(500, "INTERNAL_ERROR", "x") });
+    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+    expect(await within(section).findByRole("alert")).toBeTruthy();
+    vi.unstubAllGlobals();
+    cleanup();
+    const { api } = setup();
+    await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
+    expect(screen.queryByRole("region", { name: "Saídas da sala" })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/pauses"))).toBe(false);
+  });
+});

@@ -83,7 +83,7 @@ import { ClassRankingSchema } from "./ranking/index.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
 import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
-import { DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
+import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
@@ -1160,6 +1160,14 @@ export const endpoints = {
     params: ClassActivityPauseParamsSchema,
     body: EmptyBodySchema,
     response: TeacherPauseSchema,
+    status: 200,
+  },
+  /** 016/US4: "Saídas da sala" in the review, oldest first, with the derived durations (FR-021). */
+  "activities.attemptPauses": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses",
+    params: ClassActivityAttemptParamsSchema,
+    response: AttemptPausesSchema,
     status: 200,
   },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */

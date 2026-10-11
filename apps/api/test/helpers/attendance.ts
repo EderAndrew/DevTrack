@@ -57,3 +57,10 @@ export function getMyPause(client: ApiClient, activityId: string) {
 export function releasePause(client: ApiClient, classId: string, activityId: string, pauseId: string) {
   return client.post(`/api/classes/${classId}/activities/${activityId}/pauses/${pauseId}/release`, {});
 }
+
+// ── 016/US4: the pauses in the review (tasks T034–T035) ──────────────────────────────────────
+
+/** `GET …/attempts/:attemptId/pauses`: an attempt's room exits with their durations (016/FR-021). */
+export function getAttemptPauses(client: ApiClient, classId: string, activityId: string, attemptId: string) {
+  return client.get(`/api/classes/${classId}/activities/${activityId}/attempts/${attemptId}/pauses`);
+}

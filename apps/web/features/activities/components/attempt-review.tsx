@@ -61,6 +61,7 @@ import {
   AttemptHelpContext,
   IntegrityRecords,
   QuestionHelpRecords,
+  RoomExitRecords,
 } from "./attempt-records";
 import {
   formatGrade,
@@ -305,6 +306,11 @@ export function AttemptReview({
           activityId={activityId}
           attemptId={attempt.id}
         />
+      ) : null}
+
+      {/* 016/US4: the room exits of a work that takes attendance. */}
+      {!isExercise && activity.releaseMode === "PRESENT_ONLY" ? (
+        <RoomExitRecords classId={classId} activityId={activityId} attemptId={attempt.id} />
       ) : null}
 
       <AttemptHelpContext.Provider value={helpQuery.data?.items ?? null}>

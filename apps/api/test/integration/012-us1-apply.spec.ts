@@ -82,9 +82,11 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       resultReleasedAt: null,
       counts: { enrolled: 2, inProgress: 0, submitted: 0, submittedLate: 0, missed: 0, pendingGrading: 0 },
     });
+    // The create's view is read before any attendance: a work applied since 016 is PRESENT_ONLY, so
+    // the class is "Ausente" until the teacher marks it (016/FR-019).
     expect(activity.roster.map((entry) => [entry.enrollment, entry.status, entry.attemptId])).toEqual([
-      ["ACTIVE", "NOT_STARTED", null],
-      ["ACTIVE", "NOT_STARTED", null],
+      ["ACTIVE", "ABSENT", null],
+      ["ACTIVE", "ABSENT", null],
     ]);
     // 012/FR-002: questions, values, answer key, strategies, test cases and topics copied.
     expect(activity.questions.map((q) => [q.position, q.type, q.gradingStrategy, q.value])).toEqual([
