@@ -115,7 +115,7 @@ test.describe("012 portal do aluno", () => {
     await expect(page.getByRole("button", { name: "Entregar atividade" })).toHaveCount(0);
 
     // The teacher grades the two open answers and releases the result.
-    await teacherPage.goto(activityPath);
+    await teacherPage.goto(`${activityPath}?aba=alunos`);
     await teacherPage.getByRole("link", { name: seed.student.name }).click();
     await expect(teacherPage.getByRole("heading", { name: `Tentativa de ${seed.student.name}` })).toBeVisible();
     await expect(teacherPage.getByText("Corrigida automaticamente").first()).toBeVisible();

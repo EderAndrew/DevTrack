@@ -89,6 +89,7 @@ import {
   pendingMarksLabel,
   toMarkRequest,
 } from "../schemas/exercise-marks";
+import { activityTabHref } from "./activity-tabs";
 import { TextareaField } from "./form-fields";
 
 export const GRADING_CONFLICT_NOTICE =
@@ -187,7 +188,7 @@ export function AttemptReview({
     <section aria-labelledby="tentativa-titulo" className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="m-0">
-          <Link href={`/turmas/${classId}/atividades/${activityId}`}>
+          <Link href={activityTabHref(classId, activityId, "alunos")}>
             Voltar para {activity.title}
           </Link>
         </p>

@@ -6,6 +6,7 @@ import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { formatTime } from "@/lib/messages/dates";
 import { ActivityDetail, EDIT_FIELD_IDS, VERSION_CONFLICT_NOTICE } from "./activity-detail";
+import type { ActivityTab } from "./activity-tabs";
 import {
   ACTIVITY_ID,
   ATTEMPT_ID,
@@ -22,15 +23,17 @@ import {
 
 const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
+/** Opens a tab of the activity's page by its label. */
+const openTab = async (user: ReturnType<typeof userEvent.setup>, name: string) => user.click(await screen.findByRole("tab", { name }));
 
-function setup(routes: Parameters<typeof routedFetch>[0] = {}, canApply = true, canRelease = false) {
+function setup(routes: Parameters<typeof routedFetch>[0] = {}, canApply = true, canRelease = false, tab?: ActivityTab) {
   const api = routedFetch({
     [`GET ${PATH}`]: json(200, activity()),
     "GET /api/work-help/availability": json(200, { available: true, reason: null }),
     ...routes,
   });
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply={canApply} canRelease={canRelease} />);
+  const view = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply={canApply} canRelease={canRelease} initialTab={tab} />);
   return { ...view, api, user: userEvent.setup() };
 }
 
@@ -38,13 +41,15 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
   afterEach(() => vi.unstubAllGlobals());
 
   it("012/US1-8 mostra os dados, a regra de atraso, o gabarito e a situação de cada aluno em palavras", async () => {
-    setup();
+    const { user } = setup();
     expect(await screen.findByRole("heading", { name: "Lista de herança" })).toBeTruthy();
     expect(screen.getByText("Publicada")).toBeTruthy();
     expect(screen.getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    await openTab(user, "Alunos");
     expect(screen.getByText("Entregas: 12 de 30")).toBeTruthy();
     const roster = screen.getByRole("table", { name: /Situação de cada aluno/ });
     expect(within(roster).getByText("Não iniciou")).toBeTruthy();
+    await openTab(user, "Questões e gabarito");
     const questions = screen.getByRole("region", { name: "Questões e gabarito" });
     expect(within(questions).getByText("(correta)").parentElement!.textContent).toBe("extends (correta)");
     expect(within(questions).getByText("Vale 1,00")).toBeTruthy();
@@ -144,7 +149,7 @@ describe("012/US5 ActivityDetail — alunos e liberação do resultado", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("012/FR-006 cada aluno com tentativa leva à tentativa; nota parcial aparece como Correção pendente", async () => {
-    setup({ [`GET ${PATH}`]: json(200, gradingActivity()) });
+    const { user } = setup({ [`GET ${PATH}`]: json(200, gradingActivity()) }, true, false, "alunos");
     const roster = await screen.findByRole("table", { name: /Situação de cada aluno/ });
     expect(within(roster).getByText("Ana Souza").closest("a")).toBeNull();
     expect(within(roster).getByRole("link", { name: "Bruno Lima" }).getAttribute("href")).toBe(
@@ -152,6 +157,7 @@ describe("012/US5 ActivityDetail — alunos e liberação do resultado", () => {
     );
     expect(within(roster).getByText("Correção pendente")).toBeTruthy();
     expect(within(roster).getByText("Não entregou")).toBeTruthy();
+    await openTab(user, "Informações");
     expect(screen.getByText("Ainda não liberado")).toBeTruthy();
   });
 
@@ -180,7 +186,7 @@ describe("013/US1 ActivityDetail — Exercício com pontos, sem nota, prazo nem 
   afterEach(() => vi.unstubAllGlobals());
 
   it("013/FR-003 mostra o nível e os pontos de cada exercício e o total; nada de prazo, regra, nota ou resultado", async () => {
-    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) }, true, true);
+    const { user } = setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) }, true, true);
     expect(await screen.findByRole("heading", { name: "Lista de prática" })).toBeTruthy();
     expect(screen.getByText("105 pontos", { selector: "dd" })).toBeTruthy();
     for (const term of ["Prazo", "Entrega atrasada", "Nota total", "Resultado"]) {
@@ -188,6 +194,7 @@ describe("013/US1 ActivityDetail — Exercício com pontos, sem nota, prazo nem 
     }
     expect(screen.queryByRole("button", { name: "Liberar resultado" })).toBeNull();
 
+    await openTab(user, "Questões e gabarito");
     const questions = screen.getByRole("region", { name: "Questões e gabarito" });
     expect(within(questions).getByText("Básico")).toBeTruthy();
     expect(within(questions).getByText("Vale 15 pontos")).toBeTruthy();
@@ -216,7 +223,7 @@ describe("013/US1 ActivityDetail — Exercício com pontos, sem nota, prazo nem 
   });
 
   it("013/FR-016 a turma do Exercício: quem concluiu, pontos e respostas aguardando correção, sem nota", async () => {
-    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) });
+    setup({ [`GET ${PATH}`]: json(200, exerciseActivity()) }, true, false, "alunos");
     expect(await screen.findByText("Concluíram: 12 de 30")).toBeTruthy();
     const roster = screen.getByRole("table", { name: /Situação de cada aluno/ });
     expect(within(roster).queryByRole("columnheader", { name: "Nota" })).toBeNull();
@@ -256,7 +263,7 @@ describe("014/US2 ActivityDetail — gabarito com o código colorido", () => {
     const base = markingActivity();
     const java = { id: "00000000-0000-4000-a000-000000000001", name: "Java", highlight: "java" };
     const withJava = { ...base, questions: base.questions.map((question) => (question.id === MARK_CODE_ID ? { ...question, language: java } : question)) };
-    const { container } = setup({ [`GET ${PATH}`]: json(200, withJava) }, true, true);
+    const { container } = setup({ [`GET ${PATH}`]: json(200, withJava) }, true, true, "questoes");
     const questions = await screen.findByRole("region", { name: "Questões e gabarito" });
     const starter = within(questions).getByRole("group", { name: "Código inicial" });
     const solution = within(questions).getByRole("group", { name: "Solução esperada" });
@@ -393,7 +400,7 @@ describe("015/US4 colunas do modo controlado e das ajudas na lista de alunos", (
   };
 
   it("015/US4-1 015/FR-024 saídas com tempo fora, quedas, bloqueios, tela cheia indisponível e \"2 de 3\" ajudas", async () => {
-    const { container } = setup({ [`GET ${PATH}`]: json(200, started), [`GET ${PATH}/integrity`]: json(200, summary) });
+    const { container } = setup({ [`GET ${PATH}`]: json(200, started), [`GET ${PATH}/integrity`]: json(200, summary) }, true, false, "alunos");
     const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
     for (const header of ["Saídas da tela", "Quedas de conexão", "Copiar/colar bloqueados", "Ajudas"]) {
       expect(within(table).getByRole("columnheader", { name: header })).toBeTruthy();
@@ -407,7 +414,7 @@ describe("015/US4 colunas do modo controlado e das ajudas na lista de alunos", (
   });
 
   it("trabalho NORMAL sem ajuda: nenhuma coluna nova e nada consultado", async () => {
-    const { api } = setup();
+    const { api } = setup({}, true, false, "alunos");
     const table = await screen.findByRole("table", { name: "Situação de cada aluno nesta atividade." });
     expect(within(table).queryByRole("columnheader", { name: "Saídas da tela" })).toBeNull();
     expect(within(table).queryByRole("columnheader", { name: "Ajudas" })).toBeNull();
@@ -429,7 +436,8 @@ describe("016/US1 ActivityDetail — chamada de um Trabalho PRESENT_ONLY", () =>
       [ROOM_PATH]: json(200, room),
     });
     vi.stubGlobal("fetch", api.fetch);
-    const { container } = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply canTakeAttendance />);
+    const { container } = renderWithProviders(<ActivityDetail classId={CLASS_ID} activityId={ACTIVITY_ID} canApply canTakeAttendance initialTab="alunos" />);
+    expect((await screen.findByRole("tab", { name: "Chamada e alunos" })).getAttribute("aria-selected")).toBe("true");
     const section = await screen.findByRole("region", { name: "Chamada" });
     expect(await within(section).findByRole("checkbox", { name: "Ana Souza" })).toBeTruthy();
     expect(screen.getAllByText("Aguardando chamada").length).toBeGreaterThan(0);
@@ -437,8 +445,8 @@ describe("016/US1 ActivityDetail — chamada de um Trabalho PRESENT_ONLY", () =>
   });
 
   it("016/FR-007 sem chamada.registrar, ou num trabalho ALL_ENROLLED, não há seção Chamada nem leitura da sala", async () => {
-    const { api } = setup();
-    await screen.findByRole("heading", { name: "Lista de herança" });
+    const { api } = setup({}, true, false, "alunos");
+    await screen.findByRole("table", { name: /Situação de cada aluno/ });
     expect(screen.queryByRole("region", { name: "Chamada" })).toBeNull();
     expect(api.calls.some((call) => call.url.endsWith("/attendance"))).toBe(false);
   });
@@ -480,7 +488,7 @@ describe("016/US4 ActivityDetail — presença e pausas na lista de alunos", () 
   const cells = (name: string) => within(rowOf(name)).getAllByRole("cell").map((cell) => cell.textContent);
 
   it("016/US4-1 016/FR-019 \"Ausente\" separado de \"Não entregou\", com as colunas Presença e Pausas", async () => {
-    const { container } = setup({ [`GET ${PATH}`]: json(200, presentOnly) });
+    const { container } = setup({ [`GET ${PATH}`]: json(200, presentOnly) }, true, false, "alunos");
     await screen.findByRole("heading", { name: "Lista de herança" });
     const table = screen.getByRole("table", { name: /Situação de cada aluno/ });
     expect(within(table).getByRole("columnheader", { name: "Presença" })).toBeTruthy();
@@ -491,7 +499,7 @@ describe("016/US4 ActivityDetail — presença e pausas na lista de alunos", () 
   });
 
   it("016/US4-2 016/FR-019 o horário da presença, o número de pausas e o tempo fora; \"Fora da sala\" com a pausa aberta", async () => {
-    setup({ [`GET ${PATH}`]: json(200, presentOnly) });
+    setup({ [`GET ${PATH}`]: json(200, presentOnly) }, true, false, "alunos");
     await screen.findByRole("heading", { name: "Lista de herança" });
     const marked = formatTime(MARKED_AT);
     expect(cells("Bruno Lima").slice(4)).toEqual([marked, "2 (7 min fora)"]);
@@ -499,10 +507,60 @@ describe("016/US4 ActivityDetail — presença e pausas na lista de alunos", () 
   });
 
   it("016/FR-019 um trabalho ALL_ENROLLED não mostra Presença nem Pausas", async () => {
-    setup();
+    setup({}, true, false, "alunos");
     await screen.findByRole("heading", { name: "Lista de herança" });
     const table = screen.getByRole("table", { name: /Situação de cada aluno/ });
     expect(within(table).queryByRole("columnheader", { name: "Presença" })).toBeNull();
     expect(within(table).queryByRole("columnheader", { name: "Pausas" })).toBeNull();
+  });
+});
+
+// Amendment 2026-10-11 (012 contracts/web-ui.md): the activity's page in three tabs.
+describe("ActivityDetail — abas Informações, Alunos e Questões e gabarito", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("abre em Informações com os dados e a edição; ações e situação ficam acima das abas", async () => {
+    setup();
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Informações", "Alunos", "Questões e gabarito"]);
+    expect(screen.getByRole("tab", { name: "Informações" }).getAttribute("aria-selected")).toBe("true");
+    const panel = screen.getByRole("tabpanel", { name: "Informações" });
+    expect(within(panel).getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    expect(within(panel).getByRole("form", { name: "Editar atividade" })).toBeTruthy();
+    expect(within(panel).queryByRole("table")).toBeNull();
+    // The actions stay reachable from every tab.
+    expect(within(panel).queryByRole("button", { name: "Encerrar atividade" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Encerrar atividade" })).toBeTruthy();
+  });
+
+  it("as setas trocam de aba e a aba escolhida vai para ?aba=", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("tab", { name: "Informações" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Alunos" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("table", { name: /Situação de cada aluno/ })).toBeTruthy();
+    expect(new URL(window.location.href).searchParams.get("aba")).toBe("alunos");
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("region", { name: "Questões e gabarito" })).toBeTruthy();
+    expect(new URL(window.location.href).searchParams.get("aba")).toBe("questoes");
+  });
+
+  it("016: um trabalho com chamada chama a aba de \"Chamada e alunos\"", async () => {
+    setup({ [`GET ${PATH}`]: json(200, activity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } })) });
+    expect(await screen.findByRole("tab", { name: "Chamada e alunos" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Alunos" })).toBeNull();
+  });
+
+  it("sem violações de acessibilidade em cada aba", async () => {
+    const { user, container } = setup({}, true, false);
+    await screen.findByRole("form", { name: "Editar atividade" });
+    await expectNoA11yViolations(container);
+    for (const name of ["Alunos", "Questões e gabarito"]) {
+      await openTab(user, name);
+      await expectNoA11yViolations(container);
+    }
   });
 });

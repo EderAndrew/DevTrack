@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
 import { attendanceSummary, OUT_OF_ROOM, PAUSES_COLUMN, PRESENCE_COLUMN } from "@/features/attendance/schemas/attendance";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
@@ -45,6 +46,7 @@ import {
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
 import { ActivityQuestions } from "./activity-questions";
+import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
 import { WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
@@ -76,6 +78,8 @@ export interface ActivityDetailProps {
   canRelease?: boolean;
   /** `chamada.registrar`: the "Chamada" of a `PRESENT_ONLY` work (016). */
   canTakeAttendance?: boolean;
+  /** The tab `?aba=` opens (default "informacoes"). */
+  initialTab?: ActivityTab;
 }
 
 /**
@@ -86,12 +90,33 @@ export interface ActivityDetailProps {
  * atividade", "Liberar resultado" (confirmation with the submissions still pending) and "Cancelar
  * atividade" (danger, explicit text and confirmation), and the "Chamada" of a `PRESENT_ONLY` work
  * (016). Another tab's change reloads it with a notice.
+ *
+ * The title, the situation, the notices and the actions stay above three tabs (amendment 2026-10-11):
+ * "Informações" (the data and the edit), "Alunos" — "Chamada e alunos" when the work takes attendance —
+ * (the "Chamada" and the roster) and "Questões e gabarito". The active one is kept in `?aba=`, so a reload
+ * or the way back from an attempt opens it again.
  */
-export function ActivityDetail({ classId, activityId, canApply, canRelease = false, canTakeAttendance = false }: ActivityDetailProps) {
+export function ActivityDetail({
+  classId,
+  activityId,
+  canApply,
+  canRelease = false,
+  canTakeAttendance = false,
+  initialTab = "informacoes",
+}: ActivityDetailProps) {
   const query = useActivity(classId, activityId);
   const actions = useActivityActions(classId, activityId);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<ActivityTab>(initialTab);
+
+  const changeTab = (value: string) => {
+    if (!isActivityTab(value)) return;
+    setTab(value);
+    const url = new URL(window.location.href);
+    url.searchParams.set("aba", value);
+    window.history.replaceState(window.history.state, "", url);
+  };
 
   if (query.isError) return <p role="alert">{messageForError(query.error)}</p>;
   if (!query.data) {
@@ -148,23 +173,6 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
         <ActivitySituation status={activity.status} phase={activity.phase} />
         <WorkOptionBadges activity={activity} />
         {activity.attendance ? <p className="m-0">{attendanceSummary(activity.attendance)}</p> : null}
-        <dl className="m-0 grid gap-2">
-          <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
-          <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
-          {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
-          {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
-          {activity.totalGrade ? <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item> : null}
-          {activity.possiblePoints !== null ? <Item term="Pontos possíveis">{formatPoints(activity.possiblePoints)}</Item> : null}
-          {activity.outOfScopeTopicCount > 0 ? (
-            <Item term="Tópicos ainda não concluídos, confirmados ao aplicar">{activity.outOfScopeTopicCount}</Item>
-          ) : null}
-          {activity.instructions ? <Item term="Instruções">{activity.instructions}</Item> : null}
-          {isExercise ? null : (
-            <Item term="Resultado">
-              {activity.resultReleasedAt ? `Liberado em ${formatLongDateTime(activity.resultReleasedAt)}` : "Ainda não liberado"}
-            </Item>
-          )}
-        </dl>
         <div className="flex flex-wrap gap-2">
           {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
           {/* An Exercício scores points as soon as they are known: there is no result to release (013 K14). */}
@@ -172,17 +180,51 @@ export function ActivityDetail({ classId, activityId, canApply, canRelease = fal
         </div>
       </div>
 
-      {canApply && activity.status === "ACTIVE" ? (
-        // Keyed by version: a save or another tab's change loads the activity again.
-        <ActivityEditForm key={activity.version} activity={activity} onSave={save} />
-      ) : null}
+      <Tabs value={tab} onValueChange={changeTab} className="gap-6">
+        <TabsList aria-label="Seções da atividade">
+          {Object.entries(ACTIVITY_TABS).map(([value, label]) => (
+            <TabsTrigger key={value} value={value}>
+              {value === "alunos" && activity.releaseMode === "PRESENT_ONLY" ? ATTENDANCE_AND_STUDENTS : label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {/* 016: the attendance releases the work to each student marked present (FR-003). */}
-      {canTakeAttendance && activity.releaseMode === "PRESENT_ONLY" && activity.status === "ACTIVE" ? (
-        <AttendanceTab classId={classId} activityId={activity.id} />
-      ) : null}
-      <Roster classId={classId} activity={activity} />
-      <ActivityQuestions questions={activity.questions} />
+        <TabsContent value="informacoes" className="flex flex-col gap-6">
+          <dl className="m-0 grid gap-2">
+            <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
+            <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
+            {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
+            {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
+            {activity.totalGrade ? <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item> : null}
+            {activity.possiblePoints !== null ? <Item term="Pontos possíveis">{formatPoints(activity.possiblePoints)}</Item> : null}
+            {activity.outOfScopeTopicCount > 0 ? (
+              <Item term="Tópicos ainda não concluídos, confirmados ao aplicar">{activity.outOfScopeTopicCount}</Item>
+            ) : null}
+            {activity.instructions ? <Item term="Instruções">{activity.instructions}</Item> : null}
+            {isExercise ? null : (
+              <Item term="Resultado">
+                {activity.resultReleasedAt ? `Liberado em ${formatLongDateTime(activity.resultReleasedAt)}` : "Ainda não liberado"}
+              </Item>
+            )}
+          </dl>
+          {canApply && activity.status === "ACTIVE" ? (
+            // Keyed by version: a save or another tab's change loads the activity again.
+            <ActivityEditForm key={activity.version} activity={activity} onSave={save} />
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="alunos" className="flex flex-col gap-6">
+          {/* 016: the attendance releases the work to each student marked present (FR-003). */}
+          {canTakeAttendance && activity.releaseMode === "PRESENT_ONLY" && activity.status === "ACTIVE" ? (
+            <AttendanceTab classId={classId} activityId={activity.id} />
+          ) : null}
+          <Roster classId={classId} activity={activity} />
+        </TabsContent>
+
+        <TabsContent value="questoes">
+          <ActivityQuestions questions={activity.questions} />
+        </TabsContent>
+      </Tabs>
     </section>
   );
 }

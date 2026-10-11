@@ -93,7 +93,7 @@ test.describe("016 chamada e liberação do trabalho aos presentes", () => {
     const teacherPage = await (await browser.newContext()).newPage();
     await logIn(teacherPage, seed.teacher, "/disciplinas");
     const activityId = await applyWork(teacherPage, seed, seed.classId, title);
-    await teacherPage.goto(`/turmas/${seed.classId}/atividades/${activityId}`);
+    await teacherPage.goto(`/turmas/${seed.classId}/atividades/${activityId}?aba=alunos`);
     const attendance = teacherPage.getByRole("region", { name: "Chamada", exact: true });
     await expect(attendance.getByText("Aguardando chamada")).toBeVisible();
 
@@ -163,7 +163,7 @@ test.describe("016 chamada e liberação do trabalho aos presentes", () => {
     await logIn(teacherPage, seed.teacher, "/disciplinas");
     const activityId = await applyWork(teacherPage, seed, seed.classId, title);
     await markAllPresentThroughApi(teacherPage, seed.classId, activityId);
-    await teacherPage.goto(`/turmas/${seed.classId}/atividades/${activityId}`);
+    await teacherPage.goto(`/turmas/${seed.classId}/atividades/${activityId}?aba=alunos`);
     const attendance = teacherPage.getByRole("region", { name: "Chamada", exact: true });
 
     const page = await (await browser.newContext({ ...devices["Pixel 7"] })).newPage();
@@ -203,7 +203,7 @@ test.describe("016 chamada e liberação do trabalho aos presentes", () => {
     const accounts = Array.from({ length: 40 }, (_, i) => newAccount(`chamada-40-${i}`, `Aluno ${String(i + 1).padStart(2, "0")} ${suffix}`));
     await enrollStudents(browser, teacherPage, big.id, accounts);
     const activityId = await applyWork(teacherPage, seed, big.id, `Trabalho da turma de 40 ${suffix}`);
-    await teacherPage.goto(`/turmas/${big.id}/atividades/${activityId}`);
+    await teacherPage.goto(`/turmas/${big.id}/atividades/${activityId}?aba=alunos`);
     const attendance = teacherPage.getByRole("region", { name: "Chamada", exact: true });
     await expect(attendance.getByText("Aguardando chamada")).toBeVisible();
 
