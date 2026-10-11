@@ -23,6 +23,11 @@ export interface AttemptAnswers {
   setAnswer: (questionId: string, answer: Answer) => void;
   /** Sends the dirty answers now (question change, leaving the page). */
   flush: () => void;
+  /**
+   * 016 "Sair da sala" (FR-012): sends the dirty answers and resolves once no save is in flight. A
+   * failed save keeps them in this browser, as any other (012 FR-019).
+   */
+  flushNow: () => Promise<void>;
   /** "Tentar novamente": sends the content on screen again. */
   retry: () => void;
   saveState: SaveState;
@@ -71,6 +76,8 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
   const [view, setView] = useState(() => viewOf(initial));
   const render = useCallback(() => setView(viewOf(state.current)), []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** `flushNow` callers waiting for the saves in flight to end. */
+  const waiters = useRef<(() => void)[]>([]);
 
   const persist = useCallback(() => {
     const current = state.current;
@@ -128,6 +135,7 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
       persist();
       render();
       if (current.again && current.dirty.size > 0 && current.error === null) void save();
+      else for (const settled of waiters.current.splice(0)) settled();
     }
   }, [activityId, enabled, persist, render]);
 
@@ -147,6 +155,10 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
   );
 
   const flush = useCallback(() => void save(), [save]);
+  const flushNow = useCallback(async () => {
+    await save();
+    if (state.current.saving) await new Promise<void>((resolve) => waiters.current.push(resolve));
+  }, [save]);
 
   useEffect(() => {
     // Replays what this browser kept from an earlier visit (reload, closed tab, offline).
@@ -178,6 +190,7 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
     answerOf: (questionId) => view.answers.get(questionId) ?? null,
     setAnswer,
     flush,
+    flushNow,
     retry: flush,
     saveState: view.saveState,
     offline: view.offline,

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createActivity, type CreatedActivity, startAttempt } from "../helpers/activities";
-import { markPresent, unmark } from "../helpers/attendance";
+import { createActivity, type CreatedActivity, saveAnswers, startAttempt, submitAttempt } from "../helpers/activities";
+import { declareExit, markPresent, releasePause, unmark } from "../helpers/attendance";
 import { DAY, FixedClock } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
@@ -15,9 +15,12 @@ const ROUNDS = 8;
  * student leave one presence and one `attendance.marked`; an unmark racing the student's start ends
  * either with the attempt and the presence (the unmark refused with `409 ATTENDANCE_STARTED`) or with
  * neither (the start answered 404, as for any student not released) — never an attempt without a
- * presence, and never a 500. The pause part of SC-007 joins with US3.
+ * presence, and never a 500. The pause part (US3, research M6, M7): ten simultaneous exits leave one
+ * open pause; a save or a submit racing an exit is serialized by the attempt's row lock, so what
+ * reaches it before the pause is accepted and what comes after is `409 ATTEMPT_PAUSED` — never a
+ * submission from PAUSED; two releases end the pause once and never touch the next one.
  */
-describe("016/SC-007 concorrência da chamada", () => {
+describe("016/SC-007 concorrência da chamada e da pausa", () => {
   let t: TestApp;
   let clock: FixedClock;
   let teacher: TestUser;
@@ -77,6 +80,90 @@ describe("016/SC-007 concorrência da chamada", () => {
       }
     }
     expect(outcomes.size).toBeGreaterThan(0);
+  });
+
+  /** A work with one open answer, the student marked present and started. */
+  const answering = async (): Promise<CreatedActivity> => {
+    const created = await work();
+    expect((await markPresent(teacherClient, schoolClass.id, created.activity.id, [student.id])).status).toBe(200);
+    expect((await startAttempt(studentClient, created.activity.id)).status).toBe(200);
+    return created;
+  };
+  const textAnswer = (created: CreatedActivity, text: string, baseRevision = 0) => [
+    { questionId: created.questionIds[0]!, answer: { kind: "TEXT" as const, text }, baseRevision },
+  ];
+  const openPauses = (activityId: string) => t.prisma.attemptPause.count({ where: { activityId, releasedAt: null } });
+
+  it("016/SC-007 016/US3-8 10 declarações de saída simultâneas → uma pausa aberta, um attempt_pause.started; uma 201 e as demais 200 com a mesma", async () => {
+    const { activity } = await answering();
+    const responses = await Promise.all(Array.from({ length: PARALLEL }, () => declareExit(studentClient, activity.id, { reason: "WATER" })));
+    expect(responses.map((res) => res.status).sort((a, b) => b - a)).toEqual([201, ...Array(PARALLEL - 1).fill(200)]);
+    expect(new Set(responses.map((res) => res.body.id)).size).toBe(1);
+    expect(await openPauses(activity.id)).toBe(1);
+    expect(await t.prisma.auditEvent.count({ where: { type: "attempt_pause.started" } })).toBe(1);
+  });
+
+  it("016/SC-007 016/US3-9 salvar × pausar: o salvamento antes da pausa fica gravado, o depois é 409 ATTEMPT_PAUSED sem gravar nada", async () => {
+    const outcomes = new Set<string>();
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const created = await answering();
+      const [saved, paused] = await Promise.all([
+        saveAnswers(studentClient, created.activity.id, textAnswer(created, `rodada ${round}`)),
+        declareExit(studentClient, created.activity.id, { reason: "PHONE" }),
+      ]);
+      expect(paused.status).toBe(201);
+      const stored = await t.prisma.activityAnswer.count({ where: { activityId: created.activity.id } });
+      if (saved.status === 200) {
+        expect(stored).toBe(1);
+        outcomes.add("saved");
+      } else {
+        expect({ status: saved.status, code: saved.body.code, stored }).toEqual({ status: 409, code: "ATTEMPT_PAUSED", stored: 0 });
+        outcomes.add("refused");
+      }
+      expect(await openPauses(created.activity.id)).toBe(1);
+    }
+    expect(outcomes.size).toBeGreaterThan(0);
+  });
+
+  it("016/SC-007 016/US3-9 entregar × pausar: ou entregue sem pausa, ou pausada sem entrega; nunca entrega a partir de PAUSADA", async () => {
+    const outcomes = new Set<string>();
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const created = await answering();
+      const [submitted, paused] = await Promise.all([
+        submitAttempt(studentClient, created.activity.id, textAnswer(created, `entrega ${round}`)),
+        declareExit(studentClient, created.activity.id, { reason: "BATHROOM" }),
+      ]);
+      const state = {
+        submissions: await t.prisma.activitySubmission.count({ where: { activityId: created.activity.id } }),
+        pauses: await t.prisma.attemptPause.count({ where: { activityId: created.activity.id } }),
+      };
+      if (submitted.status === 200) {
+        expect({ pause: paused.body.code, ...state }).toEqual({ pause: "ATTEMPT_ALREADY_SUBMITTED", submissions: 1, pauses: 0 });
+        outcomes.add("submitted");
+      } else {
+        expect({ submit: submitted.body.code, pause: paused.status, ...state }).toEqual({ submit: "ATTEMPT_PAUSED", pause: 201, submissions: 0, pauses: 1 });
+        outcomes.add("paused");
+      }
+    }
+    expect(outcomes.size).toBeGreaterThan(0);
+  });
+
+  it("016/SC-007 016/US3-8 liberar duas vezes ao mesmo tempo encerra a pausa uma vez; uma liberação atrasada não toca a pausa seguinte", async () => {
+    const { activity } = await answering();
+    const first = await declareExit(studentClient, activity.id, { reason: "WATER" });
+    const releases = await Promise.all(Array.from({ length: PARALLEL }, () => releasePause(teacherClient, schoolClass.id, activity.id, first.body.id)));
+    expect(releases.map((res) => res.status)).toEqual(Array(PARALLEL).fill(200));
+    expect(new Set(releases.map((res) => res.body.endedAt)).size).toBe(1);
+    expect(await t.prisma.auditEvent.count({ where: { type: "attempt_pause.released" } })).toBe(1);
+    const next = await declareExit(studentClient, activity.id, { reason: "PHONE" });
+    expect(next.status).toBe(201);
+    const late = await Promise.all([
+      releasePause(teacherClient, schoolClass.id, activity.id, first.body.id),
+      releasePause(teacherClient, schoolClass.id, activity.id, first.body.id),
+    ]);
+    expect(late.map((res) => res.status)).toEqual([200, 200]);
+    expect((await t.prisma.attemptPause.findUniqueOrThrow({ where: { id: next.body.id } })).releasedAt).toBeNull();
+    expect(await openPauses(activity.id)).toBe(1);
   });
 
   it("016/SC-007 o início que leu a presença antes de a desmarcação travá-la espera e responde 404, sem tentativa e sem 500", async () => {

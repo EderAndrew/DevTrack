@@ -78,9 +78,12 @@ class TypingRefused extends Error {
   }
 }
 
-/** A rule refusal (409) of a start, save or submit, audited after the rollback (contracts/audit-events.md). */
+/**
+ * A rule refusal (409) of a start, save or submit, audited after the rollback (contracts/audit-events.md);
+ * since 016 also a save or submit of a paused attempt (`ATTEMPT_PAUSED`, research M6).
+ */
 class Refused extends Error {
-  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE") {
+  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE" | "ATTEMPT_PAUSED") {
     super(code);
   }
 }
@@ -144,6 +147,7 @@ export class AttemptsService {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
+      await assertNotPaused(tx, context, attempt);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       const attemptId = attempt!.id;
@@ -168,6 +172,7 @@ export class AttemptsService {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
+      await assertNotPaused(tx, context, attempt);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("SUBMIT", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
@@ -433,6 +438,18 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
     if (presence.length === 0) throw new OutOfContext();
   }
   return context;
+}
+
+/**
+ * 016/FR-013 (research M6): a save or submit of a paused attempt — IN_PROGRESS with a pause not
+ * released while the activity is ACTIVE — is refused. Read after the attempt's `FOR UPDATE`, which the
+ * pause also takes: whatever reached the lock before the pause committed was accepted (US3-9).
+ */
+async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow | null): Promise<void> {
+  if (context.release_mode !== "PRESENT_ONLY" || context.status !== "ACTIVE" || attempt?.status !== "IN_PROGRESS") return;
+  const open = await tx.$queryRaw<unknown[]>`
+    SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`;
+  if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
 }
 
 /**

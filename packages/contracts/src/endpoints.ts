@@ -83,6 +83,7 @@ import { ClassRankingSchema } from "./ranking/index.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
 import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
+import { DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
@@ -229,6 +230,10 @@ export type ClassActivityParams = z.infer<typeof ClassActivityParamsSchema>;
 /** A student's attempt under its activity (012). */
 export const ClassActivityAttemptParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, attemptId: UuidSchema });
 export type ClassActivityAttemptParams = z.infer<typeof ClassActivityAttemptParamsSchema>;
+
+/** One room exit of an activity of the teacher's class (016 research M7: a release is keyed by pause). */
+export const ClassActivityPauseParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, pauseId: UuidSchema });
+export type ClassActivityPauseParams = z.infer<typeof ClassActivityPauseParamsSchema>;
 
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
@@ -1148,6 +1153,15 @@ export const endpoints = {
     response: RoomSchema,
     status: 200,
   },
+  /** 016/US3: the teacher releases the return; an already released pause → 200 unchanged; closed → 409. */
+  "activities.releasePause": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/pauses/:pauseId/release",
+    params: ClassActivityPauseParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherPauseSchema,
+    status: 200,
+  },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */
   "activities.gradeAttempt": {
     method: "PUT",
@@ -1275,6 +1289,24 @@ export const endpoints = {
     path: "/me/activities/:activityId/attempt/help",
     params: MyActivityParamsSchema,
     response: StudentHelpStateSchema,
+    status: 200,
+  },
+  // 016/US3 — "Sair da sala" (research M6, M8).
+  /** 201 for a new pause of the own open attempt; 200 with the same pause when one is already open. */
+  "myActivities.declareExit": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/pause",
+    params: MyActivityParamsSchema,
+    body: DeclareExitSchema,
+    response: StudentPauseSchema,
+    status: 201,
+  },
+  /** The open pause of the own attempt, or null; polled by the answering page. */
+  "myActivities.pause": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/pause",
+    params: MyActivityParamsSchema,
+    response: MyPauseSchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

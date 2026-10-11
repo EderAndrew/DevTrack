@@ -14,7 +14,7 @@ import { assignmentSchedule } from "../activities/status/facts";
 import { decideOperation } from "../activities/status/operations";
 import { AiExecutionsService } from "../ai/execution/ai-executions.service";
 import { AuditService } from "../audit/audit.service";
-import { type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
+import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { WORK_HELPER_KEY } from "./definitions/work-helper";
 import { reconcileHelpRequests } from "./help/reconcile";
 import { WORK_HELP_REQUEST } from "./definitions/request-content";
@@ -76,6 +76,7 @@ export class WorkHelpService {
     } catch (error) {
       if (error instanceof SameKey) return { item: await this.replay(error.requestId, body), created: false };
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, requestId);
+      if (error instanceof AttemptPaused) return this.pausedRefusal(studentUserId, activityId, error, requestId);
       throw error;
     }
     await this.assertRate(studentUserId, requestId);
@@ -132,6 +133,7 @@ export class WorkHelpService {
       if (error instanceof AppException && UNAVAILABLE.has(error.code)) throw new AppException("AI_HELP_UNAVAILABLE");
       if (error instanceof SameKey) return { item: await this.replay(error.requestId, body), created: false };
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, requestId);
+      if (error instanceof AttemptPaused) return this.pausedRefusal(studentUserId, activityId, error, requestId);
       // A concurrent request of the same attempt won the one pending slot, or the same key won.
       if (isUniqueViolation(error)) {
         const winner = await this.findByKey(studentUserId, activityId, body.idempotencyKey);
@@ -181,6 +183,8 @@ export class WorkHelpService {
     const attempt = context.attempt;
     if (!attempt) throw new AppException("NOT_STARTED");
     if (attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
+    // 016/FR-013: no new request while the student is out of the room; one pending from before still resolves.
+    if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
     const outcome = decideOperation("SAVE", factsOf(context, now));
     if (outcome.kind === "REFUSED") throw new AppException(outcome.code);
     const question = await tx.classActivityQuestion.count({ where: { id: body.questionId, activityId } });
@@ -222,6 +226,20 @@ export class WorkHelpService {
       metadata: { scope: "work-help" },
     });
     throw rateLimited(state.retryAfterSec);
+  }
+
+  /** 409 ATTEMPT_PAUSED, recorded on its own after the rollback (016 contracts/audit-events.md). */
+  private async pausedRefusal(studentUserId: string, activityId: string, error: AttemptPaused, requestId: string | null): Promise<never> {
+    await this.audit.record(this.prisma, {
+      type: "attempt_pause.write_refused",
+      actorType: "USER",
+      actorUserId: studentUserId,
+      targetType: "ACTIVITY_ATTEMPT",
+      targetId: error.attemptId,
+      requestId,
+      metadata: { activityId, pauseId: error.pauseId, operation: "HELP" },
+    });
+    throw new AppException("ATTEMPT_PAUSED");
   }
 
   /** 404, auditing `student_access.denied` when the activity exists (012 research P18). */

@@ -18,12 +18,16 @@ Changes to existing events:
 | Type | Actor | Target | Metadata added |
 |---|---|---|---|
 | `activity.published` | USER | CLASS_ACTIVITY | `releaseMode` |
+| `activity.closed` | USER | CLASS_ACTIVITY | `pausedCount` |
+| `activity.cancelled` | USER | CLASS_ACTIVITY | `pausedCount` |
+| `activity_submission.accepted_by_teacher` | USER | ACTIVITY_SUBMISSION | `pauseEnded` |
 
 - `activity.published` gains `releaseMode`.
 - `activity.closed` and `activity.cancelled` gain `pausedCount`, the number of open pauses the
   close or the cancellation ended (research M7).
 - `activity_submission.accepted_by_teacher` gains `pauseEnded: boolean`, true when the accepted
-  attempt had an open pause.
+  attempt had an open pause on an ACTIVE activity (after a close, the close already ended it and
+  `activity.closed` counted it).
 - `student_access.denied` gains the reason `NOT_PRESENT`.
 - A write refused by an open pause is always audited:
   - save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`, in the 012

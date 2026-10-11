@@ -1,11 +1,13 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { StudentActivity, StudentPause } from "@repo/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { ActivityAnswering } from "@/features/student-activities/components/activity-answering";
 import { apiError, json, studentActivity } from "@/features/student-activities/components/test-fixtures";
 import { formatTime } from "@/lib/messages/dates";
+import { CONFIRM_EXIT, EXIT_ROOM, PAUSED_TITLE, RESUME_CONTROLLED, RETURN_RELEASED } from "@/features/attendance/schemas/attendance";
 import { PASTE_BLOCKED_MESSAGE } from "../hooks/use-clipboard-block";
 import { ControlledAttempt } from "./controlled-attempt";
 import { CONTROLLED_NOTICE_TITLE } from "./controlled-start";
@@ -27,26 +29,34 @@ const EVENTS = `${DETAIL}/attempt/events`;
 
 type Sent = { type: string; questionId?: string; buffered: boolean; eventId: string };
 
-/** The API: the activity, its start and the events (answered with the server's time). */
-function setup(ui: React.ReactElement, current = started(), extra: Record<string, () => Response> = {}) {
+/**
+ * The API: the activity (a value, or read on each request), its start and the events (answered with
+ * the server's time). A route in `extra` answers before these.
+ */
+function setup(
+  ui: React.ReactElement,
+  current: StudentActivity | (() => StudentActivity) = started(),
+  extra: Record<string, (init?: RequestInit) => Response> = {},
+) {
   const events: Sent[] = [];
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const key = `${init?.method ?? "GET"} ${String(input)}`;
-    if (key === `GET ${DETAIL}`) return json(200, current);
+    const override = extra[key];
+    if (override) return override(init);
+    if (key === `GET ${DETAIL}`) return json(200, typeof current === "function" ? current() : current);
     if (key === `POST ${DETAIL}/attempt`) return json(200, started());
     if (key === `POST ${EVENTS}`) {
       const body = JSON.parse(String(init?.body)) as { events: Sent[] };
       events.push(...body.events);
       return json(200, { recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: SERVER_TIME })) });
     }
-    const match = extra[key];
-    return match ? match() : apiError(404, "NOT_FOUND", "x");
+    return apiError(404, "NOT_FOUND", "x");
   });
   vi.stubGlobal("fetch", fetchMock);
   const view = renderWithProviders(ui);
   return { ...view, events, fetchMock, user: userEvent.setup() };
 }
-const focusPage = (current = started(), extra = {}) =>
+const focusPage = (current: StudentActivity | (() => StudentActivity) = started(), extra: Record<string, (init?: RequestInit) => Response> = {}) =>
   setup(<ControlledAttempt activityId={activity.id} userId="aluno-1" />, current, extra);
 const types = (events: Sent[]) => events.map((event) => event.type);
 
@@ -264,3 +274,114 @@ describe("015/US3-12 ajuda da IA dentro da página de foco", () => {
   });
 });
 
+
+describe("016/FR-017 saída da sala no modo controlado (research M10)", () => {
+  const PAUSE: StudentPause = {
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    initiatedBy: "STUDENT",
+    reason: "WATER",
+    note: null,
+    startedAt: "2026-10-02T13:42:00.000Z",
+    endedAt: null,
+  };
+  const paused = () => started({ pause: PAUSE, questions: [] });
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    router.push.mockReset();
+    router.replace.mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("016/US3-6 016/FR-017 na saída declarada o monitor para antes de sair da tela cheia: monitor parado → autosave e fila enviados → pausa → saída da tela cheia; nenhum SCREEN_LEFT nem FULLSCREEN_EXITED", async () => {
+    fullscreenDevice(true);
+    fullscreenElement = document.documentElement;
+    const order: string[] = [];
+    let isPaused = false;
+    let eventPosts = 0;
+    let eventsDown = true;
+    const sentEvents: Sent[] = [];
+    const exitFullscreen = document.exitFullscreen as ReturnType<typeof vi.fn>;
+    exitFullscreen.mockImplementation(async () => {
+      order.push("tela cheia encerrada");
+      fullscreenElement = null;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    const { user } = focusPage(() => (isPaused ? paused() : started()), {
+      [`PUT ${DETAIL}/attempt/answers`]: (init) => {
+        order.push("autosave");
+        const body = JSON.parse(String(init?.body)) as { answers: { questionId: string }[] };
+        return json(200, { savedAt: SERVER_TIME, results: body.answers.map((item) => ({ questionId: item.questionId, outcome: "SAVED", revision: 1 })) });
+      },
+      [`POST ${EVENTS}`]: (init) => {
+        // Down until the exit: the batches wait in the queue, and the exit sends them.
+        eventPosts += 1;
+        if (eventsDown) return apiError(503, "SERVICE_UNAVAILABLE", "x");
+        order.push("fila de eventos");
+        const body = JSON.parse(String(init?.body)) as { events: Sent[] };
+        sentEvents.push(...body.events);
+        return json(200, { recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: SERVER_TIME })) });
+      },
+      [`POST ${DETAIL}/attempt/pause`]: () => {
+        // A screen exit now would be recorded if the monitor were still on.
+        window.dispatchEvent(new Event("blur"));
+        order.push(document.fullscreenElement ? "pausa (ainda em tela cheia)" : "pausa (fora da tela cheia)");
+        isPaused = true;
+        return json(201, PAUSE);
+      },
+      [`GET ${DETAIL}/attempt/pause`]: () => json(200, { pause: isPaused ? PAUSE : null }),
+    });
+    await screen.findByRole("navigation", { name: "Questões" });
+    // One exit and return that couldn't be sent yet (503): queued in this browser.
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    hasFocus.mockReturnValue(true);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(eventPosts).toBeGreaterThan(0));
+    // An answer typed and not saved yet.
+    await user.type(screen.getByRole("textbox", { name: /Sua resposta/ }), "Protege o estado");
+    hasFocus.mockReturnValue(false);
+
+    await user.click(screen.getByRole("button", { name: EXIT_ROOM }));
+    await user.click(screen.getByRole("radio", { name: "Beber água" }));
+    eventsDown = false;
+    await user.click(screen.getByRole("button", { name: CONFIRM_EXIT }));
+
+    expect(await screen.findByText(PAUSED_TITLE)).toBeTruthy();
+    expect(order).toEqual(["autosave", "fila de eventos", "pausa (ainda em tela cheia)", "tela cheia encerrada"]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(types(sentEvents)).toEqual(["SCREEN_LEFT", "SCREEN_RETURNED"]);
+    // Nothing waits in this browser either.
+    const stored = Object.keys(window.localStorage).map((key) => window.localStorage.getItem(key) ?? "");
+    expect(stored.join("\n")).not.toMatch(/SCREEN_LEFT|FULLSCREEN_EXITED/);
+    expect(screen.queryByRole("navigation", { name: "Questões" })).toBeNull();
+  });
+
+  it("016/US3-6 016/FR-017 na retomada, \"Retomar em modo controlado\" pede a tela cheia pelo gesto e as questões voltam", async () => {
+    fullscreenDevice(true);
+    let isPaused = true;
+    const { user, events } = focusPage(() => (isPaused ? paused() : started()), {
+      [`GET ${DETAIL}/attempt/pause`]: () => {
+        isPaused = false;
+        return json(200, { pause: null });
+      },
+    });
+    expect(await screen.findByText(RETURN_RELEASED)).toBeTruthy();
+    expect(document.documentElement.requestFullscreen).not.toHaveBeenCalled();
+    // While paused nothing is monitored: leaving the screen records nothing.
+    expect(types(events)).toEqual([]);
+    await user.click(screen.getByRole("button", { name: RESUME_CONTROLLED }));
+    expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce();
+    expect(await screen.findByRole("navigation", { name: "Questões" })).toBeTruthy();
+  });
+});

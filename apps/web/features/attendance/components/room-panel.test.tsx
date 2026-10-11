@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ACTIVITY_ID, apiError, CLASS_ID, json, routedFetch } from "@/features/activities/components/test-fixtures";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder, tabTo } from "../../../test/keyboard";
+import { formatTime } from "@/lib/messages/dates";
 import { renderWithProviders } from "../../../test/render";
 import { AttendanceTab } from "./attendance-tab";
 import { ANA, ATTENDANCE_PATH, BRUNO, CAIO, MARKED_AT, room, student } from "./test-fixtures";
@@ -100,5 +101,68 @@ describe("016/US2 RoomPanel — o painel da sala depois da primeira liberação"
     expect((await screen.findByRole("alert")).textContent).toMatch(/conex/i);
     expect(within(rowOf("Caio Reis")).getByText("Não marcado")).toBeTruthy();
     expect(reads).toBeGreaterThan(0);
+  });
+});
+
+describe("016/US3 RoomPanel — quem está fora da sala", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const PAUSE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1";
+  const STARTED_AT = "2026-10-01T13:42:00.000Z";
+  const RELEASE_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/pauses/${PAUSE_ID}/release`;
+  const openPause = {
+    id: PAUSE_ID,
+    initiatedBy: "STUDENT" as const,
+    reason: "BATHROOM" as const,
+    note: null,
+    startedAt: STARTED_AT,
+    endedAt: null,
+    endedBy: null,
+    seconds: 180,
+  };
+  const OUT = room([
+    student(ANA, "Ana Souza", { markedAt: MARKED_AT, roomStatus: "PRESENT" }),
+    student(BRUNO, "Bruno Lima", { markedAt: MARKED_AT, roomStatus: "ANSWERING", attemptId: ATTEMPT }),
+    student(CAIO, "Caio Reis", { markedAt: MARKED_AT, roomStatus: "OUT_OF_ROOM", attemptId: DONE, openPause }),
+  ]);
+  const BACK = room([OUT.students[0]!, OUT.students[1]!, student(CAIO, "Caio Reis", { markedAt: MARKED_AT, roomStatus: "ANSWERING", attemptId: DONE })]);
+
+  it("016/US3-4 016/FR-020 \"Fora da sala — <motivo>, desde HH:MM\" com o tempo fora, ordenado primeiro", async () => {
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, OUT) }).fetch);
+    render();
+    await screen.findByText(`Fora da sala — Ir ao banheiro, desde ${formatTime(STARTED_AT)}`);
+    expect(rowOf("Caio Reis").textContent).toContain("há 3 min");
+    const names = within(screen.getByRole("list", { name: "Alunos da turma" }))
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("[data-student-name]")?.textContent);
+    expect(names).toEqual(["Caio Reis", "Ana Souza", "Bruno Lima"]);
+    expect(within(rowOf("Bruno Lima")).queryByRole("button", { name: /Liberar retorno/ })).toBeNull();
+  });
+
+  it("016/US3-5 016/FR-014 \"Liberar retorno\" envia a liberação da pausa e a linha volta a \"Respondendo\"", async () => {
+    let reads = 0;
+    const api = routedFetch({
+      [`GET ${ATTENDANCE_PATH}`]: () => json(200, (reads += 1) === 1 ? OUT : BACK),
+      [`POST ${RELEASE_PATH}`]: json(200, { ...openPause, endedAt: "2026-10-01T13:50:00.000Z", endedBy: "RELEASE", seconds: 480 }),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Liberar retorno Caio Reis" }));
+    expect(api.writes()).toEqual([{ method: "POST", url: RELEASE_PATH, body: {} }]);
+    await waitFor(() => expect(within(rowOf("Caio Reis")).getByText("Respondendo")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Liberar retorno Caio Reis" })).toBeNull();
+  });
+
+  it("016/FR-023 a recusa (atividade encerrada) aparece por texto; teclado: Tab até \"Liberar retorno\" e Enter", async () => {
+    const api = routedFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, OUT), [`POST ${RELEASE_PATH}`]: apiError(409, "ACTIVITY_CLOSED", "Encerrada.") });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    const { container } = render();
+    const release = await screen.findByRole("button", { name: "Liberar retorno Caio Reis" });
+    await expectNoA11yViolations(container);
+    await tabTo(user, release);
+    await user.keyboard("{Enter}");
+    expect((await screen.findByRole("alert")).textContent).toMatch(/encerrada/i);
   });
 });

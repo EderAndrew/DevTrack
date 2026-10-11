@@ -315,7 +315,7 @@ o aluno retoma sem perder nada. O prazo corre.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T024 [P] [US3] `apps/api/test/integration/016-us3-pause.spec.ts`:
+- [X] T024 [P] [US3] `apps/api/test/integration/016-us3-pause.spec.ts`:
   - cenários `016/US3-1` a `016/US3-10`, cada um no seu `it`;
   - `016/FR-011`, `016/FR-012`, `016/FR-013`, `016/FR-014`, `016/FR-015`, `016/FR-017` e
     `016/FR-018`.
@@ -338,20 +338,20 @@ o aluno retoma sem perder nada. O prazo corre.
   - uma pausa em trabalho CONTROLLED não gera evento de foco;
   - nada altera nota nem entrega;
   - `ALL_ENROLLED` → `409 ATTENDANCE_NOT_REQUIRED`.
-- [ ] T025 [P] [US3] `apps/api/test/security/016-paused-writes.spec.ts` (`016/SC-003`).
+- [X] T025 [P] [US3] `apps/api/test/security/016-paused-writes.spec.ts` (`016/SC-003`).
   - Com a pausa aberta, nenhuma rota do aluno, em nenhuma sessão, devolve enunciado ou resposta.
   - Escrita direta pelo Prisma nas 4 tabelas também é recusada pelos gatilhos.
-- [ ] T026 [P] [US3] `apps/api/test/security/016-concurrency.spec.ts` (parte da pausa,
+- [X] T026 [P] [US3] `apps/api/test/security/016-concurrency.spec.ts` (parte da pausa,
   `016/SC-007`):
   - 10 declarações simultâneas → uma pausa aberta;
   - salvar × pausar e entregar × pausar → ordem consistente, nada de entrega a partir de PAUSADA;
   - liberar duas vezes → encerra uma vez, sem tocar uma pausa seguinte.
-- [ ] T027 [P] [US3] `apps/api/test/security/016-rate-limits.spec.ts`: a 21ª declaração na hora →
+- [X] T027 [P] [US3] `apps/api/test/security/016-rate-limits.spec.ts`: a 21ª declaração na hora →
   429, contada no `tx` da operação.
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Bloqueio de escrita (research M6). Depois da trava da tentativa, uma pausa aberta
+- [X] T028 [US3] Bloqueio de escrita (research M6). Depois da trava da tentativa, uma pausa aberta
   → `409 ATTEMPT_PAUSED` em:
   - salvar e entregar, em `apps/api/src/modules/student-activities/attempts.service.ts`, com o
     `Refused` da 012 para auditar;
@@ -361,24 +361,24 @@ o aluno retoma sem perder nada. O prazo corre.
   `OwnAttemptContext` ganha `paused` em `student-activity-loader.ts`. As recusas de eventos e de
   ajuda gravam `attempt_pause.write_refused` depois do rollback, no padrão do `guarded` da 012
   (tipo novo em `audit-event-types.ts`, `contracts/audit-events.md` e `journey.ts`).
-- [ ] T029 [US3] Visão do aluno:
+- [X] T029 [US3] Visão do aluno:
   - `loadOne` lê a pausa aberta;
   - `apps/api/src/modules/activities/views/student-view.ts` copia `pause` pela lista fechada e,
     com a pausa aberta, devolve `questions: []` e `attempt.answers: []`.
-- [ ] T030 [US3] `apps/api/src/modules/attendance/my-pause.{controller,service}.ts`:
+- [X] T030 [US3] `apps/api/src/modules/attendance/my-pause.{controller,service}.ts`:
   - `POST /me/activities/:activityId/attempt/pause`, com `lockContext`, a tentativa `FOR UPDATE`,
     as checagens e o insert, o rate limit no `tx` e a auditoria `attempt_pause.started`;
   - `GET /me/activities/:activityId/attempt/pause`.
 
   Também na mesma tarefa: catálogo, `MATRIX` e auditoria (journey).
-- [ ] T031 [US3] `apps/api/src/modules/attendance/pauses.{controller,service}.ts`, com T024–T027
+- [X] T031 [US3] `apps/api/src/modules/attendance/pauses.{controller,service}.ts`, com T024–T027
   verdes (`attempt_pause.write_refused` entra em `audit-event-types.ts` e no journey na T028):
   - `POST …/pauses/:pauseId/release` sob `ClassContextPolicy`, chaveado pela pausa, idempotente,
     `409 ACTIVITY_CLOSED`, auditoria `attempt_pause.released` com `seconds`;
   - `activities.service`: `pausedCount` em `activity.closed` e `activity.cancelled`;
     `pauseEnded` em `activity_submission.accepted_by_teacher`. A aceitação de uma tentativa
     pausada é permitida (o gatilho de defesa a isenta).
-- [ ] T032 [P] [US3] Testes web, escritos primeiro:
+- [X] T032 [P] [US3] Testes web, escritos primeiro:
   - `apps/web/features/attendance/components/exit-room-dialog.test.tsx`:
     - os motivos e "Outro" com até 200 caracteres;
     - o aviso de prazo;
@@ -395,7 +395,7 @@ o aluno retoma sem perder nada. O prazo corre.
     cheia, e nenhum `SCREEN_LEFT` nem `FULLSCREEN_EXITED` entra na fila. A ordem é verificada
     por chamada: monitor parado → autosave e fila enviados → pausa → saída da tela cheia. Na
     retomada, o aviso "Retomar em modo controlado" pede a tela cheia por gesto.
-- [ ] T033 [US3] Web, com T032 verde:
+- [X] T033 [US3] Web, com T032 verde:
   - `ExitRoomDialog` e `PausedNotice` em `apps/web/features/attendance/components/`;
   - `useMyPause`, sondando a cada 5 s;
   - integração em `features/student-activities/components/activity-answering.tsx` e em

@@ -378,6 +378,11 @@ export class ActivitiesService {
       if (!ActivityStateMachine.transition(current.status, to)) return this.get(teacherId, classId, activityId, tx);
 
       const now = this.clock.now();
+      // 016 research M7: the open pauses this close or cancellation ends by derivation, never by a write.
+      const [{ paused }] = await tx.$queryRaw<[{ paused: number }]>`
+        SELECT count(*)::int AS paused FROM attempt_pauses p
+        JOIN activity_attempts a ON a.id = p.attempt_id
+        WHERE p.activity_id = ${activityId}::uuid AND p.released_at IS NULL AND a.status = 'IN_PROGRESS'`;
       await tx.classActivity.update({
         where: { id: activityId },
         data: { status: to, ...(to === "CLOSED" ? { closedAt: now } : { cancelledAt: now }), version: { increment: 1 } },
@@ -391,7 +396,10 @@ export class ActivitiesService {
         targetType: "CLASS_ACTIVITY",
         targetId: activityId,
         requestId,
-        metadata: to === "CLOSED" ? { classId, submittedCount, missedCount: view.counts.missed } : { classId, from: current.status, submittedCount },
+        metadata:
+          to === "CLOSED"
+            ? { classId, submittedCount, missedCount: view.counts.missed, pausedCount: paused }
+            : { classId, from: current.status, submittedCount, pausedCount: paused },
       });
       return view;
     });

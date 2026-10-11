@@ -7,6 +7,8 @@ import {
   type ExerciseResult,
   type GradeCents,
   type LatePolicy,
+  type PauseInitiator,
+  type PauseReason,
   type StudentActivity,
   type StudentActivitySummary,
   type StudentAnswer,
@@ -77,10 +79,22 @@ export interface StudentActivityInput {
   } | null;
 }
 
+/** 016: the session student's pause that is still open (research M6). */
+export interface OpenPauseInput {
+  id: string;
+  initiatedBy: PauseInitiator;
+  reason: PauseReason;
+  note: string | null;
+  startedAt: Date;
+}
+
 export interface StudentActivityDetailInput extends StudentActivityInput {
   /** The AI helps delivered to the session student in this activity (015/FR-020). */
   aiHelpUsed: number;
+  /** The loader leaves the questions and the answers out while `pause` is open (016/FR-013). */
   questions: ActivityQuestionRow[];
+  /** 016: the open pause of the student's attempt, or null. */
+  pause: OpenPauseInput | null;
   attempt: { number: number; startedAt: Date; lastSavedAt: Date | null; answers: StudentAnswer[] } | null;
   /** EXERCISE: the concluded attempts, newest first (013/FR-005). */
   completedAttempts: { number: number; completedAt: Date }[];
@@ -141,18 +155,20 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
 export function toStudentActivity(input: StudentActivityDetailInput): StudentActivity {
   const { result: _summaryResult, ...summary } = toStudentSummary(input);
   const visible = resultVisible(input);
+  // 016/FR-013, FR-022: a paused attempt shows only the notice, whatever the loader read.
+  const paused = input.pause !== null;
   return {
     ...summary,
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
-    questions: [...input.questions].sort((a, b) => a.position - b.position).map(toStudentQuestion),
+    questions: paused ? [] : [...input.questions].sort((a, b) => a.position - b.position).map(toStudentQuestion),
     attempt: input.attempt
       ? {
           number: input.attempt.number,
           startedAt: input.attempt.startedAt.toISOString(),
           lastSavedAt: input.attempt.lastSavedAt?.toISOString() ?? null,
-          answers: input.attempt.answers.map((answer) => ({ questionId: answer.questionId, answer: answer.answer, revision: answer.revision })),
+          answers: paused ? [] : input.attempt.answers.map((answer) => ({ questionId: answer.questionId, answer: answer.answer, revision: answer.revision })),
         }
       : null,
     submission: input.submission
@@ -177,8 +193,15 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
         : null,
     completedAttempts: input.completedAttempts.map((attempt) => ({ number: attempt.number, completedAt: attempt.completedAt.toISOString() })),
     lastResult: input.lastResult && toStudentExerciseAttempt(input.questions, input.lastResult),
-    // 016: filled by the pause tasks (US3, US4); no pause exists before them.
-    pause: null,
+    pause: input.pause && {
+      id: input.pause.id,
+      initiatedBy: input.pause.initiatedBy,
+      reason: input.pause.reason,
+      note: input.pause.note,
+      startedAt: input.pause.startedAt.toISOString(),
+      endedAt: null,
+    },
+    // 016: the own pauses after the submission arrive with US4 (T035).
     pauses: [],
   };
 }

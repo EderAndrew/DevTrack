@@ -1,4 +1,5 @@
-import type { RoomStatus } from "@repo/contracts";
+import type { PauseReason, RoomStatus, StudentPauseReason } from "@repo/contracts";
+import { formatTime } from "@/lib/messages/dates";
 
 // Texts and rules of the attendance (016 contracts/web-ui.md, "Chamada").
 
@@ -43,3 +44,44 @@ export function attendanceDelta(marked: ReadonlySet<string>, selected: ReadonlyS
   const unmark = [...marked].filter((id) => !selected.has(id));
   return mark.length + unmark.length === 0 ? null : { mark, unmark };
 }
+
+// ── 016/US3: "Sair da sala", the pause notice and the release (contracts/web-ui.md) ──────────
+
+/** Each reason as the student and the teacher read it (FR-011, FR-016). */
+export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
+  BATHROOM: "Ir ao banheiro",
+  WATER: "Beber água",
+  PHONE: "Atender o telefone",
+  OTHER: "Outro",
+  TEACHER: "Pausado pelo professor",
+};
+/** The closed list of the exit dialog, in this order. */
+export const STUDENT_PAUSE_REASONS: readonly StudentPauseReason[] = ["BATHROOM", "WATER", "PHONE", "OTHER"];
+/** The optional text of "Outro" (the contract's `PAUSE_NOTE_MAX`). */
+export const PAUSE_NOTE_MAX_LENGTH = 200;
+
+export const EXIT_ROOM = "Sair da sala";
+export const EXIT_ROOM_REASONS = "Por que você vai sair?";
+export const EXIT_ROOM_NOTICE = "A atividade ficará pausada até o professor liberar o seu retorno. O prazo continua correndo.";
+export const EXIT_NOTE_LABEL = "Motivo (opcional, sem dados pessoais)";
+export const CONFIRM_EXIT = "Confirmar saída";
+export const EXIT_OFFLINE = "Sem conexão. Avise o professor antes de sair.";
+
+export const PAUSED_TITLE = "Atividade pausada";
+export const PAUSED_TEXT = "Ao voltar, peça ao professor para liberar o seu retorno.";
+export const RETURN_RELEASED = "Retorno liberado";
+export const RESUME = "Retomar";
+/** CONTROLLED (015): fullscreen comes back only from the student's own gesture (research M10). */
+export const RESUME_CONTROLLED = "Retomar em modo controlado";
+
+/** The teacher's action on a student out of the room (FR-014). */
+export const RELEASE_RETURN = "Liberar retorno";
+
+/** "Saída às HH:MM", on the student's notice. */
+export const exitedAtLabel = (startedAt: string) => `Saída às ${formatTime(startedAt)}`;
+
+/** "Fora da sala — Ir ao banheiro, desde 10:42", on the teacher's room (FR-020). */
+export const outOfRoomLabel = (reason: PauseReason, startedAt: string) => `Fora da sala — ${PAUSE_REASON_LABELS[reason]}, desde ${formatTime(startedAt)}`;
+
+/** Time away so far, in whole minutes ("há 3 min"); under a minute, "agora há pouco". */
+export const awayForLabel = (seconds: number) => (seconds < 60 ? "agora há pouco" : `há ${Math.floor(seconds / 60)} min`);

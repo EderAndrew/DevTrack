@@ -197,8 +197,9 @@ export const AUDIT_EVENT_METADATA = {
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005).
   "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance"],
-  "activity.closed": ["classId", "submittedCount", "missedCount"],
-  "activity.cancelled": ["classId", "from", "submittedCount"],
+  // 016: `pausedCount`, the open pauses the close or the cancellation ended by derivation (research M7).
+  "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
+  "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
   "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
@@ -212,6 +213,11 @@ export const AUDIT_EVENT_METADATA = {
   // 016 — the attendance of a work (research M3, M5): one per student a batch actually changed.
   "attendance.marked": ["classId", "studentUserId"],
   "attendance.unmarked": ["classId", "studentUserId"],
+  // 016 — room exits (research M6, M7): ids, enums and durations, never the text of "Outro".
+  "attempt_pause.started": ["activityId", "pauseId", "initiatedBy", "reason"],
+  "attempt_pause.released": ["activityId", "pauseId", "seconds"],
+  // `operation`: EVENTS | HELP (save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`).
+  "attempt_pause.write_refused": ["activityId", "pauseId", "operation"],
   // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
   "attempt_integrity.recorded": ["eventType", "buffered"],
   // 015 — the AI help (research F11): ids, counts and codes only, never the question or the orientation.
@@ -230,8 +236,8 @@ export const AUDIT_EVENT_METADATA = {
     "afterRelease",
     "generalFeedbackChanged",
   ],
-  // `reason`: DEADLINE_PASSED | ACTIVITY_CLOSED (spec FR-006b).
-  "activity_submission.accepted_by_teacher": ["activityId", "attemptId", "reason", "blankCount", "questionCount", "pendingTeacherCount"],
+  // `reason`: DEADLINE_PASSED | ACTIVITY_CLOSED (spec FR-006b); `pauseEnded` (016): the acceptance ended an open pause.
+  "activity_submission.accepted_by_teacher": ["activityId", "attemptId", "reason", "blankCount", "questionCount", "pendingTeacherCount", "pauseEnded"],
   "activity_result.released": ["classId", "submittedCount", "completeCount"],
   // The first read of a visible result by the student (research P19).
   "activity_result.viewed": ["activityId"],

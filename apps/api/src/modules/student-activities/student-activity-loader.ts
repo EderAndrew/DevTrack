@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ActivityStatus, ActivityType, AiHelpAllowance, ExecutionMode, LatePolicy, StudentAnswer } from "@repo/contracts";
+import type { ActivityStatus, ActivityType, AiHelpAllowance, ExecutionMode, LatePolicy, ReleaseMode, StudentAnswer } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
@@ -22,7 +22,28 @@ export interface OwnAttemptContext {
   deadline: Date | null;
   latePolicy: LatePolicy | null;
   aiHelpAllowance: AiHelpAllowance;
+  /** 016: a `PRESENT_ONLY` work takes attendance and room exits (research M2). */
+  releaseMode: ReleaseMode;
   attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null } | null;
+  /**
+   * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause not released while the activity
+   * is ACTIVE. Read after the attempt's lock, so a pause committed before it is seen.
+   */
+  paused: { pauseId: string } | null;
+}
+
+/**
+ * A write refused because the student's attempt is paused (016/FR-013, research M6): thrown inside
+ * the transaction; after the rollback the 015 events and help record `attempt_pause.write_refused`
+ * and answer `409 ATTEMPT_PAUSED`.
+ */
+export class AttemptPaused extends Error {
+  constructor(
+    readonly attemptId: string,
+    readonly pauseId: string,
+  ) {
+    super("ATTEMPT_PAUSED");
+  }
 }
 
 /**
@@ -36,6 +57,7 @@ const ACTIVITY_SELECT = {
   type: true,
   executionMode: true,
   aiHelpAllowance: true,
+  releaseMode: true,
   title: true,
   instructions: true,
   status: true,
@@ -108,13 +130,22 @@ export class StudentActivityLoader {
     const latest = attempts.at(-1) ?? null;
     // ASSIGNMENT: its one attempt, submitted or not (012). EXERCISE: the open attempt only (013).
     const attempt = activity.type === "EXERCISE" && latest?.status !== "IN_PROGRESS" ? null : latest;
-    const answers = attempt ? await this.answersOf(attempt.id) : [];
+    // 016/FR-013, FR-022: while the attempt is paused, neither the questions nor the answers leave.
+    const pause =
+      attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.releaseMode === "PRESENT_ONLY"
+        ? await this.prisma.attemptPause.findFirst({
+            where: { attemptId: attempt.id, releasedAt: null },
+            select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true },
+          })
+        : null;
+    const answers = attempt && !pause ? await this.answersOf(attempt.id) : [];
     // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     return {
       ...toInput(activity, attempts, now, canSeeResults),
       aiHelpUsed: attempts.reduce((sum, row) => sum + row._count.helpRequests, 0),
-      questions: activity.questions.map(toQuestionRow),
+      questions: pause ? [] : activity.questions.map(toQuestionRow),
+      pause,
       attempt: attempt
         ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
         : null,
@@ -192,10 +223,12 @@ export class StudentActivityLoader {
         late_policy: LatePolicy | null;
         ai_help_allowance: number;
         class_active: boolean;
+        release_mode: ReleaseMode;
       }[]
     >`
       SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
-             ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active
+             ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active,
+             ca.release_mode::text AS release_mode
       FROM class_activities ca
       JOIN classes c ON c.id = ca.class_id
       WHERE ca.id = ${activityId}::uuid
@@ -214,6 +247,12 @@ export class StudentActivityLoader {
       ORDER BY a.number DESC LIMIT 1
       ${tx ? (attemptLock === "UPDATE" ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
+    // A separate statement after the attempt's lock: it sees a pause committed while this one waited.
+    const pauses =
+      attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.release_mode === "PRESENT_ONLY"
+        ? await db.$queryRaw<{ id: string }[]>`
+            SELECT id FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`
+        : [];
     return {
       classActive: activity.class_active,
       type: activity.type,
@@ -222,7 +261,9 @@ export class StudentActivityLoader {
       deadline: activity.deadline,
       latePolicy: activity.late_policy,
       aiHelpAllowance: aiHelpAllowanceOf(activity.ai_help_allowance),
+      releaseMode: activity.release_mode,
       attempt: attempt ? { id: attempt.id, status: attempt.status, startedAt: attempt.started_at, submittedAt: attempt.submitted_at } : null,
+      paused: pauses[0] ? { pauseId: pauses[0].id } : null,
     };
   }
 
