@@ -270,6 +270,31 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(JSON.stringify(help015.map((event) => event.metadata))).not.toMatch(/MARCADOR-(AJUDA|ORIENTACAO)-015|jornada quinze|Texto colado/);
     });
 
+    it("016/SC-009 cada marcação, desmarcação, pausa e retorno gera exatamente um evento de auditoria, só com ids e enums, sem a nota de \"Outro\"", async () => {
+      const types = rows.map((row) => row.type).filter((type) => /^(attendance|attempt_pause)\./.test(type));
+      expect(types.sort()).toEqual(["attempt_pause.released", "attempt_pause.started", "attempt_pause.write_refused", "attendance.marked", "attendance.unmarked"]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(5);
+      expect(offendingMetadata(found)).toEqual([]);
+      expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
+      // The journey marks 3 times and unmarks once (016/US2): one event per change, none for a no-op.
+      const marked = found.filter((event) => event.type === "attendance.marked");
+      const unmarked = found.filter((event) => event.type === "attendance.unmarked");
+      expect([marked.length, unmarked.length]).toEqual([3, 1]);
+      expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
+      // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt.
+      const pauses = await t.prisma.attemptPause.findMany({ select: { id: true, attemptId: true, initiatedBy: true, releasedAt: true } });
+      expect(pauses.map((pause) => pause.initiatedBy).sort()).toEqual(["STUDENT", "TEACHER"]);
+      const started = found.filter((event) => event.type === "attempt_pause.started");
+      expect(started.map((event) => `${event.targetId} ${(event.metadata as { pauseId: string }).pauseId}`).sort()).toEqual(
+        pauses.map((pause) => `${pause.attemptId} ${pause.id}`).sort(),
+      );
+      const released = found.filter((event) => event.type === "attempt_pause.released").map((event) => (event.metadata as { pauseId: string }).pauseId);
+      expect(released.sort()).toEqual(pauses.filter((pause) => pause.releasedAt !== null).map((pause) => pause.id).sort());
+      expect(released).toHaveLength(2);
+      expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["EVENTS", "HELP"]);
+    });
+
     it("UPDATE em audit_events é recusado pelo trigger", async () => {
       await expect(t.prisma.$executeRawUnsafe("UPDATE audit_events SET type = 'auth.signup'")).rejects.toThrow(
         /append-only/,

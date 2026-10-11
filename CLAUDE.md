@@ -5,9 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–015 in `specs/` are implemented; 016
-(attendance-gated release) is in implementation on its branch (`tasks.md` shows which phases are
-done). Later work starts a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–016 in `specs/` are implemented. Later
+work starts a new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -34,8 +33,11 @@ done). Later work starts a new feature through `/speckit-specify`.
 - 015 per-work CONTROLLED mode (focus page, screen exits and blocked copy/paste as server-timed facts,
   typing allowance on save) and AI help (3 orientations per student by `work-helper`, never the
   answer key, a deterministic leak check before delivery).
+- 016 attendance-gated release: a new work is released only to the students the teacher marks present
+  in its "Chamada" (late students marked later); "Sair da sala" pauses the attempt until the teacher
+  releases the return; exercises and works applied before 016 stay open to every enrolled student.
 
-Exams, AI grading and code execution are later features. The rules of 012–015 that
+Exams, take-home works, AI grading and code execution are later features. The rules of 012–016 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
@@ -216,8 +218,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
   bank, its generation requests, the exact grade helpers and the grading result shapes, and
   `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
-  exercise results, `ranking` for the 013 class ranking, and `attempt-integrity` and `work-help`
-  for the 015 integrity events and AI help requests), with
+  exercise results, `ranking` for the 013 class ranking, `attempt-integrity` and `work-help`
+  for the 015 integrity events and AI help requests, and `attendance` for the 016 room, attendance
+  batch and pauses), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -228,7 +231,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -280,6 +283,20 @@ the removal conditions are in `DEPENDENCIES.md`.
   counts toward the 3 (one REQUESTED per attempt, a DB trigger caps DELIVERED at 3); out-of-scope,
   blocked and failed requests cost nothing. Audit metadata carries ids, enums and codes, never the
   question or the orientation.
+- Attendance and pauses (016): only a `PRESENT_ONLY` work takes attendance; `release_mode` is set by
+  the server when the work is created (a new ASSIGNMENT is `PRESENT_ONLY`, an EXERCISE and every older
+  work `ALL_ENROLLED`) and never sent in a body; the routes of an `ALL_ENROLLED` activity answer
+  `409 ATTENDANCE_NOT_REQUIRED`. A student not marked present gets the same `404` as an activity of
+  another class (`student_access.denied` with `NOT_PRESENT`) on every route, list and dashboard.
+  Unmarking is allowed only before the student starts (`409 ATTENDANCE_STARTED`). Presence is only the
+  teacher's mark: no location, network, QR code, camera or device. A pause belongs to the attempt, not
+  the session: while it is open the student routes return no statement or answer and every write
+  (save, submit, 015 events, help) is refused with `409 ATTEMPT_PAUSED`, enforced by DB triggers too;
+  only the teacher ends it ("Liberar retorno"), and a close, cancellation or accepted submission ends
+  it by derivation. PAUSED, `roomStatus`, the end and the durations are derived on read, never stored;
+  the deadline never moves for a pause, and a pause is never a grade, discount or fraud label. Audit
+  metadata carries ids and enums, never the note of "Outro". Changes reach the other side by 5 s
+  polling (`ATTENDANCE_POLL_MS`), never WebSockets.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

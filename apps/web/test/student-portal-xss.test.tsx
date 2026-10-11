@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { StudentPause, TeacherPause } from "@repo/contracts";
 import { AttemptReview } from "@/features/activities/components/attempt-review";
 import {
   ACTIVITY_ID,
@@ -18,6 +19,9 @@ import {
   routedFetch as teacherFetch,
   teacherAttempt,
 } from "@/features/activities/components/test-fixtures";
+import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { PausedNotice } from "@/features/attendance/components/paused-notice";
+import { ATTENDANCE_PATH, MARKED_AT, room, student } from "@/features/attendance/components/test-fixtures";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
 import { RankingTable } from "@/features/ranking/components/ranking-table";
 import { row } from "@/features/ranking/components/test-fixtures";
@@ -47,6 +51,8 @@ const SCANNED = [
   // 015: the controlled mode and the AI help.
   "features/controlled-attempt",
   "features/work-help",
+  // 016: the attendance, the room panel and the paused notice.
+  "features/attendance",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -278,6 +284,79 @@ describe("015 ajuda da IA e registros como texto", () => {
     expect(screen.getByText(`Orientação: ${SCRIPT}`)).toBeTruthy();
     expect(await screen.findByRole("table", { name: "Eventos da tentativa, no horário do servidor." })).toBeTruthy();
     await waitFor(() => expect(container.querySelector("pre")?.textContent).toContain("<script>"));
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+});
+
+/**
+ * 016: the note of a room exit declared as "Outro" is the student's text: on the teacher's room
+ * panel, in the review's "Saídas da sala", on the student's paused notice and in the student's own
+ * delivery (history) it renders as text, never as HTML.
+ */
+describe("016 nota de \"Outro\" como texto", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const PAUSE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee16";
+  const teacherPause: TeacherPause = {
+    id: PAUSE_ID,
+    initiatedBy: "STUDENT",
+    reason: "OTHER",
+    note: SCRIPT,
+    startedAt: "2026-10-02T13:30:00.000Z",
+    endedAt: null,
+    endedBy: null,
+    seconds: 120,
+  };
+  const studentPause: StudentPause = { id: PAUSE_ID, initiatedBy: "STUDENT", reason: "OTHER", note: SCRIPT, startedAt: "2026-10-02T13:30:00.000Z", endedAt: null };
+
+  it("painel da sala do professor: a nota aparece como texto", async () => {
+    const out = room([student("cccccccc-cccc-4ccc-8ccc-ccccccccccc1", "Ana Souza", { markedAt: MARKED_AT, roomStatus: "OUT_OF_ROOM", attemptId: ATTEMPT_ID, openPause: teacherPause })]);
+    vi.stubGlobal("fetch", teacherFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, out) }).fetch);
+    const { container } = renderWithProviders(<AttendanceTab classId={CLASS_ID} activityId={ACTIVITY_ID} />);
+    await screen.findByText(SCRIPT, { exact: false });
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("correção: \"Saídas da sala\" mostra a nota como texto", async () => {
+    const path = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
+    vi.stubGlobal(
+      "fetch",
+      teacherFetch({
+        [`GET ${path}`]: json(200, gradingActivity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } })),
+        [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, teacherAttempt()),
+        [`GET ${path}/attempts/${ATTEMPT_ID}/pauses`]: json(200, {
+          items: [{ ...teacherPause, endedAt: "2026-10-02T13:32:00.000Z", endedBy: "RELEASE" }],
+          totalSecondsAway: 120,
+        }),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
+    await screen.findByText(`Outro: ${SCRIPT}`);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("aviso de pausa do aluno: a própria nota aparece como texto", async () => {
+    const activity = "22222222-2222-4222-8222-222222222222";
+    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${activity}/attempt/pause`]: json(200, { pause: studentPause }) }).fetch);
+    const { container } = renderWithProviders(<PausedNotice activityId={activity} pause={studentPause} deadline="2026-10-02T17:00:00.000Z" onResume={() => undefined} />);
+    expect(screen.getByRole("status").textContent).toContain(SCRIPT);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("histórico do aluno: as saídas da entrega mostram a nota como texto", async () => {
+    const delivered = studentActivity({
+      type: "ASSIGNMENT",
+      status: "SUBMITTED",
+      canAnswer: false,
+      submittedAt: "2026-10-02T14:30:00.000Z",
+      attempt: { number: 1, startedAt: "2026-10-02T13:00:00.000Z", lastSavedAt: null, answers: [] },
+      submission: { submittedAt: "2026-10-02T14:30:00.000Z", late: false, acceptedByTeacher: false, blankCount: 0 },
+      pauses: [{ ...studentPause, endedAt: "2026-10-02T13:32:00.000Z" }],
+    });
+    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${delivered.id}`]: json(200, delivered) }).fetch);
+    const { container } = renderWithProviders(<ActivityAnswering activityId={delivered.id} userId="aluno-1" />);
+    const list = await screen.findByRole("list", { name: "Saídas da sala" });
+    expect(list.textContent).toContain(`Outro (${SCRIPT})`);
     expect(container.querySelector("script, img")).toBeNull();
   });
 });
