@@ -26,7 +26,8 @@ export interface MeetingCalendarProps {
  * Calendário da turma (004/US4, FR-025 – FR-030, FR-052): the teacher marks the days of the
  * period with a class. The total and the numbered list follow the selection, and "Salvar
  * calendário" sends only the dates added and removed, with what was chosen for the topics of the
- * removed days.
+ * removed days. A day whose class was concluded (a topic of the plan with that `completedOn`,
+ * 004/US9) is struck through with a check, in the calendar and in the list (amendment 2026-10-11).
  */
 export function MeetingCalendar(props: MeetingCalendarProps) {
   const query = useClassMeetings(props.classId);
@@ -150,6 +151,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
     (topic) => topic.meetingId !== resolving?.id && !leaving.has(topic.id) && topic.status !== "COMPLETED",
   );
   const remaining = dates.filter((date) => date !== resolving?.date);
+  // 004/US9: the days of the plan's concluded classes ("Reabrir aula" clears `completedOn`).
+  const completedOn = new Set((plan?.topics ?? []).flatMap((topic) => (topic.completedOn ? [topic.completedOn] : [])));
+  const completed = new Set(dates.filter((date) => completedOn.has(date)));
   const moveTargets = remaining.map((date, index) => ({ date, label: meetingLabel(index + 1, date) }));
 
   return (
@@ -163,6 +167,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
         <Calendar
           mode="multiple"
           selected={dates.map(fromIsoDate)}
+          modifiers={{ done: [...completed].map(fromIsoDate) }}
           onSelect={(_all, day) => (editable ? toggle(toIsoDate(day)) : undefined)}
           disabled={editable ? [{ before: start }, { after: end }] : true}
           startMonth={start}
@@ -175,7 +180,7 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
           <p aria-live="polite" className="m-0 font-semibold">
             Total de aulas selecionadas: {dates.length}
           </p>
-          <MeetingList dates={dates} />
+          <MeetingList dates={dates} completed={completed} />
         </div>
       </div>
       {editable ? (

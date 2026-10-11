@@ -3,6 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import {
+  CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -10,6 +11,7 @@ import {
 import {
   DayPicker,
   getDefaultClassNames,
+  labelDayButton,
   type DayButton,
 } from "react-day-picker"
 import { ptBR } from "react-day-picker/locale"
@@ -37,6 +39,9 @@ function Calendar({
       labels={{
         labelPrevious: () => "Mês anterior",
         labelNext: () => "Próximo mês",
+        // A day of the `done` modifier says so, since the strike and the check are not read aloud.
+        labelDayButton: (date, modifiers, options, dateLib) =>
+          `${labelDayButton(date, modifiers, options, dateLib)}${modifiers.done ? ", concluído" : ""}`,
         ...labels,
       }}
       showOutsideDays={showOutsideDays}
@@ -187,10 +192,15 @@ function Calendar({
   )
 }
 
+/**
+ * One day. A day of the `done` modifier (passed through `modifiers={{ done: dates }}`) is struck
+ * through with a check beside the number, and its label ends in "concluído": never by color alone.
+ */
 function CalendarDayButton({
   className,
   day,
   modifiers,
+  children,
   ...props
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames()
@@ -218,10 +228,14 @@ function CalendarDayButton({
       className={cn(
         "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-3 group-data-[focused=true]/day:ring-ring data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground dark:hover:text-accent-foreground [&>span]:text-caption [&>span]:opacity-70",
         defaultClassNames.day,
+        modifiers.done && "flex-row gap-1 line-through",
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {modifiers.done ? <CheckIcon aria-hidden="true" data-done className="size-4 shrink-0" /> : null}
+    </Button>
   )
 }
 

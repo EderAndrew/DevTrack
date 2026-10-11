@@ -38,6 +38,10 @@ ativas), Data de início e Data de término. Menu lateral: "Minhas disciplinas" 
   calendário" envia acrescentadas e removidas. Desmarcar data com tópicos abre o diálogo
   "Esta aula tem tópicos planejados" com, por tópico, as escolhas "Mover para outra aula",
   "Deixar sem data", "Juntar com outro tópico" e "Arquivar" (tópico concluído: só "Arquivar").
+  **Emenda 2026-10-11**: o dia de uma aula concluída (um tópico do plano com essa data em
+  `completedOn`, US9; "Reabrir aula" desfaz) aparece riscado e com um sinal de ok ao lado, no
+  calendário (modificador `done` do `Calendar`, que também acrescenta ", concluído" ao nome do
+  dia) e na lista numerada (com "(aula concluída)" para leitores de tela). Nunca só pela cor.
 - **Planejamento** (`features/class-plan/components/…`): cada encontro ("Aula 05 —
   18/03/2027") com seus tópicos; seção "Sem data"; por tópico: Editar, Subir, Descer,
   Aula (select), Dividir, Arquivar, e seleção para "Juntar tópicos"; "Novo tópico";

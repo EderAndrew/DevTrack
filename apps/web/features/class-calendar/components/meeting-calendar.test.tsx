@@ -282,6 +282,39 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     expect(dayButton(container, "2027-02-10").disabled).toBe(true);
   });
 
+  it("004/US9 aula concluída: o dia fica riscado com um sinal de ok, no calendário e na lista", async () => {
+    const days = [meeting("2027-02-03", 1, 1), meeting("2027-02-10", 2, 1), meeting("2027-02-17", 3, 1)];
+    const concluded = { ...topic("Classes e objetos", days[0]!.id, 0), status: "COMPLETED" as const, completedOn: "2027-02-03" };
+    // Archived after the conclusion: still a concluded class (004/FR-058).
+    const archived = { ...topic("Encapsulamento", days[1]!.id, 1), status: "ARCHIVED" as const, completedOn: "2027-02-10" };
+    const open = { ...topic("Herança", days[2]!.id, 2), status: "ACTIVE" as const };
+    const plan = planEnvelope(days, [concluded, archived, open], 5);
+    const { container } = renderCalendar(meetingList(days, 5), { plan: { plan: { ...plan.plan!, status: "ACTIVE" } } });
+    await screen.findByText("Total de aulas selecionadas: 3");
+
+    for (const date of ["2027-02-03", "2027-02-10"]) {
+      const day = dayButton(container, date);
+      await waitFor(() => expect(day.className).toContain("line-through"));
+      expect(day.querySelector("svg[data-done]")).toBeTruthy();
+      expect(day.getAttribute("aria-label")).toMatch(/, concluído$/);
+    }
+    const pending = dayButton(container, "2027-02-17");
+    expect(pending.className).not.toContain("line-through");
+    expect(pending.querySelector("svg[data-done]")).toBeNull();
+    expect(pending.getAttribute("aria-label")).not.toMatch(/concluído/);
+
+    const items = within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Aula 01 — 03/02/2027(aula concluída)",
+      "Aula 02 — 10/02/2027(aula concluída)",
+      "Aula 03 — 17/02/2027",
+    ]);
+    expect(items[0]!.querySelector(".line-through")?.textContent).toBe("Aula 01 — 03/02/2027");
+    expect(items[0]!.querySelector("svg")).toBeTruthy();
+    expect(items[2]!.querySelector(".line-through, svg")).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
   it("sem calendario.gerenciar: somente leitura", async () => {
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1)]), { canEdit: false });
     await screen.findByText("Total de aulas selecionadas: 1");
