@@ -239,7 +239,10 @@ describe("003/US2 — professor convida aluno informando só o e-mail (FR-010–
       }
       expect(mail.text.split(token)).toHaveLength(2);
       expect(mail.text.replace(link, "")).not.toContain(token);
-      expect(mail.html!.replace(new RegExp(`href="${link.replace(/[.?]/g, "\\$&")}"`), "")).not.toContain(token);
+      // Since 017 (FR-022) the HTML also writes the link out: the button's href, then the written-out
+      // link's href and text, nothing else.
+      expect(mail.html!.split(link)).toHaveLength(4);
+      expect(mail.html!.replaceAll(link, "")).not.toContain(token);
       expect(mail.html).toContain("Turma &lt;b&gt;&amp;&lt;/b&gt; Cia");
       expect(mail.html).not.toContain("<b>&</b>");
     });

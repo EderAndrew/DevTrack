@@ -408,7 +408,7 @@ e-mail e versão em texto com o mesmo conteúdo, sem recurso externo nem rastrea
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T032 [P] [US3] `apps/api/test/integration/017-us3-templates.spec.ts` (por tipo, os seis):
+- [X] T032 [P] [US3] `apps/api/test/integration/017-us3-templates.spec.ts` (por tipo, os seis):
   - `017/US3-1`, `017/FR-019`: HTML e texto com o mesmo assunto, título, parágrafos, prazo e o
     mesmo link (o link aparece por extenso nas duas);
   - `017/US3-2`, `017/FR-020`: nome de turma/pessoa com `<script>`, `<img onerror>`, `"`, `&` e
@@ -421,14 +421,14 @@ e-mail e versão em texto com o mesmo conteúdo, sem recurso externo nem rastrea
   - `017/SC-005`: a varredura dos seis passa;
   - o e-mail recebido pelo `InMemoryMailer` tem `html`, `text`, `from` "DevTrack <…>" e
     `replyTo` quando configurado (`017/FR-023`).
-- [ ] T033 [P] [US3] `apps/web/test/mail-tokens.test.ts`: as cores de
+- [X] T033 [P] [US3] `apps/web/test/mail-tokens.test.ts`: as cores de
   `apps/api/src/platform/mail/templates/mail-tokens.ts` são as do tema claro de
   `apps/web/design-system/tokens.css` (`--primary`, `--foreground`, `--text-secondary`,
   `--background`, `--border`), lidas dos dois arquivos como texto (sem import entre apps).
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] `apps/api/src/platform/mail/templates/`: `layout.ts` (renderiza `{ html, text }`
+- [X] T034 [US3] `apps/api/src/platform/mail/templates/`: `layout.ts` (renderiza `{ html, text }`
   de `{ subject, heading, paragraphs, action, expiry, footer }`: tabelas, estilos inline, fonte do
   sistema, botão como link e link por extenso), `escape-html.ts`, `mail-tokens.ts` e um arquivo por
   tipo (`verify-email.ts`, `password-reset.ts`, `invitation-teacher.ts`, `invitation-manager.ts`,

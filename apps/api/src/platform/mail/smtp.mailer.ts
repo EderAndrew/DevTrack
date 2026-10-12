@@ -1,10 +1,29 @@
 import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
-import { createTransport, type Transporter } from "nodemailer";
+import { createTransport, type SendMailOptions, type Transporter } from "nodemailer";
 import { APP_CONFIG } from "../config/config.module";
 import type { AppConfig } from "../config/config.schema";
 import { type MailMessage, Mailer, type MailSendResult } from "./mailer";
 import { classifySmtpError } from "./smtp-errors";
 import { renderTemplate } from "./templates";
+
+/**
+ * The message as nodemailer sends it: `from` is `MAIL_FROM` ("DevTrack <…>"), the reply address the
+ * message's or `MAIL_REPLY_TO` (017/FR-023), and both bodies of the template, which nodemailer puts
+ * in one `multipart/alternative` (017/FR-019).
+ */
+export function composeMail(message: MailMessage, config: AppConfig): SendMailOptions {
+  const { subject, text, html } = renderTemplate(message.template, message.params as never);
+  const replyTo = message.replyTo ?? config.mail.replyTo;
+  return {
+    from: config.mailFrom,
+    to: message.to,
+    subject,
+    text,
+    html,
+    ...(message.messageId ? { messageId: message.messageId } : {}),
+    ...(replyTo ? { replyTo } : {}),
+  };
+}
 
 /**
  * The only transport (017/FR-024): standard SMTP, configured only by environment, so changing
@@ -28,18 +47,9 @@ export class SmtpMailer extends Mailer implements OnModuleDestroy {
   }
 
   async send(message: MailMessage): Promise<MailSendResult> {
-    const { subject, text, html } = renderTemplate(message.template, message.params as never);
-    const replyTo = message.replyTo ?? this.config.mail.replyTo;
+    const mail = composeMail(message, this.config);
     try {
-      await this.transport.sendMail({
-        from: this.config.mailFrom,
-        to: message.to,
-        subject,
-        text,
-        ...(html ? { html } : {}),
-        ...(message.messageId ? { messageId: message.messageId } : {}),
-        ...(replyTo ? { replyTo } : {}),
-      });
+      await this.transport.sendMail(mail);
     } catch (error) {
       throw classifySmtpError(error);
     }
