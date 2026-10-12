@@ -172,7 +172,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016 and 017; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017 and 018; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -193,6 +193,12 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `HelpAvailability`), and monitoring lives only in `attempt-integrity`, `features/controlled-attempt`
   and `components/ui/assessment`. Since 016 they read the attendance tables in their own scoped
   queries, never import `attendance` code.
+- `apps/api/test/exams-boundary.spec.ts` (018) keeps `exams`/`exam-ai` (API) and `features/exams` (web) apart
+  from the exercise and work banks (only `works/{types,grading,grade}`), with no code execution, model choice or
+  float arithmetic; `exam-sessions` calls no AI or AI help and grades only through `activities/submission`; no
+  exam text says "fraude", "cola" or "violação". `activities-boundary.spec.ts` (amended in 018) lets the
+  activity modules reach exams only through `exams/coverage`, never `exam-sessions`, and keeps the exam timer
+  and countdown in `features/exam-attempt` and `components/ui/assessment`.
 - `apps/api/test/attendance-boundary.spec.ts` (016) keeps `attendance` (API) and
   `features/attendance` (web) away from AI, AI help, controlled-mode monitoring, grading, the banks
   and mail; no code execution or float arithmetic, and presence is only the teacher's mark (no

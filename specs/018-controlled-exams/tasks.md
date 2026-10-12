@@ -116,7 +116,7 @@ description: "Task list for 018 — Prova em Modo Restrito com Avisos e Decisão
 **Purpose**: migração, permissões, regras puras e esqueletos. ⚠️ Nenhuma história começa antes
 desta fase.
 
-- [ ] T006 Teste primeiro: `apps/api/test/integration/018-schema.spec.ts`, com as regras de
+- [X] T006 Teste primeiro: `apps/api/test/integration/018-schema.spec.ts`, com as regras de
   `data-model.md`:
   - Banco de Provas: 1–20 questões e soma exata (gatilhos adiados); aprovação recusada sem
     gabarito, dificuldade ou tópico; tópicos da questão só da prova (FK composta), 1–3; `origin`
@@ -134,14 +134,14 @@ desta fase.
   - gatilhos de defesa: com retenção aberta, `activity_answers`, `activity_submissions` e
     `work_help_requests` recusados; exceções da decisão do professor (`CANCELLED`,
     `ENDED_BY_WARNINGS`) e dos eventos de integridade (gravados como fato).
-- [ ] T007 Migração `apps/api/prisma/migrations/<ts>_controlled_exams/migration.sql` e
+- [X] T007 Migração `apps/api/prisma/migrations/<ts>_controlled_exams/migration.sql` e
   `apps/api/prisma/schema.prisma`, com T006 verde ao final: as tabelas do Banco de Provas (8), as
   colunas e CHECKs de EXAM, `exam_difficulty`, `end_reason`/`cancelled_by_id`, `INACTIVITY` e
   `idle_seconds`, `exam_occurrences`, `exam_attempt_holds`, os 5 enums, os gatilhos e a extensão
   dos gatilhos de defesa da 016; seed das 7 permissões para TEACHER
   (contracts/permissions.md). Na mesma tarefa: `resetDb` (`apps/api/test/helpers/`) apaga as
   tabelas novas na ordem certa; `domain-boundary.spec.ts` fixa os modelos novos.
-- [ ] T008 [P] Regras puras com testes, todas recebendo `now` do chamador:
+- [X] T008 [P] Regras puras com testes, todas recebendo `now` do chamador:
   - `apps/api/src/modules/activities/status/exam-time.ts` + `exam-time.spec.ts` (research T4):
     `startDeadline`, `canStart`, `endsAt` (com o teto do encerramento/cancelamento), `closesAt`,
     `remaining`, `acceptsWrite(now, endsAt)` com `EXAM_END_GRACE_MS = 2000`;
@@ -154,7 +154,7 @@ desta fase.
     "Derived" de `data-model.md` e `canReturn`;
   - `apps/api/src/modules/exams/coverage.ts` + `coverage.spec.ts` (research T15): questões e
     pontos por tópico e por dificuldade, `outOfScope` a partir do escopo ensinado.
-- [ ] T009 [P] Esqueletos `apps/api/src/modules/{exams,exam-ai,exam-sessions}/*.module.ts`,
+- [X] T009 [P] Esqueletos `apps/api/src/modules/{exams,exam-ai,exam-sessions}/*.module.ts`,
   registrados em `AppModule`, e os guardas (research T16):
   - `apps/api/test/exams-boundary.spec.ts` (novo): `exams`/`exam-ai` e
     `apps/web/features/exams` não importam os bancos de exercícios e trabalhos exceto
@@ -164,7 +164,7 @@ desta fase.
   - `apps/api/test/activities-boundary.spec.ts` (emendado): SC-012 aceita EXAM; cronômetro e
     contagem só em `apps/web/features/exam-attempt` e `apps/web/components/ui/assessment`;
     `activities`/`student-activities` não importam `exam-sessions`.
-- [ ] T010 Acrescentar `018` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
+- [X] T010 Acrescentar `018` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do
   CLAUDE.md): `stories: 8`, `scenarios: 51`, `rows: 0`,
   `successCriteria: sc(1, 12)` e `pending: { stories: [1, 2, 3, 4, 5, 6, 7, 8],
   successCriteria: ["SC-001", …, "SC-012"] }`. Cada história sai de `pending` na tarefa que

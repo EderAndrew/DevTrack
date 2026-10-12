@@ -225,6 +225,19 @@ const SPECS: FeatureSpec[] = [
     // and SC-008 (017-email-guide) since Phase 6.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "018",
+    path: "specs/018-controlled-exams/spec.md",
+    stories: 8,
+    scenarios: 51,
+    // No "### Acceptance Criteria Traceability" table, as in 008–017.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 12),
+    // Joined in the Foundational phase (T010); each story leaves `pending` with the task that writes its
+    // last test, each SC with the test that cites it, so the lists are empty at the end of T056.
+    pending: { stories: [1, 2, 3, 4, 5, 6, 7, 8], successCriteria: sc(1, 12) },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

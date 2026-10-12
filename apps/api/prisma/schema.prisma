@@ -334,6 +334,11 @@ model User {
   attendancesMarked       ActivityAttendance[]      @relation("ActivityAttendanceMarkedBy")
   pausesStarted           AttemptPause[]            @relation("AttemptPauseStartedBy")
   pausesReleased          AttemptPause[]            @relation("AttemptPauseReleasedBy")
+  examsOwned              Exam[]                    @relation("ExamTeacher")
+  examsReviewed           Exam[]                    @relation("ExamReviewedBy")
+  examGenerationRequests  ExamGenerationRequest[]   @relation("ExamGenerationRequestTeacher")
+  submissionsCancelled    ActivitySubmission[]      @relation("ActivitySubmissionCancelledBy")
+  examHoldsResolved       ExamAttemptHold[]         @relation("ExamAttemptHoldResolvedBy")
 
   mailDeliveries MailDelivery[]
 
@@ -598,6 +603,8 @@ model Subject {
   syllabusDocuments      SyllabusDocument[]
   works                  Work[]
   workGenerationRequests WorkGenerationRequest[]
+  exams                  Exam[]
+  examGenerationRequests ExamGenerationRequest[]
   classActivities        ClassActivity[]
 
   @@index([teacherId, status, name])
@@ -690,6 +697,8 @@ model SyllabusRevision {
   exerciseGenerationBatches ExerciseGenerationBatch[]
   works                     Work[]
   workGenerationRequests    WorkGenerationRequest[]
+  exams                     Exam[]
+  examGenerationRequests    ExamGenerationRequest[]
 
   @@unique([documentId, number])
   @@map("syllabus_revisions")
@@ -728,6 +737,8 @@ model SyllabusItem {
   exerciseGenerationBatches ExerciseGenerationBatch[]
   workTopics                WorkTopic[]
   workGenerationTopics      WorkGenerationRequestTopic[]
+  examTopics                ExamTopic[]
+  examGenerationTopics      ExamGenerationRequestTopic[]
   activityQuestionTopics    ClassActivityQuestionTopic[]
 
   @@unique([groupId, position])
@@ -1345,6 +1356,7 @@ model AiExecution {
   proposal                AiProposal?
   exerciseGenerationBatch ExerciseGenerationBatch?
   workGenerationRequest   WorkGenerationRequest?
+  examGenerationRequest   ExamGenerationRequest?
   workHelpRequest         WorkHelpRequest?
 
   @@unique([requestedByUserId, idempotencyKey])
@@ -1623,6 +1635,8 @@ model ProgrammingLanguage {
   generationBatches      ExerciseGenerationBatch[]
   workQuestions          WorkQuestion[]
   workGenerationRequests WorkGenerationRequest[]
+  examQuestions          ExamQuestion[]
+  examGenerationRequests ExamGenerationRequest[]
   activityQuestions      ClassActivityQuestion[]
 
   @@map("programming_languages")
@@ -2023,10 +2037,11 @@ model WorkGenerationRequestTopic {
 
 // ── 012: class activities and the student portal (specs/012-student-portal/data-model.md) ──
 
-/// `EXAM` arrives with the exams spec (research P3).
+/// `EXAM` since 018 (research T3): always CONTROLLED, no AI help, PRESENT_ONLY, timed per student.
 enum ClassActivityType {
   EXERCISE
   ASSIGNMENT
+  EXAM
 
   @@map("class_activity_type")
 }
@@ -2114,8 +2129,16 @@ model ClassActivity {
   latePolicy           ActivityLatePolicy?   @map("late_policy")
   /// Set iff ASSIGNMENT (CHECK); informative, the content lives in the snapshot.
   sourceWorkId         String?               @map("source_work_id") @db.Uuid
-  /// The work's subject, equal to the class's (research P5).
+  /// Set iff EXAM (CHECK, 018 T3); informative, the content lives in the snapshot.
+  sourceExamId         String?               @map("source_exam_id") @db.Uuid
+  /// The work's or the exam's subject, equal to the class's (research P5); null for EXERCISE (CHECK).
   sourceSubjectId      String?               @map("source_subject_id") @db.Uuid
+  /// EXAM only (CHECK, 018 T3, T4): 1–120 minutes from each student's start; immutable (trigger).
+  durationMinutes      Int?                  @map("duration_minutes") @db.SmallInt
+  /// EXAM only (CHECK): 30–60 seconds without interaction is an occurrence (018 T7); immutable.
+  inactivityLimitSeconds Int?                @map("inactivity_limit_seconds") @db.SmallInt
+  /// EXAM only (CHECK): 0–60 minutes after `publishAt` to start (018 T4); immutable.
+  startWindowMinutes   Int?                  @map("start_window_minutes") @db.SmallInt
   /// Topics outside the taught scope that the teacher acknowledged (FR-005a).
   outOfScopeTopicCount Int                   @default(0) @map("out_of_scope_topic_count")
   /// Set together (CHECK), never for EXERCISE; governs what the students see (research P14).
@@ -2131,6 +2154,7 @@ model ClassActivity {
   schoolClass      SchoolClass             @relation(fields: [classId], references: [id], onDelete: Restrict)
   teacher          User                    @relation("ClassActivityTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
   sourceWork       Work?                   @relation(fields: [sourceWorkId], references: [id], onDelete: Restrict)
+  sourceExam       Exam?                   @relation(fields: [sourceExamId], references: [id], onDelete: Restrict)
   sourceSubject    Subject?                @relation(fields: [sourceSubjectId], references: [id], onDelete: Restrict)
   resultReleasedBy User?                   @relation("ClassActivityReleasedBy", fields: [resultReleasedById], references: [id], onDelete: Restrict)
   questions        ClassActivityQuestion[]
@@ -2157,6 +2181,8 @@ model ClassActivityQuestion {
   /// EXERCISE only: the exercise's difficulty and its fixed points (CHECK of the pair, 013 K2).
   difficulty       ExerciseDifficulty?
   points           Int?
+  /// Set iff the activity is EXAM: the exam question's difficulty (deferred trigger, 018 T3).
+  examDifficulty   WorkDifficulty?      @map("exam_difficulty")
   statement        String
   /// `instructions`, `starterCode` only CODE; `expectedSolution`, `languageId` iff CODE (CHECK).
   instructions     String?
@@ -2264,6 +2290,8 @@ model ActivityAttempt {
   integrityEvents AttemptIntegrityEvent[]
   helpRequests    WorkHelpRequest[]
   pauses          AttemptPause[]
+  occurrences     ExamOccurrence[]
+  holds           ExamAttemptHold[]
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2320,11 +2348,16 @@ model ActivitySubmission {
   resultViewedAt  DateTime? @map("result_viewed_at") @db.Timestamptz(6)
   /// Optimistic concurrency of the teacher's grading (research P13).
   version         Int       @default(1)
+  /// Set iff the activity is EXAM (trigger, 018 T5, T9); immutable.
+  endReason       ExamEndReason? @map("end_reason")
+  /// Set iff `endReason = CANCELLED` (CHECK): the teacher who confirmed it; grade 0 (CHECK, trigger).
+  cancelledById   String?   @map("cancelled_by_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   attempt    ActivityAttempt           @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
   acceptedBy User?                     @relation("ActivitySubmissionAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict)
+  cancelledBy User?                    @relation("ActivitySubmissionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   gradings   ActivityQuestionGrading[]
 
   /// Target of the gradings' composite FK.
@@ -2426,6 +2459,8 @@ enum AttemptIntegrityEventType {
   TYPING_LIMIT_EXCEEDED
   FULLSCREEN_UNAVAILABLE
   DETECTION_UNAVAILABLE
+  /// EXAM only (018 T7): no interaction for the activity's inactivity limit; with `idleSeconds`.
+  INACTIVITY
 
   @@map("attempt_integrity_event_type")
 }
@@ -2458,11 +2493,16 @@ model AttemptIntegrityEvent {
   /// The browser's time, set iff `buffered` (CHECK).
   clientOccurredAt DateTime?                 @map("client_occurred_at") @db.Timestamptz(6)
   buffered         Boolean                   @default(false)
+  /// 30–60, set iff INACTIVITY (CHECK, 018 T7).
+  idleSeconds      Int?                      @map("idle_seconds") @db.SmallInt
 
-  attempt  ActivityAttempt        @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
-  question ClassActivityQuestion? @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+  attempt     ActivityAttempt        @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  question    ClassActivityQuestion? @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+  occurrences ExamOccurrence[]
 
   @@unique([attemptId, clientEventId])
+  /// Target of the occurrences' composite FK: an occurrence's first event is of its own attempt.
+  @@unique([id, attemptId])
   @@index([attemptId, recordedAt])
   @@index([activityId])
   @@map("attempt_integrity_events")
@@ -2577,4 +2617,305 @@ model AttemptPause {
 
   @@index([activityId, releasedAt])
   @@map("attempt_pauses")
+}
+
+// ── 018: Banco de Provas, exam occurrences and holds (specs/018-controlled-exams/data-model.md) ──
+
+enum ExamStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+
+  @@map("exam_status")
+}
+
+enum ExamOrigin {
+  MANUAL
+  AI_GENERATED
+
+  @@map("exam_origin")
+}
+
+/// How an EXAM attempt ended (018 T5, T9), on its submission.
+enum ExamEndReason {
+  STUDENT_SUBMITTED
+  TIME_EXPIRED
+  ACTIVITY_CLOSED
+  ENDED_BY_WARNINGS
+  CANCELLED
+
+  @@map("exam_end_reason")
+}
+
+/// What an occurrence was (018 T6); the four clipboard events are one kind.
+enum ExamOccurrenceKind {
+  SCREEN_LEFT
+  FULLSCREEN_EXITED
+  CLIPBOARD
+  INACTIVITY
+
+  @@map("exam_occurrence_kind")
+}
+
+/// The teacher's one decision on a hold (018 T9).
+enum ExamHoldResolution {
+  CANCEL_CONFIRMED
+  RETURNED
+  NOT_CANCELLED
+
+  @@map("exam_hold_resolution")
+}
+
+/// An exam of the teacher's private Banco de Provas (018 T2), shaped like `Work`: always with a revision
+/// and topics, 1–20 questions, each question with its difficulty and topics on approval (deferred trigger).
+model Exam {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The owner; every query filters by it.
+  teacherId           String     @map("teacher_id") @db.Uuid
+  subjectId           String     @map("subject_id") @db.Uuid
+  /// The confirmed revision of the exam's topics (topics are required).
+  syllabusRevisionId  String     @map("syllabus_revision_id") @db.Uuid
+  title               String
+  /// `searchKey(title)`, written by the application.
+  titleSearchKey      String     @map("title_search_key")
+  description         String?
+  /// 0.01–100.00 and ≥ 0.01 per question (CHECK); the questions' values add up to it (deferred trigger).
+  totalGrade          Decimal    @map("total_grade") @db.Decimal(5, 2)
+  /// 1–20, equal to the number of questions (deferred trigger).
+  questionCount       Int        @map("question_count")
+  /// Never changes (trigger).
+  origin              ExamOrigin
+  status              ExamStatus @default(DRAFT)
+  /// Set iff ARCHIVED (CHECK); the restore target.
+  archivedFromStatus  ExamStatus? @map("archived_from_status")
+  /// Set iff AI_GENERATED (CHECK).
+  generationRequestId String?    @unique @map("generation_request_id") @db.Uuid
+  humanReviewed       Boolean    @default(false) @map("human_reviewed")
+  humanEdited         Boolean    @default(false) @map("human_edited")
+  /// Set together (CHECK).
+  reviewedById        String?    @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?  @map("reviewed_at") @db.Timestamptz(6)
+  /// Optimistic concurrency of the whole aggregate.
+  version             Int        @default(1)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher           User                   @relation("ExamTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  subject           Subject                @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  syllabusRevision  SyllabusRevision       @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  generationRequest ExamGenerationRequest? @relation(fields: [generationRequestId], references: [id], onDelete: Restrict)
+  reviewedBy        User?                  @relation("ExamReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  topics            ExamTopic[]
+  questions         ExamQuestion[]
+  classActivities   ClassActivity[]
+
+  /// Target of the topics' composite FK: every topic comes from the exam's revision.
+  @@unique([id, syllabusRevisionId])
+  @@index([teacherId, status, updatedAt(sort: Desc), id])
+  @@index([teacherId, subjectId])
+  @@map("exams")
+}
+
+/// A topic of an exam: an item of the exam's revision (both composite FKs); 1–20 per exam (deferred trigger).
+model ExamTopic {
+  examId             String @map("exam_id") @db.Uuid
+  syllabusItemId     String @map("syllabus_item_id") @db.Uuid
+  syllabusRevisionId String @map("syllabus_revision_id") @db.Uuid
+  /// Selection order.
+  position           Int
+
+  exam           Exam                @relation(fields: [examId, syllabusRevisionId], references: [id, syllabusRevisionId], onDelete: Cascade)
+  syllabusItem   SyllabusItem        @relation(fields: [syllabusItemId, syllabusRevisionId], references: [id, revisionId], onDelete: Restrict)
+  questionTopics ExamQuestionTopic[]
+
+  @@id([examId, syllabusItemId])
+  @@unique([examId, position])
+  @@index([syllabusItemId])
+  @@map("exam_topics")
+}
+
+/// As `WorkQuestion`, plus the difficulty (required on approval, deferred trigger).
+model ExamQuestion {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  examId             String              @map("exam_id") @db.Uuid
+  /// 0-based; unique per exam, deferrable (reorder).
+  position           Int
+  /// Never changes (trigger).
+  type               WorkQuestionType
+  gradingStrategy    WorkGradingStrategy @map("grading_strategy")
+  statement          String
+  statementSearchKey String              @map("statement_search_key")
+  /// ≥ 0.01; computed by position (011 rule), never from a request or the AI.
+  value              Decimal             @db.Decimal(5, 2)
+  /// Required for an APPROVED exam (deferred trigger).
+  difficulty         WorkDifficulty?
+  explanation        String?
+  expectedAnswer     String?             @map("expected_answer")
+  rubric             String?
+  instructions       String?
+  starterCode        String?             @map("starter_code")
+  expectedSolution   String?             @map("expected_solution")
+  languageId         String?             @map("language_id") @db.Uuid
+  isTrickQuestion    Boolean             @default(false) @map("is_trick_question")
+  /// The proposal item id of an AI question.
+  generationItemId   String?             @map("generation_item_id") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  exam         Exam                      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  language     ProgrammingLanguage?      @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  alternatives ExamQuestionAlternative[]
+  testCases    ExamQuestionTestCase[]
+  topics       ExamQuestionTopic[]
+
+  /// Target of the question topics' composite FK.
+  @@unique([id, examId])
+  @@unique([examId, position])
+  @@unique([examId, generationItemId])
+  @@map("exam_questions")
+}
+
+/// Only MULTIPLE_CHOICE: 3–5, exactly one correct, distinct texts (deferred trigger).
+model ExamQuestionAlternative {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  position   Int
+  text       String
+  isCorrect  Boolean @map("is_correct")
+
+  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@map("exam_question_alternatives")
+}
+
+/// Only CODE, ≤ 20 per question (deferred trigger). Never executed.
+model ExamQuestionTestCase {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId     String                 @map("question_id") @db.Uuid
+  position       Int
+  input          String
+  expectedOutput String                 @map("expected_output")
+  visibility     WorkTestCaseVisibility
+
+  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@map("exam_question_test_cases")
+}
+
+/// A question's topics: topics of its own exam only (composite FKs); 1–3 per question on approval (deferred trigger).
+model ExamQuestionTopic {
+  questionId     String @map("question_id") @db.Uuid
+  examId         String @map("exam_id") @db.Uuid
+  syllabusItemId String @map("syllabus_item_id") @db.Uuid
+
+  question  ExamQuestion @relation(fields: [questionId, examId], references: [id, examId], onDelete: Cascade)
+  examTopic ExamTopic    @relation(fields: [examId, syllabusItemId], references: [examId, syllabusItemId], onDelete: Restrict)
+
+  @@id([questionId, syllabusItemId])
+  @@map("exam_question_topics")
+}
+
+/// One "Criar prova com IA" request (018 T14); its status is derived from the execution and
+/// `generatedAt`, never stored.
+model ExamGenerationRequest {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId              String         @map("teacher_id") @db.Uuid
+  subjectId              String         @map("subject_id") @db.Uuid
+  syllabusRevisionId     String         @map("syllabus_revision_id") @db.Uuid
+  title                  String
+  difficulty             WorkDifficulty
+  /// 0.01–100.00 and ≥ 0.01 per question (CHECK).
+  totalGrade             Decimal        @map("total_grade") @db.Decimal(5, 2)
+  /// 1–20, the sum of the counts per type (CHECK).
+  requestedQuantity      Int            @map("requested_quantity")
+  openAnswerQuantity     Int            @map("open_answer_quantity")
+  multipleChoiceQuantity Int            @map("multiple_choice_quantity")
+  codeQuantity           Int            @map("code_quantity")
+  /// 0–3 and ≤ multiple choice (CHECK).
+  trickQuestionQuantity  Int            @map("trick_question_quantity")
+  /// Copied from the revision; set iff codeQuantity > 0 (CHECK).
+  languageId             String?        @map("language_id") @db.Uuid
+  aiExecutionId          String?        @unique @map("ai_execution_id") @db.Uuid
+  idempotencyKey         String         @map("idempotency_key") @db.Uuid
+  /// Set by the materialization of the proposal.
+  generatedAt            DateTime?      @map("generated_at") @db.Timestamptz(6)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  teacher          User                         @relation("ExamGenerationRequestTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  subject          Subject                      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  syllabusRevision SyllabusRevision             @relation(fields: [syllabusRevisionId], references: [id], onDelete: Restrict)
+  language         ProgrammingLanguage?         @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  aiExecution      AiExecution?                 @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
+  topics           ExamGenerationRequestTopic[]
+  exam             Exam?
+
+  @@unique([id, syllabusRevisionId])
+  @@unique([teacherId, idempotencyKey])
+  @@index([teacherId, createdAt(sort: Desc), id])
+  @@map("exam_generation_requests")
+}
+
+/// 1–10 per request and ≤ 3 × the requested quantity (deferred trigger).
+model ExamGenerationRequestTopic {
+  requestId          String @map("request_id") @db.Uuid
+  syllabusItemId     String @map("syllabus_item_id") @db.Uuid
+  syllabusRevisionId String @map("syllabus_revision_id") @db.Uuid
+  position           Int
+
+  request      ExamGenerationRequest @relation(fields: [requestId, syllabusRevisionId], references: [id, syllabusRevisionId], onDelete: Cascade)
+  syllabusItem SyllabusItem          @relation(fields: [syllabusItemId, syllabusRevisionId], references: [id, revisionId], onDelete: Restrict)
+
+  @@id([requestId, syllabusItemId])
+  @@unique([requestId, position])
+  @@map("exam_generation_request_topics")
+}
+
+/// A counted occurrence of an EXAM attempt (018 T6): a rule's result, apart from the browser's facts.
+/// Gap-free ordinals; written only for an IN_PROGRESS EXAM attempt with no open pause or hold; append-only (triggers).
+model ExamOccurrence {
+  attemptId     String             @map("attempt_id") @db.Uuid
+  activityId    String             @map("activity_id") @db.Uuid
+  studentUserId String             @map("student_user_id") @db.Uuid
+  /// ≥ 1, `max + 1` of the attempt (trigger).
+  ordinal       Int                @db.SmallInt
+  kind          ExamOccurrenceKind
+  /// The integrity event that opened it, of the same attempt (composite FK).
+  firstEventId  String             @map("first_event_id") @db.Uuid
+  /// Server clock: the first event's.
+  recordedAt    DateTime           @map("recorded_at") @db.Timestamptz(6)
+
+  attempt    ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  firstEvent AttemptIntegrityEvent @relation(fields: [firstEventId, attemptId], references: [id, attemptId], onDelete: Restrict)
+  holds      ExamAttemptHold[]
+
+  @@id([attemptId, ordinal])
+  @@index([activityId])
+  @@map("exam_occurrences")
+}
+
+/// "Encerrada por avisos" (018 T8): opened by the occurrence `EXAM_WARNINGS + 1` (or the first after a
+/// return), resolved once by the class's teacher. One open per attempt (partial UNIQUE); while open the
+/// attempt's writes are refused (triggers). Never deleted.
+model ExamAttemptHold {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId         String              @map("attempt_id") @db.Uuid
+  activityId        String              @map("activity_id") @db.Uuid
+  studentUserId     String              @map("student_user_id") @db.Uuid
+  /// The occurrence that opened it (composite FK).
+  occurrenceOrdinal Int                 @map("occurrence_ordinal") @db.SmallInt
+  /// Server clock.
+  openedAt          DateTime            @map("opened_at") @db.Timestamptz(6)
+  /// Set once, together with `resolvedAt` and `resolvedById` (CHECK, trigger).
+  resolution        ExamHoldResolution?
+  resolvedAt        DateTime?           @map("resolved_at") @db.Timestamptz(6)
+  resolvedById      String?             @map("resolved_by_id") @db.Uuid
+
+  attempt    ActivityAttempt @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  occurrence ExamOccurrence  @relation(fields: [attemptId, occurrenceOrdinal], references: [attemptId, ordinal], onDelete: Restrict)
+  resolvedBy User?           @relation("ExamAttemptHoldResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@index([activityId, resolution])
+  @@map("exam_attempt_holds")
 }
