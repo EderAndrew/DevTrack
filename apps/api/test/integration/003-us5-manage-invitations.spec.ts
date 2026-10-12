@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { ClassInvitationDeliveryWorker } from "../../src/modules/class-invitations/delivery.worker";
+import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { CryptoService } from "../../src/platform/crypto/crypto.service";
 import {
@@ -97,7 +97,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
     it("mostra \"Envio falhou\" como delivery FAILED", async () => {
       t.mailer.setFailing(true);
       const { id } = await invite("falha@example.test");
-      const worker = t.get(ClassInvitationDeliveryWorker);
+      const worker = t.get(MailDeliveryWorker);
       let clock = Date.now();
       for (let i = 0; i < 6; i += 1) await worker.runOnce(new Date((clock += 7 * HOUR_MS)));
       expect((await list()).body.items.find((i: { id: string }) => i.id === id).delivery).toBe("FAILED");
@@ -127,7 +127,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       expect((await preview(oldToken)).body.code).toBe("TOKEN_INVALID");
       expect((await preview(newToken)).status).toBe(200);
 
-      const deliveries = await t.prisma.classInvitationDelivery.findMany({ where: { invitationId: id }, orderBy: { createdAt: "asc" } });
+      const deliveries = await t.prisma.mailDelivery.findMany({ where: { classInvitationId: id }, orderBy: { createdAt: "asc" } });
       expect(deliveries.map((d) => d.status)).toEqual(["SUPERSEDED", "SENT"]);
       expect(await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.resent" } })).toMatchObject([
         { actorUserId: teacher.id, targetId: id, metadata: { classId: schoolClass.id, sendCount: 2 } },
@@ -195,7 +195,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
     it("tentativas automáticas falhas não contam: depois de 6 delas o reenvio manual é aceito", async () => {
       t.mailer.setFailing(true);
       const { id } = await invite("aluno@example.test");
-      const worker = t.get(ClassInvitationDeliveryWorker);
+      const worker = t.get(MailDeliveryWorker);
       let clock = Date.now();
       for (let i = 0; i < 6; i += 1) await worker.runOnce(new Date((clock += 7 * HOUR_MS)));
       t.mailer.setFailing(false);
@@ -217,7 +217,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       expect(res.body).toMatchObject({ id, status: "CANCELLED" });
       expect(await row(id)).toMatchObject({ status: "CANCELLED", cancelReason: "TEACHER", cancelledById: teacher.id });
       expect((await preview(token)).body.code).toBe("TOKEN_INVALID");
-      expect((await t.prisma.classInvitationDelivery.findFirstOrThrow({ where: { invitationId: id } })).status).toBe(
+      expect((await t.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitationId: id } })).status).toBe(
         "SUPERSEDED",
       );
       expect(await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.cancelled" } })).toMatchObject([

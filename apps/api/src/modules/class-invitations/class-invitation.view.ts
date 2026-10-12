@@ -1,7 +1,11 @@
-import type { ClassInvitationStatus, ClassInvitationView, DeliveryState } from "@repo/contracts";
-import type { DeliveryStatus, Prisma } from "../../generated/prisma/client";
+import type { ClassInvitationStatus, ClassInvitationView } from "@repo/contracts";
+import type { Prisma } from "../../generated/prisma/client";
+import { deriveDeliveryState } from "../../platform/mail/outbox/delivery-state";
 
-/** The view's columns plus the status of the invitation's latest delivery. Never the token hash. */
+/**
+ * The view's columns plus the invitation's deliveries, newest first, from which the teacher's
+ * situation is derived (017 data-model "Derived", `deriveDeliveryState`). Never the token hash.
+ */
 export const CLASS_INVITATION_VIEW_SELECT = {
   id: true,
   email: true,
@@ -10,22 +14,10 @@ export const CLASS_INVITATION_VIEW_SELECT = {
   sendCount: true,
   lastSentAt: true,
   createdAt: true,
-  deliveries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { status: true } },
+  deliveries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { status: true, undeliveredReason: true } },
 } as const satisfies Prisma.ClassInvitationSelect;
 
 export type ClassInvitationViewRow = Prisma.ClassInvitationGetPayload<{ select: typeof CLASS_INVITATION_VIEW_SELECT }>;
-
-/**
- * What the teacher sees of the latest delivery (D5). A latest delivery that was `SUPERSEDED`
- * never reached the student (the invitation stopped being pending first), so it reads as
- * `FAILED`; an invitation without deliveries has not been sent yet.
- */
-const DELIVERY_STATE: Readonly<Record<DeliveryStatus, DeliveryState>> = {
-  PENDING: "SENDING",
-  SENT: "SENT",
-  FAILED: "FAILED",
-  SUPERSEDED: "FAILED",
-};
 
 /** Lazy expiry (D3, as R15): a PENDING invitation past `expiresAt` reads as EXPIRED. */
 export function effectiveStatus(row: { status: ClassInvitationStatus; expiresAt: Date }, now = new Date()) {
@@ -34,7 +26,7 @@ export function effectiveStatus(row: { status: ClassInvitationStatus; expiresAt:
 
 /** `ClassInvitationView` of the contract; dates as ISO (002 S4). */
 export function toClassInvitationView(row: ClassInvitationViewRow, now = new Date()): ClassInvitationView {
-  const latest = row.deliveries[0];
+  const { delivery, deliveryIssue } = deriveDeliveryState(row.deliveries);
   return {
     id: row.id,
     email: row.email,
@@ -42,7 +34,8 @@ export function toClassInvitationView(row: ClassInvitationViewRow, now = new Dat
     expiresAt: row.expiresAt.toISOString(),
     sendCount: row.sendCount,
     lastSentAt: row.lastSentAt.toISOString(),
-    delivery: latest ? DELIVERY_STATE[latest.status] : "SENDING",
+    delivery,
+    deliveryIssue,
     createdAt: row.createdAt.toISOString(),
   };
 }

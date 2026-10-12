@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthController } from "./auth.controller";
 import { EmailVerificationController } from "./email-verification.controller";
+import { AccountMailSubjects } from "./account.mail-subjects";
 import { EmailVerificationService } from "./email-verification.service";
 import { defaultLoginDelay, LOGIN_DELAY, LoginService } from "./login.service";
 import { MeController } from "./me.controller";
@@ -30,6 +31,7 @@ import { UserTokenService } from "./user-token.service";
     SessionEndService,
     OwnSessionsService,
     PasswordResetService,
+    AccountMailSubjects,
   ],
   exports: [SessionService, UserTokenService, PublicRateLimit],
 })

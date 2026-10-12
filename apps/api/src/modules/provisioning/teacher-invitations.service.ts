@@ -7,7 +7,6 @@ import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
 import { type InvitationScope, InvitationService } from "./invitation.service";
-import { toInvitationView } from "./invitation.view";
 
 /** The teaching registry is shared by everyone holding `professores.*` (MANAGER and ADMIN, FR-005). */
 const SCOPE: InvitationScope = { roleKey: "TEACHER" };
@@ -28,7 +27,7 @@ export class TeacherInvitationsService {
   async invite(input: InviteRequest, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
     const issuer = await this.prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, email: true } });
     try {
-      const { invitation, token } = await this.prisma.runInTransaction(async (tx) => {
+      const scheduled = await this.prisma.runInTransaction(async (tx) => {
         const email = normalizeEmail(input.email);
         if (email !== issuer.email) {
           const teacher = await tx.userRole.findFirst({
@@ -40,8 +39,8 @@ export class TeacherInvitationsService {
         }
         return this.invitations.create(tx, { ...input, roleKey: "TEACHER", issuer, requestId });
       });
-      this.invitations.sendInvitationMail(invitation, token);
-      return toInvitationView(invitation);
+      this.invitations.sendInvitationMail(scheduled);
+      return await this.invitations.view(scheduled.invitation);
     } catch (error) {
       if (error instanceof AppException && error.code === "SELF_INVITE_FORBIDDEN") {
         await this.audit.record(this.prisma, {
@@ -57,21 +56,21 @@ export class TeacherInvitationsService {
   }
 
   async list(status?: InvitationStatus): Promise<InvitationView[]> {
-    return (await this.invitations.list(SCOPE, status)).map((row) => toInvitationView(row));
+    return this.invitations.views(await this.invitations.list(SCOPE, status));
   }
 
   async resend(id: string, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
-    const { invitation, token } = await this.prisma.runInTransaction((tx) =>
+    const scheduled = await this.prisma.runInTransaction((tx) =>
       this.invitations.resend(tx, id, SCOPE, { id: auth.userId, requestId }),
     );
-    this.invitations.sendInvitationMail(invitation, token);
-    return toInvitationView(invitation);
+    this.invitations.sendInvitationMail(scheduled);
+    return this.invitations.view(scheduled.invitation);
   }
 
   async revoke(id: string, auth: AuthContext, requestId: string | null): Promise<InvitationView> {
     const invitation = await this.prisma.runInTransaction((tx) =>
       this.invitations.revoke(tx, id, SCOPE, { id: auth.userId, requestId }),
     );
-    return toInvitationView(invitation);
+    return this.invitations.view(invitation);
   }
 }

@@ -129,7 +129,12 @@ describe("US7 — contexto, papéis e origem (FR-060–FR-063)", () => {
     it("POST/PATCH/DELETE sem Origin ou de outro site → 403 ORIGIN_NOT_ALLOWED sem efeito", async () => {
       const admin = await createUser(t, { roles: ["ADMIN"] });
       const cookie = await loginAs(t, admin);
-      const unsafe = (await registeredRoutes()).filter((r) => /^(POST|PATCH|DELETE) /.test(r.route));
+      // 017 research N6: the e-mail provider's notices come with no Origin and no session; that one
+      // public route authenticates the provider's signature instead (017-notice-auth.spec.ts).
+      const PROVIDER_NOTICE = "POST /mail/notices/:provider";
+      const all = (await registeredRoutes()).filter((r) => /^(POST|PATCH|DELETE) /.test(r.route));
+      expect(all.map((r) => r.route)).toContain(PROVIDER_NOTICE);
+      const unsafe = all.filter((r) => r.route !== PROVIDER_NOTICE);
       expect(unsafe.length).toBeGreaterThan(20);
 
       const snapshot = async () => ({

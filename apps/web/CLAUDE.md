@@ -63,6 +63,14 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   page is visible; there are no WebSockets. The answering page reads the pause from the activity and a
   `409 ATTEMPT_PAUSED` on save, so a pause opened elsewhere (another device, the teacher) takes the questions off
   the screen. Exercises never show "Chamada" or "Sair da sala".
+- Invitation e-mail status (017): the class tab (`features/classes/components/class-invitations-tab.tsx`) and the
+  teacher and manager lists show, only next to a PENDING invitation, `DeliveryStatus`
+  (`features/invitations/components/delivery-status.tsx`): "Enviando", "Envio falhou", or the badge "Não entregue"
+  with the reason in words (never colour alone), from the API's `delivery`/`deliveryIssue`; nothing once sent.
+  "Reenviar" on an UNDELIVERED invitation (`ResendInvitationButton` in
+  `features/invitations/components/resend-confirm-dialog.tsx`) first asks "Reenviar para o mesmo endereço?" ("Voltar"
+  sends nothing). Account e-mails show no delivery status anywhere. The E2E `production-email.spec.ts`
+  reads the Message-ID from Mailpit and posts a Resend bounce signed with `.env.e2e`'s `MAIL_NOTICE_SECRET`.
 
 ## Guards
 

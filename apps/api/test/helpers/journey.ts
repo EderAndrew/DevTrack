@@ -7,6 +7,7 @@ import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverif
 import { hashToken } from "../../src/platform/crypto/tokens";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
+import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
@@ -34,12 +35,16 @@ import {
   uniqueEmail,
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
+import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
 
 /** The OpenRouter key the scans look for (008/SC-005); never a real credential. */
 export const OPENROUTER_MARKER_KEY = "sk-or-teste-008-CHAVE-FALSA";
+/** An SMTP_URL whose password the scans look for (017/SC-007); the journey's mailer stays in memory. */
+export const SMTP_MARKER_PASSWORD = "MARCADOR-SENHA-SMTP-017";
+export const SMTP_MARKER_URL = `smtp://jornada:${SMTP_MARKER_PASSWORD}@127.0.0.1:1025`;
 const OPERATOR = { host: "host-jornada", user: "operador-jornada" };
 
 /** A secret produced during the journey; `kind` names it in failure messages, never the value. */
@@ -626,6 +631,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   secrets.push({ kind: "credencial do provedor de IA", value: FAKE_PROVIDER_CREDENTIAL });
   // 008/US4-1: the OpenRouter key in the configuration (the provider stays the simulated one).
   if (t.config.ai.openrouter.apiKey) secrets.push({ kind: "chave do OpenRouter", value: t.config.ai.openrouter.apiKey });
+  // 017/US4-5: the SMTP password and the notice secret of the configuration.
+  const smtpPassword = decodeURIComponent(new URL(t.config.smtpUrl).password);
+  if (smtpPassword) secrets.push({ kind: "senha do SMTP_URL", value: smtpPassword });
+  if (t.config.mail.notices.provider === "resend") {
+    const key = t.config.mail.notices.secret;
+    secrets.push({ kind: "segredo de aviso (MAIL_NOTICE_SECRET)", value: `whsec_${key.toString("base64")}` });
+    secrets.push({ kind: "segredo de aviso decodificado", value: key.toString("base64") });
+  }
   content.push({ kind: "instruções do agente de IA", value: INSTRUCTIONS_MARKER });
   const aiOutput = text("saída do modelo", "MARCADOR-SAIDA-006");
   const aiInput = { text: text("entrada da execução de IA", "MARCADOR-ENTRADA-006") };
@@ -961,6 +974,40 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(
     (await api(t).post("/api/auth/password-reset/confirm", { token: resetToken, password: resetPassword })).status,
   ).toBe(200);
+
+  // 017/US1 — the outbox: an address the server refuses (UNDELIVERED, audited with source SMTP), a
+  // revoked invitation whose retry is discarded, and an e-mail that fails all 7 attempts (FAILED).
+  t.mailer.failNext(1, "permanent");
+  expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
+  await t.flushMail();
+  t.mailer.setFailing(true);
+  const revokedInvitation = await managerClient.post("/api/teacher-invitations", {
+    email: "prof-revogada-jornada@example.test",
+    displayName: "Professora Revogada",
+  });
+  await t.flushMail();
+  expect((await managerClient.post(`/api/teacher-invitations/${revokedInvitation.body.id}/revoke`)).status).toBe(200);
+  expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
+  await t.flushMail();
+  const mailWorker = t.get(MailDeliveryWorker);
+  let mailClock = Date.now();
+  for (let attempt = 2; attempt <= 7; attempt += 1) await mailWorker.runOnce(new Date((mailClock += 7 * 3_600_000)));
+  t.mailer.setFailing(false);
+  // 017/US2 — a provider notice: Resend bounces a sent teacher invitation (UNDELIVERED, audited with
+  // source NOTICE). The address and the bounce message of the notice are content the scans look for.
+  if (t.config.mail.notices.provider === "resend") {
+    const bounced = await managerClient.post("/api/teacher-invitations", {
+      email: "prof-sem-caixa-jornada@example.test",
+      displayName: "Professora Sem Caixa",
+    });
+    expect(bounced.status).toBe(201);
+    await t.flushMail();
+    const { messageId } = await t.prisma.mailDelivery.findFirstOrThrow({ where: { invitationId: bounced.body.id, status: "SENT" } });
+    content.push({ kind: "destinatário do aviso do provedor", value: "MARCADOR-DESTINO-017" });
+    content.push({ kind: "mensagem de bounce do provedor", value: "MARCADOR-BOUNCE-017" });
+    const notice = signedResendNotice({ type: "email.bounced", messageId, secret: t.config.mail.notices.secret, at: new Date() });
+    expect((await postNotice(t, "resend", notice)).status).toBe(200);
+  }
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

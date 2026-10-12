@@ -4,7 +4,7 @@ import { endpoints } from "@repo/contracts";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Public } from "../../src/modules/access-control/decorators";
-import { AcceptsMultipart } from "../../src/platform/http/origin.guard";
+import { AcceptsMultipart, ProviderNotice } from "../../src/platform/http/origin.guard";
 import { api, createTestApp, type TestApp } from "../helpers/test-app";
 
 @Controller("fixture-multipart")
@@ -19,6 +19,13 @@ class MultipartFixtureController {
   @Post("unmarked")
   @Public()
   unmarked() {
+    return { ok: true };
+  }
+
+  @Post("provider-notice")
+  @Public()
+  @ProviderNotice()
+  providerNotice() {
     return { ok: true };
   }
 }
@@ -89,5 +96,40 @@ describe("004/FR-007 multipart só em rotas de envio marcadas, com Origin permit
       if (res.status !== 403 || res.body.code !== "ORIGIN_NOT_ALLOWED") accepted.push(`${entry.method} ${entry.path} → ${res.status}`);
     }
     expect(accepted).toEqual([]);
+  });
+});
+
+// 017 research N6: @ProviderNotice() lets a route take JSON or text/plain with no Origin (the e-mail
+// provider's notices); it never opens multipart, forms or any other route.
+describe("017/FR-011 o marcador @ProviderNotice() não abre outra rota", () => {
+  let t: TestApp;
+
+  beforeAll(async () => {
+    t = await createTestApp({ controllers: [MultipartFixtureController] });
+  });
+  afterAll(() => t.close());
+
+  const post = (path: string, contentType: string, origin?: string) => {
+    const req = request(t.baseUrl).post(`/api/fixture-multipart/${path}`).set("Content-Type", contentType);
+    return (origin ? req.set("Origin", origin) : req).send("{}");
+  };
+
+  it("rota marcada aceita JSON e text/plain sem Origin", async () => {
+    for (const contentType of ["application/json", "text/plain; charset=UTF-8"]) {
+      expect((await post("provider-notice", contentType)).status, contentType).toBe(201);
+    }
+  });
+
+  it("rota marcada recusa formulário e multipart", async () => {
+    expect((await post("provider-notice", "application/x-www-form-urlencoded")).body.code).toBe("ORIGIN_NOT_ALLOWED");
+    const res = await request(t.baseUrl).post("/api/fixture-multipart/provider-notice").attach("file", FILE.bytes, { filename: FILE.filename });
+    expect(res.body.code).toBe("ORIGIN_NOT_ALLOWED");
+  });
+
+  it("rotas não marcadas continuam exigindo Origin permitido e JSON", async () => {
+    for (const path of ["unmarked", "marked"]) {
+      expect((await post(path, "application/json")).body.code, path).toBe("ORIGIN_NOT_ALLOWED");
+      expect((await post(path, "text/plain", t.origin)).body.code, path).toBe("ORIGIN_NOT_ALLOWED");
+    }
   });
 });

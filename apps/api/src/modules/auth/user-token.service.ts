@@ -23,6 +23,10 @@ export interface IssuedToken {
 @Injectable()
 export class UserTokenService {
   async issue(tx: Tx, userId: string, purpose: TokenPurpose, now: Date = new Date()): Promise<IssuedToken> {
+    // Two requests at once (a double click, 017/US1-4) would both insert a live token and one would
+    // hit `user_tokens_live_user_purpose_key` (500). A lock of this user and purpose serializes them;
+    // nothing else takes it, so it cannot form a cycle with a confirmation (user_tokens → users).
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`user_token:${userId}:${purpose}`}, 0))`;
     await tx.userToken.updateMany({
       where: { userId, purpose, usedAt: null, invalidatedAt: null },
       data: { invalidatedAt: now },

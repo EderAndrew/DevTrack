@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TeacherListItem } from "@repo/contracts";
+import type { InvitationView, TeacherListItem } from "@repo/contracts";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { pendingResponse } from "../../../test/tokens";
@@ -178,6 +178,86 @@ describe("002/US4-2 e 002/US4-3 ações atualizam a lista sem recarregar a pági
     fetchMock.mockResolvedValue(json(200, { items: TEACHERS }));
     release();
     expect(await screen.findByText("Bruno Ativo")).toBeTruthy();
-    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/teacher-invitations")).toHaveLength(1);
+    // 017: the invitation list is read again after the invite (GET); only one POST went out.
+    expect(fetchMock.mock.calls.filter(([url, init]) => url === "/api/teacher-invitations" && init?.method === "POST")).toHaveLength(1);
   });
 });
+
+describe("017/US2-1 017/US2-2 017/US2-4 017/FR-015 017/FR-016 professores convidados: situação do envio", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const invitationOf = (item: TeacherListItem, overrides: Partial<InvitationView> = {}): InvitationView => ({
+    id: item.invitationId!,
+    email: item.email,
+    displayName: item.displayName,
+    role: "TEACHER",
+    status: "PENDING",
+    expiresAt: "2026-09-28T12:00:00.000Z",
+    sendCount: 1,
+    lastSentAt: "2026-09-21T12:00:00.000Z",
+    delivery: "SENT",
+    deliveryIssue: null,
+    invitedBy: { id: "m", name: "Gestora" },
+    ...overrides,
+  });
+  const ANA = TEACHERS[0]!;
+  const rowOf = (name: string) => screen.getByText(name).closest("tr")!;
+  const renderWith = (invitation: InvitationView) =>
+    renderWithProviders(<TeachersAdmin initialTeachers={{ items: TEACHERS }} initialInvitations={{ items: [invitation] }} />);
+
+  it.each([
+    ["BOUNCED", "O endereço não existe ou recusou a mensagem."],
+    ["COMPLAINED", "Marcado como spam pelo destinatário."],
+  ] as const)("017/US2-1 017/US2-2 017/FR-015 convite %s: \"Convidado\" e \"Não entregue\" com o motivo", async (issue, text) => {
+    const { container } = renderWith(invitationOf(ANA, { delivery: "UNDELIVERED", deliveryIssue: issue }));
+    const row = rowOf("Ana Convidada");
+    expect(within(row).getByText("Não entregue").getAttribute("data-variant")).toBe("warning");
+    expect(within(row).getByText(text)).toBeTruthy();
+    expect(within(rowOf("Bruno Ativo")).queryByText("Não entregue")).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it.each([
+    ["SENDING", "Enviando", "neutral"],
+    ["FAILED", "Envio falhou", "danger"],
+  ] as const)("017/FR-015 lista nova: %s → badge \"%s\" (%s); SENT sem badge", (delivery, label, variant) => {
+    const { unmount } = renderWith(invitationOf(ANA, { delivery }));
+    expect(within(rowOf("Ana Convidada")).getByText(label).getAttribute("data-variant")).toBe(variant);
+    unmount();
+    renderWith(invitationOf(ANA));
+    expect(within(rowOf("Ana Convidada")).queryByText(/Enviando|Envio falhou|Não entregue/)).toBeNull();
+  });
+
+  it("017/US2-4 017/FR-016 Reenviar convite num \"Não entregue\" pede confirmação; Voltar não chama a API", async () => {
+    fetchMock.mockResolvedValue(json(200, { items: TEACHERS }));
+    renderWith(invitationOf(ANA, { delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" }));
+    const user = userEvent.setup();
+    const trigger = screen.getByRole("button", { name: "Reenviar convite: Ana Convidada" });
+
+    await user.click(trigger);
+    const dialog = await screen.findByRole("alertdialog", { name: "Reenviar para o mesmo endereço?" });
+    await user.click(within(dialog).getByRole("button", { name: "Voltar" }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+
+    await user.click(trigger);
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reenviar" }));
+    expect(await screen.findByText("Reenviar convite: Ana Convidada — concluído.")).toBeTruthy();
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/teacher-invitations/${ANA.invitationId}/resend`);
+  });
+
+  it("017/FR-016 sem problema de entrega, Reenviar convite segue direto (001)", async () => {
+    fetchMock.mockResolvedValue(json(200, { items: TEACHERS }));
+    renderWith(invitationOf(ANA));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Reenviar convite: Ana Convidada" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/teacher-invitations/${ANA.invitationId}/resend`);
+  });
+});
+

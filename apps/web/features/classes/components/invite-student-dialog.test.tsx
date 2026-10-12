@@ -20,6 +20,7 @@ const INVITATION: ClassInvitationView = {
   sendCount: 1,
   lastSentAt: "2026-09-23T12:00:00.000Z",
   delivery: "SENDING",
+  deliveryIssue: null,
   createdAt: "2026-09-23T12:00:00.000Z",
 };
 

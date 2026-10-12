@@ -15,9 +15,26 @@ import { StudentRaSchema } from "./enrollments.js";
 export const ClassInvitationStatusSchema = z.enum(["PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"]);
 export type ClassInvitationStatus = z.infer<typeof ClassInvitationStatusSchema>;
 
-/** State of the latest delivery of the e-mail (003 D5). */
-export const DeliveryStateSchema = z.enum(["SENDING", "SENT", "FAILED"]);
+/**
+ * State of the latest delivery of the e-mail (003 D5); 017 adds UNDELIVERED, when the provider
+ * says the e-mail did not reach the recipient ("Não entregue").
+ */
+export const DeliveryStateSchema = z.enum(["SENDING", "SENT", "FAILED", "UNDELIVERED"]);
 export type DeliveryState = z.infer<typeof DeliveryStateSchema>;
+
+/** Why an e-mail is UNDELIVERED (017 data-model `undelivered_reason`). */
+export const DeliveryIssueSchema = z.enum(["BOUNCED", "COMPLAINED", "REJECTED"]);
+export type DeliveryIssue = z.infer<typeof DeliveryIssueSchema>;
+
+/** `deliveryIssue` is set exactly when `delivery` is UNDELIVERED (017 contracts/http-api.md). */
+export function refineDeliveryIssue(
+  view: { delivery: DeliveryState; deliveryIssue: DeliveryIssue | null },
+  ctx: z.core.$RefinementCtx,
+): void {
+  if ((view.delivery === "UNDELIVERED") !== (view.deliveryIssue !== null)) {
+    ctx.addIssue({ code: "custom", path: ["deliveryIssue"] });
+  }
+}
 
 export const InviteStudentRequestSchema = z.strictObject({ email: EmailSchema });
 export type InviteStudentRequest = z.infer<typeof InviteStudentRequestSchema>;
@@ -31,8 +48,9 @@ export const ClassInvitationViewSchema = z.strictObject({
   sendCount: z.int(),
   lastSentAt: IsoDateTimeSchema,
   delivery: DeliveryStateSchema,
+  deliveryIssue: DeliveryIssueSchema.nullable(),
   createdAt: IsoDateTimeSchema,
-});
+}).superRefine(refineDeliveryIssue);
 export type ClassInvitationView = z.infer<typeof ClassInvitationViewSchema>;
 
 /** Search by part of the e-mail; default status PENDING. */

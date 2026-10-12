@@ -400,6 +400,17 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   with ids and enums only (`016/SC-009`), and the secret scan keeps `MARCADOR-NOTA-016` (the note) out of logs and
   audit. `test/attendance-boundary.spec.ts` keeps `attendance` away from AI, help, monitoring, grading, banks and
   mail.
+- 017: one file per story (`017-us1-outbox` … `017-us4-config`), `017-schema` (CHECKs, transitions, append-only
+  notices), `017-migration` (the 003 deliveries carried over), `017-email-guide`, and in `test/security/` the notice
+  authentication (`017-notice-auth`, `017/SC-004`), concurrency (each attempt leaves at most once), performance
+  (`017/SC-002`: the answer never waits for SMTP) and boundaries (`017-boundaries`: only `POST /mail/notices/:provider`
+  is new, `delivery`/`deliveryIssue` only in the invitation views, teacher B → 404, a notice never becomes a session,
+  100 notices p95 < 200 ms, `017/FR-030`: six kinds, only the outbox calls `Mailer.send`, no bulk, inbound, suppression
+  list or provider SDK). The journey fails a send 7 times, discards a revoked invitation's retry, has an address refused
+  over SMTP and posts a Resend bounce; `audit-coverage.spec.ts` checks the three `mail_delivery.*` types with enums,
+  counts and codes only (`017/SC-007`). Maintenance job `mail-records` (`platform/mail/retention/`, research N13):
+  notices after 90 days, final deliveries after `MAIL_RECORDS_RETENTION_DAYS` except the latest of a PENDING
+  invitation, with `SET LOCAL devtrack.mail_purge = 'on'`.
 
 ## AI release-gate results (moved from the root CLAUDE.md)
 
@@ -428,11 +439,22 @@ scopeAccuracy 0.88, relevance 0.56 — its leaks are now blocked by the server.
   session teacher's own classes → 404 otherwise), `class-invitations` (invite, list, resend, cancel;
   public preview/accept through `RoleGrantAcceptance`, which grants `STUDENT` and creates the
   enrollment) and `enrollments` (the teacher's student list and removal, plus the student's
-  `GET /me/classes`). Invitation e-mails go through the `class_invitation_deliveries` outbox: the
-  first attempt runs after the commit, then the in-process `ClassInvitationDeliveryWorker` (`FOR
-  UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS` (0 disables the timer; tests
-  call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7 attempts; a retry issues a
-  fresh token and supersedes the old link.
+  `GET /me/classes`). Since 017 every e-mail of the six kinds goes through one outbox in
+  `platform/mail/outbox` (`mail_deliveries`): `MailOutbox.schedule(tx, kind, subjectId)` in the
+  request's transaction, `attemptNow` after the commit (`attemptSync` in the admin bootstrap CLI),
+  then `MailDeliveryWorker` (`FOR UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS`
+  (0 disables the timer; tests call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7
+  attempts, within `MAIL_SENDS_PER_MINUTE` (shared per clock minute in `rate_limit_counters`;
+  `testConfig()` raises it, the FR-008 suites set it). Each owner module registers a `MailSubject`
+  (`class-invitation.mail-subject.ts`, `invitation.mail-subject.ts`, `account.mail-subjects.ts`,
+  `admin-bootstrap.mail-subject.ts`) whose `prepare` discards a dead link or rotates the token for
+  the retry; `t.flushMail()` waits for the first attempts and `InMemoryMailer.failNext(n,
+  "permanent")` simulates a refused address. The 003 `ClassInvitationDeliveryWorker` and
+  `class_invitation_deliveries` are gone. Provider notices live in `platform/mail/notices`
+  (`MailNoticesController` with `@Public()` + `@ProviderNotice()`, the `resend`/`ses` adapters verify the
+  signature on the raw body, `notice-transition.ts` decides the delivery's new state, idempotent by
+  `(provider, notice_id)`); tests sign them with `test/helpers/mail-notices.ts` (`signedResendNotice`,
+  `signedSnsNotice` with a `TestCertificateFetcher`, `postNotice`), never a real provider.
 - 004 modules: `subjects` (`SubjectContextPolicy`, same 404 scoping as classes; syllabus documents
   and revisions are reached through their subject), `syllabus` (multipart upload through
   `SyllabusFileInterceptor` in `platform/http/upload.ts`, on routes marked `@AcceptsMultipart()` so

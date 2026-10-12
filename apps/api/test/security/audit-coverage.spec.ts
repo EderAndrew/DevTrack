@@ -22,6 +22,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/013-exercise-points-ranking/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/015-controlled-work-ai-help/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/016-attendance-gated-release/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/017-production-email/contracts/audit-events.md"),
 ];
 
 /**
@@ -293,6 +294,29 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(released.sort()).toEqual(pauses.filter((pause) => pause.releasedAt !== null).map((pause) => pause.id).sort());
       expect(released).toHaveLength(2);
       expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["EVENTS", "HELP"]);
+    });
+
+    it("017/SC-007 mail_delivery.*: os 3 tipos gravados (falha, descarte, rejeição SMTP e aviso de bounce), metadata só com enums, contagens e códigos", async () => {
+      const types = rows.map((row) => row.type).filter((type) => type.startsWith("mail_delivery."));
+      expect(types.sort()).toEqual(["mail_delivery.discarded", "mail_delivery.failed", "mail_delivery.undelivered"]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(3);
+      expect(offendingMetadata(found)).toEqual([]);
+      for (const event of found) {
+        expect(event.actorType).toBe("SYSTEM");
+        expect(event.targetType).toBe("MAIL_DELIVERY");
+        // The target is a delivery row (or its id after the retention); never an address or a Message-ID.
+        expect(Object.values(event.metadata as object).every((value) => typeof value !== "string" || !/@|</.test(value))).toBe(true);
+      }
+      const undelivered = found.filter((event) => event.type === "mail_delivery.undelivered").map((event) => event.metadata as { source: string; reason: string });
+      expect(new Set(undelivered.map((m) => `${m.source} ${m.reason}`))).toEqual(new Set(["SMTP REJECTED", "NOTICE BOUNCED"]));
+      const failed = found.filter((event) => event.type === "mail_delivery.failed").map((event) => event.metadata as { attempts: number });
+      expect(failed.map((m) => m.attempts)).toContain(7);
+      const discarded = found.filter((event) => event.type === "mail_delivery.discarded").map((event) => (event.metadata as { reason: string }).reason);
+      expect(discarded).toContain("REVOKED");
+      // SENT and DELIVERED are never audited (volume; they live in the row).
+      expect(events.some((event) => /^mail_delivery\.(sent|delivered)$/.test(event.type))).toBe(false);
+      expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-(DESTINO|BOUNCE)-017|jornada/);
     });
 
     it("UPDATE em audit_events é recusado pelo trigger", async () => {

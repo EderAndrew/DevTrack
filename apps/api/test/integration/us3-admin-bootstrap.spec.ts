@@ -49,7 +49,7 @@ describe("US3 — bootstrap do primeiro ADMIN (FR-030–FR-036, R14)", () => {
       const before = Date.now();
       const result = await run(` ${email.toUpperCase()} `);
 
-      expect(result).toMatchObject({ outcome: "PENDING", mailDelivered: true, cancelledPrevious: false });
+      expect(result).toMatchObject({ outcome: "PENDING", mail: "SENT", cancelledPrevious: false });
       expect("link" in result && result.link).toBeFalsy();
       const row = await t.prisma.adminBootstrap.findFirstOrThrow();
       expect(row).toMatchObject({ email, status: "PENDING", linkPrinted: false, operatorHost: "host-teste", operatorUser: "operador" });

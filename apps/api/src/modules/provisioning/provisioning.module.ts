@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { InvitationAcceptanceController } from "./invitation-acceptance.controller";
 import { InvitationAcceptanceService } from "./invitation-acceptance.service";
+import { InvitationMailSubject } from "./invitation.mail-subject";
 import { InvitationService } from "./invitation.service";
 import { ManagersController } from "./managers.controller";
 import { ManagersService } from "./managers.service";
@@ -16,6 +17,7 @@ import { TeachersService } from "./teachers.service";
   providers: [
     RoleGrantAcceptance,
     InvitationService,
+    InvitationMailSubject,
     InvitationAcceptanceService,
     ManagersService,
     TeachersService,

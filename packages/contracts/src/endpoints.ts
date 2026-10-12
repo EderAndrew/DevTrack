@@ -85,7 +85,8 @@ import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema }
 import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
 import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
-import { EmptyBodySchema, UuidSchema } from "./common/primitives.js";
+import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
+import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
   ChangePlanStatusRequestSchema,
@@ -1359,6 +1360,17 @@ export const endpoints = {
     method: "GET",
     path: "/work-help/availability",
     response: HelpAvailabilitySchema,
+    status: 200,
+  },
+  /**
+   * 017 — the e-mail provider's notices (contracts/http-api.md). Public, signed by the provider; the
+   * body is the provider's, parsed by the API's adapters, so it has no schema here.
+   */
+  "mail.notice": {
+    method: "POST",
+    path: "/mail/notices/:provider",
+    params: ProviderNoticeParamsSchema,
+    response: EmptyResponseSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

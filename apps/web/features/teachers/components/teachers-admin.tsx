@@ -1,6 +1,6 @@
 "use client";
 
-import type { TeacherListItem, TeacherListResponse, TeacherStatus } from "@repo/contracts";
+import type { InvitationListResponse, InvitationView, TeacherListItem, TeacherListResponse, TeacherStatus } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type ChangeEvent, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,7 +12,16 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { STATUS_LABELS } from "@/lib/messages/status-labels";
-import { type TeacherAction, useInviteTeacher, useLoadTeachers, useTeacherAction, useTeachers } from "../hooks/use-teachers";
+import { DeliveryStatus } from "@/features/invitations/components/delivery-status";
+import { ResendInvitationButton } from "@/features/invitations/components/resend-confirm-dialog";
+import {
+  type TeacherAction,
+  useInviteTeacher,
+  useLoadTeachers,
+  useTeacherAction,
+  useTeacherInvitations,
+  useTeachers,
+} from "../hooks/use-teachers";
 import {
   EMAIL_ERROR_CODES,
   type InviteTeacherFormInput,
@@ -66,11 +75,17 @@ const rowKey = (item: TeacherListItem) => item.userId ?? item.invitationId ?? it
 
 export interface TeachersAdminProps {
   initialTeachers: TeacherListResponse;
+  /** The teacher invitations, for the delivery situation of the "Convidado" rows (017). */
+  initialInvitations?: InvitationListResponse;
 }
 
-export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
+const NO_INVITATIONS: InvitationListResponse = { items: [] };
+
+export function TeachersAdmin({ initialTeachers, initialInvitations = NO_INVITATIONS }: TeachersAdminProps) {
   const [filter, setFilter] = useState<"" | TeacherStatus>("");
   const { data } = useTeachers(filter || undefined, initialTeachers);
+  const { data: invitationList } = useTeacherInvitations(initialInvitations);
+  const invitations = new Map<string, InvitationView>((invitationList?.items ?? []).map((invitation) => [invitation.id, invitation]));
   const loadTeachers = useLoadTeachers();
   const invite = useInviteTeacher();
   const teacherAction = useTeacherAction();
@@ -177,25 +192,43 @@ export function TeachersAdmin({ initialTeachers }: TeachersAdminProps) {
           <TableBody>
             {teachers.map((item) => {
               const key = rowKey(item);
+              const invitation = item.invitationId ? invitations.get(item.invitationId) : undefined;
+              const pending = item.status === "INVITED" && invitation?.status === "PENDING" ? invitation : undefined;
               return (
                 <TableRow key={key}>
                   <TableCell>{item.displayName}</TableCell>
                   <TableCell>{item.email}</TableCell>
-                  <TableCell>{STATUS_LABELS[item.status]}</TableCell>
+                  <TableCell>
+                    <span className="flex flex-wrap items-center gap-1">
+                      {STATUS_LABELS[item.status]}
+                      {pending ? <DeliveryStatus delivery={pending.delivery} deliveryIssue={pending.deliveryIssue} /> : null}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <span className="flex flex-wrap gap-2">
-                      {actionsFor(item).map((action) => (
-                        <Button
-                          key={action.label}
-                          type="button"
-                          variant="secondary"
-                          aria-busy={busy === key || undefined}
-                          aria-label={`${action.label}: ${item.displayName}`}
-                          onClick={() => void runAction(item, action)}
-                        >
-                          {action.label}
-                        </Button>
-                      ))}
+                      {actionsFor(item).map((action) =>
+                        action.action === "resend" ? (
+                          <ResendInvitationButton
+                            key={action.label}
+                            delivery={pending?.delivery ?? "SENT"}
+                            label={action.label}
+                            ariaLabel={`${action.label}: ${item.displayName}`}
+                            busy={busy === key}
+                            onResend={() => void runAction(item, action)}
+                          />
+                        ) : (
+                          <Button
+                            key={action.label}
+                            type="button"
+                            variant="secondary"
+                            aria-busy={busy === key || undefined}
+                            aria-label={`${action.label}: ${item.displayName}`}
+                            onClick={() => void runAction(item, action)}
+                          >
+                            {action.label}
+                          </Button>
+                        ),
+                      )}
                     </span>
                   </TableCell>
                 </TableRow>

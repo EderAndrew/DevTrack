@@ -3,9 +3,10 @@ import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { parseAdminBootstrapArgs, runAdminBootstrapCli } from "../../src/cli/admin-bootstrap.command";
 import { FailingMailer, InMemoryMailer } from "../../src/platform/mail/in-memory.mailer";
+import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
 import { API_ROOT } from "../helpers/env";
 import { createUser, uniqueEmail } from "../helpers/factories";
-import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 function captureIo() {
   const out: string[] = [];
@@ -96,14 +97,46 @@ describe("CLI admin:bootstrap (contracts/cli-admin-bootstrap.md)", () => {
     expect([...out, ...err]).toContain("Bootstrap administrativo já realizado");
   });
 
-  it("falha no envio → exit 3 e bootstrap continua PENDING", async () => {
+  it("017/US1-1 falha no envio → exit 3, bootstrap PENDING e o e-mail fica para a API tentar de novo", async () => {
     const { io, err } = captureIo();
-    const code = await runAdminBootstrapCli(["--email", uniqueEmail("smtp")], process.env, io, {
+    const email = uniqueEmail("smtp");
+    const code = await runAdminBootstrapCli(["--email", email], process.env, io, {
       mailer: new FailingMailer(),
     });
     expect(code).toBe(3);
     expect(err.join("\n")).toMatch(/não foi possível enviar/i);
-    expect((await t.prisma.adminBootstrap.findFirstOrThrow()).status).toBe("PENDING");
+    expect(err.join("\n")).toMatch(/o e-mail será tentado de novo pela API/);
+    const bootstrap = await t.prisma.adminBootstrap.findFirstOrThrow();
+    expect(bootstrap.status).toBe("PENDING");
+    expect(await t.prisma.mailDelivery.findFirstOrThrow({ where: { adminBootstrapId: bootstrap.id } })).toMatchObject({
+      kind: "ADMIN_ACTIVATION",
+      status: "PENDING",
+      attempts: 1,
+    });
+
+    // The API's worker sends it with a fresh link, which activates the account.
+    expect(await t.get(MailDeliveryWorker).runOnce(new Date(Date.now() + 2 * 60_000))).toBe(1);
+    const token = t.mailer.lastTokenFor(email, "admin-activation")!;
+    expect((await api(t).post("/api/admin-activation/preview", { token })).status).toBe(200);
+  });
+
+  it("017/US1-6 com --print-link e o envio falhando: exit 3, envio DISCARDED e o link impresso continua valendo", async () => {
+    const { io, out, err } = captureIo();
+    const code = await runAdminBootstrapCli(["--email", uniqueEmail("impresso"), "--print-link"], process.env, io, {
+      mailer: new FailingMailer(),
+    });
+    expect(code).toBe(3);
+    expect(err.join("\n")).toMatch(/e-mail não enviado; use o link impresso/);
+    const bootstrap = await t.prisma.adminBootstrap.findFirstOrThrow();
+    expect(await t.prisma.mailDelivery.findFirstOrThrow({ where: { adminBootstrapId: bootstrap.id } })).toMatchObject({
+      status: "DISCARDED",
+      discardReason: "NOT_NEEDED",
+    });
+    const printed = out.join("\n").match(/token=([\w-]+)/)![1]!;
+
+    // No retry rotates the printed link.
+    expect(await t.get(MailDeliveryWorker).runOnce(new Date(Date.now() + 8 * 3_600_000))).toBe(0);
+    expect((await api(t).post("/api/admin-activation/preview", { token: printed })).status).toBe(200);
   });
 
   it("configuração inválida → exit 1 com mensagem genérica", async () => {

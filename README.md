@@ -272,6 +272,10 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
   `work-helper` é registrado desativado, como os demais agentes.
 - Lista de chamada (016): `RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR` (20) limita as saídas da sala
   declaradas por aluno.
+- E-mail (017): em desenvolvimento, testes e E2E tudo fica no Mailpit. Para produção (Resend, e
+  depois AWS SES só com configuração e DNS), siga o
+  [guia de implantação de e-mail](docs/deploy/email.md); com `NODE_ENV=production` a API não sobe
+  com um `SMTP_URL` sem TLS ou local, um `MAIL_FROM` sem domínio ou `MAIL_NOTICE_PROVIDER=none`.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

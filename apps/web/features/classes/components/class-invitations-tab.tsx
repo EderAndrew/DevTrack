@@ -27,6 +27,8 @@ import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { CLASS_INVITATION_STATUS_LABELS } from "@/lib/messages/status-labels";
+import { DeliveryStatus } from "@/features/invitations/components/delivery-status";
+import { ResendInvitationButton } from "@/features/invitations/components/resend-confirm-dialog";
 import {
   type ClassInvitationFilters,
   useCancelInvitation,
@@ -77,7 +79,8 @@ export interface ClassInvitationsTabProps {
  * "Convites" tab of a class (FR-020–FR-023): search by e-mail and status filter applied by the
  * API (pending by default), 20 at a time; pending invitations can be resent or, after a
  * confirmation, cancelled. Next to the status, "Enviando" while the e-mail waits for its (next)
- * attempt and "Envio falhou" once the attempts ran out (FR-019).
+ * attempt and "Envio falhou" once the attempts ran out (FR-019); "Não entregue" with the reason when
+ * the provider said the e-mail came back or was marked as spam, and then "Reenviar" asks first (017).
  */
 export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvitationsTabProps) {
   const [filters, setFilters] = useState<ClassInvitationFilters>(DEFAULT_INVITATION_FILTERS);
@@ -197,11 +200,7 @@ export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvi
                 <TableCell>
                   <span className="flex flex-wrap gap-1">
                     <Badge variant={STATUS_VARIANT[item.status]}>{CLASS_INVITATION_STATUS_LABELS[item.status]}</Badge>
-                    {item.status === "PENDING" && item.delivery === "FAILED" ? (
-                      <Badge variant="danger">Envio falhou</Badge>
-                    ) : item.status === "PENDING" && item.delivery === "SENDING" ? (
-                      <Badge variant="neutral">Enviando</Badge>
-                    ) : null}
+                    {item.status === "PENDING" ? <DeliveryStatus delivery={item.delivery} deliveryIssue={item.deliveryIssue} /> : null}
                   </span>
                 </TableCell>
                 <TableCell>{formatDateTime(item.expiresAt)}</TableCell>
@@ -210,15 +209,13 @@ export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvi
                   {item.status === "PENDING" ? (
                     <span className="flex flex-wrap gap-2">
                       {canResend ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          aria-label={`Reenviar convite para ${item.email}`}
-                          aria-busy={(resend.isPending && resend.variables === item.id) || undefined}
-                          onClick={() => void run("resend", item)}
-                        >
-                          Reenviar
-                        </Button>
+                        <ResendInvitationButton
+                          delivery={item.delivery}
+                          label="Reenviar"
+                          ariaLabel={`Reenviar convite para ${item.email}`}
+                          busy={resend.isPending && resend.variables === item.id}
+                          onResend={() => void run("resend", item)}
+                        />
                       ) : null}
                       {canCancel ? <CancelInvitation invitation={item} onConfirm={() => void run("cancel", item)} /> : null}
                     </span>

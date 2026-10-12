@@ -27,6 +27,7 @@ const invitation = (email: string, overrides: Partial<ClassInvitationView> = {})
     sendCount: 1,
     lastSentAt: "2026-09-23T15:00:00.000Z",
     delivery: "SENT",
+    deliveryIssue: null,
     createdAt: "2026-09-23T15:00:00.000Z",
     ...overrides,
   };
@@ -170,6 +171,90 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     const alert = await screen.findByRole("alert");
     await userEvent.setup().click(within(alert).getByRole("button", { name: "Tentar novamente" }));
     expect(await screen.findByText("ana@example.test")).toBeTruthy();
+  });
+});
+
+describe("017/US2-1 017/US2-2 017/US2-4 017/FR-015 017/FR-016 convite \"Não entregue\" na aba Convites", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("017/US2-1 017/US2-2 017/FR-015 badge \"Não entregue\" com o motivo em palavras, só em convite pendente", async () => {
+    const bounced = invitation("ana@example.test", { delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" });
+    const rejected = invitation("bia@example.test", { delivery: "UNDELIVERED", deliveryIssue: "REJECTED" });
+    const spam = invitation("bruno@example.test", { delivery: "UNDELIVERED", deliveryIssue: "COMPLAINED" });
+    const sent = invitation("carla@example.test");
+    fetchMock.mockResolvedValueOnce(page([bounced, rejected, spam, sent]));
+    const { container } = render();
+
+    const bouncedRow = (await screen.findByText("ana@example.test")).closest("tr")!;
+    const badge = within(bouncedRow).getByText("Não entregue");
+    expect(badge.getAttribute("data-variant")).toBe("warning");
+    expect(within(bouncedRow).getByText("O endereço não existe ou recusou a mensagem.")).toBeTruthy();
+    expect(within(screen.getByText("bia@example.test").closest("tr")!).getByText("O endereço não existe ou recusou a mensagem.")).toBeTruthy();
+    const spamRow = screen.getByText("bruno@example.test").closest("tr")!;
+    expect(within(spamRow).getByText("Marcado como spam pelo destinatário.")).toBeTruthy();
+    expect(within(screen.getByText("carla@example.test").closest("tr")!).queryByText(/Não entregue|Enviando|Envio falhou/)).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("017/FR-015 um convite aceito ou cancelado não mostra a situação do envio", async () => {
+    fetchMock.mockResolvedValueOnce(page([invitation("ana@example.test", { status: "ACCEPTED", delivery: "UNDELIVERED", deliveryIssue: "COMPLAINED" })]));
+    render();
+    const row = (await screen.findByText("ana@example.test")).closest("tr")!;
+    expect(within(row).queryByText(/Não entregue|spam/)).toBeNull();
+  });
+
+  it("017/US2-4 017/FR-016 Reenviar num \"Não entregue\" pede confirmação: Voltar não chama a API; Reenviar reenvia", async () => {
+    const undelivered = invitation("ana@example.test", { delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" });
+    fetchMock
+      .mockResolvedValueOnce(page([undelivered]))
+      .mockResolvedValueOnce(json(200, { ...undelivered, delivery: "SENDING", deliveryIssue: null, sendCount: 2 }))
+      .mockResolvedValue(page([{ ...undelivered, delivery: "SENDING", deliveryIssue: null, sendCount: 2 }]));
+    const { container } = render();
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", { name: "Reenviar convite para ana@example.test" });
+
+    await user.click(trigger);
+    const dialog = await screen.findByRole("alertdialog", { name: "Reenviar para o mesmo endereço?" });
+    expect(dialog.textContent).toContain("Este endereço já recusou a mensagem. Confira o e-mail antes de reenviar.");
+    await expectNoA11yViolations(container.ownerDocument.body);
+    await user.click(within(dialog).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await user.click(trigger);
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reenviar" }));
+    expect(await screen.findByText("Convite reenviado.")).toBeTruthy();
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/classes/${CLASS_ID}/invitations/${undelivered.id}/resend`);
+  });
+
+  it("017/US2-4 pelo teclado: Enter abre a confirmação e Esc volta sem reenviar", async () => {
+    fetchMock.mockResolvedValueOnce(page([invitation("ana@example.test", { delivery: "UNDELIVERED", deliveryIssue: "COMPLAINED" })]));
+    render();
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", { name: "Reenviar convite para ana@example.test" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("alertdialog", { name: "Reenviar para o mesmo endereço?" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("017/FR-016 num convite sem problema de entrega o reenvio segue direto, sem confirmação (003)", async () => {
+    const failed = invitation("ana@example.test", { delivery: "FAILED" });
+    fetchMock.mockResolvedValueOnce(page([failed])).mockResolvedValueOnce(json(200, failed)).mockResolvedValue(page([failed]));
+    render();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Reenviar convite para ana@example.test" }));
+    expect(await screen.findByText("Convite reenviado.")).toBeTruthy();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });
 

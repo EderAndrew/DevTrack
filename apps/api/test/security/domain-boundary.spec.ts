@@ -23,7 +23,6 @@ const EXPECTED_MODELS = [
   "RateLimitCounter",
   "SchoolClass",
   "ClassInvitation",
-  "ClassInvitationDelivery",
   "Enrollment",
   "Subject",
   "StoredFile",
@@ -90,6 +89,10 @@ const EXPECTED_MODELS = [
   // 016 (specs/016-attendance-gated-release/data-model.md) — the attendance of a work and the room exits of an attempt.
   "ActivityAttendance",
   "AttemptPause",
+  // 017 (specs/017-production-email/data-model.md) — one outbox for the six e-mails (replaces the
+  // 003 ClassInvitationDelivery) and the provider notices.
+  "MailDelivery",
+  "MailNotice",
 ];
 
 /**
