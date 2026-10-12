@@ -87,6 +87,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `class_activities.release_mode` (`ALL_ENROLLED`/`PRESENT_ONLY`), tables `activity_attendances` and `attempt_pauses`, defense triggers on attempt writes while paused (016-attendance-gated-release)
 - No new dependency; `nodemailer` SMTP stays the only transport (Resend now, AWS SES later by configuration), `node:crypto` + `fetch` verify provider notices (017-production-email)
 - PostgreSQL 17 — one migration: `mail_deliveries` (replaces `class_invitation_deliveries`, all six e-mails) and `mail_notices` (append-only), `delivery_status` += `DELIVERED`/`UNDELIVERED`/`DISCARDED` (017-production-email)
+- No new dependency (018-controlled-exams)
+- PostgreSQL 17 — one migration: the Banco de Provas tables (mirroring 011), `class_activity_type` += `EXAM` with duration/inactivity/start-window columns, submissions `end_reason`, integrity `INACTIVITY`, tables `exam_occurrences` (append-only) and `exam_attempt_holds` (018-controlled-exams)
 
 ## Stack notes
 
@@ -195,6 +197,13 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `features/attendance` (web) away from AI, AI help, controlled-mode monitoring, grading, the banks
   and mail; no code execution or float arithmetic, and presence is only the teacher's mark (no
   location, camera or QR code).
+- `apps/api/test/work-help-boundary.spec.ts` (015) keeps the answer key out of everything that
+  reaches the `work-helper` model (only `work-help/help` may read it, for the leak check), lets only
+  the task declaration name tiers/families (no model choice), and forbids float arithmetic, and
+  grading/submitting/blocking or exam code in `work-help`/`attempt-integrity`.
+- `apps/api/test/mail-boundary.spec.ts` (017) keeps `platform/mail` free of domain-module imports
+  (each module registers its `MailSubject`), forbids provider SDKs (`resend`, `svix`, `@aws-sdk/*`…),
+  allows `nodemailer` only in `smtp.mailer.ts`, and only `platform/mail/outbox` may call `Mailer.send`.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -229,7 +238,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
   exercise results, `ranking` for the 013 class ranking, `attempt-integrity` and `work-help`
   for the 015 integrity events and AI help requests, and `attendance` for the 016 room, attendance
-  batch and pauses), with
+  batch and pauses, and `mail` for the 017 notice route's provider param — the notice body stays the
+  provider's, parsed in the API adapters), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -240,7 +250,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -320,9 +330,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 018-controlled-exams: exams — own Banco de Provas (manual or `exam-generator` L2 draft), applied as an always-CONTROLLED, help-free, attendance-gated EXAM with a per-student server timer (1–120 min, start window); occurrences (screen/fullscreen exits, clipboard, inactivity 30–60 s) give 3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time is left, or do not cancel); expired attempts settled on the next touch
 - 017-production-email: real e-mail in production — one outbox with retries for all six e-mails (fresh link per attempt, nothing of the e-mail stored), provider notices (`POST /mail/notices/:provider`, signature on the raw body, our own Message-ID links them) mark invitations "Não entregue", HTML + text templates without external resources or tracking, production config guard, deploy guide (Resend → SES)
 - 016-attendance-gated-release: per-activity attendance — a new work is released only to the students the teacher marks present (late students marked later, unmark only before the start); exercises and older works stay open; "Sair da sala" pauses the attempt (reason declared by the student, or a teacher pause) and only the teacher releases the return, on every device; the deadline keeps running; PAUSED and durations derived on read; polling, no WebSocket
-- 015-controlled-work-ai-help: per-work teacher options — CONTROLLED mode (fullscreen focus page, screen exits and blocked copy/paste recorded as server-timed facts, typing allowance on save, never blocking the attempt) and AI help (3 orientations per student by the L2 `work-helper`, which never receives the answer key; deterministic leak check before delivery; teacher sees questions and orientations; the student sees their own helps and exits after the submission); constitution 3.4.0
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
