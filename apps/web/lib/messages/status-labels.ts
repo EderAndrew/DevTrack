@@ -3,6 +3,8 @@ import type {
   ClassPlanStatus,
   ClassInvitationStatus,
   ClassStatus,
+  DeliveryIssue,
+  DeliveryState,
   EnrollmentStatus,
   InvitationStatus,
   RoleAssignmentStatus,
@@ -81,4 +83,21 @@ export const SYLLABUS_FAILURE_LABELS: Record<SyllabusFailureCategory, string> = 
   UNREADABLE: "arquivo ilegível",
   TIMEOUT: "tempo esgotado",
   INTERNAL: "erro interno",
+};
+
+/**
+ * The e-mail of a pending invitation (003 FR-019, 017 contracts/web-ui.md): the badge text of each
+ * delivery situation; nothing is shown for a sent e-mail.
+ */
+export const DELIVERY_LABELS: Record<Exclude<DeliveryState, "SENT">, string> = {
+  SENDING: "Enviando",
+  FAILED: "Envio falhou",
+  UNDELIVERED: "Não entregue",
+};
+
+/** Why an e-mail was not delivered, in words next to the "Não entregue" badge (017/FR-015). */
+export const DELIVERY_ISSUE_TEXTS: Record<DeliveryIssue, string> = {
+  BOUNCED: "O endereço não existe ou recusou a mensagem.",
+  REJECTED: "O endereço não existe ou recusou a mensagem.",
+  COMPLAINED: "Marcado como spam pelo destinatário.",
 };

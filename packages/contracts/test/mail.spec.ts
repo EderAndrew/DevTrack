@@ -61,5 +61,6 @@ describe("017 contrato dos avisos do provedor (contracts/http-api.md)", () => {
     expect(EmptyResponseSchema.safeParse({}).success).toBe(true);
     expect(EmptyResponseSchema.safeParse({ changed: true }).success).toBe(false);
     expect(ErrorCodeSchema.options).toContain("NOTICE_REJECTED");
+    expect(ErrorCodeSchema.options).toContain("NOTICE_TOO_LARGE");
   });
 });

@@ -14,8 +14,11 @@ import { API_ROOT } from "./helpers/env";
 const MAIL_DIR = "src/platform/mail";
 const SMTP_MAILER = "src/platform/mail/smtp.mailer.ts";
 const OUTBOX_DIR = "src/platform/mail/outbox/";
-/** The audit trail is a global, cross-cutting module: the outbox records its events there. */
-const ALLOWED_MODULES = ["src/modules/audit/"];
+/**
+ * The audit trail is a global, cross-cutting module: the outbox and the notices record their events
+ * there. The notice controller declares itself `@Public()` (route metadata only, as `platform/health`).
+ */
+const ALLOWED_MODULES = ["src/modules/audit/", "src/modules/access-control/decorators"];
 /** Provider SDKs and their signature libraries (research N1, N7: we verify notices ourselves). */
 const PROVIDER_PACKAGE = /^(resend|svix|@aws-sdk\/.*|aws-sdk|@sendgrid\/.*|mailgun.*|postmark|nodemailer-.*-transport)$/;
 

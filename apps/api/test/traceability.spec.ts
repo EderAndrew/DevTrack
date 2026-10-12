@@ -219,8 +219,9 @@ const SPECS: FeatureSpec[] = [
     rowsWithoutIds: [],
     successCriteria: sc(1, 8),
     // Joined in the Setup phase (T001–T003); each story and SC leaves `pending` with the test that covers it.
-    // US1, SC-001 (017-us1-outbox) and SC-002 (017-performance) since Phase 3.
-    pending: { stories: [2, 3, 4], successCriteria: sc(3, 8) },
+    // US1, SC-001 (017-us1-outbox) and SC-002 (017-performance) since Phase 3; US2, SC-003
+    // (017-us2-notices) and SC-004 (017-notice-auth) since Phase 4.
+    pending: { stories: [3, 4], successCriteria: sc(5, 8) },
   },
 ];
 

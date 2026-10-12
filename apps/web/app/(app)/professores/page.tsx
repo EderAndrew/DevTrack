@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
-import { fetchTeachers } from "@/features/teachers/api/server";
+import { fetchTeacherInvitations, fetchTeachers } from "@/features/teachers/api/server";
 import { TeachersAdmin } from "@/features/teachers/components/teachers-admin";
 
 export const metadata: Metadata = { title: "Professores" };
@@ -15,13 +15,13 @@ export default async function TeachersPage() {
   if (!me) redirect(LOGIN);
   if (!me.permissions.includes("professores.visualizar")) return <NoAccess title="Professores" />;
 
-  const teachers = await fetchTeachers();
-  if (!teachers) redirect(LOGIN);
+  const [teachers, invitations] = await Promise.all([fetchTeachers(), fetchTeacherInvitations()]);
+  if (!teachers || !invitations) redirect(LOGIN);
 
   return (
     <section className="mx-auto w-full max-w-256">
       <PageHeader title="Professores" />
-      <TeachersAdmin initialTeachers={teachers} />
+      <TeachersAdmin initialTeachers={teachers} initialInvitations={invitations} />
     </section>
   );
 }

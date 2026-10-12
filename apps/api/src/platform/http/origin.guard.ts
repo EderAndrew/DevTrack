@@ -15,10 +15,20 @@ export const ACCEPTS_MULTIPART_KEY = "http:accepts-multipart";
  */
 export const AcceptsMultipart = (): MethodDecorator & ClassDecorator => SetMetadata(ACCEPTS_MULTIPART_KEY, true);
 
+export const PROVIDER_NOTICE_KEY = "http:provider-notice";
+
+/**
+ * The e-mail provider's notice route (017 research N6): a server-to-server call with no `Origin`,
+ * posting `application/json` (Resend) or `text/plain` (SNS). It carries no session to forge, and
+ * the route authenticates the provider's signature itself, so the CSRF barrier only checks the
+ * body type there. Only `POST /mail/notices/:provider` is marked (route-declarations.spec.ts).
+ */
+export const ProviderNotice = (): MethodDecorator => SetMetadata(PROVIDER_NOTICE_KEY, true);
+
 /**
  * CSRF barrier (R6), applied before any other guard: unsafe methods must come from an
  * allowed Origin and carry a JSON body type (or multipart, on routes marked with
- * `@AcceptsMultipart()`). Together with SameSite=Lax cookies this rules out cross-site form posts.
+ * `@AcceptsMultipart()`); the provider notice route (`@ProviderNotice()`) needs no Origin. Together with SameSite=Lax cookies this rules out cross-site form posts.
  */
 @Injectable()
 export class OriginGuard implements CanActivate {
@@ -37,16 +47,18 @@ export class OriginGuard implements CanActivate {
 
     const origin = req.headers.origin;
     const mediaType = (req.headers["content-type"] ?? "").split(";")[0]?.trim().toLowerCase();
+    if (this.marked(PROVIDER_NOTICE_KEY, context)) {
+      if (mediaType === "application/json" || mediaType === "text/plain") return true;
+      throw originNotAllowed();
+    }
     const acceptsBody =
-      mediaType === "application/json" || (mediaType === "multipart/form-data" && this.acceptsMultipart(context));
+      mediaType === "application/json" || (mediaType === "multipart/form-data" && this.marked(ACCEPTS_MULTIPART_KEY, context));
 
     if (!origin || !this.allowed.has(origin) || !acceptsBody) throw originNotAllowed();
     return true;
   }
 
-  private acceptsMultipart(context: ExecutionContext): boolean {
-    return Boolean(
-      this.reflector.getAllAndOverride<boolean>(ACCEPTS_MULTIPART_KEY, [context.getHandler(), context.getClass()]),
-    );
+  private marked(key: string, context: ExecutionContext): boolean {
+    return Boolean(this.reflector.getAllAndOverride<boolean>(key, [context.getHandler(), context.getClass()]));
   }
 }

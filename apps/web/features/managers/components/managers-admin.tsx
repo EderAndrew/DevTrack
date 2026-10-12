@@ -11,6 +11,8 @@ import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatDateTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { STATUS_LABELS } from "@/lib/messages/status-labels";
+import { DeliveryStatus } from "@/features/invitations/components/delivery-status";
+import { ResendInvitationButton } from "@/features/invitations/components/resend-confirm-dialog";
 import {
   useInviteManager,
   useManagerInvitations,
@@ -175,21 +177,26 @@ export function ManagersAdmin({ initialManagers, initialInvitations }: ManagersA
                   <br />
                   {invitation.email}
                 </TableCell>
-                <TableCell>{STATUS_LABELS[invitation.status]}</TableCell>
+                <TableCell>
+                  <span className="flex flex-wrap items-center gap-1">
+                    {STATUS_LABELS[invitation.status]}
+                    {invitation.status === "PENDING" ? (
+                      <DeliveryStatus delivery={invitation.delivery} deliveryIssue={invitation.deliveryIssue} />
+                    ) : null}
+                  </span>
+                </TableCell>
                 <TableCell>{formatDateTime(invitation.expiresAt)}</TableCell>
                 <TableCell>{invitation.sendCount}</TableCell>
                 <TableCell>
                   {invitation.status === "PENDING" ? (
                     <span className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        aria-busy={busy === invitation.id || undefined}
-                        aria-label={`Reenviar convite para ${invitation.email}`}
-                        onClick={() => void resendInvitation(invitation)}
-                      >
-                        Reenviar
-                      </Button>
+                      <ResendInvitationButton
+                        delivery={invitation.delivery}
+                        label="Reenviar"
+                        ariaLabel={`Reenviar convite para ${invitation.email}`}
+                        busy={busy === invitation.id}
+                        onResend={() => void resendInvitation(invitation)}
+                      />
                       <Button
                         type="button"
                         variant="secondary"

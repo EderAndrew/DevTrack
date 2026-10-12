@@ -3,7 +3,7 @@ import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 /** Codes only an e-mail provider receives (017 `POST /mail/notices/:provider`); the web never shows them. */
-type ProviderOnlyErrorCode = "NOTICE_REJECTED";
+type ProviderOnlyErrorCode = "NOTICE_REJECTED" | "NOTICE_TOO_LARGE";
 
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).

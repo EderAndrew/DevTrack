@@ -13,6 +13,7 @@
     "test:security": "vitest run test/security",
     "admin:bootstrap": "node --env-file-if-exists=.env dist/cli/admin-bootstrap.js",
     "maintenance:run": "node --env-file-if-exists=.env dist/cli/maintenance.js",
+    "mail:notice": "node --env-file-if-exists=.env dist/cli/mail-notice.js",
     "fixtures:syllabus": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/fixtures/syllabus/build-fixtures.ts",
     "eval:curriculum": "vitest run --config vitest.eval.config.ts test/eval/curriculum-agent.eval.ts",
     "eval:exercises": "vitest run --config vitest.eval.config.ts test/eval/exercise-generator.eval.ts",

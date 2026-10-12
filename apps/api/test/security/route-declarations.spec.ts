@@ -9,6 +9,7 @@ import {
   IS_PUBLIC_KEY,
   REQUIRED_PERMISSIONS_KEY,
 } from "../../src/modules/access-control/decorators";
+import { PROVIDER_NOTICE_KEY } from "../../src/platform/http/origin.guard";
 import { LogCapture } from "../helpers/log-capture";
 import { testConfig } from "../helpers/test-app";
 
@@ -45,6 +46,7 @@ function collectRoutes(app: INestApplicationContext): RouteInfo[] {
       const declared: string[] = [];
       if (reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) declared.push("@Public");
       if (reflector.getAllAndOverride<boolean>(ALLOW_UNVERIFIED_KEY, targets)) declared.push("@AllowUnverified");
+      if (reflector.getAllAndOverride<boolean>(PROVIDER_NOTICE_KEY, targets)) declared.push("@ProviderNotice");
       if (reflector.getAllAndMerge<string[]>(REQUIRED_PERMISSIONS_KEY, targets).length > 0) {
         declared.push("@RequirePermissions");
       }
@@ -189,6 +191,8 @@ describe("route access declarations", () => {
         "GET /me/activities/:activityId/attempts/:number",
         "GET /me/classes/:classId/ranking",
         "GET /classes/:classId/ranking",
+        // 017
+        "POST /mail/notices/:provider",
       ]),
     );
   });
@@ -197,9 +201,20 @@ describe("route access declarations", () => {
     expect(undeclared(routes)).toEqual([]);
   });
 
+  /**
+   * 017 research N6: the e-mail provider posts its notices with no session and no Origin, and the
+   * route authenticates the provider's signature on the raw body itself; the marker that lets it
+   * past the CSRF barrier exists on that one public route only.
+   */
+  it("017/FR-011 @ProviderNotice só na rota pública de avisos do provedor", () => {
+    expect(routes.filter((r) => r.declared.includes("@ProviderNotice")).map((r) => `${r.route} ${r.declared.join(" ")}`)).toEqual([
+      "POST /mail/notices/:provider @Public @ProviderNotice",
+    ]);
+  });
+
   it("@Public is never combined with session or permission requirements", () => {
     const contradictory = routes
-      .filter((r) => r.declared.includes("@Public") && r.declared.length > 1)
+      .filter((r) => r.declared.includes("@Public") && r.declared.some((d) => d !== "@Public" && d !== "@ProviderNotice"))
       .map((r) => `${r.route} ${r.declared.join(" ")}`);
     expect(contradictory).toEqual([]);
   });

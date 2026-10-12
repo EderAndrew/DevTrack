@@ -4,7 +4,7 @@
 
 | Method & path | Access | Body → Response | Errors |
 |---|---|---|---|
-| `POST /mail/notices/:provider` | `@Public()` + `@ProviderNotice()` (no session, no `Origin`, `application/json` or `text/plain`) | raw provider body (≤ 256 KB) → `200 {}` | `401 NOTICE_REJECTED` (signature, timestamp, topic); `404` (`:provider` not the configured `MAIL_NOTICE_PROVIDER`); `413`; `429 RATE_LIMITED` |
+| `POST /mail/notices/:provider` | `@Public()` + `@ProviderNotice()` (no session, no `Origin`, `application/json` or `text/plain`) | raw provider body (≤ 256 KB) → `200 {}` | `401 NOTICE_REJECTED` (signature, timestamp, topic); `404` (`:provider` not the configured `MAIL_NOTICE_PROVIDER`); `413 NOTICE_TOO_LARGE`; `429 RATE_LIMITED` |
 
 - `:provider` is `resend` or `ses` (research N6). The signature is verified on the raw body before
   any database access; nothing in the answer says why a notice was refused.

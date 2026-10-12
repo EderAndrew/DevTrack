@@ -284,13 +284,13 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T020 [P] [US2] Helper `apps/api/test/helpers/mail-notices.ts` (research N14):
+- [X] T020 [P] [US2] Helper `apps/api/test/helpers/mail-notices.ts` (research N14):
   `signedResendNotice({ type, messageId, bounceType?, at })` (Svix: `svix-id`, `svix-timestamp`,
   `svix-signature` com o segredo de teste) e `signedSnsNotice({ type, messageId, … })` com uma
   chave RSA e um certificado autoassinado gerados por `node:crypto`, servidos por um
   `CertificateFetcher` injetado com o host real `sns.sa-east-1.amazonaws.com`; também
   `snsSubscriptionConfirmation`.
-- [ ] T021 [P] [US2] `apps/api/test/integration/017-us2-notices.spec.ts`, cobrindo:
+- [X] T021 [P] [US2] `apps/api/test/integration/017-us2-notices.spec.ts`, cobrindo:
   - os cenários `017/US2-1`, `017/US2-2`, `017/US2-3`, `017/US2-4` (o campo que a tela usa para
     pedir a confirmação), `017/US2-6`, `017/US2-7` (nenhuma linha em `mail_notices`), `017/US2-8` e
     `017/US2-9`;
@@ -306,7 +306,7 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
     avisos (o primeiro motivo final fica, todos os avisos guardados), aviso de uma tentativa antiga e
     de um envio substituído (a situação do convite segue o envio mais recente), aviso de dias
     depois, tipos ignorados (`email.opened`, `email.clicked`, `email.sent`) não guardados.
-- [ ] T022 [P] [US2] `apps/api/test/security/017-notice-auth.spec.ts` (`017/US2-5`,
+- [X] T022 [P] [US2] `apps/api/test/security/017-notice-auth.spec.ts` (`017/US2-5`,
   `017/FR-011`, `017/SC-004`):
   - Resend: sem cabeçalhos, assinatura errada, corpo alterado, segredo de outro ambiente,
     timestamp fora de ±5 min, várias assinaturas no cabeçalho (uma válida passa) → `401
@@ -319,7 +319,7 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
   - 100 avisos repetidos em paralelo → uma linha em `mail_notices` e um efeito;
   - recusas vão para o log `mail.notice_rejected` com `provider` e `reason`, nunca para a
     auditoria.
-- [ ] T023 [P] [US2] Web, testes primeiro:
+- [X] T023 [P] [US2] Web, testes primeiro:
   - `apps/web/features/classes/components/class-invitations-tab.test.tsx`;
   - `apps/web/features/teachers/components/professores.test.tsx`;
   - `apps/web/features/managers/components/managers.test.tsx`.
@@ -333,25 +333,29 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] HTTP da rota pública em `apps/api/src/platform/http/`:
+- [X] T024 [US2] HTTP da rota pública em `apps/api/src/platform/http/`:
   - `@ProviderNotice()` (ao lado de `@AcceptsMultipart()`): o `OriginGuard` deixa passar sem
     `Origin` e com `application/json` ou `text/plain`;
   - `rawBody: true` em `apps/api/src/main.ts` e em `createTestApp`
     (`apps/api/test/helpers/test-app.ts`), com o limite de 256 KB só nessa rota;
   - `004-origin-multipart.spec.ts` ganha o caso: o marcador não abre outra rota.
-- [ ] T025 [P] [US2] Adaptador Resend `apps/api/src/platform/mail/notices/resend.adapter.ts`:
+  - Feito: em vez de `rawBody: true` global, `app.setup.ts` (compartilhado por `main.ts` e
+    `createTestApp`) registra um parser `raw` só para `/api/mail/notices/*`, antes do JSON, com o
+    limite de 256 KB; acima dele, `413 NOTICE_TOO_LARGE` (código só do provedor, como
+    `NOTICE_REJECTED`; `contracts/http-api.md` atualizado).
+- [X] T025 [P] [US2] Adaptador Resend `apps/api/src/platform/mail/notices/resend.adapter.ts`:
   verificação Svix (HMAC-SHA256 de `${id}.${timestamp}.${body}`, `timingSafeEqual`, ±5 min pelo
   `Clock`), `ResendNoticeSchema` estrito nos campos usados e o mapeamento de N7 para
   `DELIVERED | BOUNCED | TEMPORARY | COMPLAINED | REJECTED | IGNORED`. Teste unitário
   `resend.adapter.spec.ts`.
-- [ ] T026 [P] [US2] Adaptador SES `apps/api/src/platform/mail/notices/ses.adapter.ts` e
+- [X] T026 [P] [US2] Adaptador SES `apps/api/src/platform/mail/notices/ses.adapter.ts` e
   `certificate-fetcher.ts`: SNS `SignatureVersion` 2, host do certificado
   `^sns\.[a-z0-9-]+\.amazonaws\.com$` por `https`, cache por URL, `fetch` com 5 s; texto a assinar
   pelas regras do SNS para `Notification` e `SubscriptionConfirmation`; `TopicArn` igual a
   `MAIL_SES_TOPIC_ARN`; confirmação buscando o `SubscribeURL` (mesma regra de host); o
   `SesNotificationSchema` lê `mail.commonHeaders.messageId` e o mapeamento de N7. Teste unitário
   `ses.adapter.spec.ts`.
-- [ ] T027 [US2] `apps/api/src/platform/mail/notices/mail-notices.{controller,service}.ts`:
+- [X] T027 [US2] `apps/api/src/platform/mail/notices/mail-notices.{controller,service}.ts`:
   - controller fino: `@Public()`, `@ProviderNotice()`, lê o corpo bruto e chama o serviço; `404`
     para o provedor não configurado; limite por IP de `RATE_LIMIT_MAIL_NOTICES_PER_MINUTE`;
   - serviço: verifica antes de qualquer banco; liga pelo Message-ID **antes** do `INSERT`
@@ -363,24 +367,33 @@ o mesmo aviso de novo não muda nada; com assinatura errada → `401`.
     `mail_delivery.undelivered` com `source: NOTICE`;
   - rota nova: `mail.notice` em `endpoints.ts` (com os esquemas da T003), linha no `MATRIX` de `authorization-matrix.ts` (pública)
     e `route-declarations.spec.ts` com o motivo.
-- [ ] T028 [US2] Visões dos convites: `class-invitation.view.ts` e
+  - Feito: a rota é pública, e o `MATRIX` lista só rotas não públicas (`us7-matrix-completeness`),
+    então ela não entra nele; `route-declarations.spec.ts` fixa que `@ProviderNotice()` existe só
+    nela, junto de `@Public()`. `mail-boundary.spec.ts` permite `modules/access-control/decorators`
+    (só o `@Public()`, como `platform/health`).
+- [X] T028 [US2] Visões dos convites: `class-invitation.view.ts` e
   `provisioning/invitation.view.ts` preenchem `deliveryIssue` a partir de `latestDeliveryState`
   (T013); as listas seguem em uma consulta de envios por página
   (`003-list-performance.spec.ts` verde). Nenhuma visão de conta mostra envio (`017/FR-018`).
-- [ ] T029 [P] [US2] Web:
+  - Já entregue na US1 (`deriveDeliveryState` preenche `deliveryIssue`); conferido pela T021.
+- [X] T029 [P] [US2] Web:
   - `apps/web/lib/messages/status-labels.ts`: "Não entregue" e os dois textos de motivo;
   - componente compartilhado `apps/web/features/invitations/components/delivery-status.tsx`
     (`Badge` + texto, os quatro estados de `contracts/web-ui.md`) e `resend-confirm-dialog.tsx` (`AlertDialog`), usados por
     `class-invitations-tab.tsx`, `teachers-admin.tsx` e `managers-admin.tsx`; se `features/`
     não aceitar uma pasta compartilhada pelas camadas do ESLint, ficam em
     `apps/web/components/invitations/`;
+  - Feito em `features/invitations/components/` (`resend-confirm-dialog.tsx` exporta
+    `ResendInvitationButton`). A lista de professores vem de `/teachers`, sem `delivery`: a página
+    lê também `/teacher-invitations` (`initialInvitations`) e liga as linhas "Convidado" pelo
+    `invitationId`;
   - T023 verde.
-- [ ] T030 [P] [US2] CLI de desenvolvimento `apps/api/src/cli/mail-notice.command.ts` e o script
+- [X] T030 [P] [US2] CLI de desenvolvimento `apps/api/src/cli/mail-notice.command.ts` e o script
   `mail:notice` em `apps/api/package.json` (quickstart passo 3): `--kind
   delivered|bounced|complained|failed --delivery <id> [--bad-signature]`, assina com o
   `MAIL_NOTICE_SECRET` local e posta na API; recusa `NODE_ENV=production`. Teste em
   `apps/api/test/integration/017-us2-notices.spec.ts` (não roda em produção).
-- [ ] T031 [US2] Rodar T020–T023 verdes e tirar a US2, `SC-003` e `SC-004` de `pending`.
+- [X] T031 [US2] Rodar T020–T023 verdes e tirar a US2, `SC-003` e `SC-004` de `pending`.
 
 **Checkpoint**: MVP — a fila e o "Não entregue" funcionam de ponta a ponta com avisos assinados.
 

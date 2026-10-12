@@ -109,6 +109,7 @@ export const ErrorCodeSchema = z.enum([
   "ATTENDANCE_NOT_REQUIRED",
   "STUDENT_NOT_IN_CLASS",
   "NOTICE_REJECTED",
+  "NOTICE_TOO_LARGE",
   "RATE_LIMITED",
   "INTERNAL_ERROR",
 ]);

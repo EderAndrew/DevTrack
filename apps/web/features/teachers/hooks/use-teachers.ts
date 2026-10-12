@@ -1,6 +1,6 @@
 "use client";
 
-import type { InvitationStatus, TeacherListResponse, TeacherStatus, TeacherView } from "@repo/contracts";
+import type { InvitationListResponse, InvitationStatus, TeacherListResponse, TeacherStatus, TeacherView } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { teachersApi } from "../api/teachers";
 
@@ -20,6 +20,10 @@ export const useTeachers = (status: TeacherStatus | undefined, initialData: Teac
     queryFn: () => teachersApi.list(status),
     initialData: status === undefined ? initialData : undefined,
   });
+
+/** The invitations behind the "Convidado" rows: their e-mail's delivery situation (017/FR-015). */
+export const useTeacherInvitations = (initialData: InvitationListResponse) =>
+  useQuery({ queryKey: teachersKeys.invitations(), queryFn: teachersApi.invitations, initialData });
 
 /** Loads a filter into the cache on demand; choosing a filter always asks the API. */
 export function useLoadTeachers() {
