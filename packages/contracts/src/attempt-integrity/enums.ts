@@ -19,12 +19,17 @@ export const IntegrityEventTypeSchema = z.enum([
   "TYPING_LIMIT_EXCEEDED",
   "FULLSCREEN_UNAVAILABLE",
   "DETECTION_UNAVAILABLE",
+  "INACTIVITY",
 ]);
 export type IntegrityEventType = z.infer<typeof IntegrityEventTypeSchema>;
 
 /** The types the browser may send (`POST /me/activities/:activityId/attempt/events`). */
 export const ClientIntegrityEventTypeSchema = IntegrityEventTypeSchema.exclude(["TYPING_LIMIT_EXCEEDED"]);
 export type ClientIntegrityEventType = z.infer<typeof ClientIntegrityEventTypeSchema>;
+
+/** EXAM only (018 research T7): the browser's idle time when it sends an `INACTIVITY` event. */
+export const INACTIVITY_IDLE_SECONDS_MIN = 30;
+export const INACTIVITY_IDLE_SECONDS_MAX = 60;
 
 /** The types tied to one question: a blocked clipboard gesture in its field (F6). */
 export const QUESTION_EVENT_TYPES: readonly IntegrityEventType[] = ["PASTE_BLOCKED", "COPY_BLOCKED", "CUT_BLOCKED", "DROP_BLOCKED", "TYPING_LIMIT_EXCEEDED"];

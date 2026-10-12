@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAttemptPauses } from "@/features/attendance/hooks/use-attendance";
 import {
+  ENDED_BY_TIME,
   ENDED_WITH_ACCEPTANCE,
   ENDED_WITH_ACTIVITY,
   NO_ROOM_EXITS,
@@ -216,5 +217,6 @@ function pauseEnd(pause: TeacherPause) {
   if (pause.endedAt === null) return OUT_OF_ROOM;
   if (pause.endedBy === "ACTIVITY_CLOSED") return ENDED_WITH_ACTIVITY;
   if (pause.endedBy === "ACCEPTED") return ENDED_WITH_ACCEPTANCE;
+  if (pause.endedBy === "TIME_EXPIRED") return ENDED_BY_TIME;
   return <time dateTime={pause.endedAt}>{formatTime(pause.endedAt)}</time>;
 }

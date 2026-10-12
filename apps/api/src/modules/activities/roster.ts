@@ -150,6 +150,8 @@ export function buildRoster(
         aiHelpUsed: workOptions ? (attempt?.helpUsed ?? 0) : null,
         markedAt: marked?.toISOString() ?? null,
         pauses: pausesOf(activity, attempt, now),
+        // EXAM only (018/FR-018), with the occurrences of US4.
+        occurrenceCount: null,
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;

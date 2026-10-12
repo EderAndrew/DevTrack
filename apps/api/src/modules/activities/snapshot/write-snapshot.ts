@@ -1,11 +1,13 @@
-import { type AiHelpAllowance, centsToGrade, type ActivityType, type ExecutionMode, type LatePolicy, type ReleaseMode } from "@repo/contracts";
+import { type AiHelpAllowance, centsToGrade, type ExecutionMode, type LatePolicy, type ReleaseMode } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
+import type { SourceContent } from "./read-source";
 import type { ActivitySnapshot } from "./snapshot";
 
 export interface NewActivity {
   classId: string;
   teacherId: string;
-  type: ActivityType;
+  /** A work or exercises; 018 adds the exam with its migration (US2). */
+  type: SourceContent["type"];
   title: string;
   instructions: string | null;
   publishAt: Date;

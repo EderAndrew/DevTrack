@@ -15,7 +15,7 @@ import { MY_ACTIVITIES_PATH } from "@/lib/navigation";
 import type { StudentActivityListFilters } from "../api/student-activities";
 
 // Labels of 012 contracts/web-ui.md and contracts/student-status.md.
-export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = { EXERCISE: "Exercício", ASSIGNMENT: "Trabalho" };
+export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = { EXERCISE: "Exercício", ASSIGNMENT: "Trabalho", EXAM: "Prova" };
 export const STATUS_LABELS: Record<StudentActivityStatus, string> = {
   PENDING: "Pendente",
   IN_PROGRESS: "Em andamento",
@@ -41,7 +41,7 @@ export const FILTER_OPTIONS: Record<StudentActivityFilter, { label: string; slug
   OVERDUE: { label: "Atrasadas", slug: "atrasadas" },
 };
 /** "Tipo" filter: the URL value (`?tipo=`). */
-export const TYPE_SLUGS: Record<ActivityType, string> = { EXERCISE: "exercicio", ASSIGNMENT: "trabalho" };
+export const TYPE_SLUGS: Record<ActivityType, string> = { EXERCISE: "exercicio", ASSIGNMENT: "trabalho", EXAM: "prova" };
 
 export { MY_ACTIVITIES_PATH };
 

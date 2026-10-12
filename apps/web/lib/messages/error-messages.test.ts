@@ -155,17 +155,31 @@ const PHASE_016_TEXTS = {
   STUDENT_NOT_IN_CLASS: "Um dos alunos não está matriculado nesta turma.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS };
+// Codes added by 018, with the texts of specs/018-controlled-exams/tasks.md (T002).
+const PHASE_018_TEXTS = {
+  EXAM_RULES: "Revise as questões destacadas antes de salvar.",
+  EXAM_ARCHIVED: "Esta prova está arquivada.",
+  EXAM_NOT_APPROVED: "Só uma prova aprovada pode ser aplicada.",
+  EXAM_START_CLOSED: "O prazo para iniciar esta prova terminou. Fale com o professor.",
+  EXAM_TIME_OVER: "Tempo esgotado. Suas respostas salvas foram registradas.",
+  EXAM_ATTEMPT_ON_HOLD: "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo professor",
+  EXAM_TIME_NOT_OVER: "Ainda há tempo de prova: devolva a prova ou confirme o cancelamento.",
+  EXAM_DECISIONS_PENDING: "Há provas encerradas por avisos aguardando a sua decisão.",
+  EXIT_NOT_ALLOWED: "Na prova, chame o professor para sair da sala.",
+  NOT_AN_EXAM: "Esta atividade não é uma prova.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS, ...PHASE_018_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 105 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015 e da 016", () => {
+  it("007/FR-040 cobre os 115 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016 e da 018", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED" && code !== "NOTICE_TOO_LARGE");
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(107);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(117);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {

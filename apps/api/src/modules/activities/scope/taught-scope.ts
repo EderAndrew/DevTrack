@@ -24,5 +24,6 @@ export function checkTaughtScope(
       title: itemTitles.get(syllabusItemId) ?? "",
       questionPositions,
     }));
-  return { hasPlan: scope !== null, outOfScope };
+  // The coverage per topic and difficulty is an EXAM's (018 research T15).
+  return { hasPlan: scope !== null, outOfScope, coverage: null };
 }

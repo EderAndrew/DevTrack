@@ -55,11 +55,11 @@ description: "Task list for 018 — Prova em Modo Restrito com Avisos e Decisão
 
 **Purpose**: configuração, códigos de erro e contratos compartilhados.
 
-- [ ] T001 [P] Configuração `RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE` (padrão 60) e
+- [X] T001 [P] Configuração `RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE` (padrão 60) e
   `RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR` (padrão 10) em
   `apps/api/src/platform/config/config.schema.ts` e `apps/api/.env.example`, com o teste de valor
   padrão e de recusa de não positivos em `apps/api/test/integration/platform.spec.ts`.
-- [ ] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+- [X] T002 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts`, com o teste
   `apps/web/lib/messages/error-messages.test.ts`:
 
@@ -75,7 +75,7 @@ description: "Task list for 018 — Prova em Modo Restrito com Avisos e Decisão
   | `EXAM_DECISIONS_PENDING` | "Há provas encerradas por avisos aguardando a sua decisão." |
   | `EXIT_NOT_ALLOWED` | "Na prova, chame o professor para sair da sala." |
   | `NOT_AN_EXAM` | — |
-- [ ] T003 [P] Criar `packages/contracts/src/exams/{enums,exam,questions,coverage,generation}.ts`
+- [X] T003 [P] Criar `packages/contracts/src/exams/{enums,exam,questions,coverage,generation}.ts`
   (research T2, T14, T15; contracts/http-api.md "Banco de Provas" e "Criar prova com IA"):
   - enums `ExamStatusSchema`, `ExamOriginSchema`; reuso de `WorkQuestionTypeSchema`,
     `WorkDifficultySchema` (sem redefinir, `duplication.spec.ts`);
@@ -89,13 +89,13 @@ description: "Task list for 018 — Prova em Modo Restrito com Avisos e Decisão
   - exportar em `packages/contracts/src/index.ts`; testes em
     `packages/contracts/test/exams.spec.ts` (limites 0/1/20/21, campos do servidor recusados,
     tópicos da questão ⊆ tópicos da prova).
-- [ ] T004 [P] Criar `packages/contracts/src/exam-sessions/{monitor,holds}.ts`:
+- [X] T004 [P] Criar `packages/contracts/src/exam-sessions/{monitor,holds}.ts`:
   `ExamStatusOfStudentSchema` (valores de data-model "Derived"), `ExamHoldResolutionSchema`,
   `TeacherExamHoldSchema` (com `canReturn`), `ExamMonitorSchema`; exportar e testar em
   `packages/contracts/test/exam-sessions.spec.ts`.
-- [ ] T005 Mudanças nos contratos existentes (research T3, T13; contracts/http-api.md):
+- [X] T005 Mudanças nos contratos existentes (research T3, T13; contracts/http-api.md):
   - `packages/contracts/src/activities/`: `ActivityTypeSchema` += `EXAM`; `ActivitySourceSchema`
-    += `{ kind: "EXAM", examId }`; `CreateActivity` para EXAM (`durationMinutes` 1–120,
+    += `{ type: "EXAM", examId }`; `CreateActivity` para EXAM (`durationMinutes` 1–120,
     `inactivityLimitSeconds` 30–60 padrão 60, `startWindowMinutes` 0–60 padrão 15; recusa
     `deadline`, `latePolicy`, `executionMode`, `aiHelpAllowance`, `releaseMode`); `ScopeCheck` +=
     `coverage`; `TeacherActivity`/resumos += `exam`; `RosterStatus` += `AWAITING_DECISION`,

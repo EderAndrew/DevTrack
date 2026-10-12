@@ -38,13 +38,13 @@ The generated exam is a DRAFT in the bank; approval only through `POST /exams/:i
 ## Applying an exam (changed 012 routes)
 
 - **`POST /classes/:classId/activities/scope-check`**: body `ActivitySource` gains
-  `{ kind: "EXAM", examId }`; the response gains
+  `{ type: "EXAM", examId }` (the 012 union by `type`); the response gains
   `coverage: { byTopic: { syllabusItemId, title, questions, points, outOfScope }[], byDifficulty: { difficulty, questions, points }[] } | null`
   (non-null for EXAM).
 - **`POST /classes/:classId/activities`** (`atividades.aplicar`): for an exam the body is
-  `{ source: { kind: "EXAM", examId }, title?, instructions?, publishAt, durationMinutes(1..120),
+  `{ source: { type: "EXAM", examId }, title, instructions?, publishAt, durationMinutes(1..120),
   inactivityLimitSeconds(30..60, default 60), startWindowMinutes(0..60, default 15),
-  acknowledgeOutOfScope?, idempotencyKey }`. `deadline`, `latePolicy`, `executionMode`,
+  acknowledgeOutOfScope, idempotencyKey }` (`title` and `acknowledgeOutOfScope` as in 012). `deadline`, `latePolicy`, `executionMode`,
   `aiHelpAllowance` and `releaseMode` → `400`. Errors: 404 exam/class; 409 `EXAM_NOT_APPROVED`,
   `SUBJECT_MISMATCH`, `OUT_OF_SCOPE_NOT_ACKNOWLEDGED`.
 - **`TeacherActivity` / summaries**: `type` gains `EXAM`; gain

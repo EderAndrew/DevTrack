@@ -3,6 +3,7 @@ import { ReleaseModeSchema } from "../attendance/enums.js";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { EnrollmentStatusSchema } from "../classes/enrollments.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { ExamCoverageSchema } from "../exams/coverage.js";
 import { ExerciseDifficultySchema } from "../exercises/enums.js";
 import { TestCaseVisibilitySchema, WorkGradingStrategySchema, WorkQuestionTypeSchema } from "../works/enums.js";
 import { GRADE_MAX_CENTS, GradeOutputSchema, gradeToCents } from "../works/grade.js";
@@ -14,6 +15,14 @@ import {
   ActivityTypeSchema,
   AiHelpAllowanceSchema,
   AttemptStatusSchema,
+  EXAM_DURATION_MINUTES_MAX,
+  EXAM_DURATION_MINUTES_MIN,
+  EXAM_INACTIVITY_SECONDS_DEFAULT,
+  EXAM_INACTIVITY_SECONDS_MAX,
+  EXAM_INACTIVITY_SECONDS_MIN,
+  EXAM_START_WINDOW_MINUTES_DEFAULT,
+  EXAM_START_WINDOW_MINUTES_MAX,
+  EXAM_START_WINDOW_MINUTES_MIN,
   ExecutionModeSchema,
   ExerciseResultSchema,
   LatePolicySchema,
@@ -43,15 +52,21 @@ const ExerciseSourceSchema = z.strictObject({
     .max(ACTIVITY_EXERCISES_MAX)
     .refine((ids) => new Set(ids).size === ids.length, "DUPLICATE_EXERCISE"),
 });
-export const ActivitySourceSchema = z.discriminatedUnion("type", [AssignmentSourceSchema, ExerciseSourceSchema]);
+/** An approved exam of the teacher's Banco de Provas (018 research T3). */
+const ExamSourceSchema = z.strictObject({ type: z.literal("EXAM"), examId: UuidSchema });
+export const ActivitySourceSchema = z.discriminatedUnion("type", [AssignmentSourceSchema, ExerciseSourceSchema, ExamSourceSchema]);
 export type ActivitySource = z.infer<typeof ActivitySourceSchema>;
 
-/** Topics of the source outside the class's taught scope (FR-005a, research P5). */
+/**
+ * Topics of the source outside the class's taught scope (FR-005a, research P5), and for an EXAM
+ * its coverage per topic and per difficulty (018 research T15); `coverage` is null for the others.
+ */
 export const ScopeCheckSchema = z.strictObject({
   hasPlan: z.boolean(),
   outOfScope: z.array(
     z.strictObject({ syllabusItemId: UuidSchema, title: z.string(), questionPositions: z.array(z.int().min(0)) }),
   ),
+  coverage: ExamCoverageSchema.nullable(),
 });
 export type ScopeCheck = z.infer<typeof ScopeCheckSchema>;
 
@@ -98,8 +113,27 @@ export const CreateExerciseActivityRequestSchema = z.strictObject({
 });
 export type CreateExerciseActivityRequest = z.infer<typeof CreateExerciseActivityRequestSchema>;
 
+/**
+ * An EXAM (018 research T3): the server sets CONTROLLED, no AI help and `PRESENT_ONLY` and pins
+ * them in the database, so `executionMode`, `aiHelpAllowance` and `releaseMode` are refused here
+ * (strict → 400), and so are `deadline` and `latePolicy`: each student's time is the duration from
+ * their own start. The grade is the exam's.
+ */
+export const CreateExamActivityRequestSchema = z.strictObject({
+  ...createCommon,
+  source: ExamSourceSchema,
+  durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
+  inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX).default(EXAM_INACTIVITY_SECONDS_DEFAULT),
+  startWindowMinutes: z.int().min(EXAM_START_WINDOW_MINUTES_MIN).max(EXAM_START_WINDOW_MINUTES_MAX).default(EXAM_START_WINDOW_MINUTES_DEFAULT),
+});
+export type CreateExamActivityRequest = z.infer<typeof CreateExamActivityRequestSchema>;
+
 /** `POST /classes/:classId/activities`: a union by `source.type` (013 contracts/http-api.md). */
-export const CreateActivityRequestSchema = z.union([CreateAssignmentRequestSchema, CreateExerciseActivityRequestSchema]);
+export const CreateActivityRequestSchema = z.union([
+  CreateAssignmentRequestSchema,
+  CreateExerciseActivityRequestSchema,
+  CreateExamActivityRequestSchema,
+]);
 export type CreateActivityRequest = z.infer<typeof CreateActivityRequestSchema>;
 
 export const UpdateActivityRequestSchema = z
@@ -151,6 +185,21 @@ export type ActivityAiHelp = z.infer<typeof ActivityAiHelpSchema>;
 export const ActivityAttendanceCountsSchema = z.strictObject({ present: z.int().min(0), enrolled: z.int().min(0) });
 export type ActivityAttendanceCounts = z.infer<typeof ActivityAttendanceCountsSchema>;
 
+/**
+ * An EXAM's timing (018 research T3, T4): `startDeadline` = publication + start window, `closesAt`
+ * = start deadline + duration (the latest a student can still answer), and the holds waiting for
+ * the teacher's decision. Derived on read, never stored.
+ */
+export const ActivityExamSchema = z.strictObject({
+  durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
+  inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX),
+  startWindowMinutes: z.int().min(EXAM_START_WINDOW_MINUTES_MIN).max(EXAM_START_WINDOW_MINUTES_MAX),
+  startDeadline: IsoDateTimeSchema,
+  closesAt: IsoDateTimeSchema,
+  pendingDecisions: z.int().min(0),
+});
+export type ActivityExam = z.infer<typeof ActivityExamSchema>;
+
 export const TeacherActivitySummarySchema = z.strictObject({
   id: UuidSchema,
   type: ActivityTypeSchema,
@@ -176,6 +225,8 @@ export const TeacherActivitySummarySchema = z.strictObject({
   counts: RosterCountsSchema,
   /** EXERCISE only; null for ASSIGNMENT. */
   exerciseCounts: ExerciseRosterCountsSchema.nullable(),
+  /** EXAM only (018); null for the others. */
+  exam: ActivityExamSchema.nullable(),
 });
 export type TeacherActivitySummary = z.infer<typeof TeacherActivitySummarySchema>;
 
@@ -230,6 +281,8 @@ export const RosterEntrySchema = z.strictObject({
   markedAt: IsoDateTimeSchema.nullable(),
   /** The student's room exits (016/FR-019): how many, the derived time away, and whether one is open. */
   pauses: z.strictObject({ count: z.int().min(0), secondsAway: z.int().min(0), open: z.boolean() }),
+  /** EXAM only: the attempt's occurrences (018/FR-018), 0 without an attempt; null for the others. */
+  occurrenceCount: z.int().min(0).nullable(),
 });
 export type RosterEntry = z.infer<typeof RosterEntrySchema>;
 
@@ -237,7 +290,11 @@ export const TeacherActivitySchema = TeacherActivitySummarySchema.extend({
   instructions: z.string().nullable(),
   version: z.int().min(1),
   outOfScopeTopicCount: z.int().min(0),
-  source: z.union([z.strictObject({ workId: UuidSchema }), z.strictObject({ exerciseIds: z.array(UuidSchema) })]),
+  source: z.union([
+    z.strictObject({ workId: UuidSchema }),
+    z.strictObject({ exerciseIds: z.array(UuidSchema) }),
+    z.strictObject({ examId: UuidSchema }),
+  ]),
   /** In position order. */
   questions: z.array(TeacherQuestionSchema),
   roster: z.array(RosterEntrySchema),

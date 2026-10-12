@@ -40,11 +40,12 @@ describe("012/FR-005a escopo ensinado da turma (constituição XXIII)", () => {
         { syllabusItemId: "polimorfismo", title: "Polimorfismo", questionPositions: [1] },
         { syllabusItemId: "interfaces", title: "Interfaces", questionPositions: [1, 2] },
       ],
+      coverage: null,
     });
   });
 
   it("tudo ensinado → nada sinalizado", () => {
-    expect(checkTaughtScope(questions, new Set(["heranca", "polimorfismo", "interfaces"]), titles)).toEqual({ hasPlan: true, outOfScope: [] });
+    expect(checkTaughtScope(questions, new Set(["heranca", "polimorfismo", "interfaces"]), titles)).toEqual({ hasPlan: true, outOfScope: [], coverage: null });
   });
 
   it("turma sem planejamento → todos os tópicos sinalizados e hasPlan falso", () => {
@@ -54,6 +55,6 @@ describe("012/FR-005a escopo ensinado da turma (constituição XXIII)", () => {
   });
 
   it("questões sem tópico não sinalizam nada", () => {
-    expect(checkTaughtScope([question(0, [])], null, titles)).toEqual({ hasPlan: false, outOfScope: [] });
+    expect(checkTaughtScope([question(0, [])], null, titles)).toEqual({ hasPlan: false, outOfScope: [], coverage: null });
   });
 });

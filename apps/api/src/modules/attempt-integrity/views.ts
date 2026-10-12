@@ -13,6 +13,9 @@ export const toEventView = (event: StoredIntegrityEvent): IntegrityEventView => 
   recordedAt: event.recordedAt.toISOString(),
   clientOccurredAt: event.clientOccurredAt?.toISOString() ?? null,
   buffered: event.buffered,
+  // EXAM only (018 research T6, T7), from US4.
+  occurrenceOrdinal: null,
+  idleSeconds: null,
 });
 
 export const toIntervalView = (interval: TimelineInterval): IntegrityInterval => ({

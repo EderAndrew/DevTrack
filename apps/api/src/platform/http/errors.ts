@@ -151,6 +151,16 @@ export const ErrorCatalog = {
   ATTENDANCE_STARTED: { status: 409, message: "O aluno já iniciou. Use Pausar aluno." },
   ATTENDANCE_NOT_REQUIRED: { status: 409, message: "Esta atividade não usa lista de chamada." },
   STUDENT_NOT_IN_CLASS: { status: 422, message: "Um dos alunos não está matriculado nesta turma." },
+  EXAM_RULES: { status: 422, message: "Revise as questões destacadas antes de salvar." },
+  EXAM_ARCHIVED: { status: 409, message: "Esta prova está arquivada." },
+  EXAM_NOT_APPROVED: { status: 409, message: "Só uma prova aprovada pode ser aplicada." },
+  EXAM_START_CLOSED: { status: 409, message: "O prazo para iniciar esta prova terminou. Fale com o professor." },
+  EXAM_TIME_OVER: { status: 409, message: "Tempo esgotado. Suas respostas salvas foram registradas." },
+  EXAM_ATTEMPT_ON_HOLD: { status: 409, message: "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo professor" },
+  EXAM_TIME_NOT_OVER: { status: 409, message: "Ainda há tempo de prova: devolva a prova ou confirme o cancelamento." },
+  EXAM_DECISIONS_PENDING: { status: 409, message: "Há provas encerradas por avisos aguardando a sua decisão." },
+  EXIT_NOT_ALLOWED: { status: 409, message: "Na prova, chame o professor para sair da sala." },
+  NOT_AN_EXAM: { status: 409, message: "Esta atividade não é uma prova." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
   // only caller, so the text never says which check failed (contracts/http-api.md).
   NOTICE_REJECTED: { status: 401, message: "Aviso recusado." },

@@ -106,6 +106,8 @@ export const NO_ROOM_EXITS = "Nenhuma saída da sala nesta tentativa.";
 export const ENDED_WITH_ACTIVITY = "Encerrada com a atividade";
 /** A pause still open when the teacher accepted the saved attempt (012 FR-006b). */
 export const ENDED_WITH_ACCEPTANCE = "Encerrada com a aceitação da entrega";
+/** A pause of an exam still open when the student's time ran out (018 data-model "Derived"). */
+export const ENDED_BY_TIME = "Tempo esgotado";
 export const NO_RETURN = "sem retorno registrado";
 
 /** Who started the pause (FR-021): the student's declared exit or the teacher's pause. */

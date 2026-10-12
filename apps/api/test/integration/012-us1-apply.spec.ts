@@ -293,7 +293,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
         [syllabus.itemIds[4], [1]],
       ]);
       expect(check.body.outOfScope[0].title).toEqual(expect.any(String));
-      expect((await client.post(`${base()}/scope-check`, { type: "ASSIGNMENT", workId: work.id })).body).toEqual({ hasPlan: true, outOfScope: [] });
+      expect((await client.post(`${base()}/scope-check`, { type: "ASSIGNMENT", workId: work.id })).body).toEqual({ hasPlan: true, outOfScope: [], coverage: null });
 
       const planless = (await createClassWithStudents(t, teacher.id, { subjectId: syllabus.subject.id })).schoolClass.id;
       const noPlan = await client.post(`/api/classes/${planless}/activities/scope-check`, { type: "ASSIGNMENT", workId: work.id });

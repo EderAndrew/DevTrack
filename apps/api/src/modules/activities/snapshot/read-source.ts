@@ -18,7 +18,11 @@ export type SourceContent =
  * it); an item of the teacher that is not APPROVED → `422 SOURCE_NOT_APPROVED` (FR-001).
  */
 export async function readSource(tx: Tx, teacherId: string, source: ActivitySource): Promise<SourceContent> {
-  return source.type === "ASSIGNMENT" ? readWork(tx, teacherId, source.workId) : readExercises(tx, teacherId, source.exerciseIds);
+  if (source.type === "ASSIGNMENT") return readWork(tx, teacherId, source.workId);
+  if (source.type === "EXERCISE") return readExercises(tx, teacherId, source.exerciseIds);
+  // 018: the Banco de Provas arrives with its migration (US1) and is applied from US2 on; until
+  // then no exam of the teacher's exists, so the source is not found.
+  throw notFound();
 }
 
 /** The snapshot of the content: the work's grade, or the exercises' fixed points (013 K2). */

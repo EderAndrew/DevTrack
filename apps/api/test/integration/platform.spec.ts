@@ -131,6 +131,19 @@ describe("startup configuration (FR-074)", () => {
     }
   });
 
+  it.each([
+    ["RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE", "examDecisionsPerMinute", 60],
+    ["RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR", "examGenerationsPerHour", 10],
+  ] as const)("018 %s: %s is %i by default, configurable, and a value that is not positive stops the startup", (variable, key, fallback) => {
+    const env = { ...process.env };
+    delete env[variable];
+    expect(loadConfig(env).rateLimit[key]).toBe(fallback);
+    expect(loadConfig({ ...env, [variable]: "3" }).rateLimit[key]).toBe(3);
+    for (const value of ["0", "-1", "1.5"]) {
+      expect(failure({ ...env, [variable]: value }).variables).toEqual([variable]);
+    }
+  });
+
   describe("017/FR-023 e-mail configuration", () => {
     const MAIL_VARIABLES = [
       "MAIL_REPLY_TO",

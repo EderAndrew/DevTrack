@@ -58,6 +58,7 @@ export class IntegrityReviewService {
     });
     if (!attempt) throw notFound();
     const timeline = buildTimeline(await storedEvents(this.prisma, attempt.id), attempt.submission?.submittedAt ?? this.clock.now());
-    return { events: timeline.events.map(toEventView), intervals: timeline.intervals.map(toIntervalView), totals: timeline.totals };
+    // The holds are an EXAM's (018 research T8), from US5.
+    return { events: timeline.events.map(toEventView), intervals: timeline.intervals.map(toIntervalView), totals: timeline.totals, holds: [] };
   }
 }

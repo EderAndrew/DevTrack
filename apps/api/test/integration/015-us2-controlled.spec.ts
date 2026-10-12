@@ -103,10 +103,10 @@ describe("015/US2 aluno responde em modo controlado", () => {
       const attemptId = await started(activity);
       const left = integrityEvent("SCREEN_LEFT", { clientOccurredAt: "2020-01-01T00:00:00.000Z" });
       const res = await record(activity, [left]);
-      expect(RecordIntegrityEventsResultSchema.parse(res.body)).toEqual({ recorded: [{ eventId: left.eventId, recordedAt: START }] });
+      expect(RecordIntegrityEventsResultSchema.parse(res.body)).toEqual({ recorded: [{ eventId: left.eventId, recordedAt: START }], exam: null });
       clock.advance(MINUTE);
       const back = integrityEvent("SCREEN_RETURNED");
-      expect((await record(activity, [back])).body).toEqual({ recorded: [{ eventId: back.eventId, recordedAt: at(0).toISOString() }] });
+      expect((await record(activity, [back])).body).toEqual({ recorded: [{ eventId: back.eventId, recordedAt: at(0).toISOString() }], exam: null });
 
       const rows = await stored(attemptId);
       expect(rows.map((row) => [row.type, row.recordedAt.toISOString(), row.clientOccurredAt, row.buffered, row.clientEventId])).toEqual([

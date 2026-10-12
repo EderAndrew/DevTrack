@@ -22,6 +22,8 @@ export const EVENT_LABELS: Record<IntegrityEventType, string> = {
   TYPING_LIMIT_EXCEEDED: "Trecho não salvo pelo limite de digitação",
   FULLSCREEN_UNAVAILABLE: "Tela cheia indisponível",
   DETECTION_UNAVAILABLE: "Registro de saídas indisponível neste navegador",
+  // 018 contracts/web-ui.md, "Ver ocorrências" ("Sem interação por n s" with the event's idle time).
+  INACTIVITY: "Sem interação",
 };
 
 /** The exit events, whose duration comes from the derived intervals. */

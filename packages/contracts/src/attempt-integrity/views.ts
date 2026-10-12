@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { TeacherExamHoldSchema } from "../exam-sessions/holds.js";
 import { IntegrityEventTypeSchema, IntegrityIntervalKindSchema } from "./enums.js";
 
 // What the teacher and the student see of a CONTROLLED attempt (015 research F13). Counts and
@@ -39,6 +40,10 @@ export const IntegrityEventViewSchema = z.strictObject({
   /** The browser's time of a buffered event; null otherwise. */
   clientOccurredAt: IsoDateTimeSchema.nullable(),
   buffered: z.boolean(),
+  /** EXAM only (018 research T6): the occurrence this event opened, null when it opened none. */
+  occurrenceOrdinal: z.int().min(1).nullable(),
+  /** `INACTIVITY` only: the idle time the browser reported. */
+  idleSeconds: z.int().min(0).nullable(),
 });
 export type IntegrityEventView = z.infer<typeof IntegrityEventViewSchema>;
 
@@ -58,6 +63,8 @@ export const IntegrityTimelineSchema = z.strictObject({
   events: z.array(IntegrityEventViewSchema),
   intervals: z.array(IntegrityIntervalSchema),
   totals: IntegrityTotalsSchema,
+  /** EXAM only (018): the attempt's holds, oldest first; empty for the others. */
+  holds: z.array(TeacherExamHoldSchema),
 });
 export type IntegrityTimeline = z.infer<typeof IntegrityTimelineSchema>;
 

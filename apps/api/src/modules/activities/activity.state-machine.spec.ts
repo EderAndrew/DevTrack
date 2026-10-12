@@ -1,4 +1,4 @@
-import { ActivityStatusSchema } from "@repo/contracts";
+import { ActivityStatusSchema, ActivityTypeSchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
@@ -35,8 +35,13 @@ describe("012/FR-004 ciclo de vida da atividade da turma", () => {
     expect(() => ActivityStateMachine.assertEditable("CLOSED")).toThrow(expect.objectContaining({ code: "INVALID_STATE_TRANSITION" }));
   });
 
-  it("012/FR-003 o registro de tipos tem só Exercício e Trabalho", () => {
-    expect(Object.keys(ACTIVITY_TYPES).sort()).toEqual(["ASSIGNMENT", "EXERCISE"]);
+  it("012/FR-003 o registro de tipos tem Exercício e Trabalho, e a Prova desde a 018", () => {
+    expect(Object.keys(ACTIVITY_TYPES).sort()).toEqual([...ActivityTypeSchema.options].sort());
+    expect(Object.keys(ACTIVITY_TYPES)).toHaveLength(3);
+  });
+
+  it("018/FR-010 a Prova tem nota, uma tentativa, sem prazo nem opções do professor, só para os presentes", () => {
+    expect(ACTIVITY_TYPES.EXAM).toEqual({ scoring: "GRADE", hasDeadline: false, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: false, releaseMode: "PRESENT_ONLY" });
   });
 
   it("013/FR-001 015/FR-002 016/FR-007 Trabalho tem nota, prazo, uma tentativa e as opções da 015; Exercício tem pontos, sem prazo, com tentativas de prática e sem opções", () => {

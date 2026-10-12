@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActivitySource, ActivityType, ExerciseTeacherView, ScopeCheck, WorkSummary } from "@repo/contracts";
+import type { ExerciseTeacherView, ScopeCheck, WorkSummary } from "@repo/contracts";
 import { ACTIVITY_EXERCISES_MAX, ActivityTypeSchema, EXERCISE_POINTS, possiblePoints } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
@@ -33,6 +33,8 @@ import {
   HELP_CHECK_PENDING,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
+  type WorkOrExercisesSource,
+  type WorkOrExercisesType,
 } from "../schemas/activity-form";
 import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
 import { WorkOptionsFieldset } from "./work-options";
@@ -58,7 +60,7 @@ const FIELD_OF_CODE: Record<string, string> = {
 const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 119)}…` : text);
 
 interface ChosenSource {
-  source: ActivitySource;
+  source: WorkOrExercisesSource;
   /** The work's title, prefilled in step 2. */
   title: string;
   questionCount: number;
@@ -114,7 +116,7 @@ function SourceStep({
   subjectId: string | null;
   onChosen: (chosen: ChosenSource) => void;
 }) {
-  const [type, setType] = useState<ActivityType>(subjectId ? "ASSIGNMENT" : "EXERCISE");
+  const [type, setType] = useState<WorkOrExercisesType>(subjectId ? "ASSIGNMENT" : "EXERCISE");
   const [workId, setWorkId] = useState("");
   const [selected, setSelected] = useState<ExerciseTeacherView[]>([]);
   const [search, setSearch] = useState("");
@@ -138,7 +140,7 @@ function SourceStep({
     const work: WorkSummary | undefined = works.data?.items.find((item) => item.id === workId);
     if (type === "ASSIGNMENT" && !work) return setError("Escolha um trabalho.");
     if (type === "EXERCISE" && selected.length === 0) return setError("Escolha de 1 a 10 exercícios.");
-    const source: ActivitySource =
+    const source: WorkOrExercisesSource =
       type === "ASSIGNMENT" ? { type, workId } : { type, exerciseIds: selected.map((exercise) => exercise.id) };
     try {
       const scope = await scopeCheck.mutateAsync(source);
@@ -157,7 +159,7 @@ function SourceStep({
   return (
     <div className="flex flex-col gap-4">
       <RadioGroup legend="Tipo de atividade">
-        {ActivityTypeSchema.options.map((option) => (
+        {ActivityTypeSchema.exclude(["EXAM"]).options.map((option) => (
           <div key={option} className="flex items-center gap-2">
             <Radio
               id={`tipo-${option}`}

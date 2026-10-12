@@ -101,6 +101,8 @@ const event = (type: IntegrityEventView["type"], recordedAt: string, overrides: 
   recordedAt,
   clientOccurredAt: null,
   buffered: false,
+  occurrenceOrdinal: null,
+  idleSeconds: null,
   ...overrides,
 });
 const integrity = (events: IntegrityEventView[], screenExits: number): StudentIntegrity => ({

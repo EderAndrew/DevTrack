@@ -22,8 +22,12 @@ import {
 import { z } from "zod";
 import { fieldMessages } from "@/lib/forms/field-messages";
 
-// Labels of 012 contracts/web-ui.md.
-export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = { ASSIGNMENT: "Trabalho", EXERCISE: "Exercício" };
+/** The sources of this form: a work or exercises (an exam of the bank gets its own form, 018 US2). */
+export type WorkOrExercisesSource = Exclude<ActivitySource, { type: "EXAM" }>;
+export type WorkOrExercisesType = WorkOrExercisesSource["type"];
+
+// Labels of 012 contracts/web-ui.md (and 018's "Prova").
+export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = { ASSIGNMENT: "Trabalho", EXERCISE: "Exercício", EXAM: "Prova" };
 export const LATE_POLICY_LABELS: Record<LatePolicy, string> = {
   REJECT: "Não aceitar",
   ACCEPT_MARKED: "Aceitar e marcar como atrasada",
@@ -47,6 +51,12 @@ export const ROSTER_STATUS_LABELS: Record<RosterStatus, string> = {
   MISSED: "Não entregou",
   COMPLETED: "Concluiu",
   ABSENT: "Ausente",
+  // 018 contracts/web-ui.md, the exam monitor's badges.
+  AWAITING_DECISION: "Encerrada por avisos — aguardando decisão",
+  TIME_EXPIRED: "Tempo esgotado",
+  CANCELLED: "Cancelada — nota zero",
+  ENDED_BY_WARNINGS: "Encerrada por avisos — não cancelada",
+  START_CLOSED: "Não iniciou (prazo para iniciar encerrado)",
 };
 
 // 015 contracts/web-ui.md: the work's options, "Como os alunos respondem".
@@ -174,7 +184,7 @@ export const activityFormMessages = fieldMessages({
  * The request by the source's type: a Trabalho with its deadline, late policy, mode and AI help
  * (015/FR-001), an Exercício without them.
  */
-export function toCreateActivityRequest(values: ActivityFormValues, source: ActivitySource, idempotencyKey: string): CreateActivityRequest {
+export function toCreateActivityRequest(values: ActivityFormValues, source: WorkOrExercisesSource, idempotencyKey: string): CreateActivityRequest {
   const common = {
     idempotencyKey,
     title: values.title.trim(),

@@ -158,10 +158,13 @@ describe("012/SC-012 012/FR-036 015/FR-030 nada de prova; o monitoramento do mod
     const catalog = readFileSync(join(REPO_ROOT, "packages/contracts/src/endpoints.ts"), "utf8");
     const paths = [...catalog.matchAll(/path:\s*"([^"]+)"/g)].map((match) => match[1]!);
     expect(paths.filter((path) => /exam|prova/i.test(path))).toEqual([]);
+    // 018 (T005): the contract's `EXAM` type needs its label "Prova" and its URL slug "prova" in the
+    // activity lists; any other exam text stays out until T009 amends this guard.
+    const TYPE_LABELS = new Set(["Prova", "prova"]);
     const strings = WEB_SOURCES.flatMap((file) =>
-      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas)\b[^"'`<>{}]*)["'`<]/g)].map(
-        (match) => `${file}: ${match[1]!.trim()}`,
-      ),
+      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas)\b[^"'`<>{}]*)["'`<]/g)]
+        .filter((match) => !TYPE_LABELS.has(match[1]!.trim()))
+        .map((match) => `${file}: ${match[1]!.trim()}`),
     );
     expect(strings).toEqual([]);
     expect(offendingLines(MONITORED_API.flatMap(sources), [/["']EXAM["']/])).toEqual([]);

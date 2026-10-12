@@ -238,7 +238,7 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
     expect((await client.get("/api/me/activities?pageSize=51")).status).toBe(400);
     expect((await client.get("/api/me/activities?cursor=nao-e-cursor")).status).toBe(400);
     expect((await client.get("/api/me/activities?status=SUBMITTED")).status).toBe(400);
-    expect((await client.get("/api/me/activities?type=EXAM")).status).toBe(400);
+    expect((await client.get("/api/me/activities?type=PROVA")).status).toBe(400);
   });
 
   it("012/US2-5 aluno sem atividades: dashboard e lista vazios", async () => {

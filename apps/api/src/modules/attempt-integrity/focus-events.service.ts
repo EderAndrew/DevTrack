@@ -5,7 +5,7 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound, rateLimited } from "../../platform/http/errors";
+import { AppException, notFound, rateLimited, validationError } from "../../platform/http/errors";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
@@ -54,6 +54,8 @@ export class FocusEventsService {
         const attempt = openAttempt(context);
         // 016/FR-017: no focus event while the student is out of the room (research M6, M10).
         if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
+        // 018 research T7: inactivity is an EXAM's occurrence; a work never takes it.
+        if (body.events.some((event) => event.type === "INACTIVITY")) throw validationError();
         await assertQuestions(tx, activityId, body.events);
         const own = { id: attempt.id, activityId, studentUserId };
         await insertIntegrityEvents(tx, this.audit, {
@@ -77,7 +79,11 @@ export class FocusEventsService {
             })
           ).map((row) => [row.clientEventId, row.recordedAt]),
         );
-        return { recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: stored.get(event.eventId)!.toISOString() })) };
+        return {
+          recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: stored.get(event.eventId)!.toISOString() })),
+          // The occurrences and the hold are an EXAM's (018 research T6), from US4.
+          exam: null,
+        };
       });
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, EVENTS_ROUTE, requestId);

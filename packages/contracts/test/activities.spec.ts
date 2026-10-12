@@ -37,11 +37,19 @@ import {
   RosterStatusSchema,
   StudentActivityFilterSchema,
   StudentActivityStatusSchema,
+  ActivityExamSchema,
+  CreateExamActivityRequestSchema,
+  ExamEndReasonSchema,
+  ScopeCheckSchema,
+  StartAttemptRequestSchema,
+  StudentExamEndReasonSchema,
+  StudentExamSchema,
 } from "../src/index.js";
 
 describe("012 enums das atividades da turma e do portal do aluno", () => {
   it("têm exatamente os valores do data-model", () => {
-    expect(ActivityTypeSchema.options).toEqual(["EXERCISE", "ASSIGNMENT"]);
+    // 018 adds EXAM.
+    expect(ActivityTypeSchema.options).toEqual(["EXERCISE", "ASSIGNMENT", "EXAM"]);
     // 015 adds CONTROLLED (works only, 015/FR-001).
     expect(ExecutionModeSchema.options).toEqual(["NORMAL", "CONTROLLED"]);
     expect(ActivityStatusSchema.options).toEqual(["ACTIVE", "CLOSED", "CANCELLED"]);
@@ -51,18 +59,33 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
     expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
     // 016 adds ABSENT (a PRESENT_ONLY work, not marked present and without an attempt).
-    expect(RosterStatusSchema.options).toEqual(["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "SUBMITTED_LATE", "MISSED", "COMPLETED", "ABSENT"]);
+    // 018 adds the exam's ends, the open hold and the closed start.
+    expect(RosterStatusSchema.options).toEqual([
+      "NOT_STARTED",
+      "IN_PROGRESS",
+      "SUBMITTED",
+      "SUBMITTED_LATE",
+      "MISSED",
+      "COMPLETED",
+      "ABSENT",
+      "AWAITING_DECISION",
+      "TIME_EXPIRED",
+      "CANCELLED",
+      "ENDED_BY_WARNINGS",
+      "START_CLOSED",
+    ]);
     expect(AttemptStatusSchema.options).toEqual(["IN_PROGRESS", "SUBMITTED"]);
     expect(ActivityGradingStatusSchema.options).toEqual(["GRADED", "PENDING_TEACHER", "DECIDED"]);
   });
 
-  it("012/FR-003 015/FR-001 a prova continua reservada; o modo controlado existe desde a 015", () => {
-    for (const value of ["EXAM", "PROVA", "QUIZ"]) expect(ActivityTypeSchema.safeParse(value).success, value).toBe(false);
+  it("012/FR-003 015/FR-001 a prova existe só como EXAM (018); o modo controlado existe desde a 015", () => {
+    expect(ActivityTypeSchema.safeParse("EXAM").success).toBe(true);
+    for (const value of ["PROVA", "QUIZ"]) expect(ActivityTypeSchema.safeParse(value).success, value).toBe(false);
     expect(ExecutionModeSchema.safeParse("CONTROLLED").success).toBe(true);
     expect(ExecutionModeSchema.safeParse("CONTROLADO").success).toBe(false);
   });
 
-  it("012/SC-012 nenhum enum das atividades tem valor de prova; CONTROLLED só no modo de execução (015)", () => {
+  it("012/SC-012 a prova só aparece como o tipo EXAM (018); CONTROLLED só no modo de execução (015)", () => {
     const schemas = [
       ActivityTypeSchema,
       ExecutionModeSchema,
@@ -76,7 +99,7 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
       ActivityGradingStatusSchema,
     ];
     const values = schemas.flatMap((schema) => schema.options.map(String));
-    expect(values.filter((value) => /EXAM|PROVA/.test(value))).toEqual([]);
+    expect(values.filter((value) => /EXAM|PROVA/.test(value))).toEqual(["EXAM"]);
     expect(values.filter((value) => /CONTROL/.test(value))).toEqual(["CONTROLLED"]);
   });
 });
@@ -278,6 +301,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     resultReleasedAt: null,
     counts,
     exerciseCounts: { completed: 0, pendingMarks: 0 },
+    exam: null,
   };
 
   it("013/FR-013 o Exercício vem sem nota, prazo e regra, com os pontos possíveis", () => {
@@ -330,6 +354,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       aiHelpUsed: null,
       markedAt: null,
       pauses: { count: 0, secondsAway: 0, open: false },
+      occurrenceCount: null,
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -536,6 +561,7 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     resultReleasedAt: null,
     counts,
     exerciseCounts: null,
+    exam: null,
   };
   const entry = {
     studentUserId: uuid(3),
@@ -551,6 +577,7 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     aiHelpUsed: 0,
     markedAt: null,
     pauses: { count: 0, secondsAway: 0, open: false },
+    occurrenceCount: null,
   };
   const question = {
     id: uuid(5),
@@ -596,6 +623,7 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     lastResult: null,
     pause: null,
     pauses: [],
+    exam: null,
     ...overrides,
   });
 
@@ -641,5 +669,149 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     expect(accepts(StudentActivitySchema, detail({ pauses: [{ ...pause, endedAt: AT }] }))).toBe(true);
     expect(accepts(StudentActivitySchema, detail({ pause: undefined }))).toBe(false);
     expect(accepts(StudentActivitySchema, detail({ pauses: [{ ...pause, releasedById: uuid(7) }] }))).toBe(false);
+  });
+});
+
+describe("018 a prova como atividade da turma (contracts/http-api.md, research T3, T13, T15)", () => {
+  const AT = "2026-10-12T13:00:00.000Z";
+  const exam = (overrides: Record<string, unknown> = {}) => ({
+    idempotencyKey: uuid(99),
+    source: { type: "EXAM", examId: uuid(9) },
+    title: "Prova 1",
+    publishAt: null,
+    acknowledgeOutOfScope: false,
+    durationMinutes: 60,
+    ...overrides,
+  });
+
+  it("018/FR-007 duração de 1 a 120 min, inatividade de 30 a 60 s (padrão 60), limite para iniciar de 0 a 60 min (padrão 15)", () => {
+    expect(CreateActivityRequestSchema.parse(exam())).toMatchObject({ inactivityLimitSeconds: 60, startWindowMinutes: 15 });
+    for (const durationMinutes of [1, 120]) expect(accepts(CreateExamActivityRequestSchema, exam({ durationMinutes })), String(durationMinutes)).toBe(true);
+    for (const durationMinutes of [0, 121, 1.5, "60", undefined]) {
+      expect(accepts(CreateActivityRequestSchema, exam({ durationMinutes })), String(durationMinutes)).toBe(false);
+    }
+    for (const inactivityLimitSeconds of [30, 60]) expect(accepts(CreateExamActivityRequestSchema, exam({ inactivityLimitSeconds }))).toBe(true);
+    for (const inactivityLimitSeconds of [29, 61, 45.5]) expect(accepts(CreateExamActivityRequestSchema, exam({ inactivityLimitSeconds }))).toBe(false);
+    for (const startWindowMinutes of [0, 60]) expect(accepts(CreateExamActivityRequestSchema, exam({ startWindowMinutes }))).toBe(true);
+    for (const startWindowMinutes of [-1, 61, 7.5]) expect(accepts(CreateExamActivityRequestSchema, exam({ startWindowMinutes }))).toBe(false);
+  });
+
+  it("018/FR-010 a aplicação da prova recusa modo, ajuda, liberação, prazo e regra de atraso", () => {
+    const refused = {
+      executionMode: "CONTROLLED",
+      aiHelpAllowance: 0,
+      releaseMode: "PRESENT_ONLY",
+      deadline: "2026-10-20T00:00:00.000Z",
+      latePolicy: "REJECT",
+      totalGrade: "10.00",
+    };
+    for (const [field, value] of Object.entries(refused)) {
+      expect(accepts(CreateActivityRequestSchema, exam({ [field]: value })), field).toBe(false);
+    }
+    expect(accepts(CreateActivityRequestSchema, exam({ source: { type: "EXAM", examId: uuid(9), workId: uuid(8) } }))).toBe(false);
+    expect(accepts(CreateActivityRequestSchema, exam({ source: { type: "EXAM" } }))).toBe(false);
+  });
+
+  it("018/FR-008 a verificação antes de aplicar traz a cobertura por tópico e por dificuldade (null fora da prova)", () => {
+    const coverage = {
+      byTopic: [{ syllabusItemId: uuid(1), title: "Herança", questions: 2, points: "4.00", outOfScope: true }],
+      byDifficulty: [{ difficulty: "BASIC", questions: 2, points: "4.00" }],
+    };
+    expect(accepts(ScopeCheckSchema, { hasPlan: true, outOfScope: [], coverage })).toBe(true);
+    expect(accepts(ScopeCheckSchema, { hasPlan: true, outOfScope: [], coverage: null })).toBe(true);
+    expect(accepts(ScopeCheckSchema, { hasPlan: true, outOfScope: [] })).toBe(false);
+    expect(accepts(ScopeCheckSchema, { hasPlan: true, outOfScope: [], coverage: { ...coverage, byDifficulty: [{ difficulty: "EXPERT", questions: 1, points: "1.00" }] } })).toBe(false);
+    expect(accepts(ScopeCheckSchema, { hasPlan: true, outOfScope: [], coverage: { ...coverage, byTopic: [{ ...coverage.byTopic[0], points: "4" }] } })).toBe(false);
+  });
+
+  it("018/FR-007 o professor vê os tempos derivados da prova e as decisões pendentes", () => {
+    const timing = { durationMinutes: 60, inactivityLimitSeconds: 60, startWindowMinutes: 15, startDeadline: AT, closesAt: AT, pendingDecisions: 0 };
+    expect(accepts(ActivityExamSchema, timing)).toBe(true);
+    expect(accepts(ActivityExamSchema, { ...timing, pendingDecisions: -1 })).toBe(false);
+    expect(accepts(ActivityExamSchema, { ...timing, endsAt: AT })).toBe(false);
+    expect(accepts(RosterEntrySchema.shape.occurrenceCount, null)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.occurrenceCount, 4)).toBe(true);
+    expect(accepts(RosterEntrySchema.shape.occurrenceCount, -1)).toBe(false);
+  });
+
+  it("018/FR-021 os motivos de fim: os gravados, e os do aluno, que leem WARNINGS até a liberação", () => {
+    expect(ExamEndReasonSchema.options).toEqual(["STUDENT_SUBMITTED", "TIME_EXPIRED", "ACTIVITY_CLOSED", "ENDED_BY_WARNINGS", "CANCELLED"]);
+    expect(StudentExamEndReasonSchema.options).toEqual(["STUDENT_SUBMITTED", "TIME_EXPIRED", "ACTIVITY_CLOSED", "WARNINGS", "CANCELLED"]);
+    for (const status of ["AWAITING_DECISION", "TIME_EXPIRED", "CANCELLED", "ENDED_BY_WARNINGS", "START_CLOSED"]) {
+      expect(RosterStatusSchema.options, status).toContain(status);
+    }
+  });
+
+  it("018/FR-011 o início da prova exige aceitar as regras; o de um trabalho continua {}", () => {
+    expect(accepts(StartAttemptRequestSchema, {})).toBe(true);
+    expect(accepts(StartAttemptRequestSchema, { acceptRules: true })).toBe(true);
+    for (const acceptRules of [false, "true", 1]) expect(accepts(StartAttemptRequestSchema, { acceptRules }), String(acceptRules)).toBe(false);
+    for (const field of ["startedAt", "endsAt", "serverNow"]) expect(accepts(StartAttemptRequestSchema, { acceptRules: true, [field]: AT }), field).toBe(false);
+  });
+
+  it("018/FR-029 a prova do aluno: tempos do servidor, ocorrências de 3 avisos, retenção sem conteúdo", () => {
+    const studentExam = {
+      durationMinutes: 60,
+      inactivityLimitSeconds: 60,
+      startDeadline: AT,
+      endsAt: AT,
+      occurrences: { count: 4, warningsAllowed: 3 },
+      hold: { openedAt: AT },
+      endReason: null,
+    };
+    expect(accepts(StudentExamSchema, studentExam)).toBe(true);
+    expect(accepts(StudentExamSchema, { ...studentExam, occurrences: { count: 4, warningsAllowed: 4 } })).toBe(false);
+    expect(accepts(StudentExamSchema, { ...studentExam, endReason: "ENDED_BY_WARNINGS" })).toBe(false);
+    for (const field of ["grade", "resolution", "cancelledBy"]) expect(accepts(StudentExamSchema, { ...studentExam, [field]: null }), field).toBe(false);
+
+    const detail = StudentActivitySchema.safeParse({
+      id: uuid(1),
+      type: "EXAM",
+      executionMode: "CONTROLLED",
+      aiHelp: { allowance: 0, used: 0 },
+      title: "Prova 1",
+      summary: "",
+      class: { id: uuid(2), name: "Turma A" },
+      subjectName: null,
+      teacherName: "Prof",
+      publishedAt: AT,
+      deadline: null,
+      latePolicy: null,
+      status: "IN_PROGRESS",
+      late: false,
+      canAnswer: false,
+      urgent: false,
+      submittedAt: null,
+      totalGrade: "10.00",
+      points: null,
+      instructions: null,
+      serverNow: AT,
+      questions: [],
+      attempt: { number: 1, startedAt: AT, lastSavedAt: null, answers: [] },
+      submission: null,
+      result: null,
+      completedAttempts: [],
+      lastResult: null,
+      pause: null,
+      pauses: [],
+      exam: studentExam,
+    });
+    expect(detail.success).toBe(true);
+    const question = {
+      id: uuid(5),
+      position: 0,
+      type: "OPEN_ANSWER",
+      value: "10.00",
+      points: null,
+      statement: "Explique",
+      instructions: null,
+      starterCode: null,
+      language: null,
+      publicTestCases: [],
+      alternatives: [],
+    };
+    // With a hold open, no statement and no answer reach the student.
+    expect(accepts(StudentActivitySchema, { ...detail.data!, questions: [question] })).toBe(false);
+    expect(accepts(StudentActivitySchema, { ...detail.data!, questions: [question], exam: { ...studentExam, hold: null } })).toBe(true);
   });
 });

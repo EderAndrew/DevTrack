@@ -219,6 +219,8 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
           endedAt: pause.endedAt?.toISOString() ?? null,
         }))
       : [],
+    // EXAM only (018 research T13), from US3.
+    exam: null,
   };
 }
 

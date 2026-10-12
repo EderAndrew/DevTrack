@@ -80,8 +80,8 @@ CHECKs for EXAM:
 The 015 and 016 CHECKs that said "only ASSIGNMENT" become "ASSIGNMENT or EXAM" where it applies
 (CONTROLLED, PRESENT_ONLY, total grade, question value). The snapshot keeps each question's
 difficulty in a new `class_activity_questions.exam_difficulty` (EXAM only). The create body for an
-exam is `{ source: { kind: "EXAM", examId }, durationMinutes, inactivityLimitSeconds,
-startWindowMinutes, publishAt, title?, instructions?, idempotencyKey, acknowledgeOutOfScope? }`;
+exam is `{ source: { type: "EXAM", examId }, durationMinutes, inactivityLimitSeconds,
+startWindowMinutes, publishAt, title, instructions?, idempotencyKey, acknowledgeOutOfScope }`;
 mode, help and release mode are refused (`400`).
 
 **Rationale**: the server sets the strict mode, no help and attendance (FR-010), and the DB pins
@@ -257,7 +257,7 @@ route, extended with `counted` and `ordinal`.
 **Decision**: `StudentActivity` gains `exam` for EXAM:
 
 ```text
-{ durationMinutes, inactivityLimitSeconds, startDeadline, endsAt|null, serverNow,
+{ durationMinutes, inactivityLimitSeconds, startDeadline, endsAt|null,
   occurrences: { count, warningsAllowed: 3 }, hold: { openedAt }|null,
   endReason: "STUDENT_SUBMITTED"|"TIME_EXPIRED"|"ACTIVITY_CLOSED"|"WARNINGS"|"CANCELLED"|null }
 ```
@@ -290,7 +290,7 @@ per-question difficulty and allows questions without topics; its evidence would 
 
 ## T15 — Coverage before applying
 
-**Decision**: `POST /classes/:classId/activities/scope-check` accepts `{ kind: "EXAM", examId }` and
+**Decision**: `POST /classes/:classId/activities/scope-check` accepts `{ type: "EXAM", examId }` and
 its response gains `coverage: { byTopic: { syllabusItemId, title, questions, points, outOfScope }[],
 byDifficulty: { difficulty, questions, points }[] }` for EXAM. The pure `exams/coverage.ts` computes
 it from the approved exam and the 012 taught scope.

@@ -71,6 +71,8 @@ export function toTeacherActivitySummary(
     resultReleasedAt: header.resultReleasedAt?.toISOString() ?? null,
     counts: roster.counts,
     exerciseCounts: roster.exerciseCounts,
+    // EXAM only (018 research T3, T4), from US2.
+    exam: null,
   };
 }
 
