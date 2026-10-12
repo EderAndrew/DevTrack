@@ -149,8 +149,10 @@ batch, which events open a new occurrence:
 - a countable event opens one unless it falls within `OCCURRENCE_GROUP_WINDOW` (2 s) of the last
   occurrence of the attempt — measured with `recorded_at` for live events and, inside one buffered
   batch, with `clientOccurredAt` (used only for grouping, never as the official time);
-- events while the attempt is paused, on hold, past `endsAt` or submitted are stored (when the 012
-  /016 rules allow it) and never counted (FR-020).
+- events never count while the attempt is on hold, paused, past `endsAt` or submitted (FR-020).
+  On hold they are stored as facts (the hold is the only state that accepts them); paused they are
+  refused with `409 ATTEMPT_PAUSED` (016), past `endsAt` with `409 EXAM_TIME_OVER`, and after the
+  submission with `409 ATTEMPT_ALREADY_SUBMITTED` (015), nothing stored.
 
 It runs in the same transaction as the event insert, under the attempt `FOR UPDATE` (the 015
 insert takes `FOR SHARE` today; for EXAM it takes `FOR UPDATE`), so ordinals are gap-free and
@@ -257,8 +259,13 @@ route, extended with `counted` and `ordinal`.
 ```text
 { durationMinutes, inactivityLimitSeconds, startDeadline, endsAt|null, serverNow,
   occurrences: { count, warningsAllowed: 3 }, hold: { openedAt }|null,
-  endReason: "STUDENT_SUBMITTED"|"TIME_EXPIRED"|"ACTIVITY_CLOSED"|"ENDED_BY_WARNINGS"|"CANCELLED"|null }
+  endReason: "STUDENT_SUBMITTED"|"TIME_EXPIRED"|"ACTIVITY_CLOSED"|"WARNINGS"|"CANCELLED"|null }
 ```
+
+Before the result release, a decided warnings attempt (cancellation confirmed or not cancelled)
+shows `endReason: "WARNINGS"`, so the teacher's decision (and the zero it implies) reaches the
+student only with the release (spec FR-029, 012 rule "no grade before the release"). After the
+release, `CANCELLED` or `WARNINGS`.
 
 The start body for an EXAM must be `{ acceptRules: true }` (`400` otherwise); the acceptance is the
 `activity_attempt.started` event with `rulesAccepted: true`. The events response gains

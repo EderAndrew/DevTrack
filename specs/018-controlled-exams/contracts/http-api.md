@@ -79,14 +79,15 @@ TeacherExamHold { id, attemptId, occurrenceOrdinal, openedAt,
 ## Student routes (changed)
 
 - **`GET /me/activities/:activityId`** (`StudentActivity`): gains `exam` (research T13). With a hold
-  open, `questions` and `attempt.answers` are `[]`.
+  open, `questions` and `attempt.answers` are `[]`. Before the result release, `exam.endReason` is
+  `WARNINGS` for both decisions after a hold; `CANCELLED` appears only after the release.
 - **`POST /me/activities/:activityId/attempt`** (start): an EXAM requires `{ acceptRules: true }`.
   Errors gain 409 `EXAM_START_CLOSED` (after `startDeadline`).
 - **`POST …/attempt/answers`** and **`POST …/attempt/submit`**: 409 `EXAM_TIME_OVER` (after
   `endsAt + grace`), `EXAM_ATTEMPT_ON_HOLD`, and the 016 `ATTEMPT_PAUSED`.
 - **`POST …/attempt/events`**: `type` gains `INACTIVITY` with `idleSeconds` (30–60, only with it).
   The response gains `exam: { occurrenceCount, held: boolean } | null`. Errors: 409
-  `EXAM_TIME_OVER`; events during a hold are stored and not counted (`200`).
+  `EXAM_TIME_OVER` (after `endsAt`), `ATTEMPT_PAUSED` (016) and `ATTEMPT_ALREADY_SUBMITTED` (015), nothing stored; events during a hold are stored and not counted (`200`).
 - **`POST …/attempt/pause`** (student exit, 016): 409 `EXIT_NOT_ALLOWED` for an EXAM.
 - **015 help**: an EXAM answers 409 `HELP_NOT_ENABLED` (allowance 0), as any activity without help.
 

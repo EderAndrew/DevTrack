@@ -244,7 +244,8 @@ dispositivo e que o professor vê o aluno aguardando decisão.
    **Then** cada uma conta uma vez e o encerramento acontece exatamente uma vez.
 7. **Given** o aluno sem conexão, **When** ocorrências acontecem, **Then** elas são guardadas no
    navegador e enviadas na reconexão; o servidor as conta na chegada, guardando o horário do
-   navegador só como informação.
+   navegador só como informação. Se chegarem depois do fim da tentativa, são recusadas como
+   qualquer evento após o fim (FR-020).
 8. **Given** qualquer aviso ou encerramento, **When** exibido ao aluno ou ao professor, **Then** o
    texto nunca usa "fraude", "cola" ou "violação".
 
@@ -271,7 +272,8 @@ ocorrência seguinte encerra de novo.
 
 1. **Given** uma tentativa encerrada por avisos, **When** o professor confirma o cancelamento por
    ação explícita, **Then** a tentativa fica cancelada com nota zero, a decisão é auditada com o
-   professor e o horário, e o aluno vê "Prova cancelada pelo professor".
+   professor e o horário. Até a liberação do resultado, o aluno vê só "Prova encerrada. O
+   resultado aparece quando o professor liberar.", a mesma mensagem de "Não cancelar" (FR-029).
 2. **Given** uma tentativa encerrada por avisos com tempo restante, **When** o professor devolve a
    prova, **Then** em até 10 segundos o aluno vê "Retomar", volta à tela cheia por ação explícita e
    encontra todas as respostas salvas; o cronômetro mostra o tempo que resta.
@@ -311,7 +313,8 @@ durante a pausa.
    segundos a tela do aluno mostra "Prova pausada pelo professor. O tempo continua correndo.", sem
    enunciados nem respostas, em qualquer dispositivo.
 2. **Given** a tentativa pausada, **When** chegam eventos de foco, de copiar/colar ou de
-   inatividade, **Then** nenhum conta como ocorrência.
+   inatividade, **Then** o servidor os recusa (como na 016), nada é gravado e nenhum conta como
+   ocorrência.
 3. **Given** a tentativa pausada, **When** o tempo acaba, **Then** a tentativa é encerrada por tempo
    com as respostas salvas e a pausa termina com ela.
 4. **Given** a pausa, **When** o professor libera o retorno com tempo restante, **Then** o aluno
@@ -400,8 +403,9 @@ entregue), corrigir, liberar e conferir a nota e o que cada aluno vê.
 - **Conexão perdida no fim**: respostas não enviadas até o fim não contam; o professor vê que a
   tentativa terminou sem conexão e pode, por decisão própria, aceitar respostas que o aluno mostrar
   fora do sistema (fora do escopo do sistema).
-- **Ocorrência que chega depois do encerramento por tempo, por entrega ou por avisos**: é guardada
-  como fato, mas não conta e não gera aviso.
+- **Ocorrência que chega com a prova encerrada por avisos**: é guardada como fato, mas não conta
+  e não gera aviso. Depois do fim do tempo, da entrega ou durante uma pausa, o evento é recusado e
+  nada é gravado (FR-020).
 - **Professor encerra ou cancela a atividade inteira**: vale a 012. Tentativas em andamento são
   encerradas com as respostas salvas; decisões pendentes continuam pendentes.
 - **Matrícula removida durante a prova**: o aluno perde o acesso, como na 012.
@@ -488,8 +492,9 @@ entregue), corrigir, liberar e conferir a nota e o que cada aluno vê.
   confirmado pelo professor".
 - **FR-019**: O encerramento por avisos NÃO DEVE cancelar a prova, dar nota nem rotular o aluno. Ele
   é um estado que aguarda a decisão do professor.
-- **FR-020**: Ocorrências que chegam com a tentativa pausada, encerrada ou entregue DEVEM ser
-  guardadas como fato, sem contar e sem aviso.
+- **FR-020**: Eventos que chegam com a tentativa encerrada por avisos DEVEM ser guardados como
+  fato, sem contar e sem aviso. Eventos que chegam com a tentativa pausada (016), depois do fim do
+  tempo ou depois da entrega DEVEM ser recusados (`409`), sem gravar nada e sem contar.
 
 **Decisão do professor**
 
@@ -523,7 +528,10 @@ entregue), corrigir, liberar e conferir a nota e o que cada aluno vê.
   pausa e ausência de ajuda da IA. O aceite é registrado.
 - **FR-029**: Toda visão do aluno DEVE ser montada no servidor por lista fechada de campos (012
   FR-032). Nenhum gabarito chega ao aluno durante a prova; depois da liberação, valem as regras da
-  012.
+  012. Antes da liberação, o aluno não recebe a decisão do professor sobre uma prova encerrada
+  por avisos: cancelamento confirmado e "Não cancelar" aparecem igualmente como "Prova encerrada.
+  O resultado aparece quando o professor liberar."; depois dela, vê "Prova cancelada pelo
+  professor" com a nota zero, ou a nota das respostas salvas.
 - **FR-030**: A correção e a liberação DEVEM seguir a 012 (Múltipla escolha pela regra, Pergunta e
   resposta e Código pelo professor, nota final do professor). Ocorrências e pausas nunca alteram uma
   nota automaticamente; só o cancelamento confirmado dá zero.

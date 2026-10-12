@@ -68,6 +68,8 @@ columns, refreshed every 5 s.
   "Retomar" (fullscreen).
 - **Pause**: "Prova pausada pelo professor. O tempo continua correndo."
 - **Time over**: "Tempo esgotado. Suas respostas salvas foram registradas."
-- **Cancelled** (after the decision): "Prova cancelada pelo professor."
+- **Decided after a hold, before the release** (cancelled or not): "Prova encerrada. O resultado
+  aparece quando o professor liberar." The teacher's decision is never shown before the release.
+- **Cancelled, after the release**: "Prova cancelada pelo professor." with the grade 0.
 - **Start closed**: "O prazo para iniciar esta prova terminou. Fale com o professor."
 - In the last minute, each change saves immediately (no debounce).

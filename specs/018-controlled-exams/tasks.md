@@ -299,8 +299,9 @@ recusa escrita em qualquer dispositivo.
 
 - [ ] T028 [P] [US4] `apps/api/test/integration/018-us4-occurrences.spec.ts`: `018/US4-1`…`018/US4-8`,
   `018/FR-015`…`018/FR-020` (cada tipo contável; agrupamento de 2 s; inatividade com
-  `idleSeconds`; a 4ª abre a retenção e esconde as questões; eventos durante a retenção ou após o
-  fim gravados sem contar; lote bufferizado contado na chegada; resposta do lote com
+  `idleSeconds`; a 4ª abre a retenção e esconde as questões; eventos durante a retenção gravados
+  sem contar; eventos pausados, após o fim ou após a entrega recusados com 409 e nada gravado;
+  lote bufferizado contado na chegada e recusado se chegar após o fim; resposta do lote com
   `occurrenceCount`/`held`; `exam_attempt.held` uma vez).
 - [ ] T029 [P] [US4] `apps/api/test/security/018-holds.spec.ts` (escrita recusada com retenção em
   toda rota e em duas sessões) e `018-concurrency.spec.ts` (`018/SC-004`: 10 ocorrências
@@ -339,7 +340,7 @@ recusa escrita em qualquer dispositivo.
 
 - [ ] T034 [P] [US5] `apps/api/test/integration/018-us5-decisions.spec.ts`: `018/US5-1`…`018/US5-8`,
   `018/FR-021`…`018/FR-025` (cancelar → submissão `CANCELLED` com cada questão `DECIDED` 0 pelo
-  professor; devolver com tempo; nova ocorrência retém de novo; devolver após o fim → 409
+  professor, e o aluno vê só "Prova encerrada" até a liberação; devolver com tempo; nova ocorrência retém de novo; devolver após o fim → 409
   `EXAM_TIME_OVER`; "Não cancelar" antes do fim → 409 `EXAM_TIME_NOT_OVER`, depois → submissão
   `ENDED_BY_WARNINGS` com as respostas salvas; liberação recusada com retenção aberta; decisão
   repetida → 409 sem evento) e o monitor (situações, ordenação, acerto antes de ler).
@@ -428,7 +429,8 @@ entregue) corrigidas e liberadas.
 - [ ] T048 [P] [US8] `apps/api/test/integration/018-us8-grading.spec.ts`: `018/US8-1`…`018/US8-5`,
   `018/FR-029`…`018/FR-031` (situações do roster; cancelada liberada com zero; tempo esgotado com
   brancas zeradas sem ação; histórico do aluno com as próprias ocorrências e pausas e sem dados de
-  outro aluno; presente que não iniciou sem nota automática).
+  outro aluno; presente que não iniciou sem nota automática; antes da liberação, cancelamento
+  confirmado e "Não cancelar" chegam ao aluno iguais, com `endReason: WARNINGS` e sem a decisão).
 - [ ] T049 [US8] `apps/api/src/modules/activities/attempts-review.service.ts` (início, fim, motivo,
   ocorrências, pausas, decisões) e `activities/views/student-view.ts` (ocorrências próprias depois
   do fim, lista fechada).
