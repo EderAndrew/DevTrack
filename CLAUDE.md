@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–016 in `specs/` are implemented. Later
+test names are in Portuguese). Features 001–017 in `specs/` are implemented. Later
 work starts a new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -36,8 +36,12 @@ work starts a new feature through `/speckit-specify`.
 - 016 attendance-gated release: a new work is released only to the students the teacher marks present
   in its "Chamada" (late students marked later); "Sair da sala" pauses the attempt until the teacher
   releases the return; exercises and works applied before 016 stay open to every enrolled student.
+- 017 production e-mail: the six e-mails (class, teacher and manager invitations, verification,
+  password reset, admin activation) go through one outbox with retries; provider notices (Resend now,
+  AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
+  production config guard and the deploy guide `docs/deploy/email.md`.
 
-Exams, take-home works, AI grading and code execution are later features. The rules of 012–016 that
+Exams, take-home works, AI grading and code execution are later features. The rules of 012–017 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
@@ -128,6 +132,9 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
                                                         # 015 release gate of the AI help (work-helper), same flags; evidence in
                                                         # test/fixtures/evaluations/work-help/, with each case's latency
+pnpm --filter api mail:notice --kind bounced --delivery <id> [--bad-signature]
+                                                        # 017 dev helper (runs dist/): posts a Resend notice signed with
+                                                        # MAIL_NOTICE_SECRET for that delivery; kinds delivered|bounced|complained|failed
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -299,6 +306,15 @@ the removal conditions are in `DEPENDENCIES.md`.
   the deadline never moves for a pause, and a pause is never a grade, discount or fraud label. Audit
   metadata carries ids and enums, never the note of "Outro". Changes reach the other side by 5 s
   polling (`ATTENDANCE_POLL_MS`), never WebSockets.
+- E-mail (017): every e-mail of the six kinds goes through the outbox (`MailOutbox.schedule` in the
+  request's transaction, `mail_deliveries`); only the outbox calls `Mailer.send`. Nothing of the
+  e-mail is stored (no address, subject, link or token): each attempt rebuilds it with a fresh link
+  through the owner module's `MailSubject`, and the Message-ID `<deliveryId.attempt@domain>` is the
+  only link to the provider. A provider notice only changes the delivery (never the invitation, the
+  account or a permission) and is never a suppression list. `POST /mail/notices/:provider` is public
+  and authenticated only by the provider's signature on the raw body, before any database access;
+  it never takes a session or an `Origin`. Account e-mails never show a delivery situation, and the
+  public flows answer exactly as before (anti-enumeration).
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

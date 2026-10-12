@@ -1,5 +1,10 @@
 # Mail Delivery Contract: 003 — Convites de turma
 
+> **Substituído pela 017** (`specs/017-production-email/contracts/mail-delivery.md`): desde a 017 o
+> convite de turma sai pela fila única dos seis e-mails (`mail_deliveries`, que substitui
+> `class_invitation_deliveries`), com novas tentativas, link novo a cada tentativa e avisos do
+> provedor. Este documento fica como registro da 003 e não é mais a regra em vigor.
+
 Entrega assíncrona do e-mail de convite com novas tentativas (FR-019, D5), sem fila nova.
 
 ## Fluxo

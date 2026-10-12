@@ -35,6 +35,7 @@ import {
   uniqueEmail,
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
+import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -992,6 +993,21 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   let mailClock = Date.now();
   for (let attempt = 2; attempt <= 7; attempt += 1) await mailWorker.runOnce(new Date((mailClock += 7 * 3_600_000)));
   t.mailer.setFailing(false);
+  // 017/US2 — a provider notice: Resend bounces a sent teacher invitation (UNDELIVERED, audited with
+  // source NOTICE). The address and the bounce message of the notice are content the scans look for.
+  if (t.config.mail.notices.provider === "resend") {
+    const bounced = await managerClient.post("/api/teacher-invitations", {
+      email: "prof-sem-caixa-jornada@example.test",
+      displayName: "Professora Sem Caixa",
+    });
+    expect(bounced.status).toBe(201);
+    await t.flushMail();
+    const { messageId } = await t.prisma.mailDelivery.findFirstOrThrow({ where: { invitationId: bounced.body.id, status: "SENT" } });
+    content.push({ kind: "destinatário do aviso do provedor", value: "MARCADOR-DESTINO-017" });
+    content.push({ kind: "mensagem de bounce do provedor", value: "MARCADOR-BOUNCE-017" });
+    const notice = signedResendNotice({ type: "email.bounced", messageId, secret: t.config.mail.notices.secret, at: new Date() });
+    expect((await postNotice(t, "resend", notice)).status).toBe(200);
+  }
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

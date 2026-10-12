@@ -7,12 +7,14 @@ import { MailDeliveryWorker } from "./outbox/mail-delivery.worker";
 import { MailOutbox } from "./outbox/mail-outbox";
 import { MailSubjectRegistry } from "./outbox/mail-subject";
 import { MailSendBudget } from "./outbox/send-budget";
+import { MailRecordsJob } from "./retention/mail-records.job";
 import { SmtpMailer } from "./smtp.mailer";
 
 /**
  * SMTP by default. Tests override the `Mailer` provider with InMemoryMailer or FailingMailer;
  * CLI runs may pass a mailer instance to `forRoot` instead. The provider notices (017 US2) come in
  * through `MailNoticesController`; tests replace `CertificateFetcher` to serve their SNS certificate.
+ * `MailRecordsJob` is the maintenance job `mail-records` (research N13).
  */
 @Global()
 @Module({})
@@ -29,6 +31,7 @@ export class MailModule {
         MailDeliveryWorker,
         CertificateFetcher,
         MailNoticesService,
+        MailRecordsJob,
       ],
       exports: [Mailer, MailSubjectRegistry, MailOutbox, MailDeliveryWorker],
     };

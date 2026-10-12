@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { parseMaintenanceArgs, runMaintenanceCli } from "../../src/cli/maintenance.command";
 import { LockKey } from "../../src/platform/database/transaction";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
+import { createClass, createClassInvitation, createUser, uniqueEmail } from "../helpers/factories";
 import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const YEAR_MS = 365.25 * 24 * 3600 * 1000;
@@ -136,6 +138,179 @@ describe("maintenance (R21, contracts/maintenance-jobs.md)", () => {
         results: [{ job: "rate-limit-counters", removed: 2 }],
       });
       expect((await t.prisma.rateLimitCounter.findMany()).map((c) => c.key)).toEqual(["live"]);
+    });
+  });
+
+  describe("017 mail-records job (research N13, 017 contracts/maintenance-jobs.md)", () => {
+    const DAY_MS = 86_400_000;
+    // The reference instant of the run (a fixed clock), not the machine's.
+    const now = new Date("2027-03-01T12:00:00.000Z");
+    const daysAgo = (days: number) => new Date(now.getTime() - days * DAY_MS);
+
+    const finalColumns = {
+      SENT: { sentAt: now },
+      DELIVERED: { sentAt: now, deliveredAt: now },
+      UNDELIVERED: { undeliveredAt: now, undeliveredReason: "BOUNCED" },
+      FAILED: {},
+      DISCARDED: { discardReason: "EXPIRED" },
+      SUPERSEDED: {},
+    } as const;
+
+    let teacherId: string;
+    let classId: string;
+
+    beforeEach(async () => {
+      const teacher = await createUser(t, { roles: ["TEACHER"] });
+      teacherId = teacher.id;
+      classId = (await createClass(t, teacher.id)).id;
+    });
+
+    const classInvitation = async (status: "PENDING" | "ACCEPTED" | "CANCELLED" = "PENDING") => {
+      const { invitation } = await createClassInvitation(t, classId, uniqueEmail("aluno-n13"));
+      if (status !== "PENDING") {
+        await t.prisma.classInvitation.update({
+          where: { id: invitation.id },
+          data: status === "ACCEPTED" ? { status, acceptedAt: now } : { status, cancelledAt: now, cancelReason: "TEACHER" },
+        });
+      }
+      return invitation.id;
+    };
+
+    const delivery = (
+      subject: { classInvitationId: string } | { userId: string },
+      status: keyof typeof finalColumns | "PENDING",
+      at: Date,
+    ) =>
+      t.prisma.mailDelivery.create({
+        data: {
+          ...("classInvitationId" in subject ? { kind: "CLASS_INVITATION" as const } : { kind: "VERIFY_EMAIL" as const }),
+          ...subject,
+          status,
+          ...(status === "PENDING" ? { nextAttemptAt: at } : finalColumns[status]),
+          createdAt: at,
+          updatedAt: at,
+        },
+      });
+
+    let noticeSeq = 0;
+    const notice = (deliveryId: string | null, receivedAt: Date) =>
+      t.prisma.mailNotice.create({
+        data: {
+          provider: "RESEND",
+          noticeId: `msg_n13_${++noticeSeq}`,
+          kind: "DELIVERED",
+          deliveryId,
+          attempt: 1,
+          occurredAt: receivedAt,
+          receivedAt,
+        },
+      });
+
+    it("removes notices older than 90 days and nothing newer", async () => {
+      const kept = await delivery({ userId: teacherId }, "DELIVERED", daysAgo(10));
+      await notice(kept.id, daysAgo(91));
+      await notice(kept.id, daysAgo(120));
+      const recent = await notice(kept.id, daysAgo(89));
+
+      expect(await maintenance.run({ job: "mail-records", now })).toEqual({
+        status: "completed",
+        results: [{ job: "mail-records", removed: 2 }],
+      });
+      expect((await t.prisma.mailNotice.findMany()).map((n) => n.id)).toEqual([recent.id]);
+      expect(await t.prisma.mailDelivery.count()).toBe(1);
+    });
+
+    it("removes final deliveries older than MAIL_RECORDS_RETENTION_DAYS, never PENDING, SENT or newer ones", async () => {
+      const userId = teacherId;
+      const old = daysAgo(t.config.mail.recordsRetentionDays + 1);
+      const gone = await Promise.all(
+        (["DELIVERED", "UNDELIVERED", "FAILED", "DISCARDED", "SUPERSEDED"] as const).map((s) => delivery({ userId }, s, old)),
+      );
+      const recentFinal = await delivery({ userId }, "DELIVERED", daysAgo(t.config.mail.recordsRetentionDays - 1));
+      const oldPending = await delivery({ userId }, "PENDING", old);
+      // SENT is not final: a provider notice may still move it (research N7).
+      const oldSent = await delivery({ userId }, "SENT", old);
+
+      const result = await maintenance.run({ job: "mail-records", now });
+
+      expect(result).toEqual({ status: "completed", results: [{ job: "mail-records", removed: gone.length }] });
+      expect((await t.prisma.mailDelivery.findMany({ orderBy: { id: "asc" } })).map((d) => d.id).sort()).toEqual(
+        [recentFinal.id, oldPending.id, oldSent.id].sort(),
+      );
+    });
+
+    it("keeps the latest delivery of a PENDING invitation, removes its older ones and those of a closed invitation", async () => {
+      const old = (extra: number) => daysAgo(t.config.mail.recordsRetentionDays + extra);
+      const pending = await classInvitation("PENDING");
+      const superseded = await delivery({ classInvitationId: pending }, "SUPERSEDED", old(30));
+      const latest = await delivery({ classInvitationId: pending }, "UNDELIVERED", old(10));
+      const accepted = await classInvitation("ACCEPTED");
+      await delivery({ classInvitationId: accepted }, "DELIVERED", old(10));
+
+      const result = await maintenance.run({ job: "mail-records", now });
+
+      expect(result).toEqual({ status: "completed", results: [{ job: "mail-records", removed: 2 }] });
+      expect((await t.prisma.mailDelivery.findMany()).map((d) => d.id)).toEqual([latest.id]);
+      expect(await t.prisma.mailDelivery.findUnique({ where: { id: superseded.id } })).toBeNull();
+    });
+
+    it("keeps the latest delivery of a PENDING teacher invitation too", async () => {
+      const admin = await createUser(t, { roles: ["ADMIN"] });
+      const role = await t.prisma.role.findUniqueOrThrow({ where: { key: "TEACHER" } });
+      const invitation = await t.prisma.invitation.create({
+        data: {
+          email: uniqueEmail("prof-n13"),
+          displayName: "Professora",
+          roleId: role.id,
+          invitedById: admin.id,
+          tokenHash: randomUUID(),
+          status: "PENDING",
+          expiresAt: new Date(now.getTime() + DAY_MS),
+          lastSentAt: now,
+        },
+      });
+      const old = daysAgo(t.config.mail.recordsRetentionDays + 5);
+      const latest = await t.prisma.mailDelivery.create({
+        data: { kind: "INVITATION_TEACHER", invitationId: invitation.id, status: "FAILED", createdAt: old, updatedAt: old },
+      });
+
+      expect((await maintenance.run({ job: "mail-records", now })).status).toBe("completed");
+      expect((await t.prisma.mailDelivery.findMany()).map((d) => d.id)).toEqual([latest.id]);
+    });
+
+    it("a removed delivery leaves its recent notices with delivery_id null", async () => {
+      const old = await delivery({ userId: teacherId }, "DELIVERED", daysAgo(t.config.mail.recordsRetentionDays + 1));
+      const recent = await notice(old.id, daysAgo(5));
+
+      await maintenance.run({ job: "mail-records", now });
+
+      expect(await t.prisma.mailDelivery.count()).toBe(0);
+      expect(await t.prisma.mailNotice.findUniqueOrThrow({ where: { id: recent.id } })).toMatchObject({
+        deliveryId: null,
+        kind: "DELIVERED",
+      });
+    });
+
+    it("works in batches of 1000 and the purge switch never leaks out of its transaction", async () => {
+      const old = daysAgo(91);
+      await t.prisma.$executeRaw`
+        INSERT INTO mail_notices (provider, notice_id, kind, occurred_at, received_at)
+        SELECT 'RESEND', 'msg_batch_' || g, 'DELIVERED', ${old}::timestamptz, ${old}::timestamptz
+        FROM generate_series(1, 2500) g`;
+
+      expect(await maintenance.run({ job: "mail-records", now })).toEqual({
+        status: "completed",
+        results: [{ job: "mail-records", removed: 2_500 }],
+      });
+
+      const remaining = await notice(null, daysAgo(1));
+      await expect(t.prisma.mailNotice.delete({ where: { id: remaining.id } })).rejects.toThrow(/append-only/);
+    });
+
+    it("writes no audit event (a purge of technical records)", async () => {
+      await notice(null, daysAgo(100));
+      await maintenance.run({ job: "mail-records", now });
+      expect(await t.prisma.auditEvent.count()).toBe(0);
     });
   });
 

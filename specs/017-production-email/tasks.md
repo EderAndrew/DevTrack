@@ -492,17 +492,17 @@ pendentes seguirem.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T040 Retenção `mail-records` (`contracts/maintenance-jobs.md`, research N13) em
+- [X] T040 Retenção `mail-records` (`contracts/maintenance-jobs.md`, research N13) em
   `apps/api/src/platform/mail/retention/mail-records.job.ts`, registrado no
   `maintenance.service.ts`: avisos com mais de 90 dias; envios finais com mais de
   `MAIL_RECORDS_RETENTION_DAYS`, exceto o último de um convite `PENDING`; lotes de 1 000, numa
   transação com `SET LOCAL devtrack.mail_purge = 'on'`;
-  `maintenance.job_completed` só com contagens. Teste em
+  sem evento de auditoria, como os outros expurgos técnicos (o log leva só o nome e a contagem). Teste em
   `apps/api/test/integration/maintenance.spec.ts` com `FixedClock`.
-- [ ] T041 Auditoria e journey: `apps/api/test/helpers/journey.ts` com envio que falha, descarte,
+- [X] T041 Auditoria e journey: `apps/api/test/helpers/journey.ts` com envio que falha, descarte,
   rejeição SMTP e aviso de bounce; `audit-coverage.spec.ts`: os três tipos novos com metadados só
   de enums, contagens e códigos.
-- [ ] T042 [P] Segurança restante em `apps/api/test/security/017-boundaries.spec.ts`:
+- [X] T042 [P] Segurança restante em `apps/api/test/security/017-boundaries.spec.ts`:
   - nenhuma rota além de `POST /mail/notices/:provider` é nova (`contracts/http-api.md`);
   - nenhuma resposta pública, de conta ou de `/me` contém `delivery`/`deliveryIssue`;
   - o professor B não vê a situação dos convites da turma de A (`404`), ADMIN e gestor só pelas
@@ -512,7 +512,7 @@ pendentes seguirem.
   - desempenho do aviso: p95 < 200 ms em 100 avisos válidos (plan, Performance Goals);
   - `017/FR-030`: nenhuma rota envia e-mail fora dos seis tipos nem em lote, nenhuma tabela guarda
     endereço bloqueado, nenhum receptor de e-mail, `mail_kind` tem exatamente os seis valores.
-- [ ] T043 E2E `apps/web/e2e/production-email.spec.ts` (`017/US2-1`, `017/US2-4`, `017/US3-1`):
+- [X] T043 E2E `apps/web/e2e/production-email.spec.ts` (`017/US2-1`, `017/US2-4`, `017/US3-1`):
   1. o professor convida um aluno; no Mailpit o e-mail tem HTML e texto com o mesmo link e nenhuma
      imagem externa;
   2. o teste posta um aviso Resend `email.bounced` assinado (segredo do `.env.e2e`) para o
@@ -521,7 +521,7 @@ pendentes seguirem.
      não reenvia; tudo pelo teclado.
 
   A redefinição do banco E2E pede consentimento do usuário.
-- [ ] T044 [P] Documentação:
+- [X] T044 [P] Documentação:
   - `CLAUDE.md`: Project state com a 017; regra fácil de errar (todo e-mail pela fila, nada do
     e-mail guardado, aviso só muda o envio, rota pública só pela assinatura); `SPECS` da
     rastreabilidade com a 017; comandos `mail:notice`;
@@ -531,7 +531,7 @@ pendentes seguirem.
   - `specs/003-class-invitations-enrollment/contracts/mail-delivery.md`: nota de que a 017 o substitui
     (sem reescrever a 003);
   - `README.md`: link do guia.
-- [ ] T045 Rodar o `quickstart.md` local de ponta a ponta (passos 1–4 com `pnpm dev` e Mailpit) e
+- [X] T045 Rodar o `quickstart.md` local de ponta a ponta (passos 1–4 com `pnpm dev` e Mailpit) e
   `pnpm lint && pnpm check-types && pnpm test`; `pending` da 017 vazio.
 
 ---

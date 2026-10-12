@@ -50,3 +50,27 @@ export async function waitForLink(email: string, { path, timeoutMs = DEFAULT_TIM
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }
+
+/** One message as Mailpit shows it: the Message-ID (without `<>`) and both bodies. */
+export interface MailpitMessage {
+  MessageID: string;
+  HTML: string;
+  Text: string;
+}
+
+/** All the messages to `email`, oldest first, with their bodies. */
+export async function messagesFor(email: string): Promise<MailpitMessage[]> {
+  const summaries = (await messagesTo(email)).sort((a, b) => Date.parse(a.Created) - Date.parse(b.Created));
+  return Promise.all(summaries.map((summary) => mailpit<MailpitMessage>(`message/${summary.ID}`)));
+}
+
+/** Waits until `count` messages to `email` arrived and returns them, oldest first. */
+export async function waitForMessages(email: string, count: number, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<MailpitMessage[]> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const messages = await messagesFor(email);
+    if (messages.length >= count) return messages;
+    if (Date.now() > deadline) throw new Error(`${messages.length} de ${count} e-mails para ${email} em ${timeoutMs} ms.`);
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+}

@@ -173,6 +173,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "orientação da ajuda (015)",
         // 016: the note of a room exit declared as "Outro" (MARCADOR-NOTA-016).
         "nota de saída da sala (016)",
+        // 017: the recipient and the bounce message inside a provider notice (MARCADOR-DESTINO-017, MARCADOR-BOUNCE-017).
+        "destinatário do aviso do provedor",
+        "mensagem de bounce do provedor",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
