@@ -326,14 +326,19 @@ it from the approved exam and the 012 taught scope.
 - **State**: in hooks and TanStack Query (polling 5 s for hold/return and pause). No Redux: there
   is no global client state beyond this page (constitution IX); the server is the authority.
 
-## T19 — Constitution reading of the hold
+## T19 — The hold under the XI exception (constitution v3.5.0)
 
-**Decision**: no amendment. The hold is the explicit business rule that Principle X asks for
-(`eventos → evidências → regras → professor`). It is announced before the start, reversible by the
-teacher (return), and never cancels, grades or labels anything. The cancellation and the zero are
-`HUMAN_DECISION` (XI). The 015 rule "events never block" is kept for works; the spec of the exam
-(this feature) defines the exam's rule, as XIV lets an assessment's spec define its own limits.
+**Decision**: the hold relies on the XI exception added by the amendment 3.4.0 → 3.5.0
+(`constitution-amendment-3.5.0.md`). It meets every condition: the rule is shown and accepted
+before the start (FR-028); the server counts registered facts with 3 warnings before the limit
+(FR-016–FR-018); the hold never cancels, grades, penalizes or labels (FR-019, FR-032); the teacher
+sees the facts and decides between annulling (zero) and returning (FR-021–FR-023); no result is
+released before the decision (FR-024); the time running during the hold is announced (FR-011,
+FR-028). The 015 rule "events never block" is kept for works.
 
-**Rationale**: the user chose this path, before the spec, to avoid an amendment (spec
-"Constituição" paragraph).
-The plan's Complexity Tracking records the reading so a reviewer can challenge it.
+**Rationale**: the first plan treated the hold as a reading of XI. `/speckit-analyze` (finding C1)
+showed that the minutes lost while waiting are an automatic effect no decision undoes, so the
+principle was amended instead of reinterpreted, keeping the user's rule.
+
+**Alternatives**: stopping the time during the hold. Rejected: contradicts FR-011 and the user's
+decision that the time keeps running.

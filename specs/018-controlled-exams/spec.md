@@ -75,6 +75,8 @@ início e reversível pelo professor. O cancelamento e a nota zero são decisõe
 (`HUMAN_DECISION`), nunca do sistema (XI: anulação de avaliação e penalidade). O tempo, o início, o
 fim e a contagem de ocorrências são do servidor (III). A regra da 015 de que saídas da tela nunca
 bloqueiam continua valendo para o Trabalho; ela não se aplica à Prova, que tem esta regra própria.
+O encerramento por avisos, com o tempo correndo até a decisão, está coberto pela exceção do
+Princípio XI da constituição v3.5.0 (emenda de 2026-10-12, `constitution-amendment-3.5.0.md`).
 
 ## Clarifications
 

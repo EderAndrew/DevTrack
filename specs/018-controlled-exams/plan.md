@@ -118,7 +118,9 @@ The EXAM type, reserved since 012, becomes real:
 - [x] **X. Evidence**: events are facts; occurrences, warnings, hold and settlement are rule results
   of an explicit, announced rule (`eventos → evidências → regras → professor`); no fraud wording.
 - [x] **XI. Human oversight**: cancellation and zero only by the teacher's decision; the hold is
-  reversible (return); see Complexity Tracking for the reading of "bloqueio disciplinar".
+  reversible (return) while time is left; the hold meets every condition of the XI exception of
+  v3.5.0 (rule accepted before the start, server count with 3 warnings, no automatic annulment,
+  grade, penalty or label, teacher decides, no result released before the decision; research T19).
 - [x] **XII. Determinism first**: everything during the exam is deterministic; AI only drafts the
   bank exam.
 - [x] **XIII. Risk level**: `exam-generator` L2, DRAFT output, never approves, applies, publishes,
@@ -151,8 +153,9 @@ The EXAM type, reserved since 012, becomes real:
 - [x] **Frontend stack**: `features/{exams,exam-session,exam-attempt}`, TanStack Query (polling),
   React Hook Form + Zod for the bank editor and the apply form, DS components only.
 
-**Post-design re-check**: all ✅ against constitution v3.4.0. No amendment is needed (research
-T19); the one interpretation is recorded below.
+**Post-design re-check**: all ✅ against constitution v3.5.0. The amendment 3.4.0 → 3.5.0
+(`constitution-amendment-3.5.0.md`, from the `/speckit-analyze` finding C1) added the XI exception
+the hold relies on.
 
 Touches outside the new modules:
 - `activities`: EXAM create/snapshot/scope-check coverage, roster statuses, release refusal,
@@ -233,10 +236,9 @@ README.md, CLAUDE.md, apps/api/CLAUDE.md, apps/web/CLAUDE.md, apps/api/.env.exam
 
 ## Complexity Tracking
 
-No constitution violation. Two structural choices and one reading are recorded.
+No constitution violation. Two structural choices are recorded.
 
 | Change | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | A third bank (8 tables) mirroring 011 | Clarification Q1; constitution XXIII keeps banks apart; per-question difficulty and required topics differ from works | Reusing `works` tables: would change 011's rules and triggers and mix the banks the boundary guards keep apart |
 | Settlement as an idempotent write on the next touch (T5) | Grading and release need a submission; there is no scheduler | A job: no scheduler exists (IX); grading without a submission duplicates 012 |
-| Reading of XI for the hold (T19) | XI lists "bloqueio disciplinar" and "anulação" as human decisions. The hold stops answering automatically, but it is the announced rule of this assessment (X allows explicit rules), reversible by the teacher, and never cancels, grades or labels; cancellation and zero stay `HUMAN_DECISION` | Cancelling automatically: forbidden by XI without an amendment; no stop at all: contradicts the user's rule. If a reviewer reads the hold as a disciplinary block, the fix is a `/speckit-constitution` amendment, not a code change |

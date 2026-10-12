@@ -66,7 +66,7 @@ come in `pending`; each leaves `pending` with the test that covers it (a pending
 covers fails), so the list is empty when the feature ends. `/speckit-specify` already points
 `.specify/feature.json` at it.
 
-`.specify/memory/constitution.md` (v3.4.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.5.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
