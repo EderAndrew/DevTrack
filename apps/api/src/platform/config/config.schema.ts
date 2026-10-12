@@ -1,3 +1,4 @@
+import { BlockList, isIP } from "node:net";
 import { z } from "zod";
 
 const httpOrigin = z.url({ protocol: /^https?$/ }).transform((value) => new URL(value).origin);
@@ -69,6 +70,37 @@ export function mailFromDomain(mailFrom: string): string | null {
   const address = /<([^<>]+)>\s*$/.exec(mailFrom)?.[1] ?? mailFrom;
   const domain = address.trim().split("@")[1]?.toLowerCase() ?? "";
   return address.trim().split("@").length === 2 && DOMAIN.test(domain) ? domain : null;
+}
+
+/** Loopback, private, link-local and shared ranges: a mail server there is not a production one (017/FR-025). */
+const LOCAL_ADDRESSES = new BlockList();
+for (const [network, prefix] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16]] as const) {
+  LOCAL_ADDRESSES.addSubnet(network, prefix, "ipv4");
+}
+for (const [network, prefix] of [["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10]] as const) {
+  LOCAL_ADDRESSES.addSubnet(network, prefix, "ipv6");
+}
+
+/**
+ * Whether production may send through this SMTP_URL (017/FR-025, research N10): TLS from the start
+ * (`smtps://`) or STARTTLS made mandatory on the submission port (`smtp://…:587?requireTLS=true`),
+ * never a local, private or Mailpit host, and no option that drops TLS or prints the SMTP
+ * conversation (which carries the credentials) to the logs.
+ */
+export function isProductionSmtpUrl(value: string): boolean {
+  const url = new URL(value);
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const family = isIP(host);
+  if (family !== 0) {
+    if (LOCAL_ADDRESSES.check(host, family === 4 ? "ipv4" : "ipv6")) return false;
+  } else if (host === "localhost" || host.endsWith(".localhost") || host === "mailpit" || host.startsWith("mailpit.")) {
+    return false;
+  }
+  const option = (name: string) => url.searchParams.get(name)?.toLowerCase();
+  if (option("secure") === "false" || option("ignoreTLS") === "true") return false;
+  if (option("logger") === "true" || option("debug") === "true") return false;
+  if (url.protocol === "smtps:") return true;
+  return url.port === "587" && option("requireTLS") === "true";
 }
 
 export const configSchema = z.object({
@@ -153,6 +185,16 @@ export const configSchema = z.object({
   }
   if (!e.MAIL_MESSAGE_ID_DOMAIN && !mailFromDomain(e.MAIL_FROM)) {
     ctx.addIssue({ code: "custom", path: ["MAIL_MESSAGE_ID_DOMAIN"], message: "MAIL_FROM sem domínio: informe o domínio" });
+  }
+  // 017/FR-025: production refuses a development mail setup. The loader prints only the names.
+  if (e.NODE_ENV === "production") {
+    if (!isProductionSmtpUrl(e.SMTP_URL)) {
+      ctx.addIssue({ code: "custom", path: ["SMTP_URL"], message: "em produção: TLS (smtps:// ou smtp://…:587?requireTLS=true) e um servidor público" });
+    }
+    if (!mailFromDomain(e.MAIL_FROM)) ctx.addIssue({ code: "custom", path: ["MAIL_FROM"], message: "em produção: um remetente com domínio" });
+    if (e.MAIL_NOTICE_PROVIDER === "none") {
+      ctx.addIssue({ code: "custom", path: ["MAIL_NOTICE_PROVIDER"], message: "em produção: resend ou ses" });
+    }
   }
 });
 

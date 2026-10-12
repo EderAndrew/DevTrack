@@ -41,6 +41,9 @@ const DAY_MS = 24 * 3600 * 1000;
 
 /** The OpenRouter key the scans look for (008/SC-005); never a real credential. */
 export const OPENROUTER_MARKER_KEY = "sk-or-teste-008-CHAVE-FALSA";
+/** An SMTP_URL whose password the scans look for (017/SC-007); the journey's mailer stays in memory. */
+export const SMTP_MARKER_PASSWORD = "MARCADOR-SENHA-SMTP-017";
+export const SMTP_MARKER_URL = `smtp://jornada:${SMTP_MARKER_PASSWORD}@127.0.0.1:1025`;
 const OPERATOR = { host: "host-jornada", user: "operador-jornada" };
 
 /** A secret produced during the journey; `kind` names it in failure messages, never the value. */
@@ -627,6 +630,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   secrets.push({ kind: "credencial do provedor de IA", value: FAKE_PROVIDER_CREDENTIAL });
   // 008/US4-1: the OpenRouter key in the configuration (the provider stays the simulated one).
   if (t.config.ai.openrouter.apiKey) secrets.push({ kind: "chave do OpenRouter", value: t.config.ai.openrouter.apiKey });
+  // 017/US4-5: the SMTP password and the notice secret of the configuration.
+  const smtpPassword = decodeURIComponent(new URL(t.config.smtpUrl).password);
+  if (smtpPassword) secrets.push({ kind: "senha do SMTP_URL", value: smtpPassword });
+  if (t.config.mail.notices.provider === "resend") {
+    const key = t.config.mail.notices.secret;
+    secrets.push({ kind: "segredo de aviso (MAIL_NOTICE_SECRET)", value: `whsec_${key.toString("base64")}` });
+    secrets.push({ kind: "segredo de aviso decodificado", value: key.toString("base64") });
+  }
   content.push({ kind: "instruções do agente de IA", value: INSTRUCTIONS_MARKER });
   const aiOutput = text("saída do modelo", "MARCADOR-SAIDA-006");
   const aiInput = { text: text("entrada da execução de IA", "MARCADOR-ENTRADA-006") };

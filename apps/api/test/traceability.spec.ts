@@ -221,8 +221,9 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Setup phase (T001–T003); each story and SC leaves `pending` with the test that covers it.
     // US1, SC-001 (017-us1-outbox) and SC-002 (017-performance) since Phase 3; US2, SC-003
     // (017-us2-notices) and SC-004 (017-notice-auth) since Phase 4; US3 and SC-005
-    // (017-us3-templates) since Phase 5.
-    pending: { stories: [4], successCriteria: sc(6, 8) },
+    // (017-us3-templates) since Phase 5; US4, SC-006 (017-us4-config), SC-007 (secret-leak-scan)
+    // and SC-008 (017-email-guide) since Phase 6.
+    pending: { stories: [], successCriteria: [] },
   },
 ];
 

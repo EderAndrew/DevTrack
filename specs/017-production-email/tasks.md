@@ -451,7 +451,7 @@ pendentes seguirem.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T035 [P] [US4] `apps/api/test/integration/017-us4-config.spec.ts`:
+- [X] T035 [P] [US4] `apps/api/test/integration/017-us4-config.spec.ts`:
   - `017/US4-2`, `017/FR-025`: com `NODE_ENV=production` o carregador recusa `smtp://` sem
     `requireTLS`, `localhost`, `127.0.0.1`, `10.x`, `172.16–31.x`, `192.168.x`, `::1`, `mailpit`,
     `MAIL_FROM` sem domínio e `MAIL_NOTICE_PROVIDER=none`; aceita `smtps://…:465` e
@@ -460,13 +460,13 @@ pendentes seguirem.
     recriada com outro `SMTP_URL` e `MAIL_NOTICE_PROVIDER=ses` envia os pendentes pelo novo
     mailer, aceita avisos SES, recusa os do Resend (`404`) e não muda a situação dos antigos;
   - `017/FR-029`: `.env.test.example` e `apps/web/e2e/.env.e2e` apontam para o Mailpit.
-- [ ] T036 [P] [US4] `apps/api/test/security/secret-leak-scan.spec.ts` (`017/US4-5`,
+- [X] T036 [P] [US4] `apps/api/test/security/secret-leak-scan.spec.ts` (`017/US4-5`,
   `017/FR-026`, `017/SC-007`): a senha do `SMTP_URL`, o `MAIL_NOTICE_SECRET`, os endereços, nomes,
   links e tokens dos seis e-mails nunca aparecem em logs, auditoria, linhas de
   `mail_deliveries`/`mail_notices` nem respostas, inclusive nos erros de SMTP (`EAUTH` com a URL),
   no erro do carregador de configuração e nas recusas de aviso; o Message-ID só aparece em
   `mail_deliveries.message_id`, nunca em logs, auditoria ou respostas.
-- [ ] T037 [P] [US4] `apps/api/test/integration/017-email-guide.spec.ts` (`017/US4-1`, `017/FR-027`,
+- [X] T037 [P] [US4] `apps/api/test/integration/017-email-guide.spec.ts` (`017/US4-1`, `017/FR-027`,
   `017/FR-028`, `017/SC-008`): `docs/deploy/email.md` existe, é linkado pelo `README.md` e cobre as
   seções obrigatórias (conta e domínio no Resend; SPF, DKIM, DMARC e return-path; as variáveis de
   `contracts/configuration.md`, todas citadas; o webhook e os 5 eventos; rastreamento desligado; a
@@ -476,11 +476,11 @@ pendentes seguirem.
 
 ### Implementation for User Story 4
 
-- [ ] T038 [US4] Guarda de produção em `apps/api/src/platform/config/config.schema.ts`
+- [X] T038 [US4] Guarda de produção em `apps/api/src/platform/config/config.schema.ts`
   (`superRefine` só com `NODE_ENV=production`, mensagens sem valores) e a lista de segredos do
   scan (008) com a senha do `SMTP_URL` e o `MAIL_NOTICE_SECRET`; `SmtpMailer` nunca loga a URL.
   T035 e T036 verdes.
-- [ ] T039 [US4] Guia `docs/deploy/email.md` (português, research N15 e quickstart "Production" e
+- [X] T039 [US4] Guia `docs/deploy/email.md` (português, research N15 e quickstart "Production" e
   "Switching to SES"), com o link no `README.md` e a lista de variáveis igual a
   `contracts/configuration.md`. T037 verde; tirar a US4, `SC-006`, `SC-007` e `SC-008` de
   `pending`. O `SC-008` (e-mails autenticados fora do spam) e o `SC-006` real (homologação) são

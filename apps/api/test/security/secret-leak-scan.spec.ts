@@ -1,11 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOGIN_DELAY } from "../../src/modules/auth/login.service";
-import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney } from "../helpers/journey";
+import { type JourneySecret, OPENROUTER_MARKER_KEY, runFullJourney, SMTP_MARKER_PASSWORD, SMTP_MARKER_URL } from "../helpers/journey";
 import { captureLogs } from "../helpers/log-capture";
 import { type AiTestApp, resetAiDb } from "../helpers/ai";
 import { createWorkHelpApp } from "../helpers/work-help";
 import { createUser, loginAs } from "../helpers/factories";
-import { api, testConfig } from "../helpers/test-app";
+import { api, createTestApp, testConfig } from "../helpers/test-app";
+import { InvalidConfigError, loadConfig } from "../../src/platform/config/config.schema";
+import { SmtpMailer } from "../../src/platform/mail/smtp.mailer";
+import { postNotice, resendSecretOf, signedResendNotice } from "../helpers/mail-notices";
+import { closedPort, smtpServer } from "../helpers/smtp-server";
 
 const SENSITIVE_KEY = /password|token|cookie|authorization|secret/i;
 const REDACTED = "[REDACTED]";
@@ -43,7 +47,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     const base = testConfig();
     t = await createWorkHelpApp({
       logs,
-      config: { ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
+      // 017/US4-5: an SMTP_URL with a password (the journey's mailer stays in memory).
+      config: { smtpUrl: SMTP_MARKER_URL, ai: { ...base.ai, openrouter: { ...base.ai.openrouter, apiKey: OPENROUTER_MARKER_KEY } } },
       overrides: [{ provide: LOGIN_DELAY, useValue: async () => {} }],
     });
     await resetAiDb(t);
@@ -64,6 +69,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
       "senha do aluno convidado",
       "credencial do provedor de IA",
       "chave do OpenRouter",
+      "senha do SMTP_URL",
+      "segredo de aviso (MAIL_NOTICE_SECRET)",
+      "segredo de aviso decodificado",
     ]) {
       expect(kinds.has(kind), kind).toBe(true);
     }
@@ -360,6 +368,181 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
 
     const userIds = (await t.prisma.user.findMany({ select: { id: true } })).map(({ id }) => ({ kind: "id de usuário", value: id }));
     expect(leaks([...secrets, ...content, ...userIds], sources)).toEqual([]);
+  });
+
+  /** Every column of every table as text, minus `except`; the source holds `value` when any row does. */
+  const tableSources = async (values: string[], except: string[] = []) => {
+    const tables = await t.prisma.$queryRawUnsafe<{ table_name: string }[]>(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'",
+    );
+    expect(tables.length).toBeGreaterThan(20);
+    const sources: Record<string, string> = {};
+    for (const { table_name } of tables.filter(({ table_name }) => !except.includes(table_name))) {
+      const hits = await t.prisma.$queryRawUnsafe<{ value: string }[]>(
+        `SELECT needle AS value FROM unnest($1::text[]) AS needle WHERE EXISTS (SELECT 1 FROM "${table_name}" AS scanned_row WHERE strpos(scanned_row::text, needle) > 0)`,
+        values,
+      );
+      sources[`tabela ${table_name}`] = hits.map(({ value }) => value).join(" ");
+    }
+    return sources;
+  };
+
+  /** The notice route as a provider (and an attacker) uses it: accepted, repeated, refused, unknown provider. */
+  const noticeResponses = async () => {
+    const delivery = await t.prisma.mailDelivery.findFirstOrThrow({ where: { status: "SENT", messageId: { not: null } } });
+    const now = new Date();
+    const bounced = signedResendNotice({ type: "email.bounced", messageId: delivery.messageId, at: now, secret: resendSecretOf(t.config) });
+    const forged = signedResendNotice({ type: "email.bounced", messageId: delivery.messageId, at: now, secret: Buffer.from("segredo-errado-da-jornada-017") });
+    const stale = signedResendNotice({ type: "email.delivered", messageId: delivery.messageId, at: now, signedAt: new Date(now.getTime() - 3_600_000), secret: resendSecretOf(t.config) });
+    const responses: Record<string, string> = {};
+    for (const [label, provider, notice, status] of [
+      ["aviso aceito", "resend", bounced, 200],
+      ["aviso repetido", "resend", bounced, 200],
+      ["aviso com assinatura falsa", "resend", forged, 401],
+      ["aviso fora da janela", "resend", stale, 401],
+      ["aviso sem cabeçalhos", "resend", { headers: { "content-type": "application/json" }, body: bounced.body }, 401],
+      ["aviso de outro provedor", "ses", bounced, 404],
+    ] as const) {
+      const res = await postNotice(t, provider, notice);
+      expect(res.status, label).toBe(status);
+      responses[`resposta de ${label}`] = serialize({ headers: res.headers, body: res.body, text: res.text });
+    }
+    expect(await t.prisma.mailNotice.count()).toBeGreaterThan(0);
+    return responses;
+  };
+
+  it("017/US4-5 017/FR-026 017/SC-007 a senha do SMTP_URL e o MAIL_NOTICE_SECRET fora dos logs, da auditoria, das respostas, do erro de configuração e de todas as tabelas", async () => {
+    const kinds = ["senha do SMTP_URL", "segredo de aviso (MAIL_NOTICE_SECRET)", "segredo de aviso decodificado"];
+    const scanned = secrets.filter(({ kind }) => kinds.includes(kind));
+    expect(scanned.map(({ kind }) => kind).sort()).toEqual([...kinds].sort());
+    expect(scanned.find(({ kind }) => kind === "senha do SMTP_URL")?.value).toBe(SMTP_MARKER_PASSWORD);
+
+    const sources: Record<string, string> = { logs: logs.text(), ...(await noticeResponses()) };
+    sources.auditoria = serialize(await t.prisma.auditEvent.findMany());
+    // The loader's refusal names the variables, never a value (a production guard and a malformed secret).
+    const noticeSecret = scanned.find(({ kind }) => kind.startsWith("segredo de aviso ("))!.value;
+    try {
+      loadConfig({
+        ...process.env,
+        NODE_ENV: "production",
+        SMTP_URL: `smtp://jornada:${SMTP_MARKER_PASSWORD}@localhost:1025`,
+        MAIL_NOTICE_SECRET: `${noticeSecret}!`,
+      });
+      expect.unreachable("the configuration was accepted");
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidConfigError);
+      expect((error as InvalidConfigError).variables).toEqual(expect.arrayContaining(["MAIL_NOTICE_SECRET", "SMTP_URL"]));
+      sources["erro do carregador de configuração"] = serialize({ message: (error as Error).message, stack: (error as Error).stack, error });
+    }
+    Object.assign(sources, await tableSources(scanned.map(({ value }) => value)));
+    expect(leaks(scanned, sources)).toEqual([]);
+  });
+
+  /**
+   * The address a person typed is the fact these 001/003 events record (their audit-events.md):
+   * who was invited, and who asked for the admin bootstrap from which operator account. Only those
+   * fields are left out of the 017 scan; any other event, or another field of these, still fails it.
+   */
+  const RECORDED_ADDRESS: Record<string, string[]> = {
+    "admin.bootstrap.requested": ["email", "operatorHost", "operatorUser"],
+    "invitation.created": ["email"],
+    "class_invitation.created": ["email"],
+  };
+  const withoutRecordedAddress = ({ type, metadata }: { type: string; metadata: unknown }) => {
+    const exempt = RECORDED_ADDRESS[type] ?? [];
+    const fields = Object.entries((metadata ?? {}) as Record<string, unknown>).filter(([key]) => !exempt.includes(key));
+    return { type, metadata: Object.fromEntries(fields) };
+  };
+
+  it("017/SC-007 endereços, nomes, links e tokens dos seis e-mails fora dos logs, da auditoria, dos envios, dos avisos e das respostas dos avisos", async () => {
+    const mails = [...t.mailer.outbox, ...t.mailer.failed];
+    expect(new Set(mails.map(({ template }) => template))).toEqual(
+      new Set(["verify-email", "password-reset", "invitation-teacher", "invitation-manager", "admin-activation", "class-invitation"]),
+    );
+    // The links (and their tokens) as the e-mails carry them; the names as the e-mails' owners store them.
+    const links = [...new Set(mails.flatMap((mail) => mail.text.match(/https?:\/\/\S+/g) ?? []))];
+    expect(links.length).toBeGreaterThan(5);
+    const users = await t.prisma.user.findMany({ select: { name: true } });
+    const invitations = await t.prisma.invitation.findMany({ select: { displayName: true } });
+    const scanned: JourneySecret[] = [
+      ...[...new Set(mails.map((mail) => mail.to))].map((value) => ({ kind: "endereço de um e-mail", value })),
+      ...links.map((value) => ({ kind: "link de um e-mail", value })),
+      ...links.flatMap((link) => {
+        const token = new URL(link).searchParams.get("token");
+        return token ? [{ kind: "token de um e-mail", value: token }] : [];
+      }),
+      ...[...new Set([...users.map(({ name }) => name), ...invitations.map(({ displayName }) => displayName)])]
+        .filter((value) => value.length >= 8)
+        .map((value) => ({ kind: "nome de um destinatário", value })),
+    ];
+    const sources: Record<string, string> = {
+      ...(await noticeResponses()),
+      logs: logs.text(),
+      "metadata de auditoria": serialize((await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } })).map(withoutRecordedAddress)),
+      mail_deliveries: serialize(await t.prisma.mailDelivery.findMany()),
+      mail_notices: serialize(await t.prisma.mailNotice.findMany()),
+    };
+    expect(leaks(scanned, sources)).toEqual([]);
+  });
+
+  it("017/US4-5 017/FR-026 erros de SMTP (credencial recusada, conexão recusada) não levam a senha nem o endereço a logs, auditoria, envios ou respostas", async () => {
+    const password = "MARCADOR-SENHA-SMTP-EAUTH-017";
+    const refusing = await smtpServer({ auth: "535 5.7.8 credenciais inválidas" });
+    const sources: Record<string, string> = {};
+    try {
+      for (const [label, url] of [
+        ["EAUTH", `smtp://usuario-017:${password}@127.0.0.1:${refusing.port}`],
+        ["ECONNECTION", `smtp://usuario-017:${password}@127.0.0.1:${await closedPort()}`],
+      ] as const) {
+        const config = testConfig({ smtpUrl: url, mail: { ...t.config.mail, sendTimeoutMs: 2_000 } });
+        const mailer = new SmtpMailer(config);
+        // The same LogCapture: workers log to the first app of the process (apps/api/CLAUDE.md).
+        const app = await createTestApp({ config, mailer, logs });
+        try {
+          const user = await createUser(app, { email: `smtp-${label.toLowerCase()}-017@example.test` });
+          const res = await api(app).post("/api/auth/password-reset/request", { email: user.email });
+          expect(res.status).toBe(202);
+          sources[`resposta (${label})`] = serialize(res.body);
+          await app.flushMail();
+          const delivery = await app.prisma.mailDelivery.findFirstOrThrow({ where: { userId: user.id, kind: "PASSWORD_RESET" } });
+          expect(delivery).toMatchObject({ status: "PENDING", lastErrorCode: label });
+          sources[`mail_deliveries (${label})`] = serialize(delivery);
+          const thrown = await mailer.send({ to: user.email, template: "verify-email", params: { name: "Pessoa", link: "http://localhost:3000/x" } }).catch((error: unknown) => error);
+          expect(thrown).toMatchObject({ name: "MailSendError", code: label });
+          sources[`erro do envio (${label})`] = serialize({ message: (thrown as Error).message, stack: (thrown as Error).stack, thrown });
+        } finally {
+          await app.close();
+          mailer.onModuleDestroy();
+        }
+      }
+    } finally {
+      await refusing.close();
+    }
+    sources.logs = logs.text();
+    expect(sources.logs).toContain("mail.auth_failed");
+    sources.auditoria = serialize(await t.prisma.auditEvent.findMany());
+    expect(leaks([{ kind: "senha do SMTP_URL (EAUTH)", value: password }, { kind: "usuário do SMTP_URL", value: "usuario-017" }], sources)).toEqual([]);
+  });
+
+  it("017/US4-5 017/SC-007 o Message-ID só fica em mail_deliveries.message_id: nunca em logs, auditoria, respostas ou outras tabelas", async () => {
+    const responses = await noticeResponses();
+    const rows = await t.prisma.mailDelivery.findMany({ where: { messageId: { not: null } }, select: { messageId: true } });
+    expect(rows.length).toBeGreaterThan(5);
+    const scanned = rows.map(({ messageId }) => ({ kind: "Message-ID", value: messageId! }));
+    const admin = await createUser(t, { roles: ["ADMIN"] });
+    const client = api(t, { cookie: await loginAs(t, admin) });
+    for (const path of ["teacher-invitations", "manager-invitations"]) {
+      const res = await client.get(`/api/${path}`);
+      expect(res.status, path).toBe(200);
+      responses[`resposta de /${path}`] = serialize(res.body);
+    }
+    const sources = {
+      ...responses,
+      logs: logs.text(),
+      auditoria: serialize(await t.prisma.auditEvent.findMany()),
+      ...(await tableSources(scanned.map(({ value }) => value), ["mail_deliveries"])),
+    };
+    expect(leaks(scanned, sources)).toEqual([]);
   });
 
   it("o detector acusa um vazamento plantado (sem expor o valor)", () => {
