@@ -338,32 +338,32 @@ recusa escrita em qualquer dispositivo.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T034 [P] [US5] `apps/api/test/integration/018-us5-decisions.spec.ts`: `018/US5-1`…`018/US5-8`,
+- [X] T034 [P] [US5] `apps/api/test/integration/018-us5-decisions.spec.ts`: `018/US5-1`…`018/US5-8`,
   `018/FR-021`…`018/FR-025` (cancelar → submissão `CANCELLED` com cada questão `DECIDED` 0 pelo
   professor, e o aluno vê só "Prova encerrada" até a liberação; devolver com tempo; nova ocorrência retém de novo; devolver após o fim → 409
   `EXAM_TIME_OVER`; "Não cancelar" antes do fim → 409 `EXAM_TIME_NOT_OVER`, depois → submissão
   `ENDED_BY_WARNINGS` com as respostas salvas; liberação recusada com retenção aberta; decisão
   repetida → 409 sem evento) e o monitor (situações, ordenação, acerto antes de ler).
-- [ ] T035 [P] [US5] Concorrência em `apps/api/test/security/018-concurrency.spec.ts`: decisão ×
+- [X] T035 [P] [US5] Concorrência em `apps/api/test/security/018-concurrency.spec.ts`: decisão ×
   decisão, devolver × fim do tempo, cancelar × liberação; `018/SC-005` (nenhum zero sem decisão),
   `018/SC-006`, `018/SC-007` (retenção visível no monitor no próximo poll).
 
 ### Implementation for User Story 5
 
-- [ ] T036 [US5] `apps/api/src/modules/exam-sessions/`: `exam-monitor.{controller,service}.ts`
+- [X] T036 [US5] `apps/api/src/modules/exam-sessions/`: `exam-monitor.{controller,service}.ts`
   (consulta própria das tabelas de presença, pausa, ocorrência e retenção; acerto antes),
   `exam-holds.{controller,service}.ts` (cancelar, devolver, não cancelar sob os locks de research
   T9, taxa `RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE`), `views.ts`; auditorias
   `exam_attempt.cancel_confirmed/returned/not_cancelled`.
-- [ ] T037 [US5] `apps/api/src/modules/activities/`: liberação acerta e recusa com
+- [X] T037 [US5] `apps/api/src/modules/activities/`: liberação acerta e recusa com
   `EXAM_DECISIONS_PENDING`; roster com as situações novas e `occurrenceCount`; encerrar/cancelar a
   atividade mantém as retenções decidíveis; revisão de integridade com `occurrenceOrdinal`,
   `idleSeconds` e `holds`.
-- [ ] T038 [P] [US5] Testes web primeiro em `apps/web/features/exam-session/**/*.test.tsx`: painel
+- [X] T038 [P] [US5] Testes web primeiro em `apps/web/features/exam-session/**/*.test.tsx`: painel
   com cada `examStatus` (tabela de contracts/web-ui.md), ordenação, diálogo de confirmação,
   "Devolver prova" só com `canReturn`, "Não cancelar" após o fim, "Liberar resultado" desabilitado
   com pendências, teclado e `vitest-axe`.
-- [ ] T039 [US5] Web `apps/web/features/exam-session/{api,components,hooks}/…` (`ExamRoomPanel`,
+- [X] T039 [US5] Web `apps/web/features/exam-session/{api,components,hooks}/…` (`ExamRoomPanel`,
   `HoldDecisionDialog`, `OccurrenceList`, sondagem de 5 s) e, no aluno, o retorno ("Retomar" com o
   tempo restante, volta à tela cheia); T038 verde.
 

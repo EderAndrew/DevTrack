@@ -2,7 +2,7 @@
 
 import type { Room } from "@repo/contracts";
 import { Send } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,8 @@ import { RoomPanel } from "./room-panel";
 export interface AttendanceTabProps {
   classId: string;
   activityId: string;
+  /** 018: an exam shows its own room panel (with the time and the holds) after the first release. */
+  renderRoom?: (room: Room) => ReactNode;
 }
 
 /**
@@ -45,7 +47,7 @@ export interface AttendanceTabProps {
  * presentes" (confirmed); afterwards the room panel (`RoomPanel`), refreshed every 5 s. The checkboxes
  * are only a draft until the batch, which sends the differences (research M5).
  */
-export function AttendanceTab({ classId, activityId }: AttendanceTabProps) {
+export function AttendanceTab({ classId, activityId, renderRoom }: AttendanceTabProps) {
   const query = useRoom(classId, activityId);
 
   let body;
@@ -70,7 +72,7 @@ export function AttendanceTab({ classId, activityId }: AttendanceTabProps) {
   } else if (query.data.present === 0) {
     body = <AttendanceChecklist classId={classId} activityId={activityId} room={query.data} />;
   } else {
-    body = <RoomPanel classId={classId} activityId={activityId} room={query.data} />;
+    body = renderRoom ? renderRoom(query.data) : <RoomPanel classId={classId} activityId={activityId} room={query.data} />;
   }
 
   return (

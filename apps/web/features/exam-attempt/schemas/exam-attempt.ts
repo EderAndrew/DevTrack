@@ -40,6 +40,16 @@ export const examRunning = (activity: Pick<StudentActivity, "canAnswer" | "submi
 /** The hold's notice, the server's own text (`EXAM_ATTEMPT_ON_HOLD`, 018/FR-018). */
 export const ON_HOLD = ERROR_MESSAGES.EXAM_ATTEMPT_ON_HOLD;
 
+/** 018/US5-2: the teacher returned the exam; the time left by the server's clock, rounded up. */
+export function returnedNotice(remainingMs: number): string {
+  const minutes = Math.max(0, Math.ceil(remainingMs / 60_000));
+  return `O professor devolveu a sua prova. Restam ${minutes === 1 ? "1 minuto" : `${minutes} minutos`}.`;
+}
+export const RESUME_EXAM = "Retomar";
+/** 018/FR-029: either decision on a hold reads the same until the result is released. */
+export const DECIDED_BEFORE_RELEASE = "Prova encerrada. O resultado aparece quando o professor liberar.";
+export const CANCELLED_BY_TEACHER = "Prova cancelada pelo professor.";
+
 /** The occurrence a counted event opens (018 research T6): the warning names it. */
 const OCCURRENCE_OF: Partial<Record<IntegrityEventType, OccurrenceKind>> = {
   SCREEN_LEFT: "SCREEN",

@@ -4,7 +4,10 @@ import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { ExamSettlement } from "../activities/exam-settlement";
+import { endsAt } from "../activities/status/exam-time";
+import { examTiming } from "../activities/status/facts";
 import { ClassContextPolicy } from "../classes/class-context.policy";
+import { toTeacherExamHold } from "../exam-sessions/views";
 import { storedEvents } from "./focus-events.service";
 import { buildTimeline } from "./timeline";
 import { type StoredIntegrityEvent, toEventView, toIntervalView } from "./views";
@@ -59,11 +62,24 @@ export class IntegrityReviewService {
     await this.examSettlement.ofActivity(classId, activityId, this.clock.now(), null);
     const attempt = await this.prisma.activityAttempt.findFirst({
       where: { id: attemptId, activityId, activity: { classId } },
-      select: { id: true, submission: { select: { submittedAt: true } } },
+      select: {
+        id: true,
+        startedAt: true,
+        submission: { select: { submittedAt: true } },
+        activity: { select: { type: true, status: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
+        holds: {
+          orderBy: { occurrenceOrdinal: "asc" },
+          select: { id: true, attemptId: true, occurrenceOrdinal: true, openedAt: true, resolution: true, resolvedAt: true },
+        },
+      },
     });
     if (!attempt) throw notFound();
-    const timeline = buildTimeline(await storedEvents(this.prisma, attempt.id), attempt.submission?.submittedAt ?? this.clock.now());
-    // The holds are an EXAM's (018 research T8), from US5.
-    return { events: timeline.events.map(toEventView), intervals: timeline.intervals.map(toIntervalView), totals: timeline.totals, holds: [] };
+    const now = this.clock.now();
+    const timeline = buildTimeline(await storedEvents(this.prisma, attempt.id), attempt.submission?.submittedAt ?? now);
+    // An EXAM's holds with the teacher's decisions (018/FR-031, research T8); none for the others.
+    const { activity } = attempt;
+    const end = activity.type === "EXAM" ? endsAt(examTiming(activity), attempt.startedAt) : null;
+    const holds = end ? attempt.holds.map((hold) => toTeacherExamHold(hold, end, activity.status, now)) : [];
+    return { events: timeline.events.map(toEventView), intervals: timeline.intervals.map(toIntervalView), totals: timeline.totals, holds };
   }
 }

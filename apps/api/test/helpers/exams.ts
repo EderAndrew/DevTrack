@@ -341,3 +341,20 @@ export async function holdByHand(t: TestApp, attempt: { id: string; activityId: 
   }
   return t.prisma.examAttemptHold.create({ data: { ...ids, occurrenceOrdinal: 4, openedAt } });
 }
+
+// ── 018/US5: the teacher's monitor and decisions ─────────────────────────────────────────────
+
+const examActivityPath = (classId: string, activityId: string) => `/api/classes/${classId}/activities/${activityId}`;
+
+/** `GET …/exam-monitor` (research T12), polled every 5 s by the web. */
+export function getExamMonitor(client: Client, classId: string, activityId: string) {
+  return client.get(`${examActivityPath(classId, activityId)}/exam-monitor`);
+}
+
+/** The three decisions on a hold (research T9): "Confirmar cancelamento", "Devolver prova", "Não cancelar". */
+export type HoldDecision = "cancel" | "return" | "keep";
+
+/** `POST …/exam-holds/:holdId/{cancel,return,keep}` with the empty body. */
+export function decideHold(client: Client, classId: string, activityId: string, holdId: string, decision: HoldDecision) {
+  return client.post(`${examActivityPath(classId, activityId)}/exam-holds/${holdId}/${decision}`, {});
+}

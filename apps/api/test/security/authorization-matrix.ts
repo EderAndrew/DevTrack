@@ -340,6 +340,11 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },
   // 016/US4 — the pauses of an attempt in the review (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses", access: "entregas.visualizar" },
+  // 018/US5 — the exam monitor and the decisions on a hold (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/exam-monitor", access: "chamada.registrar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/cancel", access: "provas.encerramentos.decidir" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/return", access: "provas.encerramentos.decidir" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/keep", access: "provas.encerramentos.decidir" },
   // 018/US1 — the Banco de Provas (contracts/permissions.md).
   { method: "POST", path: "/exams", access: "provas.criar" },
   { method: "GET", path: "/exams", access: "provas.visualizar" },

@@ -8,7 +8,10 @@ import { ExamTimer } from "@/components/ui/assessment/exam-timer";
 import { FinalCountdown } from "@/components/ui/assessment/final-countdown";
 import { TimeAlert } from "@/components/ui/assessment/time-alert";
 import { type OccurrenceKind, WarningDialog } from "@/components/ui/assessment/warning-dialog";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
+import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { ControlledSession, type RecordEvent } from "@/features/controlled-attempt/components/controlled-attempt";
 import { enterFullscreen } from "@/features/controlled-attempt/hooks/use-fullscreen";
 import { activityHref } from "@/features/controlled-attempt/schemas/controlled-attempt";
@@ -17,7 +20,7 @@ import { Loading, LoadFailed } from "@/features/student-activities/components/lo
 import { useStudentActivity } from "@/features/student-activities/hooks/use-student-activities";
 import { useExamClock, useTimeUp } from "../hooks/use-exam-clock";
 import { useInactivity } from "../hooks/use-inactivity";
-import { EXAM_STATUS_LABEL, examRunning, LAST_MINUTE_MS, occurrenceKindOf } from "../schemas/exam-attempt";
+import { EXAM_STATUS_LABEL, examRunning, LAST_MINUTE_MS, occurrenceKindOf, RESUME_EXAM, returnedNotice } from "../schemas/exam-attempt";
 import { ExamEndNotice, ExamHoldNotice } from "./rules-screen";
 
 /**
@@ -27,8 +30,10 @@ import { ExamEndNotice, ExamHoldNotice } from "./rules-screen";
  * in the last minute, and at the end (plus the server's grace) the activity read again, which the
  * server settles: "Tempo esgotado", the answers read-only. Since US4 the server's occurrence count
  * shows "Aviso n de 3" after each counted occurrence (in place of the 015 exit warning), inactivity is
- * one more monitored signal, and a hold takes the questions away for the hold notice. Anything but a
- * started exam goes back to its page.
+ * one more monitored signal, and a hold takes the questions away for the hold notice. Since US5 the
+ * page reads the activity every 5 s while on hold: a return shows "O professor devolveu a sua prova.
+ * Restam n minutos." with "Retomar", which goes back to fullscreen on the student's click; a decision
+ * that ends the exam shows its end notice. Anything but a started exam goes back to its page.
  */
 export function ExamAttempt({ activityId, userId }: { activityId: string; userId: string }) {
   const query = useStudentActivity(activityId);
@@ -66,6 +71,7 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
   const [warning, setWarning] = useState<{ ordinal: number; kind: OccurrenceKind } | null>(null);
   // The occurrences already known: a warning shows only for one the server counts after them.
   const counted = useRef(exam.occurrences.count);
+  const returned = useHoldWatch(held, running, reload);
 
   // 018/FR-017, FR-018 (research T6): the count is the server's, in each batch's answer.
   const onEventsSent = (result: SentEvents, sent: readonly IntegrityEventInput[]) => {
@@ -92,6 +98,21 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
           banner: (
             <>
               {held ? <ExamHoldNotice /> : null}
+              {returned.shown && running ? (
+                <Alert variant="info">
+                  <AlertTitle>{returnedNotice(remaining())}</AlertTitle>
+                  <Button
+                    type="button"
+                    className="w-fit"
+                    onClick={() => {
+                      returned.dismiss();
+                      void enterFullscreen();
+                    }}
+                  >
+                    {RESUME_EXAM}
+                  </Button>
+                </Alert>
+              ) : null}
               <ExamEndNotice activity={activity} />
               {running ? <TimeAlert remaining={remaining} /> : null}
               {running ? <FinalCountdown remaining={remaining} /> : null}
@@ -116,6 +137,32 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
       />
     </>
   );
+}
+
+/**
+ * 018/US5-2 (SC-007): while the attempt is on hold, the activity is read every 5 s (only while the page
+ * is visible); when the hold is gone and the exam runs again, the teacher returned it.
+ */
+function useHoldWatch(held: boolean, running: boolean, reload: () => Promise<unknown>): { shown: boolean; dismiss: () => void } {
+  const [shown, setShown] = useState(false);
+  // The hold's end is noticed while rendering (no effect): gone and running again → returned.
+  const [wasHeld, setWasHeld] = useState(held);
+  if (wasHeld !== held) {
+    setWasHeld(held);
+    setShown(!held && running);
+  }
+  const read = useRef(reload);
+  useEffect(() => {
+    read.current = reload;
+  });
+  useEffect(() => {
+    if (!held) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void read.current();
+    }, ATTENDANCE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [held]);
+  return { shown, dismiss: () => setShown(false) };
 }
 
 /** 018/US4-3: one INACTIVITY event per idle period, through the page's recorder. */

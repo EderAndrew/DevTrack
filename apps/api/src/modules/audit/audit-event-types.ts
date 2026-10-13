@@ -227,6 +227,11 @@ export const AUDIT_EVENT_METADATA = {
   "exam_attempt.held": ["activityId", "holdId", "occurrenceOrdinal"],
   // 018/FR-020 — an exam's events batch refused after the end or the submission (`operation: EVENTS`).
   "exam_attempt.write_refused": ["activityId", "operation", "code"],
+  // 018/FR-021–FR-023 — the teacher's one decision on a hold (research T9): the cancellation (grade 0)
+  // and "Não cancelar" name the submission they wrote, the return the whole seconds still left.
+  "exam_attempt.cancel_confirmed": ["activityId", "holdId", "submissionId"],
+  "exam_attempt.returned": ["activityId", "holdId", "secondsLeft"],
+  "exam_attempt.not_cancelled": ["activityId", "holdId", "submissionId"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED,
   // and NOT_PRESENT since 016 (a PRESENT_ONLY work without the student's presence).
   "student_access.denied": ["route", "reason"],

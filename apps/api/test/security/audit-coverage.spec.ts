@@ -52,9 +52,6 @@ const PENDING_018 = new Set<string>([
   "exam_generation.requested",
   "exam_generation.completed",
   "exam_generation.rejected",
-  "exam_attempt.cancel_confirmed",
-  "exam_attempt.returned",
-  "exam_attempt.not_cancelled",
 ]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([
@@ -318,11 +315,11 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(new Set(found.map((event) => event.type)).size).toBe(5);
       expect(offendingMetadata(found)).toEqual([]);
       expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
-      // The journey marks 3 times for works and three times for the 018/US3 and US4 exams, and unmarks once
-      // (016/US2): one event per change, none for a no-op.
+      // The journey marks 3 times for works and four times for the 018/US3, US4 and US5 exams, and unmarks
+      // once (016/US2): one event per change, none for a no-op.
       const marked = found.filter((event) => event.type === "attendance.marked");
       const unmarked = found.filter((event) => event.type === "attendance.unmarked");
-      expect([marked.length, unmarked.length]).toEqual([6, 1]);
+      expect([marked.length, unmarked.length]).toEqual([7, 1]);
       expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
       // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt.
       const pauses = await t.prisma.attemptPause.findMany({ select: { id: true, attemptId: true, initiatedBy: true, releasedAt: true } });

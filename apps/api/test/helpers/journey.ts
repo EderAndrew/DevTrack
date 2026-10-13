@@ -1036,6 +1036,31 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(occurrences.body.exam).toEqual({ occurrenceCount: 4, held: true });
   const heldSubmit = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/submit`, { answers: [] });
   expect(heldSubmit.body.code).toBe("EXAM_ATTEMPT_ON_HOLD");
+  // 018/US5 — the teacher decides on the monitor: returns the exam with time left
+  // (`exam_attempt.returned`), the next occurrence holds it again and the cancellation is confirmed
+  // (`exam_attempt.cancel_confirmed`); a fourth exam held and then closed is not cancelled
+  // (`exam_attempt.not_cancelled`).
+  const openHoldOf = async (activityId: string) => {
+    const monitor = await teacherClient.get(`${activitiesPath}/${activityId}/exam-monitor`);
+    expect(monitor.status).toBe(200);
+    return monitor.body.students[0].openHold.id as string;
+  };
+  const decideHold = (activityId: string, holdId: string, decision: "cancel" | "return" | "keep") =>
+    teacherClient.post(`${activitiesPath}/${activityId}/exam-holds/${holdId}/${decision}`, {});
+  expect((await decideHold(heldExam, await openHoldOf(heldExam), "return")).body.resolution).toBe("RETURNED");
+  // Past the 2 s window of the batch that opened the first hold, so the fifth counts on its own.
+  await new Promise((resolve) => setTimeout(resolve, 2_100));
+  const fifth = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 0)] });
+  expect(fifth.body.exam).toEqual({ occurrenceCount: 5, held: true });
+  expect((await decideHold(heldExam, await openHoldOf(heldExam), "cancel")).body.resolution).toBe("CANCEL_CONFIRMED");
+  const keptExam = await takeExam("Prova não cancelada da jornada dezoito");
+  const keptOccurrences = await classStudentClient.post(`/api/me/activities/${keptExam}/attempt/events`, {
+    events: [examEvent("SCREEN_LEFT", 40), examEvent("FULLSCREEN_EXITED", 30), examEvent("COPY_BLOCKED", 20), examEvent("SCREEN_LEFT", 10)],
+  });
+  expect(keptOccurrences.body.exam).toEqual({ occurrenceCount: 4, held: true });
+  const keptHold = await openHoldOf(keptExam);
+  expect((await teacherClient.post(`${activitiesPath}/${keptExam}/close`, {})).status).toBe(200);
+  expect((await decideHold(keptExam, keptHold, "keep")).body.resolution).toBe("NOT_CANCELLED");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

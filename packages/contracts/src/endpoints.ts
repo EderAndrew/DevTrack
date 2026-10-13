@@ -87,6 +87,8 @@ import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySc
 import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
+import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
+import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -249,6 +251,10 @@ export type ClassActivityStudentParams = z.infer<typeof ClassActivityStudentPara
 /** One room exit of an activity of the teacher's class (016 research M7: a release is keyed by pause). */
 export const ClassActivityPauseParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, pauseId: UuidSchema });
 export type ClassActivityPauseParams = z.infer<typeof ClassActivityPauseParamsSchema>;
+
+/** One hold of an exam of the teacher's class (018 research T9: a decision is keyed by hold). */
+export const ClassActivityHoldParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, holdId: UuidSchema });
+export type ClassActivityHoldParams = z.infer<typeof ClassActivityHoldParamsSchema>;
 
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
@@ -1215,6 +1221,41 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses",
     params: ClassActivityAttemptParamsSchema,
     response: AttemptPausesSchema,
+    status: 200,
+  },
+  /** 018/US5: the teacher's exam monitor, polled every 5 s (018/FR-025); not an exam → 409. */
+  "examSessions.monitor": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/exam-monitor",
+    params: ClassActivityParamsSchema,
+    response: ExamMonitorSchema,
+    status: 200,
+  },
+  /** 018/US5: "Confirmar cancelamento" (018/FR-021); a decided hold → 409. */
+  "examSessions.cancelHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/cancel",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
+    status: 200,
+  },
+  /** 018/US5: "Devolver prova" while the attempt has time (018/FR-022). */
+  "examSessions.returnHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/return",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
+    status: 200,
+  },
+  /** 018/US5: "Não cancelar" once the attempt's end has come (018/FR-023). */
+  "examSessions.keepHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/keep",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
     status: 200,
   },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */

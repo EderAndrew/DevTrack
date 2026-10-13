@@ -379,6 +379,7 @@ export class ActivitiesService {
    * each student sees it once their grading is complete. Already released → as it is, no event;
    * CANCELLED → `409 INVALID_STATE_TRANSITION`. The activity `FOR UPDATE` serializes it with close
    * and cancel; its edit `version` doesn't change. An EXERCISE has no result to release (013 K14).
+   * An EXAM with a hold still open → `409 EXAM_DECISIONS_PENDING` with the count (018/FR-024).
    */
   async release(auth: AuthContext, classId: string, activityId: string, requestId: string | null): Promise<TeacherActivity> {
     const teacherId = auth.userId;
@@ -388,8 +389,13 @@ export class ActivitiesService {
       const current = await lockActivity(tx, classId, activityId);
       if (current.status === "CANCELLED" || ACTIVITY_TYPES[current.type].scoring !== "GRADE") throw invalidStateTransition();
       if (current.resultReleasedAt !== null) return this.read(teacherId, classId, activityId, tx);
-      // 018 research T5: an exam's expired attempts become submissions before the release counts them.
+      // 018 research T5, T10: an exam's expired attempts become submissions before the release counts
+      // them, and no result is released while a hold waits for the teacher's decision (FR-024).
       await settleExpiredExamAttempts(tx, this.audit, { classId, activityId, now: this.clock.now(), requestId });
+      if (current.type === "EXAM") {
+        const pending = (await loadPendingDecisions(tx, [activityId])).get(activityId) ?? 0;
+        if (pending > 0) throw new AppException("EXAM_DECISIONS_PENDING", undefined, {}, { count: pending });
+      }
 
       await tx.classActivity.update({
         where: { id: activityId },

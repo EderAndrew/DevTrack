@@ -157,11 +157,13 @@ export class AttemptsReviewService {
       if (activity.type === "EXERCISE") throw invalidStateTransition();
       const attempt = await tx.activityAttempt.findFirst({ where: { id: attemptId, activityId }, select: { id: true } });
       if (!attempt) throw notFound();
-      const rows = await tx.$queryRaw<{ id: string; version: number; general_feedback: string | null }[]>`
-        SELECT id, version, general_feedback FROM activity_submissions
+      const rows = await tx.$queryRaw<{ id: string; version: number; general_feedback: string | null; end_reason: string | null }[]>`
+        SELECT id, version, general_feedback, end_reason::text AS end_reason FROM activity_submissions
         WHERE attempt_id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;
       const submission = rows[0];
       if (!submission) throw new AppException("NOT_SUBMITTED");
+      // 018/FR-021: a confirmed cancellation's zero is the teacher's decision on the hold, never regraded.
+      if (submission.end_reason === "CANCELLED") throw invalidStateTransition();
       if (submission.version !== body.version) throw new AppException("SUBMISSION_VERSION_CONFLICT");
 
       const stored = await tx.activityQuestionGrading.findMany({ where: { submissionId: submission.id }, select: GRADING_SELECT });

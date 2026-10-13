@@ -9,7 +9,18 @@ import { messageForError } from "@/lib/messages/error-messages";
 import { enterFullscreen, exitFullscreen } from "@/features/controlled-attempt/hooks/use-fullscreen";
 import { controlledAnswerHref } from "@/features/controlled-attempt/schemas/controlled-attempt";
 import { useStartAttempt } from "@/features/student-activities/hooks/use-student-activities";
-import { CONTINUE_EXAM, EXAM_CLOSED, EXAM_RULES_TITLE, examRules, ON_HOLD, START_CLOSED, START_EXAM, TIME_OVER } from "../schemas/exam-attempt";
+import {
+  CANCELLED_BY_TEACHER,
+  CONTINUE_EXAM,
+  DECIDED_BEFORE_RELEASE,
+  EXAM_CLOSED,
+  EXAM_RULES_TITLE,
+  examRules,
+  ON_HOLD,
+  START_CLOSED,
+  START_EXAM,
+  TIME_OVER,
+} from "../schemas/exam-attempt";
 
 /**
  * An exam on the activity's page, before or between the answers (018/US3, contracts/web-ui.md): the
@@ -77,14 +88,33 @@ export function ExamEntry({ activity }: { activity: StudentActivity }) {
   );
 }
 
-/** How an exam ended, above its read-only answers (018/FR-013); the decisions on a hold come with US5. */
+/**
+ * How an exam ended, above its read-only answers (018/FR-013, FR-029): "Tempo esgotado"; after the
+ * teacher's decision on a hold, "Prova encerrada…" until the release whatever the decision (the
+ * server answers `WARNINGS` for both), then "Prova cancelada pelo professor." for a cancellation, or
+ * the grade of the saved answers with no notice.
+ */
 export function ExamEndNotice({ activity }: { activity: StudentActivity }) {
-  if (activity.exam?.endReason !== "TIME_EXPIRED") return null;
+  const text = endNoticeOf(activity);
+  if (!text) return null;
   return (
     <Alert variant="info">
-      <AlertTitle>{TIME_OVER}</AlertTitle>
+      <AlertTitle>{text}</AlertTitle>
     </Alert>
   );
+}
+
+function endNoticeOf(activity: StudentActivity): string | null {
+  switch (activity.exam?.endReason) {
+    case "TIME_EXPIRED":
+      return TIME_OVER;
+    case "CANCELLED":
+      return CANCELLED_BY_TEACHER;
+    case "WARNINGS":
+      return activity.result ? null : DECIDED_BEFORE_RELEASE;
+    default:
+      return null;
+  }
 }
 
 /**

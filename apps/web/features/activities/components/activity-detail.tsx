@@ -23,6 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { ExamRoomPanel } from "@/features/exam-session/components/exam-room-panel";
+import { EXAM_ROOM_TITLE, pendingDecisionsLabel } from "@/features/exam-session/schemas/exam-session";
 import { attendanceSummary, OUT_OF_ROOM, PAUSES_COLUMN, PRESENCE_COLUMN } from "@/features/attendance/schemas/attendance";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
@@ -76,8 +78,10 @@ export interface ActivityDetailProps {
   canApply: boolean;
   /** `notas.liberar`: "Liberar resultado". */
   canRelease?: boolean;
-  /** `chamada.registrar`: the "Chamada" of a `PRESENT_ONLY` work (016). */
+  /** `chamada.registrar`: the "Chamada" of a `PRESENT_ONLY` work (016) and an exam's monitor (018). */
   canTakeAttendance?: boolean;
+  /** `provas.encerramentos.decidir`: the decisions on an exam ended by warnings (018/US5). */
+  canDecideHolds?: boolean;
   /** The tab `?aba=` opens (default "informacoes"; an EXAM's "alunos", its "Chamada e prova", 018). */
   initialTab?: ActivityTab;
 }
@@ -96,6 +100,8 @@ export interface ActivityDetailProps {
  * (the "Chamada" and the roster) and "Questões e gabarito". The active one is kept in `?aba=`, so a reload
  * or the way back from an attempt opens it again. An EXAM (018/US2) opens on "Chamada e prova" — the 016
  * checklist and room — and shows its duração, limite de inatividade, limite para iniciar and fechamento.
+ * Since US5 its room is the exam monitor (`ExamRoomPanel`), still shown once the exam is closed or
+ * cancelled so the holds stay decidable, and "Liberar resultado" waits for every decision (FR-024).
  */
 export function ActivityDetail({
   classId,
@@ -103,6 +109,7 @@ export function ActivityDetail({
   canApply,
   canRelease = false,
   canTakeAttendance = false,
+  canDecideHolds = false,
   initialTab,
 }: ActivityDetailProps) {
   const query = useActivity(classId, activityId);
@@ -234,8 +241,25 @@ export function ActivityDetail({
 
         <TabsContent value="alunos" className="flex flex-col gap-6">
           {/* 016: the attendance releases the work to each student marked present (FR-003). */}
-          {canTakeAttendance && activity.releaseMode === "PRESENT_ONLY" && activity.status === "ACTIVE" ? (
+          {canTakeAttendance && activity.type !== "EXAM" && activity.releaseMode === "PRESENT_ONLY" && activity.status === "ACTIVE" ? (
             <AttendanceTab classId={classId} activityId={activity.id} />
+          ) : null}
+          {/* 018: the exam's room is its monitor, with the decisions on a hold even after the close. */}
+          {canTakeAttendance && activity.type === "EXAM" ? (
+            activity.status === "ACTIVE" ? (
+              <AttendanceTab
+                classId={classId}
+                activityId={activity.id}
+                renderRoom={() => <ExamRoomPanel classId={classId} activityId={activity.id} canDecide={canDecideHolds} active />}
+              />
+            ) : (
+              <section aria-labelledby="prova-sala-titulo" className="flex flex-col gap-2">
+                <h3 id="prova-sala-titulo" className="m-0 text-h3">
+                  {EXAM_ROOM_TITLE}
+                </h3>
+                <ExamRoomPanel classId={classId} activityId={activity.id} canDecide={canDecideHolds} active={false} />
+              </section>
+            )
           ) : null}
           <Roster classId={classId} activity={activity} />
         </TabsContent>
@@ -327,6 +351,21 @@ function ReleaseAction({
 }) {
   if (activity.status === "CANCELLED" || activity.resultReleasedAt !== null) return null;
   const pending = activity.counts.pendingGrading;
+  // 018/FR-024: an exam's result waits for every decision on a hold.
+  const pendingDecisions = activity.exam?.pendingDecisions ?? 0;
+  if (pendingDecisions > 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="secondary" disabled aria-describedby="decisoes-pendentes">
+          <Send aria-hidden="true" />
+          Liberar resultado
+        </Button>
+        <span id="decisoes-pendentes" className="text-body-sm text-text-secondary">
+          {pendingDecisionsLabel(pendingDecisions)}
+        </span>
+      </div>
+    );
+  }
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>

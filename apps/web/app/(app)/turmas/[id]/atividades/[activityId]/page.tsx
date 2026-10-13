@@ -26,6 +26,7 @@ export default async function ActivityPage({
       canApply={me.permissions.includes("atividades.aplicar")}
       canRelease={me.permissions.includes("notas.liberar")}
       canTakeAttendance={me.permissions.includes("chamada.registrar")}
+      canDecideHolds={me.permissions.includes("provas.encerramentos.decidir")}
       initialTab={activityTabOf((await searchParams).aba)}
     />
   );

@@ -18,6 +18,11 @@ export interface RegisterSubmissionInput {
    * the close, its blank questions score a rule's 0 with no teacher action (FR-014).
    */
   endReason?: ExamEndReason;
+  /**
+   * 018/FR-021: required with `endReason: CANCELLED` — the teacher who confirmed the cancellation and
+   * when. Every question is then their decision of 0 (`HUMAN_DECISION`), never a rule's.
+   */
+  cancellation?: { teacherId: string; decidedAt: Date };
 }
 
 /** The ends of an exam the student didn't choose: their blanks score zero (018/FR-014, SC-008). */
@@ -78,8 +83,12 @@ export async function registerSubmission(tx: Tx, input: RegisterSubmissionInput)
     correctAlternativeId: question.alternatives[0]?.id ?? null,
     testCases: question.testCases,
   }));
+  const cancellation = input.endReason === "CANCELLED" ? input.cancellation : undefined;
+  if (input.endReason === "CANCELLED" && !cancellation) throw new Error("a cancelled exam needs the teacher's decision (018/FR-021)");
   const zeroBlanks = input.endReason && ZERO_BLANKS.has(input.endReason) ? new Set(blanks.map((question) => question.id)) : undefined;
-  const grading = await gradeSubmission(gradingQuestions, answers, requiredCents(activity.totalGrade), undefined, zeroBlanks);
+  const grading = cancellation
+    ? { gradeCents: 0, partial: false, gradings: [] }
+    : await gradeSubmission(gradingQuestions, answers, requiredCents(activity.totalGrade), undefined, zeroBlanks);
 
   await tx.activityAttempt.update({ where: { id: input.attemptId }, data: { status: "SUBMITTED" } });
   const submission = await tx.activitySubmission.create({
@@ -92,11 +101,30 @@ export async function registerSubmission(tx: Tx, input: RegisterSubmissionInput)
       blankCount,
       acceptedById: input.acceptedById ?? null,
       endReason: input.endReason ?? null,
+      cancelledById: cancellation?.teacherId ?? null,
       grade: centsToGrade(grading.gradeCents),
       gradePartial: grading.partial,
     },
     select: { id: true },
   });
+  if (cancellation) {
+    // The teacher's zero on each question (deferred trigger `activity_submissions_cancelled_valid`).
+    const zero = centsToGrade(0);
+    await tx.activityQuestionGrading.createMany({
+      data: questions.map((question) => ({
+        submissionId: submission.id,
+        questionId: question.id,
+        activityId: input.activityId,
+        status: "DECIDED" as const,
+        nature: "HUMAN_DECISION" as const,
+        finalGrade: zero,
+        teacherGrade: zero,
+        decidedById: cancellation.teacherId,
+        decidedAt: cancellation.decidedAt,
+      })),
+    });
+    return { submissionId: submission.id, blankCount, questionCount: questions.length, pendingTeacherCount: 0 };
+  }
   await tx.activityQuestionGrading.createMany({
     data: grading.gradings.map((item) => ({
       submissionId: submission.id,
