@@ -185,7 +185,8 @@ export function AnsweringSession({
 }) {
   const [generation, setGeneration] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
-  const watching = activity.type === "ASSIGNMENT" && activity.canAnswer && activity.submission === null && activity.pause === null;
+  // A work or an exam (018/US6-1: the teacher's pause arrives the same way); an Exercício never pauses.
+  const watching = activity.type !== "EXERCISE" && activity.canAnswer && activity.submission === null && activity.pause === null;
   const watch = useMyPause(activity.id, watching, "watch");
   /** The pause already acted on: a read from before the resume never reloads again. */
   const handled = useRef<string | null>(null);
@@ -362,8 +363,9 @@ function AttemptAnswering({
   const [confirming, setConfirming] = useState(false);
   const blankCount = questions.length - answeredCount;
   const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
-  // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007).
-  const canExitRoom = editable && !isExercise;
+  // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007); in an exam only
+  // the teacher pauses (018/FR-026).
+  const canExitRoom = editable && activity.type === "ASSIGNMENT";
   const [exitingRoom, setExitingRoom] = useState(false);
   const declareExit = useDeclareExit(activity.id);
   // A save or submission refused because the attempt is paused (another device, the teacher): the

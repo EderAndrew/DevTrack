@@ -98,7 +98,7 @@ export class ExamMonitorService {
       LEFT JOIN attempt_pauses p ON p.attempt_id = a.id AND p.released_at IS NULL
       WHERE e.class_id = ${classId}::uuid AND e.status = 'ACTIVE'`;
 
-    const pauseEnd = { acceptedAt: null, activityEndedAt: activity.closed_at ?? activity.cancelled_at };
+    const activityEndedAt = activity.closed_at ?? activity.cancelled_at;
     const students = rows
       .map((row): ExamMonitorStudent => {
         const end = row.started_at ? endsAt(timing, row.started_at) : null;
@@ -116,7 +116,7 @@ export class ExamMonitorService {
           inProgress && row.pause_id && row.pause_initiated_by && row.pause_reason && row.pause_started_at
             ? { id: row.pause_id, initiatedBy: row.pause_initiated_by, reason: row.pause_reason, note: row.pause_note, startedAt: row.pause_started_at }
             : null;
-        const openPause = openPauseOf(unreleased, pauseEnd, now);
+        const openPause = openPauseOf(unreleased, { acceptedAt: null, activityEndedAt, examEndsAt: end }, now);
         return {
           studentUserId: row.student_user_id,
           name: row.name,

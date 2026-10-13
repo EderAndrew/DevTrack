@@ -20,7 +20,15 @@ import { Loading, LoadFailed } from "@/features/student-activities/components/lo
 import { useStudentActivity } from "@/features/student-activities/hooks/use-student-activities";
 import { useExamClock, useTimeUp } from "../hooks/use-exam-clock";
 import { useInactivity } from "../hooks/use-inactivity";
-import { EXAM_STATUS_LABEL, examRunning, LAST_MINUTE_MS, occurrenceKindOf, RESUME_EXAM, returnedNotice } from "../schemas/exam-attempt";
+import {
+  EXAM_PAUSED,
+  EXAM_STATUS_LABEL,
+  examRunning,
+  LAST_MINUTE_MS,
+  occurrenceKindOf,
+  RESUME_EXAM,
+  returnedNotice,
+} from "../schemas/exam-attempt";
 import { ExamEndNotice, ExamHoldNotice } from "./rules-screen";
 
 /**
@@ -33,7 +41,9 @@ import { ExamEndNotice, ExamHoldNotice } from "./rules-screen";
  * one more monitored signal, and a hold takes the questions away for the hold notice. Since US5 the
  * page reads the activity every 5 s while on hold: a return shows "O professor devolveu a sua prova.
  * Restam n minutos." with "Retomar", which goes back to fullscreen on the student's click; a decision
- * that ends the exam shows its end notice. Anything but a started exam goes back to its page.
+ * that ends the exam shows its end notice. Since US6 a pause, only ever the teacher's, shows "Prova
+ * pausada pelo professor. O tempo continua correndo." above the 016 paused notice, with the timer still
+ * in the header and the end read again as it comes. Anything but a started exam goes back to its page.
  */
 export function ExamAttempt({ activityId, userId }: { activityId: string; userId: string }) {
   const query = useStudentActivity(activityId);
@@ -66,7 +76,9 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
   const exam = activity.exam!;
   const remaining = useExamClock(exam.endsAt, activity.serverNow);
   const running = examRunning(activity);
-  useTimeUp(remaining, running, () => void reload());
+  // 018/FR-027: a pause never stops the time; when it is over the server settles the attempt on the read.
+  const paused = activity.pause !== null && activity.submission === null && exam.endsAt !== null;
+  useTimeUp(remaining, running || paused, () => void reload());
   const held = exam.hold !== null;
   const [warning, setWarning] = useState<{ ordinal: number; kind: OccurrenceKind } | null>(null);
   // The occurrences already known: a warning shows only for one the server counts after them.
@@ -94,10 +106,15 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
         reload={reload}
         chrome={{
           status: <Status variant="info">{EXAM_STATUS_LABEL}</Status>,
-          actions: running ? <ExamTimer remaining={remaining} /> : null,
+          actions: running || paused ? <ExamTimer remaining={remaining} /> : null,
           banner: (
             <>
               {held ? <ExamHoldNotice /> : null}
+              {paused ? (
+                <Alert variant="info">
+                  <AlertTitle>{EXAM_PAUSED}</AlertTitle>
+                </Alert>
+              ) : null}
               {returned.shown && running ? (
                 <Alert variant="info">
                   <AlertTitle>{returnedNotice(remaining())}</AlertTitle>
@@ -119,6 +136,7 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
             </>
           ),
           saveImmediately: () => remaining() <= LAST_MINUTE_MS,
+          resumeLabel: RESUME_EXAM,
           stopped: held,
           // "Aviso n de 3" replaces the 015 exit warning.
           exitWarnings: false,

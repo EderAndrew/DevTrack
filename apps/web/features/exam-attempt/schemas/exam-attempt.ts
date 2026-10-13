@@ -37,6 +37,9 @@ export const LAST_MINUTE_MS = 60_000;
 export const examRunning = (activity: Pick<StudentActivity, "canAnswer" | "submission" | "pause" | "exam">): boolean =>
   activity.canAnswer && activity.submission === null && activity.pause === null && activity.exam?.hold === null && activity.exam.endsAt !== null;
 
+/** 018/US6-1: only the teacher pauses an exam, and its time keeps running (FR-027). */
+export const EXAM_PAUSED = "Prova pausada pelo professor. O tempo continua correndo.";
+
 /** The hold's notice, the server's own text (`EXAM_ATTEMPT_ON_HOLD`, 018/FR-018). */
 export const ON_HOLD = ERROR_MESSAGES.EXAM_ATTEMPT_ON_HOLD;
 

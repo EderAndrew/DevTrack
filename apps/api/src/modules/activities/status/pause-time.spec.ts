@@ -54,4 +54,22 @@ describe("016/FR-019 016/FR-021 fim e duração de uma pausa, derivados na leitu
     expect(secondsAway(pauses, { acceptedAt: null, activityEndedAt: at(10, 15) }, at(30))).toBe(120 + 90 + 15);
     expect(secondsAway([], none, at(11))).toBe(0);
   });
+
+  it("018/FR-027 prova: a pausa aberta no fim do tempo termina no fim (TIME_EXPIRED), nunca antes dele", () => {
+    const pause = { startedAt: at(0), releasedAt: null };
+    expect(pauseTime(pause, { ...none, examEndsAt: at(10) }, at(9, 59))).toEqual({ endedAt: null, endedBy: null, seconds: 599 });
+    expect(pauseTime(pause, { ...none, examEndsAt: at(10) }, at(10))).toEqual({ endedAt: at(10), endedBy: "TIME_EXPIRED", seconds: 600 });
+    expect(pauseTime(pause, { ...none, examEndsAt: at(10) }, at(50))).toMatchObject({ endedAt: at(10), endedBy: "TIME_EXPIRED" });
+    // A release before the end keeps its own end; the end of the exam never moves it.
+    expect(pauseTime({ startedAt: at(0), releasedAt: at(2) }, { ...none, examEndsAt: at(10) }, at(50)).endedBy).toBe("RELEASE");
+  });
+
+  it("018/FR-027 prova encerrada pelo professor antes do tempo: a pausa termina no encerramento, que é também o fim da tentativa", () => {
+    // `endsAt` is capped by the close (exam-time.ts), so both tie and the close names the end.
+    expect(pauseTime({ startedAt: at(0), releasedAt: null }, { acceptedAt: null, activityEndedAt: at(7), examEndsAt: at(7) }, at(50))).toMatchObject({
+      endedAt: at(7),
+      endedBy: "ACTIVITY_CLOSED",
+    });
+    expect(secondsAway([{ startedAt: at(0), releasedAt: null }], { ...none, examEndsAt: at(4) }, at(30))).toBe(240);
+  });
 });

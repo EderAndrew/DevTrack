@@ -16,7 +16,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { decimalToCents } from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { type ActivityFacts, assignmentSchedule } from "./status/facts";
-import { type PauseFacts, pauseTime } from "./status/pause-time";
+import { examEndOf, type PauseFacts, pauseTime } from "./status/pause-time";
 import { deriveRosterStatus, type RosterPresence } from "./status/roster-status";
 
 /** A student of the class as the roster reads it: ACTIVE, or REMOVED (kept when they have an attempt). */
@@ -33,6 +33,7 @@ export interface RosterAttempt {
   /** 1 for an ASSIGNMENT; the practice attempt's number for an EXERCISE (013 K3). */
   number: number;
   status: AttemptStatus;
+  startedAt: Date;
   submission: {
     submittedAt: Date;
     late: boolean;
@@ -75,6 +76,8 @@ export interface RosterActivity {
   endedAt: Date | null;
   /** EXAM only: the publication plus the start window (018 research T4); null for the others. */
   startDeadline: Date | null;
+  /** EXAM only: an open pause ends at the attempt's end by its duration (018 research T11). */
+  durationMinutes: number | null;
 }
 
 /** One student's facts in the activity, by type (contracts/student-status.md). */
@@ -121,7 +124,11 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
 /** The room exits of one attempt for the roster: how many, the derived time away and whether one is open (016/FR-019). */
 function pausesOf(activity: RosterActivity, attempt: RosterAttempt | null, now: Date): RosterEntry["pauses"] {
   const submission = attempt?.submission ?? null;
-  const context = { acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null, activityEndedAt: activity.endedAt };
+  const context = {
+    acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null,
+    activityEndedAt: activity.endedAt,
+    examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+  };
   const times = (attempt?.pauses ?? []).map((pause) => pauseTime(pause, context, now));
   return {
     count: times.length,
@@ -237,6 +244,7 @@ export async function loadRosterData(
             studentUserId: true,
             number: true,
             status: true,
+            startedAt: true,
             submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true, endReason: true } },
             results: { select: { result: true, points: true } },
             pauses: { orderBy: { startedAt: "asc" }, select: { startedAt: true, releasedAt: true } },

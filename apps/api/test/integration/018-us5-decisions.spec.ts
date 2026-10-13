@@ -299,7 +299,14 @@ describe("018/US5 o professor decide: confirmar o cancelamento, devolver ou não
     // Past the start window the absent student can no longer start; past the end the paused one is settled first.
     clock.advance(2 * 60 * MINUTE);
     view = await monitor(activity.id);
-    expect(view.students.map((row) => row.examStatus)).toEqual(["AWAITING_DECISION", "TIME_EXPIRED", "NOT_MARKED"]);
+    // Held first; the other two share a rank and a name ("Pessoa de Teste"), so their order is by id.
+    expect(view.students[0]!.examStatus).toBe("AWAITING_DECISION");
+    expect(new Map(view.students.slice(1).map((row) => [row.studentUserId, row.examStatus]))).toEqual(
+      new Map([
+        [students[1]!.id, "TIME_EXPIRED"],
+        [students[2]!.id, "NOT_MARKED"],
+      ]),
+    );
     expect(await auditOf("exam_attempt.time_expired")).toHaveLength(1);
   });
 

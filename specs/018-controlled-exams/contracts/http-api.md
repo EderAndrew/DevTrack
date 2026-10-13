@@ -56,6 +56,11 @@ The generated exam is a DRAFT in the bank; approval only through `POST /exams/:i
 - **`POST …/release`**: 409 `EXAM_DECISIONS_PENDING` (`details.count`) while a hold is open.
 - **Integrity review** (`GET …/attempts/:attemptId/integrity`): events gain `occurrenceOrdinal|null`
   and `idleSeconds|null`; the response gains `holds: TeacherExamHold[]` for EXAM.
+- **Pauses (016, research T11)**: `POST …/students/:studentUserId/pause` on an EXAM answers 409
+  `EXAM_ATTEMPT_ON_HOLD` while a hold is open and `EXAM_TIME_OVER` from `endsAt` on, nothing stored;
+  `POST …/pauses/:pauseId/release` answers 409 `EXAM_TIME_OVER` from `endsAt` on (a pause already
+  released still comes back unchanged). A pause open at `endsAt` ends there by derivation
+  (`endedBy: TIME_EXPIRED`) in the room, the monitor, the roster and the pauses of the review.
 
 ## Exam monitor and decisions (teacher, new)
 

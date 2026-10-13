@@ -34,7 +34,7 @@ and rule results in `exam_occurrences` (015 kept events out of the audit the sam
 | `activity_submission.created` | `endReason: STUDENT_SUBMITTED` for EXAM |
 | `activity_submission.rejected` | codes `EXAM_TIME_OVER`, `EXAM_ATTEMPT_ON_HOLD`, `EXAM_START_CLOSED` |
 | `activity.result_released` | refused while decisions are pending (no event on the refusal) |
-| `attempt_pause.write_refused` | — (unchanged; the student exit refused for EXAM writes `activity_submission.rejected` with `EXIT_NOT_ALLOWED`) |
+| `attempt_pause.write_refused` | — (unchanged; the student exit refused for EXAM writes `activity_submission.rejected` with `operation: EXIT`, `code: EXIT_NOT_ALLOWED`) |
 
 SC-010: each hold, cancellation, return and do-not-cancel writes exactly one event; a repeated
 decision writes none.

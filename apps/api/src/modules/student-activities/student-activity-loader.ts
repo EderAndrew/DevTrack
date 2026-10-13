@@ -7,7 +7,7 @@ import { ACTIVITY_QUESTION_SELECT, aiHelpAllowanceOf, decimalToCents, nullableCe
 import { type ActivityFacts, assignmentSchedule, examTiming } from "../activities/status/facts";
 import { endsAt, type ExamTiming, startDeadline } from "../activities/status/exam-time";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
-import { pauseTime } from "../activities/status/pause-time";
+import { examEndOf, pauseTime } from "../activities/status/pause-time";
 import type { ActivityQuestionRow } from "../activities/views/rows";
 import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput, StudentExamInput } from "../activities/views/student-view";
 
@@ -167,7 +167,12 @@ export class StudentActivityLoader {
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
           })
         : [];
-    const pauseEnd = { acceptedAt: submission?.acceptedById ? submission.submittedAt : null, activityEndedAt: activity.closedAt };
+    const pauseEnd = {
+      acceptedAt: submission?.acceptedById ? submission.submittedAt : null,
+      activityEndedAt: activity.closedAt,
+      // 018 research T11: an exam's pause still open at the attempt's end ends there (TIME_EXPIRED).
+      examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+    };
     return {
       ...toInput(activity, attempts, now, canSeeResults),
       aiHelpUsed: attempts.reduce((sum, row) => sum + row._count.helpRequests, 0),

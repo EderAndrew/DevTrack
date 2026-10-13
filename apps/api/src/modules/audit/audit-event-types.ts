@@ -216,7 +216,7 @@ export const AUDIT_EVENT_METADATA = {
   "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
-  // `operation`: START | SAVE | SUBMIT, and RETRY | COMPLETE of an EXERCISE (013); `code`: the 409 code of the refusal.
+  // `operation`: START | SAVE | SUBMIT, RETRY | COMPLETE of an EXERCISE (013) and EXIT of an EXAM (018); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
   // 018: `endReason: STUDENT_SUBMITTED` for an EXAM.
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],

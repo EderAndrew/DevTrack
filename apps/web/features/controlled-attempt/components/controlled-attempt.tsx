@@ -75,6 +75,8 @@ export interface FocusChrome {
   actions?: ReactNode;
   banner?: ReactNode;
   saveImmediately?: () => boolean;
+  /** The paused notice's button after the release (018: "Retomar", as after a returned hold). */
+  resumeLabel?: string;
   stopped?: boolean;
   exitWarnings?: boolean;
   onEventsSent?: SentListener;
@@ -172,7 +174,7 @@ export function ControlledSession({
                 leaveFullscreen: () => void exitFullscreen(),
               },
               resume: {
-                label: RESUME_CONTROLLED,
+                label: chrome?.resumeLabel ?? RESUME_CONTROLLED,
                 // Fullscreen only from the student's own click, as at the start (015 F14).
                 onResume: () => {
                   stopMonitor(false);

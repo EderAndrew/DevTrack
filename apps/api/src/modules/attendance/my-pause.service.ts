@@ -21,6 +21,9 @@ const PAUSE_SELECT = { id: true, initiatedBy: true, reason: true, note: true, st
 /** Thrown inside the transaction when the activity is out of the student's context (→ 404 after the rollback). */
 class OutOfContext extends Error {}
 
+/** Thrown inside the transaction for an exam: only the teacher pauses it (018/FR-026, research T11). */
+class ExitNotAllowed extends Error {}
+
 /**
  * "Sair da sala" (016 US3, FR-011–FR-013, research M6, M8): the student's declared exit pauses their
  * own open attempt of a `PRESENT_ONLY` work, and the answering page polls for the open pause. The
@@ -28,7 +31,8 @@ class OutOfContext extends Error {}
  * `FOR SHARE` (a close waits) and the attempt `FOR UPDATE`, so it is ordered with every write of the
  * attempt (US3-9) — and returns the pause already open (200) on a double click or a second tab. Times
  * come from the server clock; a pause is a fact for the teacher, never a grade or a block of the
- * deadline (FR-018). Out of context → 404 and `student_access.denied`.
+ * deadline (FR-018). Out of context → 404 and `student_access.denied`. An exam has no declared exit
+ * (018/FR-026): `409 EXIT_NOT_ALLOWED`, audited as `activity_submission.rejected`, nothing written.
  */
 @Injectable()
 export class MyPauseService {
@@ -48,6 +52,7 @@ export class MyPauseService {
       return await this.prisma.runInTransaction(async (tx) => {
         const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx, "UPDATE");
         if (!context) throw new OutOfContext();
+        if (context.type === "EXAM") throw new ExitNotAllowed();
         const attempt = pausableAttempt(context);
         await this.assertRate(tx, studentUserId);
         if (context.paused) {
@@ -80,6 +85,18 @@ export class MyPauseService {
       });
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, requestId);
+      if (error instanceof ExitNotAllowed) {
+        await this.audit.record(this.prisma, {
+          type: "activity_submission.rejected",
+          actorType: "USER",
+          actorUserId: studentUserId,
+          targetType: "CLASS_ACTIVITY",
+          targetId: activityId,
+          requestId,
+          metadata: { operation: "EXIT", code: "EXIT_NOT_ALLOWED" },
+        });
+        throw new AppException("EXIT_NOT_ALLOWED");
+      }
       throw error;
     }
   }

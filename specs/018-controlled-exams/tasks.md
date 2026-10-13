@@ -378,15 +378,15 @@ recusa escrita em qualquer dispositivo.
 **Independent Test**: pausar com 20 min restantes, esperar 2 min, liberar → 18 min, respostas
 intactas, nenhuma ocorrência durante a pausa.
 
-- [ ] T040 [P] [US6] `apps/api/test/integration/018-us6-pause.spec.ts`: `018/US6-1`…`018/US6-5`,
+- [X] T040 [P] [US6] `apps/api/test/integration/018-us6-pause.spec.ts`: `018/US6-1`…`018/US6-5`,
   `018/FR-026`, `018/FR-027` (visão sem questões; eventos na pausa não contam; tempo acaba na pausa
   → acerto e pausa encerrada com `TIME_EXPIRED`; "Sair da sala" do aluno → 409
   `EXIT_NOT_ALLOWED`; pausar aluno retido → 409 `EXAM_ATTEMPT_ON_HOLD`; liberar após o fim → 409).
-- [ ] T041 [US6] `apps/api/src/modules/attendance/my-pause.service.ts` (`EXIT_NOT_ALLOWED`),
+- [X] T041 [US6] `apps/api/src/modules/attendance/my-pause.service.ts` (`EXIT_NOT_ALLOWED`),
   `pauses.service.ts` (recusa com retenção aberta, liberar só antes do fim) e
   `apps/api/src/modules/activities/status/pause-time.ts` (`TIME_EXPIRED`), com o
   `pause-time.spec.ts` ampliado.
-- [ ] T042 [US6] Web: aviso "Prova pausada pelo professor. O tempo continua correndo." no
+- [X] T042 [US6] Web: aviso "Prova pausada pelo professor. O tempo continua correndo." no
   `exam-shell.tsx` e sem o botão "Sair da sala" na prova, com testes em
   `apps/web/features/exam-attempt/**/*.test.tsx`.
 

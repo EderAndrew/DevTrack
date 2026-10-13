@@ -502,6 +502,7 @@ function rosterActivity(header: ActivityHeader) {
     releaseMode: header.releaseMode,
     endedAt: header.closedAt ?? header.cancelledAt,
     startDeadline: header.type === "EXAM" ? startDeadline(examTiming(header)) : null,
+    durationMinutes: header.durationMinutes,
   };
 }
 
