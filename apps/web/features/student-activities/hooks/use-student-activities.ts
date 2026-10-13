@@ -1,6 +1,6 @@
 "use client";
 
-import type { SubmitAttemptRequest } from "@repo/contracts";
+import type { StartAttemptRequest, SubmitAttemptRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { integrityApi } from "@/features/controlled-attempt/api/integrity";
@@ -49,7 +49,7 @@ export const useOwnIntegrity = (activityId: string, enabled: boolean) =>
 export function useStartAttempt(activityId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => studentActivitiesApi.start(activityId),
+    mutationFn: (body?: StartAttemptRequest) => studentActivitiesApi.start(activityId, body),
     onSuccess: (activity) => {
       queryClient.setQueryData(studentActivitiesKeys.detail(activityId), activity);
       void queryClient.invalidateQueries({ queryKey: studentActivitiesKeys.all, refetchType: "none" });

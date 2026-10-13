@@ -16,6 +16,8 @@ interface Options {
   serverAnswers: readonly StudentAnswer[];
   /** False once the attempt can't be saved any more (submitted, read-only). */
   enabled: boolean;
+  /** 018: while true (an exam's last minute), each change is saved at once, with no debounce. */
+  saveImmediately?: () => boolean;
 }
 
 export interface AttemptAnswers {
@@ -69,13 +71,17 @@ interface State {
  * load and when the connection comes back. A CONFLICT replaces the local copy with the server's and
  * warns. The server stays the authority: nothing here decides whether saving is allowed.
  */
-export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }: Options): AttemptAnswers {
+export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled, saveImmediately }: Options): AttemptAnswers {
   const [initial] = useState(() => initialState(userId, activityId, serverAnswers));
   // The ref is what the saves read and change; `view` is the copy the screen renders.
   const state = useRef<State>(initial);
   const [view, setView] = useState(() => viewOf(initial));
   const render = useCallback(() => setView(viewOf(state.current)), []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const immediate = useRef(saveImmediately);
+  useEffect(() => {
+    immediate.current = saveImmediately;
+  });
   /** `flushNow` callers waiting for the saves in flight to end. */
   const waiters = useRef<(() => void)[]>([]);
 
@@ -149,7 +155,8 @@ export function useAttemptAnswers({ userId, activityId, serverAnswers, enabled }
       persist();
       render();
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
+      if (immediate.current?.()) void save();
+      else timer.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
     },
     [enabled, persist, render, save],
   );

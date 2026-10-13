@@ -28,6 +28,7 @@ import { decideByTeacher } from "../works/grading/decide";
 import { GradingRuleError } from "../works/grading/strategy";
 import { computeWorkGrade } from "../works/grading/work-grade";
 import { decimalToCents, requiredCents } from "./activity-query";
+import { ExamSettlement } from "./exam-settlement";
 import { type AssignmentFacts, assignmentSchedule } from "./status/facts";
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
@@ -107,12 +108,23 @@ export class AttemptsReviewService {
     private readonly audit: AuditService,
     private readonly rateLimit: RateLimitService,
     private readonly classes: ClassContextPolicy,
+    private readonly examSettlement: ExamSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  /** The attempt next to the answer key the activity's detail carries; read-only while not submitted. */
-  async getAttempt(teacherId: string, classId: string, activityId: string, attemptId: string, db: Tx = this.prisma): Promise<TeacherAttempt> {
+  /**
+   * The attempt next to the answer key the activity's detail carries; read-only while not submitted.
+   * An exam's expired attempts are settled first (018 research T5).
+   */
+  async getAttempt(teacherId: string, classId: string, activityId: string, attemptId: string): Promise<TeacherAttempt> {
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    await this.examSettlement.ofActivity(classId, activityId, this.clock.now(), null);
+    return this.readAttempt(teacherId, classId, activityId, attemptId);
+  }
+
+  /** The attempt as it is, inside the caller's transaction (`db`) when given. */
+  private async readAttempt(teacherId: string, classId: string, activityId: string, attemptId: string, db: Tx = this.prisma): Promise<TeacherAttempt> {
     await this.classes.findOwnedOrNotFound(teacherId, classId, db);
     const attempt = await db.activityAttempt.findFirst({ where: { id: attemptId, activityId, activity: { classId } }, select: ATTEMPT_SELECT });
     if (!attempt) throw notFound();
@@ -167,7 +179,7 @@ export class AttemptsReviewService {
       }
       const generalFeedback = body.generalFeedback === undefined ? submission.general_feedback : feedbackOf(body.generalFeedback);
       const generalFeedbackChanged = generalFeedback !== submission.general_feedback;
-      if (changed.length === 0 && !generalFeedbackChanged) return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      if (changed.length === 0 && !generalFeedbackChanged) return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
 
       const grade = withRuleError(() => computeWorkGrade([...gradings.values()], requiredCents(activity.totalGrade)));
       const now = this.clock.now();
@@ -207,7 +219,7 @@ export class AttemptsReviewService {
           generalFeedbackChanged,
         },
       });
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 
@@ -232,7 +244,7 @@ export class AttemptsReviewService {
         WHERE id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;
       const attempt = attempts[0];
       if (!attempt) throw notFound();
-      if (attempt.status === "SUBMITTED") return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      if (attempt.status === "SUBMITTED") return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
 
       const now = this.clock.now();
       const saved = await tx.activityAnswer.count({ where: { attemptId } });
@@ -282,7 +294,7 @@ export class AttemptsReviewService {
           pauseEnded: openPauses.length > 0,
         },
       });
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 
@@ -349,7 +361,7 @@ export class AttemptsReviewService {
           metadata: { activityId, questionId: row.question_id, from: row.result, to: result, points, hasComment: comment !== null },
         });
       }
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 

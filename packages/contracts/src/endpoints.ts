@@ -76,6 +76,7 @@ import {
   StudentActivityPageSchema,
   StudentActivitySchema,
   StudentDashboardSchema,
+  StartAttemptRequestSchema,
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
@@ -1263,12 +1264,15 @@ export const endpoints = {
     response: StudentActivitySchema,
     status: 200,
   },
-  /** Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). */
+  /**
+   * Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). An EXAM
+   * requires `{ acceptRules: true }` (018 research T13).
+   */
   "myActivities.start": {
     method: "POST",
     path: "/me/activities/:activityId/attempt",
     params: MyActivityParamsSchema,
-    body: EmptyBodySchema,
+    body: StartAttemptRequestSchema,
     response: StudentActivitySchema,
     status: 200,
   },

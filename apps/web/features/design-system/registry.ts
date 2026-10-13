@@ -17,6 +17,8 @@ import {
   EssayAnswerShowcase,
   ExamAlertShowcase,
   ExamProgressShowcase,
+  ExamTimerShowcase,
+  FinalCountdownShowcase,
   FocusViolationWarningShowcase,
   MultipleChoiceAnswerShowcase,
   QuestionHeaderShowcase,
@@ -24,6 +26,7 @@ import {
   QuestionStatementShowcase,
   QuestionStatusShowcase,
   SaveStatusShowcase,
+  TimeAlertShowcase,
 } from "./components/assessment-showcase";
 import { CodeBlockShowcase, CodeEditorShowcase } from "./components/code-showcase";
 import {
@@ -610,5 +613,33 @@ export const REGISTRY: readonly CatalogEntry[] = [
     showcase: ExamAlertShowcase,
     variants: [],
     states: ["sair da avaliação"],
+  },
+  // 018 research T18: the exam's time (design-system/exam-mode.md, "ExamTimer", "TimeAlert", "FinalCountdown").
+  {
+    id: "exam-timer",
+    name: "ExamTimer",
+    group: "assessment",
+    source: "components/ui/assessment/exam-timer.tsx",
+    showcase: ExamTimerShowcase,
+    variants: [],
+    states: ["normal", "faltando 5 minutos", "último minuto"],
+  },
+  {
+    id: "time-alert",
+    name: "TimeAlert",
+    group: "assessment",
+    source: "components/ui/assessment/time-alert.tsx",
+    showcase: TimeAlertShowcase,
+    variants: [],
+    states: ["faltam 10 minutos", "faltam 5 minutos"],
+  },
+  {
+    id: "final-countdown",
+    name: "FinalCountdown",
+    group: "assessment",
+    source: "components/ui/assessment/final-countdown.tsx",
+    showcase: FinalCountdownShowcase,
+    variants: [],
+    states: ["últimos 10 segundos"],
   },
 ];

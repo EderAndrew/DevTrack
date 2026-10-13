@@ -7,7 +7,10 @@ import { QuestionHeader, QuestionStatement, QuestionStatus } from "@/components/
 import { ExamProgress, QuestionNavigator } from "@/components/ui/assessment/question-navigator";
 import { AttemptStatus, SaveStatus } from "@/components/ui/assessment/save-status";
 import { ExamAlert, LEAVE_ATTEMPT } from "@/components/ui/assessment/exam-alert";
+import { ExamTimer } from "@/components/ui/assessment/exam-timer";
+import { FinalCountdown } from "@/components/ui/assessment/final-countdown";
 import { FocusViolationWarning } from "@/components/ui/assessment/focus-violation-warning";
+import { TimeAlert } from "@/components/ui/assessment/time-alert";
 import { Button } from "@/components/ui/button";
 import { Sample, Showcase } from "./sample";
 
@@ -205,6 +208,71 @@ export function ExamAlertShowcase() {
           Sair
         </Button>
         <ExamAlert open={open} onOpenChange={setOpen} text={LEAVE_ATTEMPT} confirmLabel="Sair da avaliação" onConfirm={() => undefined} />
+      </Sample>
+    </Showcase>
+  );
+}
+
+// 018 research T18: the exam's time (design-system/exam-mode.md, "ExamTimer", "TimeAlert", "FinalCountdown").
+
+/** A fixed time left, so the catalog shows each state without waiting for it. */
+const left = (ms: number) => () => ms;
+
+export function ExamTimerShowcase() {
+  return (
+    <Showcase id="exam-timer">
+      <Sample name="normal">
+        <ExamTimer remaining={left(42 * 60_000 + 7_000)} />
+      </Sample>
+      <Sample name="faltando 5 minutos">
+        <ExamTimer remaining={left(4 * 60_000 + 30_000)} />
+      </Sample>
+      <Sample name="último minuto">
+        <ExamTimer remaining={left(48_000)} />
+      </Sample>
+    </Showcase>
+  );
+}
+
+/** Starts above the mark and crosses it a moment later, as an exam does. */
+function crossing(fromMs: number, toMs: number) {
+  const start = Date.now();
+  return () => (Date.now() - start < 300 ? fromMs : toMs);
+}
+
+export function TimeAlertShowcase() {
+  const [ten] = useState(() => crossing(10 * 60_000 + 1_000, 10 * 60_000));
+  const [five] = useState(() => crossing(5 * 60_000 + 1_000, 5 * 60_000));
+  return (
+    <Showcase id="time-alert">
+      <Sample name="faltam 10 minutos" className="block">
+        <TimeAlert remaining={ten} />
+      </Sample>
+      <Sample name="faltam 5 minutos" className="block">
+        <TimeAlert remaining={five} />
+      </Sample>
+    </Showcase>
+  );
+}
+
+export function FinalCountdownShowcase() {
+  const [shown, setShown] = useState(false);
+  const [remaining, setRemaining] = useState(() => left(11_000));
+  return (
+    <Showcase id="final-countdown">
+      <Sample name="últimos 10 segundos">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            const end = Date.now() + 10_900;
+            setRemaining(() => () => end - Date.now());
+            setShown(true);
+          }}
+        >
+          Mostrar a contagem
+        </Button>
+        {shown ? <FinalCountdown key={String(remaining)} remaining={remaining} /> : null}
       </Sample>
     </Showcase>
   );

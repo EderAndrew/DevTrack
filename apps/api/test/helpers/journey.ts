@@ -989,6 +989,34 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedWork.body.id}`)).body.roster[0].attemptId as string;
   const accepted = await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
   expect(accepted.body.submission.acceptedByTeacher).toBe(true);
+  // 018/US3 — the exam applied again and taken with the server's time: the rules accepted on the start
+  // (`activity_attempt.started` with `rulesAccepted`), the answers saved and the exam handed in
+  // (`activity_submission.created` with `endReason: STUDENT_SUBMITTED`). A second exam is closed by the
+  // teacher while the student answers; once the 2 s grace has passed, the student's next read settles
+  // the attempt (`exam_attempt.time_expired`, SYSTEM, `endReason: ACTIVITY_CLOSED`).
+  const takeExam = async (title: string) => {
+    const applied = await teacherClient.post(activitiesPath, {
+      idempotencyKey: randomUUID(),
+      source: { type: "EXAM", examId: examDraft.body.id },
+      title: text("título da prova aplicada (018)", title),
+      publishAt: null,
+      durationMinutes: 30,
+      acknowledgeOutOfScope: true,
+    });
+    expect(applied.status).toBe(201);
+    await markPresent(applied.body.id);
+    const started = await classStudentClient.post(`/api/me/activities/${applied.body.id}/attempt`, { acceptRules: true });
+    expect(started.status).toBe(200);
+    const saved = await classStudentClient.put(`/api/me/activities/${applied.body.id}/attempt/answers`, { answers: answersFor(started.body.questions) });
+    expect(saved.status).toBe(200);
+    return applied.body.id as string;
+  };
+  const handedIn = await takeExam("Prova entregue da jornada dezoito");
+  expect((await classStudentClient.post(`/api/me/activities/${handedIn}/attempt/submit`, { answers: [] })).body.exam.endReason).toBe("STUDENT_SUBMITTED");
+  const closedExam = await takeExam("Prova encerrada da jornada dezoito");
+  expect((await teacherClient.post(`${activitiesPath}/${closedExam}/close`, {})).status).toBe(200);
+  await new Promise((resolve) => setTimeout(resolve, 2_100));
+  expect((await classStudentClient.get(`/api/me/activities/${closedExam}`)).body.exam.endReason).toBe("ACTIVITY_CLOSED");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

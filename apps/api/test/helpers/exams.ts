@@ -318,3 +318,26 @@ export async function applyExam(client: Client, classId: string, examId: string,
   if (attendance === "ALL" && (res.status === 200 || res.status === 201)) await markAllPresent(client, classId, res.body.id);
   return res;
 }
+
+// ── 018/US3: the student's exam ─────────────────────────────────────────────────────────────
+
+/** `POST /me/activities/:activityId/attempt` with the rules accepted (018 research T13). */
+export function startExam(client: Client, activityId: string) {
+  return client.post(`/api/me/activities/${activityId}/attempt`, { acceptRules: true });
+}
+
+/**
+ * Opens a hold on an IN_PROGRESS exam attempt straight in the database, as the 4th occurrence would
+ * (US4): integrity events, occurrences 1–4 and the hold on the 4th. For the suites that need a held
+ * attempt before the occurrence counting exists.
+ */
+export async function holdByHand(t: TestApp, attempt: { id: string; activityId: string; studentUserId: string }, openedAt = new Date()) {
+  const ids = { attemptId: attempt.id, activityId: attempt.activityId, studentUserId: attempt.studentUserId };
+  for (let ordinal = 1; ordinal <= 4; ordinal += 1) {
+    const event = await t.prisma.attemptIntegrityEvent.create({
+      data: { ...ids, clientEventId: randomUUID(), type: "SCREEN_LEFT", recordedAt: openedAt },
+    });
+    await t.prisma.examOccurrence.create({ data: { ...ids, ordinal, kind: "SCREEN_LEFT", firstEventId: event.id, recordedAt: openedAt } });
+  }
+  return t.prisma.examAttemptHold.create({ data: { ...ids, occurrenceOrdinal: 4, openedAt } });
+}

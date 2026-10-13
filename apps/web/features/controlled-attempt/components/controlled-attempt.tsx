@@ -2,7 +2,7 @@
 
 import type { StudentActivity } from "@repo/contracts";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { ExamAlert, LEAVE_ATTEMPT } from "@/components/ui/assessment/exam-alert";
@@ -59,7 +59,29 @@ export function ControlledAttempt({ activityId, userId }: { activityId: string; 
   return <ControlledSession activity={query.data} userId={userId} reload={() => query.refetch()} />;
 }
 
-function ControlledSession({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
+/**
+ * What a page built on the focus page adds around it (018 `features/exam-attempt`): the header's
+ * status and actions, a banner above the questions, and the last minute's immediate saves. The
+ * monitoring stays here.
+ */
+export interface FocusChrome {
+  status?: ReactNode;
+  actions?: ReactNode;
+  banner?: ReactNode;
+  saveImmediately?: () => boolean;
+}
+
+export function ControlledSession({
+  activity,
+  userId,
+  reload,
+  chrome,
+}: {
+  activity: StudentActivity;
+  userId: string;
+  reload: () => Promise<unknown>;
+  chrome?: FocusChrome;
+}) {
   const router = useRouter();
   const paused = activity.pause !== null;
   const open = activity.canAnswer && activity.submission === null && !paused;
@@ -100,9 +122,10 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
     <>
       <PageHeader
         title={activity.title}
-        status={<Status variant="info">Modo controlado</Status>}
+        status={chrome?.status ?? <Status variant="info">Modo controlado</Status>}
         actions={
           <>
+            {chrome?.actions}
             {activity.aiHelp.allowance > 0 ? <HeaderHelpCounter activityId={activity.id} allowance={activity.aiHelp.allowance} /> : null}
             <Button type="button" variant="outline" onClick={open ? askToLeave : leave}>
               Sair
@@ -111,6 +134,7 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
         }
       />
       <div className="flex flex-col gap-6">
+        {chrome?.banner}
         {monitor.warning ? (
           <FocusViolationWarning
             recordedAt={events.recordedAt(monitor.warning.eventId)}
@@ -143,6 +167,7 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
                 void enterFullscreen();
               },
             },
+            saveImmediately: chrome?.saveImmediately,
           }}
         />
       </div>

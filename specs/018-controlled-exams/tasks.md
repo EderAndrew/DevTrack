@@ -253,11 +253,11 @@ só a resposta salva corrigida.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T022 [P] [US3] `apps/api/test/integration/018-us3-time.spec.ts`: `018/US3-1`…`018/US3-9`,
+- [X] T022 [P] [US3] `apps/api/test/integration/018-us3-time.spec.ts`: `018/US3-1`…`018/US3-9`,
   `018/FR-011`…`018/FR-014` (`acceptRules` obrigatório; `endsAt`/`serverNow` na visão; atrasado com
   a duração inteira; início após a janela → 409; escrita após `endsAt + 2 s` → 409; a resposta que
   chega dentro da tolerância é aceita; brancas valem zero; entrega × fim → uma só submissão).
-- [ ] T023 [P] [US3] `apps/api/test/security/018-time.spec.ts` (`018/SC-002`, `018/SC-008`) e
+- [X] T023 [P] [US3] `apps/api/test/security/018-time.spec.ts` (`018/SC-002`, `018/SC-008`) e
   `018-settlement.spec.ts`: o acerto roda em cada toque (leitura do aluno, eventos, monitor,
   roster, revisão, liberação) uma única vez, com `submitted_at = endsAt`, `end_reason`
   `TIME_EXPIRED` ou `ACTIVITY_CLOSED`, e `exam_attempt.time_expired` (SYSTEM) uma vez; tentativas
@@ -265,20 +265,20 @@ só a resposta salva corrigida.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] `apps/api/src/modules/activities/submission/settle-exam.ts` (research T5):
+- [X] T024 [US3] `apps/api/src/modules/activities/submission/settle-exam.ts` (research T5):
   `settleExpiredExamAttempts(tx, { activityId, studentUserId? , now })` sob `FOR SHARE` da atividade e
   `FOR UPDATE` das tentativas, reaproveitando `registerSubmission` com `end_reason` e
   `submittedAt` derivado; auditoria nova `exam_attempt.time_expired`.
-- [ ] T025 [US3] `apps/api/src/modules/student-activities/`: `attempts.service.ts` (início com
+- [X] T025 [US3] `apps/api/src/modules/student-activities/`: `attempts.service.ts` (início com
   `acceptRules` e janela; `assertExamWritable` com `exam-time.ts` e tolerância dentro do lock;
   acerto antes de cada operação; entrega com `end_reason = STUDENT_SUBMITTED`),
   `student-activity-loader.ts` (acerto na leitura) e `activities/views/student-view.ts` (`exam`
   por lista fechada).
-- [ ] T026 [P] [US3] Componentes Exam Mode com testes primeiro em
+- [X] T026 [P] [US3] Componentes Exam Mode com testes primeiro em
   `apps/web/components/ui/assessment/{exam-timer,time-alert,final-countdown}.tsx` (+ `.test.tsx`
   com timers falsos: 10 e 5 min, contagem 10…1, nada se a prova começa abaixo do marco,
   `role` timer/status/alert, `prefers-reduced-motion`), no catálogo do Design System.
-- [ ] T027 [US3] `apps/web/features/exam-attempt/`: `components/{rules-screen,exam-shell}.tsx`,
+- [X] T027 [US3] `apps/web/features/exam-attempt/`: `components/{rules-screen,exam-shell}.tsx`,
   `hooks/use-exam-clock.ts` (offset do servidor por leitura), salvamento imediato no último
   minuto, tela "Tempo esgotado" e "prazo para iniciar terminou"; `activity-answering.tsx` envia
   EXAM para `exam-attempt`; testes em `apps/web/features/exam-attempt/**/*.test.tsx`

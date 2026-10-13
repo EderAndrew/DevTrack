@@ -28,6 +28,7 @@ import { PausedNotice } from "@/features/attendance/components/paused-notice";
 import { useDeclareExit, useMyPause } from "@/features/attendance/hooks/use-my-pause";
 import { EXIT_ROOM } from "@/features/attendance/schemas/attendance";
 import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
+import { ExamEndNotice, ExamEntry } from "@/features/exam-attempt/components/rules-screen";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
@@ -118,9 +119,14 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
       />
       <div className="flex flex-col gap-8">
         <ActivityDetails activity={activity} />
+        {/* 018/US3: how an exam ended (the time), above its read-only answers. */}
+        {activity.type === "EXAM" ? <ExamEndNotice activity={activity} /> : null}
         {activity.pause ? (
           // 016: paused, here or on the focus page, the attempt shows only the notice (FR-013).
           <AnsweringSession activity={activity} userId={userId} reload={reload} />
+        ) : activity.type === "EXAM" && activity.submission === null ? (
+          // 018/US3: the rules and the start, or the way back to the focus page; never answered here.
+          <ExamEntry activity={activity} />
         ) : answeredInFocus(activity) ? (
           <ControlledStart activity={activity} />
         ) : activity.attempt ? (
@@ -155,6 +161,8 @@ export interface ControlledAnswering {
   roomExit: { stopMonitor: () => void; resumeMonitor: () => void; flushEvents: () => Promise<void>; leaveFullscreen: () => void };
   /** 016: "Retomar em modo controlado" asks for fullscreen in the student's own click. */
   resume: { label: string; onResume: () => void };
+  /** 018: an exam's last minute saves each change at once (contracts/web-ui.md). */
+  saveImmediately?: () => boolean;
 }
 
 /**
@@ -336,6 +344,7 @@ function AttemptAnswering({
     activityId: activity.id,
     serverAnswers: activity.attempt?.answers ?? [],
     enabled: editable,
+    saveImmediately: controlled?.saveImmediately,
   });
   const [index, setIndex] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);

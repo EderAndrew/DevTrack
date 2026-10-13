@@ -212,12 +212,16 @@ export const AUDIT_EVENT_METADATA = {
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
-  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber"],
+  // 018: `rulesAccepted: true` when the attempt is an EXAM's (research T13).
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
   // `operation`: START | SAVE | SUBMIT, and RETRY | COMPLETE of an EXERCISE (013); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
-  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
+  // 018: `endReason: STUDENT_SUBMITTED` for an EXAM.
+  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],
+  // 018 — an expired exam attempt settled on its next touch (research T5), by the system.
+  "exam_attempt.time_expired": ["activityId", "submissionId", "endReason", "blankCount"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED,
   // and NOT_PRESENT since 016 (a PRESENT_ONLY work without the student's presence).
   "student_access.denied": ["route", "reason"],

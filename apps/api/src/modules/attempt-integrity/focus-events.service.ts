@@ -7,7 +7,9 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound, rateLimited, validationError } from "../../platform/http/errors";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
+import { acceptsEvent, endsAt } from "../activities/status/exam-time";
 import { AuditService } from "../audit/audit.service";
+import { ExamSettlement } from "../activities/exam-settlement";
 import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { insertIntegrityEvents } from "./integrity-events";
 import { buildTimeline } from "./timeline";
@@ -36,6 +38,7 @@ export class FocusEventsService {
     private readonly audit: AuditService,
     private readonly rateLimit: RateLimitService,
     private readonly loader: StudentActivityLoader,
+    private readonly examSettlement: ExamSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -46,11 +49,14 @@ export class FocusEventsService {
    */
   async record(studentUserId: string, activityId: string, body: RecordIntegrityEventsRequest, requestId: string | null): Promise<RecordIntegrityEventsResult> {
     const now = this.clock.now();
+    // 018 research T5: the activity module settles an expired exam attempt first, in its own transaction.
+    await this.examSettlement.ofAttempt(studentUserId, activityId, now, requestId);
     try {
       return await this.prisma.runInTransaction(async (tx) => {
         const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx);
         if (!context) throw new OutOfContext();
         await this.assertRate(tx, studentUserId, body.events.length);
+        assertExamTime(context, now);
         const attempt = openAttempt(context);
         // 016/FR-017: no focus event while the student is out of the room (research M6, M10).
         if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
@@ -157,6 +163,18 @@ function openAttempt(context: OwnAttemptContext): NonNullable<OwnAttemptContext[
   if (context.attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
   if (context.activityStatus !== "ACTIVE" || !context.classActive) throw new AppException("ACTIVITY_CLOSED");
   return context.attempt;
+}
+
+/**
+ * 018/FR-013 (research T4): no event of an exam is accepted from the attempt's end on, with no grace,
+ * and nothing is stored (`409 EXAM_TIME_OVER`): an attempt the time ended, or one past its end.
+ */
+function assertExamTime(context: OwnAttemptContext, now: Date): void {
+  const attempt = context.attempt;
+  if (!context.exam || !attempt) return;
+  if (attempt.status === "SUBMITTED" ? attempt.endReason === "TIME_EXPIRED" : !acceptsEvent(now, endsAt(context.exam, attempt.startedAt))) {
+    throw new AppException("EXAM_TIME_OVER");
+  }
 }
 
 /** A question named by an event must be one of the activity's snapshot questions (→ 422). */
