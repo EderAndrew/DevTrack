@@ -1988,3 +1988,40 @@ Para qualquer outro prazo.
 O número é só visual (`aria-hidden`); um único `role="alert"` anuncia "Faltam 10 segundos." uma
 vez. Sem animação (vale com `prefers-reduced-motion`) e sem eventos de ponteiro: não bloqueia a
 resposta nem toma o foco.
+
+## WarningDialog
+
+`components/ui/assessment/warning-dialog.tsx` (018, grupo "Avaliação"; textos de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: `AlertDialog` com "Aviso n de 3", o tipo da ocorrência e "Na 4ª ocorrência a prova será
+encerrada.", e uma única resposta, "Voltar à prova".
+
+### Estados
+
+Aviso 1, 2 e 3 de 3; o tipo: saiu da tela da prova, saiu da tela cheia, copiar ou colar, sem
+interagir além do limite.
+
+### Quando usar
+
+Depois de cada ocorrência que o servidor contou numa prova (018/FR-017); o número vem da resposta
+do servidor, nunca de uma contagem da página.
+
+### Quando não usar
+
+Num trabalho em modo controlado (015), que não conta ocorrências: use `FocusViolationWarning`. Para
+a prova encerrada na 4ª, use o aviso de encerramento da página.
+
+### Exemplo
+
+```tsx
+<WarningDialog open={warning !== null} ordinal={2} kind="CLIPBOARD" onReturn={backToFullscreen} />
+```
+
+### Acessibilidade
+
+`role="alertdialog"` nomeado pelo título e descrito pelo texto do aviso; o foco vai para "Voltar à
+prova", que Enter ou Esc também acionam, e o Tab fica dentro do aviso. Texto neutro: nunca fala em
+fraude, cola ou violação.

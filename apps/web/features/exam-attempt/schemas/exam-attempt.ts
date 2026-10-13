@@ -1,4 +1,5 @@
-import type { StudentExam } from "@repo/contracts";
+import type { IntegrityEventType, StudentActivity, StudentExam } from "@repo/contracts";
+import type { OccurrenceKind } from "@/components/ui/assessment/warning-dialog";
 import { ERROR_MESSAGES } from "@/lib/messages/error-messages";
 
 // 018 contracts/web-ui.md, "Student (`features/exam-attempt`)": the official texts.
@@ -28,3 +29,33 @@ export const EXAM_CLOSED = "Esta prova não aceita mais respostas.";
 export const EXAM_END_GRACE_MS = 2_000;
 /** In the last minute each change is saved at once (contracts/web-ui.md). */
 export const LAST_MINUTE_MS = 60_000;
+
+/**
+ * The exam is running for this student (018 research T7, T18): started, answerable, not handed in,
+ * not paused and not on hold. Only then do the timer and the inactivity count.
+ */
+export const examRunning = (activity: Pick<StudentActivity, "canAnswer" | "submission" | "pause" | "exam">): boolean =>
+  activity.canAnswer && activity.submission === null && activity.pause === null && activity.exam?.hold === null && activity.exam.endsAt !== null;
+
+/** The hold's notice, the server's own text (`EXAM_ATTEMPT_ON_HOLD`, 018/FR-018). */
+export const ON_HOLD = ERROR_MESSAGES.EXAM_ATTEMPT_ON_HOLD;
+
+/** The occurrence a counted event opens (018 research T6): the warning names it. */
+const OCCURRENCE_OF: Partial<Record<IntegrityEventType, OccurrenceKind>> = {
+  SCREEN_LEFT: "SCREEN",
+  FULLSCREEN_EXITED: "FULLSCREEN",
+  PASTE_BLOCKED: "CLIPBOARD",
+  COPY_BLOCKED: "CLIPBOARD",
+  CUT_BLOCKED: "CLIPBOARD",
+  DROP_BLOCKED: "CLIPBOARD",
+  INACTIVITY: "INACTIVITY",
+};
+
+/** The kind of the latest countable event of a batch, or null when it had none. */
+export function occurrenceKindOf(events: readonly { type: IntegrityEventType }[]): OccurrenceKind | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const kind = OCCURRENCE_OF[events[index]!.type];
+    if (kind) return kind;
+  }
+  return null;
+}

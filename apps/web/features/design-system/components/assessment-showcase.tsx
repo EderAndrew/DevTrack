@@ -11,6 +11,7 @@ import { ExamTimer } from "@/components/ui/assessment/exam-timer";
 import { FinalCountdown } from "@/components/ui/assessment/final-countdown";
 import { FocusViolationWarning } from "@/components/ui/assessment/focus-violation-warning";
 import { TimeAlert } from "@/components/ui/assessment/time-alert";
+import { WarningDialog } from "@/components/ui/assessment/warning-dialog";
 import { Button } from "@/components/ui/button";
 import { Sample, Showcase } from "./sample";
 
@@ -273,6 +274,24 @@ export function FinalCountdownShowcase() {
           Mostrar a contagem
         </Button>
         {shown ? <FinalCountdown key={String(remaining)} remaining={remaining} /> : null}
+      </Sample>
+    </Showcase>
+  );
+}
+
+// 018/US4: the warnings before the hold (design-system/exam-mode.md, "WarningDialog").
+
+export function WarningDialogShowcase() {
+  const [ordinal, setOrdinal] = useState<number | null>(null);
+  return (
+    <Showcase id="warning-dialog">
+      <Sample name="aviso n de 3">
+        {[1, 2, 3].map((n) => (
+          <Button key={n} type="button" variant="outline" onClick={() => setOrdinal(n)}>
+            Mostrar o aviso {n}
+          </Button>
+        ))}
+        <WarningDialog open={ordinal !== null} ordinal={ordinal ?? 1} kind={ordinal === 2 ? "CLIPBOARD" : ordinal === 3 ? "INACTIVITY" : "SCREEN"} onReturn={() => setOrdinal(null)} />
       </Sample>
     </Showcase>
   );

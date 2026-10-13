@@ -212,6 +212,13 @@ prova (o fim e o horário vêm do servidor; a página calcula o deslocamento a c
 - `FinalCountdown`: os últimos 10 segundos, 10…1 centralizado, sem animação nem eventos de
   ponteiro, um único `role="alert"` "Faltam 10 segundos.".
 
+- `WarningDialog` (US4): "Aviso n de 3" depois de cada ocorrência que o servidor contou, com o tipo
+  ("Você saiu da tela da prova", "Você saiu da tela cheia", copiar ou colar, sem interagir além do
+  limite) e "Na 4ª ocorrência a prova será encerrada."; a única resposta, "Voltar à prova", volta à
+  tela cheia. Na prova ele substitui o `FocusViolationWarning`. Na 4ª ocorrência a página mostra
+  "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo
+  professor" no lugar das questões.
+
 Um marco já passado quando a prova abre (prova curta ou recarga) não aparece. Continuam com a
-feature de provas: `ExamHeader`, `ReviewFlag`, o aviso "Aviso n de 3" (US4) e os estados "marcada
-para revisão", "bloqueada" e "invalidada".
+feature de provas: `ExamHeader`, `ReviewFlag` e os estados "marcada para revisão", "bloqueada" e
+"invalidada".

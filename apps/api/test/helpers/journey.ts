@@ -1017,6 +1017,25 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await teacherClient.post(`${activitiesPath}/${closedExam}/close`, {})).status).toBe(200);
   await new Promise((resolve) => setTimeout(resolve, 2_100));
   expect((await classStudentClient.get(`/api/me/activities/${closedExam}`)).body.exam.endReason).toBe("ACTIVITY_CLOSED");
+  // 018/US4 — an event after the hand-in is refused and nothing stored (`exam_attempt.write_refused`);
+  // a third exam gets four occurrences sent together after a lost connection (the browser's times
+  // 10 s apart), the 4th opens the hold (`exam_attempt.held`, SYSTEM) and the hand-in is refused
+  // (`activity_submission.rejected` with `EXAM_ATTEMPT_ON_HOLD`).
+  const examEvent = (type: string, secondsAgo: number) => ({
+    eventId: randomUUID(),
+    type,
+    clientOccurredAt: new Date(Date.now() - secondsAgo * 1000).toISOString(),
+    buffered: true,
+  });
+  const afterHandIn = await classStudentClient.post(`/api/me/activities/${handedIn}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 1)] });
+  expect(afterHandIn.body.code).toBe("ATTEMPT_ALREADY_SUBMITTED");
+  const heldExam = await takeExam("Prova encerrada por avisos da jornada dezoito");
+  const occurrences = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, {
+    events: [examEvent("SCREEN_LEFT", 40), examEvent("FULLSCREEN_EXITED", 30), examEvent("COPY_BLOCKED", 20), examEvent("SCREEN_LEFT", 10)],
+  });
+  expect(occurrences.body.exam).toEqual({ occurrenceCount: 4, held: true });
+  const heldSubmit = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/submit`, { answers: [] });
+  expect(heldSubmit.body.code).toBe("EXAM_ATTEMPT_ON_HOLD");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

@@ -92,7 +92,7 @@ class TypingRefused extends Error {
  * since 016 also a save or submit of a paused attempt (`ATTEMPT_PAUSED`, research M6).
  */
 class Refused extends Error {
-  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE" | "ATTEMPT_PAUSED" | "EXAM_TIME_OVER") {
+  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE" | "ATTEMPT_PAUSED" | "EXAM_TIME_OVER" | "EXAM_ATTEMPT_ON_HOLD") {
     super(code);
   }
 }
@@ -170,6 +170,7 @@ export class AttemptsService {
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       await assertNotPaused(tx, context, attempt);
+      await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
@@ -197,6 +198,7 @@ export class AttemptsService {
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       await assertNotPaused(tx, context, attempt);
+      await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("SUBMIT", facts);
@@ -479,6 +481,18 @@ async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow 
   const open = await tx.$queryRaw<unknown[]>`
     SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`;
   if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
+}
+
+/**
+ * 018/FR-018 (research T8): a save or submit of an exam attempt on hold ("Encerrada por avisos") is
+ * refused, whatever its time: the hold waits for the teacher, and settlement skips it. Read after the
+ * attempt's `FOR UPDATE`, which the events batch that opens the hold also takes.
+ */
+async function assertNotHeld(tx: Tx, context: ContextRow, attempt: AttemptRow | null): Promise<void> {
+  if (context.type !== "EXAM" || attempt?.status !== "IN_PROGRESS") return;
+  const open = await tx.$queryRaw<unknown[]>`
+    SELECT 1 FROM exam_attempt_holds WHERE attempt_id = ${attempt.id}::uuid AND resolution IS NULL`;
+  if (open.length > 0) throw new Refused("EXAM_ATTEMPT_ON_HOLD");
 }
 
 /**

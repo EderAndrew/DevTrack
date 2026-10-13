@@ -222,6 +222,11 @@ export const AUDIT_EVENT_METADATA = {
   "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],
   // 018 — an expired exam attempt settled on its next touch (research T5), by the system.
   "exam_attempt.time_expired": ["activityId", "submissionId", "endReason", "blankCount"],
+  // 018 — the occurrence that reaches the limit opens the hold (research T8), by the system, in the
+  // events batch's transaction; occurrences themselves are not audited one by one.
+  "exam_attempt.held": ["activityId", "holdId", "occurrenceOrdinal"],
+  // 018/FR-020 — an exam's events batch refused after the end or the submission (`operation: EVENTS`).
+  "exam_attempt.write_refused": ["activityId", "operation", "code"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED,
   // and NOT_PRESENT since 016 (a PRESENT_ONLY work without the student's presence).
   "student_access.denied": ["route", "reason"],

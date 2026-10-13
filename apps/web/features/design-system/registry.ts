@@ -27,6 +27,7 @@ import {
   QuestionStatusShowcase,
   SaveStatusShowcase,
   TimeAlertShowcase,
+  WarningDialogShowcase,
 } from "./components/assessment-showcase";
 import { CodeBlockShowcase, CodeEditorShowcase } from "./components/code-showcase";
 import {
@@ -641,5 +642,15 @@ export const REGISTRY: readonly CatalogEntry[] = [
     showcase: FinalCountdownShowcase,
     variants: [],
     states: ["últimos 10 segundos"],
+  },
+  // 018/US4: "Aviso n de 3" (design-system/exam-mode.md, "WarningDialog").
+  {
+    id: "warning-dialog",
+    name: "WarningDialog",
+    group: "assessment",
+    source: "components/ui/assessment/warning-dialog.tsx",
+    showcase: WarningDialogShowcase,
+    variants: [],
+    states: ["aviso n de 3"],
   },
 ];

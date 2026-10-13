@@ -260,14 +260,15 @@ export class StudentActivityLoader {
    * `tx`, under `FOR SHARE` of the activity and of the attempt — or `FOR UPDATE` of the attempt with
    * `attemptLock: "UPDATE"`, which serializes the student's own writes (the AI help, research F11):
    * a teacher's close and the student's submit wait for the caller, and the attempt read after the
-   * wait is its latest version (READ COMMITTED).
+   * wait is its latest version (READ COMMITTED). `"UPDATE_IF_EXAM"` takes `FOR UPDATE` only for an
+   * EXAM's attempt, whose events batches count occurrences one at a time (018 research T6).
    */
   async ownAttempt(
     studentUserId: string,
     activityId: string,
     now: Date,
     tx?: Tx,
-    attemptLock: "SHARE" | "UPDATE" = "SHARE",
+    attemptLock: "SHARE" | "UPDATE" | "UPDATE_IF_EXAM" = "SHARE",
   ): Promise<OwnAttemptContext | null> {
     const db = tx ?? this.prisma;
     const lock = tx ? Prisma.sql`FOR SHARE OF ca` : Prisma.empty;
@@ -301,6 +302,7 @@ export class StudentActivityLoader {
       ${lock}`;
     const activity = activities[0];
     if (!activity) return null;
+    const exclusive = attemptLock === "UPDATE" || (attemptLock === "UPDATE_IF_EXAM" && activity.type === "EXAM");
     const attempts = await db.$queryRaw<
       { id: string; status: "IN_PROGRESS" | "SUBMITTED"; started_at: Date; submitted_at: Date | null; end_reason: ExamEndReason | null }[]
     >`
@@ -309,7 +311,7 @@ export class StudentActivityLoader {
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
       WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
       ORDER BY a.number DESC LIMIT 1
-      ${tx ? (attemptLock === "UPDATE" ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
+      ${tx ? (exclusive ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
     // A separate statement after the attempt's lock: it sees a pause committed while this one waited.
     const pauses =

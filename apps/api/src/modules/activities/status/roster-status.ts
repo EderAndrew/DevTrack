@@ -37,14 +37,14 @@ const EXAM_ENDED: Record<ExamEndReason, RosterStatus> = {
 };
 
 /**
- * EXAM (018/FR-009, FR-011): ABSENT as a work when not marked; a submission by its end reason; an
- * open attempt IN_PROGRESS; present without an attempt, NOT_STARTED until the start deadline and
- * START_CLOSED after it (or after a close). Never MISSED or late.
+ * EXAM (018/FR-009, FR-011, FR-018): ABSENT as a work when not marked; a submission by its end reason;
+ * an open attempt AWAITING_DECISION while on hold, IN_PROGRESS otherwise; present without an attempt,
+ * NOT_STARTED until the start deadline and START_CLOSED after it (or after a close). Never MISSED or late.
  */
 function examRosterStatus(facts: ExamFacts, presence: RosterPresence): RosterStatus {
   if (presence === "NOT_MARKED" && !facts.attempt && !facts.submission) return "ABSENT";
   if (facts.submission) return EXAM_ENDED[facts.submission.endReason ?? "STUDENT_SUBMITTED"];
-  if (facts.attempt?.status === "IN_PROGRESS") return "IN_PROGRESS";
+  if (facts.attempt?.status === "IN_PROGRESS") return facts.onHold ? "AWAITING_DECISION" : "IN_PROGRESS";
   if (facts.activityStatus === "CLOSED" || isStartClosed(facts)) return "START_CLOSED";
   return "NOT_STARTED";
 }

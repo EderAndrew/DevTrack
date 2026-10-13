@@ -11,7 +11,8 @@ import { acceptsEvent, endsAt } from "../activities/status/exam-time";
 import { AuditService } from "../audit/audit.service";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
-import { insertIntegrityEvents } from "./integrity-events";
+import { countBatch } from "./exam-occurrences";
+import { type IntegrityAttempt, insertIntegrityEvents } from "./integrity-events";
 import { buildTimeline } from "./timeline";
 import { type StoredIntegrityEvent, toEventView } from "./views";
 
@@ -23,6 +24,19 @@ const INTEGRITY_ROUTE = "/me/activities/:activityId/attempt/integrity";
 
 /** Thrown inside the transaction when the activity is out of the student's context (→ 404 after the rollback). */
 class OutOfContext extends Error {}
+
+/**
+ * An exam's events batch refused with a 409 (018/FR-020: after the end or the submission), nothing
+ * stored; after the rollback `exam_attempt.write_refused` is recorded on its own.
+ */
+class ExamEventsRefused extends Error {
+  constructor(
+    readonly attemptId: string,
+    readonly code: "EXAM_TIME_OVER" | "ATTEMPT_ALREADY_SUBMITTED" | "ACTIVITY_CLOSED",
+  ) {
+    super(code);
+  }
+}
 
 /**
  * The student's side of the controlled mode (015/FR-009–FR-013c, research F4): the browser's events
@@ -45,7 +59,9 @@ export class FocusEventsService {
 
   /**
    * Records a batch (1–50) under the activity's and the attempt's `FOR SHARE` (a close or the submit
-   * waits), `ON CONFLICT DO NOTHING`: a resend returns the time stored the first time.
+   * waits), `ON CONFLICT DO NOTHING`: a resend returns the time stored the first time. An EXAM's
+   * attempt is taken `FOR UPDATE` instead, and the events inserted now are counted as occurrences in
+   * the same transaction, the 4th opening the hold (018 research T6, T8).
    */
   async record(studentUserId: string, activityId: string, body: RecordIntegrityEventsRequest, requestId: string | null): Promise<RecordIntegrityEventsResult> {
     const now = this.clock.now();
@@ -53,18 +69,18 @@ export class FocusEventsService {
     await this.examSettlement.ofAttempt(studentUserId, activityId, now, requestId);
     try {
       return await this.prisma.runInTransaction(async (tx) => {
-        const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx);
+        const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx, "UPDATE_IF_EXAM");
         if (!context) throw new OutOfContext();
         await this.assertRate(tx, studentUserId, body.events.length);
-        assertExamTime(context, now);
+        assertExamEvents(context, now);
         const attempt = openAttempt(context);
         // 016/FR-017: no focus event while the student is out of the room (research M6, M10).
         if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
         // 018 research T7: inactivity is an EXAM's occurrence; a work never takes it.
-        if (body.events.some((event) => event.type === "INACTIVITY")) throw validationError();
+        if (!context.exam && body.events.some((event) => event.type === "INACTIVITY")) throw validationError();
         await assertQuestions(tx, activityId, body.events);
         const own = { id: attempt.id, activityId, studentUserId };
-        await insertIntegrityEvents(tx, this.audit, {
+        const inserted = await insertIntegrityEvents(tx, this.audit, {
           attempt: own,
           events: body.events.map((event) => ({
             clientEventId: event.eventId,
@@ -72,6 +88,7 @@ export class FocusEventsService {
             questionId: event.questionId ?? null,
             clientOccurredAt: new Date(event.clientOccurredAt),
             buffered: event.buffered,
+            idleSeconds: event.idleSeconds ?? null,
           })),
           now,
           actor: "USER",
@@ -87,12 +104,24 @@ export class FocusEventsService {
         );
         return {
           recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: stored.get(event.eventId)!.toISOString() })),
-          // The occurrences and the hold are an EXAM's (018 research T6), from US4.
-          exam: null,
+          exam: context.exam ? await this.countOccurrences(tx, own, endsAt(context.exam, attempt.startedAt), inserted, now, requestId) : null,
         };
       });
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, EVENTS_ROUTE, requestId);
+      if (error instanceof ExamEventsRefused) {
+        // 018 contracts/audit-events.md: recorded on its own after the rollback, nothing else written.
+        await this.audit.record(this.prisma, {
+          type: "exam_attempt.write_refused",
+          actorType: "USER",
+          actorUserId: studentUserId,
+          targetType: "ACTIVITY_ATTEMPT",
+          targetId: error.attemptId,
+          requestId,
+          metadata: { activityId, operation: "EVENTS", code: error.code },
+        });
+        throw new AppException(error.code);
+      }
       if (error instanceof AttemptPaused) {
         // 016 contracts/audit-events.md: recorded on its own after the rollback, nothing else written.
         await this.audit.record(this.prisma, {
@@ -118,6 +147,60 @@ export class FocusEventsService {
     if (!context.attempt) throw notFound();
     const timeline = buildTimeline(await storedEvents(this.prisma, context.attempt.id), context.attempt.submittedAt ?? now);
     return { events: timeline.events.map(toEventView), totals: timeline.totals };
+  }
+
+  /**
+   * The occurrences of an exam attempt after this batch (018/FR-015–FR-018, research T6, T8), under the
+   * attempt's `FOR UPDATE`: the events inserted now (a resend counts nothing) through `countBatch`,
+   * from the attempt's last occurrence and hold. Nothing counts while a hold is open — the events stay
+   * as facts (FR-020). The occurrence that reaches the limit opens the hold and `exam_attempt.held`
+   * (SYSTEM) in this transaction; nothing about a grade or a cancellation is written (FR-019).
+   */
+  private async countOccurrences(
+    tx: Tx,
+    attempt: IntegrityAttempt,
+    examEndsAt: Date,
+    inserted: ReadonlySet<string>,
+    now: Date,
+    requestId: string | null,
+  ): Promise<{ occurrenceCount: number; held: boolean }> {
+    const last = await tx.examOccurrence.findFirst({ where: { attemptId: attempt.id }, orderBy: { ordinal: "desc" }, select: { ordinal: true, recordedAt: true } });
+    const lastHold = await tx.examAttemptHold.findFirst({
+      where: { attemptId: attempt.id },
+      orderBy: { occurrenceOrdinal: "desc" },
+      select: { occurrenceOrdinal: true, resolution: true },
+    });
+    const onHold = lastHold !== null && lastHold.resolution === null;
+    const lastOrdinal = last?.ordinal ?? 0;
+    if (onHold || inserted.size === 0) return { occurrenceCount: lastOrdinal, held: onHold };
+    const events = await tx.attemptIntegrityEvent.findMany({
+      where: { attemptId: attempt.id, clientEventId: { in: [...inserted] } },
+      orderBy: [{ recordedAt: "asc" }, { id: "asc" }],
+      select: { id: true, type: true, recordedAt: true, clientOccurredAt: true, buffered: true },
+    });
+    const { occurrences, holdAt } = countBatch(events, {
+      lastOrdinal,
+      lastOccurrenceAt: last?.recordedAt ?? null,
+      lastHold,
+      counting: true,
+      endsAt: examEndsAt,
+    });
+    const ids = { attemptId: attempt.id, activityId: attempt.activityId, studentUserId: attempt.studentUserId };
+    // One at a time: the trigger checks each ordinal against the latest one.
+    for (const occurrence of occurrences) await tx.examOccurrence.create({ data: { ...ids, ...occurrence } });
+    if (holdAt !== null) {
+      const hold = await tx.examAttemptHold.create({ data: { ...ids, occurrenceOrdinal: holdAt, openedAt: now }, select: { id: true } });
+      await this.audit.record(tx, {
+        type: "exam_attempt.held",
+        actorType: "SYSTEM",
+        actorUserId: null,
+        targetType: "ACTIVITY_ATTEMPT",
+        targetId: attempt.id,
+        requestId,
+        metadata: { activityId: attempt.activityId, holdId: hold.id, occurrenceOrdinal: holdAt },
+      });
+    }
+    return { occurrenceCount: occurrences.at(-1)?.ordinal ?? lastOrdinal, held: holdAt !== null };
   }
 
   /**
@@ -166,15 +249,18 @@ function openAttempt(context: OwnAttemptContext): NonNullable<OwnAttemptContext[
 }
 
 /**
- * 018/FR-013 (research T4): no event of an exam is accepted from the attempt's end on, with no grace,
- * and nothing is stored (`409 EXAM_TIME_OVER`): an attempt the time ended, or one past its end.
+ * 018/FR-013, FR-020 (research T4, T6): no event of an exam is accepted from the attempt's end on, with
+ * no grace, nor after its submission, and nothing is stored: `409 EXAM_TIME_OVER` for an attempt the
+ * time ended or one past its end, the 015 codes otherwise. Refused as `ExamEventsRefused`, audited.
  */
-function assertExamTime(context: OwnAttemptContext, now: Date): void {
+function assertExamEvents(context: OwnAttemptContext, now: Date): void {
   const attempt = context.attempt;
   if (!context.exam || !attempt) return;
   if (attempt.status === "SUBMITTED" ? attempt.endReason === "TIME_EXPIRED" : !acceptsEvent(now, endsAt(context.exam, attempt.startedAt))) {
-    throw new AppException("EXAM_TIME_OVER");
+    throw new ExamEventsRefused(attempt.id, "EXAM_TIME_OVER");
   }
+  if (attempt.status === "SUBMITTED") throw new ExamEventsRefused(attempt.id, "ATTEMPT_ALREADY_SUBMITTED");
+  if (context.activityStatus !== "ACTIVE" || !context.classActive) throw new ExamEventsRefused(attempt.id, "ACTIVITY_CLOSED");
 }
 
 /** A question named by an event must be one of the activity's snapshot questions (→ 422). */
@@ -190,7 +276,21 @@ export async function storedEvents(db: Pick<Tx, "attemptIntegrityEvent">, attemp
   const rows = await db.attemptIntegrityEvent.findMany({
     where: { attemptId },
     orderBy: [{ recordedAt: "asc" }, { id: "asc" }],
-    select: { type: true, questionId: true, recordedAt: true, clientOccurredAt: true, buffered: true, question: { select: { position: true } } },
+    select: {
+      type: true,
+      questionId: true,
+      recordedAt: true,
+      clientOccurredAt: true,
+      buffered: true,
+      idleSeconds: true,
+      question: { select: { position: true } },
+      // 018: the occurrence an exam's event opened (research T6).
+      occurrences: { select: { ordinal: true } },
+    },
   });
-  return rows.map(({ question, ...row }) => ({ ...row, questionPosition: question?.position ?? null }));
+  return rows.map(({ question, occurrences, ...row }) => ({
+    ...row,
+    questionPosition: question?.position ?? null,
+    occurrenceOrdinal: occurrences[0]?.ordinal ?? null,
+  }));
 }

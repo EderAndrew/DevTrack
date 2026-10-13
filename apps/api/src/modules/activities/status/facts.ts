@@ -46,6 +46,8 @@ export interface ExamFacts extends CommonFacts {
   /** `endReason` is set for every EXAM submission (trigger); null only where the reader doesn't need it. */
   submission: { endReason: ExamEndReason | null; gradingComplete: boolean } | null;
   released: boolean;
+  /** An open hold on the attempt ("Encerrada por avisos", research T8); only the roster reads it. */
+  onHold?: boolean;
 }
 
 export type ActivityFacts = AssignmentFacts | ExerciseFacts | ExamFacts;

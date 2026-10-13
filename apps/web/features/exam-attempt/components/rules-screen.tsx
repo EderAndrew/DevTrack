@@ -9,7 +9,7 @@ import { messageForError } from "@/lib/messages/error-messages";
 import { enterFullscreen, exitFullscreen } from "@/features/controlled-attempt/hooks/use-fullscreen";
 import { controlledAnswerHref } from "@/features/controlled-attempt/schemas/controlled-attempt";
 import { useStartAttempt } from "@/features/student-activities/hooks/use-student-activities";
-import { CONTINUE_EXAM, EXAM_CLOSED, EXAM_RULES_TITLE, examRules, START_CLOSED, START_EXAM, TIME_OVER } from "../schemas/exam-attempt";
+import { CONTINUE_EXAM, EXAM_CLOSED, EXAM_RULES_TITLE, examRules, ON_HOLD, START_CLOSED, START_EXAM, TIME_OVER } from "../schemas/exam-attempt";
 
 /**
  * An exam on the activity's page, before or between the answers (018/US3, contracts/web-ui.md): the
@@ -24,6 +24,9 @@ export function ExamEntry({ activity }: { activity: StudentActivity }) {
   const [busy, setBusy] = useState(false);
   const exam = activity.exam!;
   const started = activity.attempt !== null;
+
+  // 018/FR-018: on hold there is nothing to continue until the teacher decides.
+  if (exam.hold) return <ExamHoldNotice />;
 
   if (!started && !activity.canAnswer) {
     const closed = Date.parse(activity.serverNow) > Date.parse(exam.startDeadline);
@@ -80,6 +83,18 @@ export function ExamEndNotice({ activity }: { activity: StudentActivity }) {
   return (
     <Alert variant="info">
       <AlertTitle>{TIME_OVER}</AlertTitle>
+    </Alert>
+  );
+}
+
+/**
+ * "Prova encerrada por excesso de avisos…" (018/FR-018, contracts/web-ui.md "Hold"): the 4th
+ * occurrence closed the attempt for now; no question or answer is shown until the teacher decides.
+ */
+export function ExamHoldNotice() {
+  return (
+    <Alert variant="warning">
+      <AlertTitle>{ON_HOLD}</AlertTitle>
     </Alert>
   );
 }

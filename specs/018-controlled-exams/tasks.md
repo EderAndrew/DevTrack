@@ -297,31 +297,31 @@ recusa escrita em qualquer dispositivo.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T028 [P] [US4] `apps/api/test/integration/018-us4-occurrences.spec.ts`: `018/US4-1`…`018/US4-8`,
+- [X] T028 [P] [US4] `apps/api/test/integration/018-us4-occurrences.spec.ts`: `018/US4-1`…`018/US4-8`,
   `018/FR-015`…`018/FR-020` (cada tipo contável; agrupamento de 2 s; inatividade com
   `idleSeconds`; a 4ª abre a retenção e esconde as questões; eventos durante a retenção gravados
   sem contar; eventos pausados, após o fim ou após a entrega recusados com 409 e nada gravado;
   lote bufferizado contado na chegada e recusado se chegar após o fim; resposta do lote com
   `occurrenceCount`/`held`; `exam_attempt.held` uma vez).
-- [ ] T029 [P] [US4] `apps/api/test/security/018-holds.spec.ts` (escrita recusada com retenção em
+- [X] T029 [P] [US4] `apps/api/test/security/018-holds.spec.ts` (escrita recusada com retenção em
   toda rota e em duas sessões) e `018-concurrency.spec.ts` (`018/SC-004`: 10 ocorrências
   simultâneas → ordinais sem lacuna, uma retenção, um evento de auditoria).
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] `apps/api/src/modules/attempt-integrity/focus-events.service.ts`: para EXAM, trava a
+- [X] T030 [US4] `apps/api/src/modules/attempt-integrity/focus-events.service.ts`: para EXAM, trava a
   tentativa `FOR UPDATE`, acerta o tempo antes, grava os eventos (com `INACTIVITY`), aplica
   `exam-occurrences.ts`, insere `exam_occurrences` e, quando cabe, `exam_attempt_holds` +
   `exam_attempt.held` (SYSTEM) na mesma transação; `TYPING_LIMIT_EXCEEDED` não conta; resposta com
   `exam`.
-- [ ] T031 [US4] `apps/api/src/modules/student-activities/attempts.service.ts` e
+- [X] T031 [US4] `apps/api/src/modules/student-activities/attempts.service.ts` e
   `student-activity-loader.ts`: `EXAM_ATTEMPT_ON_HOLD` em salvar e entregar dentro do lock;
   visão com `hold` e sem questões nem respostas; `activity_submission.rejected` com o código.
-- [ ] T032 [P] [US4] Testes web primeiro: `apps/web/features/exam-attempt/hooks/use-inactivity.test.ts`
+- [X] T032 [P] [US4] Testes web primeiro: `apps/web/features/exam-attempt/hooks/use-inactivity.test.ts`
   (limite configurado, um evento por período, suspenso com a página oculta, pausado, retido, antes
   do início e depois do fim) e `apps/web/components/ui/assessment/warning-dialog.test.tsx`
   ("Aviso n de 3", foco, teclado, `vitest-axe`).
-- [ ] T033 [US4] Web: `use-inactivity.ts`, `warning-dialog.tsx`, aviso de retenção e a ligação com o
+- [X] T033 [US4] Web: `use-inactivity.ts`, `warning-dialog.tsx`, aviso de retenção e a ligação com o
   monitor da 015 (`features/controlled-attempt`) no `exam-shell.tsx`; T032 verde; varredura de
   palavras proibidas em `apps/web/test/` cobre os textos novos.
 
