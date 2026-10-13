@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–017 in `specs/` are implemented. Later
-work starts a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–017 in `specs/` are implemented; 018 (controlled exams)
+is in implementation, phase by phase (`specs/018-controlled-exams/tasks.md`, git log `feat(018)`).
+Later work starts a new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -41,7 +42,8 @@ work starts a new feature through `/speckit-specify`.
   AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
   production config guard and the deploy guide `docs/deploy/email.md`.
 
-Exams, take-home works, AI grading and code execution are later features. The rules of 012–017 that
+Take-home works, AI grading and code execution are later features (exams arrive with 018, summarized
+under "Recent Changes" and the `exams-boundary` guard below). The rules of 012–017 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
