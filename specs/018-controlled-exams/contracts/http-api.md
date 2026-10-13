@@ -13,6 +13,7 @@ question, topics required.
 | Method & path | Permission | Body → Response | Errors |
 |---|---|---|---|
 | `GET /exams` | `provas.visualizar` | query `{ status?, subjectId?, q?, cursor?, limit? }` → `Page<ExamSummary>` | 400 |
+| `GET /exams/programming-languages` | `provas.visualizar` | → the active entries of the shared language catalog (as `/works/programming-languages`) | — |
 | `GET /exams/:id` | `provas.visualizar` | → `TeacherExam` (with keys) | 404 |
 | `GET /exams/:id/student-preview` | `provas.visualizar` | → `ExamStudentPreview` (allowlist, no key) | 404 |
 | `POST /exams` | `provas.criar` | `CreateExamRequest` `{ subjectId, syllabusRevisionId, title, description?, totalGrade, saveAs: "DRAFT"\|"APPROVED", topicIds[1..20], questions[1..20] }` → `201 TeacherExam` | 400; 404 subject/revision; 422 `EXAM_RULES` (`details.violations`) |

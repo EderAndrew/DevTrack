@@ -12,12 +12,7 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  // 018: the bank's routes arrive with US1, "Criar prova com IA" with US7, the decisions with US5.
-  "provas.visualizar",
-  "provas.criar",
-  "provas.editar",
-  "provas.aprovar",
-  "provas.arquivar",
+  // 018: "Criar prova com IA" arrives with US7, the decisions with US5 (the bank's left with US1).
   "ia.provas.gerar",
   "provas.encerramentos.decidir",
 ]);

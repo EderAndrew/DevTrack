@@ -340,6 +340,16 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },
   // 016/US4 — the pauses of an attempt in the review (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses", access: "entregas.visualizar" },
+  // 018/US1 — the Banco de Provas (contracts/permissions.md).
+  { method: "POST", path: "/exams", access: "provas.criar" },
+  { method: "GET", path: "/exams", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/programming-languages", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/:id", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/:id/student-preview", access: "provas.visualizar" },
+  { method: "PUT", path: "/exams/:id", access: "provas.editar" },
+  { method: "POST", path: "/exams/:id/approve", access: "provas.aprovar" },
+  { method: "POST", path: "/exams/:id/archive", access: "provas.arquivar" },
+  { method: "POST", path: "/exams/:id/restore", access: "provas.arquivar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

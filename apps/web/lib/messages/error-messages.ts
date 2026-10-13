@@ -119,6 +119,7 @@ export const ERROR_MESSAGES = {
   ATTENDANCE_NOT_REQUIRED: "Esta atividade não usa lista de chamada.",
   STUDENT_NOT_IN_CLASS: "Um dos alunos não está matriculado nesta turma.",
   EXAM_RULES: "Revise as questões destacadas antes de salvar.",
+  EXAM_VERSION_CONFLICT: "Esta prova mudou em outra aba. Recarregue para ver a versão atual.",
   EXAM_ARCHIVED: "Esta prova está arquivada.",
   EXAM_NOT_APPROVED: "Só uma prova aprovada pode ser aplicada.",
   EXAM_START_CLOSED: "O prazo para iniciar esta prova terminou. Fale com o professor.",

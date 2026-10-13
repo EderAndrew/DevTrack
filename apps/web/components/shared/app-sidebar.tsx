@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { Activity, BookOpen, ChevronRight, ClipboardList, Library, ListChecks, School, UserRound, Users } from "lucide-react";
+import { Activity, BookOpen, ChevronRight, ClipboardList, FileCheck2, Library, ListChecks, School, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -51,6 +51,8 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const inExercises = pathname === "/exercicios" || pathname.startsWith("/exercicios/");
   const works = Boolean(me?.emailVerified && me.permissions.includes("trabalhos.visualizar"));
   const inWorks = pathname === "/trabalhos" || pathname.startsWith("/trabalhos/");
+  const exams = Boolean(me?.emailVerified && me.permissions.includes("provas.visualizar"));
+  const inExams = pathname === "/provas" || pathname.startsWith("/provas/");
   const { state, isMobile, setOpen } = useSidebar();
   const iconsOnly = state === "collapsed" && !isMobile;
   const [usersOpen, setUsersOpen] = useState(true);
@@ -165,6 +167,16 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       >
                         <ClipboardList aria-hidden="true" />
                         <span>Banco de Trabalhos</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : null}
+                {exams ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inExams} tooltip="Banco de Provas">
+                      <Link href="/provas" className={LINK} aria-current={pathname === "/provas" ? "page" : undefined}>
+                        <FileCheck2 aria-hidden="true" />
+                        <span>Banco de Provas</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

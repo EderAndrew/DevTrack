@@ -158,6 +158,12 @@ export const AUDIT_EVENT_METADATA = {
   "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
   "work.archived": ["from"],
   "work.restored": ["to"],
+  // 018 — the Banco de Provas (specs/018-controlled-exams/contracts/audit-events.md).
+  "exam.created": ["subjectId", "origin", "status", "questionCount"],
+  "exam.edited": ["fields", "questionCountChanged"],
+  "exam.approved": ["origin", "humanEdited"],
+  "exam.archived": ["fromStatus"],
+  "exam.restored": ["fromStatus"],
   "work_generation.requested": [
     "executionId",
     "subjectId",
@@ -307,6 +313,7 @@ export type AuditTargetType =
   | "EXERCISE_BATCH"
   | "WORK"
   | "WORK_GENERATION_REQUEST"
+  | "EXAM"
   | "CLASS_ACTIVITY"
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"

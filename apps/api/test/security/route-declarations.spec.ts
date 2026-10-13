@@ -193,6 +193,16 @@ describe("route access declarations", () => {
         "GET /classes/:classId/ranking",
         // 017
         "POST /mail/notices/:provider",
+        // 018
+        "POST /exams",
+        "GET /exams",
+        "GET /exams/programming-languages",
+        "GET /exams/:id",
+        "GET /exams/:id/student-preview",
+        "PUT /exams/:id",
+        "POST /exams/:id/approve",
+        "POST /exams/:id/archive",
+        "POST /exams/:id/restore",
       ]),
     );
   });

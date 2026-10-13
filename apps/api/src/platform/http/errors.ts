@@ -152,6 +152,7 @@ export const ErrorCatalog = {
   ATTENDANCE_NOT_REQUIRED: { status: 409, message: "Esta atividade não usa lista de chamada." },
   STUDENT_NOT_IN_CLASS: { status: 422, message: "Um dos alunos não está matriculado nesta turma." },
   EXAM_RULES: { status: 422, message: "Revise as questões destacadas antes de salvar." },
+  EXAM_VERSION_CONFLICT: { status: 409, message: "Esta prova mudou em outra aba. Recarregue para ver a versão atual." },
   EXAM_ARCHIVED: { status: 409, message: "Esta prova está arquivada." },
   EXAM_NOT_APPROVED: { status: 409, message: "Só uma prova aprovada pode ser aplicada." },
   EXAM_START_CLOSED: { status: 409, message: "O prazo para iniciar esta prova terminou. Fale com o professor." },

@@ -23,6 +23,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/015-controlled-work-ai-help/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/016-attendance-gated-release/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/017-production-email/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/018-controlled-exams/contracts/audit-events.md"),
 ];
 
 /**
@@ -45,7 +46,20 @@ const PENDING_015 = new Set<string>([]);
 
 /** 016 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_016 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016]);
+
+/** 018 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_018 = new Set<string>([
+  "exam_generation.requested",
+  "exam_generation.completed",
+  "exam_generation.rejected",
+  "exam_attempt.held",
+  "exam_attempt.cancel_confirmed",
+  "exam_attempt.returned",
+  "exam_attempt.not_cancelled",
+  "exam_attempt.time_expired",
+  "exam_attempt.write_refused",
+]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016, ...PENDING_018]);
 
 interface ContractRow {
   type: string;
@@ -63,7 +77,9 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  * "Spec name" column after the type, dropped here.
  */
 function contractRows(file: string): ContractRow[] {
-  const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
+  // 018's "Changed" table (two columns) lists metadata its stories add to earlier types; each row
+  // joins the earlier type's row with the story that emits it.
+  const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m)[0]!;
   const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the (request|spec) \|/m.test(text);
   return text
     .split("\n")
@@ -119,7 +135,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = mergeExtensions(CONTRACTS.flatMap(contractRows)).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010, 011, 012, 013, 015 e 016 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011, 012, 013, 015, 016 e 018 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });

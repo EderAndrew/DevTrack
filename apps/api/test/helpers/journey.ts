@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { WorkTeacherView } from "@repo/contracts";
+import type { TeacherExam, WorkTeacherView } from "@repo/contracts";
 import { expect } from "vitest";
 import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-bootstrap.service";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
@@ -21,6 +21,7 @@ import { scriptGeneration } from "./exercise-ai";
 import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
 import { scriptWorkGeneration } from "./work-ai";
 import { toUpdateBody } from "./works";
+import { toExamUpdateBody } from "./exams";
 import { createConfirmedTopic } from "./exercises";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { READ_WORK_HELP_REQUEST } from "../../src/modules/work-help/definitions/request-content";
@@ -423,6 +424,46 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const archivedWork = await workGenerationClient.post(`/api/works/${generatedWorkId}/archive`, { version: approvedWork.body.version });
   expect(archivedWork.status).toBe(200);
   expect((await workGenerationClient.post(`/api/works/${generatedWorkId}/restore`, { version: archivedWork.body.version })).status).toBe(200);
+  // 018/US1 — the Banco de Provas: a manual exam saved as a draft, edited, approved, archived and
+  // restored: `exam.created`, `exam.edited`, `exam.approved`, `exam.archived`, `exam.restored`, with
+  // ids, counts and enums only, never the title, statements or answer keys.
+  const examDraft = await teacherClient.post("/api/exams", {
+    subjectId,
+    syllabusRevisionId: confirmed.body.id,
+    title: text("título da prova (018)", "Prova manual da jornada dezoito"),
+    totalGrade: "10.00",
+    saveAs: "DRAFT",
+    topicIds: [topicItemId],
+    questions: [
+      {
+        type: "OPEN_ANSWER",
+        statement: text("enunciado da prova (018)", "Enunciado da prova da jornada dezoito"),
+        expectedAnswer: text("resposta esperada da prova (018)", "Resposta esperada da prova da jornada"),
+        difficulty: "BASIC",
+        topicIds: [topicItemId],
+      },
+      {
+        type: "MULTIPLE_CHOICE",
+        statement: "Qual alternativa da prova?",
+        alternatives: [
+          { text: text("alternativa correta da prova (018)", "Alternativa correta da prova da jornada"), isCorrect: true },
+          { text: "Distrator da prova um", isCorrect: false },
+          { text: "Distrator da prova dois", isCorrect: false },
+        ],
+        topicIds: [topicItemId],
+      },
+    ],
+  });
+  expect(examDraft.status).toBe(201);
+  const examEdit = toExamUpdateBody(examDraft.body as TeacherExam);
+  examEdit.questions[1] = { ...examEdit.questions[1]!, difficulty: "ADVANCED" };
+  const editedExam = await teacherClient.put(`/api/exams/${examDraft.body.id}`, examEdit);
+  expect(editedExam.status).toBe(200);
+  const approvedExam = await teacherClient.post(`/api/exams/${examDraft.body.id}/approve`, { version: editedExam.body.version });
+  expect(approvedExam.status).toBe(200);
+  const archivedExam = await teacherClient.post(`/api/exams/${examDraft.body.id}/archive`, { version: approvedExam.body.version });
+  expect(archivedExam.status).toBe(200);
+  expect((await teacherClient.post(`/api/exams/${examDraft.body.id}/restore`, { version: archivedExam.body.version })).status).toBe(200);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

@@ -150,6 +150,15 @@ import {
   WorkVersionRequestSchema,
 } from "./works/works.js";
 import {
+  CreateExamRequestSchema,
+  ExamListQuerySchema,
+  ExamPageSchema,
+  ExamStudentPreviewSchema,
+  ExamVersionSchema,
+  TeacherExamSchema,
+  UpdateExamRequestSchema,
+} from "./exams/exam.js";
+import {
   WorkGenerationAvailabilitySchema,
   WorkGenerationRequestListQuerySchema,
   WorkGenerationRequestPageSchema,
@@ -1007,6 +1016,29 @@ export const endpoints = {
     response: WorkTeacherViewSchema,
     status: 200,
   },
+  // 018 — the Banco de Provas (contracts/http-api.md): the 011 work routes, mirrored.
+  "exams.create": { method: "POST", path: "/exams", body: CreateExamRequestSchema, response: TeacherExamSchema, status: 201 },
+  /** The teacher's bank: status, subject, title search, keyset pages; ARCHIVED only when asked. */
+  "exams.list": { method: "GET", path: "/exams", query: ExamListQuerySchema, response: ExamPageSchema, status: 200 },
+  /** The active catalog entries, by name; the same shape as the 010 and 011 routes. */
+  "exams.programmingLanguages": { method: "GET", path: "/exams/programming-languages", response: ProgrammingLanguageListSchema, status: 200 },
+  "exams.get": { method: "GET", path: "/exams/:id", params: IdParamsSchema, response: TeacherExamSchema, status: 200 },
+  /** "Ver como aluno": an allowlist, never the answer key. */
+  "exams.studentPreview": {
+    method: "GET",
+    path: "/exams/:id/student-preview",
+    params: IdParamsSchema,
+    response: ExamStudentPreviewSchema,
+    status: 200,
+  },
+  /** The whole exam again with its version; values recalculated; ARCHIVED → 409. */
+  "exams.update": { method: "PUT", path: "/exams/:id", params: IdParamsSchema, body: UpdateExamRequestSchema, response: TeacherExamSchema, status: 200 },
+  /** DRAFT → APPROVED by a person, every question with its key, difficulty and topics; already APPROVED → 200, no event. */
+  "exams.approve": { method: "POST", path: "/exams/:id/approve", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  /** DRAFT or APPROVED → ARCHIVED; already ARCHIVED → 200 with no event. */
+  "exams.archive": { method: "POST", path: "/exams/:id/archive", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  /** ARCHIVED → the status it had before; anything else → 409. */
+  "exams.restore": { method: "POST", path: "/exams/:id/restore", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
   // 011 — "Criar trabalho com IA": generation requests.
   "workGenerationRequests.availability": {
     method: "GET",

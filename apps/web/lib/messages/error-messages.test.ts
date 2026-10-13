@@ -158,6 +158,7 @@ const PHASE_016_TEXTS = {
 // Codes added by 018, with the texts of specs/018-controlled-exams/tasks.md (T002).
 const PHASE_018_TEXTS = {
   EXAM_RULES: "Revise as questões destacadas antes de salvar.",
+  EXAM_VERSION_CONFLICT: "Esta prova mudou em outra aba. Recarregue para ver a versão atual.",
   EXAM_ARCHIVED: "Esta prova está arquivada.",
   EXAM_NOT_APPROVED: "Só uma prova aprovada pode ser aplicada.",
   EXAM_START_CLOSED: "O prazo para iniciar esta prova terminou. Fale com o professor.",
@@ -175,11 +176,11 @@ const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 115 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016 e da 018", () => {
+  it("007/FR-040 cobre os 116 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016 e da 018", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED" && code !== "NOTICE_TOO_LARGE");
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(117);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(118);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {

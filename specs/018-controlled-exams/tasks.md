@@ -184,28 +184,28 @@ aprovar e conferir que nenhuma execução de IA foi criada.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T011 [P] [US1] `apps/api/test/integration/018-us1-bank.spec.ts`: `018/US1-1`…`018/US1-5`,
+- [X] T011 [P] [US1] `apps/api/test/integration/018-us1-bank.spec.ts`: `018/US1-1`…`018/US1-5`,
   `018/FR-001`…`018/FR-004` (valores 3,34/3,33/3,33; aprovação recusada apontando a questão; 0 e
   21 questões; edição não muda aplicadas — este cenário fica `it.todo` até a T018; outro
   professor → 404; nenhuma `ai_executions` criada).
-- [ ] T012 [P] [US1] `apps/api/test/security/018-isolation.spec.ts` (parte do banco): prova de
+- [X] T012 [P] [US1] `apps/api/test/security/018-isolation.spec.ts` (parte do banco): prova de
   outro professor → 404 em toda rota do banco; ADMIN e MANAGER → 403; prévia do aluno sem
   gabarito (lista fechada, chaves proibidas ausentes).
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] `apps/api/src/modules/exams/`: `exams.controller.ts` (rotas de
+- [X] T013 [US1] `apps/api/src/modules/exams/`: `exams.controller.ts` (rotas de
   contracts/http-api.md "Banco de Provas"), `exams.service.ts` (transações com `version`,
   auditoria `exam.created/edited/approved/archived/restored`), `exam-rules.ts` (regras de
   estrutura reaproveitando `works/types` e o rateio de `works/grade`), `exam.state-machine.ts`,
   `exam-query.ts` (lista com cursor e busca), `views/{teacher-view,student-view}.ts`.
-- [ ] T014 [US1] Helper de teste `apps/api/test/helpers/exams.ts`: `createExam` (pela API, com
+- [X] T014 [US1] Helper de teste `apps/api/test/helpers/exams.ts`: `createExam` (pela API, com
   3 questões e tópicos de uma ementa confirmada) e `approvedExam`.
-- [ ] T015 [P] [US1] Testes web primeiro em `apps/web/features/exams/**/*.test.tsx`: lista,
+- [X] T015 [P] [US1] Testes web primeiro em `apps/web/features/exams/**/*.test.tsx`: lista,
   editor (dificuldade e tópicos por questão, valores somente leitura), "Aprovar" com a lista do que
   bloqueia, `vitest-axe` e teclado (`018/US1-*`).
-- [ ] T016 [US1] Web `apps/web/features/exams/{api,components,hooks,schemas}/…` e a rota
-  `apps/web/app/(teacher)/banco-de-provas/…`, com o item "Banco de Provas" no menu; T015 verde.
+- [X] T016 [US1] Web `apps/web/features/exams/{api,components,hooks,schemas}/…` e a rota
+  `apps/web/app/(app)/provas/…` (como `/trabalhos`), com o item "Banco de Provas" no menu; T015 verde.
 
 **Checkpoint**: Banco de Provas funcional sem IA.
 

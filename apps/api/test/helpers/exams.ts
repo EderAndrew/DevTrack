@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { centsToGrade, distributeGrade, gradeToCents } from "@repo/contracts";
+import {
+  centsToGrade,
+  type CreateExamRequest,
+  distributeGrade,
+  type ExamQuestionEdit,
+  gradeToCents,
+  type TeacherExam,
+  type UpdateExamRequest,
+} from "@repo/contracts";
 import type {
   Exam,
   ExamOrigin,
@@ -10,7 +18,7 @@ import type {
   WorkTestCaseVisibility,
 } from "../../src/generated/prisma/client";
 import { searchKey } from "../../src/platform/text/search-key";
-import type { TestApp } from "./test-app";
+import type { api, TestApp } from "./test-app";
 import { type ConfirmedSyllabus, createConfirmedSyllabus, workLanguageId } from "./works";
 
 // ── 018: Banco de Provas fixtures, written straight to the database ───────────────────────
@@ -156,4 +164,109 @@ export async function createExam(t: TestApp, teacherId: string, options: ExamOpt
     }
     return { ...exam, questions: created };
   });
+}
+
+// ── 018/US1: the Banco de Provas through its routes ───────────────────────────────────────
+
+type Client = ReturnType<typeof api>;
+
+/** Three questions, one of each type, all on the first topic: values 3,34 · 3,33 · 3,33 of 10,00. */
+export function examQuestions(topicId: string, javaId: string): ExamQuestionEdit[] {
+  return [
+    {
+      type: "OPEN_ANSWER",
+      statement: "Explique herança.",
+      expectedAnswer: "Reuso por extensão de uma classe.",
+      difficulty: "BASIC",
+      topicIds: [topicId],
+    },
+    {
+      type: "MULTIPLE_CHOICE",
+      statement: "Qual palavra declara herança em Java?",
+      alternatives: [
+        { text: "extends", isCorrect: true },
+        { text: "implements", isCorrect: false },
+        { text: "inherits", isCorrect: false },
+      ],
+      isTrickQuestion: false,
+      difficulty: "INTERMEDIATE",
+      topicIds: [topicId],
+    },
+    {
+      type: "CODE",
+      statement: "Some dois números.",
+      expectedSolution: "class Soma {}",
+      languageId: javaId,
+      testCases: [{ input: "1 2", expectedOutput: "3", visibility: "PRIVATE" }],
+      difficulty: "ADVANCED",
+      topicIds: [topicId],
+    },
+  ];
+}
+
+/** A `POST /exams` body over a confirmed syllabus: the three questions of `examQuestions` and 10,00. */
+export async function examBody(
+  t: TestApp,
+  syllabus: Pick<ConfirmedSyllabus, "subject" | "revision" | "itemIds">,
+  overrides: Partial<CreateExamRequest> = {},
+): Promise<CreateExamRequest> {
+  return {
+    subjectId: syllabus.subject.id,
+    syllabusRevisionId: syllabus.revision.id,
+    title: "Prova de POO",
+    totalGrade: "10.00",
+    saveAs: "DRAFT",
+    topicIds: [syllabus.itemIds[0]!],
+    questions: examQuestions(syllabus.itemIds[0]!, await workLanguageId(t, "java")),
+    ...overrides,
+  };
+}
+
+/** Creates an exam through `POST /exams`; returns the response. */
+export const postExam = (client: Client, body: CreateExamRequest) => client.post("/api/exams", body);
+
+/** An APPROVED exam of the client's teacher, created and approved through the routes. */
+export async function approvedExam(t: TestApp, client: Client, syllabus: Pick<ConfirmedSyllabus, "subject" | "revision" | "itemIds">): Promise<TeacherExam> {
+  const created = await postExam(client, await examBody(t, syllabus));
+  const approved = await client.post(`/api/exams/${created.body.id}/approve`, { version: created.body.version });
+  return approved.body as TeacherExam;
+}
+
+/** A teacher view back into a `PUT /exams/:id` body (kept questions by `id`). */
+export function toExamUpdateBody(view: TeacherExam): UpdateExamRequest {
+  return {
+    syllabusRevisionId: view.syllabusRevisionId,
+    title: view.title,
+    description: view.description,
+    totalGrade: view.totalGrade,
+    topicIds: view.topics.map((topic) => topic.syllabusItemId),
+    version: view.version,
+    questions: view.questions.map((question): ExamQuestionEdit => {
+      const common = {
+        id: question.id,
+        statement: question.statement,
+        explanation: question.explanation,
+        difficulty: question.difficulty,
+        topicIds: question.topicIds,
+      };
+      if (question.type === "OPEN_ANSWER") return { ...common, type: "OPEN_ANSWER", expectedAnswer: question.expectedAnswer!, rubric: question.rubric ?? null };
+      if (question.type === "MULTIPLE_CHOICE") {
+        return {
+          ...common,
+          type: "MULTIPLE_CHOICE",
+          alternatives: question.alternatives!.map(({ text, isCorrect }) => ({ text, isCorrect })),
+          isTrickQuestion: question.isTrickQuestion,
+        };
+      }
+      return {
+        ...common,
+        type: "CODE",
+        instructions: question.instructions ?? null,
+        starterCode: question.starterCode ?? null,
+        expectedSolution: question.expectedSolution!,
+        languageId: question.language!.id,
+        testCases: question.testCases!.map(({ input, expectedOutput, visibility }) => ({ input, expectedOutput, visibility })),
+      };
+    }),
+  };
 }

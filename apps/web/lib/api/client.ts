@@ -6,7 +6,7 @@
  * `apiUpload` sends a `FormData` over `XMLHttpRequest`, the only way to report real upload
  * progress; this file stays the web's only network entry point.
  */
-import type { ErrorBody } from "@repo/contracts";
+import type { ErrorBody, ErrorDetails } from "@repo/contracts";
 
 /** Client-side codes, outside the contract; their texts live in `lib/messages/error-messages.ts`. */
 export const NETWORK_ERROR = "NETWORK_ERROR";
@@ -21,6 +21,8 @@ export class ApiError extends Error {
     message: string,
     /** Seconds from `Retry-After`, for `429 RATE_LIMITED`. */
     readonly retryAfterSeconds: number | null = null,
+    /** What the refusal names, where the contract lists it (016 students, 018 exam rules). */
+    readonly details: ErrorDetails | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -65,7 +67,7 @@ function retryAfter(header: string | null): number | null {
 
 function errorFrom(status: number, payload: unknown, retryAfterHeader: string | null): ApiError {
   if (isErrorBody(payload)) {
-    return new ApiError(payload.statusCode, payload.code, payload.message, retryAfter(retryAfterHeader));
+    return new ApiError(payload.statusCode, payload.code, payload.message, retryAfter(retryAfterHeader), payload.details ?? null);
   }
   return new ApiError(status, UNEXPECTED_RESPONSE, `Unexpected response (${status})`, retryAfter(retryAfterHeader));
 }

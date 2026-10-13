@@ -176,6 +176,11 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         // 017: the recipient and the bounce message inside a provider notice (MARCADOR-DESTINO-017, MARCADOR-BOUNCE-017).
         "destinatário do aviso do provedor",
         "mensagem de bounce do provedor",
+        // 018: the exam's title, a statement and its answer keys.
+        "título da prova (018)",
+        "enunciado da prova (018)",
+        "resposta esperada da prova (018)",
+        "alternativa correta da prova (018)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -185,6 +190,7 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.work.findMany({ select: { title: true } }))).toContain("Trabalho manual da jornada onze");
+    expect(serialize(await t.prisma.exam.findMany({ select: { title: true } }))).toContain("Prova manual da jornada dezoito");
     expect(serialize(await t.prisma.exerciseQuestionResult.findMany({ select: { comment: true } }))).toContain("Comentário da marcação da jornada treze");
     const helps = serialize(await t.prisma.workHelpRequest.findMany({ select: { question: true, message: true } }));
     expect(helps).toContain("MARCADOR-AJUDA-015");
