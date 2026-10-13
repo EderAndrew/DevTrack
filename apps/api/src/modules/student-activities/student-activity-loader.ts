@@ -5,6 +5,7 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { ACTIVITY_QUESTION_SELECT, aiHelpAllowanceOf, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
 import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
+import { startDeadline } from "../activities/status/exam-time";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import { pauseTime } from "../activities/status/pause-time";
 import type { ActivityQuestionRow } from "../activities/views/rows";
@@ -69,6 +70,8 @@ const ACTIVITY_SELECT = {
   resultReleasedAt: true,
   /** 016: an open pause of a submitted attempt ends at the close by derivation (research M7). */
   closedAt: true,
+  /** 018: an EXAM's start window (its start deadline, research T4). */
+  startWindowMinutes: true,
   schoolClass: { select: { id: true, name: true, status: true, subject: { select: { name: true } } } },
   teacher: { select: { name: true } },
   /** The EXERCISE's possible points (013/FR-003). */
@@ -96,6 +99,8 @@ const ATTEMPT_SELECT = {
       grade: true,
       gradePartial: true,
       generalFeedback: true,
+      /** 018: how an EXAM attempt ended. */
+      endReason: true,
       gradings: { orderBy: { question: { position: "asc" } }, select: { questionId: true, finalGrade: true, feedback: true } },
     },
   },
@@ -352,6 +357,19 @@ function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
     };
   }
   const submission = latest?.submission ?? null;
+  if (activity.type === "EXAM") {
+    if (activity.startWindowMinutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: activity.status,
+      startDeadline: startDeadline({ publishAt: activity.publishAt, startWindowMinutes: activity.startWindowMinutes }),
+      classActive,
+      attempt: latest && { status: latest.status },
+      submission: submission && { endReason: submission.endReason, gradingComplete: !submission.gradePartial },
+      released: activity.resultReleasedAt !== null,
+      now,
+    };
+  }
   return {
     type: "ASSIGNMENT",
     activityStatus: activity.status,

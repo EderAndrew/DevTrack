@@ -6,7 +6,7 @@ import type { ActivitySnapshot } from "./snapshot";
 export interface NewActivity {
   classId: string;
   teacherId: string;
-  /** A work or exercises; 018 adds the exam with its migration (US2). */
+  /** A work, exercises or an exam (018). */
   type: SourceContent["type"];
   title: string;
   instructions: string | null;
@@ -14,21 +14,27 @@ export interface NewActivity {
   /** ASSIGNMENT only (CHECK by type, 013 K1). */
   deadline: Date | null;
   latePolicy: LatePolicy | null;
-  /** ASSIGNMENT: the work and its subject (CHECK: both or neither). */
+  /** ASSIGNMENT: the work; EXAM: the exam (CHECK by type); both carry their subject (CHECK: not EXERCISE). */
   sourceWorkId: string | null;
+  sourceExamId: string | null;
   sourceSubjectId: string | null;
+  /** EXAM only (CHECK by type, 018 T3): 1–120 min, 30–60 s and 0–60 min. */
+  durationMinutes: number | null;
+  inactivityLimitSeconds: number | null;
+  startWindowMinutes: number | null;
   outOfScopeTopicCount: number;
-  /** ASSIGNMENT only beyond NORMAL and 0 (CHECK by type, 015 research F2). */
+  /** ASSIGNMENT's choice; an EXAM is always CONTROLLED and 0 (CHECK by type, 015 research F2, 018 T3). */
   executionMode: ExecutionMode;
   aiHelpAllowance: AiHelpAllowance;
-  /** PRESENT_ONLY only for ASSIGNMENT (CHECK by type, 016 research M2); fixed afterwards (trigger). */
+  /** PRESENT_ONLY for ASSIGNMENT and EXAM (CHECK by type, 016 research M2); fixed afterwards (trigger). */
   releaseMode: ReleaseMode;
   idempotencyKey: string;
 }
 
 /**
  * Writes the activity and its snapshot (research P2) in the caller's transaction: the questions
- * with their values in hundredths (ASSIGNMENT) or their difficulty and points (EXERCISE, 013 K2),
+ * with their values in hundredths (ASSIGNMENT, EXAM with each question's difficulty) or their difficulty
+ * and points (EXERCISE, 013 K2),
  * alternatives, test cases and topics. The deferred triggers check the question count, the fields
  * of each type, the sum of the values and the alternatives at commit; afterwards the snapshot never
  * changes (immutability triggers). Returns the new activity's id.
@@ -52,6 +58,7 @@ export async function writeSnapshot(tx: Tx, activity: NewActivity, snapshot: Act
         value: question.valueCents === null ? null : centsToGrade(question.valueCents),
         difficulty: question.difficulty,
         points: question.points,
+        examDifficulty: question.examDifficulty,
         statement: question.statement,
         instructions: question.instructions,
         starterCode: question.starterCode,

@@ -29,6 +29,7 @@ import {
   type ActivityHeader,
   aiHelpAllowanceOf,
   attendanceOf,
+  loadPendingDecisions,
   loadPresentCounts,
   toQuestionRow,
 } from "./activity-query";
@@ -37,6 +38,8 @@ import { ActivityStateMachine } from "./activity.state-machine";
 import { HelpAvailability } from "./help-availability";
 import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
+import { examTiming } from "./status/facts";
+import { startDeadline } from "./status/exam-time";
 import { readSource, type SourceContent, toSnapshot } from "./snapshot/read-source";
 import { writeSnapshot } from "./snapshot/write-snapshot";
 import { toTeacherActivity, toTeacherActivitySummary } from "./views/teacher-view";
@@ -55,6 +58,16 @@ interface WorkOptions {
 }
 
 const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0 };
+
+/** An EXAM's options are the server's, never the body's (018/FR-010): always CONTROLLED, never any help. */
+const EXAM_OPTIONS: WorkOptions = { executionMode: "CONTROLLED", aiHelpAllowance: 0 };
+
+/** An EXAM's time from the body (018/FR-007), its ranges and defaults already checked by the contract. */
+interface ExamTime {
+  durationMinutes: number;
+  inactivityLimitSeconds: number;
+  startWindowMinutes: number;
+}
 
 interface LockedActivity {
   type: ActivityType;
@@ -97,6 +110,7 @@ export class ActivitiesService {
     });
     const { students, attempts, attendances } = await loadRosterData(this.prisma, classId, headers.map((header) => header.id));
     const present = await loadPresentCounts(this.prisma, headers.filter((header) => header.releaseMode === "PRESENT_ONLY").map((header) => header.id));
+    const pending = await loadPendingDecisions(this.prisma, headers.filter((header) => header.type === "EXAM").map((header) => header.id));
     const enrolled = activeCount(students);
     const now = this.clock.now();
     return {
@@ -106,6 +120,7 @@ export class ActivitiesService {
           buildRoster(rosterActivity(header), students, attempts, attendances, schoolClass.status === "ACTIVE", now),
           now,
           attendanceOf(header, present, enrolled),
+          pending.get(header.id) ?? 0,
         ),
       ),
     };
@@ -120,19 +135,28 @@ export class ActivitiesService {
     const now = this.clock.now();
     const roster = buildRoster(rosterActivity(header), students, attempts, attendances, schoolClass.status === "ACTIVE", now);
     const present = header.releaseMode === "PRESENT_ONLY" ? await loadPresentCounts(db, [activityId]) : new Map<string, number>();
-    return toTeacherActivity(header, questions.map(toQuestionRow), roster, now, attendanceOf(header, present, activeCount(students)));
+    const pending = header.type === "EXAM" ? await loadPendingDecisions(db, [activityId]) : new Map<string, number>();
+    return toTeacherActivity(
+      header,
+      questions.map(toQuestionRow),
+      roster,
+      now,
+      attendanceOf(header, present, activeCount(students)),
+      pending.get(activityId) ?? 0,
+    );
   }
 
   /**
    * The topics of the source outside the class's taught scope (FR-005a, research P5), before the
-   * teacher confirms; the creation computes it again in its own transaction.
+   * teacher confirms, and an exam's coverage per topic and difficulty (018/FR-008); the creation
+   * computes it again in its own transaction.
    */
   async scopeCheck(teacherId: string, classId: string, source: ActivitySource): Promise<ScopeCheck> {
     const schoolClass = await this.classes.findOwnedOrNotFound(teacherId, classId);
     return this.prisma.runInTransaction(async (tx) => {
       const content = await readSource(tx, teacherId, source);
       assertSameSubject(schoolClass.subjectId, content);
-      return scopeCheckOf(tx, classId, toSnapshot(content).questions);
+      return scopeCheckOf(tx, classId, toSnapshot(content).questions, examTopicsOf(content));
     });
   }
 
@@ -143,7 +167,8 @@ export class ActivitiesService {
    * limit (429), the AI help when asked (503, 015/FR-004), then in one transaction the source (404,
    * 422), the subject (422), the taught scope (422 unless acknowledged), the snapshot and
    * `activity.published`. A work carries its mode and AI help (015/FR-001); an EXERCISE body can't
-   * (the contract refuses them, 015/FR-002).
+   * (the contract refuses them, 015/FR-002). An EXAM carries its time instead of a deadline and is
+   * always CONTROLLED, without help and `PRESENT_ONLY`, set here (018/FR-007, FR-010).
    */
   async create(
     auth: AuthContext,
@@ -165,10 +190,16 @@ export class ActivitiesService {
         ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy }
         : null;
     if (schedule && schedule.deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+    const examTime: ExamTime | null =
+      "durationMinutes" in body
+        ? { durationMinutes: body.durationMinutes, inactivityLimitSeconds: body.inactivityLimitSeconds, startWindowMinutes: body.startWindowMinutes }
+        : null;
     const options: WorkOptions =
       ACTIVITY_TYPES[body.source.type].workOptions && "executionMode" in body
         ? { executionMode: body.executionMode, aiHelpAllowance: body.aiHelpAllowance }
-        : NO_WORK_OPTIONS;
+        : examTime
+          ? EXAM_OPTIONS
+          : NO_WORK_OPTIONS;
     await this.assertWriteRate(teacherId);
     if (options.aiHelpAllowance > 0) await this.assertHelpAvailable();
 
@@ -180,7 +211,7 @@ export class ActivitiesService {
         const content = await readSource(tx, teacherId, body.source);
         assertSameSubject(schoolClass.subjectId, content);
         const snapshot = toSnapshot(content);
-        const scope = await scopeCheckOf(tx, classId, snapshot.questions);
+        const scope = await scopeCheckOf(tx, classId, snapshot.questions, examTopicsOf(content));
         if (scope.outOfScope.length > 0 && !body.acknowledgeOutOfScope) throw new AppException("OUT_OF_SCOPE_NOT_ACKNOWLEDGED");
 
         const id = await writeSnapshot(
@@ -195,7 +226,11 @@ export class ActivitiesService {
             deadline: schedule?.deadline ?? null,
             latePolicy: schedule?.latePolicy ?? null,
             sourceWorkId: content.type === "ASSIGNMENT" ? content.workId : null,
-            sourceSubjectId: content.type === "ASSIGNMENT" ? content.subjectId : null,
+            sourceExamId: content.type === "EXAM" ? content.examId : null,
+            sourceSubjectId: content.type === "EXERCISE" ? null : content.subjectId,
+            durationMinutes: examTime?.durationMinutes ?? null,
+            inactivityLimitSeconds: examTime?.inactivityLimitSeconds ?? null,
+            startWindowMinutes: examTime?.startWindowMinutes ?? null,
             outOfScopeTopicCount: scope.outOfScope.length,
             ...options,
             releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
@@ -216,11 +251,11 @@ export class ActivitiesService {
             executionMode: options.executionMode,
             aiHelpAllowance: options.aiHelpAllowance,
             releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
-            ...(content.type === "ASSIGNMENT" ? { sourceWorkId: content.workId } : { sourceExerciseCount: content.exerciseIds.length }),
+            ...sourceMetadata(content),
             questionCount: snapshot.questions.length,
-            // A grade and a late policy (ASSIGNMENT) or the possible points (EXERCISE, 013 K15).
-            ...(ACTIVITY_TYPES[content.type].scoring === "GRADE" && snapshot.totalCents !== null && schedule
-              ? { totalCents: snapshot.totalCents, latePolicy: schedule.latePolicy }
+            // A grade and a late policy (ASSIGNMENT), a grade and the time (EXAM, 018) or the possible points (EXERCISE, 013 K15).
+            ...(ACTIVITY_TYPES[content.type].scoring === "GRADE" && snapshot.totalCents !== null
+              ? { totalCents: snapshot.totalCents, ...(schedule ? { latePolicy: schedule.latePolicy } : {}), ...(examTime ?? {}) }
               : { possiblePoints: snapshot.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) }),
             scheduled: publishAt.getTime() > now.getTime(),
             outOfScopeTopicCount: scope.outOfScope.length,
@@ -445,12 +480,23 @@ function rosterActivity(header: ActivityHeader) {
     released: header.resultReleasedAt !== null,
     releaseMode: header.releaseMode,
     endedAt: header.closedAt ?? header.cancelledAt,
+    startDeadline: header.type === "EXAM" ? startDeadline(examTiming(header)) : null,
   };
 }
 
-/** A work goes only to a class of its subject; exercises have none (research P5). */
+/** The source of `activity.published`: the work, the number of exercises, or the exam (018). */
+function sourceMetadata(content: SourceContent): Record<string, string | number> {
+  if (content.type === "ASSIGNMENT") return { sourceWorkId: content.workId };
+  if (content.type === "EXAM") return { sourceExamId: content.examId };
+  return { sourceExerciseCount: content.exerciseIds.length };
+}
+
+/** An exam's topics in its order, for its coverage (018 research T15); null for the other sources. */
+const examTopicsOf = (content: SourceContent) => (content.type === "EXAM" ? content.exam.topics : null);
+
+/** A work or an exam goes only to a class of its subject (018/FR-007); exercises have none (research P5). */
 function assertSameSubject(classSubjectId: string | null, content: SourceContent): void {
-  if (content.type === "ASSIGNMENT" && content.subjectId !== classSubjectId) throw new AppException("SUBJECT_MISMATCH");
+  if (content.type !== "EXERCISE" && content.subjectId !== classSubjectId) throw new AppException("SUBJECT_MISMATCH");
 }
 
 /** The class row under `FOR SHARE`: its status can't change while the activity is created. */

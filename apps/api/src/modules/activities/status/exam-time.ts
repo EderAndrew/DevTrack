@@ -21,7 +21,7 @@ export interface ExamTiming {
 const plusMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * MINUTE_MS);
 
 /** The last moment a student may start: the publication plus the start window. */
-export function startDeadline(timing: ExamTiming): Date {
+export function startDeadline(timing: Pick<ExamTiming, "publishAt" | "startWindowMinutes">): Date {
   return plusMinutes(timing.publishAt, timing.startWindowMinutes);
 }
 

@@ -1,5 +1,6 @@
 import type { ScopeCheck } from "@repo/contracts";
 import type { Tx } from "../../../platform/database/transaction";
+import { type CoverageTopic, examCoverage } from "../../exams/coverage";
 import type { SnapshotQuestion } from "../snapshot/snapshot";
 import { checkTaughtScope, type TaughtScope } from "./taught-scope";
 
@@ -17,10 +18,27 @@ export async function loadTaughtScope(tx: Tx, classId: string): Promise<TaughtSc
   return new Set(plan.topics.flatMap((topic) => topic.items.map((item) => item.itemId)));
 }
 
-/** The scope check of these questions in this class, with the flagged items' texts (FR-005a). */
-export async function scopeCheckOf(tx: Tx, classId: string, questions: readonly SnapshotQuestion[]): Promise<ScopeCheck> {
+/**
+ * The scope check of these questions in this class, with the flagged items' texts (FR-005a). For an
+ * EXAM, `examTopics` (its topics in order) adds the coverage per topic and per difficulty, against
+ * the same taught scope (018/FR-008, research T15).
+ */
+export async function scopeCheckOf(
+  tx: Tx,
+  classId: string,
+  questions: readonly SnapshotQuestion[],
+  examTopics: readonly CoverageTopic[] | null = null,
+): Promise<ScopeCheck> {
   const scope = await loadTaughtScope(tx, classId);
   const itemIds = [...new Set(questions.flatMap((question) => question.topicItemIds))];
   const items = await tx.syllabusItem.findMany({ where: { id: { in: itemIds } }, select: { id: true, text: true } });
-  return checkTaughtScope(questions, scope, new Map(items.map((item) => [item.id, item.text])));
+  const check = checkTaughtScope(questions, scope, new Map(items.map((item) => [item.id, item.text])));
+  if (examTopics === null) return check;
+  const coverage = examCoverage(
+    // An EXAM question always has its value (CHECK by type).
+    questions.map((question) => ({ valueCents: question.valueCents ?? 0, difficulty: question.examDifficulty, topicIds: question.topicItemIds })),
+    examTopics,
+    scope,
+  );
+  return { ...check, coverage };
 }

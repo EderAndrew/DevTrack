@@ -1,5 +1,5 @@
 import type { StudentActivityStatus } from "@repo/contracts";
-import { type ActivityFacts, hasConcluded, isPastDeadline } from "./facts";
+import { type ActivityFacts, hasConcluded, isPastDeadline, isStartClosed } from "./facts";
 import { canAnswer } from "./operations";
 
 /** "Vence em menos de 48 horas" (spec Assumptions, FR-011). */
@@ -9,9 +9,16 @@ export const URGENT_WITHIN_MS = 48 * 60 * 60 * 1000;
  * The student's situation, first match wins. ASSIGNMENT (012/FR-014): CORRIGIDO, ENTREGUE, ATRASADO,
  * EM_ANDAMENTO, PENDENTE; a closed activity without a submission counts as overdue. EXERCISE
  * (013/FR-014): CONCLUÍDA once any attempt is concluded, EM_ANDAMENTO with an open attempt,
- * PENDENTE otherwise — never overdue, submitted or graded.
+ * PENDENTE otherwise — never overdue, submitted or graded. EXAM (018): as a work, with the start
+ * deadline in place of the deadline: not started by then (or closed) is ATRASADO, never startable again.
  */
 export function deriveStudentStatus(facts: ActivityFacts): StudentActivityStatus {
+  if (facts.type === "EXAM") {
+    if (facts.submission) return facts.released && facts.submission.gradingComplete ? "GRADED" : "SUBMITTED";
+    if (facts.attempt?.status === "IN_PROGRESS") return "IN_PROGRESS";
+    if (facts.activityStatus === "CLOSED" || isStartClosed(facts)) return "OVERDUE";
+    return "PENDING";
+  }
   if (facts.type === "EXERCISE") {
     if (hasConcluded(facts)) return "COMPLETED";
     return facts.latestAttempt?.status === "IN_PROGRESS" ? "IN_PROGRESS" : "PENDING";
@@ -25,10 +32,12 @@ export function deriveStudentStatus(facts: ActivityFacts): StudentActivityStatus
 /**
  * Highlighted as urgent (FR-011): not submitted and due within 48 hours, or overdue but still
  * accepting a submission. Other overdue activities show "Atrasada" without the highlight. An
- * EXERCISE has no deadline, so it is never urgent (013/FR-013).
+ * EXERCISE has no deadline, so it is never urgent (013/FR-013); an EXAM is while it can still be
+ * started (its start window is minutes long, 018/FR-007).
  */
 export function isUrgent(facts: ActivityFacts): boolean {
   if (facts.type === "EXERCISE") return false;
+  if (facts.type === "EXAM") return deriveStudentStatus(facts) === "PENDING";
   if (facts.submission) return false;
   if (deriveStudentStatus(facts) === "OVERDUE") return canAnswer(facts);
   return facts.deadline.getTime() - facts.now.getTime() <= URGENT_WITHIN_MS;
@@ -36,4 +45,4 @@ export function isUrgent(facts: ActivityFacts): boolean {
 
 /** The result reaches the student only released and complete (FR-029, research P14); an EXERCISE has none. */
 export const isResultVisible = (facts: ActivityFacts): boolean =>
-  facts.type === "ASSIGNMENT" && facts.released && facts.submission !== null && facts.submission.gradingComplete;
+  facts.type !== "EXERCISE" && facts.released && facts.submission !== null && facts.submission.gradingComplete;

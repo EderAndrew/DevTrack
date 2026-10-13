@@ -119,7 +119,7 @@ export const ErrorCatalog = {
     status: 422,
     message: "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
   },
-  SUBJECT_MISMATCH: { status: 422, message: "Este trabalho é de outra disciplina. Aplique-o numa turma da mesma disciplina." },
+  SUBJECT_MISMATCH: { status: 422, message: "Este item do banco é de outra disciplina. Aplique-o numa turma da mesma disciplina." },
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: { status: 422, message: "Confirme a aplicação com tópicos ainda não concluídos no planejamento desta turma." },
   SOURCE_NOT_APPROVED: { status: 422, message: "Só itens aprovados do seu banco podem ser aplicados a uma turma." },
   INVALID_SCHEDULE: { status: 422, message: "O prazo deve ser depois da data de publicação." },

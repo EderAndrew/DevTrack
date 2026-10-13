@@ -1,6 +1,7 @@
-import type { TeacherExam } from "@repo/contracts";
+import type { TeacherActivity, TeacherExam } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { approvedExam, examBody, postExam, toExamUpdateBody } from "../helpers/exams";
+import { createClassWithStudents } from "../helpers/activities";
+import { applyExam, approvedExam, examBody, postExam, toExamUpdateBody } from "../helpers/exams";
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { type ConfirmedSyllabus, createConfirmedSyllabus } from "../helpers/works";
@@ -115,7 +116,26 @@ describe("018/US1 professor cria uma prova manualmente", () => {
     expect((await postExam(client, { ...body, topicIds: [other.itemIds[0]!], questions: body.questions.map((q) => ({ ...q, topicIds: [other.itemIds[0]!] })) })).status).toBe(404);
   });
 
-  it.todo("018/US1-4 a prova aprovada editada vale para as próximas aplicações; nenhuma prova já aplicada muda (T018)");
+  it("018/US1-4 a prova aprovada editada vale para as próximas aplicações; nenhuma prova já aplicada muda", async () => {
+    const exam = await approvedExam(t, client, syllabus);
+    const { schoolClass } = await createClassWithStudents(t, teacher.id, { subjectId: syllabus.subject.id, students: 1 });
+    const before = await applyExam(client, schoolClass.id, exam.id, { acknowledgeOutOfScope: true });
+    expect(before.status, JSON.stringify(before.body)).toBe(201);
+
+    const body = toExamUpdateBody(exam);
+    body.totalGrade = "9.00";
+    body.questions = body.questions.slice(0, 2).map((question) => ({ ...question, statement: `${question.statement} (nova versão)` }));
+    expect((await client.put(`/api/exams/${exam.id}`, body)).status).toBe(200);
+    const after = await applyExam(client, schoolClass.id, exam.id, { acknowledgeOutOfScope: true });
+    expect(after.status).toBe(201);
+
+    const statements = (activity: TeacherActivity) => activity.questions.map((question) => question.statement);
+    const applied = (await client.get(`/api/classes/${schoolClass.id}/activities/${before.body.id}`)).body as TeacherActivity;
+    expect(applied).toMatchObject({ totalGrade: "10.00" });
+    expect(statements(applied)).toEqual(exam.questions.map((question) => question.statement));
+    expect(after.body).toMatchObject({ totalGrade: "9.00" });
+    expect(statements(after.body as TeacherActivity)).toEqual(body.questions.map((question) => question.statement));
+  });
 
   it("018/US1-4 a prova aprovada pode ser editada e continua aprovada; a edição é auditada só com nomes de campo", async () => {
     const exam = await approvedExam(t, client, syllabus);

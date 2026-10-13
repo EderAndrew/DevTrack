@@ -59,6 +59,14 @@ const PENDING_018 = new Set<string>([
   "exam_attempt.time_expired",
   "exam_attempt.write_refused",
 ]);
+/** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
+const PENDING_CHANGED_018 = new Set<string>([
+  "activity_attempt.started",
+  "activity_submission.created",
+  "activity_submission.rejected",
+  "activity.result_released",
+  "attempt_pause.write_refused",
+]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016, ...PENDING_018]);
 
 interface ContractRow {
@@ -78,8 +86,29 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  */
 function contractRows(file: string): ContractRow[] {
   // 018's "Changed" table (two columns) lists metadata its stories add to earlier types; each row
-  // joins the earlier type's row with the story that emits it.
-  const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m)[0]!;
+  // joins the earlier type's row with the story that emits it (`changedRows`).
+  const [text = "", changed = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m);
+  return [...eventRows(text), ...changedRows(changed)];
+}
+
+/**
+ * The 018 "Changed" rows whose story has arrived: the earlier type with the keys it adds
+ * (`type: EXAM` names the existing key `type`). Its actors and target stay the earlier row's.
+ */
+function changedRows(table: string): ContractRow[] {
+  return table
+    .split("\n")
+    .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
+    .flatMap((line) => {
+      const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
+      const type = backticked(typeCell!)[0]!;
+      if (PENDING_CHANGED_018.has(type)) return [];
+      const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, "")).map((key) => key.split(":")[0]!.trim());
+      return [{ type, actors: [], target: [], metadata }];
+    });
+}
+
+function eventRows(text: string): ContractRow[] {
   const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the (request|spec) \|/m.test(text);
   return text
     .split("\n")

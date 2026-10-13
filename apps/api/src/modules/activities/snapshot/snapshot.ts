@@ -1,8 +1,8 @@
-import type { ExerciseDifficulty, GradeCents, TestCaseVisibility, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
+import type { ExerciseDifficulty, GradeCents, TestCaseVisibility, WorkDifficulty, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
 
 /**
- * The content an activity copies from the teacher's banks (research P2): one shape for works and
- * exercises, so grading and the student allowlist exist once. Pure data, written by
+ * The content an activity copies from the teacher's banks (research P2): one shape for works,
+ * exercises and exams (018), so grading and the student allowlist exist once. Pure data, written by
  * `write-snapshot.ts` and never changed afterwards (immutability trigger).
  */
 export interface SnapshotQuestion {
@@ -10,11 +10,13 @@ export interface SnapshotQuestion {
   position: number;
   type: WorkQuestionType;
   gradingStrategy: WorkGradingStrategy;
-  /** ASSIGNMENT only; null for an EXERCISE question (013 K1). */
+  /** ASSIGNMENT and EXAM; null for an EXERCISE question (013 K1). */
   valueCents: GradeCents | null;
   /** EXERCISE only: the exercise's difficulty and its fixed points (013 K2); null for ASSIGNMENT. */
   difficulty: ExerciseDifficulty | null;
   points: number | null;
+  /** EXAM only: the exam question's difficulty, for the coverage and the review (018 T3); null for the others. */
+  examDifficulty: WorkDifficulty | null;
   statement: string;
   instructions: string | null;
   starterCode: string | null;
@@ -32,7 +34,7 @@ export interface SnapshotQuestion {
 }
 
 export interface ActivitySnapshot {
-  /** ASSIGNMENT only: the work's grade; null for EXERCISE (013 K1). */
+  /** ASSIGNMENT and EXAM: the grade of the work or exam; null for EXERCISE (013 K1). */
   totalCents: GradeCents | null;
   questions: SnapshotQuestion[];
 }

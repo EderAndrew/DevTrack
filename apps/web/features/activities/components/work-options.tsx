@@ -96,7 +96,7 @@ function Option({
 }
 
 /** The options turned on, as text badges (015/FR-006); nothing for a normal activity without help. */
-export function WorkOptionBadges({ activity }: { activity: Pick<TeacherActivitySummary, "executionMode" | "aiHelp"> }) {
+export function WorkOptionBadges({ activity }: { activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp"> }) {
   const badges = workOptionBadges(activity);
   if (badges.length === 0) return null;
   return (

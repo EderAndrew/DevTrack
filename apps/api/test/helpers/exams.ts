@@ -18,6 +18,7 @@ import type {
   WorkTestCaseVisibility,
 } from "../../src/generated/prisma/client";
 import { searchKey } from "../../src/platform/text/search-key";
+import { markAllPresent } from "./attendance";
 import type { api, TestApp } from "./test-app";
 import { type ConfirmedSyllabus, createConfirmedSyllabus, workLanguageId } from "./works";
 
@@ -269,4 +270,51 @@ export function toExamUpdateBody(view: TeacherExam): UpdateExamRequest {
       };
     }),
   };
+}
+
+// ── 018/US2: applying an exam to a class through the 012 route ─────────────────────────────
+
+/**
+ * Body overrides of an exam's `POST /classes/:classId/activities`. A key set to `undefined` is left out
+ * of the body (the defaults of the contract then apply); a forbidden field (`executionMode`,
+ * `deadline`…) goes in as given, for the tests that expect the 400.
+ */
+export interface ApplyExamOverrides {
+  idempotencyKey?: string;
+  title?: string;
+  instructions?: string | null;
+  /** Default null: published now, by the server clock. */
+  publishAt?: string | null;
+  /** Default 60. */
+  durationMinutes?: number;
+  inactivityLimitSeconds?: number;
+  startWindowMinutes?: number;
+  acknowledgeOutOfScope?: boolean;
+  [forbidden: string]: unknown;
+  /**
+   * Not part of the body. `"ALL"` (default) marks every ACTIVE student of the class present through the
+   * attendance route once the exam is applied, as `applyWork` does since 016; `"NONE"` leaves it
+   * invisible to every student.
+   */
+  attendance?: "ALL" | "NONE";
+}
+
+/** `POST /classes/:classId/activities` with an exam of the teacher's Banco de Provas (018/US2). */
+export async function applyExam(client: Client, classId: string, examId: string, overrides: ApplyExamOverrides = {}) {
+  const { attendance = "ALL", ...fields } = overrides;
+  const body = Object.fromEntries(
+    Object.entries({
+      idempotencyKey: randomUUID(),
+      source: { type: "EXAM", examId },
+      title: "Prova aplicada",
+      instructions: "Leia as regras.",
+      publishAt: null,
+      durationMinutes: 60,
+      acknowledgeOutOfScope: false,
+      ...fields,
+    }).filter(([, value]) => value !== undefined),
+  );
+  const res = await client.post(`/api/classes/${classId}/activities`, body);
+  if (attendance === "ALL" && (res.status === 200 || res.status === 201)) await markAllPresent(client, classId, res.body.id);
+  return res;
 }

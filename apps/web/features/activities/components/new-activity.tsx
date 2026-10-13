@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExerciseTeacherView, ScopeCheck, WorkSummary } from "@repo/contracts";
+import type { ActivitySource, ActivityType, ExamCoverage, ExamSummary, ExerciseTeacherView, ScopeCheck, WorkSummary } from "@repo/contracts";
 import { ACTIVITY_EXERCISES_MAX, ActivityTypeSchema, EXERCISE_POINTS, possiblePoints } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
@@ -16,25 +16,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClass } from "@/features/classes/hooks/use-classes";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
-import { useApprovedExercises, useApprovedWorks, useCreateActivity, useHelpAvailability, useScopeCheck } from "../hooks/use-activities";
+import { useApprovedExams, useApprovedExercises, useApprovedWorks, useCreateActivity, useHelpAvailability, useScopeCheck } from "../hooks/use-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   type ActivityFormValues,
   ActivityFormSchema,
   activityFormMessages,
   DIFFICULTY_LABELS,
+  EXAM_APPLY_NOTICE,
+  EXAM_FIELD_DEFAULTS,
   formatGrade,
   formatPoints,
   hasWorkOptions,
   helpUnavailableText,
   HELP_CHECK_PENDING,
+  OUT_OF_TAUGHT_SCOPE,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
-  type WorkOrExercisesSource,
-  type WorkOrExercisesType,
 } from "../schemas/activity-form";
 import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
 import { WorkOptionsFieldset } from "./work-options";
@@ -47,6 +49,9 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   acknowledgeOutOfScope: "atividade-confirmar-escopo",
   controlled: "atividade-modo-controlado",
   aiHelp: "atividade-ajuda-ia",
+  durationMinutes: "atividade-duracao",
+  inactivityLimitSeconds: "atividade-inatividade",
+  startWindowMinutes: "atividade-limite-iniciar",
 } as const;
 const FIELD_IDS = NEW_ACTIVITY_FIELD_IDS;
 
@@ -60,8 +65,8 @@ const FIELD_OF_CODE: Record<string, string> = {
 const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 119)}…` : text);
 
 interface ChosenSource {
-  source: WorkOrExercisesSource;
-  /** The work's title, prefilled in step 2. */
+  source: ActivitySource;
+  /** The work's or the exam's title, prefilled in step 2. */
   title: string;
   questionCount: number;
   /** An Exercício's total by the exercises' levels (013/FR-003); null for a Trabalho, which has a grade. */
@@ -78,7 +83,9 @@ interface ChosenSource {
  * yet taught with the required confirmation. A Trabalho also chooses "Como os alunos respondem"
  * (015/FR-001): the controlled mode and the AI help, disabled with its reason while unavailable
  * (FR-004). "Publicar atividade" sends one idempotency key per form, so a double click creates one
- * activity.
+ * activity. A Prova (018/US2) comes from the APPROVED exams of the class's subject ("Prova do banco"):
+ * step 1's check brings its coverage per topic and per difficulty, shown before confirming, and step 2
+ * asks the duração, the limite de inatividade and the limite para iniciar, never a mode, help or deadline.
  */
 export function NewActivity({ classId }: { classId: string }) {
   const schoolClass = useClass(classId);
@@ -116,13 +123,15 @@ function SourceStep({
   subjectId: string | null;
   onChosen: (chosen: ChosenSource) => void;
 }) {
-  const [type, setType] = useState<WorkOrExercisesType>(subjectId ? "ASSIGNMENT" : "EXERCISE");
+  const [type, setType] = useState<ActivityType>(subjectId ? "ASSIGNMENT" : "EXERCISE");
   const [workId, setWorkId] = useState("");
+  const [examId, setExamId] = useState("");
   const [selected, setSelected] = useState<ExerciseTeacherView[]>([]);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const works = useApprovedWorks(subjectId);
+  const exams = useApprovedExams(subjectId, type === "EXAM");
   const exercises = useApprovedExercises(query);
   const scopeCheck = useScopeCheck(classId);
 
@@ -138,16 +147,23 @@ function SourceStep({
   const proceed = async () => {
     setError(null);
     const work: WorkSummary | undefined = works.data?.items.find((item) => item.id === workId);
+    const exam: ExamSummary | undefined = exams.data?.items.find((item) => item.id === examId);
     if (type === "ASSIGNMENT" && !work) return setError("Escolha um trabalho.");
+    if (type === "EXAM" && !exam) return setError("Escolha uma prova.");
     if (type === "EXERCISE" && selected.length === 0) return setError("Escolha de 1 a 10 exercícios.");
-    const source: WorkOrExercisesSource =
-      type === "ASSIGNMENT" ? { type, workId } : { type, exerciseIds: selected.map((exercise) => exercise.id) };
+    const source: ActivitySource =
+      type === "ASSIGNMENT"
+        ? { type, workId }
+        : type === "EXAM"
+          ? { type, examId }
+          : { type, exerciseIds: selected.map((exercise) => exercise.id) };
+    const bankItem = work ?? exam;
     try {
       const scope = await scopeCheck.mutateAsync(source);
       onChosen({
         source,
-        title: work?.title ?? "",
-        questionCount: work ? work.questionCount : selected.length,
+        title: bankItem?.title ?? "",
+        questionCount: bankItem ? bankItem.questionCount : selected.length,
         possiblePoints: type === "EXERCISE" ? possiblePoints(selected.map((exercise) => exercise.difficulty)) : null,
         scope,
       });
@@ -159,14 +175,14 @@ function SourceStep({
   return (
     <div className="flex flex-col gap-4">
       <RadioGroup legend="Tipo de atividade">
-        {ActivityTypeSchema.exclude(["EXAM"]).options.map((option) => (
+        {ActivityTypeSchema.options.map((option) => (
           <div key={option} className="flex items-center gap-2">
             <Radio
               id={`tipo-${option}`}
               name="tipo"
               value={option}
               checked={type === option}
-              disabled={option === "ASSIGNMENT" && !subjectId}
+              disabled={option !== "EXERCISE" && !subjectId}
               onChange={() => setType(option)}
             />
             <Label htmlFor={`tipo-${option}`}>{ACTIVITY_TYPE_LABELS[option]}</Label>
@@ -179,7 +195,26 @@ function SourceStep({
         </Alert>
       ) : null}
 
-      {type === "ASSIGNMENT" ? (
+      {type === "EXAM" ? (
+        exams.isPending ? (
+          <p role="status">Carregando as provas aprovadas…</p>
+        ) : exams.isError ? (
+          <p role="alert">{messageForError(exams.error)}</p>
+        ) : exams.data.items.length === 0 ? (
+          <p>Nenhuma prova aprovada da disciplina desta turma.</p>
+        ) : (
+          <RadioGroup legend="Prova do banco (aprovadas da disciplina da turma)">
+            {exams.data.items.map((exam) => (
+              <div key={exam.id} className="flex items-center gap-2">
+                <Radio id={`prova-${exam.id}`} name="prova" value={exam.id} checked={examId === exam.id} onChange={() => setExamId(exam.id)} />
+                <Label htmlFor={`prova-${exam.id}`}>
+                  {exam.title} — {exam.questionCount} {exam.questionCount === 1 ? "questão" : "questões"}, nota {formatGrade(exam.totalGrade)}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        )
+      ) : type === "ASSIGNMENT" ? (
         works.isPending ? (
           <p role="status">Carregando os trabalhos aprovados…</p>
         ) : works.isError ? (
@@ -334,6 +369,58 @@ function ScopeNotice({ scope }: { scope: ScopeCheck }) {
   );
 }
 
+/**
+ * An exam's coverage before it is applied (018/FR-008, contracts/web-ui.md): questions and points per
+ * topic, with the topics outside the class's taught scope flagged in words, and per difficulty.
+ */
+function ExamCoverageTables({ coverage }: { coverage: ExamCoverage }) {
+  return (
+    <div className="mb-4 flex flex-col gap-4">
+      <Table>
+        <TableCaption>Cobertura por tópico</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Tópico</TableHead>
+            <TableHead scope="col">Questões</TableHead>
+            <TableHead scope="col">Pontos</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {coverage.byTopic.map((topic) => (
+            <TableRow key={topic.syllabusItemId}>
+              <TableCell>
+                {topic.title}
+                {topic.outOfScope ? <span className="block font-semibold text-warning-text">{OUT_OF_TAUGHT_SCOPE}</span> : null}
+              </TableCell>
+              <TableCell>{topic.questions}</TableCell>
+              <TableCell>{formatGrade(topic.points)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Table>
+        <TableCaption>Cobertura por dificuldade</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Dificuldade</TableHead>
+            <TableHead scope="col">Questões</TableHead>
+            <TableHead scope="col">Pontos</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {coverage.byDifficulty.map((row) => (
+            <TableRow key={row.difficulty}>
+              <TableCell>{DIFFICULTY_LABELS[row.difficulty]}</TableCell>
+              <TableCell>{row.questions}</TableCell>
+              <TableCell>{formatGrade(row.points)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; chosen: ChosenSource; onBack: () => void }) {
   const router = useRouter();
   const create = useCreateActivity(classId);
@@ -354,9 +441,11 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       acknowledgeOutOfScope: false,
       controlled: false,
       aiHelp: false,
+      ...EXAM_FIELD_DEFAULTS,
     },
   });
   const isExercise = chosen.source.type === "EXERCISE";
+  const isExam = chosen.source.type === "EXAM";
   const withOptions = hasWorkOptions(chosen.source.type);
   const availability = useHelpAvailability(withOptions);
   const publishMode = useWatch({ control, name: "publishMode" });
@@ -410,7 +499,47 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           {...register("publishAt")}
         />
       ) : null}
-      {isExercise ? null : (
+      {isExam ? (
+        <>
+          <p className="m-0 mb-4">{EXAM_APPLY_NOTICE}</p>
+          <Field
+            id={FIELD_IDS.durationMinutes}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={120}
+            label="Duração (minutos)"
+            hint="De 1 a 120. Cada aluno tem a duração inteira a partir do próprio início."
+            required
+            error={errorFor(FIELD_IDS.durationMinutes)}
+            {...register("durationMinutes")}
+          />
+          <Field
+            id={FIELD_IDS.inactivityLimitSeconds}
+            type="number"
+            inputMode="numeric"
+            min={30}
+            max={60}
+            label="Limite de inatividade (segundos)"
+            hint="De 30 a 60."
+            required
+            error={errorFor(FIELD_IDS.inactivityLimitSeconds)}
+            {...register("inactivityLimitSeconds")}
+          />
+          <Field
+            id={FIELD_IDS.startWindowMinutes}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={60}
+            label="Limite para iniciar (minutos após a abertura)"
+            hint="De 0 a 60. Depois dele, quem não iniciou não inicia mais."
+            required
+            error={errorFor(FIELD_IDS.startWindowMinutes)}
+            {...register("startWindowMinutes")}
+          />
+        </>
+      ) : isExercise ? null : (
         <>
           <Field
             id={FIELD_IDS.deadline}
@@ -431,7 +560,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
         />
       ) : null}
-      <ScopeNotice scope={chosen.scope} />
+      {chosen.scope.coverage ? <ExamCoverageTables coverage={chosen.scope.coverage} /> : <ScopeNotice scope={chosen.scope} />}
       {chosen.scope.outOfScope.length > 0 ? (
         <ConfirmationField
           id={FIELD_IDS.acknowledgeOutOfScope}
@@ -441,8 +570,8 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
         />
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <SubmitButton pending={formState.isSubmitting} pendingLabel="Publicando…">
-          Publicar atividade
+        <SubmitButton pending={formState.isSubmitting} pendingLabel={isExam ? "Aplicando…" : "Publicando…"}>
+          {isExam ? "Aplicar prova" : "Publicar atividade"}
         </SubmitButton>
         <Button type="button" variant="secondary" onClick={onBack}>
           Voltar

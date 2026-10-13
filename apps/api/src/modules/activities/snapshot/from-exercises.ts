@@ -35,6 +35,7 @@ export function snapshotFromExercises(exercises: readonly ExerciseSource[]): Act
       valueCents: null,
       difficulty: exercise.difficulty,
       points: EXERCISE_POINTS[exercise.difficulty],
+      examDifficulty: null,
       statement: exercise.statement,
       instructions: exercise.type === "CODE" ? exercise.instructions : null,
       starterCode: exercise.type === "CODE" ? exercise.starterCode : null,

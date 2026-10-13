@@ -650,6 +650,22 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const appliedExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(appliedExercises.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExercises.body.id}/cancel`, {})).status).toBe(200);
+  // 018/US2 — the restored exam goes to the class as an EXAM with its time (`activity.published` with
+  // `sourceExamId`, `durationMinutes`, `inactivityLimitSeconds` and `startWindowMinutes`), always CONTROLLED,
+  // without help and only for the students marked present; then cancelled.
+  const examScope = await teacherClient.post(`${activitiesPath}/scope-check`, { type: "EXAM", examId: examDraft.body.id });
+  expect(examScope.body.coverage.byTopic).toHaveLength(1);
+  const appliedExam = await teacherClient.post(activitiesPath, {
+    idempotencyKey: randomUUID(),
+    source: { type: "EXAM", examId: examDraft.body.id },
+    title: text("título da prova aplicada (018)", "Prova aplicada da jornada dezoito"),
+    publishAt: null,
+    durationMinutes: 30,
+    inactivityLimitSeconds: 45,
+    acknowledgeOutOfScope: true,
+  });
+  expect(appliedExam.status).toBe(201);
+  expect((await teacherClient.post(`${activitiesPath}/${appliedExam.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);

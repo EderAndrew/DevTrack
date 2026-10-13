@@ -1,6 +1,7 @@
 import type {
   ActivitySource,
   CreateActivityRequest,
+  ExamPage,
   ExercisePage,
   GradeSubmissionRequest,
   HelpAvailability,
@@ -68,6 +69,8 @@ export const activitySourcesApi = {
   /** The approved works of the class's subject, first page (≤ 50), latest first. */
   works: (subjectId: string) =>
     apiClient.get<WorkPage>(`/works?${new URLSearchParams({ status: "APPROVED", subjectId, pageSize: "50" })}`),
+  /** 018: the approved exams of the class's subject, first page (≤ 50), latest first. */
+  exams: (subjectId: string) => apiClient.get<ExamPage>(`/exams?${new URLSearchParams({ status: "APPROVED", subjectId, limit: "50" })}`),
   /** The approved exercises, searched in the statement, first page (≤ 50). */
   exercises: (query: string) =>
     apiClient.get<ExercisePage>(

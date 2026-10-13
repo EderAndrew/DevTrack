@@ -21,6 +21,7 @@ import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
 import { answerFits, answerOfRow, columnsOf, isBlankAnswer, progressAuditDue, sameAnswer } from "../activities/status/answers";
+import { startDeadline } from "../activities/status/exam-time";
 import { decideOperation, type OperationRefusal, type StudentOperation, wouldBeLate } from "../activities/status/operations";
 import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
@@ -50,6 +51,9 @@ interface ContextRow {
   /** ASSIGNMENT only (013 K1). */
   deadline: Date | null;
   late_policy: LatePolicy | null;
+  /** 018: an EXAM's publication and start window (its start deadline, research T4). */
+  publish_at: Date;
+  start_window_minutes: number | null;
   question_count: number;
   class_status: string;
   released: boolean;
@@ -418,7 +422,8 @@ export class AttemptsService {
  */
 async function lockContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<ContextRow> {
   const rows = await tx.$queryRaw<ContextRow[]>`
-    SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.question_count,
+    SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy,
+           ca.publish_at, ca.start_window_minutes, ca.question_count,
            c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
@@ -557,6 +562,19 @@ function factsOf(context: ContextRow, attempt: AttemptRow | null, now: Date): Ac
       classActive,
       latestAttempt: attempt && { number: attempt.number, status: attempt.status },
       awaitingCorrection: false,
+      now,
+    };
+  }
+  if (context.type === "EXAM") {
+    if (context.start_window_minutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: context.status,
+      startDeadline: startDeadline({ publishAt: context.publish_at, startWindowMinutes: context.start_window_minutes }),
+      classActive,
+      attempt: attempt && { status: attempt.status },
+      submission: attempt?.status === "SUBMITTED" ? { endReason: null, gradingComplete: false } : null,
+      released: context.released,
       now,
     };
   }

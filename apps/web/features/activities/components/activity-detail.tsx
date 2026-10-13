@@ -46,7 +46,7 @@ import {
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
 import { ActivityQuestions } from "./activity-questions";
-import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
+import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_EXAM, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
 import { WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
@@ -78,7 +78,7 @@ export interface ActivityDetailProps {
   canRelease?: boolean;
   /** `chamada.registrar`: the "Chamada" of a `PRESENT_ONLY` work (016). */
   canTakeAttendance?: boolean;
-  /** The tab `?aba=` opens (default "informacoes"). */
+  /** The tab `?aba=` opens (default "informacoes"; an EXAM's "alunos", its "Chamada e prova", 018). */
   initialTab?: ActivityTab;
 }
 
@@ -94,7 +94,8 @@ export interface ActivityDetailProps {
  * The title, the situation, the notices and the actions stay above three tabs (amendment 2026-10-11):
  * "Informações" (the data and the edit), "Alunos" — "Chamada e alunos" when the work takes attendance —
  * (the "Chamada" and the roster) and "Questões e gabarito". The active one is kept in `?aba=`, so a reload
- * or the way back from an attempt opens it again.
+ * or the way back from an attempt opens it again. An EXAM (018/US2) opens on "Chamada e prova" — the 016
+ * checklist and room — and shows its duração, limite de inatividade, limite para iniciar and fechamento.
  */
 export function ActivityDetail({
   classId,
@@ -102,13 +103,14 @@ export function ActivityDetail({
   canApply,
   canRelease = false,
   canTakeAttendance = false,
-  initialTab = "informacoes",
+  initialTab,
 }: ActivityDetailProps) {
   const query = useActivity(classId, activityId);
   const actions = useActivityActions(classId, activityId);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<ActivityTab>(initialTab);
+  // Without `?aba=`, the activity's own first tab once it is loaded.
+  const [chosenTab, setTab] = useState<ActivityTab | undefined>(initialTab);
 
   const changeTab = (value: string) => {
     if (!isActivityTab(value)) return;
@@ -129,6 +131,7 @@ export function ActivityDetail({
   }
   const activity = query.data;
   const isExercise = activity.type === "EXERCISE";
+  const tab = chosenTab ?? (activity.type === "EXAM" ? "alunos" : "informacoes");
 
   const conflict = async () => {
     await actions.reload();
@@ -184,7 +187,13 @@ export function ActivityDetail({
         <TabsList aria-label="Seções da atividade">
           {Object.entries(ACTIVITY_TABS).map(([value, label]) => (
             <TabsTrigger key={value} value={value}>
-              {value === "alunos" && activity.releaseMode === "PRESENT_ONLY" ? ATTENDANCE_AND_STUDENTS : label}
+              {value !== "alunos"
+                ? label
+                : activity.type === "EXAM"
+                  ? ATTENDANCE_AND_EXAM
+                  : activity.releaseMode === "PRESENT_ONLY"
+                    ? ATTENDANCE_AND_STUDENTS
+                    : label}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -195,6 +204,16 @@ export function ActivityDetail({
             <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
             {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
             {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
+            {activity.exam ? (
+              <>
+                <Item term="Duração">{activity.exam.durationMinutes} min</Item>
+                <Item term="Limite de inatividade">{activity.exam.inactivityLimitSeconds} s</Item>
+                <Item term="Limite para iniciar">
+                  {activity.exam.startWindowMinutes} min após a abertura (até {formatTime(activity.exam.startDeadline)})
+                </Item>
+                <Item term="Fechamento">{formatLongDateTime(activity.exam.closesAt)}</Item>
+              </>
+            ) : null}
             {activity.totalGrade ? <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item> : null}
             {activity.possiblePoints !== null ? <Item term="Pontos possíveis">{formatPoints(activity.possiblePoints)}</Item> : null}
             {activity.outOfScopeTopicCount > 0 ? (

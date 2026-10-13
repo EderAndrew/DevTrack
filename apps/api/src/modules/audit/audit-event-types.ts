@@ -199,6 +199,11 @@ export const AUDIT_EVENT_METADATA = {
     "hasPlan",
     // 016: `PRESENT_ONLY` for every work applied since 016, `ALL_ENROLLED` for exercises (research M2).
     "releaseMode",
+    // 018: an EXAM carries its exam and its time instead of a work and a late policy.
+    "sourceExamId",
+    "durationMinutes",
+    "inactivityLimitSeconds",
+    "startWindowMinutes",
   ],
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005).

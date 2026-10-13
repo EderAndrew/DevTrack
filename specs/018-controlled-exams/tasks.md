@@ -220,23 +220,23 @@ e conferir que só eles a veem.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T017 [P] [US2] `apps/api/test/integration/018-us2-apply.spec.ts`: `018/US2-1`…`018/US2-6`,
+- [X] T017 [P] [US2] `apps/api/test/integration/018-us2-apply.spec.ts`: `018/US2-1`…`018/US2-6`,
   `018/FR-007`…`018/FR-010` (cobertura em `scope-check`; faixas recusadas; "Aguardando chamada";
   não marcado → 404 em toda via; campos de modo/ajuda/liberação → 400; prova editada depois não
   muda a aplicada) e o `it.todo` de `018/US1-4` passa a teste real.
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] `apps/api/src/modules/activities/`: `snapshot/from-exam.ts` (leitor de snapshot da
+- [X] T018 [US2] `apps/api/src/modules/activities/`: `snapshot/from-exam.ts` (leitor de snapshot da
   prova, com `exam_difficulty` e tópicos), `activities.service.ts` (cria EXAM com CONTROLLED, ajuda
   0, `PRESENT_ONLY`, as colunas de tempo; `activity.published` com os metadados novos), `scope/`
   (cobertura em `scope-check` usando `exams/coverage.ts` pelo leitor), resumos e detalhe com
   `exam` (`startDeadline`, `closesAt`, `pendingDecisions`).
-- [ ] T019 [US2] Helper `applyExam` em `apps/api/test/helpers/exams.ts` (aplica pela API e marca
+- [X] T019 [US2] Helper `applyExam` em `apps/api/test/helpers/exams.ts` (aplica pela API e marca
   presentes por padrão, como o `applyWork` da 016).
-- [ ] T020 [P] [US2] Testes web primeiro em `apps/web/features/activities/**/apply-activity*.test.tsx`
+- [X] T020 [P] [US2] Testes web primeiro em `apps/web/features/activities/components/new-activity-exam.test.tsx`
   (fonte "Prova do banco", campos de tempo, tabelas de cobertura, sem opções de modo/ajuda).
-- [ ] T021 [US2] Web `apps/web/features/activities/components/apply-activity.tsx` e o detalhe da
+- [X] T021 [US2] Web `apps/web/features/activities/components/new-activity.tsx` ("Nova atividade") e o detalhe da
   atividade EXAM abrindo "Chamada e prova" com o painel da 016; T020 verde.
 
 **Checkpoint**: a prova chega só aos presentes.

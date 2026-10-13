@@ -5,6 +5,7 @@ import {
   type ExerciseResult,
   centsToGrade,
   type EnrollmentStatus,
+  type ExamEndReason,
   type ExerciseRosterCounts,
   type LatePolicy,
   type ReleaseMode,
@@ -32,7 +33,15 @@ export interface RosterAttempt {
   /** 1 for an ASSIGNMENT; the practice attempt's number for an EXERCISE (013 K3). */
   number: number;
   status: AttemptStatus;
-  submission: { submittedAt: Date; late: boolean; gradeCents: number; gradePartial: boolean; acceptedByTeacher: boolean } | null;
+  submission: {
+    submittedAt: Date;
+    late: boolean;
+    gradeCents: number;
+    gradePartial: boolean;
+    acceptedByTeacher: boolean;
+    /** EXAM only (trigger): how the attempt ended (018 data-model). */
+    endReason: ExamEndReason | null;
+  } | null;
   /** EXERCISE: the results of a concluded attempt (013 K6); empty otherwise. */
   results: { result: ExerciseResult; points: number }[];
   /** The AI helps delivered in this attempt (015/FR-020: only DELIVERED count). */
@@ -60,6 +69,8 @@ export interface RosterActivity {
   releaseMode: ReleaseMode;
   /** The activity's `closed_at` or `cancelled_at`: an open pause ends there by derivation (016 M7). */
   endedAt: Date | null;
+  /** EXAM only: the publication plus the start window (018 research T4); null for the others. */
+  startDeadline: Date | null;
 }
 
 /** One student's facts in the activity, by type (contracts/student-status.md). */
@@ -77,6 +88,19 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
     };
   }
   const submission = latest?.submission ?? null;
+  if (activity.type === "EXAM") {
+    if (activity.startDeadline === null) throw new Error("an EXAM has a start deadline (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: activity.status,
+      startDeadline: activity.startDeadline,
+      classActive,
+      attempt: latest && { status: latest.status },
+      submission: submission && { endReason: submission.endReason, gradingComplete: !submission.gradePartial },
+      released: activity.released,
+      now,
+    };
+  }
   return {
     type: "ASSIGNMENT",
     activityStatus: activity.status,
@@ -161,7 +185,8 @@ export function buildRoster(
     counts: {
       enrolled: students.filter((student) => student.enrollment === "ACTIVE").length,
       inProgress: count("IN_PROGRESS"),
-      submitted: count("SUBMITTED"),
+      // An EXAM's attempt also ends by the time or a decision (018): every submission on time counts.
+      submitted: roster.filter((entry) => entry.submittedAt !== null && entry.status !== "SUBMITTED_LATE").length,
       submittedLate: count("SUBMITTED_LATE"),
       missed: count("MISSED"),
       pendingGrading: roster.filter((entry) => entry.gradePartial === true).length,
@@ -207,7 +232,7 @@ export async function loadRosterData(
             studentUserId: true,
             number: true,
             status: true,
-            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true } },
+            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true, endReason: true } },
             results: { select: { result: true, points: true } },
             pauses: { orderBy: { startedAt: "asc" }, select: { startedAt: true, releasedAt: true } },
             _count: { select: { helpRequests: { where: { status: "DELIVERED" } } } },
@@ -232,6 +257,7 @@ export async function loadRosterData(
         gradeCents: decimalToCents(attempt.submission.grade),
         gradePartial: attempt.submission.gradePartial,
         acceptedByTeacher: attempt.submission.acceptedById !== null,
+        endReason: attempt.submission.endReason,
       },
     })),
   };

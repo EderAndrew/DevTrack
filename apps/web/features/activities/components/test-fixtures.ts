@@ -1,4 +1,4 @@
-import type { ClassView, ExerciseTeacherView, TeacherActivity, TeacherAttempt, TeacherQuestion, WorkSummary } from "@repo/contracts";
+import type { ClassView, ExamSummary, ExerciseTeacherView, ScopeCheck, TeacherActivity, TeacherAttempt, TeacherQuestion, WorkSummary } from "@repo/contracts";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -81,6 +81,41 @@ export const EXERCISES = [
   exercise(2, "O que é polimorfismo?", "INTERMEDIATE"),
   exercise(3, "O que é uma interface?", "ADVANCED"),
 ];
+
+// ── 018/US2: an approved exam of the Banco de Provas and its application ─────────────────────
+
+export const EXAM: ExamSummary = {
+  id: "66666666-6666-4666-8666-666666666666",
+  subject: SUBJECT,
+  title: "Prova de herança",
+  totalGrade: "10.00",
+  questionCount: 3,
+  origin: "MANUAL",
+  status: "APPROVED",
+  topics: [{ syllabusItemId: ITEM_ID, itemText: "Polimorfismo" }],
+  humanEdited: false,
+  createdAt: "2026-09-21T12:00:00.000Z",
+  updatedAt: "2026-09-21T12:00:00.000Z",
+};
+
+const TAUGHT_ITEM_ID = "44444444-4444-4444-8444-444444444445";
+
+/** The exam's scope check: one topic out of the taught scope, one taught, and the difficulties (018 T15). */
+export const EXAM_SCOPE: ScopeCheck = {
+  hasPlan: true,
+  outOfScope: [{ syllabusItemId: ITEM_ID, title: "Polimorfismo", questionPositions: [1, 2] }],
+  coverage: {
+    byTopic: [
+      { syllabusItemId: TAUGHT_ITEM_ID, title: "Herança", questions: 1, points: "3.34", outOfScope: false },
+      { syllabusItemId: ITEM_ID, title: "Polimorfismo", questions: 2, points: "6.66", outOfScope: true },
+    ],
+    byDifficulty: [
+      { difficulty: "BASIC", questions: 1, points: "3.34" },
+      { difficulty: "INTERMEDIATE", questions: 2, points: "6.66" },
+      { difficulty: "ADVANCED", questions: 0, points: "0.00" },
+    ],
+  },
+};
 
 export const OUT_OF_SCOPE = { hasPlan: true, outOfScope: [{ syllabusItemId: ITEM_ID, title: "Polimorfismo", questionPositions: [1, 2] }] };
 
@@ -385,6 +420,29 @@ export const exerciseAttempt = (results: Partial<Record<string, Partial<Exercise
     },
   });
 };
+
+/** An applied EXAM (018/US2): CONTROLLED, no help, PRESENT_ONLY, with its time instead of a deadline. */
+export const examActivity = (overrides: Partial<TeacherActivity> = {}): TeacherActivity =>
+  activity({
+    type: "EXAM",
+    title: "Prova de herança",
+    executionMode: "CONTROLLED",
+    releaseMode: "PRESENT_ONLY",
+    attendance: { present: 0, enrolled: 2 },
+    deadline: null,
+    latePolicy: null,
+    totalGrade: "10.00",
+    source: { examId: EXAM.id },
+    exam: {
+      durationMinutes: 30,
+      inactivityLimitSeconds: 45,
+      startWindowMinutes: 15,
+      startDeadline: "2026-10-01T12:15:00.000Z",
+      closesAt: "2026-10-01T12:45:00.000Z",
+      pendingDecisions: 0,
+    },
+    ...overrides,
+  });
 
 export interface Call {
   method: string;

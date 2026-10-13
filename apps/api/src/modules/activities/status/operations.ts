@@ -1,4 +1,4 @@
-import { type ActivityFacts, type AssignmentFacts, type ExerciseFacts, hasConcluded, isPastDeadline } from "./facts";
+import { type ActivityFacts, type AssignmentFacts, type ExamFacts, type ExerciseFacts, hasConcluded, isPastDeadline, isStartClosed } from "./facts";
 
 /** START, SAVE and SUBMIT (012); RETRY ("Refazer") and COMPLETE ("Concluir exercícios") only for EXERCISE (013). */
 export type StudentOperation = "START" | "SAVE" | "SUBMIT" | "RETRY" | "COMPLETE";
@@ -12,7 +12,8 @@ export type OperationRefusal =
   | "ATTEMPT_ALREADY_SUBMITTED"
   | "ATTEMPT_NOT_COMPLETED"
   | "NOT_LATEST_ATTEMPT"
-  | "INVALID_STATE_TRANSITION";
+  | "INVALID_STATE_TRANSITION"
+  | "EXAM_START_CLOSED";
 
 /** What happens to a student operation: allowed, an idempotent repeat, or refused with a code. */
 export type OperationOutcome = { kind: "ALLOWED" } | { kind: "REPEAT" } | { kind: "REFUSED"; code: OperationRefusal };
@@ -28,7 +29,8 @@ const refused = (code: OperationRefusal): OperationOutcome => ({ kind: "REFUSED"
  * COMPLETE's `number`.
  */
 export function decideOperation(operation: StudentOperation, facts: ActivityFacts, target?: number): OperationOutcome {
-  return facts.type === "EXERCISE" ? decideExercise(operation, facts, target) : decideAssignment(operation, facts);
+  if (facts.type === "EXERCISE") return decideExercise(operation, facts, target);
+  return facts.type === "EXAM" ? decideExam(operation, facts) : decideAssignment(operation, facts);
 }
 
 /**
@@ -44,6 +46,21 @@ function decideAssignment(operation: StudentOperation, facts: AssignmentFacts): 
   if (facts.activityStatus === "CLOSED") return refused("ACTIVITY_CLOSED");
   if (isPastDeadline(facts) && facts.latePolicy === "REJECT") return refused("DEADLINE_PASSED");
   if (operation === "START") return facts.attempt ? repeat : allowed;
+  if (!facts.attempt) return refused("NOT_STARTED");
+  return allowed;
+}
+
+/**
+ * EXAM (018/FR-011): the ASSIGNMENT's rules without a deadline; a new attempt only up to the start
+ * deadline (`EXAM_START_CLOSED` after). The time of a started attempt is ruled in the attempts
+ * service, which knows the attempt's start (research T4).
+ */
+function decideExam(operation: StudentOperation, facts: ExamFacts): OperationOutcome {
+  if (operation === "RETRY" || operation === "COMPLETE") return refused("INVALID_STATE_TRANSITION");
+  if (facts.submission) return operation === "SAVE" ? refused("ATTEMPT_ALREADY_SUBMITTED") : repeat;
+  if (!facts.classActive) return refused("CLASS_NOT_ACTIVE");
+  if (facts.activityStatus === "CLOSED") return refused("ACTIVITY_CLOSED");
+  if (operation === "START") return facts.attempt ? repeat : isStartClosed(facts) ? refused("EXAM_START_CLOSED") : allowed;
   if (!facts.attempt) return refused("NOT_STARTED");
   return allowed;
 }

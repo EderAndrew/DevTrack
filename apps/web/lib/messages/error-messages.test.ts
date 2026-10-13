@@ -112,7 +112,7 @@ const PHASE_011_TEXTS: Record<string, string> = {
 
 // Codes added by 012 (specs/012-student-portal/contracts/http-api.md, tasks T003).
 const PHASE_012_TEXTS: Record<string, string> = {
-  SUBJECT_MISMATCH: "Este trabalho é de outra disciplina. Aplique-o numa turma da mesma disciplina.",
+  SUBJECT_MISMATCH: "Este item do banco é de outra disciplina. Aplique-o numa turma da mesma disciplina.",
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: "Confirme a aplicação com tópicos ainda não concluídos no planejamento desta turma.",
   SOURCE_NOT_APPROVED: "Só itens aprovados do seu banco podem ser aplicados a uma turma.",
   INVALID_SCHEDULE: "O prazo deve ser depois da data de publicação.",

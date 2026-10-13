@@ -9,6 +9,7 @@ const question = (position: number, topicItemIds: string[]): SnapshotQuestion =>
   valueCents: 10,
   difficulty: null,
   points: null,
+  examDifficulty: null,
   statement: "x",
   instructions: null,
   starterCode: null,

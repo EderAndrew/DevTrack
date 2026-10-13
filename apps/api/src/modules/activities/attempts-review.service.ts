@@ -224,8 +224,9 @@ export class AttemptsReviewService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const activity = await lockActivity(tx, classId, activityId, "UPDATE");
-      // An EXERCISE attempt is concluded by the student, never accepted as a submission (013 K14).
-      if (activity.type === "EXERCISE") throw invalidStateTransition();
+      // An EXERCISE attempt is concluded by the student, never accepted as a submission (013 K14); an
+      // EXAM's ends by the student, the time or the teacher's decision on a hold (018 research T5, T9).
+      if (activity.type !== "ASSIGNMENT") throw invalidStateTransition();
       const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; student_user_id: string }[]>`
         SELECT id, status::text AS status, student_user_id FROM activity_attempts
         WHERE id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;

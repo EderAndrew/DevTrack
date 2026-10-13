@@ -39,6 +39,7 @@ export function snapshotFromWork(work: WorkSource): ActivitySnapshot {
       valueCents: question.valueCents,
       difficulty: null,
       points: null,
+      examDifficulty: null,
       statement: question.statement,
       instructions: question.instructions,
       starterCode: question.starterCode,

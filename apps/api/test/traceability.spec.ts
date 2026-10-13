@@ -236,8 +236,8 @@ const SPECS: FeatureSpec[] = [
     successCriteria: sc(1, 12),
     // Joined in the Foundational phase (T010); each story leaves `pending` with the task that writes its
     // last test, each SC with the test that cites it, so the lists are empty at the end of T056.
-    // US1 since Phase 3 (US1-4's applied copy is an it.todo until T018).
-    pending: { stories: [2, 3, 4, 5, 6, 7, 8], successCriteria: sc(1, 12) },
+    // US1 since Phase 3, US2 since Phase 4.
+    pending: { stories: [3, 4, 5, 6, 7, 8], successCriteria: sc(1, 12) },
   },
 ];
 

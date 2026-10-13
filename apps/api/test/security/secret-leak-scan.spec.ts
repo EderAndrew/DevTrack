@@ -181,6 +181,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "enunciado da prova (018)",
         "resposta esperada da prova (018)",
         "alternativa correta da prova (018)",
+        // 018/US2: the title of the exam applied to the class.
+        "título da prova aplicada (018)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
