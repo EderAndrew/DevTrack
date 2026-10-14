@@ -199,7 +199,8 @@ um pedido de execução forjado para ele é recusado.
 - Exercícios aplicados antes desta feature: não têm casos na atividade; seguem sem "Executar". Para
   ter execução, o professor cadastra os casos no banco e aplica de novo.
 - Tentativa concluída: a tela de conclusão não executa; "Refazer" abre uma tentativa nova, onde
-  "Executar" volta a existir.
+  "Executar" volta a existir; um pedido de execução nessa situação é recusado com a
+  mensagem "Comece ou refaça os exercícios para executar o código."
 - Atividade encerrada ou cancelada, matrícula inativa, aluno de outra turma: a execução é recusada
   da mesma forma que as demais rotas da atividade (sem revelar a existência).
 - Código vazio: a execução é permitida (o resultado mostra os casos falhando), mas não gasta tempo
@@ -259,7 +260,9 @@ um pedido de execução forjado para ele é recusado.
   salvamento automático; o código continua salvo pelas regras da 012.
 - **FR-009**: Cada aluno DEVE ter no máximo uma execução pendente (na fila ou executando) por vez;
   um novo pedido enquanto há uma pendente devolve a pendente, sem criar outra (clique duplo,
-  reenvio após queda de conexão, duas abas).
+  reenvio após queda de conexão, duas abas). Se a execução pendente é de outra questão, a tela da
+  questão atual informa "Há uma execução em andamento em outra questão. Aguarde o resultado dela."
+  e não mostra o resultado da outra questão.
 - **FR-010**: A tela DEVE acompanhar a execução pendente por consulta periódica, só enquanto a
   página estiver visível e até a situação final, sem conexão permanente com o servidor; ao reabrir a
   questão, ela mostra a última execução do aluno naquela questão enquanto o resultado existir
@@ -316,12 +319,13 @@ um pedido de execução forjado para ele é recusado.
 
 ### Security, Permissions & Audit *(mandatory if feature has protected operations)*
 
-- **Permissions**: uma nova permissão para executar o próprio código numa atividade (nome no plano,
-  por exemplo `codigo.executar`), dada ao papel STUDENT; a leitura das próprias execuções usa a
+- **Permissions**: uma nova permissão para executar o próprio código numa atividade
+  (`atividades.proprias.executar`), dada ao papel STUDENT; a leitura das próprias execuções usa a
   mesma permissão. Cadastrar casos de teste usa as permissões do banco de exercícios da 010.
 - **Resource context**: o aluno com matrícula ACTIVE na turma, numa atividade de Exercício publicada
-  e ativa da turma, na sua própria tentativa em andamento, numa questão de Código da atividade; fora
-  disso, o mesmo `404` das demais rotas da atividade. Um aluno nunca lê a execução de outro. O
+  e ativa da turma, numa questão de Código da atividade; fora disso, o mesmo `404` das demais rotas
+  da atividade. Com a atividade visível mas sem tentativa própria em andamento (não iniciada ou
+  concluída), `409 ATTEMPT_NOT_IN_PROGRESS`. Um aluno nunca lê a execução de outro. O
   professor só gerencia casos de exercícios do próprio banco (010).
 - **Audit events**: pedido de execução aceito, execução terminada (situação, contagens, tempos) e
   pedido recusado pelo limite; mudança dos casos de um exercício entra na auditoria de edição da 010.

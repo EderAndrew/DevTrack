@@ -95,6 +95,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `mail_deliveries` (replaces `class_invitation_deliveries`, all six e-mails) and `mail_notices` (append-only), `delivery_status` += `DELIVERED`/`UNDELIVERED`/`DISCARDED` (017-production-email)
 - No new dependency (018-controlled-exams)
 - PostgreSQL 17 — one migration: the Banco de Provas tables (mirroring 011), `class_activity_type` += `EXAM` with duration/inactivity/start-window columns, submissions `end_reason`, integrity `INACTIVITY`, tables `exam_occurrences` (append-only) and `exam_attempt_holds` (018-controlled-exams)
+- No new npm dependency; the code-runner worker drives Docker through the `docker` CLI (`node:child_process`), gVisor `runsc` in production, three official images pinned by digest (019-exercise-code-runner)
+- PostgreSQL 17 — one migration: `programming_languages.execution`, `exercise_test_cases`, `code_runs` + `code_run_cases` (the queue, one pending run per student), `code_runner_heartbeats` (019-exercise-code-runner)
 
 ## Stack notes
 
@@ -368,9 +370,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 019-exercise-code-runner: Code Runner, first stage — teacher-typed test cases on exercise CODE questions; "Executar" runs the student's program (stdin/stdout, Java/Python/JavaScript) against the public cases in a separate worker with one hardened container per step (no network, gVisor in production); verdict per case, fixed output comparison, never points or grades; table queue + polling, kill switch, 10 runs/min, content purged after 24 h
 - 018-controlled-exams: exams — own Banco de Provas (manual or `exam-generator` L2 draft), applied as an always-CONTROLLED, help-free, attendance-gated EXAM with a per-student server timer (1–120 min, start window); occurrences (screen/fullscreen exits, clipboard, inactivity 30–60 s) give 3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time is left, or do not cancel); expired attempts settled on the next touch
 - 017-production-email: real e-mail in production — one outbox with retries for all six e-mails (fresh link per attempt, nothing of the e-mail stored), provider notices (`POST /mail/notices/:provider`, signature on the raw body, our own Message-ID links them) mark invitations "Não entregue", HTML + text templates without external resources or tracking, production config guard, deploy guide (Resend → SES)
-- 016-attendance-gated-release: per-activity attendance — a new work is released only to the students the teacher marks present (late students marked later, unmark only before the start); exercises and older works stay open; "Sair da sala" pauses the attempt (reason declared by the student, or a teacher pause) and only the teacher releases the return, on every device; the deadline keeps running; PAUSED and durations derived on read; polling, no WebSocket
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
