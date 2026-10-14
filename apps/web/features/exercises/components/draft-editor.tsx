@@ -14,15 +14,21 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Radio } from "@/components/ui/radio";
 import { Textarea } from "@/components/ui/textarea";
 import { messageForError } from "@/lib/messages/error-messages";
+import { exerciseRuleViolations } from "../api/exercises";
+import { useProgrammingLanguages } from "../hooks/use-exercises";
 import {
   COGNITIVE_OBJECTIVE_LABELS,
   cardFromView,
   DIFFICULTY_LABELS,
   type ExerciseCardValues,
+  EXPECTED_OUTPUT_MESSAGE,
   exerciseFormSchema,
+  TEST_CASES_NOT_ALLOWED_MESSAGE,
   toExerciseInput,
 } from "../schemas/exercise-form";
 import { CodeField } from "./code-field";
+import { executionHint } from "./exercise-form";
+import { ExerciseTestCases, testCaseFieldId, testCasesSectionId } from "./exercise-test-cases";
 
 type TextField = "statement" | "explanation" | "expectedAnswer" | "instructions" | "starterCode" | "expectedSolution";
 type EditorField = TextField | "difficulty" | "cognitiveObjective" | "correctAlternative";
@@ -78,6 +84,9 @@ export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exe
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [summary, setSummary] = useState<FormError[]>([]);
   const id = (field: EditorField) => draftFieldId(n, field);
+  const prefix = `rascunho-${n}`;
+  const languages = useProgrammingLanguages();
+  const execution = languages.data?.find((language) => language.id === exercise.language?.id)?.execution;
 
   const submit = handleSubmit(async (card) => {
     const checked = exerciseFormSchema(1, 1).safeParse({ cards: [card] });
@@ -86,7 +95,9 @@ export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exe
       for (const issue of checked.error.issues) {
         const [, , field, position] = issue.path;
         const fieldId =
-          field === "alternatives" && typeof position === "number"
+          field === "testCases" && typeof position === "number"
+            ? testCaseFieldId(prefix, position, "expectedOutput")
+            : field === "alternatives" && typeof position === "number"
             ? alternativeId(n, position)
             : field === "alternatives" || field === "correctAlternative"
               ? id("correctAlternative")
@@ -104,7 +115,19 @@ export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exe
     try {
       await onSave({ ...toExerciseInput(card), version: exercise.version } as UpdateExerciseRequest);
     } catch (error) {
-      setSummary([{ message: messageForError(error) }]);
+      // 019: `422 EXERCISE_RULES` lands on the case it names; anything else is a summary message.
+      const fields: Record<string, string> = {};
+      for (const { field, reason } of exerciseRuleViolations(error)) {
+        const caseMatch = /^testCases\.(\d+)\.expectedOutput$/.exec(field);
+        const fieldId = caseMatch ? testCaseFieldId(prefix, Number(caseMatch[1]), "expectedOutput") : testCasesSectionId(prefix);
+        fields[fieldId] = reason === "TEST_CASE_EXPECTED_OUTPUT" ? EXPECTED_OUTPUT_MESSAGE : TEST_CASES_NOT_ALLOWED_MESSAGE;
+      }
+      setErrors(fields);
+      setSummary(
+        Object.keys(fields).length > 0
+          ? Object.entries(fields).map(([fieldId, message]) => ({ fieldId, message: message! }))
+          : [{ message: messageForError(error) }],
+      );
     }
   });
 
@@ -196,7 +219,11 @@ export function DraftEditor({ exercise, n, onSave, onCancel, label = `Editar exe
             name="expectedSolution"
             highlight={exercise.language?.highlight ?? null}
           />
-          <p className="m-0 mb-4 text-text-secondary">Linguagem: {exercise.language?.name ?? "—"}</p>
+          <p className="m-0 mb-4 text-text-secondary">
+            Linguagem: {exercise.language?.name ?? "—"}
+            {executionHint(execution) ? ` · ${executionHint(execution)}` : ""}
+          </p>
+          <ExerciseTestCases control={control} register={register} name="testCases" idPrefix={prefix} errorFor={(fieldId) => errors[fieldId]} />
         </>
       ) : null}
       {text("explanation", "Explicação")}

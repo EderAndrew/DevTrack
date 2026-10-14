@@ -17,8 +17,9 @@ expected or obtained output, a compiler message or stderr (`code-runner-boundary
 
 ## Changed
 
-| Type | Change |
+| Type | Metadata added |
 |---|---|
-| `exercise.created`, `exercise.updated` (010) | + `testCaseCount`, `publicTestCaseCount` |
+| `exercise.created` | `testCaseCount`, `publicTestCaseCount` (010; 0 for a type without cases) |
+| `exercise.edited` | `testCaseCount`, `publicTestCaseCount` (010; the list after the edit; the field name testCases joins `fields` when the list changed) |
 
 A returned pending run (`200`) writes nothing.

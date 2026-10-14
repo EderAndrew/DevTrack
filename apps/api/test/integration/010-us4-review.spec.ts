@@ -158,7 +158,7 @@ describe("010/US4 revisar, editar e aprovar o que a IA gerou", () => {
       const edited = await events("exercise.edited");
       expect(edited).toHaveLength(1);
       expect(edited[0]).toMatchObject({ actorUserId: teacher.id, targetType: "EXERCISE", targetId: mc.id });
-      expect(edited[0]!.metadata).toEqual({ origin: "AI_GENERATED", status: "DRAFT", fields: ["statement", "difficulty", "alternatives"] });
+      expect(edited[0]!.metadata).toEqual({ origin: "AI_GENERATED", status: "DRAFT", fields: ["statement", "difficulty", "alternatives"], testCaseCount: 0, publicTestCaseCount: 0 });
       expect(JSON.stringify(edited[0]!.metadata)).not.toContain("revisado");
 
       const approved = await client().post(`/api/exercises/${mc.id}/approve`, { version: res.body.version });
@@ -190,7 +190,7 @@ describe("010/US4 revisar, editar e aprovar o que a IA gerou", () => {
       const res = await client().put(`/api/exercises/${manual.id}`, editBody(view, { explanation: "Outra explicação" }));
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ origin: "MANUAL", status: "APPROVED", humanEdited: false, explanation: "Outra explicação" });
-      expect((await events("exercise.edited"))[0]!.metadata).toEqual({ origin: "MANUAL", status: "APPROVED", fields: ["explanation"] });
+      expect((await events("exercise.edited"))[0]!.metadata).toEqual({ origin: "MANUAL", status: "APPROVED", fields: ["explanation"], testCaseCount: 0, publicTestCaseCount: 0 });
     });
   });
 

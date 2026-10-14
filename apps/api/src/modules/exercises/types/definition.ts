@@ -8,6 +8,7 @@ import type {
   ExerciseTeacherView,
   ExerciseTopicView,
   ExerciseType,
+  TestCaseVisibility,
 } from "@repo/contracts";
 
 /**
@@ -39,6 +40,8 @@ export interface ExerciseRecord {
   language: { id: string; name: string; highlight: string | null } | null;
   /** Any order; the views sort by position. */
   alternatives: { id: string; text: string; isCorrect: boolean; position: number }[];
+  /** 019: CODE only; any order, the teacher view sorts by position. Never in a student view. */
+  testCases: { position: number; input: string; expectedOutput: string; visibility: TestCaseVisibility }[];
   reviewedBy: { name: string } | null;
   topic: ExerciseTopicView | null;
 }
@@ -51,6 +54,14 @@ export interface ExerciseTypeColumns {
   expectedSolution: string | null;
   languageId: string | null;
   isTrickQuestion: boolean;
+}
+
+/** A row of `exercise_test_cases` to write (019 research B16), 0-based position in the list's order. */
+export interface TestCaseRow {
+  position: number;
+  input: string;
+  expectedOutput: string;
+  visibility: TestCaseVisibility;
 }
 
 /** A row of `exercise_alternatives` to write, 0-based position in presentation order. */

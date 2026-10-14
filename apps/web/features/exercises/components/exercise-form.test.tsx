@@ -114,7 +114,7 @@ describe("010/US1 ExerciseForm — criar exercícios manualmente", () => {
           ],
           isTrickQuestion: true,
         },
-        { type: "CODE", statement: "Código 3", ...common, instructions: "Implemente.", expectedSolution: "class A {}", languageId: JAVA.id },
+        { type: "CODE", statement: "Código 3", ...common, instructions: "Implemente.", expectedSolution: "class A {}", languageId: JAVA.id, testCases: [] },
       ],
     });
   });
@@ -392,5 +392,49 @@ describe("014/US3 ExerciseForm — o professor escreve código colorido", () => 
         status: "APPROVED",
       }),
     });
+  });
+});
+
+describe("019/US2 ExerciseForm — casos de teste num conjunto", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const writes: { url: string; body: unknown }[] = [];
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    router.push.mockReset();
+    writes.length = 0;
+    fetchMock.mockImplementation(
+      exerciseApiMock((url, body) => {
+        writes.push({ url, body });
+        return json(201, { items: (body as { exercises: unknown[] }).exercises.map(() => exerciseView()) });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("019/US2-1 019/US2-2 só o cartão de código tem casos; o erro de um caso nomeia o exercício no resumo", async () => {
+    renderWithProviders(<ExerciseForm mode="set" />);
+    const user = userEvent.setup();
+    await fillOpenAnswer(user, 1);
+    await fillMultipleChoice(user, 2);
+    await fillCode(user, 3);
+    expect(within(card(1)).queryByRole("group", { name: "Casos de teste" })).toBeNull();
+    expect(within(card(2)).queryByRole("group", { name: "Casos de teste" })).toBeNull();
+    const cases = within(card(3)).getByRole("group", { name: "Casos de teste" });
+    await user.click(within(cases).getByRole("button", { name: "Adicionar caso" }));
+    await user.type(within(cases).getByLabelText(/^Entrada do caso 1/), "7");
+
+    await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
+    const field = within(cases).getByLabelText(/^Saída esperada do caso 1/);
+    await waitFor(() => expectFieldErrorLinked(field));
+    expect(screen.getByRole("link", { name: "Exercício 3: Informe a saída esperada do caso." }).getAttribute("href")).toBe(`#${field.id}`);
+    expect(writes).toHaveLength(0);
+
+    await user.type(field, "14");
+    await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const exercises = (writes[0]!.body as { exercises: Record<string, unknown>[] }).exercises;
+    expect(exercises.map((exercise) => exercise.testCases)).toEqual([undefined, undefined, [{ input: "7", expectedOutput: "14", visibility: "PUBLIC" }]]);
   });
 });

@@ -1,5 +1,6 @@
 import type { ExerciseTeacherView } from "@repo/contracts";
 import { type ExerciseRecord, exerciseType } from "../types";
+import { byPosition } from "../types/definition";
 
 /** Everything about an exercise, for its owner (010 research X12). */
 export function toTeacherView(record: ExerciseRecord): ExerciseTeacherView {
@@ -15,8 +16,8 @@ export function toTeacherView(record: ExerciseRecord): ExerciseTeacherView {
     archivedFromStatus: record.archivedFromStatus,
     version: record.version,
     ...exerciseType(record.type).teacherFields(record),
-    // 019: the bank's test cases arrive with US2 (T014).
-    testCases: [],
+    // 019: PUBLIC and PRIVATE, for the owner only; no student view has them.
+    testCases: byPosition(record.testCases).map(({ position, input, expectedOutput, visibility }) => ({ position, input, expectedOutput, visibility })),
     topic: record.topic,
     humanReviewed: record.humanReviewed,
     humanEdited: record.humanEdited,

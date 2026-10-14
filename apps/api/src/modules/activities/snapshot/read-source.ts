@@ -108,6 +108,8 @@ async function readExercises(tx: Tx, teacherId: string, exerciseIds: string[]): 
       isTrickQuestion: true,
       syllabusItemId: true,
       alternatives: { orderBy: { position: "asc" }, select: { position: true, text: true, isCorrect: true } },
+      // 019/FR-002: copied with the rest of the snapshot.
+      testCases: { orderBy: { position: "asc" }, select: { position: true, input: true, expectedOutput: true, visibility: true } },
     },
   });
   const byId = new Map(rows.map((row) => [row.id, row]));

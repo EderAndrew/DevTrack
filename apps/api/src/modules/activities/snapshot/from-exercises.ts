@@ -1,4 +1,4 @@
-import { EXERCISE_POINTS, type ExerciseDifficulty, type WorkQuestionType } from "@repo/contracts";
+import { EXERCISE_POINTS, type ExerciseDifficulty, type TestCaseVisibility, type WorkQuestionType } from "@repo/contracts";
 import { gradingStrategyOf } from "../../works/types";
 import type { ActivitySnapshot } from "./snapshot";
 
@@ -17,13 +17,16 @@ export interface ExerciseSource {
   isTrickQuestion: boolean;
   syllabusItemId: string | null;
   alternatives: { position: number; text: string; isCorrect: boolean }[];
+  /** 019: the bank exercise's test cases (CODE only), PUBLIC and PRIVATE. */
+  testCases: { position: number; input: string; expectedOutput: string; visibility: TestCaseVisibility }[];
 }
 
 /**
  * An EXERCISE activity copies 1–10 exercises in the teacher's order (012 research P2, P6): each
  * becomes a question of the same type with the type's strategy (011 `gradingStrategyOf`, used only to
  * tell right from wrong) and, instead of a value, the exercise's difficulty and its fixed points
- * (013 research K2): changing the exercise in the bank later never changes the activity.
+ * (013 research K2), and a CODE exercise its test cases (019/FR-002, in the bank's order): changing
+ * the exercise in the bank later never changes the activity.
  */
 export function snapshotFromExercises(exercises: readonly ExerciseSource[]): ActivitySnapshot {
   return {
@@ -50,7 +53,10 @@ export function snapshotFromExercises(exercises: readonly ExerciseSource[]): Act
         exercise.type === "MULTIPLE_CHOICE"
           ? [...exercise.alternatives].sort((a, b) => a.position - b.position).map((alternative, index) => ({ ...alternative, position: index }))
           : [],
-      testCases: [],
+      testCases:
+        exercise.type === "CODE"
+          ? [...exercise.testCases].sort((a, b) => a.position - b.position).map((testCase, index) => ({ ...testCase, position: index }))
+          : [],
       topicItemIds: exercise.syllabusItemId ? [exercise.syllabusItemId] : [],
     })),
   };

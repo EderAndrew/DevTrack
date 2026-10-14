@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/ui/code/code-block";
 import { Status, type StatusVariant } from "@/components/ui/status";
 import { COGNITIVE_OBJECTIVE_LABELS, DIFFICULTY_LABELS } from "../schemas/exercise-form";
+import { TestCaseList } from "./exercise-test-cases";
 
 /** The pieces the bank, the exercise page and the batch review show of an exercise (010 contracts/web-ui.md). */
 
@@ -75,6 +76,11 @@ export function ExerciseContent({ exercise }: { exercise: ExerciseTeacherView })
         </Item>
       ) : null}
       {exercise.language ? <Item term="Linguagem">{exercise.language.name}</Item> : null}
+      {exercise.type === "CODE" ? (
+        <Item term="Casos de teste">
+          <TestCaseList cases={exercise.testCases} />
+        </Item>
+      ) : null}
       <Item term="Explicação">{exercise.explanation}</Item>
     </dl>
   );

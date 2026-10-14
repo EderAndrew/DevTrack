@@ -87,7 +87,7 @@ describe("010/US1 criar exercícios manualmente", () => {
     for (const [index, event] of events.entries()) {
       expect(event).toMatchObject({ actorType: "USER", actorUserId: teacher.id, targetType: "EXERCISE", targetId: res.body.items[index].id });
       expect(event.requestId).not.toBeNull();
-      expect(event.metadata).toEqual({ type: res.body.items[index].type, difficulty: "BASIC", status: "APPROVED", setSize: 3, syllabusItemId: null });
+      expect(event.metadata).toEqual({ type: res.body.items[index].type, difficulty: "BASIC", status: "APPROVED", setSize: 3, syllabusItemId: null, testCaseCount: 0, publicTestCaseCount: 0 });
     }
     // The audit never carries the content (contracts/audit-events.md).
     expect(JSON.stringify(events.map((event) => event.metadata))).not.toContain("herança");
@@ -221,7 +221,7 @@ describe("010/US1 criar exercícios manualmente", () => {
       expect(res.body).toMatchObject({ type: "CODE", origin: "MANUAL", status: "DRAFT", language: { id: java, name: "Java" } });
 
       const [event] = await created();
-      expect(event!.metadata).toEqual({ type: "CODE", difficulty: "BASIC", status: "DRAFT", setSize: 1, syllabusItemId: null });
+      expect(event!.metadata).toEqual({ type: "CODE", difficulty: "BASIC", status: "DRAFT", setSize: 1, syllabusItemId: null, testCaseCount: 0, publicTestCaseCount: 0 });
 
       const got = await client.get(`/api/exercises/${res.body.id}`);
       expect(got.status).toBe(200);

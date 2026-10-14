@@ -253,8 +253,9 @@ const SPECS: FeatureSpec[] = [
     successCriteria: sc(1, 8),
     // Joined in the Foundational phase (T011); each story leaves `pending` with the task that writes its
     // last test, each SC with the test that cites it, so the lists are empty at the end of T040.
-    // SC-006 since Phase 2 (code-runner-boundary.spec.ts: no content in audit or logs).
-    pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-007", "SC-008"] },
+    // SC-006 since Phase 2 (code-runner-boundary.spec.ts: no content in audit or logs); US2 (with SC-002,
+    // 019-private-cases.spec.ts) since Phase 3.
+    pending: { stories: [1, 3, 4], successCriteria: ["SC-001", "SC-003", "SC-004", "SC-005", "SC-007", "SC-008"] },
   },
 ];
 

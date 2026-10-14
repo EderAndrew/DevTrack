@@ -6,6 +6,7 @@ import {
   ExerciseInputSchema,
   type ExerciseTeacherView,
   type ExerciseType,
+  type TestCaseVisibility,
 } from "@repo/contracts";
 import { z } from "zod";
 import { INVALID_DATA } from "@/lib/forms/field-messages";
@@ -53,7 +54,25 @@ export interface ExerciseCardValues {
   starterCode: string;
   expectedSolution: string;
   languageId: string;
+  /** 019: CODE only, in the order the student sees the public ones. */
+  testCases: TestCaseFormValue[];
 }
+
+/** One test case of the form (019 contracts/web-ui.md); `key` is the form's own, for the list's keys. */
+export interface TestCaseFormValue {
+  key: string;
+  input: string;
+  expectedOutput: string;
+  visibility: TestCaseVisibility;
+}
+
+export const emptyTestCase = (): TestCaseFormValue => ({ key: crypto.randomUUID(), input: "", expectedOutput: "", visibility: "PUBLIC" });
+
+/** The visibility radios (019 contracts/web-ui.md). */
+export const TEST_CASE_VISIBILITY_LABELS: Record<TestCaseVisibility, string> = {
+  PUBLIC: "Público — o aluno vê e pode executar",
+  PRIVATE: "Privado — fica só no servidor",
+};
 
 export interface AlternativeFormValue {
   key: string;
@@ -83,6 +102,7 @@ export const emptyCard = (): ExerciseCardValues => ({
   starterCode: "",
   expectedSolution: "",
   languageId: "",
+  testCases: [],
 });
 
 /** The card of a saved exercise, for editing it (010 US4): its alternatives keep their order and mark. */
@@ -106,6 +126,7 @@ export function cardFromView(view: ExerciseTeacherView): ExerciseCardValues {
     starterCode: view.starterCode ?? "",
     expectedSolution: view.expectedSolution ?? "",
     languageId: view.language?.id ?? "",
+    testCases: view.testCases.map(({ input, expectedOutput, visibility }) => ({ key: crypto.randomUUID(), input, expectedOutput, visibility })),
   };
 }
 
@@ -140,6 +161,8 @@ export function toExerciseInput(card: ExerciseCardValues): ExerciseInput {
     starterCode: optional(card.starterCode),
     expectedSolution: card.expectedSolution,
     languageId: optional(card.languageId),
+    // 019: the whole list, every save (the API replaces it); texts as typed, never trimmed.
+    testCases: card.testCases.map(({ input, expectedOutput, visibility }) => ({ input, expectedOutput, visibility })),
   } as ExerciseInput;
 }
 
@@ -155,6 +178,10 @@ const EMPTY_MESSAGES: Record<string, string> = {
   expectedSolution: "Informe a solução esperada.",
   languageId: "Escolha a linguagem.",
 };
+/** 019: the API's `TEST_CASE_EXPECTED_OUTPUT`, said before sending. */
+export const EXPECTED_OUTPUT_MESSAGE = "Informe a saída esperada do caso.";
+/** 019: the API's `TEST_CASES_NOT_ALLOWED` (a type without cases never sends them; kept for the API's answer). */
+export const TEST_CASES_NOT_ALLOWED_MESSAGE = "Só exercícios de código têm casos de teste.";
 export const CORRECT_COUNT_MESSAGE = "Marque a alternativa correta.";
 export const DUPLICATE_TEXT_MESSAGE = "As alternativas não podem repetir o mesmo texto.";
 
@@ -175,6 +202,14 @@ export function exerciseFormSchema(min: number, max: number) {
     .superRefine(({ cards }, ctx) => {
       cards.forEach((card, index) => {
         const input = toExerciseInput(card);
+        // 019: the server refuses an empty expected output (422); the form says it first, on the case.
+        if (card.type === "CODE") {
+          card.testCases.forEach((testCase, position) => {
+            if (testCase.expectedOutput === "") {
+              ctx.addIssue({ code: "custom", path: ["cards", index, "testCases", position, "expectedOutput"], message: EXPECTED_OUTPUT_MESSAGE });
+            }
+          });
+        }
         const result = ExerciseInputSchema.safeParse(input);
         if (result.success) return;
         for (const issue of result.error.issues) {

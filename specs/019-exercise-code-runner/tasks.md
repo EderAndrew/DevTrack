@@ -176,7 +176,7 @@ aplicar; editar os casos no banco e conferir que a atividade já aplicada não m
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T012 [P] [US2] `apps/api/test/integration/019-us2-test-cases.spec.ts`: `019/US2-1`…`019/US2-5`,
+- [X] T012 [P] [US2] `apps/api/test/integration/019-us2-test-cases.spec.ts`: `019/US2-1`…`019/US2-5`,
   `019/FR-001`…`019/FR-003` (0, 1, 20 e 21 casos; entrada vazia aceita; saída esperada vazia → 422
   `EXERCISE_RULES`/`TEST_CASE_EXPECTED_OUTPUT`; casos em Múltipla escolha → 422
   `EXERCISE_RULES`/`TEST_CASES_NOT_ALLOWED`; 21 casos → 400; edição de
@@ -184,7 +184,7 @@ aplicar; editar os casos no banco e conferir que a atividade já aplicada não m
   muda a atividade; exercício sem caso público aplicado normalmente; rascunho de "Criar com IA" sem
   casos e o agente intocado — nenhum campo novo na proposta da 010; auditoria com
   `testCaseCount`/`publicTestCaseCount`).
-- [ ] T013 [P] [US2] `apps/api/test/security/019-private-cases.spec.ts` (parte do banco e da visão,
+- [X] T013 [P] [US2] `apps/api/test/security/019-private-cases.spec.ts` (parte do banco e da visão,
   `019/FR-004`, `019/SC-002`): a visão do aluno da atividade (antes e depois de concluir) traz só
   `publicTestCases`; nenhuma chave, valor ou contagem de caso privado (procura o marcador
   `MARCADOR-PRIVADO-019` na entrada e na saída esperada em todo JSON do aluno); outro professor →
@@ -192,15 +192,15 @@ aplicar; editar os casos no banco e conferir que a atividade já aplicada não m
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] API do banco: regras de casos em `apps/api/src/modules/exercises/rules/` (violações
+- [X] T014 [US2] API do banco: regras de casos em `apps/api/src/modules/exercises/rules/` (violações
   da T012), serviço (`exercises.service.ts`: criar, editar e `sets` substituem os casos inteiros na
   mesma transação, com a `version` otimista da 010), visão do professor com `testCases`,
   `programming-languages.service.ts` com `execution`, metadados de auditoria
   (`contracts/audit-events.md` "Changed").
-- [ ] T015 [US2] Snapshot: `apps/api/src/modules/activities/snapshot/read-source.ts` lê os casos do
+- [X] T015 [US2] Snapshot: `apps/api/src/modules/activities/snapshot/read-source.ts` lê os casos do
   exercício e `from-exercises.ts` os copia (no lugar de `testCases: []`); `snapshot.spec.ts` com o
   caso de exercício de código com casos.
-- [ ] T016 [P] [US2] Web do banco (contracts/web-ui.md "Teacher"): `apps/web/features/exercises/components/exercise-test-cases.tsx`
+- [X] T016 [P] [US2] Web do banco (contracts/web-ui.md "Teacher"): `apps/web/features/exercises/components/exercise-test-cases.tsx`
   (adicionar até 20, remover, mover para cima/baixo, visibilidade em rádio, campos ligados aos erros
   da API) dentro de `exercise-form.tsx`, a frase de execução ao lado da linguagem e a lista em
   `exercise-detail.tsx`; testes `exercise-test-cases.test.tsx` e `exercise-form.test.tsx`

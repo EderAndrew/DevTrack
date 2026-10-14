@@ -132,8 +132,9 @@ export const AUDIT_EVENT_METADATA = {
   ],
   // 010 — the exercise bank. Only ids, counts and enums: never statements, answers, solutions,
   // explanations or alternative texts.
-  "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId"],
-  "exercise.edited": ["origin", "status", "fields"],
+  // 019 adds the size of the test-case list (contracts/audit-events.md "Changed"), never a case.
+  "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId", "testCaseCount", "publicTestCaseCount"],
+  "exercise.edited": ["origin", "status", "fields", "testCaseCount", "publicTestCaseCount"],
   "exercise.approved": ["origin", "humanEdited", "batchId"],
   "exercise.discarded": ["exerciseId", "batchId"],
   "exercise.archived": ["from"],
