@@ -62,6 +62,9 @@ describe("falha no envio de e-mail (edge case; FR-016, FR-041, FR-029a)", () => 
     template: "verify-email" | "password-reset",
     use: (token: string) => Promise<{ status: number }>,
   ) => {
+    // The control request on `normal` sends its e-mail after the commit: wait for it, or the worker
+    // below may also claim it while it is still PENDING (a race seen under the full suite's load).
+    await normal.flushMail();
     const delivery = await normal.prisma.mailDelivery.findFirstOrThrow({ where: { kind, user: { email } }, orderBy: { createdAt: "desc" } });
     expect(delivery).toMatchObject({ status: "PENDING", attempts: 1, lastErrorCode: "ECONNECTION" });
     const failedToken = new URL(
