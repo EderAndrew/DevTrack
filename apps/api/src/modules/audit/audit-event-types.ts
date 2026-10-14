@@ -164,6 +164,9 @@ export const AUDIT_EVENT_METADATA = {
   "exam.approved": ["origin", "humanEdited"],
   "exam.archived": ["fromStatus"],
   "exam.restored": ["fromStatus"],
+  "exam_generation.requested": ["subjectId", "quantity", "topicCount"],
+  "exam_generation.completed": ["examId", "aiExecutionId"],
+  "exam_generation.rejected": ["aiExecutionId", "code"],
   "work_generation.requested": [
     "executionId",
     "subjectId",
@@ -333,6 +336,7 @@ export type AuditTargetType =
   | "WORK"
   | "WORK_GENERATION_REQUEST"
   | "EXAM"
+  | "EXAM_GENERATION_REQUEST"
   | "CLASS_ACTIVITY"
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"

@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 
 /**
  * On-demand evaluation (007 research C17, FR-051; 010 research X16; 011 research W17): `pnpm --filter api
- * eval:curriculum`, `pnpm --filter api eval:exercises` and `pnpm --filter api eval:works`, one file each. Only
+ * eval:curriculum`, `pnpm --filter api eval:exercises` and `pnpm --filter api eval:works` (and later `eval:help`,
+ * `eval:exams`), one file each. Only
  * `test/eval/**\/*.eval.ts`, never in the default suite nor in CI: it calls the real provider and
  * needs `OPENROUTER_API_KEY` (008 research G20). Same database setup as the default suite (the test database).
  */

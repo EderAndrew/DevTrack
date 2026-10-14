@@ -12,8 +12,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  // 018: "Criar prova com IA" arrives with US7 (the bank's left with US1, the decisions with US5).
-  "ia.provas.gerar",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

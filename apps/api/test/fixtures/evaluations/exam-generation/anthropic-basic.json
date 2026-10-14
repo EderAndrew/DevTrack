@@ -1,0 +1,28 @@
+{
+  "task": "exam-generation",
+  "model": "anthropic/claude-haiku-4.5",
+  "servedModel": "anthropic/claude-haiku-4.5",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-14T00:26:54.692Z",
+  "metrics": {
+    "schemaValidity": 1,
+    "configMatch": 1,
+    "duplicates": 0,
+    "topicCoverage": 1,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.079750",
+    "currency": "USD",
+    "perExecution": "0.019937"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 38961,
+      "poo-java-cinco-questoes": 44777,
+      "python-vinte-questoes": 32036,
+      "sql-sem-linguagem": 15338
+    },
+    "maxMs": 44777
+  }
+}

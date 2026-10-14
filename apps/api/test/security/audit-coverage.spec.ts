@@ -48,11 +48,7 @@ const PENDING_015 = new Set<string>([]);
 const PENDING_016 = new Set<string>([]);
 
 /** 018 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_018 = new Set<string>([
-  "exam_generation.requested",
-  "exam_generation.completed",
-  "exam_generation.rejected",
-]);
+const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([
   "activity_submission.rejected",

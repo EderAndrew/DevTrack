@@ -161,6 +161,7 @@ import {
   TeacherExamSchema,
   UpdateExamRequestSchema,
 } from "./exams/exam.js";
+import { CreateExamGenerationRequestSchema, ExamGenerationAvailabilitySchema, ExamGenerationRequestSchema } from "./exams/generation.js";
 import {
   WorkGenerationAvailabilitySchema,
   WorkGenerationRequestListQuerySchema,
@@ -1046,6 +1047,28 @@ export const endpoints = {
   "exams.archive": { method: "POST", path: "/exams/:id/archive", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
   /** ARCHIVED → the status it had before; anything else → 409. */
   "exams.restore": { method: "POST", path: "/exams/:id/restore", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  // 018/US7 — "Criar prova com IA": generation requests; the generated exam is a DRAFT of the bank.
+  "examGenerationRequests.availability": {
+    method: "GET",
+    path: "/exam-generation/availability",
+    response: ExamGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new request; 200 when the same key and body return the existing one. */
+  "examGenerationRequests.request": {
+    method: "POST",
+    path: "/exam-generation-requests",
+    body: CreateExamGenerationRequestSchema,
+    response: ExamGenerationRequestSchema,
+    status: 202,
+  },
+  "examGenerationRequests.get": {
+    method: "GET",
+    path: "/exam-generation-requests/:id",
+    params: IdParamsSchema,
+    response: ExamGenerationRequestSchema,
+    status: 200,
+  },
   // 011 — "Criar trabalho com IA": generation requests.
   "workGenerationRequests.availability": {
     method: "GET",

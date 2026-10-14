@@ -30,8 +30,8 @@ question, topics required.
 
 | Method & path | Permission | Body → Response | Errors |
 |---|---|---|---|
-| `GET /exam-generation/availability` | `ia.provas.gerar` | → `{ available, reason? }` | — |
-| `POST /exam-generation-requests` | `ia.provas.gerar` | `{ subjectId, syllabusRevisionId, title, topicIds[1..10], difficulty, totalGrade, quantity(1..20), distribution: { OPEN_ANSWER, MULTIPLE_CHOICE, CODE }, trickCount(0..3), idempotencyKey }` → `202 ExamGenerationRequest` | 400 (model, provider, tier fields refused); 404; 409 `AI_UNAVAILABLE`; 422 `GENERATION_RULES`; 429 |
+| `GET /exam-generation/availability` | `ia.provas.gerar` | → `{ availability: AVAILABLE \| AGENT_DISABLED \| MODEL_UNAVAILABLE \| PAUSED }` (as 011) | — |
+| `POST /exam-generation-requests` | `ia.provas.gerar` | `{ subjectId, syllabusRevisionId, title, topicIds[1..10], difficulty, totalGrade, quantity(1..20), distribution: { OPEN_ANSWER, MULTIPLE_CHOICE, CODE }, trickCount(0..3), idempotencyKey }` → `202 ExamGenerationRequest` (`200` for the same key and body) | 400 (model, provider, tier fields refused; the request's own rules); 404; 409 `AI_AGENT_DISABLED`, `SUBJECT_ARCHIVED`, `AI_IDEMPOTENCY_KEY_REUSED`; 422 `REVISION_NOT_CONFIRMED`, `SYLLABUS_LANGUAGE_REQUIRED`; 429; 503 `AI_MODEL_UNAVAILABLE` |
 | `GET /exam-generation-requests/:id` | `ia.provas.gerar` | → `ExamGenerationRequest` (`status` derived; `examId` when generated) | 404 |
 
 The generated exam is a DRAFT in the bank; approval only through `POST /exams/:id/approve`.

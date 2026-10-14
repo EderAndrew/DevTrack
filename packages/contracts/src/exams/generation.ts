@@ -62,6 +62,12 @@ export const CreateExamGenerationRequestSchema = z
   });
 export type CreateExamGenerationRequest = z.infer<typeof CreateExamGenerationRequestSchema>;
 
+/** `GET /exam-generation/availability`: whether "Criar prova com IA" can be used now (as 011). */
+export const ExamGenerationAvailabilitySchema = z.strictObject({
+  availability: z.enum(["AVAILABLE", "AGENT_DISABLED", "MODEL_UNAVAILABLE", "PAUSED"]),
+});
+export type ExamGenerationAvailability = z.infer<typeof ExamGenerationAvailabilitySchema>;
+
 /** A request and where its generation stands (status derived from the execution, never stored). */
 export const ExamGenerationRequestSchema = z.strictObject({
   id: UuidSchema,

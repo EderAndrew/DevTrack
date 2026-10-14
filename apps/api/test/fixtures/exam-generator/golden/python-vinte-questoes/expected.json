@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "description": "Três tópicos de Python, o máximo de 20 questões (8 Pergunta e resposta, 8 Múltipla escolha, 4 Código) e até 2 pegadinhas: o limite do 018/FR-005.",
+  "injection": false,
+  "syllabus": {
+    "title": "Introdução à Programação com Python",
+    "competencyText": "Resolver problemas com listas, dicionários e funções em Python.",
+    "languageKey": "python",
+    "groups": [
+      { "title": "Estruturas de dados", "items": ["Listas", "Dicionários"] },
+      { "title": "Modularização", "items": ["Funções", "Módulos"] }
+    ]
+  },
+  "topics": ["Listas", "Dicionários", "Funções"],
+  "request": {
+    "title": "Prova de Python",
+    "difficulty": "INTERMEDIATE",
+    "totalGrade": "10.00",
+    "quantity": 20,
+    "distribution": { "OPEN_ANSWER": 8, "MULTIPLE_CHOICE": 8, "CODE": 4 },
+    "trickCount": 2
+  },
+  "keyTerms": {
+    "T1": ["lista", "append", "índice", "indice", "fatiamento", "slice", "[", "list("],
+    "T2": ["dicionário", "dicionario", "chave", "dict", "items(", "keys(", "values(", "{"],
+    "T3": ["função", "funcao", "funções", "def ", "return", "parâmetro", "parametro", "argumento"]
+  },
+  "forbiddenPatterns": []
+}

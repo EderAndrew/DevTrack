@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "description": "Ementa de banco de dados sem linguagem do catálogo: 6 questões só de Pergunta e resposta e Múltipla escolha, até 1 pegadinha, sem Código.",
+  "injection": false,
+  "syllabus": {
+    "title": "Banco de Dados",
+    "competencyText": "Consultar dados relacionais com junções e agregações.",
+    "languageKey": null,
+    "groups": [{ "title": "Consultas", "items": ["Junções (JOIN)", "Agregação com GROUP BY", "Subconsultas"] }]
+  },
+  "topics": ["Junções (JOIN)", "Agregação com GROUP BY"],
+  "request": {
+    "title": "Prova de SQL",
+    "difficulty": "BASIC",
+    "totalGrade": "6.00",
+    "quantity": 6,
+    "distribution": { "OPEN_ANSWER": 3, "MULTIPLE_CHOICE": 3, "CODE": 0 },
+    "trickCount": 1
+  },
+  "keyTerms": {
+    "T1": ["join", "junção", "juncao", "junções", "inner", "left", "right", "outer"],
+    "T2": ["group by", "agrega", "count(", "sum(", "avg(", "having", "agrup"]
+  },
+  "forbiddenPatterns": []
+}

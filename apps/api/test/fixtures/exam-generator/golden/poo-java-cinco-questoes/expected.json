@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "Dois tópicos de POO em Java, 5 questões (2 Pergunta e resposta, 2 Múltipla escolha, 1 Código) e até 1 pegadinha: o pedido do 018/US7-1.",
+  "injection": false,
+  "syllabus": {
+    "title": "Programação Orientada a Objetos",
+    "competencyText": "Modelar problemas com classes, herança e polimorfismo em Java.",
+    "languageKey": "java",
+    "groups": [
+      { "title": "Orientação a objetos", "items": ["Herança", "Polimorfismo", "Classes abstratas"] },
+      { "title": "Coleções", "items": ["Listas", "Mapas"] }
+    ]
+  },
+  "topics": ["Herança", "Polimorfismo"],
+  "request": {
+    "title": "Prova de POO",
+    "difficulty": "INTERMEDIATE",
+    "totalGrade": "10.00",
+    "quantity": 5,
+    "distribution": { "OPEN_ANSWER": 2, "MULTIPLE_CHOICE": 2, "CODE": 1 },
+    "trickCount": 1
+  },
+  "keyTerms": {
+    "T1": ["herança", "herda", "herdar", "extends", "superclasse", "subclasse", "classe pai", "classe filha", "super("],
+    "T2": ["polimorf", "sobrescrit", "sobrescrev", "override", "sobrecarga", "ligação dinâmica"]
+  },
+  "forbiddenPatterns": []
+}

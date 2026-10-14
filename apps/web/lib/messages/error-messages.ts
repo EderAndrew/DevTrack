@@ -239,6 +239,9 @@ export const EXERCISE_AI_UNAVAILABLE = "A geração com IA está indisponível n
 /** Why "Criar trabalho com IA" can't take a request now (011/US3-8): never the provider or the model. */
 export const WORK_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar o trabalho manualmente.";
 
+/** Why "Criar prova com IA" can't take a request now (018/US7-3, contracts/web-ui.md): never the provider or the model. */
+export const EXAM_AI_UNAVAILABLE = "A geração com IA não está disponível. Crie a prova manualmente.";
+
 /** The last analysis found nothing to propose (007/FR-017). */
 export const CURRICULUM_AI_NOTHING_FOUND =
   "Não foi possível identificar conteúdo de ementa neste documento. Preencha manualmente.";

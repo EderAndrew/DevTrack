@@ -20,6 +20,8 @@ import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch
 import { scriptGeneration } from "./exercise-ai";
 import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
 import { scriptWorkGeneration } from "./work-ai";
+import { scriptExamGeneration } from "./exam-ai";
+import { validGeneratedExam } from "../fixtures/exam-generator/valid-exam";
 import { toUpdateBody } from "./works";
 import { toExamUpdateBody } from "./exams";
 import { createConfirmedTopic } from "./exercises";
@@ -464,6 +466,38 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const archivedExam = await teacherClient.post(`/api/exams/${examDraft.body.id}/archive`, { version: approvedExam.body.version });
   expect(archivedExam.status).toBe(200);
   expect((await teacherClient.post(`/api/exams/${examDraft.body.id}/restore`, { version: archivedExam.body.version })).status).toBe(200);
+  // 018/US7 — "Criar prova com IA" by its own teacher: one generation becomes a DRAFT exam
+  // (`exam_generation.requested`, `exam_generation.completed`); another answers a question outside the
+  // chosen topic and is refused with nothing saved (`exam_generation.rejected` with the code only).
+  const examGenerationTeacher = await createUser(t, { roles: ["TEACHER"] });
+  const examGenerationClient = api(t, { cookie: await loginAs(t, examGenerationTeacher) });
+  const examGenerationTopic = await createConfirmedTopic(t, examGenerationTeacher.id, {
+    languageKey: null,
+    items: [text("tópico lido pelo gerador de provas (018)", "MARCADOR-TOPICO-018 Herança"), "Interfaces"],
+  });
+  const examGenerationBody = () => ({
+    subjectId: examGenerationTopic.subject.id,
+    syllabusRevisionId: examGenerationTopic.revision.id,
+    topicIds: [examGenerationTopic.itemId],
+    title: text("título do pedido de prova (018)", "Prova gerada da jornada dezoito"),
+    difficulty: "BASIC",
+    totalGrade: "2.00",
+    quantity: 2,
+    distribution: { OPEN_ANSWER: 2, MULTIPLE_CHOICE: 0, CODE: 0 },
+    trickCount: 0,
+    idempotencyKey: randomUUID(),
+  });
+  const generatedExamOutput = validGeneratedExam(
+    { difficulty: "BASIC", counts: { OPEN_ANSWER: 2, MULTIPLE_CHOICE: 0, CODE: 0 }, trickCount: 0, languageId: null, topicIds: [examGenerationTopic.itemId] },
+    text("texto gerado pela IA (018)", "MARCADOR-GERADO-018"),
+  );
+  for (const output of [generatedExamOutput, { ...generatedExamOutput, questions: generatedExamOutput.questions.map((question) => ({ ...question, topicIds: [randomUUID()] })) }]) {
+    const examRequest = await examGenerationClient.post("/api/exam-generation-requests", examGenerationBody());
+    expect(examRequest.status).toBe(202);
+    scriptExamGeneration(t.provider, examRequest.body.id, output);
+    expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  }
+  expect(await t.prisma.exam.count({ where: { teacherId: examGenerationTeacher.id, origin: "AI_GENERATED", status: "DRAFT" } })).toBe(1);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;

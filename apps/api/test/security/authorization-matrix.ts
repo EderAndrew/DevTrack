@@ -355,6 +355,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/exams/:id/approve", access: "provas.aprovar" },
   { method: "POST", path: "/exams/:id/archive", access: "provas.arquivar" },
   { method: "POST", path: "/exams/:id/restore", access: "provas.arquivar" },
+  { method: "GET", path: "/exam-generation/availability", access: "ia.provas.gerar" },
+  { method: "POST", path: "/exam-generation-requests", access: "ia.provas.gerar" },
+  { method: "GET", path: "/exam-generation-requests/:id", access: "ia.provas.gerar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

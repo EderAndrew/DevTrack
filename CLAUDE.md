@@ -46,8 +46,8 @@ Take-home works, AI grading and code execution are later features (exams arrive 
 under "Recent Changes" and the `exams-boundary` guard below). The rules of 012–017 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
-AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
-DISABLED until the admin enables them. All four tasks are BASIC; each task's primary and fallback come from the 009
+AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
+registered DISABLED until the admin enables them. All five tasks are BASIC; each task's primary and fallback come from the 009
 catalog, backed by the release-gate evidence in `apps/api/test/fixtures/evaluations/` (current
 results per model: `apps/api/CLAUDE.md`).
 
@@ -136,6 +136,9 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
                                                         # 015 release gate of the AI help (work-helper), same flags; evidence in
                                                         # test/fixtures/evaluations/work-help/, with each case's latency
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:exams
+                                                        # 018 release gate of the exam generator, same flags; evidence in
+                                                        # test/fixtures/evaluations/exam-generation/
 pnpm --filter api mail:notice --kind bounced --delivery <id> [--bad-signature]
                                                         # 017 dev helper (runs dist/): posts a Resend notice signed with
                                                         # MAIL_NOTICE_SECRET for that delivery; kinds delivered|bounced|complained|failed

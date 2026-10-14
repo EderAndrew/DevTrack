@@ -17,7 +17,11 @@ export default async function ExamBankPage({ searchParams }: Props) {
 
   return (
     <section className="mx-auto w-full max-w-256">
-      <ExamBankHome canCreate={me.permissions.includes("provas.criar")} created={(await searchParams).criada === "1"} />
+      <ExamBankHome
+        canCreate={me.permissions.includes("provas.criar")}
+        canGenerate={me.permissions.includes("ia.provas.gerar")}
+        created={(await searchParams).criada === "1"}
+      />
     </section>
   );
 }

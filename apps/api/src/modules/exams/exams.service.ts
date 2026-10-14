@@ -22,6 +22,7 @@ import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
 import { clearExamContent, writeExamContent } from "./exam-content";
 import { examEditDiff } from "./exam-edit";
+import { ExamReview } from "./exam-review";
 import { afterUpdated, EXAM_PAGE_SIZE_DEFAULT, EXAM_RECORD_SELECT, EXAM_SUMMARY_SELECT, examListWhere, toExamRecord, toExamSummary } from "./exam-query";
 import { approvalViolations, examStructureViolations, inputApprovalViolations } from "./exam-rules";
 import { ExamTopics } from "./exam-topics";
@@ -45,6 +46,7 @@ export class ExamsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly examTopics: ExamTopics,
+    private readonly review: ExamReview,
   ) {}
 
   async getForTeacher(teacherId: string, examId: string, db: Tx = this.prisma): Promise<TeacherExam> {
@@ -209,7 +211,8 @@ export class ExamsService {
   /**
    * DRAFT → APPROVED by a person (FR-004): every question with its key, a difficulty and a topic, or
    * `422 EXAM_RULES` naming the positions. Already APPROVED → the exam as it is, no event; ARCHIVED →
-   * `409 EXAM_ARCHIVED` (a restore, never an approval).
+   * `409 EXAM_ARCHIVED` (a restore, never an approval). A generated exam's proposal closes in the same
+   * transaction (`ExamReview`, FR-006: only this approval by a person approves it).
    */
   async approve(auth: AuthContext, examId: string, body: ExamVersion, requestId: string | null): Promise<TeacherExam> {
     return this.prisma.runInTransaction(async (tx) => {
@@ -224,11 +227,17 @@ export class ExamsService {
         data: { status: "APPROVED", humanReviewed: true, reviewedById: auth.userId, reviewedAt: new Date(), version: { increment: 1 } },
       });
       await this.recordApproval(tx, auth, examId, { origin: current.origin, humanEdited: current.humanEdited }, requestId);
+      if (current.generationRequestId) {
+        await this.review.changed(tx, { auth, examId, generationRequestId: current.generationRequestId, requestId, now: new Date() });
+      }
       return this.getForTeacher(auth.userId, examId, tx);
     });
   }
 
-  /** DRAFT or APPROVED → ARCHIVED, keeping the status a restore goes back to; already ARCHIVED → no event. */
+  /**
+   * DRAFT or APPROVED → ARCHIVED, keeping the status a restore goes back to; already ARCHIVED → no event.
+   * A generated exam archived before any approval closes its proposal REJECT (`ExamReview`).
+   */
   async archive(auth: AuthContext, examId: string, body: ExamVersion, requestId: string | null): Promise<TeacherExam> {
     return this.prisma.runInTransaction(async (tx) => {
       const current = await this.lockedRecord(tx, auth.userId, examId, body.version);
@@ -243,6 +252,9 @@ export class ExamsService {
         requestId,
         metadata: { fromStatus: current.status },
       });
+      if (current.generationRequestId && current.status === "DRAFT") {
+        await this.review.changed(tx, { auth, examId, generationRequestId: current.generationRequestId, requestId, now: new Date() });
+      }
       return this.getForTeacher(auth.userId, examId, tx);
     });
   }

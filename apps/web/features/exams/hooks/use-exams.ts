@@ -1,12 +1,12 @@
 "use client";
 
-import type { CreateExamRequest, ExamListQuery, TeacherExam, UpdateExamRequest } from "@repo/contracts";
+import type { CreateExamGenerationRequest, CreateExamRequest, ExamListQuery, TeacherExam, UpdateExamRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { subjectsApi } from "@/features/subjects/api/subjects";
 import { subjectsKeys } from "@/features/subjects/hooks/use-subjects";
 import { syllabusDocumentsApi } from "@/features/syllabus/api/syllabus-documents";
 import { syllabusKeys } from "@/features/syllabus/hooks/use-syllabus-documents";
-import { examsApi, isExamVersionConflict } from "../api/exams";
+import { examGenerationApi, examsApi, isExamVersionConflict } from "../api/exams";
 
 export { isExamVersionConflict };
 
@@ -18,7 +18,12 @@ export const examsKeys = {
   detail: (id: string) => [...examsKeys.all, id] as const,
   list: (filters: ExamFilters) => [...examsKeys.all, "list", filters] as const,
   languages: ["exams", "programming-languages"] as const,
+  generationAvailability: ["exam-generation", "availability"] as const,
+  generationRequest: (id: string) => ["exam-generation", "requests", id] as const,
 };
+
+/** How often a PENDING generation is read again until the draft is ready. */
+export const EXAM_GENERATION_POLL_MS = 3000;
 
 /** The exam's subject: the teacher's active subjects (first page, ordered by name). */
 export const useExamSubjects = () => useQuery({ queryKey: [...subjectsKeys.all, "exam-form"], queryFn: () => subjectsApi.list({ status: "ACTIVE" }) });
@@ -70,3 +75,18 @@ export function useExamActions(id: string) {
     reload: () => queryClient.invalidateQueries({ queryKey: examsKeys.detail(id), exact: true }),
   };
 }
+
+/** Whether "Criar prova com IA" can take a request now (agent, model, processing). */
+export const useExamGenerationAvailability = () =>
+  useQuery({ queryKey: examsKeys.generationAvailability, queryFn: examGenerationApi.availability });
+
+export const useRequestExamGeneration = () =>
+  useMutation({ mutationFn: (body: CreateExamGenerationRequest) => examGenerationApi.request(body) });
+
+/** One request, read again while PENDING; once GENERATED it names the DRAFT exam. */
+export const useExamGenerationRequest = (id: string) =>
+  useQuery({
+    queryKey: examsKeys.generationRequest(id),
+    queryFn: () => examGenerationApi.get(id),
+    refetchInterval: (query) => (query.state.data?.status === "PENDING" ? EXAM_GENERATION_POLL_MS : false),
+  });

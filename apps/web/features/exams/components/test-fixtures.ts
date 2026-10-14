@@ -1,4 +1,4 @@
-import type { ExamSummary, ProgrammingLanguageView, SubjectView, SyllabusDocumentView, SyllabusRevisionView, TeacherExam } from "@repo/contracts";
+import type { ExamGenerationRequest, ExamSummary, ProgrammingLanguageView, SubjectView, SyllabusDocumentView, SyllabusRevisionView, TeacherExam } from "@repo/contracts";
 import { apiError, json, subjectView } from "@/features/subjects/components/test-fixtures";
 import { revisionView } from "@/features/syllabus/components/test-fixtures";
 
@@ -128,3 +128,27 @@ export function examApiMock(
     return apiError(404, "NOT_FOUND", "Não encontrado.");
   };
 }
+
+/** An `ExamGenerationRequest` of the contract (018/US7): PENDING on Herança and Polimorfismo, 5 questions. */
+export const examGenerationView = (overrides: Partial<ExamGenerationRequest> = {}): ExamGenerationRequest => ({
+  id: "00000000-0000-4000-e000-000000000201",
+  status: "PENDING",
+  subject: { id: POO.id, name: POO.name },
+  syllabusRevisionId: POO_REVISION.id,
+  topics: [
+    { syllabusItemId: itemId("Herança"), itemText: "Herança" },
+    { syllabusItemId: itemId("Polimorfismo"), itemText: "Polimorfismo" },
+  ],
+  title: "Prova de herança",
+  difficulty: "INTERMEDIATE",
+  totalGrade: "10.00",
+  quantity: 5,
+  distribution: { OPEN_ANSWER: 2, MULTIPLE_CHOICE: 2, CODE: 1 },
+  trickCount: 1,
+  executionId: "00000000-0000-4000-e000-000000000202",
+  createdAt: "2026-10-13T12:00:00.000Z",
+  generatedAt: null,
+  failureCode: null,
+  examId: null,
+  ...overrides,
+});

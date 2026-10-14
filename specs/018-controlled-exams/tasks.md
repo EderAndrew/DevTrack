@@ -399,22 +399,22 @@ intactas, nenhuma ocorrência durante a pausa.
 **Independent Test**: com o provedor falso, gerar 5 questões → DRAFT `AI_GENERATED`, tópicos
 escolhidos, aprovação só pelo professor.
 
-- [ ] T043 [P] [US7] `apps/api/test/integration/018-us7-ai.spec.ts`: `018/US7-1`…`018/US7-5`,
+- [X] T043 [P] [US7] `apps/api/test/integration/018-us7-ai.spec.ts`: `018/US7-1`…`018/US7-5`,
   `018/FR-005`, `018/FR-006`, `018/SC-009` (provedor falso de `apps/api/test/fixtures/ai`; saídas
   inválidas rejeitadas; agente desligado → indisponível; campos de modelo → 400; nenhuma chamada de
   IA durante tentativas).
-- [ ] T044 [P] [US7] `apps/api/src/modules/exam-ai/generation/validate-generated-exam.ts` +
+- [X] T044 [P] [US7] `apps/api/src/modules/exam-ai/generation/validate-generated-exam.ts` +
   `validate-generated-exam.spec.ts` (contracts/exam-generator.md "Validation").
-- [ ] T045 [US7] `apps/api/src/modules/exam-ai/`: `definitions/{exam-generator,exam-generation.prompt,
+- [X] T045 [US7] `apps/api/src/modules/exam-ai/`: `definitions/{exam-generator,exam-generation.prompt,
   read-exam-generation-request.tool,request.ownership}.ts` (agente DISABLED, tarefa
   `exam-generation`), `generation/{request-content,build-proposal,materialize,proposal-rejected}.ts`,
   `exam-generation-requests.{controller,service}.ts`, `exam-proposal-closer.ts`; auditorias
   `exam_generation.requested/completed/rejected`; taxa `RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR`.
-- [ ] T046 [P] [US7] Avaliação sob demanda `apps/api/test/eval/exam-generator.eval.ts` (casos em
+- [X] T046 [P] [US7] Avaliação sob demanda `apps/api/test/eval/exam-generator.eval.ts` (casos em
   `apps/api/test/fixtures/exam-generator/`), script `eval:exams` em `apps/api/package.json`,
   replay gravado no CI; o catálogo 009 só aprova modelos com evidência em
   `apps/api/test/fixtures/evaluations/exam-generation/`.
-- [ ] T047 [US7] Web: diálogo "Criar prova com IA" em `apps/web/features/exams/components/` (até 20
+- [X] T047 [US7] Web: diálogo "Criar prova com IA" em `apps/web/features/exams/components/` (até 20
   questões, estado indisponível), com testes primeiro.
 
 ---

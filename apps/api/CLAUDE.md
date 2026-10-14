@@ -284,6 +284,19 @@ FAILED), the `work-helper` definition (DISABLED in production; `proposal.settle:
 `EVAL_RECORD`, `EVAL_REPLAY`; evidence in `test/fixtures/evaluations/work-help/`, with the p95 latency of 015/SC-007).
 `test/security/015-answer-key-scan.spec.ts` keeps the 012 answer-key markers out of `provider.requests`, and
 `015-injection.spec.ts` keeps instructions in the statement, the answer and the question in the untrusted block.
+Exam generation (018/US7) mirrors 011: `modules/exam-ai` holds `ExamGenerationRequestsService` (topics through
+`ExamTopics`, request + topics + execution in one transaction, hourly limit `exam-ai` = `RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR`),
+the `exam-generator` definition (DISABLED in production), prompt and `read-exam-generation-request` tool (the chosen
+topics **by id**, since `GeneratedExamSchema` cites `topicIds`, and the language `{ id, name }`; never the title or grade),
+`generation/` (`validate-generated-exam` over the exam rules, `build-proposal`, `materialize` writing the DRAFT through
+`exams/exam-content.ts`, `rejected`) and `ExamProposalCloser` on the bank's `ExamReview` hook. Foundation extension:
+`proposal.rejected(tx, context)` runs in the transaction that ends a FAILED execution whose output was refused (schema,
+`build` or `materialize`; `reason` is the code or `OUTPUT_SCHEMA_INVALID`), which audits `exam_generation.rejected`.
+Tests use `test/helpers/exam-ai.ts` (`createExamAiApp`, `examGenerationRequest`, `requestExamGeneration`,
+`scriptExamGeneration`) and `validGeneratedExam(shape)` from `test/fixtures/exam-generator/valid-exam.ts`;
+`createWorkHelpApp` (the journey's app) also registers the exam generator. Golden set: `test/fixtures/exam-generator/`
+(recorded ids as `{{requestId}}`, `{{topic:n}}`, `{{languageId}}`), `018-evaluation.spec.ts` replays it and
+`pnpm --filter api eval:exams` runs it against the real models.
 Controlled mode (015/US2, US4, US5): `modules/attempt-integrity` holds `FocusEventsService` (the student's events, 1–50 per
 batch, idempotent by `(attempt_id, client_event_id)`, recorded only on an open CONTROLLED attempt with the server's
 `recorded_at`, one `attempt_integrity.recorded` each; `own` reads them back, also after the submission),
@@ -414,8 +427,9 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
 
 ## AI release-gate results (moved from the root CLAUDE.md)
 
-All four tasks are BASIC. `openai-basic` passed all four release gates and, being the cheapest, is
-the primary of each; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
+All five tasks are BASIC. `openai-basic` passed every release gate and, being the cheapest, is
+the primary of each; `exam-generation` (018, 2026-10-14) was met in full by `openai-basic` and
+`anthropic-basic`, its same-tier fallback; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
 2026-10-01 (the first run with OpenRouter credit) and is their same-tier fallback, but failed
 `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
 (2026-09-29 and 2026-10-01): called with tools its answers break the output schema (rubric,

@@ -1,5 +1,8 @@
 import type {
+  CreateExamGenerationRequest,
   CreateExamRequest,
+  ExamGenerationAvailability,
+  ExamGenerationRequest,
   ExamListQuery,
   ExamPage,
   ExamRuleViolation,
@@ -32,6 +35,13 @@ export const examsApi = {
   studentPreview: (id: string) => apiClient.get<ExamStudentPreview>(`/exams/${id}/student-preview`),
   /** The active languages of the shared catalog, by name. */
   programmingLanguages: () => apiClient.get<ProgrammingLanguageList>("/exams/programming-languages"),
+};
+
+/** "Criar prova com IA" (018/US7): the request becomes a DRAFT exam of the bank; the teacher approves it. */
+export const examGenerationApi = {
+  availability: () => apiClient.get<ExamGenerationAvailability>("/exam-generation/availability"),
+  request: (body: CreateExamGenerationRequest) => apiClient.post<ExamGenerationRequest>("/exam-generation-requests", body),
+  get: (id: string) => apiClient.get<ExamGenerationRequest>(`/exam-generation-requests/${id}`),
 };
 
 /** Another tab saved or approved the exam first (`409 EXAM_VERSION_CONFLICT`). */
