@@ -27,6 +27,7 @@ const examFacts = (endsAt: string): StudentExam => ({
   occurrences: { count: 0, warningsAllowed: 3 },
   hold: null,
   endReason: null,
+  ownOccurrences: [],
 });
 const teacherPause: StudentPause = { id: "pausa-1", initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: at(-MINUTE), endedAt: null };
 /** Started a while ago, ending `leftMs` after the server's now. */

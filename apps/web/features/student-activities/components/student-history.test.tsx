@@ -9,7 +9,7 @@ import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
-import { HISTORY_EMPTY, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
+import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
 import { apiError, json, routedFetch, studentActivity, summary } from "./test-fixtures";
 
 const LIST = "GET /api/me/activities?status=COMPLETED";
@@ -230,5 +230,30 @@ describe("016/US4 aluno vê as próprias saídas da sala na entrega", () => {
     expect(await screen.findByRole("heading", { name: delivered.title })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Saídas da sala" })).toBeNull();
     expect(screen.queryByText(/Presença|Ausente|Chamada/)).toBeNull();
+  });
+});
+
+describe("018/US8-4 OwnExamOccurrences — as próprias ocorrências depois do fim", () => {
+  it("lista cada ocorrência com o número, o tipo e o horário do servidor, sem rótulo de culpa", async () => {
+    const { container } = renderWithProviders(
+      <OwnExamOccurrences
+        occurrences={[
+          { ordinal: 1, kind: "SCREEN_LEFT", recordedAt: "2026-10-01T12:05:00.000Z" },
+          { ordinal: 2, kind: "INACTIVITY", recordedAt: "2026-10-01T12:09:00.000Z" },
+        ]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "Ocorrências da prova" });
+    expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      `1. Saiu da tela às ${formatTime("2026-10-01T12:05:00.000Z")}`,
+      `2. Sem interação às ${formatTime("2026-10-01T12:09:00.000Z")}`,
+    ]);
+    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b/i);
+    await expectNoA11yViolations(container);
+  });
+
+  it("sem ocorrências: diz isso", () => {
+    renderWithProviders(<OwnExamOccurrences occurrences={[]} />);
+    expect(screen.getByText("Nenhuma ocorrência registrada.")).toBeTruthy();
   });
 });

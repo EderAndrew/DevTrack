@@ -758,6 +758,7 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
       occurrences: { count: 4, warningsAllowed: 3 },
       hold: { openedAt: AT },
       endReason: null,
+      ownOccurrences: [],
     };
     expect(accepts(StudentExamSchema, studentExam)).toBe(true);
     expect(accepts(StudentExamSchema, { ...studentExam, occurrences: { count: 4, warningsAllowed: 4 } })).toBe(false);

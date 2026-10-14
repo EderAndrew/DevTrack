@@ -4,6 +4,7 @@ import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { EnrollmentStatusSchema } from "../classes/enrollments.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ExamCoverageSchema } from "../exams/coverage.js";
+import { ExamHoldResolutionSchema } from "../exam-sessions/holds.js";
 import { ExerciseDifficultySchema } from "../exercises/enums.js";
 import { TestCaseVisibilitySchema, WorkGradingStrategySchema, WorkQuestionTypeSchema } from "../works/enums.js";
 import { GRADE_MAX_CENTS, GradeOutputSchema, gradeToCents } from "../works/grade.js";
@@ -23,6 +24,8 @@ import {
   EXAM_START_WINDOW_MINUTES_DEFAULT,
   EXAM_START_WINDOW_MINUTES_MAX,
   EXAM_START_WINDOW_MINUTES_MIN,
+  ExamEndReasonSchema,
+  ExamOccurrenceViewSchema,
   ExecutionModeSchema,
   ExerciseResultSchema,
   LatePolicySchema,
@@ -327,6 +330,30 @@ export const TeacherExerciseResultSchema = z.strictObject({
 });
 export type TeacherExerciseResult = z.infer<typeof TeacherExerciseResultSchema>;
 
+/**
+ * EXAM only (018/FR-031): the attempt's end, why it ended, each occurrence and each decision on a hold,
+ * with its author and time. The pauses are the 016 route's (`…/attempts/:attemptId/pauses`).
+ */
+export const TeacherAttemptExamSchema = z.strictObject({
+  /** The start plus the duration, capped by the close or the cancellation. */
+  endsAt: IsoDateTimeSchema,
+  /** When it ended (the submission's time); null while in progress or on hold. */
+  endedAt: IsoDateTimeSchema.nullable(),
+  endReason: ExamEndReasonSchema.nullable(),
+  occurrences: z.array(ExamOccurrenceViewSchema),
+  decisions: z.array(
+    z.strictObject({
+      holdId: UuidSchema,
+      occurrenceOrdinal: z.int().min(1),
+      openedAt: IsoDateTimeSchema,
+      resolution: ExamHoldResolutionSchema.nullable(),
+      resolvedAt: IsoDateTimeSchema.nullable(),
+      resolvedBy: z.strictObject({ name: z.string() }).nullable(),
+    }),
+  ),
+});
+export type TeacherAttemptExam = z.infer<typeof TeacherAttemptExamSchema>;
+
 export const TeacherAttemptSchema = z.strictObject({
   id: UuidSchema,
   student: z.strictObject({ userId: UuidSchema, name: z.string() }),
@@ -352,6 +379,8 @@ export const TeacherAttemptSchema = z.strictObject({
   exercise: z
     .strictObject({ number: z.int().min(1), completedAt: IsoDateTimeSchema, results: z.array(TeacherExerciseResultSchema) })
     .nullable(),
+  /** EXAM only (018/FR-031); null for the others. */
+  exam: TeacherAttemptExamSchema.nullable(),
 });
 export type TeacherAttempt = z.infer<typeof TeacherAttemptSchema>;
 

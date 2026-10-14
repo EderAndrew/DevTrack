@@ -19,6 +19,7 @@ import {
   LatePolicySchema,
   StudentActivityFilterSchema,
   StudentActivityStatusSchema,
+  ExamOccurrenceViewSchema,
   StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
@@ -126,6 +127,8 @@ export const StudentExamSchema = z.strictObject({
   occurrences: z.strictObject({ count: z.int().min(0), warningsAllowed: z.literal(EXAM_WARNINGS) }),
   hold: z.strictObject({ openedAt: IsoDateTimeSchema }).nullable(),
   endReason: StudentExamEndReasonSchema.nullable(),
+  /** The student's own occurrences, oldest first, only once the attempt has ended (018/FR-031); empty before. */
+  ownOccurrences: z.array(ExamOccurrenceViewSchema),
 });
 export type StudentExam = z.infer<typeof StudentExamSchema>;
 

@@ -238,8 +238,8 @@ const SPECS: FeatureSpec[] = [
     // last test, each SC with the test that cites it, so the lists are empty at the end of T056.
     // US1 since Phase 3, US2 since Phase 4, US3 (with SC-002, SC-003 and SC-008) since Phase 5, US4 (with
     // SC-004) since Phase 6, US5 (with SC-005, SC-006 and SC-007) since Phase 7, US6 since Phase 8, US7 (with
-    // SC-009) since Phase 9.
-    pending: { stories: [8], successCriteria: ["SC-001", "SC-010", "SC-011", "SC-012"] },
+    // SC-009) since Phase 9, US8 since Phase 10.
+    pending: { stories: [], successCriteria: ["SC-001", "SC-010", "SC-011", "SC-012"] },
   },
 ];
 

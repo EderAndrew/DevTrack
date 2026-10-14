@@ -50,7 +50,7 @@ import { clearPendingAnswers } from "../store/pending-answers";
 import { ActivityResult } from "./activity-result";
 import { ExerciseResult, RETRY_NOTICE } from "./exercise-result";
 import { Loading, LoadFailed } from "./load-states";
-import { OwnRoomExits, ScreenExitRecords } from "./student-history";
+import { OwnExamOccurrences, OwnRoomExits, ScreenExitRecords } from "./student-history";
 
 export const OFFLINE_ALERT =
   "Você está sem conexão. Suas respostas ficam guardadas neste navegador e serão enviadas quando a conexão voltar.";
@@ -141,6 +141,8 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
         {activity.executionMode === "CONTROLLED" && activity.submission ? <ScreenExitRecords activityId={activity.id} /> : null}
         {/* 016/US4-4: the own room exits, which the API sends only after the submission. */}
         {activity.submission ? <OwnRoomExits pauses={activity.pauses} /> : null}
+        {/* 018/US8-4: an exam's own occurrences, which the API sends only once the attempt ended. */}
+        {activity.exam && activity.submission ? <OwnExamOccurrences occurrences={activity.exam.ownOccurrences} /> : null}
       </div>
     </>
   );

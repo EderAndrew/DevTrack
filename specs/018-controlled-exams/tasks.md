@@ -426,15 +426,15 @@ escolhidos, aprovação só pelo professor.
 **Independent Test**: quatro tentativas (entregue, tempo esgotado, cancelada, devolvida e
 entregue) corrigidas e liberadas.
 
-- [ ] T048 [P] [US8] `apps/api/test/integration/018-us8-grading.spec.ts`: `018/US8-1`…`018/US8-5`,
+- [X] T048 [P] [US8] `apps/api/test/integration/018-us8-grading.spec.ts`: `018/US8-1`…`018/US8-5`,
   `018/FR-029`…`018/FR-031` (situações do roster; cancelada liberada com zero; tempo esgotado com
   brancas zeradas sem ação; histórico do aluno com as próprias ocorrências e pausas e sem dados de
   outro aluno; presente que não iniciou sem nota automática; antes da liberação, cancelamento
   confirmado e "Não cancelar" chegam ao aluno iguais, com `endReason: WARNINGS` e sem a decisão).
-- [ ] T049 [US8] `apps/api/src/modules/activities/attempts-review.service.ts` (início, fim, motivo,
+- [X] T049 [US8] `apps/api/src/modules/activities/attempts-review.service.ts` (início, fim, motivo,
   ocorrências, pausas, decisões) e `activities/views/student-view.ts` (ocorrências próprias depois
   do fim, lista fechada).
-- [ ] T050 [US8] Web: cabeçalho e seções "Ocorrências" e "Saídas da sala" em
+- [X] T050 [US8] Web: cabeçalho e seções "Ocorrências" e "Saídas da sala" em
   `apps/web/features/activities/components/attempt-review.tsx`; histórico do aluno em
   `apps/web/features/student-activities/components/student-history.tsx`; testes primeiro.
 

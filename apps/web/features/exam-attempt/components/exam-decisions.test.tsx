@@ -29,6 +29,7 @@ const facts = (overrides: Partial<StudentExam> = {}): StudentExam => ({
   occurrences: { count: 4, warningsAllowed: 3 },
   hold: null,
   endReason: null,
+  ownOccurrences: [],
   ...overrides,
 });
 const exam = (examFacts: Partial<StudentExam> = {}, overrides: Partial<StudentActivity> = {}) =>

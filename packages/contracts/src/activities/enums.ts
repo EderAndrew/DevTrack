@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDateTimeSchema } from "../common/primitives.js";
 
 // Public enums of the class activities and the student portal (012 data-model.md, research P3,
 // P4, P11). Platform concepts, fixed in code (constitution XXI).
@@ -98,6 +99,18 @@ export type ExerciseResult = z.infer<typeof ExerciseResultSchema>;
  */
 export const ExamEndReasonSchema = z.enum(["STUDENT_SUBMITTED", "TIME_EXPIRED", "ACTIVITY_CLOSED", "ENDED_BY_WARNINGS", "CANCELLED"]);
 export type ExamEndReason = z.infer<typeof ExamEndReasonSchema>;
+
+/** What an exam occurrence was (018 research T6): one kind per countable event family. */
+export const ExamOccurrenceKindSchema = z.enum(["SCREEN_LEFT", "FULLSCREEN_EXITED", "CLIPBOARD", "INACTIVITY"]);
+export type ExamOccurrenceKind = z.infer<typeof ExamOccurrenceKindSchema>;
+
+/** One occurrence of an exam attempt (018/FR-031): its ordinal, kind and the server's time. */
+export const ExamOccurrenceViewSchema = z.strictObject({
+  ordinal: z.int().min(1),
+  kind: ExamOccurrenceKindSchema,
+  recordedAt: IsoDateTimeSchema,
+});
+export type ExamOccurrenceView = z.infer<typeof ExamOccurrenceViewSchema>;
 
 /**
  * The end reason the student sees (018 research T13): both decisions on a hold read `WARNINGS`

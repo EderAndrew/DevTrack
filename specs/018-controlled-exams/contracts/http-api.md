@@ -54,6 +54,10 @@ The generated exam is a DRAFT in the bank; approval only through `POST /exams/:i
 - **Roster** (`RosterStatus`): gains `AWAITING_DECISION`, `TIME_EXPIRED`, `CANCELLED`,
   `ENDED_BY_WARNINGS`, `START_CLOSED`; rows gain `occurrenceCount` for EXAM.
 - **`POST …/release`**: 409 `EXAM_DECISIONS_PENDING` (`details.count`) while a hold is open.
+- **Attempt review** (`GET …/attempts/:attemptId`, US8, FR-031): `TeacherAttempt` gains
+  `exam: { endsAt, endedAt|null, endReason|null, occurrences: { ordinal, kind, recordedAt }[],
+  decisions: { holdId, occurrenceOrdinal, openedAt, resolution|null, resolvedAt|null, resolvedBy: { name }|null }[] } | null`
+  (the pauses stay on `…/pauses`).
 - **Integrity review** (`GET …/attempts/:attemptId/integrity`): events gain `occurrenceOrdinal|null`
   and `idleSeconds|null`; the response gains `holds: TeacherExamHold[]` for EXAM.
 - **Pauses (016, research T11)**: `POST …/students/:studentUserId/pause` on an EXAM answers 409
@@ -88,6 +92,8 @@ TeacherExamHold { id, attemptId, occurrenceOrdinal, openedAt,
 - **`GET /me/activities/:activityId`** (`StudentActivity`): gains `exam` (research T13). With a hold
   open, `questions` and `attempt.answers` are `[]`. Before the result release, `exam.endReason` is
   `WARNINGS` for both decisions after a hold; `CANCELLED` appears only after the release.
+  `exam.ownOccurrences` (`{ ordinal, kind, recordedAt }[]`) lists the student's own occurrences only
+  once the attempt ended (US8-4); empty before.
 - **`POST /me/activities/:activityId/attempt`** (start): an EXAM requires `{ acceptRules: true }`.
   Errors gain 409 `EXAM_START_CLOSED` (after `startDeadline`).
 - **`POST …/attempt/answers`** and **`POST …/attempt/submit`**: 409 `EXAM_TIME_OVER` (after

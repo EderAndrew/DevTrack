@@ -1,4 +1,12 @@
-import type { IntegrityEventType, IntegrityEventView, IntegrityIntervalKind, WorkHelpStatus } from "@repo/contracts";
+import type {
+  ExamEndReason,
+  ExamHoldResolution,
+  ExamOccurrenceKind,
+  IntegrityEventType,
+  IntegrityEventView,
+  IntegrityIntervalKind,
+  WorkHelpStatus,
+} from "@repo/contracts";
 
 // Texts of the controlled mode's records and of the AI help in the teacher's review (015
 // contracts/web-ui.md, US4). Facts only: nothing here labels the student (FR-026).
@@ -60,3 +68,31 @@ export function formatDuration(seconds: number): string {
 
 /** "n de 3" (FR-024). */
 export const helpsUsedLabel = (used: number, allowance: number) => `${used} de ${allowance}`;
+
+// 018/US8 (contracts/web-ui.md, "Correção"): an exam attempt's end, occurrences and decisions. Facts,
+// never a verdict (FR-032).
+
+export const OCCURRENCES_TITLE = "Ocorrências";
+export const DECISIONS_TITLE = "Decisões";
+export const NO_EXAM_OCCURRENCES = "Nenhuma ocorrência registrada.";
+
+export const OCCURRENCE_KIND_LABELS: Record<ExamOccurrenceKind, string> = {
+  SCREEN_LEFT: "Saiu da tela",
+  FULLSCREEN_EXITED: "Saiu da tela cheia",
+  CLIPBOARD: "Tentou copiar/colar",
+  INACTIVITY: "Sem interação",
+};
+
+export const EXAM_END_REASON_LABELS: Record<ExamEndReason, string> = {
+  STUDENT_SUBMITTED: "Entregue pelo aluno",
+  TIME_EXPIRED: "Tempo esgotado",
+  ACTIVITY_CLOSED: "Prova encerrada pelo professor",
+  ENDED_BY_WARNINGS: "Encerrada por avisos (não cancelada)",
+  CANCELLED: "Prova cancelada pelo professor",
+};
+
+export const HOLD_RESOLUTION_LABELS: Record<ExamHoldResolution, string> = {
+  CANCEL_CONFIRMED: "Cancelamento confirmado",
+  RETURNED: "Prova devolvida",
+  NOT_CANCELLED: "Não cancelada",
+};

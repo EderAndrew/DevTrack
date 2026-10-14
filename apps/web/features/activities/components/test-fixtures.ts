@@ -334,6 +334,7 @@ export const teacherAttempt = (overrides: Partial<TeacherAttempt> = {}): Teacher
     ],
   },
   exercise: null,
+  exam: null,
   ...overrides,
 });
 

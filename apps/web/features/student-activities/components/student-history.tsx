@@ -1,6 +1,6 @@
 "use client";
 
-import type { StudentPause } from "@repo/contracts";
+import type { ExamOccurrenceView, StudentPause } from "@repo/contracts";
 import { History, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Status } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDuration, occurredAt } from "@/features/activities/schemas/attempt-records";
+import { formatDuration, NO_EXAM_OCCURRENCES, OCCURRENCE_KIND_LABELS, occurredAt } from "@/features/activities/schemas/attempt-records";
 import { NO_RETURN, PAUSE_REASON_LABELS, ROOM_EXITS_TITLE } from "@/features/attendance/schemas/attendance";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import type { StudentActivityListFilters } from "../api/student-activities";
@@ -167,6 +167,36 @@ export function OwnRoomExits({ pauses }: { pauses: readonly StudentPause[] }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** 018/US8-4: the title of the student's own occurrences in a finished exam. */
+export const OWN_OCCURRENCES_TITLE = "Ocorrências da prova";
+
+/**
+ * The student's own occurrences in a finished exam (018/US8-4, FR-031): the number, the kind and the
+ * server's time of each, which the API sends only once the attempt ended. Only their own; facts, never
+ * a verdict (FR-032).
+ */
+export function OwnExamOccurrences({ occurrences }: { occurrences: readonly ExamOccurrenceView[] }) {
+  return (
+    <section aria-labelledby="ocorrencias-prova" className="flex flex-col gap-2">
+      <h2 id="ocorrencias-prova" className="m-0 text-h3">
+        {OWN_OCCURRENCES_TITLE}
+      </h2>
+      {occurrences.length === 0 ? (
+        <p className="m-0">{NO_EXAM_OCCURRENCES}</p>
+      ) : (
+        <ol aria-label={OWN_OCCURRENCES_TITLE} className="m-0 flex list-none flex-col gap-1 p-0">
+          {occurrences.map((occurrence) => (
+            <li key={occurrence.ordinal}>
+              {occurrence.ordinal}. {OCCURRENCE_KIND_LABELS[occurrence.kind]} às{" "}
+              <time dateTime={occurrence.recordedAt}>{formatTime(occurrence.recordedAt)}</time>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

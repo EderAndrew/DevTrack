@@ -5,6 +5,7 @@ import {
   type AiHelpAllowance,
   EXAM_WARNINGS,
   type ExamEndReason,
+  type ExamOccurrenceKind,
   type ExecutionMode,
   type ExerciseResult,
   type GradeCents,
@@ -127,6 +128,8 @@ export interface StudentExamInput {
   /** The open hold of an attempt in progress; the loader then leaves the questions and the answers out. */
   hold: { openedAt: Date } | null;
   endReason: ExamEndReason | null;
+  /** The attempt's occurrences once it ended (018/FR-031); empty before. */
+  ownOccurrences: { ordinal: number; kind: ExamOccurrenceKind; recordedAt: Date }[];
 }
 
 /** A concluded EXERCISE attempt of the session student, as loaded (013 K6, K10). */
@@ -264,6 +267,7 @@ function toStudentExam(exam: StudentExamInput, released: boolean): StudentExam {
     occurrences: { count: exam.occurrenceCount, warningsAllowed: EXAM_WARNINGS },
     hold: exam.hold && { openedAt: exam.hold.openedAt.toISOString() },
     endReason: exam.endReason && studentEndReason(exam.endReason, released),
+    ownOccurrences: exam.ownOccurrences.map((occurrence) => ({ ordinal: occurrence.ordinal, kind: occurrence.kind, recordedAt: occurrence.recordedAt.toISOString() })),
   };
 }
 

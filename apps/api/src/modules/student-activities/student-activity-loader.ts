@@ -193,19 +193,24 @@ export class StudentActivityLoader {
   /**
    * An EXAM's facts for its student (018 research T13): the time derived with the server's `now`
    * from the attempt's own start, the occurrence count (the last ordinal), the open hold and how the
-   * attempt ended. Read after the touch's settlement, so an expired attempt already has its end.
+   * attempt ended. Read after the touch's settlement, so an expired attempt already has its end. The
+   * occurrences themselves only once it ended (018/FR-031), and only the session student's attempt.
    */
   private async examOf(
     activity: Pick<ActivityRow, "publishAt" | "durationMinutes" | "startWindowMinutes" | "inactivityLimitSeconds" | "closedAt" | "cancelledAt">,
     attempt: AttemptRow | null,
   ): Promise<StudentExamInput> {
     const timing = examTiming(activity);
-    const [occurrences, hold] = attempt
+    const ended = attempt?.submission != null;
+    const [occurrences, hold, own] = attempt
       ? await Promise.all([
           this.prisma.examOccurrence.aggregate({ where: { attemptId: attempt.id }, _max: { ordinal: true } }),
           this.prisma.examAttemptHold.findFirst({ where: { attemptId: attempt.id, resolution: null }, select: { openedAt: true } }),
+          ended
+            ? this.prisma.examOccurrence.findMany({ where: { attemptId: attempt.id }, orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } })
+            : [],
         ])
-      : [null, null];
+      : [null, null, []];
     if (activity.inactivityLimitSeconds === null) throw new Error("an EXAM has an inactivity limit (CHECK)");
     return {
       durationMinutes: timing.durationMinutes,
@@ -215,6 +220,7 @@ export class StudentActivityLoader {
       occurrenceCount: occurrences?._max.ordinal ?? 0,
       hold: hold && attempt?.status === "IN_PROGRESS" ? { openedAt: hold.openedAt } : null,
       endReason: attempt?.submission?.endReason ?? null,
+      ownOccurrences: own,
     };
   }
 

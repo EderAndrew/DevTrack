@@ -11,6 +11,7 @@ import {
   type PendingReason,
   type QuestionGrading,
   type TeacherAttempt,
+  type TeacherAttemptExam,
   type WorkQuestionType,
 } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
@@ -29,7 +30,8 @@ import { GradingRuleError } from "../works/grading/strategy";
 import { computeWorkGrade } from "../works/grading/work-grade";
 import { decimalToCents, requiredCents } from "./activity-query";
 import { ExamSettlement } from "./exam-settlement";
-import { type AssignmentFacts, assignmentSchedule } from "./status/facts";
+import { endsAt } from "./status/exam-time";
+import { type AssignmentFacts, assignmentSchedule, examTiming } from "./status/facts";
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
 import { pointsFor } from "./results/exercise-results";
@@ -45,6 +47,13 @@ const ATTEMPT_SELECT = {
   startedAt: true,
   lastSavedAt: true,
   student: { select: { userId: true, user: { select: { name: true } } } },
+  // EXAM (018/FR-031): the timing that derives the end, the occurrences and the decisions with their author.
+  activity: { select: { type: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
+  occurrences: { orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } },
+  holds: {
+    orderBy: { occurrenceOrdinal: "asc" },
+    select: { id: true, occurrenceOrdinal: true, openedAt: true, resolution: true, resolvedAt: true, resolvedBy: { select: { name: true } } },
+  },
   answers: {
     orderBy: { question: { position: "asc" } },
     select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, savedAt: true },
@@ -60,6 +69,7 @@ const ATTEMPT_SELECT = {
       gradePartial: true,
       generalFeedback: true,
       version: true,
+      endReason: true,
       gradings: {
         orderBy: { question: { position: "asc" } },
         select: { questionId: true, status: true, nature: true, finalGrade: true, teacherGrade: true, pendingReason: true, feedback: true },
@@ -510,5 +520,24 @@ function toTeacherAttempt(attempt: AttemptRecord): TeacherAttempt {
               decidedAt: row.decidedAt?.toISOString() ?? null,
             })),
           },
+    exam: attempt.activity.type === "EXAM" ? toAttemptExam(attempt) : null,
+  };
+}
+
+/** An exam attempt's facts for its teacher (018/FR-031): the end derived from the timing, never stored. */
+function toAttemptExam(attempt: AttemptRecord): TeacherAttemptExam {
+  return {
+    endsAt: endsAt(examTiming(attempt.activity), attempt.startedAt).toISOString(),
+    endedAt: attempt.submission?.submittedAt.toISOString() ?? null,
+    endReason: attempt.submission?.endReason ?? null,
+    occurrences: attempt.occurrences.map((occurrence) => ({ ordinal: occurrence.ordinal, kind: occurrence.kind, recordedAt: occurrence.recordedAt.toISOString() })),
+    decisions: attempt.holds.map((hold) => ({
+      holdId: hold.id,
+      occurrenceOrdinal: hold.occurrenceOrdinal,
+      openedAt: hold.openedAt.toISOString(),
+      resolution: hold.resolution,
+      resolvedAt: hold.resolvedAt?.toISOString() ?? null,
+      resolvedBy: hold.resolvedBy && { name: hold.resolvedBy.name },
+    })),
   };
 }

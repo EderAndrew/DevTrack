@@ -85,6 +85,7 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
       occurrences: { count: 0, warningsAllowed: 3 },
       hold: null,
       endReason: null,
+      ownOccurrences: [],
     });
     expect(before.attempt).toBeNull();
 
