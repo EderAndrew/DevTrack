@@ -75,6 +75,14 @@ export const PERMISSIONS = [
   "ia.ajuda.pedir",
   // 016 — the attendance of a work and the room exits (specs/016-attendance-gated-release/contracts/permissions.md).
   "chamada.registrar",
+  // 018 — the Banco de Provas, "Criar prova com IA" and the decisions on a hold (specs/018-controlled-exams/contracts/permissions.md).
+  "provas.visualizar",
+  "provas.criar",
+  "provas.editar",
+  "provas.aprovar",
+  "provas.arquivar",
+  "ia.provas.gerar",
+  "provas.encerramentos.decidir",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

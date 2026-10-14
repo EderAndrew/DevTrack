@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exam-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Consultas com JOIN e GROUP BY",
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere as tabelas Clientes(id, nome) e Pedidos(id, cliente_id). Escreva uma consulta SQL que liste o nome de cada cliente junto ao id de seus pedidos, relacionando as tabelas pelo identificador do cliente.",
+            "explanation": "A junção relaciona Clientes.id a Pedidos.cliente_id. Um INNER JOIN lista as linhas que têm correspondência nas duas tabelas.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "SELECT Clientes.nome, Pedidos.id FROM Clientes INNER JOIN Pedidos ON Clientes.id = Pedidos.cliente_id;",
+            "rubric": "Considerar correta a consulta que seleciona o nome do cliente e o id do pedido e relaciona Clientes.id com Pedidos.cliente_id por meio de uma junção."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere a tabela Vendas(produto, quantidade). Escreva uma consulta SQL que mostre cada produto e a soma de suas quantidades vendidas, agrupando as linhas pelo produto.",
+            "explanation": "GROUP BY reúne as linhas de cada produto, e SUM calcula a soma da quantidade em cada grupo.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "SELECT produto, SUM(quantidade) FROM Vendas GROUP BY produto;",
+            "rubric": "Considerar correta a consulta que agrupa por produto e aplica SUM à coluna quantidade."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere Clientes(id, nome) e Pedidos(id, cliente_id, valor). Escreva uma consulta que apresente o nome de cada cliente e o total dos valores de seus pedidos, agrupando o resultado por cliente.",
+            "explanation": "A junção associa cada pedido ao cliente correspondente. Em seguida, GROUP BY forma um grupo por cliente e SUM calcula o total de cada grupo.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}",
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "SELECT Clientes.nome, SUM(Pedidos.valor) FROM Clientes INNER JOIN Pedidos ON Clientes.id = Pedidos.cliente_id GROUP BY Clientes.id, Clientes.nome;",
+            "rubric": "Considerar correta a consulta que relaciona as tabelas pela chave do cliente, soma Pedidos.valor e agrupa pelos dados do cliente selecionados."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Em uma consulta SQL, qual é a função principal de uma cláusula JOIN entre duas tabelas relacionadas?",
+            "explanation": "JOIN combina linhas de tabelas com base na condição de relacionamento especificada, como a igualdade entre uma chave e sua referência.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "Combinar linhas de tabelas com base em uma condição de relacionamento.",
+              "Agrupar linhas iguais e calcular automaticamente a soma de todas as colunas.",
+              "Ordenar as linhas pelo valor de uma coluna.",
+              "Renomear permanentemente as tabelas do banco de dados."
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Uma consulta usa INNER JOIN entre Clientes e Pedidos, relacionando Clientes.id a Pedidos.cliente_id. O que ocorre com um cliente que não tem nenhum pedido correspondente?",
+            "explanation": "INNER JOIN retorna somente linhas que encontram correspondência nos dois lados da junção. Um cliente sem pedido correspondente não aparece no resultado.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "O cliente aparece uma vez, com os campos do pedido vazios.",
+              "O cliente não aparece no resultado.",
+              "O cliente aparece repetido tantas vezes quanto o total de pedidos de outros clientes.",
+              "A consulta é inválida sempre que algum cliente não tem pedido."
+            ],
+            "correctIndex": 1,
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere a consulta SELECT categoria, COUNT(*) FROM Produtos GROUP BY categoria;. Qual é o papel de GROUP BY nessa consulta?",
+            "explanation": "GROUP BY forma grupos de linhas com o mesmo valor de categoria, permitindo que COUNT(*) conte as linhas de cada grupo.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "alternatives": [
+              "Criar um grupo para cada categoria, para que COUNT(*) conte os produtos de cada grupo.",
+              "Contar todas as linhas da tabela uma única vez, ignorando categoria.",
+              "Eliminar a coluna categoria da tabela.",
+              "Juntar Produtos a outra tabela que também tenha uma coluna categoria."
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

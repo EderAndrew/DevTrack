@@ -158,6 +158,15 @@ export const AUDIT_EVENT_METADATA = {
   "work.approved": ["origin", "humanEdited", "generationRequestId", "warnings"],
   "work.archived": ["from"],
   "work.restored": ["to"],
+  // 018 — the Banco de Provas (specs/018-controlled-exams/contracts/audit-events.md).
+  "exam.created": ["subjectId", "origin", "status", "questionCount"],
+  "exam.edited": ["fields", "questionCountChanged"],
+  "exam.approved": ["origin", "humanEdited"],
+  "exam.archived": ["fromStatus"],
+  "exam.restored": ["fromStatus"],
+  "exam_generation.requested": ["subjectId", "quantity", "topicCount"],
+  "exam_generation.completed": ["examId", "aiExecutionId"],
+  "exam_generation.rejected": ["aiExecutionId", "code"],
   "work_generation.requested": [
     "executionId",
     "subjectId",
@@ -193,6 +202,11 @@ export const AUDIT_EVENT_METADATA = {
     "hasPlan",
     // 016: `PRESENT_ONLY` for every work applied since 016, `ALL_ENROLLED` for exercises (research M2).
     "releaseMode",
+    // 018: an EXAM carries its exam and its time instead of a work and a late policy.
+    "sourceExamId",
+    "durationMinutes",
+    "inactivityLimitSeconds",
+    "startWindowMinutes",
   ],
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005).
@@ -201,12 +215,26 @@ export const AUDIT_EVENT_METADATA = {
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
-  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber"],
+  // 018: `rulesAccepted: true` when the attempt is an EXAM's (research T13).
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
-  // `operation`: START | SAVE | SUBMIT, and RETRY | COMPLETE of an EXERCISE (013); `code`: the 409 code of the refusal.
+  // `operation`: START | SAVE | SUBMIT, RETRY | COMPLETE of an EXERCISE (013) and EXIT of an EXAM (018); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
-  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount"],
+  // 018: `endReason: STUDENT_SUBMITTED` for an EXAM.
+  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],
+  // 018 — an expired exam attempt settled on its next touch (research T5), by the system.
+  "exam_attempt.time_expired": ["activityId", "submissionId", "endReason", "blankCount"],
+  // 018 — the occurrence that reaches the limit opens the hold (research T8), by the system, in the
+  // events batch's transaction; occurrences themselves are not audited one by one.
+  "exam_attempt.held": ["activityId", "holdId", "occurrenceOrdinal"],
+  // 018/FR-020 — an exam's events batch refused after the end or the submission (`operation: EVENTS`).
+  "exam_attempt.write_refused": ["activityId", "operation", "code"],
+  // 018/FR-021–FR-023 — the teacher's one decision on a hold (research T9): the cancellation (grade 0)
+  // and "Não cancelar" name the submission they wrote, the return the whole seconds still left.
+  "exam_attempt.cancel_confirmed": ["activityId", "holdId", "submissionId"],
+  "exam_attempt.returned": ["activityId", "holdId", "secondsLeft"],
+  "exam_attempt.not_cancelled": ["activityId", "holdId", "submissionId"],
   // `route` is the pattern, never the URL; `reason`: NOT_ENROLLED | OTHER_STUDENT | NOT_PUBLISHED | CANCELLED,
   // and NOT_PRESENT since 016 (a PRESENT_ONLY work without the student's presence).
   "student_access.denied": ["route", "reason"],
@@ -307,6 +335,8 @@ export type AuditTargetType =
   | "EXERCISE_BATCH"
   | "WORK"
   | "WORK_GENERATION_REQUEST"
+  | "EXAM"
+  | "EXAM_GENERATION_REQUEST"
   | "CLASS_ACTIVITY"
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"

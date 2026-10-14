@@ -138,6 +138,8 @@ export const configSchema = z.object({
   RATE_LIMIT_WORK_HELP_PER_HOUR: positiveInt(20),
   AI_WORK_HELP_EXECUTIONS_PER_HOUR: positiveInt(1500),
   RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR: positiveInt(20),
+  RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE: positiveInt(60),
+  RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR: positiveInt(10),
   CONTROLLED_TYPING_BURST_CHARS: positiveInt(400),
   CONTROLLED_TYPING_CHARS_PER_SECOND: positiveInt(15),
   MAINTENANCE_INTERVAL_SECONDS: nonNegativeInt(3600),
@@ -268,6 +270,10 @@ export interface AppConfig {
     workHelpAgentPerHour: number;
     /** Room exits a student declares (016 research M11), per student per hour. */
     attemptPausesPerHour: number;
+    /** Hold decisions of an exam (018 research T17), per teacher per minute. */
+    examDecisionsPerMinute: number;
+    /** "Criar prova com IA" requests (018 research T17), per teacher per hour, as 011. */
+    examGenerationsPerHour: number;
     /** Provider notices (017 research N6): requests per IP per minute on `POST /mail/notices/:provider`. */
     mailNoticesPerMinute: number;
   };
@@ -399,6 +405,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       workHelpPerHour: e.RATE_LIMIT_WORK_HELP_PER_HOUR,
       workHelpAgentPerHour: e.AI_WORK_HELP_EXECUTIONS_PER_HOUR,
       attemptPausesPerHour: e.RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR,
+      examDecisionsPerMinute: e.RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE,
+      examGenerationsPerHour: e.RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR,
       mailNoticesPerMinute: e.RATE_LIMIT_MAIL_NOTICES_PER_MINUTE,
     },
     controlledMode: {

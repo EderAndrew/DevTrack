@@ -176,6 +176,19 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         // 017: the recipient and the bounce message inside a provider notice (MARCADOR-DESTINO-017, MARCADOR-BOUNCE-017).
         "destinatário do aviso do provedor",
         "mensagem de bounce do provedor",
+        // 018: the exam's title, a statement and its answer keys.
+        "título da prova (018)",
+        "enunciado da prova (018)",
+        "resposta esperada da prova (018)",
+        "alternativa correta da prova (018)",
+        // 018/US2: the title of the exam applied to the class.
+        "título da prova aplicada (018)",
+        // 018/US7: "Criar prova com IA" — the request's title, the topic the generator read and its output.
+        "título do pedido de prova (018)",
+        "tópico lido pelo gerador de provas (018)",
+        "texto gerado pela IA (018)",
+        // 018/SC-010: the student's answer in an exam (MARCADOR-PROVA-018, also in the statement).
+        "resposta do aluno na prova (018)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -185,11 +198,14 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.topic.findMany({ select: { title: true } }))).toContain("Tópico da jornada");
     expect(serialize(await t.prisma.exercise.findMany({ select: { statement: true } }))).toContain("Enunciado da jornada dez");
     expect(serialize(await t.prisma.work.findMany({ select: { title: true } }))).toContain("Trabalho manual da jornada onze");
+    expect(serialize(await t.prisma.exam.findMany({ select: { title: true } }))).toContain("Prova manual da jornada dezoito");
     expect(serialize(await t.prisma.exerciseQuestionResult.findMany({ select: { comment: true } }))).toContain("Comentário da marcação da jornada treze");
     const helps = serialize(await t.prisma.workHelpRequest.findMany({ select: { question: true, message: true } }));
     expect(helps).toContain("MARCADOR-AJUDA-015");
     expect(helps).toContain("MARCADOR-ORIENTACAO-015");
     expect(serialize(await t.prisma.attemptPause.findMany({ select: { note: true } }))).toContain("MARCADOR-NOTA-016");
+    expect(serialize(await t.prisma.examQuestion.findMany({ select: { statement: true } }))).toContain("MARCADOR-PROVA-018");
+    expect(serialize(await t.prisma.activityAnswer.findMany({ select: { text: true } }))).toContain("MARCADOR-PROVA-018");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );
@@ -290,6 +306,10 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
       "tópico lido pelo gerador de trabalhos (011)",
       "texto gerado pela IA (011)",
       "enunciado revisado do trabalho (011)",
+      // 018/US7: the exam generator's request, topic and output.
+      "título do pedido de prova (018)",
+      "tópico lido pelo gerador de provas (018)",
+      "texto gerado pela IA (018)",
     ];
     const scanned = content.filter(({ kind }) => kinds.includes(kind));
     expect(new Set(scanned.map(({ kind }) => kind))).toEqual(new Set(kinds));
@@ -316,6 +336,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(stored).toContain("MARCADOR-GERADO-011");
     expect(stored).toContain("Enunciado do trabalho revisto pelo professor");
     expect(stored).toContain("Rubrica do trabalho da jornada onze");
+    // 018/US7: the same for the exam generator.
+    expect(serialize(t.provider.requests)).toContain("MARCADOR-TOPICO-018");
+    expect(serialize(await t.prisma.examQuestion.findMany({ select: { statement: true } }))).toContain("MARCADOR-GERADO-018");
   });
 
   it("008/US4-1 008/SC-005 a chave do OpenRouter fora dos logs, da auditoria, das respostas (operacionais e de erro) e de todas as tabelas", async () => {

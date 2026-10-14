@@ -16,6 +16,8 @@ export interface NewIntegrityEvent {
   /** Only for an event sent from the offline buffer (CHECK). */
   clientOccurredAt: Date | null;
   buffered: boolean;
+  /** 018: `INACTIVITY` only, the browser's idle time (CHECK). */
+  idleSeconds?: number | null;
 }
 
 /**
@@ -40,17 +42,18 @@ export async function insertIntegrityEvents(
       question_id: event.questionId,
       client_occurred_at: event.buffered ? event.clientOccurredAt?.toISOString() : null,
       buffered: event.buffered,
+      idle_seconds: event.idleSeconds ?? null,
     })),
   );
   const inserted = await tx.$queryRaw<{ client_event_id: string; type: IntegrityEventType; buffered: boolean }[]>`
     INSERT INTO attempt_integrity_events
-      (attempt_id, activity_id, student_user_id, client_event_id, type, question_id, recorded_at, client_occurred_at, buffered)
+      (attempt_id, activity_id, student_user_id, client_event_id, type, question_id, recorded_at, client_occurred_at, buffered, idle_seconds)
     SELECT ${attempt.id}::uuid, ${attempt.activityId}::uuid, ${attempt.studentUserId}::uuid, e.client_event_id,
            e.type::attempt_integrity_event_type, e.question_id,
-           ${now}::timestamptz + (e.position - 1) * interval '1 microsecond', e.client_occurred_at, e.buffered
+           ${now}::timestamptz + (e.position - 1) * interval '1 microsecond', e.client_occurred_at, e.buffered, e.idle_seconds
     FROM ROWS FROM (
-      jsonb_to_recordset(${rows}::jsonb) AS (client_event_id uuid, type text, question_id uuid, client_occurred_at timestamptz, buffered boolean)
-    ) WITH ORDINALITY AS e (client_event_id, type, question_id, client_occurred_at, buffered, position)
+      jsonb_to_recordset(${rows}::jsonb) AS (client_event_id uuid, type text, question_id uuid, client_occurred_at timestamptz, buffered boolean, idle_seconds smallint)
+    ) WITH ORDINALITY AS e (client_event_id, type, question_id, client_occurred_at, buffered, idle_seconds, position)
     ORDER BY e.position
     ON CONFLICT (attempt_id, client_event_id) DO NOTHING
     RETURNING client_event_id, type::text AS type, buffered`;

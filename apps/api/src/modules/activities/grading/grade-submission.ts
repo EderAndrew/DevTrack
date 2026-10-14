@@ -1,6 +1,6 @@
 import type { Answer, GradeCents, QuestionGrading, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
 import { gradeQuestion } from "../../works/grading/registry";
-import type { GradableQuestion, GradingPorts } from "../../works/grading/strategy";
+import { type GradableQuestion, type GradingPorts, ruleResult } from "../../works/grading/strategy";
 import { UnavailableCodeRunner } from "../../works/grading/unavailable-code-runner";
 import { computeWorkGrade } from "../../works/grading/work-grade";
 import { UnavailableAiReview } from "./unavailable-ai-review";
@@ -51,17 +51,23 @@ export interface SubmissionGrading {
  * Grades a submission at the moment it is registered (FR-027, FR-028): every question through the
  * 011 registry with the strategy stored on it — multiple choice by `EXACT_MATCH` (a blank is 0), open
  * answers and code pending for the teacher, never a 0 — and the grade by `computeWorkGrade`, partial
- * while a question has no final grade.
+ * while a question has no final grade. `zeroBlanks` (018/FR-014: an exam ended by the time or the
+ * close) grades the questions left blank as a rule's 0, with no teacher action.
  */
 export async function gradeSubmission(
   questions: readonly GradingQuestion[],
   answers: ReadonlyMap<string, Answer>,
   totalCents: GradeCents,
   ports: GradingPorts = NO_AUTOMATION_PORTS,
+  zeroBlanks: ReadonlySet<string> = new Set(),
 ): Promise<SubmissionGrading> {
   const gradings: QuestionGrading[] = [];
   for (const question of questions) {
-    gradings.push(await gradeQuestion(gradable(question), answers.get(question.id) ?? blankAnswer(question.type), ports));
+    gradings.push(
+      zeroBlanks.has(question.id)
+        ? ruleResult(gradable(question), 0)
+        : await gradeQuestion(gradable(question), answers.get(question.id) ?? blankAnswer(question.type), ports),
+    );
   }
   const grade = computeWorkGrade(gradings, totalCents);
   return { gradings, gradeCents: grade.cents, partial: grade.partial };

@@ -102,4 +102,21 @@ describe("015/FR-010 fila de eventos do modo controlado", () => {
     expect(sizes).toEqual([50, 12]);
     expect(types(send.mock.calls.at(-1)![0]).at(-1)).toBe("CONNECTION_RESTORED");
   });
+
+  it("018/US4-3 a inatividade vai com idleSeconds, e cada lote confirmado chega com a contagem do servidor", async () => {
+    const answers: unknown[] = [];
+    let id = 0;
+    const queue = createEventQueue({
+      userId: "u1",
+      activityId: "a1",
+      send: async (events) => ({ ...(await accept(events)), exam: { occurrenceCount: 1, held: false } }),
+      retryable: isRetryable,
+      offline: isNetworkFailure,
+      newId: () => uuid(++id),
+    });
+    queue.subscribeSent((result, events) => answers.push([result.exam, events.map((event) => [event.type, event.idleSeconds])]));
+    queue.record("INACTIVITY", undefined, 45);
+    await queue.flush();
+    expect(answers).toEqual([[{ occurrenceCount: 1, held: false }, [["INACTIVITY", 45]]]]);
+  });
 });

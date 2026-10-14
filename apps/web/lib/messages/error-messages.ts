@@ -86,7 +86,7 @@ export const ERROR_MESSAGES = {
   CURRICULUM_SOURCE_CHANGED: "O documento analisado não corresponde mais a esta proposta. Peça uma nova análise.",
   CURRICULUM_PROPOSAL_INVALID:
     "Parte do conteúdo selecionado não pode ser aplicada. Desmarque o campo indicado e tente de novo.",
-  SUBJECT_MISMATCH: "Este trabalho é de outra disciplina. Aplique-o numa turma da mesma disciplina.",
+  SUBJECT_MISMATCH: "Este item do banco é de outra disciplina. Aplique-o numa turma da mesma disciplina.",
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: "Confirme a aplicação com tópicos ainda não concluídos no planejamento desta turma.",
   SOURCE_NOT_APPROVED: "Só itens aprovados do seu banco podem ser aplicados a uma turma.",
   INVALID_SCHEDULE: "O prazo deve ser depois da data de publicação.",
@@ -118,6 +118,17 @@ export const ERROR_MESSAGES = {
   ATTENDANCE_STARTED: "O aluno já iniciou. Use Pausar aluno.",
   ATTENDANCE_NOT_REQUIRED: "Esta atividade não usa lista de chamada.",
   STUDENT_NOT_IN_CLASS: "Um dos alunos não está matriculado nesta turma.",
+  EXAM_RULES: "Revise as questões destacadas antes de salvar.",
+  EXAM_VERSION_CONFLICT: "Esta prova mudou em outra aba. Recarregue para ver a versão atual.",
+  EXAM_ARCHIVED: "Esta prova está arquivada.",
+  EXAM_NOT_APPROVED: "Só uma prova aprovada pode ser aplicada.",
+  EXAM_START_CLOSED: "O prazo para iniciar esta prova terminou. Fale com o professor.",
+  EXAM_TIME_OVER: "Tempo esgotado. Suas respostas salvas foram registradas.",
+  EXAM_ATTEMPT_ON_HOLD: "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo professor",
+  EXAM_TIME_NOT_OVER: "Ainda há tempo de prova: devolva a prova ou confirme o cancelamento.",
+  EXAM_DECISIONS_PENDING: "Há provas encerradas por avisos aguardando a sua decisão.",
+  EXIT_NOT_ALLOWED: "Na prova, chame o professor para sair da sala.",
+  NOT_AN_EXAM: "Esta atividade não é uma prova.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
@@ -227,6 +238,9 @@ export const EXERCISE_AI_UNAVAILABLE = "A geração com IA está indisponível n
 
 /** Why "Criar trabalho com IA" can't take a request now (011/US3-8): never the provider or the model. */
 export const WORK_AI_UNAVAILABLE = "A geração com IA está indisponível no momento. Você pode criar o trabalho manualmente.";
+
+/** Why "Criar prova com IA" can't take a request now (018/US7-3, contracts/web-ui.md): never the provider or the model. */
+export const EXAM_AI_UNAVAILABLE = "A geração com IA não está disponível. Crie a prova manualmente.";
 
 /** The last analysis found nothing to propose (007/FR-017). */
 export const CURRICULUM_AI_NOTHING_FOUND =

@@ -3,6 +3,9 @@ import {
   centsToGrade,
   type ActivityType,
   type AiHelpAllowance,
+  EXAM_WARNINGS,
+  type ExamEndReason,
+  type ExamOccurrenceKind,
   type ExecutionMode,
   type ExerciseResult,
   type GradeCents,
@@ -12,6 +15,8 @@ import {
   type StudentActivity,
   type StudentActivitySummary,
   type StudentAnswer,
+  type StudentExam,
+  type StudentExamEndReason,
   type StudentExerciseAttempt,
   type StudentQuestion,
 } from "@repo/contracts";
@@ -107,6 +112,24 @@ export interface StudentActivityDetailInput extends StudentActivityInput {
   completedAttempts: { number: number; completedAt: Date }[];
   /** EXERCISE: the latest concluded attempt of the session student, with its results (013/FR-012). */
   lastResult: ConcludedAttemptInput | null;
+  /** EXAM only (018). */
+  exam: StudentExamInput | null;
+}
+
+/** 018: an EXAM's facts for its student, as loaded (research T13); null for the other types. */
+export interface StudentExamInput {
+  durationMinutes: number;
+  inactivityLimitSeconds: number;
+  startDeadline: Date;
+  /** From the start: the start plus the duration, capped by the close or the cancellation. */
+  endsAt: Date | null;
+  /** The last occurrence's ordinal, 0 when none. */
+  occurrenceCount: number;
+  /** The open hold of an attempt in progress; the loader then leaves the questions and the answers out. */
+  hold: { openedAt: Date } | null;
+  endReason: ExamEndReason | null;
+  /** The attempt's occurrences once it ended (018/FR-031); empty before. */
+  ownOccurrences: { ordinal: number; kind: ExamOccurrenceKind; recordedAt: Date }[];
 }
 
 /** A concluded EXERCISE attempt of the session student, as loaded (013 K6, K10). */
@@ -162,8 +185,9 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
 export function toStudentActivity(input: StudentActivityDetailInput): StudentActivity {
   const { result: _summaryResult, ...summary } = toStudentSummary(input);
   const visible = resultVisible(input);
-  // 016/FR-013, FR-022: a paused attempt shows only the notice, whatever the loader read.
-  const paused = input.pause !== null;
+  // 016/FR-013, FR-022: a paused attempt shows only the notice, whatever the loader read; 018/FR-019:
+  // so does an exam attempt on hold.
+  const paused = input.pause !== null || input.exam?.hold != null;
   return {
     ...summary,
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
@@ -219,6 +243,31 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
           endedAt: pause.endedAt?.toISOString() ?? null,
         }))
       : [],
+    exam: input.exam && toStudentExam(input.exam, input.facts.type !== "EXERCISE" && input.facts.released),
+  };
+}
+
+/**
+ * Before the result release both of the teacher's decisions on a hold read `WARNINGS` (018/FR-029,
+ * research T13): the cancellation and its zero reach the student only with the release.
+ */
+function studentEndReason(endReason: ExamEndReason, released: boolean): StudentExamEndReason {
+  if (endReason === "ENDED_BY_WARNINGS") return "WARNINGS";
+  if (endReason === "CANCELLED") return released ? "CANCELLED" : "WARNINGS";
+  return endReason;
+}
+
+/** An EXAM's facts as its student sees them (018 research T13), copied field by field. */
+function toStudentExam(exam: StudentExamInput, released: boolean): StudentExam {
+  return {
+    durationMinutes: exam.durationMinutes,
+    inactivityLimitSeconds: exam.inactivityLimitSeconds,
+    startDeadline: exam.startDeadline.toISOString(),
+    endsAt: exam.endsAt?.toISOString() ?? null,
+    occurrences: { count: exam.occurrenceCount, warningsAllowed: EXAM_WARNINGS },
+    hold: exam.hold && { openedAt: exam.hold.openedAt.toISOString() },
+    endReason: exam.endReason && studentEndReason(exam.endReason, released),
+    ownOccurrences: exam.ownOccurrences.map((occurrence) => ({ ordinal: occurrence.ordinal, kind: occurrence.kind, recordedAt: occurrence.recordedAt.toISOString() })),
   };
 }
 

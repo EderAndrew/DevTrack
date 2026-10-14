@@ -1,12 +1,13 @@
 import { Controller, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
 import {
   AttemptNumberSchema,
-  EmptyBodySchema,
   type RetryAttemptRequest,
   RetryAttemptRequestSchema,
   type SaveAnswersRequest,
   SaveAnswersRequestSchema,
   type SaveAnswersResult,
+  type StartAttemptRequest,
+  StartAttemptRequestSchema,
   type StudentActivity,
   type StudentExerciseAttempt,
   type SubmitAttemptRequest,
@@ -31,10 +32,10 @@ export class AttemptsController {
   @RequirePermissions("atividades.proprias.responder")
   start(
     @Param("activityId", idPipe) activityId: string,
-    @ZodBody(EmptyBodySchema) _body: object,
+    @ZodBody(StartAttemptRequestSchema) body: StartAttemptRequest,
     @Ctx() ctx: RequestContext,
   ): Promise<StudentActivity> {
-    return this.attempts.start(ctx.auth!.userId, activityId, ctx.requestId);
+    return this.attempts.start(ctx.auth!.userId, activityId, body, ctx.requestId);
   }
 
   @Put("answers")

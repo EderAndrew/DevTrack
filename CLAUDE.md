@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–017 in `specs/` are implemented. Later
-work starts a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–018 in `specs/` are implemented. Later work starts a
+new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -40,12 +40,18 @@ work starts a new feature through `/speckit-specify`.
   password reset, admin activation) go through one outbox with retries; provider notices (Resend now,
   AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
   production config guard and the deploy guide `docs/deploy/email.md`.
+- 018 controlled exams: the teacher's own Banco de Provas (1–20 questions with difficulty and topics,
+  manual or "Criar prova com IA" through `exam-generator`, an L2 draft), applied as an EXAM that is
+  always CONTROLLED, help-free and attendance-gated, with a per-student server timer; occurrences give
+  3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time
+  is left, or "Não cancelar" after the end); the teacher's exam monitor and the review with the
+  occurrences and decisions.
 
-Exams, take-home works, AI grading and code execution are later features. The rules of 012–017 that
+Take-home works, AI grading and code execution are later features. The rules of 012–018 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
-AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`) are registered
-DISABLED until the admin enables them. All four tasks are BASIC; each task's primary and fallback come from the 009
+AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
+registered DISABLED until the admin enables them. All five tasks are BASIC; each task's primary and fallback come from the 009
 catalog, backed by the release-gate evidence in `apps/api/test/fixtures/evaluations/` (current
 results per model: `apps/api/CLAUDE.md`).
 
@@ -66,7 +72,7 @@ come in `pending`; each leaves `pending` with the test that covers it (a pending
 covers fails), so the list is empty when the feature ends. `/speckit-specify` already points
 `.specify/feature.json` at it.
 
-`.specify/memory/constitution.md` (v3.4.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.5.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -87,6 +93,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `class_activities.release_mode` (`ALL_ENROLLED`/`PRESENT_ONLY`), tables `activity_attendances` and `attempt_pauses`, defense triggers on attempt writes while paused (016-attendance-gated-release)
 - No new dependency; `nodemailer` SMTP stays the only transport (Resend now, AWS SES later by configuration), `node:crypto` + `fetch` verify provider notices (017-production-email)
 - PostgreSQL 17 — one migration: `mail_deliveries` (replaces `class_invitation_deliveries`, all six e-mails) and `mail_notices` (append-only), `delivery_status` += `DELIVERED`/`UNDELIVERED`/`DISCARDED` (017-production-email)
+- No new dependency (018-controlled-exams)
+- PostgreSQL 17 — one migration: the Banco de Provas tables (mirroring 011), `class_activity_type` += `EXAM` with duration/inactivity/start-window columns, submissions `end_reason`, integrity `INACTIVITY`, tables `exam_occurrences` (append-only) and `exam_attempt_holds` (018-controlled-exams)
 
 ## Stack notes
 
@@ -132,6 +140,9 @@ OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api 
 OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
                                                         # 015 release gate of the AI help (work-helper), same flags; evidence in
                                                         # test/fixtures/evaluations/work-help/, with each case's latency
+OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:exams
+                                                        # 018 release gate of the exam generator, same flags; evidence in
+                                                        # test/fixtures/evaluations/exam-generation/
 pnpm --filter api mail:notice --kind bounced --delivery <id> [--bad-signature]
                                                         # 017 dev helper (runs dist/): posts a Resend notice signed with
                                                         # MAIL_NOTICE_SECRET for that delivery; kinds delivered|bounced|complained|failed
@@ -170,7 +181,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016 and 017; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017 and 018; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -191,10 +202,23 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `HelpAvailability`), and monitoring lives only in `attempt-integrity`, `features/controlled-attempt`
   and `components/ui/assessment`. Since 016 they read the attendance tables in their own scoped
   queries, never import `attendance` code.
+- `apps/api/test/exams-boundary.spec.ts` (018) keeps `exams`/`exam-ai` (API) and `features/exams` (web) apart
+  from the exercise and work banks (only `works/{types,grading,grade}`), with no code execution, model choice or
+  float arithmetic; `exam-sessions` calls no AI or AI help and grades only through `activities/submission`; no
+  exam text says "fraude", "cola" or "violação". `activities-boundary.spec.ts` (amended in 018) lets the
+  activity modules reach exams only through `exams/coverage`, never `exam-sessions`, and keeps the exam timer
+  and countdown in `features/exam-attempt` and `components/ui/assessment`.
 - `apps/api/test/attendance-boundary.spec.ts` (016) keeps `attendance` (API) and
   `features/attendance` (web) away from AI, AI help, controlled-mode monitoring, grading, the banks
   and mail; no code execution or float arithmetic, and presence is only the teacher's mark (no
   location, camera or QR code).
+- `apps/api/test/work-help-boundary.spec.ts` (015) keeps the answer key out of everything that
+  reaches the `work-helper` model (only `work-help/help` may read it, for the leak check), lets only
+  the task declaration name tiers/families (no model choice), and forbids float arithmetic, and
+  grading/submitting/blocking or exam code in `work-help`/`attempt-integrity`.
+- `apps/api/test/mail-boundary.spec.ts` (017) keeps `platform/mail` free of domain-module imports
+  (each module registers its `MailSubject`), forbids provider SDKs (`resend`, `svix`, `@aws-sdk/*`…),
+  allows `nodemailer` only in `smtp.mailer.ts`, and only `platform/mail/outbox` may call `Mailer.send`.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -229,7 +253,11 @@ the removal conditions are in `DEPENDENCIES.md`.
   `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
   exercise results, `ranking` for the 013 class ranking, `attempt-integrity` and `work-help`
   for the 015 integrity events and AI help requests, and `attendance` for the 016 room, attendance
-  batch and pauses), with
+  batch and pauses, and `mail` for the 017 notice route's provider param — the notice body stays the
+  provider's, parsed in the API adapters, and `exams` for the 018 Banco de Provas, its generation
+  requests and the coverage before applying, and `exam-sessions` for the 018 exam monitor and the
+  hold decisions; the exam's fields of the activity, attempt and integrity shapes live in
+  `activities` and `attempt-integrity`), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -240,7 +268,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`, 018): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -315,14 +343,34 @@ the removal conditions are in `DEPENDENCIES.md`.
   and authenticated only by the provider's signature on the raw body, before any database access;
   it never takes a session or an `Origin`. Account e-mails never show a delivery situation, and the
   public flows answer exactly as before (anti-enumeration).
+- Exams (018): an EXAM activity is always CONTROLLED, with no AI help and only for the students
+  marked present; its body never takes `deadline`, `latePolicy`, `executionMode`, `aiHelpAllowance` or
+  `releaseMode` (400). Duration 1–120 min, inactivity 30–60 s, start window 0–60 min; the start needs
+  `{ acceptRules: true }` and one attempt per student, and after the window `409 EXAM_START_CLOSED`.
+  The end is the server's (`startedAt` + duration, or the activity's close or cancellation if earlier,
+  against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
+  expired attempt is settled by the next touch (`exam_attempt.time_expired`, SYSTEM), never by a job.
+  Countable occurrences (screen, fullscreen, clipboard, `INACTIVITY` with `idleSeconds` 30–60) are
+  grouped within 2 s; occurrences 1–3 are warnings and the 4th opens the hold in the events batch's
+  transaction (`exam_attempt.held`), exactly once even with simultaneous batches. While held, no
+  statement or answer is served, events are stored without counting and every write is refused
+  (`409 EXAM_ATTEMPT_ON_HOLD`). The system never cancels or zeroes an exam: only the teacher's
+  decision does — cancel (zero), return (only while time is left and the activity is active, enforced
+  by a DB trigger too; the end never moves) or "Não cancelar" (only after the end) — and a repeated
+  decision is `409 INVALID_STATE_TRANSITION` with no second event. The result release answers
+  `409 EXAM_DECISIONS_PENDING` while a hold is open; before it the student reads `WARNINGS` for both
+  decisions. Only the teacher pauses an exam ("Sair da sala" → `409 EXIT_NOT_ALLOWED`) and the time
+  keeps running. No AI call happens during an attempt; `exam-sessions` grades only through
+  `activities/submission`. No text says "fraude", "cola" or "violação"; audit metadata carries ids,
+  enums, counts and times, never a statement or an answer.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 018-controlled-exams: exams — own Banco de Provas (manual or `exam-generator` L2 draft), applied as an always-CONTROLLED, help-free, attendance-gated EXAM with a per-student server timer (1–120 min, start window); occurrences (screen/fullscreen exits, clipboard, inactivity 30–60 s) give 3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time is left, or do not cancel); expired attempts settled on the next touch
 - 017-production-email: real e-mail in production — one outbox with retries for all six e-mails (fresh link per attempt, nothing of the e-mail stored), provider notices (`POST /mail/notices/:provider`, signature on the raw body, our own Message-ID links them) mark invitations "Não entregue", HTML + text templates without external resources or tracking, production config guard, deploy guide (Resend → SES)
 - 016-attendance-gated-release: per-activity attendance — a new work is released only to the students the teacher marks present (late students marked later, unmark only before the start); exercises and older works stay open; "Sair da sala" pauses the attempt (reason declared by the student, or a teacher pause) and only the teacher releases the return, on every device; the deadline keeps running; PAUSED and durations derived on read; polling, no WebSocket
-- 015-controlled-work-ai-help: per-work teacher options — CONTROLLED mode (fullscreen focus page, screen exits and blocked copy/paste recorded as server-timed facts, typing allowance on save, never blocking the attempt) and AI help (3 orientations per student by the L2 `work-helper`, which never receives the answer key; deterministic leak check before delivery; teacher sees questions and orientations; the student sees their own helps and exits after the submission); constitution 3.4.0
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

@@ -1889,3 +1889,139 @@ Para avisos que só informam: use `FocusViolationWarning` ou `Alert`.
 
 O foco abre em "Continuar respondendo" e volta para onde estava ao fechar; Esc fecha sem sair; a
 saída nunca é impedida.
+
+## ExamTimer
+
+`components/ui/assessment/exam-timer.tsx` (018, grupo "Avaliação"; [exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: ícone `Timer` e "mm:ss restantes" (ou "h:mm:ss") em `text-label`, algarismos tabulares.
+
+### Estados
+
+Normal; faltando 5 minutos (`--warning-text` e `TriangleAlert`); último minuto (`--danger-text`).
+Nunca negativo: "00:00 restantes" no fim.
+
+### Quando usar
+
+No cabeçalho da prova (018/FR-012), com o tempo restante calculado do fim e do horário do servidor.
+
+### Quando não usar
+
+Para o prazo de um trabalho, que não tem cronômetro: use o aviso de prazo da atividade.
+
+### Exemplo
+
+```tsx
+<ExamTimer remaining={() => endsAt - (Date.now() + serverOffset)} />
+```
+
+### Acessibilidade
+
+`role="timer"` com `aria-live="off"` e nome "Tempo restante": nada é anunciado a cada segundo; os
+marcos são anunciados por `TimeAlert` e `FinalCountdown`. O estado muda o ícone e a cor, nunca só a
+cor.
+
+## TimeAlert
+
+`components/ui/assessment/time-alert.tsx` (018, grupo "Avaliação"; textos de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: `Alert` `warning` com "Faltam 10 minutos." ou "Faltam 5 minutos.", o que fazer e "Entendi".
+
+### Estados
+
+Faltam 10 minutos; faltam 5 minutos. Um marco já passado quando a prova abre (prova curta ou
+recarga) não aparece.
+
+### Quando usar
+
+Acima das questões da prova, quando o tempo cruza cada marco (018/FR-012).
+
+### Quando não usar
+
+Para os últimos segundos: use `FinalCountdown`.
+
+### Exemplo
+
+```tsx
+<TimeAlert remaining={remaining} />
+```
+
+### Acessibilidade
+
+`role="status"` (anúncio educado, uma vez por marco): não bloqueia nem move o foco; "Entendi"
+esconde pelo teclado.
+
+## FinalCountdown
+
+`components/ui/assessment/final-countdown.tsx` (018, grupo "Avaliação"; [exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: o número de 10 a 1 em `text-display`, centralizado sobre a página, em `--surface` com
+`shadow-overlay`.
+
+### Estados
+
+Últimos 10 segundos. Uma prova que abre com menos de 10 segundos não mostra a contagem.
+
+### Quando usar
+
+Nos últimos 10 segundos da prova (018/FR-012).
+
+### Quando não usar
+
+Para qualquer outro prazo.
+
+### Exemplo
+
+```tsx
+<FinalCountdown remaining={remaining} />
+```
+
+### Acessibilidade
+
+O número é só visual (`aria-hidden`); um único `role="alert"` anuncia "Faltam 10 segundos." uma
+vez. Sem animação (vale com `prefers-reduced-motion`) e sem eventos de ponteiro: não bloqueia a
+resposta nem toma o foco.
+
+## WarningDialog
+
+`components/ui/assessment/warning-dialog.tsx` (018, grupo "Avaliação"; textos de
+[exam-mode.md](./exam-mode.md))
+
+### Variantes
+
+Uma: `AlertDialog` com "Aviso n de 3", o tipo da ocorrência e "Na 4ª ocorrência a prova será
+encerrada.", e uma única resposta, "Voltar à prova".
+
+### Estados
+
+Aviso 1, 2 e 3 de 3; o tipo: saiu da tela da prova, saiu da tela cheia, copiar ou colar, sem
+interagir além do limite.
+
+### Quando usar
+
+Depois de cada ocorrência que o servidor contou numa prova (018/FR-017); o número vem da resposta
+do servidor, nunca de uma contagem da página.
+
+### Quando não usar
+
+Num trabalho em modo controlado (015), que não conta ocorrências: use `FocusViolationWarning`. Para
+a prova encerrada na 4ª, use o aviso de encerramento da página.
+
+### Exemplo
+
+```tsx
+<WarningDialog open={warning !== null} ordinal={2} kind="CLIPBOARD" onReturn={backToFullscreen} />
+```
+
+### Acessibilidade
+
+`role="alertdialog"` nomeado pelo título e descrito pelo texto do aviso; o foco vai para "Voltar à
+prova", que Enter ou Esc também acionam, e o Tab fica dentro do aviso. Texto neutro: nunca fala em
+fraude, cola ou violação.

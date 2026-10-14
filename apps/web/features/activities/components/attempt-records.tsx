@@ -1,6 +1,6 @@
 "use client";
 
-import type { AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
+import type { AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherAttemptExam, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
 import { createContext, useContext } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/ui/code/code-block";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAttemptPauses } from "@/features/attendance/hooks/use-attendance";
 import {
+  ENDED_BY_TIME,
   ENDED_WITH_ACCEPTANCE,
   ENDED_WITH_ACTIVITY,
   NO_ROOM_EXITS,
@@ -20,11 +21,16 @@ import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useAttemptIntegrity } from "../hooks/use-activities";
 import {
+  DECISIONS_TITLE,
   EVENT_LABELS,
   EXIT_KINDS,
   formatDuration,
   HELP_STATUS_LABELS,
   HELP_TITLE,
+  HOLD_RESOLUTION_LABELS,
+  NO_EXAM_OCCURRENCES,
+  OCCURRENCE_KIND_LABELS,
+  OCCURRENCES_TITLE,
   occurredAt,
   RECORDS_NOTE,
   RECORDS_TITLE,
@@ -216,5 +222,54 @@ function pauseEnd(pause: TeacherPause) {
   if (pause.endedAt === null) return OUT_OF_ROOM;
   if (pause.endedBy === "ACTIVITY_CLOSED") return ENDED_WITH_ACTIVITY;
   if (pause.endedBy === "ACCEPTED") return ENDED_WITH_ACCEPTANCE;
+  if (pause.endedBy === "TIME_EXPIRED") return ENDED_BY_TIME;
   return <time dateTime={pause.endedAt}>{formatTime(pause.endedAt)}</time>;
+}
+
+/**
+ * An exam attempt's occurrences and decisions (018/US8, FR-031): each occurrence with its number, kind
+ * and the server's time, and each hold with the teacher's decision, its author and time — or that it
+ * still waits. The pauses are the "Saídas da sala" above. Facts, never a verdict (FR-032).
+ */
+export function ExamAttemptRecords({ exam }: { exam: TeacherAttemptExam }) {
+  return (
+    <section aria-labelledby="ocorrencias-titulo" className="flex flex-col gap-2">
+      <h3 id="ocorrencias-titulo" className="m-0 text-h3">
+        {OCCURRENCES_TITLE}
+      </h3>
+      {exam.occurrences.length === 0 ? (
+        <p className="m-0">{NO_EXAM_OCCURRENCES}</p>
+      ) : (
+        <ol aria-label={OCCURRENCES_TITLE} className="m-0 flex list-none flex-col gap-1 p-0">
+          {exam.occurrences.map((occurrence) => (
+            <li key={occurrence.ordinal}>
+              {occurrence.ordinal}. {OCCURRENCE_KIND_LABELS[occurrence.kind]} às{" "}
+              <time dateTime={occurrence.recordedAt}>{formatTime(occurrence.recordedAt)}</time>
+            </li>
+          ))}
+        </ol>
+      )}
+      {exam.decisions.length > 0 ? (
+        <>
+          <h4 className="m-0 text-body font-semibold">{DECISIONS_TITLE}</h4>
+          <ul aria-label={DECISIONS_TITLE} className="m-0 flex list-none flex-col gap-1 p-0">
+            {exam.decisions.map((decision) => (
+              <li key={decision.holdId}>
+                Ocorrência {decision.occurrenceOrdinal}:{" "}
+                {decision.resolution && decision.resolvedAt ? (
+                  <>
+                    {HOLD_RESOLUTION_LABELS[decision.resolution]}
+                    {decision.resolvedBy ? ` por ${decision.resolvedBy.name}` : ""} às{" "}
+                    <time dateTime={decision.resolvedAt}>{formatTime(decision.resolvedAt)}</time>
+                  </>
+                ) : (
+                  "aguardando decisão"
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </section>
+  );
 }

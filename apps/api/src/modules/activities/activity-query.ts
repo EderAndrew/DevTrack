@@ -92,6 +92,11 @@ export const ACTIVITY_HEADER_SELECT = {
   deadline: true,
   latePolicy: true,
   sourceWorkId: true,
+  /** 018: the exam it was copied from and its time (EXAM only, CHECK). */
+  sourceExamId: true,
+  durationMinutes: true,
+  inactivityLimitSeconds: true,
+  startWindowMinutes: true,
   outOfScopeTopicCount: true,
   resultReleasedAt: true,
   /** 016: where an open pause ends by derivation (research M7). */
@@ -118,6 +123,19 @@ export async function loadPresentCounts(db: Tx, activityIds: readonly string[]):
     WHERE aa.activity_id = ANY(${[...activityIds]}::uuid[])
     GROUP BY aa.activity_id`;
   return new Map(rows.map((row) => [row.activity_id, row.present]));
+}
+
+/**
+ * The holds waiting for the teacher's decision in each EXAM (018 research T10), in one aggregate query.
+ * Read straight from the table: `activities` never imports `exam-sessions` (research T1).
+ */
+export async function loadPendingDecisions(db: Tx, activityIds: readonly string[]): Promise<Map<string, number>> {
+  if (activityIds.length === 0) return new Map();
+  const rows = await db.$queryRaw<{ activity_id: string; pending: number }[]>`
+    SELECT activity_id, count(*)::int AS pending FROM exam_attempt_holds
+    WHERE activity_id = ANY(${[...activityIds]}::uuid[]) AND resolution IS NULL
+    GROUP BY activity_id`;
+  return new Map(rows.map((row) => [row.activity_id, row.pending]));
 }
 
 /** The counts of a `PRESENT_ONLY` work; null for `ALL_ENROLLED`, which takes no attendance. */

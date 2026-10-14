@@ -9,10 +9,12 @@ import type {
   ClassActivityStatus,
   ClassActivityType,
   SchoolClass,
+  WorkDifficulty,
   WorkTestCaseVisibility,
 } from "../../src/generated/prisma/client";
 import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestUser } from "./factories";
 import { createExercise, languageId } from "./exercises";
+import { createExam } from "./exams";
 import { createWork } from "./works";
 import { markAllPresent } from "./attendance";
 import type { api, TestApp } from "./test-app";
@@ -192,6 +194,8 @@ export interface ActivityQuestionSpec {
   difficulty?: ExerciseDifficulty;
   /** EXERCISE: the bank exercise it was copied from; default a new APPROVED one of the teacher. */
   sourceExerciseId?: string;
+  /** EXAM: the exam question's difficulty, copied into the snapshot (018 T3); default BASIC, null otherwise. */
+  examDifficulty?: WorkDifficulty | null;
   statement?: string;
   /** MULTIPLE_CHOICE: texts in order; default 3 alternatives. */
   alternatives?: string[];
@@ -234,6 +238,12 @@ export interface CreateActivityOptions {
   aiHelpAllowance?: 0 | 3;
   /** PRESENT_ONLY only for ASSIGNMENT (CHECK, 016 M2); default ALL_ENROLLED, as works applied before 016. */
   releaseMode?: ActivityReleaseMode;
+  /** EXAM only (CHECK): default a new APPROVED exam of the teacher, with its subject. */
+  sourceExamId?: string;
+  /** EXAM only (CHECK, 018 T3): defaults 60 min, 60 s and 15 min. */
+  durationMinutes?: number;
+  inactivityLimitSeconds?: number;
+  startWindowMinutes?: number;
 }
 
 export interface CreatedActivity {
@@ -263,6 +273,8 @@ export async function createActivity(
   const now = Date.now();
   const type = options.type ?? "ASSIGNMENT";
   const exercise = type === "EXERCISE";
+  // 018: an EXAM is always CONTROLLED, without help, PRESENT_ONLY, timed, with no deadline (CHECKs).
+  const exam = type === "EXAM";
   const specs = options.questions ?? [{ type: "MULTIPLE_CHOICE" as const }];
   const values = specs.map((spec) => spec.valueCents ?? 100);
   const totalCents = values.reduce((sum, value) => sum + value, 0);
@@ -271,7 +283,13 @@ export async function createActivity(
   const status = options.status ?? "ACTIVE";
   let sourceWorkId = options.sourceWorkId ?? null;
   let sourceSubjectId = options.sourceSubjectId ?? null;
-  if (!exercise && sourceWorkId === null) {
+  let sourceExamId = options.sourceExamId ?? null;
+  if (exam && sourceExamId === null) {
+    const created = await createExam(t, schoolClass.teacherId);
+    sourceExamId = created.id;
+    sourceSubjectId = created.subjectId;
+  }
+  if (!exercise && !exam && sourceWorkId === null) {
     const work = await createWork(t, schoolClass.teacherId, sourceSubjectId ? { subjectId: sourceSubjectId } : {});
     sourceWorkId = work.id;
     sourceSubjectId = work.subjectId;
@@ -297,14 +315,18 @@ export async function createActivity(
         totalGrade: exercise ? null : cents(totalCents),
         questionCount: specs.length,
         publishAt: options.publishAt ?? new Date(now - 24 * 3_600_000),
-        deadline: exercise ? null : (options.deadline ?? new Date(now + 7 * 24 * 3_600_000)),
-        latePolicy: exercise ? null : (options.latePolicy ?? "REJECT"),
+        deadline: exercise || exam ? null : (options.deadline ?? new Date(now + 7 * 24 * 3_600_000)),
+        latePolicy: exercise || exam ? null : (options.latePolicy ?? "REJECT"),
         sourceWorkId,
+        sourceExamId,
         sourceSubjectId,
+        durationMinutes: exam ? (options.durationMinutes ?? 60) : null,
+        inactivityLimitSeconds: exam ? (options.inactivityLimitSeconds ?? 60) : null,
+        startWindowMinutes: exam ? (options.startWindowMinutes ?? 15) : null,
         outOfScopeTopicCount: options.outOfScopeTopicCount ?? 0,
-        executionMode: options.executionMode ?? "NORMAL",
+        executionMode: options.executionMode ?? (exam ? "CONTROLLED" : "NORMAL"),
         aiHelpAllowance: options.aiHelpAllowance ?? 0,
-        releaseMode: options.releaseMode ?? "ALL_ENROLLED",
+        releaseMode: options.releaseMode ?? (exam ? "PRESENT_ONLY" : "ALL_ENROLLED"),
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt
@@ -326,6 +348,8 @@ export async function createActivity(
           value: exercise ? null : cents(values[position]!),
           difficulty: exercise ? (spec.difficulty ?? "BASIC") : null,
           points: exercise ? EXERCISE_POINTS[spec.difficulty ?? "BASIC"] : null,
+          // Set by default only for an EXAM; a test may set or clear it to reach the trigger.
+          examDifficulty: spec.examDifficulty !== undefined ? spec.examDifficulty : exam ? "BASIC" : null,
           sourceExerciseId: sourceExerciseIds[position],
           statement: spec.statement ?? `Enunciado ${position + 1}`,
           expectedAnswer: spec.type === "OPEN_ANSWER" ? (spec.expectedAnswer ?? "Resposta esperada") : null,

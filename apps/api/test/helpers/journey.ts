@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { WorkTeacherView } from "@repo/contracts";
+import type { TeacherExam, WorkTeacherView } from "@repo/contracts";
 import { expect } from "vitest";
 import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-bootstrap.service";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
@@ -20,7 +20,10 @@ import { validGeneratedBatch } from "../fixtures/exercise-generation/valid-batch
 import { scriptGeneration } from "./exercise-ai";
 import { validGeneratedWork } from "../fixtures/work-generation/valid-work";
 import { scriptWorkGeneration } from "./work-ai";
+import { scriptExamGeneration } from "./exam-ai";
+import { validGeneratedExam } from "../fixtures/exam-generator/valid-exam";
 import { toUpdateBody } from "./works";
+import { toExamUpdateBody } from "./exams";
 import { createConfirmedTopic } from "./exercises";
 import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/proposal/build-proposal";
 import { READ_WORK_HELP_REQUEST } from "../../src/modules/work-help/definitions/request-content";
@@ -423,6 +426,78 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const archivedWork = await workGenerationClient.post(`/api/works/${generatedWorkId}/archive`, { version: approvedWork.body.version });
   expect(archivedWork.status).toBe(200);
   expect((await workGenerationClient.post(`/api/works/${generatedWorkId}/restore`, { version: archivedWork.body.version })).status).toBe(200);
+  // 018/US1 — the Banco de Provas: a manual exam saved as a draft, edited, approved, archived and
+  // restored: `exam.created`, `exam.edited`, `exam.approved`, `exam.archived`, `exam.restored`, with
+  // ids, counts and enums only, never the title, statements or answer keys.
+  const examDraft = await teacherClient.post("/api/exams", {
+    subjectId,
+    syllabusRevisionId: confirmed.body.id,
+    title: text("título da prova (018)", "Prova manual da jornada dezoito"),
+    totalGrade: "10.00",
+    saveAs: "DRAFT",
+    topicIds: [topicItemId],
+    questions: [
+      {
+        type: "OPEN_ANSWER",
+        statement: text("enunciado da prova (018)", "MARCADOR-PROVA-018 Enunciado da prova da jornada dezoito"),
+        expectedAnswer: text("resposta esperada da prova (018)", "Resposta esperada da prova da jornada"),
+        difficulty: "BASIC",
+        topicIds: [topicItemId],
+      },
+      {
+        type: "MULTIPLE_CHOICE",
+        statement: "Qual alternativa da prova?",
+        alternatives: [
+          { text: text("alternativa correta da prova (018)", "Alternativa correta da prova da jornada"), isCorrect: true },
+          { text: "Distrator da prova um", isCorrect: false },
+          { text: "Distrator da prova dois", isCorrect: false },
+        ],
+        topicIds: [topicItemId],
+      },
+    ],
+  });
+  expect(examDraft.status).toBe(201);
+  const examEdit = toExamUpdateBody(examDraft.body as TeacherExam);
+  examEdit.questions[1] = { ...examEdit.questions[1]!, difficulty: "ADVANCED" };
+  const editedExam = await teacherClient.put(`/api/exams/${examDraft.body.id}`, examEdit);
+  expect(editedExam.status).toBe(200);
+  const approvedExam = await teacherClient.post(`/api/exams/${examDraft.body.id}/approve`, { version: editedExam.body.version });
+  expect(approvedExam.status).toBe(200);
+  const archivedExam = await teacherClient.post(`/api/exams/${examDraft.body.id}/archive`, { version: approvedExam.body.version });
+  expect(archivedExam.status).toBe(200);
+  expect((await teacherClient.post(`/api/exams/${examDraft.body.id}/restore`, { version: archivedExam.body.version })).status).toBe(200);
+  // 018/US7 — "Criar prova com IA" by its own teacher: one generation becomes a DRAFT exam
+  // (`exam_generation.requested`, `exam_generation.completed`); another answers a question outside the
+  // chosen topic and is refused with nothing saved (`exam_generation.rejected` with the code only).
+  const examGenerationTeacher = await createUser(t, { roles: ["TEACHER"] });
+  const examGenerationClient = api(t, { cookie: await loginAs(t, examGenerationTeacher) });
+  const examGenerationTopic = await createConfirmedTopic(t, examGenerationTeacher.id, {
+    languageKey: null,
+    items: [text("tópico lido pelo gerador de provas (018)", "MARCADOR-TOPICO-018 Herança"), "Interfaces"],
+  });
+  const examGenerationBody = () => ({
+    subjectId: examGenerationTopic.subject.id,
+    syllabusRevisionId: examGenerationTopic.revision.id,
+    topicIds: [examGenerationTopic.itemId],
+    title: text("título do pedido de prova (018)", "Prova gerada da jornada dezoito"),
+    difficulty: "BASIC",
+    totalGrade: "2.00",
+    quantity: 2,
+    distribution: { OPEN_ANSWER: 2, MULTIPLE_CHOICE: 0, CODE: 0 },
+    trickCount: 0,
+    idempotencyKey: randomUUID(),
+  });
+  const generatedExamOutput = validGeneratedExam(
+    { difficulty: "BASIC", counts: { OPEN_ANSWER: 2, MULTIPLE_CHOICE: 0, CODE: 0 }, trickCount: 0, languageId: null, topicIds: [examGenerationTopic.itemId] },
+    text("texto gerado pela IA (018)", "MARCADOR-GERADO-018"),
+  );
+  for (const output of [generatedExamOutput, { ...generatedExamOutput, questions: generatedExamOutput.questions.map((question) => ({ ...question, topicIds: [randomUUID()] })) }]) {
+    const examRequest = await examGenerationClient.post("/api/exam-generation-requests", examGenerationBody());
+    expect(examRequest.status).toBe(202);
+    scriptExamGeneration(t.provider, examRequest.body.id, output);
+    expect(await t.get(AiExecutionWorker).runOnce()).toBe(1);
+  }
+  expect(await t.prisma.exam.count({ where: { teacherId: examGenerationTeacher.id, origin: "AI_GENERATED", status: "DRAFT" } })).toBe(1);
   // 007/US1 — "Preencher com IA" on the processed PDF: the real curriculum-agent, on the fake
   // provider, reads the document and proposes its content without touching the syllabus.
   const aiDocumentId = syllabus.body.document.id as string;
@@ -609,6 +684,22 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const appliedExercises = await teacherClient.post(activitiesPath, activityBody(exerciseSource));
   expect(appliedExercises.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExercises.body.id}/cancel`, {})).status).toBe(200);
+  // 018/US2 — the restored exam goes to the class as an EXAM with its time (`activity.published` with
+  // `sourceExamId`, `durationMinutes`, `inactivityLimitSeconds` and `startWindowMinutes`), always CONTROLLED,
+  // without help and only for the students marked present; then cancelled.
+  const examScope = await teacherClient.post(`${activitiesPath}/scope-check`, { type: "EXAM", examId: examDraft.body.id });
+  expect(examScope.body.coverage.byTopic).toHaveLength(1);
+  const appliedExam = await teacherClient.post(activitiesPath, {
+    idempotencyKey: randomUUID(),
+    source: { type: "EXAM", examId: examDraft.body.id },
+    title: text("título da prova aplicada (018)", "Prova aplicada da jornada dezoito"),
+    publishAt: null,
+    durationMinutes: 30,
+    inactivityLimitSeconds: 45,
+    acknowledgeOutOfScope: true,
+  });
+  expect(appliedExam.status).toBe(201);
+  expect((await teacherClient.post(`${activitiesPath}/${appliedExam.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   const inviteToClass = async (email: string) => {
     expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);
@@ -932,6 +1023,88 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const acceptedAttemptId = (await teacherClient.get(`${activitiesPath}/${acceptedWork.body.id}`)).body.roster[0].attemptId as string;
   const accepted = await teacherClient.post(`${activitiesPath}/${acceptedWork.body.id}/attempts/${acceptedAttemptId}/accept-submission`, {});
   expect(accepted.body.submission.acceptedByTeacher).toBe(true);
+  // 018/US3 — the exam applied again and taken with the server's time: the rules accepted on the start
+  // (`activity_attempt.started` with `rulesAccepted`), the answers saved and the exam handed in
+  // (`activity_submission.created` with `endReason: STUDENT_SUBMITTED`). A second exam is closed by the
+  // teacher while the student answers; once the 2 s grace has passed, the student's next read settles
+  // the attempt (`exam_attempt.time_expired`, SYSTEM, `endReason: ACTIVITY_CLOSED`).
+  const examAnswer = text("resposta do aluno na prova (018)", "MARCADOR-PROVA-018 Resposta do aluno na prova da jornada");
+  const takeExam = async (title: string) => {
+    const applied = await teacherClient.post(activitiesPath, {
+      idempotencyKey: randomUUID(),
+      source: { type: "EXAM", examId: examDraft.body.id },
+      title: text("título da prova aplicada (018)", title),
+      publishAt: null,
+      durationMinutes: 30,
+      acknowledgeOutOfScope: true,
+    });
+    expect(applied.status).toBe(201);
+    await markPresent(applied.body.id);
+    const started = await classStudentClient.post(`/api/me/activities/${applied.body.id}/attempt`, { acceptRules: true });
+    expect(started.status).toBe(200);
+    const answers = answersFor(started.body.questions).map((answer) =>
+      answer.answer.kind === "TEXT" ? { ...answer, answer: { kind: "TEXT", text: examAnswer } } : answer,
+    );
+    const saved = await classStudentClient.put(`/api/me/activities/${applied.body.id}/attempt/answers`, { answers });
+    expect(saved.status).toBe(200);
+    return applied.body.id as string;
+  };
+  const handedIn = await takeExam("Prova entregue da jornada dezoito");
+  expect((await classStudentClient.post(`/api/me/activities/${handedIn}/attempt/submit`, { answers: [] })).body.exam.endReason).toBe("STUDENT_SUBMITTED");
+  const closedExam = await takeExam("Prova encerrada da jornada dezoito");
+  expect((await teacherClient.post(`${activitiesPath}/${closedExam}/close`, {})).status).toBe(200);
+  await new Promise((resolve) => setTimeout(resolve, 2_100));
+  expect((await classStudentClient.get(`/api/me/activities/${closedExam}`)).body.exam.endReason).toBe("ACTIVITY_CLOSED");
+  // 018/US4 — an event after the hand-in is refused and nothing stored (`exam_attempt.write_refused`);
+  // a third exam gets four occurrences sent together after a lost connection (the browser's times
+  // 10 s apart), the 4th opens the hold (`exam_attempt.held`, SYSTEM) and the hand-in is refused
+  // (`activity_submission.rejected` with `EXAM_ATTEMPT_ON_HOLD`).
+  const examEvent = (type: string, secondsAgo: number) => ({
+    eventId: randomUUID(),
+    type,
+    clientOccurredAt: new Date(Date.now() - secondsAgo * 1000).toISOString(),
+    buffered: true,
+  });
+  const afterHandIn = await classStudentClient.post(`/api/me/activities/${handedIn}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 1)] });
+  expect(afterHandIn.body.code).toBe("ATTEMPT_ALREADY_SUBMITTED");
+  const heldExam = await takeExam("Prova encerrada por avisos da jornada dezoito");
+  // 018/US6 — "Sair da sala" does not exist in an exam (`activity_submission.rejected`, `operation: EXIT`).
+  const examExit = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/pause`, { reason: "WATER" });
+  expect(examExit.body.code).toBe("EXIT_NOT_ALLOWED");
+  const occurrences = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, {
+    events: [examEvent("SCREEN_LEFT", 40), examEvent("FULLSCREEN_EXITED", 30), examEvent("COPY_BLOCKED", 20), examEvent("SCREEN_LEFT", 10)],
+  });
+  expect(occurrences.body.exam).toEqual({ occurrenceCount: 4, held: true });
+  const heldSubmit = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/submit`, { answers: [] });
+  expect(heldSubmit.body.code).toBe("EXAM_ATTEMPT_ON_HOLD");
+  // 018/US5 — the teacher decides on the monitor: returns the exam with time left
+  // (`exam_attempt.returned`), the next occurrence holds it again and the cancellation is confirmed
+  // (`exam_attempt.cancel_confirmed`); a fourth exam held and then closed is not cancelled
+  // (`exam_attempt.not_cancelled`).
+  const openHoldOf = async (activityId: string) => {
+    const monitor = await teacherClient.get(`${activitiesPath}/${activityId}/exam-monitor`);
+    expect(monitor.status).toBe(200);
+    return monitor.body.students[0].openHold.id as string;
+  };
+  const decideHold = (activityId: string, holdId: string, decision: "cancel" | "return" | "keep") =>
+    teacherClient.post(`${activitiesPath}/${activityId}/exam-holds/${holdId}/${decision}`, {});
+  const firstHold = await openHoldOf(heldExam);
+  expect((await decideHold(heldExam, firstHold, "return")).body.resolution).toBe("RETURNED");
+  // 018/SC-010 — a repeated decision is refused and writes no second event.
+  expect((await decideHold(heldExam, firstHold, "return")).body.code).toBe("INVALID_STATE_TRANSITION");
+  // Past the 2 s window of the batch that opened the first hold, so the fifth counts on its own.
+  await new Promise((resolve) => setTimeout(resolve, 2_100));
+  const fifth = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 0)] });
+  expect(fifth.body.exam).toEqual({ occurrenceCount: 5, held: true });
+  expect((await decideHold(heldExam, await openHoldOf(heldExam), "cancel")).body.resolution).toBe("CANCEL_CONFIRMED");
+  const keptExam = await takeExam("Prova não cancelada da jornada dezoito");
+  const keptOccurrences = await classStudentClient.post(`/api/me/activities/${keptExam}/attempt/events`, {
+    events: [examEvent("SCREEN_LEFT", 40), examEvent("FULLSCREEN_EXITED", 30), examEvent("COPY_BLOCKED", 20), examEvent("SCREEN_LEFT", 10)],
+  });
+  expect(keptOccurrences.body.exam).toEqual({ occurrenceCount: 4, held: true });
+  const keptHold = await openHoldOf(keptExam);
+  expect((await teacherClient.post(`${activitiesPath}/${keptExam}/close`, {})).status).toBe(200);
+  expect((await decideHold(keptExam, keptHold, "keep")).body.resolution).toBe("NOT_CANCELLED");
   // 003/US6 — the teacher lists the class's students and removes the one who joined.
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);

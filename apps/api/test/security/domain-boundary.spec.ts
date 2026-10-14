@@ -93,6 +93,18 @@ const EXPECTED_MODELS = [
   // 003 ClassInvitationDelivery) and the provider notices.
   "MailDelivery",
   "MailNotice",
+  // 018 (specs/018-controlled-exams/data-model.md) — the Banco de Provas, and an exam attempt's
+  // counted occurrences and holds.
+  "Exam",
+  "ExamTopic",
+  "ExamQuestion",
+  "ExamQuestionAlternative",
+  "ExamQuestionTestCase",
+  "ExamQuestionTopic",
+  "ExamGenerationRequest",
+  "ExamGenerationRequestTopic",
+  "ExamOccurrence",
+  "ExamAttemptHold",
 ];
 
 /**
@@ -103,17 +115,15 @@ const EXPECTED_MODELS = [
  * and 010 the question bank (`questao`, `questoes`, `exercicio`; `exercise` was never listed) and
  * 011 the work bank (`trabalho`, `trabalhos`, and `grade` for a work's total grade and its grading
  * strategies; `work` was never listed) and 012 class activities, submissions and student grades
- * (`nota`, `submiss`; research P24). The later phases' terms (exams, exam attempts as `tentativa`,
- * lessons, courses) stay forbidden.
+ * (`nota`, `submiss`; research P24) and 018 exams (`prova`, `exam`). The later phases' terms (attempts
+ * named `tentativa`, lessons, courses) stay forbidden.
  * "assignment" is left out on purpose: role assignment is identity vocabulary (`UserRole`).
  */
 const ACADEMIC_PREFIXES = [
   "periodo",
   "aula",
-  "prova",
   "course",
   "lesson",
-  "exam",
   "homework",
   "curricul",
   // Attempts at an exam; delivery and processing `attempts` (003, 004) are not academic.
@@ -190,7 +200,7 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
   });
 
   it("o detector reconhece termos acadêmicos e ignora falsos positivos", () => {
-    for (const name of ["course_enrollments", "QuestãoProva", "classe", "prova_trabalhos", "tentativas_prova", "exam_attempts", "ExamSubmission", "modo_prova"]) {
+    for (const name of ["course_enrollments", "classe", "tentativas_prova", "AulaPratica", "homework_items"]) {
       expect(academicTerms(name), name).not.toEqual([]);
     }
     for (const name of [
@@ -229,6 +239,10 @@ describe("004/E22 006/FR-003 007/FR-031 010/FR-001 fronteira do domínio (FR-080
       "ActivityAttempt",
       "atividades.proprias.responder",
       "POST /me/activities/:activityId/attempt/submit",
+      "provas.encerramentos.decidir",
+      "exam_occurrences",
+      "ExamAttemptHold",
+      "GET /exams/:id",
     ]) {
       expect(academicTerms(name), name).toEqual([]);
     }

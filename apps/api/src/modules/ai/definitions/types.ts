@@ -109,6 +109,13 @@ export interface AgentDefinition {
      * SYSTEM, `settledBy: "DOMAIN_RULE"`). `materialize` is then required and must return a decision.
      */
     settle?: "ON_MATERIALIZE";
+    /**
+     * 018 research T14: the output was refused — its schema, `build` or `materialize` — and the
+     * execution ends FAILED. Called in the transaction that records that end, so the domain can
+     * audit the refusal of its own request; `reason` is a code, never content. A throw rolls the
+     * end back (the execution stays claimed until its lease expires), so it only writes.
+     */
+    rejected?(tx: Tx, context: ProposalRejectedContext): Promise<void>;
   };
   /** Authorized metadata sent to the model as `context` (FR-057). */
   buildContext?(context: AiExecutionContext): Record<string, unknown>;
@@ -129,6 +136,17 @@ export interface ProposalMaterializeContext {
   itemIds: readonly string[];
   now: Date;
   /** An application service, e.g. the audit (as `ToolContext.get`). */
+  get<T>(token: Type<T> | Abstract<T>): T;
+}
+
+/** What `proposal.rejected` gets: the execution and why its output was refused (a code). */
+export interface ProposalRejectedContext {
+  executionId: string;
+  workspaceId: string;
+  resource: AiResourceRef | null;
+  /** `rejectReason` of the hook's error (e.g. `COUNT_MISMATCH`), or `OUTPUT_SCHEMA_INVALID`. */
+  reason: string;
+  now: Date;
   get<T>(token: Type<T> | Abstract<T>): T;
 }
 

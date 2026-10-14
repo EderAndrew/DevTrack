@@ -7,6 +7,7 @@ import type {
   ReleaseMode,
   SaveAnswersRequest,
   SaveAnswersResult,
+  StartAttemptRequest,
   StudentActivity,
   SubmitAttemptRequest,
   WorkQuestionType,
@@ -16,15 +17,17 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound, rateLimited } from "../../platform/http/errors";
+import { AppException, notFound, rateLimited, validationError } from "../../platform/http/errors";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
-import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
+import { type ActivityFacts, assignmentSchedule, examTiming } from "../activities/status/facts";
 import { answerFits, answerOfRow, columnsOf, isBlankAnswer, progressAuditDue, sameAnswer } from "../activities/status/answers";
+import { acceptsWrite, endsAt, startDeadline } from "../activities/status/exam-time";
 import { decideOperation, type OperationRefusal, type StudentOperation, wouldBeLate } from "../activities/status/operations";
 import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
 import { registerSubmission } from "../activities/submission/register-submission";
+import { ExamSettlement } from "../activities/exam-settlement";
 import { MyActivitiesService } from "./my-activities.service";
 import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
@@ -50,6 +53,12 @@ interface ContextRow {
   /** ASSIGNMENT only (013 K1). */
   deadline: Date | null;
   late_policy: LatePolicy | null;
+  /** 018: an EXAM's publication, start window, duration and the close or cancellation that caps its end (research T4). */
+  publish_at: Date;
+  start_window_minutes: number | null;
+  duration_minutes: number | null;
+  closed_at: Date | null;
+  cancelled_at: Date | null;
   question_count: number;
   class_status: string;
   released: boolean;
@@ -83,7 +92,7 @@ class TypingRefused extends Error {
  * since 016 also a save or submit of a paused attempt (`ATTEMPT_PAUSED`, research M6).
  */
 class Refused extends Error {
-  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE" | "ATTEMPT_PAUSED") {
+  constructor(readonly code: OperationRefusal | "ANSWER_CHANGED_ELSEWHERE" | "ATTEMPT_PAUSED" | "EXAM_TIME_OVER" | "EXAM_ATTEMPT_ON_HOLD") {
     super(code);
   }
 }
@@ -106,14 +115,20 @@ export class AttemptsService {
     private readonly loader: StudentActivityLoader,
     private readonly myActivities: MyActivitiesService,
     private readonly answerGuard: AnswerSaveGuard,
+    private readonly examSettlement: ExamSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  /** Starts the attempt, or returns the existing one (no event); 409 when the rules refuse it. */
-  async start(studentUserId: string, activityId: string, requestId: string | null): Promise<StudentActivity> {
+  /**
+   * Starts the attempt, or returns the existing one (no event); 409 when the rules refuse it. An EXAM
+   * starts only with its rules accepted (`acceptRules: true`, else 400) and up to its start deadline
+   * (018/FR-011, research T13).
+   */
+  async start(studentUserId: string, activityId: string, body: StartAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("START", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
+      if (context.type === "EXAM" && body.acceptRules !== true) throw validationError();
       await this.assertStartRate(tx, context, studentUserId);
       const attempt = await findAttempt(tx, activityId, studentUserId, false);
       const facts = factsOf(context, attempt, now);
@@ -131,7 +146,13 @@ export class AttemptsService {
         targetType: "ACTIVITY_ATTEMPT",
         targetId: created.id,
         requestId,
-        metadata: { activityId, classId: context.class_id, afterDeadline: facts.type === "ASSIGNMENT" && wouldBeLate(facts), attemptNumber: 1 },
+        metadata: {
+          activityId,
+          classId: context.class_id,
+          afterDeadline: facts.type === "ASSIGNMENT" && wouldBeLate(facts),
+          attemptNumber: 1,
+          ...(facts.type === "EXAM" ? { rulesAccepted: true } : {}),
+        },
       });
     });
     return this.myActivities.get(studentUserId, activityId, requestId);
@@ -142,12 +163,15 @@ export class AttemptsService {
    * equal to the stored one (or no row yet) → written with `revision + 1`, SAVED; otherwise CONFLICT
    * with the server's answer. Any answer that doesn't fit its question → 422 and nothing is written.
    */
-  saveAnswers(studentUserId: string, activityId: string, body: SaveAnswersRequest, requestId: string | null): Promise<SaveAnswersResult> {
+  async saveAnswers(studentUserId: string, activityId: string, body: SaveAnswersRequest, requestId: string | null): Promise<SaveAnswersResult> {
+    await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
     return this.guarded("SAVE", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       await assertNotPaused(tx, context, attempt);
+      await assertNotHeld(tx, context, attempt);
+      await assertExamTime(tx, context, attempt, now);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       const attemptId = attempt!.id;
@@ -168,15 +192,18 @@ export class AttemptsService {
    * then the submission, its grading and `activity_submission.created`.
    */
   async submit(studentUserId: string, activityId: string, body: SubmitAttemptRequest, requestId: string | null): Promise<StudentActivity> {
+    await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
     await this.guarded("SUBMIT", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
       await assertNotPaused(tx, context, attempt);
+      await assertNotHeld(tx, context, attempt);
+      await assertExamTime(tx, context, attempt, now);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("SUBMIT", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
-      if (outcome.kind === "REPEAT" || facts.type !== "ASSIGNMENT") return;
+      if (outcome.kind === "REPEAT" || facts.type === "EXERCISE") return;
       const attemptId = attempt!.id;
 
       if (body.answers.length > 0) {
@@ -188,8 +215,10 @@ export class AttemptsService {
         if (refused.length > 0) throw new TypingRefused((recordTx) => this.recordTypingRefusal(recordTx, guarded, refused, now));
         if (saved > 0) await tx.activityAttempt.update({ where: { id: attemptId }, data: { lastSavedAt: now } });
       }
-      const late = wouldBeLate(facts);
-      const submission = await registerSubmission(tx, { attemptId, activityId, studentUserId, now, late });
+      // An EXAM is never late: it has no deadline, and its time was checked above (018 research T4).
+      const late = facts.type === "ASSIGNMENT" && wouldBeLate(facts);
+      const endReason = facts.type === "EXAM" ? ("STUDENT_SUBMITTED" as const) : undefined;
+      const submission = await registerSubmission(tx, { attemptId, activityId, studentUserId, now, late, endReason });
       await this.audit.record(tx, {
         type: "activity_submission.created",
         actorType: "USER",
@@ -204,6 +233,7 @@ export class AttemptsService {
           blankCount: submission.blankCount,
           questionCount: submission.questionCount,
           pendingTeacherCount: submission.pendingTeacherCount,
+          ...(endReason ? { endReason } : {}),
         },
       });
     });
@@ -418,7 +448,8 @@ export class AttemptsService {
  */
 async function lockContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<ContextRow> {
   const rows = await tx.$queryRaw<ContextRow[]>`
-    SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.question_count,
+    SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy,
+           ca.publish_at, ca.start_window_minutes, ca.duration_minutes, ca.closed_at, ca.cancelled_at, ca.question_count,
            c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
@@ -450,6 +481,45 @@ async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow 
   const open = await tx.$queryRaw<unknown[]>`
     SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`;
   if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
+}
+
+/**
+ * 018/FR-018 (research T8): a save or submit of an exam attempt on hold ("Encerrada por avisos") is
+ * refused, whatever its time: the hold waits for the teacher, and settlement skips it. Read after the
+ * attempt's `FOR UPDATE`, which the events batch that opens the hold also takes.
+ */
+async function assertNotHeld(tx: Tx, context: ContextRow, attempt: AttemptRow | null): Promise<void> {
+  if (context.type !== "EXAM" || attempt?.status !== "IN_PROGRESS") return;
+  const open = await tx.$queryRaw<unknown[]>`
+    SELECT 1 FROM exam_attempt_holds WHERE attempt_id = ${attempt.id}::uuid AND resolution IS NULL`;
+  if (open.length > 0) throw new Refused("EXAM_ATTEMPT_ON_HOLD");
+}
+
+/**
+ * 018/FR-013 (research T4, T5): an EXAM's save or submit is accepted until the attempt's end plus
+ * the 2 s grace. Called after the attempt's `FOR UPDATE` and after the settlement of the touch: an
+ * attempt the time ended is SUBMITTED by then (`EXAM_TIME_OVER`; `ACTIVITY_CLOSED` when the close
+ * ended it), and one still IN_PROGRESS past its end is refused all the same. The submission's end is
+ * read in its own statement after the lock (READ COMMITTED sees the row committed while it waited).
+ */
+async function assertExamTime(tx: Tx, context: ContextRow, attempt: AttemptRow | null, now: Date): Promise<void> {
+  if (context.type !== "EXAM" || !attempt) return;
+  if (attempt.status === "SUBMITTED") {
+    const rows = await tx.$queryRaw<{ end_reason: string | null }[]>`
+      SELECT end_reason::text AS end_reason FROM activity_submissions WHERE attempt_id = ${attempt.id}::uuid`;
+    const endReason = rows[0]?.end_reason;
+    if (endReason === "TIME_EXPIRED") throw new Refused("EXAM_TIME_OVER");
+    if (endReason === "ACTIVITY_CLOSED") throw new Refused("ACTIVITY_CLOSED");
+    return;
+  }
+  const timing = examTiming({
+    publishAt: context.publish_at,
+    durationMinutes: context.duration_minutes,
+    startWindowMinutes: context.start_window_minutes,
+    closedAt: context.closed_at,
+    cancelledAt: context.cancelled_at,
+  });
+  if (!acceptsWrite(now, endsAt(timing, attempt.started_at))) throw new Refused("EXAM_TIME_OVER");
 }
 
 /**
@@ -557,6 +627,19 @@ function factsOf(context: ContextRow, attempt: AttemptRow | null, now: Date): Ac
       classActive,
       latestAttempt: attempt && { number: attempt.number, status: attempt.status },
       awaitingCorrection: false,
+      now,
+    };
+  }
+  if (context.type === "EXAM") {
+    if (context.start_window_minutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: context.status,
+      startDeadline: startDeadline({ publishAt: context.publish_at, startWindowMinutes: context.start_window_minutes }),
+      classActive,
+      attempt: attempt && { status: attempt.status },
+      submission: attempt?.status === "SUBMITTED" ? { endReason: null, gradingComplete: false } : null,
+      released: context.released,
       now,
     };
   }

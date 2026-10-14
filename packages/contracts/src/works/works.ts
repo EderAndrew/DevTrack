@@ -73,14 +73,14 @@ const QuestionTopicIdsSchema = z
   .optional();
 
 /**
- * The three variants of a question input, with `extra` fields added to each (`id` on edit). Built
- * per use because a refined object can't be extended.
+ * The three variants of a question input, with `extra` fields added to each (`topicItemIds` here,
+ * `id` on edit; 018 exams add `difficulty` and `topicIds`). Built per use because a refined object
+ * can't be extended.
  */
-function questionVariants<Extra extends z.core.$ZodLooseShape>(extra: Extra) {
+export function workQuestionVariants<Extra extends z.core.$ZodLooseShape>(extra: Extra) {
   const common = {
     statement: LongTextSchema,
     explanation: OptionalLongTextSchema,
-    topicItemIds: QuestionTopicIdsSchema,
     ...extra,
   };
   const openAnswer = z.strictObject({
@@ -117,11 +117,11 @@ function questionVariants<Extra extends z.core.$ZodLooseShape>(extra: Extra) {
 }
 
 /** One question of a new work, discriminated by `type` (011/FR-003–FR-006). */
-export const WorkQuestionInputSchema = questionVariants({});
+export const WorkQuestionInputSchema = workQuestionVariants({ topicItemIds: QuestionTopicIdsSchema });
 export type WorkQuestionInput = z.infer<typeof WorkQuestionInputSchema>;
 
 /** One question of an edit: `id` for an existing question of the work, none for a new one. */
-export const WorkQuestionEditSchema = questionVariants({ id: UuidSchema.optional() });
+export const WorkQuestionEditSchema = workQuestionVariants({ topicItemIds: QuestionTopicIdsSchema, id: UuidSchema.optional() });
 export type WorkQuestionEdit = z.infer<typeof WorkQuestionEditSchema>;
 
 /** The work's topics: 1–10 distinct items of one confirmed revision of its subject, or none. */

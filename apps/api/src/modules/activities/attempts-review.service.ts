@@ -11,6 +11,7 @@ import {
   type PendingReason,
   type QuestionGrading,
   type TeacherAttempt,
+  type TeacherAttemptExam,
   type WorkQuestionType,
 } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
@@ -28,7 +29,9 @@ import { decideByTeacher } from "../works/grading/decide";
 import { GradingRuleError } from "../works/grading/strategy";
 import { computeWorkGrade } from "../works/grading/work-grade";
 import { decimalToCents, requiredCents } from "./activity-query";
-import { type AssignmentFacts, assignmentSchedule } from "./status/facts";
+import { ExamSettlement } from "./exam-settlement";
+import { endsAt } from "./status/exam-time";
+import { type AssignmentFacts, assignmentSchedule, examTiming } from "./status/facts";
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
 import { pointsFor } from "./results/exercise-results";
@@ -44,6 +47,13 @@ const ATTEMPT_SELECT = {
   startedAt: true,
   lastSavedAt: true,
   student: { select: { userId: true, user: { select: { name: true } } } },
+  // EXAM (018/FR-031): the timing that derives the end, the occurrences and the decisions with their author.
+  activity: { select: { type: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
+  occurrences: { orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } },
+  holds: {
+    orderBy: { occurrenceOrdinal: "asc" },
+    select: { id: true, occurrenceOrdinal: true, openedAt: true, resolution: true, resolvedAt: true, resolvedBy: { select: { name: true } } },
+  },
   answers: {
     orderBy: { question: { position: "asc" } },
     select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, savedAt: true },
@@ -59,6 +69,7 @@ const ATTEMPT_SELECT = {
       gradePartial: true,
       generalFeedback: true,
       version: true,
+      endReason: true,
       gradings: {
         orderBy: { question: { position: "asc" } },
         select: { questionId: true, status: true, nature: true, finalGrade: true, teacherGrade: true, pendingReason: true, feedback: true },
@@ -107,12 +118,23 @@ export class AttemptsReviewService {
     private readonly audit: AuditService,
     private readonly rateLimit: RateLimitService,
     private readonly classes: ClassContextPolicy,
+    private readonly examSettlement: ExamSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  /** The attempt next to the answer key the activity's detail carries; read-only while not submitted. */
-  async getAttempt(teacherId: string, classId: string, activityId: string, attemptId: string, db: Tx = this.prisma): Promise<TeacherAttempt> {
+  /**
+   * The attempt next to the answer key the activity's detail carries; read-only while not submitted.
+   * An exam's expired attempts are settled first (018 research T5).
+   */
+  async getAttempt(teacherId: string, classId: string, activityId: string, attemptId: string): Promise<TeacherAttempt> {
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    await this.examSettlement.ofActivity(classId, activityId, this.clock.now(), null);
+    return this.readAttempt(teacherId, classId, activityId, attemptId);
+  }
+
+  /** The attempt as it is, inside the caller's transaction (`db`) when given. */
+  private async readAttempt(teacherId: string, classId: string, activityId: string, attemptId: string, db: Tx = this.prisma): Promise<TeacherAttempt> {
     await this.classes.findOwnedOrNotFound(teacherId, classId, db);
     const attempt = await db.activityAttempt.findFirst({ where: { id: attemptId, activityId, activity: { classId } }, select: ATTEMPT_SELECT });
     if (!attempt) throw notFound();
@@ -145,11 +167,13 @@ export class AttemptsReviewService {
       if (activity.type === "EXERCISE") throw invalidStateTransition();
       const attempt = await tx.activityAttempt.findFirst({ where: { id: attemptId, activityId }, select: { id: true } });
       if (!attempt) throw notFound();
-      const rows = await tx.$queryRaw<{ id: string; version: number; general_feedback: string | null }[]>`
-        SELECT id, version, general_feedback FROM activity_submissions
+      const rows = await tx.$queryRaw<{ id: string; version: number; general_feedback: string | null; end_reason: string | null }[]>`
+        SELECT id, version, general_feedback, end_reason::text AS end_reason FROM activity_submissions
         WHERE attempt_id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;
       const submission = rows[0];
       if (!submission) throw new AppException("NOT_SUBMITTED");
+      // 018/FR-021: a confirmed cancellation's zero is the teacher's decision on the hold, never regraded.
+      if (submission.end_reason === "CANCELLED") throw invalidStateTransition();
       if (submission.version !== body.version) throw new AppException("SUBMISSION_VERSION_CONFLICT");
 
       const stored = await tx.activityQuestionGrading.findMany({ where: { submissionId: submission.id }, select: GRADING_SELECT });
@@ -167,7 +191,7 @@ export class AttemptsReviewService {
       }
       const generalFeedback = body.generalFeedback === undefined ? submission.general_feedback : feedbackOf(body.generalFeedback);
       const generalFeedbackChanged = generalFeedback !== submission.general_feedback;
-      if (changed.length === 0 && !generalFeedbackChanged) return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      if (changed.length === 0 && !generalFeedbackChanged) return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
 
       const grade = withRuleError(() => computeWorkGrade([...gradings.values()], requiredCents(activity.totalGrade)));
       const now = this.clock.now();
@@ -207,7 +231,7 @@ export class AttemptsReviewService {
           generalFeedbackChanged,
         },
       });
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 
@@ -224,14 +248,15 @@ export class AttemptsReviewService {
     await this.assertWriteRate(teacherId);
     return this.prisma.runInTransaction(async (tx) => {
       const activity = await lockActivity(tx, classId, activityId, "UPDATE");
-      // An EXERCISE attempt is concluded by the student, never accepted as a submission (013 K14).
-      if (activity.type === "EXERCISE") throw invalidStateTransition();
+      // An EXERCISE attempt is concluded by the student, never accepted as a submission (013 K14); an
+      // EXAM's ends by the student, the time or the teacher's decision on a hold (018 research T5, T9).
+      if (activity.type !== "ASSIGNMENT") throw invalidStateTransition();
       const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; student_user_id: string }[]>`
         SELECT id, status::text AS status, student_user_id FROM activity_attempts
         WHERE id = ${attemptId}::uuid AND activity_id = ${activityId}::uuid FOR UPDATE`;
       const attempt = attempts[0];
       if (!attempt) throw notFound();
-      if (attempt.status === "SUBMITTED") return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      if (attempt.status === "SUBMITTED") return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
 
       const now = this.clock.now();
       const saved = await tx.activityAnswer.count({ where: { attemptId } });
@@ -281,7 +306,7 @@ export class AttemptsReviewService {
           pauseEnded: openPauses.length > 0,
         },
       });
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 
@@ -348,7 +373,7 @@ export class AttemptsReviewService {
           metadata: { activityId, questionId: row.question_id, from: row.result, to: result, points, hasComment: comment !== null },
         });
       }
-      return this.getAttempt(teacherId, classId, activityId, attemptId, tx);
+      return this.readAttempt(teacherId, classId, activityId, attemptId, tx);
     });
   }
 
@@ -495,5 +520,24 @@ function toTeacherAttempt(attempt: AttemptRecord): TeacherAttempt {
               decidedAt: row.decidedAt?.toISOString() ?? null,
             })),
           },
+    exam: attempt.activity.type === "EXAM" ? toAttemptExam(attempt) : null,
+  };
+}
+
+/** An exam attempt's facts for its teacher (018/FR-031): the end derived from the timing, never stored. */
+function toAttemptExam(attempt: AttemptRecord): TeacherAttemptExam {
+  return {
+    endsAt: endsAt(examTiming(attempt.activity), attempt.startedAt).toISOString(),
+    endedAt: attempt.submission?.submittedAt.toISOString() ?? null,
+    endReason: attempt.submission?.endReason ?? null,
+    occurrences: attempt.occurrences.map((occurrence) => ({ ordinal: occurrence.ordinal, kind: occurrence.kind, recordedAt: occurrence.recordedAt.toISOString() })),
+    decisions: attempt.holds.map((hold) => ({
+      holdId: hold.id,
+      occurrenceOrdinal: hold.occurrenceOrdinal,
+      openedAt: hold.openedAt.toISOString(),
+      resolution: hold.resolution,
+      resolvedAt: hold.resolvedAt?.toISOString() ?? null,
+      resolvedBy: hold.resolvedBy && { name: hold.resolvedBy.name },
+    })),
   };
 }

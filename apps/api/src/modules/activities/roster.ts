@@ -5,6 +5,7 @@ import {
   type ExerciseResult,
   centsToGrade,
   type EnrollmentStatus,
+  type ExamEndReason,
   type ExerciseRosterCounts,
   type LatePolicy,
   type ReleaseMode,
@@ -15,7 +16,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { decimalToCents } from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { type ActivityFacts, assignmentSchedule } from "./status/facts";
-import { type PauseFacts, pauseTime } from "./status/pause-time";
+import { examEndOf, type PauseFacts, pauseTime } from "./status/pause-time";
 import { deriveRosterStatus, type RosterPresence } from "./status/roster-status";
 
 /** A student of the class as the roster reads it: ACTIVE, or REMOVED (kept when they have an attempt). */
@@ -32,13 +33,26 @@ export interface RosterAttempt {
   /** 1 for an ASSIGNMENT; the practice attempt's number for an EXERCISE (013 K3). */
   number: number;
   status: AttemptStatus;
-  submission: { submittedAt: Date; late: boolean; gradeCents: number; gradePartial: boolean; acceptedByTeacher: boolean } | null;
+  startedAt: Date;
+  submission: {
+    submittedAt: Date;
+    late: boolean;
+    gradeCents: number;
+    gradePartial: boolean;
+    acceptedByTeacher: boolean;
+    /** EXAM only (trigger): how the attempt ended (018 data-model). */
+    endReason: ExamEndReason | null;
+  } | null;
   /** EXERCISE: the results of a concluded attempt (013 K6); empty otherwise. */
   results: { result: ExerciseResult; points: number }[];
   /** The AI helps delivered in this attempt (015/FR-020: only DELIVERED count). */
   helpUsed: number;
   /** 016: the attempt's room exits, as stored; their end and duration are derived (research M7). */
   pauses: PauseFacts[];
+  /** 018 EXAM: the occurrences counted (gap-free ordinals, so their number is the last one). */
+  occurrenceCount: number;
+  /** 018 EXAM: a hold is open, "Encerrada por avisos — aguardando decisão" (research T8). */
+  onHold: boolean;
 }
 
 /** 016: a presence in a `PRESENT_ONLY` activity (`activity_attendances`, research M9). */
@@ -60,6 +74,10 @@ export interface RosterActivity {
   releaseMode: ReleaseMode;
   /** The activity's `closed_at` or `cancelled_at`: an open pause ends there by derivation (016 M7). */
   endedAt: Date | null;
+  /** EXAM only: the publication plus the start window (018 research T4); null for the others. */
+  startDeadline: Date | null;
+  /** EXAM only: an open pause ends at the attempt's end by its duration (018 research T11). */
+  durationMinutes: number | null;
 }
 
 /** One student's facts in the activity, by type (contracts/student-status.md). */
@@ -77,6 +95,20 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
     };
   }
   const submission = latest?.submission ?? null;
+  if (activity.type === "EXAM") {
+    if (activity.startDeadline === null) throw new Error("an EXAM has a start deadline (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: activity.status,
+      startDeadline: activity.startDeadline,
+      classActive,
+      attempt: latest && { status: latest.status },
+      submission: submission && { endReason: submission.endReason, gradingComplete: !submission.gradePartial },
+      released: activity.released,
+      onHold: latest?.onHold ?? false,
+      now,
+    };
+  }
   return {
     type: "ASSIGNMENT",
     activityStatus: activity.status,
@@ -92,7 +124,11 @@ function rosterFacts(activity: RosterActivity, attempts: readonly RosterAttempt[
 /** The room exits of one attempt for the roster: how many, the derived time away and whether one is open (016/FR-019). */
 function pausesOf(activity: RosterActivity, attempt: RosterAttempt | null, now: Date): RosterEntry["pauses"] {
   const submission = attempt?.submission ?? null;
-  const context = { acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null, activityEndedAt: activity.endedAt };
+  const context = {
+    acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null,
+    activityEndedAt: activity.endedAt,
+    examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+  };
   const times = (attempt?.pauses ?? []).map((pause) => pauseTime(pause, context, now));
   return {
     count: times.length,
@@ -150,6 +186,8 @@ export function buildRoster(
         aiHelpUsed: workOptions ? (attempt?.helpUsed ?? 0) : null,
         markedAt: marked?.toISOString() ?? null,
         pauses: pausesOf(activity, attempt, now),
+        // EXAM only (018/FR-018).
+        occurrenceCount: activity.type === "EXAM" ? (attempt?.occurrenceCount ?? 0) : null,
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;
@@ -159,7 +197,8 @@ export function buildRoster(
     counts: {
       enrolled: students.filter((student) => student.enrollment === "ACTIVE").length,
       inProgress: count("IN_PROGRESS"),
-      submitted: count("SUBMITTED"),
+      // An EXAM's attempt also ends by the time or a decision (018): every submission on time counts.
+      submitted: roster.filter((entry) => entry.submittedAt !== null && entry.status !== "SUBMITTED_LATE").length,
       submittedLate: count("SUBMITTED_LATE"),
       missed: count("MISSED"),
       pendingGrading: roster.filter((entry) => entry.gradePartial === true).length,
@@ -205,10 +244,12 @@ export async function loadRosterData(
             studentUserId: true,
             number: true,
             status: true,
-            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true } },
+            startedAt: true,
+            submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true, endReason: true } },
             results: { select: { result: true, points: true } },
             pauses: { orderBy: { startedAt: "asc" }, select: { startedAt: true, releasedAt: true } },
-            _count: { select: { helpRequests: { where: { status: "DELIVERED" } } } },
+            _count: { select: { helpRequests: { where: { status: "DELIVERED" } }, occurrences: true } },
+            holds: { where: { resolution: null }, select: { id: true } },
           },
         });
   const attendances =
@@ -221,15 +262,18 @@ export async function loadRosterData(
   return {
     attendances,
     students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId)),
-    attempts: attempts.map(({ _count, ...attempt }) => ({
+    attempts: attempts.map(({ _count, holds, ...attempt }) => ({
       ...attempt,
       helpUsed: _count.helpRequests,
+      occurrenceCount: _count.occurrences,
+      onHold: holds.length > 0,
       submission: attempt.submission && {
         submittedAt: attempt.submission.submittedAt,
         late: attempt.submission.late,
         gradeCents: decimalToCents(attempt.submission.grade),
         gradePartial: attempt.submission.gradePartial,
         acceptedByTeacher: attempt.submission.acceptedById !== null,
+        endReason: attempt.submission.endReason,
       },
     })),
   };

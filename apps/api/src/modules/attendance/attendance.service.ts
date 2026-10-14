@@ -22,6 +22,7 @@ interface RoomQueryRow {
   attempt_status: AttemptStatus | null;
   accepted_at: Date | null;
   activity_ended_at: Date | null;
+  exam_ends_at: Date | null;
   pause_id: string | null;
   pause_initiated_by: PauseInitiator | null;
   pause_reason: PauseReason | null;
@@ -150,6 +151,7 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
     SELECT e.student_user_id, u.name, aa.marked_at,
            a.id AS attempt_id, a.status::text AS attempt_status,
            s.submitted_at AS accepted_at, COALESCE(ca.closed_at, ca.cancelled_at) AS activity_ended_at,
+           a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at,
            p.id AS pause_id, p.initiated_by::text AS pause_initiated_by, p.reason::text AS pause_reason,
            p.note AS pause_note, p.started_at AS pause_started_at
     FROM enrollments e
@@ -157,7 +159,7 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
     JOIN class_activities ca ON ca.id = ${activityId}::uuid
     LEFT JOIN activity_attendances aa ON aa.activity_id = ca.id AND aa.student_user_id = e.student_user_id
     LEFT JOIN LATERAL (
-      SELECT at.id, at.status FROM activity_attempts at
+      SELECT at.id, at.status, at.started_at FROM activity_attempts at
       WHERE at.activity_id = ca.id AND at.student_user_id = e.student_user_id
       ORDER BY at.number DESC LIMIT 1
     ) a ON true
@@ -182,7 +184,8 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
                 releasedAt: null,
               }
             : null,
-        pauseEnd: { acceptedAt: row.accepted_at, activityEndedAt: row.activity_ended_at },
+        // 018: an exam's duration from the attempt's start (null for a work); the close is the cap.
+        pauseEnd: { acceptedAt: row.accepted_at, activityEndedAt: row.activity_ended_at, examEndsAt: row.exam_ends_at },
       }),
     )
     .sort(byName)

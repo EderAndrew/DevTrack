@@ -28,7 +28,8 @@ export type StudentPauseReason = z.infer<typeof StudentPauseReasonSchema>;
 
 /**
  * How a pause ended, derived on read (data-model.md): the teacher's release, the teacher's
- * acceptance of the submission (012 FR-006b), or the activity's close/cancel. Null while open.
+ * acceptance of the submission (012 FR-006b), the activity's close/cancel, or, in an EXAM, the
+ * attempt's time running out before a release (018 data-model "Derived"). Null while open.
  */
-export const PauseEndKindSchema = z.enum(["RELEASE", "ACCEPTED", "ACTIVITY_CLOSED"]);
+export const PauseEndKindSchema = z.enum(["RELEASE", "ACCEPTED", "ACTIVITY_CLOSED", "TIME_EXPIRED"]);
 export type PauseEndKind = z.infer<typeof PauseEndKindSchema>;

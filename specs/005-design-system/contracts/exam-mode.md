@@ -198,3 +198,27 @@ bloqueio de copiar, recortar, colar e soltar, só na tentativa em modo controlad
 
 Continuam com a feature de provas: `ExamHeader`, `ExamTimer`, `ReviewFlag` e os estados "marcada
 para revisão", "bloqueada" e "invalidada".
+
+## O que já existe (018)
+
+A 018 (prova em modo restrito) construiu em `apps/web/components/ui/assessment/`, para o tempo da
+prova (o fim e o horário vêm do servidor; a página calcula o deslocamento a cada leitura):
+
+- `ExamTimer`: "mm:ss restantes" no cabeçalho, `role="timer"` sem anúncio a cada segundo; cor de
+  aviso e `TriangleAlert` a partir de 5 minutos, `--danger-text` no último minuto.
+- `TimeAlert`: os anúncios dos marcos passam a ser "Faltam 10 minutos." e "Faltam 5 minutos."
+  (`Alert` `warning`, `role="status"`, não bloqueante, com "Entendi"); substituem os anúncios de 5
+  e de 1 minuto previstos acima para o `ExamTimer`.
+- `FinalCountdown`: os últimos 10 segundos, 10…1 centralizado, sem animação nem eventos de
+  ponteiro, um único `role="alert"` "Faltam 10 segundos.".
+
+- `WarningDialog` (US4): "Aviso n de 3" depois de cada ocorrência que o servidor contou, com o tipo
+  ("Você saiu da tela da prova", "Você saiu da tela cheia", copiar ou colar, sem interagir além do
+  limite) e "Na 4ª ocorrência a prova será encerrada."; a única resposta, "Voltar à prova", volta à
+  tela cheia. Na prova ele substitui o `FocusViolationWarning`. Na 4ª ocorrência a página mostra
+  "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo
+  professor" no lugar das questões.
+
+Um marco já passado quando a prova abre (prova curta ou recarga) não aparece. Continuam com a
+feature de provas: `ExamHeader`, `ReviewFlag` e os estados "marcada para revisão", "bloqueada" e
+"invalidada".

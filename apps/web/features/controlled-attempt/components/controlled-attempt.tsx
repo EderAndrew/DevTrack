@@ -1,8 +1,8 @@
 "use client";
 
-import type { StudentActivity } from "@repo/contracts";
+import type { ClientIntegrityEventType, StudentActivity } from "@repo/contracts";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { ExamAlert, LEAVE_ATTEMPT } from "@/components/ui/assessment/exam-alert";
@@ -20,6 +20,7 @@ import { useFocusMonitor } from "../hooks/use-focus-monitor";
 import { enterFullscreen, exitFullscreen, useFullscreen } from "../hooks/use-fullscreen";
 import { useIntegrityEvents } from "../hooks/use-integrity-events";
 import { useLeaveGuard } from "../hooks/use-leave-guard";
+import type { SentListener } from "../store/pending-events";
 import { activityHref } from "../schemas/controlled-attempt";
 
 /**
@@ -59,15 +60,48 @@ export function ControlledAttempt({ activityId, userId }: { activityId: string; 
   return <ControlledSession activity={query.data} userId={userId} reload={() => query.refetch()} />;
 }
 
-function ControlledSession({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
+/** Records one event of the student's attempt; `idleSeconds` only with INACTIVITY (018). */
+export type RecordEvent = (type: ClientIntegrityEventType, questionId?: string, idleSeconds?: number) => string;
+
+/**
+ * What a page built on the focus page adds around it (018 `features/exam-attempt`): the header's
+ * status and actions, a banner above the questions, and the last minute's immediate saves. The
+ * monitoring stays here; an exam also gets each batch's answer (the server's occurrence count), its
+ * own warnings in place of the 015 exit warning, more monitors fed by the same recorder (inactivity),
+ * and `stopped` while the attempt is on hold: no monitoring and no questions, the banner only.
+ */
+export interface FocusChrome {
+  status?: ReactNode;
+  actions?: ReactNode;
+  banner?: ReactNode;
+  saveImmediately?: () => boolean;
+  /** The paused notice's button after the release (018: "Retomar", as after a returned hold). */
+  resumeLabel?: string;
+  stopped?: boolean;
+  exitWarnings?: boolean;
+  onEventsSent?: SentListener;
+  monitors?: (record: RecordEvent) => ReactNode;
+}
+
+export function ControlledSession({
+  activity,
+  userId,
+  reload,
+  chrome,
+}: {
+  activity: StudentActivity;
+  userId: string;
+  reload: () => Promise<unknown>;
+  chrome?: FocusChrome;
+}) {
   const router = useRouter();
   const paused = activity.pause !== null;
-  const open = activity.canAnswer && activity.submission === null && !paused;
+  const open = activity.canAnswer && activity.submission === null && !paused && !chrome?.stopped;
   // "Sair da sala" in progress: the monitor is off from the click on, until the student resumes.
   const [exitingRoom, setExitingRoom] = useState(false);
   const exiting = useRef(false);
   const monitoring = open && !exitingRoom;
-  const events = useIntegrityEvents({ userId, activityId: activity.id, enabled: open });
+  const events = useIntegrityEvents({ userId, activityId: activity.id, enabled: open, onSent: chrome?.onEventsSent });
   // The ref stops recording at once, before the state turns the listeners off.
   const monitor = useFocusMonitor({ enabled: monitoring, record: (type) => (exiting.current ? NOT_RECORDED : events.record(type)) });
   const clipboard = useClipboardBlock({ enabled: open, onBlocked: (type, questionId) => events.record(type, questionId ?? undefined) });
@@ -100,9 +134,10 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
     <>
       <PageHeader
         title={activity.title}
-        status={<Status variant="info">Modo controlado</Status>}
+        status={chrome?.status ?? <Status variant="info">Modo controlado</Status>}
         actions={
           <>
+            {chrome?.actions}
             {activity.aiHelp.allowance > 0 ? <HeaderHelpCounter activityId={activity.id} allowance={activity.aiHelp.allowance} /> : null}
             <Button type="button" variant="outline" onClick={open ? askToLeave : leave}>
               Sair
@@ -111,7 +146,9 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
         }
       />
       <div className="flex flex-col gap-6">
-        {monitor.warning ? (
+        {chrome?.banner}
+        {monitoring ? chrome?.monitors?.(events.record) : null}
+        {monitor.warning && chrome?.exitWarnings !== false ? (
           <FocusViolationWarning
             recordedAt={events.recordedAt(monitor.warning.eventId)}
             onReturnToFullscreen={
@@ -121,30 +158,33 @@ function ControlledSession({ activity, userId, reload }: { activity: StudentActi
           />
         ) : null}
         {notice && notice.questionId === null ? <ClipboardAlert key={notice.key} notice={notice} /> : null}
-        <AnsweringSession
-          activity={activity}
-          userId={userId}
-          reload={reload}
-          controlled={{
-            blockClipboard: open,
-            questionNotice: (questionId) => noticeFor(notice, questionId, "ANSWER"),
-            helpNotice: (questionId) => noticeFor(notice, questionId, "HELP"),
-            roomExit: {
-              stopMonitor: () => stopMonitor(true),
-              resumeMonitor: () => stopMonitor(false),
-              flushEvents: () => events.flush(),
-              leaveFullscreen: () => void exitFullscreen(),
-            },
-            resume: {
-              label: RESUME_CONTROLLED,
-              // Fullscreen only from the student's own click, as at the start (015 F14).
-              onResume: () => {
-                stopMonitor(false);
-                void enterFullscreen();
+        {chrome?.stopped ? null : (
+          <AnsweringSession
+            activity={activity}
+            userId={userId}
+            reload={reload}
+            controlled={{
+              blockClipboard: open,
+              questionNotice: (questionId) => noticeFor(notice, questionId, "ANSWER"),
+              helpNotice: (questionId) => noticeFor(notice, questionId, "HELP"),
+              roomExit: {
+                stopMonitor: () => stopMonitor(true),
+                resumeMonitor: () => stopMonitor(false),
+                flushEvents: () => events.flush(),
+                leaveFullscreen: () => void exitFullscreen(),
               },
-            },
-          }}
-        />
+              resume: {
+                label: chrome?.resumeLabel ?? RESUME_CONTROLLED,
+                // Fullscreen only from the student's own click, as at the start (015 F14).
+                onResume: () => {
+                  stopMonitor(false);
+                  void enterFullscreen();
+                },
+              },
+              saveImmediately: chrome?.saveImmediately,
+            }}
+          />
+        )}
       </div>
       <ExamAlert open={leaving} onOpenChange={setLeaving} text={LEAVE_ATTEMPT} confirmLabel="Sair da avaliação" onConfirm={leave} />
     </>

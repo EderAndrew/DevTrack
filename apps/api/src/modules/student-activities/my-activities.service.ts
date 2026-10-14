@@ -18,6 +18,7 @@ import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
 import { RankingService } from "../ranking/ranking.service";
 import { toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
+import { ExamSettlement } from "../activities/exam-settlement";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
@@ -60,6 +61,7 @@ export class MyActivitiesService {
     private readonly permissions: PermissionResolver,
     private readonly audit: AuditService,
     private readonly ranking: RankingService,
+    private readonly examSettlement: ExamSettlement,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -102,6 +104,8 @@ export class MyActivitiesService {
   /** Out of the student's context → 404; an existing activity also writes `student_access.denied`. */
   async get(userId: string, activityId: string, requestId: string | null): Promise<StudentActivity> {
     const now = this.clock.now();
+    // 018 research T5: an expired exam attempt is settled before it is read.
+    await this.examSettlement.ofAttempt(userId, activityId, now, requestId);
     const input = await this.loader.loadOne(userId, activityId, now, await this.canSeeResults(userId));
     if (input) {
       const view = toStudentActivity(input);
@@ -167,6 +171,7 @@ export class MyActivitiesService {
   }
 
   private async summaries(userId: string, now: Date): Promise<StudentActivitySummary[]> {
+    await this.examSettlement.ofStudent(userId, now, null);
     const inputs = await this.loader.loadAll(userId, now, await this.canSeeResults(userId));
     return inputs.map(toStudentSummary);
   }

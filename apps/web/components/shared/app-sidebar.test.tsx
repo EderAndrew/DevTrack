@@ -156,6 +156,20 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(screen.queryByRole("link", { name: "Banco de Trabalhos" })).toBeNull();
   });
 
+  it("018/FR-001 Banco de Provas (provas.visualizar) vem depois de Banco de Trabalhos e fica ativo nas telas de provas", () => {
+    navigation.pathname = "/provas/nova";
+    renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar", "trabalhos.visualizar", "provas.visualizar"]) });
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Banco de Provas", "Turmas", "Meu perfil"]);
+    const link = screen.getByRole("link", { name: "Banco de Provas" });
+    expect(link.getAttribute("href")).toBe("/provas");
+    expect(link.getAttribute("data-active")).toBe("true");
+  });
+
+  it("018/FR-001 sem provas.visualizar não há Banco de Provas no menu", () => {
+    renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.queryByRole("link", { name: "Banco de Provas" })).toBeNull();
+  });
+
   it("004/US8-1 004/FR-044 administrador sem papel de professor não vê Minhas disciplinas", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.queryByRole("link", { name: "Minhas disciplinas" })).toBeNull();

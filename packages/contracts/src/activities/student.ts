@@ -5,15 +5,22 @@ import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
 import { AnswerSchema } from "../works/grading.js";
+import { EXAM_WARNINGS } from "../exam-sessions/holds.js";
 import { DashboardRankingSchema } from "../ranking/index.js";
 import {
   AI_HELP_ALLOWANCE,
   ActivityTypeSchema,
   AiHelpAllowanceSchema,
+  EXAM_DURATION_MINUTES_MAX,
+  EXAM_DURATION_MINUTES_MIN,
+  EXAM_INACTIVITY_SECONDS_MAX,
+  EXAM_INACTIVITY_SECONDS_MIN,
   ExecutionModeSchema,
   LatePolicySchema,
   StudentActivityFilterSchema,
   StudentActivityStatusSchema,
+  ExamOccurrenceViewSchema,
+  StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
 import { PointsSchema } from "./points.js";
@@ -108,8 +115,29 @@ export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answ
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
 /**
- * The detail of an activity for its student. While `pause` is open the questions and the answers are
- * left out, on every device (016/FR-013).
+ * An EXAM as its student sees it (018 research T13), with the server's times: `endsAt` exists from
+ * the start; `hold` is the open "Encerrada por avisos"; `endReason` reads `WARNINGS` for both of the
+ * teacher's decisions until the result release.
+ */
+export const StudentExamSchema = z.strictObject({
+  durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
+  inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX),
+  startDeadline: IsoDateTimeSchema,
+  endsAt: IsoDateTimeSchema.nullable(),
+  occurrences: z.strictObject({ count: z.int().min(0), warningsAllowed: z.literal(EXAM_WARNINGS) }),
+  hold: z.strictObject({ openedAt: IsoDateTimeSchema }).nullable(),
+  endReason: StudentExamEndReasonSchema.nullable(),
+  /** The student's own occurrences, oldest first, only once the attempt has ended (018/FR-031); empty before. */
+  ownOccurrences: z.array(ExamOccurrenceViewSchema),
+});
+export type StudentExam = z.infer<typeof StudentExamSchema>;
+
+const withoutContent = (detail: { questions: unknown[]; attempt: { answers: unknown[] } | null }) =>
+  detail.questions.length === 0 && (detail.attempt?.answers.length ?? 0) === 0;
+
+/**
+ * The detail of an activity for its student. While `pause` (016/FR-013) or an exam's hold (018) is
+ * open the questions and the answers are left out, on every device.
  */
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
   /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
@@ -146,10 +174,11 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
   pause: StudentPauseSchema.nullable(),
   /** The student's own pauses, oldest first, only after the submission (016/FR-021); empty before. */
   pauses: z.array(StudentPauseSchema),
-}).refine(
-  (detail) => detail.pause === null || (detail.questions.length === 0 && (detail.attempt?.answers.length ?? 0) === 0),
-  "CONTENT_WHILE_PAUSED",
-);
+  /** EXAM only (018); null for the others. */
+  exam: StudentExamSchema.nullable(),
+})
+  .refine((detail) => detail.pause === null || withoutContent(detail), "CONTENT_WHILE_PAUSED")
+  .refine((detail) => detail.exam?.hold == null || withoutContent(detail), "CONTENT_WHILE_ON_HOLD");
 export type StudentActivity = z.infer<typeof StudentActivitySchema>;
 
 export const StudentActivityListQuerySchema = z.strictObject({
@@ -166,6 +195,13 @@ export const StudentActivityPageSchema = z.strictObject({
   nextCursor: z.string().nullable(),
 });
 export type StudentActivityPage = z.infer<typeof StudentActivityPageSchema>;
+
+/**
+ * `POST /me/activities/:activityId/attempt`: `{}` for a work or exercises; an EXAM requires the
+ * acceptance of its rules (018 research T13; the service answers 400 without it).
+ */
+export const StartAttemptRequestSchema = z.strictObject({ acceptRules: z.literal(true).optional() });
+export type StartAttemptRequest = z.infer<typeof StartAttemptRequestSchema>;
 
 const distinctQuestions = (items: readonly { questionId: string }[]) => new Set(items.map((item) => item.questionId)).size === items.length;
 

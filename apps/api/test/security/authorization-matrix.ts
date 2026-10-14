@@ -118,6 +118,17 @@ export const WORK_HELP_STUDENT = ["ia.ajuda.pedir"] as const satisfies Permissio
 /** 016: the teacher takes the attendance of a work, pauses a student and releases the return. */
 export const ATTENDANCE_TEACHER = ["chamada.registrar"] as const satisfies PermissionKey[];
 
+/** 018: the teacher's Banco de Provas, "Criar prova com IA" and the decisions on a hold. */
+export const EXAMS_TEACHER = [
+  "provas.visualizar",
+  "provas.criar",
+  "provas.editar",
+  "provas.aprovar",
+  "provas.arquivar",
+  "ia.provas.gerar",
+  "provas.encerramentos.decidir",
+] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -130,7 +141,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     ...AI_OPERATIONS,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER],
+  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
   STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT],
 };
 
@@ -329,6 +340,24 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },
   // 016/US4 — the pauses of an attempt in the review (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/pauses", access: "entregas.visualizar" },
+  // 018/US5 — the exam monitor and the decisions on a hold (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/exam-monitor", access: "chamada.registrar" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/cancel", access: "provas.encerramentos.decidir" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/return", access: "provas.encerramentos.decidir" },
+  { method: "POST", path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/keep", access: "provas.encerramentos.decidir" },
+  // 018/US1 — the Banco de Provas (contracts/permissions.md).
+  { method: "POST", path: "/exams", access: "provas.criar" },
+  { method: "GET", path: "/exams", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/programming-languages", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/:id", access: "provas.visualizar" },
+  { method: "GET", path: "/exams/:id/student-preview", access: "provas.visualizar" },
+  { method: "PUT", path: "/exams/:id", access: "provas.editar" },
+  { method: "POST", path: "/exams/:id/approve", access: "provas.aprovar" },
+  { method: "POST", path: "/exams/:id/archive", access: "provas.arquivar" },
+  { method: "POST", path: "/exams/:id/restore", access: "provas.arquivar" },
+  { method: "GET", path: "/exam-generation/availability", access: "ia.provas.gerar" },
+  { method: "POST", path: "/exam-generation-requests", access: "ia.provas.gerar" },
+  { method: "GET", path: "/exam-generation-requests/:id", access: "ia.provas.gerar" },
 ];
 
 export const routeKey = (entry: Pick<MatrixEntry, "method" | "path">) => `${entry.method} ${entry.path}`;

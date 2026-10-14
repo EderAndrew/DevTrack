@@ -6,6 +6,7 @@ import {
   IntegritySummarySchema,
   IntegrityTimelineSchema,
   RecordIntegrityEventsRequestSchema,
+  RecordIntegrityEventsResultSchema,
   StudentIntegritySchema,
 } from "../src/index.js";
 
@@ -48,6 +49,8 @@ describe("015 eventos do modo controlado (contracts/http-api.md, research F4)", 
       "TYPING_LIMIT_EXCEEDED",
       "FULLSCREEN_UNAVAILABLE",
       "DETECTION_UNAVAILABLE",
+      // 018 adds the exam's inactivity.
+      "INACTIVITY",
     ]);
   });
 
@@ -83,12 +86,69 @@ describe("015 eventos do modo controlado (contracts/http-api.md, research F4)", 
     expect(accepts(IntegritySummarySchema, { studentUserId: uuid(1), attemptId: uuid(2), ...totals })).toBe(true);
     expect(accepts(IntegritySummarySchema, { studentUserId: uuid(1), attemptId: uuid(2), ...totals, suspicious: true })).toBe(false);
     const timeline = {
-      events: [{ type: "SCREEN_LEFT", questionPosition: null, recordedAt: AT, clientOccurredAt: null, buffered: false }],
+      events: [
+        { type: "SCREEN_LEFT", questionPosition: null, recordedAt: AT, clientOccurredAt: null, buffered: false, occurrenceOrdinal: null, idleSeconds: null },
+      ],
       intervals: [{ kind: "CONNECTION", from: AT, to: AT, seconds: 0, open: true }],
       totals,
+      holds: [],
     };
     expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, intervals: [{ ...timeline.intervals[0], kind: "TAB" }] })).toBe(false);
+    expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(true);
+  });
+});
+
+describe("018 ocorrências da prova nos eventos (contracts/http-api.md, research T6, T7)", () => {
+  const view = (overrides: Record<string, unknown> = {}) => ({
+    type: "INACTIVITY",
+    questionPosition: null,
+    recordedAt: AT,
+    clientOccurredAt: null,
+    buffered: false,
+    occurrenceOrdinal: 1,
+    idleSeconds: 60,
+    ...overrides,
+  });
+  const hold = {
+    id: uuid(7),
+    attemptId: uuid(2),
+    occurrenceOrdinal: 4,
+    openedAt: AT,
+    resolution: null,
+    resolvedAt: null,
+    canReturn: true,
+  };
+
+  it("018/FR-015 a inatividade vem do navegador com 30 a 60 s de ociosidade, e só ela leva esse campo", () => {
+    expect(ClientIntegrityEventTypeSchema.options).toContain("INACTIVITY");
+    for (const idleSeconds of [30, 45, 60]) {
+      expect(accepts(RecordIntegrityEventsRequestSchema, { events: [event(1, { type: "INACTIVITY", idleSeconds })] }), String(idleSeconds)).toBe(true);
+    }
+    for (const idleSeconds of [29, 61, 45.5, "60"]) {
+      expect(accepts(RecordIntegrityEventsRequestSchema, { events: [event(1, { type: "INACTIVITY", idleSeconds })] }), String(idleSeconds)).toBe(false);
+    }
+    expect(accepts(RecordIntegrityEventsRequestSchema, { events: [event(1, { type: "INACTIVITY" })] })).toBe(false);
+    expect(accepts(RecordIntegrityEventsRequestSchema, { events: [event(1, { idleSeconds: 60 })] })).toBe(false);
+  });
+
+  it("018/FR-017 o lote devolve a contagem de ocorrências e a retenção da prova, null fora dela; o navegador não as envia", () => {
+    const recorded = [{ eventId: uuid(1), recordedAt: AT }];
+    expect(accepts(RecordIntegrityEventsResultSchema, { recorded, exam: null })).toBe(true);
+    expect(accepts(RecordIntegrityEventsResultSchema, { recorded, exam: { occurrenceCount: 4, held: true } })).toBe(true);
+    expect(accepts(RecordIntegrityEventsResultSchema, { recorded })).toBe(false);
+    expect(accepts(RecordIntegrityEventsResultSchema, { recorded, exam: { occurrenceCount: -1, held: false } })).toBe(false);
+    for (const field of ["occurrenceCount", "ordinal", "occurrenceOrdinal"]) {
+      expect(accepts(RecordIntegrityEventsRequestSchema, { events: [event(1, { [field]: 1 })] }), field).toBe(false);
+    }
+  });
+
+  it("018/FR-016 a linha do tempo traz o ordinal da ocorrência, a ociosidade e as retenções da tentativa", () => {
+    const timeline = { events: [view(), view({ type: "SCREEN_RETURNED", occurrenceOrdinal: null, idleSeconds: null })], intervals: [], totals, holds: [hold] };
+    expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
+    expect(accepts(IntegrityTimelineSchema, { ...timeline, holds: undefined })).toBe(false);
+    expect(accepts(IntegrityTimelineSchema, { ...timeline, events: [view({ occurrenceOrdinal: 0 })] })).toBe(false);
+    expect(accepts(IntegrityTimelineSchema, { ...timeline, holds: [{ ...hold, occurrenceOrdinal: 3 }] })).toBe(false);
     expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(true);
   });
 });

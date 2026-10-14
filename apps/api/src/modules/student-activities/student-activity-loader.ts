@@ -1,14 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import type { ActivityStatus, ActivityType, AiHelpAllowance, ExecutionMode, LatePolicy, ReleaseMode, StudentAnswer } from "@repo/contracts";
+import type { ActivityStatus, ActivityType, AiHelpAllowance, ExamEndReason, ExecutionMode, LatePolicy, ReleaseMode, StudentAnswer } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { ACTIVITY_QUESTION_SELECT, aiHelpAllowanceOf, decimalToCents, nullableCents, toQuestionRow } from "../activities/activity-query";
-import { type ActivityFacts, assignmentSchedule } from "../activities/status/facts";
+import { type ActivityFacts, assignmentSchedule, examTiming } from "../activities/status/facts";
+import { endsAt, type ExamTiming, startDeadline } from "../activities/status/exam-time";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
-import { pauseTime } from "../activities/status/pause-time";
+import { examEndOf, pauseTime } from "../activities/status/pause-time";
 import type { ActivityQuestionRow } from "../activities/views/rows";
-import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput } from "../activities/views/student-view";
+import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput, StudentExamInput } from "../activities/views/student-view";
 
 /**
  * The session student's own attempt of one activity of their context (015 routes under
@@ -25,7 +26,9 @@ export interface OwnAttemptContext {
   aiHelpAllowance: AiHelpAllowance;
   /** 016: a `PRESENT_ONLY` work takes attendance and room exits (research M2). */
   releaseMode: ReleaseMode;
-  attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null } | null;
+  attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null; endReason: ExamEndReason | null } | null;
+  /** 018: an EXAM's time (research T4); null for the other types. */
+  exam: ExamTiming | null;
   /**
    * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause not released while the activity
    * is ACTIVE. Read after the attempt's lock, so a pause committed before it is seen.
@@ -69,6 +72,11 @@ const ACTIVITY_SELECT = {
   resultReleasedAt: true,
   /** 016: an open pause of a submitted attempt ends at the close by derivation (research M7). */
   closedAt: true,
+  /** 018: an EXAM's time (research T4): its start window, duration, inactivity limit and what caps its end. */
+  startWindowMinutes: true,
+  durationMinutes: true,
+  inactivityLimitSeconds: true,
+  cancelledAt: true,
   schoolClass: { select: { id: true, name: true, status: true, subject: { select: { name: true } } } },
   teacher: { select: { name: true } },
   /** The EXERCISE's possible points (013/FR-003). */
@@ -96,6 +104,8 @@ const ATTEMPT_SELECT = {
       grade: true,
       gradePartial: true,
       generalFeedback: true,
+      /** 018: how an EXAM attempt ended. */
+      endReason: true,
       gradings: { orderBy: { question: { position: "asc" } }, select: { questionId: true, finalGrade: true, feedback: true } },
     },
   },
@@ -141,7 +151,10 @@ export class StudentActivityLoader {
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true },
           })
         : null;
-    const answers = attempt && !pause ? await this.answersOf(attempt.id) : [];
+    // 018/FR-019: nor while an exam's hold is open ("Encerrada por avisos"), on every device.
+    const exam = activity.type === "EXAM" ? await this.examOf(activity, attempt) : null;
+    const hidden = pause !== null || exam?.hold != null;
+    const answers = attempt && !hidden ? await this.answersOf(attempt.id) : [];
     // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     // 016/FR-021: the own pauses, only after the submission; each end derived with the server's now.
@@ -154,11 +167,16 @@ export class StudentActivityLoader {
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
           })
         : [];
-    const pauseEnd = { acceptedAt: submission?.acceptedById ? submission.submittedAt : null, activityEndedAt: activity.closedAt };
+    const pauseEnd = {
+      acceptedAt: submission?.acceptedById ? submission.submittedAt : null,
+      activityEndedAt: activity.closedAt,
+      // 018 research T11: an exam's pause still open at the attempt's end ends there (TIME_EXPIRED).
+      examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+    };
     return {
       ...toInput(activity, attempts, now, canSeeResults),
       aiHelpUsed: attempts.reduce((sum, row) => sum + row._count.helpRequests, 0),
-      questions: pause ? [] : activity.questions.map(toQuestionRow),
+      questions: hidden ? [] : activity.questions.map(toQuestionRow),
       pause,
       pauses: pauses.map(({ releasedAt, ...pause }) => ({ ...pause, endedAt: pauseTime({ ...pause, releasedAt }, pauseEnd, now).endedAt })),
       attempt: attempt
@@ -168,6 +186,41 @@ export class StudentActivityLoader {
         .flatMap((row) => (row.completedAt ? [{ number: row.number, completedAt: row.completedAt }] : []))
         .sort((a, b) => b.number - a.number),
       lastResult: concluded ? await this.concludedInput(concluded) : null,
+      exam,
+    };
+  }
+
+  /**
+   * An EXAM's facts for its student (018 research T13): the time derived with the server's `now`
+   * from the attempt's own start, the occurrence count (the last ordinal), the open hold and how the
+   * attempt ended. Read after the touch's settlement, so an expired attempt already has its end. The
+   * occurrences themselves only once it ended (018/FR-031), and only the session student's attempt.
+   */
+  private async examOf(
+    activity: Pick<ActivityRow, "publishAt" | "durationMinutes" | "startWindowMinutes" | "inactivityLimitSeconds" | "closedAt" | "cancelledAt">,
+    attempt: AttemptRow | null,
+  ): Promise<StudentExamInput> {
+    const timing = examTiming(activity);
+    const ended = attempt?.submission != null;
+    const [occurrences, hold, own] = attempt
+      ? await Promise.all([
+          this.prisma.examOccurrence.aggregate({ where: { attemptId: attempt.id }, _max: { ordinal: true } }),
+          this.prisma.examAttemptHold.findFirst({ where: { attemptId: attempt.id, resolution: null }, select: { openedAt: true } }),
+          ended
+            ? this.prisma.examOccurrence.findMany({ where: { attemptId: attempt.id }, orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } })
+            : [],
+        ])
+      : [null, null, []];
+    if (activity.inactivityLimitSeconds === null) throw new Error("an EXAM has an inactivity limit (CHECK)");
+    return {
+      durationMinutes: timing.durationMinutes,
+      inactivityLimitSeconds: activity.inactivityLimitSeconds,
+      startDeadline: startDeadline(timing),
+      endsAt: attempt ? endsAt(timing, attempt.startedAt) : null,
+      occurrenceCount: occurrences?._max.ordinal ?? 0,
+      hold: hold && attempt?.status === "IN_PROGRESS" ? { openedAt: hold.openedAt } : null,
+      endReason: attempt?.submission?.endReason ?? null,
+      ownOccurrences: own,
     };
   }
 
@@ -218,14 +271,15 @@ export class StudentActivityLoader {
    * `tx`, under `FOR SHARE` of the activity and of the attempt — or `FOR UPDATE` of the attempt with
    * `attemptLock: "UPDATE"`, which serializes the student's own writes (the AI help, research F11):
    * a teacher's close and the student's submit wait for the caller, and the attempt read after the
-   * wait is its latest version (READ COMMITTED).
+   * wait is its latest version (READ COMMITTED). `"UPDATE_IF_EXAM"` takes `FOR UPDATE` only for an
+   * EXAM's attempt, whose events batches count occurrences one at a time (018 research T6).
    */
   async ownAttempt(
     studentUserId: string,
     activityId: string,
     now: Date,
     tx?: Tx,
-    attemptLock: "SHARE" | "UPDATE" = "SHARE",
+    attemptLock: "SHARE" | "UPDATE" | "UPDATE_IF_EXAM" = "SHARE",
   ): Promise<OwnAttemptContext | null> {
     const db = tx ?? this.prisma;
     const lock = tx ? Prisma.sql`FOR SHARE OF ca` : Prisma.empty;
@@ -239,11 +293,16 @@ export class StudentActivityLoader {
         ai_help_allowance: number;
         class_active: boolean;
         release_mode: ReleaseMode;
+        publish_at: Date;
+        duration_minutes: number | null;
+        start_window_minutes: number | null;
+        closed_at: Date | null;
+        cancelled_at: Date | null;
       }[]
     >`
       SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
              ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active,
-             ca.release_mode::text AS release_mode
+             ca.release_mode::text AS release_mode, ca.publish_at, ca.duration_minutes, ca.start_window_minutes, ca.closed_at, ca.cancelled_at
       FROM class_activities ca
       JOIN classes c ON c.id = ca.class_id
       WHERE ca.id = ${activityId}::uuid
@@ -254,13 +313,16 @@ export class StudentActivityLoader {
       ${lock}`;
     const activity = activities[0];
     if (!activity) return null;
-    const attempts = await db.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; started_at: Date; submitted_at: Date | null }[]>`
-      SELECT a.id, a.status::text AS status, a.started_at, s.submitted_at
+    const exclusive = attemptLock === "UPDATE" || (attemptLock === "UPDATE_IF_EXAM" && activity.type === "EXAM");
+    const attempts = await db.$queryRaw<
+      { id: string; status: "IN_PROGRESS" | "SUBMITTED"; started_at: Date; submitted_at: Date | null; end_reason: ExamEndReason | null }[]
+    >`
+      SELECT a.id, a.status::text AS status, a.started_at, s.submitted_at, s.end_reason::text AS end_reason
       FROM activity_attempts a
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
       WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
       ORDER BY a.number DESC LIMIT 1
-      ${tx ? (attemptLock === "UPDATE" ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
+      ${tx ? (exclusive ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
     // A separate statement after the attempt's lock: it sees a pause committed while this one waited.
     const pauses =
@@ -277,8 +339,20 @@ export class StudentActivityLoader {
       latePolicy: activity.late_policy,
       aiHelpAllowance: aiHelpAllowanceOf(activity.ai_help_allowance),
       releaseMode: activity.release_mode,
-      attempt: attempt ? { id: attempt.id, status: attempt.status, startedAt: attempt.started_at, submittedAt: attempt.submitted_at } : null,
+      attempt: attempt
+        ? { id: attempt.id, status: attempt.status, startedAt: attempt.started_at, submittedAt: attempt.submitted_at, endReason: attempt.end_reason }
+        : null,
       paused: pauses[0] ? { pauseId: pauses[0].id } : null,
+      exam:
+        activity.type === "EXAM"
+          ? examTiming({
+              publishAt: activity.publish_at,
+              durationMinutes: activity.duration_minutes,
+              startWindowMinutes: activity.start_window_minutes,
+              closedAt: activity.closed_at,
+              cancelledAt: activity.cancelled_at,
+            })
+          : null,
     };
   }
 
@@ -352,6 +426,19 @@ function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
     };
   }
   const submission = latest?.submission ?? null;
+  if (activity.type === "EXAM") {
+    if (activity.startWindowMinutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    return {
+      type: "EXAM",
+      activityStatus: activity.status,
+      startDeadline: startDeadline({ publishAt: activity.publishAt, startWindowMinutes: activity.startWindowMinutes }),
+      classActive,
+      attempt: latest && { status: latest.status },
+      submission: submission && { endReason: submission.endReason, gradingComplete: !submission.gradePartial },
+      released: activity.resultReleasedAt !== null,
+      now,
+    };
+  }
   return {
     type: "ASSIGNMENT",
     activityStatus: activity.status,

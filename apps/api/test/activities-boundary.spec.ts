@@ -11,7 +11,10 @@ import { API_ROOT } from "./helpers/env";
  * F1, F18) allows the CONTROLLED mode as a setting of a work, but its monitoring and the AI help live
  * in `attempt-integrity` and `work-help`, which the activity modules never import (they register hooks).
  * 016 (research M1) keeps `attendance` out too: the activity modules read its tables in their own
- * scoped queries, never its code.
+ * scoped queries, never its code. 018 (research T1, T16) adds the EXAM type: the activity modules read
+ * the exam bank through their own snapshot reader and its pure `exams/coverage`, never `exam-sessions`
+ * or `exam-ai`, and the exam's timer and countdown live only in `features/exam-attempt` and
+ * `components/ui/assessment`.
  */
 
 const REPO_ROOT = resolve(API_ROOT, "../..");
@@ -30,7 +33,12 @@ const FORBIDDEN_API = [
   "apps/api/src/modules/work-help",
   // 016 research M1: the visibility clause and the paused-write refusal read its tables, not its code.
   "apps/api/src/modules/attendance",
+  // 018 research T1: the monitor and the decisions call into `activities/submission`, never the reverse.
+  "apps/api/src/modules/exam-sessions",
+  "apps/api/src/modules/exam-ai",
 ];
+/** The only part of the exam bank the activities may use: the pure coverage of the scope check (018 T15). */
+const ALLOWED_EXAMS = ["apps/api/src/modules/exams/coverage"];
 /** The only parts of the work bank the activities may use: the pure grading rules and the type registry. */
 const ALLOWED_WORKS = ["apps/api/src/modules/works/grading", "apps/api/src/modules/works/types"];
 const ACTIVITIES_WEB = ["apps/web/features/activities", "apps/web/features/student-activities", "apps/web/features/ranking"];
@@ -101,6 +109,12 @@ describe("012/FR-036 fronteiras dos módulos de atividades (research P1, P24)", 
     expect(works.filter(({ file }) => inside(file, STUDENT_API)).map(describeImport)).toEqual([]);
   });
 
+  it("018/FR-008 do Banco de Provas, só a cobertura pura; o portal do aluno não o importa", () => {
+    const exams = imports(ACTIVITIES_API).filter(({ target }) => inside(target, ["apps/api/src/modules/exams"]));
+    expect(exams.filter(({ target }) => !inside(target, ALLOWED_EXAMS)).map(describeImport)).toEqual([]);
+    expect(exams.filter(({ file }) => inside(file, STUDENT_API)).map(describeImport)).toEqual([]);
+  });
+
   it("012/FR-032 o portal do aluno nunca usa a visão do professor", () => {
     expect(
       imports(STUDENT_API)
@@ -142,7 +156,7 @@ describe("012/FR-036 nada é executado nem calculado em ponto flutuante (constit
   });
 });
 
-describe("012/SC-012 012/FR-036 015/FR-030 nada de prova; o monitoramento do modo controlado fica fora das atividades", () => {
+describe("012/SC-012 012/FR-036 015/FR-030 a prova só como tipo EXAM; o monitoramento e o cronômetro ficam fora das atividades", () => {
   /**
    * 015 research F18: monitoring lives only in `attempt-integrity`, `features/controlled-attempt` and
    * `components/ui/assessment`; the activity features and the AI help never detect focus, fullscreen
@@ -151,20 +165,16 @@ describe("012/SC-012 012/FR-036 015/FR-030 nada de prova; o monitoramento do mod
   const MONITORED_WEB = [...ACTIVITIES_WEB, "apps/web/features/work-help"];
   const WEB_SOURCES = MONITORED_WEB.flatMap(sources).filter((file) => !/\.test\.tsx?$|test-fixtures\.ts$/.test(file));
   const MONITORED_API = [...ACTIVITIES_API, "apps/api/src/modules/work-help"];
-  /** Exam-mode monitoring (012 research P19): timer, fullscreen, focus, clipboard. */
-  const MONITORING = [/ExamTimer|FocusViolation|ReviewFlag/, /requestFullscreen|fullscreenchange|exitFullscreen/, /["']blur["']|onBlurCapture|hasFocus\s*\(/, /navigator\.clipboard|["'](copy|paste|cut)["']|\bon(Copy|Paste|Cut)\b/];
+  /** Exam-mode monitoring (012 research P19): timer, countdown, alerts, fullscreen, focus, clipboard. */
+  const MONITORING = [/ExamTimer|FinalCountdown|TimeAlert|FocusViolation|ReviewFlag/, /requestFullscreen|fullscreenchange|exitFullscreen/, /["']blur["']|onBlurCapture|hasFocus\s*\(/, /navigator\.clipboard|["'](copy|paste|cut)["']|\bon(Copy|Paste|Cut)\b/];
 
-  it("nenhuma rota do catálogo nem texto das telas de atividades fala de prova; CONTROLLED é só uma configuração do trabalho", () => {
+  it("018 as rotas de prova ficam no Banco de Provas, na geração e no acompanhamento; nenhum texto rotula o aluno", () => {
     const catalog = readFileSync(join(REPO_ROOT, "packages/contracts/src/endpoints.ts"), "utf8");
     const paths = [...catalog.matchAll(/path:\s*"([^"]+)"/g)].map((match) => match[1]!);
-    expect(paths.filter((path) => /exam|prova/i.test(path))).toEqual([]);
-    const strings = WEB_SOURCES.flatMap((file) =>
-      [...readFileSync(join(REPO_ROOT, file), "utf8").matchAll(/["'`>]([^"'`<>{}]*\b(Prova|prova|Provas)\b[^"'`<>{}]*)["'`<]/g)].map(
-        (match) => `${file}: ${match[1]!.trim()}`,
-      ),
-    );
-    expect(strings).toEqual([]);
-    expect(offendingLines(MONITORED_API.flatMap(sources), [/["']EXAM["']/])).toEqual([]);
+    const EXAM_ROUTES = /^\/exams(\/|$)|^\/exam-generation(-requests)?(\/|$)|\/activities\/:activityId\/exam-(monitor|holds)(\/|$)/;
+    expect(paths.filter((path) => /exam|prova/i.test(path) && !EXAM_ROUTES.test(path))).toEqual([]);
+    // 018/FR-032: no screen of the activities calls an occurrence fraud, cheating or a violation.
+    expect(offendingLines(WEB_SOURCES, [/\bfraude?/i, /\bcola\b/i, /viola[cç][aã]o/i])).toEqual([]);
   });
 
   it("nenhum cronômetro de prova, tela cheia, monitoramento de foco ou de área de transferência nas atividades nem na ajuda", () => {
@@ -172,8 +182,18 @@ describe("012/SC-012 012/FR-036 015/FR-030 nada de prova; o monitoramento do mod
     expect(offendingLines(MONITORED_API.flatMap(sources), MONITORING)).toEqual([]);
   });
 
+  it("018 cronômetro, contagem regressiva e alertas de tempo só em features/exam-attempt e components/ui/assessment", () => {
+    const TIMER = [/ExamTimer|FinalCountdown|TimeAlert/];
+    const elsewhere = ["apps/web/features", "apps/web/app"]
+      .flatMap(sources)
+      .filter((file) => !/\.test\.tsx?$|test-fixtures\.ts$/.test(file))
+      .filter((file) => !inside(file, ["apps/web/features/exam-attempt", "apps/web/features/design-system"]));
+    expect(offendingLines(elsewhere, TIMER)).toEqual([]);
+  });
+
   it("controle: os padrões pegam o que devem", () => {
     expect(MONITORING.some((pattern) => pattern.test("document.documentElement.requestFullscreen();"))).toBe(true);
+    expect(MONITORING.some((pattern) => pattern.test("<FinalCountdown seconds={10} />"))).toBe(true);
     expect(MONITORING.some((pattern) => pattern.test('window.addEventListener("blur", onBlur);'))).toBe(true);
     expect(MONITORING.some((pattern) => pattern.test("<textarea onPaste={block} />"))).toBe(true);
     expect(MONITORING.some((pattern) => pattern.test('document.addEventListener("visibilitychange", flush);'))).toBe(false);

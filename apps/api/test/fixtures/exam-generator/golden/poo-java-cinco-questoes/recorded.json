@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exam-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Herança e Polimorfismo em Java",
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique como a herança permite criar uma classe especializada a partir de outra em Java. Na resposta, indique o papel de `extends` e dê um exemplo de relação entre uma classe-base e uma subclasse.",
+            "explanation": "Com `extends`, uma classe herda membros acessíveis da classe-base e pode especializá-los, inclusive sobrescrevendo métodos.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "A herança permite que uma subclasse reutilize e especialize membros acessíveis de uma classe-base. Em Java, declara-se essa relação com `extends`; por exemplo, `class Cachorro extends Animal` indica que `Cachorro` é uma especialização de `Animal`.",
+            "rubric": "Considerar correta se explicar a relação de especialização ou reutilização entre classes e identificar `extends` como a forma de declará-la em Java."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere uma classe-base `Animal` com o método `emitirSom()` e as subclasses `Cachorro` e `Gato`, que sobrescrevem esse método. Explique o que acontece quando `Animal a = new Cachorro();` é seguido por `a.emitirSom()`, e relacione sua explicação ao polimorfismo.",
+            "explanation": "Em uma chamada de método sobrescrito, a implementação executada é escolhida conforme o tipo real do objeto, mesmo que a referência tenha o tipo da classe-base.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}",
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "A chamada executa a implementação de `emitirSom()` sobrescrita em `Cachorro`, pois o objeto criado é um `Cachorro`. A variável `a` pode referenciar objetos de diferentes subclasses de `Animal`, e a implementação correspondente ao tipo real do objeto é usada; isso é polimorfismo.",
+            "rubric": "Considerar correta se indicar que o método de `Cachorro` será executado e explicar que a chamada por uma referência da classe-base pode usar implementações sobrescritas de diferentes subclasses."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Em Java, considere que `Cachorro` sobrescreve `emitirSom()` definido em `Animal`. O que ocorre ao executar `Animal a = new Cachorro(); a.emitirSom();`?",
+            "explanation": "A resolução de uma chamada a um método sobrescrito ocorre em tempo de execução conforme o tipo real do objeto referenciado.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "alternatives": [
+              "É executada a implementação de `emitirSom()` definida em `Animal`, pois esse é o tipo da variável `a`.",
+              "É executada a implementação de `emitirSom()` sobrescrita em `Cachorro`, pois esse é o tipo real do objeto.",
+              "O código não compila, pois uma variável do tipo `Animal` não pode referenciar um objeto `Cachorro`.",
+              "As duas implementações são executadas, primeiro a de `Animal` e depois a de `Cachorro`, automaticamente."
+            ],
+            "correctIndex": 1,
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual declaração estabelece que `Cachorro` é uma subclasse de `Animal` em Java?",
+            "explanation": "A palavra-chave `extends` declara que uma classe herda de outra.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "`class Cachorro extends Animal { }`",
+              "`class Cachorro implements Animal { }`",
+              "`class Cachorro inherits Animal { }`",
+              "`class Animal extends Cachorro { }`"
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente um programa Java que leia uma palavra indicando um animal (`cachorro` ou `gato`), crie o objeto correspondente e imprima seu som. Use uma classe-base `Animal`, subclasses para os dois animais e uma referência de tipo `Animal` para chamar o método de som.",
+            "explanation": "As subclasses herdam de `Animal` e sobrescrevem `emitirSom()`. A chamada pela referência `Animal` executa a implementação da subclasse do objeto criado.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}",
+              "{{topic:1}}"
+            ],
+            "languageId": "{{languageId}}",
+            "instructions": "Leia uma única palavra da entrada: `cachorro` ou `gato`. Para `cachorro`, imprima `Au`; para `gato`, imprima `Miau`. Use herança, sobrescrita de método e uma referência da classe-base para invocar o método.",
+            "starterCode": null,
+            "expectedSolution": "import java.util.Scanner;\n\nclass Animal {\n    public String emitirSom() {\n        return \"\";\n    }\n}\n\nclass Cachorro extends Animal {\n    @Override\n    public String emitirSom() {\n        return \"Au\";\n    }\n}\n\nclass Gato extends Animal {\n    @Override\n    public String emitirSom() {\n        return \"Miau\";\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        String tipo = scanner.next();\n        Animal animal;\n\n        if (tipo.equals(\"cachorro\")) {\n            animal = new Cachorro();\n        } else {\n            animal = new Gato();\n        }\n\n        System.out.println(animal.emitirSom());\n        scanner.close();\n    }\n}",
+            "testCases": [
+              {
+                "input": "cachorro",
+                "expectedOutput": "Au",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "gato",
+                "expectedOutput": "Miau",
+                "visibility": "PRIVATE"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

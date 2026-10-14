@@ -1,33 +1,36 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.3.0 → 3.4.0
-Motivo (MINOR): o XIII ganha uma exceção explícita e delimitada à regra "IA NUNCA publica —
-publicar para alunos é ação do professor": uma orientação de estudo L2 pode chegar
-diretamente ao aluno durante uma atividade, desde que a spec da atividade e o professor a
-autorizem, o modelo nunca receba gabarito, resposta esperada, solução, explicação ou critérios
-de correção, a orientação passe por checagem determinística de vazamento antes da entrega, não
-altere resposta, nota, situação nem prazo, tenha limite fixo por atividade e seja visível ao
-professor. Conteúdo de banco e publicação de atividades continuam ação exclusiva do professor.
-É MINOR (e não PATCH) porque permite algo que o texto anterior proibia.
+Version change: 3.4.0 → 3.5.0
+Motivo (MINOR): o XI ganha uma exceção explícita e delimitada. A spec de uma avaliação pode
+definir uma regra determinística que suspende a tentativa do aluno quando os fatos registrados
+atingem um limite, se a regra é mostrada e aceita antes do início, a contagem é do servidor com
+avisos antes do limite, a suspensão não cancela, não anula, não dá nota, não penaliza nem rotula,
+e o professor decide entre anular (com a penalidade da spec) e devolver. O tempo pode continuar
+correndo durante a suspensão quando a spec o anuncia. Anulação, penalidade e bloqueio disciplinar
+continuam decisões do professor. É MINOR (e não PATCH) porque permite algo que a leitura literal
+do texto anterior ("bloqueio disciplinar") proibia a mecanismos automáticos.
+Origem: /speckit-analyze da 018 (achado C1); registro em
+specs/018-controlled-exams/constitution-amendment-3.5.0.md.
 
 Princípios modificados:
-  XIII. Classificação de Risco das Operações — exceção da orientação de estudo ao aluno.
+  XI. Supervisão Humana em Decisões Críticas — exceção da suspensão da tentativa por regra da
+  avaliação.
 
-Seções modificadas: Governance — histórico ganha a entrada 3.4.0.
+Seções modificadas: Governance — histórico ganha a entrada 3.5.0.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XIII cita a exceção da orientação ao aluno
+  ✅ .specify/templates/plan-template.md  — gate XI cita a exceção da suspensão
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.4.0
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.5.0
 
 Follow-ups:
-  - specs/015-controlled-work-ai-help/plan.md: o item XIII do Constitution Check passa a
-    citar a v3.4.0; constitution-amendment-3.4.0.md marcado como aplicado.
+  - specs/018-controlled-exams/{spec,plan,research}.md: citam a v3.5.0; o Complexity Tracking
+    deixa de registrar a leitura do XI como interpretação.
 -->
 
 # DevTrack Constitution
@@ -204,6 +207,24 @@ da fundação (ver Roadmap de Fases).
   automatizados. São críticas, entre outras: nota definitiva com análise subjetiva,
   acusação de fraude, anulação de avaliação, aplicação de penalidades, bloqueio
   disciplinar e classificação definitiva de dificuldade de aprendizagem.
+- **Suspensão da tentativa por regra da avaliação (exceção delimitada)**: a spec de uma
+  avaliação PODE definir uma regra determinística que suspende a tentativa do aluno (ele
+  deixa de responder até a decisão do professor) quando os fatos registrados atingem um
+  limite, desde que, cumulativamente:
+  - a regra, o limite e as consequências possíveis são mostrados ao aluno antes do início
+    e aceitos por ele;
+  - a contagem é feita pelo servidor sobre fatos registrados (X), com avisos ao aluno
+    antes do limite, e nunca a partir de um evento isolado;
+  - a suspensão é um `RULE_RESULT`: não cancela nem anula a avaliação, não dá nota, não
+    aplica penalidade e não rotula o aluno (nunca "fraude", "cola" ou "violação");
+  - o professor é avisado, vê todos os fatos e decide (`HUMAN_DECISION`) entre anular
+    a tentativa, com a penalidade que a spec define, e devolvê-la ao aluno; enquanto ele
+    não decide, nenhum resultado do aluno é liberado.
+
+  O tempo da avaliação PODE continuar correndo durante a suspensão quando a spec assim o
+  define e o aluno é informado antes do início; isso decorre da regra anunciada, não é
+  penalidade aplicada pelo sistema. Anulação, penalidade e bloqueio disciplinar continuam
+  sendo decisões do professor.
 - Mecanismos automáticos PODEM coletar evidências, executar validações
   determinísticas, calcular resultados objetivos, identificar padrões, gerar alertas e
   produzir sugestões.
@@ -785,7 +806,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.4.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-07
+**Version**: 3.5.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-12
 
 Histórico:
 
@@ -818,3 +839,7 @@ Histórico:
   ao aluno durante uma atividade (spec e professor a autorizam, sem gabarito para o modelo,
   checagem determinística de vazamento, sem mudança de estado, limite fixo, visível ao
   professor).
+- **3.5.0** — XI: exceção explícita para a suspensão da tentativa por uma regra
+  determinística definida na spec da avaliação (regra mostrada e aceita antes do início,
+  contagem do servidor com avisos, sem anulação, nota, penalidade ou rótulo automáticos;
+  o professor decide entre anular e devolver; o tempo pode correr se a spec anunciar).

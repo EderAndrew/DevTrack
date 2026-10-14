@@ -108,6 +108,17 @@ export const ErrorCodeSchema = z.enum([
   "ATTENDANCE_STARTED",
   "ATTENDANCE_NOT_REQUIRED",
   "STUDENT_NOT_IN_CLASS",
+  "EXAM_RULES",
+  "EXAM_VERSION_CONFLICT",
+  "EXAM_ARCHIVED",
+  "EXAM_NOT_APPROVED",
+  "EXAM_START_CLOSED",
+  "EXAM_TIME_OVER",
+  "EXAM_ATTEMPT_ON_HOLD",
+  "EXAM_TIME_NOT_OVER",
+  "EXAM_DECISIONS_PENDING",
+  "EXIT_NOT_ALLOWED",
+  "NOT_AN_EXAM",
   "NOTICE_REJECTED",
   "NOTICE_TOO_LARGE",
   "RATE_LIMITED",
@@ -116,10 +127,27 @@ export const ErrorCodeSchema = z.enum([
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
 
 /**
- * What a refusal names for the caller to act on, only where its contract says so: the students of
- * the teacher's own class who already started (016 `409 ATTENDANCE_STARTED`). Ids only, never data.
+ * One rule an exam's question breaks (018 `422 EXAM_RULES`): its 0-based position, the field and a
+ * code, so the editor points at the question. Never the question's text.
  */
-export const ErrorDetailsSchema = z.strictObject({ studentUserIds: z.array(UuidSchema).min(1) });
+export const ExamRuleViolationSchema = z.strictObject({
+  position: z.int().min(0),
+  field: z.string().regex(/^[A-Za-z][A-Za-z0-9_.]{0,63}$/),
+  reason: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
+});
+export type ExamRuleViolation = z.infer<typeof ExamRuleViolationSchema>;
+
+/**
+ * What a refusal names for the caller to act on, only where its contract says so: the students of
+ * the teacher's own class who already started (016 `409 ATTENDANCE_STARTED`), the questions an exam's
+ * rules refuse (018 `422 EXAM_RULES`) and the holds still waiting for a decision (018 `409
+ * EXAM_DECISIONS_PENDING`). Ids, positions, codes and counts only, never data.
+ */
+export const ErrorDetailsSchema = z.union([
+  z.strictObject({ studentUserIds: z.array(UuidSchema).min(1) }),
+  z.strictObject({ violations: z.array(ExamRuleViolationSchema).min(1) }),
+  z.strictObject({ count: z.int().min(1) }),
+]);
 export type ErrorDetails = z.infer<typeof ErrorDetailsSchema>;
 
 /** Every error response of the API: {statusCode, code, message}, plus `details` where a contract lists them. */

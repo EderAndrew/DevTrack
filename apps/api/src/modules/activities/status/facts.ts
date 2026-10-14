@@ -1,4 +1,5 @@
-import type { ActivityStatus, AttemptStatus, LatePolicy } from "@repo/contracts";
+import type { ActivityStatus, AttemptStatus, ExamEndReason, LatePolicy } from "@repo/contracts";
+import type { ExamTiming } from "./exam-time";
 
 /**
  * What the situation of a student in an activity is derived from (012 and 013
@@ -33,7 +34,23 @@ export interface ExerciseFacts extends CommonFacts {
   awaitingCorrection: boolean;
 }
 
-export type ActivityFacts = AssignmentFacts | ExerciseFacts;
+/**
+ * An EXAM (018 research T3, T4): one attempt, like an ASSIGNMENT, but no deadline or late policy: a
+ * start window from the publication, and the duration counted from each student's own start.
+ */
+export interface ExamFacts extends CommonFacts {
+  type: "EXAM";
+  /** The publication plus the start window: no new attempt after it (`EXAM_START_CLOSED`). */
+  startDeadline: Date;
+  attempt: { status: AttemptStatus } | null;
+  /** `endReason` is set for every EXAM submission (trigger); null only where the reader doesn't need it. */
+  submission: { endReason: ExamEndReason | null; gradingComplete: boolean } | null;
+  released: boolean;
+  /** An open hold on the attempt ("Encerrada por avisos", research T8); only the roster reads it. */
+  onHold?: boolean;
+}
+
+export type ActivityFacts = AssignmentFacts | ExerciseFacts | ExamFacts;
 
 /**
  * The deadline and late policy of an ASSIGNMENT row: NOT NULL for that type by the CHECK of
@@ -43,6 +60,21 @@ export function assignmentSchedule(row: { deadline: Date | null; latePolicy: Lat
   if (row.deadline === null || row.latePolicy === null) throw new Error("an ASSIGNMENT has a deadline and a late policy (CHECK)");
   return { deadline: row.deadline, latePolicy: row.latePolicy };
 }
+
+/** The timing columns of an EXAM row: NOT NULL for that type by the CHECK of `class_activities` (018 T3). */
+export function examTiming(row: {
+  publishAt: Date;
+  durationMinutes: number | null;
+  startWindowMinutes: number | null;
+  closedAt: Date | null;
+  cancelledAt: Date | null;
+}): ExamTiming {
+  if (row.durationMinutes === null || row.startWindowMinutes === null) throw new Error("an EXAM has a duration and a start window (CHECK)");
+  return { publishAt: row.publishAt, durationMinutes: row.durationMinutes, startWindowMinutes: row.startWindowMinutes, closedAt: row.closedAt, cancelledAt: row.cancelledAt };
+}
+
+/** No new attempt from the start deadline on (strictly after it, as `exam-time.ts` `canStart`). */
+export const isStartClosed = (facts: Pick<ExamFacts, "startDeadline" | "now">): boolean => facts.now.getTime() > facts.startDeadline.getTime();
 
 /** Strictly after the deadline: at the deadline's instant the activity is still on time. */
 export const isPastDeadline = (facts: Pick<AssignmentFacts, "deadline" | "now">): boolean => facts.now.getTime() > facts.deadline.getTime();

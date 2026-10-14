@@ -35,8 +35,9 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
     mode: "GENERATION",
     // Promoted by the release gate on 2026-10-01, the first run with OpenRouter credit (the 009 one
     // got 402): it met every threshold of the analysis and of the exercise generator, so those
-    // tasks get a same-tier fallback of another family. It failed `work-generation` (schema validity
-    // 0.6: `poo-java-tres-topicos` and `sete-topicos-tres-questoes` refused), so no approval there.
+    // tasks get a same-tier fallback of another family (since 2026-10-14 also `exam-generation`). It
+    // failed `work-generation` (schema validity 0.6: `poo-java-tres-topicos` and
+    // `sete-topicos-tres-questoes` refused), so no approval there.
     lifecycle: "PRODUCTION",
     price: usd("1", "5"),
     contextWindow: 200_000,
@@ -53,6 +54,14 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 1, injectionClean: 1 },
         evaluatedAt: "2026-10-01T13:25:24.619Z",
         evidence: "apps/api/test/fixtures/evaluations/exercise-generation/anthropic-basic.json",
+      },
+      // 018 T046: the exam generator's golden set met every threshold of `exam-generation`: the
+      // same-tier fallback of another family.
+      {
+        taskKey: "exam-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 1, injectionClean: 1 },
+        evaluatedAt: "2026-10-14T00:26:54.692Z",
+        evidence: "apps/api/test/fixtures/evaluations/exam-generation/anthropic-basic.json",
       },
     ],
   }),
@@ -120,6 +129,13 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
         metrics: { schemaValidity: 1, leakFree: 1, injectionClean: 1, scopeAccuracy: 0.92, relevance: 0.9, falseBlockRate: 0 },
         evaluatedAt: "2026-10-08T19:36:14.641Z",
         evidence: "apps/api/test/fixtures/evaluations/work-help/openai-basic.json",
+      },
+      // 018 T046: the exam generator's golden set met every threshold of `exam-generation`.
+      {
+        taskKey: "exam-generation",
+        metrics: { schemaValidity: 1, configMatch: 1, duplicates: 0, topicCoverage: 1, injectionClean: 1 },
+        evaluatedAt: "2026-10-14T00:25:16.175Z",
+        evidence: "apps/api/test/fixtures/evaluations/exam-generation/openai-basic.json",
       },
     ],
   }),

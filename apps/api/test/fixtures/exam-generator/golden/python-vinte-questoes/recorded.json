@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exam-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Listas, dicionários e funções em Python",
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Escreva um algoritmo em Python que receba uma lista de valores e produza outra lista com os elementos sem repetição, mantendo a ordem da primeira ocorrência. Explique como seu algoritmo preserva essa ordem.",
+            "explanation": "Uma solução pode percorrer a lista original e acrescentar cada elemento apenas se ainda não estiver na lista de resultado.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "Por exemplo: `def sem_repeticoes(valores):\\n    resultado = []\\n    for valor in valores:\\n        if valor not in resultado:\\n            resultado.append(valor)\\n    return resultado`. A lista é percorrida na ordem original, e cada valor é incluído na primeira vez em que aparece. Para `[3, 1, 3, 2, 1]`, o resultado é `[3, 1, 2]`.",
+            "rubric": "Atribuir crédito pela remoção de repetidos, preservação da ordem e retorno da lista resultante. A implementação pode variar."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Dada a lista de pares `[(\"maçã\", 2), (\"pera\", 1), (\"maçã\", 4)]`, descreva um procedimento que use um dicionário para somar os valores associados a cada fruta. Informe o dicionário final.",
+            "explanation": "Percorrer os pares permite acumular cada valor na chave correspondente do dicionário.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}",
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "Percorrer cada par `(fruta, quantidade)` e atualizar `totais[fruta] = totais.get(fruta, 0) + quantidade`. O dicionário final é `{\"maçã\": 6, \"pera\": 1}`.",
+            "rubric": "A resposta deve explicar a acumulação por chave e apresentar os totais corretos."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Defina uma função `maiores_que(valores, limite)` que devolva uma nova lista contendo apenas os elementos de `valores` maiores que `limite`. Explique o que a função deve devolver para `valores = [2, 7, 4, 9]` e `limite = 4`.",
+            "explanation": "A função percorre os elementos e seleciona aqueles que satisfazem a comparação estrita `> limite`.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}",
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "`def maiores_que(valores, limite):\\n    return [valor for valor in valores if valor > limite]`. Para os dados fornecidos, devolve `[7, 9]`; o valor 4 não é incluído porque a comparação é estrita.",
+            "rubric": "Considerar a seleção correta, o uso de uma função com parâmetros e o resultado de exemplo."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique uma forma de construir um novo dicionário a partir de `{\"a\": 1, \"b\": 2}`, trocando chaves e valores. O que deve ser considerado se dois valores originais forem iguais?",
+            "explanation": "Ao inverter as associações, os valores originais passam a ser chaves; chaves repetidas no novo dicionário não podem manter duas associações distintas.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "Pode-se usar `{valor: chave for chave, valor in original.items()}`. Para o dicionário dado, o resultado é `{1: \"a\", 2: \"b\"}`. Se dois valores originais forem iguais, eles se tornam a mesma chave no novo dicionário, e a associação inserida por último prevalece.",
+            "rubric": "A resposta deve descrever a inversão e reconhecer o efeito de valores repetidos ao se tornarem chaves."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Escreva a assinatura e o corpo de uma função `aplicar_duas_vezes(funcao, valor)` que devolva o resultado de aplicar `funcao` a `valor` e, em seguida, aplicar novamente `funcao` ao primeiro resultado. Dê um exemplo de chamada com uma função apropriada.",
+            "explanation": "Uma função pode receber outra função como argumento e chamar esse objeto mais de uma vez.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}"
+            ],
+            "expectedAnswer": "`def aplicar_duas_vezes(funcao, valor):\\n    return funcao(funcao(valor))`. Por exemplo, com `dobro = lambda x: x * 2`, `aplicar_duas_vezes(dobro, 3)` devolve `12`.",
+            "rubric": "A função deve aplicar o argumento chamável exatamente duas vezes em sequência e devolver o resultado final."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Considere `original = [1, 2, 3]` e `referencia = original`. Explique o efeito de executar `referencia.append(4)` e indique o conteúdo de ambas as variáveis depois da operação.",
+            "explanation": "A atribuição cria outra referência ao mesmo objeto de lista; modificar esse objeto é visível por ambas as referências.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "`original` e `referencia` apontam para a mesma lista. Depois de `referencia.append(4)`, ambas mostram `[1, 2, 3, 4]`.",
+            "rubric": "A resposta deve identificar que não houve cópia da lista e informar corretamente o conteúdo observado pelas duas variáveis."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Em um dicionário `estoque`, descreva como consultar a quantidade da chave `\"caneta\"` usando zero como valor padrão, sem provocar erro quando a chave não existir. Explique se essa consulta, por si só, cria a chave.",
+            "explanation": "O método `get` aceita um valor padrão para consultas de chaves ausentes e não modifica o dicionário.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "Usa-se `estoque.get(\"caneta\", 0)`. Se a chave não existir, a expressão devolve `0`; a consulta não cria nem insere a chave no dicionário.",
+            "rubric": "A resposta deve usar corretamente `get` com padrão zero e afirmar que a consulta não altera o dicionário."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Escreva uma função `somar_por_categoria(registros)` que receba uma lista de pares `(categoria, valor)` e devolva um dicionário com a soma dos valores de cada categoria. Explique o resultado para `[(\"livro\", 10), (\"jogo\", 5), (\"livro\", 3)]`.",
+            "explanation": "A função pode percorrer os pares e acumular os valores em um dicionário, inicializando cada categoria com zero quando necessário.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}",
+              "{{topic:1}}"
+            ],
+            "expectedAnswer": "`def somar_por_categoria(registros):\\n    totais = {}\\n    for categoria, valor in registros:\\n        totais[categoria] = totais.get(categoria, 0) + valor\\n    return totais`. Para o exemplo, devolve `{\"livro\": 13, \"jogo\": 5}`.",
+            "rubric": "A função deve agregar os valores por categoria, retornar o dicionário e produzir os totais corretos no exemplo."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual é o resultado de `valores = [1, 2]; outra = valores; outra.append(3); print(valores)`?",
+            "explanation": "A atribuição `outra = valores` não copia a lista; ambas as variáveis referenciam o mesmo objeto.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "`[1, 2]`",
+              "`[1, 2, 3]`",
+              "`[3]`",
+              "O programa gera um erro porque uma lista não pode ter aliases."
+            ],
+            "correctIndex": 1,
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Após executar `dados = {\"x\": 1}` e `resultado = dados.get(\"y\", 0)`, qual afirmação é correta?",
+            "explanation": "`get` devolve o valor padrão para a chave ausente, mas não insere essa chave no dicionário.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "alternatives": [
+              "`resultado` vale `0` e `dados` continua sendo `{\"x\": 1}`.",
+              "`resultado` vale `None` e `dados` passa a incluir `\"y\": 0`.",
+              "O programa gera `KeyError` porque `\"y\"` não existe.",
+              "`resultado` vale `0` e `dados` passa a incluir `\"y\": 0`."
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": true
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "O que a expressão `lista[1:4]` seleciona em uma lista com pelo menos quatro elementos?",
+            "explanation": "Em uma fatia, o índice inicial é incluído e o índice final é excluído.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "Os elementos nos índices 1, 2 e 3.",
+              "Os elementos nos índices 1, 2, 3 e 4.",
+              "Somente o elemento no índice 4.",
+              "Os elementos nos índices 0, 1, 2 e 3."
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual expressão devolve uma lista com os valores do dicionário `pontos = {\"ana\": 8, \"rui\": 6}`?",
+            "explanation": "O método `values()` fornece os valores armazenados no dicionário; convertê-lo com `list` produz uma lista.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "alternatives": [
+              "`list(pontos.values())`",
+              "`list(pontos.keys())`",
+              "`list(pontos.items())`",
+              "`pontos[0]`"
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Dada a função `def triplo(n): return n * 3`, qual é o valor de `triplo(4)`?",
+            "explanation": "A chamada fornece 4 para o parâmetro `n`, então a função devolve 4 multiplicado por 3.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}"
+            ],
+            "alternatives": [
+              "`7`",
+              "`12`",
+              "`43`",
+              "`n * 3`"
+            ],
+            "correctIndex": 1,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual método acrescenta o elemento `\"azul\"` ao final de uma lista chamada `cores`?",
+            "explanation": "O método `append` acrescenta um único elemento ao final da lista.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "`cores.append(\"azul\")`",
+              "`cores.add(\"azul\")`",
+              "`cores.push(\"azul\")`",
+              "`cores.insert(\"azul\")`"
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual é o resultado de `list({\"a\": 1, \"b\": 2})` em Python?",
+            "explanation": "Iterar sobre um dicionário ou convertê-lo diretamente em lista produz suas chaves.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}"
+            ],
+            "alternatives": [
+              "`[\"a\", \"b\"]`",
+              "`[1, 2]`",
+              "`[(\"a\", 1), (\"b\", 2)]`",
+              "`{\"a\", \"b\"}`"
+            ],
+            "correctIndex": 0,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Considere `def construir():\\n    resultado = []\\n    resultado.append(5)\\n` e a chamada `valor = construir()`. Qual é o valor de `valor`?",
+            "explanation": "Uma função sem uma instrução `return` devolve implicitamente `None`, ainda que modifique uma variável local.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}",
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "`[5]`",
+              "`5`",
+              "`None`",
+              "Uma lista vazia."
+            ],
+            "correctIndex": 2,
+            "isTrickQuestion": false
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma função que receba uma lista de números e devolva uma nova lista contendo apenas os números não negativos, na mesma ordem.",
+            "explanation": "Percorra a lista de entrada e selecione os valores maiores ou iguais a zero, sem alterar a lista original.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "languageId": "{{languageId}}",
+            "instructions": "Implemente `nao_negativos(valores)`. Nos casos de teste, `input` é uma chamada Python à função e `expectedOutput` é a representação do valor devolvido.",
+            "starterCode": "def nao_negativos(valores):\n    pass",
+            "expectedSolution": "def nao_negativos(valores):\n    return [valor for valor in valores if valor >= 0]",
+            "testCases": [
+              {
+                "input": "nao_negativos([-2, 0, 3, -1, 5])",
+                "expectedOutput": "[0, 3, 5]",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "nao_negativos([])",
+                "expectedOutput": "[]",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma função que receba uma lista de palavras e devolva um dicionário que associe cada palavra à quantidade de vezes que aparece na lista.",
+            "explanation": "Use cada palavra como chave e incremente seu contador a cada ocorrência.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:1}}",
+              "{{topic:0}}"
+            ],
+            "languageId": "{{languageId}}",
+            "instructions": "Implemente `contar_palavras(palavras)`. Nos casos de teste, `input` é uma chamada Python à função e `expectedOutput` é a representação do valor devolvido.",
+            "starterCode": "def contar_palavras(palavras):\n    pass",
+            "expectedSolution": "def contar_palavras(palavras):\n    contagens = {}\n    for palavra in palavras:\n        contagens[palavra] = contagens.get(palavra, 0) + 1\n    return contagens",
+            "testCases": [
+              {
+                "input": "contar_palavras([\"sol\", \"lua\", \"sol\"])",
+                "expectedOutput": "{'sol': 2, 'lua': 1}",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "contar_palavras([])",
+                "expectedOutput": "{}",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma função que receba uma lista de números e devolva sua média aritmética. Para uma lista vazia, devolva `0`.",
+            "explanation": "A média é a soma dos elementos dividida pela quantidade; a lista vazia deve ser tratada antes da divisão para evitar divisão por zero.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}",
+              "{{topic:0}}"
+            ],
+            "languageId": "{{languageId}}",
+            "instructions": "Implemente `media(valores)`. Nos casos de teste, `input` é uma chamada Python à função e `expectedOutput` é a representação do valor devolvido.",
+            "starterCode": "def media(valores):\n    pass",
+            "expectedSolution": "def media(valores):\n    if not valores:\n        return 0\n    return sum(valores) / len(valores)",
+            "testCases": [
+              {
+                "input": "media([2, 4, 6])",
+                "expectedOutput": "4.0",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "media([])",
+                "expectedOutput": "0",
+                "visibility": "PRIVATE"
+              }
+            ]
+          },
+          {
+            "type": "CODE",
+            "statement": "Implemente uma função que receba dois dicionários com valores numéricos e devolva um novo dicionário. Para cada chave presente em qualquer um deles, o valor resultante deve ser a soma dos valores associados à chave nos dois dicionários; considere ausente como zero.",
+            "explanation": "Percorrer os itens dos dois dicionários e acumular os valores em um novo dicionário inclui tanto chaves compartilhadas quanto chaves exclusivas.",
+            "difficulty": "INTERMEDIATE",
+            "topicIds": [
+              "{{topic:2}}",
+              "{{topic:1}}"
+            ],
+            "languageId": "{{languageId}}",
+            "instructions": "Implemente `somar_dicionarios(primeiro, segundo)`. Nos casos de teste, `input` é uma chamada Python à função e `expectedOutput` é a representação do valor devolvido.",
+            "starterCode": "def somar_dicionarios(primeiro, segundo):\n    pass",
+            "expectedSolution": "def somar_dicionarios(primeiro, segundo):\n    resultado = {}\n    for dicionario in (primeiro, segundo):\n        for chave, valor in dicionario.items():\n            resultado[chave] = resultado.get(chave, 0) + valor\n    return resultado",
+            "testCases": [
+              {
+                "input": "somar_dicionarios({'a': 2, 'b': 3}, {'b': 4, 'c': 1})",
+                "expectedOutput": "{'a': 2, 'b': 7, 'c': 1}",
+                "visibility": "PUBLIC"
+              },
+              {
+                "input": "somar_dicionarios({}, {'x': 5})",
+                "expectedOutput": "{'x': 5}",
+                "visibility": "PRIVATE"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

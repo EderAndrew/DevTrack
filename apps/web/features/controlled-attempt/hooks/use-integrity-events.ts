@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { integrityApi, isNetworkFailure, isRetryable } from "../api/integrity";
-import { createEventQueue, type EventQueue } from "../store/pending-events";
+import { createEventQueue, type EventQueue, type SentListener } from "../store/pending-events";
 
 /** While events wait (no connection, 429), they are tried again this often and when the browser is back online. */
 export const RESEND_EVERY_MS = 5_000;
@@ -13,7 +13,18 @@ export const RESEND_EVERY_MS = 5_000;
  * kept in this browser while there is no connection; the browser's `offline` records the drop.
  * `recordedAt` gives the server's time for the warning.
  */
-export function useIntegrityEvents({ userId, activityId, enabled }: { userId: string; activityId: string; enabled: boolean }) {
+export function useIntegrityEvents({
+  userId,
+  activityId,
+  enabled,
+  onSent,
+}: {
+  userId: string;
+  activityId: string;
+  enabled: boolean;
+  /** 018: each confirmed batch with the server's answer (an exam's occurrence count). */
+  onSent?: SentListener;
+}) {
   const [queue] = useState<EventQueue>(() =>
     createEventQueue({
       userId,
@@ -23,6 +34,11 @@ export function useIntegrityEvents({ userId, activityId, enabled }: { userId: st
       offline: isNetworkFailure,
     }),
   );
+  const sent = useRef(onSent);
+  useEffect(() => {
+    sent.current = onSent;
+  });
+  useEffect(() => queue.subscribeSent((result, events) => sent.current?.(result, events)), [queue]);
   // Re-render when an event is confirmed or queued.
   const [, changed] = useReducer((count: number) => count + 1, 0);
   useEffect(() => queue.subscribe(changed), [queue]);

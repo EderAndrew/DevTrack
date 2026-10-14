@@ -56,11 +56,12 @@ import {
   useAttemptActions,
   useAttemptHelp,
 } from "../hooks/use-activities";
-import { helpsUsedLabel } from "../schemas/attempt-records";
+import { EXAM_END_REASON_LABELS, helpsUsedLabel } from "../schemas/attempt-records";
 import {
   AttemptHelpContext,
   IntegrityRecords,
   QuestionHelpRecords,
+  ExamAttemptRecords,
   RoomExitRecords,
 } from "./attempt-records";
 import {
@@ -257,6 +258,14 @@ export function AttemptReview({
           {submission ? (
             <Item term="Questões em branco">{submission.blankCount}</Item>
           ) : null}
+          {/* 018/FR-031: an exam's end and why it ended, from the server's times. */}
+          {attempt.exam ? (
+            <>
+              <Item term="Fim do tempo">{formatLongDateTime(attempt.exam.endsAt)}</Item>
+              {attempt.exam.endedAt ? <Item term="Encerrada em">{formatLongDateTime(attempt.exam.endedAt)}</Item> : null}
+              {attempt.exam.endReason ? <Item term="Motivo do fim">{EXAM_END_REASON_LABELS[attempt.exam.endReason]}</Item> : null}
+            </>
+          ) : null}
           {helpQuery.data ? (
             <Item term="Ajudas da IA usadas">
               {helpsUsedLabel(helpQuery.data.used, helpQuery.data.allowance)}
@@ -308,6 +317,9 @@ export function AttemptReview({
           attemptId={attempt.id}
         />
       ) : null}
+
+      {/* 018/US8: an exam's numbered occurrences and the decisions on its holds. */}
+      {attempt.exam ? <ExamAttemptRecords exam={attempt.exam} /> : null}
 
       {/* 016/US4: the room exits of a work that takes attendance. */}
       {!isExercise && activity.releaseMode === "PRESENT_ONLY" ? (

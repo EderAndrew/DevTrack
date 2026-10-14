@@ -38,7 +38,13 @@ export const asBuffered = (event: IntegrityEventInput): IntegrityEventInput => (
 /** Events per request (`INTEGRITY_EVENTS_MAX` of the contract). */
 const BATCH = 50;
 
-export type SendEvents = (events: IntegrityEventInput[]) => Promise<{ recorded: { eventId: string; recordedAt: string }[] }>;
+/** The server's answer to a batch; an EXAM's carries the occurrence count (018 research T6). */
+export interface SentEvents {
+  recorded: { eventId: string; recordedAt: string }[];
+  exam?: { occurrenceCount: number; held: boolean } | null;
+}
+
+export type SendEvents = (events: IntegrityEventInput[]) => Promise<SentEvents>;
 
 export interface EventQueueOptions {
   userId: string;
@@ -52,9 +58,12 @@ export interface EventQueueOptions {
   now?: () => Date;
 }
 
+/** Told of each batch the server confirmed, with what was sent (018: the exam's count and hold). */
+export type SentListener = (result: SentEvents, events: readonly IntegrityEventInput[]) => void;
+
 export interface EventQueue {
-  /** Queues one event with the browser's time and sends what is queued; its id. */
-  record: (type: ClientIntegrityEventType, questionId?: string) => string;
+  /** Queues one event with the browser's time and sends what is queued; its id. `idleSeconds`: INACTIVITY only (018). */
+  record: (type: ClientIntegrityEventType, questionId?: string, idleSeconds?: number) => string;
   /** Sends what is queued, in order, 50 at a time. */
   flush: () => Promise<void>;
   /** The connection dropped (the browser's `offline`, or a save that got no answer). */
@@ -63,6 +72,8 @@ export interface EventQueue {
   recordedAt: (eventId: string) => string | null;
   pendingCount: () => number;
   subscribe: (listener: () => void) => () => void;
+  /** 018: each confirmed batch with the server's answer. */
+  subscribeSent: (listener: SentListener) => () => void;
 }
 
 /**
@@ -80,6 +91,7 @@ export function createEventQueue(options: EventQueueOptions): EventQueue {
   let queue: IntegrityEventInput[] = readPendingEvents(userId, activityId).map(asBuffered);
   const recorded = new Map<string, string>();
   const listeners = new Set<() => void>();
+  const sentListeners = new Set<SentListener>();
   let sending: Promise<void> | null = null;
 
   const changed = () => {
@@ -102,8 +114,10 @@ export function createEventQueue(options: EventQueueOptions): EventQueue {
           ? { eventId: newId(), type: "CONNECTION_RESTORED", clientOccurredAt: now().toISOString(), buffered: false }
           : null;
       try {
-        const result = await send(restored ? [...batch, restored] : batch);
+        const sentEvents = restored ? [...batch, restored] : batch;
+        const result = await send(sentEvents);
         for (const item of result.recorded) recorded.set(item.eventId, item.recordedAt);
+        for (const listener of sentListeners) listener(result, sentEvents);
         const sent = new Set(batch.map((event) => event.eventId));
         queue = queue.filter((event) => !sent.has(event.eventId));
         changed();
@@ -127,9 +141,16 @@ export function createEventQueue(options: EventQueueOptions): EventQueue {
   };
 
   return {
-    record(type, questionId) {
+    record(type, questionId, idleSeconds) {
       const eventId = newId();
-      queue.push({ eventId, type, ...(questionId ? { questionId } : {}), clientOccurredAt: now().toISOString(), buffered: false });
+      queue.push({
+        eventId,
+        type,
+        ...(questionId ? { questionId } : {}),
+        ...(idleSeconds !== undefined ? { idleSeconds } : {}),
+        clientOccurredAt: now().toISOString(),
+        buffered: false,
+      });
       changed();
       void flush();
       return eventId;
@@ -144,6 +165,10 @@ export function createEventQueue(options: EventQueueOptions): EventQueue {
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    subscribeSent(listener) {
+      sentListeners.add(listener);
+      return () => sentListeners.delete(listener);
     },
   };
 }

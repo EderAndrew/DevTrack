@@ -76,6 +76,7 @@ import {
   StudentActivityPageSchema,
   StudentActivitySchema,
   StudentDashboardSchema,
+  StartAttemptRequestSchema,
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
@@ -86,6 +87,8 @@ import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySc
 import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSchema, TeacherPauseSchema } from "./attendance/pauses.js";
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
+import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
+import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -149,6 +152,16 @@ import {
   WorkTeacherViewSchema,
   WorkVersionRequestSchema,
 } from "./works/works.js";
+import {
+  CreateExamRequestSchema,
+  ExamListQuerySchema,
+  ExamPageSchema,
+  ExamStudentPreviewSchema,
+  ExamVersionSchema,
+  TeacherExamSchema,
+  UpdateExamRequestSchema,
+} from "./exams/exam.js";
+import { CreateExamGenerationRequestSchema, ExamGenerationAvailabilitySchema, ExamGenerationRequestSchema } from "./exams/generation.js";
 import {
   WorkGenerationAvailabilitySchema,
   WorkGenerationRequestListQuerySchema,
@@ -239,6 +252,10 @@ export type ClassActivityStudentParams = z.infer<typeof ClassActivityStudentPara
 /** One room exit of an activity of the teacher's class (016 research M7: a release is keyed by pause). */
 export const ClassActivityPauseParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, pauseId: UuidSchema });
 export type ClassActivityPauseParams = z.infer<typeof ClassActivityPauseParamsSchema>;
+
+/** One hold of an exam of the teacher's class (018 research T9: a decision is keyed by hold). */
+export const ClassActivityHoldParamsSchema = z.strictObject({ classId: UuidSchema, activityId: UuidSchema, holdId: UuidSchema });
+export type ClassActivityHoldParams = z.infer<typeof ClassActivityHoldParamsSchema>;
 
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
@@ -1007,6 +1024,51 @@ export const endpoints = {
     response: WorkTeacherViewSchema,
     status: 200,
   },
+  // 018 — the Banco de Provas (contracts/http-api.md): the 011 work routes, mirrored.
+  "exams.create": { method: "POST", path: "/exams", body: CreateExamRequestSchema, response: TeacherExamSchema, status: 201 },
+  /** The teacher's bank: status, subject, title search, keyset pages; ARCHIVED only when asked. */
+  "exams.list": { method: "GET", path: "/exams", query: ExamListQuerySchema, response: ExamPageSchema, status: 200 },
+  /** The active catalog entries, by name; the same shape as the 010 and 011 routes. */
+  "exams.programmingLanguages": { method: "GET", path: "/exams/programming-languages", response: ProgrammingLanguageListSchema, status: 200 },
+  "exams.get": { method: "GET", path: "/exams/:id", params: IdParamsSchema, response: TeacherExamSchema, status: 200 },
+  /** "Ver como aluno": an allowlist, never the answer key. */
+  "exams.studentPreview": {
+    method: "GET",
+    path: "/exams/:id/student-preview",
+    params: IdParamsSchema,
+    response: ExamStudentPreviewSchema,
+    status: 200,
+  },
+  /** The whole exam again with its version; values recalculated; ARCHIVED → 409. */
+  "exams.update": { method: "PUT", path: "/exams/:id", params: IdParamsSchema, body: UpdateExamRequestSchema, response: TeacherExamSchema, status: 200 },
+  /** DRAFT → APPROVED by a person, every question with its key, difficulty and topics; already APPROVED → 200, no event. */
+  "exams.approve": { method: "POST", path: "/exams/:id/approve", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  /** DRAFT or APPROVED → ARCHIVED; already ARCHIVED → 200 with no event. */
+  "exams.archive": { method: "POST", path: "/exams/:id/archive", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  /** ARCHIVED → the status it had before; anything else → 409. */
+  "exams.restore": { method: "POST", path: "/exams/:id/restore", params: IdParamsSchema, body: ExamVersionSchema, response: TeacherExamSchema, status: 200 },
+  // 018/US7 — "Criar prova com IA": generation requests; the generated exam is a DRAFT of the bank.
+  "examGenerationRequests.availability": {
+    method: "GET",
+    path: "/exam-generation/availability",
+    response: ExamGenerationAvailabilitySchema,
+    status: 200,
+  },
+  /** 202 for a new request; 200 when the same key and body return the existing one. */
+  "examGenerationRequests.request": {
+    method: "POST",
+    path: "/exam-generation-requests",
+    body: CreateExamGenerationRequestSchema,
+    response: ExamGenerationRequestSchema,
+    status: 202,
+  },
+  "examGenerationRequests.get": {
+    method: "GET",
+    path: "/exam-generation-requests/:id",
+    params: IdParamsSchema,
+    response: ExamGenerationRequestSchema,
+    status: 200,
+  },
   // 011 — "Criar trabalho com IA": generation requests.
   "workGenerationRequests.availability": {
     method: "GET",
@@ -1184,6 +1246,41 @@ export const endpoints = {
     response: AttemptPausesSchema,
     status: 200,
   },
+  /** 018/US5: the teacher's exam monitor, polled every 5 s (018/FR-025); not an exam → 409. */
+  "examSessions.monitor": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/exam-monitor",
+    params: ClassActivityParamsSchema,
+    response: ExamMonitorSchema,
+    status: 200,
+  },
+  /** 018/US5: "Confirmar cancelamento" (018/FR-021); a decided hold → 409. */
+  "examSessions.cancelHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/cancel",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
+    status: 200,
+  },
+  /** 018/US5: "Devolver prova" while the attempt has time (018/FR-022). */
+  "examSessions.returnHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/return",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
+    status: 200,
+  },
+  /** 018/US5: "Não cancelar" once the attempt's end has come (018/FR-023). */
+  "examSessions.keepHold": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/exam-holds/:holdId/keep",
+    params: ClassActivityHoldParamsSchema,
+    body: EmptyBodySchema,
+    response: TeacherExamHoldSchema,
+    status: 200,
+  },
   /** The teacher's grades and feedback at the submission's `version` (research P13). */
   "activities.gradeAttempt": {
     method: "PUT",
@@ -1231,12 +1328,15 @@ export const endpoints = {
     response: StudentActivitySchema,
     status: 200,
   },
-  /** Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). */
+  /**
+   * Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). An EXAM
+   * requires `{ acceptRules: true }` (018 research T13).
+   */
   "myActivities.start": {
     method: "POST",
     path: "/me/activities/:activityId/attempt",
     params: MyActivityParamsSchema,
-    body: EmptyBodySchema,
+    body: StartAttemptRequestSchema,
     response: StudentActivitySchema,
     status: 200,
   },

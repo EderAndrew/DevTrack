@@ -22,6 +22,7 @@ export const activitiesKeys = {
   attempt: (classId: string, activityId: string, attemptId: string) =>
     [...activitiesKeys.detail(classId, activityId), "attempts", attemptId] as const,
   works: (subjectId: string) => ["activities", "sources", "works", subjectId] as const,
+  exams: (subjectId: string) => ["activities", "sources", "exams", subjectId] as const,
   helpAvailability: ["activities", "help-availability"] as const,
   integritySummary: (classId: string, activityId: string) => [...activitiesKeys.detail(classId, activityId), "integrity"] as const,
   attemptIntegrity: (classId: string, activityId: string, attemptId: string) =>
@@ -42,6 +43,14 @@ export const useApprovedWorks = (subjectId: string | null) =>
     queryKey: activitiesKeys.works(subjectId ?? ""),
     queryFn: () => activitySourcesApi.works(subjectId!),
     enabled: subjectId !== null,
+  });
+
+/** 018: the approved exams of the class's subject, asked only once "Prova" is chosen. */
+export const useApprovedExams = (subjectId: string | null, enabled: boolean) =>
+  useQuery({
+    queryKey: activitiesKeys.exams(subjectId ?? ""),
+    queryFn: () => activitySourcesApi.exams(subjectId!),
+    enabled: enabled && subjectId !== null,
   });
 
 export const useApprovedExercises = (query: string) =>

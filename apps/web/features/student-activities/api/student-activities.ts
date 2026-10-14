@@ -2,6 +2,7 @@ import type {
   ActivityType,
   SaveAnswersRequest,
   SaveAnswersResult,
+  StartAttemptRequest,
   StudentActivity,
   StudentActivityFilter,
   StudentActivityPage,
@@ -28,8 +29,8 @@ export const studentActivitiesApi = {
     return apiClient.get<StudentActivityPage>(`/me/activities${query.size > 0 ? `?${query}` : ""}`);
   },
   get: (activityId: string) => apiClient.get<StudentActivity>(`/me/activities/${activityId}`),
-  /** The single attempt; an existing one comes back as it is (FR-016). */
-  start: (activityId: string) => apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempt`, {}),
+  /** The single attempt; an existing one comes back as it is (FR-016). An exam sends `acceptRules: true` (018). */
+  start: (activityId: string, body: StartAttemptRequest = {}) => apiClient.post<StudentActivity>(`/me/activities/${activityId}/attempt`, body),
   /** SAVED / UNCHANGED / CONFLICT per answer (research P8). */
   saveAnswers: (activityId: string, body: SaveAnswersRequest) =>
     apiClient.put<SaveAnswersResult>(`/me/activities/${activityId}/attempt/answers`, body),

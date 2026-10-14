@@ -6,6 +6,7 @@ import {
   DeclareExitSchema,
   MyPauseSchema,
   PAUSE_NOTE_MAX,
+  PauseEndKindSchema,
   PauseReasonSchema,
   ReleaseModeSchema,
   RoomSchema,
@@ -111,5 +112,13 @@ describe("016 chamada e pausas (contracts/http-api.md)", () => {
     expect(accepts(RoomSchema, { releaseMode: "PRESENT_ONLY", present: 1, enrolled: 2, students: [{ ...student, roomStatus: "ABSENT" }] })).toBe(false);
     expect(accepts(AttemptPausesSchema, { items: [teacherPause()], totalSecondsAway: 120 })).toBe(true);
     expect(accepts(AttemptPausesSchema, { items: [], totalSecondsAway: -1 })).toBe(false);
+  });
+});
+
+describe("018 pausa numa prova (contracts/http-api.md, data-model \"Derived\")", () => {
+  it("018/FR-011 uma pausa aberta quando o tempo da prova acaba termina por TIME_EXPIRED, derivado", () => {
+    expect(PauseEndKindSchema.options).toEqual(["RELEASE", "ACCEPTED", "ACTIVITY_CLOSED", "TIME_EXPIRED"]);
+    expect(accepts(TeacherPauseSchema, teacherPause({ initiatedBy: "TEACHER", reason: "TEACHER", endedAt: LATER, endedBy: "TIME_EXPIRED" }))).toBe(true);
+    expect(accepts(TeacherPauseSchema, teacherPause({ endedAt: null, endedBy: "TIME_EXPIRED" }))).toBe(false);
   });
 });

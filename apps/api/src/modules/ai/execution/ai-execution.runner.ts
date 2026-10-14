@@ -55,6 +55,8 @@ class Stop {
   constructor(
     readonly to: "FAILED" | "CANCELLED" | "TIMED_OUT",
     readonly code: AiErrorCode,
+    /** Set when the output itself was refused (schema, `build`, `materialize`): the agent's `proposal.rejected` reason. */
+    readonly rejection?: string,
   ) {}
 }
 
@@ -164,7 +166,7 @@ export class AiExecutionRunner {
     if (!definition.output || !validation) throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
     if (!validation.ok) {
       aiLog(this.logger, "ai.output_invalid", { ...this.logBase(execution), errorCode: validation.code, issuePaths: validation.issues.map((i) => i.path) }, "warn");
-      throw new Stop("FAILED", validation.code);
+      throw new Stop("FAILED", validation.code, "OUTPUT_SCHEMA_INVALID");
     }
     await this.complete(claimed, execution, definition, validation.output, conversation.toolResults);
   }
@@ -510,7 +512,7 @@ export class AiExecutionRunner {
                 { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown", rejectReason: rejectReasonOf(error) },
                 "warn",
               );
-              throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+              throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED", rejectReasonOf(error) ?? "MATERIALIZE_FAILED");
             });
           if (proposal.settle === "ON_MATERIALIZE") await this.settle(tx, execution, proposalId, itemIds.length, settlement, now);
         } else if (proposal.settle === "ON_MATERIALIZE") {
@@ -573,24 +575,40 @@ export class AiExecutionRunner {
         { ...this.logBase(execution), errorCode: "AI_OUTPUT_VALIDATION_FAILED", errorName: error instanceof Error ? error.name : "unknown", rejectReason: rejectReasonOf(error) },
         "warn",
       );
-      throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED");
+      throw new Stop("FAILED", "AI_OUTPUT_VALIDATION_FAILED", rejectReasonOf(error) ?? "PROPOSAL_INVALID");
     }
   }
 
   /** Final status of a stopped run, still conditional on the claim. */
   private async end(claimed: ClaimedExecution, execution: Loaded, stop: Stop): Promise<void> {
-    const finished = await this.prisma.runInTransaction((tx) =>
-      this.store.finish(tx, {
+    const finished = await this.prisma.runInTransaction(async (tx) => {
+      const now = new Date();
+      const done = await this.store.finish(tx, {
         executionId: claimed.id,
         from: RUNNING_STATES,
         to: stop.to,
         errorCode: stop.code,
-        now: new Date(),
+        now,
         claimToken: claimed.claimToken,
         actor: { type: "SYSTEM" },
-      }),
-    );
+      });
+      if (done && stop.rejection) await this.rejected(tx, execution, stop.rejection, now);
+      return done;
+    });
     if (finished) aiLog(this.logger, "ai.execution_ended", { ...this.logBase(execution), status: stop.to, errorCode: stop.code, durationMs: finished.durationMs });
+  }
+
+  /** The agent's `proposal.rejected` hook (018 research T14), in the transaction that ends the run. */
+  private async rejected(tx: Tx, execution: Loaded, reason: string, now: Date): Promise<void> {
+    const definition = this.definitions.agents.find((agent) => agent.key === execution.agentKey && agent.version === execution.agentVersion);
+    await definition?.proposal?.rejected?.(tx, {
+      executionId: execution.id,
+      workspaceId: execution.workspaceId,
+      resource: execution.resourceType && execution.resourceId ? { type: execution.resourceType, id: execution.resourceId } : null,
+      reason,
+      now,
+      get: (token) => this.moduleRef.get(token, { strict: false }),
+    });
   }
 
   private lost(_claimed: ClaimedExecution, execution: Loaded): void {

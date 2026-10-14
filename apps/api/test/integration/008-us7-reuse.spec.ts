@@ -115,6 +115,7 @@ describe("008/US7 um novo agente reaproveita o gateway sem implementar infraestr
         "src/modules/ai/definitions/index.ts",
         "src/modules/ai/gateway/providers/openrouter.provider.spec.ts",
         "test/eval/curriculum-agent.eval.ts",
+        "test/eval/exam-generator.eval.ts",
         "test/eval/exercise-generator.eval.ts",
         "test/eval/work-generator.eval.ts",
         "test/eval/work-help.eval.ts",

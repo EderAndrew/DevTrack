@@ -102,6 +102,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   lastResult: null,
   pause: null,
   pauses: [],
+  exam: null,
   submission: {
     submittedAt: new Date("2026-10-04T12:00:00.000Z"),
     late: false,

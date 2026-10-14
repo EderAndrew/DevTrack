@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "toolCalls": [
+        {
+          "toolKey": "read-exam-generation-request",
+          "arguments": {
+            "requestId": "{{requestId}}"
+          }
+        }
+      ]
+    },
+    {
+      "output": {
+        "title": "Fundamentos de Encapsulamento",
+        "questions": [
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Explique o que significa encapsular dados em uma classe e como isso pode ser feito.",
+            "explanation": "Encapsular é restringir o acesso direto aos dados e oferecer formas controladas de consultá-los ou alterá-los, por exemplo, usando campos privados e métodos públicos.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "Encapsulamento consiste em proteger os dados internos de uma classe, limitando o acesso direto a eles e permitindo interação por meio de operações controladas, como métodos públicos.",
+            "rubric": "A resposta deve mencionar a proteção ou restrição do acesso direto aos dados e o uso de uma interface controlada para interagir com eles."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Uma classe mantém um campo que armazena o saldo de uma conta. Cite uma forma de evitar que outras partes do programa alterem esse campo diretamente e explique como o saldo ainda poderia ser consultado.",
+            "explanation": "Um campo privado não pode ser alterado diretamente por código externo à classe; a classe pode oferecer um método público de consulta para retornar seu valor.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "Declarar o campo de saldo como privado e oferecer um método público de consulta que retorne o saldo.",
+            "rubric": "A resposta deve indicar que o campo fica inacessível para alteração direta externa e propor uma operação pública de consulta."
+          },
+          {
+            "type": "OPEN_ANSWER",
+            "statement": "Descreva uma vantagem do encapsulamento para quem usa uma classe sem conhecer sua implementação interna.",
+            "explanation": "O encapsulamento permite que a implementação interna seja modificada sem exigir que os usuários da classe conheçam ou manipulem diretamente seus detalhes, desde que a interface oferecida permaneça adequada.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "expectedAnswer": "O usuário interage com a classe por uma interface controlada e não precisa conhecer nem depender diretamente da organização interna dos dados; isso também permite alterar detalhes internos sem expô-los.",
+            "rubric": "A resposta deve relacionar o uso de uma interface controlada à ocultação dos detalhes internos ou à possibilidade de mudar a implementação sem expor esses detalhes."
+          },
+          {
+            "type": "MULTIPLE_CHOICE",
+            "statement": "Qual alternativa descreve melhor uma prática de encapsulamento em uma classe?",
+            "explanation": "Manter os dados internos protegidos e disponibilizar operações controladas para interagir com eles é uma prática de encapsulamento.",
+            "difficulty": "BASIC",
+            "topicIds": [
+              "{{topic:0}}"
+            ],
+            "alternatives": [
+              "Deixar todos os dados acessíveis diretamente para qualquer parte do programa.",
+              "Restringir o acesso direto aos dados e oferecer operações controladas para utilizá-los.",
+              "Duplicar os dados internos em todas as partes do programa que precisam deles."
+            ],
+            "correctIndex": 1,
+            "isTrickQuestion": false
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -120,7 +120,22 @@ dispositivos do aluno e nada é salvo nem entregue até o professor liberar o re
 retoma de onde parou. O professor também pode pausar um aluno. O prazo continua correndo, nenhuma
 pausa muda a nota, e a correção mostra a presença, os ausentes e as saídas da sala com a duração de
 cada uma. As telas se atualizam por consulta a cada 5 segundos. Exercícios e trabalhos aplicados
-antes da fase 016 seguem abertos a todos os matriculados, sem chamada.
+antes da fase 016 seguem abertos a todos os matriculados, sem chamada. A **fase 018 — prova em modo
+restrito com avisos e decisão do professor** traz o Banco de Provas, separado dos bancos de exercícios
+e de trabalhos: a prova tem de 1 a 20 questões, cada uma com dificuldade e tópicos da ementa, e é
+criada à mão ou pelo "Criar prova com IA" (o agente `exam-generator` gera um rascunho que só o
+professor aprova). Aplicada à turma, a prova é sempre em modo restrito, sem ajuda da IA e só para os
+alunos marcados presentes na chamada; o professor escolhe a duração (1 a 120 minutos), o limite de
+inatividade (30 a 60 segundos) e o prazo para iniciar. O aluno lê as regras e as aceita ao iniciar; o
+tempo é o do servidor, com alertas de 10 e 5 minutos e a contagem dos últimos 10 segundos, e ao fim a
+tentativa é registrada com as respostas salvas. Sair da tela, sair da tela cheia, copiar ou colar e
+ficar sem interagir além do limite são ocorrências: as 3 primeiras geram os avisos 1, 2 e 3, e a 4ª
+encerra a tentativa por avisos. O sistema nunca cancela a prova nem dá nota zero sozinho: o professor
+vê o aluno retido em até 10 segundos e decide com uma ação — confirmar o cancelamento (nota zero),
+devolver a prova enquanto há tempo ou, depois do fim, não cancelar. A pausa é só do professor, e o
+tempo continua correndo. Na correção o professor vê as ocorrências, os avisos e as decisões, e só
+libera o resultado depois de decidir todas as retenções. Nenhum texto fala em fraude, cola ou
+violação. Trabalhos e Exercícios seguem como antes.
 
 ## Pré-requisitos
 
@@ -152,6 +167,8 @@ antes da fase 016 seguem abertos a todos os matriculados, sem chamada.
 | `specs/014-code-syntax-highlighting/` | O mesmo para a fase 014 (realce de sintaxe do código; decisões L1–L14) |
 | `specs/015-controlled-work-ai-help/` | O mesmo para a fase 015 (modo controlado e ajuda da IA nos trabalhos; decisões F1–F18) |
 | `specs/016-attendance-gated-release/` | O mesmo para a fase 016 (lista de chamada, liberação aos presentes e pausa na saída da sala; decisões M1–M13) |
+| `specs/017-production-email/` | O mesmo para a fase 017 (e-mail de produção: fila única com novas tentativas, avisos do provedor e modelos HTML e texto; decisões N1–N15) |
+| `specs/018-controlled-exams/` | O mesmo para a fase 018 (Banco de Provas, prova em modo restrito com avisos e decisão do professor; decisões T1–T19) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -272,6 +289,9 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
   `work-helper` é registrado desativado, como os demais agentes.
 - Lista de chamada (016): `RATE_LIMIT_ATTEMPT_PAUSES_PER_HOUR` (20) limita as saídas da sala
   declaradas por aluno.
+- Prova (018): `RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE` (60) limita as decisões sobre retenções por
+  professor e `RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR` (10) os pedidos de "Criar prova com IA". O
+  `exam-generator` é registrado desativado, como os demais agentes.
 - E-mail (017): em desenvolvimento, testes e E2E tudo fica no Mailpit. Para produção (Resend, e
   depois AWS SES só com configuração e DNS), siga o
   [guia de implantação de e-mail](docs/deploy/email.md); com `NODE_ENV=production` a API não sobe

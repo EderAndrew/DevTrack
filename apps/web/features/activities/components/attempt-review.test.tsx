@@ -14,6 +14,7 @@ import {
   ATTEMPT_ID,
   apiError,
   CLASS_ID,
+  examActivity,
   EXERCISE_ATTEMPT_ID,
   exerciseAttempt,
   gradingActivity,
@@ -523,5 +524,69 @@ describe("016/US4 \"Saídas da sala\" na correção", () => {
     await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
     expect(screen.queryByRole("region", { name: "Saídas da sala" })).toBeNull();
     expect(api.calls.some((call) => call.url.endsWith("/pauses"))).toBe(false);
+  });
+});
+
+describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const examAttempt = teacherAttempt({
+    startedAt: "2026-10-01T12:00:00.000Z",
+    submission: { ...teacherAttempt().submission!, submittedAt: "2026-10-01T12:25:00.000Z" },
+    exam: {
+      endsAt: "2026-10-01T12:30:00.000Z",
+      endedAt: "2026-10-01T12:25:00.000Z",
+      endReason: "STUDENT_SUBMITTED",
+      occurrences: [
+        { ordinal: 1, kind: "SCREEN_LEFT", recordedAt: "2026-10-01T12:05:00.000Z" },
+        { ordinal: 2, kind: "FULLSCREEN_EXITED", recordedAt: "2026-10-01T12:06:00.000Z" },
+        { ordinal: 3, kind: "CLIPBOARD", recordedAt: "2026-10-01T12:07:00.000Z" },
+        { ordinal: 4, kind: "INACTIVITY", recordedAt: "2026-10-01T12:08:00.000Z" },
+      ],
+      decisions: [
+        {
+          holdId: "ffffffff-ffff-4fff-8fff-fffffffffff1",
+          occurrenceOrdinal: 4,
+          openedAt: "2026-10-01T12:08:00.000Z",
+          resolution: "RETURNED",
+          resolvedAt: "2026-10-01T12:10:00.000Z",
+          resolvedBy: { name: "Ana Professora" },
+        },
+      ],
+    },
+  });
+  const routes = {
+    [`GET ${ACTIVITY_PATH}`]: json(200, examActivity()),
+    [`GET ${ATTEMPT_PATH}`]: json(200, examAttempt),
+    [`GET ${ATTEMPT_PATH}/integrity`]: json(200, { events: [], intervals: [], totals: { screenExits: 0, timeAwaySeconds: 0, fullscreenExits: 0, disconnections: 0, offlineSeconds: 0, clipboardBlocks: 0, typingLimitRejections: 0, fullscreenUnavailable: false, detectionUnavailable: false }, holds: [] }),
+    [`GET ${ATTEMPT_PATH}/pauses`]: json(200, { items: [] }),
+  };
+
+  it("018/FR-031 início, fim, motivo do fim, cada ocorrência com o número e as decisões com autor e horário", async () => {
+    const { container } = setup(routes);
+    await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
+    expect(await screen.findByText("Entregue pelo aluno")).toBeTruthy();
+    const occurrences = await screen.findByRole("list", { name: "Ocorrências" });
+    expect(within(occurrences).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      `1. Saiu da tela às ${formatTime("2026-10-01T12:05:00.000Z")}`,
+      `2. Saiu da tela cheia às ${formatTime("2026-10-01T12:06:00.000Z")}`,
+      `3. Tentou copiar/colar às ${formatTime("2026-10-01T12:07:00.000Z")}`,
+      `4. Sem interação às ${formatTime("2026-10-01T12:08:00.000Z")}`,
+    ]);
+    const decisions = screen.getByRole("list", { name: "Decisões" });
+    expect(decisions.textContent).toBe(`Ocorrência 4: Prova devolvida por Ana Professora às ${formatTime("2026-10-01T12:10:00.000Z")}`);
+    expect(screen.getByRole("region", { name: "Saídas da sala" })).toBeTruthy();
+    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b/i);
+    await expectNoA11yViolations(container);
+  });
+
+  it("uma decisão em aberto aparece como aguardando", async () => {
+    const pending = teacherAttempt({
+      submission: null,
+      exam: { ...examAttempt.exam!, endedAt: null, endReason: null, decisions: [{ ...examAttempt.exam!.decisions[0]!, resolution: null, resolvedAt: null, resolvedBy: null }] },
+    });
+    setup({ ...routes, [`GET ${ATTEMPT_PATH}`]: json(200, pending) });
+    const decisions = await screen.findByRole("list", { name: "Decisões" });
+    expect(decisions.textContent).toBe("Ocorrência 4: aguardando decisão");
   });
 });

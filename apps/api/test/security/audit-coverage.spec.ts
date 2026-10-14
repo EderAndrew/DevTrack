@@ -23,6 +23,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/015-controlled-work-ai-help/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/016-attendance-gated-release/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/017-production-email/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/018-controlled-exams/contracts/audit-events.md"),
 ];
 
 /**
@@ -45,7 +46,12 @@ const PENDING_015 = new Set<string>([]);
 
 /** 016 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_016 = new Set<string>([]);
-const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016]);
+
+/** 018 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_018 = new Set<string>([]);
+/** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
+const PENDING_CHANGED_018 = new Set<string>([]);
+const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016, ...PENDING_018]);
 
 interface ContractRow {
   type: string;
@@ -63,7 +69,33 @@ const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) =>
  * "Spec name" column after the type, dropped here.
  */
 function contractRows(file: string): ContractRow[] {
-  const text = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!;
+  // 018's "Changed" table (two columns) lists metadata its stories add to earlier types; each row
+  // joins the earlier type's row with the story that emits it (`changedRows`).
+  const [text = "", changed = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m);
+  return [...eventRows(text), ...changedRows(changed)];
+}
+
+/**
+ * The 018 "Changed" rows whose story has arrived: the earlier type with the keys it adds
+ * (`type: EXAM` names the existing key `type`). Its actors and target stay the earlier row's.
+ */
+function changedRows(table: string): ContractRow[] {
+  return table
+    .split("\n")
+    .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
+    .flatMap((line) => {
+      const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
+      const type = backticked(typeCell!)[0]!;
+      if (PENDING_CHANGED_018.has(type)) return [];
+      // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
+      const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
+        .filter((key) => !/^[A-Z_]+$/.test(key))
+        .map((key) => key.split(":")[0]!.trim());
+      return [{ type, actors: [], target: [], metadata }];
+    });
+}
+
+function eventRows(text: string): ContractRow[] {
   const hasSpecName = /^\| `type` \| Spec name \|/m.test(text) || /^\| Type \| Name in the (request|spec) \|/m.test(text);
   return text
     .split("\n")
@@ -119,7 +151,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = mergeExtensions(CONTRACTS.flatMap(contractRows)).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010, 011, 012, 013, 015 e 016 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011, 012, 013, 015, 016 e 018 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });
@@ -278,10 +310,11 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(new Set(found.map((event) => event.type)).size).toBe(5);
       expect(offendingMetadata(found)).toEqual([]);
       expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
-      // The journey marks 3 times and unmarks once (016/US2): one event per change, none for a no-op.
+      // The journey marks 3 times for works and four times for the 018/US3, US4 and US5 exams, and unmarks
+      // once (016/US2): one event per change, none for a no-op.
       const marked = found.filter((event) => event.type === "attendance.marked");
       const unmarked = found.filter((event) => event.type === "attendance.unmarked");
-      expect([marked.length, unmarked.length]).toEqual([3, 1]);
+      expect([marked.length, unmarked.length]).toEqual([7, 1]);
       expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
       // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt.
       const pauses = await t.prisma.attemptPause.findMany({ select: { id: true, attemptId: true, initiatedBy: true, releasedAt: true } });
@@ -294,6 +327,47 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(released.sort()).toEqual(pauses.filter((pause) => pause.releasedAt !== null).map((pause) => pause.id).sort());
       expect(released).toHaveLength(2);
       expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["EVENTS", "HELP"]);
+    });
+
+    it("018/SC-010 cada encerramento por avisos, cancelamento, devolução e \"não cancelar\" gera exatamente um evento, sem enunciado nem resposta; a decisão repetida nenhum", async () => {
+      const types = rows.map((row) => row.type).filter((type) => /^exam(_generation|_attempt)?\./.test(type));
+      expect(types.sort()).toEqual([
+        "exam.approved",
+        "exam.archived",
+        "exam.created",
+        "exam.edited",
+        "exam.restored",
+        "exam_attempt.cancel_confirmed",
+        "exam_attempt.held",
+        "exam_attempt.not_cancelled",
+        "exam_attempt.returned",
+        "exam_attempt.time_expired",
+        "exam_attempt.write_refused",
+        "exam_generation.completed",
+        "exam_generation.rejected",
+        "exam_generation.requested",
+      ]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(types.length);
+      expect(offendingMetadata(found)).toEqual([]);
+      // Two holds (the 4th occurrence, then the 5th after the return) on one attempt and one on the kept
+      // exam; each decided once, the repeated return refused without an event.
+      const holds = await t.prisma.examAttemptHold.findMany({ select: { id: true, attemptId: true } });
+      const holdOf = (type: string) =>
+        found.filter((event) => event.type === type).map((event) => `${event.targetId} ${(event.metadata as { holdId: string }).holdId}`).sort();
+      expect(holdOf("exam_attempt.held")).toEqual(holds.map((hold) => `${hold.attemptId} ${hold.id}`).sort());
+      const decided = ["exam_attempt.returned", "exam_attempt.cancel_confirmed", "exam_attempt.not_cancelled"].map((type) => holdOf(type));
+      expect(decided.map((list) => list.length)).toEqual([1, 1, 1]);
+      expect(new Set(decided.flat()).size).toBe(3);
+      expect(found.filter((event) => event.type === "exam_attempt.held").every((event) => event.actorType === "SYSTEM")).toBe(true);
+      // The 012 types extended by 018 (contracts/audit-events.md, "Changed").
+      const of = (type: string) => events.filter((event) => event.type === type).map((event) => event.metadata as Record<string, unknown>);
+      expect(of("activity.published")).toContainEqual(expect.objectContaining({ type: "EXAM", durationMinutes: 30 }));
+      expect(of("activity_attempt.started")).toContainEqual(expect.objectContaining({ rulesAccepted: true }));
+      expect(of("activity_submission.created")).toContainEqual(expect.objectContaining({ endReason: "STUDENT_SUBMITTED" }));
+      expect(of("activity_submission.rejected").map((metadata) => metadata.code)).toEqual(expect.arrayContaining(["EXAM_ATTEMPT_ON_HOLD", "EXIT_NOT_ALLOWED"]));
+      const exam018 = [...found, ...events.filter((event) => /^activity(_attempt|_submission)?\./.test(event.type))];
+      expect(JSON.stringify(exam018.map((event) => event.metadata))).not.toMatch(/MARCADOR-PROVA-018|jornada dezoito/);
     });
 
     it("017/SC-007 mail_delivery.*: os 3 tipos gravados (falha, descarte, rejeição SMTP e aviso de bounce), metadata só com enums, contagens e códigos", async () => {

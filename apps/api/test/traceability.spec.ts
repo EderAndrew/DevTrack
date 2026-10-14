@@ -225,6 +225,23 @@ const SPECS: FeatureSpec[] = [
     // and SC-008 (017-email-guide) since Phase 6.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "018",
+    path: "specs/018-controlled-exams/spec.md",
+    stories: 8,
+    scenarios: 51,
+    // No "### Acceptance Criteria Traceability" table, as in 008–017.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 12),
+    // Joined in the Foundational phase (T010); each story leaves `pending` with the task that writes its
+    // last test, each SC with the test that cites it, so the lists are empty at the end of T056.
+    // US1 since Phase 3, US2 since Phase 4, US3 (with SC-002, SC-003 and SC-008) since Phase 5, US4 (with
+    // SC-004) since Phase 6, US5 (with SC-005, SC-006 and SC-007) since Phase 7, US6 since Phase 8, US7 (with
+    // SC-009) since Phase 9, US8 since Phase 10; SC-010 (audit-coverage), SC-012 (018-boundaries), SC-011 (the
+    // keyboard tests of the exam components) and SC-001 (the E2E exam.spec.ts) since Phase 11.
+    pending: { stories: [], successCriteria: [] },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
