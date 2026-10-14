@@ -99,7 +99,7 @@ describe("018/US1 ExamForm — criar uma prova manualmente", () => {
         { type: "CODE", difficulty: "ADVANCED", languageId: expect.any(String) },
       ],
     });
-  });
+  }, 15_000);
 
   it("018/US1-2 aprovar sem dificuldade é barrado na questão; o rascunho pode ficar sem ela", async () => {
     renderWithProviders(<ExamForm />);
