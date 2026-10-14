@@ -116,3 +116,16 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the local mock of OpenRouter's chat completions that the E2E API's `OPENROUTER_BASE_URL` points
   to (`MOCK_PRIMARY_DOWN=1` answers 503 to the primary model; `MOCK_PRIMARY_MODEL` defaults to the
   catalog's cheapest BASIC id).
+
+## E2E commands (moved from the root CLAUDE.md)
+
+Own API :4100 + web :3100, DB `devtrack_e2e` reset each run, e-mails via Mailpit. Local only (not in CI);
+`e2e/prepare-db.ts` runs `prisma migrate reset`, which needs the user's consent under an AI agent.
+
+```bash
+docker compose up -d postgres-test mailpit
+pnpm build                                              # the E2E API runs apps/api/dist
+pnpm --filter web exec playwright install chromium      # first time only
+pnpm --filter web test:e2e
+pnpm --filter web test:e2e work-bank                    # one spec by path regex; the admin → teacher setup projects still run first
+```

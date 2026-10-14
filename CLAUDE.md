@@ -53,7 +53,7 @@ are easy to break are under "Rules that are easy to get wrong" below.
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
 registered DISABLED until the admin enables them. All five tasks are BASIC; each task's primary and fallback come from the 009
 catalog, backed by the release-gate evidence in `apps/api/test/fixtures/evaluations/` (current
-results per model: `apps/api/CLAUDE.md`).
+results per model: skill `ai-release-gate`).
 
 Before implementing anything, read the active feature (`.specify/feature.json` → `specs/<feature>/`):
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions with a per-feature letter prefix, e.g. R1 in 001, L1 in 014), `data-model.md`,
@@ -129,25 +129,8 @@ pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
 pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)
 pnpm --filter api fixtures:curriculum                   # rebuild test/fixtures/curriculum-agent/golden/*/document.* (007)
-OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # on-demand golden-set eval of the catalog candidates of the analysis's tier (costs cents)
-OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:curriculum
-                                                        # 009 release gate: one catalog entry; writes test/fixtures/evaluations/<task>/<key>.json
-                                                        # (skipped when a case failed for infrastructure); EVAL_REPLAY=1 rewrites recorded.json
-OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:exercises
-                                                        # 010 release gate of the exercise generator, same flags; evidence in
-                                                        # test/fixtures/evaluations/exercise-generation/, with each case's latency
-OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:works
-                                                        # 011 release gate of the work generator, same flags; evidence in
-                                                        # test/fixtures/evaluations/work-generation/
-OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:help
-                                                        # 015 release gate of the AI help (work-helper), same flags; evidence in
-                                                        # test/fixtures/evaluations/work-help/, with each case's latency
-OPENROUTER_API_KEY=... EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:exams
-                                                        # 018 release gate of the exam generator, same flags; evidence in
-                                                        # test/fixtures/evaluations/exam-generation/
-pnpm --filter api mail:notice --kind bounced --delivery <id> [--bad-signature]
-                                                        # 017 dev helper (runs dist/): posts a Resend notice signed with
-                                                        # MAIL_NOTICE_SECRET for that delivery; kinds delivered|bounced|complained|failed
+pnpm --filter api eval:*                                # AI release-gate evals (real models, cost cents): skill `ai-release-gate`
+pnpm --filter api mail:notice ...                       # 017 dev helper: see apps/api/CLAUDE.md
 
 # apps/web (port 3000) — API_ORIGIN (default http://localhost:4000) is the rewrite target
 pnpm --filter web dev
@@ -159,12 +142,7 @@ pnpm --filter web test -t "<test name>"                 # single test, or an id 
 pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
 pnpm --filter @repo/contracts test                      # boundary, duplication, zod-version guards
 
-# E2E (Playwright): own API :4100 + web :3100, DB devtrack_e2e reset each run, emails via Mailpit
-docker compose up -d postgres-test mailpit
-pnpm build                                              # the E2E API runs apps/api/dist
-pnpm --filter web exec playwright install chromium      # first time only
-pnpm --filter web test:e2e
-pnpm --filter web test:e2e work-bank                    # one spec by path regex; the admin → teacher setup projects still run first
+# E2E (Playwright, local only): commands in apps/web/CLAUDE.md
 ```
 
 The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
@@ -246,21 +224,10 @@ the removal conditions are in `DEPENDENCIES.md`.
   `proxy.ts` only redirects for UX and never authorizes. Design system, layers and the web stack:
   see `apps/web/CLAUDE.md`.
 - `packages/contracts` (`@repo/contracts`, constitution principle XXVI) holds every API↔web
-  contract as Zod schemas, one directory per API domain (`common`, `auth`, `me`, `accounts`,
-  `provisioning`, `admin-activation`, `health`, `classes` for classes, class invitations,
-  enrollments and "Minhas turmas", `ai` for the 006 executions, proposals and operations,
-  `curriculum` for 004 subjects, syllabus, class meetings and class plans plus the 007
-  `curriculum-ai.ts`, `exercises` for the 010 bank and its AI batches, and `works` for the 011
-  bank, its generation requests, the exact grade helpers and the grading result shapes, and
-  `activities` for the 012 teacher and student shapes of class activities, with the 013 points and
-  exercise results, `ranking` for the 013 class ranking, `attempt-integrity` and `work-help`
-  for the 015 integrity events and AI help requests, and `attendance` for the 016 room, attendance
-  batch and pauses, and `mail` for the 017 notice route's provider param — the notice body stays the
-  provider's, parsed in the API adapters, and `exams` for the 018 Banco de Provas, its generation
-  requests and the coverage before applying, and `exam-sessions` for the 018 exam monitor and the
-  hold decisions; the exam's fields of the activity, attempt and integrity shapes live in
-  `activities` and `attempt-integrity`), with
-  types derived through `z.infer`
+  contract as Zod schemas, one directory per API domain (`mail` holds only the notice route's
+  provider param — the notice body stays the provider's, parsed in the API adapters; the exam's
+  fields of the activity, attempt and integrity shapes live in `activities` and
+  `attempt-integrity`, not `exams`), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
