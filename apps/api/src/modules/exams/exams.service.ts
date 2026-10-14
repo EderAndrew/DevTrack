@@ -59,7 +59,9 @@ export class ExamsService {
       where: { active: true },
       select: { id: true, key: true, name: true, highlight: true },
       orderBy: [{ name: "asc" }, { id: "asc" }],
-    });
+    })
+    // 019: `execution` comes from `programming_languages.execution` once its migration lands (T006–T007).
+    .then((rows) => rows.map((row) => ({ ...row, execution: null })));
   }
 
   /** "Ver como aluno": the allowlist builder, never the teacher view with fields removed (FR-029). */

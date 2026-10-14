@@ -65,6 +65,7 @@ export const exercise = (index: number, statement: string, difficulty: ExerciseT
     { id: `99999999-9999-4999-8999-99999999999${index}`, position: 2, text: "Outra", isCorrect: false },
   ],
   isTrickQuestion: false,
+  testCases: [],
   topic: null,
   humanReviewed: false,
   humanEdited: false,

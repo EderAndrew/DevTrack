@@ -2,6 +2,7 @@ import { z } from "zod";
 import { StudentPauseSchema } from "../attendance/pauses.js";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { QuestionExecutionSchema } from "../code-runs/execution.js";
 import { WorkQuestionTypeSchema } from "../works/enums.js";
 import { GradeOutputSchema } from "../works/grade.js";
 import { AnswerSchema } from "../works/grading.js";
@@ -54,6 +55,8 @@ export const StudentQuestionSchema = z.strictObject({
   publicTestCases: z.array(z.strictObject({ input: z.string(), expectedOutput: z.string() })),
   /** Presentation order; never which one is correct. */
   alternatives: z.array(z.strictObject({ id: UuidSchema, text: z.string() })),
+  /** 019: "Executar" of an EXERCISE CODE question (research B17); null on every other question. */
+  execution: QuestionExecutionSchema.nullable(),
 });
 export type StudentQuestion = z.infer<typeof StudentQuestionSchema>;
 

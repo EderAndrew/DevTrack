@@ -48,6 +48,8 @@ export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
       .sort((a, b) => a.position - b.position)
       .map((testCase) => ({ input: testCase.input, expectedOutput: testCase.expectedOutput })),
     alternatives: [...row.alternatives].sort((a, b) => a.position - b.position).map((alternative) => ({ id: alternative.id, text: alternative.text })),
+    // 019: "Executar" of an EXERCISE CODE question arrives with US1 (research B17).
+    execution: null,
   };
 }
 

@@ -15,6 +15,8 @@ export function toTeacherView(record: ExerciseRecord): ExerciseTeacherView {
     archivedFromStatus: record.archivedFromStatus,
     version: record.version,
     ...exerciseType(record.type).teacherFields(record),
+    // 019: the bank's test cases arrive with US2 (T014).
+    testCases: [],
     topic: record.topic,
     humanReviewed: record.humanReviewed,
     humanEdited: record.humanEdited,

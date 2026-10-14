@@ -23,10 +23,6 @@ export type WorkOrigin = z.infer<typeof WorkOriginSchema>;
 export const WorkStatusSchema = z.enum(["DRAFT", "APPROVED", "ARCHIVED"]);
 export type WorkStatus = z.infer<typeof WorkStatusSchema>;
 
-/** A PRIVATE test case never reaches the student view. */
-export const TestCaseVisibilitySchema = z.enum(["PUBLIC", "PRIVATE"]);
-export type TestCaseVisibility = z.infer<typeof TestCaseVisibilitySchema>;
-
 /** Derived from the request's AI execution and its materialization, never stored twice (data-model.md). */
 export const WorkGenerationRequestStatusSchema = z.enum(["PENDING", "GENERATED", "FAILED", "CANCELLED"]);
 export type WorkGenerationRequestStatus = z.infer<typeof WorkGenerationRequestStatusSchema>;

@@ -1,4 +1,4 @@
-import type { AiReviewInput, AiReviewOutcome, AiReviewPort, CodeRunInput, CodeRunnerPort, CodeRunStatus, GradingPorts } from "../../../src/modules/works/grading/strategy";
+import type { AiReviewInput, AiReviewOutcome, AiReviewPort, CodeRunInput, CodeRunnerPort, CodeGradingStatus, GradingPorts } from "../../../src/modules/works/grading/strategy";
 
 /**
  * Fake ports for the grading tests (contracts/grading.md): each records what it received and
@@ -7,9 +7,9 @@ import type { AiReviewInput, AiReviewOutcome, AiReviewPort, CodeRunInput, CodeRu
 export class FakeCodeRunner implements CodeRunnerPort {
   readonly calls: CodeRunInput[] = [];
 
-  constructor(private readonly answer: (input: CodeRunInput) => CodeRunStatus) {}
+  constructor(private readonly answer: (input: CodeRunInput) => CodeGradingStatus) {}
 
-  run(input: CodeRunInput): Promise<{ status: CodeRunStatus }> {
+  run(input: CodeRunInput): Promise<{ status: CodeGradingStatus }> {
     this.calls.push(input);
     return Promise.resolve({ status: this.answer(input) });
   }

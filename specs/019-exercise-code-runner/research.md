@@ -114,6 +114,36 @@ is a spike that measures the start-up times against SC-001 on the developers' ma
 with `--read-only`); bind-mounting a host temp dir (breaks when the worker itself runs in a
 container, and gives the student a host path). Both rejected.
 
+**Spike (2026-10-14, T001)**: Docker Desktop 29.7.2 on an Apple Silicon Mac (4 CPUs and 5 GB given to
+Docker), `runc`, every container with the flags of B3, a program that reads stdin and prints its sum
+with a "ç" (output checked byte for byte). Medians of 10 runs:
+
+| Step | Java | Python | JavaScript |
+|---|---|---|---|
+| Container start (`sh -c true`) | 95 ms (all three alike) | | |
+| Check/compile | 451 ms | 174 ms | 114 ms |
+| One case | 119 ms | 109 ms | 121 ms |
+| Run of 5 cases (compile + 5 cases, sequential) | 1 061 ms (max 1 072) | 734 ms (max 760) | 719 ms (max 743) |
+
+- 40 runs of 5 cases arriving together (Java, Python and JavaScript alternated), 4 slots: 95% done in
+  13.3 s, the last in 13.9 s. SC-001 (5 s / 10 s per run, 30 s for 40) fits with room to spare.
+- The `sh` prelude (`IFS= read -r n; head -c "$n" > /tmp/p`) hands over the program and leaves the case
+  input as the program's exact stdin (GNU `head -c` reads no further than `n` from a pipe). The Java
+  class tar of the sample is 10 KB.
+- `--read-only` with the tmpfs `/tmp` is enough for all three, Java included (`javac` into `/tmp/out`,
+  `tar -cf -` on stdout; the run extracts into `/tmp/c`); user 65534 writes to the tmpfs (mode 1777).
+  `--ulimit nofile=64:64` does not get in the way of `javac` or the JVM.
+- `timeout`, `head` and `tar` exist in all three images.
+- Digests (multi-arch index, so the same pin serves amd64 hosts and arm64 Macs):
+  - `eclipse-temurin:25-jdk@sha256:63f965b560b905c9633218330ac3516304b526a74fdc323a504b05c06e712c30`
+    (OpenJDK 25.0.4.1);
+  - `python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f`
+    (Python 3.13.16);
+  - `node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20`
+    (Node.js 24.21.0).
+- Not measured here: gVisor (`runsc`) start-up, which adds to each container; checked in the deploy
+  checklist against the same SC-001 numbers.
+
 ## B5 — Languages: an `execution` key in the catalog, profiles in the worker
 
 **Decision**:

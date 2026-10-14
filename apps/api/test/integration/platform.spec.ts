@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { InvalidConfigError, loadConfig } from "../../src/platform/config/config.schema";
-import { api, createTestApp, type TestApp } from "../helpers/test-app";
+import { api, createTestApp, testConfig, type TestApp } from "../helpers/test-app";
 
 describe("startup configuration (FR-074)", () => {
   const SECRET_DB_URL = "postgresql://devtrack:s3nh4-do-banco@db.internal:5432/devtrack";
@@ -244,6 +244,136 @@ describe("startup configuration (FR-074)", () => {
 
     it("017/FR-023 the test environment accepts Resend notices with the fixed test secret", () => {
       expect(loadConfig(process.env).mail.notices.provider).toBe("resend");
+    });
+  });
+
+  describe("019 Code Runner configuration (contracts/configuration.md)", () => {
+    const CODE_RUNNER_VARIABLES = [
+      "CODE_RUNNER_ENABLED",
+      "RATE_LIMIT_CODE_RUNS_PER_MINUTE",
+      "CODE_RUN_QUEUE_DEADLINE_SECONDS",
+      "CODE_RUNNER_STALE_SECONDS",
+      "CODE_RUN_CONTENT_RETENTION_HOURS",
+      "CODE_RUNNER_CONCURRENCY",
+      "CODE_RUNNER_POLL_MS",
+      "CODE_RUNNER_LEASE_SECONDS",
+      "CODE_RUNNER_DOCKER_RUNTIME",
+      "CODE_RUNNER_TIME_LIMIT_MS",
+      "CODE_RUNNER_COMPILE_LIMIT_MS",
+      "CODE_RUNNER_MEMORY_MB",
+      "CODE_RUNNER_OUTPUT_LIMIT_BYTES",
+      "CODE_RUNNER_PIDS_LIMIT",
+    ];
+    const bare = (): NodeJS.ProcessEnv => {
+      const env: NodeJS.ProcessEnv = { ...process.env };
+      for (const variable of CODE_RUNNER_VARIABLES) delete env[variable];
+      return env;
+    };
+    /** A production environment that passes the 017 mail guard, so only the 019 guard decides. */
+    const production = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => ({
+      ...bare(),
+      NODE_ENV: "production",
+      SMTP_URL: "smtps://resend:senha@smtp.resend.com:465",
+      MAIL_FROM: "DevTrack <nao-responda@devtrack.app>",
+      MAIL_NOTICE_PROVIDER: "resend",
+      MAIL_NOTICE_SECRET: "whsec_ZGV2dHJhY2stdGVzdC1tYWlsLW5vdGljZS1zZWNyZXQ=",
+      ...env,
+    });
+
+    it("019 defaults: off outside production unless set, 10 runs/min, 60 s queue, 15 s heartbeat, 24 h content, runc and the B3 limits", () => {
+      const config = loadConfig(bare());
+      expect(config.codeRunner).toEqual({
+        enabled: false,
+        queueDeadlineSeconds: 60,
+        staleSeconds: 15,
+        contentRetentionHours: 24,
+        worker: {
+          concurrency: 2,
+          pollMs: 500,
+          leaseSeconds: 90,
+          dockerRuntime: "runc",
+          timeLimitMs: 2000,
+          compileLimitMs: 10_000,
+          memoryMb: 256,
+          outputLimitBytes: 65_536,
+          pidsLimit: 128,
+        },
+      });
+      expect(config.rateLimit.codeRunsPerMinute).toBe(10);
+    });
+
+    it("019 every variable is configurable; CODE_RUNNER_ENABLED takes true or false", () => {
+      const config = loadConfig({
+        ...bare(),
+        CODE_RUNNER_ENABLED: "true",
+        RATE_LIMIT_CODE_RUNS_PER_MINUTE: "3",
+        CODE_RUN_QUEUE_DEADLINE_SECONDS: "30",
+        CODE_RUNNER_STALE_SECONDS: "20",
+        CODE_RUN_CONTENT_RETENTION_HOURS: "12",
+        CODE_RUNNER_CONCURRENCY: "4",
+        CODE_RUNNER_POLL_MS: "250",
+        CODE_RUNNER_LEASE_SECONDS: "120",
+        CODE_RUNNER_DOCKER_RUNTIME: "runsc",
+        CODE_RUNNER_TIME_LIMIT_MS: "3000",
+        CODE_RUNNER_COMPILE_LIMIT_MS: "15000",
+        CODE_RUNNER_MEMORY_MB: "512",
+        CODE_RUNNER_OUTPUT_LIMIT_BYTES: "1024",
+        CODE_RUNNER_PIDS_LIMIT: "64",
+      });
+      expect(config.codeRunner).toEqual({
+        enabled: true,
+        queueDeadlineSeconds: 30,
+        staleSeconds: 20,
+        contentRetentionHours: 12,
+        worker: {
+          concurrency: 4,
+          pollMs: 250,
+          leaseSeconds: 120,
+          dockerRuntime: "runsc",
+          timeLimitMs: 3000,
+          compileLimitMs: 15_000,
+          memoryMb: 512,
+          outputLimitBytes: 1024,
+          pidsLimit: 64,
+        },
+      });
+      expect(config.rateLimit.codeRunsPerMinute).toBe(3);
+      expect(loadConfig({ ...bare(), CODE_RUNNER_ENABLED: "false" }).codeRunner.enabled).toBe(false);
+      expect(loadConfig({ ...bare(), CODE_RUNNER_ENABLED: "" }).codeRunner.enabled).toBe(false);
+    });
+
+    it("019 refuses zero, negative or fractional numbers, an unknown runtime and a kill switch other than true/false", () => {
+      for (const variable of CODE_RUNNER_VARIABLES.filter((name) => !["CODE_RUNNER_ENABLED", "CODE_RUNNER_DOCKER_RUNTIME"].includes(name))) {
+        for (const value of ["0", "-1", "1.5", "dez"]) {
+          expect(failure({ ...bare(), [variable]: value }).variables, `${variable}=${value}`).toEqual([variable]);
+        }
+      }
+      for (const value of ["docker", "kata", "RUNSC"]) {
+        expect(failure({ ...bare(), CODE_RUNNER_DOCKER_RUNTIME: value }).variables).toEqual(["CODE_RUNNER_DOCKER_RUNTIME"]);
+      }
+      for (const value of ["1", "yes", "TRUE", "on"]) {
+        expect(failure({ ...bare(), CODE_RUNNER_ENABLED: value }).variables).toEqual(["CODE_RUNNER_ENABLED"]);
+      }
+    });
+
+    it("019 production guard (research B10, B12): the kill switch must be set, and on it requires gVisor (runsc)", () => {
+      expect(failure(production({})).variables).toEqual(["CODE_RUNNER_ENABLED"]);
+      expect(failure(production({ CODE_RUNNER_ENABLED: "true" })).variables).toEqual(["CODE_RUNNER_DOCKER_RUNTIME"]);
+      expect(failure(production({ CODE_RUNNER_ENABLED: "true", CODE_RUNNER_DOCKER_RUNTIME: "runc" })).variables).toEqual([
+        "CODE_RUNNER_DOCKER_RUNTIME",
+      ]);
+      const on = loadConfig(production({ CODE_RUNNER_ENABLED: "true", CODE_RUNNER_DOCKER_RUNTIME: "runsc" }));
+      expect(on.codeRunner).toMatchObject({ enabled: true, worker: { dockerRuntime: "runsc" } });
+      expect(loadConfig(production({ CODE_RUNNER_ENABLED: "false" })).codeRunner.enabled).toBe(false);
+      // Outside production runc is the development default (Docker Desktop has no gVisor).
+      expect(loadConfig({ ...bare(), CODE_RUNNER_ENABLED: "true" }).codeRunner.worker.dockerRuntime).toBe("runc");
+    });
+
+    it("019 testConfig() turns the Code Runner on with the default limits (the suites use the FakeSandbox)", () => {
+      const config = testConfig();
+      expect(config.codeRunner.enabled).toBe(true);
+      expect(config.codeRunner.worker.dockerRuntime).toBe("runc");
+      expect(testConfig({ codeRunner: { ...config.codeRunner, enabled: false } }).codeRunner.enabled).toBe(false);
     });
   });
 

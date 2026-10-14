@@ -55,7 +55,7 @@ description: "Task list for 019 — Code Runner nos Exercícios (primeira etapa)
 **Purpose**: medir o sandbox antes de construir sobre ele, configuração, códigos de erro e
 contratos.
 
-- [ ] T001 Spike do sandbox (research B1, B3, B4; plan "Performance Goals"): script descartável em
+- [X] T001 Spike do sandbox (research B1, B3, B4; plan "Performance Goals"): script descartável em
   `apps/api/scripts/code-runner-spike.ts` (fora do build, removido no fim da tarefa) que, com as
   três imagens de `contracts/sandbox.md` e as flags de B3, mede no Docker Desktop: início de um
   container, checagem/compilação, um caso, e uma execução de 5 casos por linguagem; confere que o
@@ -63,7 +63,7 @@ contratos.
   `/tmp` bastam para o Java (`javac` + tar). Registrar os tempos medidos e os digests escolhidos
   numa nota "Spike (data)" ao fim de `research.md` B4. Se a SC-001 não couber, parar e reabrir a
   decisão B1 com o usuário antes da T002.
-- [ ] T002 [P] Configuração (contracts/configuration.md) em
+- [X] T002 [P] Configuração (contracts/configuration.md) em
   `apps/api/src/platform/config/config.schema.ts` e `apps/api/.env.example`:
   `CODE_RUNNER_ENABLED`, `RATE_LIMIT_CODE_RUNS_PER_MINUTE` (10), `CODE_RUN_QUEUE_DEADLINE_SECONDS`
   (60), `CODE_RUNNER_STALE_SECONDS` (15), `CODE_RUN_CONTENT_RETENTION_HOURS` (24) e as do worker
@@ -74,7 +74,7 @@ contratos.
   (`CODE_RUNNER_ENABLED` obrigatório; com ele `true`, `CODE_RUNNER_DOCKER_RUNTIME=runsc`, research
   B12). Testes de padrão, de recusa de não positivos e do guarda em
   `apps/api/test/integration/platform.spec.ts`; `testConfig()` com valores de teste.
-- [ ] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
+- [X] T003 [P] Códigos de erro em `packages/contracts/src/common/errors.ts`,
   `apps/api/src/platform/http/errors.ts` e `apps/web/lib/messages/error-messages.ts`, com o teste
   `apps/web/lib/messages/error-messages.test.ts`:
 
@@ -84,7 +84,7 @@ contratos.
   | `CODE_RUNNER_UNAVAILABLE` | "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente." |
   | `SOURCE_TOO_LARGE` | "O código passou do tamanho máximo de 64 KB." |
   | `ATTEMPT_NOT_IN_PROGRESS` | "Comece ou refaça os exercícios para executar o código." (se ainda não existir no catálogo da 012) |
-- [ ] T004 [P] Criar `packages/contracts/src/code-runs/{enums,run,execution}.ts` (contracts/http-api.md):
+- [X] T004 [P] Criar `packages/contracts/src/code-runs/{enums,run,execution}.ts` (contracts/http-api.md):
   `CodeRunStatusSchema`, `CodeRunFailureReasonSchema`, `CodeRunOutcomeSchema`,
   `CodeRunVerdictSchema`, `ExecutionKeySchema` (`java`/`python`/`javascript`),
   `CreateCodeRunRequestSchema` (`sourceCode` de 0 a 65 536 bytes UTF-8, string vazia aceita — spec
@@ -95,7 +95,7 @@ contratos.
   Exportar em `packages/contracts/src/index.ts`; testes em `packages/contracts/test/code-runs.spec.ts`
   (corpo estrito, limite de bytes com acentos, nenhum campo de caso privado ou id de caso em
   `CodeRunSchema`).
-- [ ] T005 Mudanças nos contratos existentes (research B16, B17):
+- [X] T005 Mudanças nos contratos existentes (research B16, B17):
   - `packages/contracts/src/exercises/`: `ExerciseTestCaseInputSchema` e `ExerciseTestCaseSchema`
     (sem importar `works`), `testCases` opcional (0–20) nos pedidos de criação, edição e `sets`;
     `TeacherExercise.testCases`; `ProgrammingLanguage.execution`;

@@ -602,7 +602,8 @@ describe("011/US1 criar um trabalho manualmente", () => {
           select: { id: true, key: true, name: true, highlight: true },
           orderBy: [{ name: "asc" }, { id: "asc" }],
         });
-        expect(res.body).toEqual(active);
+        // 019: the Code Runner profile; null until the catalog column and its seed (019 T006–T007).
+        expect(res.body).toEqual(active.map((language) => ({ ...language, execution: null })));
       });
     });
   });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CodeRunUnavailableReasonSchema } from "../code-runs/enums.js";
 import { UuidSchema } from "./primitives.js";
 
 // Public error codes of the API, in the order of ErrorCatalog in
@@ -119,6 +120,10 @@ export const ErrorCodeSchema = z.enum([
   "EXAM_DECISIONS_PENDING",
   "EXIT_NOT_ALLOWED",
   "NOT_AN_EXAM",
+  "CODE_RUN_NOT_AVAILABLE",
+  "CODE_RUNNER_UNAVAILABLE",
+  "SOURCE_TOO_LARGE",
+  "ATTEMPT_NOT_IN_PROGRESS",
   "NOTICE_REJECTED",
   "NOTICE_TOO_LARGE",
   "RATE_LIMITED",
@@ -140,13 +145,15 @@ export type ExamRuleViolation = z.infer<typeof ExamRuleViolationSchema>;
 /**
  * What a refusal names for the caller to act on, only where its contract says so: the students of
  * the teacher's own class who already started (016 `409 ATTENDANCE_STARTED`), the questions an exam's
- * rules refuse (018 `422 EXAM_RULES`) and the holds still waiting for a decision (018 `409
- * EXAM_DECISIONS_PENDING`). Ids, positions, codes and counts only, never data.
+ * rules refuse (018 `422 EXAM_RULES`), the holds still waiting for a decision (018 `409
+ * EXAM_DECISIONS_PENDING`) and why a code question can't run (019 `409 CODE_RUN_NOT_AVAILABLE`).
+ * Ids, positions, codes and counts only, never data.
  */
 export const ErrorDetailsSchema = z.union([
   z.strictObject({ studentUserIds: z.array(UuidSchema).min(1) }),
   z.strictObject({ violations: z.array(ExamRuleViolationSchema).min(1) }),
   z.strictObject({ count: z.int().min(1) }),
+  z.strictObject({ reason: CodeRunUnavailableReasonSchema }),
 ]);
 export type ErrorDetails = z.infer<typeof ErrorDetailsSchema>;
 

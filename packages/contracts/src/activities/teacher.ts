@@ -6,7 +6,8 @@ import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ExamCoverageSchema } from "../exams/coverage.js";
 import { ExamHoldResolutionSchema } from "../exam-sessions/holds.js";
 import { ExerciseDifficultySchema } from "../exercises/enums.js";
-import { TestCaseVisibilitySchema, WorkGradingStrategySchema, WorkQuestionTypeSchema } from "../works/enums.js";
+import { TestCaseVisibilitySchema } from "../common/test-cases.js";
+import { WorkGradingStrategySchema, WorkQuestionTypeSchema } from "../works/enums.js";
 import { GRADE_MAX_CENTS, GradeOutputSchema, gradeToCents } from "../works/grade.js";
 import { AnswerSchema, GradingNatureSchema, PendingReasonSchema } from "../works/grading.js";
 import {

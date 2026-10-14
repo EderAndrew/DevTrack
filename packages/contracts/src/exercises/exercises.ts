@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { TestCaseVisibilitySchema } from "../common/test-cases.js";
+import { TEST_CASES_MAX } from "../code-runs/run.js";
 import {
   CognitiveObjectiveSchema,
   ExerciseDifficultySchema,
@@ -44,6 +46,37 @@ export function alternativesProblem(alternatives: readonly AlternativeInput[]): 
   return null;
 }
 
+/** Input and expected output of a test case: up to 10 000 characters, kept as typed (019 research B16). */
+const TestCaseTextSchema = z.string().max(10_000);
+
+/**
+ * One test case of a CODE exercise (019/FR-001, research B16), in the order the list is sent. An
+ * empty input is a case with no stdin; an empty expected output is refused on the server (`422
+ * TEST_CASE_EXPECTED_OUTPUT`), so the schema lets it through.
+ */
+export const ExerciseTestCaseInputSchema = z.strictObject({
+  input: TestCaseTextSchema,
+  expectedOutput: TestCaseTextSchema,
+  visibility: TestCaseVisibilitySchema,
+});
+export type ExerciseTestCaseInput = z.infer<typeof ExerciseTestCaseInputSchema>;
+
+/** A test case as its owner sees it; `position` is 0…n−1 in the list's order. */
+export const ExerciseTestCaseSchema = z.strictObject({
+  position: z.int().min(0).max(TEST_CASES_MAX - 1),
+  input: z.string(),
+  expectedOutput: z.string(),
+  visibility: TestCaseVisibilitySchema,
+});
+export type ExerciseTestCase = z.infer<typeof ExerciseTestCaseSchema>;
+
+/**
+ * The whole list of test cases, replaced on every create and edit (019 research B16); omitted = none.
+ * Accepted on every type so that a non-CODE exercise with cases is a rule the server names (`422
+ * TEST_CASES_NOT_ALLOWED`), not a malformed body.
+ */
+const TestCasesFieldSchema = z.array(ExerciseTestCaseInputSchema).max(TEST_CASES_MAX).optional();
+
 const commonFields = {
   statement: LongTextSchema,
   explanation: LongTextSchema,
@@ -51,6 +84,8 @@ const commonFields = {
   cognitiveObjective: CognitiveObjectiveSchema,
   /** The topic: an item of a confirmed revision of the teacher's (checked on the server, 404). */
   syllabusItemId: UuidSchema.optional(),
+  /** 019: CODE only (0–20); another type with cases → 422. */
+  testCases: TestCasesFieldSchema,
 };
 
 /**
@@ -163,6 +198,8 @@ export const ExerciseTeacherViewSchema = z.strictObject({
   /** Presentation order; empty unless MULTIPLE_CHOICE. */
   alternatives: z.array(ExerciseAlternativeViewSchema),
   isTrickQuestion: z.boolean(),
+  /** 019: PUBLIC and PRIVATE, in position order; empty unless CODE. */
+  testCases: z.array(ExerciseTestCaseSchema).max(TEST_CASES_MAX),
   topic: ExerciseTopicViewSchema.nullable(),
   humanReviewed: z.boolean(),
   humanEdited: z.boolean(),

@@ -87,6 +87,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         language: null,
         publicTestCases: [],
         alternatives: [],
+        execution: null,
       },
       {
         id: "cccccccc-0000-4000-8000-000000000002",
@@ -104,6 +105,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
           { id: "dddddddd-0000-4000-8000-000000000002", text: "Um tipo primitivo." },
           { id: "dddddddd-0000-4000-8000-000000000003", text: "Um pacote." },
         ],
+        execution: null,
       },
       {
         id: "cccccccc-0000-4000-8000-000000000003",
@@ -117,6 +119,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
         language: { name: "Java", highlight: "java" },
         publicTestCases: [{ input: "2 3", expectedOutput: "5" }],
         alternatives: [],
+        execution: null,
       },
     ],
     attempt: null,
