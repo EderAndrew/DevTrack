@@ -71,6 +71,22 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   `features/invitations/components/resend-confirm-dialog.tsx`) first asks "Reenviar para o mesmo endereço?" ("Voltar"
   sends nothing). Account e-mails show no delivery status anywhere. The E2E `production-email.spec.ts`
   reads the Message-ID from Mailpit and posts a Resend bounce signed with `.env.e2e`'s `MAIL_NOTICE_SECRET`.
+- Exams (018): `features/exams` is the Banco de Provas (`ExamBankList`, `ExamForm` with `ExamQuestionCard`, `ExamDetail`
+  with "Aprovar" listing the questions that block it, `ExamGenerationForm` and `ExamGenerationRequestDetail` for "Criar prova
+  com IA"), apart from the exercise and work banks. Applying is the 012 "Nova atividade" with the source "Prova":
+  the coverage by topic and difficulty before confirming, duration, inactivity and start window, and no mode, help,
+  release, deadline or late policy. `features/exam-session` is the teacher's side of an applied exam: the tab "Chamada
+  e prova" is the 016 `AttendanceTab` whose room is `ExamRoomPanel` (each situation in words with the server's
+  times, holds first, "Confirmar cancelamento" with the zero said before the click, "Devolver prova" only with
+  `canReturn`, "Não cancelar" after the end, "Ver ocorrências", "Pausar aluno"), polled every `ATTENDANCE_POLL_MS`.
+  `features/exam-attempt` is the student's exam: `ExamEntry` (`rules-screen.tsx`: the rules and "Li as regras e quero iniciar", which
+  sends `acceptRules` and asks for fullscreen) and `ExamAttempt` on the focus page, the 015 `ControlledSession` with
+  `ExamTimer`, `TimeAlert` (10 and 5 min), `FinalCountdown` (10 s), the server's "Aviso n de 3" in `WarningDialog`,
+  `useInactivity` and the hold, pause, return and end notices. The time is the server's (`useExamClock` counts only
+  from `serverNow`, never the browser's clock), and the end reads the activity again after the grace. The timer and
+  the countdown live only in `features/exam-attempt` and `components/ui/assessment`
+  (`apps/api/test/activities-boundary.spec.ts`). No exam text says "fraude", "cola" or "violação"
+  (`test/exam-wording.test.ts` scans the three exam features and the Exam Mode components, comments aside).
 
 ## Guards
 
@@ -78,9 +94,10 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   as text (since 013 also the exercise result, the teacher's marks and the ranking names; since
   014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
   orientation and its example on both screens; since 016 the note of "Outro" on the room panel, in the review, on
-  the paused notice and in the history), and no `dangerouslySetInnerHTML` in the 012
+  the paused notice and in the history; since 018 the Banco de Provas form, the student's exam and the teacher's
+  exam room), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
-  `features/controlled-attempt`, `features/work-help` or `features/attendance`.
+  `features/controlled-attempt`, `features/work-help`, `features/attendance` or the three exam features.
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and

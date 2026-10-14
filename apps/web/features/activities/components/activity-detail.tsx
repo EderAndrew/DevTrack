@@ -250,6 +250,7 @@ export function ActivityDetail({
               <AttendanceTab
                 classId={classId}
                 activityId={activity.id}
+                item="EXAM"
                 renderRoom={() => <ExamRoomPanel classId={classId} activityId={activity.id} canDecide={canDecideHolds} active />}
               />
             ) : (

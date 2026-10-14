@@ -325,6 +325,17 @@ while a pause is open. Tests use `test/helpers/attendance.ts` (`getRoom`, `postA
 `markAllPresent`, `declareExit`, `getMyPause`, `releasePause`, `pauseStudent`, `getAttemptPauses`), the
 `createActivity` option `releaseMode`, and `applyWork`, which marks the whole class present unless
 `attendance: "NONE"`, so the 012/013/015 suites see a new work as before 016.
+Exams (018) fixtures live in `test/helpers/exams.ts`: `createExam(t, teacherId, options)` writes an exam with its
+topics, questions, alternatives and test cases in one transaction (the deferred triggers check them at commit;
+default a MANUAL APPROVED exam with one BASIC multiple-choice question worth 1.00),
+`examBody`/`postExam`/`approvedExam` go through `POST /exams`, `toExamUpdateBody` turns a teacher view into a
+`PUT /exams/:id` body, `applyExam(client, classId, examId, overrides)` applies through the 012 route and marks the
+whole class present unless `attendance: "NONE"` (a forbidden field such as `executionMode` goes in as given, for
+the 400 tests), `startExam` sends `{ acceptRules: true }`, `holdByHand` writes four occurrences and the hold
+straight to the database, and `getExamMonitor`/`decideHold` call the US5 routes; `createActivity(t, class, { type:
+"EXAM" })` writes an applied exam directly. Suites that return a held exam start their `FixedClock` at the real
+time (to the minute): the return's trigger compares the end with the database's `now()`, so a clock in the past
+makes the return a 500.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -413,6 +424,24 @@ Per-feature suites (`test/{integration,security}/0NN-*`):
   with ids and enums only (`016/SC-009`), and the secret scan keeps `MARCADOR-NOTA-016` (the note) out of logs and
   audit. `test/attendance-boundary.spec.ts` keeps `attendance` away from AI, help, monitoring, grading, banks and
   mail.
+- 018: one file per story (`018-us1-bank` … `018-us8-grading`), `018-schema` (CHECKs, enums, the deferred
+  triggers, append-only `exam_occurrences`, the hold and return triggers) and `018-evaluation`; in `test/security/`
+  isolation (teachers A/B, students not marked present → 404 on every route, roles 403), time (the end by the
+  server's clock, `018/SC-002`), settlement (an expired attempt settled once by the next touch, never a job),
+  holds (no write from any session while held, the DB defense triggers too; events kept without counting),
+  concurrency (10 simultaneous occurrences hold once, `018/SC-004`; decision × decision, return × the end,
+  cancellation × release), boundaries (`018-boundaries`: server fields → 400 on every route, 0/1/20/21 questions, duration 0/1/120/121,
+  inactivity 29/30/60/61, window -1/0/60/61, `idleSeconds` 29/30/60/61 and only with INACTIVITY; `018/FR-034`: no
+  exam route beyond the contract, one attempt, no help or exit, no AI execution; `018/SC-012`: a Trabalho refuses the
+  exam fields and a CONTROLLED one never counts occurrences or holds), rate limits (`018-rate-limits`: decisions per
+  minute, generations per hour, both 429 with `Retry-After` and nothing written) and performance (`018-performance`:
+  events batch with the counting p95 < 200 ms, monitor of 60 p95 < 300 ms, decision p95 < 300 ms). The journey
+  creates, edits, approves, archives, restores and generates exams, applies them, starts (rules accepted), hands
+  in, closes one mid-attempt (settled), holds one, returns it, holds it again and cancels it, keeps another after
+  the end and has a repeated decision and an exit refused; `audit-coverage.spec.ts` checks one event per hold,
+  cancellation, return and "não cancelar" with no content (`018/SC-010`), and the secret scan keeps
+  `MARCADOR-PROVA-018` (a statement and a student's answer) out of logs and audit. `test/exams-boundary.spec.ts`
+  keeps `exams`/`exam-ai` away from the other banks, code execution, model choice and float arithmetic.
 - 017: one file per story (`017-us1-outbox` … `017-us4-config`), `017-schema` (CHECKs, transitions, append-only
   notices), `017-migration` (the 003 deliveries carried over), `017-email-guide`, and in `test/security/` the notice
   authentication (`017-notice-auth`, `017/SC-004`), concurrency (each attempt leaves at most once), performance
@@ -574,3 +603,16 @@ scopeAccuracy 0.88, relevance 0.56 — its leaks are now blocked by the server.
   K10 `toStudentExerciseAttempt` in `views/student-view.ts`. `ranking` (new): `RankingService` (`forStudent`, ACTIVE
   enrollment → else 404; `forTeacher`, `ClassContextPolicy`; `dashboardFor`, the top 5 of each ACTIVE class, empty
   without `ranking.turma.visualizar`), one SQL query then `rankClass`; it reads results, enrollments and users only.
+- 018 modules: `exams` (the Banco de Provas, apart from the exercise and work banks: `ExamsService` with optimistic
+  `version` under a row lock, the pure `exam-rules.ts` and `exam.state-machine.ts`, `exam-content.ts` (the only writer
+  of an exam's content, shared with the generator's materialization), `exam-edit.ts`, keyset list in `exam-query.ts`,
+  `ExamTopics`, the `ExamReview` hook and the pure `coverage.ts` that the 012 apply flow reads before applying; only
+  `works/{types,grading,grade}` of the work bank), `exam-ai` (the generator, above) and `exam-sessions` (the teacher's
+  side of an applied exam: `ExamMonitorService`, the monitor polled every 5 s with each student's situation derived
+  by the pure `exam-status.ts`, and `ExamHoldsService`, the three decisions under the attempt's and the hold's
+  locks, each with its audit event, grading only through `activities/submission`; it calls no AI). The exam's
+  time lives in `activities/status/exam-time.ts` (`endsAt`, `closesAt`, the start deadline) and its settlement in
+  `activities/submission/settle-exam.ts` behind `ExamSettlement`, which every touch (student routes, the 015
+  events and review, the teacher's reads) runs first in its own transaction. The occurrence counting
+  (`attempt-integrity/exam-occurrences.ts`: countable kinds, the 2 s grouping, the hold on the 4th) runs in
+  `FocusEventsService`'s batch transaction under the attempt's `FOR UPDATE`.

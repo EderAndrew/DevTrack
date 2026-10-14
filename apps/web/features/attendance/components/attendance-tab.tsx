@@ -28,7 +28,9 @@ import {
   MARK_ALL,
   NO_STUDENTS,
   RELEASE_TO_PRESENT,
+  releaseNotice,
   releaseQuestion,
+  type ReleasedItem,
   selectedLabel,
   UNMARK_ALL,
 } from "../schemas/attendance";
@@ -39,6 +41,8 @@ export interface AttendanceTabProps {
   activityId: string;
   /** 018: an exam shows its own room panel (with the time and the holds) after the first release. */
   renderRoom?: (room: Room) => ReactNode;
+  /** 018: what the release confirmation names (default the 016 work). */
+  item?: ReleasedItem;
 }
 
 /**
@@ -47,7 +51,7 @@ export interface AttendanceTabProps {
  * presentes" (confirmed); afterwards the room panel (`RoomPanel`), refreshed every 5 s. The checkboxes
  * are only a draft until the batch, which sends the differences (research M5).
  */
-export function AttendanceTab({ classId, activityId, renderRoom }: AttendanceTabProps) {
+export function AttendanceTab({ classId, activityId, renderRoom, item = "WORK" }: AttendanceTabProps) {
   const query = useRoom(classId, activityId);
 
   let body;
@@ -70,7 +74,7 @@ export function AttendanceTab({ classId, activityId, renderRoom }: AttendanceTab
   } else if (query.data.students.length === 0) {
     body = <p className="m-0">{NO_STUDENTS}</p>;
   } else if (query.data.present === 0) {
-    body = <AttendanceChecklist classId={classId} activityId={activityId} room={query.data} />;
+    body = <AttendanceChecklist classId={classId} activityId={activityId} item={item} room={query.data} />;
   } else {
     body = renderRoom ? renderRoom(query.data) : <RoomPanel classId={classId} activityId={activityId} room={query.data} />;
   }
@@ -86,7 +90,7 @@ export function AttendanceTab({ classId, activityId, renderRoom }: AttendanceTab
   );
 }
 
-function AttendanceChecklist({ classId, activityId, room }: { classId: string; activityId: string; room: Room }) {
+function AttendanceChecklist({ classId, activityId, room, item }: { classId: string; activityId: string; room: Room; item: ReleasedItem }) {
   const apply = useApplyAttendance(classId, activityId);
   const marked = new Set(room.students.flatMap((row) => (row.markedAt ? [row.studentUserId] : [])));
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(marked));
@@ -150,8 +154,8 @@ function AttendanceChecklist({ classId, activityId, room }: { classId: string; a
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{releaseQuestion(selected.size)}</AlertDialogTitle>
-            <AlertDialogDescription>Os alunos marcados passam a ver o trabalho. Quem chegar depois pode ser marcado a qualquer momento.</AlertDialogDescription>
+            <AlertDialogTitle>{releaseQuestion(selected.size, item)}</AlertDialogTitle>
+            <AlertDialogDescription>{releaseNotice(item)}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>

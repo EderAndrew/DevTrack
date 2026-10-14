@@ -439,7 +439,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     questions: [
       {
         type: "OPEN_ANSWER",
-        statement: text("enunciado da prova (018)", "Enunciado da prova da jornada dezoito"),
+        statement: text("enunciado da prova (018)", "MARCADOR-PROVA-018 Enunciado da prova da jornada dezoito"),
         expectedAnswer: text("resposta esperada da prova (018)", "Resposta esperada da prova da jornada"),
         difficulty: "BASIC",
         topicIds: [topicItemId],
@@ -1028,6 +1028,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // (`activity_submission.created` with `endReason: STUDENT_SUBMITTED`). A second exam is closed by the
   // teacher while the student answers; once the 2 s grace has passed, the student's next read settles
   // the attempt (`exam_attempt.time_expired`, SYSTEM, `endReason: ACTIVITY_CLOSED`).
+  const examAnswer = text("resposta do aluno na prova (018)", "MARCADOR-PROVA-018 Resposta do aluno na prova da jornada");
   const takeExam = async (title: string) => {
     const applied = await teacherClient.post(activitiesPath, {
       idempotencyKey: randomUUID(),
@@ -1041,7 +1042,10 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     await markPresent(applied.body.id);
     const started = await classStudentClient.post(`/api/me/activities/${applied.body.id}/attempt`, { acceptRules: true });
     expect(started.status).toBe(200);
-    const saved = await classStudentClient.put(`/api/me/activities/${applied.body.id}/attempt/answers`, { answers: answersFor(started.body.questions) });
+    const answers = answersFor(started.body.questions).map((answer) =>
+      answer.answer.kind === "TEXT" ? { ...answer, answer: { kind: "TEXT", text: examAnswer } } : answer,
+    );
+    const saved = await classStudentClient.put(`/api/me/activities/${applied.body.id}/attempt/answers`, { answers });
     expect(saved.status).toBe(200);
     return applied.body.id as string;
   };
@@ -1064,6 +1068,9 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const afterHandIn = await classStudentClient.post(`/api/me/activities/${handedIn}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 1)] });
   expect(afterHandIn.body.code).toBe("ATTEMPT_ALREADY_SUBMITTED");
   const heldExam = await takeExam("Prova encerrada por avisos da jornada dezoito");
+  // 018/US6 — "Sair da sala" does not exist in an exam (`activity_submission.rejected`, `operation: EXIT`).
+  const examExit = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/pause`, { reason: "WATER" });
+  expect(examExit.body.code).toBe("EXIT_NOT_ALLOWED");
   const occurrences = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, {
     events: [examEvent("SCREEN_LEFT", 40), examEvent("FULLSCREEN_EXITED", 30), examEvent("COPY_BLOCKED", 20), examEvent("SCREEN_LEFT", 10)],
   });
@@ -1081,7 +1088,10 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   };
   const decideHold = (activityId: string, holdId: string, decision: "cancel" | "return" | "keep") =>
     teacherClient.post(`${activitiesPath}/${activityId}/exam-holds/${holdId}/${decision}`, {});
-  expect((await decideHold(heldExam, await openHoldOf(heldExam), "return")).body.resolution).toBe("RETURNED");
+  const firstHold = await openHoldOf(heldExam);
+  expect((await decideHold(heldExam, firstHold, "return")).body.resolution).toBe("RETURNED");
+  // 018/SC-010 — a repeated decision is refused and writes no second event.
+  expect((await decideHold(heldExam, firstHold, "return")).body.code).toBe("INVALID_STATE_TRANSITION");
   // Past the 2 s window of the batch that opened the first hold, so the fifth counts on its own.
   await new Promise((resolve) => setTimeout(resolve, 2_100));
   const fifth = await classStudentClient.post(`/api/me/activities/${heldExam}/attempt/events`, { events: [examEvent("SCREEN_LEFT", 0)] });

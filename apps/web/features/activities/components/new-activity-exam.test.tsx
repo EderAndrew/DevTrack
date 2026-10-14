@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
-import { expectFieldErrorLinked } from "../../../test/keyboard";
+import { expectFieldErrorLinked, tabTo } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ActivityDetail } from "./activity-detail";
 import { NEW_ACTIVITY_FIELD_IDS, NewActivity } from "./new-activity";
@@ -34,6 +34,19 @@ async function chooseExam(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("radio", { name: /Prova de herança/ }));
   await user.click(screen.getByRole("button", { name: "Continuar" }));
   await screen.findByRole("form", { name: "Dados da atividade" });
+}
+
+/** Tab into the radio's group, then the arrow keys until it is checked (native radios of one `name` are one Tab stop). */
+async function chooseByKeyboard(user: ReturnType<typeof userEvent.setup>, radio: HTMLElement) {
+  const name = radio.getAttribute("name");
+  const group = name ? [...document.querySelectorAll<HTMLElement>(`input[type="radio"][name="${name}"]`)] : [radio];
+  for (let i = 0; i < 100 && !group.includes(document.activeElement as HTMLElement); i += 1) await user.tab();
+  for (let i = 0; i < group.length && document.activeElement !== radio; i += 1) {
+    await user.keyboard("{ArrowDown}");
+  }
+  expect(document.activeElement).toBe(radio);
+  if (!(radio as HTMLInputElement).checked) await user.keyboard(" ");
+  expect((radio as HTMLInputElement).checked).toBe(true);
 }
 
 describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
@@ -88,6 +101,21 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
       acknowledgeOutOfScope: false,
     });
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`);
+  });
+
+  it("018/SC-011 o professor escolhe e aplica a prova só com o teclado", async () => {
+    const { api, user } = setup({ ...EXAM_SCOPE, outOfScope: [], coverage: { ...EXAM_SCOPE.coverage!, byTopic: [EXAM_SCOPE.coverage!.byTopic[0]!] } });
+    await chooseByKeyboard(user, await screen.findByRole("radio", { name: "Prova" }));
+    await chooseByKeyboard(user, await screen.findByRole("radio", { name: /Prova de herança/ }));
+    await tabTo(user, screen.getByRole("button", { name: "Continuar" }));
+    await user.keyboard("{Enter}");
+    await screen.findByRole("form", { name: "Dados da atividade" });
+    await tabTo(user, field(NEW_ACTIVITY_FIELD_IDS.durationMinutes));
+    await user.keyboard("{Backspace}{Backspace}{Backspace}30");
+    await tabTo(user, screen.getByRole("button", { name: "Aplicar prova" }));
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`));
+    expect(api.writes()[1]!.body).toMatchObject({ source: { type: "EXAM", examId: EXAM.id }, durationMinutes: 30 });
   });
 
   it("018/US2-2 faixas recusadas no formulário, com o erro ligado ao campo, e nada é enviado", async () => {
@@ -170,6 +198,15 @@ describe("018/US2 ActivityDetail — a prova aplicada abre em \"Chamada e prova\
     expect(await within(section).findByRole("checkbox", { name: "Ana Souza" })).toBeTruthy();
     expect(screen.getAllByText("Aguardando chamada").length).toBeGreaterThan(0);
     await expectNoA11yViolations(container);
+  });
+
+  it("018/US2-3 a confirmação da chamada nomeia a prova: \"Liberar a prova para 1 aluno?\"", async () => {
+    const { user } = setupDetail();
+    const section = await screen.findByRole("region", { name: "Chamada" });
+    await user.click(await within(section).findByRole("checkbox", { name: "Ana Souza" }));
+    await user.click(within(section).getByRole("button", { name: "Liberar para os presentes" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Liberar a prova para 1 aluno?" });
+    expect(within(dialog).getByText("Os alunos marcados passam a ver a prova. Quem chegar depois pode ser marcado a qualquer momento.")).toBeTruthy();
   });
 
   it("018/FR-007 018/FR-010 Informações mostra a duração, a inatividade e os limites, sem prazo, modo editável nem ajuda", async () => {

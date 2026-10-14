@@ -232,8 +232,12 @@ describe("018/US5 ExamRoomPanel — a prova em andamento e as decisões do profe
     expect(screen.getByRole("button", { name: "Ocultar ocorrências Ana Souza" }).getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("axe e teclado: as ações da retenção pelo Tab, e Enter abre a confirmação", async () => {
-    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, monitor([held(), studentRow("Caio Reis", { examStatus: "ANSWERING", endsAt: "2026-10-01T12:30:00.000Z" })])) }).fetch);
+  it("018/SC-011 axe e teclado: as ações da retenção pelo Tab, Enter abre a confirmação e o professor decide só com o teclado", async () => {
+    const api = routedFetch({
+      [`GET ${MONITOR_PATH}`]: json(200, monitor([held(), studentRow("Caio Reis", { examStatus: "ANSWERING", endsAt: "2026-10-01T12:30:00.000Z" })])),
+      [`POST ${PATH}/exam-holds/${HOLD_ID}/cancel`]: json(200, decided("CANCEL_CONFIRMED")),
+    });
+    vi.stubGlobal("fetch", api.fetch);
     const user = userEvent.setup();
     const { container } = render();
     await screen.findByRole("button", { name: "Devolver prova Ana Souza" });
@@ -247,7 +251,10 @@ describe("018/US5 ExamRoomPanel — a prova em andamento e as decisões do profe
     ]);
     await tabTo(user, button("Confirmar cancelamento Ana Souza"));
     await user.keyboard("{Enter}");
-    expect(await screen.findByRole("alertdialog")).toBeTruthy();
+    const dialog = await screen.findByRole("alertdialog");
+    await tabTo(user, within(dialog).getByRole("button", { name: "Confirmar cancelamento" }));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(api.writes()).toEqual([{ method: "POST", url: `${PATH}/exam-holds/${HOLD_ID}/cancel`, body: {} }]));
   });
 });
 

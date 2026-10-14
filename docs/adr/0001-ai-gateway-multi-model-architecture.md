@@ -20,8 +20,12 @@ normativas são, em ordem de precedência:
 | [Spec 009 — Política de modelos](../../specs/009-ai-model-policy/spec.md) | Allowlist de famílias; catálogo em código com nível, modo e ciclo de vida; seleção determinística (FR-008); fallback no mesmo nível (FR-012); escalonamento só por regra explícita (FR-013); nenhum modelo escolhe modelo (FR-011); quality gate por evidência (FR-017); override administrativo; orçamentos observáveis; Jev no modo de decisão (FR-001a, FR-001b) |
 
 A emenda de 2026-09-29 à spec 009 (clarificação "Session 2026-09-29") incluiu a DeepSeek na
-allowlist. A spec 010 (banco de questões) é consumidora desta arquitetura: o `exercise-generator`
-usa o mesmo gateway e a mesma política.
+allowlist. As specs seguintes são consumidoras desta arquitetura, cada uma com o seu agente sobre o
+mesmo gateway e a mesma política, registrado desativado até o administrador habilitá-lo depois do
+release gate da sua tarefa: 010 (`exercise-generator`, tarefa `exercise-generation`), 011
+(`work-generator`, `work-generation`), 015 (`work-helper`, `work-help`) e 018 (`exam-generator`,
+`exam-generation`: "Criar prova com IA" gera um rascunho do Banco de Provas que só o professor aprova,
+e nenhuma chamada de IA acontece durante a prova).
 
 ## 1. Contexto
 
@@ -213,15 +217,16 @@ Provider Routing.
 ### 2.7 Famílias e estado atual do catálogo
 
 Allowlist de produção (`PRODUCTION_MODEL_FAMILIES`): `openai`, `anthropic`, `deepseek` (geração) e
-`typesafe` (decisão). Estado em 2026-09-29:
+`typesafe` (decisão). Estado em 2026-10-14:
 
 | Família | Chave | Nível | Modo | Ciclo de vida | Aprovações |
 |---------|-------|-------|------|---------------|------------|
-| openai | `openai-basic` | BASIC | geração | PRODUCTION | `curriculum-extraction`, `exercise-generation` |
-| openai | `openai-standard`, `openai-advanced` | STANDARD, ADVANCED | geração | CANDIDATE | — |
-| anthropic | `anthropic-basic` | BASIC | geração | CANDIDATE | — (não avaliado: OpenRouter respondeu 402, sem crédito) |
+| openai | `openai-basic` | BASIC | geração | PRODUCTION | `curriculum-extraction`, `exercise-generation`, `work-generation`, `work-help`, `exam-generation` |
+| openai | `openai-standard`, `openai-advanced` | STANDARD, ADVANCED | geração | CANDIDATE | — (`openai-standard` avaliado em `work-help`, sem aprovação) |
+| anthropic | `anthropic-basic` | BASIC | geração | PRODUCTION | `curriculum-extraction`, `exercise-generation`, `exam-generation` (**reprovado** em `work-generation` e `work-help`) |
 | anthropic | `anthropic-standard`, `anthropic-advanced` | STANDARD, ADVANCED | geração | CANDIDATE | — |
-| deepseek | `deepseek-basic` | BASIC | geração | CANDIDATE | — (**reprovado** em `curriculum-extraction` e `exercise-generation`) |
+| deepseek | `deepseek-basic` | BASIC | geração | CANDIDATE | — (**reprovado** em `curriculum-extraction`, `exercise-generation` e `work-generation`) |
+| deepseek | `deepseek-basic-v4`, `deepseek-basic-v4-0731` | BASIC | geração | CANDIDATE | — (sem evidência: falhas de infraestrutura em `work-generation`) |
 | deepseek | `deepseek-standard` | STANDARD | geração | CANDIDATE | — (não avaliado) |
 | typesafe | `typesafe-decision-basic` (Jev) | BASIC | decisão | CANDIDATE | — |
 
@@ -230,9 +235,11 @@ Allowlist de produção (`PRODUCTION_MODEL_FAMILIES`): `openai`, `anthropic`, `d
   geração de exercícios; evidências em `test/fixtures/evaluations/*/deepseek-basic.json`) e **não**
   atende essas tarefas. Uma nova avaliação aprovada, commitada com sua evidência, é o único caminho
   para mudar isso.
-- As duas tarefas em uso são BASIC, com fallback no mesmo nível e escalonamento para STANDARD após
-  saída inválida. Hoje ambas são servidas só pelo `openai-basic`, sem fallback de mesmo nível e sem
-  destino de escalonamento aprovado.
+- As cinco tarefas em uso são BASIC, com fallback no mesmo nível e escalonamento para STANDARD após
+  saída inválida. O `openai-basic`, o mais barato, é o primário de todas; o `anthropic-basic` é o
+  fallback de mesmo nível de `curriculum-extraction`, `exercise-generation` e `exam-generation`;
+  `work-generation` e `work-help` não têm fallback de mesmo nível, e nenhuma tarefa tem destino de
+  escalonamento aprovado. Os resultados de cada release gate estão em `apps/api/CLAUDE.md`.
 
 ### 2.8 Segurança e autorização pertencem ao código
 
@@ -338,6 +345,9 @@ release gate).
   `specs/008-ai-gateway-openrouter/` (G1–G20; G11 e contrato `openrouter-provider.md` para a
   política de provider), `specs/009-ai-model-policy/` (H1–H16; contratos
   `catalog-and-quality-gate.md` e `decisions-provider.md`).
+- Agentes consumidores: `specs/010-exercise-bank/` (X1–X20), `specs/011-work-bank/` (W1–W22),
+  `specs/015-controlled-work-ai-help/` (F1–F18) e `specs/018-controlled-exams/` (T14 e contrato
+  `exam-generator.md`).
 - Código: `apps/api/src/modules/ai/` (`definitions/model-families.ts`, `definitions/model-catalog.ts`,
   `policy/select-route.ts`, `gateway/`, `tools/`, `execution/`, `proposals/`, `operations/`).
 - Evidências de avaliação: `apps/api/test/fixtures/evaluations/`.

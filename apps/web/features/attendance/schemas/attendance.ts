@@ -19,8 +19,17 @@ export const ATTENDANCE_HINT = "Marque os alunos que estão em sala. Só eles ve
 /** "n de m selecionados" while the teacher takes the attendance. */
 export const selectedLabel = (selected: number, total: number) => `${selected} de ${total} selecionados`;
 
-/** "Liberar o trabalho para n alunos?" (the confirmation). */
-export const releaseQuestion = (count: number) => (count === 1 ? "Liberar o trabalho para 1 aluno?" : `Liberar o trabalho para ${count} alunos?`);
+/** What the attendance releases: a work (016) or an exam (018 contracts/web-ui.md). */
+export type ReleasedItem = "WORK" | "EXAM";
+const RELEASED: Record<ReleasedItem, string> = { WORK: "o trabalho", EXAM: "a prova" };
+
+/** "Liberar o trabalho para n alunos?" / "Liberar a prova para n alunos?" (the confirmation). */
+export const releaseQuestion = (count: number, item: ReleasedItem = "WORK") =>
+  `Liberar ${RELEASED[item]} para ${count === 1 ? "1 aluno" : `${count} alunos`}?`;
+
+/** The confirmation's description: who sees what once released. */
+export const releaseNotice = (item: ReleasedItem = "WORK") =>
+  `Os alunos marcados passam a ver ${RELEASED[item]}. Quem chegar depois pode ser marcado a qualquer momento.`;
 
 /** The activity's attendance in words (016/FR-006): never by colour alone. */
 export const attendanceSummary = (attendance: { present: number; enrolled: number }) =>

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StudentPause, TeacherPause } from "@repo/contracts";
+import type { ExamMonitor, StudentActivity, StudentPause, TeacherPause } from "@repo/contracts";
 import { AttemptReview } from "@/features/activities/components/attempt-review";
 import {
   ACTIVITY_ID,
@@ -20,6 +20,10 @@ import {
   teacherAttempt,
 } from "@/features/activities/components/test-fixtures";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { ExamAttempt } from "@/features/exam-attempt/components/exam-shell";
+import { ExamRoomPanel } from "@/features/exam-session/components/exam-room-panel";
+import { ExamDetail } from "@/features/exams/components/exam-detail";
+import { examApiMock, examView } from "@/features/exams/components/test-fixtures";
 import { PausedNotice } from "@/features/attendance/components/paused-notice";
 import { ATTENDANCE_PATH, MARKED_AT, room, student } from "@/features/attendance/components/test-fixtures";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
@@ -37,6 +41,9 @@ import { CodeEditor } from "@/components/ui/code/code-editor";
 import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
 
+// 018: the exam screens navigate (ExamDetail, ExamAttempt); the router is not mounted in a unit test.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+
 const SCRIPT = `<script>alert("xss")</script><img src=x onerror="alert(1)">`;
 const WEB_ROOT = resolve(__dirname, "..");
 // Since 014 also the code components and the bank screens that show or edit code.
@@ -53,6 +60,10 @@ const SCANNED = [
   "features/work-help",
   // 016: the attendance, the room panel and the paused notice.
   "features/attendance",
+  // 018: the Banco de Provas, the student's exam and the teacher's exam room.
+  "features/exams",
+  "features/exam-attempt",
+  "features/exam-session",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -357,6 +368,88 @@ describe("016 nota de \"Outro\" como texto", () => {
     const { container } = renderWithProviders(<ActivityAnswering activityId={delivered.id} userId="aluno-1" />);
     const list = await screen.findByRole("list", { name: "Saídas da sala" });
     expect(list.textContent).toContain(`Outro (${SCRIPT})`);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+});
+
+/**
+ * 018: the exam's statements, answer keys and the student's answers are text. The Banco de Provas
+ * detail (title, statement, expected answer), the student's exam on the focus page (statement and the
+ * saved answer) and the teacher's exam room (the student's name) render them as text, never as HTML.
+ */
+describe("018 prova como texto", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("Banco de Provas: título, enunciado e resposta esperada com HTML ficam como texto nos campos", async () => {
+    const base = examView();
+    const exam = examView({ title: SCRIPT, questions: base.questions.map((question) => ({ ...question, statement: SCRIPT, expectedAnswer: SCRIPT })) });
+    vi.stubGlobal("fetch", vi.fn(examApiMock(() => json(200, exam), { [`/api/exams/${exam.id}`]: () => json(200, exam) })));
+    const { container } = renderWithProviders(<ExamDetail examId={exam.id} canEdit={false} canApprove={false} canArchive={false} />);
+    // The detail is the bank's form: the title, statements and expected answers are field values, never markup.
+    const values = async () => (await screen.findAllByRole("textbox")).map((field) => (field as HTMLInputElement).value);
+    await waitFor(async () => expect((await values()).filter((value) => value === SCRIPT)).toHaveLength(5));
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("prova do aluno na página de foco: enunciado e resposta salva com HTML aparecem como texto", async () => {
+    Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => true });
+    const base = studentActivity();
+    const [open] = base.questions;
+    const startedAt = "2026-10-02T12:00:00.000Z";
+    const exam: StudentActivity = studentActivity({
+      type: "EXAM",
+      executionMode: "CONTROLLED",
+      title: SCRIPT,
+      deadline: null,
+      latePolicy: null,
+      status: "IN_PROGRESS",
+      serverNow: startedAt,
+      questions: [{ ...open!, statement: SCRIPT }],
+      attempt: { number: 1, startedAt, lastSavedAt: null, answers: [{ questionId: open!.id, answer: { kind: "TEXT", text: SCRIPT }, revision: 1 }] },
+      exam: {
+        durationMinutes: 60,
+        inactivityLimitSeconds: 60,
+        startDeadline: "2026-10-02T12:15:00.000Z",
+        endsAt: "2026-10-02T13:00:00.000Z",
+        occurrences: { count: 0, warningsAllowed: 3 },
+        hold: null,
+        endReason: null,
+        ownOccurrences: [],
+      },
+    });
+    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${exam.id}`]: json(200, exam) }).fetch);
+    const { container } = renderWithProviders(<ExamAttempt activityId={exam.id} userId="aluno-1" />);
+    await screen.findByRole("timer", { name: "Tempo restante" });
+    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThan(0);
+    expect((screen.getAllByRole("textbox")[0] as HTMLTextAreaElement).value).toBe(SCRIPT);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("sala da prova do professor: o nome do aluno com HTML aparece como texto", async () => {
+    const monitor: ExamMonitor = {
+      activityId: ACTIVITY_ID,
+      durationMinutes: 30,
+      startDeadline: "2026-10-01T12:15:00.000Z",
+      closesAt: "2026-10-01T12:45:00.000Z",
+      serverNow: "2026-10-01T12:20:00.000Z",
+      students: [
+        {
+          studentUserId: "cccccccc-cccc-4ccc-8ccc-cccccccccc18",
+          name: SCRIPT,
+          markedAt: "2026-10-01T12:00:00.000Z",
+          examStatus: "ANSWERING",
+          attemptId: ATTEMPT_ID,
+          startedAt: "2026-10-01T12:00:00.000Z",
+          endsAt: "2026-10-01T12:30:00.000Z",
+          occurrenceCount: 1,
+          openHold: null,
+          openPause: null,
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", teacherFetch({ [`GET /api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/exam-monitor`]: json(200, monitor) }).fetch);
+    const { container } = renderWithProviders(<ExamRoomPanel classId={CLASS_ID} activityId={ACTIVITY_ID} canDecide active />);
+    await screen.findAllByText(SCRIPT, { exact: false });
     expect(container.querySelector("script, img")).toBeNull();
   });
 });

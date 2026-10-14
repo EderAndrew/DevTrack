@@ -50,11 +50,7 @@ const PENDING_016 = new Set<string>([]);
 /** 018 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
-const PENDING_CHANGED_018 = new Set<string>([
-  "activity_submission.rejected",
-  "activity.result_released",
-  "attempt_pause.write_refused",
-]);
+const PENDING_CHANGED_018 = new Set<string>([]);
 const PENDING = new Set([...PENDING_010, ...PENDING_011, ...PENDING_012, ...PENDING_013, ...PENDING_015, ...PENDING_016, ...PENDING_018]);
 
 interface ContractRow {
@@ -91,7 +87,10 @@ function changedRows(table: string): ContractRow[] {
       const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
       const type = backticked(typeCell!)[0]!;
       if (PENDING_CHANGED_018.has(type)) return [];
-      const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, "")).map((key) => key.split(":")[0]!.trim());
+      // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
+      const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
+        .filter((key) => !/^[A-Z_]+$/.test(key))
+        .map((key) => key.split(":")[0]!.trim());
       return [{ type, actors: [], target: [], metadata }];
     });
 }
@@ -328,6 +327,47 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(released.sort()).toEqual(pauses.filter((pause) => pause.releasedAt !== null).map((pause) => pause.id).sort());
       expect(released).toHaveLength(2);
       expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["EVENTS", "HELP"]);
+    });
+
+    it("018/SC-010 cada encerramento por avisos, cancelamento, devolução e \"não cancelar\" gera exatamente um evento, sem enunciado nem resposta; a decisão repetida nenhum", async () => {
+      const types = rows.map((row) => row.type).filter((type) => /^exam(_generation|_attempt)?\./.test(type));
+      expect(types.sort()).toEqual([
+        "exam.approved",
+        "exam.archived",
+        "exam.created",
+        "exam.edited",
+        "exam.restored",
+        "exam_attempt.cancel_confirmed",
+        "exam_attempt.held",
+        "exam_attempt.not_cancelled",
+        "exam_attempt.returned",
+        "exam_attempt.time_expired",
+        "exam_attempt.write_refused",
+        "exam_generation.completed",
+        "exam_generation.rejected",
+        "exam_generation.requested",
+      ]);
+      const found = events.filter((event) => types.includes(event.type));
+      expect(new Set(found.map((event) => event.type)).size).toBe(types.length);
+      expect(offendingMetadata(found)).toEqual([]);
+      // Two holds (the 4th occurrence, then the 5th after the return) on one attempt and one on the kept
+      // exam; each decided once, the repeated return refused without an event.
+      const holds = await t.prisma.examAttemptHold.findMany({ select: { id: true, attemptId: true } });
+      const holdOf = (type: string) =>
+        found.filter((event) => event.type === type).map((event) => `${event.targetId} ${(event.metadata as { holdId: string }).holdId}`).sort();
+      expect(holdOf("exam_attempt.held")).toEqual(holds.map((hold) => `${hold.attemptId} ${hold.id}`).sort());
+      const decided = ["exam_attempt.returned", "exam_attempt.cancel_confirmed", "exam_attempt.not_cancelled"].map((type) => holdOf(type));
+      expect(decided.map((list) => list.length)).toEqual([1, 1, 1]);
+      expect(new Set(decided.flat()).size).toBe(3);
+      expect(found.filter((event) => event.type === "exam_attempt.held").every((event) => event.actorType === "SYSTEM")).toBe(true);
+      // The 012 types extended by 018 (contracts/audit-events.md, "Changed").
+      const of = (type: string) => events.filter((event) => event.type === type).map((event) => event.metadata as Record<string, unknown>);
+      expect(of("activity.published")).toContainEqual(expect.objectContaining({ type: "EXAM", durationMinutes: 30 }));
+      expect(of("activity_attempt.started")).toContainEqual(expect.objectContaining({ rulesAccepted: true }));
+      expect(of("activity_submission.created")).toContainEqual(expect.objectContaining({ endReason: "STUDENT_SUBMITTED" }));
+      expect(of("activity_submission.rejected").map((metadata) => metadata.code)).toEqual(expect.arrayContaining(["EXAM_ATTEMPT_ON_HOLD", "EXIT_NOT_ALLOWED"]));
+      const exam018 = [...found, ...events.filter((event) => /^activity(_attempt|_submission)?\./.test(event.type))];
+      expect(JSON.stringify(exam018.map((event) => event.metadata))).not.toMatch(/MARCADOR-PROVA-018|jornada dezoito/);
     });
 
     it("017/SC-007 mail_delivery.*: os 3 tipos gravados (falha, descarte, rejeição SMTP e aviso de bounce), metadata só com enums, contagens e códigos", async () => {

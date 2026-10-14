@@ -5,9 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–017 in `specs/` are implemented; 018 (controlled exams)
-is in implementation, phase by phase (`specs/018-controlled-exams/tasks.md`, git log `feat(018)`).
-Later work starts a new feature through `/speckit-specify`.
+test names are in Portuguese). Features 001–018 in `specs/` are implemented. Later work starts a
+new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
@@ -41,9 +40,14 @@ Later work starts a new feature through `/speckit-specify`.
   password reset, admin activation) go through one outbox with retries; provider notices (Resend now,
   AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
   production config guard and the deploy guide `docs/deploy/email.md`.
+- 018 controlled exams: the teacher's own Banco de Provas (1–20 questions with difficulty and topics,
+  manual or "Criar prova com IA" through `exam-generator`, an L2 draft), applied as an EXAM that is
+  always CONTROLLED, help-free and attendance-gated, with a per-student server timer; occurrences give
+  3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time
+  is left, or "Não cancelar" after the end); the teacher's exam monitor and the review with the
+  occurrences and decisions.
 
-Take-home works, AI grading and code execution are later features (exams arrive with 018, summarized
-under "Recent Changes" and the `exams-boundary` guard below). The rules of 012–017 that
+Take-home works, AI grading and code execution are later features. The rules of 012–018 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -250,7 +254,10 @@ the removal conditions are in `DEPENDENCIES.md`.
   exercise results, `ranking` for the 013 class ranking, `attempt-integrity` and `work-help`
   for the 015 integrity events and AI help requests, and `attendance` for the 016 room, attendance
   batch and pauses, and `mail` for the 017 notice route's provider param — the notice body stays the
-  provider's, parsed in the API adapters), with
+  provider's, parsed in the API adapters, and `exams` for the 018 Banco de Provas, its generation
+  requests and the coverage before applying, and `exam-sessions` for the 018 exam monitor and the
+  hold decisions; the exam's fields of the activity, attempt and integrity shapes live in
+  `activities` and `attempt-integrity`), with
   types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
@@ -261,7 +268,7 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`, 018): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -336,6 +343,26 @@ the removal conditions are in `DEPENDENCIES.md`.
   and authenticated only by the provider's signature on the raw body, before any database access;
   it never takes a session or an `Origin`. Account e-mails never show a delivery situation, and the
   public flows answer exactly as before (anti-enumeration).
+- Exams (018): an EXAM activity is always CONTROLLED, with no AI help and only for the students
+  marked present; its body never takes `deadline`, `latePolicy`, `executionMode`, `aiHelpAllowance` or
+  `releaseMode` (400). Duration 1–120 min, inactivity 30–60 s, start window 0–60 min; the start needs
+  `{ acceptRules: true }` and one attempt per student, and after the window `409 EXAM_START_CLOSED`.
+  The end is the server's (`startedAt` + duration, or the activity's close or cancellation if earlier,
+  against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
+  expired attempt is settled by the next touch (`exam_attempt.time_expired`, SYSTEM), never by a job.
+  Countable occurrences (screen, fullscreen, clipboard, `INACTIVITY` with `idleSeconds` 30–60) are
+  grouped within 2 s; occurrences 1–3 are warnings and the 4th opens the hold in the events batch's
+  transaction (`exam_attempt.held`), exactly once even with simultaneous batches. While held, no
+  statement or answer is served, events are stored without counting and every write is refused
+  (`409 EXAM_ATTEMPT_ON_HOLD`). The system never cancels or zeroes an exam: only the teacher's
+  decision does — cancel (zero), return (only while time is left and the activity is active, enforced
+  by a DB trigger too; the end never moves) or "Não cancelar" (only after the end) — and a repeated
+  decision is `409 INVALID_STATE_TRANSITION` with no second event. The result release answers
+  `409 EXAM_DECISIONS_PENDING` while a hold is open; before it the student reads `WARNINGS` for both
+  decisions. Only the teacher pauses an exam ("Sair da sala" → `409 EXIT_NOT_ALLOWED`) and the time
+  keeps running. No AI call happens during an attempt; `exam-sessions` grades only through
+  `activities/submission`. No text says "fraude", "cola" or "violação"; audit metadata carries ids,
+  enums, counts and times, never a statement or an answer.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

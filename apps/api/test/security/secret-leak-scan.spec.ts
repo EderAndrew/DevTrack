@@ -187,6 +187,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "título do pedido de prova (018)",
         "tópico lido pelo gerador de provas (018)",
         "texto gerado pela IA (018)",
+        // 018/SC-010: the student's answer in an exam (MARCADOR-PROVA-018, also in the statement).
+        "resposta do aluno na prova (018)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -202,6 +204,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(helps).toContain("MARCADOR-AJUDA-015");
     expect(helps).toContain("MARCADOR-ORIENTACAO-015");
     expect(serialize(await t.prisma.attemptPause.findMany({ select: { note: true } }))).toContain("MARCADOR-NOTA-016");
+    expect(serialize(await t.prisma.examQuestion.findMany({ select: { statement: true } }))).toContain("MARCADOR-PROVA-018");
+    expect(serialize(await t.prisma.activityAnswer.findMany({ select: { text: true } }))).toContain("MARCADOR-PROVA-018");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );

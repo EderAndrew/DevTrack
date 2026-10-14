@@ -27,6 +27,8 @@ offline states, are keyboard-operable, and show statuses as text, never colour o
 
 The activity detail of an EXAM opens on "Chamada e prova": the 016 checklist/room panel with exam
 columns, refreshed every 5 s.
+The 016 release confirmation names the exam: "Liberar a prova para 1 aluno?" / "Liberar a prova para
+n alunos?" (the 016 text says "o trabalho").
 
 | examStatus | Badge | Action |
 |---|---|---|

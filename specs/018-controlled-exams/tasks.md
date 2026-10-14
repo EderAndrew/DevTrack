@@ -442,30 +442,30 @@ entregue) corrigidas e liberadas.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T051 Auditoria e journey (`018/SC-010`): `apps/api/test/helpers/journey.ts` com prova criada,
+- [X] T051 Auditoria e journey (`018/SC-010`): `apps/api/test/helpers/journey.ts` com prova criada,
   gerada, aplicada, iniciada, retida, cancelada, devolvida, não cancelada e acertada;
   `audit-coverage.spec.ts` (metadados só ids/enums/contagens); `secret-leak-scan.spec.ts` com
   `MARCADOR-PROVA-018` no enunciado e na resposta, fora de auditoria e logs.
-- [ ] T052 [P] Segurança restante em `apps/api/test/security/`:
+- [X] T052 [P] Segurança restante em `apps/api/test/security/`:
   - `018-boundaries.spec.ts`: campos do servidor → 400; 0/1/20/21 questões; duração 0/1/120/121;
     inatividade 29/30/60/61; janela -1/0/60/61; `idleSeconds` fora da faixa; `018/FR-034`
     (nenhuma rota fora do catálogo; Trabalho e Exercício inalterados, `018/SC-012`);
   - `018-rate-limits.spec.ts`: decisões e gerações;
   - `018-performance.spec.ts`: lote de eventos com contagem p95 < 200 ms, monitor de 60 alunos
     p95 < 300 ms, decisão p95 < 300 ms.
-- [ ] T053 [P] Web: varredura de palavras proibidas (`apps/web/test/`), `student-portal-xss.test.tsx`
+- [X] T053 [P] Web: varredura de palavras proibidas (`apps/web/test/`), `student-portal-xss.test.tsx`
   com enunciados da prova, `token-usage`, `identity`, `docs` e `catalog.test.tsx` verdes com os
   componentes novos; `018/SC-011` por teclado nos testes de componente.
-- [ ] T054 E2E `apps/web/e2e/exam.spec.ts` (`018/SC-001`, `018/SC-004`, `018/SC-007`,
+- [X] T054 E2E `apps/web/e2e/exam.spec.ts` (`018/SC-001`, `018/SC-004`, `018/SC-007`,
   `018/SC-011`), com o professor e 2 alunos em contextos separados: criar e aprovar; aplicar com
   duração curta; chamada; aluno A com 3 avisos e a 4ª retendo; devolver; nova ocorrência retendo;
   aluno B deixando o tempo acabar; confirmar o cancelamento de A após o fim; liberar; tudo pelo
   teclado. A redefinição do banco E2E pede consentimento do usuário.
-- [ ] T055 [P] Documentação: `CLAUDE.md` (Project state com a 018, regras fáceis de errar da
+- [X] T055 [P] Documentação: `CLAUDE.md` (Project state com a 018, regras fáceis de errar da
   prova, contratos `exams` e `exam-sessions`, comando `eval:exams`), `apps/api/CLAUDE.md` (módulos,
   helpers, suítes, resultados do release gate), `apps/web/CLAUDE.md` (`features/exams`,
   `exam-session`, `exam-attempt`, componentes Exam Mode), `README.md`, ADR-0001 com o novo agente.
-- [ ] T056 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`;
+- [X] T056 Rodar o `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`;
   `pending` do `SPECS` 018 vazio.
 
 ---

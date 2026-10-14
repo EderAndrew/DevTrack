@@ -1,8 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StudentActivity, StudentExam } from "@repo/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { tabTo } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { ActivityAnswering } from "@/features/student-activities/components/activity-answering";
 import { apiError, json, studentActivity } from "@/features/student-activities/components/test-fixtures";
@@ -64,6 +65,12 @@ function setup(ui: React.ReactElement, current: StudentActivity | (() => Student
       const body = JSON.parse(String(init?.body)) as { answers: { questionId: string }[] };
       return json(200, { savedAt: SERVER_NOW, results: body.answers.map((answer) => ({ questionId: answer.questionId, outcome: "SAVED", revision: 1 })) });
     }
+    if (key === `POST ${DETAIL}/attempt/submit`) {
+      return json(200, exam(
+        { status: "SUBMITTED", canAnswer: false, attempt: { number: 1, startedAt: SERVER_NOW, lastSavedAt: SERVER_NOW, answers: [] }, submission: { submittedAt: SERVER_NOW, late: false, acceptedByTeacher: false, blankCount: 0 } },
+        { endsAt: at(60 * MINUTE), endReason: "STUDENT_SUBMITTED" },
+      ));
+    }
     if (key === `POST ${DETAIL}/attempt/events`) {
       const body = JSON.parse(String(init?.body)) as { events: { eventId: string }[] };
       return json(200, { recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: SERVER_NOW })), exam: null });
@@ -101,7 +108,7 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
     vi.restoreAllMocks();
   });
 
-  it("018/US3-1 018/FR-011 antes de iniciar, as regras; o início só pela ação explícita, com o aceite e a tela cheia", async () => {
+  it("018/US3-1 018/FR-011 018/SC-011 antes de iniciar, as regras; o início só pela ação explícita, com o aceite e a tela cheia", async () => {
     const { container, user, calls } = setup(<ActivityAnswering activityId={exam().id} userId="aluno-1" />, exam());
     const rules = (await screen.findByText("Regras da prova")).closest("section")!;
     expect(rules.textContent).toContain("Duração: 60 minutos");
@@ -121,6 +128,23 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
     expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce();
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/minhas-atividades/${exam().id}/responder`));
     expect(calls.find((call) => call.key === `POST ${DETAIL}/attempt`)?.body).toEqual({ acceptRules: true });
+  });
+
+  it("018/SC-011 responder e entregar a prova só com o teclado", async () => {
+    const { user, calls } = setup(<ExamAttempt activityId={exam().id} userId="aluno-1" />, running(30 * MINUTE));
+    await screen.findByRole("timer", { name: "Tempo restante" });
+    const field = screen.getAllByRole("textbox")[0]!;
+    await tabTo(user, field);
+    await user.keyboard("Herança reaproveita código");
+    await tabTo(user, screen.getByRole("button", { name: "Entregar atividade" }));
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByRole("alertdialog", { name: "Entregar atividade?" });
+    await tabTo(user, within(dialog).getByRole("button", { name: "Entregar" }));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(calls.some((call) => call.key === `POST ${DETAIL}/attempt/submit`)).toBe(true));
+    const sent = calls.find((call) => call.key === `POST ${DETAIL}/attempt/submit`)!.body as { answers: { answer: { text?: string } }[] };
+    const saved = calls.filter((call) => call.key === `PUT ${DETAIL}/attempt/answers`).flatMap((call) => (call.body as typeof sent).answers);
+    expect([...sent.answers, ...saved].some((answer) => answer.answer.text === "Herança reaproveita código")).toBe(true);
   });
 
   it("018/US3-8 passado o limite para iniciar: o aviso, sem botão de início e sem pedido ao servidor", async () => {

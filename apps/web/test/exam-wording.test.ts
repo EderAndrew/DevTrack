@@ -12,6 +12,9 @@ import { ERROR_MESSAGES } from "@/lib/messages/error-messages";
 const WEB_ROOT = resolve(__dirname, "..");
 const SCANNED = [
   "features/exam-attempt",
+  // The teacher's screens (018/FR-032): the exam room, its decisions and occurrences, and the bank.
+  "features/exam-session",
+  "features/exams",
   "components/ui/assessment/warning-dialog.tsx",
   "components/ui/assessment/exam-timer.tsx",
   "components/ui/assessment/time-alert.tsx",
@@ -28,12 +31,15 @@ function files(path: string): string[] {
 const production = () => SCANNED.flatMap(files).filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
 
 describe("018/FR-032 os textos da prova não falam em fraude, cola ou violação", () => {
-  it("018/US4-8 avisos, encerramento, tempo e páginas da prova", () => {
+  it("018/US4-8 avisos, encerramento, tempo, páginas da prova e telas do professor", () => {
     expect(production().length).toBeGreaterThanOrEqual(SCANNED.length);
     const offending = production().flatMap((file) =>
       readFileSync(file, "utf8")
         .split("\n")
-        .flatMap((line, index) => (LABELS.some((label) => label.test(line)) ? [`${relative(WEB_ROOT, file)}:${index + 1}: ${line.trim()}`] : [])),
+        // Comments may name the rule itself ("no text names fraud"); only code and strings are scanned.
+        .flatMap((line, index) =>
+          !/^\s*(\/\/|\/?\*)/.test(line) && LABELS.some((label) => label.test(line)) ? [`${relative(WEB_ROOT, file)}:${index + 1}: ${line.trim()}`] : [],
+        ),
     );
     expect(offending).toEqual([]);
   });
