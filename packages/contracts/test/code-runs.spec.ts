@@ -135,4 +135,21 @@ describe("019 contratos do Code Runner (contracts/http-api.md)", () => {
       expect(accepts(ErrorBodySchema, { statusCode: 409, code, message: "x" }), code).toBe(true);
     }
   });
+
+  it("019/FR-001 422 EXERCISE_RULES aponta exercício, campo e regra, sem texto do exercício", () => {
+    const body = (violations: unknown) => ({ statusCode: 422, code: "EXERCISE_RULES", message: "x", details: { violations } });
+    expect(
+      accepts(
+        ErrorBodySchema,
+        body([
+          { position: 0, field: "testCases", reason: "TEST_CASES_NOT_ALLOWED" },
+          { position: 2, field: "testCases.3.expectedOutput", reason: "TEST_CASE_EXPECTED_OUTPUT" },
+        ]),
+      ),
+    ).toBe(true);
+    expect(accepts(ErrorBodySchema, body([]))).toBe(false);
+    expect(accepts(ErrorBodySchema, body([{ position: 0, field: "testCases", reason: "TEST_CASES_NOT_ALLOWED", expectedOutput: "42" }]))).toBe(false);
+    expect(accepts(ErrorBodySchema, body([{ position: 0, field: "saída esperada", reason: "TEST_CASE_EXPECTED_OUTPUT" }]))).toBe(false);
+    expect(accepts(ErrorBodySchema, body([{ position: 0, field: "testCases", reason: "faltou a saída" }]))).toBe(false);
+  });
 });

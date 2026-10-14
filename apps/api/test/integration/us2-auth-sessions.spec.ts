@@ -65,6 +65,7 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
           roles: [{ key: "STUDENT", status: "ACTIVE" }],
           // 012: the student's activity and grade permissions (contracts/permissions.md); 015 the AI help.
           permissions: [
+            "atividades.proprias.executar",
             "atividades.proprias.responder",
             "atividades.proprias.visualizar",
             "ia.ajuda.pedir",

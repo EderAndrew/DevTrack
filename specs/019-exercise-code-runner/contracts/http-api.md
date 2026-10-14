@@ -59,12 +59,30 @@ execution: {
 
 - `CreateExerciseRequest`/`UpdateExerciseRequest` (and each item of `POST /exercises/sets`) accept
   `testCases?: { input: string; expectedOutput: string; visibility: "PUBLIC" | "PRIVATE" }[]`
-  (0–20, CODE only; another type with a non-empty list → `422 EXERCISE_RULES` with violation
-  `TEST_CASES_NOT_ALLOWED`; >20 → `TEST_CASES_LIMIT`; empty expected output → `TEST_CASE_EXPECTED_OUTPUT`).
+  (0–20, CODE only). More than 20 cases or a text over 10 000 characters is a malformed body (`400`,
+  as the 011 work bank). The rules the server names are `422 EXERCISE_RULES` with
+  `details.violations` (below): cases on another type → `TEST_CASES_NOT_ALLOWED`; an empty expected
+  output → `TEST_CASE_EXPECTED_OUTPUT`.
 - `TeacherExercise` returns `testCases: { position, input, expectedOutput, visibility }[]`.
 - `GET /programming-languages` returns `execution: "java" | "python" | "javascript" | null` per entry.
 
 ## Errors (new codes, web catalog)
 
 `CODE_RUN_NOT_AVAILABLE`, `CODE_RUNNER_UNAVAILABLE`, `SOURCE_TOO_LARGE`, `ATTEMPT_NOT_IN_PROGRESS`
-(if not already in the 012 catalog).
+(if not already in the 012 catalog), and `EXERCISE_RULES`.
+
+### `422 EXERCISE_RULES`
+
+Message: "Revise os campos destacados do exercício antes de salvar." The body carries
+`details.violations` in the shape of the 018 `EXAM_RULES` (`{ position, field, reason }[]`, at least
+one), so the form points at the field and the web needs no new parser:
+
+- `position`: the exercise's index in the request (always `0` on `POST /exercises` and
+  `PUT /exercises/:id`; its index in `exercises` on `POST /exercises/sets`);
+- `field`: the path inside that exercise, e.g. `testCases` or `testCases.3.expectedOutput`;
+- `reason`: a code — `TEST_CASES_NOT_ALLOWED` (field `testCases`) or `TEST_CASE_EXPECTED_OUTPUT`
+  (field `testCases.<n>.expectedOutput`).
+
+Ids, positions and codes only: never an input, an expected output or any text of the exercise.
+`POST /exercises/sets` stays all or nothing: one violation refuses the whole set and lists every
+violation found.

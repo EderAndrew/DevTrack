@@ -14,7 +14,7 @@ One migration (`<ts>_exercise_code_runner`). Nothing existing changes meaning: t
 | Column | Type | Rule |
 |--------|------|------|
 | `id` | uuid PK | |
-| `exercise_id` | uuid FK → `exercises(id)` RESTRICT | |
+| `exercise_id` | uuid FK → `exercises(id)` CASCADE | as `exercise_alternatives`: discarding a draft takes its cases |
 | `position` | int | 0…19; UNIQUE (`exercise_id`, `position`) |
 | `input` | text | ≤ 10 000 chars (may be empty) |
 | `expected_output` | text | 1…10 000 chars |
@@ -43,7 +43,7 @@ One migration (`<ts>_exercise_code_runner`). Nothing existing changes meaning: t
 |--------|------|------|
 | `id` | uuid PK | |
 | `activity_id` | uuid | composite FK (`question_id`, `activity_id`) → `class_activity_questions(id, activity_id)` |
-| `question_id` | uuid | the question is `CODE` (trigger) |
+| `question_id` | uuid | a `CODE` question of an `EXERCISE` activity (trigger) |
 | `attempt_id` | uuid | composite FK (`attempt_id`, `activity_id`, `student_user_id`) → the 012 attempt |
 | `student_user_id` | uuid FK → `users` | |
 | `execution` | text | the profile key copied at creation (CHECK as above) |
@@ -66,9 +66,10 @@ One migration (`<ts>_exercise_code_runner`). Nothing existing changes meaning: t
 - Index (`status`, `created_at`) WHERE `status = 'QUEUED'` (claim); index (`attempt_id`,
   `question_id`, `created_at` DESC) (latest); index (`finished_at`) WHERE `content_purged_at IS NULL`
   (purge).
-- Trigger: transitions only `QUEUED→RUNNING`, `QUEUED→FAILED`, `RUNNING→COMPLETED`,
-  `RUNNING→FAILED`; a final row only accepts the purge (content columns → NULL and
-  `content_purged_at`); no DELETE.
+- Trigger: a run is inserted `QUEUED`; transitions only `QUEUED→RUNNING`, `QUEUED→FAILED`,
+  `RUNNING→COMPLETED`, `RUNNING→FAILED`; what the run is (activity, question, attempt, student,
+  profile, case count, times, source) never changes; a final row only accepts the purge (content
+  columns → NULL and `content_purged_at`, once); no DELETE.
 
 ## New: `code_run_cases`
 
@@ -84,8 +85,9 @@ One migration (`<ts>_exercise_code_runner`). Nothing existing changes meaning: t
 | `exit_code` | int NULL | |
 | `duration_ms` | int | ≥ 0 |
 
-- Inserted only together with the run's `RUNNING → COMPLETED/EXECUTED` (one per PUBLIC case); immutable
-  except the purge.
+- Inserted only together with the run's `RUNNING → COMPLETED/EXECUTED` (one per PUBLIC case: a
+  deferred trigger checks the count at commit, and any other run has none); immutable except the
+  purge.
 
 ## New: `code_runner_heartbeats`
 

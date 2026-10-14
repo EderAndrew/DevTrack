@@ -110,7 +110,7 @@ contratos.
 **Purpose**: migração, permissão, regras puras, porta do sandbox e esqueletos. ⚠️ Nenhuma história
 começa antes desta fase.
 
-- [ ] T006 Teste primeiro: `apps/api/test/integration/019-schema.spec.ts`, com as regras de
+- [X] T006 Teste primeiro: `apps/api/test/integration/019-schema.spec.ts`, com as regras de
   `data-model.md`:
   - `programming_languages.execution`: CHECK e seed (`java`, `python`, `javascript`; as demais NULL);
   - `exercise_test_cases`: só exercício CODE, no máximo 20, posições sem lacuna, saída esperada não
@@ -121,13 +121,13 @@ começa antes desta fase.
     só aceita a purga (conteúdo → NULL + `content_purged_at`); sem DELETE;
   - `code_run_cases`: só caso PUBLIC da questão da execução; posição única; imutável exceto a purga;
   - `code_runner_heartbeats`: chave por worker.
-- [ ] T007 Migração `apps/api/prisma/migrations/<ts>_exercise_code_runner/migration.sql` e
+- [X] T007 Migração `apps/api/prisma/migrations/<ts>_exercise_code_runner/migration.sql` e
   `apps/api/prisma/schema.prisma`, com T006 verde ao final: a coluna `execution` e o seed,
   `exercise_test_cases`, `code_runs`, `code_run_cases`, `code_runner_heartbeats`, os 4 enums, CHECKs,
   índices, gatilhos e o seed de `atividades.proprias.executar` → STUDENT (contracts/permissions.md).
   Na mesma tarefa: `resetDb` (`apps/api/test/helpers/`) apaga as tabelas novas na ordem certa;
   `domain-boundary.spec.ts` fixa os modelos novos.
-- [ ] T008 [P] Regras puras com testes (research B6, B7, B8):
+- [X] T008 [P] Regras puras com testes (research B6, B7, B8):
   - `apps/api/src/modules/code-runs/compare-output.ts` + `compare-output.spec.ts` (`019/FR-012`):
     `\r\n` e `\r`; espaços e tabulações no fim da linha; linhas vazias no fim; diferença de
     maiúsculas, acentos, espaço interno e linha em branco no meio NÃO passam; saída vazia × esperada
@@ -138,13 +138,13 @@ começa antes desta fase.
   - `apps/api/src/modules/code-runs/run-state.ts` + `run-state.spec.ts`: transições válidas e
     inválidas; `staleReason(run, now)` (`EXPIRED` por `deadline_at`, `INTERRUPTED` por
     `lease_until`), recebendo `now` do chamador.
-- [ ] T009 [P] Porta e perfis do sandbox (contracts/sandbox.md):
+- [X] T009 [P] Porta e perfis do sandbox (contracts/sandbox.md):
   `apps/api/src/code-runner/sandbox/sandbox.port.ts`, `fake-sandbox.ts` (resultados programáveis por
   caso, contagem de chamadas, falha simulada do daemon) e `apps/api/src/code-runner/profiles.ts`
   (digests da T001, rótulos de versão, comandos, convenção, o enquadramento do prelúdio) +
   `profiles.spec.ts` (comandos montados, enquadramento com bytes multibyte, nenhuma variável de
   ambiente do worker passada ao container, flags de B3 presentes, `--runtime` só quando configurado).
-- [ ] T010 [P] Esqueletos e guardas (research B15):
+- [X] T010 [P] Esqueletos e guardas (research B15):
   - `apps/api/src/modules/code-runs/code-runs.module.ts` registrado no `AppModule`;
     `apps/api/src/code-runner/{main.ts,code-runner.module.ts}` (contexto Nest mínimo: config,
     Prisma, relógio, auditoria, logs; não registrado no `AppModule`);
@@ -157,7 +157,7 @@ começa antes desta fase.
     `activities/grading`, `activities/results`, `ranking` ou pontos (`019/FR-008`); chamadas de
     auditoria e log de `code-runs`/`code-runner` sem `sourceCode`, `stdout`, `stderr`, `input`,
     `expectedOutput` ou `compileOutput`; controle de que cada varredura acha o padrão proibido.
-- [ ] T011 Acrescentar `019` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
+- [X] T011 Acrescentar `019` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
   `stories: 4`, `scenarios: 24`, `rows: 0`, `successCriteria: sc(1, 8)` e
   `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-008"] }`. Cada história sai
   de `pending` na tarefa que escreve o último teste dela, cada SC quando o teste que o cita entra; ao
@@ -178,7 +178,8 @@ aplicar; editar os casos no banco e conferir que a atividade já aplicada não m
 
 - [ ] T012 [P] [US2] `apps/api/test/integration/019-us2-test-cases.spec.ts`: `019/US2-1`…`019/US2-5`,
   `019/FR-001`…`019/FR-003` (0, 1, 20 e 21 casos; entrada vazia aceita; saída esperada vazia → 422
-  `TEST_CASE_EXPECTED_OUTPUT`; casos em Múltipla escolha → 422 `TEST_CASES_NOT_ALLOWED`; edição de
+  `EXERCISE_RULES`/`TEST_CASE_EXPECTED_OUTPUT`; casos em Múltipla escolha → 422
+  `EXERCISE_RULES`/`TEST_CASES_NOT_ALLOWED`; 21 casos → 400; edição de
   APPROVED continua APPROVED (010); `sets` com casos; snapshot copia na ordem e edição posterior não
   muda a atividade; exercício sem caso público aplicado normalmente; rascunho de "Criar com IA" sem
   casos e o agente intocado — nenhum campo novo na proposta da 010; auditoria com

@@ -260,10 +260,8 @@ describe("010/US1 criar exercícios manualmente", () => {
     expect(res.body).toHaveLength(13);
     const names = res.body.map((language: { name: string }) => language.name);
     expect(names).toEqual([...names].sort((a: string, b: string) => a.localeCompare(b, "pt-BR")));
-    expect(res.body[0]).toEqual({ id: expect.any(String), key: expect.any(String), name: expect.any(String), highlight: expect.any(String),
-      // 019: the Code Runner profile; null until the catalog column and its seed (019 T006–T007).
-      execution: null,
-    });
+    // 019: `execution` is the Code Runner profile of the catalog (research B5); Angular, the first by name, has none.
+    expect(res.body[0]).toEqual({ id: expect.any(String), key: expect.any(String), name: expect.any(String), highlight: expect.any(String), execution: null });
   });
 
   it("010/US1-6 010/SC-001 nenhuma execução nem custo de IA depois de toda a criação manual", async () => {

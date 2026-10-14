@@ -133,6 +133,7 @@ export const ERROR_MESSAGES = {
   CODE_RUNNER_UNAVAILABLE: "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente.",
   SOURCE_TOO_LARGE: "O código passou do tamanho máximo de 64 KB.",
   ATTEMPT_NOT_IN_PROGRESS: "Comece ou refaça os exercícios para executar o código.",
+  EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

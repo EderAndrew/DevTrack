@@ -61,6 +61,7 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
         roles: [{ key: "STUDENT", status: "ACTIVE" }],
         // 012: the student's activity and grade permissions (contracts/permissions.md); 015 the AI help.
         permissions: [
+          "atividades.proprias.executar",
           "atividades.proprias.responder",
           "atividades.proprias.visualizar",
           "ia.ajuda.pedir",

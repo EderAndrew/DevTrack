@@ -124,6 +124,7 @@ export const ErrorCodeSchema = z.enum([
   "CODE_RUNNER_UNAVAILABLE",
   "SOURCE_TOO_LARGE",
   "ATTEMPT_NOT_IN_PROGRESS",
+  "EXERCISE_RULES",
   "NOTICE_REJECTED",
   "NOTICE_TOO_LARGE",
   "RATE_LIMITED",
@@ -133,7 +134,9 @@ export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
 
 /**
  * One rule an exam's question breaks (018 `422 EXAM_RULES`): its 0-based position, the field and a
- * code, so the editor points at the question. Never the question's text.
+ * code, so the editor points at the question. Never the question's text. The exercise bank's `422
+ * EXERCISE_RULES` (019) uses the same shape: the exercise's index in the request, the field inside it
+ * (`testCases.3.expectedOutput`) and the rule's code.
  */
 export const ExamRuleViolationSchema = z.strictObject({
   position: z.int().min(0),
@@ -145,7 +148,7 @@ export type ExamRuleViolation = z.infer<typeof ExamRuleViolationSchema>;
 /**
  * What a refusal names for the caller to act on, only where its contract says so: the students of
  * the teacher's own class who already started (016 `409 ATTENDANCE_STARTED`), the questions an exam's
- * rules refuse (018 `422 EXAM_RULES`), the holds still waiting for a decision (018 `409
+ * or an exercise's rules refuse (018 `422 EXAM_RULES`, 019 `422 EXERCISE_RULES`), the holds still waiting for a decision (018 `409
  * EXAM_DECISIONS_PENDING`) and why a code question can't run (019 `409 CODE_RUN_NOT_AVAILABLE`).
  * Ids, positions, codes and counts only, never data.
  */
