@@ -5,6 +5,7 @@ import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-b
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverified-accounts.job";
 import { hashToken } from "../../src/platform/crypto/tokens";
+import { RateLimitService } from "../../src/platform/rate-limit/rate-limit.service";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
@@ -1209,6 +1210,10 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   );
   expect(await createRunWorker(t, { now: () => new Date() }, { sandbox: runSandbox }).worker.runOnce()).toBe(1);
   expect((await runClient.get(`/api/me/code-runs/${runRequest.body.id}`)).body).toMatchObject({ status: "COMPLETED", passedCount: 0 });
+  // 019/US3 — the minute's limit used up (filled in one hit): the next new run is refused (`code_run.rate_limited`).
+  const runLimit = t.config.rateLimit.codeRunsPerMinute;
+  await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
+  expect((await requestRun(runClient, runExercise.activity.id, runExercise.questionIds[0]!, "print('de novo')")).status).toBe(429);
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

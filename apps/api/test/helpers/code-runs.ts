@@ -2,7 +2,7 @@ import type { CodeRun, ExecutionKey } from "@repo/contracts";
 import type { SchoolClass } from "../../src/generated/prisma/client";
 import { CodeRunnerHeartbeat } from "../../src/code-runner/heartbeat";
 import { FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import type { SandboxPort } from "../../src/code-runner/sandbox/sandbox.port";
+import type { CaseResult, SandboxLimits, SandboxPort } from "../../src/code-runner/sandbox/sandbox.port";
 import { CodeRunWorker } from "../../src/code-runner/worker";
 import { PROFILES } from "../../src/code-runner/profiles";
 import { AuditService } from "../../src/modules/audit/audit.service";
@@ -78,6 +78,32 @@ export async function seedHeartbeat(
   const workerId = options.workerId ?? "worker-de-teste";
   const data = { lastSeenAt: at, executions, limits: options.limits ?? DEFAULT_HEARTBEAT_LIMITS };
   await t.prisma.codeRunnerHeartbeat.upsert({ where: { workerId }, create: { workerId, startedAt: at, ...data }, update: data });
+}
+
+/** A sandbox whose `runCase` waits until `release()` is called: a run held in the middle. */
+export class HeldSandbox extends FakeSandbox {
+  private gate: (() => void) | null = null;
+  readonly started: Promise<void>;
+  private markStarted!: () => void;
+
+  constructor() {
+    super();
+    this.started = new Promise((resolve) => (this.markStarted = resolve));
+  }
+
+  release(): void {
+    this.gate?.();
+  }
+
+  override async runCase(key: ExecutionKey, artifact: Uint8Array, stdin: string, limits: SandboxLimits, runId: string): Promise<CaseResult> {
+    if (!this.gate) {
+      await new Promise<void>((resolve) => {
+        this.gate = resolve;
+        this.markStarted();
+      });
+    }
+    return super.runCase(key, artifact, stdin, limits, runId);
+  }
 }
 
 /** The worker of a suite: the app's Prisma, audit and config, the suite's clock and a `FakeSandbox`. */

@@ -168,7 +168,7 @@ commands in the database (a teacher-editable command line would be code injectio
 
 | Condition | Verdict |
 |-----------|---------|
-| killed by the time limit (in-container `timeout` exit 137 after the limit, or the worker timer) | `TIME_LIMIT` |
+| killed by the time limit (in-container `timeout` exit 137 or 124 after the limit, or the worker timer) | `TIME_LIMIT` |
 | stdout over 64 KB | `OUTPUT_LIMIT` (the worker kills the container) |
 | container `OOMKilled`, exit 137 without timeout, Java `OutOfMemoryError`, Node heap-limit exit | `MEMORY_LIMIT` |
 | any other non-zero exit | `RUNTIME_ERROR` (stderr shown) |
@@ -181,6 +181,11 @@ fails with `SANDBOX_ERROR` (B8).
 
 **Rationale**: deterministic and testable without Docker (constitution XII); the classification
 table is the contract the sandbox suite checks.
+
+**Note (2026-10-15, T033)**: `exec timeout -s KILL` makes `timeout` the container's PID 1, and the kernel
+shields a namespace's PID 1 from the KILL `timeout` also sends to its own group; it then lives on and
+exits 124 instead of 137 (seen with the JVM in an infinite loop). Both codes count as the time limit
+once the case ran at least the limit; 137 before the limit stays the memory cgroup.
 
 ## B7 — Output comparison (pure `compare-output.ts`)
 

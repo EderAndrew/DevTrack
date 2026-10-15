@@ -298,36 +298,36 @@ funcionando com a execução desligada ou fora do ar.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T028 [P] [US3] `apps/api/test/sandbox/019-hostile.spec.ts` (Docker real; `019/US3-1`…`019/US3-3`,
+- [X] T028 [P] [US3] `apps/api/test/sandbox/019-hostile.spec.ts` (Docker real; `019/US3-1`…`019/US3-3`,
   `019/FR-013`, `019/SC-003`), nas três linguagens onde fizer sentido: conexão de rede (TCP para o
   host e DNS) falha; `/etc/passwd` do container sem nada da plataforma e ambiente sem variáveis do
   worker; escrita fora de `/tmp` recusada; encher `/tmp` para em 32 MB; fork bomb contida pelo
   `pids-limit`; laço infinito → `TIME_LIMIT` dentro de limite + 1 s; alocação sem fim →
   `MEMORY_LIMIT`; 10 MB de saída → `OUTPUT_LIMIT`; `kill -9 -1` não afeta o worker; depois de cada
   um, uma execução normal seguinte passa e não sobra container com o rótulo.
-- [ ] T029 [P] [US3] `apps/api/test/integration/019-us3-availability.spec.ts` (`019/US3-4`…`019/US3-7`,
+- [X] T029 [P] [US3] `apps/api/test/integration/019-us3-availability.spec.ts` (`019/US3-4`…`019/US3-7`,
   `019/FR-014`…`019/FR-017`, `019/SC-007`): `CODE_RUNNER_ENABLED=false` → visão `UNAVAILABLE`, POST
   409 `CODE_RUNNER_UNAVAILABLE`, enfileiradas → FAILED/DISABLED no próximo toque; heartbeat velho →
   `UNAVAILABLE`; fila sem worker por 60 s → FAILED/EXPIRED na leitura, nunca executada depois;
   lease vencido → INTERRUPTED; com a execução fora, responder, salvar, concluir, refazer, corrigir
   (013) e ranking funcionam; a tela mostra os limites do heartbeat.
-- [ ] T030 [P] [US3] `apps/api/test/security/019-rate-limits.spec.ts` (`019/FR-015`, `019/SC-005`):
+- [X] T030 [P] [US3] `apps/api/test/security/019-rate-limits.spec.ts` (`019/FR-015`, `019/SC-005`):
   limite baixado no teste; a (N+1)ª no minuto → 429 com `Retry-After`, nenhuma execução criada,
   `code_run.rate_limited`; devolver a pendente não conta; outro aluno segue.
-- [ ] T031 [P] [US3] `apps/api/test/security/019-concurrency.spec.ts`: 10 POSTs simultâneos do mesmo
+- [X] T031 [P] [US3] `apps/api/test/security/019-concurrency.spec.ts`: 10 POSTs simultâneos do mesmo
   aluno → uma execução; acerto de velhas pela API e pelo worker ao mesmo tempo → um só
   `code_run.finished`; resultado × expiração → um estado final.
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Ligar o limite (`RateLimitService`, escopo `code-runs`, contado só ao criar) e o
+- [X] T032 [US3] Ligar o limite (`RateLimitService`, escopo `code-runs`, contado só ao criar) e o
   kill switch no `code-runs.service.ts`; disponibilidade por perfil em `availability.ts` com
   `CODE_RUNNER_STALE_SECONDS`; o worker respeita o próprio `CODE_RUNNER_ENABLED`.
-- [ ] T033 [US3] Endurecer o `docker-sandbox.ts` até a T028 passar (ajustes de flags, limites de
+- [X] T033 [US3] Endurecer o `docker-sandbox.ts` até a T028 passar (ajustes de flags, limites de
   bytes, classificação de memória do Java e do Node) e a medição `apps/api/test/sandbox/019-timing.spec.ts`
   (`019/SC-001`: 5 casos em ≤ 5 s Python/JavaScript e ≤ 10 s Java, p95 de 20 execuções; 40
   execuções com 4 vagas, 95% em ≤ 30 s).
-- [ ] T034 [US3] Web: estados `UNAVAILABLE`, `FAILED` ("Não foi possível executar agora. Tente de
+- [X] T034 [US3] Web: estados `UNAVAILABLE`, `FAILED` ("Não foi possível executar agora. Tente de
   novo.") e 429 no painel, com testes em `code-run-panel.test.tsx` (`019/US3-4`, `019/US3-5`).
 
 **Checkpoint**: suíte hostil verde no Docker local; exercício completo com o worker parado.

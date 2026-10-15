@@ -6,7 +6,7 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { tabTo } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { apiError, json } from "@/features/student-activities/components/test-fixtures";
-import { NO_PUBLIC_CASES, OTHER_QUESTION, QUEUED, RUN_HINT, RUNNER_UNAVAILABLE, RUNNING } from "../schemas/code-run";
+import { NO_PUBLIC_CASES, OTHER_QUESTION, QUEUED, RUN_FAILED, RUN_HINT, RUNNER_UNAVAILABLE, RUNNING } from "../schemas/code-run";
 import { CodeRunPanel } from "./code-run-panel";
 import { ACTIVITY_ID, available, codeRun, OTHER_QUESTION_ID, pendingRun, PUBLIC_CASES, QUESTION_ID, RUN_ID, SOURCE } from "./test-fixtures";
 
@@ -136,7 +136,7 @@ describe("019/US1 \"Executar\" numa questão de Código do exercício", () => {
     expect(((await runButton()) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("019/FR-015 429: o tempo de espera, sem execução", async () => {
+  it("019/US3-4 019/FR-015 429: o tempo de espera, sem execução", async () => {
     const limited = () =>
       new Response(JSON.stringify({ statusCode: 429, code: "RATE_LIMITED", message: "x" }), {
         status: 429,
@@ -145,9 +145,42 @@ describe("019/US1 \"Executar\" numa questão de Código do exercício", () => {
     const { user } = setup({ [`GET ${LATEST}`]: [json(200, { run: null })], [`POST ${RUNS}`]: [limited] });
     await user.click(await runButton());
     expect(await screen.findByText("Muitas execuções seguidas. Tente de novo em 12 s.")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Muitas execuções seguidas. Tente de novo em 12 s.");
+    // No result, and the button is back for when the wait is over.
+    expect(screen.queryByText(/casos públicos passaram/)).toBeNull();
+    expect(((await runButton()) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("019/US1-1 indisponível, sem casos públicos, sem execução na linguagem e fora do exercício", async () => {
+  it("019/US3-5 019/FR-016 a execução ficou indisponível depois de abrir a questão: a mensagem, sem resultado, e o resto segue", async () => {
+    const { user } = setup({
+      [`GET ${LATEST}`]: [json(200, { run: null })],
+      [`POST ${RUNS}`]: [apiError(409, "CODE_RUNNER_UNAVAILABLE", "x")],
+    });
+    await user.click(await runButton());
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente."));
+    expect(screen.queryByText(/casos públicos passaram/)).toBeNull();
+    expect(((await runButton()) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("019/US3-5 019/US3-6 a execução pendente terminou FAILED: \"Não foi possível executar agora\" e Executar de novo", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const failed = codeRun({ status: "FAILED", failureReason: "EXPIRED", outcome: null, passedCount: null, cases: [] });
+    const { user, calls } = setup({
+      [`GET ${LATEST}`]: [json(200, { run: null })],
+      [`POST ${RUNS}`]: [json(202, pendingRun("QUEUED")), json(202, codeRun())],
+      [`GET ${RUN}`]: [json(200, failed)],
+    });
+    await user.click(await runButton());
+    await act(async () => vi.advanceTimersByTimeAsync(CODE_RUN_POLL_MS + 10));
+    expect(await screen.findByText(RUN_FAILED)).toBeTruthy();
+    expect(screen.queryByText(/casos públicos passaram/)).toBeNull();
+    const again = (await runButton()) as HTMLButtonElement;
+    expect(again.disabled).toBe(false);
+    await user.click(again);
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(2);
+  });
+
+  it("019/US1-1 019/US3-5 indisponível, sem casos públicos, sem execução na linguagem e fora do exercício", async () => {
     const unavailable = setup({}, { status: "UNAVAILABLE", languageVersion: null, convention: "STDIN_STDOUT", limits: null });
     expect(screen.getByText(RUNNER_UNAVAILABLE)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();

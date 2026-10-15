@@ -295,6 +295,8 @@ export const AUDIT_EVENT_METADATA = {
   // program, an input, an output or a compiler message. `verdicts` counts the cases per verdict.
   "code_run.requested": ["activityId", "questionId", "execution", "publicCaseCount", "sourceBytes"],
   "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
+  // 019 — a new run refused by the per-minute limit (research B11): no run was created, no target.
+  "code_run.rate_limited": ["scope"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

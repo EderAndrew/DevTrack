@@ -255,8 +255,9 @@ const SPECS: FeatureSpec[] = [
     // last test, each SC with the test that cites it, so the lists are empty at the end of T040.
     // SC-006 since Phase 2 (code-runner-boundary.spec.ts: no content in audit or logs); US2 (with SC-002,
     // 019-private-cases.spec.ts) since Phase 3; US1, SC-004 and SC-008 (019-us1-run, 019-invariance, the web
-    // code-run panel) since Phase 4.
-    pending: { stories: [3, 4], successCriteria: ["SC-001", "SC-003", "SC-005", "SC-007"] },
+    // code-run panel) since Phase 4; US3 with SC-001, SC-003 (test/sandbox: timing and the hostile suite),
+    // SC-005 (019-rate-limits) and SC-007 (019-us3-availability) since Phase 5.
+    pending: { stories: [4], successCriteria: [] },
   },
 ];
 

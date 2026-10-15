@@ -5,8 +5,9 @@ import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound } from "../../platform/http/errors";
+import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
+import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { RunnerAvailability, questionExecution } from "./availability";
@@ -19,6 +20,17 @@ const LATEST_ROUTE = `${RUNS_ROUTE}/latest`;
 
 /** Thrown inside the transaction when the question is outside the student's context (→ 404 after the rollback). */
 class OutOfContext extends Error {}
+
+/** Thrown inside the transaction when a new run passes the per-minute limit (→ 429 after the rollback). */
+class OverRate extends Error {
+  constructor(readonly retryAfterSec: number) {
+    super("code-runs rate limit");
+  }
+}
+
+/** The rate-limit scope of new runs (research B11), also the audit metadata of a refusal. */
+const RATE_SCOPE = "code-runs";
+const MINUTE_SEC = 60;
 
 /** The CODE question of an EXERCISE the student may run: its profile key and its PUBLIC case count. */
 interface RunnableQuestion {
@@ -34,7 +46,10 @@ interface RunnableQuestion {
  * (`409 ATTEMPT_NOT_IN_PROGRESS`), a language with execution and a PUBLIC case (`409
  * CODE_RUN_NOT_AVAILABLE`) and a live worker (`409 CODE_RUNNER_UNAVAILABLE`). One pending run per
  * student (partial UNIQUE, `INSERT … ON CONFLICT DO NOTHING`): a new request while one is pending
- * returns it (200). Reading or creating settles the student's stale runs first. Nothing here
+ * returns it (200). Only a new run counts toward `RATE_LIMIT_CODE_RUNS_PER_MINUTE` (research B11):
+ * past it, `429` with `Retry-After`, no run, and `code_run.rate_limited` recorded after the rollback.
+ * The kill switch and a dead worker answer `409 CODE_RUNNER_UNAVAILABLE` (research B10).
+ * Reading or creating settles the student's stale runs first. Nothing here
  * touches the answer, the attempt, the conclusion, the points or the ranking (FR-008).
  */
 @Injectable()
@@ -44,6 +59,7 @@ export class CodeRunsService {
     private readonly audit: AuditService,
     private readonly loader: StudentActivityLoader,
     private readonly availability: RunnerAvailability,
+    private readonly rateLimit: RateLimitService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -82,6 +98,9 @@ export class CodeRunsService {
           if (pending) return { runId: pending.id, created: false };
         }
         if (!id) throw new AppException("CODE_RUNNER_UNAVAILABLE");
+        // Counted on this `tx`, which holds the new run: a refusal rolls back the run and the count.
+        const rate = await this.rateLimit.hit(RATE_SCOPE, studentUserId, { limit: this.config.rateLimit.codeRunsPerMinute, windowSec: MINUTE_SEC }, tx);
+        if (rate.blocked) throw new OverRate(rate.retryAfterSec);
         const sourceBytes = utf8ByteLength(body.sourceCode);
         await this.audit.record(tx, {
           type: "code_run.requested",
@@ -102,6 +121,7 @@ export class CodeRunsService {
       }));
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, RUNS_ROUTE, requestId);
+      if (error instanceof OverRate) return this.overRate(studentUserId, error, requestId);
       throw error;
     }
     return { run: await this.read(runId), created };
@@ -168,6 +188,18 @@ export class CodeRunsService {
 
   private async read(runId: string): Promise<CodeRun> {
     return toStudentRun(await this.prisma.codeRun.findUniqueOrThrow({ where: { id: runId }, select: CODE_RUN_SELECT }));
+  }
+
+  /** 429 with `Retry-After`, auditing `code_run.rate_limited` once the refused run is rolled back. */
+  private async overRate(studentUserId: string, error: OverRate, requestId: string | null): Promise<never> {
+    await this.audit.record(this.prisma, {
+      type: "code_run.rate_limited",
+      actorType: "USER",
+      actorUserId: studentUserId,
+      requestId,
+      metadata: { scope: RATE_SCOPE },
+    });
+    throw rateLimited(error.retryAfterSec);
   }
 
   /** 404, auditing `student_access.denied` when the activity exists (012 research P18). */

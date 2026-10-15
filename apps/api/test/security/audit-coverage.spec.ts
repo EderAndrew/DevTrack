@@ -53,7 +53,7 @@ const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_019 = new Set<string>(["code_run.rate_limited"]);
+const PENDING_019 = new Set<string>([]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,

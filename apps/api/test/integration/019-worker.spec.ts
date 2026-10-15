@@ -1,40 +1,12 @@
-import type { ExecutionKey } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import type { CaseResult, SandboxLimits } from "../../src/code-runner/sandbox/sandbox.port";
 import { createClassWithStudents, startAttempt } from "../helpers/activities";
 import { FixedClock, MINUTE } from "../helpers/clock";
-import { createCodeExercise, createRunWorker, doubles, requestRun, seedHeartbeat } from "../helpers/code-runs";
+import { createCodeExercise, createRunWorker, doubles, HeldSandbox, requestRun, seedHeartbeat } from "../helpers/code-runs";
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 type Client = ReturnType<typeof api>;
-
-/** A sandbox whose `runCase` waits until `release()` is called: a run held in the middle. */
-class HeldSandbox extends FakeSandbox {
-  private gate: (() => void) | null = null;
-  readonly started: Promise<void>;
-  private markStarted!: () => void;
-
-  constructor() {
-    super();
-    this.started = new Promise((resolve) => (this.markStarted = resolve));
-  }
-
-  release(): void {
-    this.gate?.();
-  }
-
-  override async runCase(key: ExecutionKey, artifact: Uint8Array, stdin: string, limits: SandboxLimits, runId: string): Promise<CaseResult> {
-    if (!this.gate) {
-      await new Promise<void>((resolve) => {
-        this.gate = resolve;
-        this.markStarted();
-      });
-    }
-    return super.runCase(key, artifact, stdin, limits, runId);
-  }
-}
 
 /**
  * 019 research B8, B10, FR-017: the queue is a table. Several workers never take the same run

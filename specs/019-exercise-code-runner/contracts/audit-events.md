@@ -10,7 +10,7 @@ expected or obtained output, a compiler message or stderr (`code-runner-boundary
 |---|---|---|---|
 | `code_run.requested` | USER | CODE_RUN | `activityId`, `questionId`, `execution`, `publicCaseCount`, `sourceBytes` |
 | `code_run.finished` | SYSTEM | CODE_RUN | `status`, `outcome`, `failureReason`, `passedCount`, `publicCaseCount`, `durationMs`, `verdicts` (count per verdict) |
-| `code_run.rate_limited` | USER | — | `scope: "code-runs"` |
+| `code_run.rate_limited` | USER | — | `scope` (always `"code-runs"`) |
 
 `code_run.finished` is written in the transaction that makes the run final: by the worker
 (`COMPLETED`, `FAILED/SANDBOX_ERROR`, `FAILED/INTERRUPTED` it settles) or by the API settlement

@@ -1,4 +1,7 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { CodeRunVerdict, ExecutionKey } from "@repo/contracts";
+import { RUN_LABEL } from "../../src/code-runner/profiles";
 import { DockerSandbox } from "../../src/code-runner/sandbox/docker-sandbox";
 import type { CaseResult, SandboxLimits } from "../../src/code-runner/sandbox/sandbox.port";
 import { caseVerdict } from "../../src/modules/code-runs/verdict";
@@ -33,4 +36,10 @@ export async function runProgram(key: ExecutionKey, source: string, cases: { inp
 export function verdicts(result: ProgramResult): CodeRunVerdict[] {
   if (!result.compiled) throw new Error(`não compilou: ${result.output}`);
   return result.cases.map((item) => item.verdict);
+}
+
+/** The ids of the containers still labelled for a run: none once a run is over (research B3). */
+export async function leftoverContainers(): Promise<string[]> {
+  const { stdout } = await promisify(execFile)("docker", ["ps", "-aq", "--filter", `label=${RUN_LABEL}`]);
+  return stdout.split(/\s+/).filter(Boolean);
 }

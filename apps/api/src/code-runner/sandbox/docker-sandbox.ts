@@ -17,6 +17,12 @@ const KILL_GRACE_MS = 1000;
 const DOCKER_RUN_FAILURE = new Set([125, 126, 127]);
 /** `timeout -s KILL` and an OOM kill both end the process with SIGKILL: 128 + 9. */
 const KILLED = 137;
+/**
+ * GNU `timeout`'s own status when the command timed out. As the container's PID 1 (`exec timeout`),
+ * the KILL it also sends to its own group can't kill it (the kernel shields PID 1 of a namespace), so
+ * it lives on and exits 124 instead of 137 (seen with the JVM).
+ */
+const TIMED_OUT = 124;
 
 interface Spawned {
   exitCode: number | null;
@@ -159,8 +165,10 @@ export class DockerSandbox implements SandboxPort {
     if (!result.killedByTimer && !result.stdoutExceeded && result.exitCode !== null && DOCKER_RUN_FAILURE.has(result.exitCode)) {
       throw new SandboxError("UNEXPECTED");
     }
-    // A SIGKILL after the limit is the in-container `timeout`; before it, the memory cgroup (research B6).
-    const timedOut = result.killedByTimer || (result.exitCode === KILLED && result.durationMs >= limits.timeMs);
+    // A SIGKILL (or `timeout`'s 124) after the limit is the in-container `timeout`; a SIGKILL before it,
+    // the memory cgroup (research B6).
+    const atLimit = result.durationMs >= limits.timeMs;
+    const timedOut = result.killedByTimer || (atLimit && (result.exitCode === KILLED || result.exitCode === TIMED_OUT));
     return {
       exitCode: result.exitCode,
       stdout: result.stdout.toString("utf8"),
