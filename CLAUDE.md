@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–018 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–019 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -46,12 +46,15 @@ new feature through `/speckit-specify`.
   3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time
   is left, or "Não cancelar" after the end); the teacher's exam monitor and the review with the
   occurrences and decisions.
+- 019 Code Runner, first stage: the teacher types 0–20 test cases (input, expected output,
+  PUBLIC/PRIVATE) on a CODE exercise of the bank, copied into the activity snapshot; on an EXERCISE CODE
+  question the student's "Executar" queues a `code_runs` row that a separate worker
+  (`apps/api/src/code-runner/`, `dist/code-runner/main.js`) runs against the public cases, one hardened
+  Docker container per step (gVisor `runsc` in production, deploy guide `docs/deploy/code-runner.md`);
+  a verdict per case, never points or grades; content purged after 24 h (job `code-run-content`).
 
-019 (Code Runner, first stage) is in progress — check `specs/019-exercise-code-runner/tasks.md` for
-the phases done: teacher-typed test cases on exercise CODE questions and "Executar" against the
-public cases in a separate worker (`apps/api/src/code-runner/`, one hardened container per step),
-never points or grades. Take-home works and AI grading are later features. The rules of 012–018 that
-are easy to break are under "Rules that are easy to get wrong" below.
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–019 that are
+easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
 registered DISABLED until the admin enables them. All five tasks are BASIC; each task's primary and fallback come from the 009
@@ -128,7 +131,7 @@ pnpm --filter api test                                  # all unit + integration
 pnpm --filter api test test/integration/003-us6-enrollments.spec.ts      # single file (no `--`: pnpm 11 passes it on and vitest drops the filter)
 pnpm --filter api test -t "<test name>"                          # single test, or an id prefix such as "009/"
 pnpm --filter api test:security                         # test/security only
-pnpm --filter api test:sandbox                          # 019: real Docker sandbox (test/sandbox); `pnpm test`/CI use the FakeSandbox
+pnpm --filter api test:sandbox                          # 019: real Docker sandbox (test/sandbox), CI job `sandbox`; `pnpm test` uses the FakeSandbox
 pnpm --filter api code-runner:images                    # 019: pull the pinned runner images (runs dist/)
 pnpm --filter api code-runner:start                     # 019: the worker process (dist/code-runner/main.js); `pnpm dev` already runs code-runner:dev
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
@@ -157,7 +160,8 @@ build `packages/contracts` first (turbo `^build`); a filtered run (`pnpm --filte
 needs `pnpm build` beforehand.
 
 CI (`.github/workflows/ci.yml`, actions pinned by SHA) runs `pnpm lint`, `check-types`, `build` and
-`test` against a PostgreSQL 17 service on every push and pull request. E2E runs locally only.
+`test` against a PostgreSQL 17 service on every push and pull request. Its second job, `sandbox` (019), pulls
+the Code Runner images and runs `test:sandbox` on the runner's Docker. E2E runs locally only.
 `prisma migrate reset` (used by the E2E `e2e/prepare-db.ts`) refuses to run under an AI agent
 unless the user consents; the E2E aborts unless the DB name contains `e2e`.
 
@@ -205,6 +209,11 @@ Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/mail-boundary.spec.ts` (017) keeps `platform/mail` free of domain-module imports
   (each module registers its `MailSubject`), forbids provider SDKs (`resend`, `svix`, `@aws-sdk/*`…),
   allows `nodemailer` only in `smtp.mailer.ts`, and only `platform/mail/outbox` may call `Mailer.send`.
+- `apps/api/test/code-runner-boundary.spec.ts` (019) keeps the worker (`src/code-runner`) out of every
+  import outside it (the API never loads it), lets only `code-runner/sandbox/docker-sandbox.ts` start
+  processes, keeps `code-runs` and the worker away from grading, points, the ranking and the submission,
+  keeps programs, inputs and outputs out of their audit and log calls, and lets them name only profile
+  keys (`java`/`python`/`javascript`), never a catalog language.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -233,7 +242,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   contract as Zod schemas, one directory per API domain (`mail` holds only the notice route's
   provider param — the notice body stays the provider's, parsed in the API adapters; the exam's
   fields of the activity, attempt and integrity shapes live in `activities` and
-  `attempt-integrity`, not `exams`), with types derived through `z.infer`
+  `attempt-integrity`, not `exams`; `code-runs` holds the run, and the question's `execution` lives in
+  `activities`, with the program convention as a key, never text), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
@@ -243,7 +253,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   PermissionsGuard (403) → ZodValidationPipe (400) → controller → service (scoped queries → 404;
   rule violations → 409/422) → AuditService (same transaction)`. Guards are global and
   deny-by-default: every route needs `@Public()` or `@RequirePermissions()`/`@AllowUnverified()`.
-- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`, 018): see `apps/api/CLAUDE.md`, loaded when working
+- API modules (003, 004, 006, 007, 009, 010, 011, 012, 013, 015, 016, 017 `platform/mail`, 018, 019
+  `code-runs` and the `code-runner` worker): see `apps/api/CLAUDE.md`, loaded when working
   under `apps/api`.
 - Auth is opaque, revocable server-side sessions (cookie `__Host-devtrack_session`), not JWT. All
   session revocation goes through `SessionService.revokeAllForUser(userId, reason, tx)`.
@@ -338,6 +349,25 @@ the removal conditions are in `DEPENDENCIES.md`.
   keeps running. No AI call happens during an attempt; `exam-sessions` grades only through
   `activities/submission`. No text says "fraude", "cola" or "violação"; audit metadata carries ids,
   enums, counts and times, never a statement or an answer.
+- Code Runner (019): student code never runs in the API process. Only the worker (its own process,
+  never imported by the API) talks to Docker, through `DockerSandbox`; each step (check/compile, then
+  each PUBLIC case) is a fresh container with no network, a read-only root, a tmpfs `/tmp`, memory, CPU,
+  pids and time limits and an unprivileged user, the program on stdin and nothing mounted. Production
+  requires `CODE_RUNNER_DOCKER_RUNTIME=runsc` (config guard). The run body is only `{ sourceCode }`
+  (≤ 65 536 UTF-8 bytes → `413 SOURCE_TOO_LARGE`); activity, question, attempt, profile and cases come
+  from the server, only on an EXERCISE CODE question of the student's attempt in progress with public
+  cases (WORK/EXAM → 404). One pending run per student (partial UNIQUE; a new request returns it, `200`),
+  10 new runs per minute (`429`, audited). The worker claims with `FOR UPDATE SKIP LOCKED` and writes the
+  result once, keyed by the claim token; stale runs (queue deadline 60 s, lease 90 s, kill switch) end
+  FAILED with a reason, settled by the worker and by the API on read. Availability is a fresh heartbeat
+  (15 s) listing the profile; `CODE_RUNNER_ENABLED` is the kill switch. A private case never reaches a
+  student (not its count, not in a run: the worker runs only PUBLIC cases, a trigger refuses others).
+  Verdicts and the output comparison (trailing spaces and trailing empty lines ignored, the rest exact)
+  are the pure `verdict.ts`/`compare-output.ts`, never AI. A run never touches the answer, the attempt,
+  points, results or the ranking. Audit and logs carry ids, enums, counts and durations, never code,
+  input or output; the job `code-run-content` empties code and outputs 24 h after the end (rows stay,
+  triggers refuse any other change). Languages with execution are the catalog column `execution`;
+  code knows only the profile keys. Output is rendered as text in `CodeBlock`, never HTML.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

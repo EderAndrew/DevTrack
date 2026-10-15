@@ -313,6 +313,28 @@ straight to the database, and `getExamMonitor`/`decideHold` call the US5 routes;
 "EXAM" })` writes an applied exam directly. Suites that return a held exam start their `FixedClock` at the real
 time (to the minute): the return's trigger compares the end with the database's `now()`, so a clock in the past
 makes the return a 500.
+Code Runner (019): `modules/code-runs` is the student's side (the three routes, `RunnerAvailability` reading the
+heartbeats and registered on the activities' `CodeRunAvailability` hook so the student view's `execution` needs no
+import of it, `views/student-run-view.ts` as an allowlist, `settle-stale.ts` with conditional UPDATEs shared with the
+worker, the pure `compare-output.ts`, `verdict.ts` and `run-state.ts`, and the maintenance job
+`content-retention.job.ts`). The worker lives in `src/code-runner` (`main.ts` boots `CodeRunnerModule` as a Nest
+application context, `worker.ts` claims with `FOR UPDATE SKIP LOCKED`, runs and writes the result by claim token,
+`heartbeat.ts`, `profiles.ts` with the pinned images and commands, `sandbox/` with `SandboxPort`, `DockerSandbox` and
+`FakeSandbox`); nothing outside it imports it (`code-runner-boundary.spec.ts`). Tests never start Docker: they drive
+the worker in-process through `test/helpers/code-runs.ts` — `createCodeExercise(t, class, { languageKey, testCases })`
+(an EXERCISE with one CODE question and `DOUBLE_CASES`, two PUBLIC around a PRIVATE carrying `PRIVATE_RUN_MARKER`),
+`seedHeartbeat(t, at, { executions, limits })` (a live worker, so the profile is available), `createRunWorker(t, clock,
+{ sandbox, workerId })` and `drainRuns`, `requestRun`/`getLatestRun`/`getRun`, `doubles` (the right answer as a
+`FakeSandbox` script) and `HeldSandbox` (a run held mid-case). `FakeSandbox` scripts `scriptCases(...)`,
+`failCompilation(message)` and `failDaemon()`; a daemon failing before the worker's first heartbeat serves nothing, so
+beat first (`heartbeat.beat()`) to get a `SANDBOX_ERROR`. Runs created in the same instant of a `FixedClock` tie on
+`created_at`: advance the clock between runs whose order matters. `code_runs` rows can't be inserted final (insert
+QUEUED, then update) and a final row accepts only the purge. Suites: `019-us1-run` … `019-us4-languages`,
+`019-schema`, `019-worker`, and in `test/security/` isolation, private cases (SC-002), concurrency, rate limits,
+invariance of 013 points (SC-004), retention (`code-run-content` with a `FixedClock`), boundaries and performance;
+`pnpm --filter api test:sandbox` runs `test/sandbox/019-{languages,verdicts,hostile,timing}` against the real
+`DockerSandbox` (`runc`, the pinned images), never part of `pnpm test`. The journey runs executed, compilation-error,
+failed and rate-limited runs whose program, case, output, stderr and compiler message carry `MARCADOR-CODIGO-019`.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -345,7 +367,8 @@ performance; read the feature's files for what each covers. What they need from 
 - Provider SDKs and hosts only under `src/modules/ai/gateway/providers/**` (ESLint + `006-ai-boundary.spec.ts`;
   `openrouter.ai` only in the adapter, nothing of OpenRouter in the web); no concrete model id outside
   `definitions/model-catalog.ts` (009).
-- Maintenance job `mail-records` (017) purges with `SET LOCAL devtrack.mail_purge = 'on'`.
+- Maintenance job `mail-records` (017) purges with `SET LOCAL devtrack.mail_purge = 'on'`; `code-run-content` (019)
+  empties final runs (500 per transaction) instead of deleting them.
 
 ## Modules (moved from the root CLAUDE.md)
 
@@ -383,6 +406,10 @@ What the code alone doesn't make obvious:
 - Activities (012/013): `activity-types.ts` is the type registry (`scoring`, `hasDeadline`, `attempts`) so services
   don't branch on EXERCISE. The ranking (`ranking`) is one SQL query then the pure `rankClass`, reading results,
   enrollments and users only.
+- Code Runner (019): the API only writes `code_runs` (QUEUED) and reads results; it never has the Docker socket. The
+  worker reads the same `.env` (the whole config schema) and in production connects with its own PostgreSQL role
+  (`docs/deploy/code-runner.md`). A run's case input and expected output are never copied into it: they are read from
+  the activity snapshot when the run is shown.
 - Exams (018): the exam's time lives in `activities/status/exam-time.ts` and its settlement in
   `activities/submission/settle-exam.ts` behind `ExamSettlement`, which every touch (student routes, the 015 events and
   review, the teacher's reads) runs first in its own transaction. `exam-sessions` grades only through

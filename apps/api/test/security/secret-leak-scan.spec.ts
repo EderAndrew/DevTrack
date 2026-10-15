@@ -195,6 +195,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "código executado (019)",
         "saída do programa (019)",
         "saída de erro do programa (019)",
+        "código que não compila (019)",
+        "mensagem do compilador (019)",
+        "código de uma execução que falhou (019)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });
@@ -212,6 +215,8 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     expect(serialize(await t.prisma.attemptPause.findMany({ select: { note: true } }))).toContain("MARCADOR-NOTA-016");
     expect(serialize(await t.prisma.examQuestion.findMany({ select: { statement: true } }))).toContain("MARCADOR-PROVA-018");
     expect(serialize(await t.prisma.activityAnswer.findMany({ select: { text: true } }))).toContain("MARCADOR-PROVA-018");
+    expect(serialize(await t.prisma.codeRun.findMany({ select: { sourceCode: true, compileOutput: true } }))).toContain("MARCADOR-COMPILADOR-019");
+    expect(serialize(await t.prisma.codeRunCase.findMany({ select: { stdout: true, stderr: true } }))).toContain("MARCADOR-STDERR-019");
     expect(serialize(await t.prisma.syllabusDocument.findMany({ select: { extraction: true } }))).toContain(
       "MARCADOR-EMENTA-004",
     );

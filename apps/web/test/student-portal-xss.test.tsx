@@ -37,6 +37,8 @@ import {
   studentActivity,
 } from "@/features/student-activities/components/test-fixtures";
 import { CodeBlock } from "@/components/ui/code/code-block";
+import { CodeRunResult } from "@/features/code-run/components/code-run-result";
+import { codeRun } from "@/features/code-run/components/test-fixtures";
 import { CodeEditor } from "@/components/ui/code/code-editor";
 import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
@@ -64,6 +66,8 @@ const SCANNED = [
   "features/exams",
   "features/exam-attempt",
   "features/exam-session",
+  // 019: the Code Runner's panel and result.
+  "features/code-run",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -83,7 +87,7 @@ function filesUnder(dir: string): string[] {
 describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código e nos bancos (014)", () => {
+  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código, nos bancos (014) e no Code Runner (019)", () => {
     const offenders = SCANNED.flatMap((dir) => filesUnder(join(WEB_ROOT, dir)))
       .filter((file) => !/\.test\.tsx?$/.test(file))
       .filter((file) => readFileSync(file, "utf8").includes("dangerouslySetInnerHTML"));
@@ -450,6 +454,32 @@ describe("018 prova como texto", () => {
     vi.stubGlobal("fetch", teacherFetch({ [`GET /api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/exam-monitor`]: json(200, monitor) }).fetch);
     const { container } = renderWithProviders(<ExamRoomPanel classId={CLASS_ID} activityId={ACTIVITY_ID} canDecide active />);
     await screen.findAllByText(SCRIPT, { exact: false });
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+});
+
+/**
+ * 019/FR-021: what the student's program printed, its stderr, the compiler message and the public
+ * cases (input and expected output typed by the teacher) render as text in `CodeBlock`, never as HTML.
+ */
+describe("019/FR-021 resultado da execução como texto", () => {
+  it("saída obtida, saída de erro, entrada e saída esperada com HTML aparecem como texto", () => {
+    const run = codeRun({
+      sourceCode: SCRIPT,
+      passedCount: 0,
+      publicCaseCount: 1,
+      cases: [{ position: 0, verdict: "RUNTIME_ERROR", stdout: SCRIPT, stderr: SCRIPT, durationMs: 70 }],
+    });
+    const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: SCRIPT, expectedOutput: SCRIPT }]} sourceCode={SCRIPT} />);
+    // The failing case opens by itself: input, expected output, obtained output and stderr.
+    expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(4);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("mensagem do compilador com HTML aparece como texto", () => {
+    const run = codeRun({ sourceCode: SCRIPT, outcome: "COMPILATION_ERROR", passedCount: 0, cases: [], compileOutput: SCRIPT });
+    const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: "1", expectedOutput: "2" }]} sourceCode={SCRIPT} />);
+    expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(1);
     expect(container.querySelector("script, img")).toBeNull();
   });
 });

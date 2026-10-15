@@ -357,7 +357,7 @@ pedido forjado é recusado.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 Retenção e auditoria (`019/FR-019`, `019/SC-006`): job `code-run-content` em
+- [X] T037 Retenção e auditoria (`019/FR-019`, `019/SC-006`): job `code-run-content` em
   `apps/api/src/modules/code-runs/content-retention.job.ts`, registrado em `MAINTENANCE_JOB_NAMES`
   depois de `ai-records` (`contracts/maintenance-jobs.md` da 001 atualizado), lotes de 500, logs só
   com contagens; `apps/api/test/security/019-retention.spec.ts` (23 h e 24 h com `FixedClock`:
@@ -366,13 +366,13 @@ pedido forjado é recusado.
   concluída, falha e recusada; `audit-coverage.spec.ts`; `secret-leak-scan.spec.ts` com
   `MARCADOR-CODIGO-019` no código, na entrada, na saída esperada e na saída obtida, fora de
   auditoria e logs.
-- [ ] T038 [P] Segurança e desempenho restantes: `apps/api/test/security/019-boundaries.spec.ts`
+- [X] T038 [P] Segurança e desempenho restantes: `apps/api/test/security/019-boundaries.spec.ts`
   (código com 65 536 e 65 537 bytes, inclusive multibyte → 413 `SOURCE_TOO_LARGE`; 20/21 casos;
   entrada e saída esperada de 10 000/10 001 caracteres; `019/FR-021` sem HTML interpretado na API;
   nenhuma rota fora do catálogo) e `019-performance.spec.ts` (criar p95 < 150 ms, ler p95 < 100 ms);
   web: `student-portal-xss.test.tsx` com saída, stderr e mensagem do compilador contendo HTML;
   `features/code-run` na lista sem `dangerouslySetInnerHTML`; `token-usage`, `identity` verdes.
-- [ ] T039 [P] CI e deploy: job `sandbox` em `.github/workflows/ci.yml` (Ubuntu, actions por SHA,
+- [X] T039 [P] CI e deploy: job `sandbox` em `.github/workflows/ci.yml` (Ubuntu, actions por SHA,
   `code-runner:images` + `test:sandbox`); `docs/deploy/code-runner.md` (máquina do worker, Docker +
   gVisor `runsc` e a checagem `docker run --runtime runsc … dmesg`, roteiro de incidente — parar o
   worker (efeito em até 15 s) e depois `CODE_RUNNER_ENABLED=false` —, papel do PostgreSQL com os GRANTs
@@ -381,7 +381,7 @@ pedido forjado é recusado.
   2 públicos e 1 privado, aplica; aluno executa certo, errado e com erro de sintaxe pelo teclado;
   caso privado ausente da página; conclusão "Aguardando correção" como na 013) com o worker real
   subido pelo `playwright.config` — a redefinição do banco E2E pede consentimento do usuário.
-- [ ] T040 Documentação e fechamento: `CLAUDE.md` (Project state com a 019, regras fáceis de errar
+- [X] T040 Documentação e fechamento: `CLAUDE.md` (Project state com a 019, regras fáceis de errar
   do Code Runner, contrato `code-runs`, comandos `code-runner:*` e `test:sandbox`, guarda
   `code-runner-boundary`), `apps/api/CLAUDE.md` (módulo, worker, helpers, suítes),
   `apps/web/CLAUDE.md` (`features/code-run`), `README.md` (linha da spec 019, pré-requisito Docker
