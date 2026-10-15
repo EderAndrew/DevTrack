@@ -83,6 +83,30 @@ const forbiddenReach = (file: string, text = read(file)) => [
     .map((name) => `${file} → @repo/contracts ${name}`),
 ];
 
+/** The profile keys the code may name (research B5): everything else of the catalog is data. */
+const PROFILE_KEYS = new Set(["java", "python", "javascript"]);
+
+/** The seeded catalog (010 migration): `[key, name]` of every language. */
+function catalog(): [string, string][] {
+  const migrations = join(API_ROOT, "prisma/migrations");
+  const seed = readdirSync(migrations)
+    .map((dir) => join(migrations, dir, "migration.sql"))
+    .filter((file) => existsSync(file))
+    .map((file) => readFileSync(file, "utf8"))
+    .find((sql) => sql.includes('INSERT INTO "programming_languages" ("key", "name"'))!;
+  const block = seed.slice(seed.indexOf('INSERT INTO "programming_languages" ("key", "name"'));
+  return [...block.slice(0, block.indexOf(";")).matchAll(/\('([^']+)',\s*'([^']+)'/g)].map(([, key, name]) => [key!, name!]);
+}
+
+/** A catalog language named in code: its name, or a key that isn't a profile key, as a whole string literal. */
+function catalogLiterals(file: string, text = read(file), languages = catalog()): string[] {
+  const literals = new Set([...text.matchAll(/(["'`])([^"'`\n]*)\1/g)].map(([, , value]) => value!));
+  return languages
+    .flatMap(([key, name]) => [name, ...(PROFILE_KEYS.has(key) ? [] : [key])])
+    .filter((value) => literals.has(value))
+    .map((value) => `${file} → "${value}"`);
+}
+
 describe("019/FR-013 fronteira do Code Runner (research B2, B15)", () => {
   it("há código do worker e de code-runs para conferir", () => {
     expect(production(WORKER_DIR)).toEqual(expect.arrayContaining(["src/code-runner/main.ts", DOCKER_SANDBOX, "src/code-runner/profiles.ts"]));
@@ -113,6 +137,15 @@ describe("019/FR-013 fronteira do Code Runner (research B2, B15)", () => {
   it("019/FR-019 019/SC-006 auditoria e logs de code-runs e do worker sem código, entrada nem saída", () => {
     const offenders = production(CODE_RUNS_DIR).concat(production(WORKER_DIR)).flatMap((file) => contentInSinks(file));
     expect(offenders).toEqual([]);
+  });
+
+  it("019/US4-1 019/FR-020 code-runs e o worker não nomeiam linguagens do catálogo, só as chaves de perfil", () => {
+    expect(catalog().length).toBeGreaterThanOrEqual(13);
+    const offenders = production(CODE_RUNS_DIR).concat(production(WORKER_DIR)).flatMap((file) => catalogLiterals(file));
+    expect(offenders).toEqual([]);
+    // Control: a branch on a catalog language is found.
+    const sample = 'if (language.name === "C++" || language.key === "rust") return; const key = "java";';
+    expect(catalogLiterals("src/modules/code-runs/sample.ts", sample)).toEqual(['src/modules/code-runs/sample.ts → "C++"', 'src/modules/code-runs/sample.ts → "rust"']);
   });
 
   it("cada varredura acha o padrão proibido num exemplo", () => {

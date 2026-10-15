@@ -341,13 +341,13 @@ funcionando com a execução desligada ou fora do ar.
 **Independent Test**: um exercício de C++ com casos públicos aplicado não mostra "Executar"; um
 pedido forjado é recusado.
 
-- [ ] T035 [P] [US4] `apps/api/test/integration/019-us4-languages.spec.ts` (`019/US4-1`,
+- [X] T035 [P] [US4] `apps/api/test/integration/019-us4-languages.spec.ts` (`019/US4-1`,
   `019/US4-2`, `019/FR-020`): questão de linguagem sem `execution` → visão `NOT_SUPPORTED`, POST
   409 `CODE_RUN_NOT_AVAILABLE` (`NOT_SUPPORTED`) sem execução criada; perfil sem worker vivo →
   `UNAVAILABLE`, não `NOT_SUPPORTED`; `GET /programming-languages` com `execution`; nenhum nome de
   linguagem do catálogo no código de `code-runs` e `code-runner` (varredura em
   `code-runner-boundary.spec.ts`: só as chaves de perfil).
-- [ ] T036 [US4] Ajustes que a T035 pedir em `code-runs.service.ts`/`availability.ts` e, no web, o
+- [X] T036 [US4] Ajustes que a T035 pedir em `code-runs.service.ts`/`availability.ts` e, no web, o
   teste da frase "Os alunos poderão executar o código." / "Sem execução nesta linguagem." em
   `exercise-form.test.tsx` (`019/US4-2`).
 

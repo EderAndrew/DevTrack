@@ -137,7 +137,7 @@ export class DockerSandbox implements SandboxPort {
 
   async prepare(key: ExecutionKey, source: string, limits: SandboxLimits, runId: string): Promise<PrepareResult> {
     const profile = PROFILES[key];
-    const name = containerName(runId, "c");
+    const name = containerName(runId, "check");
     const result = await runDocker(dockerRunArgs(profile, profile.compile(limits), limits, { runId, name, runtime: this.runtime }), {
       stdin: new TextEncoder().encode(source),
       stdoutCap: ARTIFACT_CAP,
@@ -154,7 +154,7 @@ export class DockerSandbox implements SandboxPort {
 
   async runCase(key: ExecutionKey, artifact: Uint8Array, stdin: string, limits: SandboxLimits, runId: string): Promise<CaseResult> {
     const profile = PROFILES[key];
-    const name = containerName(runId, "r");
+    const name = containerName(runId, "case");
     const result = await runDocker(dockerRunArgs(profile, profile.run(limits), limits, { runId, name, runtime: this.runtime }), {
       stdin: frame(artifact, stdin),
       stdoutCap: limits.outputBytes,

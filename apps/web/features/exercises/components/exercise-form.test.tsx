@@ -438,3 +438,36 @@ describe("019/US2 ExerciseForm — casos de teste num conjunto", () => {
     expect(exercises.map((exercise) => exercise.testCases)).toEqual([undefined, undefined, [{ input: "7", expectedOutput: "14", visibility: "PUBLIC" }]]);
   });
 });
+
+describe("019/US4 ExerciseForm — a linguagem diz se os alunos poderão executar", () => {
+  const CPP = { id: "00000000-0000-4000-a000-000000000003", key: "cpp", name: "C++", highlight: "cpp", execution: null };
+
+  beforeEach(() => {
+    const base = exerciseApiMock(() => json(201, exerciseView()));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => (String(input) === "/api/programming-languages" ? json(200, [JAVA, PYTHON, CPP]) : base(input, init))),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("019/US4-2 019/FR-020 a frase vem do catálogo, muda com a linguagem e fica ligada ao campo", async () => {
+    renderWithProviders(<ExerciseForm mode="set" />);
+    const user = userEvent.setup();
+    const scope = within(card(1));
+    await user.selectOptions(scope.getByLabelText(/^Tipo/), "Exercício de código");
+    await vi.waitFor(() => expect(scope.getByRole("option", { name: "C++" })).toBeTruthy());
+    const language = scope.getByLabelText(/^Linguagem/);
+    expect(scope.queryByText("Os alunos poderão executar o código.")).toBeNull();
+    expect(scope.queryByText("Sem execução nesta linguagem.")).toBeNull();
+
+    await user.selectOptions(language, PYTHON.name);
+    const runs = scope.getByText("Os alunos poderão executar o código.");
+    expect(language.getAttribute("aria-describedby")?.split(" ")).toContain(runs.id);
+
+    await user.selectOptions(language, "C++");
+    const none = scope.getByText("Sem execução nesta linguagem.");
+    expect(language.getAttribute("aria-describedby")?.split(" ")).toContain(none.id);
+    expect(scope.queryByText("Os alunos poderão executar o código.")).toBeNull();
+  });
+});

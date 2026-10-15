@@ -256,8 +256,9 @@ const SPECS: FeatureSpec[] = [
     // SC-006 since Phase 2 (code-runner-boundary.spec.ts: no content in audit or logs); US2 (with SC-002,
     // 019-private-cases.spec.ts) since Phase 3; US1, SC-004 and SC-008 (019-us1-run, 019-invariance, the web
     // code-run panel) since Phase 4; US3 with SC-001, SC-003 (test/sandbox: timing and the hostile suite),
-    // SC-005 (019-rate-limits) and SC-007 (019-us3-availability) since Phase 5.
-    pending: { stories: [4], successCriteria: [] },
+    // SC-005 (019-rate-limits) and SC-007 (019-us3-availability) since Phase 5; US4 (019-us4-languages and the
+    // exercise form) since Phase 6.
+    pending: { stories: [], successCriteria: [] },
   },
 ];
 
