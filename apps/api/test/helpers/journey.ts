@@ -38,6 +38,9 @@ import {
   uniqueEmail,
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
+import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
+import { createClassWithStudents, startAttempt } from "./activities";
+import { createCodeExercise, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
 
@@ -1181,6 +1184,31 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     const notice = signedResendNotice({ type: "email.bounced", messageId, secret: t.config.mail.notices.secret, at: new Date() });
     expect((await postNotice(t, "resend", notice)).status).toBe(200);
   }
+
+  // 019/US1 — a student runs code on an exercise's public cases (`code_run.requested`), and the worker,
+  // with the FakeSandbox, finishes it (`code_run.finished`). The program, the case and the program's
+  // output and stderr are content the scans look for: never in logs or audit metadata.
+  const runTeacher = await createUser(t, { roles: ["TEACHER"], name: "Professora do Code Runner" });
+  const runClass = await createClassWithStudents(t, runTeacher.id, { students: 1 });
+  const runExercise = await createCodeExercise(t, runClass.schoolClass, {
+    testCases: [
+      {
+        input: text("entrada do caso de teste (019)", "MARCADOR-ENTRADA-019\n"),
+        expectedOutput: text("saída esperada do caso (019)", "MARCADOR-ESPERADA-019\n"),
+        visibility: "PUBLIC",
+      },
+    ],
+  });
+  const runClient = api(t, { cookie: await keepLoginAs(runClass.students[0]!) });
+  expect((await startAttempt(runClient, runExercise.activity.id)).status).toBe(200);
+  await seedHeartbeat(t, new Date());
+  const runRequest = await requestRun(runClient, runExercise.activity.id, runExercise.questionIds[0]!, text("código executado (019)", "print('MARCADOR-CODIGO-019')"));
+  expect(runRequest.status).toBe(202);
+  const runSandbox = new FakeSandbox().scriptCases(
+    fakeCase({ stdout: text("saída do programa (019)", "MARCADOR-SAIDA-019\n"), stderr: text("saída de erro do programa (019)", "MARCADOR-STDERR-019") }),
+  );
+  expect(await createRunWorker(t, { now: () => new Date() }, { sandbox: runSandbox }).worker.runOnce()).toBe(1);
+  expect((await runClient.get(`/api/me/code-runs/${runRequest.body.id}`)).body).toMatchObject({ status: "COMPLETED", passedCount: 0 });
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

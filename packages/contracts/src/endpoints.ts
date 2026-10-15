@@ -81,6 +81,7 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
+import { CodeRunSchema, CreateCodeRunRequestSchema, LatestCodeRunSchema } from "./code-runs/run.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
 import { IntegritySummaryListSchema, IntegrityTimelineSchema, StudentIntegritySchema } from "./attempt-integrity/views.js";
@@ -265,6 +266,14 @@ export type MyActivityParams = z.infer<typeof MyActivityParamsSchema>;
 export const AttemptNumberSchema = z.coerce.number().pipe(z.int().min(1).max(100_000));
 export const MyAttemptParamsSchema = z.strictObject({ activityId: UuidSchema, number: AttemptNumberSchema });
 export type MyAttemptParams = z.infer<typeof MyAttemptParamsSchema>;
+
+/** A question of one of the session student's activities (019: its code runs). */
+export const MyQuestionParamsSchema = z.strictObject({ activityId: UuidSchema, questionId: UuidSchema });
+export type MyQuestionParams = z.infer<typeof MyQuestionParamsSchema>;
+
+/** One of the session student's code runs (019). */
+export const MyCodeRunParamsSchema = z.strictObject({ runId: UuidSchema });
+export type MyCodeRunParams = z.infer<typeof MyCodeRunParamsSchema>;
 
 /**
  * Every route of the API, keyed `<domain>.<action>`. `apps/api/test/contracts/endpoint-catalog.spec.ts`
@@ -1429,6 +1438,32 @@ export const endpoints = {
     path: "/me/activities/:activityId/attempt/pause",
     params: MyActivityParamsSchema,
     response: MyPauseSchema,
+    status: 200,
+  },
+  // 019/US1 — "Executar" on an EXERCISE CODE question (contracts/http-api.md, research B9, B13).
+  /** 202 for a new run; 200 with the session student's pending run (of any question). */
+  "codeRuns.create": {
+    method: "POST",
+    path: "/me/activities/:activityId/questions/:questionId/code-runs",
+    params: MyQuestionParamsSchema,
+    body: CreateCodeRunRequestSchema,
+    response: CodeRunSchema,
+    status: 202,
+  },
+  /** The last run of the question in the student's attempt in progress, or null. */
+  "codeRuns.latest": {
+    method: "GET",
+    path: "/me/activities/:activityId/questions/:questionId/code-runs/latest",
+    params: MyQuestionParamsSchema,
+    response: LatestCodeRunSchema,
+    status: 200,
+  },
+  /** One run of the session student; polled every `CODE_RUN_POLL_MS` while pending. */
+  "codeRuns.get": {
+    method: "GET",
+    path: "/me/code-runs/:runId",
+    params: MyCodeRunParamsSchema,
+    response: CodeRunSchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

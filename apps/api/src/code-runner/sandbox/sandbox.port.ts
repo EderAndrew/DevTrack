@@ -34,6 +34,11 @@ export interface SandboxPort {
   prepare(key: ExecutionKey, source: string, limits: SandboxLimits, runId: string): Promise<PrepareResult>;
   /** One case in a fresh container. */
   runCase(key: ExecutionKey, artifact: Uint8Array, stdin: string, limits: SandboxLimits, runId: string): Promise<CaseResult>;
+  /**
+   * Removes the step containers left by a run (`runId`), or by any run (`null`, at the worker's
+   * start): a crash never leaves containers behind (research B3). Optional: nothing to sweep in tests.
+   */
+  cleanup?(runId: string | null): Promise<void>;
 }
 
 /**

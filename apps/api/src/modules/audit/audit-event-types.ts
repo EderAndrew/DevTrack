@@ -291,6 +291,10 @@ export const AUDIT_EVENT_METADATA = {
   // 013 — one per teacher mark that changes the result or the comment (research K8): `from`/`to` are
   // results, `hasComment` a boolean; never the answer or the comment.
   "exercise_result.marked": ["activityId", "questionId", "from", "to", "points", "hasComment"],
+  // 019 — a student's code run (contracts/audit-events.md): ids, enums, counts and times, never a
+  // program, an input, an output or a compiler message. `verdicts` counts the cases per verdict.
+  "code_run.requested": ["activityId", "questionId", "execution", "publicCaseCount", "sourceBytes"],
+  "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -342,4 +346,5 @@ export type AuditTargetType =
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"
   | "WORK_HELP_REQUEST"
-  | "MAIL_DELIVERY";
+  | "MAIL_DELIVERY"
+  | "CODE_RUN";

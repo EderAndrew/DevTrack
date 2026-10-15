@@ -20,6 +20,7 @@ import {
   type StudentExerciseAttempt,
   type StudentQuestion,
 } from "@repo/contracts";
+import type { ExecutionOf } from "../code-run-availability";
 import type { ActivityFacts } from "../status/facts";
 import { canAnswer } from "../status/operations";
 import { deriveStudentStatus, isResultVisible, isUrgent } from "../status/student-status";
@@ -31,8 +32,16 @@ import type { ActivityQuestionRow } from "./rows";
 // private test case or pending reason, and no grade or feedback before the release. An EXERCISE
 // (013) shows points instead of a grade, deadline or late policy.
 
-/** One question as the student may see it: 011/FR-033 applied to the snapshot. */
-export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
+/**
+ * One question as the student may see it: 011/FR-033 applied to the snapshot. `executionOf` (019
+ * research B17) is given only for an EXERCISE; it decides the execution of a CODE question from the
+ * language's profile key and the PUBLIC case count, never from a private case.
+ */
+export function toStudentQuestion(row: ActivityQuestionRow, executionOf: ExecutionOf | null = null): StudentQuestion {
+  const publicTestCases = [...row.testCases]
+    .filter((testCase) => testCase.visibility === "PUBLIC")
+    .sort((a, b) => a.position - b.position)
+    .map((testCase) => ({ input: testCase.input, expectedOutput: testCase.expectedOutput }));
   return {
     id: row.id,
     position: row.position,
@@ -43,13 +52,10 @@ export function toStudentQuestion(row: ActivityQuestionRow): StudentQuestion {
     instructions: row.instructions,
     starterCode: row.starterCode,
     language: row.language ? { name: row.language.name, highlight: row.language.highlight } : null,
-    publicTestCases: [...row.testCases]
-      .filter((testCase) => testCase.visibility === "PUBLIC")
-      .sort((a, b) => a.position - b.position)
-      .map((testCase) => ({ input: testCase.input, expectedOutput: testCase.expectedOutput })),
+    publicTestCases,
     alternatives: [...row.alternatives].sort((a, b) => a.position - b.position).map((alternative) => ({ id: alternative.id, text: alternative.text })),
-    // 019: "Executar" of an EXERCISE CODE question arrives with US1 (research B17).
-    execution: null,
+    execution:
+      executionOf && row.type === "CODE" ? executionOf({ execution: row.language?.execution ?? null, publicCaseCount: publicTestCases.length }) : null,
   };
 }
 
@@ -184,7 +190,11 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
   };
 }
 
-export function toStudentActivity(input: StudentActivityDetailInput): StudentActivity {
+/**
+ * `executionOf` (019): the Code Runner's availability at this read, applied to the CODE questions of
+ * an EXERCISE only; a work's or an exam's questions never carry an execution.
+ */
+export function toStudentActivity(input: StudentActivityDetailInput, executionOf: ExecutionOf | null = null): StudentActivity {
   const { result: _summaryResult, ...summary } = toStudentSummary(input);
   const visible = resultVisible(input);
   // 016/FR-013, FR-022: a paused attempt shows only the notice, whatever the loader read; 018/FR-019:
@@ -195,7 +205,11 @@ export function toStudentActivity(input: StudentActivityDetailInput): StudentAct
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
-    questions: paused ? [] : [...input.questions].sort((a, b) => a.position - b.position).map(toStudentQuestion),
+    questions: paused
+      ? []
+      : [...input.questions]
+          .sort((a, b) => a.position - b.position)
+          .map((row) => toStudentQuestion(row, input.type === "EXERCISE" ? executionOf : null)),
     attempt: input.attempt
       ? {
           number: input.attempt.number,

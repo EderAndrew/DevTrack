@@ -47,7 +47,10 @@ new feature through `/speckit-specify`.
   is left, or "Não cancelar" after the end); the teacher's exam monitor and the review with the
   occurrences and decisions.
 
-Take-home works, AI grading and code execution are later features. The rules of 012–018 that
+019 (Code Runner, first stage) is in progress — check `specs/019-exercise-code-runner/tasks.md` for
+the phases done: teacher-typed test cases on exercise CODE questions and "Executar" against the
+public cases in a separate worker (`apps/api/src/code-runner/`, one hardened container per step),
+never points or grades. Take-home works and AI grading are later features. The rules of 012–018 that
 are easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -125,6 +128,9 @@ pnpm --filter api test                                  # all unit + integration
 pnpm --filter api test test/integration/003-us6-enrollments.spec.ts      # single file (no `--`: pnpm 11 passes it on and vitest drops the filter)
 pnpm --filter api test -t "<test name>"                          # single test, or an id prefix such as "009/"
 pnpm --filter api test:security                         # test/security only
+pnpm --filter api test:sandbox                          # 019: real Docker sandbox (test/sandbox); `pnpm test`/CI use the FakeSandbox
+pnpm --filter api code-runner:images                    # 019: pull the pinned runner images (runs dist/)
+pnpm --filter api code-runner:start                     # 019: the worker process (dist/code-runner/main.js); `pnpm dev` already runs code-runner:dev
 pnpm admin:bootstrap --email <email> [--print-link]     # only way to create the first ADMIN (runs dist/, build first)
 pnpm --filter api maintenance:run [--job <name>]        # retention/purge jobs (runs dist/)
 pnpm --filter api fixtures:syllabus                     # rebuild test/fixtures/syllabus/* (004 upload/extraction fixtures)

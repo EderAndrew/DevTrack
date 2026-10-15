@@ -221,7 +221,7 @@ seguem a 013.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T017 [P] [US1] `apps/api/test/integration/019-us1-run.spec.ts` com `FakeSandbox` e o worker em
+- [X] T017 [P] [US1] `apps/api/test/integration/019-us1-run.spec.ts` com `FakeSandbox` e o worker em
   `runOnce` (`019/US1-1`…`019/US1-10`, `019/FR-005`…`019/FR-011`): criar → 202 QUEUED com
   `publicCaseCount`; ciclo do worker → COMPLETED com casos na ordem e `passedCount`; saída diferente;
   erro de compilação sem casos; erro de execução com stderr; tempo, memória e saída excedidos;
@@ -230,19 +230,19 @@ seguem a 013.
   `ATTEMPT_NOT_IN_PROGRESS`; atividade encerrada ou cancelada → 404; "Refazer" volta a executar;
   código vazio → 202 e, no ciclo, casos com o veredito do programa vazio (nenhum passa se a saída
   esperada não é vazia); a resposta salva e a `updated_at` da tentativa não mudam (`019/FR-008`).
-- [ ] T018 [P] [US1] `apps/api/test/integration/019-worker.spec.ts`: claim com `FOR UPDATE SKIP
+- [X] T018 [P] [US1] `apps/api/test/integration/019-worker.spec.ts`: claim com `FOR UPDATE SKIP
   LOCKED` (dois workers, uma execução cada); resultado gravado uma vez pelo `claim_token`; worker
   atrasado após lease tomado não grava; `SANDBOX_ERROR` quando a porta lança; heartbeat gravado a
   cada ciclo com perfis e limites; `code_run.finished` exatamente uma vez por execução.
-- [ ] T019 [P] [US1] `apps/api/test/security/019-isolation.spec.ts`: execução de outro aluno → 404;
+- [X] T019 [P] [US1] `apps/api/test/security/019-isolation.spec.ts`: execução de outro aluno → 404;
   atividade de outra turma, não publicada ou de matrícula inativa → 404; questão de outra atividade
   → 404; TEACHER, MANAGER e ADMIN → 403; campos do servidor no corpo (`attemptId`, `languageId`,
   `testCases`, `status`) → 400; complementa `019-private-cases.spec.ts` com as respostas de
   `POST`/`GET` da execução (`019/SC-002`).
-- [ ] T020 [P] [US1] `apps/api/test/security/019-invariance.spec.ts` (`019/SC-004`): dois alunos
+- [X] T020 [P] [US1] `apps/api/test/security/019-invariance.spec.ts` (`019/SC-004`): dois alunos
   com as mesmas respostas, um com 0 e outro com 50 execuções (limite elevado no teste) → mesmas
   conclusões, resultados, pontos, fila do professor e ranking.
-- [ ] T021 [P] [US1] Web: `apps/web/features/code-run/components/code-run-panel.test.tsx` e
+- [X] T021 [P] [US1] Web: `apps/web/features/code-run/components/code-run-panel.test.tsx` e
   `code-run-result.test.tsx` (`019/US1-1`…`019/US1-5`, `019/US1-10`, `019/SC-008`): botão e textos
   por `execution.status`; "Na fila"/"Executando" com `aria-busy`; resumo anunciado; cada veredito em
   palavras com ícone; entrada e saída esperada vindas de `publicTestCases`; aviso de versão anterior
@@ -251,26 +251,26 @@ seguem a 013.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] `apps/api/src/modules/code-runs/settle-stale.ts`: `UPDATE … RETURNING` condicional
+- [X] T022 [US1] `apps/api/src/modules/code-runs/settle-stale.ts`: `UPDATE … RETURNING` condicional
   que fecha EXPIRED/INTERRUPTED/DISABLED com `code_run.finished` (SYSTEM) na mesma transação, usado
   pela API e pelo worker.
-- [ ] T023 [US1] Serviço e rotas da API (contracts/http-api.md): `code-runs.service.ts`
+- [X] T023 [US1] Serviço e rotas da API (contracts/http-api.md): `code-runs.service.ts`
   (escopo da 012: matrícula ACTIVE, atividade EXERCISE liberada, tentativa própria em andamento,
   questão CODE com caso público e `execution`; acerta as velhas; `INSERT … ON CONFLICT DO NOTHING`
   sob o UNIQUE parcial; `code_run.requested`), `code-runs.controller.ts` (3 rotas,
   `atividades.proprias.executar`), `views/student-run-view.ts` (lista fechada) e
   `availability.ts` (lê o heartbeat; usado também pela visão do aluno). Na mesma tarefa: endpoints,
   `MATRIX`, `route-declarations.spec.ts`, os tipos de auditoria e `journey.ts`.
-- [ ] T024 [US1] `apps/api/src/modules/activities/views/student-view.ts`: `execution` nas questões CODE
+- [X] T024 [US1] `apps/api/src/modules/activities/views/student-view.ts`: `execution` nas questões CODE
   de EXERCISE (status, versão, convenção, limites da disponibilidade; `null` nas demais), por
   lista fechada; a visão continua sem gabarito antes da conclusão (013).
-- [ ] T025 [US1] Worker: `apps/api/src/code-runner/worker.ts` (laço com `CODE_RUNNER_POLL_MS`,
+- [X] T025 [US1] Worker: `apps/api/src/code-runner/worker.ts` (laço com `CODE_RUNNER_POLL_MS`,
   `CODE_RUNNER_CONCURRENCY` vagas, `runOnce(now)` para testes; acerta velhas; claim; `prepare` e
   `runCase` por caso público; vereditos de `verdict.ts` e `compare-output.ts`; grava casos +
   COMPLETED + `code_run.finished` numa transação pelo `claim_token`; nunca grava conteúdo em log),
   `heartbeat.ts` (a cada 5 s, limpa linhas com mais de 1 dia no início) e `main.ts` (para com
   SIGTERM terminando as execuções em curso como INTERRUPTED só se o prazo do lease passar).
-- [ ] T026 [US1] `apps/api/src/code-runner/sandbox/docker-sandbox.ts` (research B3, B4): `docker run`
+- [X] T026 [US1] `apps/api/src/code-runner/sandbox/docker-sandbox.ts` (research B3, B4): `docker run`
   com as flags de B3 por etapa via `child_process.spawn` (argumentos em lista, nunca shell da
   máquina), programa e entrada pelo stdin enquadrados, limites de stdout/stderr por bytes, `timeout
   -s KILL` no container e timer do worker com `docker kill`, `OOMKilled` pelo código de saída,
@@ -278,7 +278,7 @@ seguem a 013.
   Teste real: `apps/api/test/sandbox/019-languages.spec.ts` e `019-verdicts.spec.ts` (as três
   linguagens: passou, saída diferente, erro de compilação/sintaxe, erro de execução; a tabela de B6
   ponta a ponta; classe Java com outro nome).
-- [ ] T027 [US1] Web: `apps/web/features/code-run/{api/code-runs.ts,hooks/use-code-run.ts,components/code-run-panel.tsx,components/code-run-result.tsx}`
+- [X] T027 [US1] Web: `apps/web/features/code-run/{api/code-runs.ts,hooks/use-code-run.ts,components/code-run-panel.tsx,components/code-run-result.tsx}`
   (TanStack Query, `refetchInterval` de `CODE_RUN_POLL_MS` só pendente e visível; saídas em
   `CodeBlock` como texto; "Como a saída é comparada"; textos de contracts/web-ui.md) e o encaixe em
   `apps/web/features/student-activities/components/activity-answering.tsx` só para questões CODE de

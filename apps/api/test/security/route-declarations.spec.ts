@@ -203,6 +203,10 @@ describe("route access declarations", () => {
         "POST /exams/:id/approve",
         "POST /exams/:id/archive",
         "POST /exams/:id/restore",
+        // 019
+        "POST /me/activities/:activityId/questions/:questionId/code-runs",
+        "GET /me/activities/:activityId/questions/:questionId/code-runs/latest",
+        "GET /me/code-runs/:runId",
       ]),
     );
   });

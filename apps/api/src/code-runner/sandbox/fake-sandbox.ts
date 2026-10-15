@@ -36,8 +36,8 @@ export class FakeSandbox implements SandboxPort {
     return this;
   }
 
-  /** Every `prepare` fails as a compilation error with this message. */
-  failCompilation(output: string): this {
+  /** Every `prepare` fails as a compilation error with this message; `null` compiles again. */
+  failCompilation(output: string | null): this {
     this.compileError = output;
     return this;
   }

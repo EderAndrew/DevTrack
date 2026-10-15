@@ -30,6 +30,7 @@ import { EXIT_ROOM } from "@/features/attendance/schemas/attendance";
 import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
 import { ExamEndNotice, ExamEntry } from "@/features/exam-attempt/components/rules-screen";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
+import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -525,6 +526,19 @@ function AttemptAnswering({
               </Alert>
             ) : null}
             {controlled?.questionNotice(question.id)}
+            {/* 019: "Executar" only on an EXERCISE CODE question of the open attempt; it never saves nor concludes. */}
+            {isExercise && question.type === "CODE" && editable ? (
+              <div className="mt-4">
+                <CodeRunPanel
+                  key={question.id}
+                  activityId={activity.id}
+                  questionId={question.id}
+                  execution={question.execution}
+                  sourceCode={sourceOf(answers.answerOf(question.id) ?? emptyAnswer(question))}
+                  publicTestCases={question.publicTestCases}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
         {activity.aiHelp.allowance > 0 ? (
@@ -581,6 +595,9 @@ function AttemptAnswering({
     </section>
   );
 }
+
+/** The code of a CODE answer (what "Executar" sends); empty for the other kinds. */
+const sourceOf = (answer: ReturnType<typeof emptyAnswer>): string => (answer.kind === "CODE" ? answer.source : "");
 
 function AnswerArea({
   question,

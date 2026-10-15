@@ -189,6 +189,12 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "texto gerado pela IA (018)",
         // 018/SC-010: the student's answer in an exam (MARCADOR-PROVA-018, also in the statement).
         "resposta do aluno na prova (018)",
+        // 019/US1: a code run — the case, the program and what it printed (MARCADOR-*-019).
+        "entrada do caso de teste (019)",
+        "saída esperada do caso (019)",
+        "código executado (019)",
+        "saída do programa (019)",
+        "saída de erro do programa (019)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });

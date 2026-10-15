@@ -21,7 +21,7 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     expect(catalog.filter((route) => !routes.includes(route))).toEqual([]);
   });
 
-  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048), as da 003, as da 004, as da 006, as da 007, as da 010, as da 011, as da 012, as da 013, as da 015, a da 017 e as da 018, sem entradas repetidas", () => {
+  it("003/FR-060 cobre as 37 rotas restantes da Fase 001 (sem o cadastro, 003/FR-048), as da 003, as da 004, as da 006, as da 007, as da 010, as da 011, as da 012, as da 013, as da 015, a da 017, as da 018 e as da 019, sem entradas repetidas", () => {
     // 003 domains (classes, class invitations, enrollments, own classes) and 004 domains
     // (subjects, …); each story adds its routes.
     const phase003 = Object.keys(endpoints).filter((key) => /^(classes|classInvitations|enrollments|myClasses)\./.test(key));
@@ -38,9 +38,11 @@ describe("002/US1-2 002/SC-002 catálogo de endpoints do contrato", () => {
     const phase017 = Object.keys(endpoints).filter((key) => /^mail\./.test(key));
     // 018: the Banco de Provas (and, from later stories, its generation and the exam sessions).
     const phase018 = Object.keys(endpoints).filter((key) => /^(exams|examGeneration[A-Z]\w*|examSessions)\./.test(key));
+    // 019: the student's code runs.
+    const phase019 = Object.keys(endpoints).filter((key) => /^codeRuns\./.test(key));
     expect(new Set(catalog).size).toBe(catalog.length);
-    expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length + phase017.length + phase018.length);
-    expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length + phase017.length + phase018.length);
+    expect(catalog).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length + phase017.length + phase018.length + phase019.length);
+    expect(routes).toHaveLength(37 + phase003.length + phase004.length + phase006.length + phase007.length + phase010.length + phase011.length + phase012.length + phase013.length + phase015.length + phase017.length + phase018.length + phase019.length);
   });
 });
 

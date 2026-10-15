@@ -332,6 +332,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:classId/activities/:activityId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help", access: "entregas.visualizar" },
+  // 019/US1 — the student's code runs on an exercise's public cases (contracts/permissions.md).
+  { method: "POST", path: "/me/activities/:activityId/questions/:questionId/code-runs", access: "atividades.proprias.executar" },
+  { method: "GET", path: "/me/activities/:activityId/questions/:questionId/code-runs/latest", access: "atividades.proprias.executar" },
+  { method: "GET", path: "/me/code-runs/:runId", access: "atividades.proprias.executar" },
   // 016/US1 — the attendance of a work (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
