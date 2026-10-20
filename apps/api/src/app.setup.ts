@@ -1,4 +1,5 @@
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import type { IncomingMessage } from "node:http";
 import cookieParser from "cookie-parser";
 import type { NextFunction, Request, Response } from "express";
 import { Logger } from "nestjs-pino";
@@ -22,7 +23,7 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   app.set("trust proxy", config.trustProxyHops);
   // 017: a provider notice is signed over its exact bytes, so its body is kept raw (a Buffer, JSON
   // or SNS text alike), up to 256 KB → 413; registered first, the JSON parser then skips it.
-  const isNotice = (req: Request) => NOTICE_PATH.test(req.originalUrl ?? req.url ?? "");
+  const isNotice = (req: IncomingMessage & { originalUrl?: string }) => NOTICE_PATH.test(req.originalUrl ?? req.url ?? "");
   app.useBodyParser("raw", { type: isNotice, limit: NOTICE_MAX_BYTES });
   app.use((error: unknown, req: Request, _res: Response, next: NextFunction) => {
     const tooLarge = isNotice(req) && (error as { type?: unknown } | null)?.type === "entity.too.large";

@@ -270,7 +270,8 @@ test.describe("014 realce de sintaxe do código", () => {
     await page.goto(`/minhas-atividades/${activityId}`);
     const box = editor(page);
     await box.focus();
-    await page.keyboard.press("ControlOrMeta+End");
+    // The box may still be the textarea, where macOS moves to the end with Cmd+↓, not Cmd+End.
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
     const before = await editorText(box);
     await page.keyboard.type("abcdefghij", { delay: 5 });
     const java = await codeMirror(page);

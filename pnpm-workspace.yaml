@@ -3,7 +3,7 @@ packages:
   - "packages/*"
 # Single Zod version for api, web and @repo/contracts (002 S2, FR-007).
 catalog:
-  zod: ^4.6.5
+  zod: ^4.6.7
 allowBuilds:
   '@prisma/engines': true
   '@swc/core': true
@@ -11,7 +11,6 @@ allowBuilds:
   prisma: true
 # Security overrides of transitive dependencies (T110, DEPENDENCIES.md).
 overrides:
-  multer: ^2.4.0
   nanoid@3: ^3.3.19
   mysql2: ^3.23.1
   deepmerge-ts: ^8.0.0
