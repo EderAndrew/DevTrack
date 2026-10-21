@@ -100,8 +100,10 @@ No `nano`, preencha:
 - `<POSTGRES_PASSWORD>` no `DATABASE_URL`;
 - a chave do Resend no `SMTP_URL`;
 - `MAIL_FROM` com o domínio que você verificou no Resend;
-- `MAIL_NOTICE_SECRET` (o `whsec_…` do webhook, seção 10; até lá use um valor provisório qualquer, porque
-  a API exige a variável);
+- `MAIL_NOTICE_SECRET`: o `whsec_…` do webhook (seção 10). A API exige o formato do Resend (`whsec_` e uma
+  chave base64 de ao menos 16 bytes) e não sobe com um texto qualquer. Se o webhook ainda não existe, gere um
+  provisório válido e troque-o na seção 10:
+  `sed -i "s|^MAIL_NOTICE_SECRET=.*|MAIL_NOTICE_SECRET=whsec_$(openssl rand -base64 24)|" apps/api/.env`;
 - `OPENROUTER_API_KEY`, se quiser IA.
 
 Se faltar alguma variável, ou se alguma estiver errada, a API se recusa a iniciar e lista só os **nomes**
@@ -120,7 +122,10 @@ pm2 startup systemd -u devtrack --hp /home/devtrack
 ```
 
 O último comando imprime uma linha `sudo env PATH=… pm2 startup …`. Rode essa linha **como root**:
-ela faz o PM2 do `devtrack` voltar sozinho depois de um reboot.
+ela faz o PM2 do `devtrack` voltar sozinho depois de um reboot. Se o root tiver o próprio PM2 (outros
+sites), troque o `pm2` da linha pelo caminho completo do PM2 do `devtrack`
+(`/home/devtrack/.nvm/versions/node/<versão>/bin/pm2`). Sem isso, o `PATH` acha antes o PM2 do root, e o
+serviço aponta para `/root/.nvm`, que o `devtrack` não lê. Confira com `systemctl status pm2-devtrack`.
 
 Confira:
 
