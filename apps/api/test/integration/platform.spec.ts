@@ -36,6 +36,14 @@ describe("startup configuration (FR-074)", () => {
     }
   });
 
+  it("HOST: unset listens on every interface, a value is passed through, blank stops the startup", () => {
+    const env = { ...process.env };
+    delete env.HOST;
+    expect(loadConfig(env).host).toBeNull();
+    expect(loadConfig({ ...env, HOST: "127.0.0.1" }).host).toBe("127.0.0.1");
+    expect(failure({ ...env, HOST: " " }).variables).toEqual(["HOST"]);
+  });
+
   it("010/FR-024 RATE_LIMIT_EXERCISE_AI_PER_HOUR: 10 by default, configurable, and an invalid value stops the startup", () => {
     const env = { ...process.env };
     delete env.RATE_LIMIT_EXERCISE_AI_PER_HOUR;

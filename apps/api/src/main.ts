@@ -12,7 +12,8 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
   configureApp(app, config);
-  await app.listen(config.port);
+  if (config.host) await app.listen(config.port, config.host);
+  else await app.listen(config.port);
 }
 
 bootstrap().catch((error: unknown) => {

@@ -106,6 +106,7 @@ export function isProductionSmtpUrl(value: string): boolean {
 export const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   PORT: z.coerce.number().int().min(0).max(65535).default(4000),
+  HOST: z.string().trim().min(1).optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   APP_HMAC_SECRET: hmacSecret,
@@ -227,6 +228,8 @@ type ParsedEnv = z.output<typeof configSchema>;
 export interface AppConfig {
   nodeEnv: ParsedEnv["NODE_ENV"];
   port: number;
+  /** Interface the API listens on; unset = every interface (Node's default). Production behind a proxy: 127.0.0.1. */
+  host: string | null;
   logLevel: ParsedEnv["LOG_LEVEL"];
   databaseUrl: string;
   hmacSecret: Buffer;
@@ -411,6 +414,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,
+    host: e.HOST ?? null,
     logLevel: e.LOG_LEVEL,
     databaseUrl: e.DATABASE_URL,
     hmacSecret: e.APP_HMAC_SECRET,

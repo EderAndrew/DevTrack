@@ -1,0 +1,25 @@
+# PostgreSQL 17 of the DevTrack beta on the Hostinger VPS (docs/deploy/hostinger.md).
+# The host's own PostgreSQL 16 (other sites) stays untouched: this one listens only on 127.0.0.1:5433.
+# Run as root from this directory: docker compose -f docker-compose.db.yml --env-file db.env up -d
+name: devtrack-prod
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: devtrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in db.env}
+      POSTGRES_DB: devtrack
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - devtrack-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devtrack -d devtrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  devtrack-pg:
