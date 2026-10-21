@@ -599,7 +599,7 @@ describe("011/US1 criar um trabalho manualmente", () => {
         expect(names).not.toContain("Python");
         const active = await t.prisma.programmingLanguage.findMany({
           where: { active: true },
-          select: { id: true, key: true, name: true, highlight: true },
+          select: { id: true, key: true, name: true, highlight: true, execution: true },
           orderBy: [{ name: "asc" }, { id: "asc" }],
         });
         expect(res.body).toEqual(active);

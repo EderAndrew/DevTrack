@@ -178,6 +178,21 @@ export const configSchema = z.object({
   MAIL_SES_TOPIC_ARN: optional(snsTopicArn),
   RATE_LIMIT_MAIL_NOTICES_PER_MINUTE: positiveInt(600),
   MAIL_RECORDS_RETENTION_DAYS: positiveInt(180),
+  // 019 (contracts/configuration.md): the Code Runner kill switch, the API side and the worker's limits.
+  CODE_RUNNER_ENABLED: optional(z.enum(["true", "false"])),
+  RATE_LIMIT_CODE_RUNS_PER_MINUTE: positiveInt(10),
+  CODE_RUN_QUEUE_DEADLINE_SECONDS: positiveInt(60),
+  CODE_RUNNER_STALE_SECONDS: positiveInt(15),
+  CODE_RUN_CONTENT_RETENTION_HOURS: positiveInt(24),
+  CODE_RUNNER_CONCURRENCY: positiveInt(2),
+  CODE_RUNNER_POLL_MS: positiveInt(500),
+  CODE_RUNNER_LEASE_SECONDS: positiveInt(90),
+  CODE_RUNNER_DOCKER_RUNTIME: z.enum(["runc", "runsc"]).default("runc"),
+  CODE_RUNNER_TIME_LIMIT_MS: positiveInt(2000),
+  CODE_RUNNER_COMPILE_LIMIT_MS: positiveInt(10_000),
+  CODE_RUNNER_MEMORY_MB: positiveInt(256),
+  CODE_RUNNER_OUTPUT_LIMIT_BYTES: positiveInt(65_536),
+  CODE_RUNNER_PIDS_LIMIT: positiveInt(128),
 }).superRefine((e, ctx) => {
   if (e.MAIL_NOTICE_PROVIDER === "resend" && !e.MAIL_NOTICE_SECRET) {
     ctx.addIssue({ code: "custom", path: ["MAIL_NOTICE_SECRET"], message: "obrigatória com MAIL_NOTICE_PROVIDER=resend" });
@@ -196,6 +211,13 @@ export const configSchema = z.object({
     if (!mailFromDomain(e.MAIL_FROM)) ctx.addIssue({ code: "custom", path: ["MAIL_FROM"], message: "em produção: um remetente com domínio" });
     if (e.MAIL_NOTICE_PROVIDER === "none") {
       ctx.addIssue({ code: "custom", path: ["MAIL_NOTICE_PROVIDER"], message: "em produção: resend ou ses" });
+    }
+    // 019 research B10, B12: the kill switch is an explicit choice, and student code runs under gVisor.
+    if (!e.CODE_RUNNER_ENABLED) {
+      ctx.addIssue({ code: "custom", path: ["CODE_RUNNER_ENABLED"], message: "em produção: true ou false" });
+    }
+    if (e.CODE_RUNNER_ENABLED === "true" && e.CODE_RUNNER_DOCKER_RUNTIME !== "runsc") {
+      ctx.addIssue({ code: "custom", path: ["CODE_RUNNER_DOCKER_RUNTIME"], message: "em produção: runsc (gVisor)" });
     }
   }
 });
@@ -230,6 +252,30 @@ export interface AppConfig {
       | { provider: "ses"; topicArn: string };
   };
   trustProxyHops: number;
+  /**
+   * Code Runner (019 contracts/configuration.md). `enabled` is the kill switch (research B10; off
+   * outside production unless set): off, the student routes answer UNAVAILABLE and the worker claims
+   * nothing. A run not started within `queueDeadlineSeconds` expires; a heartbeat older than
+   * `staleSeconds` is a dead worker; run content is purged after `contentRetentionHours` (B12).
+   * `worker` is read only by the worker process (`dist/code-runner/main.js`).
+   */
+  codeRunner: {
+    enabled: boolean;
+    queueDeadlineSeconds: number;
+    staleSeconds: number;
+    contentRetentionHours: number;
+    worker: {
+      concurrency: number;
+      pollMs: number;
+      leaseSeconds: number;
+      dockerRuntime: "runc" | "runsc";
+      timeLimitMs: number;
+      compileLimitMs: number;
+      memoryMb: number;
+      outputLimitBytes: number;
+      pidsLimit: number;
+    };
+  };
   rateLimit: {
     loginEmailOriginFailures: number;
     loginOriginFailures: number;
@@ -276,6 +322,8 @@ export interface AppConfig {
     examGenerationsPerHour: number;
     /** Provider notices (017 research N6): requests per IP per minute on `POST /mail/notices/:provider`. */
     mailNoticesPerMinute: number;
+    /** New Code Runner runs (019 research B11) per student per minute; returning the pending one is free. */
+    codeRunsPerMinute: number;
   };
   /**
    * Controlled mode (015 research F7): an answer may grow `typingBurstChars` in one save plus
@@ -380,6 +428,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       notices: noticeConfig(e),
     },
     trustProxyHops: e.TRUST_PROXY_HOPS,
+    codeRunner: {
+      enabled: e.CODE_RUNNER_ENABLED === "true",
+      queueDeadlineSeconds: e.CODE_RUN_QUEUE_DEADLINE_SECONDS,
+      staleSeconds: e.CODE_RUNNER_STALE_SECONDS,
+      contentRetentionHours: e.CODE_RUN_CONTENT_RETENTION_HOURS,
+      worker: {
+        concurrency: e.CODE_RUNNER_CONCURRENCY,
+        pollMs: e.CODE_RUNNER_POLL_MS,
+        leaseSeconds: e.CODE_RUNNER_LEASE_SECONDS,
+        dockerRuntime: e.CODE_RUNNER_DOCKER_RUNTIME,
+        timeLimitMs: e.CODE_RUNNER_TIME_LIMIT_MS,
+        compileLimitMs: e.CODE_RUNNER_COMPILE_LIMIT_MS,
+        memoryMb: e.CODE_RUNNER_MEMORY_MB,
+        outputLimitBytes: e.CODE_RUNNER_OUTPUT_LIMIT_BYTES,
+        pidsLimit: e.CODE_RUNNER_PIDS_LIMIT,
+      },
+    },
     rateLimit: {
       loginEmailOriginFailures: e.RATE_LIMIT_LOGIN_EMAIL_ORIGIN_FAILURES,
       loginOriginFailures: e.RATE_LIMIT_LOGIN_ORIGIN_FAILURES,
@@ -408,6 +473,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       examDecisionsPerMinute: e.RATE_LIMIT_EXAM_DECISIONS_PER_MINUTE,
       examGenerationsPerHour: e.RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR,
       mailNoticesPerMinute: e.RATE_LIMIT_MAIL_NOTICES_PER_MINUTE,
+      codeRunsPerMinute: e.RATE_LIMIT_CODE_RUNS_PER_MINUTE,
     },
     controlledMode: {
       typingBurstChars: e.CONTROLLED_TYPING_BURST_CHARS,

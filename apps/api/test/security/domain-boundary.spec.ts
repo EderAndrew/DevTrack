@@ -105,6 +105,12 @@ const EXPECTED_MODELS = [
   "ExamGenerationRequestTopic",
   "ExamOccurrence",
   "ExamAttemptHold",
+  // 019 (specs/019-exercise-code-runner/data-model.md) — the exercise bank's test cases, the run
+  // queue with its cases, and the workers' heartbeats.
+  "ExerciseTestCase",
+  "CodeRun",
+  "CodeRunCase",
+  "CodeRunnerHeartbeat",
 ];
 
 /**

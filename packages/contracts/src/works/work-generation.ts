@@ -2,7 +2,8 @@ import { z } from "zod";
 import { AiErrorCodeSchema } from "../ai/enums.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { splitEvenly } from "../common/split-evenly.js";
-import { TestCaseVisibilitySchema, WorkDifficultySchema, WorkGenerationRequestStatusSchema, type WorkQuestionType, WorkQuestionTypeSchema } from "./enums.js";
+import { TestCaseVisibilitySchema } from "../common/test-cases.js";
+import { WorkDifficultySchema, WorkGenerationRequestStatusSchema, type WorkQuestionType, WorkQuestionTypeSchema } from "./enums.js";
 import { GradeOutputSchema, GradeStringSchema, gradeToCents } from "./grade.js";
 import {
   WORK_ALTERNATIVES_MAX,

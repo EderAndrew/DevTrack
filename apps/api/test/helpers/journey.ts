@@ -5,6 +5,7 @@ import { AdminBootstrapService } from "../../src/modules/admin-bootstrap/admin-b
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { UNVERIFIED_ACCOUNT_TTL_DAYS } from "../../src/modules/retention/unverified-accounts.job";
 import { hashToken } from "../../src/platform/crypto/tokens";
+import { RateLimitService } from "../../src/platform/rate-limit/rate-limit.service";
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
@@ -38,6 +39,9 @@ import {
   uniqueEmail,
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
+import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
+import { createClassWithStudents, startAttempt } from "./activities";
+import { createCodeExercise, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
 
@@ -1181,6 +1185,51 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     const notice = signedResendNotice({ type: "email.bounced", messageId, secret: t.config.mail.notices.secret, at: new Date() });
     expect((await postNotice(t, "resend", notice)).status).toBe(200);
   }
+
+  // 019/US1 — a student runs code on an exercise's public cases (`code_run.requested`), and the worker,
+  // with the FakeSandbox, finishes it (`code_run.finished`): executed, then a compilation error, then a
+  // sandbox failure (FAILED/SANDBOX_ERROR). The program, the case, the program's output and stderr and
+  // the compiler message are content the scans look for (each with MARCADOR-CODIGO-019): never in logs
+  // or audit metadata (019/SC-006).
+  const runTeacher = await createUser(t, { roles: ["TEACHER"], name: "Professora do Code Runner" });
+  const runClass = await createClassWithStudents(t, runTeacher.id, { students: 1 });
+  const runExercise = await createCodeExercise(t, runClass.schoolClass, {
+    testCases: [
+      {
+        input: text("entrada do caso de teste (019)", "MARCADOR-CODIGO-019 MARCADOR-ENTRADA-019\n"),
+        expectedOutput: text("saída esperada do caso (019)", "MARCADOR-CODIGO-019 MARCADOR-ESPERADA-019\n"),
+        visibility: "PUBLIC",
+      },
+    ],
+  });
+  const runClient = api(t, { cookie: await keepLoginAs(runClass.students[0]!) });
+  expect((await startAttempt(runClient, runExercise.activity.id)).status).toBe(200);
+  await seedHeartbeat(t, new Date());
+  const runRequest = await requestRun(runClient, runExercise.activity.id, runExercise.questionIds[0]!, text("código executado (019)", "print('MARCADOR-CODIGO-019')"));
+  expect(runRequest.status).toBe(202);
+  const runSandbox = new FakeSandbox().scriptCases(
+    fakeCase({ stdout: text("saída do programa (019)", "MARCADOR-CODIGO-019 MARCADOR-SAIDA-019\n"), stderr: text("saída de erro do programa (019)", "MARCADOR-CODIGO-019 MARCADOR-STDERR-019") }),
+  );
+  expect(await createRunWorker(t, { now: () => new Date() }, { sandbox: runSandbox }).worker.runOnce()).toBe(1);
+  expect((await runClient.get(`/api/me/code-runs/${runRequest.body.id}`)).body).toMatchObject({ status: "COMPLETED", passedCount: 0 });
+  const runQuestionId = runExercise.questionIds[0]!;
+  const compileRequest = await requestRun(runClient, runExercise.activity.id, runQuestionId, text("código que não compila (019)", "print('MARCADOR-CODIGO-019'"));
+  expect(compileRequest.status).toBe(202);
+  runSandbox.failCompilation(text("mensagem do compilador (019)", "SyntaxError: MARCADOR-CODIGO-019 MARCADOR-COMPILADOR-019"));
+  expect(await createRunWorker(t, { now: () => new Date() }, { sandbox: runSandbox }).worker.runOnce()).toBe(1);
+  expect((await runClient.get(`/api/me/code-runs/${compileRequest.body.id}`)).body).toMatchObject({ outcome: "COMPILATION_ERROR" });
+  const failedRequest = await requestRun(runClient, runExercise.activity.id, runQuestionId, text("código de uma execução que falhou (019)", "print('MARCADOR-CODIGO-019 falha')"));
+  expect(failedRequest.status).toBe(202);
+  // The daemon goes down after the heartbeat (a worker that served nothing would claim nothing).
+  const failing = createRunWorker(t, { now: () => new Date() }, { sandbox: runSandbox.failCompilation(null) });
+  await failing.heartbeat.beat();
+  runSandbox.failDaemon();
+  expect(await failing.worker.runOnce()).toBe(1);
+  expect((await runClient.get(`/api/me/code-runs/${failedRequest.body.id}`)).body).toMatchObject({ status: "FAILED", failureReason: "SANDBOX_ERROR" });
+  // 019/US3 — the minute's limit used up (filled in one hit): the next new run is refused (`code_run.rate_limited`).
+  const runLimit = t.config.rateLimit.codeRunsPerMinute;
+  await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
+  expect((await requestRun(runClient, runExercise.activity.id, runQuestionId, "print('de novo')")).status).toBe(429);
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

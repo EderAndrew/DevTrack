@@ -10,7 +10,8 @@ pnpm --filter api maintenance:run [--job <nome>]
 
 Cada execução só roda se obtiver `pg_try_advisory_lock(MAINTENANCE_LOCK)`; se outra
 instância estiver executando, termina sem efeito (exit 0, mensagem "manutenção em
-andamento em outra instância"). Remoções em lotes de 1000 linhas por transação.
+andamento em outra instância"). Remoções em lotes de 1000 linhas por transação (o `code-run-content`
+esvazia 500 execuções por transação).
 
 | Job (`--job`) | Seleciona | Efeito | Auditoria | Requisito |
 |---------------|-----------|--------|-----------|-----------|
@@ -19,6 +20,8 @@ andamento em outra instância"). Remoções em lotes de 1000 linhas por transaç
 | `audit-events` | `audit_events.occurredAt < now() − 5 anos` | remove sob `SET LOCAL devtrack.audit_purge = 'on'` | `audit.purged` (`count`, `olderThan`) quando `count > 0` | FR-077 |
 | `rate-limit-counters` | `rate_limit_counters.expiresAt < now()` | remove | nenhuma | R8 |
 | `ai-records` (006) | `ai_executions` finais com `finished_at < now() − AI_RECORD_RETENTION_DAYS` (padrão 365), sem proposta `READY_FOR_REVIEW` | remove; transições, chamadas ao modelo e às ferramentas, saída e proposta saem em cascata; casos e resultados de avaliação ficam | nenhuma | 006 research "Retenção" |
+| `code-run-content` (019) | `code_runs` finais (`COMPLETED`/`FAILED`) ainda não esvaziados com `finished_at < now() − (CODE_RUN_CONTENT_RETENTION_HOURS − MAINTENANCE_INTERVAL_SECONDS)` (padrão 24 h − 1 h = 23 h) | esvazia o conteúdo (código, mensagem do compilador, stdout e stderr dos casos → `NULL`) e marca `content_purged_at`, em lotes de 500; as linhas ficam (situação, vereditos, contagens, tempos) | nenhuma | 019/FR-019, research B12 |
+| `mail-records` (017) | `mail_notices` com mais de 90 dias; `mail_deliveries` finais com `updated_at < now() − MAIL_RECORDS_RETENTION_DAYS`, exceto a última entrega de um convite ainda `PENDING` | remove sob `SET LOCAL devtrack.mail_purge = 'on'` | nenhuma | 017 research N13 |
 
 Sem `--job`, executa todos na ordem acima. Exit codes: `0` sucesso (inclusive sem
 remoções), `1` erro (mensagem genérica, sem dados pessoais). A saída informa apenas
@@ -33,4 +36,7 @@ Garantias testadas:
   continua falhando;
 - duas execuções simultâneas não removem nada em dobro nem falham;
 - `ai-records` nunca remove execução em andamento, recente ou com proposta aguardando o
-  professor (`test/integration/006-retention.spec.ts`).
+  professor (`test/integration/006-retention.spec.ts`);
+- `code-run-content` nunca toca execução pendente nem a que terminou há menos de 23 h, nenhum
+  conteúdo de execução passa de 24 h entre duas rodadas, e o gatilho recusa qualquer outra mudança
+  numa execução final (`test/security/019-retention.spec.ts`).

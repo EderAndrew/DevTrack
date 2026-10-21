@@ -87,6 +87,16 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the countdown live only in `features/exam-attempt` and `components/ui/assessment`
   (`apps/api/test/activities-boundary.spec.ts`). No exam text says "fraude", "cola" or "violação"
   (`test/exam-wording.test.ts` scans the three exam features and the Exam Mode components, comments aside).
+- Code Runner (019): `features/code-run` holds `CodeRunPanel` (mounted by `activity-answering.tsx` only on an EXERCISE
+  CODE question of the open attempt: "Executar" from the question's `execution`, the convention, version and limits,
+  "Na fila"/"Executando" in a `role="status"` region, the other-question notice, the `429` wait from `Retry-After`),
+  `CodeRunResult` (the summary "n de m casos públicos passaram", one collapsible case per public case with the verdict
+  in words and an icon, the first failing case open, input, expected and obtained output and stderr in `CodeBlock`,
+  the compiler message, the stale notice when the editor differs from the run's `sourceCode`) and `use-code-run`
+  (the latest run of the question, polled every `CODE_RUN_POLL_MS` only while pending and the page is visible). The
+  words live in `features/code-run/schemas/code-run.ts`; the convention arrives as a key. "Executar" never saves or
+  concludes. The bank's "Casos de teste" section is `features/exercises/components/exercise-test-cases.tsx`, with
+  "Os alunos poderão executar o código." / "Sem execução nesta linguagem." next to the language.
 
 ## Guards
 
@@ -95,9 +105,10 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
   orientation and its example on both screens; since 016 the note of "Outro" on the room panel, in the review, on
   the paused notice and in the history; since 018 the Banco de Provas form, the student's exam and the teacher's
-  exam room), and no `dangerouslySetInnerHTML` in the 012
+  exam room; since 019 the run's output, stderr, compiler message and public cases), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
-  `features/controlled-attempt`, `features/work-help`, `features/attendance` or the three exam features.
+  `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features or
+  `features/code-run`.
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and
@@ -116,3 +127,18 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the local mock of OpenRouter's chat completions that the E2E API's `OPENROUTER_BASE_URL` points
   to (`MOCK_PRIMARY_DOWN=1` answers 503 to the primary model; `MOCK_PRIMARY_MODEL` defaults to the
   catalog's cheapest BASIC id).
+
+## E2E commands (moved from the root CLAUDE.md)
+
+Own API :4100 + web :3100, DB `devtrack_e2e` reset each run, e-mails via Mailpit; since 019 also the real Code
+Runner worker (`dist/code-runner/main.js`, Docker with `runc`), so Docker must be running with the pinned images. Local only (not in CI);
+`e2e/prepare-db.ts` runs `prisma migrate reset`, which needs the user's consent under an AI agent.
+
+```bash
+docker compose up -d postgres-test mailpit
+pnpm build                                              # the E2E API runs apps/api/dist
+pnpm --filter api code-runner:images                    # 019, first time only: code-runner.spec.ts runs real programs
+pnpm --filter web exec playwright install chromium      # first time only
+pnpm --filter web test:e2e
+pnpm --filter web test:e2e work-bank                    # one spec by path regex; the admin → teacher setup projects still run first
+```

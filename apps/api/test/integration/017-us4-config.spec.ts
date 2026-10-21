@@ -34,6 +34,8 @@ const production = (env: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv => {
     MAIL_FROM: "DevTrack <nao-responda@devtrack.app>",
     MAIL_NOTICE_PROVIDER: "resend",
     MAIL_NOTICE_SECRET: SECRET,
+    // 019: production also requires the Code Runner kill switch to be set (its own guard, platform.spec.ts).
+    CODE_RUNNER_ENABLED: "false",
   };
   delete base.MAIL_MESSAGE_ID_DOMAIN;
   return { ...base, ...env };

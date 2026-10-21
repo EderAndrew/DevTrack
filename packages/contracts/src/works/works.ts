@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { TestCaseVisibilitySchema } from "../common/test-cases.js";
 import {
-  TestCaseVisibilitySchema,
   WorkDifficultySchema,
   WorkGradingStrategySchema,
   WorkOriginSchema,

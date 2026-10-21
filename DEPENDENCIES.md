@@ -5,8 +5,8 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-10-04** (fase 014, T001), Node 24.12, pnpm 11.25, lockfile do
-commit desta tarefa.
+Última verificação: **2026-10-20** (atualização geral, seção 12), Node 24.12, pnpm 11.25,
+lockfile do commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
 
@@ -239,3 +239,28 @@ Alternativas descartadas (L1): Monaco (pesado, fraco no celular, tema próprio);
 camada colorida (react-simple-code-editor + Prism/highlight.js: HTML por
 `dangerouslySetInnerHTML`, proibido pela 012/FR-035); Shiki (gramáticas TextMate + WASM, saída
 em HTML); CodeMirror 5 (sem manutenção).
+
+## 12. Atualização geral — 2026-10-20
+
+Todas as dependências diretas foram para a última versão estável. Patches e versões menores incluem
+`next`/`@next/eslint-plugin-next` 16.4.2, `react`/`react-dom` 19.3.1, `prisma`/`@prisma/*` 7.10.1,
+`zod` 4.6.7 (catálogo), `vitest` 5.0.5, `eslint` 10.13.0 e `turbo` 2.11.9. As versões maiores foram:
+
+| Pacote | De → para | Onde | Mudança no código |
+|--------|-----------|------|-------------------|
+| `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/testing` | 11.2.5 → 12.2.0 | api | `app.setup.ts`: o filtro `type` do `useBodyParser` passou a ser tipado com `IncomingMessage` |
+| `@hookform/resolvers` | 5.9.1 → 6.0.0 | web | nenhuma |
+| `unplugin-swc` | 1.6.0 → 2.0.0 | api (dev; configs de eval e sandbox) | nenhuma |
+
+Ficaram de fora: `prisma` 8 (só existe como release candidate, `8.0.0-rc.*`) e `@types/node` 26 em
+`apps/api` e `packages/contracts`, que seguem em 24.x para casar com o runtime Node 24 LTS (o web já
+estava em 26).
+
+O `@nestjs/platform-express` 12.2.0 traz o `multer` 2.4.0 corrigido, então o override de `multer` da
+seção 1 saiu de `pnpm-workspace.yaml` (a versão resolvida segue 2.4.0); ficam os de `nanoid`, `mysql2` e
+`deepmerge-ts`.
+
+`pnpm audit --prod --audit-level high`: `No known vulnerabilities found`.
+`pnpm licenses list --prod`: 442 pacotes (365 MIT, 32 Apache-2.0, 31 ISC); as entradas novas do
+NestJS 12 (`load-esm`, `file-type`, `@standard-schema/spec`, `uid`) são MIT, e a tabela de exceções da
+seção 2 não mudou.

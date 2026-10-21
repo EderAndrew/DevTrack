@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CodeHighlightSchema } from "../common/code-highlight.js";
 import { UuidSchema } from "../common/primitives.js";
+import { ExecutionKeySchema } from "../code-runs/enums.js";
 
 // The programming-language catalog (010 research X17): data seeded by migration, read-only.
 
@@ -12,6 +13,11 @@ export const ProgrammingLanguageViewSchema = z.strictObject({
   name: z.string(),
   /** Grammar key of the code colors (014); null = plain text. */
   highlight: CodeHighlightSchema,
+  /**
+   * The Code Runner profile (019 research B5); null = the students can't run code in this language.
+   * Whether a worker is live right now is not part of the catalog.
+   */
+  execution: ExecutionKeySchema.nullable(),
 });
 export type ProgrammingLanguageView = z.infer<typeof ProgrammingLanguageViewSchema>;
 

@@ -24,6 +24,13 @@ const exercise = (id: string, type: ExerciseSource["type"], overrides: Partial<E
           { position: 1, text: "B", isCorrect: false },
         ]
       : [],
+  testCases:
+    type === "CODE"
+      ? [
+          { position: 1, input: "2", expectedOutput: "4", visibility: "PRIVATE" },
+          { position: 0, input: "1", expectedOutput: "2", visibility: "PUBLIC" },
+        ]
+      : [],
   ...overrides,
 });
 
@@ -49,7 +56,7 @@ describe("013/FR-002 snapshot dos exercícios (012 research P2, P6; 013 research
     expect(snapshot.questions[0]).toMatchObject({ difficulty: "INTERMEDIATE", points: 30 });
   });
 
-  it("cada tipo leva a estratégia do tipo e só os campos dele; código sem casos de teste", () => {
+  it("cada tipo leva a estratégia do tipo e só os campos dele; código com os casos de teste do banco (019/FR-002)", () => {
     const [open, choice, code] = snapshotFromExercises([exercise("a", "OPEN_ANSWER"), exercise("b", "MULTIPLE_CHOICE"), exercise("c", "CODE")]).questions;
     expect(open).toMatchObject({ gradingStrategy: "AI_REVIEW", expectedAnswer: "Reuso", rubric: null, instructions: null, languageId: null, alternatives: [] });
     expect(choice).toMatchObject({ gradingStrategy: "EXACT_MATCH", expectedAnswer: null, alternatives: [
@@ -57,7 +64,21 @@ describe("013/FR-002 snapshot dos exercícios (012 research P2, P6; 013 research
       { position: 1, text: "B", isCorrect: false },
       { position: 2, text: "C", isCorrect: false },
     ] });
-    expect(code).toMatchObject({ gradingStrategy: "TEST_CASES", testCases: [], expectedSolution: "class A { }", languageId: "lang-java", starterCode: "class A {}" });
+    expect(code).toMatchObject({ gradingStrategy: "TEST_CASES", expectedSolution: "class A { }", languageId: "lang-java", starterCode: "class A {}" });
+    expect(code!.testCases).toEqual([
+      { position: 0, input: "1", expectedOutput: "2", visibility: "PUBLIC" },
+      { position: 1, input: "2", expectedOutput: "4", visibility: "PRIVATE" },
+    ]);
+    expect(open!.testCases).toEqual([]);
+    expect(choice!.testCases).toEqual([]);
+  });
+
+  it("019/FR-002 os casos copiados não seguem o exercício de origem", () => {
+    const source = exercise("c", "CODE");
+    const snapshot = snapshotFromExercises([source]);
+    source.testCases.push({ position: 2, input: "3", expectedOutput: "6", visibility: "PUBLIC" });
+    source.testCases[0]!.expectedOutput = "mudou";
+    expect(snapshot.questions[0]!.testCases.map((testCase) => testCase.expectedOutput)).toEqual(["2", "4"]);
   });
 
   it("o tópico do exercício vira o tópico da questão", () => {

@@ -1,7 +1,7 @@
 import type { PendingReason } from "@repo/contracts";
-import { answerOf, type CodeRunStatus, type GradingStrategy, pendingTeacher, ruleResult } from "./strategy";
+import { answerOf, type CodeGradingStatus, type GradingStrategy, pendingTeacher, ruleResult } from "./strategy";
 
-const PENDING: Partial<Record<CodeRunStatus, PendingReason>> = {
+const PENDING: Partial<Record<CodeGradingStatus, PendingReason>> = {
   UNAVAILABLE: "CODE_RUNNER_UNAVAILABLE",
   INFRA_ERROR: "CODE_RUNNER_INFRA_ERROR",
 };

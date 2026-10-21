@@ -170,17 +170,26 @@ const PHASE_018_TEXTS = {
   NOT_AN_EXAM: "Esta atividade não é uma prova.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS, ...PHASE_018_TEXTS };
+// Codes added by 019, with the texts of specs/019-exercise-code-runner/tasks.md (T003).
+const PHASE_019_TEXTS = {
+  CODE_RUN_NOT_AVAILABLE: "Este exercício não tem casos para executar.",
+  CODE_RUNNER_UNAVAILABLE: "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente.",
+  SOURCE_TOO_LARGE: "O código passou do tamanho máximo de 64 KB.",
+  ATTEMPT_NOT_IN_PROGRESS: "Comece ou refaça os exercícios para executar o código.",
+  EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS, ...PHASE_018_TEXTS, ...PHASE_019_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 116 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016 e da 018", () => {
+  it("007/FR-040 cobre os 121 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018 e da 019", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED" && code !== "NOTICE_TOO_LARGE");
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(118);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(123);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {

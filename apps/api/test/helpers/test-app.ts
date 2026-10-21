@@ -65,6 +65,8 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     ...base,
     maintenanceIntervalSeconds: 0,
     mailRetryIntervalSeconds: 0,
+    // 019: on, whatever the shell exports; the suites drive the worker with the FakeSandbox.
+    codeRunner: { ...base.codeRunner, enabled: true },
     ...overrides,
     // 017: suites share the per-minute send budget through the database; only the FR-008 suites,
     // which set it, should ever see it run out.

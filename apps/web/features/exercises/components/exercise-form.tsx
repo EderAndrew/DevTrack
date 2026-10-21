@@ -43,12 +43,16 @@ import {
   emptyAlternative,
   emptyCard,
   exerciseFormSchema,
+  TEST_CASES_NOT_ALLOWED_MESSAGE,
+  EXPECTED_OUTPUT_MESSAGE,
   toExerciseInput,
 } from "../schemas/exercise-form";
+import { exerciseRuleViolations } from "../api/exercises";
 import { CodeField } from "./code-field";
+import { ExerciseTestCases, testCaseFieldId, testCasesSectionId } from "./exercise-test-cases";
 
 type Form = UseFormReturn<ExerciseFormValues>;
-type CardField = Exclude<keyof ExerciseCardValues, "alternatives">;
+type CardField = Exclude<keyof ExerciseCardValues, "alternatives" | "testCases">;
 
 const FIELD_SLUGS: Record<CardField, string> = {
   type: "tipo",
@@ -74,6 +78,8 @@ export const alternativeFieldId = (card: number, alternative: number) => `exerci
 const correctRadioId = (card: number, alternative: number) => `${alternativeFieldId(card, alternative)}-correta`;
 const alternativesErrorId = (card: number) => `exercicio-${card + 1}-alternativas-erro`;
 const ADD_CARD_ID = "exercicio-adicionar";
+/** Prefix of a card's ids (`exercicio-2`), shared with its "Casos de teste". */
+const cardPrefix = (card: number) => `exercicio-${card + 1}`;
 
 /** The order of a card's fields on screen, which the error summary follows. */
 const FIELD_ORDER: CardField[] = [
@@ -132,6 +138,16 @@ function collectErrors(fieldErrors: FieldErrors<ExerciseFormValues>, single: boo
           result.summary.push({ fieldId: alternativeFieldId(index, 0), message: single ? duplicate : `Exercício ${index + 1}: ${duplicate}` });
         }
       }
+      if (field === "languageId") {
+        // 019: the test cases come right after the language.
+        const testCases = card.testCases as unknown as ({ expectedOutput?: MessageTree } | undefined)[] | undefined;
+        if (Array.isArray(testCases)) {
+          testCases.forEach((testCase, position) => {
+            const caseMessage = messageOf(testCase?.expectedOutput);
+            if (caseMessage) add(testCaseFieldId(cardPrefix(index), position, "expectedOutput"), caseMessage, index);
+          });
+        }
+      }
       const message = messageOf(card[field] as MessageTree);
       if (!message) continue;
       if (field === "correctAlternative") {
@@ -142,6 +158,24 @@ function collectErrors(fieldErrors: FieldErrors<ExerciseFormValues>, single: boo
       }
     }
   });
+  return result;
+}
+
+/**
+ * The server's `422 EXERCISE_RULES` (019) on the fields it names: a case's expected output, or the
+ * whole list; null for any other error.
+ */
+function apiRuleErrors(error: unknown, single: boolean): FormErrors | null {
+  const violations = exerciseRuleViolations(error);
+  if (violations.length === 0) return null;
+  const result: FormErrors = { summary: [], fields: {} };
+  for (const { position, field, reason } of violations) {
+    const caseMatch = /^testCases\.(\d+)\.expectedOutput$/.exec(field);
+    const fieldId = caseMatch ? testCaseFieldId(cardPrefix(position), Number(caseMatch[1]), "expectedOutput") : testCasesSectionId(cardPrefix(position));
+    const message = reason === "TEST_CASE_EXPECTED_OUTPUT" ? EXPECTED_OUTPUT_MESSAGE : TEST_CASES_NOT_ALLOWED_MESSAGE;
+    result.fields[fieldId] = message;
+    result.summary.push({ fieldId, message: single ? message : `Exercício ${position + 1}: ${message}` });
+  }
   return result;
 }
 
@@ -195,7 +229,7 @@ export function ExerciseForm({ mode }: ExerciseFormProps) {
           router.push(`/exercicios?criados=${created.items.length}`);
         }
       } catch (error) {
-        setErrors({ summary: [{ message: messageForError(error) }], fields: {} });
+        setErrors(apiRuleErrors(error, single) ?? { summary: [{ message: messageForError(error) }], fields: {} });
       }
     }, onInvalid);
 
@@ -277,7 +311,8 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
   const [type, languageId] = useWatch({ control, name: [`cards.${index}.type`, `cards.${index}.languageId`] });
   const languages = useProgrammingLanguages();
   // The chosen language's grammar colors the code fields and changes with it (014/US3-2).
-  const highlight = languages.data?.find((language) => language.id === languageId)?.highlight ?? null;
+  const language = languages.data?.find((item) => item.id === languageId);
+  const highlight = language?.highlight ?? null;
   const id = (field: CardField) => cardFieldId(index, field);
   const headingId = `exercicio-${index + 1}-titulo`;
 
@@ -366,7 +401,7 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
               id={id("languageId")}
               label="Linguagem"
               required
-              hint={languages.isError ? "Não foi possível carregar as linguagens." : undefined}
+              hint={languages.isError ? "Não foi possível carregar as linguagens." : executionHint(language?.execution)}
               error={errorFor(id("languageId"))}
               {...register(`cards.${index}.languageId`)}
             >
@@ -377,6 +412,7 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
                 </option>
               ))}
             </SelectField>
+            <ExerciseTestCases control={control} register={register} name={`cards.${index}.testCases`} idPrefix={cardPrefix(index)} errorFor={errorFor} />
           </>
         ) : null}
 
@@ -548,6 +584,15 @@ function AlternativesFields({ index, form, errorFor }: { index: number; form: Fo
       </Button>
     </fieldset>
   );
+}
+
+/**
+ * Next to the language (019 contracts/web-ui.md): whether the catalog runs code in it. The catalog's
+ * `execution` key, not whether a worker is up right now.
+ */
+export function executionHint(execution: string | null | undefined): string | undefined {
+  if (execution === undefined) return undefined;
+  return execution === null ? "Sem execução nesta linguagem." : "Os alunos poderão executar o código.";
 }
 
 interface FieldShellProps {

@@ -8,6 +8,8 @@ export default defineConfig({
   ],
   test: {
     include: ["test/**/*.spec.ts", "src/**/*.spec.ts"],
+    // 019: the real-Docker suite runs only through `test:sandbox` (vitest.sandbox.config.ts).
+    exclude: ["**/node_modules/**", "test/sandbox/**"],
     environment: "node",
     // Integration and security suites share one PostgreSQL database: run files serially.
     fileParallelism: false,

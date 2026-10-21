@@ -248,11 +248,15 @@ describe("011/SC-013 o banco de exercícios (010) não muda com o banco de traba
 
   /**
    * Changes a later spec decided on purpose, by migration and table: 014 (research L3) gives each
-   * catalog language its grammar key — the `highlight` column, its CHECK and its seed, nothing else.
+   * catalog language its grammar key — the `highlight` column, its CHECK and its seed, nothing else;
+   * 019 (research B5) its Code Runner profile — the `execution` column, its CHECK and its seed.
    */
   const ALLOWED: Record<string, Record<string, RegExp>> = {
     "20261004120000_code_highlight": {
       programming_languages: /^(ALTER TABLE "programming_languages" ADD (COLUMN "highlight" TEXT|CONSTRAINT "programming_languages_highlight_chk" CHECK \("highlight" ~ .*\))|UPDATE "programming_languages" AS l SET "highlight" = v\."highlight" FROM \(VALUES .*\) AS v\("key", "highlight"\) WHERE l\."key" = v\."key")$/,
+    },
+    "20261014120000_exercise_code_runner": {
+      programming_languages: /^(ALTER TABLE "programming_languages" ADD (COLUMN "execution" TEXT|CONSTRAINT "programming_languages_execution_chk" CHECK \("execution" IS NULL OR "execution" IN \('java', 'python', 'javascript'\)\))|UPDATE "programming_languages" SET "execution" = "key" WHERE "key" IN \('java', 'python', 'javascript'\))$/,
     },
   };
 
@@ -275,6 +279,16 @@ describe("011/SC-013 o banco de exercícios (010) não muda com o banco de traba
     expect(changes(sql, "programming_languages")).toHaveLength(3);
     expect(allowed.test('ALTER TABLE "programming_languages" ADD COLUMN "aliases2" TEXT')).toBe(false);
     expect(allowed.test('ALTER TABLE "programming_languages" DROP COLUMN "highlight"')).toBe(false);
+    expect(allowed.test('UPDATE "programming_languages" SET "active" = false')).toBe(false);
+  });
+
+  it("019: a exceção do catálogo cobre só a coluna execution, seu CHECK e seu seed", () => {
+    const allowed = ALLOWED["20261014120000_exercise_code_runner"]!.programming_languages!;
+    const sql = readFileSync(join(MIGRATIONS, "20261014120000_exercise_code_runner", "migration.sql"), "utf8");
+    expect(changes(sql, "programming_languages")).toHaveLength(3);
+    expect(changes(sql, "programming_languages").every((statement) => allowed.test(statement))).toBe(true);
+    expect(allowed.test('ALTER TABLE "programming_languages" DROP COLUMN "execution"')).toBe(false);
+    expect(allowed.test('UPDATE "programming_languages" SET "execution" = "key"')).toBe(false);
     expect(allowed.test('UPDATE "programming_languages" SET "active" = false')).toBe(false);
   });
 

@@ -29,7 +29,7 @@ export function toTeacherQuestion(row: ActivityQuestionRow): TeacherQuestion {
     statement: row.statement,
     instructions: row.instructions,
     starterCode: row.starterCode,
-    language: row.language,
+    language: row.language && { id: row.language.id, name: row.language.name, highlight: row.language.highlight },
     expectedAnswer: row.expectedAnswer,
     rubric: row.rubric,
     expectedSolution: row.expectedSolution,

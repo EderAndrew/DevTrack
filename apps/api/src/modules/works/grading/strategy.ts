@@ -11,10 +11,11 @@ export interface CodeRunInput {
   testCases: { input: string; expectedOutput: string }[];
 }
 
-export type CodeRunStatus = "PASSED" | "FAILED" | "UNAVAILABLE" | "INFRA_ERROR";
+/** The grading of all of a question's cases at once (011), not the state of a 019 run. */
+export type CodeGradingStatus = "PASSED" | "FAILED" | "UNAVAILABLE" | "INFRA_ERROR";
 
 export interface CodeRunnerPort {
-  run(input: CodeRunInput): Promise<{ status: CodeRunStatus }>;
+  run(input: CodeRunInput): Promise<{ status: CodeGradingStatus }>;
 }
 
 /** What 012's WorkEvaluationAgent is given to suggest a grade for an open answer. */

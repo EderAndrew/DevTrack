@@ -405,6 +405,7 @@ describe("012 contratos do aluno (contracts/http-api.md)", () => {
     language: null,
     publicTestCases: [],
     alternatives: [{ id: uuid(2), text: "Animal" }],
+    execution: null,
   };
 
   it("012/FR-030 012/FR-032 a questão do aluno é uma lista fechada: um campo de gabarito quebra o contrato", () => {
@@ -414,6 +415,17 @@ describe("012 contratos do aluno (contracts/http-api.md)", () => {
     }
     expect(accepts(StudentQuestionSchema, { ...question, alternatives: [{ id: uuid(2), text: "Animal", isCorrect: true }] })).toBe(false);
     expect(accepts(StudentQuestionSchema, { ...question, publicTestCases: [{ input: "1", expectedOutput: "2", visibility: "PRIVATE" }] })).toBe(false);
+  });
+
+  it("019/FR-005 019/FR-014 a questão de Código de um exercício traz a execução; as demais, null; nada de casos privados", () => {
+    const execution = { status: "AVAILABLE", languageVersion: "Node.js 24", convention: "STDIN_STDOUT", limits: { timeMs: 2000, memoryMb: 256, outputBytes: 65_536 } };
+    expect(accepts(StudentQuestionSchema, { ...question, type: "CODE", execution })).toBe(true);
+    expect(accepts(StudentQuestionSchema, { ...question, type: "CODE", execution: { ...execution, status: "NO_PUBLIC_CASES" } })).toBe(true);
+    const withoutExecution: Record<string, unknown> = { ...question };
+    delete withoutExecution.execution;
+    expect(accepts(StudentQuestionSchema, withoutExecution)).toBe(false);
+    expect(accepts(StudentQuestionSchema, { ...question, execution: { ...execution, privateCaseCount: 2 } })).toBe(false);
+    expect(accepts(StudentQuestionSchema, { ...question, privateTestCases: [] })).toBe(false);
   });
 
   it("012/FR-017 salvar leva de 1 a 10 respostas distintas com a revisão de base", () => {
@@ -489,6 +501,7 @@ describe("013 contratos do aluno (contracts/http-api.md)", () => {
       language: null,
       publicTestCases: [],
       alternatives: [],
+      execution: null,
     };
     expect(accepts(StudentQuestionSchema, question)).toBe(true);
     for (const leak of ["expectedAnswer", "expectedSolution", "explanation", "correctAlternativeId", "result", "difficulty"]) {
@@ -591,6 +604,7 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     language: null,
     publicTestCases: [],
     alternatives: [],
+    execution: null,
   };
   const pause = { id: uuid(6), initiatedBy: "STUDENT", reason: "WATER", note: null, startedAt: AT, endedAt: null };
   const detail = (overrides: Record<string, unknown> = {}) => ({
@@ -810,6 +824,7 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
       language: null,
       publicTestCases: [],
       alternatives: [],
+      execution: null,
     };
     // With a hold open, no statement and no answer reach the student.
     expect(accepts(StudentActivitySchema, { ...detail.data!, questions: [question] })).toBe(false);

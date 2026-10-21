@@ -1,4 +1,4 @@
-import { type ActivityAttendanceCounts, type AiHelpAllowance, AiHelpAllowanceSchema, type GradeCents, gradeToCents } from "@repo/contracts";
+import { type ActivityAttendanceCounts, type AiHelpAllowance, AiHelpAllowanceSchema, type ExecutionKey, type GradeCents, gradeToCents } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
 import type { Tx } from "../../platform/database/transaction";
 import type { ActivityQuestionRow } from "./views/rows";
@@ -32,7 +32,7 @@ export const ACTIVITY_QUESTION_SELECT = {
   statement: true,
   instructions: true,
   starterCode: true,
-  language: { select: { id: true, name: true, highlight: true } },
+  language: { select: { id: true, name: true, highlight: true, execution: true } },
   expectedAnswer: true,
   rubric: true,
   expectedSolution: true,
@@ -63,7 +63,8 @@ export function toQuestionRow(row: QuestionRow): ActivityQuestionRow & { sourceE
     statement: row.statement,
     instructions: row.instructions,
     starterCode: row.starterCode,
-    language: row.language,
+    // `execution` is CHECKed to the contract's profile keys (019 research B5).
+    language: row.language && { ...row.language, execution: row.language.execution as ExecutionKey | null },
     expectedAnswer: row.expectedAnswer,
     rubric: row.rubric,
     expectedSolution: row.expectedSolution,

@@ -22,6 +22,12 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "code-runner:dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": ["DOCKER_HOST", "HOME", "PATH"],
+      "persistent": true
     }
   }
 }

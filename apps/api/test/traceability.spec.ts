@@ -242,6 +242,24 @@ const SPECS: FeatureSpec[] = [
     // keyboard tests of the exam components) and SC-001 (the E2E exam.spec.ts) since Phase 11.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "019",
+    path: "specs/019-exercise-code-runner/spec.md",
+    stories: 4,
+    scenarios: 24,
+    // No "### Acceptance Criteria Traceability" table, as in 008–018.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 8),
+    // Joined in the Foundational phase (T011); each story leaves `pending` with the task that writes its
+    // last test, each SC with the test that cites it, so the lists are empty at the end of T040.
+    // SC-006 since Phase 2 (code-runner-boundary.spec.ts: no content in audit or logs); US2 (with SC-002,
+    // 019-private-cases.spec.ts) since Phase 3; US1, SC-004 and SC-008 (019-us1-run, 019-invariance, the web
+    // code-run panel) since Phase 4; US3 with SC-001, SC-003 (test/sandbox: timing and the hostile suite),
+    // SC-005 (019-rate-limits) and SC-007 (019-us3-availability) since Phase 5; US4 (019-us4-languages and the
+    // exercise form) since Phase 6.
+    pending: { stories: [], successCriteria: [] },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

@@ -115,6 +115,9 @@ export const EXERCISE_POINTS_STUDENT = ["ranking.turma.visualizar"] as const sat
 /** 015: the student asks for and reads the AI help of a work. */
 export const WORK_HELP_STUDENT = ["ia.ajuda.pedir"] as const satisfies PermissionKey[];
 
+/** 019: the student runs code on an exercise's public cases and reads their own runs. */
+export const CODE_RUNNER_STUDENT = ["atividades.proprias.executar"] as const satisfies PermissionKey[];
+
 /** 016: the teacher takes the attendance of a work, pauses a student and releases the return. */
 export const ATTENDANCE_TEACHER = ["chamada.registrar"] as const satisfies PermissionKey[];
 
@@ -142,7 +145,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
   TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
-  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */
@@ -329,6 +332,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/classes/:classId/activities/:activityId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/integrity", access: "entregas.visualizar" },
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/help", access: "entregas.visualizar" },
+  // 019/US1 — the student's code runs on an exercise's public cases (contracts/permissions.md).
+  { method: "POST", path: "/me/activities/:activityId/questions/:questionId/code-runs", access: "atividades.proprias.executar" },
+  { method: "GET", path: "/me/activities/:activityId/questions/:questionId/code-runs/latest", access: "atividades.proprias.executar" },
+  { method: "GET", path: "/me/code-runs/:runId", access: "atividades.proprias.executar" },
   // 016/US1 — the attendance of a work (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },

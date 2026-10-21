@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { AiErrorCodeSchema } from "../ai/enums.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
-import { TestCaseVisibilitySchema, WorkDifficultySchema, WorkGenerationRequestStatusSchema } from "../works/enums.js";
+import { TestCaseVisibilitySchema } from "../common/test-cases.js";
+import { WorkDifficultySchema, WorkGenerationRequestStatusSchema } from "../works/enums.js";
 import { GradeOutputSchema, GradeStringSchema, gradeToCents } from "../works/grade.js";
 import { WORK_ALTERNATIVES_MAX, WORK_ALTERNATIVES_MIN, WORK_TEST_CASES_MAX, WORK_TITLE_MAX, WorkSubjectRefSchema } from "../works/works.js";
 import { EXAM_MAX_QUESTIONS, EXAM_MIN_QUESTIONS, EXAM_QUESTION_TOPICS_MAX, EXAM_QUESTION_TOPICS_MIN } from "./questions.js";

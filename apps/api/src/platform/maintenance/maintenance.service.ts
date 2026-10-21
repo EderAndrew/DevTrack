@@ -17,6 +17,7 @@ export const MAINTENANCE_JOB_NAMES = [
   "audit-events",
   "rate-limit-counters",
   "ai-records",
+  "code-run-content",
   "mail-records",
 ] as const;
 

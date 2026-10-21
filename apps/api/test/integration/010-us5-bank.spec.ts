@@ -180,7 +180,7 @@ describe("010/US5 consultar e manter o banco", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: "APPROVED", statement: body.statement, version: before.version + 1 });
     const [edited] = await audits("exercise.edited");
-    expect(edited?.metadata).toEqual({ origin: "MANUAL", status: "APPROVED", fields: ["statement"] });
+    expect(edited?.metadata).toEqual({ origin: "MANUAL", status: "APPROVED", fields: ["statement"], testCaseCount: 0, publicTestCaseCount: 0 });
     // The search key follows the new statement.
     expect(statements(await list({ query: "heranca simples" }))).toEqual([body.statement]);
   });

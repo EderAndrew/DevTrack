@@ -26,7 +26,7 @@ import { AuditService } from "../audit/audit.service";
 import { ExerciseBatchReview } from "./batch-review";
 import { ExerciseStateMachine } from "./exercise.state-machine";
 import { afterUpdated, EXERCISE_PAGE_SIZE_DEFAULT, EXERCISE_RECORD_SELECT, exerciseListWhere, toExerciseRecord } from "./exercise-query";
-import { type ExerciseContentRows, exerciseContentRows, exerciseViolations } from "./rules/exercise-rules";
+import { type ExerciseContentRows, exerciseContentRows, exerciseRulesError, exerciseViolations, testCaseCounts } from "./rules/exercise-rules";
 import { toTeacherView } from "./views/teacher-view";
 
 /**
@@ -89,6 +89,8 @@ export class ExercisesService {
   async update(auth: AuthContext, exerciseId: string, body: UpdateExerciseRequest, requestId: string | null): Promise<ExerciseTeacherView> {
     const { version, ...input } = body;
     if (exerciseViolations(input).length > 0) throw validationError();
+    const rulesError = exerciseRulesError([input]);
+    if (rulesError) throw rulesError;
 
     return this.prisma.runInTransaction(async (tx) => {
       const current = await this.lockCurrent(tx, auth.userId, exerciseId, version);
@@ -118,8 +120,9 @@ export class ExercisesService {
           syllabusItemId,
           humanEdited: ai || current.humanEdited,
           version: { increment: 1 },
-          // The deferred trigger checks the new alternatives at commit.
+          // The deferred triggers check the new alternatives and test cases at commit.
           ...(fields.includes("alternatives") ? { alternatives: { deleteMany: {}, create: rows.alternatives } } : {}),
+          ...(fields.includes("testCases") ? { testCases: { deleteMany: {}, create: rows.testCases } } : {}),
         },
       });
       await this.audit.record(tx, {
@@ -129,7 +132,7 @@ export class ExercisesService {
         targetType: "EXERCISE",
         targetId: exerciseId,
         requestId,
-        metadata: { origin: current.origin, status: current.status, fields },
+        metadata: { origin: current.origin, status: current.status, fields, ...testCaseCounts(rows.testCases) },
       });
       return this.get(auth.userId, exerciseId, tx);
     });
@@ -296,6 +299,8 @@ export class ExercisesService {
     requestId: string | null,
   ): Promise<ExerciseTeacherView[]> {
     if (inputs.some((input) => exerciseViolations(input).length > 0)) throw validationError();
+    const rulesError = exerciseRulesError(inputs);
+    if (rulesError) throw rulesError;
 
     return this.prisma.runInTransaction(async (tx) => {
       await this.checkTopics(tx, auth.userId, inputs);
@@ -317,8 +322,9 @@ export class ExercisesService {
             explanation: rows.explanation,
             ...rows.columns,
             syllabusItemId: input.syllabusItemId ?? null,
-            // The deferred trigger checks 3–5 alternatives and one correct at commit.
+            // The deferred triggers check 3–5 alternatives and one correct, and the test cases, at commit.
             alternatives: { create: rows.alternatives },
+            testCases: { create: rows.testCases },
           },
           select: { id: true },
         });
@@ -335,6 +341,7 @@ export class ExercisesService {
             status,
             setSize: inputs.length,
             syllabusItemId: input.syllabusItemId ?? null,
+            ...testCaseCounts(rows.testCases),
           },
         });
         ids.push(id);
@@ -389,6 +396,7 @@ interface LockedExercise {
   generationBatchId: string | null;
   humanEdited: boolean;
   alternatives: { text: string; isCorrect: boolean }[];
+  testCases: { input: string; expectedOutput: string; visibility: string }[];
 }
 
 const LOCKED_COLUMNS = Prisma.sql`
@@ -402,7 +410,11 @@ const LOCKED_COLUMNS = Prisma.sql`
   COALESCE((
     SELECT json_agg(json_build_object('text', a.text, 'isCorrect', a.is_correct) ORDER BY a.position)
     FROM exercise_alternatives a WHERE a.exercise_id = exercises.id
-  ), '[]'::json) AS alternatives`;
+  ), '[]'::json) AS alternatives,
+  COALESCE((
+    SELECT json_agg(json_build_object('input', c.input, 'expectedOutput', c.expected_output, 'visibility', c.visibility::text) ORDER BY c.position)
+    FROM exercise_test_cases c WHERE c.exercise_id = exercises.id
+  ), '[]'::json) AS "testCases"`;
 
 /**
  * The names of the fields an edit changes, in a fixed order (the `exercise.edited` metadata): names
@@ -422,7 +434,13 @@ function changedFields(current: LockedExercise, rows: ExerciseContentRows, input
     languageId: rows.columns.languageId,
     alternatives: JSON.stringify(rows.alternatives.map(({ text, isCorrect }) => ({ text, isCorrect }))),
     isTrickQuestion: rows.columns.isTrickQuestion,
+    // 019: order, texts and visibility; the list is replaced as a whole when any of it changes.
+    testCases: JSON.stringify(rows.testCases.map(({ input, expectedOutput, visibility }) => ({ input, expectedOutput, visibility }))),
   };
-  const before: Record<keyof typeof next, unknown> = { ...current, alternatives: JSON.stringify(current.alternatives) };
+  const before: Record<keyof typeof next, unknown> = {
+    ...current,
+    alternatives: JSON.stringify(current.alternatives),
+    testCases: JSON.stringify(current.testCases),
+  };
   return (Object.keys(next) as (keyof typeof next)[]).filter((field) => next[field] !== before[field]);
 }

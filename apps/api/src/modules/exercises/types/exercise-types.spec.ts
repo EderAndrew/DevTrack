@@ -66,6 +66,7 @@ function record(type: keyof typeof INPUTS): ExerciseRecord {
     alternatives: rows.alternatives
       .map((alternative) => ({ id: `00000000-0000-4000-8000-00000000000${alternative.position}`, ...alternative }))
       .reverse(),
+    testCases: rows.testCases,
     reviewedBy: null,
     topic: null,
   };

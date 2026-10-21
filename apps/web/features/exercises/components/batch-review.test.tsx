@@ -229,6 +229,8 @@ describe("014/US3 BatchReview — o rascunho de código da IA se edita com cores
     fetchMock.mockReset();
     fetchMock.mockImplementation(async (input, init) => {
       const method = init?.method ?? "GET";
+      // 019: the editor reads the catalog for the language's execution phrase.
+      if (method === "GET" && String(input) === "/api/programming-languages") return json(200, [JAVA]);
       if (method === "GET") return json(200, detail);
       writes.push({ method, url: String(input), body: JSON.parse(String(init!.body)) });
       return json(200, code);

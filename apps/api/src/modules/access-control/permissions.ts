@@ -83,6 +83,8 @@ export const PERMISSIONS = [
   "provas.arquivar",
   "ia.provas.gerar",
   "provas.encerramentos.decidir",
+  // 019 — the student runs code on an exercise's public cases (specs/019-exercise-code-runner/contracts/permissions.md).
+  "atividades.proprias.executar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

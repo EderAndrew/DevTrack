@@ -60,6 +60,17 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
+      // 019: the real Code Runner worker (Docker, `runc`), on the E2E database the API entry above has
+      // just prepared (webServers start in order). It has no port: Playwright waits for its start log.
+      // Needs Docker running and the pinned images (`pnpm --filter api code-runner:images`).
+      command: `node ${JSON.stringify(`${API_DIR}dist/code-runner/main.js`)}`,
+      cwd: WEB_DIR,
+      env: { ...e2eEnv, LOG_LEVEL: "info" },
+      wait: { stdout: /code_runner\.started/ },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
       // Next.js writes the `/api/*` rewrite target into the build (routes-manifest.json), so the web
       // is built for API 4100 in its own directory; `.next` of `pnpm build`/`pnpm dev` is untouched.
       command: "next build && next start --port 3100",

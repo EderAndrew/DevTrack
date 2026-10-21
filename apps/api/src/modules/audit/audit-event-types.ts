@@ -132,8 +132,9 @@ export const AUDIT_EVENT_METADATA = {
   ],
   // 010 — the exercise bank. Only ids, counts and enums: never statements, answers, solutions,
   // explanations or alternative texts.
-  "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId"],
-  "exercise.edited": ["origin", "status", "fields"],
+  // 019 adds the size of the test-case list (contracts/audit-events.md "Changed"), never a case.
+  "exercise.created": ["type", "difficulty", "status", "setSize", "syllabusItemId", "testCaseCount", "publicTestCaseCount"],
+  "exercise.edited": ["origin", "status", "fields", "testCaseCount", "publicTestCaseCount"],
   "exercise.approved": ["origin", "humanEdited", "batchId"],
   "exercise.discarded": ["exerciseId", "batchId"],
   "exercise.archived": ["from"],
@@ -290,6 +291,12 @@ export const AUDIT_EVENT_METADATA = {
   // 013 — one per teacher mark that changes the result or the comment (research K8): `from`/`to` are
   // results, `hasComment` a boolean; never the answer or the comment.
   "exercise_result.marked": ["activityId", "questionId", "from", "to", "points", "hasComment"],
+  // 019 — a student's code run (contracts/audit-events.md): ids, enums, counts and times, never a
+  // program, an input, an output or a compiler message. `verdicts` counts the cases per verdict.
+  "code_run.requested": ["activityId", "questionId", "execution", "publicCaseCount", "sourceBytes"],
+  "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
+  // 019 — a new run refused by the per-minute limit (research B11): no run was created, no target.
+  "code_run.rate_limited": ["scope"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -341,4 +348,5 @@ export type AuditTargetType =
   | "ACTIVITY_ATTEMPT"
   | "ACTIVITY_SUBMISSION"
   | "WORK_HELP_REQUEST"
-  | "MAIL_DELIVERY";
+  | "MAIL_DELIVERY"
+  | "CODE_RUN";

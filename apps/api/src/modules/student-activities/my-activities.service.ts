@@ -18,6 +18,7 @@ import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
 import { RankingService } from "../ranking/ranking.service";
 import { toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
+import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { StudentActivityLoader } from "./student-activity-loader";
 
@@ -62,6 +63,7 @@ export class MyActivitiesService {
     private readonly audit: AuditService,
     private readonly ranking: RankingService,
     private readonly examSettlement: ExamSettlement,
+    private readonly codeRuns: CodeRunAvailability,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -108,7 +110,8 @@ export class MyActivitiesService {
     await this.examSettlement.ofAttempt(userId, activityId, now, requestId);
     const input = await this.loader.loadOne(userId, activityId, now, await this.canSeeResults(userId));
     if (input) {
-      const view = toStudentActivity(input);
+      // 019 research B17: the execution of the CODE questions of an EXERCISE, as of now.
+      const view = toStudentActivity(input, input.type === "EXERCISE" ? await this.codeRuns.at(now) : null);
       if (view.result) await this.recordFirstView(userId, activityId, now, requestId);
       return view;
     }

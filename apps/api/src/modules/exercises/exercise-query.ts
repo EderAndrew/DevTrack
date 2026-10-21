@@ -29,6 +29,7 @@ export const EXERCISE_RECORD_SELECT = {
   updatedAt: true,
   language: { select: { id: true, name: true, highlight: true } },
   alternatives: { select: { id: true, text: true, isCorrect: true, position: true } },
+  testCases: { select: { position: true, input: true, expectedOutput: true, visibility: true } },
   reviewedBy: { select: { name: true } },
   syllabusItem: {
     select: {

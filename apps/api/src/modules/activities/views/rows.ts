@@ -1,4 +1,4 @@
-import type { ExerciseDifficulty, GradeCents, TestCaseVisibility, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
+import type { ExecutionKey, ExerciseDifficulty, GradeCents, TestCaseVisibility, WorkGradingStrategy, WorkQuestionType } from "@repo/contracts";
 
 /** A snapshot question as the views read it (loaded by the services, grades in hundredths). */
 export interface ActivityQuestionRow {
@@ -14,7 +14,8 @@ export interface ActivityQuestionRow {
   statement: string;
   instructions: string | null;
   starterCode: string | null;
-  language: { id: string; name: string; highlight: string | null } | null;
+  /** `execution`: the catalog's profile key (019 research B5), null for a language without execution. */
+  language: { id: string; name: string; highlight: string | null; execution: ExecutionKey | null } | null;
   expectedAnswer: string | null;
   rubric: string | null;
   expectedSolution: string | null;

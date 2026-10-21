@@ -56,7 +56,7 @@ const QUESTIONS: ActivityQuestionRow[] = [
     valueCents: 30,
     instructions: "Implemente",
     starterCode: "class A {}",
-    language: { id: id(30), name: "Java", highlight: "java" },
+    language: { id: id(30), name: "Java", highlight: "java", execution: "java" },
     expectedSolution: "MARCADOR-SOLUCAO-012",
     testCases: [
       { position: 1, input: "MARCADOR-PRIVADO-012", expectedOutput: "MARCADOR-PRIVADO-012", visibility: "PRIVATE" },

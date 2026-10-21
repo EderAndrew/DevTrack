@@ -71,12 +71,8 @@ other definitions with `new AiRegistrySync(definitions, t.config, t.prisma, t.ge
 Decision-mode calls go to `t.provider.scriptDecisions(fakeDecision(answers), …)` (or
 `fakeDecisionError(category)`), recorded apart in `provider.decisionRequests`. Budgets are null in
 `testConfig()`; the monitor reads `t.config.ai.budgets` on every check, so a suite sets them on the
-running app (`009-us8-budgets.spec.ts`). The Curriculum Agent's approvals in production need committed
-evidence: `EVAL_MODEL=<catalog key> EVAL_RECORD=1 pnpm --filter api eval:curriculum` writes
-`test/fixtures/evaluations/<task>/<key>.json` (served model, golden-set version, metrics, real cost;
-nothing when a case failed for infrastructure, e.g. `AI_PROVIDER_ERROR`), and
-`009-quality-gate.spec.ts` checks that every catalog approval equals its evidence and meets the task's
-thresholds. The curriculum test app approves its own configs with `PASSING_CURRICULUM_METRICS`.
+running app (`009-us8-budgets.spec.ts`). Production approvals need committed eval evidence
+(skill `ai-release-gate`). The curriculum test app approves its own configs with `PASSING_CURRICULUM_METRICS`.
 
 Curriculum Agent (007) tests use `test/helpers/curriculum-ai.ts`: `createCurriculumAiApp()` registers
 the real `curriculum-agent` (ACTIVE, where production starts it DISABLED; availability tests disable
@@ -93,10 +89,7 @@ is what a "restart" with another agent version syncs. The read tool normalizes t
 build of the syllabus worker. The golden set (`test/fixtures/curriculum-agent/`): `loadGoldenCases()`,
 `recordedSteps(run, documentId)` for the fake provider, `runGoldenCase(t, case, caseId, prepare)` runs one
 case through the real runner and stores the score (`scoreCurriculumCase`) with `AiEvaluationStore`.
-`vitest.eval.config.ts` holds only `test/eval/**/*.eval.ts`, one script per file (`pnpm --filter api
-eval:curriculum`, and since 010 `eval:exercises` over `test/fixtures/exercise-generation/`; real provider
-through `OpenRouterProvider`, needs `OPENROUTER_API_KEY`; each runs its golden set against the catalog
-candidates of its task's tier, or `EVAL_MODEL`), never part of `pnpm test`.
+The on-demand evals (`eval:*`, real models) and the golden sets: skill `ai-release-gate`; never part of `pnpm test`.
 No test app registers `OpenRouterProvider`: only its unit test (injected `fetch`), the 008 secret
 test and the eval instantiate it.
 Exercise bank (010) fixtures live in `test/helpers/exercises.ts`: `languageId(t, key)` reads the seeded
@@ -186,11 +179,6 @@ alternatives, test cases and question topics in one transaction, since the defer
 count, the values' sum and 3–5 alternatives with one correct at commit; default a MANUAL APPROVED work with one
 multiple-choice question worth 1.00), `createWorkGenerationRequest` (a request row with its topics, no execution
 unless given) and `toQuestionEdit`/`toUpdateBody` (a teacher view back into a `PUT /works/:id` body).
-Golden set of the work generator (011/SC-012, same layout as 010): `test/fixtures/work-generation/` (README,
-`golden/<case>/`, `score.ts` with `schemaValidity`, `configMatch`, `duplicates`, `topicCoverage` and
-`injectionClean`); `011-evaluation.spec.ts` replays it in CI and `pnpm --filter api eval:works` runs it against the
-real models. The evidence in `test/fixtures/evaluations/work-generation/openai-basic.json` (2026-09-30) backs the
-`openai-basic` approval of `work-generation`, the only one, so the task has no same-tier fallback.
 011 security suites (`test/security/011-*`): isolation (teacher B's ids → 404 on every route, other roles → 403),
 tool scope (`read-work-generation-request` sees only the request's topics as refs), injection through the item, its
 group and the competency (`011-injection.spec.ts`: the text reaches the model only in the untrusted block; an answer
@@ -200,18 +188,7 @@ runs every rule boundary on each path. The journey creates, generates, edits, ap
 and its work texts are scanned out of logs, audit and "Operação de IA" (`secret-leak-scan.spec.ts`,
 `006-ai-admin-scan.spec.ts`); `audit-coverage.spec.ts` also checks that the `work.*`/`work_generation.*` metadata
 holds only ids, counts, enums and codes.
-Module layout (010): `modules/exercises` is the bank (types registry, pure rules, teacher and student views,
-`ExercisesService`, `exercise-query.ts`, `ExerciseBatchReview`) and never imports AI code; `modules/exercise-ai`
-holds the batches (`ExerciseBatchesService`, the controller of `/exercise-batches` and
-`/exercise-generation/availability`), the agent definition, prompt and read tool (`definitions/`), the pure
-`generation/` steps (`request-content`, `validate-generated-batch`, `build-proposal`) and `materialize`, the
-foundation hook that writes the drafts. `modules/exercise-ai` never names a tier, family or catalog key
-(`010-no-model-choice.spec.ts`).
-Golden set of the generator (010, research X16): `test/fixtures/exercise-generation/` (README, `golden/<case>/`
-`expected.json` + `recorded.json`, the pure `score.ts`, `load-golden.ts`, `run-case.ts`); `010-evaluation.spec.ts`
-replays it in CI and `pnpm --filter api eval:exercises` runs it against the real models (the release gate: the
-evidence in `test/fixtures/evaluations/exercise-generation/` backs the `openai-basic` approval; `topicCoverage` is
-judged over the set). `createConfirmedTopic` also takes `title`, `competencyText`, `groupTitle` and `items`.
+`createConfirmedTopic` also takes `title`, `competencyText`, `groupTitle` and `items`.
 010 security suites (`test/security/010-*`): isolation (teacher B's ids → 404 on every route, other roles → 403),
 tool scope, injection through the topic (`010-injection.spec.ts`: the text reaches the model only in the untrusted
 block; an answer that obeys it is refused whole), concurrency, student view, performance and no model choice; the
@@ -336,6 +313,28 @@ straight to the database, and `getExamMonitor`/`decideHold` call the US5 routes;
 "EXAM" })` writes an applied exam directly. Suites that return a held exam start their `FixedClock` at the real
 time (to the minute): the return's trigger compares the end with the database's `now()`, so a clock in the past
 makes the return a 500.
+Code Runner (019): `modules/code-runs` is the student's side (the three routes, `RunnerAvailability` reading the
+heartbeats and registered on the activities' `CodeRunAvailability` hook so the student view's `execution` needs no
+import of it, `views/student-run-view.ts` as an allowlist, `settle-stale.ts` with conditional UPDATEs shared with the
+worker, the pure `compare-output.ts`, `verdict.ts` and `run-state.ts`, and the maintenance job
+`content-retention.job.ts`). The worker lives in `src/code-runner` (`main.ts` boots `CodeRunnerModule` as a Nest
+application context, `worker.ts` claims with `FOR UPDATE SKIP LOCKED`, runs and writes the result by claim token,
+`heartbeat.ts`, `profiles.ts` with the pinned images and commands, `sandbox/` with `SandboxPort`, `DockerSandbox` and
+`FakeSandbox`); nothing outside it imports it (`code-runner-boundary.spec.ts`). Tests never start Docker: they drive
+the worker in-process through `test/helpers/code-runs.ts` — `createCodeExercise(t, class, { languageKey, testCases })`
+(an EXERCISE with one CODE question and `DOUBLE_CASES`, two PUBLIC around a PRIVATE carrying `PRIVATE_RUN_MARKER`),
+`seedHeartbeat(t, at, { executions, limits })` (a live worker, so the profile is available), `createRunWorker(t, clock,
+{ sandbox, workerId })` and `drainRuns`, `requestRun`/`getLatestRun`/`getRun`, `doubles` (the right answer as a
+`FakeSandbox` script) and `HeldSandbox` (a run held mid-case). `FakeSandbox` scripts `scriptCases(...)`,
+`failCompilation(message)` and `failDaemon()`; a daemon failing before the worker's first heartbeat serves nothing, so
+beat first (`heartbeat.beat()`) to get a `SANDBOX_ERROR`. Runs created in the same instant of a `FixedClock` tie on
+`created_at`: advance the clock between runs whose order matters. `code_runs` rows can't be inserted final (insert
+QUEUED, then update) and a final row accepts only the purge. Suites: `019-us1-run` … `019-us4-languages`,
+`019-schema`, `019-worker`, and in `test/security/` isolation, private cases (SC-002), concurrency, rate limits,
+invariance of 013 points (SC-004), retention (`code-run-content` with a `FixedClock`), boundaries and performance;
+`pnpm --filter api test:sandbox` runs `test/sandbox/019-{languages,verdicts,hostile,timing}` against the real
+`DockerSandbox` (`runc`, the pinned images), never part of `pnpm test`. The journey runs executed, compilation-error,
+failed and rate-limited runs whose program, case, output, stderr and compiler message carry `MARCADOR-CODIGO-019`.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -357,262 +356,62 @@ root CLAUDE.md):
   response that doesn't parse against its contract into a 500, so the test fails on its status
   assertion. A new route needs a catalog entry.
 
-Per-feature suites (`test/{integration,security}/0NN-*`):
-- 004: the curriculum authorization matrix (`004-curriculum-authorization-matrix.ts` builds a
-  complete teacher area; a new 004 route needs a `VALID_BODY` entry and a `MATRIX` row), cross
-  links, server-controlled fields, rate limits, immutability of originals and confirmed revisions,
-  concurrency and performance. The journey also returns the 004 pedagogical `content`, which the
-  secret scan keeps out of logs and audit metadata.
-- 006: the AI authorization matrix (`006-ai-authorization-matrix.ts`: teachers A and B and an ADMIN
-  over every AI route), the provider boundary (`006-ai-boundary.spec.ts`: provider SDKs and hosts
-  only under `src/modules/ai/gateway/providers/**`, enforced by ESLint and a scan of api and web),
-  concurrency, resilience, the admin scan (no teacher content, credential or ids in the operations
-  responses) and `006-ai-no-real-provider.spec.ts` (production registers no provider, the tests only
-  `fake*` ones). The journey runs the 006 flows, and the secret scan looks for the instructions,
-  input and output markers and the fake provider's credential in logs, audit and operations
-  responses.
-- 007: isolation (teachers A and B, the admin and forged document ids given to the read tool), the
-  authorization matrix of the 3 routes with the order of the checks, prompt injection through the
-  golden documents, concurrency (apply, reject, confirm and request races) and resilience.
-  `007-us6-evaluation.spec.ts` replays the golden set in CI (`expected.json` is for a person to
-  review). The journey runs the 007 flows (request, failure, proposal, apply, reject), and the
-  secret scan also looks for `MARCADOR-EMENTA-007`.
-- 008: OpenRouter behind the gateway (US1), model by configuration and invalid policies (US2),
-  fallback and its concurrency (US3), the marker key scanned in logs, responses and every table and
-  resilience without the key or with a hanging provider (US4), observability (US5), circuit and
-  per-agent limit (US6), reuse by a new agent (US7, `reference-routed.ts`). The provider boundary
-  guard also checks that `openrouter.ai` appears only in the adapter, that neither app depends on a
-  provider SDK, and that the web has nothing of OpenRouter.
-- 009: allowlist and decision mode (US1), tier-and-cost selection (US2, plus the pure
-  `policy/select-route.spec.ts`), the Curriculum Agent on BASIC (US3), same-tier fallback and
-  one-step escalation (US4), lifecycle transitions (US5), cost by task/tier/family and the models and
-  tasks views (US6), the admin override (US7), budgets (US8), the registry catalog, the quality gate,
-  the model id boundary (no concrete model id outside `definitions/model-catalog.ts`) and policy
-  injection (documents and model output never change task, tier, family, model or budget).
-- 010: one file per story (`010-us1-manual` … `010-us7-*`) plus the schema's DB rules and the
-  security suites described above; the journey creates, generates, reviews, archives and restores
-  exercises.
-- 011: one file per story (`011-us1-manual` … `011-us7-bank`, US8 as unit tests under
-  `src/modules/works/grading/`), the schema's DB rules (`011-schema`), the topics, the evaluation,
-  the boundaries and the security suites described above; `test/works-boundary.spec.ts` keeps works
-  and exercises apart in api, contracts and web, and forbids code execution, model choice and
-  float arithmetic in `works`/`work-ai`.
-- 012: one file per story (`012-us1-apply` … `012-us6-history`), the schema's DB rules, and the security suites
-  described above; the journey applies both sources, starts, saves, submits, grades, accepts, releases and reads the
-  result, and its answers and feedback are scanned out of logs and audit.
-- 013: one file per story (`013-us1-apply` … `013-us5-teacher-ranking`), the schema, the migration and the security
-  suites described above; the journey applies exercises, concludes, retries, marks with a comment and reads both
-  rankings, and `audit-coverage.spec.ts` checks the 013 metadata and that reading the ranking writes no event.
-- 015: one file per story (`015-us1-settings` … `015-us5-history`), `015-schema`, `015-ai-settle` (the foundation
-  extensions), `015-evaluation`, and in `test/security/` isolation (teachers A/B, students A1/A2/B1 on every new route;
-  ADMIN/MANAGER 403), concurrency (10 simultaneous helps → one pending and never more than 3 delivered, `015/SC-001`; the
-  same events 10 times; mode change × first start), rate limits (events per minute, helps per hour, the agent's own
-  hourly limit), boundaries (server fields → 400, 0/1/50/51 events, question 0/1/500/501), performance (event batch p95
-  < 200 ms, help request < 500 ms, summary of 60 students < 1 s), the provider-request answer-key scan and injection. The
-  journey runs a CONTROLLED attempt (exits, a blocked paste, a save over the typing allowance) and helps DELIVERED,
-  OUT_OF_SCOPE, BLOCKED and FAILED; `audit-coverage.spec.ts` checks one audit event per stored event and per request
-  with no content (`015/SC-010`), and the secret scan and `006-ai-admin-scan.spec.ts` keep `MARCADOR-AJUDA-015`
-  (question) and `MARCADOR-ORIENTACAO-015` (orientation) out of logs, audit and "Operação de IA".
-- 016: one file per story (`016-us1-release` … `016-us5-teacher-pause`), `016-schema` (enum, CHECKs, triggers), and in
-  `test/security/` isolation (teachers A/B, students not marked present → 404 with `NOT_PRESENT`, roles 403), paused
-  writes (`016/SC-003`: no statement or answer from any session, every write refused by the API and by the triggers),
-  concurrency (`016/SC-007`), rate limits (declared exits per hour), boundaries (server fields → 400, 0/1/200/201 ids,
-  note 0/1/200/201, `reason: TEACHER` from the student, `016/FR-024`: no attendance or pause on an Exercício, the
-  deadline unchanged by a pause, no route beyond the contract) and performance (room of 60 p95 < 300 ms, batch of 60
-  < 500 ms, exit and release p95 < 200 ms, the student's list within the 012 limit). The journey marks, unmarks,
-  pauses (student with an "Outro" note, teacher) and releases; `audit-coverage.spec.ts` checks one event per change
-  with ids and enums only (`016/SC-009`), and the secret scan keeps `MARCADOR-NOTA-016` (the note) out of logs and
-  audit. `test/attendance-boundary.spec.ts` keeps `attendance` away from AI, help, monitoring, grading, banks and
-  mail.
-- 018: one file per story (`018-us1-bank` … `018-us8-grading`), `018-schema` (CHECKs, enums, the deferred
-  triggers, append-only `exam_occurrences`, the hold and return triggers) and `018-evaluation`; in `test/security/`
-  isolation (teachers A/B, students not marked present → 404 on every route, roles 403), time (the end by the
-  server's clock, `018/SC-002`), settlement (an expired attempt settled once by the next touch, never a job),
-  holds (no write from any session while held, the DB defense triggers too; events kept without counting),
-  concurrency (10 simultaneous occurrences hold once, `018/SC-004`; decision × decision, return × the end,
-  cancellation × release), boundaries (`018-boundaries`: server fields → 400 on every route, 0/1/20/21 questions, duration 0/1/120/121,
-  inactivity 29/30/60/61, window -1/0/60/61, `idleSeconds` 29/30/60/61 and only with INACTIVITY; `018/FR-034`: no
-  exam route beyond the contract, one attempt, no help or exit, no AI execution; `018/SC-012`: a Trabalho refuses the
-  exam fields and a CONTROLLED one never counts occurrences or holds), rate limits (`018-rate-limits`: decisions per
-  minute, generations per hour, both 429 with `Retry-After` and nothing written) and performance (`018-performance`:
-  events batch with the counting p95 < 200 ms, monitor of 60 p95 < 300 ms, decision p95 < 300 ms). The journey
-  creates, edits, approves, archives, restores and generates exams, applies them, starts (rules accepted), hands
-  in, closes one mid-attempt (settled), holds one, returns it, holds it again and cancels it, keeps another after
-  the end and has a repeated decision and an exit refused; `audit-coverage.spec.ts` checks one event per hold,
-  cancellation, return and "não cancelar" with no content (`018/SC-010`), and the secret scan keeps
-  `MARCADOR-PROVA-018` (a statement and a student's answer) out of logs and audit. `test/exams-boundary.spec.ts`
-  keeps `exams`/`exam-ai` away from the other banks, code execution, model choice and float arithmetic.
-- 017: one file per story (`017-us1-outbox` … `017-us4-config`), `017-schema` (CHECKs, transitions, append-only
-  notices), `017-migration` (the 003 deliveries carried over), `017-email-guide`, and in `test/security/` the notice
-  authentication (`017-notice-auth`, `017/SC-004`), concurrency (each attempt leaves at most once), performance
-  (`017/SC-002`: the answer never waits for SMTP) and boundaries (`017-boundaries`: only `POST /mail/notices/:provider`
-  is new, `delivery`/`deliveryIssue` only in the invitation views, teacher B → 404, a notice never becomes a session,
-  100 notices p95 < 200 ms, `017/FR-030`: six kinds, only the outbox calls `Mailer.send`, no bulk, inbound, suppression
-  list or provider SDK). The journey fails a send 7 times, discards a revoked invitation's retry, has an address refused
-  over SMTP and posts a Resend bounce; `audit-coverage.spec.ts` checks the three `mail_delivery.*` types with enums,
-  counts and codes only (`017/SC-007`). Maintenance job `mail-records` (`platform/mail/retention/`, research N13):
-  notices after 90 days, final deliveries after `MAIL_RECORDS_RETENTION_DAYS` except the latest of a PENDING
-  invitation, with `SET LOCAL devtrack.mail_purge = 'on'`.
-
-## AI release-gate results (moved from the root CLAUDE.md)
-
-All five tasks are BASIC. `openai-basic` passed every release gate and, being the cheapest, is
-the primary of each; `exam-generation` (018, 2026-10-14) was met in full by `openai-basic` and
-`anthropic-basic`, its same-tier fallback; `anthropic-basic` passed `curriculum-extraction` and `exercise-generation` on
-2026-10-01 (the first run with OpenRouter credit) and is their same-tier fallback, but failed
-`work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
-(2026-09-29 and 2026-10-01): called with tools its answers break the output schema (rubric,
-explanation, alternatives) and once it skipped the read tool, although the same request without
-tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
-
-`work-help` (015) is approved for `openai-basic` only (2026-10-08, no same-tier fallback). The first gate
-(2026-10-08, prompt v1) failed both candidates on leaks: "pilha de pratos" for the alternative "Pilha",
-"log₂(n)" or eliminating "O(1)", which the leak check then missed for alternatives under 12 characters.
-After that, research F8/F10 were amended: prompt v2 (no word of an alternative, even in an analogy; no
-meaning of an alternative; no answering term) and the leak check protects short alternatives by their
-distinctive words or symbolic text; golden set v2 matches `mustMention` by stem, with three synonyms
-reviewed by a person. Latest runs (evidence in `test/fixtures/evaluations/work-help/`): `openai-basic`
-leakFree 1, injectionClean 1, scopeAccuracy 0.92, relevance 0.8 (< 0.9; the cases that miss change from
-run to run), p95 13 s; read by a person (F16 amendment) 18 of 20 pertinent (0.9), approved; `anthropic-basic` (prompt v2, golden v1) leakFree 0.88, injectionClean 0.75,
-scopeAccuracy 0.88, relevance 0.56 — its leaks are now blocked by the server.
+Per-feature suites (`test/{integration,security}/0NN-*`): one file per story (`0NN-usN-…`), a `0NN-schema` for the
+DB rules (CHECKs, enums, triggers) and, in `test/security/`, isolation, boundaries, concurrency, rate limits and
+performance; read the feature's files for what each covers. What they need from new code:
+- A new 004 route needs a `VALID_BODY` entry and a `MATRIX` row in `004-curriculum-authorization-matrix.ts`.
+- The journey (`test/helpers/journey.ts`) runs every feature's flows; each feature's `MARCADOR-*` text (statement,
+  answer, note, orientation…) must stay out of logs, audit metadata and "Operação de IA" (`secret-leak-scan.spec.ts`,
+  `006-ai-admin-scan.spec.ts`), and `audit-coverage.spec.ts` checks its audit metadata holds only ids, enums, counts
+  and codes.
+- Provider SDKs and hosts only under `src/modules/ai/gateway/providers/**` (ESLint + `006-ai-boundary.spec.ts`;
+  `openrouter.ai` only in the adapter, nothing of OpenRouter in the web); no concrete model id outside
+  `definitions/model-catalog.ts` (009).
+- Maintenance job `mail-records` (017) purges with `SET LOCAL devtrack.mail_purge = 'on'`; `code-run-content` (019)
+  empties final runs (500 per transaction) instead of deleting them.
 
 ## Modules (moved from the root CLAUDE.md)
 
-- 003 modules (`apps/api/src/modules`): `classes` (`ClassContextPolicy` scopes every lookup to the
-  session teacher's own classes → 404 otherwise), `class-invitations` (invite, list, resend, cancel;
-  public preview/accept through `RoleGrantAcceptance`, which grants `STUDENT` and creates the
-  enrollment) and `enrollments` (the teacher's student list and removal, plus the student's
-  `GET /me/classes`). Since 017 every e-mail of the six kinds goes through one outbox in
-  `platform/mail/outbox` (`mail_deliveries`): `MailOutbox.schedule(tx, kind, subjectId)` in the
-  request's transaction, `attemptNow` after the commit (`attemptSync` in the admin bootstrap CLI),
-  then `MailDeliveryWorker` (`FOR UPDATE SKIP LOCKED`) retries every `MAIL_RETRY_INTERVAL_SECONDS`
-  (0 disables the timer; tests call `runOnce(now)`) with waits of 1 min to 6 h, FAILED after 7
-  attempts, within `MAIL_SENDS_PER_MINUTE` (shared per clock minute in `rate_limit_counters`;
-  `testConfig()` raises it, the FR-008 suites set it). Each owner module registers a `MailSubject`
-  (`class-invitation.mail-subject.ts`, `invitation.mail-subject.ts`, `account.mail-subjects.ts`,
-  `admin-bootstrap.mail-subject.ts`) whose `prepare` discards a dead link or rotates the token for
-  the retry; `t.flushMail()` waits for the first attempts and `InMemoryMailer.failNext(n,
-  "permanent")` simulates a refused address. The 003 `ClassInvitationDeliveryWorker` and
-  `class_invitation_deliveries` are gone. Provider notices live in `platform/mail/notices`
-  (`MailNoticesController` with `@Public()` + `@ProviderNotice()`, the `resend`/`ses` adapters verify the
-  signature on the raw body, `notice-transition.ts` decides the delivery's new state, idempotent by
-  `(provider, notice_id)`); tests sign them with `test/helpers/mail-notices.ts` (`signedResendNotice`,
-  `signedSnsNotice` with a `TestCertificateFetcher`, `postNotice`), never a real provider.
-- 004 modules: `subjects` (`SubjectContextPolicy`, same 404 scoping as classes; syllabus documents
-  and revisions are reached through their subject), `syllabus` (multipart upload through
-  `SyllabusFileInterceptor` in `platform/http/upload.ts`, on routes marked `@AcceptsMultipart()` so
-  `OriginGuard` lets `multipart/form-data` through; the file is inspected in a worker thread before
-  anything is written, then the original goes into `stored_files` (bytea, immutable by trigger)
-  through `FileStorage` in `platform/storage`; `SyllabusProcessingWorker` claims `UPLOADED`
-  documents every `SYLLABUS_PROCESSING_INTERVAL_SECONDS` (0 disables the timer) with a lease and
-  runs extraction in a `worker_threads` worker via `SyllabusWorkerRunner`, with the state machine in
-  `syllabus-processing.state-machine.ts`; confirmed revisions are immutable by trigger; worker test
-  setup is in `apps/api/CLAUDE.md`) and
-  `class-plans` (the class calendar, where the meeting number comes from `row_number()` and is never
-  stored; plan and topic state machines; `bumpRevision` in `plan-revision.guard.ts` starts every plan
-  write, and `TopicMutations` holds the move/merge/archive operations that both the calendar and the
-  topics use; a `COMPLETED` topic (US9) is locked except for archive and "Reabrir aula", can't be
-  restored once archived, and "today" comes from `planning-date.ts`, America/Sao_Paulo).
-- 006 module `ai` (`apps/api/src/modules/ai`, folders by responsibility, research A3):
-  `definitions` (agents, prompts, output schemas, tools, tasks and model configs are code, research A4;
-  `productionAiDefinitions(config)` registers the 007 `curriculum-agent`, DISABLED until the admin
-  enables it, its `curriculum-extraction` task and, since 009, the model catalog of
-  `model-catalog.ts` (008's `openrouter-default`/`openrouter-fallback` configs built from the
-  environment are gone); a task with no usable approved model is unavailable and logs
-  `ai.task_unavailable` instead of stopping the API, and a changed model is audited as
-  `ai_model_config.changed`), `registry` (`AiRegistrySync`
-  writes them to the `ai_*` tables at startup under an advisory lock; a used version (`used_at`)
-  whose content changed stops the startup, and a trigger refuses the update: publish a new
-  version), `gateway` (`ModelGateway` runs the task's route fixed on the execution: the primary with
-  its timeout and retries of transient failures, then, after a recoverable failure or an open
-  circuit, the fallback once, never back to the primary, each leg written to `ai_model_calls`
-  with the served model and the provider's cost; `CircuitBreaker` per model config, in memory,
-  audited `ai_circuit.opened`/`closed`; errors normalized; real providers live in
-  `gateway/providers/**`, the only place a provider SDK or host may appear: `OpenRouterProvider`,
-  008, over native `fetch`),
-  `tools` (`AiToolExecutor`: allowlist, enabled, permission, strict input, resource owned by the
-  workspace, timeout, strict output, and a result within the model's input limit), `output` (structured output validated by the agent's Zod schema),
-  `execution` (`POST /ai/executions` queues, after the per-user limits and, since 008, the
-  per-agent hourly limit `AI_AGENT_EXECUTIONS_PER_HOUR`; `AiExecutionWorker` claims `QUEUED` rows with
-  `SKIP LOCKED` every `AI_EXECUTION_INTERVAL_SECONDS`, `0` = global kill switch; the runner
-  re-authorizes at start and checks cancellation between steps; the workspace is always the
-  session user), `proposals` (L2 output becomes a proposal the teacher approves, partially
-  approves or rejects; approving never writes domain data), `usage` (tokens and cost in
-  `ai_model_calls`), `operations` (admin health, metrics, agents and configs, never content),
-  `evaluation` (`AiEvaluationStore`, no routes) and `retention` (maintenance job `ai-records`).
-  An agent whose proposal has `approveThroughDomain` (007) is approved only by its domain's apply
-  flow through `AiProposalsService.decideWithin`; the 006 decision route accepts only REJECT.
-- 009 model policy (`apps/api/src/modules/ai`): `definitions/model-families.ts` (allowlist, tiers,
-  modes, lifecycle and its transitions), `definitions/model-catalog.ts` (the only concrete model ids;
-  entries with price, capabilities and approvals that point at committed evidence), task policies
-  on `ai_tasks` (`policy/task-policy.ts`: minimum, preferred and max tier, families, capabilities,
-  fallback, escalation, quality thresholds, typical usage). `policy/select-route.ts` is pure: filter
-  (family, mode, capabilities, PRODUCTION with a valid approval, DEPRECATED only when nothing else,
-  tier), order (override if usable, estimated cost, unknown price last, priority, key), fallback of
-  the same tier preferring another family; health never reorders. `AiPolicyRegistry` feeds it from
-  the synced tables (`ai_model_task_approvals`, `ai_task_overrides`) and fixes the route on the
-  execution with its tier and reason. The runner escalates once, to the next tier, after an invalid
-  output when the task says so. `AiRegistrySync` refuses an invalid lifecycle transition (the entry
-  leaves the catalog) and audits `ai_model_config.lifecycle_changed`. The admin override
-  (`PUT/DELETE /ai/operations/tasks/:key/override`) accepts only a model the policy admits;
-  `usage/ai-budget.monitor.ts` checks the budgets after each recorded call and audits
-  `ai_budget.exceeded` once per period (`ai_budget_alerts`). Decision-mode models (TypeSafe's Jev)
-  answer through `ModelGateway.decide` (OpenRouter decisions, `contracts/decisions-provider.md`).
-- 007 module `curriculum-ai` (`apps/api/src/modules/curriculum-ai`, research C1): the
-  `curriculum-agent` definition, its prompt and output schema, the `read-curriculum-document` tool
-  (only the execution's own document, normalized by the 004 readers in the worker thread) and the
-  `SYLLABUS_DOCUMENT` ownership; `proposal/` (pure: item ids, deterministic grounding check that
-  flags `UNSUPPORTED_CONTENT`, source refs kept only when the block has the text);
-  `CurriculumAiRequestService` (status and request: per-teacher hourly limit, one active analysis
-  per document by a derived idempotency key, a pending proposal discarded only when the teacher
-  confirms) and `CurriculumAiApplyService` (locks the document, the proposal and the draft, checks
-  the source hash, validates the accepted content as a 004 draft, creates or replaces the draft
-  and approves the proposal in one transaction; idempotent). The AI module never writes syllabus
-  data.
-- 010 modules: `exercises` (the bank: types as a registry, pure rules, teacher and student views
-  (`toStudentView` copies an allowlist), `ExercisesService` with optimistic `version` under a row
-  lock, keyset list in `exercise-query.ts`, archive/restore, `ExerciseBatchReview` hook; never
-  imports AI code) and `exercise-ai` (batches: request with the idempotency key and the execution in
-  one transaction; the `exercise-generator` definition, prompt and `read-exercise-generation-request`
-  tool; `validate-generated-batch` refuses an answer that doesn't match the request; the
-  `proposal.materialize` foundation hook writes the DRAFT exercises in the runner's transaction;
-  `ExerciseProposalCloser` decides the proposal once no draft is left). The OpenRouter adapter's
+The modules live in `src/modules` (and `src/platform` for mail, storage, http, config); read them for the layout.
+What the code alone doesn't make obvious:
+
+- Scoping: `ClassContextPolicy` (003) and `SubjectContextPolicy` (004) scope every lookup to the session teacher → 404;
+  student routes start from the session user's ACTIVE enrollments (`StudentActivityLoader`) → 404 and
+  `student_access.denied`. Syllabus documents and revisions are reached only through their subject.
+- Mail (017): `MailOutbox.schedule(tx, kind, subjectId)` in the request's transaction, `attemptNow` after the commit
+  (`attemptSync` in the admin bootstrap CLI), then `MailDeliveryWorker` retries (1 min to 6 h, FAILED after 7) within
+  `MAIL_SENDS_PER_MINUTE`; `MAIL_RETRY_INTERVAL_SECONDS=0` disables the timer and tests call `runOnce(now)`. Each owner
+  module's `MailSubject.prepare` discards a dead link or rotates the token for the retry. Tests: `t.flushMail()`,
+  `InMemoryMailer.failNext(n, "permanent")`, and notices signed by `test/helpers/mail-notices.ts`, never a real provider.
+  The 003 `ClassInvitationDeliveryWorker`/`class_invitation_deliveries` are gone.
+- Dev helper (017, runs dist/): `pnpm --filter api mail:notice --kind bounced --delivery <id> [--bad-signature]` posts
+  a Resend notice signed with `MAIL_NOTICE_SECRET`; kinds `delivered|bounced|complained|failed`.
+- Syllabus (004): multipart only on `@AcceptsMultipart()` routes (so `OriginGuard` lets it through); the file is
+  inspected in the worker before anything is written; `stored_files` and confirmed revisions are immutable by trigger.
+- Class plans (004): the meeting number comes from `row_number()`, never stored; every plan write starts with
+  `bumpRevision`; a COMPLETED topic is locked except archive and "Reabrir aula" and can't be restored once archived;
+  "today" is America/Sao_Paulo (`planning-date.ts`).
+- AI (006–009): definitions are code synced at startup under an advisory lock; a used version whose content changed
+  stops the startup (a trigger refuses it): publish a new version. A task with no usable approved model is unavailable
+  (`ai.task_unavailable`) instead of stopping the API. The gateway tries the primary then the fallback once, never back;
+  circuits are in memory per model config. `AI_EXECUTION_INTERVAL_SECONDS=0` is the global kill switch; the runner
+  re-authorizes at start and the workspace is always the session user. Approving a proposal never writes domain data;
+  an agent with `approveThroughDomain` (007) is approved only by its domain's apply flow
+  (`AiProposalsService.decideWithin`), and the 006 decision route accepts only REJECT. `policy/select-route.ts` is pure
+  and health never reorders. Decision-mode models (Jev) answer through `ModelGateway.decide`. The OpenRouter adapter's
   `sanitizeJsonSchema` writes `oneOf` as `anyOf` (strict structured output refuses `oneOf`).
-- 011 modules: `works` (the work bank, apart from `exercises` in both directions: question types as a
-  registry in `types/`, pure rules in `rules/`, exact grades in `grade/`, teacher and student views
-  (`toWorkStudentView` copies an allowlist), `WorkTopics` (topics of one confirmed revision),
-  `WorksService` with optimistic `version` under a row lock, `work-content.ts` (the only writer of a
-  work's content, shared with the materialization), `work-edit.ts`, keyset list in `work-query.ts`,
-  `work.state-machine.ts`, the `WorkReview` hook and the `grading/` domain rules for 012; never
-  imports AI code) and `work-ai` (`WorkGenerationRequestsService`: request, topics and execution in
-  one transaction with the idempotency key; the `work-generator` definition (DISABLED in
-  production), prompt and `read-work-generation-request` tool; `validate-generated-work`, the
-  `materialize` hook that writes the DRAFT work in the runner's transaction, and
-  `WorkProposalCloser`). Neither names a tier, family or catalog key (`011-no-model-choice.spec.ts`).
-- 012 modules: `activities` (the teacher's side: `ActivitiesService` applies a source as a snapshot under
-  `ClassContextPolicy`, edits, closes, cancels and releases under the activity's row lock; `AttemptsReviewService`
-  opens, grades and accepts attempts; pure rules in `status/` (student and roster status, operations, answers),
-  `snapshot/`, `scope/` (taught scope), `grading/` (the bridge to the 011 registry), `submission/` and the teacher and
-  student `views/` (the student view copies an allowlist)) and `student-activities` (`/me/…`: `StudentActivityLoader`
-  starts every query from the session user's ACTIVE enrollments, `MyActivitiesService` builds the dashboard, list and
-  activity, `AttemptsService` starts, saves and submits; out of context → 404 and `student_access.denied`).
-- 013 changes: `activities/activity-types.ts` (the type registry: `scoring` GRADE/POINTS, `hasDeadline`, `attempts`
-  SINGLE/PRACTICE, so services don't branch on EXERCISE), `activities/results/` (pure `resultFor`/`pointsFor`: multiple
-  choice through the 011 `EXACT_MATCH`, blanks by the 012 rule, answered open answer and code PENDING_TEACHER on the
-  scoring row or UNSCORED otherwise), the marks in `AttemptsReviewService`, `AttemptsService` retry and complete, and the
-  K10 `toStudentExerciseAttempt` in `views/student-view.ts`. `ranking` (new): `RankingService` (`forStudent`, ACTIVE
-  enrollment → else 404; `forTeacher`, `ClassContextPolicy`; `dashboardFor`, the top 5 of each ACTIVE class, empty
-  without `ranking.turma.visualizar`), one SQL query then `rankClass`; it reads results, enrollments and users only.
-- 018 modules: `exams` (the Banco de Provas, apart from the exercise and work banks: `ExamsService` with optimistic
-  `version` under a row lock, the pure `exam-rules.ts` and `exam.state-machine.ts`, `exam-content.ts` (the only writer
-  of an exam's content, shared with the generator's materialization), `exam-edit.ts`, keyset list in `exam-query.ts`,
-  `ExamTopics`, the `ExamReview` hook and the pure `coverage.ts` that the 012 apply flow reads before applying; only
-  `works/{types,grading,grade}` of the work bank), `exam-ai` (the generator, above) and `exam-sessions` (the teacher's
-  side of an applied exam: `ExamMonitorService`, the monitor polled every 5 s with each student's situation derived
-  by the pure `exam-status.ts`, and `ExamHoldsService`, the three decisions under the attempt's and the hold's
-  locks, each with its audit event, grading only through `activities/submission`; it calls no AI). The exam's
-  time lives in `activities/status/exam-time.ts` (`endsAt`, `closesAt`, the start deadline) and its settlement in
-  `activities/submission/settle-exam.ts` behind `ExamSettlement`, which every touch (student routes, the 015
-  events and review, the teacher's reads) runs first in its own transaction. The occurrence counting
-  (`attempt-integrity/exam-occurrences.ts`: countable kinds, the 2 s grouping, the hold on the 4th) runs in
+- The AI module never writes syllabus data; the banks (`exercises`, `works`, `exams`) never import AI code (their
+  AI modules register on the bank's review hook), and the AI modules never name a tier, family or catalog key
+  (`0NN-no-model-choice.spec.ts`). `work-content.ts`/`exam-content.ts` are the only writers of a work's/exam's content.
+- Activities (012/013): `activity-types.ts` is the type registry (`scoring`, `hasDeadline`, `attempts`) so services
+  don't branch on EXERCISE. The ranking (`ranking`) is one SQL query then the pure `rankClass`, reading results,
+  enrollments and users only.
+- Code Runner (019): the API only writes `code_runs` (QUEUED) and reads results; it never has the Docker socket. The
+  worker reads the same `.env` (the whole config schema) and in production connects with its own PostgreSQL role
+  (`docs/deploy/code-runner.md`). A run's case input and expected output are never copied into it: they are read from
+  the activity snapshot when the run is shown.
+- Exams (018): the exam's time lives in `activities/status/exam-time.ts` and its settlement in
+  `activities/submission/settle-exam.ts` behind `ExamSettlement`, which every touch (student routes, the 015 events and
+  review, the teacher's reads) runs first in its own transaction. `exam-sessions` grades only through
+  `activities/submission` and calls no AI. The occurrence counting (`attempt-integrity/exam-occurrences.ts`) runs in
   `FocusEventsService`'s batch transaction under the attempt's `FOR UPDATE`.

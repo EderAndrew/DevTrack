@@ -1,3 +1,4 @@
+import type { StudentQuestion } from "@repo/contracts";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -700,5 +701,66 @@ describe("016/US3 \"Sair da sala\" na tela de responder (modo NORMAL)", () => {
     await user.click(await screen.findByRole("button", { name: RESUME }));
     expect(((await screen.findByLabelText("Sua resposta")) as HTMLTextAreaElement).value).toBe("não enviada");
     await vi.waitFor(() => expect(api.calls.filter((call) => call.method === "PUT")).toHaveLength(2));
+  });
+});
+
+describe("019/US1 \"Executar\" na tela de responder", () => {
+  const exercise = exerciseActivity();
+  const [, , codeQuestion] = exercise.questions as [StudentQuestion, StudentQuestion, StudentQuestion];
+  const runnable: StudentQuestion = {
+    ...codeQuestion,
+    execution: { status: "AVAILABLE", languageVersion: "Java 25", convention: "JAVA_MAIN_CLASS", limits: { timeMs: 2000, memoryMb: 256, outputBytes: 65_536 } },
+  };
+  const RUNS = `/api/me/activities/${exercise.id}/questions/${runnable.id}/code-runs`;
+  const attempt = { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] };
+
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("online"));
+  });
+
+  it("019/US1-1 019/FR-008 exercício de Código com execução: Executar depois do editor envia o código inicial e não salva nem conclui", async () => {
+    const { user, api } = setup({
+      [GET]: json(200, exerciseActivity({ status: "IN_PROGRESS", attempt, questions: [runnable] })),
+      [`GET ${RUNS}/latest`]: json(200, { run: null }),
+      [`POST ${RUNS}`]: json(202, {
+        id: "eeeeeeee-0000-4000-8000-000000000001",
+        questionId: runnable.id,
+        status: "QUEUED",
+        failureReason: null,
+        outcome: null,
+        sourceCode: "class Main {}",
+        compileOutput: null,
+        publicCaseCount: 1,
+        passedCount: null,
+        createdAt: "2026-10-02T12:00:00.000Z",
+        finishedAt: null,
+        contentPurged: false,
+        cases: [],
+      }),
+    });
+    const button = await screen.findByRole("button", { name: "Executar" });
+    expect(screen.getByText(/Em Java, a classe deve se chamar Main\./)).toBeTruthy();
+    await user.click(button);
+    expect(await screen.findByText("Na fila")).toBeTruthy();
+    const posted = api.calls.find((call) => call.method === "POST" && call.url === RUNS);
+    expect(JSON.parse(String(posted?.body))).toEqual({ sourceCode: "class Main {}" });
+    expect(api.calls.some((call) => call.method === "PUT" || call.url.endsWith("/complete"))).toBe(false);
+  });
+
+  it("019/FR-005 num Trabalho, nenhum Executar, mesmo com a questão de Código", async () => {
+    setup({ [GET]: json(200, started({ questions: [runnable] })) });
+    expect(await screen.findByText("Implemente a soma.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
+  });
+
+  it("019/FR-005 exercício já concluído (sem tentativa aberta): nenhum Executar", async () => {
+    setup({
+      [GET]: json(200, exerciseActivity({ status: "COMPLETED", canAnswer: false, questions: [runnable], completedAttempts: [{ number: 1, completedAt: "2026-10-03T14:05:00.000Z" }] })),
+    });
+    await screen.findByRole("heading", { level: 1, name: "Prática de herança" });
+    expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
   });
 });

@@ -135,13 +135,24 @@ vê o aluno retido em até 10 segundos e decide com uma ação — confirmar o c
 devolver a prova enquanto há tempo ou, depois do fim, não cancelar. A pausa é só do professor, e o
 tempo continua correndo. Na correção o professor vê as ocorrências, os avisos e as decisões, e só
 libera o resultado depois de decidir todas as retenções. Nenhum texto fala em fraude, cola ou
-violação. Trabalhos e Exercícios seguem como antes.
+violação. Trabalhos e Exercícios seguem como antes. A **fase 019 — Code Runner nos exercícios
+(primeira etapa)** deixa o professor cadastrar casos de teste (entrada, saída esperada, Público ou
+Privado; até 20) nos exercícios de Código do banco, e o aluno toca "Executar" numa questão de Código
+de um Exercício para rodar o próprio programa (Java, Python ou JavaScript, entrada e saída padrão)
+contra os casos públicos: cada caso diz em palavras se passou, deu saída diferente, erro de execução,
+tempo esgotado, memória excedida ou saída grande demais, com a entrada, a esperada e a obtida. Os
+casos privados nunca chegam ao aluno. O programa roda num processo à parte, o worker, num contêiner
+Docker descartável por etapa, sem rede e com limites de tempo, memória e processos (gVisor em
+produção). Executar nunca vale pontos nem nota, nunca conclui nem salva a resposta; são até 10
+execuções por minuto, e o código e as saídas são apagados em 24 horas. Sem o worker, a questão mostra
+"Execução indisponível no momento" e o exercício segue como na 013.
 
 ## Pré-requisitos
 
 - Node.js 24 LTS
 - pnpm 11 (`corepack enable`)
-- Docker (PostgreSQL 17 e Mailpit)
+- Docker (PostgreSQL 17 e Mailpit; desde a 019 também o worker do Code Runner, que roda cada programa
+  num contêiner)
 
 ## Estrutura
 
@@ -169,6 +180,7 @@ violação. Trabalhos e Exercícios seguem como antes.
 | `specs/016-attendance-gated-release/` | O mesmo para a fase 016 (lista de chamada, liberação aos presentes e pausa na saída da sala; decisões M1–M13) |
 | `specs/017-production-email/` | O mesmo para a fase 017 (e-mail de produção: fila única com novas tentativas, avisos do provedor e modelos HTML e texto; decisões N1–N15) |
 | `specs/018-controlled-exams/` | O mesmo para a fase 018 (Banco de Provas, prova em modo restrito com avisos e decisão do professor; decisões T1–T19) |
+| `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -211,6 +223,9 @@ pnpm --filter api test:security                 # matriz de autorização, repla
 pnpm --filter web test                          # componentes, axe (WCAG 2.2 AA) e teclado
 pnpm --filter @repo/contracts test              # guardas de fronteira, duplicação e versão única de Zod
 pnpm --filter api maintenance:run [--job <nome>] # jobs de retenção (executam apps/api/dist)
+pnpm --filter api code-runner:images            # 019: baixa as três imagens fixadas por digest (executa dist/)
+pnpm --filter api code-runner:start             # 019: o worker do Code Runner (`pnpm dev` já o inicia)
+pnpm --filter api test:sandbox                  # 019: o Code Runner com Docker de verdade (linguagens, suíte hostil, tempos)
 pnpm --filter api fixtures:syllabus             # recria os arquivos de teste de ementa (004)
 pnpm --filter api fixtures:curriculum           # recria os documentos do conjunto de referência (007)
 OPENROUTER_API_KEY=... pnpm --filter api eval:curriculum  # avaliação dos modelos candidatos da tarefa (custa centavos)
@@ -227,6 +242,7 @@ OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api e
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
 pnpm build
+pnpm --filter api code-runner:images                 # 019: o E2E sobe o worker real (Docker rodando)
 pnpm --filter web exec playwright install chromium   # só na primeira vez
 pnpm --filter web test:e2e
 ```
@@ -239,7 +255,8 @@ api e web importam o `dist/` do pacote de contratos.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda `pnpm lint`, `pnpm check-types`,
 `pnpm build` e `pnpm test` (com PostgreSQL 17 de serviço) a cada push e pull request. As
-actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e`).
+actions são fixadas por SHA. Desde a 019, o job `sandbox` baixa as imagens do Code Runner e roda
+`test:sandbox` com o Docker do runner. O E2E roda localmente (`pnpm --filter web test:e2e`).
 
 ## Configuração
 
@@ -296,6 +313,12 @@ actions são fixadas por SHA. O E2E roda localmente (`pnpm --filter web test:e2e
   depois AWS SES só com configuração e DNS), siga o
   [guia de implantação de e-mail](docs/deploy/email.md); com `NODE_ENV=production` a API não sobe
   com um `SMTP_URL` sem TLS ou local, um `MAIL_FROM` sem domínio ou `MAIL_NOTICE_PROVIDER=none`.
+- Code Runner (019): `CODE_RUNNER_ENABLED` liga e desliga a execução (obrigatória em produção, sem
+  nova versão); `RATE_LIMIT_CODE_RUNS_PER_MINUTE` (10) limita as execuções por aluno; os limites de
+  tempo, memória e saída são do worker (`CODE_RUNNER_*`). Para produção (máquina própria, Docker +
+  gVisor, papel restrito no PostgreSQL, roteiro de incidente), siga o
+  [guia de implantação do Code Runner](docs/deploy/code-runner.md); com `NODE_ENV=production` e a
+  execução ligada, nada sobe sem `CODE_RUNNER_DOCKER_RUNTIME=runsc`.
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 

@@ -339,6 +339,7 @@ model User {
   examGenerationRequests  ExamGenerationRequest[]   @relation("ExamGenerationRequestTeacher")
   submissionsCancelled    ActivitySubmission[]      @relation("ActivitySubmissionCancelledBy")
   examHoldsResolved       ExamAttemptHold[]         @relation("ExamAttemptHoldResolvedBy")
+  codeRuns                CodeRun[]                 @relation("CodeRunStudent")
 
   mailDeliveries MailDelivery[]
 
@@ -1627,6 +1628,8 @@ model ProgrammingLanguage {
   aliases   String[] @default([])
   /// Grammar key of the code colors (014 research L3); NULL = plain text. CHECK in the migration.
   highlight String?
+  /// Code Runner profile key (019 research B5); NULL = no execution. CHECK in the migration.
+  execution String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -1689,6 +1692,8 @@ model Exercise {
   generationBatch   ExerciseGenerationBatch? @relation(fields: [generationBatchId], references: [id], onDelete: Restrict)
   reviewedBy        User?                    @relation("ExerciseReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
   alternatives      ExerciseAlternative[]
+  /// CODE only, 0–20, positions 0…n−1 (deferred trigger, 019 research B16).
+  testCases         ExerciseTestCase[]
   activityQuestions ClassActivityQuestion[]
   activityResults   ExerciseQuestionResult[]
 
@@ -2209,6 +2214,7 @@ model ClassActivityQuestion {
   exerciseResults ExerciseQuestionResult[]
   integrityEvents AttemptIntegrityEvent[]
   helpRequests    WorkHelpRequest[]
+  codeRuns        CodeRun[]
 
   @@unique([activityId, position])
   /// Targets of the answers', gradings' and results' composite FKs (research P8, 013 K6).
@@ -2247,6 +2253,7 @@ model ClassActivityTestCase {
   visibility     WorkTestCaseVisibility
 
   question ClassActivityQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  runCases CodeRunCase[]
 
   @@unique([questionId, position])
   @@map("class_activity_test_cases")
@@ -2292,6 +2299,7 @@ model ActivityAttempt {
   pauses          AttemptPause[]
   occurrences     ExamOccurrence[]
   holds           ExamAttemptHold[]
+  codeRuns        CodeRun[]
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2918,4 +2926,145 @@ model ExamAttemptHold {
 
   @@index([activityId, resolution])
   @@map("exam_attempt_holds")
+}
+
+// ── 019: Code Runner nos Exercícios (data-model.md) ─────────────────────────────────────────
+
+/// A test case of a CODE exercise of the bank (research B16), replaced as a whole on each save.
+model ExerciseTestCase {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exerciseId     String                 @map("exercise_id") @db.Uuid
+  /// 0-based, gap-free (deferred trigger); the UNIQUE is deferrable for reordering.
+  position       Int
+  /// 0–10 000 characters, empty allowed.
+  input          String
+  /// 1–10 000 characters (CHECK).
+  expectedOutput String                 @map("expected_output")
+  /// A PRIVATE case never reaches the student view.
+  visibility     WorkTestCaseVisibility
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, position])
+  @@map("exercise_test_cases")
+}
+
+/// A student's run of an EXERCISE CODE question against its PUBLIC cases (research B8). The queue.
+model CodeRun {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activityId      String                @map("activity_id") @db.Uuid
+  /// A CODE question of an EXERCISE activity (trigger).
+  questionId      String                @map("question_id") @db.Uuid
+  attemptId       String                @map("attempt_id") @db.Uuid
+  studentUserId   String                @map("student_user_id") @db.Uuid
+  /// The profile key copied at creation (CHECK).
+  execution       String
+  /// Transitions only those of the data-model diagram (trigger).
+  status          CodeRunStatus         @default(QUEUED)
+  /// Set iff FAILED (CHECK).
+  failureReason   CodeRunFailureReason? @map("failure_reason")
+  /// Set iff COMPLETED, with `passedCount` (CHECK).
+  outcome         CodeRunOutcome?
+  /// ≤ 65 536 bytes; NULL exactly after the purge (CHECK).
+  sourceCode      String?               @map("source_code")
+  /// ≤ 16 KB, only with COMPILATION_ERROR (CHECK).
+  compileOutput   String?               @map("compile_output")
+  /// 1–20: the PUBLIC cases at creation.
+  publicCaseCount Int                   @map("public_case_count")
+  passedCount     Int?                  @map("passed_count")
+  /// Server clock.
+  createdAt       DateTime              @map("created_at") @db.Timestamptz(6)
+  /// Not started by then → FAILED/EXPIRED.
+  deadlineAt      DateTime              @map("deadline_at") @db.Timestamptz(6)
+  /// The claim: all set iff the run was ever RUNNING (CHECK).
+  claimedAt       DateTime?             @map("claimed_at") @db.Timestamptz(6)
+  leaseUntil      DateTime?             @map("lease_until") @db.Timestamptz(6)
+  claimedBy       String?               @map("claimed_by")
+  claimToken      String?               @map("claim_token") @db.Uuid
+  /// Set iff COMPLETED or FAILED (CHECK).
+  finishedAt      DateTime?             @map("finished_at") @db.Timestamptz(6)
+  /// Set by the `code-run-content` maintenance job (research B12).
+  contentPurgedAt DateTime?             @map("content_purged_at") @db.Timestamptz(6)
+
+  question ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+  attempt  ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  student  User                  @relation("CodeRunStudent", fields: [studentUserId], references: [id], onDelete: Restrict)
+  cases    CodeRunCase[]
+
+  /// One pending run per student (partial UNIQUE `code_runs_one_pending_key`), the claim index and
+  /// the purge index live in the migration.
+  @@index([attemptId, questionId, createdAt(sort: Desc)])
+  @@map("code_runs")
+}
+
+/// One PUBLIC case of an EXECUTED run (research B6); written with the run's completion.
+model CodeRunCase {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId      String         @map("run_id") @db.Uuid
+  /// A PUBLIC case of the run's question (trigger).
+  testCaseId String         @map("test_case_id") @db.Uuid
+  /// The case's position among the question's PUBLIC cases (trigger).
+  position   Int
+  verdict    CodeRunVerdict
+  /// ≤ 64 KB / ≤ 16 KB (CHECK); NULL after the purge.
+  stdout     String?
+  stderr     String?
+  exitCode   Int?           @map("exit_code")
+  durationMs Int            @map("duration_ms")
+
+  run      CodeRun               @relation(fields: [runId], references: [id], onDelete: Restrict)
+  testCase ClassActivityTestCase @relation(fields: [testCaseId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, position])
+  @@map("code_run_cases")
+}
+
+/// A live worker (research B10): refreshed every 5 s; what it runs and with which limits.
+model CodeRunnerHeartbeat {
+  /// host + pid + start.
+  workerId   String   @id @map("worker_id")
+  startedAt  DateTime @map("started_at") @db.Timestamptz(6)
+  lastSeenAt DateTime @map("last_seen_at") @db.Timestamptz(6)
+  /// `[{ key, version }]` (CHECK: an array).
+  executions Json
+  /// `{ timeMs, compileMs, memoryMb, outputBytes }` (CHECK: an object).
+  limits     Json
+
+  @@map("code_runner_heartbeats")
+}
+
+enum CodeRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("code_run_status")
+}
+
+enum CodeRunFailureReason {
+  EXPIRED
+  INTERRUPTED
+  DISABLED
+  SANDBOX_ERROR
+
+  @@map("code_run_failure_reason")
+}
+
+enum CodeRunOutcome {
+  COMPILATION_ERROR
+  EXECUTED
+
+  @@map("code_run_outcome")
+}
+
+enum CodeRunVerdict {
+  PASSED
+  WRONG_OUTPUT
+  RUNTIME_ERROR
+  TIME_LIMIT
+  MEMORY_LIMIT
+  OUTPUT_LIMIT
+
+  @@map("code_run_verdict")
 }

@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev code-runner:dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -11,8 +11,8 @@
     "admin:bootstrap": "pnpm --filter api admin:bootstrap --"
   },
   "devDependencies": {
-    "prettier": "3.9.6",
-    "turbo": "^2.11.2",
+    "prettier": "3.9.10",
+    "turbo": "^2.11.9",
     "typescript": "7.0.2"
   },
   "packageManager": "pnpm@11.25.0",

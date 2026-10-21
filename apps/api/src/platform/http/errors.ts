@@ -162,6 +162,15 @@ export const ErrorCatalog = {
   EXAM_DECISIONS_PENDING: { status: 409, message: "Há provas encerradas por avisos aguardando a sua decisão." },
   EXIT_NOT_ALLOWED: { status: 409, message: "Na prova, chame o professor para sair da sala." },
   NOT_AN_EXAM: { status: 409, message: "Esta atividade não é uma prova." },
+  CODE_RUN_NOT_AVAILABLE: { status: 409, message: "Este exercício não tem casos para executar." },
+  CODE_RUNNER_UNAVAILABLE: {
+    status: 409,
+    message: "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente.",
+  },
+  SOURCE_TOO_LARGE: { status: 413, message: "O código passou do tamanho máximo de 64 KB." },
+  ATTEMPT_NOT_IN_PROGRESS: { status: 409, message: "Comece ou refaça os exercícios para executar o código." },
+  // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
+  EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
   // only caller, so the text never says which check failed (contracts/http-api.md).
   NOTICE_REJECTED: { status: 401, message: "Aviso recusado." },

@@ -1,6 +1,7 @@
 import type {
   ApproveBatchExercisesRequest,
   CreateExerciseRequest,
+  ExamRuleViolation,
   ExerciseBatchDetail,
   ExerciseBatchListQuery,
   ExerciseBatchPage,
@@ -15,7 +16,7 @@ import type {
   ProgrammingLanguageList,
   UpdateExerciseRequest,
 } from "@repo/contracts";
-import { apiClient } from "@/lib/api/client";
+import { ApiError, apiClient } from "@/lib/api/client";
 
 /** The teacher's exercise bank (010 contracts/http-api.md, "Exercises"). */
 export const exercisesApi = {
@@ -50,3 +51,12 @@ export const exerciseBatchesApi = {
 export const programmingLanguagesApi = {
   list: () => apiClient.get<ProgrammingLanguageList>("/programming-languages"),
 };
+
+/**
+ * What the server's exercise rules refused (019 `422 EXERCISE_RULES`, `details.violations`): the
+ * exercise's index in the request, the field (`testCases.2.expectedOutput`) and the code; or none.
+ */
+export function exerciseRuleViolations(error: unknown): ExamRuleViolation[] {
+  if (!(error instanceof ApiError) || error.code !== "EXERCISE_RULES" || !error.details || !("violations" in error.details)) return [];
+  return error.details.violations;
+}

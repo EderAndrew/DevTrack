@@ -14,8 +14,10 @@ import {
   ExerciseSetRequestSchema,
   ExerciseStatusSchema,
   ExerciseStudentViewSchema,
+  ExerciseTestCaseSchema,
   ExerciseTypeSchema,
   ProgrammingLanguageViewSchema,
+  UpdateExerciseRequestSchema,
 } from "../src/index.js";
 
 const ID = "3f8a1c52-6b1e-4c4b-9d0e-2a7f5b9c1d10";
@@ -129,13 +131,15 @@ describe("010/SC-003 010/FR-004 010/FR-016 fronteiras da criação manual", () =
     expect(accepts(ExerciseListQuerySchema, { teacherId: ID })).toBe(false);
   });
 
-  it("linguagens do catálogo: id, chave, nome e gramática (014)", () => {
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: "java" })).toBe(true);
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null })).toBe(true);
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java" })).toBe(false);
-    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null, aliases: [] })).toBe(
-      false,
-    );
+  it("linguagens do catálogo: id, chave, nome, gramática (014) e perfil de execução (019/FR-020)", () => {
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: "java", execution: "java" })).toBe(true);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null, execution: null })).toBe(true);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null })).toBe(false);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", execution: null })).toBe(false);
+    expect(accepts(ProgrammingLanguageViewSchema, { id: ID, key: "c", name: "C", highlight: null, execution: "c" })).toBe(false);
+    expect(
+      accepts(ProgrammingLanguageViewSchema, { id: ID, key: "java", name: "Java", highlight: null, execution: null, aliases: [] }),
+    ).toBe(false);
   });
 
   it("014/FR-002 a chave de gramática é minúscula, sem espaço, até 32 caracteres", () => {
@@ -205,5 +209,49 @@ describe("010/FR-019 010/FR-020 pedido de geração e distribuição automática
     for (const field of ["language", "languageId", "topic", "model", "tier", "teacherId"]) {
       expect(accepts(ExerciseBatchRequestSchema, batch({ [field]: "x" })), field).toBe(false);
     }
+  });
+});
+
+describe("019 casos de teste no banco de exercícios (contracts/http-api.md, research B16)", () => {
+  const testCase = (n: number, visibility = "PUBLIC") => ({ input: `${n}\n`, expectedOutput: `${n * 2}\n`, visibility });
+  const cases = (count: number) => Array.from({ length: count }, (_, n) => testCase(n, n % 2 ? "PRIVATE" : "PUBLIC"));
+
+  it("019/FR-001 019/FR-003 criar, editar e sets aceitam de 0 a 20 casos; 21 recusa o corpo", () => {
+    for (const count of [0, 1, 20]) {
+      expect(accepts(ExerciseInputSchema, { ...code, testCases: cases(count) }), String(count)).toBe(true);
+      expect(accepts(CreateExerciseRequestSchema, { ...code, status: "DRAFT", testCases: cases(count) }), String(count)).toBe(true);
+      expect(accepts(UpdateExerciseRequestSchema, { ...code, version: 1, testCases: cases(count) }), String(count)).toBe(true);
+    }
+    expect(accepts(ExerciseInputSchema, code)).toBe(true);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: cases(21) })).toBe(false);
+    expect(accepts(ExerciseSetRequestSchema, { exercises: [code, { ...code, testCases: cases(3) }, openAnswer], status: "APPROVED" })).toBe(true);
+  });
+
+  it("019/FR-001 entrada vazia e saída esperada vazia passam pelo contrato (a saída vazia é uma regra do servidor, 422)", () => {
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "", expectedOutput: "42", visibility: "PUBLIC" }] })).toBe(true);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "1", expectedOutput: "", visibility: "PRIVATE" }] })).toBe(true);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "x".repeat(10_000), expectedOutput: "y".repeat(10_000), visibility: "PUBLIC" }] })).toBe(true);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "x".repeat(10_001), expectedOutput: "1", visibility: "PUBLIC" }] })).toBe(false);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "1", expectedOutput: "y".repeat(10_001), visibility: "PUBLIC" }] })).toBe(false);
+  });
+
+  it("019/FR-001 cada caso é estrito: visibilidade PUBLIC ou PRIVATE, sem id, posição nem campos extras", () => {
+    for (const extra of [{ id: ID }, { position: 0 }, { weight: 1 }, { hidden: true }]) {
+      expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ ...testCase(1), ...extra }] }), JSON.stringify(extra)).toBe(false);
+    }
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [testCase(1, "SECRET")] })).toBe(false);
+    expect(accepts(ExerciseInputSchema, { ...code, testCases: [{ input: "1", visibility: "PUBLIC" }] })).toBe(false);
+  });
+
+  it("019/FR-001 casos em outro tipo passam pelo contrato para o servidor nomear a regra (422 TEST_CASES_NOT_ALLOWED)", () => {
+    expect(accepts(ExerciseInputSchema, { ...openAnswer, testCases: cases(1) })).toBe(true);
+    expect(accepts(ExerciseInputSchema, { ...multipleChoice(), testCases: cases(1) })).toBe(true);
+  });
+
+  it("019/FR-001 a visão do professor traz os casos com posição; a do aluno do banco não tem casos", () => {
+    expect(accepts(ExerciseTestCaseSchema, { position: 0, ...testCase(1) })).toBe(true);
+    expect(accepts(ExerciseTestCaseSchema, { position: 20, ...testCase(1) })).toBe(false);
+    expect(accepts(ExerciseTestCaseSchema, { ...testCase(1) })).toBe(false);
+    expect(accepts(ExerciseStudentViewSchema, { id: ID, type: "CODE", statement: "x", difficulty: "BASIC", testCases: [] })).toBe(false);
   });
 });
