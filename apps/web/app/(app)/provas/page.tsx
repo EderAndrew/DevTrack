@@ -16,7 +16,7 @@ export default async function ExamBankPage({ searchParams }: Props) {
   if (!me.permissions.includes("provas.visualizar")) return <NoAccess title="Banco de Provas" />;
 
   return (
-    <section className="mx-auto w-full max-w-256">
+    <section className="w-full">
       <ExamBankHome
         canCreate={me.permissions.includes("provas.criar")}
         canGenerate={me.permissions.includes("ia.provas.gerar")}

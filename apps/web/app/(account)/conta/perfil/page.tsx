@@ -20,7 +20,7 @@ export default async function ProfilePage() {
   if (me.emailVerified && !sessions) redirect(LOGIN);
 
   return (
-    <section className="mx-auto w-full max-w-160">
+    <section className="w-full">
       <PageHeader title="Meu perfil" />
       <ProfileDetails me={me} />
       <section aria-labelledby="minhas-sessoes">
