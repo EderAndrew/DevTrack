@@ -79,6 +79,20 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("cada sub-item de Usuários e de Operação de IA tem um ícone decorativo e o nome acessível só do texto", () => {
+    renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    const subItems = within(screen.getByRole("navigation", { name: "Menu principal" }))
+      .queryAllByRole("link")
+      .filter((link) => link.textContent !== "Meu perfil");
+    expect(subItems).toHaveLength(10);
+    for (const link of subItems) {
+      const icon = link.querySelector("svg");
+      expect(icon?.getAttribute("aria-hidden"), link.textContent ?? "").toBe("true");
+    }
+    expect(screen.getByRole("link", { name: "Saúde" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Professores" })).toBeTruthy();
+  });
+
   it("sem área administrativa, não há o grupo Usuários", () => {
     renderSidebar({ me: me(PERMISSIONS.STUDENT) });
     expect(screen.queryByRole("button", { name: "Usuários" })).toBeNull();

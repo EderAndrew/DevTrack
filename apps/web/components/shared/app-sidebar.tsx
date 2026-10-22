@@ -1,7 +1,29 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { Activity, BookOpen, ChevronRight, ClipboardList, FileCheck2, Library, ListChecks, School, UserRound, Users } from "lucide-react";
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  BriefcaseBusiness,
+  ChartColumn,
+  ChevronRight,
+  ClipboardList,
+  Cpu,
+  FileCheck2,
+  GraduationCap,
+  HeartPulse,
+  Library,
+  ListChecks,
+  ListTodo,
+  type LucideIcon,
+  School,
+  SlidersHorizontal,
+  UserCog,
+  UserRound,
+  Users,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -37,6 +59,24 @@ import { LogoutButton } from "./logout-button";
 
 const LINK = "text-sidebar-foreground no-underline";
 
+/** Icon of each sub-item of "Usuários", by its href. */
+const USER_AREA_ICONS: Record<(typeof USER_AREAS)[number]["href"], LucideIcon> = {
+  "/professores": GraduationCap,
+  "/admin/managers": BriefcaseBusiness,
+  "/admin/usuarios": UserCog,
+};
+
+/** Icon of each section of "Operação de IA". */
+const AI_OPERATIONS_ICONS: Record<AiOperationsTab, LucideIcon> = {
+  saude: HeartPulse,
+  indicadores: ChartColumn,
+  orcamentos: Wallet,
+  tarefas: ListTodo,
+  modelos: Cpu,
+  agentes: Bot,
+  configuracoes: SlidersHorizontal,
+};
+
 export interface AppSidebarProps {
   me: Pick<MeView, "name" | "emailVerified" | "permissions"> | null;
 }
@@ -47,7 +87,7 @@ export interface AppSidebarProps {
  * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
  * the icons (labels stay as accessible names and show as tooltips); opening a group there
- * expands the menu, since its sub-items have no icon.
+ * expands the menu, since its sub-items are hidden while collapsed.
  */
 export function AppSidebar({ me }: AppSidebarProps) {
   const pathname = usePathname();
@@ -70,7 +110,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const [usersOpen, setUsersOpen] = useState(true);
   const [aiOpen, setAiOpen] = useState(true);
 
-  // Collapsed, a group's sub-items (no icon) need the menu expanded first.
+  // Collapsed, a group's sub-items are hidden: the menu expands first.
   const toggleGroup = (setGroupOpen: (open: boolean) => void) => (next: boolean) => {
     if (iconsOnly) {
       setOpen(true);
@@ -114,15 +154,19 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub>
-                          {areas.map((area) => (
-                            <SidebarMenuSubItem key={area.href}>
-                              <SidebarMenuSubButton asChild isActive={pathname === area.href}>
-                                <Link href={area.href} className={LINK} aria-current={pathname === area.href ? "page" : undefined}>
-                                  {area.label}
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
+                          {areas.map((area) => {
+                            const Icon = USER_AREA_ICONS[area.href];
+                            return (
+                              <SidebarMenuSubItem key={area.href}>
+                                <SidebarMenuSubButton asChild isActive={pathname === area.href}>
+                                  <Link href={area.href} className={LINK} aria-current={pathname === area.href ? "page" : undefined}>
+                                    <Icon aria-hidden="true" />
+                                    <span>{area.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>
@@ -145,6 +189,7 @@ export function AppSidebar({ me }: AppSidebarProps) {
                         <SidebarMenuSub>
                           {(Object.keys(AI_OPERATIONS_TABS) as AiOperationsTab[]).map((tab) => {
                             const current = pathname === AI_OPERATIONS_AREA.href && aiTab === tab;
+                            const Icon = AI_OPERATIONS_ICONS[tab];
                             return (
                               <SidebarMenuSubItem key={tab}>
                                 <SidebarMenuSubButton asChild isActive={current}>
@@ -153,7 +198,8 @@ export function AppSidebar({ me }: AppSidebarProps) {
                                     className={LINK}
                                     aria-current={current ? "page" : undefined}
                                   >
-                                    {AI_OPERATIONS_TABS[tab]}
+                                    <Icon aria-hidden="true" />
+                                    <span>{AI_OPERATIONS_TABS[tab]}</span>
                                   </Link>
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>

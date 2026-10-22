@@ -95,7 +95,9 @@ group, like "Usuários": the button "Operação de IA" (icon `Activity`, the sam
 closes it, open by default, and its sub-items are the seven sections in the table's order and with its
 names, each a link to its `?aba=` (`/admin/ia?aba=saude` … `/admin/ia?aba=configuracoes`). The sub-item
 of the section on screen is marked (`aria-current="page"`). With the menu collapsed to icons, the button
-expands the menu and opens the group (its sub-items have no icon).
+expands the menu and opens the group (its sub-items are hidden while collapsed). Each sub-item has its own
+Lucide icon before the name (amendment 2026-10-22): Saúde `HeartPulse`, Indicadores `ChartColumn`, Orçamentos `Wallet`,
+Tarefas `ListTodo`, Modelos `Cpu`, Agentes `Bot`, Configurações de modelo `SlidersHorizontal`.
 
 - The sections are one list in `lib/navigation.ts` (`AI_OPERATIONS_TABS`); the route reads `?aba=` and
   passes the section to the page, so a reload or a shared link opens the same section.
