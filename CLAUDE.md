@@ -104,6 +104,7 @@ hand-maintained.
 - PostgreSQL 17 — one migration: the Banco de Provas tables (mirroring 011), `class_activity_type` += `EXAM` with duration/inactivity/start-window columns, submissions `end_reason`, integrity `INACTIVITY`, tables `exam_occurrences` (append-only) and `exam_attempt_holds` (018-controlled-exams)
 - No new npm dependency; the code-runner worker drives Docker through the `docker` CLI (`node:child_process`), gVisor `runsc` in production, three official images pinned by digest (019-exercise-code-runner)
 - PostgreSQL 17 — one migration: `programming_languages.execution`, `exercise_test_cases`, `code_runs` + `code_run_cases` (the queue, one pending run per student), `code_runner_heartbeats` (019-exercise-code-runner)
+- Recharts 3.10.1 in `apps/web`, only through `components/ui/chart.tsx` and the Indicadores charts of Operação de IA (006 amendment 2026-10-22)
 
 ## Stack notes
 

@@ -12,6 +12,7 @@ import { AiAgentsTable } from "./ai-agents-table";
 import { AiBudgetsTable } from "./ai-budgets-table";
 import { AiCostBreakdown } from "./ai-cost-breakdown";
 import { AiHealthTable } from "./ai-health-table";
+import { AiCostChart, AiExecutionsChart } from "./ai-indicator-charts";
 import { AiMetricsTable } from "./ai-metrics-table";
 import { AiModelConfigsTable } from "./ai-model-configs-table";
 import { AiModelsTable } from "./ai-models-table";
@@ -70,7 +71,12 @@ export function AiOperationsPage({ canManage, tab = "saude" }: { canManage: bool
                 <AlertDescription>{messageForError(metrics.error)}</AlertDescription>
               </Alert>
             ) : null}
-            {metrics.isPending ? <Skeleton className="h-24 w-full" /> : metrics.data ? <AiMetricsTable rows={metrics.data.byAgent} /> : null}
+            {metrics.isPending ? <Skeleton className="h-24 w-full" /> : metrics.data ? (
+              <>
+                <AiExecutionsChart rows={metrics.data.byAgent} />
+                <AiMetricsTable rows={metrics.data.byAgent} />
+              </>
+            ) : null}
           </section>
 
           <section aria-labelledby="ia-uso">
@@ -79,6 +85,7 @@ export function AiOperationsPage({ canManage, tab = "saude" }: { canManage: bool
               <Skeleton className="h-24 w-full" />
             ) : metrics.data ? (
               <div className="flex flex-col gap-4">
+                <AiCostChart rows={metrics.data.byModel} />
                 <AiUsageTable rows={metrics.data.byModel} />
                 <AiCostBreakdown byTask={metrics.data.byTask} byTier={metrics.data.byTier} byFamily={metrics.data.byFamily} />
               </div>

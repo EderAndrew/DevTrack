@@ -107,6 +107,36 @@ Tarefas `ListTodo`, Modelos `Cpu`, Agentes `Bot`, Configurações de modelo `Sli
 - Keyboard (SC-012): Tab goes from the menu into the section's controls in the order above; dialogs
   still trap focus and return it to their button. This replaces the keyboard rule of the tabs.
 
+### Amendment 2026-10-22: charts in Indicadores
+
+Indicadores gets two bar charts, each above the table with the same numbers (the tables stay, unchanged,
+as the complete and accessible view). Both read only the period's totals the API already returns
+(`byAgent`, `byModel`); no API, contract or query changes. A chart over time needs a series the API does not
+return and is a later amendment.
+
+| Chart | Where | Data | Form |
+|-------|-------|------|------|
+| "Execuções por agente" | Indicadores, after the "Período" `Select`, before "Indicadores por agente" | `byAgent` summed per `agentKey` (versions, instructions and models add up); agents with no execution in the four outcomes are left out | one horizontal bar per agent, stacked in the fixed order Concluídas (`--success`, `CircleCheck`), Falhas (`--danger`, `CircleX`), Tempo esgotado (`--warning`, `TimerOff`), Canceladas (`--text-secondary`, `Ban`), 2px of the page background between segments |
+| "Custo estimado por modelo" | Uso e custo, before "Uso e custo por modelo" | `byModel` with an `estimatedCost`, summed per `model`, the most expensive first | one horizontal bar per model in `--chart-1` |
+
+- No chart when its data is empty (the table's empty state says so), and no cost chart when the costs come
+  in more than one currency (bars of different currencies would share one axis).
+- Each chart is a `<figure>` named by its `h3`, with "Os números de cada item estão na tabela abaixo." under
+  it; the SVG keeps Recharts' keyboard layer (Tab reaches it, the arrows walk the categories and open the
+  tooltip) and carries the same title and note. The outcomes are never told by color alone: a legend with
+  icon and name below the chart, the name and value in the tooltip. A single series has no legend.
+- The tooltip shows the category, then each series with its square, name and value (counts in pt-BR, the
+  cost through `cost()` with the currency).
+- **Dependency**: `recharts` 3.10.1 and its peer `react-is` (MIT, no known vulnerability, React 19 peer),
+  pinned exact in `apps/web`. It is reached through `components/ui/chart.tsx` (`ChartContainer`,
+  `ChartTooltip`, `ChartTooltipContent`, `seriesColor`), the design-system component with its catalog entry,
+  showcase and `components.md` section; the chart elements (`BarChart`, `Bar`, axes, grid) come from
+  `recharts` in the feature. Recharts uses Redux Toolkit internally; the ESLint rule that keeps `@reduxjs/*`
+  out of the app's own code is unchanged.
+- **Token**: `--chart-1` (`#A66BFF`, Neon Purple stepped into the dark band, ≥ 3:1 on `--background` and
+  `--surface`, `test/contrast.test.ts`), documented in `design-system/tokens.md`. The outcome order never
+  puts Concluídas next to Tempo esgotado (ΔE 6.6 under protanopia; every adjacent pair ≥ 8.9).
+
 ## State components (`components/shared/ai/`, catalog group "Inteligência artificial")
 
 | Component | Props | Behavior |

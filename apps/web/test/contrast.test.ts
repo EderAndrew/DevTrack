@@ -56,7 +56,8 @@ type Pair = [foreground: string, background: string, minimum: number];
 const SURFACES = ["--background", "--surface"];
 const STATES = ["success", "warning", "danger", "info"];
 const TEXTS = ["--foreground", "--text-secondary", "--primary", "--brand-secondary", ...STATES.map((s) => `--${s}-text`)];
-const GRAPHICS = [...STATES.map((s) => `--${s}`), "--border-control", "--ring"];
+// 006 (amendment 2026-10-22): the chart marks are graphics too.
+const GRAPHICS = [...STATES.map((s) => `--${s}`), "--border-control", "--ring", "--chart-1"];
 
 const PAIRS: Pair[] = [
   ...TEXTS.flatMap((text) => SURFACES.map((surface): Pair => [text, surface, 4.5])),

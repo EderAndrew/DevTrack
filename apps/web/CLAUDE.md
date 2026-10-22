@@ -18,7 +18,8 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   header with "Sair"). Docs: `README.md`,
   `tokens.md`, `components.md`, `layouts.md`, `exam-mode.md` and `exceptions.md` in
   `design-system/`.
-- Official stack: Tailwind + shadcn/ui (`components/ui`) + Lucide; TanStack Query for server
+- Official stack: Tailwind + shadcn/ui (`components/ui`) + Lucide; charts with Recharts through `components/ui/chart.tsx`
+  (bars only, each above a table with the same numbers; colors `--chart-1` or the state colors, 006 amendment 2026-10-22); TanStack Query for server
   state; React Hook Form + `@hookform/resolvers`; native `fetch` only in `lib/api/client.ts`. Redux
   Toolkit is not installed: add it only with the first spec that has real global client state, and
   never make it authoritative over exam rules. Code goes in

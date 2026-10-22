@@ -93,6 +93,23 @@ de sintaxe (por isso esses pares estão no teste); o editor desabilitado usa `--
 editor não destaca a linha ativa. Em alto contraste (`forced-colors: active`) as classes
 `text-syntax-*` passam a `CanvasText`: o código sem cores é o mesmo código.
 
+### Gráficos
+
+Cores das marcas dos gráficos (`components/ui/chart.tsx`, 006 emenda 2026-10-22): barras e
+quadrados da legenda, nunca texto. Valores, nomes e eixos usam `--foreground` e
+`--text-secondary`; a grade, `--border`.
+
+| Token | Valor | Uso |
+|-------|-------|-----|
+| `--chart-1` (`bg-chart-1`, `fill`) | `#A66BFF` | a série única de um gráfico (Neon Purple trazido para a faixa de luminosidade do tema escuro, OKLCH L 0,48–0,67) |
+
+Séries de situação (concluída, falha, tempo esgotado, cancelada) usam as cores de estado
+(`--success`, `--danger`, `--warning`, `--text-secondary`) nessa ordem fixa, que nunca põe
+concluída e tempo esgotado lado a lado (ΔE 6,6 para protanopia), e sempre com ícone e nome na
+legenda. Uma 2ª paleta categórica só entra validada pelo `validate_palette.js` do dataviz.
+
+Contraste (`test/contrast.test.ts`): `--chart-1` sobre `--background` e `--surface` (3:1).
+
 ## Tipografia
 
 | Token (utilitário) | Tamanho / altura / peso | Família | Uso |
