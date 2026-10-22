@@ -41,6 +41,29 @@ export const USER_AREAS = [
 export const AI_OPERATIONS_AREA = { href: "/admin/ia", label: "Operação de IA", permission: "ia.operacao.visualizar" } as const;
 
 /**
+ * The sections of "Operação de IA", in order, with the `?aba=` value of each: tabs of the page and
+ * sub-items of its menu group (006 contracts/web-ui.md, amendments 2026-09-29 and 2026-10-22).
+ */
+export const AI_OPERATIONS_TABS = {
+  saude: "Saúde",
+  indicadores: "Indicadores",
+  orcamentos: "Orçamentos",
+  tarefas: "Tarefas",
+  modelos: "Modelos",
+  agentes: "Agentes",
+  configuracoes: "Configurações de modelo",
+} as const;
+export type AiOperationsTab = keyof typeof AI_OPERATIONS_TABS;
+
+export const isAiOperationsTab = (value: unknown): value is AiOperationsTab => typeof value === "string" && Object.hasOwn(AI_OPERATIONS_TABS, value);
+
+/** The tab a `?aba=` value opens; anything else opens Saúde. */
+export const aiOperationsTabOf = (value: unknown): AiOperationsTab => (isAiOperationsTab(value) ? value : "saude");
+
+/** Link to one section of "Operação de IA". */
+export const aiOperationsHref = (tab: AiOperationsTab): string => `${AI_OPERATIONS_AREA.href}?aba=${tab}`;
+
+/**
  * Permissions of the teacher and administration areas: a verified user with any of them works in
  * the AppShell, otherwise in the student layout (005 contracts/layouts.md). UX only.
  */

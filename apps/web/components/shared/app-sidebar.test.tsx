@@ -6,9 +6,10 @@ import { expectNoA11yViolations } from "../../test/a11y";
 import { renderWithProviders } from "../../test/render";
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 
-const navigation = vi.hoisted(() => ({ pathname: "/conta/perfil" }));
+const navigation = vi.hoisted(() => ({ pathname: "/conta/perfil", search: "" }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
+  useSearchParams: () => new URLSearchParams(navigation.search),
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
 
@@ -48,6 +49,7 @@ const menuLinks = () =>
 describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   beforeEach(() => {
     navigation.pathname = "/conta/perfil";
+    navigation.search = "";
     // jsdom has no matchMedia; the desktop layout is enough here.
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
     // jsdom has no ResizeObserver either; collapsed, a tooltip may open under the pointer and Radix measures it.
@@ -66,7 +68,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     ["STUDENT", ["Minhas turmas", "Meu perfil"]],
     ["TEACHER", ["Minhas disciplinas", "Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
-    ["ADMIN", ["Professores", "Gestores", "Usuários", "Operação de IA", "Meu perfil"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
     expect(menuLinks()).toEqual(expected);
@@ -93,7 +95,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(group.getAttribute("aria-expanded")).toBe("true");
     await userEvent.setup().click(group);
     expect(group.getAttribute("aria-expanded")).toBe("false");
-    expect(menuLinks()).toEqual(["Operação de IA", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]);
   });
 
   it("e-mail não verificado não vê Turmas", () => {
@@ -193,7 +195,8 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     const sidebar = container.querySelector('[data-slot="sidebar"][data-state]');
     expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
-    expect(menuLinks()).toEqual(["Operação de IA", "Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(screen.getByRole("button", { name: "Operação de IA" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Turmas" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
     await expectNoA11yViolations(container);
@@ -210,23 +213,49 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await userEvent.setup().click(group);
     expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
     expect(group.getAttribute("aria-expanded")).toBe("true");
-    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Operação de IA", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]);
   });
 
-  it("006/US7-7 Operação de IA só com ia.operacao.visualizar, e marca a página atual", () => {
+  it("006/US7-7 Operação de IA só com ia.operacao.visualizar: um grupo com uma seção por aba, e marca a seção atual", () => {
     navigation.pathname = "/admin/ia";
+    navigation.search = "aba=modelos";
     const { unmount } = renderSidebar({ me: me(PERMISSIONS.ADMIN) });
-    const link = screen.getByRole("link", { name: "Operação de IA" });
-    expect(link.getAttribute("href")).toBe("/admin/ia");
-    expect(link.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("button", { name: "Operação de IA" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("link", { name: "Saúde" }).getAttribute("href")).toBe("/admin/ia?aba=saude");
+    expect(screen.getByRole("link", { name: "Configurações de modelo" }).getAttribute("href")).toBe("/admin/ia?aba=configuracoes");
+    expect(screen.getByRole("link", { name: "Modelos" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Saúde" }).getAttribute("aria-current")).toBeNull();
     unmount();
+    // Without `?aba=` the page opens Saúde.
+    navigation.search = "";
+    const plain = renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    expect(screen.getByRole("link", { name: "Saúde" }).getAttribute("aria-current")).toBe("page");
+    plain.unmount();
     for (const role of ["TEACHER", "MANAGER", "STUDENT"] as const) {
       const view = renderSidebar({ me: me(PERMISSIONS[role]) });
-      expect(screen.queryByRole("link", { name: "Operação de IA" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Operação de IA" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "Saúde" })).toBeNull();
       view.unmount();
     }
     renderSidebar({ me: me(PERMISSIONS.ADMIN, false) });
-    expect(screen.queryByRole("link", { name: "Operação de IA" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Operação de IA" })).toBeNull();
+  });
+
+  it("o grupo Operação de IA abre e fecha, e recolhido expande o menu", async () => {
+    const { container } = renderWithProviders(
+      <SidebarProvider defaultOpen={false}>
+        <AppSidebar me={me(PERMISSIONS.ADMIN)} />
+      </SidebarProvider>,
+    );
+    const group = screen.getByRole("button", { name: "Operação de IA" });
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    const user = userEvent.setup();
+    await user.click(group);
+    expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    await user.click(group);
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("link", { name: "Saúde" })).toBeNull();
   });
 
   it("marca a tela atual", () => {

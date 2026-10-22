@@ -13,6 +13,7 @@ import { Catalog } from "./catalog";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/design-system",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
 }));
 

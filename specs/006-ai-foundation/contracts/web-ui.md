@@ -86,6 +86,25 @@ operação de IA"), in this order:
   and Tab goes on into the active panel: its controls in the order above (for example Período →
   the action of each row). Dialogs still trap focus and return it to their button.
 
+### Amendment 2026-10-22: the sections in the side menu, no tabs
+
+The sections of the 2026-09-29 table are no longer tabs: the page has no `TabsList` and shows only the
+section of `?aba=` (Saúde without it or with an unknown value), still under the `PageHeader`
+"Operação de IA". The navigation is the side menu, where the item "Operação de IA" becomes a collapsible
+group, like "Usuários": the button "Operação de IA" (icon `Activity`, the same permission) opens and
+closes it, open by default, and its sub-items are the seven sections in the table's order and with its
+names, each a link to its `?aba=` (`/admin/ia?aba=saude` … `/admin/ia?aba=configuracoes`). The sub-item
+of the section on screen is marked (`aria-current="page"`). With the menu collapsed to icons, the button
+expands the menu and opens the group (its sub-items have no icon).
+
+- The sections are one list in `lib/navigation.ts` (`AI_OPERATIONS_TABS`); the route reads `?aba=` and
+  passes the section to the page, so a reload or a shared link opens the same section.
+- Each section keeps its `h2`, region, content, empty states, actions, dialogs, toasts and `Alert`s.
+  Moving between sections keeps the page mounted, so the "Período" chosen in Indicadores is the one of
+  Modelos.
+- Keyboard (SC-012): Tab goes from the menu into the section's controls in the order above; dialogs
+  still trap focus and return it to their button. This replaces the keyboard rule of the tabs.
+
 ## State components (`components/shared/ai/`, catalog group "Inteligência artificial")
 
 | Component | Props | Behavior |

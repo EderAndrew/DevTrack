@@ -103,17 +103,25 @@ describe("006/US7-6 tela Operação de IA", () => {
     });
   }
 
-  const renderPage = (canManage = true, initialTab?: AiOperationsTab) =>
-    renderWithProviders(<Toaster><AiOperationsPage canManage={canManage} initialTab={initialTab} /></Toaster>);
-  const openTab = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
-    await user.click(screen.getByRole("tab", { name }));
-    await waitFor(() => expect(screen.getByRole("tab", { name }).getAttribute("aria-selected")).toBe("true"));
+  const page = (canManage: boolean, tab?: AiOperationsTab) => (
+    <Toaster>
+      <AiOperationsPage canManage={canManage} tab={tab} />
+    </Toaster>
+  );
+  let rendered: { view: ReturnType<typeof renderWithProviders>; canManage: boolean };
+  const renderPage = (canManage = true, tab?: AiOperationsTab) => {
+    rendered = { view: renderWithProviders(page(canManage, tab)), canManage };
+    return rendered.view;
+  };
+  /** A sub-item of the side menu (`?aba=`): the route renders the same page with another section. */
+  const showSection = (name: string) => {
+    const tab = (Object.keys(AI_OPERATIONS_TABS) as AiOperationsTab[]).find((key) => AI_OPERATIONS_TABS[key] === name);
+    if (!tab) throw new Error(`seção desconhecida: ${name}`);
+    rendered.view.rerender(page(rendered.canManage, tab));
   };
   const calls = (fragment: string) => fetchMock.mock.calls.filter(([url]) => String(url).includes(fragment));
 
   beforeEach(() => {
-    // Changing tabs writes `?aba=` into jsdom's URL, which outlives the test.
-    window.history.replaceState(null, "", "/admin/ia");
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     // Radix Select measures its content.
@@ -166,7 +174,7 @@ describe("006/US7-6 tela Operação de IA", () => {
     expect([cellOf(rowB!, "Tarefa"), cellOf(rowB!, "Fallback")]).toEqual(["—não informado", "Sem fallback"]);
     await expectNoA11yViolations(container);
 
-    await openTab(userEvent.setup(), "Indicadores");
+    showSection("Indicadores");
     const metrics = await screen.findByRole("table", { name: "Indicadores por agente" });
     const metricHeaders = within(metrics).getAllByRole("columnheader").map((cell) => cell.textContent);
     const metricCells = within(metrics).getAllByRole("cell").map((cell) => cell.textContent);
@@ -204,11 +212,10 @@ describe("006/US7-6 tela Operação de IA", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("mostra as 8 seções em 7 abas, com dados, e as situações têm sempre texto e ícone", async () => {
+  it("mostra as 8 seções nas 7 páginas do menu (?aba=), sem abas, com dados, e as situações têm sempre texto e ícone", async () => {
     serve();
     const { container } = renderPage();
-    const user = userEvent.setup();
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(Object.values(AI_OPERATIONS_TABS));
+    expect(screen.queryByRole("tablist")).toBeNull();
     const sections: Record<string, string[]> = {
       Saúde: ["Saúde"],
       Indicadores: ["Indicadores", "Uso e custo"],
@@ -219,8 +226,8 @@ describe("006/US7-6 tela Operação de IA", () => {
       "Configurações de modelo": ["Configurações de modelo"],
     };
     for (const [tab, headings] of Object.entries(sections)) {
-      await openTab(user, tab);
-      // Only the active tab's sections are on the page.
+      showSection(tab);
+      // Only that section is on the page.
       expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent?.trim())).toEqual(headings);
       if (tab === "Saúde") {
         expect(await screen.findByText("Respondendo")).toBeTruthy();
@@ -257,16 +264,16 @@ describe("006/US7-6 tela Operação de IA", () => {
     const { container } = renderPage();
     const user = userEvent.setup();
     expect(await screen.findByText("Nenhuma configuração de modelo registrada.")).toBeTruthy();
-    await openTab(user, "Indicadores");
+    showSection("Indicadores");
     expect(await screen.findByText("Nenhuma execução no período.")).toBeTruthy();
     expect(screen.getByText("Nenhuma chamada ao modelo no período.")).toBeTruthy();
-    await openTab(user, "Agentes");
+    showSection("Agentes");
     expect(await screen.findByText("Nenhum agente registrado.")).toBeTruthy();
-    await openTab(user, "Tarefas");
+    showSection("Tarefas");
     expect(await screen.findByText("Nenhuma tarefa registrada.")).toBeTruthy();
-    await openTab(user, "Modelos");
+    showSection("Modelos");
     expect(await screen.findByText("Nenhum modelo no catálogo.")).toBeTruthy();
-    await openTab(user, "Configurações de modelo");
+    showSection("Configurações de modelo");
     expect(await screen.findByText("Nenhuma configuração de modelo registrada.")).toBeTruthy();
     await expectNoA11yViolations(container);
   });
@@ -364,7 +371,7 @@ describe("006/US7-6 tela Operação de IA", () => {
     await user.click(await screen.findByRole("option", { name: "Últimos 30 dias" }));
     await waitFor(() => expect(calls("/ai/operations/metrics?period=30d")).toHaveLength(1));
     // 009/US6-2: the period also drives the real cost per execution of the catalog.
-    await openTab(user, "Modelos");
+    showSection("Modelos");
     await waitFor(() => expect(calls("/ai/operations/models?period=30d")).toHaveLength(1));
     expect(screen.getByRole("combobox", { name: "Período" }).textContent).toBe("Últimos 30 dias");
   });
@@ -472,59 +479,52 @@ describe("006/US7-6 tela Operação de IA", () => {
     const user = userEvent.setup();
     await screen.findByRole("table", { name: "Tarefas e modelo escolhido" });
     for (const [tab, loaded] of [["Tarefas", "tarefa-a"], ["Agentes", "Agente A"], ["Configurações de modelo", "cfg-a"]] as const) {
-      await openTab(user, tab);
+      showSection(tab);
       await screen.findAllByText(loaded);
       expect(screen.queryByRole("button", { name: /^(Desabilitar|Habilitar|Fixar modelo|Remover modelo fixado) / })).toBeNull();
       expect(screen.queryByRole("columnheader", { name: "Ações" })).toBeNull();
     }
   });
 
-  it("006/SC-012 Tab: aba ativa → controles do painel (Verificar de novo; Período; ações das linhas); setas trocam de aba; o foco volta ao botão depois do diálogo", async () => {
+  it("006/SC-012 Tab: os controles da seção (Verificar de novo; Período; ações das linhas); o foco volta ao botão depois do diálogo", async () => {
     serve();
     renderPage();
     await screen.findByText("Respondendo");
     const user = userEvent.setup();
-    await expectTabOrder(user, [screen.getByRole("tab", { name: "Saúde" }), screen.getByRole("button", { name: "Verificar de novo" })]);
+    await expectTabOrder(user, [screen.getByRole("button", { name: "Verificar de novo" })]);
 
-    // The arrows move between tabs and activate them; Tab then goes into the active panel.
-    screen.getByRole("tab", { name: "Saúde" }).focus();
-    await user.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Indicadores" }));
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Indicadores" }).getAttribute("aria-selected")).toBe("true"));
-    await expectTabOrder(user, [screen.getByRole("tab", { name: "Indicadores" }), screen.getByRole("combobox", { name: "Período" })]);
+    showSection("Indicadores");
+    await expectTabOrder(user, [screen.getByRole("combobox", { name: "Período" })]);
 
-    await openTab(user, "Tarefas");
+    showSection("Tarefas");
     await screen.findByRole("button", { name: "Remover modelo fixado da tarefa tarefa-c" });
     await expectTabOrder(user, [
-      screen.getByRole("tab", { name: "Tarefas" }),
       screen.getByRole("button", { name: "Fixar modelo da tarefa tarefa-a" }),
       screen.getByRole("button", { name: "Remover modelo fixado da tarefa tarefa-c" }),
     ]);
 
-    await openTab(user, "Agentes");
+    showSection("Agentes");
     const agentButton = await screen.findByRole("button", { name: "Desabilitar o agente Agente A" });
-    await expectTabOrder(user, [screen.getByRole("tab", { name: "Agentes" }), agentButton]);
     agentButton.focus();
     await user.keyboard("{Enter}");
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(document.activeElement).toBe(agentButton));
 
-    await openTab(user, "Configurações de modelo");
+    showSection("Configurações de modelo");
     const configButton = await screen.findByRole("button", { name: "Desabilitar a configuração cfg-a" });
-    await expectTabOrder(user, [screen.getByRole("tab", { name: "Configurações de modelo" }), configButton]);
+    await expectTabOrder(user, [configButton]);
   });
 
-  it("a aba ativa fica na URL (?aba=), sem nova entrada no histórico; valor desconhecido abre Saúde", async () => {
+  it("006/US7-6 a seção vem de ?aba= (um item do menu); valor desconhecido abre Saúde; o período continua ao trocar de seção", async () => {
     serve();
-    window.history.replaceState(null, "", "/admin/ia");
-    const length = window.history.length;
-    renderPage();
-    await screen.findByText("Respondendo");
-    await openTab(userEvent.setup(), "Agentes");
-    expect(new URL(window.location.href).searchParams.get("aba")).toBe("agentes");
-    expect(window.history.length).toBe(length);
+    renderPage(true, "agentes");
     expect(await screen.findByRole("table", { name: "Agentes de IA" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Saúde" })).toBeNull();
+
+    showSection("Saúde");
+    expect(await screen.findByText("Respondendo")).toBeTruthy();
+    expect(screen.queryByRole("table", { name: "Agentes de IA" })).toBeNull();
 
     expect(aiOperationsTabOf("modelos")).toBe("modelos");
     expect(aiOperationsTabOf("qualquer")).toBe("saude");

@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
   usePathname: () => "/design-system",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
 }));
 

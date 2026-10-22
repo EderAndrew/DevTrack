@@ -10,6 +10,7 @@ import { AppShell, type AppShellProps } from "./app-shell";
 const navigation = vi.hoisted(() => ({ pathname: "/turmas" }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
 
