@@ -65,7 +65,8 @@ Before implementing anything, read the active feature (`.specify/feature.json` â
 `spec.md` (FR-/SC- requirements), `plan.md`, `research.md` (decisions with a per-feature letter prefix, e.g. R1 in 001, L1 in 014), `data-model.md`,
 `contracts/*` (HTTP API, permission matrix, audit events, CLI, maintenance jobs) and `tasks.md`
 (tests are mandatory and written first). If behavior must change during implementation, update the
-spec first.
+spec first. If `feature.json` names a feature that is already merged, there is no active
+feature: new behavior starts with `/speckit-specify`, not in that feature's specs.
 
 ## Workflow (Spec Kit)
 
@@ -151,7 +152,9 @@ pnpm --filter web test -t "<test name>"                 # single test, or an id 
 pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
 pnpm --filter @repo/contracts test                      # boundary, duplication, zod-version guards
 
-# E2E (Playwright, local only): commands in apps/web/CLAUDE.md
+# E2E (Playwright, local only; first-run setup in apps/web/CLAUDE.md)
+pnpm --filter web test:e2e                              # needs postgres-test + mailpit up and `pnpm build` first
+pnpm --filter web test:e2e work-bank                    # one spec by path regex
 ```
 
 The API builds with SWC into `dist/`; `tsc` only type-checks (`check-types`). The CLI scripts run
