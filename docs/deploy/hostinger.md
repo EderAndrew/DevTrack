@@ -182,15 +182,69 @@ perda da máquina. Para restaurar:
 docker exec -i devtrack-prod-postgres-1 pg_restore -U devtrack -d devtrack --clean --if-exists < arquivo.dump
 ```
 
-## 12. Atualizações (como `devtrack`)
+## 12. Atualizações
 
-Depois de cada merge na `main`:
+### Automáticas (GitHub Actions)
+
+O workflow `.github/workflows/deploy-hostinger.yml` atualiza a VPS sozinho depois de cada push na `main`
+(um merge de PR conta como push), **só se o CI daquele push passar**. Ele entra na VPS como `devtrack`
+por SSH, roda o `update.sh` e depois confere `https://devtrack.nativcode.com.br/entrar` e
+`/api/health/ready`. Em **Actions → Deploy (Hostinger) → Run workflow** dá para rodar de novo à mão.
+
+A chave do GitHub só consegue rodar o `update.sh`: no `authorized_keys` ela tem um comando forçado e
+`restrict` (sem terminal, sem túnel, sem outro comando). Se a chave vazar, o máximo que alguém faz é
+atualizar a VPS para a `main` atual.
+
+**1. Chave só de deploy (na VPS, como `devtrack`)**
+
+```bash
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/github_actions_deploy -C github-actions-deploy
+printf 'restrict,command="/home/devtrack/devtrack/deploy/hostinger/update.sh" %s\n' \
+  "$(cat ~/.ssh/github_actions_deploy.pub)" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+cat ~/.ssh/github_actions_deploy
+```
+
+Copie a chave privada impressa (de `-----BEGIN` a `-----END … KEY-----`, inclusive) para o segredo
+`SSH_KEY` do passo 2. Depois apague os dois arquivos; a VPS só precisa da linha no `authorized_keys`:
+
+```bash
+rm ~/.ssh/github_actions_deploy ~/.ssh/github_actions_deploy.pub
+```
+
+**2. GitHub**
+
+Em **DevTrack → Settings → Secrets and variables → Actions → Repository secrets → New repository
+secret**, crie:
+
+| Segredo | Valor |
+|---|---|
+| `VPS_HOST` | `76.13.166.45` |
+| `VPS_PORT` | `22` (sem ele, o workflow usa 22) |
+| `VPS_USER` | `devtrack` (o dono do `authorized_keys` do passo 1) |
+| `SSH_KEY` | a chave privada do passo 1 |
+
+`VPS_HOST`, `VPS_PORT` e `VPS_USER` também podem ficar em **Variables**; o `SSH_KEY` só em **Secrets**.
+O workflow lê a chave da VPS na hora (`ssh-keyscan`) e mostra a impressão digital no log, que você pode
+comparar com `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` na VPS. Uma VPS falsa não ganharia
+nada: a chave só roda o `update.sh` e o SSH não entrega a chave privada ao servidor.
+
+O GitHub Actions precisa estar funcionando na conta (Settings → Billing & plans): sem isso, nem o CI nem
+o deploy rodam.
+
+**3. Primeiro teste**
+
+Em **Actions → Deploy (Hostinger) → Run workflow**, rode na `main` e acompanhe o log: ele termina com
+"DevTrack <commit> no ar." e as duas verificações.
+
+### À mão (como `devtrack`)
 
 ```bash
 ~/devtrack/deploy/hostinger/update.sh
 ```
 
 O script faz o `git pull`, `pnpm install`, `pnpm build`, aplica as migrations e roda o `pm2 reload`.
+Uma execução manual e a do GitHub esperam uma pela outra (trava em `/tmp/devtrack-update.lock`).
 Durante o `next build`, o site pode responder com erro por alguns segundos.
 
 ## 13. Problemas comuns
@@ -198,6 +252,9 @@ Durante o `next build`, o site pode responder com erro por alguns segundos.
 | Sintoma | Causa provável |
 |---|---|
 | `502 Bad Gateway` | `devtrack-web` parado: `pm2 logs devtrack-web` |
+| Deploy do GitHub falha com `Host key verification failed` | a chave da VPS mudou entre o `ssh-keyscan` e a conexão, ou `VPS_PORT` errado |
+| Deploy do GitHub falha com `Permission denied (publickey)` | linha da chave fora do `~/.ssh/authorized_keys` do `devtrack` ou segredo `SSH_KEY` incompleto, ou `VPS_USER` diferente de `devtrack` |
+| Deploy do GitHub falha em `git pull --ff-only` | alguém editou arquivos versionados na VPS: `git status` em `~/devtrack` |
 | "Falha ao iniciar a API" com nomes de variáveis | variável faltando ou inválida em `apps/api/.env` (seção 6) |
 | `SMTP_URL` recusado em produção | sem TLS: precisa ser `smtps://…:465` |
 | Login não mantém a sessão | site aberto sem HTTPS (seção 8) |
