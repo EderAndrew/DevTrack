@@ -197,7 +197,8 @@ error level once per cycle, so a wrong key does not burn every e-mail as rejecte
 **Decision**: `templates.ts` becomes `platform/mail/templates/`: one function per kind returns
 `{ subject, heading, paragraphs, action: { label, url }, expiry }`, and a shared `layout.ts` renders
 both bodies from it, so text and HTML never drift (FR-019). HTML: table layout, inline styles only,
-system font stack, colours copied from the light-theme tokens of `design-system/tokens.css`
+system font stack, colours copied from the tokens of `design-system/tokens.css` (the light theme;
+since the 005 FR-013 amendment of 2026-10-22, the one dark Vice City theme, `color-scheme: dark`)
 (`--primary`, `--foreground`, `--text-secondary`, `--background`, `--border`) into
 `mail-tokens.ts`, with a test that compares them to `tokens.css`; the action is a link styled as a
 button and repeated as plain text; `lang="pt-BR"`, a hidden preheader, every interpolated value

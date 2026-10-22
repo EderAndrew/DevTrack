@@ -5,7 +5,7 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
 ## Architecture
 
 - Design system (005): every visual value comes from `design-system/tokens.css` (semantic colors
-  with light and dark values, type scale, radii, shadows, layers, breakpoints, motion, focus); the
+  of one dark theme, the Vice City palette, type scale, radii, shadows, layers, breakpoints, motion, focus); the
   Tailwind default scales are reset there, so `bg-red-500`, `text-2xl` or `shadow-lg` generate no
   CSS. Layers: tokens → `components/ui` (foundational components) → `components/layout` →
   `features` → `app` (ESLint-enforced). `components/layout` holds `AppShell` (side menu, `Topbar`,
