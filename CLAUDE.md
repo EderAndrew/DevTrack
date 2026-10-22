@@ -172,6 +172,9 @@ unless the user consents; the E2E aborts unless the DB name contains `e2e`.
 The beta runs on a Hostinger VPS shared with other sites (`devtrack.nativcode.com.br`): nginx + certbot,
 web and API under PM2 as the `devtrack` user on 127.0.0.1 (`HOST=127.0.0.1`), PostgreSQL 17 in Docker on
 127.0.0.1:5433, Code Runner off. Guide `docs/deploy/hostinger.md`, files in `deploy/hostinger/`.
+`.github/workflows/deploy-hostinger.yml` deploys it after the CI of each push to `main` passes: SSH as
+`devtrack` with a key whose forced command is `deploy/hostinger/update.sh` (repository secrets
+`VPS_HOST`, `VPS_PORT`, `VPS_USER`, `SSH_KEY`), then checks `/entrar` and `/api/health/ready`.
 
 API test harness, API-only guards and the per-feature security suites (test DB setup, `resetDb`,
 `createTestApp`, audit/secret scans, 004–011 suites): see `apps/api/CLAUDE.md`, loaded when working
