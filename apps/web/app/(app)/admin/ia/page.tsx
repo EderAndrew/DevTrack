@@ -19,7 +19,7 @@ export default async function AiOperationsRoute({ searchParams }: { searchParams
   return (
     <section data-layout="wide" className="w-full">
       <PageHeader title={AI_OPERATIONS_AREA.label} description="Saúde, uso e custo dos agentes de IA. Nenhum conteúdo de professores aparece aqui." />
-      <AiOperationsPage canManage={me.permissions.includes("ia.agentes.gerenciar")} initialTab={aiOperationsTabOf((await searchParams).aba)} />
+      <AiOperationsPage canManage={me.permissions.includes("ia.agentes.gerenciar")} tab={aiOperationsTabOf((await searchParams).aba)} />
     </section>
   );
 }

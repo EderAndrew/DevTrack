@@ -1,48 +1,49 @@
 # Tokens
 
 Fonte única: [`tokens.css`](./tokens.css). Cada token vira um utilitário do Tailwind (entre
-parênteses); as escalas padrão do Tailwind foram zeradas, então só estes existem. O tema
-claro é o oficial; o escuro vem da preferência do sistema (`prefers-color-scheme: dark`) ou
-de `data-theme="dark"` no `<html>` e troca só os valores. `test/design-system/docs.test.ts`
+parênteses); as escalas padrão do Tailwind foram zeradas, então só estes existem. Há um só
+tema, escuro, com a paleta Vice City (Ocean Night `#0B0F2B`, Sunset Pink `#FF5CA8`, Vice Cyan
+`#00F0FF`, Neon Purple `#BC6CFF`, Miami Peach `#FFB86B`; 005 FR-013, emenda de 2026-10-22); ele não
+muda com a preferência do sistema. `test/design-system/docs.test.ts`
 confere que cada token de `tokens.css` aparece aqui.
 
 ## Cor
 
-| Token | Claro | Escuro | Uso permitido |
-|-------|-------|--------|---------------|
-| `--background` (`bg-background`) | `#F8FAFC` | `#0B1120` | fundo da página |
-| `--surface` (`bg-surface`) | `#FFFFFF` | `#111827` | cartões, painéis, diálogos, campos, menu lateral, barras |
-| `--foreground` (`text-foreground`) | `#0F172A` | `#E2E8F0` | texto principal |
-| `--text-secondary` (`text-text-secondary`) | `#64748B` | `#94A3B8` | texto de apoio, descrições, legendas |
-| `--primary` (`bg-primary`, `text-primary`, `border-primary`) | `#2563EB` | `#60A5FA` | ação principal, seleção, progresso, links |
-| `--primary-foreground` | `#FFFFFF` | `#0B1120` | texto e ícone sobre `--primary` |
-| `--primary-hover` | `#1D4ED8` | `#93C5FD` | passar o mouse e pressionado da ação principal |
-| `--primary-strong` | `#172554` | `#BFDBFE` | identidade: texto do item ativo do menu, página atual da paginação |
-| `--primary-subtle` | `#EFF6FF` | `#172554` | fundo de seleção (item ativo, página atual) |
-| `--border` (`border-border`) | `#E2E8F0` | `#334155` | divisórias decorativas; nunca o limite de um controle |
-| `--border-control` (`border-border-control`) | `#64748B` | `#7C8AA0` | contorno de campos, caixas, opções e interruptor (≥ 3:1) |
-| `--ring` | `#2563EB` | `#60A5FA` | contorno de foco (≥ 3:1) |
-| `--success` | `#16A34A` | `#4ADE80` | ícone, borda e gráfico de sucesso |
-| `--success-text` | `#15803D` | `#4ADE80` | texto de sucesso (≥ 4,5:1) |
-| `--success-surface` | `#F0FDF4` | `#052E16` | fundo de aviso e selo de sucesso |
-| `--warning` | `#D97706` | `#FBBF24` | ícone, borda e gráfico de atenção |
-| `--warning-text` | `#B45309` | `#FBBF24` | texto de atenção |
-| `--warning-surface` | `#FFFBEB` | `#451A03` | fundo de aviso e selo de atenção |
-| `--danger` | `#DC2626` | `#F87171` | ícone, borda e gráfico de erro ou risco; borda do campo com erro |
-| `--danger-text` | `#B91C1C` | `#F87171` | texto de erro e da ação destrutiva |
-| `--danger-surface` | `#FEF2F2` | `#450A0A` | fundo de aviso de erro e passar o mouse da ação destrutiva |
-| `--danger-foreground` | `#FFFFFF` | `#0B1120` | texto sobre `--danger` |
-| `--info` | `#0284C7` | `#38BDF8` | ícone, borda e gráfico de informação |
-| `--info-text` | `#0369A1` | `#38BDF8` | texto de informação |
-| `--info-surface` | `#F0F9FF` | `#082F49` | fundo de aviso e selo de informação |
-| `--disabled-bg` | `#F1F5F9` | `#1E293B` | fundo de controle desabilitado |
-| `--disabled-fg` | `#64748B` | `#94A3B8` | texto de controle desabilitado |
-| `--disabled-border` | `#CBD5E1` | `#334155` | borda de controle desabilitado |
-| `--overlay` (`bg-overlay`) | `#0F172A` a 50% | `#000000` a 60% | fundo atrás de diálogo e painel lateral |
+| Token | Valor | Uso permitido |
+|-------|-------|---------------|
+| `--background` (`bg-background`) | `#0B0F2B` | fundo da página |
+| `--surface` (`bg-surface`) | `#151A3D` | cartões, painéis, diálogos, campos, menu lateral, barras |
+| `--foreground` (`text-foreground`) | `#F2EEFF` | texto principal |
+| `--text-secondary` (`text-text-secondary`) | `#AAA6D4` | texto de apoio, descrições, legendas |
+| `--primary` (`bg-primary`, `text-primary`, `border-primary`) | `#FF5CA8` | ação principal, seleção, progresso, links |
+| `--primary-foreground` | `#0B0F2B` | texto e ícone sobre `--primary` |
+| `--primary-hover` | `#FF85BE` | passar o mouse e pressionado da ação principal |
+| `--primary-strong` | `#FFC2DE` | identidade: texto do item ativo do menu, página atual da paginação |
+| `--primary-subtle` | `#3D1747` | fundo de seleção (item ativo, página atual) |
+| `--brand-secondary` (`text-brand-secondary`) | `#00F0FF` | só o "Track" da marca DevTrack (`Wordmark`); "Dev" usa `--primary` |
+| `--border` (`border-border`) | `#2B305E` | divisórias decorativas; nunca o limite de um controle |
+| `--border-control` (`border-border-control`) | `#807CB8` | contorno de campos, caixas, opções e interruptor (≥ 3:1) |
+| `--ring` | `#00F0FF` | contorno de foco (≥ 3:1) |
+| `--success` | `#4ADE9A` | ícone, borda e gráfico de sucesso |
+| `--success-text` | `#4ADE9A` | texto de sucesso (≥ 4,5:1) |
+| `--success-surface` | `#0B2E26` | fundo de aviso e selo de sucesso |
+| `--warning` | `#FFB86B` | ícone, borda e gráfico de atenção |
+| `--warning-text` | `#FFB86B` | texto de atenção |
+| `--warning-surface` | `#3A2410` | fundo de aviso e selo de atenção |
+| `--danger` | `#FF6B6B` | ícone, borda e gráfico de erro ou risco; borda do campo com erro |
+| `--danger-text` | `#FF7B7B` | texto de erro e da ação destrutiva |
+| `--danger-surface` | `#3D0E1A` | fundo de aviso de erro e passar o mouse da ação destrutiva |
+| `--danger-foreground` | `#0B0F2B` | texto sobre `--danger` |
+| `--info` | `#00F0FF` | ícone, borda e gráfico de informação |
+| `--info-text` | `#00F0FF` | texto de informação |
+| `--info-surface` | `#062C3D` | fundo de aviso e selo de informação |
+| `--disabled-bg` | `#1D2249` | fundo de controle desabilitado |
+| `--disabled-fg` | `#9E9AC8` | texto de controle desabilitado |
+| `--disabled-border` | `#2B305E` | borda de controle desabilitado |
+| `--overlay` (`bg-overlay`) | `#050714` a 70% | fundo atrás de diálogo e painel lateral |
 
 A distribuição (80% neutros, 15% identidade, 5% semânticas) está no
-[README](./README.md#cores-e-a-regra-80155). Pares medidos por `test/contrast.test.ts` nos
-dois temas: cada texto sobre `--background`, `--surface` e a `--*-surface` correspondente
+[README](./README.md#cores-e-a-regra-80155). Pares medidos por `test/contrast.test.ts`: cada texto sobre `--background`, `--surface` e a `--*-surface` correspondente
 (4,5:1); `--primary-foreground` sobre `--primary` e `--primary-hover` e
 `--danger-foreground` sobre `--danger` (4,5:1); `--primary-strong` sobre
 `--primary-subtle` (4,5:1); as cores semânticas base, `--border-control` e `--ring` sobre
@@ -74,18 +75,18 @@ Cores do realce de sintaxe (014): só no código do `CodeEditor` e do `CodeBlock
 texto. O texto comum do código usa `--foreground`; os números de linha, `--text-secondary`. O
 destacador mapeia as tags do Lezer para estas classes (014 research L5).
 
-| Token | Claro | Escuro | Categoria |
-|-------|-------|--------|-----------|
-| `--syntax-keyword` (`text-syntax-keyword`) | `#A626A4` | `#D8A8F0` | palavra-chave, modificador, nome de tag HTML |
-| `--syntax-string` (`text-syntax-string`) | `#2F7A2F` | `#8FD18F` | texto entre aspas, caractere, expressão regular |
-| `--syntax-number` (`text-syntax-number`) | `#A1511A` | `#F0B27A` | número, booleano, `null`, átomo |
-| `--syntax-comment` (`text-syntax-comment`) | `#5F6B7A` | `#94A3B8` | comentário de linha, de bloco e de documentação |
-| `--syntax-type` (`text-syntax-type`) | `#0E6F8A` | `#7FD4E8` | tipo, classe, namespace, atributo HTML |
-| `--syntax-function` (`text-syntax-function`) | `#3451B2` | `#A5B8FF` | nome de função ou método chamado ou declarado, macro |
-| `--syntax-operator` (`text-syntax-operator`) | `#B42318` | `#FF9B94` | operador aritmético, lógico e de comparação |
-| `--syntax-punctuation` (`text-syntax-punctuation`) | `#475569` | `#CBD5E1` | pontuação, parênteses, colchetes, separadores |
+| Token | Valor | Categoria |
+|-------|-------|-----------|
+| `--syntax-keyword` (`text-syntax-keyword`) | `#D29BFF` | palavra-chave, modificador, nome de tag HTML |
+| `--syntax-string` (`text-syntax-string`) | `#7CF0B0` | texto entre aspas, caractere, expressão regular |
+| `--syntax-number` (`text-syntax-number`) | `#FFB86B` | número, booleano, `null`, átomo |
+| `--syntax-comment` (`text-syntax-comment`) | `#9E9AC8` | comentário de linha, de bloco e de documentação |
+| `--syntax-type` (`text-syntax-type`) | `#00F0FF` | tipo, classe, namespace, atributo HTML |
+| `--syntax-function` (`text-syntax-function`) | `#FF8FC4` | nome de função ou método chamado ou declarado, macro |
+| `--syntax-operator` (`text-syntax-operator`) | `#FF8A80` | operador aritmético, lógico e de comparação |
+| `--syntax-punctuation` (`text-syntax-punctuation`) | `#C8C4EA` | pontuação, parênteses, colchetes, separadores |
 
-Contraste (`test/contrast.test.ts`, nos dois temas): cada `--syntax-*` e o `--foreground` sobre
+Contraste (`test/contrast.test.ts`): cada `--syntax-*` e o `--foreground` sobre
 `--background`, `--surface`, `--primary-subtle` e `--disabled-bg` (4,5:1). **Seleção e editor
 desabilitado**: a seleção do editor pinta o fundo com `--primary-subtle` e o texto **mantém** a cor
 de sintaxe (por isso esses pares estão no teste); o editor desabilitado usa `--disabled-bg`. O
@@ -96,6 +97,7 @@ editor não destaca a linha ativa. Em alto contraste (`forced-colors: active`) a
 
 | Token (utilitário) | Tamanho / altura / peso | Família | Uso |
 |--------------------|------------------------|---------|-----|
+| `--text-wordmark` (`text-wordmark`) | 44 / 52 / 600 | Fredoka | só a marca DevTrack nas telas de login e de senha (`Wordmark size="lg"`) |
 | `--text-display` (`text-display`) | 32 / 40 / 700 | Inter | título de página de entrada (login) |
 | `--text-h1` (`text-h1`) | 28 / 36 / 700 | Inter | título da página (`PageHeader`) |
 | `--text-h2` (`text-h2`) | 22 / 30 / 600 | Inter | seção |
@@ -113,13 +115,14 @@ Cada `--text-*` tem `--text-*--line-height` e `--text-*--font-weight` no mesmo b
 |-------|-------|-----|
 | `--font-sans` (`font-sans`) | `--font-inter`, depois fontes do sistema | todo o texto |
 | `--font-mono` (`font-mono`) | `--font-jetbrains-mono`, depois monoespaçadas do sistema | código e elementos técnicos |
+| `--font-brand` (`font-brand`) | `--font-fredoka`, `ui-rounded`, depois a Inter e fontes do sistema | só a marca DevTrack (`components/shared/wordmark.tsx`; `identity.test.ts` confere) |
 | `--font-weight-normal` (`font-normal`) | 400 | texto |
 | `--font-weight-medium` (`font-medium`) | 500 | rótulos |
 | `--font-weight-semibold` (`font-semibold`) | 600 | botões, títulos de seção, item ativo |
 | `--font-weight-bold` (`font-bold`) | 700 | títulos de página e marca |
 
-As fontes são locais (`app/fonts`, SIL OFL 1.1), com `display: swap`; só a Inter é
-pré-carregada.
+As fontes são locais (`app/fonts`, SIL OFL 1.1), com `display: swap`; a Inter e a Fredoka
+(subconjunto latino, só para a marca, que todo quadro mostra) são pré-carregadas.
 
 ## Espaçamento
 
@@ -149,9 +152,9 @@ O layout do aluno limita o conteúdo a 960 px (`max-w-240`).
 
 | Token | Valor | Uso |
 |-------|-------|-----|
-| `--shadow-sm` (`shadow-sm`) | `0 1px 2px` a 6% | controles que se destacam do fundo (gatilho de lista) |
-| `--shadow-md` (`shadow-md`) | `0 4px 12px` a 8% | elemento elevado raro; cartão não usa sombra por padrão |
-| `--shadow-overlay` (`shadow-overlay`) | `0 12px 32px` a 16% | diálogo, popover, menu suspenso, notificação |
+| `--shadow-sm` (`shadow-sm`) | `0 1px 2px` preto a 30% | controles que se destacam do fundo (gatilho de lista) |
+| `--shadow-md` (`shadow-md`) | `0 4px 12px` preto a 40% | elemento elevado raro; cartão não usa sombra por padrão |
+| `--shadow-overlay` (`shadow-overlay`) | `0 12px 32px` preto a 55% | diálogo, popover, menu suspenso, notificação |
 
 ## Camadas
 

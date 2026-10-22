@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BetaBadge } from "./beta-badge";
+import { Wordmark } from "./wordmark";
 
 export interface SiteHeaderProps {
   /** The navigation (`SiteNav`). */
@@ -10,9 +12,12 @@ export interface SiteHeaderProps {
 export function SiteHeader({ children }: SiteHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4">
-      <Link href="/" className="font-bold text-foreground no-underline">
-        DevTrack
-      </Link>
+      <span className="flex items-center gap-2">
+        <Link href="/" className="no-underline">
+          <Wordmark />
+        </Link>
+        <BetaBadge />
+      </span>
       {children}
     </header>
   );

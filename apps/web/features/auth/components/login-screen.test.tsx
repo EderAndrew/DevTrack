@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
@@ -12,6 +12,7 @@ describe("LoginScreen: início e login na mesma tela", () => {
     renderWithProviders(<Toaster><LoginScreen next="/conta/sessoes" /></Toaster>);
     const about = screen.getByRole("region", { name: "Sobre o DevTrack" });
     expect(about.textContent).toContain("DevTrack");
+    expect(within(about).getByText("Beta")).toBeTruthy();
     expect(about.textContent).toContain("Ensine. Avalie. Acompanhe a evolução.");
     expect(about.textContent).toContain("Menos respostas prontas. Mais aprendizado real.");
     expect(about.textContent).toContain(

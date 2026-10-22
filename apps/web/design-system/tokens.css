@@ -1,53 +1,57 @@
 /*
  * DevTrack design tokens — the single source of every visual value (spec 005, research V1–V8,
- * contracts/tokens.md). Pairs meet WCAG 2.2 AA in both themes (text ≥ 4.5:1; state colors,
+ * contracts/tokens.md). One dark theme since the Vice City palette (005 FR-013, amended
+ * 2026-10-22). Pairs meet WCAG 2.2 AA (text ≥ 4.5:1; state colors,
  * control borders and the focus ring ≥ 3:1), checked by test/contrast.test.ts. Semantic colors
  * (`--success`, `--warning`, `--danger`, `--info`) are for icons, borders and graphics; text uses
  * the `-text` variant.
  */
 
 :root {
-  /* Colors, light theme */
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --foreground: #0f172a;
-  --text-secondary: #64748b;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --primary-hover: #1d4ed8;
-  --primary-strong: #172554;
-  --primary-subtle: #eff6ff;
-  --border: #e2e8f0;
-  --border-control: #64748b;
-  --ring: #2563eb;
-  --success: #16a34a;
-  --success-text: #15803d;
-  --success-surface: #f0fdf4;
-  --warning: #d97706;
-  --warning-text: #b45309;
-  --warning-surface: #fffbeb;
-  --danger: #dc2626;
-  --danger-text: #b91c1c;
-  --danger-surface: #fef2f2;
-  --danger-foreground: #ffffff;
-  --info: #0284c7;
-  --info-text: #0369a1;
-  --info-surface: #f0f9ff;
-  --disabled-bg: #f1f5f9;
-  --disabled-fg: #64748b;
-  --disabled-border: #cbd5e1;
-  --overlay: rgb(15 23 42 / 0.5);
+  /* Colors: the one theme, dark, from the Vice City palette (Ocean Night #0B0F2B, Sunset Pink
+     #FF5CA8, Vice Cyan #00F0FF, Neon Purple #BC6CFF, Miami Peach #FFB86B) */
+  --background: #0b0f2b;
+  --surface: #151a3d;
+  --foreground: #f2eeff;
+  --text-secondary: #aaa6d4;
+  --primary: #ff5ca8;
+  --primary-foreground: #0b0f2b;
+  --primary-hover: #ff85be;
+  --primary-strong: #ffc2de;
+  --primary-subtle: #3d1747;
+  /* The second colour of the DevTrack wordmark ("Track"; "Dev" is --primary), only there. */
+  --brand-secondary: #00f0ff;
+  --border: #2b305e;
+  --border-control: #807cb8;
+  --ring: #00f0ff;
+  --success: #4ade9a;
+  --success-text: #4ade9a;
+  --success-surface: #0b2e26;
+  --warning: #ffb86b;
+  --warning-text: #ffb86b;
+  --warning-surface: #3a2410;
+  --danger: #ff6b6b;
+  --danger-text: #ff7b7b;
+  --danger-surface: #3d0e1a;
+  --danger-foreground: #0b0f2b;
+  --info: #00f0ff;
+  --info-text: #00f0ff;
+  --info-surface: #062c3d;
+  --disabled-bg: #1d2249;
+  --disabled-fg: #9e9ac8;
+  --disabled-border: #2b305e;
+  --overlay: rgb(5 7 20 / 0.7);
 
   /* Code syntax (014, contracts/design-tokens.md): text on --background, --surface, the selection
      (--primary-subtle) and --disabled-bg ≥ 4.5:1; plain code text is --foreground. */
-  --syntax-keyword: #a626a4;
-  --syntax-string: #2f7a2f;
-  --syntax-number: #a1511a;
-  --syntax-comment: #5f6b7a;
-  --syntax-type: #0e6f8a;
-  --syntax-function: #3451b2;
-  --syntax-operator: #b42318;
-  --syntax-punctuation: #475569;
+  --syntax-keyword: #d29bff;
+  --syntax-string: #7cf0b0;
+  --syntax-number: #ffb86b;
+  --syntax-comment: #9e9ac8;
+  --syntax-type: #00f0ff;
+  --syntax-function: #ff8fc4;
+  --syntax-operator: #ff8a80;
+  --syntax-punctuation: #c8c4ea;
 
   /* shadcn/ui aliases: no value of their own */
   --card: var(--surface);
@@ -98,91 +102,6 @@
   --reading-max: 72ch;
   --gutter: 16px;
 
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --surface: #111827;
-    --foreground: #e2e8f0;
-    --text-secondary: #94a3b8;
-    --primary: #60a5fa;
-    --primary-foreground: #0b1120;
-    --primary-hover: #93c5fd;
-    --primary-strong: #bfdbfe;
-    --primary-subtle: #172554;
-    --border: #334155;
-    --border-control: #7c8aa0;
-    --ring: #60a5fa;
-    --success: #4ade80;
-    --success-text: #4ade80;
-    --success-surface: #052e16;
-    --warning: #fbbf24;
-    --warning-text: #fbbf24;
-    --warning-surface: #451a03;
-    --danger: #f87171;
-    --danger-text: #f87171;
-    --danger-surface: #450a0a;
-    --danger-foreground: #0b1120;
-    --info: #38bdf8;
-    --info-text: #38bdf8;
-    --info-surface: #082f49;
-    --disabled-bg: #1e293b;
-    --disabled-fg: #94a3b8;
-    --disabled-border: #334155;
-    --overlay: rgb(0 0 0 / 0.6);
-    --syntax-keyword: #d8a8f0;
-    --syntax-string: #8fd18f;
-    --syntax-number: #f0b27a;
-    --syntax-comment: #94a3b8;
-    --syntax-type: #7fd4e8;
-    --syntax-function: #a5b8ff;
-    --syntax-operator: #ff9b94;
-    --syntax-punctuation: #cbd5e1;
-    color-scheme: dark;
-  }
-}
-
-/* Manual dark theme (FR-013): same values as the system one, for a future theme switcher. */
-:root[data-theme="dark"] {
-  --background: #0b1120;
-  --surface: #111827;
-  --foreground: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --primary: #60a5fa;
-  --primary-foreground: #0b1120;
-  --primary-hover: #93c5fd;
-  --primary-strong: #bfdbfe;
-  --primary-subtle: #172554;
-  --border: #334155;
-  --border-control: #7c8aa0;
-  --ring: #60a5fa;
-  --success: #4ade80;
-  --success-text: #4ade80;
-  --success-surface: #052e16;
-  --warning: #fbbf24;
-  --warning-text: #fbbf24;
-  --warning-surface: #451a03;
-  --danger: #f87171;
-  --danger-text: #f87171;
-  --danger-surface: #450a0a;
-  --danger-foreground: #0b1120;
-  --info: #38bdf8;
-  --info-text: #38bdf8;
-  --info-surface: #082f49;
-  --disabled-bg: #1e293b;
-  --disabled-fg: #94a3b8;
-  --disabled-border: #334155;
-  --overlay: rgb(0 0 0 / 0.6);
-  --syntax-keyword: #d8a8f0;
-  --syntax-string: #8fd18f;
-  --syntax-number: #f0b27a;
-  --syntax-comment: #94a3b8;
-  --syntax-type: #7fd4e8;
-  --syntax-function: #a5b8ff;
-  --syntax-operator: #ff9b94;
-  --syntax-punctuation: #cbd5e1;
   color-scheme: dark;
 }
 
@@ -214,6 +133,7 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-strong: var(--primary-strong);
   --color-primary-subtle: var(--primary-subtle);
+  --color-brand-secondary: var(--brand-secondary);
   --color-border: var(--border);
   --color-border-control: var(--border-control);
   --color-ring: var(--ring);
@@ -264,6 +184,10 @@
   --color-syntax-punctuation: var(--syntax-punctuation);
 
   /* Typography (research V6): size / line height / weight */
+  /* The DevTrack wordmark on the login and password screens (font-brand). */
+  --text-wordmark: 2.75rem;
+  --text-wordmark--line-height: 3.25rem;
+  --text-wordmark--font-weight: 600;
   --text-display: 2rem;
   --text-display--line-height: 2.5rem;
   --text-display--font-weight: 700;
@@ -293,6 +217,8 @@
   --text-code--font-weight: 400;
 
   --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Fredoka, rounded, only for the DevTrack wordmark (005 FR-005, amended 2026-10-22). */
+  --font-brand: var(--font-fredoka), ui-rounded, var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* `--font-*: initial` also clears the weights; only these four are allowed. */
   --font-weight-normal: 400;
@@ -304,9 +230,9 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
-  --shadow-overlay: 0 12px 32px rgb(15 23 42 / 0.16);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.55);
 
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;

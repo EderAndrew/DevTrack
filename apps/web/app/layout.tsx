@@ -43,6 +43,20 @@ const jetbrainsMono = localFont({
   preload: false,
 });
 
+// Fredoka (rounded) only for the DevTrack wordmark, which every frame shows (005 FR-005, amended 2026-10-22).
+const fredoka = localFont({
+  src: [
+    {
+      path: "./fonts/fredoka-latin-wght-normal.woff2",
+      weight: "300 700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-fredoka",
+  display: "swap",
+  preload: true,
+});
+
 export const metadata: Metadata = {
   title: { default: "DevTrack", template: "%s · DevTrack" },
   description: "Plataforma de ensino e avaliação configurável por professor.",
@@ -60,7 +74,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} ${fredoka.variable}`}>
         <Providers>
           <a className="skip-link" href="#conteudo">
             Pular para o conteúdo

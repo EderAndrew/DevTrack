@@ -1,21 +1,21 @@
 # Contract: syntax tokens
 
-Added to `apps/web/design-system/tokens.css` (light in `:root`, dark in the
-`prefers-color-scheme: dark` block and in `:root[data-theme="dark"]`), documented in `tokens.md`, and
-added to the pairs of `test/contrast.test.ts` (each over `--background`, minimum 4.5:1). Tailwind
-exposes them as `text-syntax-*` utilities. Plain code text uses `--foreground`; line numbers keep
-`--text-secondary` (005).
+Added to `apps/web/design-system/tokens.css` (`:root`; one dark theme, the Vice City palette, since the
+005 FR-013 amendment of 2026-10-22), documented in `tokens.md`, and added to the pairs of
+`test/contrast.test.ts` (each over `--background`, `--surface`, `--primary-subtle` and `--disabled-bg`,
+minimum 4.5:1). Tailwind exposes them as `text-syntax-*` utilities. Plain code text uses `--foreground`;
+line numbers keep `--text-secondary` (005).
 
-| Token | Light | Contrast on `#f8fafc` | Dark | Contrast on `#0b1120` | Lezer tags (research L5) |
-|-------|-------|----------------------|------|-----------------------|--------------------------|
-| `--syntax-keyword` | `#a626a4` | 5.84 | `#d8a8f0` | 9.67 | keyword, controlKeyword, modifier, definitionKeyword, operatorKeyword, tagName |
-| `--syntax-string` | `#2f7a2f` | 5.09 | `#8fd18f` | 10.48 | string, special(string), regexp, character |
-| `--syntax-number` | `#a1511a` | 5.41 | `#f0b27a` | 10.18 | number, bool, null, atom |
-| `--syntax-comment` | `#5f6b7a` | 5.19 | `#94a3b8` | 7.34 | comment, lineComment, blockComment, docComment |
-| `--syntax-type` | `#0e6f8a` | 5.48 | `#7fd4e8` | 11.19 | typeName, className, namespace, attributeName |
-| `--syntax-function` | `#3451b2` | 6.77 | `#a5b8ff` | 9.77 | function(variableName), function(propertyName), macroName |
-| `--syntax-operator` | `#b42318` | 6.28 | `#ff9b94` | 9.30 | operator, compareOperator, logicOperator, arithmeticOperator |
-| `--syntax-punctuation` | `#475569` | 7.24 | `#cbd5e1` | 12.68 | punctuation, bracket, separator, angleBracket |
+| Token | Value | Contrast on `#0b0f2b` | Lezer tags (research L5) |
+|-------|-------|-----------------------|--------------------------|
+| `--syntax-keyword` | `#d29bff` | 8.84 | keyword, controlKeyword, modifier, definitionKeyword, operatorKeyword, tagName |
+| `--syntax-string` | `#7cf0b0` | 13.38 | string, special(string), regexp, character |
+| `--syntax-number` | `#ffb86b` | 11.03 | number, bool, null, atom |
+| `--syntax-comment` | `#9e9ac8` | 7.08 | comment, lineComment, blockComment, docComment |
+| `--syntax-type` | `#00f0ff` | 13.34 | typeName, className, namespace, attributeName |
+| `--syntax-function` | `#ff8fc4` | 8.93 | function(variableName), function(propertyName), macroName |
+| `--syntax-operator` | `#ff8a80` | 8.23 | operator, compareOperator, logicOperator, arithmeticOperator |
+| `--syntax-punctuation` | `#c8c4ea` | 11.22 | punctuation, bracket, separator, angleBracket |
 
 Rules:
 - No other color in the editor or `CodeBlock`: the CodeMirror theme sets content, cursor, selection,

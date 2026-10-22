@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BetaBadge } from "@/components/shared/beta-badge";
+import { Wordmark } from "@/components/shared/wordmark";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
@@ -6,7 +8,10 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 export function ForgotPasswordScreen() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-10">
-      <p className="m-0 text-display tracking-tight text-primary">DevTrack</p>
+      <p className="m-0 flex items-center gap-3">
+        <Wordmark size="lg" />
+        <BetaBadge />
+      </p>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <h1 data-slot="card-title" className="m-0 text-h2">

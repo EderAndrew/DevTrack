@@ -60,6 +60,7 @@ describe("005/US5-1 layout do aluno", () => {
   it("menu lateral com a marca, os itens do aluno, o nome e Sair; barra superior com o botão do menu; área principal", async () => {
     const { container } = renderLayout();
     expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
+    expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
     expect(screen.getByText("Bruno Lima")).toBeTruthy();
     const banner = screen.getByRole("banner");

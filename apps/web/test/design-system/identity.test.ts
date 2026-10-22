@@ -93,11 +93,20 @@ describe("005/US1-5 fontes substitutas equivalentes", () => {
     expect(mono).toMatch(/^var\(--font-jetbrains-mono\),.*ui-monospace.*,\s*monospace$/);
   });
 
-  it('layout.tsx carrega as duas fontes com display: "swap" e a Inter com métrica ajustada', () => {
-    expect(layout.match(/display:\s*"swap"/g)).toHaveLength(2);
+  it('layout.tsx carrega as três fontes com display: "swap" e a Inter com métrica ajustada', () => {
+    expect(layout.match(/display:\s*"swap"/g)).toHaveLength(3);
     expect(layout).toMatch(/adjustFontFallback:\s*"Arial"/);
     expect(layout).toContain('variable: "--font-inter"');
     expect(layout).toContain('variable: "--font-jetbrains-mono"');
+    expect(layout).toContain('variable: "--font-fredoka"');
+  });
+
+  it("--font-brand (Fredoka) termina em fontes de sistema e só aparece na marca", () => {
+    expect(declared(tokens, "--font-brand")).toMatch(/^var\(--font-fredoka\),.*system-ui.*,\s*sans-serif$/);
+    const files = scanSources()
+      .filter((line) => classTokens(line.code).some((token) => /(^|:)font-brand$/.test(token)))
+      .map((line) => line.file);
+    expect(new Set(files)).toEqual(new Set(["components/shared/wordmark.tsx"]));
   });
 });
 

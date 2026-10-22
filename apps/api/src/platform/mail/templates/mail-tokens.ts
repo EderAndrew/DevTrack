@@ -1,21 +1,21 @@
 /**
- * Colours of the e-mails: copies of the light-theme tokens of `apps/web/design-system/tokens.css`
- * (017 research N9), inline because e-mail clients ignore stylesheets. `apps/web/test/mail-tokens.test.ts`
- * keeps each value equal to its token; dark mode is left to the client.
+ * Colours of the e-mails: copies of the tokens of `apps/web/design-system/tokens.css` (017 research
+ * N9; one dark Vice City theme since 005 FR-013 was amended on 2026-10-22), inline because e-mail
+ * clients ignore stylesheets. `apps/web/test/mail-tokens.test.ts` keeps each value equal to its token.
  */
 export const MAIL_TOKENS = {
   /** --primary: the DevTrack name, the button and the written-out link. */
-  primary: "#2563eb",
+  primary: "#ff5ca8",
   /** --primary-foreground: the button's text. */
-  primaryForeground: "#ffffff",
+  primaryForeground: "#0b0f2b",
   /** --foreground: heading and paragraphs. */
-  foreground: "#0f172a",
+  foreground: "#f2eeff",
   /** --text-secondary: the expiry, the hint over the link and the footer. */
-  textSecondary: "#64748b",
+  textSecondary: "#aaa6d4",
   /** --background: around the card. */
-  background: "#f8fafc",
+  background: "#0b0f2b",
   /** --surface: the card. */
-  surface: "#ffffff",
+  surface: "#151a3d",
   /** --border: the card's border and the footer's rule. */
-  border: "#e2e8f0",
+  border: "#2b305e",
 } as const;

@@ -37,14 +37,14 @@ async function coloredBlock(code: string, highlight: string | null, label = "Sol
 }
 
 describe("014/US4 cores do código acessíveis em qualquer tema", () => {
-  it("014/US4-1 cada categoria usa a classe do seu token, definido no tema claro e no escuro", async () => {
+  it("014/US4-1 cada categoria usa a classe do seu token, definido no tema do sistema", async () => {
     const { container } = await coloredBlock(JAVA, "java");
     const used = new Set([...container.querySelectorAll("code span")].map((span) => span.className));
     for (const category of CATEGORIES) {
       expect(used, `categoria ${category}`).toContain(SYNTAX_CLASSES[category]);
-      // :root (light), prefers-color-scheme: dark and [data-theme="dark"].
+      // One dark theme (005 FR-013, amended 2026-10-22): one definition in :root.
       const definitions = TOKENS_CSS.match(new RegExp(`--syntax-${category}:\\s*#`, "g")) ?? [];
-      expect(definitions.length, `--syntax-${category} nos dois temas`).toBeGreaterThanOrEqual(3);
+      expect(definitions.length, `--syntax-${category} no tema`).toBe(1);
       expect(TOKENS_CSS).toMatch(new RegExp(`--color-syntax-${category}:\\s*var\\(--syntax-${category}\\)`));
     }
     // The classes are the only color: no inline style on a segment.

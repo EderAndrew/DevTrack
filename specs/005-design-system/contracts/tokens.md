@@ -1,30 +1,32 @@
 # Contract: Design tokens
 
 Fonte única: `apps/web/design-system/tokens.css` (research V1, V2). Utilitários do
-Tailwind entre parênteses. Valores do tema escuro na coluna "Escuro" (research V4).
+Tailwind entre parênteses. Um só tema, escuro, com a paleta Vice City (FR-013, emenda
+2026-10-22; o tema claro e o escuro anterior estão no histórico do git e em research V4).
 
 ## Cor
 
-| Token | Claro | Escuro | Uso |
-|-------|-------|--------|-----|
-| `--background` (`bg-background`) | `#F8FAFC` | `#0B1120` | fundo da página |
-| `--surface` (`bg-surface`) | `#FFFFFF` | `#111827` | cartões, painéis, diálogos, campos, menu lateral |
-| `--foreground` (`text-foreground`) | `#0F172A` | `#E2E8F0` | texto principal |
-| `--text-secondary` (`text-secondary`) | `#64748B` | `#94A3B8` | texto de apoio, legendas |
-| `--primary` (`bg-primary`, `text-primary`) | `#2563EB` | `#60A5FA` | ação principal, seleção, progresso, links |
-| `--primary-foreground` | `#FFFFFF` | `#0B1120` | texto sobre `--primary` |
-| `--primary-hover` | `#1D4ED8` | `#93C5FD` | passar o mouse e pressionado da ação principal |
-| `--primary-strong` | `#172554` | `#BFDBFE` | identidade: marca, item ativo do menu |
-| `--primary-subtle` | `#EFF6FF` | `#172554` | fundo de seleção (item ativo, linha selecionada) |
-| `--border` | `#E2E8F0` | `#334155` | divisórias decorativas (não delimita controles) |
-| `--border-control` | `#64748B` | `#7C8AA0` | contorno de campos, caixas, opções, interruptor (≥ 3:1) |
-| `--ring` | `#2563EB` | `#60A5FA` | contorno de foco (≥ 3:1) |
-| `--success` / `--success-text` / `--success-surface` | `#16A34A` / `#15803D` / `#F0FDF4` | `#4ADE80` / `#4ADE80` / `#052E16` | ícone e borda / texto / fundo |
-| `--warning` / `--warning-text` / `--warning-surface` | `#D97706` / `#B45309` / `#FFFBEB` | `#FBBF24` / `#FBBF24` / `#451A03` | idem |
-| `--danger` / `--danger-text` / `--danger-surface` / `--danger-foreground` | `#DC2626` / `#B91C1C` / `#FEF2F2` / `#FFFFFF` | `#F87171` / `#F87171` / `#450A0A` / `#0B1120` | ação de perigo, ícone / texto / fundo / texto sobre `--danger` |
-| `--info` / `--info-text` / `--info-surface` | `#0284C7` / `#0369A1` / `#F0F9FF` | `#38BDF8` / `#38BDF8` / `#082F49` | idem |
-| `--disabled-bg` / `--disabled-fg` / `--disabled-border` | `#F1F5F9` / `#64748B` / `#CBD5E1` | `#1E293B` / `#94A3B8` / `#334155` | controles desabilitados |
-| `--overlay` | `#0F172A` 50% | `#000000` 60% | fundo de diálogo e painel lateral |
+| Token | Valor | Uso |
+|-------|-------|-----|
+| `--background` (`bg-background`) | `#0B0F2B` | fundo da página |
+| `--surface` (`bg-surface`) | `#151A3D` | cartões, painéis, diálogos, campos, menu lateral |
+| `--foreground` (`text-foreground`) | `#F2EEFF` | texto principal |
+| `--text-secondary` (`text-secondary`) | `#AAA6D4` | texto de apoio, legendas |
+| `--primary` (`bg-primary`, `text-primary`) | `#FF5CA8` | ação principal, seleção, progresso, links |
+| `--primary-foreground` | `#0B0F2B` | texto sobre `--primary` |
+| `--primary-hover` | `#FF85BE` | passar o mouse e pressionado da ação principal |
+| `--primary-strong` | `#FFC2DE` | identidade: marca, item ativo do menu |
+| `--primary-subtle` | `#3D1747` | fundo de seleção (item ativo, linha selecionada) |
+| `--brand-secondary` | `#00F0FF` | só o "Track" da marca DevTrack |
+| `--border` | `#2B305E` | divisórias decorativas (não delimita controles) |
+| `--border-control` | `#807CB8` | contorno de campos, caixas, opções, interruptor (≥ 3:1) |
+| `--ring` | `#00F0FF` | contorno de foco (≥ 3:1) |
+| `--success` / `--success-text` / `--success-surface` | `#4ADE9A` / `#4ADE9A` / `#0B2E26` | ícone e borda / texto / fundo |
+| `--warning` / `--warning-text` / `--warning-surface` | `#FFB86B` / `#FFB86B` / `#3A2410` | idem |
+| `--danger` / `--danger-text` / `--danger-surface` / `--danger-foreground` | `#FF6B6B` / `#FF7B7B` / `#3D0E1A` / `#0B0F2B` | idem, e texto sobre `--danger` |
+| `--info` / `--info-text` / `--info-surface` | `#00F0FF` / `#00F0FF` / `#062C3D` | idem |
+| `--disabled-bg` / `--disabled-fg` / `--disabled-border` | `#1D2249` / `#9E9AC8` / `#2B305E` | controles desabilitados |
+| `--overlay` | `#050714` 70% | fundo de diálogo e painel lateral |
 
 Aliases do shadcn (sem valor próprio): `--card`, `--popover` → `--surface`;
 `--card-foreground`, `--popover-foreground`, `--accent-foreground` → `--foreground`;
@@ -35,7 +37,7 @@ Aliases do shadcn (sem valor próprio): `--card`, `--popover` → `--surface`;
 `--sidebar-accent-foreground` → `--primary-strong`; `--sidebar-border` → `--border`;
 `--sidebar-ring` → `--ring`; `--sidebar-primary` → `--primary`.
 
-Pares medidos por `test/contrast.test.ts` (nos dois temas): cada texto (`--foreground`,
+Pares medidos por `test/contrast.test.ts`: cada texto (`--foreground`,
 `--text-secondary`, `--primary`, `--*-text`) sobre `--background`, `--surface` e a
 `--*-surface` correspondente (4,5); `--primary-foreground` sobre `--primary` e
 `--primary-hover`, `--danger-foreground` sobre `--danger` (4,5); `--primary-strong` sobre
@@ -46,6 +48,7 @@ Pares medidos por `test/contrast.test.ts` (nos dois temas): cada texto (`--foreg
 
 | Token | Tamanho / altura / peso | Família | Uso |
 |-------|------------------------|---------|-----|
+| `text-wordmark` | 44 / 52 / 600 | Fredoka (`font-brand`) | só a marca DevTrack no login e na senha (emenda 2026-10-22) |
 | `text-display` | 32 / 40 / 700 | Inter | título de página de entrada (login) |
 | `text-h1` | 28 / 36 / 700 | Inter | título da página (`PageHeader`) |
 | `text-h2` | 22 / 30 / 600 | Inter | seção |

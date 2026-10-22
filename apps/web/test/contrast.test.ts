@@ -20,15 +20,9 @@ function blockTokens(source: string, selector: RegExp): Tokens {
   return Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }
 
-const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
-const light = blockTokens(darkStart >= 0 ? css.slice(0, darkStart) : css, /:root\s*\{/);
-const dark = darkStart >= 0 ? blockTokens(css.slice(darkStart), /:root\s*\{/) : {};
-const manualDark = blockTokens(css, /:root\[data-theme="dark"\]\s*\{/);
-
-// The dark blocks only override values; aliases (`--card: var(--surface)`) live in `:root`.
+// One dark theme since the Vice City palette (005 FR-013, amended 2026-10-22).
 const THEMES: Record<string, Tokens> = {
-  claro: light,
-  escuro: { ...light, ...dark },
+  escuro: blockTokens(css, /:root\s*\{/),
 };
 
 /** Follows `var(--x)` aliases down to a literal value. */
@@ -61,7 +55,7 @@ type Pair = [foreground: string, background: string, minimum: number];
 
 const SURFACES = ["--background", "--surface"];
 const STATES = ["success", "warning", "danger", "info"];
-const TEXTS = ["--foreground", "--text-secondary", "--primary", ...STATES.map((s) => `--${s}-text`)];
+const TEXTS = ["--foreground", "--text-secondary", "--primary", "--brand-secondary", ...STATES.map((s) => `--${s}-text`)];
 const GRAPHICS = [...STATES.map((s) => `--${s}`), "--border-control", "--ring"];
 
 const PAIRS: Pair[] = [
@@ -109,9 +103,12 @@ describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das co
   });
 });
 
-describe("005/SC-002 tema escuro manual", () => {
-  it(':root[data-theme="dark"] repete os valores do tema escuro do sistema', () => {
-    expect(Object.keys(dark).length).toBeGreaterThan(0);
-    expect(manualDark).toEqual(dark);
+describe("005/SC-002 tema único escuro (Vice City)", () => {
+  it("tokens.css tem um só tema, escuro, sem variação pela preferência do sistema nem data-theme", () => {
+    expect(css).not.toMatch(/prefers-color-scheme/);
+    expect(css).not.toMatch(/data-theme/);
+    expect(css).toMatch(/color-scheme:\s*dark;/);
+    expect(THEMES.escuro!["--background"]).toBe("#0b0f2b");
+    expect(THEMES.escuro!["--primary"]).toBe("#ff5ca8");
   });
 });

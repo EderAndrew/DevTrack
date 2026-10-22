@@ -7,7 +7,9 @@ import { ForgotPasswordScreen } from "./forgot-password-screen";
 describe("ForgotPasswordScreen", () => {
   it("mostra DevTrack acima do título, o formulário e o link de volta", () => {
     renderWithProviders(<ForgotPasswordScreen />);
-    const brand = screen.getByText("DevTrack");
+    // The wordmark splits "Dev" and "Track" into two colours; the match is on the whole name.
+    const brand = screen.getByText((_, element) => element?.textContent === "DevTrack" && element.matches(".font-brand"));
+    expect(brand.parentElement?.textContent).toContain("Beta");
     const heading = screen.getByRole("heading", { level: 1, name: "Esqueci minha senha" });
     expect(brand.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Informe o e-mail da sua conta/)).toBeTruthy();

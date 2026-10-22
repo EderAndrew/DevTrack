@@ -27,12 +27,25 @@
   a única exceção à regra "nunca o único lugar de uma informação necessária", porque a
   mensagem é curta e a pessoa pode tentar de novo na mesma tela.
 
+### Session 2026-10-22 (emenda)
+
+- Q: Qual a paleta e quais temas? → A: A identidade passa à paleta Vice City — Ocean Night
+  `#0B0F2B` (fundo), Sunset Pink `#FF5CA8` (marca: ação principal, seleção, progresso, links),
+  Vice Cyan `#00F0FF` (foco e informação), Neon Purple `#BC6CFF` e Miami Peach `#FFB86B` (atenção e
+  sintaxe) — num tema único, escuro, que não muda com a preferência do sistema. O tema claro sai,
+  porque as cores neon não atingem 4,5:1 sobre branco. Os mesmos requisitos de contraste (FR-003)
+  valem; as cores de sintaxe (014) e as dos e-mails (017) seguem o tema único.
+- Q: A marca DevTrack tem fonte e cores próprias? → A: Sim. A marca (login, senha, menus laterais e
+  cabeçalho público) usa a Fredoka, arredondada, com "Dev" na cor principal (`#FF5CA8`) e "Track" em
+  Vice Cyan (`#00F0FF`), e é maior nas telas de login e senha (44 px). A Fredoka serve só à marca; o
+  resto do texto continua em Inter. Um selo "Beta" fica ao lado da marca enquanto a produção é beta.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Professor e aluno reconhecem uma identidade única em todas as telas (Priority: P1)
 
 O professor e o aluno passam a ver o sistema com a identidade oficial: a mesma paleta
-(neutros predominantes, azul da marca para ação principal, seleção, progresso e foco,
+(neutros predominantes, rosa da marca para ação principal, seleção e progresso, ciano no foco,
 cores semânticas só para significado), a mesma tipografia (Inter no texto, JetBrains Mono
 só no que é código), a mesma escala de títulos e textos, os mesmos espaçamentos, raios,
 bordas, sombras discretas e o mesmo contorno de foco. As telas existentes ganham essa
@@ -283,8 +296,8 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
 
 - Fonte oficial bloqueada ou lenta: o texto aparece na fonte substituta sem esperar e
   sem saltos de layout perceptíveis.
-- Tema escuro (preferência do sistema): continua disponível e acessível com os tokens
-  novos; nenhum componente usa cor fixa que quebre um dos temas.
+- Preferência do sistema por tema claro (emenda 2026-10-22): o sistema continua no tema
+  único escuro; nenhum componente usa cor fixa fora dos tokens.
 - Zoom de 200% e texto ampliado: nenhum conteúdo cortado ou sobreposto; a avaliação
   continua legível sem rolagem horizontal do enunciado.
 - Contrato do modo avaliação: prevê enunciado muito longo (com código ou imagem) sem
@@ -309,11 +322,11 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
   foco. Todo componente e tela DEVE obter esses valores dos tokens.
 - **FR-002**: Os tokens de cor DEVEM ser semânticos (ex.: fundo, superfície, texto
   principal, texto secundário, borda, ação principal, sucesso, atenção, perigo,
-  informação, desabilitado), nunca nomeados pela cor. Os valores base são: ação principal
-  `#2563EB`, principal escuro `#172554`, fundo `#F8FAFC`, superfície `#FFFFFF`, texto
-  principal `#0F172A`, texto secundário `#64748B`, borda `#E2E8F0`, sucesso `#16A34A`,
-  atenção `#D97706`, perigo `#DC2626`, mais um token de informação e tokens de fundo,
-  texto e borda para o estado desabilitado.
+  informação, desabilitado), nunca nomeados pela cor. Os valores base (paleta Vice City,
+  emenda 2026-10-22) são: ação principal `#FF5CA8`, fundo `#0B0F2B`, superfície `#151A3D`,
+  texto principal `#F2EEFF`, texto secundário `#AAA6D4`, borda `#2B305E`, foco e informação
+  `#00F0FF`, sucesso `#4ADE9A`, atenção `#FFB86B`, perigo `#FF6B6B`, e tokens de fundo, texto
+  e borda para o estado desabilitado.
 - **FR-003**: Todo par de texto e fundo DEVE atingir 4,5:1 (3:1 para texto grande), e
   ícones de estado, bordas de campos e o contorno de foco DEVEM atingir 3:1 sobre o fundo
   em que aparecem. Quando um valor base não atinge o mínimo no uso pretendido (ex.:
@@ -325,7 +338,9 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
   significado, nunca para decoração.
 - **FR-005**: A tipografia DEVE usar Inter como fonte principal e JetBrains Mono para
   código, saída de execução, console e elementos explicitamente técnicos, com fontes
-  substitutas definidas para cada uma, carregadas sem bloquear a exibição do texto.
+  substitutas definidas para cada uma, carregadas sem bloquear a exibição do texto. Desde a
+  emenda de 2026-10-22, a Fredoka (arredondada) serve só à marca DevTrack, com as mesmas regras
+  de substituta e carregamento.
 - **FR-006**: A escala tipográfica oficial DEVE ter as categorias Display (32/700), H1
   (28/700), H2 (22/600), H3 (18/600), Body (16/400), Body Small (14/400), Label (13/500),
   Caption (12/400) e Code (14/400), cada uma com altura de linha própria; textos longos e
@@ -345,9 +360,9 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
   já adotada pelo projeto), com espessura e tamanhos oficiais; ícones não substituem
   rótulos importantes, e ícones sem texto de significado não evidente DEVEM ter nome
   acessível e dica.
-- **FR-013**: Os tokens DEVEM estar organizados para temas: o tema claro é o oficial, e o
-  tema escuro já existente DEVE continuar disponível pela preferência do sistema, com os
-  mesmos requisitos de contraste, trocando só valores de tokens, sem mudar componentes.
+- **FR-013** (emenda 2026-10-22): Os tokens DEVEM definir um tema único, escuro, com a paleta
+  Vice City, que não muda com a preferência do sistema, com os requisitos de contraste da FR-003;
+  trocar a paleta muda só valores de tokens, sem mudar componentes.
 
 **Componentes fundamentais**
 
@@ -567,8 +582,8 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
 - Os valores da paleta são os valores base da identidade; onde não atingem o contraste
   exigido pela constituição (WCAG 2.2 AA) num uso, o Design System define variantes
   acessíveis para esse uso, em vez de relaxar o contraste (FR-003).
-- O tema escuro já existe e tem teste de contraste; ele é mantido e remapeado para os
-  tokens novos. Um seletor manual de tema não faz parte desta feature.
+- Desde a emenda de 2026-10-22 há um só tema, escuro (Vice City), com teste de contraste; o
+  tema claro e um seletor manual de tema não fazem parte do sistema.
 - O catálogo visual é parte do próprio aplicativo web, disponível no desenvolvimento e nos
   testes e fora da produção, para não trazer uma ferramenta pesada à parte; se o plano
   mostrar que uma ferramenta dedicada é compatível e leve, ela pode substituí-lo.
