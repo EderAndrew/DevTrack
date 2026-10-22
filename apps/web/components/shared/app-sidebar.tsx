@@ -22,6 +22,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { AI_OPERATIONS_AREA, HOME_PATH, MY_CLASSES_PATH, USER_AREAS } from "@/lib/navigation";
+import { BetaBadge } from "./beta-badge";
+import { Wordmark, WordmarkInitial } from "./wordmark";
 import { LogoutButton } from "./logout-button";
 
 const LINK = "text-sidebar-foreground no-underline";
@@ -68,13 +70,12 @@ export function AppSidebar({ me }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <Link href="/" className={`${LINK} px-2 py-1 text-h3 font-bold`}>
-          <span className="group-data-[collapsible=icon]:sr-only">DevTrack</span>
-          <span aria-hidden="true" className="hidden group-data-[collapsible=icon]:inline">
-            D
-          </span>
+      <SidebarHeader className="flex-row items-center gap-2">
+        <Link href="/" className={`${LINK} px-2 py-1`}>
+          <Wordmark className="group-data-[collapsible=icon]:sr-only" />
+          <WordmarkInitial className="hidden group-data-[collapsible=icon]:inline" aria-hidden="true" />
         </Link>
+        <BetaBadge className="group-data-[collapsible=icon]:hidden" />
       </SidebarHeader>
       <SidebarContent>
         <nav aria-label="Menu principal">

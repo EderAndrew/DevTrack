@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { ErrorSummary, Field, SubmitButton } from "@/components/shared";
@@ -66,6 +67,7 @@ export function LoginForm({ next }: LoginFormProps) {
         {...register("password")}
       />
       <SubmitButton pending={pending} pendingLabel="Entrando…">
+        <LogIn aria-hidden="true" />
         Entrar
       </SubmitButton>
     </form>

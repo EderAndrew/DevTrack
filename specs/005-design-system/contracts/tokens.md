@@ -17,6 +17,7 @@ Tailwind entre parênteses. Um só tema, escuro, com a paleta Vice City (FR-013,
 | `--primary-hover` | `#FF85BE` | passar o mouse e pressionado da ação principal |
 | `--primary-strong` | `#FFC2DE` | identidade: marca, item ativo do menu |
 | `--primary-subtle` | `#3D1747` | fundo de seleção (item ativo, linha selecionada) |
+| `--brand-secondary` | `#00F0FF` | só o "Track" da marca DevTrack |
 | `--border` | `#2B305E` | divisórias decorativas (não delimita controles) |
 | `--border-control` | `#807CB8` | contorno de campos, caixas, opções, interruptor (≥ 3:1) |
 | `--ring` | `#00F0FF` | contorno de foco (≥ 3:1) |
@@ -47,6 +48,7 @@ Pares medidos por `test/contrast.test.ts`: cada texto (`--foreground`,
 
 | Token | Tamanho / altura / peso | Família | Uso |
 |-------|------------------------|---------|-----|
+| `text-wordmark` | 44 / 52 / 600 | Fredoka (`font-brand`) | só a marca DevTrack no login e na senha (emenda 2026-10-22) |
 | `text-display` | 32 / 40 / 700 | Inter | título de página de entrada (login) |
 | `text-h1` | 28 / 36 / 700 | Inter | título da página (`PageHeader`) |
 | `text-h2` | 22 / 30 / 600 | Inter | seção |

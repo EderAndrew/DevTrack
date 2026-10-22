@@ -7,6 +7,7 @@ describe("SiteHeader", () => {
     render(<SiteHeader><nav aria-label="Conta" /></SiteHeader>);
     expect(screen.getByRole("banner")).toBeTruthy();
     expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
+    expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.getByRole("navigation", { name: "Conta" })).toBeTruthy();
   });
 });

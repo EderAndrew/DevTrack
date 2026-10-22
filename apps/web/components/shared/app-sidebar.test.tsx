@@ -70,6 +70,8 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
     expect(menuLinks()).toEqual(expected);
+    expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
+    expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
     expect(screen.getByText("Ana Souza")).toBeTruthy();
     await expectNoA11yViolations(container);

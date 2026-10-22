@@ -55,7 +55,7 @@ type Pair = [foreground: string, background: string, minimum: number];
 
 const SURFACES = ["--background", "--surface"];
 const STATES = ["success", "warning", "danger", "info"];
-const TEXTS = ["--foreground", "--text-secondary", "--primary", ...STATES.map((s) => `--${s}-text`)];
+const TEXTS = ["--foreground", "--text-secondary", "--primary", "--brand-secondary", ...STATES.map((s) => `--${s}-text`)];
 const GRAPHICS = [...STATES.map((s) => `--${s}`), "--border-control", "--ring"];
 
 const PAIRS: Pair[] = [

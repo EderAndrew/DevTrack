@@ -1,9 +1,11 @@
 Fonts in this directory (variable weight, latin and latin-ext subsets, from Fontsource 5.3.0):
 - inter-latin(-ext)-wght-normal.woff2: Inter
 - jetbrains-mono-latin(-ext)-wght-normal.woff2: JetBrains Mono
-Both are licensed under the SIL Open Font License, Version 1.1 (below).
+- fredoka-latin-wght-normal.woff2: Fredoka (latin subset only, from Google Fonts, added 2026-10-22)
+All three are licensed under the SIL Open Font License, Version 1.1 (below).
 
 Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) Inter-Italic[opsz,wght].ttf: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
 [93 more lines]
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

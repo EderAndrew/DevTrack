@@ -20,6 +20,7 @@ confere que cada token de `tokens.css` aparece aqui.
 | `--primary-hover` | `#FF85BE` | passar o mouse e pressionado da ação principal |
 | `--primary-strong` | `#FFC2DE` | identidade: texto do item ativo do menu, página atual da paginação |
 | `--primary-subtle` | `#3D1747` | fundo de seleção (item ativo, página atual) |
+| `--brand-secondary` (`text-brand-secondary`) | `#00F0FF` | só o "Track" da marca DevTrack (`Wordmark`); "Dev" usa `--primary` |
 | `--border` (`border-border`) | `#2B305E` | divisórias decorativas; nunca o limite de um controle |
 | `--border-control` (`border-border-control`) | `#807CB8` | contorno de campos, caixas, opções e interruptor (≥ 3:1) |
 | `--ring` | `#00F0FF` | contorno de foco (≥ 3:1) |
@@ -96,6 +97,7 @@ editor não destaca a linha ativa. Em alto contraste (`forced-colors: active`) a
 
 | Token (utilitário) | Tamanho / altura / peso | Família | Uso |
 |--------------------|------------------------|---------|-----|
+| `--text-wordmark` (`text-wordmark`) | 44 / 52 / 600 | Fredoka | só a marca DevTrack nas telas de login e de senha (`Wordmark size="lg"`) |
 | `--text-display` (`text-display`) | 32 / 40 / 700 | Inter | título de página de entrada (login) |
 | `--text-h1` (`text-h1`) | 28 / 36 / 700 | Inter | título da página (`PageHeader`) |
 | `--text-h2` (`text-h2`) | 22 / 30 / 600 | Inter | seção |
@@ -113,13 +115,14 @@ Cada `--text-*` tem `--text-*--line-height` e `--text-*--font-weight` no mesmo b
 |-------|-------|-----|
 | `--font-sans` (`font-sans`) | `--font-inter`, depois fontes do sistema | todo o texto |
 | `--font-mono` (`font-mono`) | `--font-jetbrains-mono`, depois monoespaçadas do sistema | código e elementos técnicos |
+| `--font-brand` (`font-brand`) | `--font-fredoka`, `ui-rounded`, depois a Inter e fontes do sistema | só a marca DevTrack (`components/shared/wordmark.tsx`; `identity.test.ts` confere) |
 | `--font-weight-normal` (`font-normal`) | 400 | texto |
 | `--font-weight-medium` (`font-medium`) | 500 | rótulos |
 | `--font-weight-semibold` (`font-semibold`) | 600 | botões, títulos de seção, item ativo |
 | `--font-weight-bold` (`font-bold`) | 700 | títulos de página e marca |
 
-As fontes são locais (`app/fonts`, SIL OFL 1.1), com `display: swap`; só a Inter é
-pré-carregada.
+As fontes são locais (`app/fonts`, SIL OFL 1.1), com `display: swap`; a Inter e a Fredoka
+(subconjunto latino, só para a marca, que todo quadro mostra) são pré-carregadas.
 
 ## Espaçamento
 

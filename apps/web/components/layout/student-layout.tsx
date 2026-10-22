@@ -5,6 +5,8 @@ import { BookOpen, History, LayoutDashboard, ListTodo, type LucideIcon, UserRoun
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { BetaBadge } from "@/components/shared/beta-badge";
+import { Wordmark, WordmarkInitial } from "@/components/shared/wordmark";
 import { LogoutButton } from "@/components/shared/logout-button";
 import {
   Sidebar,
@@ -66,13 +68,12 @@ export function StudentLayout({ me, defaultOpen = true, preview = false, childre
   return (
     <SidebarProvider defaultOpen={defaultOpen} className={preview ? "min-h-0" : undefined}>
       <Sidebar collapsible="icon">
-        <SidebarHeader>
-          <Link href="/" className={`${LINK} px-2 py-1 text-h3 font-bold`}>
-            <span className="group-data-[collapsible=icon]:sr-only">DevTrack</span>
-            <span aria-hidden="true" className="hidden group-data-[collapsible=icon]:inline">
-              D
-            </span>
+        <SidebarHeader className="flex-row items-center gap-2">
+          <Link href="/" className={`${LINK} px-2 py-1`}>
+            <Wordmark className="group-data-[collapsible=icon]:sr-only" />
+            <WordmarkInitial className="hidden group-data-[collapsible=icon]:inline" aria-hidden="true" />
           </Link>
+          <BetaBadge className="group-data-[collapsible=icon]:hidden" />
         </SidebarHeader>
         <SidebarContent>
           <nav aria-label="Menu do aluno">

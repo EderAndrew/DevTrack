@@ -35,6 +35,10 @@
   sintaxe) — num tema único, escuro, que não muda com a preferência do sistema. O tema claro sai,
   porque as cores neon não atingem 4,5:1 sobre branco. Os mesmos requisitos de contraste (FR-003)
   valem; as cores de sintaxe (014) e as dos e-mails (017) seguem o tema único.
+- Q: A marca DevTrack tem fonte e cores próprias? → A: Sim. A marca (login, senha, menus laterais e
+  cabeçalho público) usa a Fredoka, arredondada, com "Dev" na cor principal (`#FF5CA8`) e "Track" em
+  Vice Cyan (`#00F0FF`), e é maior nas telas de login e senha (44 px). A Fredoka serve só à marca; o
+  resto do texto continua em Inter. Um selo "Beta" fica ao lado da marca enquanto a produção é beta.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -334,7 +338,9 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
   significado, nunca para decoração.
 - **FR-005**: A tipografia DEVE usar Inter como fonte principal e JetBrains Mono para
   código, saída de execução, console e elementos explicitamente técnicos, com fontes
-  substitutas definidas para cada uma, carregadas sem bloquear a exibição do texto.
+  substitutas definidas para cada uma, carregadas sem bloquear a exibição do texto. Desde a
+  emenda de 2026-10-22, a Fredoka (arredondada) serve só à marca DevTrack, com as mesmas regras
+  de substituta e carregamento.
 - **FR-006**: A escala tipográfica oficial DEVE ter as categorias Display (32/700), H1
   (28/700), H2 (22/600), H3 (18/600), Body (16/400), Body Small (14/400), Label (13/500),
   Caption (12/400) e Code (14/400), cada uma com altura de linha própria; textos longos e
