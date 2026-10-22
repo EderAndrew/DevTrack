@@ -40,6 +40,7 @@ import {
 } from "./components/containers-showcase";
 import {
   BadgeShowcase,
+  ChartShowcase,
   PaginationShowcase,
   StatusShowcase,
   TableShowcase,
@@ -350,6 +351,15 @@ export const REGISTRY: readonly CatalogEntry[] = [
     showcase: PaginationShowcase,
     variants: [],
     states: ["primeira página", "página do meio", "última página"],
+  },
+  {
+    id: "chart",
+    name: "Chart",
+    group: "data",
+    source: "components/ui/chart.tsx",
+    showcase: ChartShowcase,
+    variants: ["série única", "séries de situação"],
+    states: [],
   },
   {
     id: "badge",

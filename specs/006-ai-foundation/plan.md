@@ -43,6 +43,7 @@ de provedor.
 - contratos: `@repo/contracts` (Zod 4, com `z.toJSONSchema` para os esquemas de saída);
 - web: Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Lucide, TanStack Query 5;
 - **nenhuma dependência nova** e nenhum SDK de provedor (FR-016, A12).
+- emenda 2026-10-22 ([contracts/web-ui.md](./contracts/web-ui.md)): `recharts` 3.10.1 (+ `react-is`) no web, só para os gráficos de Indicadores via `components/ui/chart.tsx`.
 
 **Storage**: PostgreSQL 17, com 15 tabelas `ai_*`, 11 enums, `CHECK`s de estado,
 triggers de imutabilidade (versões usadas, conteúdo da proposta, transições append-only)

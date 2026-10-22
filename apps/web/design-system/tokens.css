@@ -53,6 +53,11 @@
   --syntax-operator: #ff8a80;
   --syntax-punctuation: #c8c4ea;
 
+  /* Charts (006 contracts/web-ui.md, amendment 2026-10-22): marks only, never text. A single
+     series uses --chart-1 (Neon Purple stepped into the dark band, OKLCH L 0.48–0.67, ≥ 3:1 on
+     --surface); outcome series reuse the state colors in a fixed order, with icon and name. */
+  --chart-1: #a66bff;
+
   /* shadcn/ui aliases: no value of their own */
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -182,6 +187,7 @@
   --color-syntax-function: var(--syntax-function);
   --color-syntax-operator: var(--syntax-operator);
   --color-syntax-punctuation: var(--syntax-punctuation);
+  --color-chart-1: var(--chart-1);
 
   /* Typography (research V6): size / line height / weight */
   /* The DevTrack wordmark on the login and password screens (font-brand). */

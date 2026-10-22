@@ -973,6 +973,53 @@ Para listas curtas (mostre tudo); para passos de um fluxo (use botões com texto
 `<nav aria-label="Paginação">`; página atual com `aria-current="page"`; cada botão diz
 "Página N"; anterior e próxima em palavras.
 
+## Chart
+
+`components/ui/chart.tsx` (Recharts 3, 006 emenda 2026-10-22)
+
+### Variantes
+
+`série única`: uma série em `--chart-1`, sem legenda (o título do gráfico a nomeia).
+`séries de situação`: várias séries empilhadas nas cores de estado, numa ordem fixa, com legenda
+de ícone e nome abaixo do gráfico. `ChartConfig` liga a chave de cada valor ao nome, ao token de
+cor e ao ícone; `seriesColor(chave)` dá o `fill` da barra.
+
+### Estados
+
+Repouso e com o tooltip aberto (passar o mouse ou focar o gráfico e usar as setas): a categoria e
+cada série com quadrado, nome e valor, em `--popover` com `shadow-overlay`.
+
+### Quando usar
+
+Para comparar poucas categorias de um período (agentes, modelos) em barras horizontais, quando
+a forma ajuda a achar o maior, o menor ou a proporção de falhas mais rápido do que a tabela.
+
+### Quando não usar
+
+Sem a tabela com os mesmos números ao lado; para evolução no tempo sem uma série temporal da
+API; em pizza, radar ou dois eixos; em telas do aluno ou da prova.
+
+### Exemplo
+
+```tsx
+const CONFIG = { estimatedCost: { label: "Custo estimado", color: "var(--chart-1)" } } satisfies ChartConfig
+<ChartContainer config={CONFIG} height={160}>
+  <BarChart data={data} layout="vertical">
+    <XAxis type="number" />
+    <YAxis type="category" dataKey="model" width={200} />
+    <ChartTooltip content={<ChartTooltipContent />} />
+    <Bar dataKey="estimatedCost" fill={seriesColor("estimatedCost")} radius={[0, 4, 4, 0]} />
+  </BarChart>
+</ChartContainer>
+```
+
+### Acessibilidade
+
+O gráfico mantém a camada de teclado do Recharts (Tab chega ao gráfico, as setas percorrem as
+categorias e abrem o tooltip). A tela o coloca num `<figure>` nomeado pelo título e com a tabela
+dos mesmos números logo abaixo; as séries nunca dependem só da cor (legenda com ícone e nome,
+2px de fundo entre os segmentos). Textos dos eixos em `--text-secondary`, grade em `--border`.
+
 ## Badge
 
 `components/ui/badge.tsx`

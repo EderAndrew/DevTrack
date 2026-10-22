@@ -136,6 +136,17 @@ describe("006/US7-6 tela Operação de IA", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it("006 emenda 2026-10-22 Indicadores: o gráfico de execuções por agente vem antes da tabela; sem custo por modelo, só a tabela de uso", async () => {
+    serve();
+    renderPage(true, "indicadores");
+    const table = await screen.findByRole("table", { name: "Indicadores por agente" });
+    const chart = screen.getByRole("figure", { name: "Execuções por agente" });
+    expect(chart.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // METRICS.byModel has no estimated cost: the usage table alone says it.
+    expect(screen.queryByRole("figure", { name: "Custo estimado por modelo" })).toBeNull();
+    expect(screen.getByRole("table", { name: "Uso e custo por modelo" })).toBeTruthy();
+  });
+
   it("007/FR-048 indicadores por agente: falhas de validação e decisões das propostas com a taxa ao lado, tokens e custo médios", async () => {
     serve();
     renderPage(true, "indicadores");
