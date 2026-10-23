@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Deploys the latest main of the DevTrack beta (docs/deploy/hostinger.md). Run as the `devtrack` user:
+# Deploys the DevTrack beta (docs/deploy/hostinger.md). Run as the `devtrack` user, it deploys the tip of main:
 #   ~/devtrack/deploy/hostinger/update.sh
-# The GitHub workflow deploy-hostinger.yml runs it too, as the forced command of its SSH key (section 12).
+# The GitHub workflow deploy-hostinger.yml runs it too, as the forced command of its SSH key (section 12),
+# sending `deploy <sha>`: the commit whose CI passed, published only if it is on main and not older than HEAD.
 
 # A non-interactive SSH session doesn't read ~/.bashrc: load nvm's Node, pnpm and pm2 here, before
 # `set -eu` (nvm.sh isn't written for it).
@@ -17,8 +18,10 @@ cd "$(dirname "$0")/../.."
 exec 9>"${TMPDIR:-/tmp}/devtrack-update.lock"
 flock -w 900 9 || { echo "Outra atualização ainda está rodando." >&2; exit 1; }
 
-# Validate the command received through the forced SSH command.
-if [[ -n "${SSH_CONNECTION:-}" ]]; then
+# SSH_ORIGINAL_COMMAND exists only under the key's forced command: the workflow must send
+# `deploy <sha>`. A manual run (any other login) deploys the tip of main.
+DEPLOY_SHA=""
+if [[ -n "${SSH_ORIGINAL_COMMAND+set}" ]]; then
     DEPLOY_SHA="$(bash deploy/hostinger/validate-ssh-command.sh)"
 fi
 
@@ -26,14 +29,15 @@ fi
 git fetch --no-tags origin \
     +refs/heads/main:refs/remotes/origin/main
 
-# Confirma que o SHA solicitado existe e pertence à main atualizada.
-if [[ -n "${SSH_CONNECTION:-}" ]]; then
-    DEPLOY_SHA="$(bash deploy/hostinger/validate-commit.sh "$DEPLOY_SHA")"
-fi
+[[ -n "$DEPLOY_SHA" ]] || DEPLOY_SHA="$(git rev-parse refs/remotes/origin/main)"
 
-# PENDENTE: verificar aprovação do CI e publicar o SHA exato.
-echo "ERRO: Publicação bloqueada até a conclusão do Security Gate." >&2
-exit 2
+# Confirma que o SHA pertence à main atualizada e não é mais antigo que o publicado.
+DEPLOY_SHA="$(bash deploy/hostinger/validate-commit.sh "$DEPLOY_SHA")"
+
+# Publica exatamente o SHA validado (só avança a main local, nunca volta).
+git merge --ff-only --quiet "$DEPLOY_SHA"
+[[ "$(git rev-parse HEAD)" == "$DEPLOY_SHA" ]] || { echo "ERRO: HEAD diferente do SHA validado." >&2; exit 2; }
+
 pnpm install --frozen-lockfile
 pnpm build
 pnpm --filter api prisma migrate deploy

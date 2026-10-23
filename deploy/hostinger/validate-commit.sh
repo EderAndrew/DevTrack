@@ -28,4 +28,10 @@ if ! git merge-base --is-ancestor "$COMMIT_SHA" refs/remotes/origin/main; then
     exit 2
 fi
 
+# No rollback: the commit must be the published one or newer (a retry republishes HEAD).
+if ! git merge-base --is-ancestor HEAD "$COMMIT_SHA"; then
+    echo "ERRO: Commit mais antigo que a versão publicada." >&2
+    exit 2
+fi
+
 printf '%s\n' "$COMMIT_SHA" | LC_ALL=C tr '[:upper:]' '[:lower:]'
