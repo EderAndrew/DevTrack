@@ -37,3 +37,8 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# OWASP audit hooks: generated state and logs
+.claude/hooks/security.log
+.claude/hooks/.security-audit-state
+.claude/hooks/.audit-state/
