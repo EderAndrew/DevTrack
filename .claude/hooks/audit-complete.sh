@@ -1,10 +1,13 @@
-
 #!/usr/bin/env bash
 set -euo pipefail
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_DIR="$PROJECT_DIR/.claude/hooks/.audit-state"
 LOG_FILE="$PROJECT_DIR/.claude/hooks/security.log"
+
+# Same hash algorithm as security-check.sh.
+# shellcheck source=lib/audit-files.sh
+. "$PROJECT_DIR/.claude/hooks/lib/audit-files.sh"
 
 SESSION_ID="${1:-}"
 
@@ -46,22 +49,6 @@ fi
 
 cd "$PROJECT_DIR"
 
-# Calcula uma assinatura determinística dos arquivos.
-calculate_hash() {
-    while IFS= read -r file; do
-        [ -n "$file" ] || continue
-
-        if [ -f "$file" ]; then
-            hash=$(shasum -a 256 "$file" | awk '{print $1}')
-            printf 'FILE:%s:%s\n' "$file" "$hash"
-        else
-            printf 'MISSING:%s\n' "$file"
-        fi
-    done < <(LC_ALL=C sort -u "$FILES_FILE") |
-        shasum -a 256 |
-        awk '{print $1}'
-}
-
 
 # Exige evidências estruturadas antes da confirmação.
 if [ ! -s "$REPORT_FILE" ]; then
@@ -79,7 +66,7 @@ if ! jq -e \
     def valid_file:
         type == "object" and
         (.path | type == "string" and length > 0) and
-        (.sha256 | valid_hash);
+        (.sha256 | valid_hash or . == "MISSING");
 
     def valid_finding:
         type == "object" and
@@ -113,12 +100,8 @@ fi
 while IFS= read -r file; do
     [ -n "$file" ] || continue
 
-    if [ ! -f "$file" ]; then
-        echo "[OWASP] ERRO: arquivo auditado não encontrado: $file" >&2
-        exit 1
-    fi
-
-    ACTUAL_HASH=$(shasum -a 256 "$file" | awk '{print $1}')
+    # A deleted or renamed file must be declared "MISSING" in the report.
+    ACTUAL_HASH=$(file_hash "$file")
 
     REPORTED_HASH=$(jq -r \
         --arg path "$file" \
@@ -132,7 +115,7 @@ while IFS= read -r file; do
 done < <(LC_ALL=C sort -u "$FILES_FILE")
 
 
-CONTENT_HASH=$(calculate_hash)
+CONTENT_HASH=$(calculate_hash "$FILES_FILE")
 REPORT_HASH=$(shasum -a 256 "$REPORT_FILE" | awk '{print $1}')
 TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 

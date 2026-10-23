@@ -43,6 +43,8 @@ Responsável por configurar os eventos do Claude Code que acionam o mecanismo de
 
 O hook `PostToolUse` acompanha as operações configuradas de escrita e edição.
 
+Para o `Bash`, um `PreToolUse` registra os arquivos de código diferentes do `HEAD` (com o hash) e o `PostToolUse` compara: os que surgiram ou mudaram durante o comando (`sed`, heredoc, `mv`, geradores) entram na auditoria. Arquivos que voltaram ao `HEAD` (commit, checkout) não introduzem código novo e não entram.
+
 O hook `Stop` verifica se existem alterações pendentes e solicita a auditoria quando necessário.
 
 ### 3.2. Hook de segurança
@@ -165,6 +167,8 @@ Os arquivos de controle incluem:
 | `pending` | Indica auditoria pendente |
 | `requested` | Indica solicitação de auditoria |
 | `attempts` | Contabiliza tentativas sem confirmação |
+| `decision` | Decisão `review_required`/`blocked` já registrada, à espera de revisão ou de nova alteração |
+| `bash-snapshot` | Arquivos de código diferentes do `HEAD` antes do comando `Bash` em curso |
 | `completed` | Registra hashes e data da confirmação |
 | `audit-report.json` | Contém resultado e evidências da análise |
 
@@ -213,7 +217,7 @@ O mecanismo deverá adotar comportamento conservador diante de:
 
 - Relatórios ausentes.
 - JSON inválido.
-- Arquivos pendentes ausentes.
+- Arquivos pendentes ausentes que o relatório não declara como `MISSING` (apagados ou renomeados).
 - Hashes divergentes.
 - Confirmações inválidas.
 - Identificadores de sessão ausentes.
@@ -221,9 +225,9 @@ O mecanismo deverá adotar comportamento conservador diante de:
 
 O script não deverá declarar uma auditoria concluída quando essas condições impedirem a validação.
 
-O mecanismo atual utiliza um limite de tentativas para sinalizar necessidade de intervenção manual.
+O mecanismo atual utiliza um limite de tentativas para sinalizar necessidade de intervenção manual. As tentativas são contadas por turno: depois do limite, ou de uma decisão `review_required`/`blocked` já informada, o hook Stop deixa o turno terminar para não bloquear a sessão indefinidamente.
 
-Esse limite não autoriza ignorar a auditoria ou remover automaticamente a pendência.
+Esse limite não autoriza ignorar a auditoria ou remover automaticamente a pendência: `pending`, `requested`, `files` e a decisão permanecem, e o próximo turno volta a exigir a auditoria.
 
 ## 9. Política de aprovação
 

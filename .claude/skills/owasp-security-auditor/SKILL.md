@@ -145,6 +145,7 @@ Para cada caminho presente em `files`:
 3. Calcule o SHA-256 desse conteúdo.
 4. Inclua o caminho e o hash no array `files` do relatório.
 5. Não inclua caminhos extras nem omita arquivos pendentes.
+6. Se o arquivo foi apagado ou renomeado depois da alteração, mantenha o caminho e use `"sha256": "MISSING"` (o caminho novo de um arquivo renomeado aparece em `files` como outro item).
 
 O formato obrigatório, compatível com a versão atual de `audit-complete.sh`, é:
 
