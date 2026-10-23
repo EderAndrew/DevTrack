@@ -149,6 +149,50 @@ case "$MODE" in
 
                 if [ "$CONFIRMED_HASH" = "$CURRENT_HASH" ] &&
                    [ "$CONFIRMED_REPORT_HASH" = "$CURRENT_REPORT_HASH" ]; then
+                   # Avalia e registra a política antes de encerrar a auditoria.
+                    RECORDER="$PROJECT_DIR/.claude/hooks/security-decision-recorder.sh"
+
+                    if ! POLICY_OUTPUT=$(bash "$RECORDER" "$REPORT_FILE"); then
+                        echo "[OWASP] ERRO: falha na avaliação da política." >> "$LOG_FILE"
+                        echo "OWASP: não foi possível registrar a decisão de segurança." >&2
+                        exit 2
+                    fi
+
+                    echo "[OWASP] Decisão de segurança registrada." >> "$LOG_FILE"
+                    # O gravador imprime o caminho do arquivo na primeira linha.
+                    # O restante da saída contém a decisão JSON.
+                    if ! POLICY_DECISION=$(
+                        printf '%s\n' "$POLICY_OUTPUT" |
+                            sed '1d' |
+                            jq -er '
+                                select(
+                                    .approvalStatus == "not_approved" and
+                                    (.decision == "eligible" or
+                                    .decision == "review_required" or
+                                    .decision == "blocked")
+                                ) | .decision
+                            '
+                    ); then
+                        echo "[OWASP] ERRO: decisão de política inválida." >> "$LOG_FILE"
+                        echo "OWASP: resposta de política inválida." >&2
+                        exit 2
+                    fi
+
+                    case "$POLICY_DECISION" in
+                        eligible)
+                            echo "[OWASP] Política: elegível para conclusão técnica." >> "$LOG_FILE"
+                            ;;
+                        review_required)
+                            echo "[OWASP] Política: revisão humana necessária." >> "$LOG_FILE"
+                            echo "OWASP: achados médios exigem revisão humana." >&2
+                            exit 2
+                            ;;
+                        blocked)
+                            echo "[OWASP] Política: bloqueado por vulnerabilidades." >> "$LOG_FILE"
+                            echo "OWASP: vulnerabilidades bloqueantes identificadas." >&2
+                            exit 2
+                            ;;
+                    esac
 
                     rm -f "$PENDING_FILE" "$REQUESTED_FILE" \
                           "$COMPLETED_FILE" "$ATTEMPTS_FILE"

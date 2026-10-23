@@ -42,3 +42,6 @@ yarn-error.log*
 .claude/hooks/security.log
 .claude/hooks/.security-audit-state
 .claude/hooks/.audit-state/
+
+# Registros locais de decisões de segurança
+.claude/hooks/.security-decisions/
