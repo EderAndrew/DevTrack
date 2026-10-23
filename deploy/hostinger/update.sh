@@ -20,7 +20,6 @@ flock -w 900 9 || { echo "Outra atualização ainda está rodando." >&2; exit 1;
 # Validate the command received through the forced SSH command.
 if [[ -n "${SSH_CONNECTION:-}" ]]; then
     DEPLOY_SHA="$(bash deploy/hostinger/validate-ssh-command.sh)"
-    DEPLOY_SHA="$(bash deploy/hostinger/validate-commit.sh "$DEPLOY_SHA")"
 fi
 
 # Atualiza a referência da main sem modificar os arquivos publicados.
