@@ -15,12 +15,39 @@ A confirmação indica que o relatório foi produzido e passou pelas validaçõe
 
 ## Referências obrigatórias
 
+Antes de iniciar qualquer auditoria, consulte obrigatoriamente as seguintes ADRs:
+
+1. `docs/adr/0002-owasp-security-policy.md` — Política de Segurança OWASP Top 10 e ASVS.
+2. `docs/adr/0003-automated-security-audit-hooks.md` — Arquitetura de Auditoria Automatizada por Hooks.
+3. `docs/adr/0004-audit-integrity-and-evidence.md` — Integridade, Rastreabilidade e Evidências de Auditoria.
+4. `docs/adr/0005-security-approval-policy.md` — Política de Aprovação e Bloqueio por Severidade.
+5. `docs/adr/0006-ai-agent-least-privilege.md` — Privilégios Mínimos e Isolamento dos Agentes de IA.
+6. `docs/adr/0007-static-analysis-and-dependencies.md` — Análise Estática, Dependências e Validações Automatizadas.
+
+Consulte também:
+
 - OWASP Top 10, considerando a versão adotada pelo projeto.
 - OWASP ASVS, quando aplicável.
-- ADRs e políticas de segurança existentes no projeto.
 - Documentação oficial dos frameworks utilizados.
+- Outras ADRs pertinentes à alteração analisada.
 
-Não invente ADRs, políticas, resultados de ferramentas ou evidências. Quando uma referência não estiver disponível, registre a limitação no resumo da auditoria.
+### Regras de aplicação das ADRs
+
+- Leia as seis ADRs antes de analisar os arquivos pendentes.
+- Identifique os requisitos de segurança aplicáveis à alteração.
+- Diferencie controles já implementados de controles apenas propostos.
+- Não declare a execução de ferramentas SAST, SCA ou de detecção de segredos sem evidências reais.
+- Registre violações das políticas de segurança como achados, quando houver evidência suficiente.
+- Classifique os achados utilizando `info`, `low`, `medium`, `high` ou `critical`.
+- Considere a política de aprovação da ADR-0005 ao apresentar os resultados, mas não declare que o bloqueio automático já está implementado.
+- Não interprete a confirmação realizada por `audit-complete.sh` como aprovação de segurança.
+- Não modifique os hooks, as ADRs ou os mecanismos de confirmação durante a auditoria.
+- Se uma ADR obrigatória estiver ausente ou ilegível, informe a falha e não confirme a auditoria como concluída.
+- Não invente políticas, resultados de ferramentas ou evidências.
+
+O relatório JSON deverá permanecer compatível com o esquema atualmente validado por `audit-complete.sh`. Não adicione novos campos obrigatórios sem atualizar previamente o validador.
+
+As limitações e verificações inconclusivas deverão ser informadas no resumo apresentado ao usuário.
 
 ## Restrições
 

@@ -33,6 +33,7 @@ printf '%s' "$SESSION_ID" > "$SESSION_DIR/session-id"
 PENDING_FILE="$SESSION_DIR/pending"
 REQUESTED_FILE="$SESSION_DIR/requested"
 COMPLETED_FILE="$SESSION_DIR/completed"
+REPORT_FILE="$SESSION_DIR/audit-report.json"
 FILES_FILE="$SESSION_DIR/files"
 ATTEMPTS_FILE="$SESSION_DIR/attempts"
 MAX_ATTEMPTS=3
@@ -91,42 +92,88 @@ case "$MODE" in
             exit 0
         fi
 
-        if [ ! -s "$FILES_FILE" ]; then
-            echo "[OWASP] ERRO: auditoria pendente sem arquivos." >> "$LOG_FILE"
-            echo "OWASP: estado inconsistente; revisão manual necessária." >&2
-            # Avoid a blocking loop; do not mark this audit as completed.
-            exit 2
+        STOP_HOOK_ACTIVE=$(json_field '.stop_hook_active')
+
+        # A confirmação válida deve ser processada antes desta proteção.
+        # Nunca ignore uma confirmação já existente.
+        if [ "$STOP_HOOK_ACTIVE" = "true" ] &&
+        [ ! -f "$COMPLETED_FILE" ]; then
+
+            echo "[OWASP] Encerrando repetição do hook Stop." >> "$LOG_FILE"
+            echo "[OWASP] Auditoria permanece pendente: $SESSION_ID" >> "$LOG_FILE"
+
+            # Permite encerrar a resposta, não a auditoria.
+            # Preserva pending, requested, files e attempts.
+            exit 0
         fi
 
-        if [ -f "$REQUESTED_FILE" ]; then
+            if [ ! -s "$FILES_FILE" ]; then
+                echo "[OWASP] ERRO: auditoria pendente sem arquivos." >> "$LOG_FILE"
+                echo "OWASP: estado inconsistente; revisão manual necessária." >&2
+                # Avoid a blocking loop; do not mark this audit as completed.
+                exit 2
+            fi
+
+            if [ -f "$REQUESTED_FILE" ]; then
+            
             if [ -f "$COMPLETED_FILE" ]; then
                 CONFIRMED_HASH=""
+                CONFIRMED_REPORT_HASH=""
                 CONFIRMED_AT=""
+
                 if [ -s "$COMPLETED_FILE" ]; then
-                    read -r CONFIRMED_HASH CONFIRMED_AT < "$COMPLETED_FILE" || true
+                    read -r CONFIRMED_HASH CONFIRMED_REPORT_HASH CONFIRMED_AT \
+                        < "$COMPLETED_FILE" || true
                 fi
 
-                if [[ ! "$CONFIRMED_HASH" =~ ^[a-f0-9]{64}$ ]]; then
+                if [[ ! "$CONFIRMED_HASH" =~ ^[a-f0-9]{64}$ ]] ||
+                   [[ ! "$CONFIRMED_REPORT_HASH" =~ ^[a-f0-9]{64}$ ]] ||
+                   [ -z "$CONFIRMED_AT" ]; then
                     echo "[OWASP] FALHA: confirmação inválida." >> "$LOG_FILE"
                     rm -f "$COMPLETED_FILE" "$REQUESTED_FILE" "$ATTEMPTS_FILE"
                     echo "OWASP: confirmação inválida. Execute nova auditoria." >&2
                     exit 2
                 fi
 
+                if [ ! -s "$REPORT_FILE" ]; then
+                    echo "[OWASP] FALHA: relatório ausente." >> "$LOG_FILE"
+                    rm -f "$COMPLETED_FILE" "$REQUESTED_FILE" "$ATTEMPTS_FILE"
+                    echo "OWASP: relatório ausente. Execute nova auditoria." >&2
+                    exit 2
+                fi
+
                 CURRENT_HASH=$(calculate_hash)
-                if [ "$CONFIRMED_HASH" = "$CURRENT_HASH" ]; then
-                    rm -f "$PENDING_FILE" "$REQUESTED_FILE" "$COMPLETED_FILE" "$ATTEMPTS_FILE"
+                CURRENT_REPORT_HASH=$(
+                    shasum -a 256 "$REPORT_FILE" | awk '{print $1}'
+                )
+
+                if [ "$CONFIRMED_HASH" = "$CURRENT_HASH" ] &&
+                   [ "$CONFIRMED_REPORT_HASH" = "$CURRENT_REPORT_HASH" ]; then
+
+                    rm -f "$PENDING_FILE" "$REQUESTED_FILE" \
+                          "$COMPLETED_FILE" "$ATTEMPTS_FILE"
+
                     : > "$FILES_FILE"
-                    echo "[OWASP] Integridade SHA-256 validada." >> "$LOG_FILE"
+
+                    echo "[OWASP] Integridade do código validada." >> "$LOG_FILE"
+                    echo "[OWASP] Integridade do relatório validada." >> "$LOG_FILE"
                     echo "[OWASP] Auditoria concluída e confirmada." >> "$LOG_FILE"
                     exit 0
                 fi
 
-                echo "[OWASP] FALHA: hash divergente." >> "$LOG_FILE"
-                echo "[OWASP] Hash confirmado: $CONFIRMED_HASH" >> "$LOG_FILE"
-                echo "[OWASP] Hash atual: $CURRENT_HASH" >> "$LOG_FILE"
+                echo "[OWASP] FALHA: divergência de integridade." >> "$LOG_FILE"
+
+                if [ "$CONFIRMED_HASH" != "$CURRENT_HASH" ]; then
+                    echo "[OWASP] Hash do código divergente." >> "$LOG_FILE"
+                fi
+
+                if [ "$CONFIRMED_REPORT_HASH" != "$CURRENT_REPORT_HASH" ]; then
+                    echo "[OWASP] Hash do relatório divergente." >> "$LOG_FILE"
+                fi
+
                 rm -f "$COMPLETED_FILE" "$REQUESTED_FILE" "$ATTEMPTS_FILE"
-                echo "OWASP: O código mudou após a confirmação." >&2
+
+                echo "OWASP: o código ou o relatório mudou após a confirmação." >&2
                 echo "Execute novamente a auditoria dos arquivos pendentes." >&2
                 exit 2
             fi
