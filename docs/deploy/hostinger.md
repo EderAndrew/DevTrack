@@ -192,8 +192,10 @@ por SSH, roda o `update.sh` e depois confere `https://devtrack.nativcode.com.br/
 `/api/health/ready`. Em **Actions → Deploy (Hostinger) → Run workflow** dá para rodar de novo à mão.
 
 A chave do GitHub só consegue rodar o `update.sh`: no `authorized_keys` ela tem um comando forçado e
-`restrict` (sem terminal, sem túnel, sem outro comando). Se a chave vazar, o máximo que alguém faz é
-atualizar a VPS para a `main` atual.
+`restrict` (sem terminal, sem túnel, sem outro comando). O workflow envia `deploy <sha>`, o commit cujo
+CI passou; o `update.sh` só publica esse commit se ele estiver na `main` e não for mais antigo que o
+publicado (sem rollback). Se a chave vazar, o máximo que alguém faz é avançar a VPS para um commit da
+`main`.
 
 **1. Chave só de deploy (na VPS, como `devtrack`)**
 
@@ -243,7 +245,7 @@ Em **Actions → Deploy (Hostinger) → Run workflow**, rode na `main` e acompan
 ~/devtrack/deploy/hostinger/update.sh
 ```
 
-O script faz o `git pull`, `pnpm install`, `pnpm build`, aplica as migrations e roda o `pm2 reload`.
+O script avança para o topo da `main` (`git fetch` + `git merge --ff-only`), faz o `pnpm install`, `pnpm build`, aplica as migrations e roda o `pm2 reload`.
 Uma execução manual e a do GitHub esperam uma pela outra (trava em `/tmp/devtrack-update.lock`).
 Durante o `next build`, o site pode responder com erro por alguns segundos.
 

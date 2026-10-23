@@ -16,7 +16,7 @@ describe("019 sandbox real: a tabela de vereditos (research B6)", () => {
   });
 
   it("019/US1-6 saída sem fim → OUTPUT_LIMIT, cortada no limite", async () => {
-    const result = await runProgram("javascript", "for (;;) process.stdout.write('x'.repeat(1024));\n", ONE);
+    const result = await runProgram("javascript", "process.stdout.write('x'.repeat(10_000_000));\n", ONE);
     expect(verdicts(result)).toEqual(["OUTPUT_LIMIT"]);
     expect(result.compiled && Buffer.byteLength(result.cases[0]!.stdout)).toBeLessThanOrEqual(LIMITS.outputBytes);
   });
@@ -24,7 +24,7 @@ describe("019 sandbox real: a tabela de vereditos (research B6)", () => {
   it("019/US1-6 memória sem fim → MEMORY_LIMIT nas três linguagens", async () => {
     const programs = {
       python: "a = []\nwhile True:\n    a.append(bytearray(10_000_000))\n",
-      javascript: "const a = [];\nfor (;;) a.push(new Array(1_000_000).fill(1));\n",
+      javascript: "const a = [];\nfor (;;) a.push(Buffer.alloc(50_000_000, 1));\n",
       java: "import java.util.*;\npublic class Main { public static void main(String[] x) { List<long[]> a = new ArrayList<>(); while (true) a.add(new long[1_000_000]); } }\n",
     } as const;
     for (const [key, source] of Object.entries(programs)) {
