@@ -33,6 +33,7 @@ jobs:
       VPS_HOST: ${{ secrets.VPS_HOST || vars.VPS_HOST }}
       VPS_PORT: ${{ secrets.VPS_PORT || vars.VPS_PORT || '22' }}
       VPS_USER: ${{ secrets.VPS_USER || vars.VPS_USER }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Chave SSH e chave da VPS
         env:
@@ -51,9 +52,18 @@ jobs:
 
       - name: Rodar o update.sh na VPS
         # The key's forced command runs update.sh whatever is asked here.
-        run: >-
-          ssh -i ~/.ssh/deploy_key -p "$VPS_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
-          -o ServerAliveInterval=30 -o ServerAliveCountMax=6 "$VPS_USER@$VPS_HOST" deploy
+        run: |
+          [[ "$DEPLOY_SHA" =~ ^[a-fA-F0-9]{40}$ ]] || {
+            echo "::error::DEPLOY_SHA inválido."
+            exit 1
+          }
+
+          ssh -i ~/.ssh/deploy_key -p "$VPS_PORT" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=6 \
+            "$VPS_USER@$VPS_HOST" "deploy $DEPLOY_SHA"
 
       - name: Verificar o site e a API
         run: |
