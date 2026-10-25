@@ -105,6 +105,8 @@ hand-maintained.
 - No new npm dependency; the code-runner worker drives Docker through the `docker` CLI (`node:child_process`), gVisor `runsc` in production, three official images pinned by digest (019-exercise-code-runner)
 - PostgreSQL 17 — one migration: `programming_languages.execution`, `exercise_test_cases`, `code_runs` + `code_run_cases` (the queue, one pending run per student), `code_runner_heartbeats` (019-exercise-code-runner)
 - Recharts 3.10.1 in `apps/web`, only through `components/ui/chart.tsx` and the Indicadores charts of Operação de IA (006 amendment 2026-10-22)
+- No new dependency (020-student-feedback)
+- PostgreSQL 17 — one migration: tables `student_feedbacks` (UNIQUE per `submission_id`, update/delete guards) and `student_feedback_status_changes` (append-only), enums `student_feedback_category`/`student_feedback_status`, permissions `feedbacks.*` (020-student-feedback)
 
 ## Stack notes
 
@@ -384,9 +386,9 @@ the removal conditions are in `DEPENDENCIES.md`.
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 020-student-feedback: student feedback to the platform ADMIN — "Enviar feedback" dialog in the student layout (never on the focus page of exams and CONTROLLED works), category + 10–2 000 chars + origin path, idempotent by `submissionId`, 5 per student in 24 h; ADMIN list/filters/badge/detail with name and e-mail, status RECEIVED → IN_REVIEW → RESOLVED/ARCHIVED with append-only history; "Meus feedbacks" shows own status; no AI, no mail, text never in audit/logs, closed feedbacks purged after 24 months
 - 019-exercise-code-runner: Code Runner, first stage — teacher-typed test cases on exercise CODE questions; "Executar" runs the student's program (stdin/stdout, Java/Python/JavaScript) against the public cases in a separate worker with one hardened container per step (no network, gVisor in production); verdict per case, fixed output comparison, never points or grades; table queue + polling, kill switch, 10 runs/min, content purged after 24 h
 - 018-controlled-exams: exams — own Banco de Provas (manual or `exam-generator` L2 draft), applied as an always-CONTROLLED, help-free, attendance-gated EXAM with a per-student server timer (1–120 min, start window); occurrences (screen/fullscreen exits, clipboard, inactivity 30–60 s) give 3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time is left, or do not cancel); expired attempts settled on the next touch
-- 017-production-email: real e-mail in production — one outbox with retries for all six e-mails (fresh link per attempt, nothing of the e-mail stored), provider notices (`POST /mail/notices/:provider`, signature on the raw body, our own Message-ID links them) mark invitations "Não entregue", HTML + text templates without external resources or tracking, production config guard, deploy guide (Resend → SES)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
