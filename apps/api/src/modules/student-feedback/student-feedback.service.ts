@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { type CreateFeedbackRequest, FEEDBACK_DAILY_LIMIT, type StudentFeedback } from "@repo/contracts";
+import { type CreateFeedbackRequest, FEEDBACK_DAILY_LIMIT, type StudentFeedback, type StudentFeedbackPage } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
+import { afterCursor, decodeCursor, encodeCursor } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { rateLimited } from "../../platform/http/errors";
 import { AuditService } from "../audit/audit.service";
@@ -16,6 +17,8 @@ class OverLimit extends Error {
 /** The audit scope of a refusal (contracts/audit-events.md). */
 const RATE_SCOPE = "student-feedback";
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Keyset page size of "Meus feedbacks" (research J7). */
+const PAGE_SIZE = 50;
 
 /**
  * The student's feedback (020 US1, research J3, J4). Everything comes from the session and the server:
@@ -24,6 +27,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * `FEEDBACK_DAILY_LIMIT` new feedbacks in the 24 h before now, past which the API answers `429` with
  * `Retry-After` = seconds until the oldest of them turns 24 h old, and `student_feedback.rate_limited`
  * is recorded after the rollback. Neither the message nor the origin path reaches the audit or a log.
+ * The own list (US3) is scoped to the session student only, no enrollment needed, and writes no event.
  */
 @Injectable()
 export class StudentFeedbackService {
@@ -87,6 +91,22 @@ export class StudentFeedbackService {
       if (error instanceof OverLimit) return this.overLimit(studentId, error, requestId);
       throw error;
     }
+  }
+
+  /** "Meus feedbacks": the student's own, newest first, `(created_at DESC, id DESC)`. */
+  async listMine(studentId: string, cursor: string | undefined): Promise<StudentFeedbackPage> {
+    const after = cursor ? decodeCursor(cursor) : null;
+    const rows = await this.prisma.studentFeedback.findMany({
+      where: { studentId, ...(after ? { AND: [afterCursor(after)] } : {}) },
+      select: STUDENT_FEEDBACK_SELECT,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: PAGE_SIZE + 1,
+    });
+    const page = rows.slice(0, PAGE_SIZE);
+    return {
+      items: page.map(toStudentFeedback),
+      nextCursor: rows.length > PAGE_SIZE ? encodeCursor(page.at(-1)!) : null,
+    };
   }
 
   /** 429 with `Retry-After`, auditing `student_feedback.rate_limited` once the refused create is rolled back. */

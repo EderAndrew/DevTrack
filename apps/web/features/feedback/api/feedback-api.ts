@@ -6,6 +6,7 @@ import type {
   FeedbackSummary,
   ListAdminFeedbacksQuery,
   StudentFeedback,
+  StudentFeedbackPage,
 } from "@repo/contracts";
 import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
 
@@ -13,6 +14,9 @@ import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
 export const feedbackApi = {
   /** 201 for a new feedback; the same `submissionId` answers the stored one (200). */
   send: (body: CreateFeedbackRequest) => apiClient.post<StudentFeedback>("/me/feedbacks", body),
+  /** "Meus feedbacks": newest first, 50 per page. */
+  listMine: (cursor: string | null) =>
+    apiClient.get<StudentFeedbackPage>(cursor ? `/me/feedbacks?${new URLSearchParams({ cursor }).toString()}` : "/me/feedbacks"),
 };
 
 const search = (params: ListAdminFeedbacksQuery) => {

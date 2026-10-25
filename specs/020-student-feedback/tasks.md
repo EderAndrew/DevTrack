@@ -248,22 +248,22 @@ conferir a lista do aluno.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T018 [P] [US3] `apps/api/test/integration/020-us3-own.spec.ts`: `020/US3-1` (só os próprios,
+- [X] T018 [P] [US3] `apps/api/test/integration/020-us3-own.spec.ts`: `020/US3-1` (só os próprios,
   mais recentes primeiro, páginas de 50), `020/US3-2` (situação `RESOLVED` visível; resposta sem
   histórico, ADMIN, `originPath`, `statusChangedAt` ou `submissionId` — comparação exata com as chaves
   de `StudentFeedbackSchema`), `020/US3-3` (dois alunos: cada um vê só os seus; nenhuma rota do aluno
   aceita o id de um feedback); um aluno removido de todas as turmas também vê os seus.
-- [ ] T019 [P] [US3] Web, testes primeiro em `apps/web/features/feedback/components/my-feedbacks.test.tsx`
+- [X] T019 [P] [US3] Web, testes primeiro em `apps/web/features/feedback/components/my-feedbacks.test.tsx`
   (`020/US3-1`, `020/US3-2`): lista, situação em palavras, vazio com o botão, "Carregar mais",
   mensagem como texto, `vitest-axe`; item "Meus feedbacks" no menu do aluno com
   `feedbacks.proprios.listar`.
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] `listMine(studentId, cursor)` em `student-feedback.service.ts` e `GET /me/feedbacks`
+- [X] T020 [US3] `listMine(studentId, cursor)` em `student-feedback.service.ts` e `GET /me/feedbacks`
   (`feedbacks.proprios.listar`) em `student-feedback.controller.ts`, com a rota no catálogo, `MATRIX` e
   `route-declarations.spec.ts`; T018 verde.
-- [ ] T021 [US3] Web: `apps/web/features/feedback/{hooks/use-my-feedbacks.ts,components/my-feedbacks.tsx}`,
+- [X] T021 [US3] Web: `apps/web/features/feedback/{hooks/use-my-feedbacks.ts,components/my-feedbacks.tsx}`,
   página `apps/web/app/(student)/meus-feedbacks/page.tsx`, item "Meus feedbacks" (`MessagesSquare`)
   em `student-layout.tsx` e a área em `lib/navigation.ts`; T019 verde. `020/US3` sai de `pending`.
 

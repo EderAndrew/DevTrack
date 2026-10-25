@@ -20,6 +20,7 @@ describe("proxy (UX only)", () => {
       "/painel",
       "/minhas-atividades/:path*",
       "/historico",
+      "/meus-feedbacks",
     ]);
   });
 

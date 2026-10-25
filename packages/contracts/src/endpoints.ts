@@ -97,6 +97,8 @@ import {
   CreateFeedbackRequestSchema,
   FeedbackSummarySchema,
   ListAdminFeedbacksQuerySchema,
+  ListMyFeedbacksQuerySchema,
+  StudentFeedbackPageSchema,
   StudentFeedbackSchema,
 } from "./feedback/feedback.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
@@ -1525,6 +1527,14 @@ export const endpoints = {
     body: CreateFeedbackRequestSchema,
     response: StudentFeedbackSchema,
     status: 201,
+  },
+  // 020/US3 — the student follows their own feedbacks.
+  "feedback.listMine": {
+    method: "GET",
+    path: "/me/feedbacks",
+    query: ListMyFeedbacksQuerySchema,
+    response: StudentFeedbackPageSchema,
+    status: 200,
   },
   // 020/US2 — the ADMIN reads and handles the feedbacks (contracts/http-api.md, research J5–J7).
   "feedback.adminList": {

@@ -27,6 +27,9 @@ export const startPathFor = (permissions: readonly string[]): string =>
       ? DASHBOARD_PATH
       : HOME_PATH;
 
+/** "Meus feedbacks": the feedbacks the student sent and the status of each (020 US3). */
+export const MY_FEEDBACKS_PATH = "/meus-feedbacks";
+
 /** "Minhas turmas" of a student (003 US7); an accepted class invitation lands here with `?bem-vindo=1`. */
 export const MY_CLASSES_PATH = "/minhas-turmas";
 
@@ -95,6 +98,7 @@ export const AREAS = [
   { prefix: DASHBOARD_PATH, name: "Painel" },
   { prefix: MY_ACTIVITIES_PATH, name: "Minhas atividades" },
   { prefix: HISTORY_PATH, name: "Histórico" },
+  { prefix: MY_FEEDBACKS_PATH, name: "Meus feedbacks" },
 ] as const;
 
 /** Name of the area a path belongs to (the prefix itself or a page below it), or `null`. */

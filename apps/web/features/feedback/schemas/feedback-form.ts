@@ -14,6 +14,10 @@ export const SENDING = "Enviando…";
 export const FEEDBACK_SENT = "Feedback enviado. Obrigado!";
 export const SEND_FAILED = "Não foi possível enviar agora. Tente de novo.";
 
+// "Meus feedbacks" (020 contracts/web-ui.md, "Student — page").
+export const MY_FEEDBACKS_TITLE = "Meus feedbacks";
+export const NO_OWN_FEEDBACKS = "Você ainda não enviou feedbacks.";
+
 export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   PROBLEM: "Problema",
   SUGGESTION: "Sugestão",

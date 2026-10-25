@@ -133,6 +133,25 @@ describe("005/US5-1 layout do aluno", () => {
     expect(screen.queryByRole("button", { name: "Enviar feedback" })).toBeNull();
   });
 
+  it("020/US3-1 \"Meus feedbacks\" no menu com feedbacks.proprios.listar e marcado na própria página", () => {
+    navigation.pathname = "/meus-feedbacks";
+    renderLayout({ me: me([...STUDENT, "feedbacks.proprios.listar"]) });
+    const link = within(studentMenu()).getByRole("link", { name: "Meus feedbacks" });
+    expect(link.getAttribute("href")).toBe("/meus-feedbacks");
+    expect(link.getAttribute("aria-current")).toBe("page");
+    expect(within(studentMenu()).getAllByRole("link").map((item) => item.textContent)).toEqual([
+      "Painel",
+      "Minhas atividades",
+      "Histórico",
+      "Minhas turmas",
+      "Meus feedbacks",
+      "Meu perfil",
+    ]);
+    renderLayout({ me: me(STUDENT) });
+    const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
+    expect(within(menus.at(-1)!).queryByRole("link", { name: "Meus feedbacks" })).toBeNull();
+  });
+
   it("conteúdo na largura de leitura", () => {
     renderLayout();
     expect(screen.getByRole("main").getAttribute("class")).toMatch(/\bmax-w-240\b/);

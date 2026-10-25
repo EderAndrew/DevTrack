@@ -22,6 +22,11 @@ const calendarDate = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", time
 /** A calendar date of the contract ("YYYY-MM-DD", no time zone) as "dd/mm/aaaa". */
 export const formatDate = (isoDate: string) => calendarDate.format(new Date(`${isoDate}T00:00:00Z`));
 
+const mediumDate = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "America/Sao_Paulo" });
+
+/** The day of an instant of the contract in Brasília, "25 de out. de 2026" (020 "Meus feedbacks"). */
+export const formatMediumDate = (iso: string) => mediumDate.format(new Date(iso));
+
 const longDay = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
 

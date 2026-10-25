@@ -345,6 +345,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me/code-runs/:runId", access: "atividades.proprias.executar" },
   // 020 — the student's feedback (contracts/permissions.md).
   { method: "POST", path: "/me/feedbacks", access: "feedbacks.enviar" },
+  { method: "GET", path: "/me/feedbacks", access: "feedbacks.proprios.listar" },
   { method: "GET", path: "/feedbacks", access: "feedbacks.visualizar" },
   { method: "GET", path: "/feedbacks/summary", access: "feedbacks.visualizar" },
   { method: "GET", path: "/feedbacks/:id", access: "feedbacks.visualizar" },

@@ -209,6 +209,7 @@ describe("route access declarations", () => {
         "GET /me/code-runs/:runId",
         // 020
         "POST /me/feedbacks",
+        "GET /me/feedbacks",
         "GET /feedbacks",
         "GET /feedbacks/summary",
         "GET /feedbacks/:id",

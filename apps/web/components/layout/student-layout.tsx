@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeView } from "@repo/contracts";
-import { BookOpen, History, LayoutDashboard, ListTodo, type LucideIcon, UserRound } from "lucide-react";
+import { BookOpen, History, LayoutDashboard, ListTodo, type LucideIcon, MessagesSquare, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { DASHBOARD_PATH, HISTORY_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH } from "@/lib/navigation";
+import { DASHBOARD_PATH, HISTORY_PATH, HOME_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH, MY_FEEDBACKS_PATH } from "@/lib/navigation";
 import { Topbar } from "./topbar";
 
 /** Up to 960 px; a page whose root has `data-layout="wide"` (the dashboard) takes the whole width, keeping the `--gutter`. */
@@ -48,7 +48,7 @@ interface StudentItem {
 /**
  * Frame of the student screens (005 contracts/layouts.md "StudentLayout", amended 2026-10-03): the
  * same side menu as the AppShell (collapsible to icons; a panel on narrow screens) with only the
- * student's items — Painel, Minhas atividades and Histórico (012), Minhas turmas and Meu perfil,
+ * student's items — Painel, Minhas atividades and Histórico (012), Minhas turmas, Meus feedbacks (020) and Meu perfil,
  * each behind the permission its page needs (UX only; the API authorizes) — the Topbar, and the
  * content at reading width. No teacher or administration item. "Enviar feedback" (020) sits at the
  * bottom of the menu; the focus layout of exams and CONTROLLED works has no menu, so no feedback.
@@ -65,6 +65,7 @@ export function StudentLayout({ me, defaultOpen = true, preview = false, feedbac
         ]
       : []),
     ...(can("turmas.proprias.listar") ? [{ href: MY_CLASSES_PATH, label: "Minhas turmas", icon: BookOpen }] : []),
+    ...(can("feedbacks.proprios.listar") ? [{ href: MY_FEEDBACKS_PATH, label: "Meus feedbacks", icon: MessagesSquare }] : []),
     { href: HOME_PATH, label: "Meu perfil", icon: UserRound },
   ];
 

@@ -1,5 +1,12 @@
-import { Body, Controller, Post, Res } from "@nestjs/common";
-import { type CreateFeedbackRequest, CreateFeedbackRequestSchema, type StudentFeedback } from "@repo/contracts";
+import { Body, Controller, Get, Post, Query, Res } from "@nestjs/common";
+import {
+  type CreateFeedbackRequest,
+  CreateFeedbackRequestSchema,
+  type ListMyFeedbacksQuery,
+  ListMyFeedbacksQuerySchema,
+  type StudentFeedback,
+  type StudentFeedbackPage,
+} from "@repo/contracts";
 import type { Response } from "express";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
@@ -22,5 +29,12 @@ export class StudentFeedbackController {
     const { feedback, created } = await this.feedbacks.create(ctx.auth!.userId, body, ctx.requestId);
     res.status(created ? 201 : 200);
     return feedback;
+  }
+
+  /** "Meus feedbacks": only the session student's, newest first, 50 per page. */
+  @Get()
+  @RequirePermissions("feedbacks.proprios.listar")
+  listMine(@Query(new ZodValidationPipe(ListMyFeedbacksQuerySchema)) query: ListMyFeedbacksQuery, @Ctx() ctx: RequestContext): Promise<StudentFeedbackPage> {
+    return this.feedbacks.listMine(ctx.auth!.userId, query.cursor);
   }
 }

@@ -45,7 +45,7 @@ describe("020/SC-003 isolamento dos feedbacks", () => {
     client.get(`/api/feedbacks/${id}`),
     client.post(`/api/feedbacks/${id}/status`, { status: "IN_REVIEW" }),
   ];
-  const studentRoutes = (client: Client) => [client.post("/api/me/feedbacks", feedbackBody())];
+  const studentRoutes = (client: Client) => [client.post("/api/me/feedbacks", feedbackBody()), client.get("/api/me/feedbacks")];
 
   it("020/SC-003 o professor da turma do aluno e o MANAGER → 403 em todas as rotas de feedback", async () => {
     for (const client of [classTeacher, manager]) {
@@ -64,9 +64,9 @@ describe("020/SC-003 isolamento dos feedbacks", () => {
     expect(await t.prisma.studentFeedbackStatusChange.count()).toBe(0);
   });
 
-  it("020/FR-011 o ADMIN sem papel de aluno → 403 ao enviar", async () => {
+  it("020/FR-011 o ADMIN sem papel de aluno → 403 ao enviar e ao listar os próprios", async () => {
     const responses = await Promise.all(studentRoutes(admin));
-    expect(responses.map((res) => res.status)).toEqual([403]);
+    expect(responses.map((res) => res.status)).toEqual([403, 403]);
     expect(await t.prisma.studentFeedback.count()).toBe(1);
   });
 });
