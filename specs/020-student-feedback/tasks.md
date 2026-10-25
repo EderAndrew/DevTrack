@@ -53,12 +53,12 @@ description: "Task list for 020 — Feedback dos Alunos: o aluno envia um feedba
   `deploy/hostinger/update.sh`, para um commit que não muda arquivos do web não reaproveitar o build
   anterior com o rótulo antigo. Conferido com `turbo run build --dry=json`: o hash de `web#build`
   muda com `APP_COMMIT`.
-- [ ] T002 [P] Criar `packages/contracts/src/feedback/{enums,feedback}.ts` (contracts/http-api.md):
+- [X] T002 [P] Criar `packages/contracts/src/feedback/{enums,feedback}.ts` (contracts/http-api.md):
   `FeedbackCategorySchema` (`PROBLEM`/`SUGGESTION`/`PRAISE`/`OTHER`), `FeedbackStatusSchema`
   (`RECEIVED`/`IN_REVIEW`/`RESOLVED`/`ARCHIVED`), `CreateFeedbackRequestSchema` (estrito;
   `submissionId` uuid; `message` aparada, 10–2 000 code points por `refine` com `[...value].length`,
   sem `\u0000`; `originPath` por `OriginPathSchema`, opcional/nulo, começa com `/`, até 200 caracteres
-  de `[A-Za-z0-9/_.-]`, research J2), `StudentFeedbackSchema`, `StudentFeedbackPageSchema`, `AdminFeedbackListItemSchema`,
+  de `[A-Za-z0-9/_.-]`, sem `//` inicial nem segmento `..`, research J2), `StudentFeedbackSchema`, `StudentFeedbackPageSchema`, `AdminFeedbackListItemSchema`,
   `AdminFeedbackPageSchema`, `AdminFeedbackSchema` (com `history`), `FeedbackSummarySchema`,
   `ListAdminFeedbacksQuerySchema` (`status`, `category`, `cursor` opcionais),
   `ChangeFeedbackStatusRequestSchema` (sem `RECEIVED`); constantes `FEEDBACK_MESSAGE_MIN = 10`,

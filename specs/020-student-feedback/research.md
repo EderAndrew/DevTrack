@@ -31,7 +31,9 @@ CONTROLLED works, and the amendment was undone.)
 ## J2 — The origin path: pathname only, validated in the contract, refused when invalid
 
 **Decision**: `OriginPathSchema` in the contract: optional/nullable string that starts with `/`, has
-at most 200 characters and uses only `[A-Za-z0-9/_.-]` (so no query, fragment, space or `%`). An
+at most 200 characters and uses only `[A-Za-z0-9/_.-]` (so no query, fragment, space or `%`); it
+never starts with `//` (a protocol-relative URL) and has no `..` segment, so the value can never point
+outside the portal even if a later screen turns it into a link (security audit, 2026-10-25). An
 invalid value is a `400` like any other invalid field (constitution I: "rejeitados quando
 inválidos"). The web sends `window.location.pathname` only when it passes the same schema
 (`OriginPathSchema.safeParse`), otherwise `null`, so the portal never loses the student's text to its

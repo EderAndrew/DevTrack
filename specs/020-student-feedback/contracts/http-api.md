@@ -17,7 +17,7 @@ need `Origin` and `Content-Type: application/json`. Bodies are strict: unknown f
   submissionId: string;               // uuid, generated when the dialog opens
   category: "PROBLEM" | "SUGGESTION" | "PRAISE" | "OTHER";
   message: string;                    // trimmed; 10–2 000 code points; no NUL (J9)
-  originPath?: string | null;         // pathname only: starts with "/", ≤ 200 chars of [A-Za-z0-9/_.-]; otherwise 400 (J2)
+  originPath?: string | null;         // pathname only: starts with "/" but not "//", ≤ 200 chars of [A-Za-z0-9/_.-], no ".." segment; otherwise 400 (J2)
 }
 ```
 

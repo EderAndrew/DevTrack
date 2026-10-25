@@ -18,7 +18,7 @@ One migration (`<ts>_student_feedback`): two enums, two tables, triggers, the pe
 | `submission_id` | uuid NOT NULL | from the client (J3); `UNIQUE (student_id, submission_id)` |
 | `category` | `student_feedback_category` NOT NULL | |
 | `message` | text NOT NULL | trimmed; `CHECK (char_length(message) BETWEEN 10 AND 2000)` |
-| `origin_path` | text NULL | `CHECK (origin_path IS NULL OR (char_length(origin_path) <= 200 AND origin_path ~ '^/[A-Za-z0-9/_.-]*$'))` (J2) |
+| `origin_path` | text NULL | `CHECK (origin_path IS NULL OR (char_length(origin_path) <= 200 AND origin_path ~ '^/[A-Za-z0-9/_.-]*$' AND origin_path !~ '^//' AND origin_path !~ '(^|/)\.\.(/|$)'))` (J2) |
 | `status` | `student_feedback_status` NOT NULL | default `RECEIVED` |
 | `created_at` | timestamptz NOT NULL | default `now()` (server clock) |
 | `status_changed_at` | timestamptz NOT NULL | default `now()`; set on every status change; the retention age (J8) |
