@@ -98,6 +98,16 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   words live in `features/code-run/schemas/code-run.ts`; the convention arrives as a key. "Executar" never saves or
   concludes. The bank's "Casos de teste" section is `features/exercises/components/exercise-test-cases.tsx`, with
   "Os alunos poderão executar o código." / "Sem execução nesta linguagem." next to the language.
+- Student feedback (020): `features/feedback` holds `FeedbackDialog` (behind `SendFeedbackButton` at the bottom of the
+  student menu in `components/layout/student-layout.tsx`, only with `feedbacks.enviar`; the `(focus)` layout has no
+  menu, so never during an exam or a CONTROLLED work): React Hook Form with the contract schema, a `submissionId` from
+  `crypto.randomUUID()` per opening (kept on a retry after a network failure), `originPath` = `location.pathname` only
+  when it passes `OriginPathSchema` (else `null`), the counter "N de 2.000" in code points, the `429` wait from
+  `Retry-After` with the text kept. `MyFeedbacks` (`/meus-feedbacks`), and for the ADMIN `AdminFeedbackList`
+  (`/admin/feedbacks`, filters in the URL `?situacao=&categoria=` as slugs, "Carregar mais") and `AdminFeedbackDetail`
+  (only the buttons of the allowed transitions; a `409` refetches). The menu item "Feedbacks" (`feedbacks.visualizar`)
+  carries the RECEIVED badge, named "Feedbacks, N novos", refetched on focus and invalidation, never polled. Words in
+  `features/feedback/schemas/`; the message is always text.
 
 ## Guards
 
@@ -106,10 +116,11 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
   orientation and its example on both screens; since 016 the note of "Outro" on the room panel, in the review, on
   the paused notice and in the history; since 018 the Banco de Provas form, the student's exam and the teacher's
-  exam room; since 019 the run's output, stderr, compiler message and public cases), and no `dangerouslySetInnerHTML` in the 012
+  exam room; since 019 the run's output, stderr, compiler message and public cases; since 020 the feedback message and
+  the student's name in "Meus feedbacks" and the ADMIN's list and detail), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
-  `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features or
-  `features/code-run`.
+  `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features,
+  `features/code-run` or `features/feedback`.
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and

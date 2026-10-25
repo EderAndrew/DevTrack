@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–019 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–020 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -52,8 +52,13 @@ new feature through `/speckit-specify`.
   (`apps/api/src/code-runner/`, `dist/code-runner/main.js`) runs against the public cases, one hardened
   Docker container per step (gVisor `runsc` in production, deploy guide `docs/deploy/code-runner.md`);
   a verdict per case, never points or grades; content purged after 24 h (job `code-run-content`).
+- 020 student feedback to the platform ADMIN: "Enviar feedback" in the student layout (never on the focus
+  page), category + 10–2 000 code points + origin path, idempotent by `submissionId`, 5 per student in
+  24 h; the ADMIN's "Feedbacks" (list, filters, menu badge of RECEIVED, detail, status with append-only
+  history) and the student's "Meus feedbacks"; closed feedbacks purged after 24 months (job
+  `student-feedback`).
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–019 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–020 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -227,6 +232,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   processes, keeps `code-runs` and the worker away from grading, points, the ranking and the submission,
   keeps programs, inputs and outputs out of their audit and log calls, and lets them name only profile
   keys (`java`/`python`/`javascript`), never a catalog language.
+- `apps/api/test/feedback-boundary.spec.ts` (020) keeps `modules/student-feedback` (API) and
+  `features/feedback` (web) away from AI, AI help, mail, the activities, the banks, the ranking and
+  `code-runs`, and keeps the message and the origin path out of the `student_feedback.*` audit types and
+  the module's log calls.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -256,7 +265,8 @@ the removal conditions are in `DEPENDENCIES.md`.
   provider param — the notice body stays the provider's, parsed in the API adapters; the exam's
   fields of the activity, attempt and integrity shapes live in `activities` and
   `attempt-integrity`, not `exams`; `code-runs` holds the run, and the question's `execution` lives in
-  `activities`, with the program convention as a key, never text), with types derived through `z.infer`
+  `activities`, with the program convention as a key, never text; `feedback` holds both the student's
+and the ADMIN's shapes, the student's with no history, origin path or `submissionId`), with types derived through `z.infer`
   (`XxxSchema` / `Xxx`). `endpoints.ts` catalogs every route with its request and response
   schemas. Responses describe the JSON on the wire (dates are ISO strings). The package holds no
   Prisma, service or UI-state types and no user-facing messages. One Zod version comes from the
@@ -381,6 +391,21 @@ the removal conditions are in `DEPENDENCIES.md`.
   input or output; the job `code-run-content` empties code and outputs 24 h after the end (rows stay,
   triggers refuse any other change). Languages with execution are the catalog column `execution`;
   code knows only the profile keys. Output is rendered as text in `CodeBlock`, never HTML.
+- Student feedback (020): the feedbacks belong to the platform, read and handled only with
+  `feedbacks.visualizar`/`feedbacks.alterar_situacao` (ADMIN); no teacher (not even the student's) or
+  MANAGER sees them (403). The student's routes take only their own (`/me/feedbacks`, no id of a
+  feedback). The body is strict: `submissionId` (idempotency, `UNIQUE (student_id, submission_id)`: the
+  same id returns the first feedback, `200`), category, message trimmed and counted in code points
+  (10–2 000, no NUL) and an `originPath` that is only a portal path (no query, fragment or `..`; the web
+  sends `null` otherwise); never `studentId`, `status` or a time. 5 per student in 24 h by the injected
+  clock under `pg_advisory_xact_lock` (`429` with `Retry-After`, `student_feedback.rate_limited` in its own
+  transaction). The text is immutable (trigger); the status goes RECEIVED → IN_REVIEW/RESOLVED/ARCHIVED,
+  IN_REVIEW → RESOLVED/ARCHIVED, RESOLVED/ARCHIVED → IN_REVIEW (pure `feedback-state.ts` and a trigger;
+  else `409 INVALID_STATE_TRANSITION` with no history or event), under `SELECT … FOR UPDATE`, one history
+  row per applied change. Only the job `student-feedback` deletes (`SET LOCAL devtrack.feedback_purge =
+  'on'`, RESOLVED/ARCHIVED 24 months after `status_changed_at`). Student and ADMIN shapes are allowlists
+  (`views/`); the text is rendered as text, never in audit or logs. The badge refetches on focus and
+  invalidation, never polling. No AI, mail, grade or points.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

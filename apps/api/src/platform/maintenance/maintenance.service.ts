@@ -19,6 +19,7 @@ export const MAINTENANCE_JOB_NAMES = [
   "ai-records",
   "code-run-content",
   "mail-records",
+  "student-feedback",
 ] as const;
 
 export type MaintenanceJobName = (typeof MAINTENANCE_JOB_NAMES)[number];

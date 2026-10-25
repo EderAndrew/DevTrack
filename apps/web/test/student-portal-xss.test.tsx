@@ -40,6 +40,10 @@ import { CodeBlock } from "@/components/ui/code/code-block";
 import { CodeRunResult } from "@/features/code-run/components/code-run-result";
 import { codeRun } from "@/features/code-run/components/test-fixtures";
 import { CodeEditor } from "@/components/ui/code/code-editor";
+import { AdminFeedbackDetail } from "@/features/feedback/components/admin-feedback-detail";
+import { AdminFeedbackList } from "@/features/feedback/components/admin-feedback-list";
+import { MyFeedbacks } from "@/features/feedback/components/my-feedbacks";
+import { Toaster } from "@/components/ui/toast";
 import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
 
@@ -68,6 +72,8 @@ const SCANNED = [
   "features/exam-session",
   // 019: the Code Runner's panel and result.
   "features/code-run",
+  // 020: the student's feedback dialog and list, the ADMIN's list and detail.
+  "features/feedback",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -87,7 +93,7 @@ function filesUnder(dir: string): string[] {
 describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código, nos bancos (014) e no Code Runner (019)", () => {
+  it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código, nos bancos (014), no Code Runner (019) e nos feedbacks (020)", () => {
     const offenders = SCANNED.flatMap((dir) => filesUnder(join(WEB_ROOT, dir)))
       .filter((file) => !/\.test\.tsx?$/.test(file))
       .filter((file) => readFileSync(file, "utf8").includes("dangerouslySetInnerHTML"));
@@ -481,5 +487,70 @@ describe("019/FR-021 resultado da execução como texto", () => {
     const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: "1", expectedOutput: "2" }]} sourceCode={SCRIPT} />);
     expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(1);
     expect(container.querySelector("script, img")).toBeNull();
+  });
+});
+
+/**
+ * 020/FR-013, 020/SC-007: a feedback's message (and the student's name) holding HTML and a URL renders
+ * as text on the three screens that show it — "Meus feedbacks", the ADMIN's list and detail: no
+ * element is created from it and the URL never becomes a link.
+ */
+describe("020/FR-013 feedback como texto", () => {
+  const URL_TEXT = "https://evil.example/roubar";
+  const MESSAGE = `${SCRIPT} veja ${URL_TEXT}`;
+  const ID = "aaaaaaaa-0000-4000-8000-000000000001";
+  const STUDENT = { id: "bbbbbbbb-0000-4000-8000-000000000001", name: SCRIPT };
+  const CREATED_AT = "2026-10-25T12:00:00.000Z";
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const noMarkup = (container: HTMLElement) => {
+    expect(container.querySelector("script, img")).toBeNull();
+    expect(container.querySelector(`a[href*="evil.example"]`)).toBeNull();
+  };
+
+  it("020/FR-013 \"Meus feedbacks\": a mensagem com HTML e URL aparece como texto", async () => {
+    const page = { items: [{ id: ID, category: "PROBLEM", message: MESSAGE, status: "RECEIVED", createdAt: CREATED_AT }], nextCursor: null };
+    vi.stubGlobal("fetch", vi.fn(async () => json(200, page)));
+    const { container } = renderWithProviders(
+      <Toaster>
+        <MyFeedbacks />
+      </Toaster>,
+    );
+    expect((await screen.findByText(MESSAGE)).textContent).toBe(MESSAGE);
+    noMarkup(container);
+  });
+
+  it("020/FR-013 lista do ADMIN: o trecho e o nome do aluno com HTML e URL aparecem como texto", async () => {
+    const page = { items: [{ id: ID, category: "PROBLEM", status: "RECEIVED", excerpt: MESSAGE, student: STUDENT, createdAt: CREATED_AT }], nextCursor: null };
+    vi.stubGlobal("fetch", vi.fn(async () => json(200, page)));
+    const { container } = renderWithProviders(<AdminFeedbackList initialFilters={{}} />);
+    expect((await screen.findByText(MESSAGE)).textContent).toBe(MESSAGE);
+    expect(screen.getByText(SCRIPT)).toBeTruthy();
+    noMarkup(container);
+  });
+
+  it("020/FR-013 detalhe do ADMIN: a mensagem, o nome e a tela de origem aparecem como texto", async () => {
+    const detail = {
+      id: ID,
+      category: "PROBLEM",
+      status: "RECEIVED",
+      message: MESSAGE,
+      originPath: "/painel",
+      student: { ...STUDENT, email: "ana@exemplo.com" },
+      createdAt: CREATED_AT,
+      statusChangedAt: CREATED_AT,
+      history: [],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => json(200, detail)));
+    const { container } = renderWithProviders(
+      <Toaster>
+        <AdminFeedbackDetail id={ID} canChange={false} />
+      </Toaster>,
+    );
+    expect((await screen.findByText(MESSAGE)).textContent).toBe(MESSAGE);
+    // The student's name, next to the e-mail, also as text.
+    expect(screen.getByText(`${SCRIPT} · ana@exemplo.com`)).toBeTruthy();
+    noMarkup(container);
   });
 });

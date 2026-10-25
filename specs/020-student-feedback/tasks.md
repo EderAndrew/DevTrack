@@ -273,7 +273,7 @@ conferir a lista do aluno.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T022 Retenção e auditoria (`020/FR-015`, `020/SC-004`): job `student-feedback` em
+- [X] T022 Retenção e auditoria (`020/FR-015`, `020/SC-004`): job `student-feedback` em
   `apps/api/src/modules/student-feedback/feedback-retention.job.ts`, registrado em
   `MAINTENANCE_JOB_NAMES` (contracts/maintenance-jobs.md da 001 atualizado), lotes de 1 000 com
   `SET LOCAL devtrack.feedback_purge = 'on'`, logs só com o nome e a contagem;
@@ -281,14 +281,14 @@ conferir a lista do aluno.
   + 1 dia apagados com o histórico; de 24 meses − 1 dia mantidos; `RECEIVED`/`IN_REVIEW` antigos
   nunca); `020-audit.spec.ts` + `secret-leak-scan.spec.ts` com `MARCADOR-FEEDBACK-020` na mensagem e
   na tela de origem, fora de auditoria e logs; `audit-coverage.spec.ts` verde.
-- [ ] T023 [P] Segurança restante e E2E: `apps/web/test/student-portal-xss.test.tsx` (ou o guarda XSS
+- [X] T023 [P] Segurança restante e E2E: `apps/web/test/student-portal-xss.test.tsx` (ou o guarda XSS
   equivalente) com uma mensagem contendo HTML e URL nas três telas; `features/feedback` na lista sem
   `dangerouslySetInnerHTML`; `020-performance.spec.ts` (criar p95 < 150 ms, listas e detalhe p95 < 100
   ms); E2E `apps/web/e2e/student-feedback.spec.ts` (`020/SC-001`, `020/SC-002`, `020/SC-006`: aluno
   envia do Painel pelo teclado em ≤ 3 interações após digitar, vê em "Meus feedbacks"; a página de
   um exercício tem o botão e a tentativa de um trabalho CONTROLLED não tem; ADMIN vê o contador, filtra, abre, resolve; o aluno vê "Resolvido") — a
   redefinição do banco E2E pede consentimento do usuário.
-- [ ] T024 Documentação e fechamento: `CLAUDE.md` (Project state com a 020, regra fácil de errar do
+- [X] T024 Documentação e fechamento: `CLAUDE.md` (Project state com a 020, regra fácil de errar do
   feedback, contrato `feedback`, guarda `feedback-boundary`), `apps/api/CLAUDE.md` (módulo, helper,
   suítes), `apps/web/CLAUDE.md` (`features/feedback`), `README.md` (linha da spec 020); rodar o
   `quickstart.md` de ponta a ponta e `pnpm lint && pnpm check-types && pnpm test`; `pending` do

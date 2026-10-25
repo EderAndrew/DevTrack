@@ -225,10 +225,11 @@ export function AppSidebar({ me }: AppSidebarProps) {
                         href={FEEDBACKS_AREA.href}
                         className={LINK}
                         aria-current={pathname === FEEDBACKS_AREA.href ? "page" : undefined}
+                        // An explicit name: a hidden ", N novos" span reads "Feedbacks , N novos" in Chrome.
+                        aria-label={received > 0 ? `${FEEDBACKS_AREA.label}, ${unreadLabel(received)}` : undefined}
                       >
                         <MessagesSquare aria-hidden="true" />
                         <span>{FEEDBACKS_AREA.label}</span>
-                        {received > 0 ? <span className="sr-only">, {unreadLabel(received)}</span> : null}
                       </Link>
                     </SidebarMenuButton>
                     {received > 0 ? <SidebarMenuBadge aria-hidden="true">{received}</SidebarMenuBadge> : null}

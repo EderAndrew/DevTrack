@@ -335,6 +335,19 @@ invariance of 013 points (SC-004), retention (`code-run-content` with a `FixedCl
 `pnpm --filter api test:sandbox` runs `test/sandbox/019-{languages,verdicts,hostile,timing}` against the real
 `DockerSandbox` (`runc`, the pinned images), never part of `pnpm test`. The journey runs executed, compilation-error,
 failed and rate-limited runs whose program, case, output, stderr and compiler message carry `MARCADOR-CODIGO-019`.
+Student feedback (020): `modules/student-feedback` holds `StudentFeedbackService` (`create` under
+`pg_advisory_xact_lock(hashtext('student-feedback'), hashtext(studentId))`: an existing `submissionId` returns the first
+feedback, then the 24 h count by the injected `Clock`, `INSERT … ON CONFLICT DO NOTHING`; the limit's refusal rolls back
+and writes `student_feedback.rate_limited` in its own transaction; `listMine`), `AdminFeedbackService` (keyset list of
+50 on `(created_at DESC, id DESC)`, `summary`, `detail`, `changeStatus` under `FOR UPDATE` with the pure
+`feedback-state.ts`), `views/` (the student's and the ADMIN's allowlists, `excerpt.ts` cuts 140 code points), and the
+maintenance job `feedback-retention.job.ts`. The text columns are immutable and only the job deletes (triggers; a test
+that deletes by hand runs `SET LOCAL devtrack.feedback_purge = 'on'` in the same transaction, as `resetDb` does). Tests
+use `test/helpers/feedback.ts` (`feedbackBody`, `sendFeedback`); a suite that sends more than 5 moves its `FixedClock` or
+uses more students. Suites: `020-schema`, `020-us1-send` … `020-us3-own`, and in `test/security/` isolation (TEACHER,
+MANAGER, roles), concurrency (same `submissionId`, the limit, two ADMINs), audit (`MARCADOR-FEEDBACK-020` out of audit and
+logs, SC-004), retention (`student-feedback` with a `FixedClock`) and performance; the journey sends, passes the limit
+and changes a status with `MARCADOR-FEEDBACK-020`/`MARCADOR-TELA-020`.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -368,7 +381,8 @@ performance; read the feature's files for what each covers. What they need from 
   `openrouter.ai` only in the adapter, nothing of OpenRouter in the web); no concrete model id outside
   `definitions/model-catalog.ts` (009).
 - Maintenance job `mail-records` (017) purges with `SET LOCAL devtrack.mail_purge = 'on'`; `code-run-content` (019)
-  empties final runs (500 per transaction) instead of deleting them.
+  empties final runs (500 per transaction) instead of deleting them; `student-feedback` (020) deletes closed feedbacks
+  with `SET LOCAL devtrack.feedback_purge = 'on'`, their history in cascade.
 
 ## Modules (moved from the root CLAUDE.md)
 

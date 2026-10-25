@@ -272,8 +272,9 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Foundational phase (T007); each story leaves `pending` with the task that writes its
     // last test, each SC with the test that cites it, so the lists are empty at the end of T024.
     // US1 with SC-005 (020-concurrency) and SC-006 (the student and focus layouts) since Phase 3; US2 with
-    // SC-003 (020-isolation) and SC-007 (the ADMIN list and detail) since Phase 4; US3 since Phase 5.
-    pending: { stories: [], successCriteria: ["SC-001", "SC-002", "SC-004"] },
+    // SC-003 (020-isolation) and SC-007 (the ADMIN list and detail) since Phase 4; US3 since Phase 5; SC-004
+    // (020-audit) and SC-001/SC-002 (the E2E student-feedback.spec.ts) since Phase 6.
+    pending: { stories: [], successCriteria: [] },
   },
 ];
 
