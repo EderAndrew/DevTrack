@@ -207,6 +207,8 @@ describe("route access declarations", () => {
         "POST /me/activities/:activityId/questions/:questionId/code-runs",
         "GET /me/activities/:activityId/questions/:questionId/code-runs/latest",
         "GET /me/code-runs/:runId",
+        // 020
+        "POST /me/feedbacks",
       ]),
     );
   });

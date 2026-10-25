@@ -90,6 +90,7 @@ import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
 import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
 import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
+import { CreateFeedbackRequestSchema, StudentFeedbackSchema } from "./feedback/feedback.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1507,6 +1508,15 @@ export const endpoints = {
     params: ProviderNoticeParamsSchema,
     response: EmptyResponseSchema,
     status: 200,
+  },
+  // 020/US1 — the student sends a feedback to the platform (contracts/http-api.md, research J3, J4).
+  /** 201 for a new feedback; 200 with the one already stored under the same `submissionId`. */
+  "feedback.create": {
+    method: "POST",
+    path: "/me/feedbacks",
+    body: CreateFeedbackRequestSchema,
+    response: StudentFeedbackSchema,
+    status: 201,
   },
 } as const satisfies Record<string, EndpointContract>;
 

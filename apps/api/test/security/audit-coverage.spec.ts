@@ -25,6 +25,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/017-production-email/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/018-controlled-exams/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
 ];
 
 /**
@@ -54,6 +55,8 @@ const PENDING_018 = new Set<string>([]);
 const PENDING_CHANGED_018 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
+/** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_020 = new Set<string>(["student_feedback.status_changed"]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,
@@ -63,6 +66,7 @@ const PENDING = new Set([
   ...PENDING_016,
   ...PENDING_018,
   ...PENDING_019,
+  ...PENDING_020,
 ]);
 
 interface ContractRow {
@@ -163,7 +167,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
   const retired = new Set(CONTRACTS.flatMap(retiredTypes));
   const rows = mergeExtensions(CONTRACTS.flatMap(contractRows)).filter((row) => !retired.has(row.type) && !PENDING.has(row.type));
 
-  it("010, 011, 012, 013, 015, 016, 018 e 019 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
+  it("010, 011, 012, 013, 015, 016, 018, 019 e 020 tipos pendentes ainda não estão no catálogo (remova-os da lista quando a história chegar)", () => {
     expect([...PENDING].filter((type) => type in AUDIT_EVENT_METADATA)).toEqual([]);
     expect([...PENDING].filter((type) => !CONTRACTS.flatMap(contractRows).some((row) => row.type === type))).toEqual([]);
   });

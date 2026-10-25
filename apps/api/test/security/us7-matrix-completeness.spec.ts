@@ -13,7 +13,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  "feedbacks.enviar",
   "feedbacks.proprios.listar",
   "feedbacks.visualizar",
   "feedbacks.alterar_situacao",

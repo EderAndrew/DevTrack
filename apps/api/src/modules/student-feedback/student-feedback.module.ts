@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AdminFeedbackController } from "./admin-feedback.controller";
 import { StudentFeedbackController } from "./student-feedback.controller";
+import { StudentFeedbackService } from "./student-feedback.service";
 
 /**
  * Student feedback to the platform ADMIN (020): the student's routes (send, own list) and the
@@ -10,5 +11,6 @@ import { StudentFeedbackController } from "./student-feedback.controller";
  */
 @Module({
   controllers: [StudentFeedbackController, AdminFeedbackController],
+  providers: [StudentFeedbackService],
 })
 export class StudentFeedbackModule {}

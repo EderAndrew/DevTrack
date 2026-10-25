@@ -34,6 +34,8 @@ export interface StudentLayoutProps {
   defaultOpen?: boolean;
   /** Catalog only: the content goes in a `div` (the page already has its `main#conteudo`). */
   preview?: boolean;
+  /** 020: the "Enviar feedback" button (from `features/feedback`), shown with `feedbacks.enviar`. */
+  feedback?: ReactNode;
   children: ReactNode;
 }
 
@@ -48,9 +50,10 @@ interface StudentItem {
  * same side menu as the AppShell (collapsible to icons; a panel on narrow screens) with only the
  * student's items — Painel, Minhas atividades and Histórico (012), Minhas turmas and Meu perfil,
  * each behind the permission its page needs (UX only; the API authorizes) — the Topbar, and the
- * content at reading width. No teacher or administration item.
+ * content at reading width. No teacher or administration item. "Enviar feedback" (020) sits at the
+ * bottom of the menu; the focus layout of exams and CONTROLLED works has no menu, so no feedback.
  */
-export function StudentLayout({ me, defaultOpen = true, preview = false, children }: StudentLayoutProps) {
+export function StudentLayout({ me, defaultOpen = true, preview = false, feedback, children }: StudentLayoutProps) {
   const pathname = usePathname();
   const can = (permission: string) => Boolean(me?.emailVerified && me.permissions.includes(permission));
   const items: StudentItem[] = [
@@ -99,6 +102,7 @@ export function StudentLayout({ me, defaultOpen = true, preview = false, childre
           </nav>
         </SidebarContent>
         <SidebarFooter>
+          {feedback && can("feedbacks.enviar") ? <div className="px-2 group-data-[collapsible=icon]:px-0">{feedback}</div> : null}
           {me?.name ? <p className="m-0 truncate px-2 text-body-sm group-data-[collapsible=icon]:sr-only">{me.name}</p> : null}
           <div className="px-2 group-data-[collapsible=icon]:px-0">
             <LogoutButton className="group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:[&>span]:sr-only" />

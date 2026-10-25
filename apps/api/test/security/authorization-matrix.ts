@@ -343,6 +343,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/questions/:questionId/code-runs", access: "atividades.proprias.executar" },
   { method: "GET", path: "/me/activities/:activityId/questions/:questionId/code-runs/latest", access: "atividades.proprias.executar" },
   { method: "GET", path: "/me/code-runs/:runId", access: "atividades.proprias.executar" },
+  // 020 — the student's feedback (contracts/permissions.md).
+  { method: "POST", path: "/me/feedbacks", access: "feedbacks.enviar" },
   // 016/US1 — the attendance of a work (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/attendance", access: "chamada.registrar" },

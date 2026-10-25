@@ -42,6 +42,7 @@ import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
 import { createClassWithStudents, startAttempt } from "./activities";
 import { createCodeExercise, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
+import { sendFeedback } from "./feedback";
 import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
 
@@ -1230,6 +1231,18 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const runLimit = t.config.rateLimit.codeRunsPerMinute;
   await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
   expect((await requestRun(runClient, runExercise.activity.id, runQuestionId, "print('de novo')")).status).toBe(429);
+
+  // 020/US1 — the student sends a feedback to the platform (`student_feedback.submitted`), then passes the
+  // limit of 5 in 24 h (`student_feedback.rate_limited`). The message and the origin path are content the
+  // scans look for: never in logs or audit metadata (020/SC-004).
+  const firstFeedback = await sendFeedback(runClient, {
+    category: "PROBLEM",
+    message: text("mensagem do feedback (020)", "MARCADOR-FEEDBACK-020 a página travou ao salvar na jornada"),
+    originPath: text("tela de origem do feedback (020)", "/MARCADOR-TELA-020/painel"),
+  });
+  expect(firstFeedback.status).toBe(201);
+  for (let i = 0; i < 4; i += 1) expect((await sendFeedback(runClient)).status).toBe(201);
+  expect((await sendFeedback(runClient)).status).toBe(429);
 
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";

@@ -132,7 +132,7 @@ confirmação e o feedback gravado com a categoria, o texto, o aluno e a tela.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T008 [P] [US1] `apps/api/test/integration/020-us1-send.spec.ts`: `020/US1-1` (201, linha
+- [X] T008 [P] [US1] `apps/api/test/integration/020-us1-send.spec.ts`: `020/US1-1` (201, linha
   `RECEIVED` com aluno da sessão, momento do servidor, `originPath` gravado; resposta no formato de
   `StudentFeedbackSchema`; um aluno removido de todas as turmas também envia — spec Edge Cases), `020/US1-2` (sem categoria, 9 e 2 001 code points, só espaços, campo
   extra → 400, nada gravado), `020/US1-3` (o mesmo `submissionId` duas vezes → 201 e depois 200 com
@@ -142,11 +142,11 @@ confirmação e o feedback gravado com a categoria, o texto, o aluno e a tela.
   inválido → 400 e nada gravado; sem `originPath` → aceito com nulo; `studentId`/`status` no corpo →
   400). Use o helper
   novo `apps/api/test/helpers/feedback.ts` (`sendFeedback(agent, overrides)`).
-- [ ] T009 [P] [US1] `apps/api/test/security/020-concurrency.spec.ts` (`020/SC-005`): 10 `POST`
+- [X] T009 [P] [US1] `apps/api/test/security/020-concurrency.spec.ts` (`020/SC-005`): 10 `POST`
   simultâneos com o mesmo `submissionId` → exatamente 1 linha e 1 `student_feedback.submitted`;
   8 `POST` simultâneos com ids diferentes de um aluno sem envios → exatamente 5 linhas e 3 `429`;
   o limite de um aluno não afeta outro enviando ao mesmo tempo.
-- [ ] T010 [P] [US1] Web, testes primeiro em `apps/web/features/feedback/components/feedback-dialog.test.tsx`
+- [X] T010 [P] [US1] Web, testes primeiro em `apps/web/features/feedback/components/feedback-dialog.test.tsx`
   (`020/US1-1`, `020/US1-2`, `020/US1-4`, `020/FR-016`): abre pelo botão, foco preso e devolvido,
   categorias por setas, contador "N de 2.000" em code points, erros associados ao campo, envia
   `originPath` = `location.pathname` sem consulta, o mesmo `submissionId` numa nova tentativa após
@@ -159,7 +159,7 @@ confirmação e o feedback gravado com a categoria, o texto, o aluno e a tela.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Serviço e rota (research J3, J4, J9): `apps/api/src/modules/student-feedback/student-feedback.service.ts`
+- [X] T011 [US1] Serviço e rota (research J3, J4, J9): `apps/api/src/modules/student-feedback/student-feedback.service.ts`
   (`create(studentId, request)`: transação com `pg_advisory_xact_lock(hashtext('student-feedback'),
   hashtext(studentId))`; busca por `(student_id, submission_id)` → devolve existente com `created:
   false`; conta as linhas das últimas 24 h pelo relógio injetado → ≥ 5 lança o erro de limite com
@@ -170,7 +170,7 @@ confirmação e o feedback gravado com a categoria, o texto, o aluno e a tela.
   `Retry-After` no 429). Na mesma tarefa: os dois tipos de auditoria (`audit-event-types.ts`,
   `contracts/audit-events.md`, `journey.ts`) e a rota (`endpoints.ts` `feedback.create`, `MATRIX`,
   `route-declarations.spec.ts`). T008 e T009 verdes.
-- [ ] T012 [US1] Web: `apps/web/features/feedback/{api/feedback-api.ts,schemas/feedback-form.ts,hooks/use-send-feedback.ts,components/feedback-dialog.tsx}`
+- [X] T012 [US1] Web: `apps/web/features/feedback/{api/feedback-api.ts,schemas/feedback-form.ts,hooks/use-send-feedback.ts,components/feedback-dialog.tsx}`
   (React Hook Form + o schema do contrato, `crypto.randomUUID()` ao abrir, `originPath` =
   `location.pathname` se passar no `OriginPathSchema`, senão `null`, TanStack Query mutation
   que invalida `["feedback","mine"]`), botão "Enviar feedback" (`MessageSquarePlus`) no rodapé do menu
