@@ -132,6 +132,12 @@ export const EXAMS_TEACHER = [
   "provas.encerramentos.decidir",
 ] as const satisfies PermissionKey[];
 
+/** 020: the student sends feedback to the platform and follows their own. */
+export const FEEDBACK_STUDENT = ["feedbacks.enviar", "feedbacks.proprios.listar"] as const satisfies PermissionKey[];
+
+/** 020: the ADMIN reads the students' feedbacks and changes their status. */
+export const FEEDBACK_ADMIN = ["feedbacks.visualizar", "feedbacks.alterar_situacao"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -142,10 +148,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "usuarios.suspender",
     "usuarios.reativar",
     ...AI_OPERATIONS,
+    ...FEEDBACK_ADMIN,
   ],
   MANAGER: [...SESSOES, ...PROFESSORES],
   TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
-  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT, ...FEEDBACK_STUDENT],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */

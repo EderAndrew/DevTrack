@@ -21,7 +21,7 @@ One migration (`<ts>_student_feedback`): two enums, two tables, triggers, the pe
 | `origin_path` | text NULL | `CHECK (origin_path IS NULL OR (char_length(origin_path) <= 200 AND origin_path ~ '^/[A-Za-z0-9/_.-]*$' AND origin_path !~ '^//' AND origin_path !~ '(^|/)\.\.(/|$)'))` (J2) |
 | `status` | `student_feedback_status` NOT NULL | default `RECEIVED` |
 | `created_at` | timestamptz NOT NULL | default `now()` (server clock) |
-| `status_changed_at` | timestamptz NOT NULL | default `now()`; set on every status change; the retention age (J8) |
+| `status_changed_at` | timestamptz NOT NULL | default `now()`; set on every status change; the retention age (J8); `CHECK (status_changed_at >= created_at)` |
 
 Indexes:
 - `(student_id, created_at DESC, id DESC)` — the student's list and the 24 h count (J4, J7);
@@ -30,7 +30,10 @@ Indexes:
 
 Triggers:
 - `student_feedbacks_guard_update` (BEFORE UPDATE): only `status` and `status_changed_at` may
-  change, and only by an allowed transition (below); anything else raises.
+  change, and only by an allowed transition (below), with `status_changed_at` never earlier than
+  before (so the retention age can't be moved back or forward by a stray write; security audit,
+  2026-10-25); anything else raises. The service writes `created_at` and `status_changed_at` from
+  the injected `Clock`, never leaving one to the database's `now()`.
 - `student_feedbacks_guard_delete` (BEFORE DELETE): raises unless `devtrack.feedback_purge = 'on'`
   (J8).
 

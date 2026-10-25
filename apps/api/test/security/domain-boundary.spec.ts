@@ -111,6 +111,10 @@ const EXPECTED_MODELS = [
   "CodeRun",
   "CodeRunCase",
   "CodeRunnerHeartbeat",
+  // 020 (specs/020-student-feedback/data-model.md) — a student's feedback to the platform and the
+  // history of its status.
+  "StudentFeedback",
+  "StudentFeedbackStatusChange",
 ];
 
 /**

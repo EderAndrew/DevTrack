@@ -6,12 +6,17 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 
 /**
- * 010, 011, 012, 013, 015, 016, 018 and 019: the migration seeds a feature's permissions in the Foundational phase,
- * before any route exists (010 tasks.md T004/T006, 011 T006, 012 T006, 013 T004, 015 T006, 016 T006, 018 T007, 019 T007);
+ * 010, 011, 012, 013, 015, 016, 018, 019 and 020: the migration seeds a feature's permissions in the Foundational phase,
+ * before any route exists (010 tasks.md T004/T006, 011 T006, 012 T006, 013 T004, 015 T006, 016 T006, 018 T007, 019 T007,
+ * 020 T004);
  * each one leaves this list with the first route that requires it.
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
+  "feedbacks.enviar",
+  "feedbacks.proprios.listar",
+  "feedbacks.visualizar",
+  "feedbacks.alterar_situacao",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

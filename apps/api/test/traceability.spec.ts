@@ -260,6 +260,19 @@ const SPECS: FeatureSpec[] = [
     // exercise form) since Phase 6.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "020",
+    path: "specs/020-student-feedback/spec.md",
+    stories: 3,
+    scenarios: 14,
+    // No "### Acceptance Criteria Traceability" table, as in 008–019.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 7),
+    // Joined in the Foundational phase (T007); each story leaves `pending` with the task that writes its
+    // last test, each SC with the test that cites it, so the lists are empty at the end of T024.
+    pending: { stories: [1, 2, 3], successCriteria: sc(1, 7) },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

@@ -76,7 +76,7 @@ description: "Task list for 020 — Feedback dos Alunos: o aluno envia um feedba
 **Purpose**: migração, permissões, regras puras, esqueletos e guardas. ⚠️ Nenhuma história começa
 antes desta fase.
 
-- [ ] T003 Teste primeiro: `apps/api/test/integration/020-schema.spec.ts`, com as regras de
+- [X] T003 Teste primeiro: `apps/api/test/integration/020-schema.spec.ts`, com as regras de
   `data-model.md`:
   - `student_feedbacks`: CHECK de 10–2 000 em `char_length` (emoji conta 1); CHECK de
     `origin_path` (nulo aceito, `/painel` aceito, sem `/` inicial, com `?`, com espaço ou com 201
@@ -90,19 +90,19 @@ antes desta fase.
   - `student_feedback_status_changes`: CHECK `from_status <> to_status` e `to_status <> 'RECEIVED'`;
   - as quatro permissões semeadas nos papéis de `contracts/permissions.md`, nenhuma no TEACHER ou
     no MANAGER.
-- [ ] T004 Migração `apps/api/prisma/migrations/<ts>_student_feedback/migration.sql` e
+- [X] T004 Migração `apps/api/prisma/migrations/<ts>_student_feedback/migration.sql` e
   `apps/api/prisma/schema.prisma`, com T003 verde ao final: os 2 enums, as 2 tabelas, CHECKs,
   índices, gatilhos e o seed das permissões (`feedbacks.enviar`, `feedbacks.proprios.listar` →
   STUDENT; `feedbacks.visualizar`, `feedbacks.alterar_situacao` → ADMIN). Na mesma tarefa:
   `apps/api/src/modules/access-control/permissions.ts` (as quatro chaves e o comentário das
   migrações); `resetDb` (`apps/api/test/helpers/`) apaga as tabelas novas na ordem certa, com a flag
   de purga; `domain-boundary.spec.ts` fixa os modelos novos.
-- [ ] T005 [P] Regras puras com testes (research J5, J7):
+- [X] T005 [P] Regras puras com testes (research J5, J7):
   - `apps/api/src/modules/student-feedback/feedback-state.ts` + `feedback-state.spec.ts`
     (`020/FR-006`): `canTransition(from, to)` e `allowedTransitions(from)` para as 16 combinações;
   - `apps/api/src/modules/student-feedback/excerpt.ts` + `excerpt.spec.ts`: `excerpt(message)` corta
     em 140 code points sem partir um emoji; sem imports.
-- [ ] T006 [P] Esqueletos e guardas (research J10):
+- [X] T006 [P] Esqueletos e guardas (research J10):
   - `apps/api/src/modules/student-feedback/student-feedback.module.ts` registrado no `AppModule`,
     com os dois controllers vazios;
   - `apps/api/test/feedback-boundary.spec.ts` (novo): `modules/student-feedback` e
@@ -111,7 +111,7 @@ antes desta fase.
     (`020/FR-014`); os tipos `student_feedback.*` de `audit-event-types.ts` sem chave `message`,
     `text`, `excerpt` ou `originPath`; chamadas de log do módulo sem `message`/`originPath`; controle
     de que cada varredura acha o padrão proibido num exemplo.
-- [ ] T007 Acrescentar `020` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
+- [X] T007 Acrescentar `020` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
   `stories: 3`, `scenarios: 14`, `rows: 0`, `successCriteria: sc(1, 7)` e
   `pending: { stories: [1, 2, 3], successCriteria: ["SC-001", …, "SC-007"] }`. Cada história sai de
   `pending` na tarefa que escreve o último teste dela, cada SC quando o teste que o cita entra; ao fim

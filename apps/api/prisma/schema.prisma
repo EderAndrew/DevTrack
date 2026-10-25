@@ -340,6 +340,8 @@ model User {
   submissionsCancelled    ActivitySubmission[]      @relation("ActivitySubmissionCancelledBy")
   examHoldsResolved       ExamAttemptHold[]         @relation("ExamAttemptHoldResolvedBy")
   codeRuns                CodeRun[]                 @relation("CodeRunStudent")
+  feedbacks               StudentFeedback[]         @relation("StudentFeedbackStudent")
+  feedbackStatusChanges   StudentFeedbackStatusChange[] @relation("StudentFeedbackStatusChangedBy")
 
   mailDeliveries MailDelivery[]
 
@@ -3067,4 +3069,67 @@ enum CodeRunVerdict {
   OUTPUT_LIMIT
 
   @@map("code_run_verdict")
+}
+
+/// A student's feedback to the platform ADMIN (020 data-model.md). Immutable except the status
+/// (trigger); only the `student-feedback` retention job deletes it (research J8).
+model StudentFeedback {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The session user, never from the body.
+  studentId       String                  @map("student_id") @db.Uuid
+  /// Generated when the dialog opens (research J3): a repeated send returns the stored feedback.
+  submissionId    String                  @map("submission_id") @db.Uuid
+  category        StudentFeedbackCategory
+  /// 10–2 000 code points (CHECK).
+  message         String
+  /// A pathname of the portal only (CHECK, research J2).
+  originPath      String?                 @map("origin_path")
+  status          StudentFeedbackStatus   @default(RECEIVED)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Set on every status change; the retention age (research J8).
+  statusChangedAt DateTime                @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+
+  student       User                          @relation("StudentFeedbackStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  statusChanges StudentFeedbackStatusChange[]
+
+  @@unique([studentId, submissionId])
+  @@index([studentId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("student_feedbacks")
+}
+
+/// One status change by an ADMIN (research J5); append-only (trigger).
+model StudentFeedbackStatusChange {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  feedbackId  String                @map("feedback_id") @db.Uuid
+  fromStatus  StudentFeedbackStatus @map("from_status")
+  /// Never RECEIVED and never `fromStatus` (CHECK).
+  toStatus    StudentFeedbackStatus @map("to_status")
+  changedById String                @map("changed_by_id") @db.Uuid
+  changedAt   DateTime              @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  feedback  StudentFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  changedBy User            @relation("StudentFeedbackStatusChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([feedbackId, changedAt])
+  @@map("student_feedback_status_changes")
+}
+
+enum StudentFeedbackCategory {
+  PROBLEM
+  SUGGESTION
+  PRAISE
+  OTHER
+
+  @@map("student_feedback_category")
+}
+
+enum StudentFeedbackStatus {
+  RECEIVED
+  IN_REVIEW
+  RESOLVED
+  ARCHIVED
+
+  @@map("student_feedback_status")
 }
