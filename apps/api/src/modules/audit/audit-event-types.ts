@@ -302,6 +302,8 @@ export const AUDIT_EVENT_METADATA = {
   "student_feedback.submitted": ["category"],
   // 020 — a new feedback refused by the limit of 5 in 24 h (research J4): none was created, no target.
   "student_feedback.rate_limited": ["scope"],
+  // 020 — the ADMIN moved a feedback to another status (research J5); a refused transition writes nothing.
+  "student_feedback.status_changed": ["fromStatus", "toStatus"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

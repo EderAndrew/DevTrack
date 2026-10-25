@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AdminFeedbackController } from "./admin-feedback.controller";
+import { AdminFeedbackService } from "./admin-feedback.service";
 import { StudentFeedbackController } from "./student-feedback.controller";
 import { StudentFeedbackService } from "./student-feedback.service";
 
@@ -11,6 +12,6 @@ import { StudentFeedbackService } from "./student-feedback.service";
  */
 @Module({
   controllers: [StudentFeedbackController, AdminFeedbackController],
-  providers: [StudentFeedbackService],
+  providers: [StudentFeedbackService, AdminFeedbackService],
 })
 export class StudentFeedbackModule {}

@@ -47,9 +47,10 @@ rendered as text (`white-space: pre-wrap`), never as HTML or Markdown; URLs are 
 ## ADMIN — list (`/admin/feedbacks`)
 
 - Heading "Feedbacks dos alunos"; filters "Situação" (Todas, Recebido, Em análise, Resolvido,
-  Arquivado) and "Categoria" (Todas + the four), kept in the URL (`?situacao=&categoria=`).
-- Table (cards on phone): Categoria, Situação, Mensagem (excerpt), Aluno, Enviado em; each row links
-  to the detail. "Carregar mais" for the next page.
+  Arquivado) and "Categoria" (Todas + the four), native selects kept in the URL with Portuguese values
+  (`?situacao=em-analise&categoria=problema`; an unknown or repeated value means Todas).
+- Table (it scrolls sideways on a phone, like the other lists): Categoria, Situação, Mensagem (excerpt),
+  Aluno, Enviado em; the excerpt links to the detail. "Carregar mais" for the next page.
 - Empty: "Nenhum feedback com esses filtros."
 
 ## ADMIN — detail (`/admin/feedbacks/[id]`)

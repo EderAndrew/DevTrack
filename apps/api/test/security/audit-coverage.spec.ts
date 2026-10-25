@@ -56,7 +56,7 @@ const PENDING_CHANGED_018 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_020 = new Set<string>(["student_feedback.status_changed"]);
+const PENDING_020 = new Set<string>([]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,

@@ -14,8 +14,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
   "feedbacks.proprios.listar",
-  "feedbacks.visualizar",
-  "feedbacks.alterar_situacao",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

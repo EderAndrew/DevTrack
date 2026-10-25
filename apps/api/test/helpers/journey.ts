@@ -1244,6 +1244,13 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   for (let i = 0; i < 4; i += 1) expect((await sendFeedback(runClient)).status).toBe(201);
   expect((await sendFeedback(runClient)).status).toBe(429);
 
+  // 020/US2 — the ADMIN reads the list, the badge and the detail (no event), then moves the feedback to
+  // IN_REVIEW (`student_feedback.status_changed`, only the two statuses).
+  expect((await adminClient.get("/api/feedbacks?category=PROBLEM")).status).toBe(200);
+  expect((await adminClient.get("/api/feedbacks/summary")).status).toBe(200);
+  expect((await adminClient.get(`/api/feedbacks/${firstFeedback.body.id}`)).status).toBe(200);
+  expect((await adminClient.post(`/api/feedbacks/${firstFeedback.body.id}/status`, { status: "IN_REVIEW" })).status).toBe(200);
+
   // FR-022 — rate limit: e-mail+origin block, then the cross-origin alert (10 origins).
   const wrong = "senha-errada-da-jornada";
   for (let i = 0; i < 6; i += 1) {

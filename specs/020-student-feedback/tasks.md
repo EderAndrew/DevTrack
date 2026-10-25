@@ -192,7 +192,7 @@ histórico.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T013 [P] [US2] `apps/api/test/integration/020-us2-admin.spec.ts`: `020/US2-1` (todos os
+- [X] T013 [P] [US2] `apps/api/test/integration/020-us2-admin.spec.ts`: `020/US2-1` (todos os
   feedbacks, mais recentes primeiro, `excerpt` de 140 code points, nome do aluno; páginas de 50 com
   `nextCursor`; `GET /feedbacks/summary` conta só `RECEIVED`), `020/US2-2` (filtros de situação e de
   categoria combinados; valor desconhecido → 400), `020/US2-3` (detalhe com mensagem inteira, nome e
@@ -201,13 +201,15 @@ histórico.
   cai), `020/US2-5` (`RESOLVED`/`ARCHIVED` → `IN_REVIEW`), `020/US2-6` (mesma situação, `RESOLVED →
   ARCHIVED` → 409 `INVALID_STATE_TRANSITION` sem histórico nem auditoria; `RECEIVED` no corpo → 400),
   `020/FR-012` (nenhuma rota edita ou apaga mensagem).
-- [ ] T014 [P] [US2] `apps/api/test/security/020-isolation.spec.ts` (`020/SC-003`, `020/FR-011`):
+- [X] T014 [P] [US2] `apps/api/test/security/020-isolation.spec.ts` (`020/SC-003`, `020/FR-011`):
   TEACHER (inclusive o professor da turma do aluno) e MANAGER → 403 nas quatro rotas do ADMIN e nas
   duas do aluno; STUDENT → 403 nas rotas do ADMIN; ADMIN sem papel de aluno → 403 em `/me/feedbacks`;
   e, em `020-concurrency.spec.ts`, dois ADMINs mudando o mesmo feedback ao mesmo tempo (para a
   mesma situação: uma aplicada e um 409; para situações diferentes válidas a partir de `RECEIVED`:
   as duas aplicadas em série) com exatamente uma linha de histórico por mudança aplicada (`020/FR-007`).
-- [ ] T015 [P] [US2] Web, testes primeiro em `apps/web/features/feedback/components/admin-feedback-list.test.tsx`
+  `GET /me/feedbacks` só existe na US3: o 403 dessa rota para TEACHER, MANAGER e ADMIN entra em
+  `020-isolation.spec.ts` com a T018.
+- [X] T015 [P] [US2] Web, testes primeiro em `apps/web/features/feedback/components/admin-feedback-list.test.tsx`
   e `admin-feedback-detail.test.tsx` (`020/US2-1`…`020/US2-6`, `020/SC-007`): filtros no URL
   (`?situacao=&categoria=`), "Carregar mais", vazio, mensagem como texto (HTML e URL não
   interpretados), só os botões das transições permitidas, toast e atualização do contador após a
@@ -218,7 +220,7 @@ histórico.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Serviço e rotas (research J5–J7): `apps/api/src/modules/student-feedback/admin-feedback.service.ts`
+- [X] T016 [US2] Serviço e rotas (research J5–J7): `apps/api/src/modules/student-feedback/admin-feedback.service.ts`
   (`list(query)` keyset `(created_at DESC, id DESC)` 50 por página com cursor opaco no padrão de
   `classes`; `summary()`; `detail(id)`; `changeStatus(adminId, id, to)`: transação com `SELECT … FOR
   UPDATE`, `canTransition` → 409, `UPDATE` de `status`/`status_changed_at`, linha de histórico,
@@ -227,7 +229,7 @@ histórico.
   `GET /feedbacks/summary`, `GET /feedbacks/:id`, `POST /feedbacks/:id/status`). Na mesma tarefa: o
   tipo de auditoria e as quatro rotas (catálogo, `MATRIX`, `route-declarations.spec.ts`). T013 e T014
   verdes.
-- [ ] T017 [US2] Web: `apps/web/features/feedback/{hooks/use-admin-feedbacks.ts,components/admin-feedback-list.tsx,components/admin-feedback-detail.tsx,components/feedback-badges.tsx}`,
+- [X] T017 [US2] Web: `apps/web/features/feedback/{hooks/use-admin-feedbacks.ts,components/admin-feedback-list.tsx,components/admin-feedback-detail.tsx,components/feedback-badges.tsx}`,
   páginas `apps/web/app/(app)/admin/feedbacks/page.tsx` e `[id]/page.tsx`, item e badge
   (`SidebarMenuBadge`, refetch no foco e na invalidação, nunca polling) em
   `apps/web/components/shared/app-sidebar.tsx` e `apps/web/lib/navigation.ts`; T015 verde. `020/US2`

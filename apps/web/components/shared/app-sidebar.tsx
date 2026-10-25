@@ -17,6 +17,7 @@ import {
   ListChecks,
   ListTodo,
   type LucideIcon,
+  MessagesSquare,
   School,
   SlidersHorizontal,
   UserCog,
@@ -36,6 +37,7 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -49,10 +51,13 @@ import {
   aiOperationsHref,
   type AiOperationsTab,
   aiOperationsTabOf,
+  FEEDBACKS_AREA,
   HOME_PATH,
   MY_CLASSES_PATH,
   USER_AREAS,
 } from "@/lib/navigation";
+import { useFeedbackSummary } from "@/features/feedback/hooks/use-admin-feedbacks";
+import { unreadLabel } from "@/features/feedback/schemas/admin-feedback";
 import { BetaBadge } from "./beta-badge";
 import { Wordmark, WordmarkInitial } from "./wordmark";
 import { LogoutButton } from "./logout-button";
@@ -83,7 +88,7 @@ export interface AppSidebarProps {
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
- * open, "Operação de IA" groups the sections of the administrator's AI operation (006, each a link to its `?aba=`), "Minhas disciplinas", "Banco de Exercícios" (010), "Banco de Trabalhos" (011) and "Turmas" are the teacher's subjects, exercises, works and classes, and "Minhas
+ * open, "Operação de IA" groups the sections of the administrator's AI operation (006, each a link to its `?aba=`), "Feedbacks" (020) the students' feedbacks with the count still "Recebido" (refetched on focus and after a change, never polled), "Minhas disciplinas", "Banco de Exercícios" (010), "Banco de Trabalhos" (011) and "Turmas" are the teacher's subjects, exercises, works and classes, and "Minhas
  * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
  * the icons (labels stay as accessible names and show as tooltips); opening a group there
@@ -105,6 +110,9 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const inWorks = pathname === "/trabalhos" || pathname.startsWith("/trabalhos/");
   const exams = Boolean(me?.emailVerified && me.permissions.includes("provas.visualizar"));
   const inExams = pathname === "/provas" || pathname.startsWith("/provas/");
+  const feedbacks = Boolean(me?.emailVerified && me.permissions.includes(FEEDBACKS_AREA.permission));
+  const inFeedbacks = pathname === FEEDBACKS_AREA.href || pathname.startsWith(`${FEEDBACKS_AREA.href}/`);
+  const received = useFeedbackSummary(feedbacks).data?.received ?? 0;
   const { state, isMobile, setOpen } = useSidebar();
   const iconsOnly = state === "collapsed" && !isMobile;
   const [usersOpen, setUsersOpen] = useState(true);
@@ -209,6 +217,22 @@ export function AppSidebar({ me }: AppSidebarProps) {
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
+                ) : null}
+                {feedbacks ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inFeedbacks} tooltip={FEEDBACKS_AREA.label}>
+                      <Link
+                        href={FEEDBACKS_AREA.href}
+                        className={LINK}
+                        aria-current={pathname === FEEDBACKS_AREA.href ? "page" : undefined}
+                      >
+                        <MessagesSquare aria-hidden="true" />
+                        <span>{FEEDBACKS_AREA.label}</span>
+                        {received > 0 ? <span className="sr-only">, {unreadLabel(received)}</span> : null}
+                      </Link>
+                    </SidebarMenuButton>
+                    {received > 0 ? <SidebarMenuBadge aria-hidden="true">{received}</SidebarMenuBadge> : null}
+                  </SidebarMenuItem>
                 ) : null}
                 {subjects ? (
                   <SidebarMenuItem>

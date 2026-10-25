@@ -63,6 +63,9 @@ export const aiOperationsTabOf = (value: unknown): AiOperationsTab => (isAiOpera
 /** Link to one section of "Operação de IA". */
 export const aiOperationsHref = (tab: AiOperationsTab): string => `${AI_OPERATIONS_AREA.href}?aba=${tab}`;
 
+/** "Feedbacks": what the students told the platform, for the administrator (020 US2). */
+export const FEEDBACKS_AREA = { href: "/admin/feedbacks", label: "Feedbacks", permission: "feedbacks.visualizar" } as const;
+
 /**
  * Permissions of the teacher and administration areas: a verified user with any of them works in
  * the AppShell, otherwise in the student layout (005 contracts/layouts.md). UX only.
@@ -72,6 +75,7 @@ export const STAFF_AREA_PERMISSIONS: readonly string[] = [
   "turmas.visualizar",
   ...USER_AREAS.map((area) => area.permission),
   AI_OPERATIONS_AREA.permission,
+  FEEDBACKS_AREA.permission,
 ];
 
 /** Route prefix → name of the area, shown in the Topbar (005 research V12, V20). */
@@ -85,6 +89,7 @@ export const AREAS = [
   { prefix: "/admin/managers", name: "Gestores" },
   { prefix: "/admin/usuarios", name: "Usuários" },
   { prefix: AI_OPERATIONS_AREA.href, name: AI_OPERATIONS_AREA.label },
+  { prefix: FEEDBACKS_AREA.href, name: FEEDBACKS_AREA.label },
   { prefix: "/conta", name: "Minha conta" },
   { prefix: MY_CLASSES_PATH, name: "Minhas turmas" },
   { prefix: DASHBOARD_PATH, name: "Painel" },

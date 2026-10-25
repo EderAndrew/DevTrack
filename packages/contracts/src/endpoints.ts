@@ -90,7 +90,15 @@ import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
 import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
 import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
-import { CreateFeedbackRequestSchema, StudentFeedbackSchema } from "./feedback/feedback.js";
+import {
+  AdminFeedbackPageSchema,
+  AdminFeedbackSchema,
+  ChangeFeedbackStatusRequestSchema,
+  CreateFeedbackRequestSchema,
+  FeedbackSummarySchema,
+  ListAdminFeedbacksQuerySchema,
+  StudentFeedbackSchema,
+} from "./feedback/feedback.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1517,6 +1525,37 @@ export const endpoints = {
     body: CreateFeedbackRequestSchema,
     response: StudentFeedbackSchema,
     status: 201,
+  },
+  // 020/US2 — the ADMIN reads and handles the feedbacks (contracts/http-api.md, research J5–J7).
+  "feedback.adminList": {
+    method: "GET",
+    path: "/feedbacks",
+    query: ListAdminFeedbacksQuerySchema,
+    response: AdminFeedbackPageSchema,
+    status: 200,
+  },
+  /** The menu badge: the number of RECEIVED feedbacks. */
+  "feedback.summary": {
+    method: "GET",
+    path: "/feedbacks/summary",
+    response: FeedbackSummarySchema,
+    status: 200,
+  },
+  "feedback.adminGet": {
+    method: "GET",
+    path: "/feedbacks/:id",
+    params: IdParamsSchema,
+    response: AdminFeedbackSchema,
+    status: 200,
+  },
+  /** 409 `INVALID_STATE_TRANSITION` for the same status or a transition `feedback-state.ts` refuses. */
+  "feedback.changeStatus": {
+    method: "POST",
+    path: "/feedbacks/:id/status",
+    params: IdParamsSchema,
+    body: ChangeFeedbackStatusRequestSchema,
+    response: AdminFeedbackSchema,
+    status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;
 
