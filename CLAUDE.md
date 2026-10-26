@@ -84,6 +84,12 @@ come in `pending`; each leaves `pending` with the test that covers it (a pending
 covers fails), so the list is empty when the feature ends. `/speckit-specify` already points
 `.specify/feature.json` at it.
 
+`.claude/settings.json` hooks (`.claude/hooks/security-check.sh`) track every audited code file changed
+by Write/Edit or Bash; at the end of the turn the Stop hook asks for the `owasp-security-auditor` skill
+on those files with the given `SESSION_ID` (audit only, no code changes during it), and
+`.claude/hooks/audit-complete.sh <SESSION_ID>` records the confirmation. A new edit invalidates a
+previous audit. The log is `.claude/hooks/security.log`.
+
 `.specify/memory/constitution.md` (v3.5.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
