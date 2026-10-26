@@ -18,7 +18,7 @@ export default async function ExerciseBankPage({ searchParams }: Props) {
   const created = Number((await searchParams).criados);
 
   return (
-    <section className="w-full">
+    <section data-layout="wide" className="w-full">
       <ExerciseBankHome
         canCreate={me.permissions.includes("questoes.criar")}
         canGenerate={me.permissions.includes("ia.exercicios.gerar")} created={Number.isInteger(created) && created > 0 ? created : 0} />
