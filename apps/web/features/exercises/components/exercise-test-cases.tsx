@@ -29,6 +29,8 @@ export interface ExerciseTestCasesProps<T extends FieldValues> {
   /** Prefix of the field ids, unique on the page. */
   idPrefix: string;
   errorFor: (fieldId: string) => string | undefined;
+  /** Examples shown in each case's empty "Entrada" and "Saída esperada"; never saved. */
+  placeholders?: { input: string; expectedOutput: string };
 }
 
 /**
@@ -37,7 +39,7 @@ export interface ExerciseTestCasesProps<T extends FieldValues> {
  * buttons. Texts are kept as typed (an empty input is a case without stdin). The rules are the API's;
  * an error it names lands on the case's field.
  */
-export function ExerciseTestCases<T extends FieldValues>({ control, register, name, idPrefix, errorFor }: ExerciseTestCasesProps<T>) {
+export function ExerciseTestCases<T extends FieldValues>({ control, register, name, idPrefix, errorFor, placeholders }: ExerciseTestCasesProps<T>) {
   const cases = useFieldArray({ control, name, keyName: "fieldId" });
   const [announcement, setAnnouncement] = useState("");
   const pendingFocus = useRef<string | null>(null);
@@ -100,7 +102,9 @@ export function ExerciseTestCases<T extends FieldValues>({ control, register, na
             <div key={field.fieldId} role="group" aria-label={`Caso de teste ${n}`} className="rounded-md border border-border p-3">
               <div className="grid gap-x-4 md:grid-cols-2">
                 <FormField id={testCaseFieldId(idPrefix, position, "input")} label={`Entrada do caso ${n}`} error={errorFor(testCaseFieldId(idPrefix, position, "input"))}>
-                  {(controlProps) => <Textarea rows={2} spellCheck={false} {...controlProps} {...register(path(position, "input"))} />}
+                  {(controlProps) => (
+                    <Textarea rows={2} spellCheck={false} placeholder={placeholders?.input} {...controlProps} {...register(path(position, "input"))} />
+                  )}
                 </FormField>
                 <FormField
                   id={testCaseFieldId(idPrefix, position, "expectedOutput")}
@@ -108,7 +112,9 @@ export function ExerciseTestCases<T extends FieldValues>({ control, register, na
                   required
                   error={errorFor(testCaseFieldId(idPrefix, position, "expectedOutput"))}
                 >
-                  {(controlProps) => <Textarea rows={2} spellCheck={false} {...controlProps} {...register(path(position, "expectedOutput"))} />}
+                  {(controlProps) => (
+                    <Textarea rows={2} spellCheck={false} placeholder={placeholders?.expectedOutput} {...controlProps} {...register(path(position, "expectedOutput"))} />
+                  )}
                 </FormField>
               </div>
               <RadioGroup legend={`Visibilidade do caso ${n}`} className="mb-3">

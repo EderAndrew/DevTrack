@@ -47,6 +47,7 @@ import {
   EXPECTED_OUTPUT_MESSAGE,
   toExerciseInput,
 } from "../schemas/exercise-form";
+import { codeExerciseExamples } from "../schemas/code-examples";
 import { exerciseRuleViolations } from "../api/exercises";
 import { CodeField } from "./code-field";
 import { ExerciseTestCases, testCaseFieldId, testCasesSectionId } from "./exercise-test-cases";
@@ -313,6 +314,8 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
   // The chosen language's grammar colors the code fields and changes with it (014/US3-2).
   const language = languages.data?.find((item) => item.id === languageId);
   const highlight = language?.highlight ?? null;
+  // A CODE card shows an example in each empty field; the other types keep their fields blank.
+  const examples = type === "CODE" ? codeExerciseExamples(highlight) : null;
   const id = (field: CardField) => cardFieldId(index, field);
   const headingId = `exercicio-${index + 1}-titulo`;
 
@@ -337,7 +340,14 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
             </option>
           ))}
         </SelectField>
-        <TextareaField id={id("statement")} label="Enunciado" required error={errorFor(id("statement"))} {...register(`cards.${index}.statement`)} />
+        <TextareaField
+          id={id("statement")}
+          label="Enunciado"
+          required
+          error={errorFor(id("statement"))}
+          placeholder={examples?.statement}
+          {...register(`cards.${index}.statement`)}
+        />
         <div className="grid gap-x-4 md:grid-cols-2">
           <SelectField id={id("difficulty")} label="Dificuldade" required error={errorFor(id("difficulty"))} {...register(`cards.${index}.difficulty`)}>
             <option value="">Escolha a dificuldade</option>
@@ -386,8 +396,23 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
 
         {type === "CODE" ? (
           <>
-            <TextareaField id={id("instructions")} label="Instruções" required error={errorFor(id("instructions"))} {...register(`cards.${index}.instructions`)} />
-            <CodeField id={id("starterCode")} label="Código inicial" hint="Opcional." control={control} name={`cards.${index}.starterCode`} highlight={highlight} />
+            <TextareaField
+              id={id("instructions")}
+              label="Instruções"
+              required
+              error={errorFor(id("instructions"))}
+              placeholder={examples?.instructions}
+              {...register(`cards.${index}.instructions`)}
+            />
+            <CodeField
+              id={id("starterCode")}
+              label="Código inicial"
+              hint="Opcional."
+              control={control}
+              name={`cards.${index}.starterCode`}
+              highlight={highlight}
+              placeholder={examples?.starterCode}
+            />
             <CodeField
               id={id("expectedSolution")}
               label="Solução esperada"
@@ -396,6 +421,7 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
               control={control}
               name={`cards.${index}.expectedSolution`}
               highlight={highlight}
+              placeholder={examples?.expectedSolution}
             />
             <SelectField
               id={id("languageId")}
@@ -412,7 +438,14 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
                 </option>
               ))}
             </SelectField>
-            <ExerciseTestCases control={control} register={register} name={`cards.${index}.testCases`} idPrefix={cardPrefix(index)} errorFor={errorFor} />
+            <ExerciseTestCases
+              control={control}
+              register={register}
+              name={`cards.${index}.testCases`}
+              idPrefix={cardPrefix(index)}
+              errorFor={errorFor}
+              placeholders={examples?.testCases}
+            />
           </>
         ) : null}
 
@@ -422,6 +455,7 @@ function ExerciseCard({ index, heading, form, errorFor, onRemove }: CardProps) {
           hint="Por que a resposta é essa. Nunca aparece para o aluno."
           required
           error={errorFor(id("explanation"))}
+          placeholder={examples?.explanation}
           {...register(`cards.${index}.explanation`)}
         />
       </CardContent>
