@@ -33,6 +33,7 @@ import { ExamsModule } from "./modules/exams/exams.module";
 import { ExamAiModule } from "./modules/exam-ai/exam-ai.module";
 import { ExamSessionsModule } from "./modules/exam-sessions/exam-sessions.module";
 import { CodeRunsModule } from "./modules/code-runs/code-runs.module";
+import { StudentFeedbackModule } from "./modules/student-feedback/student-feedback.module";
 import { ConfigModule } from "./platform/config/config.module";
 import type { AppConfig } from "./platform/config/config.schema";
 import { CryptoModule } from "./platform/crypto/crypto.module";
@@ -98,6 +99,7 @@ export class AppModule {
         ExamAiModule,
         ExamSessionsModule,
         CodeRunsModule,
+        StudentFeedbackModule,
         RetentionModule,
         HealthModule,
       ],

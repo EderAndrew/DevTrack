@@ -17,7 +17,7 @@ export default async function WorkBankPage({ searchParams }: Props) {
     return <NoAccess title="Banco de Trabalhos" />;
 
   return (
-    <section className="w-full">
+    <section data-layout="wide" className="w-full">
       <WorkBankHome
         canCreate={me.permissions.includes("trabalhos.criar")}
         canGenerate={me.permissions.includes("ia.trabalhos.gerar")}

@@ -145,7 +145,14 @@ casos privados nunca chegam ao aluno. O programa roda num processo à parte, o w
 Docker descartável por etapa, sem rede e com limites de tempo, memória e processos (gVisor em
 produção). Executar nunca vale pontos nem nota, nunca conclui nem salva a resposta; são até 10
 execuções por minuto, e o código e as saídas são apagados em 24 horas. Sem o worker, a questão mostra
-"Execução indisponível no momento" e o exercício segue como na 013.
+"Execução indisponível no momento" e o exercício segue como na 013. A **fase 020 — Feedback dos
+alunos** põe "Enviar feedback" no menu do aluno (nunca na página de foco de uma prova ou de um trabalho
+em modo controlado): categoria (Problema, Sugestão, Elogio, Outro) e uma mensagem de 10 a 2 000
+caracteres, com a tela de origem, até 5 envios em 24 horas. O administrador da plataforma vê os
+feedbacks em "Feedbacks" (com o número de novos no menu), filtra, abre e muda a situação (Recebido,
+Em análise, Resolvido, Arquivado) com histórico; o aluno acompanha a situação em "Meus feedbacks". O
+professor e o gestor não veem os feedbacks; nenhuma IA ou e-mail participa, e os encerrados são
+apagados 24 meses depois.
 
 ## Pré-requisitos
 
@@ -181,6 +188,7 @@ execuções por minuto, e o código e as saídas são apagados em 24 horas. Sem 
 | `specs/017-production-email/` | O mesmo para a fase 017 (e-mail de produção: fila única com novas tentativas, avisos do provedor e modelos HTML e texto; decisões N1–N15) |
 | `specs/018-controlled-exams/` | O mesmo para a fase 018 (Banco de Provas, prova em modo restrito com avisos e decisão do professor; decisões T1–T19) |
 | `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
+| `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |

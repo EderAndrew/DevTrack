@@ -28,5 +28,6 @@ export const config = {
     "/painel",
     "/minhas-atividades/:path*",
     "/historico",
+    "/meus-feedbacks",
   ],
 };

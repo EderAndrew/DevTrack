@@ -2,7 +2,7 @@ import { RoleKeySchema } from "@repo/contracts";
 
 /**
  * Permission and role keys seeded by migrations `seed_roles_permissions` (001),
- * `classes_invitations_enrollments` (003), `curriculum_planning` (004), `ai_foundation` (006) and `exercise_bank` (010) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
+ * `classes_invitations_enrollments` (003), `curriculum_planning` (004), `ai_foundation` (006), `exercise_bank` (010), the later features' own migrations and `student_feedback` (020) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
  * role keys are used only to grant, change or count assignments.
  */
 export const PERMISSIONS = [
@@ -85,6 +85,11 @@ export const PERMISSIONS = [
   "provas.encerramentos.decidir",
   // 019 — the student runs code on an exercise's public cases (specs/019-exercise-code-runner/contracts/permissions.md).
   "atividades.proprias.executar",
+  // 020 — student feedback to the platform ADMIN (specs/020-student-feedback/contracts/permissions.md).
+  "feedbacks.enviar",
+  "feedbacks.proprios.listar",
+  "feedbacks.visualizar",
+  "feedbacks.alterar_situacao",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

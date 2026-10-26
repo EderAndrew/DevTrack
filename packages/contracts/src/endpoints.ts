@@ -90,6 +90,17 @@ import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
 import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
 import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
+import {
+  AdminFeedbackPageSchema,
+  AdminFeedbackSchema,
+  ChangeFeedbackStatusRequestSchema,
+  CreateFeedbackRequestSchema,
+  FeedbackSummarySchema,
+  ListAdminFeedbacksQuerySchema,
+  ListMyFeedbacksQuerySchema,
+  StudentFeedbackPageSchema,
+  StudentFeedbackSchema,
+} from "./feedback/feedback.js";
 import { ProviderNoticeParamsSchema } from "./mail/notices.js";
 import { ClassMeetingListSchema, UpdateClassMeetingsRequestSchema } from "./curriculum/class-meetings.js";
 import {
@@ -1506,6 +1517,54 @@ export const endpoints = {
     path: "/mail/notices/:provider",
     params: ProviderNoticeParamsSchema,
     response: EmptyResponseSchema,
+    status: 200,
+  },
+  // 020/US1 — the student sends a feedback to the platform (contracts/http-api.md, research J3, J4).
+  /** 201 for a new feedback; 200 with the one already stored under the same `submissionId`. */
+  "feedback.create": {
+    method: "POST",
+    path: "/me/feedbacks",
+    body: CreateFeedbackRequestSchema,
+    response: StudentFeedbackSchema,
+    status: 201,
+  },
+  // 020/US3 — the student follows their own feedbacks.
+  "feedback.listMine": {
+    method: "GET",
+    path: "/me/feedbacks",
+    query: ListMyFeedbacksQuerySchema,
+    response: StudentFeedbackPageSchema,
+    status: 200,
+  },
+  // 020/US2 — the ADMIN reads and handles the feedbacks (contracts/http-api.md, research J5–J7).
+  "feedback.adminList": {
+    method: "GET",
+    path: "/feedbacks",
+    query: ListAdminFeedbacksQuerySchema,
+    response: AdminFeedbackPageSchema,
+    status: 200,
+  },
+  /** The menu badge: the number of RECEIVED feedbacks. */
+  "feedback.summary": {
+    method: "GET",
+    path: "/feedbacks/summary",
+    response: FeedbackSummarySchema,
+    status: 200,
+  },
+  "feedback.adminGet": {
+    method: "GET",
+    path: "/feedbacks/:id",
+    params: IdParamsSchema,
+    response: AdminFeedbackSchema,
+    status: 200,
+  },
+  /** 409 `INVALID_STATE_TRANSITION` for the same status or a transition `feedback-state.ts` refuses. */
+  "feedback.changeStatus": {
+    method: "POST",
+    path: "/feedbacks/:id/status",
+    params: IdParamsSchema,
+    body: ChangeFeedbackStatusRequestSchema,
+    response: AdminFeedbackSchema,
     status: 200,
   },
 } as const satisfies Record<string, EndpointContract>;

@@ -184,6 +184,7 @@ describe("019/SC-006 retenção do conteúdo das execuções (job code-run-conte
       "ai-records",
       "code-run-content",
       "mail-records",
+      "student-feedback",
     ]);
   });
 });

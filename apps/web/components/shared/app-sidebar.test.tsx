@@ -28,7 +28,7 @@ const PERMISSIONS = {
     "disciplinas.editar",
   ],
   MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
-  ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar", "ia.operacao.visualizar", "ia.agentes.gerenciar"],
+  ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar", "ia.operacao.visualizar", "ia.agentes.gerenciar", "feedbacks.visualizar", "feedbacks.alterar_situacao"],
 };
 
 const me = (permissions: string[], emailVerified = true): AppSidebarProps["me"] => ({ name: "Ana Souza", emailVerified, permissions });
@@ -64,11 +64,24 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  /** `GET /feedbacks/summary` (020) answers `received`; nothing else is fetched by the menu. */
+  const stubSummary = (received: number) => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        urls.push(String(input));
+        return new Response(JSON.stringify({ received }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }),
+    );
+    return urls;
+  };
+
   it.each([
     ["STUDENT", ["Minhas turmas", "Meu perfil"]],
     ["TEACHER", ["Minhas disciplinas", "Turmas", "Meu perfil"]],
     ["MANAGER", ["Professores", "Meu perfil"]],
-    ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
     expect(menuLinks()).toEqual(expected);
@@ -84,7 +97,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     const subItems = within(screen.getByRole("navigation", { name: "Menu principal" }))
       .queryAllByRole("link")
       .filter((link) => link.textContent !== "Meu perfil");
-    expect(subItems).toHaveLength(10);
+    expect(subItems).toHaveLength(11);
     for (const link of subItems) {
       const icon = link.querySelector("svg");
       expect(icon?.getAttribute("aria-hidden"), link.textContent ?? "").toBe("true");
@@ -109,7 +122,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(group.getAttribute("aria-expanded")).toBe("true");
     await userEvent.setup().click(group);
     expect(group.getAttribute("aria-expanded")).toBe("false");
-    expect(menuLinks()).toEqual(["Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]);
   });
 
   it("e-mail não verificado não vê Turmas", () => {
@@ -209,7 +222,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     const sidebar = container.querySelector('[data-slot="sidebar"][data-state]');
     expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Feedbacks", "Minhas disciplinas", "Turmas", "Meu perfil"]);
     expect(screen.getByRole("button", { name: "Operação de IA" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Turmas" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
@@ -227,7 +240,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await userEvent.setup().click(group);
     expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
     expect(group.getAttribute("aria-expanded")).toBe("true");
-    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]);
   });
 
   it("006/US7-7 Operação de IA só com ia.operacao.visualizar: um grupo com uma seção por aba, e marca a seção atual", () => {
@@ -277,5 +290,33 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.getByRole("link", { name: "Gestores" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it("020/US2-1 Feedbacks (feedbacks.visualizar) com o número de Recebido no badge e no nome acessível", async () => {
+    const urls = stubSummary(3);
+    navigation.pathname = "/admin/feedbacks/abc";
+    const { container } = renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    const link = await screen.findByRole("link", { name: "Feedbacks, 3 novos" });
+    expect(link.getAttribute("href")).toBe("/admin/feedbacks");
+    expect(link.closest("li")?.querySelector('[data-sidebar="menu-badge"]')?.textContent).toBe("3");
+    expect(urls).toEqual(["/api/feedbacks/summary"]);
+    await expectNoA11yViolations(container);
+  });
+
+  it("020/US2-1 sem badge com 0; sem feedbacks.visualizar nem item nem pedido", async () => {
+    const urls = stubSummary(0);
+    const view = renderSidebar({ me: me(PERMISSIONS.ADMIN) });
+    await vi.waitFor(() => expect(urls).toEqual(["/api/feedbacks/summary"]));
+    const link = screen.getByRole("link", { name: "Feedbacks" });
+    expect(link.closest("li")?.querySelector('[data-sidebar="menu-badge"]')).toBeNull();
+    view.unmount();
+
+    urls.length = 0;
+    for (const role of ["STUDENT", "TEACHER", "MANAGER"] as const) {
+      const other = renderSidebar({ me: me(PERMISSIONS[role]) });
+      expect(screen.queryByRole("link", { name: /Feedbacks/ })).toBeNull();
+      other.unmount();
+    }
+    expect(urls).toEqual([]);
   });
 });

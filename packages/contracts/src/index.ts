@@ -59,6 +59,8 @@ export * from "./exam-sessions/monitor.js";
 export * from "./code-runs/enums.js";
 export * from "./code-runs/run.js";
 export * from "./code-runs/execution.js";
+export * from "./feedback/enums.js";
+export * from "./feedback/feedback.js";
 export * from "./ai/executions.js";
 export * from "./ai/proposals.js";
 export * from "./ai/operations.js";

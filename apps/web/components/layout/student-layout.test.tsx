@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../test/a11y";
 import { expectTabOrder } from "../../test/keyboard";
 import { renderWithProviders } from "../../test/render";
+import { Button } from "@/components/ui/button";
 import { StudentLayout, type StudentLayoutProps } from "./student-layout";
 
 // 005 US5 (FR-024; contracts/layouts.md "StudentLayout", amended 2026-10-03: the AppShell's side
@@ -114,6 +115,41 @@ describe("005/US5-1 layout do aluno", () => {
     renderLayout({ me: me(STUDENT.filter((permission) => permission !== "atividades.proprias.visualizar")) });
     const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
     expect(within(menus.at(-1)!).getAllByRole("link").map((link) => link.textContent)).toEqual(["Minhas turmas", "Meu perfil"]);
+  });
+
+  it("020/US1-5 020/SC-006 \"Enviar feedback\" no rodapé do menu com feedbacks.enviar, também na página de uma atividade", () => {
+    const feedback = <Button type="button">Enviar feedback</Button>;
+    navigation.pathname = "/minhas-atividades/0f3c4b8e-1a2b-4c5d-8e9f-0a1b2c3d4e5f";
+    renderLayout({ me: me([...STUDENT, "feedbacks.enviar"]), feedback });
+    expect(screen.getByRole("button", { name: "Enviar feedback" })).toBeTruthy();
+    expect(studentMenu().contains(screen.getByRole("button", { name: "Enviar feedback" }))).toBe(false);
+  });
+
+  it("020/US1-5 020/SC-006 sem feedbacks.enviar ou sem e-mail confirmado, sem \"Enviar feedback\"", () => {
+    const feedback = <Button type="button">Enviar feedback</Button>;
+    renderLayout({ me: me(STUDENT), feedback });
+    expect(screen.queryByRole("button", { name: "Enviar feedback" })).toBeNull();
+    renderLayout({ me: me([...STUDENT, "feedbacks.enviar"], false), feedback });
+    expect(screen.queryByRole("button", { name: "Enviar feedback" })).toBeNull();
+  });
+
+  it("020/US3-1 \"Meus feedbacks\" no menu com feedbacks.proprios.listar e marcado na própria página", () => {
+    navigation.pathname = "/meus-feedbacks";
+    renderLayout({ me: me([...STUDENT, "feedbacks.proprios.listar"]) });
+    const link = within(studentMenu()).getByRole("link", { name: "Meus feedbacks" });
+    expect(link.getAttribute("href")).toBe("/meus-feedbacks");
+    expect(link.getAttribute("aria-current")).toBe("page");
+    expect(within(studentMenu()).getAllByRole("link").map((item) => item.textContent)).toEqual([
+      "Painel",
+      "Minhas atividades",
+      "Histórico",
+      "Minhas turmas",
+      "Meus feedbacks",
+      "Meu perfil",
+    ]);
+    renderLayout({ me: me(STUDENT) });
+    const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
+    expect(within(menus.at(-1)!).queryByRole("link", { name: "Meus feedbacks" })).toBeNull();
   });
 
   it("conteúdo na largura de leitura", () => {

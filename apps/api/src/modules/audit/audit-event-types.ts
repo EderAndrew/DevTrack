@@ -297,6 +297,13 @@ export const AUDIT_EVENT_METADATA = {
   "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
   // 019 — a new run refused by the per-minute limit (research B11): no run was created, no target.
   "code_run.rate_limited": ["scope"],
+  // 020 — a student's feedback to the platform (contracts/audit-events.md): the category, never the
+  // message, the excerpt or the origin path (FR-014).
+  "student_feedback.submitted": ["category"],
+  // 020 — a new feedback refused by the limit of 5 in 24 h (research J4): none was created, no target.
+  "student_feedback.rate_limited": ["scope"],
+  // 020 — the ADMIN moved a feedback to another status (research J5); a refused transition writes nothing.
+  "student_feedback.status_changed": ["fromStatus", "toStatus"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -349,4 +356,5 @@ export type AuditTargetType =
   | "ACTIVITY_SUBMISSION"
   | "WORK_HELP_REQUEST"
   | "MAIL_DELIVERY"
-  | "CODE_RUN";
+  | "CODE_RUN"
+  | "STUDENT_FEEDBACK";
