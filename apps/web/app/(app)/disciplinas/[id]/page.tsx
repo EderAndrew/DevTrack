@@ -20,7 +20,7 @@ export default async function SubjectPage({
   if (!me.permissions.includes("disciplinas.visualizar")) return <NoAccess title="Disciplina" />;
 
   return (
-    <section className="mx-auto w-full max-w-256">
+    <section data-layout="wide" className="w-full">
       <SubjectDetail
         id={id}
         created={criada === "1"}

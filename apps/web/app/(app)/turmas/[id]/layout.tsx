@@ -13,7 +13,7 @@ export default async function ClassLayout({ params, children }: { params: Promis
   if (!me.permissions.includes("turmas.visualizar")) return <NoAccess title="Turma" />;
 
   return (
-    <section className="mx-auto w-full max-w-256">
+    <section data-layout="wide" className="w-full">
       <ClassDetails
         id={id}
         canEdit={me.permissions.includes("turmas.editar")}
