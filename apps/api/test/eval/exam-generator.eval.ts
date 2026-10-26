@@ -141,7 +141,11 @@ describe.each(MODELS)("018/FR-005 avaliação sob demanda do exam-generator: mod
           approvals: [{ taskKey: EXAM_GENERATION_TASK.key, metrics: { ...EXAM_GENERATION_TASK.quality }, evaluatedAt: new Date().toISOString(), evidence: "eval" }],
         },
       ],
-      tasks: exams.tasks,
+      // An entry of another tier (`EVAL_MODEL`, e.g. a STANDARD one when no BASIC passes) is evaluated
+      // with the task moved to its tier here only; the production task keeps its own tiers.
+      tasks: exams.tasks.map((task) =>
+        task.key === EXAM_GENERATION_TASK.key ? { ...task, minimumTier: entry.tier, preferredTier: entry.tier, maxTier: entry.tier } : task,
+      ),
       families: PRODUCTION_MODEL_FAMILIES,
       providers: [provider],
       resources: exams.resources,

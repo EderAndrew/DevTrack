@@ -178,7 +178,8 @@ export const MODEL_CATALOG: readonly CatalogModel[] = [
   // the three gates: no newer DeepSeek exists on OpenRouter. Ids and prices from its public list
   // that day. Both failed `work-generation` that day with no evidence written (timeouts count as
   // infrastructure): v4-flash timed out on all 5 cases, v4-flash-0731 passed 1 of 5 (schema
-  // validity 0.2). They stay CANDIDATE, kept for a later run.
+  // validity 0.2). They stay CANDIDATE, kept for a later run. On 2026-10-26 `deepseek-basic` and
+  // `deepseek-standard` failed every gate again (evidence in test/fixtures/evaluations/).
   openRouter({
     key: "deepseek-basic-v4",
     family: "deepseek",

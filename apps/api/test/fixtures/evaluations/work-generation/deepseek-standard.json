@@ -1,0 +1,31 @@
+{
+  "task": "work-generation",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "servedModel": "deepseek/deepseek-v4-pro-0813",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-26T17:27:34.047Z",
+  "metrics": {
+    "schemaValidity": 0,
+    "configMatch": 0,
+    "duplicates": 0,
+    "topicCoverage": 0,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.015800",
+    "currency": "USD",
+    "perExecution": "0.003160"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 7613,
+      "poo-java-tres-topicos": 2456,
+      "python-listas-so-codigo": 3247,
+      "sete-topicos-tres-questoes": 10815,
+      "sql-joins-sem-linguagem": 7198
+    },
+    "maxMs": 10815,
+    "withinTwoMinutes": 1
+  },
+  "trickQuestions": []
+}

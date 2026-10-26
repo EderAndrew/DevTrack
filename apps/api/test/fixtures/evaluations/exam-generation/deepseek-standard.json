@@ -1,0 +1,28 @@
+{
+  "task": "exam-generation",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "servedModel": "deepseek/deepseek-v4-pro-0813",
+  "goldenSetVersion": 1,
+  "evaluatedAt": "2026-10-26T17:28:11.242Z",
+  "metrics": {
+    "schemaValidity": 0,
+    "configMatch": 0,
+    "duplicates": 0,
+    "topicCoverage": 0,
+    "injectionClean": 1
+  },
+  "cost": {
+    "total": "0.007752",
+    "currency": "USD",
+    "perExecution": "0.001938"
+  },
+  "latency": {
+    "perCaseMs": {
+      "injecao-topico": 14650,
+      "poo-java-cinco-questoes": 7034,
+      "python-vinte-questoes": 9863,
+      "sql-sem-linguagem": 26600
+    },
+    "maxMs": 26600
+  }
+}

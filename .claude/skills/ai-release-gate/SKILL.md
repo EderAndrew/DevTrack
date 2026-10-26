@@ -45,7 +45,12 @@ the primary of each; `exam-generation` (018, 2026-10-14) was met in full by `ope
 `work-generation` (schema validity 0.6), which has no fallback. `deepseek-basic` failed all three
 (2026-09-29 and 2026-10-01): called with tools its answers break the output schema (rubric,
 explanation, alternatives) and once it skipped the read tool, although the same request without
-tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment).
+tools passes. DeepSeek joined the family allowlist on 2026-09-29 (009 amendment). On 2026-10-26 both
+DeepSeek entries failed every gate again: `deepseek-basic` schema validity 0.3 (curriculum), 0.5 (exercises),
+0.75 (exams), 0.72 with relevance 0.38 (help), and `work-generation` timed out on one case (no evidence);
+`deepseek-standard` (V4 Pro) 0 on the four generation tasks (every answer `AI_OUTPUT_VALIDATION_FAILED`) and,
+on `work-help`, schema validity 1 but relevance 0. Before that day only `eval:help` moved the task to the tier
+of an `EVAL_MODEL` of another tier; the other four evals now do too, so a STANDARD entry got no route (503).
 
 `work-help` (015) is approved for `openai-basic` only (2026-10-08, no same-tier fallback). The first gate
 (2026-10-08, prompt v1) failed both candidates on leaks: "pilha de pratos" for the alternative "Pilha",

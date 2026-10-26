@@ -155,7 +155,11 @@ describe.each(MODELS)("010/FR-033 010/SC-010 010/SC-002 avaliação sob demanda 
           approvals: [{ taskKey: EXERCISE_GENERATION_TASK.key, metrics: { ...EXERCISE_GENERATION_TASK.quality }, evaluatedAt: new Date().toISOString(), evidence: "eval" }],
         },
       ],
-      tasks: exercises.tasks,
+      // An entry of another tier (`EVAL_MODEL`, e.g. a STANDARD one when no BASIC passes) is evaluated
+      // with the task moved to its tier here only; the production task keeps its own tiers.
+      tasks: exercises.tasks.map((task) =>
+        task.key === EXERCISE_GENERATION_TASK.key ? { ...task, minimumTier: entry.tier, preferredTier: entry.tier, maxTier: entry.tier } : task,
+      ),
       families: PRODUCTION_MODEL_FAMILIES,
       providers: [provider],
       resources: exercises.resources,

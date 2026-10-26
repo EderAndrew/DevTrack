@@ -3,18 +3,18 @@
   "model": "deepseek/deepseek-v4.1-flash",
   "servedModel": "deepseek/deepseek-v4.1-flash",
   "goldenSetVersion": 2,
-  "evaluatedAt": "2026-10-01T13:20:06.495Z",
+  "evaluatedAt": "2026-10-26T16:59:37.243Z",
   "metrics": {
-    "itemRecall": 0,
-    "schemaValidity": 0,
+    "itemRecall": 0.3968,
+    "schemaValidity": 0.3,
     "unsupportedWithoutWarning": 0,
     "inventedFields": 0,
-    "languageMatch": 0,
+    "languageMatch": 0.3,
     "injectionClean": 1
   },
   "cost": {
-    "total": "0.008834",
+    "total": "0.005684",
     "currency": "USD",
-    "perExecution": "0.000883"
+    "perExecution": "0.000568"
   }
 }
