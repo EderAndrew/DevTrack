@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/security-check.sh pre-bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/security-check.sh pre-bash",
             "timeout": 30
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/security-check.sh post-tool",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/security-check.sh post-tool",
             "timeout": 30
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/security-check.sh post-bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/security-check.sh post-bash",
             "timeout": 30
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/security-check.sh stop",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/security-check.sh stop",
             "timeout": 120
           }
         ]
