@@ -37,7 +37,7 @@ de avaliações.
 Menu expandido ou recolhido para ícones; abaixo de `md` o menu vira painel (`Sheet`).
 `preview` só no catálogo (a área de conteúdo vira `div`). Página larga: a raiz da página com
 `data-layout="wide"` tira o limite de `--content-max` e ocupa a largura toda, mantendo o
-`--gutter`; só para telas de tabelas e listas largas (hoje, "Operação de IA", "Minhas disciplinas" e os bancos de exercícios, trabalhos e provas).
+`--gutter`; só para telas de tabelas e listas largas (hoje, "Operação de IA", "Minhas disciplinas" e o detalhe da disciplina, "Minhas turmas" e as telas da turma, os bancos de exercícios, trabalhos e provas).
 
 ### Estados
 
