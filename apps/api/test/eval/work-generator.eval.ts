@@ -165,7 +165,11 @@ describe.each(MODELS)("011/FR-030 011/SC-012 011/SC-002 avaliação sob demanda 
           approvals: [{ taskKey: WORK_GENERATION_TASK.key, metrics: { ...WORK_GENERATION_TASK.quality }, evaluatedAt: new Date().toISOString(), evidence: "eval" }],
         },
       ],
-      tasks: works.tasks,
+      // An entry of another tier (`EVAL_MODEL`, e.g. a STANDARD one when no BASIC passes) is evaluated
+      // with the task moved to its tier here only; the production task keeps its own tiers.
+      tasks: works.tasks.map((task) =>
+        task.key === WORK_GENERATION_TASK.key ? { ...task, minimumTier: entry.tier, preferredTier: entry.tier, maxTier: entry.tier } : task,
+      ),
       families: PRODUCTION_MODEL_FAMILIES,
       providers: [provider],
       resources: works.resources,

@@ -160,7 +160,11 @@ describe.each(MODELS)("007/FR-051 008/US1-4 008/SC-009 009/FR-017 avaliação so
           approvals: [{ taskKey: CURRICULUM_EXTRACTION_TASK.key, metrics: { ...CURRICULUM_EXTRACTION_TASK.quality }, evaluatedAt: new Date().toISOString(), evidence: "eval" }],
         },
       ],
-      tasks: curriculum.tasks,
+      // An entry of another tier (`EVAL_MODEL`, e.g. a STANDARD one when no BASIC passes) is evaluated
+      // with the task moved to its tier here only; the production task keeps its own tiers.
+      tasks: curriculum.tasks.map((task) =>
+        task.key === CURRICULUM_EXTRACTION_TASK.key ? { ...task, minimumTier: entry.tier, preferredTier: entry.tier, maxTier: entry.tier } : task,
+      ),
       families: PRODUCTION_MODEL_FAMILIES,
       providers: [provider],
       resources: curriculum.resources,
