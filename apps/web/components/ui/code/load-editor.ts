@@ -1,7 +1,7 @@
 import { history, historyKeymap, insertNewline, redo, standardKeymap } from "@codemirror/commands"
 import { type LanguageSupport, syntaxHighlighting } from "@codemirror/language"
 import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state"
-import { EditorView, keymap, lineNumbers } from "@codemirror/view"
+import { EditorView, keymap, lineNumbers, placeholder } from "@codemirror/view"
 import * as lezer from "@lezer/highlight"
 import { EDITOR_THEME } from "./editor-theme"
 import { createHighlighter } from "./highlighter"
@@ -34,6 +34,8 @@ export interface CodeEditorSetup {
    * page's own listener records each gesture). Fixed for the editor's life.
    */
   blockClipboard?: boolean
+  /** Example text shown while the editor is empty; never part of the value. */
+  placeholder?: string
   /** The whole text after each change typed, pasted, cut, undone or redone; never for `setValue`. */
   onChange: (value: string) => void
 }
@@ -45,6 +47,7 @@ export interface CodeEditorInstance {
   setGrammar(grammar: LanguageSupport | null): void
   setEditable(editable: boolean, readOnly: boolean): void
   setAttributes(attributes: Record<string, string>): void
+  setPlaceholder(text: string | undefined): void
   focus(): void
   destroy(): void
 }
@@ -109,10 +112,13 @@ const editableExtensions = (editable: boolean, readOnly: boolean): Extension[] =
   EditorView.editorAttributes.of(editable ? {} : { class: "cm-disabled" }),
 ]
 
+const placeholderExtension = (text: string | undefined): Extension => (text ? placeholder(text) : [])
+
 export function createCodeEditor(setup: CodeEditorSetup): CodeEditorInstance {
   const grammar = new Compartment()
   const editable = new Compartment()
   const attributes = new Compartment()
+  const example = new Compartment()
   const value = normalizeLineBreaks(setup.value)
   const selection = setup.selection
     ? { anchor: Math.min(setup.selection.anchor, value.length), head: Math.min(setup.selection.head, value.length) }
@@ -129,6 +135,7 @@ export function createCodeEditor(setup: CodeEditorSetup): CodeEditorInstance {
         grammar.of(setup.grammar ?? []),
         editable.of(editableExtensions(setup.editable, setup.readOnly)),
         attributes.of(EditorView.contentAttributes.of(setup.attributes)),
+        example.of(placeholderExtension(setup.placeholder)),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return
           if (update.transactions.some((transaction) => transaction.annotation(fromProps))) return
@@ -153,6 +160,9 @@ export function createCodeEditor(setup: CodeEditorSetup): CodeEditorInstance {
     },
     setAttributes(next) {
       view.dispatch({ effects: attributes.reconfigure(EditorView.contentAttributes.of(next)) })
+    },
+    setPlaceholder(next) {
+      view.dispatch({ effects: example.reconfigure(placeholderExtension(next)) })
     },
     focus() {
       view.focus()

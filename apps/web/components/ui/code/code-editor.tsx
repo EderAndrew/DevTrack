@@ -31,6 +31,8 @@ type CodeEditorProps = {
    * and in CodeMirror; the typed text is untouched. Fixed while the editor is mounted.
    */
   blockClipboard?: boolean
+  /** Example text shown while the field is empty, in the textarea and in CodeMirror; never part of the value. */
+  placeholder?: string
   className?: string
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -59,6 +61,7 @@ function CodeEditor({
   readOnly = false,
   fixedHeight = false,
   blockClipboard = false,
+  placeholder,
   className,
   "aria-labelledby": labelledBy,
   "aria-label": label,
@@ -74,9 +77,9 @@ function CodeEditor({
   const [mode, setMode] = React.useState<"textarea" | "editor">("textarea")
   const [fieldsetDisabled, setFieldsetDisabled] = React.useState(false)
 
-  const latest = React.useRef({ value, onChange })
+  const latest = React.useRef({ value, onChange, placeholder })
   React.useLayoutEffect(() => {
-    latest.current = { value, onChange }
+    latest.current = { value, onChange, placeholder }
   })
 
   const hintId = `${id}-ajuda`
@@ -156,6 +159,7 @@ function CodeEditor({
       readOnly,
       attributes,
       blockClipboard,
+      placeholder: latest.current.placeholder,
       onChange: (next) => latest.current.onChange(next),
     })
     appliedAttributes.current = attributes
@@ -180,6 +184,11 @@ function CodeEditor({
   React.useEffect(() => {
     instance.current?.setEditable(!off, readOnly)
   }, [off, readOnly, mode])
+
+  // The example follows the form (another language, another example), never the text.
+  React.useEffect(() => {
+    instance.current?.setPlaceholder(placeholder)
+  }, [placeholder, mode])
 
   React.useEffect(() => {
     if (!instance.current || sameAttributes(appliedAttributes.current, attributes)) return
@@ -225,6 +234,7 @@ function CodeEditor({
           readOnly={readOnly}
           fixedHeight={fixedHeight}
           blockClipboard={blockClipboard}
+          placeholder={placeholder}
           aria-labelledby={labelledBy}
           aria-label={label}
           aria-describedby={describedByIds}
@@ -260,6 +270,7 @@ function PlainEditor({
   readOnly,
   fixedHeight,
   blockClipboard,
+  placeholder,
   ref,
   ...aria
 }: {
@@ -270,6 +281,7 @@ function PlainEditor({
   readOnly: boolean
   fixedHeight: boolean
   blockClipboard: boolean
+  placeholder?: string
   ref: React.Ref<HTMLTextAreaElement>
   "aria-labelledby"?: string
   "aria-label"?: string
@@ -323,6 +335,7 @@ function PlainEditor({
         value={value}
         disabled={disabled}
         readOnly={readOnly}
+        placeholder={placeholder}
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"

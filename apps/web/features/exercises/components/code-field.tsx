@@ -15,6 +15,8 @@ interface CodeFieldProps<T extends FieldValues> {
   name: FieldPath<T>;
   /** Grammar key of the chosen language (`language.highlight`); null → no colors. */
   highlight: CodeHighlight;
+  /** Example shown while the field is empty; never saved. */
+  placeholder?: string;
 }
 
 /**
@@ -23,7 +25,7 @@ interface CodeFieldProps<T extends FieldValues> {
  * names it through `aria-labelledby`; the form's focus reaches it by its id or the field's ref. The
  * text goes to the form exactly as typed.
  */
-export function CodeField<T extends FieldValues>({ id, label, hint, error, required, control, name, highlight }: CodeFieldProps<T>) {
+export function CodeField<T extends FieldValues>({ id, label, hint, error, required, control, name, highlight, placeholder }: CodeFieldProps<T>) {
   return (
     <FormField id={id} label={label} description={hint} error={error} required={required}>
       {(controlProps) => (
@@ -37,6 +39,7 @@ export function CodeField<T extends FieldValues>({ id, label, hint, error, requi
               value={(field.value as string | undefined) ?? ""}
               onChange={field.onChange}
               highlight={highlight}
+              placeholder={placeholder}
               aria-labelledby={fieldLabelId(id)}
               aria-describedby={controlProps["aria-describedby"]}
               aria-invalid={controlProps["aria-invalid"]}

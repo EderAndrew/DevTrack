@@ -1712,6 +1712,11 @@ Altura: por padrão o editor cresce com o código (mínimo `min-h-48`). Com `fix
 tem altura fixa, 65% da altura da tela e nunca menos de `h-96` (`h-[65dvh] min-h-96`), e rola na vertical, no `Textarea` e no CodeMirror; o `CodeAnswer` do
 aluno usa assim, para o editor não empurrar o enunciado ao lado.
 
+Exemplo no campo vazio: `placeholder` mostra um texto em `--text-secondary` enquanto o campo está
+vazio, como o `placeholder` do `Textarea` (no CodeMirror, a extensão `placeholder` de
+`@codemirror/view`); ele nunca entra no valor e pode mudar com o formulário (outra linguagem, outro
+exemplo). O "Exercício de código" dos formulários do banco usa assim.
+
 ### Quando usar
 
 Onde se escreve código: `CodeAnswer` do aluno e os campos "Código inicial" e "Solução esperada"

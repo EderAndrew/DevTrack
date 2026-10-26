@@ -471,3 +471,75 @@ describe("019/US4 ExerciseForm — a linguagem diz se os alunos poderão executa
     expect(scope.queryByText("Os alunos poderão executar o código.")).toBeNull();
   });
 });
+
+describe("ExerciseForm — exemplos nos campos de um exercício de código", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const writes: { url: string; body: unknown }[] = [];
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    router.push.mockReset();
+    writes.length = 0;
+    fetchMock.mockImplementation(
+      exerciseApiMock((url, body) => {
+        writes.push({ url, body });
+        return json(201, exerciseView());
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const exercise = () => within(screen.getByRole("group", { name: "Exercício" }));
+  /** The example CodeMirror shows in an empty editor. */
+  const exampleOf = (editor: HTMLElement) => editor.closest(".cm-editor")!.querySelector(".cm-placeholder")?.textContent ?? "";
+
+  it("cada campo vazio de um exercício de código mostra um exemplo, e os outros tipos não", async () => {
+    renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    expect(exercise().getByLabelText(/^Enunciado/).getAttribute("placeholder")).toBeNull();
+
+    await user.selectOptions(exercise().getByLabelText(/^Tipo/), "Exercício de código");
+    expect(exercise().getByLabelText(/^Enunciado/).getAttribute("placeholder")).toMatch(/^Ex\.: Escreva um programa/);
+    expect(exercise().getByLabelText(/^Instruções/).getAttribute("placeholder")).toMatch(/^Ex\.: Leia os dois números/);
+    expect(exercise().getByLabelText(/^Explicação/).getAttribute("placeholder")).toMatch(/^Ex\.: /);
+
+    await user.click(exercise().getByRole("button", { name: /Adicionar caso/ }));
+    expect(exercise().getByLabelText(/^Entrada do caso 1/).getAttribute("placeholder")).toBe("Ex.: 2 3");
+    expect(exercise().getByLabelText(/^Saída esperada do caso 1/).getAttribute("placeholder")).toBe("Ex.: 5");
+
+    await user.selectOptions(exercise().getByLabelText(/^Tipo/), "Pergunta e resposta");
+    expect(exercise().getByLabelText(/^Enunciado/).getAttribute("placeholder")).toBeNull();
+    expect(exercise().getByLabelText(/^Resposta esperada/).getAttribute("placeholder")).toBeNull();
+  });
+
+  it("o exemplo de código segue a linguagem escolhida e nunca é enviado", async () => {
+    renderWithProviders(<ExerciseForm mode="single" />);
+    const user = userEvent.setup();
+    await user.selectOptions(exercise().getByLabelText(/^Tipo/), "Exercício de código");
+    const starter = await codeEditorByLabel(/^Código inicial/);
+    const solution = await codeEditorByLabel(/^Solução esperada/);
+    expect(exampleOf(solution)).toMatch(/Escolha a linguagem/);
+
+    await exercise().findByRole("option", { name: "Python" });
+    await user.selectOptions(exercise().getByLabelText(/^Linguagem/), "Python");
+    await waitFor(() => expect(exampleOf(solution)).toContain("print(a + b)"));
+    expect(exampleOf(starter)).toContain("# Escreva sua solução aqui");
+
+    await user.selectOptions(exercise().getByLabelText(/^Linguagem/), "Java");
+    await waitFor(() => expect(exampleOf(solution)).toContain("public class Main"));
+
+    // Only what the teacher typed is saved: the examples stay out of the body.
+    await user.type(exercise().getByLabelText(/^Enunciado/), "Some dois números.");
+    await user.selectOptions(exercise().getByLabelText(/^Dificuldade/), "Básico");
+    await user.selectOptions(exercise().getByLabelText(/^Objetivo cognitivo/), "Compreender");
+    await user.type(exercise().getByLabelText(/^Instruções/), "Leia e some.");
+    solution.focus();
+    await typeCode(user, "class Main {}");
+    await user.type(exercise().getByLabelText(/^Explicação/), "Soma simples.");
+    await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(JSON.stringify(writes[0]!.body)).not.toContain("Ex.:");
+    expect(JSON.stringify(writes[0]!.body)).not.toContain("Escreva sua solução aqui");
+  });
+});

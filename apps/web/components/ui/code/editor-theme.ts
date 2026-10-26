@@ -31,6 +31,10 @@ export const EDITOR_THEME = {
   ".cm-content ::selection": {
     backgroundColor: "var(--primary-subtle)",
   },
+  // The example of an empty field, as the fields' `placeholder:text-text-secondary`.
+  ".cm-placeholder": {
+    color: "var(--text-secondary)",
+  },
   ".cm-gutters": {
     color: "var(--text-secondary)",
     backgroundColor: "var(--background)",
