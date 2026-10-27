@@ -52,7 +52,7 @@ description: "Task list for 021 — Code Runner nos Trabalhos: o professor permi
 
 **Purpose**: os contratos que todas as histórias usam.
 
-- [ ] T001 [P] Contratos em `packages/contracts/src/` (contracts/http-api.md, research Y10):
+- [X] T001 [P] Contratos em `packages/contracts/src/` (contracts/http-api.md, research Y10):
   - `activities/teacher.ts`: `codeExecution: z.boolean().default(false)` em
     `CreateAssignmentRequestSchema`; `codeExecution: z.boolean().optional()` em
     `UpdateActivityRequestSchema` (comentário: ASSIGNMENT only, 015/FR-002); `codeExecution: z.boolean()`

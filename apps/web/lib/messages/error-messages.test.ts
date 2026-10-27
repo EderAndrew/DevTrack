@@ -179,17 +179,22 @@ const PHASE_019_TEXTS = {
   EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",
 };
 
-const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS, ...PHASE_018_TEXTS, ...PHASE_019_TEXTS };
+// Codes added by 021, with the texts of specs/021-work-code-runner/contracts/http-api.md (T001).
+const PHASE_021_TEXTS = {
+  CODE_EXECUTION_NOT_ELIGIBLE: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",
+};
+
+const ALL_TEXTS = { ...PHASE_001_TEXTS, ...PHASE_003_TEXTS, ...PHASE_004_TEXTS, ...PHASE_006_TEXTS, ...PHASE_007_TEXTS, ...PHASE_009_TEXTS, ...PHASE_010_TEXTS, ...PHASE_011_TEXTS, ...PHASE_012_TEXTS, ...PHASE_013_TEXTS, ...PHASE_015_TEXTS, ...PHASE_016_TEXTS, ...PHASE_018_TEXTS, ...PHASE_019_TEXTS, ...PHASE_021_TEXTS };
 
 const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 121 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018 e da 019", () => {
+  it("007/FR-040 cobre os 122 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018, da 019 e da 021", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED" && code !== "NOTICE_TOO_LARGE");
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(123);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(124);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {
