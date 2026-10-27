@@ -40,7 +40,8 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   (`components/ui/code/grammars.ts`), never a language of the catalog (the link is the
   `highlight` column); `@codemirror/*` and `@lezer/*` are imported statically only in
   `components/ui/code/load-*.ts` (ESLint), everything else reaches them by `import()`; the typed
-  text is never altered (no auto-close, completion or auto-indent; only `\r\n` → `\n`); code is never
+  text is never altered (no auto-close, completion or re-indent while typing; only `\r\n` → `\n`), except
+  that Enter indents the new line by the grammar (FR-007, amended 2026-10-27); code is never
   rendered as HTML. Form fields use `CodeEditor` named by `aria-labelledby` (`fieldLabelId`); Tab
   indents inside it and Esc then Tab leaves (the `test/keyboard.ts` helpers do that).
 - Controlled mode and AI help (015): monitoring lives only in `features/controlled-attempt` (the pure

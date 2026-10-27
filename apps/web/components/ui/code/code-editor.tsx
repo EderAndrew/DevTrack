@@ -49,8 +49,9 @@ const sameAttributes = (a: Record<string, string>, b: Record<string, string>) =>
  * textarea at once — line numbers, Tab indents, Esc then Tab leaves — and, when the CodeMirror
  * chunk arrives, swaps to the colored editor carrying the value, the selection and the focus,
  * without reporting a change. If the chunk fails it stays the textarea (FR-014). The text is never
- * altered: no closing brackets, completion or automatic indentation; the only normalization is the
- * textarea's own (`\r\n` → `\n` when edited). Nothing here runs the code.
+ * altered: no closing brackets or completion; only Enter in CodeMirror indents the new line (FR-007,
+ * amended 2026-10-27); the only normalization is the textarea's own (`\r\n` → `\n` when edited).
+ * Nothing here runs the code.
  */
 function CodeEditor({
   id,

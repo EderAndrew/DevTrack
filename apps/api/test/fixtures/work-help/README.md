@@ -66,5 +66,10 @@ cada uma como único modelo da rota, ou só contra `EVAL_MODEL`. Com `EVAL_RECOR
 `test/fixtures/evaluations/work-help/<chave>.json`, passe ou não: tarefa, modelo pedido e servido,
 versão do conjunto, métricas, custo, latência de cada caso e todas as respostas, para leitura
 humana da pertinência. Sem nenhum caso com falha de infraestrutura (`AI_PROVIDER_ERROR` etc.),
-senão nada é gravado. A aprovação em `model-catalog.ts` só entra com essa evidência; até lá o
-`work-helper` continua DISABLED e a ajuda, indisponível.
+senão nada é gravado. A aprovação em `model-catalog.ts` só entra com essa evidência.
+
+Resultado atual: só `openai-basic` está aprovado (2026-10-08, prompt v2 e conjunto v2), sem reserva
+do mesmo nível: nenhum vazamento nem injeção, escopo 0,92 e 18 das 20 orientações pertinentes na
+leitura de uma pessoa. `anthropic-basic` reprovou (vazamentos, hoje bloqueados pelo servidor). Em 2026-10-26 `deepseek-basic` e `deepseek-standard` foram avaliados de novo e reprovaram
+(`deepseek-basic` esquema 0,72 e pertinência 0,38; `deepseek-standard` pertinência 0). O
+`work-helper` continua DISABLED até o administrador habilitá-lo em "Operação de IA".

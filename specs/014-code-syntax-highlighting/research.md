@@ -34,8 +34,14 @@ color comes from the library. The same Lezer parsers highlight read-only code wi
 `history()` with its keymap (undo/redo), a Tab binding that inserts two spaces (the 012 `INDENT`),
 `EditorView.lineWrapping` off, `EditorState.readOnly`/`EditorView.editable` from props, and an
 update listener that reports `doc.toString()`. Not included: `closeBrackets`, autocompletion,
-linting, search panel, bracket matching colors, `insertNewlineAndIndent` (Enter is a plain
-`insertNewline`), drawn selection themes from the library.
+linting, search panel, bracket matching colors, `indentOnInput`, drawn selection themes from the
+library.
+
+*Amended 2026-10-27 (FR-007, US1-7)*: Enter is `insertNewlineAndIndent` (it was a plain
+`insertNewline`), with `indentUnit` set to the two spaces of `INDENT`: the new line takes the
+grammar's indentation (one level inside a class, method, loop or decision), or the previous line's
+when there is no grammar. Nothing re-indents while typing (`indentOnInput` stays out), and the 012
+textarea shown before the chunk arrives keeps a plain newline.
 
 Esc then Tab: CodeMirror's tab-focus mode (Escape makes the next Tab move the focus) matches the
 005 rule; the implementation verifies it on the installed version and, if absent, adds the same

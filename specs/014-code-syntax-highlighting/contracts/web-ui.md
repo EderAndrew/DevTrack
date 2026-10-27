@@ -23,8 +23,9 @@ CodeEditor(props: {
 
 - Renders the 012 textarea at once; swaps to CodeMirror when the chunk loads, keeping value,
   selection and focus; stays a textarea if the load fails (research L6).
-- Tab inserts two spaces; Esc then Tab leaves; Shift+Tab moves back; Enter inserts a plain newline;
-  no auto-closing, completion or lint (L2).
+- Tab inserts two spaces; Esc then Tab leaves; Shift+Tab moves back; Enter breaks the line and
+  indents the new one by the grammar (`insertNewlineAndIndent`, two-space unit; amended 2026-10-27,
+  FR-007); no auto-closing, re-indenting while typing, completion or lint (L2).
 - Hint below (unchanged): "Tab indenta o código; Esc e depois Tab sai do editor."
 - Line numbers in `--text-secondary`, `text-code`, official focus outline, `bg-background`;
   horizontal scroll inside the editor (no page scroll at 360 px).

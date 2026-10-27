@@ -372,12 +372,16 @@ describe("014/US3 ExerciseForm — o professor escreve código colorido", () => 
     await user.type(exercise().getByLabelText(/^Instruções/), "Some dois números.");
 
     starter.focus();
-    await typeCode(user, "def soma(a, b):\n");
-    await user.keyboard("{Tab}");
+    await typeCode(user, "def soma(a, b):");
+    // Enter indents the body by the Python grammar (FR-007, amended 2026-10-27).
+    await vi.waitFor(() => expect(syntaxSegments(starter)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    await typeCode(user, "\n");
     await typeCode(user, "pass  ");
     solution.focus();
-    await typeCode(user, "def soma(a, b):\n");
-    await user.keyboard("{Tab}");
+    await typeCode(user, "def soma(a, b):");
+    // Enter indents the body by the Python grammar (FR-007, amended 2026-10-27).
+    await vi.waitFor(() => expect(syntaxSegments(solution)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    await typeCode(user, "\n");
     await typeCode(user, "return a + b  # ação {ok}");
     await user.click(screen.getByRole("button", { name: "Salvar no banco" }));
 

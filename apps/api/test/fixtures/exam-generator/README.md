@@ -25,6 +25,7 @@ tópicos e as ementas são **fictícios**, escritos para estes testes.
 ```bash
 pnpm --filter api test test/integration/018-evaluation.spec.ts                          # CI: respostas gravadas
 OPENROUTER_API_KEY=... pnpm --filter api eval:exams                                      # sob demanda: os candidatos BASIC do catálogo
+OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic pnpm --filter api eval:exams              # só uma entrada do catálogo (qualquer nível)
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:exams  # grava a evidência
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_REPLAY=1 pnpm --filter api eval:exams  # regrava recorded.json
 ```
@@ -45,4 +46,5 @@ Como na 009 (contracts/catalog-and-quality-gate.md): `EVAL_RECORD=1` grava
 `test/fixtures/evaluations/exam-generation/<chave>.json`, passe ou não (nada quando um caso falhou
 no provedor). A tarefa `exam-generation` só aprova um modelo com evidência que cumpra os limiares de
 `EXAM_GENERATION_TASK.quality` (`009-quality-gate.spec.ts`). Em 2026-10-14 `openai-basic` (primário)
-e `anthropic-basic` (reserva do mesmo nível) cumpriram todos.
+e `anthropic-basic` (reserva do mesmo nível) cumpriram todos. Em 2026-10-26 `deepseek-basic` e `deepseek-standard` foram avaliados de novo e reprovaram (`deepseek-basic`
+esquema 0,75; `deepseek-standard` nenhuma resposta válida).

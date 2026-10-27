@@ -9,7 +9,7 @@ decoração.
 | [tokens.md](./tokens.md) | cada token de `tokens.css`, valores do tema único (escuro, Vice City) e uso permitido |
 | [components.md](./components.md) | cada componente fundamental: variantes, estados, quando usar, quando não usar, exemplo e acessibilidade |
 | [layouts.md](./layouts.md) | AppShell e layout do aluno, e como a tela de conta escolhe entre eles |
-| [exam-mode.md](./exam-mode.md) | contrato visual do modo avaliação e dos componentes de avaliação (construídos pela feature de avaliações) |
+| [exam-mode.md](./exam-mode.md) | contrato visual do modo avaliação e dos componentes de avaliação em `components/ui/assessment` (construídos pelas fases 012, 015 e 018) |
 | [exceptions.md](./exceptions.md) | valores fora da escala aceitos no código, com o motivo |
 | `/design-system` | catálogo visual (só em desenvolvimento e nos testes), montado de `features/design-system/registry.ts` |
 
@@ -24,7 +24,7 @@ decoração.
    espaçamento, raio, sombra ou família de fonte literal nas telas; exceções só com
    `ds-exception: <motivo>` e registro em [exceptions.md](./exceptions.md).
 4. **Acessível por padrão (WCAG 2.2 AA).** Contraste de 4,5:1 no texto e 3:1 em ícones de
-   estado, bordas de campo e foco, nos dois temas; foco visível em todo elemento
+   estado, bordas de campo e foco, no tema escuro; foco visível em todo elemento
    interativo; alvo de no mínimo 24 × 24 px (44 px de altura em botões e campos); tudo
    operável pelo teclado; nome acessível em todo controle.
 5. **Movimento funcional e curto.** Só para abrir, fechar, dar retorno e mudar de estado
@@ -81,6 +81,10 @@ tokens (design-system/tokens.css)
         → app (app/**: páginas e layouts de rota)
 ```
 
+As cores do código (014) vêm só dos oito tokens `--syntax-*` (`text-syntax-*`), e os gráficos
+(Recharts, só por `components/ui/chart.tsx`) usam `--chart-1` ou as cores de estado, sempre acima
+de uma tabela com os mesmos números.
+
 Cada camada importa só as de baixo (ESLint, `eslint.config.js`, grupos `UI_LAYER` e
 `LAYOUT_LAYER`; `test/lint-boundaries.test.ts` fixa as regras). `components/shared`
 (menu lateral, cabeçalho público, avisos) fica entre `ui` e `layout`. Os componentes não
@@ -90,8 +94,9 @@ features.
 ## Como usar
 
 1. **Tela nova**: fica num grupo de rota que já traz a moldura (`app/(app)` para o
-   professor e a administração, `app/(student)` para o aluno) e começa com `PageHeader`
-   (título, trilha, situação, descrição e ações).
+   professor e a administração, `app/(student)` para o aluno, `app/(account)` para as telas de
+   conta de qualquer papel, `app/(focus)` para a tela de foco do modo controlado e da prova) e
+   começa com `PageHeader` (título, trilha, situação, descrição e ações).
 2. **Componente**: procure no catálogo (`pnpm --filter web dev` e abra
    `http://localhost:3000/design-system`) e em [components.md](./components.md). Use a
    variante pelo significado (`variant="danger"` para o que destrói, `Badge`/`Status` pelo
