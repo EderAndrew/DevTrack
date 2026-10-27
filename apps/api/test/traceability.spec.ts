@@ -171,7 +171,7 @@ const SPECS: FeatureSpec[] = [
     feature: "014",
     path: "specs/014-code-syntax-highlighting/spec.md",
     stories: 4,
-    scenarios: 18,
+    scenarios: 19,
     // No "### Acceptance Criteria Traceability" table, as in 008–013.
     rows: 0,
     rowsWithoutIds: [],

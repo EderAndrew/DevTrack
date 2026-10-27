@@ -15,7 +15,8 @@ language object in the API responses carries it, and a web registry maps grammar
 loaders. Colors are eight new semantic tokens with light/dark values (all ≥ 4.5:1) and a forced-colors
 fallback; the editor's theme uses only tokens. CodeMirror loads on demand: the answering screen shows
 the current textarea at once and swaps to the colored editor when the chunk arrives (or stays a
-textarea if it fails). Nothing typed is changed (no auto-close, auto-indent, completion or lint);
+textarea if it fails). Nothing typed is changed (no auto-close, re-indent while typing, completion or lint;
+Enter indents the new line by the grammar since the 2026-10-27 amendment of FR-007);
 autosave, offline buffer, submission and conclusion are untouched.
 
 ## Technical Context

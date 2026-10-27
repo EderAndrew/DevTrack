@@ -126,14 +126,52 @@ describe("014/US1 CodeEditor colorido", () => {
     expect(lastCall(onChange)).toBe("a  b");
   });
 
-  it("014/FR-007 Enter não indenta e aspas e parênteses não se fecham sozinhos", async () => {
+  it("014/FR-007 aspas e parênteses não se fecham sozinhos e `}` não reindenta a linha", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const { container } = render(<Host onChange={onChange} />);
     const content = await codeMirrorContent(container);
     await user.click(content);
-    await typeCode(user, "  if (x) {\nfoo(\"a");
-    expect(lastCall(onChange)).toBe('  if (x) {\nfoo("a');
+    await typeCode(user, 'foo("a');
+    expect(lastCall(onChange)).toBe('foo("a');
+    await user.keyboard("{Control>}a{/Control}");
+    await typeCode(user, "class A {\n");
+    await waitFor(() => expect(syntaxSegments(content)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]])));
+    await typeCode(user, "}");
+    expect(lastCall(onChange)).toBe("class A {\n  }");
+  });
+
+  it("014/US1-7 Enter indenta a nova linha dentro de classe, método, laço e decisão (Java)", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(<Host onChange={onChange} />);
+    const content = await codeMirrorContent(container);
+    await user.click(content);
+    await typeCode(user, "class A");
+    await waitFor(() => expect(syntaxSegments(content)).toEqual(expect.arrayContaining([["class", "text-syntax-keyword"]])));
+    await typeCode(user, " {\nvoid f() {\nfor (;;) {\nif (x) {\ny();\nz();");
+    expect(lastCall(onChange)).toBe("class A {\n  void f() {\n    for (;;) {\n      if (x) {\n        y();\n        z();");
+  });
+
+  it("014/US1-7 Enter indenta depois de `:` em Python e, sem gramática, repete a indentação da linha anterior", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const python = render(<Host highlight="python" onChange={onChange} />);
+    const content = await codeMirrorContent(python.container);
+    await user.click(content);
+    await typeCode(user, "def f");
+    await waitFor(() => expect(syntaxSegments(content)).toEqual(expect.arrayContaining([["def", "text-syntax-keyword"]])));
+    await typeCode(user, "():\nfor i in x:\nprint(i)\nok()");
+    expect(lastCall(onChange)).toBe("def f():\n  for i in x:\n    print(i)\n    ok()");
+    python.unmount();
+
+    const plain = render(<Host highlight={null} onChange={onChange} />);
+    const text = await codeMirrorContent(plain.container);
+    await user.click(text);
+    await typeCode(user, "a {\n");
+    await user.keyboard("{Tab}");
+    await typeCode(user, "b\nc");
+    expect(lastCall(onChange)).toBe("a {\n  b\n  c");
   });
 
   it("014/FR-007 valor guardado com \\r\\n: trocar e re-renderizar não emitem onChange nem movem o cursor", async () => {

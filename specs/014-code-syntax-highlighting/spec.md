@@ -44,6 +44,18 @@ O que **não muda**: o texto do código (o que é salvo, enviado e comparado é 
 digitou), o salvamento automático e o buffer offline da 012, as regras de gabarito da 011–013 e os
 casos de teste (entrada e saída continuam texto simples).
 
+## Clarifications
+
+### Session 2026-10-27
+
+- Q: Ao pressionar Enter no editor, a nova linha pode já vir indentada? → A: Sim. Enter quebra a
+  linha e indenta a nova pela estrutura do código da linguagem do editor (dentro de classe, método,
+  laço ou decisão entra um nível de dois espaços); sem regra da linguagem, repete a indentação da
+  linha anterior. Só o Enter: nada se reindenta ao digitar (`}` não volta um nível sozinho), aspas e
+  parênteses continuam sem fechar sozinhos, e o campo de texto mostrado antes de o editor carregar
+  continua quebrando a linha sem indentar. Vale para todo editor de código (aluno e professor).
+  Emenda à FR-007 e ao cenário US1-7.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Aluno responde uma questão de Código com o código colorido (Priority: P1)
@@ -80,6 +92,10 @@ idêntico ao digitado.
 6. **Given** o aluno colando um código que contém `<script>alert(1)</script>` ou HTML, **When** o
    código aparece no editor, **Then** aparece como texto, nada é executado nem vira elemento da
    página.
+7. **Given** o editor de uma questão de Código em Java (ou Python), **When** o aluno pressiona Enter
+   depois de abrir uma classe, um método, um laço ou uma decisão (`{` em Java, `:` em Python),
+   **Then** a nova linha já vem indentada um nível (dois espaços) a mais; dentro do bloco, Enter
+   mantém o nível; o texto salvo é o que aparece no editor (emenda 2026-10-27).
 
 ---
 
@@ -223,9 +239,13 @@ sistema.
 
 - **FR-007**: O texto salvo, enviado, copiado para a área de transferência e comparado DEVE ser
   exatamente o digitado ou recebido: o realce não altera espaços, tabulações nem caracteres, não
-  acrescenta marcação e não completa nem indenta nada sozinho (Enter quebra a linha sem indentar;
-  aspas e parênteses não se fecham sozinhos). A única normalização é a que o campo de texto atual
-  já faz: quebra de linha do Windows vira `\n` ao editar.
+  acrescenta marcação e não completa nada sozinho (aspas e parênteses não se fecham sozinhos). A
+  única mudança automática é a do Enter (emenda 2026-10-27): ele quebra a linha e indenta a nova
+  pela estrutura do código da linguagem (um nível de dois espaços dentro de classe, método, laço ou
+  decisão; sem regra da linguagem, a indentação da linha anterior), e nada se reindenta ao digitar.
+  O campo de texto mostrado antes de o editor carregar quebra a linha sem indentar. A única
+  normalização é a que o campo de texto atual já faz: quebra de linha do Windows vira `\n` ao
+  editar.
 - **FR-008**: O salvamento automático, as revisões, o buffer offline, a entrega (012) e a conclusão
   (013) DEVEM funcionar exatamente como hoje com o novo editor, inclusive a regra de "em branco" da
   012 (código igual ao inicial conta como em branco).

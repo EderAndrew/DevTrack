@@ -1,5 +1,5 @@
-import { history, historyKeymap, insertNewline, redo, standardKeymap } from "@codemirror/commands"
-import { type LanguageSupport, syntaxHighlighting } from "@codemirror/language"
+import { history, historyKeymap, insertNewlineAndIndent, redo, standardKeymap } from "@codemirror/commands"
+import { indentUnit, type LanguageSupport, syntaxHighlighting } from "@codemirror/language"
 import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state"
 import { EditorView, keymap, lineNumbers, placeholder } from "@codemirror/view"
 import * as lezer from "@lezer/highlight"
@@ -57,8 +57,9 @@ export const normalizeLineBreaks = (text: string) => text.replace(/\r\n?/g, "\n"
 
 /**
  * Exactly the extensions of L2: nothing typed is changed — no closing brackets, completion, lint,
- * search or automatic indentation (Enter is a plain new line). Esc then Tab leaves the editor
- * (CodeMirror's tab-focus mode); Shift+Tab is not bound, so it moves the focus back.
+ * search or re-indenting while typing. Enter indents the new line by the grammar, one `INDENT` per
+ * level, or as the previous line without one (FR-007, amended 2026-10-27). Esc then Tab leaves the
+ * editor (CodeMirror's tab-focus mode); Shift+Tab is not bound, so it moves the focus back.
  */
 function editingExtensions(): Extension[] {
   // Esc then Tab leaves, with no time limit, as in the 012 textarea (CodeMirror's own tab-focus
@@ -75,6 +76,7 @@ function editingExtensions(): Extension[] {
   return [
     lineNumbers(),
     history(),
+    indentUnit.of(INDENT),
     EditorView.domEventHandlers({
       keydown(event) {
         if (event.key === "Escape") escaped = true
@@ -88,7 +90,7 @@ function editingExtensions(): Extension[] {
     }),
     keymap.of([
       { key: "Tab", run: tab },
-      { key: "Enter", run: insertNewline },
+      { key: "Enter", run: insertNewlineAndIndent },
       // Ctrl/Cmd+Shift+Z redoes on every platform (CodeMirror binds it only on Linux and macOS).
       { key: "Mod-Shift-z", run: redo, preventDefault: true },
       ...historyKeymap,
