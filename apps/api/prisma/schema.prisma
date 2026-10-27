@@ -2121,6 +2121,9 @@ model ClassActivity {
   /// PRESENT_ONLY only for ASSIGNMENT (CHECK); immutable (trigger). Every work applied since 016 is
   /// PRESENT_ONLY; exercises and older works stay ALL_ENROLLED (016 M2).
   releaseMode          ActivityReleaseMode   @default(ALL_ENROLLED) @map("release_mode")
+  /// 021: students may run their code on the CODE questions; true only for ASSIGNMENT (CHECK), changes
+  /// only before the first attempt (trigger, Y1).
+  codeExecutionAllowed Boolean               @default(false) @map("code_execution_allowed")
   status               ClassActivityStatus   @default(ACTIVE)
   /// 1–200 characters (CHECK).
   title                String

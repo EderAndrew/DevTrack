@@ -175,6 +175,15 @@ export const WORK_SUMMARY_SELECT = {
   createdAt: true,
   updatedAt: true,
   topics: { orderBy: { position: "asc" }, select: { syllabusItem: { select: { id: true, text: true } } } },
+  /**
+   * 021 (research Y2): the CODE questions the Code Runner can run — a language with `execution` and at
+   * least one PUBLIC case — so the apply form offers "Permitir executar o código" only when > 0.
+   */
+  _count: {
+    select: {
+      questions: { where: { type: "CODE", language: { execution: { not: null } }, testCases: { some: { visibility: "PUBLIC" } } } },
+    },
+  },
 } as const satisfies Prisma.WorkSelect;
 
 type WorkSummaryRow = Prisma.WorkGetPayload<{ select: typeof WORK_SUMMARY_SELECT }>;
@@ -187,6 +196,7 @@ export function toWorkSummary(row: WorkSummaryRow): WorkSummary {
     difficulty: row.difficulty,
     totalGrade: centsToGrade(decimalToCents(row.totalGrade)),
     questionCount: row.questionCount,
+    runnableCodeQuestionCount: row._count.questions,
     origin: row.origin,
     status: row.status,
     topics: row.topics.map(({ syllabusItem }) => ({ syllabusItemId: syllabusItem.id, itemText: syllabusItem.text })),

@@ -76,7 +76,7 @@ description: "Task list for 021 — Code Runner nos Trabalhos: o professor permi
 
 **Purpose**: migração, elegibilidade, loader e fixtures. ⚠️ Nenhuma história começa antes desta fase.
 
-- [ ] T002 Teste primeiro: `apps/api/test/integration/021-schema.spec.ts` (data-model.md, research Y5):
+- [X] T002 Teste primeiro: `apps/api/test/integration/021-schema.spec.ts` (data-model.md, research Y5):
   - `class_activities.code_execution_allowed` padrão `false`; `true` num EXERCISE ou EXAM →
     `check_violation`; `true` num ASSIGNMENT aceito;
   - mudar `code_execution_allowed` com uma tentativa na atividade → erro; sem tentativa → aceito;
@@ -85,25 +85,25 @@ description: "Task list for 021 — Code Runner nos Trabalhos: o professor permi
   - inserir `code_runs` com uma pausa aberta da tentativa numa atividade ACTIVE → erro; com a pausa
     liberada → aceito; o UPDATE do worker (claim e resultado) numa execução de tentativa pausada →
     aceito.
-- [ ] T003 Migração `apps/api/prisma/migrations/<ts>_work_code_runner/migration.sql` e
+- [X] T003 Migração `apps/api/prisma/migrations/<ts>_work_code_runner/migration.sql` e
   `apps/api/prisma/schema.prisma` (`ClassActivity.codeExecutionAllowed`), com T002 verde ao final: a
   coluna, o CHECK, o gatilho `class_activities_code_execution_fixed`, `code_runs_insert_valid`
   substituído e `code_runs_paused` (reusa `attempt_paused_writes()` da 016). Na mesma tarefa,
   `createActivity` de `apps/api/test/helpers/activities.ts` aceita `codeExecutionAllowed`.
-- [ ] T004 [P] Elegibilidade pura (research Y2) com teste:
+- [X] T004 [P] Elegibilidade pura (research Y2) com teste:
   `apps/api/src/modules/activities/code-execution.ts` + `code-execution.spec.ts` (`021/FR-001`):
   `codeExecutionEligible(questions)` verdadeiro só com uma questão CODE com ao menos um caso PUBLIC e
   linguagem com `execution`; casos: sem CODE, CODE só com PRIVATE, CODE de C++ (sem execução), CODE
   de Python com PUBLIC, mistura. Sem imports de `code-runs`.
-- [ ] T005 [P] `OwnAttemptContext.codeExecutionAllowed` em
+- [X] T005 [P] `OwnAttemptContext.codeExecutionAllowed` em
   `apps/api/src/modules/student-activities/student-activity-loader.ts` (lido com o resto da atividade);
   `codeExecutionAllowed` no select de `apps/api/src/modules/activities/activity-query.ts` e
   `codeExecution` em `views/teacher-view.ts` (sempre `false` para EXERCISE e EXAM).
-- [ ] T006 [P] Fixtures: `createCodeWork(t, schoolClass, { languageKey, testCases, codeExecutionAllowed,
+- [X] T006 [P] Fixtures: `createCodeWork(t, schoolClass, { languageKey, testCases, codeExecutionAllowed,
   executionMode, latePolicy, releaseMode })` em `apps/api/test/helpers/code-runs.ts` — um ASSIGNMENT com
   uma questão CODE (`DOUBLE_CASES`, o caso PRIVATE com `PRIVATE_RUN_MARKER`) e uma de Múltipla escolha,
   sobre `createActivity`; reusa `seedHeartbeat`, `createRunWorker`, `drainRuns`, `requestRun`.
-- [ ] T007 Acrescentar `021` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
+- [X] T007 Acrescentar `021` ao `SPECS` de `apps/api/test/traceability.spec.ts` (regra do CLAUDE.md):
   `stories: 4`, `scenarios: 26`, `rows: 0`, `successCriteria: sc(1, 9)` e
   `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-009"] }`. Cada história sai de
   `pending` na tarefa que escreve o último teste dela, cada SC quando o teste que o cita entra; ao fim

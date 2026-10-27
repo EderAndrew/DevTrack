@@ -260,6 +260,8 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
     deadline: localToIso(values.deadline),
     latePolicy: values.latePolicy,
     executionMode: values.controlled ? "CONTROLLED" : "NORMAL",
+    // 021: "Permitir executar o código" arrives with the option's field (tasks T011); off until then.
+    codeExecution: false,
     aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0,
   };
 }

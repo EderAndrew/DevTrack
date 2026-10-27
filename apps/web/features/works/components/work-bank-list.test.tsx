@@ -25,6 +25,7 @@ const summary = (
   difficulty: null,
   totalGrade: "10.00",
   questionCount: 3,
+  runnableCodeQuestionCount: 0,
   origin: "MANUAL",
   status: "APPROVED",
   topics: [],

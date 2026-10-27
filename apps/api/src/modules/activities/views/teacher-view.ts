@@ -82,6 +82,8 @@ export function toTeacherActivitySummary(
     executionMode: header.executionMode,
     aiHelp: { allowance: aiHelpAllowanceOf(header.aiHelpAllowance) },
     releaseMode: header.releaseMode,
+    // 021: false for EXERCISE and EXAM by the CHECK (research Y1).
+    codeExecution: header.codeExecutionAllowed,
     attendance,
     title: header.title,
     status: header.status,

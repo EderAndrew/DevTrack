@@ -238,6 +238,8 @@ export interface CreateActivityOptions {
   aiHelpAllowance?: 0 | 3;
   /** PRESENT_ONLY only for ASSIGNMENT (CHECK, 016 M2); default ALL_ENROLLED, as works applied before 016. */
   releaseMode?: ActivityReleaseMode;
+  /** 021: ASSIGNMENT only (CHECK, research Y1); default false. */
+  codeExecutionAllowed?: boolean;
   /** EXAM only (CHECK): default a new APPROVED exam of the teacher, with its subject. */
   sourceExamId?: string;
   /** EXAM only (CHECK, 018 T3): defaults 60 min, 60 s and 15 min. */
@@ -327,6 +329,7 @@ export async function createActivity(
         executionMode: options.executionMode ?? (exam ? "CONTROLLED" : "NORMAL"),
         aiHelpAllowance: options.aiHelpAllowance ?? 0,
         releaseMode: options.releaseMode ?? (exam ? "PRESENT_ONLY" : "ALL_ENROLLED"),
+        codeExecutionAllowed: options.codeExecutionAllowed ?? false,
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt
