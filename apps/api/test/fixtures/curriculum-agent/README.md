@@ -43,6 +43,10 @@ limiares da tarefa atingidos e a aprovação no catálogo com as mesmas métrica
 (`test/security/009-quality-gate.spec.ts`); trocar o modelo de uma entrada exige avaliar de novo.
 As respostas gravadas (`recorded.json`, do CI) não servem de evidência.
 
+Resultado atual: `openai-basic` (principal, 2026-09-28) e `anthropic-basic` (reserva do mesmo nível,
+2026-10-01) estão aprovados. Em 2026-10-26 `deepseek-basic` e `deepseek-standard` foram avaliados de novo e reprovaram (`deepseek-basic` esquema 0,3; `deepseek-standard`
+nenhuma resposta válida).
+
 Para regravar as respostas do CI: rode com `EVAL_REPLAY=1`, revise o diff de cada `recorded.json` (o CI passa a
 reproduzir essas respostas) e versione. Um caso novo ou um `expected.json` alterado é uma nova
 versão do caso (`version`), porque `ai_evaluation_cases` não aceita o mesmo caso com outro

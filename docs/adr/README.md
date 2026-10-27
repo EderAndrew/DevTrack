@@ -33,3 +33,14 @@ Uma ADR aceita não é reescrita para mudar de decisão: uma nova ADR a substitu
 | ADR | Título | Status | Data |
 |-----|--------|--------|------|
 | [0001](0001-ai-gateway-multi-model-architecture.md) | Arquitetura multimodelo de IA com AI Gateway, OpenRouter e Jev | Aceita | 2026-09-29 |
+| [0002](0002-owasp-security-policy.md) | Política de Segurança OWASP Top 10 e ASVS | Proposta | 2026-10-23 |
+| [0003](0003-automated-security-audit-hooks.md) | Arquitetura de Auditoria Automatizada por Hooks | Proposta | 2026-10-23 |
+| [0004](0004-audit-integrity-and-evidence.md) | Integridade, Rastreabilidade e Evidências de Auditoria | Proposta | 2026-10-23 |
+| [0005](0005-security-approval-policy.md) | Política de Aprovação e Bloqueio por Severidade | Proposta | 2026-10-23 |
+| [0006](0006-ai-agent-least-privilege.md) | Privilégios Mínimos e Isolamento dos Agentes de IA | Proposta | 2026-10-23 |
+| [0007](0007-static-analysis-and-dependencies.md) | Análise Estática, Dependências e Validações Automatizadas | Proposta | 2026-10-23 |
+
+As ADRs 0002 a 0007 orientam a auditoria de segurança automatizada do Claude Code (hooks em
+`.claude/hooks/` e skill `owasp-security-auditor`). Estão como Proposta: descrevem também controles
+ainda não implementados (bloqueio por severidade, SAST, SCA e detecção de segredos), e a confirmação
+de uma auditoria pelo `audit-complete.sh` não é uma aprovação de segurança.

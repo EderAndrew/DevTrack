@@ -67,6 +67,11 @@ versionada, os limiares da tarefa atingidos, as pegadinhas lidas e a aprovação
 mesmas métricas e data (`test/security/009-quality-gate.spec.ts`). As respostas gravadas não
 servem de evidência. O agente continua DISABLED até o administrador habilitá-lo em "Operação de IA".
 
+Resultado atual: só `openai-basic` está aprovado (2026-09-30), sem reserva do mesmo nível:
+`anthropic-basic` reprovou em 2026-10-01 (esquema 0,6: `poo-java-tres-topicos` e
+`sete-topicos-tres-questoes` recusados). Em 2026-10-26 `deepseek-basic` e `deepseek-standard` foram avaliados de novo e reprovaram (`deepseek-basic` estourou o tempo num caso,
+sem evidência gravada; `deepseek-standard` nenhuma resposta válida).
+
 Para regravar as respostas do CI: rode com `EVAL_REPLAY=1`, revise o diff de cada `recorded.json`
 (sobretudo gabaritos, soluções, casos de teste e pegadinhas: o CI passa a reproduzi-los) e
 versione. Um caso novo ou um `expected.json` alterado é uma nova versão do caso (`version`).

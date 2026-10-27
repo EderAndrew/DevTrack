@@ -1,7 +1,8 @@
 # DevTrack
 
-Plataforma de ensino e avaliação configurável por professor. Este repositório está na
-**fase 001 — Foundation, Identity & Access**: identidade única com múltiplos papéis
+Plataforma de ensino e avaliação configurável por professor. As fases 001 a 020 estão
+implementadas; cada uma tem a sua spec em `specs/` e está resumida abaixo. A **fase 001 —
+Foundation, Identity & Access** trouxe a identidade única com múltiplos papéis
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
 sessões revogáveis, bootstrap seguro do primeiro administrador, convites de gestores e
 professores, recuperação de senha, autorização por permissão explícita + contexto, trilha
@@ -17,13 +18,18 @@ turmas como oferta da disciplina (período e datas), envio da ementa em PDF, DOC
 validação do arquivo e extração de texto em segundo plano (sem OCR), revisão e confirmação do
 conteúdo, calendário de aulas da turma e planejamento com tópicos manuais ligados aos itens da
 ementa (juntar, dividir, arquivar, reordenar), cobertura da ementa e situações do planejamento.
+Uma emenda de 2026-09-24 deixa o professor marcar a aula de um tópico como dada ("Concluir aula",
+desfeita com "Reabrir aula"), e o professor passou a entrar em "Minhas disciplinas" depois do login.
 A **fase 005 — design system** trouxe os tokens de design, Inter e JetBrains Mono, os componentes
 base com variantes e estados, o AppShell e o layout do aluno, o catálogo `/design-system`, a
-documentação em `apps/web/design-system/` e o contrato visual do Modo Prova. A **fase 006 —
+documentação em `apps/web/design-system/` e o contrato visual do Modo Prova. Desde 2026-10-22 há
+um só tema, escuro, com a paleta Vice City. A **fase 006 —
 fundação de IA** trouxe o registro de agentes, prompts, schemas de saída, ferramentas e
 configurações de modelo, o gateway independente de provedor, ferramentas negadas por padrão,
 saída estruturada validada, propostas revisadas pelo professor, execução assíncrona com limites,
-uso e custo, auditoria e a tela "Operação de IA" do administrador. A **fase 007 — agente de
+uso e custo, auditoria e a tela "Operação de IA" do administrador (desde 2026-10-22 com as seções
+como subitens do menu e gráficos de barras nos Indicadores, cada um acima de uma tabela com os
+mesmos números). A **fase 007 — agente de
 ementa** trouxe o "Preencher com IA" numa ementa com texto: o `curriculum-agent` propõe o conteúdo
 com base no documento, o professor aceita campos e grupos e a aplicação cria um rascunho da
 ementa (`AI_ASSISTED`) que ele edita e confirma como sempre. Ela também trouxe o primeiro provedor
@@ -91,12 +97,14 @@ ou errado, com comentário, e os pontos entram na hora, sem liberação. Cada tu
 calculado a cada consulta (posição, nome e pontos, com empate dividindo a posição): o painel do
 aluno mostra do 1º ao 5º lugar, "Ranking" mostra a turma inteira com a linha do aluno marcada, e o
 professor vê o ranking de cada turma sua. Os Trabalhos seguem como na fase 012. Provas, modo
-controlado, IA na correção e execução de código ficam para as próximas fases. A **fase 014 —
+controlado e execução de código vieram nas fases seguintes. A **fase 014 —
 realce de sintaxe do código** colore o código das questões de Código onde ele aparece: no editor
 do aluno, no gabarito depois da conclusão, na tentativa que o professor revisa e nos formulários e
 na leitura dos bancos. A gramática de cada linguagem é um dado do catálogo; as cores vêm de oito
-tokens do design system, legíveis nos temas claro e escuro e trocadas pelas cores do sistema no
-alto contraste; o texto digitado nunca muda e, se a parte de realce não carregar, o editor continua
+tokens do design system, com contraste AA e trocadas pelas cores do sistema no alto contraste. O
+editor não fecha aspas nem parênteses, não completa nada e não reindenta o que se digita; a única
+ajuda é o Enter, que desde 2026-10-27 já indenta a nova linha pela estrutura do código (um nível
+dentro de classe, método, laço ou decisão). Se a parte de realce não carregar, o editor continua
 funcionando sem cores. As telas sem código não baixam o editor. A **fase 015 — trabalho em modo controlado com
 ajuda da IA** dá ao professor duas opções independentes ao aplicar um Trabalho, fixas depois que um
 aluno inicia. No **modo controlado**, o aluno responde numa tela sem o menu do portal, em tela cheia
@@ -120,7 +128,13 @@ dispositivos do aluno e nada é salvo nem entregue até o professor liberar o re
 retoma de onde parou. O professor também pode pausar um aluno. O prazo continua correndo, nenhuma
 pausa muda a nota, e a correção mostra a presença, os ausentes e as saídas da sala com a duração de
 cada uma. As telas se atualizam por consulta a cada 5 segundos. Exercícios e trabalhos aplicados
-antes da fase 016 seguem abertos a todos os matriculados, sem chamada. A **fase 018 — prova em modo
+antes da fase 016 seguem abertos a todos os matriculados, sem chamada. A **fase 017 — e-mail de
+produção** põe os seis e-mails da plataforma (convites de turma, de professor e de gestor,
+verificação, recuperação de senha e ativação do administrador) numa fila única com novas
+tentativas. Nada do e-mail fica guardado: cada tentativa monta a mensagem de novo, com um link novo.
+Os avisos do provedor (Resend agora, AWS SES depois, só por configuração) marcam um convite pendente
+como "Não entregue", com o motivo em palavras e o "Reenviar" ao lado; os e-mails ganharam modelos em
+HTML e texto, e a API de produção não sobe com uma configuração de e-mail insegura. A **fase 018 — prova em modo
 restrito com avisos e decisão do professor** traz o Banco de Provas, separado dos bancos de exercícios
 e de trabalhos: a prova tem de 1 a 20 questões, cada uma com dificuldade e tópicos da ementa, e é
 criada à mão ou pelo "Criar prova com IA" (o agente `exam-generator` gera um rascunho que só o
@@ -141,7 +155,9 @@ Privado; até 20) nos exercícios de Código do banco, e o aluno toca "Executar"
 de um Exercício para rodar o próprio programa (Java, Python ou JavaScript, entrada e saída padrão)
 contra os casos públicos: cada caso diz em palavras se passou, deu saída diferente, erro de execução,
 tempo esgotado, memória excedida ou saída grande demais, com a entrada, a esperada e a obtida. Os
-casos privados nunca chegam ao aluno. O programa roda num processo à parte, o worker, num contêiner
+casos privados nunca chegam ao aluno. Ao criar um exercício de Código, cada campo vazio (enunciado,
+instruções, código inicial, solução, casos de teste e explicação) mostra um exemplo na linguagem
+escolhida, que nunca vira parte do texto. O programa roda num processo à parte, o worker, num contêiner
 Docker descartável por etapa, sem rede e com limites de tempo, memória e processos (gVisor em
 produção). Executar nunca vale pontos nem nota, nunca conclui nem salva a resposta; são até 10
 execuções por minuto, e o código e as saídas são apagados em 24 horas. Sem o worker, a questão mostra
@@ -153,6 +169,10 @@ feedbacks em "Feedbacks" (com o número de novos no menu), filtra, abre e muda a
 Em análise, Resolvido, Arquivado) com histórico; o aluno acompanha a situação em "Meus feedbacks". O
 professor e o gestor não veem os feedbacks; nenhuma IA ou e-mail participa, e os encerrados são
 apagados 24 meses depois.
+
+Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases futuras. Os agentes
+de IA (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper` e `exam-generator`)
+nascem desativados até o administrador ativá-los em "Operação de IA".
 
 ## Pré-requisitos
 
@@ -190,7 +210,12 @@ apagados 24 meses depois.
 | `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
 | `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
+| `docs/adr/` | Decisões de arquitetura (IA multimodelo e as políticas de segurança OWASP da auditoria automatizada) |
+| `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019) e o beta na Hostinger |
+| `deploy/hostinger/` | Arquivos do beta na VPS: nginx, PM2, PostgreSQL em Docker, backup e o script de atualização |
 | `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
+| `.github/workflows/deploy-hostinger.yml` | Implanta o beta depois que o CI de um push na `main` passa |
+| `.claude/` | Skills do fluxo Spec Kit e de avaliação de IA, e os hooks da auditoria de segurança |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
 | `.specify/` | Constituição do projeto e scripts do fluxo Spec Kit |
 
@@ -211,19 +236,17 @@ Portas ocupadas no host podem ser trocadas com `POSTGRES_PORT`, `POSTGRES_TEST_P
 `MAILPIT_SMTP_PORT` e `MAILPIT_UI_PORT` no `docker compose` (ajuste `apps/api/.env` junto).
 Os e-mails de desenvolvimento ficam no Mailpit: <http://localhost:8025>.
 
-O roteiro completo, com a validação ponta a ponta de cada fluxo, está em
-[`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md);
-o da refatoração, em [`specs/002-stack-alignment/quickstart.md`](specs/002-stack-alignment/quickstart.md); o da
-área do professor (disciplina → ementa → calendário → planejamento), em
-[`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md). As
-fases 003, 005, 006, 007 e 008 também têm o seu `quickstart.md` na pasta da spec; os da 007 e da
-008 incluem o roteiro manual com o provedor real (opcional, tem custo).
+Cada fase tem o seu roteiro de validação ponta a ponta em `specs/<fase>/quickstart.md`, a começar
+por [`specs/001-foundation-identity-access/quickstart.md`](specs/001-foundation-identity-access/quickstart.md)
+e pelo da área do professor (disciplina → ementa → calendário → planejamento), em
+[`specs/004-syllabus-planning/quickstart.md`](specs/004-syllabus-planning/quickstart.md). Os das
+fases de IA incluem o roteiro manual com o provedor real (opcional, tem custo).
 
 ## Comandos
 
 ```bash
 pnpm dev | pnpm build | pnpm lint | pnpm check-types | pnpm test   # todos os workspaces (Turborepo)
-pnpm format                                                         # Prettier
+pnpm format                                                         # Prettier (o código não segue o Prettier: reformata ~1 450 arquivos)
 
 pnpm --filter api test                          # unitários, integração e segurança (usa postgres-test)
 pnpm --filter api test test/integration/003-us6-enrollments.spec.ts   # um arquivo (sem `--`)
@@ -246,6 +269,8 @@ OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api e
                                                 # etapa de liberação do gerador de trabalhos (011), com o mesmo formato
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:help
                                                 # etapa de liberação da ajuda da IA (015), com a latência de cada caso
+OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:exams
+                                                # etapa de liberação do gerador de provas (018), com o mesmo formato
 
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
@@ -265,6 +290,13 @@ api e web importam o `dist/` do pacote de contratos.
 `pnpm build` e `pnpm test` (com PostgreSQL 17 de serviço) a cada push e pull request. As
 actions são fixadas por SHA. Desde a 019, o job `sandbox` baixa as imagens do Code Runner e roda
 `test:sandbox` com o Docker do runner. O E2E roda localmente (`pnpm --filter web test:e2e`).
+
+O beta roda numa VPS da Hostinger (`devtrack.nativcode.com.br`): nginx + certbot, web e API no PM2,
+PostgreSQL 17 em Docker e o Code Runner desligado. Depois que o CI de um push na `main` passa,
+[`.github/workflows/deploy-hostinger.yml`](.github/workflows/deploy-hostinger.yml) entra por SSH com
+uma chave restrita ao script `deploy/hostinger/update.sh`, publica exatamente o commit validado e
+confere `/entrar` e `/api/health/ready`. O passo a passo está no
+[guia da Hostinger](docs/deploy/hostinger.md).
 
 ## Configuração
 
@@ -334,4 +366,11 @@ actions são fixadas por SHA. Desde a 019, o job `sandbox` baixa as imagens do C
 
 O desenvolvimento segue o fluxo Spec Kit — `SPEC → PLAN → TASKS → IMPLEMENTATION → TESTS →
 REVIEW` — e a [constituição](.specify/memory/constitution.md), que prevalece sobre qualquer
-outra orientação. Mudança de comportamento começa pela spec da fase em `specs/`.
+outra orientação. Mudança de comportamento começa pela spec da fase em `specs/`: uma fase nova
+por `/speckit-specify`, ou uma emenda à spec de uma fase já entregue.
+
+Ao trabalhar com o Claude Code, os hooks de `.claude/settings.json` registram cada arquivo de código
+alterado, e ao fim do turno pedem a auditoria OWASP desses arquivos (skill `owasp-security-auditor`),
+com relatório e hashes validados por `.claude/hooks/audit-complete.sh`. As regras dessa auditoria
+estão nas ADRs 0002 a 0007 em [`docs/adr/`](docs/adr/README.md). A confirmação da auditoria não é
+uma aprovação de segurança.

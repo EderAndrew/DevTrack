@@ -58,6 +58,11 @@ o modelo. Um modelo só atende a tarefa com a evidência versionada, os limiares
 e a aprovação no catálogo com as mesmas métricas e data (`test/security/009-quality-gate.spec.ts`).
 As respostas gravadas não servem de evidência.
 
+Resultado atual: `openai-basic` (principal, 2026-09-28) e `anthropic-basic` (reserva do mesmo nível,
+2026-10-01) estão aprovados. Em 2026-10-26 `deepseek-basic` e `deepseek-standard` foram avaliados de novo e reprovaram (`deepseek-basic` esquema 0,5; `deepseek-standard`
+nenhuma resposta válida). O agente continua DISABLED até o administrador habilitá-lo em "Operação
+de IA".
+
 Para regravar as respostas do CI: rode com `EVAL_REPLAY=1`, revise o diff de cada `recorded.json`
 (sobretudo gabaritos, soluções e pegadinhas: o CI passa a reproduzi-los) e versione. Um caso novo
 ou um `expected.json` alterado é uma nova versão do caso (`version`).
