@@ -118,6 +118,8 @@ hand-maintained.
 - Recharts 3.10.1 in `apps/web`, only through `components/ui/chart.tsx` and the Indicadores charts of Operação de IA (006 amendment 2026-10-22)
 - No new dependency (020-student-feedback)
 - PostgreSQL 17 — one migration: tables `student_feedbacks` (UNIQUE per `submission_id`, update/delete guards) and `student_feedback_status_changes` (append-only), enums `student_feedback_category`/`student_feedback_status`, permissions `feedbacks.*` (020-student-feedback)
+- No new dependency; the 019 worker and images serve works unchanged (021-work-code-runner)
+- PostgreSQL 17 — one migration: `class_activities.code_execution_allowed` (ASSIGNMENT only, fixed after the first attempt), `code_runs_insert_valid` widened to works with the option, `code_runs_paused` trigger (021-work-code-runner)
 
 ## Stack notes
 
@@ -417,9 +419,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
 - 020-student-feedback: student feedback to the platform ADMIN — "Enviar feedback" dialog in the student layout (never on the focus page of exams and CONTROLLED works), category + 10–2 000 chars + origin path, idempotent by `submissionId`, 5 per student in 24 h; ADMIN list/filters/badge/detail with name and e-mail, status RECEIVED → IN_REVIEW → RESOLVED/ARCHIVED with append-only history; "Meus feedbacks" shows own status; no AI, no mail, text never in audit/logs, closed feedbacks purged after 24 months
 - 019-exercise-code-runner: Code Runner, first stage — teacher-typed test cases on exercise CODE questions; "Executar" runs the student's program (stdin/stdout, Java/Python/JavaScript) against the public cases in a separate worker with one hardened container per step (no network, gVisor in production); verdict per case, fixed output comparison, never points or grades; table queue + polling, kill switch, 10 runs/min, content purged after 24 h
-- 018-controlled-exams: exams — own Banco de Provas (manual or `exam-generator` L2 draft), applied as an always-CONTROLLED, help-free, attendance-gated EXAM with a per-student server timer (1–120 min, start window); occurrences (screen/fullscreen exits, clipboard, inactivity 30–60 s) give 3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time is left, or do not cancel); expired attempts settled on the next touch
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
