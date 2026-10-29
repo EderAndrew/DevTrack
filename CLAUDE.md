@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–020 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–021 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -57,8 +57,14 @@ new feature through `/speckit-specify`.
   24 h; the ADMIN's "Feedbacks" (list, filters, menu badge of RECEIVED, detail, status with append-only
   history) and the student's "Meus feedbacks"; closed feedbacks purged after 24 months (job
   `student-feedback`).
+- 021 Code Runner in works: "Permitir executar o código" when applying a work (`codeExecution`, off by
+  default, only with a CODE question that has a PUBLIC case in a language with execution, `422
+  CODE_EXECUTION_NOT_ELIGIBLE`; one of the 015 options, fixed once a student starts); the 019 "Executar" on
+  its CODE questions, also on the CONTROLLED focus page, only while a save would be accepted and never while
+  paused; the teacher's review shows per CODE question the run count and the last run's verdicts
+  (`GET …/attempts/:attemptId/code-runs`), never code or output; never a grade.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–020 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–021 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -197,7 +203,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019 and 020; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020 and 021; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -399,6 +405,14 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   input or output; the job `code-run-content` empties code and outputs 24 h after the end (rows stay,
   triggers refuse any other change). Languages with execution are the catalog column `execution`;
   code knows only the profile keys. Output is rendered as text in `CodeBlock`, never HTML.
+- Code Runner in works (021): a work runs code only with `class_activities.code_execution_allowed` (set on
+  apply or by the 015 options PATCH before any attempt, `409 ACTIVITY_ALREADY_STARTED` after; EXERCISE/EXAM bodies
+  refuse `codeExecution`, 400). The run routes are the 019 ones: an EXAM or a work without the option → 404, a
+  paused attempt → `409 ATTEMPT_PAUSED` (`attempt_pause.write_refused` with `operation: "CODE_RUN"`, also the
+  `code_runs_paused` trigger), a save the 012 `decideOperation("SAVE")` would refuse → the save's code. The pending
+  run and the per-minute limit are shared with exercises. A run never touches the answer, the submission, the
+  grading or the release (`021/SC-003`); the teacher's summary is an allowlist (`views/teacher-run-summary.ts`) of
+  counts, statuses and verdicts, the same before and after the 24 h purge, and is not audited.
 - Student feedback (020): the feedbacks belong to the platform, read and handled only with
   `feedbacks.visualizar`/`feedbacks.alterar_situacao` (ADMIN); no teacher (not even the student's) or
   MANAGER sees them (403). The student's routes take only their own (`/me/feedbacks`, no id of a

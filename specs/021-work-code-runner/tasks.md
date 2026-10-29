@@ -303,7 +303,7 @@ execuções" e os vereditos; depois do job `code-run-content`, o mesmo resumo.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T025 Invariância, auditoria e desempenho:
+- [X] T025 Invariância, auditoria e desempenho:
   - `apps/api/test/security/021-invariance.spec.ts` (`021/SC-003`): dois alunos com as mesmas respostas,
     um com 0 e outro com 50 execuções → entrega, correção, nota e liberação idênticas;
   - `021-audit.spec.ts` + `secret-leak-scan.spec.ts` (`021/SC-009`): o journey executa num trabalho
@@ -312,11 +312,11 @@ execuções" e os vereditos; depois do job `code-run-content`, o mesmo resumo.
   - `021-performance.spec.ts` (`021/SC-001` na parte da API): criar execução num trabalho p95 < 150 ms;
     resumo de 10 questões e 200 execuções p95 < 150 ms (o tempo do programa é o do `test:sandbox` da
     019).
-- [ ] T026 [P] XSS e E2E: `apps/web/test/student-portal-xss.test.tsx` com saída contendo HTML num trabalho
+- [X] T026 [P] XSS e E2E: `apps/web/test/student-portal-xss.test.tsx` com saída contendo HTML num trabalho
   e no resumo; E2E `apps/web/e2e/work-code-runner.spec.ts` (`021/SC-001`, `021/SC-006`, `021/SC-008`:
   professor aplica com a opção, aluno executa pelo teclado na tela normal e na de foco, pausa e retorno,
   entrega, professor vê o resumo) — a redefinição do banco E2E pede consentimento do usuário.
-- [ ] T027 Documentação e fechamento: `CLAUDE.md` (Project state com a 021, regra fácil de errar do Code
+- [X] T027 Documentação e fechamento: `CLAUDE.md` (Project state com a 021, regra fácil de errar do Code
   Runner nos trabalhos), `apps/api/CLAUDE.md` (`createCodeWork`, a rota do resumo, as suítes 021),
   `apps/web/CLAUDE.md` (painel em qualquer CODE com `execution`, `CodeRunSummary`), `README.md` (fase 021
   e a linha da spec), `docs/deploy/code-runner.md` (trabalhos também executam); rodar o

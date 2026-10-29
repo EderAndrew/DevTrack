@@ -1228,15 +1228,40 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   runSandbox.failDaemon();
   expect(await failing.worker.runOnce()).toBe(1);
   expect((await runClient.get(`/api/me/code-runs/${failedRequest.body.id}`)).body).toMatchObject({ status: "FAILED", failureReason: "SANDBOX_ERROR" });
-  // 021/US4 — on a work with "Permitir executar o código", a run while the student is out of the room is
-  // refused (`attempt_pause.write_refused` with `operation: "CODE_RUN"`): no run is created.
-  const runWork = await createCodeWork(t, runClass.schoolClass, { releaseMode: "PRESENT_ONLY" });
+  // 021/US1 — on a work with "Permitir executar o código", the student runs code (executed, then a
+  // compilation error) whose program, case, output and compiler message carry MARCADOR-CODIGO-021; 021/US4 —
+  // a run while the student is out of the room is refused (`attempt_pause.write_refused` with
+  // `operation: "CODE_RUN"`): no run is created (021/SC-009).
+  const runWork = await createCodeWork(t, runClass.schoolClass, {
+    releaseMode: "PRESENT_ONLY",
+    testCases: [
+      {
+        input: text("entrada do caso de teste do trabalho (021)", "MARCADOR-CODIGO-021 MARCADOR-ENTRADA-021\n"),
+        expectedOutput: text("saída esperada do caso do trabalho (021)", "MARCADOR-CODIGO-021 MARCADOR-ESPERADA-021\n"),
+        visibility: "PUBLIC",
+      },
+    ],
+  });
   const runTeacherClient = api(t, { cookie: await keepLoginAs(runTeacher) });
   expect((await markPresentIn(runTeacherClient, runClass.schoolClass.id, runWork.activity.id, [runClass.students[0]!.id])).status).toBe(200);
   expect((await startAttempt(runClient, runWork.activity.id)).status).toBe(200);
+  const workSandbox = new FakeSandbox().scriptCases(
+    fakeCase({ stdout: text("saída do programa no trabalho (021)", "MARCADOR-CODIGO-021 MARCADOR-SAIDA-021\n") }),
+  );
+  const workRunner = createRunWorker(t, { now: () => new Date() }, { sandbox: workSandbox });
+  await workRunner.heartbeat.beat();
+  const workRun = await requestRun(runClient, runWork.activity.id, runWork.questionIds[0]!, text("código executado no trabalho (021)", "print('MARCADOR-CODIGO-021')"));
+  expect(workRun.status).toBe(202);
+  expect(await workRunner.worker.runOnce()).toBe(1);
+  const workCompile = await requestRun(runClient, runWork.activity.id, runWork.questionIds[0]!, "print('quebrado'");
+  expect(workCompile.status).toBe(202);
+  workSandbox.failCompilation(text("mensagem do compilador no trabalho (021)", "SyntaxError: MARCADOR-CODIGO-021 MARCADOR-COMPILADOR-021"));
+  expect(await workRunner.worker.runOnce()).toBe(1);
+  expect((await runClient.get(`/api/me/code-runs/${workCompile.body.id}`)).body).toMatchObject({ outcome: "COMPILATION_ERROR" });
   expect((await runClient.post(`/api/me/activities/${runWork.activity.id}/attempt/pause`, { reason: "WATER" })).status).toBe(201);
   expect((await requestRun(runClient, runWork.activity.id, runWork.questionIds[0]!, "print('fora da sala')")).body.code).toBe("ATTEMPT_PAUSED");
-  // 019/US3 — the minute's limit used up (filled in one hit): the next new run is refused (`code_run.rate_limited`).
+  // 019/US3 — the minute's limit used up (filled in one hit): the next new run is refused (`code_run.rate_limited`);
+  // 021/US4-5: the limit is one for exercises and works, so the work's runs above count toward it.
   const runLimit = t.config.rateLimit.codeRunsPerMinute;
   await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
   expect((await requestRun(runClient, runExercise.activity.id, runQuestionId, "print('de novo')")).status).toBe(429);

@@ -2,7 +2,10 @@
 
 Este guia coloca no ar o Code Runner da spec 019: o botão "Executar" das questões de Código dos
 exercícios roda o programa do aluno contra os casos públicos e mostra o resultado de cada caso. Ele
-nunca vale pontos nem nota (019/FR-008).
+nunca vale pontos nem nota (019/FR-008). Desde a spec 021 o mesmo worker, as mesmas imagens e os mesmos
+limites servem também os **trabalhos** aplicados com "Permitir executar o código": nada muda na
+instalação, e a capacidade passa a contar os alunos de exercícios e de
+trabalhos juntos, já que a fila, a execução pendente por aluno e o limite por minuto são um só.
 
 O código do aluno **nunca** roda na API (constituição IV). Ele roda num processo à parte, o
 **worker** (`dist/code-runner/main.js`), que pega os pedidos da tabela `code_runs` e executa cada
@@ -163,7 +166,8 @@ Algo estranho com execuções (consumo anormal, suspeita de fuga do contêiner, 
 1. **Pare o worker** (`systemctl stop devtrack-code-runner`, ou `docker`/processo derrubado). Em até
    `CODE_RUNNER_STALE_SECONDS` (15 s) a API vê o heartbeat parado: "Executar" some, a questão mostra
    "Execução indisponível no momento" e todo o resto do exercício funciona como na 013 (responder,
-   salvar, concluir, correção, ranking). Pedidos que estavam na fila terminam `EXPIRED` e os que
+   salvar, concluir, correção, ranking); num trabalho, responder, salvar, modo controlado, ajuda da IA,
+   chamada e pausa, entregar, corrigir e liberar seguem iguais (021/SC-007). Pedidos que estavam na fila terminam `EXPIRED` e os que
    estavam rodando terminam `INTERRUPTED`, sem intervenção. Nenhuma mudança na API.
 2. **Desligue de vez**: `CODE_RUNNER_ENABLED=false` na API e no worker e reinicie os dois. Os pedidos
    na fila terminam `DISABLED` no próximo acesso, e um pedido novo recebe `409 CODE_RUNNER_UNAVAILABLE`.
@@ -191,4 +195,7 @@ os tempos.
 2. Como professor, um exercício de Código em Python com dois casos públicos e um privado, aplicado a
    uma turma de teste; como aluno, "Executar" com `print(int(input()) * 2)` → "2 de 2 casos públicos
    passaram" em poucos segundos; `while True: pass` → "Tempo esgotado".
-3. Pare o worker: em até 15 s a questão mostra "Execução indisponível no momento". Inicie de novo.
+3. Num trabalho com uma questão de Código em Python e os mesmos casos, aplicado com "Permitir executar
+   o código": como aluno, "Executar" → "2 de 2 casos públicos passaram"; depois de entregar, como
+   professor, a correção mostra "1 execução" e os vereditos da última, sem código nem saída.
+4. Pare o worker: em até 15 s a questão mostra "Execução indisponível no momento". Inicie de novo.

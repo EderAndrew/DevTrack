@@ -1,6 +1,6 @@
 # DevTrack
 
-Plataforma de ensino e avaliação configurável por professor. As fases 001 a 020 estão
+Plataforma de ensino e avaliação configurável por professor. As fases 001 a 021 estão
 implementadas; cada uma tem a sua spec em `specs/` e está resumida abaixo. A **fase 001 —
 Foundation, Identity & Access** trouxe a identidade única com múltiplos papéis
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
@@ -168,7 +168,12 @@ caracteres, com a tela de origem, até 5 envios em 24 horas. O administrador da 
 feedbacks em "Feedbacks" (com o número de novos no menu), filtra, abre e muda a situação (Recebido,
 Em análise, Resolvido, Arquivado) com histórico; o aluno acompanha a situação em "Meus feedbacks". O
 professor e o gestor não veem os feedbacks; nenhuma IA ou e-mail participa, e os encerrados são
-apagados 24 meses depois.
+apagados 24 meses depois. A **fase 021 — Code Runner nos trabalhos** leva o "Executar" da 019 às
+questões de Código dos Trabalhos: ao aplicar, o professor marca "Permitir executar o código" (desligada
+por padrão, só num trabalho com questão de Código com caso público numa linguagem com execução, fixa
+depois que um aluno inicia); o aluno executa também na tela de foco do modo controlado, só enquanto um
+salvamento seria aceito e nunca durante uma pausa; na correção, o professor vê por questão quantas
+execuções o aluno fez e os vereditos da última, sem código nem saída. Executar continua sem valer nota.
 
 Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases futuras. Os agentes
 de IA (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper` e `exam-generator`)
@@ -209,6 +214,7 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 | `specs/018-controlled-exams/` | O mesmo para a fase 018 (Banco de Provas, prova em modo restrito com avisos e decisão do professor; decisões T1–T19) |
 | `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
 | `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
+| `specs/021-work-code-runner/` | O mesmo para a fase 021 (Code Runner nos trabalhos: a opção na aplicação, "Executar" também no modo controlado e o resumo na correção; decisões Y1–Y13) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `docs/adr/` | Decisões de arquitetura (IA multimodelo e as políticas de segurança OWASP da auditoria automatizada) |
 | `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019) e o beta na Hostinger |
