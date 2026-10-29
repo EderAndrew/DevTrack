@@ -116,14 +116,14 @@ recarregar continua claro.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T008 [P] [US1] API em `apps/api/test/integration/022-preferences.spec.ts` (contracts/http-api.md, research Z2):
+- [X] T008 [P] [US1] API em `apps/api/test/integration/022-preferences.spec.ts` (contracts/http-api.md, research Z2):
   `022/US1-2` `PATCH /me/preferences { theme: "LIGHT" }` → 200 `{ theme: "LIGHT" }` e `GET /me` reflete;
   `022/US1-4` de volta a `DARK`; `022/US1-6` e-mail não confirmado → 200; `022/FR-016` 400 para `theme` ausente,
   `"light"`, `"SYSTEM"`, campo a mais (`userId`), corpo vazio e não JSON, sem mudar o banco; sem sessão → 401; sem
   `Origin` permitido → 403 `ORIGIN_NOT_ALLOWED`; `022/FR-006` muda só o usuário da sessão (outro usuário continua
   `DARK`); `022/FR-015` nenhuma linha nova em `audit_events` e nenhuma outra coluna de `users` além de `theme`/
   `updated_at` muda; repetir o mesmo valor → 200 sem erro (idempotência).
-- [ ] T009 [P] [US1] Web `apps/web/features/profile/components/appearance-settings.test.tsx` (contracts/web-ui.md):
+- [X] T009 [P] [US1] Web `apps/web/features/profile/components/appearance-settings.test.tsx` (contracts/web-ui.md):
   `022/US1-1` seção "Aparência" com o grupo "Tema" ("Escuro", "Claro"), marcado por `me.theme`; `022/US1-2` escolher
   "Claro" põe `data-theme="light"` em `document.documentElement` antes da resposta e envia `{ theme: "LIGHT" }`;
   `022/US1-4` "Escuro" volta; `022/US1-5` com a mutação falhando, o tema e a opção anteriores voltam e aparece
@@ -132,24 +132,24 @@ recarregar continua claro.
   com `aria-busy`
   enquanto envia; escolher a opção já marcada não envia nada; `022/SC-001` a troca acontece no mesmo tique, sem esperar
   a rede; axe sem violações.
-- [ ] T010 [P] [US1] Web: atributo do layout raiz em `apps/web/app/layout.test.tsx` (novo; mock de
+- [X] T010 [P] [US1] Web: atributo do layout raiz em `apps/web/app/layout.test.tsx` (novo; mock de
   `getMeForNavigation`): `022/US1-3 022/FR-008` `me.theme = "LIGHT"` → `<html data-theme="light">`; `"DARK"` →
   `dark`; `022/FR-004` `null` (sem sessão ou falha) → `dark`.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] API: `MeService.updatePreferences(userId, body)` (um `UPDATE users SET theme` pelo id) e `@Patch
+- [X] T011 [US1] API: `MeService.updatePreferences(userId, body)` (um `UPDATE users SET theme` pelo id) e `@Patch
   ("preferences") @AllowUnverified()` em `apps/api/src/modules/auth/me.controller.ts` e a entrada
   `"me.preferences.update": { method: "PATCH", path: "/me/preferences", body: UpdatePreferencesRequestSchema, response:
   PreferencesViewSchema, status: 200 }` ao lado de `"me.get"` em `packages/contracts/src/endpoints.ts`, validando com
   `UpdatePreferencesRequestSchema` e devolvendo `PreferencesView`; linha `{ method: "PATCH", path: "/me/preferences",
   access: "session" }` em `apps/api/test/security/authorization-matrix.ts`; `endpoint-catalog.spec.ts` e
   `route-declarations.spec.ts` verdes. T008 fica verde.
-- [ ] T012 [US1] Web, tema no servidor (research Z4): `getMe` envolvido em `cache()` do React em
+- [X] T012 [US1] Web, tema no servidor (research Z4): `getMe` envolvido em `cache()` do React em
   `apps/web/features/auth/api/server.ts`; `apps/web/app/layout.tsx` vira `async`, lê `getMeForNavigation()` e renderiza
   `<html lang="pt-BR" data-theme={me?.theme === "LIGHT" ? "light" : "dark"}>`; atualizar o comentário do layout. T010
   fica verde.
-- [ ] T013 [US1] Web, a troca (research Z7):
+- [X] T013 [US1] Web, a troca (research Z7):
   - `apps/web/features/profile/schemas/appearance.ts`: rótulos ("Aparência", "Tema", "Escuro", "Claro") e a mensagem
     de falha;
   - `apps/web/features/profile/api/preferences.ts`: `updatePreferences(body)` por `lib/api`;
@@ -159,7 +159,7 @@ recarregar continua claro.
   - `apps/web/features/profile/components/appearance-settings.tsx`: a seção com o `RadioGroup` da 005;
   - `apps/web/app/(account)/conta/perfil/page.tsx`: `<AppearanceSettings theme={me.theme} />` depois de
     `ProfileDetails`, para toda sessão (também sem e-mail confirmado). T009 fica verde.
-- [ ] T014 [US1] Fixtures do web que montam um `MeView` completo (ex.: `apps/web/features/design-system/components/fixtures.ts`)
+- [X] T014 [US1] Fixtures do web que montam um `MeView` completo (ex.: `apps/web/features/design-system/components/fixtures.ts`)
   ganham `theme`; `pnpm --filter web check-types` verde. A US1 sai de `pending` em `traceability.spec.ts`.
 
 **Checkpoint**: o quickstart passos 1–3 e 8–9 funcionam.

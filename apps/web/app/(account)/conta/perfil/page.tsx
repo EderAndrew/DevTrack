@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Notice } from "@/components/shared";
 import { getMe } from "@/features/auth/api/server";
+import { AppearanceSettings } from "@/features/profile/components/appearance-settings";
 import { ProfileDetails } from "@/features/profile/components/profile-details";
 import { fetchOwnSessions } from "@/features/sessions/api/server";
 import { SessionsList } from "@/features/sessions/components/sessions-list";
@@ -23,6 +24,7 @@ export default async function ProfilePage() {
     <section className="w-full">
       <PageHeader title="Meu perfil" />
       <ProfileDetails me={me} />
+      <AppearanceSettings theme={me.theme} />
       <section aria-labelledby="minhas-sessoes">
         <h2 id="minhas-sessoes">Minhas sessões</h2>
         {sessions ? (

@@ -158,6 +158,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */
 export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me", access: "session" },
+  // 022: the own account's theme, session access like GET /me (research Z2).
+  { method: "PATCH", path: "/me/preferences", access: "session" },
   { method: "POST", path: "/auth/logout", access: "session" },
   { method: "POST", path: "/auth/logout-all", access: "session" },
 
