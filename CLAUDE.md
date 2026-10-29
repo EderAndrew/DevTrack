@@ -126,6 +126,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: tables `student_feedbacks` (UNIQUE per `submission_id`, update/delete guards) and `student_feedback_status_changes` (append-only), enums `student_feedback_category`/`student_feedback_status`, permissions `feedbacks.*` (020-student-feedback)
 - No new dependency; the 019 worker and images serve works unchanged (021-work-code-runner)
 - PostgreSQL 17 — one migration: `class_activities.code_execution_allowed` (ASSIGNMENT only, fixed after the first attempt), `code_runs_insert_valid` widened to works with the option, `code_runs_paused` trigger (021-work-code-runner)
+- No new dependency (022-light-theme)
+- PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
 
 ## Stack notes
 
@@ -433,9 +435,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 - 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
 - 020-student-feedback: student feedback to the platform ADMIN — "Enviar feedback" dialog in the student layout (never on the focus page of exams and CONTROLLED works), category + 10–2 000 chars + origin path, idempotent by `submissionId`, 5 per student in 24 h; ADMIN list/filters/badge/detail with name and e-mail, status RECEIVED → IN_REVIEW → RESOLVED/ARCHIVED with append-only history; "Meus feedbacks" shows own status; no AI, no mail, text never in audit/logs, closed feedbacks purged after 24 months
-- 019-exercise-code-runner: Code Runner, first stage — teacher-typed test cases on exercise CODE questions; "Executar" runs the student's program (stdin/stdout, Java/Python/JavaScript) against the public cases in a separate worker with one hardened container per step (no network, gVisor in production); verdict per case, fixed output comparison, never points or grades; table queue + polling, kill switch, 10 runs/min, content purged after 24 h
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
