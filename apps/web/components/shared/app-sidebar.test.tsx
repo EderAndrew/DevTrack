@@ -105,7 +105,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   });
 
   it("o menu da conta no rodapé mostra nome e e-mail e abre com Meu perfil e Sair", async () => {
-    const { container } = renderSidebar({ me: { ...me(PERMISSIONS.TEACHER), email: "ana@example.test" } });
+    const { container } = renderSidebar({ me: { ...me(PERMISSIONS.TEACHER)!, email: "ana@example.test" } });
     const account = screen.getByRole("button", { name: /Ana Souza/ });
     expect(account.textContent).toContain("ana@example.test");
     expect(screen.queryByRole("menuitem", { name: "Sair" })).toBeNull();
