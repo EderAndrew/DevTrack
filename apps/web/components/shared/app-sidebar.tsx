@@ -21,7 +21,6 @@ import {
   School,
   SlidersHorizontal,
   UserCog,
-  UserRound,
   Users,
   Wallet,
 } from "lucide-react";
@@ -52,7 +51,6 @@ import {
   type AiOperationsTab,
   aiOperationsTabOf,
   FEEDBACKS_AREA,
-  HOME_PATH,
   MY_CLASSES_PATH,
   USER_AREAS,
 } from "@/lib/navigation";
@@ -60,7 +58,7 @@ import { useFeedbackSummary } from "@/features/feedback/hooks/use-admin-feedback
 import { unreadLabel } from "@/features/feedback/schemas/admin-feedback";
 import { BetaBadge } from "./beta-badge";
 import { Wordmark, WordmarkInitial } from "./wordmark";
-import { LogoutButton } from "./logout-button";
+import { NavUser } from "./nav-user";
 
 const LINK = "text-sidebar-foreground no-underline";
 
@@ -83,13 +81,13 @@ const AI_OPERATIONS_ICONS: Record<AiOperationsTab, LucideIcon> = {
 };
 
 export interface AppSidebarProps {
-  me: Pick<MeView, "name" | "emailVerified" | "permissions"> | null;
+  me: (Pick<MeView, "name" | "emailVerified" | "permissions"> & Partial<Pick<MeView, "email">>) | null;
 }
 
 /**
  * Side menu of the signed-in screens. "Usuários" groups the administration areas the user may
  * open, "Operação de IA" groups the sections of the administrator's AI operation (006, each a link to its `?aba=`), "Feedbacks" (020) the students' feedbacks with the count still "Recebido" (refetched on focus and after a change, never polled), "Minhas disciplinas", "Banco de Exercícios" (010), "Banco de Trabalhos" (011) and "Turmas" are the teacher's subjects, exercises, works and classes, and "Minhas
- * turmas" the student's (UX only; the API authorizes). An unverified e-mail sees
+ * turmas" the student's (UX only; the API authorizes). "Meu perfil" and "Sair" are in the user menu of the footer. An unverified e-mail sees
  * none: every such route would answer EMAIL_NOT_VERIFIED (FR-016). Collapsed, the menu keeps only
  * the icons (labels stay as accessible names and show as tooltips); opening a group there
  * expands the menu, since its sub-items are hidden while collapsed.
@@ -311,24 +309,13 @@ export function AppSidebar({ me }: AppSidebarProps) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ) : null}
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === HOME_PATH} tooltip="Meu perfil">
-                    <Link href={HOME_PATH} className={LINK} aria-current={pathname === HOME_PATH ? "page" : undefined}>
-                      <UserRound aria-hidden="true" />
-                      <span>Meu perfil</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         </nav>
       </SidebarContent>
       <SidebarFooter>
-        {me ? <p className="m-0 truncate px-2 text-body-sm group-data-[collapsible=icon]:sr-only">{me.name}</p> : null}
-        <div className="px-2 group-data-[collapsible=icon]:px-0">
-          <LogoutButton className="group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:[&>span]:sr-only" />
-        </div>
+        <NavUser name={me?.name} email={me?.email} />
       </SidebarFooter>
     </Sidebar>
   );

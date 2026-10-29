@@ -19,15 +19,20 @@ Nenhuma URL muda. Os grupos de rota só escolhem a moldura (research V13).
 │ ▸ Minhas     │  Turmas › ADS3                    (Breadcrumb)│
 │   disciplinas│  ADS3                                   (h1)  │
 │ ▸ Turmas     │  2026.2 · Programação Orientada…  [Editar]    │
-│ ▸ Meu perfil │  ─────────────────────────────── (PageHeader) │
+│              │  ─────────────────────────────── (PageHeader) │
 │              │  conteúdo da página (largura ≤ --content-max) │
-│ Ana Souza    │                                               │
-│ [Sair]       │                                               │
+│ [AS] Ana   ⇕ │                                               │
+│ ana@…        │                                               │
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
 - Menu lateral: o `AppSidebar` atual (itens por permissão, recolhível, lembrado em
   cookie); abaixo de `md` vira `Sheet`.
+- Rodapé (emenda de 2026-10-29, pedido do produto, no padrão "NavUser" do shadcn/ui): o menu da
+  conta (`components/shared/nav-user.tsx`) com as iniciais, o nome e o e-mail; ao clicar abre um
+  `DropdownMenu` com o nome e o e-mail, "Meu perfil" e "Sair". "Meu perfil" saiu da lista de
+  itens do menu e só aparece aí. Recolhido, só as iniciais (o nome como dica). O mesmo rodapé no
+  `StudentLayout`.
 - `Topbar`: botão do menu (`SidebarTrigger`, Ctrl/⌘+B) e o nome da área (mapa de
   navegação de `lib/navigation`, pela rota atual).
 - Área principal: `<main id="conteudo" tabIndex={-1}>`, preenchimento `--gutter`,
@@ -50,9 +55,8 @@ Nenhuma URL muda. Os grupos de rota só escolhem a moldura (research V13).
 │ ▸ Histórico  │                                               │
 │ ▸ Minhas     │                                               │
 │   turmas     │                                               │
-│ ▸ Meu perfil │                                               │
-│ Ana Souza    │                                               │
-│ [Sair]       │                                               │
+│ [AS] Ana   ⇕ │                                               │
+│ ana@…        │                                               │
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
@@ -60,7 +64,7 @@ Nenhuma URL muda. Os grupos de rota só escolhem a moldura (research V13).
   cookie `sidebar_state`, abaixo de `md` vira `Sheet`), dentro de `<nav aria-label="Menu do
   aluno">` com `aria-current="page"`. Itens por permissão, nunca por papel: Painel, Minhas
   atividades e Histórico (`atividades.proprias.visualizar`), Minhas turmas
-  (`turmas.proprias.listar`) e Meu perfil; nome do usuário e "Sair" no rodapé.
+  (`turmas.proprias.listar`); no rodapé, o menu da conta (emenda de 2026-10-29, abaixo).
 - Sem itens de professor ou administração, sem "Usuários", sem "Menu principal".
 - `Topbar` do AppShell (botão do menu, Ctrl/⌘+B, e o nome da área); área principal
   `<main id="conteudo" tabIndex={-1}>` com a largura de leitura (960 px).

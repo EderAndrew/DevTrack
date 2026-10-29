@@ -1,5 +1,5 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
-import { inviteToClass, newAccount, raFor } from "./fixtures/journeys.ts";
+import { accountMenu, inviteToClass, newAccount, raFor } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 
 /** Presses Tab until `target` has the focus (reading the focus is only an observation). */
@@ -34,10 +34,16 @@ test("002/US5-2 003/US3-2 aceite do convite de turma, saída e login só com o t
   await expect(page.getByRole("heading", { level: 1, name: "Minhas turmas" })).toBeVisible();
   // The student layout: its own side menu with the student's items only, not the "Menu principal" (005/US5-1).
   await expect(page.getByRole("navigation", { name: "Menu principal" })).toHaveCount(0);
-  await tabTo(page, page.getByRole("navigation", { name: "Menu do aluno" }).getByRole("link", { name: "Meu perfil" }));
+  // "Meu perfil" and "Sair" are in the account menu at the bottom of the side menu: Enter opens it on its first item.
+  await tabTo(page, accountMenu(page));
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "Meu perfil" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL("/conta/perfil");
-  await tabTo(page, page.getByRole("button", { name: "Sair", exact: true }));
+  await tabTo(page, accountMenu(page));
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("menuitem", { name: "Sair" })).toBeFocused();
   await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL("/entrar");

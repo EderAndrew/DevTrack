@@ -25,10 +25,10 @@ de avaliações.
 │ ▸ Minhas     │  Turmas › ADS3                    (Breadcrumb)│
 │   disciplinas│  ADS3                                   (h1)  │
 │ ▸ Turmas     │  2026.2 · Programação Orientada…  [Editar]    │
-│ ▸ Meu perfil │  ─────────────────────────────── (PageHeader) │
+│              │  ─────────────────────────────── (PageHeader) │
 │              │  conteúdo da página (largura ≤ --content-max) │
-│ Ana Souza    │                                               │
-│ [Sair]       │                                               │
+│ [AS] Ana   ⇕ │                                               │
+│ ana@…        │                                               │
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
@@ -70,7 +70,9 @@ return (
 
 Regiões: `nav` "Menu principal", `banner` (`Topbar`) e `<main id="conteudo" tabIndex={-1}>`,
 alvo do link "Pular para o conteúdo" (primeiro item de foco). O menu mostra só as áreas que
-existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu.
+existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu. No rodapé, o menu da conta
+(`NavUser`, padrão do shadcn/ui): iniciais, nome e e-mail; Enter ou clique abre "Meu perfil" e
+"Sair" (setas, Home/End e Esc do `DropdownMenu`).
 
 ## StudentLayout
 
@@ -85,8 +87,7 @@ existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu.
 │ ▸ Histórico  │                                               │
 │ ▸ Minhas     │                                               │
 │   turmas     │                                               │
-│ ▸ Meu perfil │                                               │
-│ Ana · [Sair] │                                               │
+│ [AS] Ana   ⇕ │                                               │
 └──────────────┴──────────────────────────────────────────────┘
 ```
 
@@ -101,7 +102,7 @@ como no AppShell; `preview` só no catálogo.
 
 Expandido, recolhido a ícones (os nomes ficam como nomes acessíveis e dicas) e, em telas
 estreitas, aberto como painel pelo botão da `Topbar`. Item atual com `aria-current="page"` e o
-estilo ativo. Sem e-mail confirmado, só "Meu perfil" aparece.
+estilo ativo. Sem e-mail confirmado, nenhum item aparece; "Meu perfil" fica no menu da conta.
 
 ### Quando usar
 
@@ -125,5 +126,5 @@ return <StudentLayout me={me}>{children}</StudentLayout>;
 ### Acessibilidade
 
 Regiões: o menu lateral com `nav` "Menu do aluno", a `Topbar` (`banner`) e `<main
-id="conteudo" tabIndex={-1}>`; ordem de foco: marca, itens do menu, "Sair", botão do menu e
-conteúdo. Nenhum item de professor ou administração.
+id="conteudo" tabIndex={-1}>`; ordem de foco: marca, itens do menu, menu da conta, botão do menu
+e conteúdo. Nenhum item de professor ou administração.

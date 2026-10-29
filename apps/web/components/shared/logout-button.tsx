@@ -9,7 +9,7 @@ import { useLogout } from "@/features/auth/hooks/use-auth";
  * Ends the current session. Whatever the API answers, the cache is dropped (FR-024) and the user
  * ends up on the login page.
  */
-export function LogoutButton({ className }: { className?: string }) {
+export function useLeave() {
   const router = useRouter();
   const logout = useLogout();
 
@@ -23,8 +23,14 @@ export function LogoutButton({ className }: { className?: string }) {
     });
   };
 
+  return { leave, pending: logout.isPending };
+}
+
+export function LogoutButton({ className }: { className?: string }) {
+  const { leave, pending } = useLeave();
+
   return (
-    <Button type="button" variant="link" className={className} aria-busy={logout.isPending || undefined} onClick={leave}>
+    <Button type="button" variant="link" className={className} aria-busy={pending || undefined} onClick={leave}>
       <LogOut aria-hidden="true" />
       <span>Sair</span>
     </Button>

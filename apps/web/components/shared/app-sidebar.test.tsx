@@ -78,25 +78,23 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   };
 
   it.each([
-    ["STUDENT", ["Minhas turmas", "Meu perfil"]],
-    ["TEACHER", ["Minhas disciplinas", "Turmas", "Meu perfil"]],
-    ["MANAGER", ["Professores", "Meu perfil"]],
-    ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]],
+    ["STUDENT", ["Minhas turmas"]],
+    ["TEACHER", ["Minhas disciplinas", "Turmas"]],
+    ["MANAGER", ["Professores"]],
+    ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
     expect(menuLinks()).toEqual(expected);
     expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
     expect(screen.getByText("Beta")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
-    expect(screen.getByText("Ana Souza")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Ana Souza/ })).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 
   it("cada sub-item de Usuários e de Operação de IA tem um ícone decorativo e o nome acessível só do texto", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     const subItems = within(screen.getByRole("navigation", { name: "Menu principal" }))
-      .queryAllByRole("link")
-      .filter((link) => link.textContent !== "Meu perfil");
+      .queryAllByRole("link");
     expect(subItems).toHaveLength(11);
     for (const link of subItems) {
       const icon = link.querySelector("svg");
@@ -106,6 +104,18 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(screen.getByRole("link", { name: "Professores" })).toBeTruthy();
   });
 
+  it("o menu da conta no rodapé mostra nome e e-mail e abre com Meu perfil e Sair", async () => {
+    const { container } = renderSidebar({ me: { ...me(PERMISSIONS.TEACHER)!, email: "ana@example.test" } });
+    const account = screen.getByRole("button", { name: /Ana Souza/ });
+    expect(account.textContent).toContain("ana@example.test");
+    expect(screen.queryByRole("menuitem", { name: "Sair" })).toBeNull();
+    await userEvent.setup().click(account);
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Meu perfil" }).getAttribute("href")).toBe("/conta/perfil");
+    expect(within(menu).getByRole("menuitem", { name: "Sair" })).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
   it("sem área administrativa, não há o grupo Usuários", () => {
     renderSidebar({ me: me(PERMISSIONS.STUDENT) });
     expect(screen.queryByRole("button", { name: "Usuários" })).toBeNull();
@@ -113,7 +123,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
 
   it("e-mail não verificado não vê áreas administrativas, mesmo com permissões", () => {
     renderSidebar({ me: me(PERMISSIONS.ADMIN, false) });
-    expect(menuLinks()).toEqual(["Meu perfil"]);
+    expect(menuLinks()).toEqual([]);
   });
 
   it("o grupo Usuários abre e fecha", async () => {
@@ -122,18 +132,18 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     expect(group.getAttribute("aria-expanded")).toBe("true");
     await userEvent.setup().click(group);
     expect(group.getAttribute("aria-expanded")).toBe("false");
-    expect(menuLinks()).toEqual(["Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks"]);
   });
 
   it("e-mail não verificado não vê Turmas", () => {
     renderSidebar({ me: me(PERMISSIONS.TEACHER, false) });
-    expect(menuLinks()).toEqual(["Meu perfil"]);
+    expect(menuLinks()).toEqual([]);
   });
 
   it("003/US7-1 Minhas turmas (turmas.proprias.listar) marca a página atual; professor que também é aluno vê as duas", () => {
     navigation.pathname = "/minhas-turmas";
     renderSidebar({ me: me([...PERMISSIONS.TEACHER, ...PERMISSIONS.STUDENT]) });
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Minhas turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Minhas turmas"]);
     const link = screen.getByRole("link", { name: "Minhas turmas" });
     expect(link.getAttribute("href")).toBe("/minhas-turmas");
     expect(link.getAttribute("aria-current")).toBe("page");
@@ -165,7 +175,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it("010/US1 Banco de Exercícios (questoes.visualizar) vem depois de Minhas disciplinas e fica ativo nas telas de exercícios", () => {
     navigation.pathname = "/exercicios/novo";
     renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar"]) });
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Turmas"]);
     const link = screen.getByRole("link", { name: "Banco de Exercícios" });
     expect(link.getAttribute("href")).toBe("/exercicios");
     expect(link.getAttribute("data-active")).toBe("true");
@@ -175,7 +185,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it("011/US1-1 Banco de Trabalhos (trabalhos.visualizar) vem depois de Banco de Exercícios e fica ativo nas telas de trabalhos", () => {
     navigation.pathname = "/trabalhos/novo";
     renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar", "trabalhos.visualizar"]) });
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Turmas"]);
     const link = screen.getByRole("link", { name: "Banco de Trabalhos" });
     expect(link.getAttribute("href")).toBe("/trabalhos");
     expect(link.getAttribute("data-active")).toBe("true");
@@ -190,7 +200,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it("018/FR-001 Banco de Provas (provas.visualizar) vem depois de Banco de Trabalhos e fica ativo nas telas de provas", () => {
     navigation.pathname = "/provas/nova";
     renderSidebar({ me: me([...PERMISSIONS.TEACHER, "questoes.visualizar", "trabalhos.visualizar", "provas.visualizar"]) });
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Banco de Provas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Banco de Exercícios", "Banco de Trabalhos", "Banco de Provas", "Turmas"]);
     const link = screen.getByRole("link", { name: "Banco de Provas" });
     expect(link.getAttribute("href")).toBe("/provas");
     expect(link.getAttribute("data-active")).toBe("true");
@@ -222,10 +232,10 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     const sidebar = container.querySelector('[data-slot="sidebar"][data-state]');
     expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
-    expect(menuLinks()).toEqual(["Feedbacks", "Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Feedbacks", "Minhas disciplinas", "Turmas"]);
     expect(screen.getByRole("button", { name: "Operação de IA" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Turmas" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Ana Souza/ })).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 
@@ -240,7 +250,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     await userEvent.setup().click(group);
     expect(container.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute("data-state")).toBe("expanded");
     expect(group.getAttribute("aria-expanded")).toBe("true");
-    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks"]);
   });
 
   it("006/US7-7 Operação de IA só com ia.operacao.visualizar: um grupo com uma seção por aba, e marca a seção atual", () => {
@@ -289,7 +299,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     navigation.pathname = "/admin/managers";
     renderSidebar({ me: me(PERMISSIONS.ADMIN) });
     expect(screen.getByRole("link", { name: "Gestores" }).getAttribute("aria-current")).toBe("page");
-    expect(screen.getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "Professores" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("020/US2-1 Feedbacks (feedbacks.visualizar) com o número de Recebido no badge e no nome acessível", async () => {

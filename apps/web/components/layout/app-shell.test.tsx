@@ -82,7 +82,7 @@ describe("005/US3 AppShell das telas internas", () => {
     expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar?.getAttribute("data-collapsible")).toBe("icon");
     expect(document.cookie).toContain("sidebar_state=false");
-    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas", "Meu perfil"]);
+    expect(menuLinks()).toEqual(["Minhas disciplinas", "Turmas"]);
     await user.keyboard("{Control>}b{/Control}");
     expect(sidebar?.getAttribute("data-state")).toBe("expanded");
     expect(document.cookie).toContain("sidebar_state=true");

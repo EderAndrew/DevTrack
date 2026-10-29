@@ -58,18 +58,17 @@ describe("005/US5-1 layout do aluno", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("menu lateral com a marca, os itens do aluno, o nome e Sair; barra superior com o botão do menu; área principal", async () => {
+  it("menu lateral com a marca, os itens do aluno e o menu da conta; barra superior com o botão do menu; área principal", async () => {
     const { container } = renderLayout();
     expect(screen.getByRole("link", { name: "DevTrack" }).getAttribute("href")).toBe("/");
     expect(screen.getByText("Beta")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
-    expect(screen.getByText("Bruno Lima")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bruno Lima/ })).toBeTruthy();
     const banner = screen.getByRole("banner");
     expect(within(banner).getByRole("button", { name: "Abrir ou fechar o menu" })).toBeTruthy();
     expect(within(banner).getByText("Minhas turmas")).toBeTruthy();
     expect(banner.contains(studentMenu())).toBe(false);
     const links = within(studentMenu()).getAllByRole("link");
-    expect(links.map((link) => link.textContent)).toEqual(["Painel", "Minhas atividades", "Histórico", "Minhas turmas", "Meu perfil"]);
+    expect(links.map((link) => link.textContent)).toEqual(["Painel", "Minhas atividades", "Histórico", "Minhas turmas"]);
     const main = screen.getByRole("main");
     expect(main.id).toBe("conteudo");
     expect(main.getAttribute("tabindex")).toBe("-1");
@@ -83,11 +82,7 @@ describe("005/US5-1 layout do aluno", () => {
     expect(within(studentMenu()).getByRole("link", { name: "Minhas turmas" }).getAttribute("aria-current")).toBe(
       "page",
     );
-    expect(within(studentMenu()).getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBeNull();
-    navigation.pathname = "/conta/perfil";
-    renderLayout();
-    const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
-    expect(within(menus.at(-1)!).getByRole("link", { name: "Meu perfil" }).getAttribute("aria-current")).toBe("page");
+    expect(within(studentMenu()).getByRole("link", { name: "Painel" }).getAttribute("aria-current")).toBeNull();
   });
 
   it("sem itens nem menu de professor ou administração", () => {
@@ -97,13 +92,14 @@ describe("005/US5-1 layout do aluno", () => {
     expect(within(studentMenu()).queryByRole("link", { name: /disciplinas|^Turmas$/ })).toBeNull();
   });
 
-  it("sem e-mail confirmado, só o perfil fica no menu", () => {
+  it("sem e-mail confirmado, nenhum item no menu; o perfil fica no menu da conta", () => {
     renderLayout({ me: me(STUDENT, false) });
     expect(
       within(studentMenu())
-        .getAllByRole("link")
+        .queryAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Meu perfil"]);
+    ).toEqual([]);
+    expect(screen.getByRole("button", { name: /Bruno Lima/ })).toBeTruthy();
   });
 
   it("012/US2 Painel e Minhas atividades com a permissão; a página de uma atividade marca Minhas atividades", () => {
@@ -114,7 +110,7 @@ describe("005/US5-1 layout do aluno", () => {
     expect(within(studentMenu()).getByRole("link", { name: "Histórico" }).getAttribute("href")).toBe("/historico");
     renderLayout({ me: me(STUDENT.filter((permission) => permission !== "atividades.proprias.visualizar")) });
     const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
-    expect(within(menus.at(-1)!).getAllByRole("link").map((link) => link.textContent)).toEqual(["Minhas turmas", "Meu perfil"]);
+    expect(within(menus.at(-1)!).getAllByRole("link").map((link) => link.textContent)).toEqual(["Minhas turmas"]);
   });
 
   it("020/US1-5 020/SC-006 \"Enviar feedback\" no rodapé do menu com feedbacks.enviar, também na página de uma atividade", () => {
@@ -145,11 +141,18 @@ describe("005/US5-1 layout do aluno", () => {
       "Histórico",
       "Minhas turmas",
       "Meus feedbacks",
-      "Meu perfil",
     ]);
     renderLayout({ me: me(STUDENT) });
     const menus = screen.getAllByRole("navigation", { name: "Menu do aluno" });
     expect(within(menus.at(-1)!).queryByRole("link", { name: "Meus feedbacks" })).toBeNull();
+  });
+
+  it("o menu da conta abre com Meu perfil e Sair", async () => {
+    renderLayout();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Bruno Lima/ }));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Meu perfil" }).getAttribute("href")).toBe("/conta/perfil");
+    expect(within(menu).getByRole("menuitem", { name: "Sair" })).toBeTruthy();
   });
 
   it("conteúdo na largura de leitura", () => {
@@ -189,7 +192,7 @@ describe("005/US5-1 layout do aluno", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("ordem de tabulação: marca, menu, Sair, botão do menu e conteúdo", async () => {
+  it("ordem de tabulação: marca, menu, menu da conta, botão do menu e conteúdo", async () => {
     const user = userEvent.setup();
     renderLayout();
     await expectTabOrder(user, [
@@ -198,8 +201,7 @@ describe("005/US5-1 layout do aluno", () => {
       screen.getByRole("link", { name: "Minhas atividades" }),
       screen.getByRole("link", { name: "Histórico" }),
       screen.getByRole("link", { name: "Minhas turmas" }),
-      screen.getByRole("link", { name: "Meu perfil" }),
-      screen.getByRole("button", { name: "Sair" }),
+      screen.getByRole("button", { name: /Bruno Lima/ }),
       screen.getByRole("button", { name: "Abrir ou fechar o menu" }),
     ]);
   });

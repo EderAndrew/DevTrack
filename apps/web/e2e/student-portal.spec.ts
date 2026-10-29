@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { field, logIn } from "./fixtures/journeys.ts";
+import { field, logIn, logOut } from "./fixtures/journeys.ts";
 import { applyWorkThroughApi, releaseToPresent, seedStudentPortal, type StudentPortalSeed, WORK_QUESTIONS } from "./support/student-portal-seed.ts";
 
 const OFFLINE_ALERT =
@@ -83,8 +83,7 @@ test.describe("012 portal do aluno", () => {
     await expect(page.getByRole("radio", { name: /extends/ })).toBeChecked();
     await goToQuestion(page, 2);
     await expect(answerBox(page)).toHaveValue("Esconder o estado atrás de métodos públicos.");
-    await page.getByRole("button", { name: "Sair", exact: true }).click();
-    await expect(page).toHaveURL("/entrar");
+    await logOut(page);
     await logInToStartPage(page, seed.student);
     await page.getByRole("article", { name: seed.workTitle }).getByRole("link", { name: "Continuar" }).click();
     await goToQuestion(page, 2);

@@ -24,6 +24,16 @@ export function newAccount(journey: string, name = `Pessoa ${journey}`): Account
 export const field = (scope: Page | Locator, label: string) => scope.getByLabel(new RegExp(`^${label}`));
 
 /** Signs in through the login page and waits for `next` (default: the page's own fallback). */
+/** The account menu at the bottom of the side menu (name and e-mail); it holds "Meu perfil" and "Sair". */
+export const accountMenu = (page: Page): Locator => page.locator('[data-sidebar="footer"]').getByRole("button").last();
+
+/** Opens the account menu and chooses "Sair"; the user ends up on the login page. */
+export async function logOut(page: Page): Promise<void> {
+  await accountMenu(page).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
+  await expect(page).toHaveURL("/entrar");
+}
+
 export async function logIn(page: Page, account: Pick<Account, "email" | "password">, next = "/conta/perfil"): Promise<void> {
   await page.goto(`/entrar?next=${encodeURIComponent(next)}`);
   await field(page, "E-mail").fill(account.email);
@@ -96,8 +106,7 @@ export async function createEnrolledStudent(page: Page, journey: string, name?: 
   const studentPage = await (await browser.newContext()).newPage();
   await acceptClassInvitation(studentPage, account);
   await studentPage.goto("/conta/perfil");
-  await studentPage.getByRole("button", { name: "Sair", exact: true }).click();
-  await expect(studentPage).toHaveURL("/entrar");
+  await logOut(studentPage);
   await studentPage.context().close();
   return account;
 }
