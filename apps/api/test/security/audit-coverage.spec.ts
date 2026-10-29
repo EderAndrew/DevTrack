@@ -26,6 +26,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/018-controlled-exams/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
 ];
 
 /**
@@ -53,6 +54,8 @@ const PENDING_016 = new Set<string>([]);
 const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([]);
+/** 021 "Changed" rows whose metadata arrives with later user stories; same rule. */
+const PENDING_CHANGED_021 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
@@ -102,7 +105,7 @@ function changedRows(table: string): ContractRow[] {
     .flatMap((line) => {
       const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
       const type = backticked(typeCell!)[0]!;
-      if (PENDING_CHANGED_018.has(type)) return [];
+      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type)) return [];
       // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
         .filter((key) => !/^[A-Z_]+$/.test(key))
@@ -326,15 +329,16 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(new Set(found.map((event) => event.type)).size).toBe(5);
       expect(offendingMetadata(found)).toEqual([]);
       expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
-      // The journey marks 3 times for works and four times for the 018/US3, US4 and US5 exams, and unmarks
-      // once (016/US2): one event per change, none for a no-op.
+      // The journey marks 3 times for works, four times for the 018/US3, US4 and US5 exams and once for the
+      // 021 work with code execution, and unmarks once (016/US2): one event per change, none for a no-op.
       const marked = found.filter((event) => event.type === "attendance.marked");
       const unmarked = found.filter((event) => event.type === "attendance.unmarked");
-      expect([marked.length, unmarked.length]).toEqual([7, 1]);
+      expect([marked.length, unmarked.length]).toEqual([8, 1]);
       expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
-      // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt.
+      // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt
+      // (the 021 work's pause stays open: its run is refused).
       const pauses = await t.prisma.attemptPause.findMany({ select: { id: true, attemptId: true, initiatedBy: true, releasedAt: true } });
-      expect(pauses.map((pause) => pause.initiatedBy).sort()).toEqual(["STUDENT", "TEACHER"]);
+      expect(pauses.map((pause) => pause.initiatedBy).sort()).toEqual(["STUDENT", "STUDENT", "TEACHER"]);
       const started = found.filter((event) => event.type === "attempt_pause.started");
       expect(started.map((event) => `${event.targetId} ${(event.metadata as { pauseId: string }).pauseId}`).sort()).toEqual(
         pauses.map((pause) => `${pause.attemptId} ${pause.id}`).sort(),
@@ -342,7 +346,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       const released = found.filter((event) => event.type === "attempt_pause.released").map((event) => (event.metadata as { pauseId: string }).pauseId);
       expect(released.sort()).toEqual(pauses.filter((pause) => pause.releasedAt !== null).map((pause) => pause.id).sort());
       expect(released).toHaveLength(2);
-      expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["EVENTS", "HELP"]);
+      expect(found.filter((event) => event.type === "attempt_pause.write_refused").map((event) => (event.metadata as { operation: string }).operation).sort()).toEqual(["CODE_RUN", "EVENTS", "HELP"]);
     });
 
     it("018/SC-010 cada encerramento por avisos, cancelamento, devolução e \"não cancelar\" gera exatamente um evento, sem enunciado nem resposta; a decisão repetida nenhum", async () => {

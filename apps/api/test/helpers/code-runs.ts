@@ -48,6 +48,26 @@ export function createCodeExercise(
   });
 }
 
+/**
+ * 021: an ASSIGNMENT published a day ago, due in a week, with one CODE question of `languageKey`
+ * (default `python`) and the `DOUBLE_CASES`, then a multiple-choice one. `codeExecutionAllowed`
+ * defaults to true (the work allows running code); `executionMode`, `latePolicy`, `releaseMode` and the
+ * rest go to `createActivity` (ALL_ENROLLED by default, so no attendance is needed).
+ */
+export function createCodeWork(
+  t: TestApp,
+  schoolClass: Pick<SchoolClass, "id" | "teacherId">,
+  options: { languageKey?: string; testCases?: ActivityQuestionSpec["testCases"] } & Omit<CreateActivityOptions, "questions" | "type"> = {},
+) {
+  const { languageKey = "python", testCases = DOUBLE_CASES, codeExecutionAllowed = true, ...rest } = options;
+  return createActivity(t, schoolClass, {
+    type: "ASSIGNMENT",
+    questions: [{ type: "CODE", languageKey, testCases, starterCode: "# leia a entrada\n" }, { type: "MULTIPLE_CHOICE" }],
+    codeExecutionAllowed,
+    ...rest,
+  });
+}
+
 /** `…/questions/:questionId/code-runs` of the session student. */
 export const codeRunsPath = (activityId: string, questionId: string) => `/api/me/activities/${activityId}/questions/${questionId}/code-runs`;
 
@@ -126,3 +146,8 @@ export async function drainRuns(worker: CodeRunWorker, now?: Date): Promise<numb
 }
 
 export const asRun = (body: unknown) => body as CodeRun;
+
+/** 021: `GET …/attempts/:attemptId/code-runs`, the teacher's summary of a student's runs in a work. */
+export function getAttemptCodeRuns(client: ApiClient, classId: string, activityId: string, attemptId: string) {
+  return client.get(`/api/classes/${classId}/activities/${activityId}/attempts/${attemptId}/code-runs`);
+}

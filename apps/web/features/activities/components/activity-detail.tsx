@@ -26,6 +26,7 @@ import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
 import { ExamRoomPanel } from "@/features/exam-session/components/exam-room-panel";
 import { EXAM_ROOM_TITLE, pendingDecisionsLabel } from "@/features/exam-session/schemas/exam-session";
 import { attendanceSummary, OUT_OF_ROOM, PAUSES_COLUMN, PRESENCE_COLUMN } from "@/features/attendance/schemas/attendance";
+import { useCodeRunnerAvailability } from "@/features/code-run/hooks/use-code-runner-availability";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
@@ -44,6 +45,7 @@ import {
   HELP_CHECK_PENDING,
   helpUnavailableText,
   LATE_POLICY_LABELS,
+  mayAllowCodeExecution,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
@@ -62,6 +64,7 @@ export const EDIT_FIELD_IDS = {
   deadline: "editar-prazo",
   controlled: "editar-modo-controlado",
   aiHelp: "editar-ajuda-ia",
+  codeExecution: "editar-executar-codigo",
 } as const;
 
 const FIELD_OF_CODE: Record<string, string> = {
@@ -69,6 +72,7 @@ const FIELD_OF_CODE: Record<string, string> = {
   ALREADY_PUBLISHED: EDIT_FIELD_IDS.publishAt,
   ACTIVITY_ALREADY_STARTED: EDIT_FIELD_IDS.controlled,
   AI_HELP_UNAVAILABLE: EDIT_FIELD_IDS.aiHelp,
+  CODE_EXECUTION_NOT_ELIGIBLE: EDIT_FIELD_IDS.codeExecution,
 };
 
 export interface ActivityDetailProps {
@@ -406,6 +410,8 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
   const scheduled = activity.phase === "SCHEDULED";
   const withOptions = hasWorkOptions(activity.type);
   const availability = useHelpAvailability(withOptions);
+  const withCodeExecution = mayAllowCodeExecution(activity);
+  const runner = useCodeRunnerAvailability(withCodeExecution);
 
   const onSubmit = handleSubmit(async (values) => {
     setErrors([]);
@@ -464,6 +470,7 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
           helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
           aiHelpOn={activity.aiHelp.allowance > 0}
           locked={activityStarted(activity)}
+          codeExecution={withCodeExecution ? { box: register("codeExecution"), runnerDown: runner.isError || runner.data?.available === false } : null}
         />
       ) : null}
       <SubmitButton pending={formState.isSubmitting} pendingLabel="Salvando…">

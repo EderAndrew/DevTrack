@@ -9,7 +9,7 @@ import { CodeBlock } from "@/components/ui/code/code-block";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { COMPILATION_ERROR, RUN_FAILED, runSummary, STALE_RESULT, VERDICT_LABELS } from "../schemas/code-run";
 
-const VERDICT_ICONS: Record<CodeRunVerdict, LucideIcon> = {
+export const VERDICT_ICONS: Record<CodeRunVerdict, LucideIcon> = {
   PASSED: CircleCheck,
   WRONG_OUTPUT: CircleX,
   RUNTIME_ERROR: TriangleAlert,
@@ -18,7 +18,7 @@ const VERDICT_ICONS: Record<CodeRunVerdict, LucideIcon> = {
   OUTPUT_LIMIT: FileWarning,
 };
 
-const VERDICT_VARIANTS: Record<CodeRunVerdict, "success" | "danger" | "warning"> = {
+export const VERDICT_VARIANTS: Record<CodeRunVerdict, "success" | "danger" | "warning"> = {
   PASSED: "success",
   WRONG_OUTPUT: "danger",
   RUNTIME_ERROR: "danger",

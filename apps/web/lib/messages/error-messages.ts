@@ -131,6 +131,7 @@ export const ERROR_MESSAGES = {
   NOT_AN_EXAM: "Esta atividade não é uma prova.",
   CODE_RUN_NOT_AVAILABLE: "Este exercício não tem casos para executar.",
   CODE_RUNNER_UNAVAILABLE: "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente.",
+  CODE_EXECUTION_NOT_ELIGIBLE: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",
   SOURCE_TOO_LARGE: "O código passou do tamanho máximo de 64 KB.",
   ATTEMPT_NOT_IN_PROGRESS: "Comece ou refaça os exercícios para executar o código.",
   EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",

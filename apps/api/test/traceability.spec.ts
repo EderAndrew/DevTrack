@@ -276,6 +276,19 @@ const SPECS: FeatureSpec[] = [
     // (020-audit) and SC-001/SC-002 (the E2E student-feedback.spec.ts) since Phase 6.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "021",
+    path: "specs/021-work-code-runner/spec.md",
+    stories: 4,
+    scenarios: 26,
+    // No "### Acceptance Criteria Traceability" table, as in 008–020.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 9),
+    // Joined in the Foundational phase (T007); each story leaves `pending` with the task that writes its
+    // last test, each SC with the test that cites it, so the lists are empty at the end of T027.
+    pending: { stories: [], successCriteria: [] },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

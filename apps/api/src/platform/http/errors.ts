@@ -169,6 +169,11 @@ export const ErrorCatalog = {
   },
   SOURCE_TOO_LARGE: { status: 413, message: "O código passou do tamanho máximo de 64 KB." },
   ATTEMPT_NOT_IN_PROGRESS: { status: 409, message: "Comece ou refaça os exercícios para executar o código." },
+  // 021: "Permitir executar o código" on a work with no CODE question that can run (research Y2).
+  CODE_EXECUTION_NOT_ELIGIBLE: {
+    status: 422,
+    message: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",
+  },
   // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
   EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the

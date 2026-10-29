@@ -18,6 +18,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClass } from "@/features/classes/hooks/use-classes";
+import { useCodeRunnerAvailability } from "@/features/code-run/hooks/use-code-runner-availability";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { useApprovedExams, useApprovedExercises, useApprovedWorks, useCreateActivity, useHelpAvailability, useScopeCheck } from "../hooks/use-activities";
@@ -49,6 +50,7 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   acknowledgeOutOfScope: "atividade-confirmar-escopo",
   controlled: "atividade-modo-controlado",
   aiHelp: "atividade-ajuda-ia",
+  codeExecution: "atividade-executar-codigo",
   durationMinutes: "atividade-duracao",
   inactivityLimitSeconds: "atividade-inatividade",
   startWindowMinutes: "atividade-limite-iniciar",
@@ -60,6 +62,7 @@ const FIELD_OF_CODE: Record<string, string> = {
   INVALID_SCHEDULE: FIELD_IDS.deadline,
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: FIELD_IDS.acknowledgeOutOfScope,
   AI_HELP_UNAVAILABLE: FIELD_IDS.aiHelp,
+  CODE_EXECUTION_NOT_ELIGIBLE: FIELD_IDS.codeExecution,
 };
 
 const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 119)}…` : text);
@@ -71,6 +74,8 @@ interface ChosenSource {
   questionCount: number;
   /** An Exercício's total by the exercises' levels (013/FR-003); null for a Trabalho, which has a grade. */
   possiblePoints: number | null;
+  /** 021: a work's CODE questions the Code Runner can run; "Permitir executar o código" only when > 0. */
+  runnableCodeQuestionCount: number;
   scope: ScopeCheck;
 }
 
@@ -165,6 +170,7 @@ function SourceStep({
         title: bankItem?.title ?? "",
         questionCount: bankItem ? bankItem.questionCount : selected.length,
         possiblePoints: type === "EXERCISE" ? possiblePoints(selected.map((exercise) => exercise.difficulty)) : null,
+        runnableCodeQuestionCount: work?.runnableCodeQuestionCount ?? 0,
         scope,
       });
     } catch (caught) {
@@ -441,6 +447,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       acknowledgeOutOfScope: false,
       controlled: false,
       aiHelp: false,
+      codeExecution: false,
       ...EXAM_FIELD_DEFAULTS,
     },
   });
@@ -448,6 +455,8 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
   const isExam = chosen.source.type === "EXAM";
   const withOptions = hasWorkOptions(chosen.source.type);
   const availability = useHelpAvailability(withOptions);
+  const withCodeExecution = withOptions && chosen.runnableCodeQuestionCount > 0;
+  const runner = useCodeRunnerAvailability(withCodeExecution);
   const publishMode = useWatch({ control, name: "publishMode" });
 
   const onSubmit = handleSubmit(async (formValues) => {
@@ -558,6 +567,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           controlled={register("controlled")}
           aiHelp={register("aiHelp")}
           helpUnavailable={availability.isPending ? HELP_CHECK_PENDING : helpUnavailableText(availability.data)}
+          codeExecution={withCodeExecution ? { box: register("codeExecution"), runnerDown: runner.isError || runner.data?.available === false } : null}
         />
       ) : null}
       {chosen.scope.coverage ? <ExamCoverageTables coverage={chosen.scope.coverage} /> : <ScopeNotice scope={chosen.scope} />}

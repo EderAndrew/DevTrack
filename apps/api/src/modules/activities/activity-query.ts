@@ -84,6 +84,8 @@ export const ACTIVITY_HEADER_SELECT = {
   executionMode: true,
   aiHelpAllowance: true,
   releaseMode: true,
+  /** 021: the work's "Permitir executar o código" (research Y1). */
+  codeExecutionAllowed: true,
   status: true,
   title: true,
   instructions: true,

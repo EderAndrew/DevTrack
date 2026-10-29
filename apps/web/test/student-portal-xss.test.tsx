@@ -38,7 +38,16 @@ import {
 } from "@/features/student-activities/components/test-fixtures";
 import { CodeBlock } from "@/components/ui/code/code-block";
 import { CodeRunResult } from "@/features/code-run/components/code-run-result";
-import { codeRun } from "@/features/code-run/components/test-fixtures";
+import { CodeRunSummary } from "@/features/code-run/components/code-run-summary";
+import {
+  ACTIVITY_ID as RUN_ACTIVITY_ID,
+  ATTEMPT_ID as RUN_ATTEMPT_ID,
+  available,
+  CLASS_ID as SUMMARY_CLASS_ID,
+  codeRun,
+  QUESTION_ID as RUN_QUESTION_ID,
+  summaryQuestion,
+} from "@/features/code-run/components/test-fixtures";
 import { CodeEditor } from "@/components/ui/code/code-editor";
 import { AdminFeedbackDetail } from "@/features/feedback/components/admin-feedback-detail";
 import { AdminFeedbackList } from "@/features/feedback/components/admin-feedback-list";
@@ -70,7 +79,7 @@ const SCANNED = [
   "features/exams",
   "features/exam-attempt",
   "features/exam-session",
-  // 019: the Code Runner's panel and result.
+  // 019: the Code Runner's panel and result; 021: the teacher's run summary.
   "features/code-run",
   // 020: the student's feedback dialog and list, the ADMIN's list and detail.
   "features/feedback",
@@ -486,6 +495,54 @@ describe("019/FR-021 resultado da execução como texto", () => {
     const run = codeRun({ sourceCode: SCRIPT, outcome: "COMPILATION_ERROR", passedCount: 0, cases: [], compileOutput: SCRIPT });
     const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: "1", expectedOutput: "2" }]} sourceCode={SCRIPT} />);
     expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(1);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+});
+
+/**
+ * 021/FR-013: on a work with "Permitir executar o código", the run's output, stderr and the public case
+ * render as text on the student's answering screen, as in an exercise; the teacher's summary shows only
+ * counts and verdicts, so nothing of a run (code, output) reaches the correction screen at all.
+ */
+describe("021/FR-013 execução num Trabalho e resumo do professor como texto", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("tela do aluno num Trabalho: saída, saída de erro e caso público com HTML aparecem como texto", async () => {
+    const base = studentActivity();
+    const code = base.questions.find((question) => question.type === "CODE")!;
+    const question = { ...code, publicTestCases: [{ input: SCRIPT, expectedOutput: SCRIPT }], execution: available() };
+    const activity = studentActivity({
+      status: "IN_PROGRESS",
+      questions: [question],
+      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+    });
+    const run = codeRun({
+      questionId: question.id,
+      sourceCode: code.starterCode ?? "",
+      passedCount: 0,
+      publicCaseCount: 1,
+      cases: [{ position: 0, verdict: "RUNTIME_ERROR", stdout: SCRIPT, stderr: SCRIPT, durationMs: 70 }],
+    });
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${activity.id}`]: json(200, activity),
+        [`GET /api/me/activities/${activity.id}/questions/${question.id}/code-runs/latest`]: json(200, { run }),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+    expect(await screen.findByText("0 de 1 caso público passou")).toBeTruthy();
+    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(4);
+    expect(container.querySelector("script, img")).toBeNull();
+  });
+
+  it("resumo do professor: só contagens e vereditos, nenhum elemento criado", async () => {
+    const summary = `/api/classes/${SUMMARY_CLASS_ID}/activities/${RUN_ACTIVITY_ID}/attempts/${RUN_ATTEMPT_ID}/code-runs`;
+    vi.stubGlobal("fetch", teacherFetch({ [`GET ${summary}`]: json(200, { questions: [summaryQuestion()] }) }).fetch);
+    const { container } = renderWithProviders(
+      <CodeRunSummary classId={SUMMARY_CLASS_ID} activityId={RUN_ACTIVITY_ID} attemptId={RUN_ATTEMPT_ID} questionId={RUN_QUESTION_ID} position={0} />,
+    );
+    expect(await screen.findByText("Última execução: 1 de 2 casos públicos passaram")).toBeTruthy();
     expect(container.querySelector("script, img")).toBeNull();
   });
 });

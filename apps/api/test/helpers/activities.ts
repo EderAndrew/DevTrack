@@ -47,6 +47,8 @@ export interface ApplyOverrides {
   /** 015: a work's mode and AI help; left out by default (NORMAL, 0). Any value goes in as given, for the 400s. */
   executionMode?: string;
   aiHelpAllowance?: number;
+  /** 021: "Permitir executar o código"; left out by default (false). Any value goes in as given, for the 400s. */
+  codeExecution?: unknown;
   /**
    * 016: not part of the body. `"ALL"` (default) marks every ACTIVE student of the class present
    * through the attendance route once a `PRESENT_ONLY` work is created, so the 012/013/015 suites
@@ -238,6 +240,8 @@ export interface CreateActivityOptions {
   aiHelpAllowance?: 0 | 3;
   /** PRESENT_ONLY only for ASSIGNMENT (CHECK, 016 M2); default ALL_ENROLLED, as works applied before 016. */
   releaseMode?: ActivityReleaseMode;
+  /** 021: ASSIGNMENT only (CHECK, research Y1); default false. */
+  codeExecutionAllowed?: boolean;
   /** EXAM only (CHECK): default a new APPROVED exam of the teacher, with its subject. */
   sourceExamId?: string;
   /** EXAM only (CHECK, 018 T3): defaults 60 min, 60 s and 15 min. */
@@ -327,6 +331,7 @@ export async function createActivity(
         executionMode: options.executionMode ?? (exam ? "CONTROLLED" : "NORMAL"),
         aiHelpAllowance: options.aiHelpAllowance ?? 0,
         releaseMode: options.releaseMode ?? (exam ? "PRESENT_ONLY" : "ALL_ENROLLED"),
+        codeExecutionAllowed: options.codeExecutionAllowed ?? false,
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt

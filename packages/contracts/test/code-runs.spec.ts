@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  AttemptCodeRunSummarySchema,
   CODE_RUN_MAX_SOURCE_BYTES,
+  CodeRunnerAvailabilitySchema,
+  CreateActivityRequestSchema,
+  CreateAssignmentRequestSchema,
+  CreateExamActivityRequestSchema,
+  CreateExerciseActivityRequestSchema,
+  ErrorCodeSchema,
+  UpdateActivityRequestSchema,
   CODE_RUN_POLL_MS,
   CodeRunSchema,
   CodeRunUnavailableReasonSchema,
@@ -151,5 +159,82 @@ describe("019 contratos do Code Runner (contracts/http-api.md)", () => {
     expect(accepts(ErrorBodySchema, body([{ position: 0, field: "testCases", reason: "TEST_CASES_NOT_ALLOWED", expectedOutput: "42" }]))).toBe(false);
     expect(accepts(ErrorBodySchema, body([{ position: 0, field: "saída esperada", reason: "TEST_CASE_EXPECTED_OUTPUT" }]))).toBe(false);
     expect(accepts(ErrorBodySchema, body([{ position: 0, field: "testCases", reason: "faltou a saída" }]))).toBe(false);
+  });
+});
+
+describe("021 Code Runner nos Trabalhos (contracts/http-api.md, research Y10)", () => {
+  const common = { idempotencyKey: uuid(99), title: "Atividade", publishAt: null, acknowledgeOutOfScope: false };
+  const assignment = (overrides: Record<string, unknown> = {}) => ({
+    ...common,
+    source: { type: "ASSIGNMENT", workId: uuid(5) },
+    deadline: "2026-10-10T23:59:00.000Z",
+    latePolicy: "REJECT",
+    ...overrides,
+  });
+  const exercise = { ...common, source: { type: "EXERCISE", exerciseIds: [uuid(1)] } };
+  const exam = { ...common, source: { type: "EXAM", examId: uuid(6) }, durationMinutes: 60 };
+
+  it("021/FR-001 o Trabalho aceita a opção de executar, desligada por padrão", () => {
+    expect(CreateAssignmentRequestSchema.parse(assignment())).toMatchObject({ codeExecution: false });
+    expect(CreateActivityRequestSchema.parse(assignment({ codeExecution: true }))).toMatchObject({ codeExecution: true });
+    expect(accepts(CreateAssignmentRequestSchema, assignment({ codeExecution: "sim" }))).toBe(false);
+  });
+
+  it("021/FR-003 o Exercício e a Prova recusam a opção (corpos estritos)", () => {
+    expect(accepts(CreateExerciseActivityRequestSchema, exercise)).toBe(true);
+    expect(accepts(CreateExerciseActivityRequestSchema, { ...exercise, codeExecution: true })).toBe(false);
+    expect(accepts(CreateExerciseActivityRequestSchema, { ...exercise, codeExecution: false })).toBe(false);
+    expect(accepts(CreateExamActivityRequestSchema, exam)).toBe(true);
+    expect(accepts(CreateExamActivityRequestSchema, { ...exam, codeExecution: true })).toBe(false);
+    expect(accepts(CreateExamActivityRequestSchema, { ...exam, codeExecution: false })).toBe(false);
+  });
+
+  it("021/FR-002 a edição aceita a opção como opcional", () => {
+    expect(UpdateActivityRequestSchema.parse({ version: 1 })).not.toHaveProperty("codeExecution");
+    expect(UpdateActivityRequestSchema.parse({ version: 1, codeExecution: true })).toMatchObject({ codeExecution: true });
+    expect(accepts(UpdateActivityRequestSchema, { version: 1, codeExecution: null })).toBe(false);
+  });
+
+  it("021/FR-001 o código de erro da opção sem questão elegível existe", () => {
+    expect(ErrorCodeSchema.options).toContain("CODE_EXECUTION_NOT_ELIGIBLE");
+  });
+
+  it("021 a disponibilidade do executor é só um booleano", () => {
+    expect(accepts(CodeRunnerAvailabilitySchema, { available: true })).toBe(true);
+    expect(accepts(CodeRunnerAvailabilitySchema, { available: true, profiles: ["python"] })).toBe(false);
+  });
+
+  const lastFinished = {
+    status: "COMPLETED",
+    failureReason: null,
+    outcome: "EXECUTED",
+    publicCaseCount: 2,
+    passedCount: 1,
+    finishedAt: AT,
+    cases: [
+      { position: 0, verdict: "PASSED" },
+      { position: 1, verdict: "WRONG_OUTPUT" },
+    ],
+  };
+  const summary = (last: Record<string, unknown> | null = lastFinished) => ({
+    questions: [{ questionId: uuid(2), runCount: 3, pending: false, lastFinished: last }],
+  });
+
+  it("021/FR-012 o resumo das execuções leva contagens, situação e veredictos", () => {
+    expect(accepts(AttemptCodeRunSummarySchema, summary())).toBe(true);
+    expect(accepts(AttemptCodeRunSummarySchema, summary(null))).toBe(true);
+    expect(accepts(AttemptCodeRunSummarySchema, summary({ ...lastFinished, status: "QUEUED" }))).toBe(false);
+    expect(
+      accepts(AttemptCodeRunSummarySchema, summary({ ...lastFinished, status: "FAILED", failureReason: "EXPIRED", outcome: null, passedCount: null, cases: [] })),
+    ).toBe(true);
+    expect(accepts(AttemptCodeRunSummarySchema, { questions: [{ ...summary().questions[0], runCount: -1 }] })).toBe(false);
+  });
+
+  it("021/FR-013 o resumo nunca leva código, entrada, saída, stderr ou mensagem do compilador", () => {
+    for (const key of ["sourceCode", "stdout", "stderr", "compileOutput", "input", "expectedOutput"]) {
+      expect(accepts(AttemptCodeRunSummarySchema, summary({ ...lastFinished, [key]: "x" }))).toBe(false);
+      expect(accepts(AttemptCodeRunSummarySchema, summary({ ...lastFinished, cases: [{ position: 0, verdict: "PASSED", [key]: "x" }] }))).toBe(false);
+      expect(accepts(AttemptCodeRunSummarySchema, { questions: [{ ...summary().questions[0], [key]: "x" }] })).toBe(false);
+    }
   });
 });

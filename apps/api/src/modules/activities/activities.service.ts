@@ -5,6 +5,7 @@ import {
   type ActivityType,
   type AiHelpAllowance,
   type CreateActivityRequest,
+  type ExecutionKey,
   type ExecutionMode,
   type LatePolicy,
   type ScopeCheck,
@@ -35,6 +36,7 @@ import {
 } from "./activity-query";
 import { ACTIVITY_TYPES } from "./activity-types";
 import { ActivityStateMachine } from "./activity.state-machine";
+import { codeExecutionEligible, type CodeExecutionQuestion } from "./code-execution";
 import { ExamSettlement } from "./exam-settlement";
 import { HelpAvailability } from "./help-availability";
 import { buildRoster, loadRosterData } from "./roster";
@@ -53,16 +55,28 @@ const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClie
 /** The fields a PATCH may change, in the order `activity.updated` lists them. */
 type EditableField = "deadline" | "instructions" | "latePolicy" | "publishAt" | "title";
 
-/** A work's 015 options (research F2): NORMAL and 0 unless the teacher turns them on. */
+/**
+ * A work's options (015 research F2, 021 research Y1): NORMAL, 0 and no code execution unless the
+ * teacher turns them on. Named as the columns, so they go to the row as they are.
+ */
 interface WorkOptions {
   executionMode: ExecutionMode;
   aiHelpAllowance: AiHelpAllowance;
+  /** 021 "Permitir executar o código" (ASSIGNMENT only, CHECK). */
+  codeExecutionAllowed: boolean;
 }
 
-const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0 };
+const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0, codeExecutionAllowed: false };
 
-/** An EXAM's options are the server's, never the body's (018/FR-010): always CONTROLLED, never any help. */
-const EXAM_OPTIONS: WorkOptions = { executionMode: "CONTROLLED", aiHelpAllowance: 0 };
+/** An EXAM's options are the server's, never the body's (018/FR-010): always CONTROLLED, never any help or run. */
+const EXAM_OPTIONS: WorkOptions = { executionMode: "CONTROLLED", aiHelpAllowance: 0, codeExecutionAllowed: false };
+
+/** The options as the audit metadata names them (contracts/audit-events.md). */
+const optionsMetadata = (options: WorkOptions) => ({
+  executionMode: options.executionMode,
+  aiHelpAllowance: options.aiHelpAllowance,
+  codeExecution: options.codeExecutionAllowed,
+});
 
 /** An EXAM's time from the body (018/FR-007), its ranges and defaults already checked by the contract. */
 interface ExamTime {
@@ -209,7 +223,7 @@ export class ActivitiesService {
         : null;
     const options: WorkOptions =
       ACTIVITY_TYPES[body.source.type].workOptions && "executionMode" in body
-        ? { executionMode: body.executionMode, aiHelpAllowance: body.aiHelpAllowance }
+        ? { executionMode: body.executionMode, aiHelpAllowance: body.aiHelpAllowance, codeExecutionAllowed: body.codeExecution }
         : examTime
           ? EXAM_OPTIONS
           : NO_WORK_OPTIONS;
@@ -226,6 +240,7 @@ export class ActivitiesService {
         const snapshot = toSnapshot(content);
         const scope = await scopeCheckOf(tx, classId, snapshot.questions, examTopicsOf(content));
         if (scope.outOfScope.length > 0 && !body.acknowledgeOutOfScope) throw new AppException("OUT_OF_SCOPE_NOT_ACKNOWLEDGED");
+        if (options.codeExecutionAllowed) await assertCodeExecutionEligible(tx, snapshot.questions);
 
         const id = await writeSnapshot(
           tx,
@@ -261,8 +276,7 @@ export class ActivitiesService {
           metadata: {
             classId,
             type: content.type,
-            executionMode: options.executionMode,
-            aiHelpAllowance: options.aiHelpAllowance,
+            ...optionsMetadata(options),
             releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
             ...sourceMetadata(content),
             questionCount: snapshot.questions.length,
@@ -312,19 +326,25 @@ export class ActivitiesService {
       const current = await lockActivity(tx, classId, activityId);
       const definition = ACTIVITY_TYPES[current.type];
       if (!definition.hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
-      if (!definition.workOptions && (body.executionMode !== undefined || body.aiHelpAllowance !== undefined)) throw validationError();
+      if (!definition.workOptions && (body.executionMode !== undefined || body.aiHelpAllowance !== undefined || body.codeExecution !== undefined)) {
+        throw validationError();
+      }
       if (current.version !== body.version) throw new AppException("ACTIVITY_VERSION_CONFLICT");
       ActivityStateMachine.assertEditable(current.status);
 
       const stored = await tx.classActivity.findUniqueOrThrow({
         where: { id: activityId },
-        select: { title: true, instructions: true, latePolicy: true, executionMode: true, aiHelpAllowance: true },
+        select: { title: true, instructions: true, latePolicy: true, executionMode: true, aiHelpAllowance: true, codeExecutionAllowed: true },
       });
       const options: WorkOptions = {
         executionMode: body.executionMode ?? stored.executionMode,
         aiHelpAllowance: body.aiHelpAllowance ?? aiHelpAllowanceOf(stored.aiHelpAllowance),
+        codeExecutionAllowed: body.codeExecution ?? stored.codeExecutionAllowed,
       };
-      const optionsChanged = options.executionMode !== stored.executionMode || options.aiHelpAllowance !== stored.aiHelpAllowance;
+      const optionsChanged =
+        options.executionMode !== stored.executionMode ||
+        options.aiHelpAllowance !== stored.aiHelpAllowance ||
+        options.codeExecutionAllowed !== stored.codeExecutionAllowed;
       const publishAt = body.publishAt === undefined ? current.publishAt : new Date(body.publishAt);
       const deadline = body.deadline === undefined ? current.deadline : new Date(body.deadline);
       const changed: EditableField[] = [];
@@ -343,6 +363,7 @@ export class ActivitiesService {
       if (optionsChanged) {
         if ((await tx.activityAttempt.count({ where: { activityId } })) > 0) throw new AppException("ACTIVITY_ALREADY_STARTED");
         if (options.aiHelpAllowance > stored.aiHelpAllowance) await this.assertHelpAvailable();
+        if (options.codeExecutionAllowed && !stored.codeExecutionAllowed) await assertCodeExecutionEligible(tx, await activityCodeQuestions(tx, activityId));
       }
 
       await tx.classActivity.update({
@@ -359,7 +380,7 @@ export class ActivitiesService {
       });
       const event = { actorType: "USER", actorUserId: teacherId, targetType: "CLASS_ACTIVITY", targetId: activityId, requestId } as const;
       if (changed.length > 0) await this.audit.record(tx, { ...event, type: "activity.updated", metadata: { classId, fields: changed } });
-      if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...options } });
+      if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...optionsMetadata(options) } });
       return this.read(teacherId, classId, activityId, tx);
     });
   }
@@ -520,6 +541,35 @@ const examTopicsOf = (content: SourceContent) => (content.type === "EXAM" ? cont
 function assertSameSubject(classSubjectId: string | null, content: SourceContent): void {
   if (content.type !== "EXERCISE" && content.subjectId !== classSubjectId) throw new AppException("SUBJECT_MISMATCH");
 }
+
+/**
+ * 021/FR-001 (research Y2): "Permitir executar o código" only on a snapshot with a runnable CODE
+ * question, the languages' `execution` read from the catalog now (`422 CODE_EXECUTION_NOT_ELIGIBLE`).
+ */
+async function assertCodeExecutionEligible(
+  tx: Tx,
+  questions: readonly (Omit<CodeExecutionQuestion, "language"> & { languageId: string | null })[],
+): Promise<void> {
+  const languageIds = [...new Set(questions.flatMap((question) => (question.languageId ? [question.languageId] : [])))];
+  const languages = await tx.programmingLanguage.findMany({ where: { id: { in: languageIds } }, select: { id: true, execution: true } });
+  // The column's CHECK holds it to the profile keys (019 research B5).
+  const execution = new Map(languages.map((language) => [language.id, language.execution as ExecutionKey | null]));
+  const eligible = codeExecutionEligible(
+    questions.map((question) => ({
+      type: question.type,
+      language: question.languageId ? { execution: execution.get(question.languageId) ?? null } : null,
+      testCases: question.testCases,
+    })),
+  );
+  if (!eligible) throw new AppException("CODE_EXECUTION_NOT_ELIGIBLE");
+}
+
+/** The applied activity's questions as the eligibility reads them (its snapshot, never the bank). */
+const activityCodeQuestions = (tx: Tx, activityId: string) =>
+  tx.classActivityQuestion.findMany({
+    where: { activityId },
+    select: { type: true, languageId: true, testCases: { select: { visibility: true } } },
+  });
 
 /** The class row under `FOR SHARE`: its status can't change while the activity is created. */
 async function lockClass(tx: Tx, teacherId: string, classId: string): Promise<{ status: string; subjectId: string | null }> {

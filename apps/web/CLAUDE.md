@@ -89,15 +89,19 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the countdown live only in `features/exam-attempt` and `components/ui/assessment`
   (`apps/api/test/activities-boundary.spec.ts`). No exam text says "fraude", "cola" or "violação"
   (`test/exam-wording.test.ts` scans the three exam features and the Exam Mode components, comments aside).
-- Code Runner (019): `features/code-run` holds `CodeRunPanel` (mounted by `activity-answering.tsx` only on an EXERCISE
-  CODE question of the open attempt: "Executar" from the question's `execution`, the convention, version and limits,
+- Code Runner (019, 021): `features/code-run` holds `CodeRunPanel` (mounted by `activity-answering.tsx` on any CODE
+  question of the open attempt whose `execution` is filled — an EXERCISE, or since 021 a work with "Permitir executar o
+  código", also on the CONTROLLED focus page — and hidden while paused or once submitted: "Executar" from the question's `execution`, the convention, version and limits,
   "Na fila"/"Executando" in a `role="status"` region, the other-question notice, the `429` wait from `Retry-After`),
   `CodeRunResult` (the summary "n de m casos públicos passaram", one collapsible case per public case with the verdict
   in words and an icon, the first failing case open, input, expected and obtained output and stderr in `CodeBlock`,
   the compiler message, the stale notice when the editor differs from the run's `sourceCode`) and `use-code-run`
   (the latest run of the question, polled every `CODE_RUN_POLL_MS` only while pending and the page is visible). The
   words live in `features/code-run/schemas/code-run.ts`; the convention arrives as a key. "Executar" never saves or
-  concludes. The bank's "Casos de teste" section is `features/exercises/components/exercise-test-cases.tsx`, with
+  concludes. 021: `CodeRunSummary` (`hooks/use-attempt-code-runs.ts`) is mounted by `attempt-review.tsx` on each CODE
+  question when `activity.codeExecution`: "n execuções", "Última execução: …" and each case's verdict in words, never
+  code or output; the apply form's "Permitir executar o código" (`work-options.tsx`) appears only for a work with
+  `runnableCodeQuestionCount > 0`, with the availability warning. The bank's "Casos de teste" section is `features/exercises/components/exercise-test-cases.tsx`, with
   "Os alunos poderão executar o código." / "Sem execução nesta linguagem." next to the language.
 - Student feedback (020): `features/feedback` holds `FeedbackDialog` (behind `SendFeedbackButton` at the bottom of the
   student menu in `components/layout/student-layout.tsx`, only with `feedbacks.enviar`; the `(focus)` layout has no
@@ -117,7 +121,8 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   014 code with HTML in the editor and in `CodeBlock`; since 015 the student's question to the AI, the
   orientation and its example on both screens; since 016 the note of "Outro" on the room panel, in the review, on
   the paused notice and in the history; since 018 the Banco de Provas form, the student's exam and the teacher's
-  exam room; since 019 the run's output, stderr, compiler message and public cases; since 020 the feedback message and
+  exam room; since 019 the run's output, stderr, compiler message and public cases (021: also on a work, and the
+  teacher's run summary); since 020 the feedback message and
   the student's name in "Meus feedbacks" and the ADMIN's list and detail), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
   `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features,

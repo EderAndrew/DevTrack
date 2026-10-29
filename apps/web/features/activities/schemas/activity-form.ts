@@ -77,7 +77,15 @@ export const WORK_OPTION_TEXTS = {
     label: `Ajuda da IA (${AI_HELP_ALLOWANCE} perguntas por aluno)`,
     description: "A IA orienta sem dar a resposta. Você verá as perguntas e as orientações na correção.",
   },
+  // 021 contracts/web-ui.md.
+  codeExecution: {
+    label: "Permitir executar o código",
+    description: "Os alunos poderão rodar o programa nos casos públicos das questões de Código. Os casos privados nunca são executados nem mostrados.",
+  },
 } as const;
+/** 021/US2-6: the option stays available while the Code Runner is down. */
+export const CODE_RUNNER_UNAVAILABLE = "A execução está indisponível agora; os alunos verão o botão quando ela voltar.";
+export const CODE_EXECUTION_BADGE = "Execução de código: permitida";
 export const WORK_OPTIONS_LOCKED = "Não é possível mudar depois que um aluno iniciou.";
 
 const HELP_UNAVAILABLE_REASONS: Record<NonNullable<HelpAvailability["reason"]>, string> = {
@@ -107,14 +115,23 @@ export const hasWorkOptions = (type: ActivityType) => type === "ASSIGNMENT";
 export const activityStarted = (activity: TeacherActivity) => activity.roster.some((entry) => entry.attemptId !== null);
 
 /** The options turned on, as text (015/FR-006): never only an icon or a color. */
-export function workOptionBadges(activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp">): string[] {
+export function workOptionBadges(activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp" | "codeExecution">): string[] {
   // An exam is always restricted and has no help (018/FR-010).
   if (activity.type === "EXAM") return [EXAM_RESTRICTED_BADGE];
   return [
     ...(activity.executionMode === "CONTROLLED" ? ["Modo controlado"] : []),
     ...(activity.aiHelp.allowance > 0 ? [`Ajuda da IA: ${activity.aiHelp.allowance} por aluno`] : []),
+    ...(activity.codeExecution ? [CODE_EXECUTION_BADGE] : []),
   ];
 }
+
+/**
+ * 021 (research Y2): an applied work whose snapshot has a CODE question with a PUBLIC case may offer
+ * "Permitir executar o código" in its edit; whether its language runs is the server's (422 otherwise).
+ */
+export const mayAllowCodeExecution = (activity: TeacherActivity) =>
+  hasWorkOptions(activity.type) &&
+  activity.questions.some((question) => question.type === "CODE" && question.testCases.some((testCase) => testCase.visibility === "PUBLIC"));
 
 /** The teacher's situation of an activity: the phase while ACTIVE, else the status. */
 export function activitySituation(status: ActivityStatus, phase: PublicationPhase | null): string {
@@ -186,6 +203,8 @@ export const ActivityFormSchema = z
     /** A Trabalho's options (015/FR-001): ignored for an Exercício. */
     controlled: z.boolean(),
     aiHelp: z.boolean(),
+    /** 021: offered only for a work with a runnable CODE question (`runnableCodeQuestionCount > 0`). */
+    codeExecution: z.boolean(),
     /** A Prova's time (018/FR-007), as typed: checked only for an EXAM. */
     durationMinutes: z.string(),
     inactivityLimitSeconds: z.string(),
@@ -260,6 +279,7 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
     deadline: localToIso(values.deadline),
     latePolicy: values.latePolicy,
     executionMode: values.controlled ? "CONTROLLED" : "NORMAL",
+    codeExecution: values.codeExecution,
     aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0,
   };
 }
@@ -279,6 +299,7 @@ export const ActivityEditSchema = z
     latePolicy: LatePolicySchema,
     controlled: z.boolean(),
     aiHelp: z.boolean(),
+    codeExecution: z.boolean(),
   })
   .superRefine((values, ctx) => {
     if (values.hasDeadline && !values.deadline) ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
@@ -297,6 +318,7 @@ export const activityEditDefaults = (activity: TeacherActivity): ActivityEditVal
   latePolicy: activity.latePolicy ?? "REJECT",
   controlled: activity.executionMode === "CONTROLLED",
   aiHelp: activity.aiHelp.allowance > 0,
+  codeExecution: activity.codeExecution,
 });
 
 /** Only what changed, with the version read; the publication only while scheduled. */
@@ -313,5 +335,6 @@ export function toUpdateActivityRequest(values: ActivityEditValues, activity: Te
       ? { executionMode: values.controlled ? "CONTROLLED" : "NORMAL" }
       : {}),
     ...(hasWorkOptions(activity.type) && values.aiHelp !== initial.aiHelp ? { aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0 } : {}),
+    ...(hasWorkOptions(activity.type) && values.codeExecution !== initial.codeExecution ? { codeExecution: values.codeExecution } : {}),
   };
 }

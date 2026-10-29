@@ -7,6 +7,7 @@ import { renderWithProviders } from "../../../test/render";
 import { ActivityAnswering } from "@/features/student-activities/components/activity-answering";
 import { apiError, json, studentActivity } from "@/features/student-activities/components/test-fixtures";
 import { formatTime } from "@/lib/messages/dates";
+import { available, codeRun } from "@/features/code-run/components/test-fixtures";
 import { CONFIRM_EXIT, EXIT_ROOM, PAUSED_TITLE, RESUME_CONTROLLED, RETURN_RELEASED } from "@/features/attendance/schemas/attendance";
 import { PASTE_BLOCKED_MESSAGE } from "../hooks/use-clipboard-block";
 import { ControlledAttempt } from "./controlled-attempt";
@@ -383,5 +384,51 @@ describe("016/FR-017 saída da sala no modo controlado (research M10)", () => {
     await user.click(screen.getByRole("button", { name: RESUME_CONTROLLED }));
     expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce();
     expect(await screen.findByRole("navigation", { name: "Questões" })).toBeTruthy();
+  });
+});
+
+describe("021/US1-6 Executar na página de foco de um trabalho controlado", () => {
+  const [, , codeQuestion] = activity.questions;
+  const runnable = { ...codeQuestion!, execution: available({ languageVersion: "Java 25", convention: "JAVA_MAIN_CLASS" }) };
+  const RUNS = `${DETAIL}/questions/${runnable.id}/code-runs`;
+  const result = codeRun({
+    questionId: runnable.id,
+    sourceCode: "class Main {}",
+    publicCaseCount: 1,
+    passedCount: 1,
+    cases: [{ position: 0, verdict: "PASSED", stdout: "5", stderr: "", durationMs: 40 }],
+  });
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    fullscreenDevice(true);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("021/US1-6 021/FR-009 021/SC-008 o resultado fica na página de foco, executar não gera evento e copiar do resultado é bloqueado", async () => {
+    const { events, fetchMock, user, container } = focusPage(started({ questions: [runnable] }), {
+      [`GET ${RUNS}/latest`]: () => json(200, { run: null }),
+      [`POST ${RUNS}`]: () => json(202, result),
+    });
+    const button = await screen.findByRole("button", { name: "Executar" });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url) === `${RUNS}/latest`)).toBe(true));
+    const before = events.length;
+    button.focus();
+    await user.keyboard("{Enter}");
+    const summary = await screen.findByText("1 de 1 caso público passou");
+    expect(router.push).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(events).toHaveLength(before);
+
+    const copy = new Event("copy", { bubbles: true, cancelable: true });
+    act(() => {
+      summary.dispatchEvent(copy);
+    });
+    expect(copy.defaultPrevented).toBe(true);
+    await waitFor(() => expect(types(events.slice(before))).toEqual(["COPY_BLOCKED"]));
+    await expectNoA11yViolations(container);
   });
 });

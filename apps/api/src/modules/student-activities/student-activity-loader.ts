@@ -26,6 +26,8 @@ export interface OwnAttemptContext {
   aiHelpAllowance: AiHelpAllowance;
   /** 016: a `PRESENT_ONLY` work takes attendance and room exits (research M2). */
   releaseMode: ReleaseMode;
+  /** 021: the work lets the student run code on its CODE questions (research Y1, Y4); false unless ASSIGNMENT. */
+  codeExecutionAllowed: boolean;
   attempt: { id: string; status: "IN_PROGRESS" | "SUBMITTED"; startedAt: Date; submittedAt: Date | null; endReason: ExamEndReason | null } | null;
   /** 018: an EXAM's time (research T4); null for the other types. */
   exam: ExamTiming | null;
@@ -62,6 +64,7 @@ const ACTIVITY_SELECT = {
   executionMode: true,
   aiHelpAllowance: true,
   releaseMode: true,
+  codeExecutionAllowed: true,
   title: true,
   instructions: true,
   status: true,
@@ -293,6 +296,7 @@ export class StudentActivityLoader {
         ai_help_allowance: number;
         class_active: boolean;
         release_mode: ReleaseMode;
+        code_execution_allowed: boolean;
         publish_at: Date;
         duration_minutes: number | null;
         start_window_minutes: number | null;
@@ -302,7 +306,7 @@ export class StudentActivityLoader {
     >`
       SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
              ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active,
-             ca.release_mode::text AS release_mode, ca.publish_at, ca.duration_minutes, ca.start_window_minutes, ca.closed_at, ca.cancelled_at
+             ca.release_mode::text AS release_mode, ca.code_execution_allowed, ca.publish_at, ca.duration_minutes, ca.start_window_minutes, ca.closed_at, ca.cancelled_at
       FROM class_activities ca
       JOIN classes c ON c.id = ca.class_id
       WHERE ca.id = ${activityId}::uuid
@@ -339,6 +343,7 @@ export class StudentActivityLoader {
       latePolicy: activity.late_policy,
       aiHelpAllowance: aiHelpAllowanceOf(activity.ai_help_allowance),
       releaseMode: activity.release_mode,
+      codeExecutionAllowed: activity.code_execution_allowed,
       attempt: attempt
         ? { id: attempt.id, status: attempt.status, startedAt: attempt.started_at, submittedAt: attempt.submitted_at, endReason: attempt.end_reason }
         : null,
@@ -459,6 +464,7 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
     type: activity.type,
     executionMode: activity.executionMode,
     aiHelpAllowance: aiHelpAllowanceOf(activity.aiHelpAllowance),
+    codeExecutionAllowed: activity.codeExecutionAllowed,
     title: activity.title,
     instructions: activity.instructions,
     class: { id: activity.schoolClass.id, name: activity.schoolClass.name },

@@ -230,11 +230,16 @@ describe("019 fronteiras do Code Runner", () => {
   });
 
   it("019 nenhuma rota fora do catálogo de contracts/http-api.md", () => {
-    const contract = readFileSync(resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/http-api.md"), "utf8");
-    const documented = [...contract.matchAll(/^\| `(GET|POST|PUT|PATCH|DELETE) ([^`]+)` \|/gm)].map(([, method, path]) => `${method} ${path}`).sort();
-    expect(documented).toHaveLength(3);
+    const routesOf = (feature: string) =>
+      [...readFileSync(resolve(API_ROOT, `../../specs/${feature}/contracts/http-api.md`), "utf8").matchAll(/^\| `(GET|POST|PUT|PATCH|DELETE) ([^`]+)` \|/gm)].map(
+        ([, method, path]) => `${method} ${path}`,
+      );
+    const isCodeRunRoute = (path: string) => /code-runs?/.test(path) || /code-runner/.test(path);
+    expect(routesOf("019-exercise-code-runner")).toHaveLength(3);
+    // 021 adds the runner's availability (US2) and the teacher's run summary (US3).
+    const documented = [...routesOf("019-exercise-code-runner"), ...routesOf("021-work-code-runner").filter(isCodeRunRoute)].sort();
     const catalogued = Object.values(endpoints)
-      .filter((entry) => /code-runs?/.test(entry.path) || /code-runner/.test(entry.path))
+      .filter((entry) => isCodeRunRoute(entry.path))
       .map((entry) => `${entry.method} ${entry.path}`)
       .sort();
     expect(catalogued).toEqual(documented);

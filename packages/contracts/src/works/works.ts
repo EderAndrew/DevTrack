@@ -318,6 +318,8 @@ export const WorkSummarySchema = z.strictObject({
   difficulty: WorkDifficultySchema.nullable(),
   totalGrade: GradeOutputSchema,
   questionCount: z.int().min(1),
+  /** CODE questions with ≥ 1 PUBLIC case in a language with execution (021 research Y10). */
+  runnableCodeQuestionCount: z.int().min(0),
   origin: WorkOriginSchema,
   status: WorkStatusSchema,
   topics: z.array(z.strictObject({ syllabusItemId: UuidSchema, itemText: z.string() })),

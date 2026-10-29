@@ -322,6 +322,111 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
   });
 });
 
+describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const RUNNABLE = { ...WORK, runnableCodeQuestionCount: 1 };
+  const LABEL = "Permitir executar o código";
+  const DESCRIPTION = "Os alunos poderão rodar o programa nos casos públicos das questões de Código. Os casos privados nunca são executados nem mostrados.";
+  const DOWN = "A execução está indisponível agora; os alunos verão o botão quando ela voltar.";
+
+  function setupRunnable(work = RUNNABLE, runner: Response = json(200, { available: true }), create: Response = json(201, activity())) {
+    const api = routedFetch({
+      [`GET /api/classes/${CLASS_ID}`]: json(200, schoolClass()),
+      "GET /api/work-help/availability": json(200, AVAILABLE),
+      "GET /api/code-runner/availability": runner,
+      "GET /api/works?*": json(200, { items: [work], nextCursor: null }),
+      [`POST /api/classes/${CLASS_ID}/activities/scope-check`]: json(200, NO_SCOPE),
+      [`POST /api/classes/${CLASS_ID}/activities`]: create,
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const view = renderWithProviders(<NewActivity classId={CLASS_ID} />);
+    return { ...view, api, user: userEvent.setup() };
+  }
+  const box = () => screen.getByRole("checkbox", { name: LABEL }) as HTMLInputElement;
+
+  it("021/US2-1 trabalho elegível: a opção aparece desmarcada com o texto do que faz, e ligada vai no pedido", async () => {
+    const { api, user } = setupRunnable();
+    await chooseWork(user);
+    const options = screen.getByRole("group", { name: "Como os alunos respondem" });
+    expect(within(options).getByRole("checkbox", { name: LABEL })).toBe(box());
+    expect(box().checked).toBe(false);
+    expect(box().disabled).toBe(false);
+    expect(document.getElementById(box().getAttribute("aria-describedby")!.split(" ")[0]!)!.textContent).toBe(DESCRIPTION);
+    expect(screen.queryByText(DOWN)).toBeNull();
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(box());
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ codeExecution: true });
+  });
+
+  it("021/US2-1 sem mexer na opção: codeExecution false", async () => {
+    const { api, user } = setupRunnable();
+    await chooseWork(user);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ codeExecution: false });
+  });
+
+  it("021/US2-2 trabalho sem questão de Código executável: a opção não aparece nem a disponibilidade é pedida", async () => {
+    const { api, user } = setupRunnable(WORK);
+    await chooseWork(user);
+    expect(screen.queryByRole("checkbox", { name: LABEL })).toBeNull();
+    expect(api.calls.some((call) => call.url.includes("/code-runner/availability"))).toBe(false);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ codeExecution: false });
+  });
+
+  it("021/US2-2 a recusa do servidor (422 CODE_EXECUTION_NOT_ELIGIBLE) aparece no resumo, ligada à opção", async () => {
+    const { user } = setupRunnable(RUNNABLE, json(200, { available: true }), apiError(422, "CODE_EXECUTION_NOT_ELIGIBLE", "Recusado."));
+    await chooseWork(user);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(box());
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    const summary = (await screen.findByText("Não foi possível publicar a atividade")).closest("[role=group]") as HTMLElement;
+    const message = within(summary).getByText("Este trabalho não tem questão de Código com caso público numa linguagem com execução.");
+    expect(message.closest("a")?.getAttribute("href")).toBe(`#${NEW_ACTIVITY_FIELD_IDS.codeExecution}`);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("021/US2-6 Code Runner fora do ar: o aviso aparece e a opção continua marcável", async () => {
+    const { api, user } = setupRunnable(RUNNABLE, json(200, { available: false }));
+    await chooseWork(user);
+    const notice = await screen.findByText(DOWN);
+    expect(box().disabled).toBe(false);
+    expect(box().getAttribute("aria-describedby")!.split(" ")).toContain(notice.closest("[role=status]")!.id);
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    await user.click(box());
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expect(api.writes()[1]!.body).toMatchObject({ codeExecution: true });
+  });
+
+  it("021/US2-1 SC-012 passo 2 com a opção sem violações de acessibilidade, na ordem de Tab e marcável pelo teclado", async () => {
+    const { user, container } = setupRunnable();
+    await chooseWork(user);
+    const help = screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
+    await waitFor(() => expect(help.disabled).toBe(false));
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      field(NEW_ACTIVITY_FIELD_IDS.title),
+      field(NEW_ACTIVITY_FIELD_IDS.instructions),
+      screen.getByRole("radio", { name: "Publicar agora" }),
+      field(NEW_ACTIVITY_FIELD_IDS.deadline),
+      screen.getByRole("radio", { name: "Não aceitar" }),
+      screen.getByRole("checkbox", { name: "Modo controlado" }),
+      help,
+      box(),
+      screen.getByRole("button", { name: "Publicar atividade" }),
+      screen.getByRole("button", { name: "Voltar" }),
+    ]);
+    box().focus();
+    await user.keyboard(" ");
+    expect(box().checked).toBe(true);
+  });
+});
+
 describe("013/US1 NewActivity — exercícios valem pontos pelo nível", () => {
   beforeEach(() => router.push.mockReset());
   afterEach(() => vi.unstubAllGlobals());

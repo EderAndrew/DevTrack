@@ -564,3 +564,92 @@ describe("ActivityDetail — abas Informações, Alunos e Questões e gabarito",
     }
   });
 });
+
+describe("021/US2 ActivityDetail — \"Permitir executar o código\" do Trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const LABEL = "Permitir executar o código";
+  const box = () => screen.getByRole("checkbox", { name: LABEL }) as HTMLInputElement;
+  /** The fixture's work with a CODE question that has a PUBLIC case. */
+  const codeActivity = (overrides: Parameters<typeof activity>[0] = {}) => {
+    const [choice] = activity().questions;
+    return activity({
+      questions: [
+        choice!,
+        {
+          ...choice!,
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaac1",
+          position: 1,
+          type: "CODE",
+          gradingStrategy: "TEST_CASES",
+          statement: "Leia um número e imprima o dobro.",
+          language: { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbc1", name: "Python", highlight: "python" },
+          alternatives: [],
+          testCases: [{ position: 0, input: "1\n", expectedOutput: "2\n", visibility: "PUBLIC" }],
+        },
+      ],
+      ...overrides,
+    });
+  };
+  const runnerUp = { "GET /api/code-runner/availability": json(200, { available: true }) };
+
+  it("021/US2-1 021/FR-004 mostra \"Execução de código: permitida\" por texto quando ligada", async () => {
+    setup({ [`GET ${PATH}`]: json(200, codeActivity({ codeExecution: true })), ...runnerUp }, false);
+    await screen.findByRole("heading", { name: "Lista de herança" });
+    const options = screen.getByRole("list", { name: "Como os alunos respondem" });
+    expect(within(options).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Execução de código: permitida"]);
+  });
+
+  it("021/US2-4 liga a opção antes do primeiro início: só o que mudou, com a versão lida", async () => {
+    const { api, user } = setup({ [`GET ${PATH}`]: json(200, codeActivity()), [`PATCH ${PATH}`]: json(200, codeActivity({ codeExecution: true, version: 3 })), ...runnerUp });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    expect(box().checked).toBe(false);
+    await user.click(box());
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByText("Alterações salvas.")).toBeTruthy();
+    expect(api.writes()[0]!.body).toEqual({ version: 2, codeExecution: true });
+  });
+
+  it("021/US2-4 depois que um aluno iniciou: a opção travada, com o motivo, e fora do pedido", async () => {
+    const started = codeActivity({ codeExecution: true, roster: [{ ...activity().roster[0]!, status: "IN_PROGRESS", attemptId: ATTEMPT_ID }] });
+    const { api, user } = setup({ [`GET ${PATH}`]: json(200, started), [`PATCH ${PATH}`]: json(200, started), ...runnerUp });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    const reason = screen.getByText("Não é possível mudar depois que um aluno iniciou.");
+    expect(box().disabled).toBe(true);
+    expect(box().checked).toBe(true);
+    expect(box().getAttribute("aria-describedby")!.split(" ")).toContain(reason.id);
+    await user.clear(field(EDIT_FIELD_IDS.title));
+    await user.type(field(EDIT_FIELD_IDS.title), "Outro título");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await screen.findByText("Alterações salvas.");
+    expect(api.writes()[0]!.body).toEqual({ version: 2, title: "Outro título" });
+  });
+
+  it("021/US2-2 um trabalho sem questão de Código com caso público não mostra a opção", async () => {
+    const { api } = setup();
+    await screen.findByRole("form", { name: "Editar atividade" });
+    expect(screen.queryByRole("checkbox", { name: LABEL })).toBeNull();
+    expect(api.calls.some((call) => call.url.includes("/code-runner/availability"))).toBe(false);
+  });
+
+  it("021/US2-2 a recusa do servidor (422 CODE_EXECUTION_NOT_ELIGIBLE, linguagem sem execução) aparece no resumo", async () => {
+    const { user } = setup({
+      [`GET ${PATH}`]: json(200, codeActivity({ title: "Lista em C++" })),
+      [`PATCH ${PATH}`]: apiError(422, "CODE_EXECUTION_NOT_ELIGIBLE", "Recusado."),
+      ...runnerUp,
+    });
+    await screen.findByRole("heading", { name: "Lista em C++" });
+    await user.click(box());
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    const summary = (await screen.findByText("Não foi possível salvar")).closest("[role=group]") as HTMLElement;
+    expect(within(summary).getByText("Este trabalho não tem questão de Código com caso público numa linguagem com execução.")).toBeTruthy();
+  });
+
+  it("021/US2-6 Code Runner fora do ar: o aviso aparece e a opção continua marcável; sem violações de acessibilidade", async () => {
+    const { container } = setup({ [`GET ${PATH}`]: json(200, codeActivity()), "GET /api/code-runner/availability": json(200, { available: false }) });
+    expect(await screen.findByText("A execução está indisponível agora; os alunos verão o botão quando ela voltar.")).toBeTruthy();
+    expect(box().disabled).toBe(false);
+    await waitFor(() => expect((screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement).disabled).toBe(false));
+    await expectNoA11yViolations(container);
+  });
+});

@@ -102,6 +102,11 @@ export const CreateAssignmentRequestSchema = z
     latePolicy: LatePolicySchema,
     executionMode: ExecutionModeSchema.default("NORMAL"),
     aiHelpAllowance: AiHelpAllowanceSchema.default(0),
+    /**
+     * "Permitir executar o código" (021 research Y10): off by default; `true` on a work with no
+     * eligible CODE question → `422 CODE_EXECUTION_NOT_ELIGIBLE`. EXERCISE and EXAM refuse it (strict).
+     */
+    codeExecution: z.boolean().default(false),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type CreateAssignmentRequest = z.infer<typeof CreateAssignmentRequestSchema>;
@@ -156,6 +161,8 @@ export const UpdateActivityRequestSchema = z
      */
     executionMode: ExecutionModeSchema.optional(),
     aiHelpAllowance: AiHelpAllowanceSchema.optional(),
+    /** ASSIGNMENT only, fixed like the mode once a student starts (015/FR-002, 021 research Y10). */
+    codeExecution: z.boolean().optional(),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type UpdateActivityRequest = z.infer<typeof UpdateActivityRequestSchema>;
@@ -210,6 +217,8 @@ export const TeacherActivitySummarySchema = z.strictObject({
   /** NORMAL, or CONTROLLED for a work (015/FR-006); always NORMAL for EXERCISE. */
   executionMode: ExecutionModeSchema,
   aiHelp: ActivityAiHelpSchema,
+  /** "Permitir executar o código" (021); always false for EXERCISE and EXAM. */
+  codeExecution: z.boolean(),
   /** Set by the server (016 research M2): `PRESENT_ONLY` for every work applied since 016. */
   releaseMode: ReleaseModeSchema,
   /** `PRESENT_ONLY` only; null for `ALL_ENROLLED`. */

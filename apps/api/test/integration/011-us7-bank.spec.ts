@@ -139,6 +139,8 @@ describe("011/US7 consultar e manter o Banco de Trabalhos", () => {
         difficulty: "BASIC",
         totalGrade: "1.00",
         questionCount: 1,
+        // 021 (research Y2): no CODE question the Code Runner can run.
+        runnableCodeQuestionCount: 0,
         origin: "MANUAL",
         status: "DRAFT",
         topics: [{ syllabusItemId: poo.itemIds[0], itemText: "Herança" }],

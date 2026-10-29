@@ -208,10 +208,12 @@ export const AUDIT_EVENT_METADATA = {
     "durationMinutes",
     "inactivityLimitSeconds",
     "startWindowMinutes",
+    // 021: "Permitir executar o código" (false for EXERCISE and EXAM, research Y11).
+    "codeExecution",
   ],
   "activity.updated": ["classId", "fields"],
-  // 015: a work's mode or AI help changed before the first start (FR-005).
-  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance"],
+  // 015: a work's mode or AI help changed before the first start (FR-005); 021: its code execution too.
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution"],
   // 016: `pausedCount`, the open pauses the close or the cancellation ended by derivation (research M7).
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
@@ -245,7 +247,7 @@ export const AUDIT_EVENT_METADATA = {
   // 016 — room exits (research M6, M7): ids, enums and durations, never the text of "Outro".
   "attempt_pause.started": ["activityId", "pauseId", "initiatedBy", "reason"],
   "attempt_pause.released": ["activityId", "pauseId", "seconds"],
-  // `operation`: EVENTS | HELP (save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`).
+  // `operation`: EVENTS | HELP | CODE_RUN (021; save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`).
   "attempt_pause.write_refused": ["activityId", "pauseId", "operation"],
   // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
   "attempt_integrity.recorded": ["eventType", "buffered"],
@@ -293,7 +295,8 @@ export const AUDIT_EVENT_METADATA = {
   "exercise_result.marked": ["activityId", "questionId", "from", "to", "points", "hasComment"],
   // 019 — a student's code run (contracts/audit-events.md): ids, enums, counts and times, never a
   // program, an input, an output or a compiler message. `verdicts` counts the cases per verdict.
-  "code_run.requested": ["activityId", "questionId", "execution", "publicCaseCount", "sourceBytes"],
+  // 021: `activityType` tells an exercise's run from a work's (research Y11).
+  "code_run.requested": ["activityId", "activityType", "questionId", "execution", "publicCaseCount", "sourceBytes"],
   "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
   // 019 — a new run refused by the per-minute limit (research B11): no run was created, no target.
   "code_run.rate_limited": ["scope"],
