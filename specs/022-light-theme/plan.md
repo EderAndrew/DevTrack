@@ -57,8 +57,9 @@ TanStack Query 5, Tailwind 4 (`@theme inline`), shadcn/ui, Lucide. **No new depe
 
 - [x] **I. Security**: the body is strict (one enum field, else 400); OriginGuard + JSON on the PATCH;
   the user is the session's, never from the request (A01); nothing rendered as HTML.
-- [x] **II. RBAC**: no protected resource beyond the own account; declared `access: "session"` like
-  `GET /me` (Z2), with a matrix row; no role-name check. Justified in Complexity Tracking.
+- [ ] ❌ **II. RBAC** (justified): no protected resource beyond the own account; declared
+  `access: "session"` like `GET /me`, `POST /auth/logout` and `/auth/logout-all` (Z2), with a matrix row;
+  no role-name check. See Complexity Tracking.
 - [x] **III. Server authority**: the stored theme is the server's; the client switch is optimistic and
   reverted on failure; the server render decides the first paint.
 - [x] **IV. Untrusted code**: N/A.
@@ -157,5 +158,5 @@ specs/005-design-system/spec.md       # FR-013 amendment 2026-10-29
 
 | Deviation | Why needed | Simpler alternative rejected because |
 |-----------|------------|--------------------------------------|
-| `PATCH /me/preferences` without an explicit permission (II) | The own account's cosmetic preference, available to every role and to an unverified e-mail (FR-005); same declaration as `GET /me` and logout | A permission granted to every role is never denied and would block unverified users |
+| `PATCH /me/preferences` without an explicit permission (II) | The own account's cosmetic preference, available to every role and to an unverified e-mail (FR-005); same declaration as `GET /me`, `POST /auth/logout` and `/auth/logout-all` (user's choice, 2026-10-29) | A permission granted to every role is never denied and would block unverified users |
 | The root layout becomes dynamic and reads `GET /me` (public pages rendered per request) | The theme must be in the first HTML (FR-008) on `<html>`, which only the root layout renders, and portals sit under `<body>` | A theme cookie is a second source that disagrees after another device changes it and survives a session expiry (FR-004); a client-side switch flashes |

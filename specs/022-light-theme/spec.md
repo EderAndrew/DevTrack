@@ -164,8 +164,8 @@ mudá-lo.
 - **Sessão expirada ao trocar o tema**: a troca é recusada como qualquer ação sem sessão (`401`); a tela
   volta ao tema anterior e o usuário é levado à tela de entrada, como nas demais ações.
 - **Valor inválido enviado à rota** (tema que não existe, campo a mais, corpo vazio): `400`, nada muda.
-- **Cliques rápidos alternando o tema**: a última escolha vale; a tela termina no tema da última escolha
-  salva, sem ficar trocando.
+- **Cliques rápidos alternando o tema**: enquanto uma escolha está sendo salva, as opções ficam
+  indisponíveis; a tela termina sempre no tema da última escolha salva, sem ficar trocando.
 - **Escolher o tema que já está salvo**: não muda nada e não é erro.
 - **Duas sessões trocando ao mesmo tempo**: vale a última gravação; não há conflito a resolver.
 - **Prova em andamento**: trocar o tema em outra aba não afeta a prova (a tela de foco não tem menu nem
@@ -185,7 +185,7 @@ mudá-lo.
 **Temas**
 
 - **FR-001**: O sistema DEVE oferecer dois temas: "Escuro" (o atual, paleta Vice City) e "Claro" (paleta
-  nova, FR-008).
+  nova, FR-009).
 - **FR-002**: O tema escuro DEVE continuar exatamente como antes desta feature: nenhum valor de token do
   tema escuro muda.
 - **FR-003**: O tema de quem nunca escolheu DEVE ser o escuro; a preferência de tema do sistema

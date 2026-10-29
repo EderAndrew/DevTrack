@@ -33,8 +33,11 @@ answers 200 (idempotent, last write wins). No audit event and no extra log (FR-0
 (`perfil.preferencias.alterar` seeded to every role) would add a matrix row that every role has, with no
 case where it is denied, and would block an unverified user, which FR-005 allows. The constitution's II
 asks for explicit permissions on **protected** operations over resources; the own account's cosmetic
-preference has no resource context beyond "the session's user" — the same precedent as `GET /me` and
-`POST /auth/logout`. The usual write protections stay (OriginGuard + JSON, 001 R6; SessionGuard 401;
+preference has no resource context beyond "the session's user" — the same precedent as `GET /me` and the
+two session-only writes of the own account, `POST /auth/logout` and `POST /auth/logout-all`
+(`access: "session"` in `authorization-matrix.ts`). The own sessions' list and revocation
+(`/me/sessions`) do carry `sessoes.proprias.*`, but they need a verified e-mail, which FR-005 does not;
+the user chose the session-only access on 2026-10-29 (`/speckit-analyze` D1). The usual write protections stay (OriginGuard + JSON, 001 R6; SessionGuard 401;
 ZodValidationPipe 400).
 
 **Alternatives considered**: `PATCH /me` (the identity view has fields the user cannot change — roles,
