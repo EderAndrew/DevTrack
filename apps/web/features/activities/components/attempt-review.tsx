@@ -23,7 +23,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { createContext, type FormEvent, type ReactNode, useContext, useState } from "react";
 import {
   ErrorSummary,
   Field,
@@ -47,6 +47,7 @@ import { CodeBlock } from "@/components/ui/code/code-block";
 import { Label } from "@/components/ui/label";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CodeRunSummary } from "@/features/code-run/components/code-run-summary";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import {
@@ -327,6 +328,14 @@ export function AttemptReview({
       ) : null}
 
       <AttemptHelpContext.Provider value={helpQuery.data?.items ?? null}>
+      {/* 021/US3: the student's runs under each CODE question of a work that allows running code. */}
+      <AttemptCodeRunsContext.Provider
+        value={
+          !isExercise && activity.codeExecution
+            ? { classId, activityId, attemptId: attempt.id }
+            : null
+        }
+      >
         {isExercise ? (
           <ExerciseReview
             activity={activity}
@@ -356,6 +365,7 @@ export function AttemptReview({
             ))}
           </ol>
         )}
+      </AttemptCodeRunsContext.Provider>
       </AttemptHelpContext.Provider>
 
       <StudentNavigation
@@ -891,8 +901,28 @@ function QuestionReview({
         ) : null}
       </dl>
       <QuestionHelpRecords question={question} />
+      <QuestionCodeRuns question={question} />
       {children}
     </li>
+  );
+}
+
+/** The attempt whose run summary the CODE questions show (021), or null when the work has no execution. */
+const AttemptCodeRunsContext = createContext<{
+  classId: string;
+  activityId: string;
+  attemptId: string;
+} | null>(null);
+
+function QuestionCodeRuns({ question }: { question: TeacherQuestion }) {
+  const attempt = useContext(AttemptCodeRunsContext);
+  if (!attempt || question.type !== "CODE") return null;
+  return (
+    <CodeRunSummary
+      {...attempt}
+      questionId={question.id}
+      position={question.position}
+    />
   );
 }
 

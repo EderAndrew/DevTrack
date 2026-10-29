@@ -236,9 +236,8 @@ describe("019 fronteiras do Code Runner", () => {
       );
     const isCodeRunRoute = (path: string) => /code-runs?/.test(path) || /code-runner/.test(path);
     expect(routesOf("019-exercise-code-runner")).toHaveLength(3);
-    // 021 adds the runner's availability (US2) and the teacher's run summary, which arrives with US3 (T023).
-    const pending021 = new Set(["GET /classes/:classId/activities/:activityId/attempts/:attemptId/code-runs"]);
-    const documented = [...routesOf("019-exercise-code-runner"), ...routesOf("021-work-code-runner").filter((route) => isCodeRunRoute(route) && !pending021.has(route))].sort();
+    // 021 adds the runner's availability (US2) and the teacher's run summary (US3).
+    const documented = [...routesOf("019-exercise-code-runner"), ...routesOf("021-work-code-runner").filter(isCodeRunRoute)].sort();
     const catalogued = Object.values(endpoints)
       .filter((entry) => isCodeRunRoute(entry.path))
       .map((entry) => `${entry.method} ${entry.path}`)

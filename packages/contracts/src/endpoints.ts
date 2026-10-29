@@ -82,6 +82,7 @@ import {
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
+import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
 import { CodeRunSchema, CreateCodeRunRequestSchema, LatestCodeRunSchema } from "./code-runs/run.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
@@ -1483,6 +1484,14 @@ export const endpoints = {
     method: "GET",
     path: "/code-runner/availability",
     response: CodeRunnerAvailabilitySchema,
+    status: 200,
+  },
+  /** 021/US3 — one attempt's runs per CODE question of a work with the option: counts and verdicts, no content (research Y7). */
+  "activities.attemptCodeRuns": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/code-runs",
+    params: ClassActivityAttemptParamsSchema,
+    response: AttemptCodeRunSummarySchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

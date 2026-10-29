@@ -146,3 +146,8 @@ export async function drainRuns(worker: CodeRunWorker, now?: Date): Promise<numb
 }
 
 export const asRun = (body: unknown) => body as CodeRun;
+
+/** 021: `GET …/attempts/:attemptId/code-runs`, the teacher's summary of a student's runs in a work. */
+export function getAttemptCodeRuns(client: ApiClient, classId: string, activityId: string, attemptId: string) {
+  return client.get(`/api/classes/${classId}/activities/${activityId}/attempts/${attemptId}/code-runs`);
+}

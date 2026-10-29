@@ -267,18 +267,18 @@ execuções" e os vereditos; depois do job `code-run-content`, o mesmo resumo.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T020 [P] [US3] `apps/api/test/integration/021-us3-summary.spec.ts`: `021/US3-1` (3 execuções, a
+- [X] T020 [P] [US3] `apps/api/test/integration/021-us3-summary.spec.ts`: `021/US3-1` (3 execuções, a
   última EXECUTED 1 de 2 → `runCount` 3, `lastFinished` com os vereditos por posição e `finishedAt`),
   `021/US3-2` (última com erro de compilação → `outcome` COMPILATION_ERROR sem casos; última FAILED →
   `failureReason`), `021/US3-3` (nenhuma → `runCount` 0, `lastFinished` nulo), `021/US3-4` (com
   `FixedClock`, depois do job `code-run-content`: resposta idêntica; nenhuma chave de conteúdo),
   `021/US3-5` (trabalho sem a opção, EXERCISE ou EXAM → 404), `021/US3-6` (a correção da 012 não muda:
   nenhuma nota sugerida), `pending` verdadeiro com uma execução na fila e a última terminada mostrada.
-- [ ] T021 [P] [US3] `apps/api/test/security/021-isolation.spec.ts`: o resumo de outra turma (professor
+- [X] T021 [P] [US3] `apps/api/test/security/021-isolation.spec.ts`: o resumo de outra turma (professor
   B) → 404; tentativa de outra atividade → 404; STUDENT, MANAGER e ADMIN → 403;
   `021/SC-005` (o número e os vereditos que o aluno viu em `latest` são os do resumo, antes e depois
   da limpeza).
-- [ ] T022 [P] [US3] Web, testes primeiro em `apps/web/features/code-run/components/code-run-summary.test.tsx`
+- [X] T022 [P] [US3] Web, testes primeiro em `apps/web/features/code-run/components/code-run-summary.test.tsx`
   e `apps/web/features/activities/components/attempt-review.test.tsx` (`021/US3-1`…`021/US3-5`,
   `021/SC-006`): "Nenhuma execução", "n execuções", "Última execução: p de m casos públicos passaram",
   "Caso k: <veredito>", erro de compilação, não foi possível executar, "Uma execução em andamento", a
@@ -287,12 +287,12 @@ execuções" e os vereditos; depois do job `code-run-content`, o mesmo resumo.
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] API: `apps/api/src/modules/code-runs/code-run-review.{service,controller}.ts` e
+- [X] T023 [US3] API: `apps/api/src/modules/code-runs/code-run-review.{service,controller}.ts` e
   `views/teacher-run-summary.ts` (allowlist), `GET /classes/:classId/activities/:activityId/attempts/:attemptId/code-runs`
   (`entregas.visualizar`) com `ClassContextPolicy`, `settleStaleRuns` do aluno antes, uma consulta para
   as contagens e a última terminada por questão (research Y7, Y8); catálogo de endpoints, `MATRIX`,
   `route-declarations.spec.ts`, e a rota sai de `pending021` em `test/security/019-boundaries.spec.ts`; T020 e T021 verdes.
-- [ ] T024 [US3] Web: `apps/web/features/code-run/{api,hooks/use-attempt-code-runs.ts,components/code-run-summary.tsx}`
+- [X] T024 [US3] Web: `apps/web/features/code-run/{api,hooks/use-attempt-code-runs.ts,components/code-run-summary.tsx}`
   e a montagem em `apps/web/features/activities/components/attempt-review.tsx` em cada questão CODE
   quando `activity.codeExecution`; textos em `features/code-run/schemas/`; T022 verde. `021/US3` sai de
   `pending`.

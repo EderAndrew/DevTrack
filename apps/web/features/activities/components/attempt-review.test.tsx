@@ -590,3 +590,55 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
     expect(decisions.textContent).toBe("Ocorrência 4: aguardando decisão");
   });
 });
+
+describe("021/US3 resumo das execuções na correção de um trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  /** The open answer of `gradingActivity()` turned into a CODE question (its grading stays pending). */
+  const codeWork = (codeExecution: boolean) => {
+    const base = gradingActivity();
+    return gradingActivity({
+      codeExecution,
+      questions: [base.questions[0]!, { ...base.questions[1]!, type: "CODE", gradingStrategy: "TEST_CASES", expectedAnswer: null, rubric: null, expectedSolution: "print(2)" }],
+    });
+  };
+  const summary = {
+    questions: [
+      {
+        questionId: OPEN_QUESTION_ID,
+        runCount: 3,
+        pending: false,
+        lastFinished: {
+          status: "COMPLETED",
+          failureReason: null,
+          outcome: "EXECUTED",
+          publicCaseCount: 2,
+          passedCount: 1,
+          finishedAt: "2026-10-05T11:50:00.000Z",
+          cases: [
+            { position: 0, verdict: "PASSED" },
+            { position: 1, verdict: "WRONG_OUTPUT" },
+          ],
+        },
+      },
+    ],
+  };
+
+  it("021/US3-1 021/SC-006 na questão de Código, o resumo sem sair da correção; a nota continua em branco", async () => {
+    const { container } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(true)), [`GET ${ATTEMPT_PATH}/code-runs`]: json(200, summary) });
+    const question = await screen.findByRole("listitem", { name: "Questão 2" });
+    const runs = await within(question).findByRole("region", { name: "Execuções do aluno na questão 2" });
+    expect(within(runs).getByText("3 execuções")).toBeTruthy();
+    expect(within(runs).getByText("Última execução: 1 de 2 casos públicos passaram")).toBeTruthy();
+    expect(within(screen.getByRole("listitem", { name: "Questão 1" })).queryByRole("region", { name: /Execuções do aluno/ })).toBeNull();
+    // 021/US3-6: nothing suggested from the runs.
+    expect(field(gradeFieldId(1)).value).toBe("");
+    await expectNoA11yViolations(container);
+  });
+
+  it("021/US3-5 trabalho sem a opção: nenhum resumo nem consulta", async () => {
+    const { api } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(false)) });
+    expect(await screen.findByRole("listitem", { name: "Questão 2" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: /Execuções do aluno/ })).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/code-runs"))).toBe(false);
+  });
+});

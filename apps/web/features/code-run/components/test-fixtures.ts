@@ -1,4 +1,4 @@
-import type { CodeRun, QuestionExecution } from "@repo/contracts";
+import type { AttemptCodeRunLastFinished, AttemptCodeRunQuestion, CodeRun, QuestionExecution } from "@repo/contracts";
 
 export const ACTIVITY_ID = "bbbbbbbb-0000-4000-8000-000000000019";
 export const QUESTION_ID = "cccccccc-0000-4000-8000-000000000019";
@@ -43,3 +43,31 @@ export const codeRun = (overrides: Partial<CodeRun> = {}): CodeRun => ({
 
 export const pendingRun = (status: "QUEUED" | "RUNNING", overrides: Partial<CodeRun> = {}) =>
   codeRun({ status, outcome: null, passedCount: null, finishedAt: null, cases: [], ...overrides });
+
+// 021/US3: the teacher's summary of a student's runs in a work.
+export const CLASS_ID = "aaaaaaaa-0000-4000-8000-000000000021";
+export const ATTEMPT_ID = "dddddddd-0000-4000-8000-000000000021";
+
+/** The last finished run of a summary: by default EXECUTED, 1 of 2 public cases passed. */
+export const lastFinished = (overrides: Partial<AttemptCodeRunLastFinished> = {}): AttemptCodeRunLastFinished => ({
+  status: "COMPLETED",
+  failureReason: null,
+  outcome: "EXECUTED",
+  publicCaseCount: 2,
+  passedCount: 1,
+  finishedAt: "2026-10-15T12:00:02.000Z",
+  cases: [
+    { position: 0, verdict: "PASSED" },
+    { position: 1, verdict: "WRONG_OUTPUT" },
+  ],
+  ...overrides,
+});
+
+/** One CODE question of the summary: by default 3 runs, none pending, the last 1 of 2. */
+export const summaryQuestion = (overrides: Partial<AttemptCodeRunQuestion> = {}): AttemptCodeRunQuestion => ({
+  questionId: QUESTION_ID,
+  runCount: 3,
+  pending: false,
+  lastFinished: lastFinished(),
+  ...overrides,
+});

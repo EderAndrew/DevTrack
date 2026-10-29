@@ -1,4 +1,4 @@
-import type { CodeRun, CodeRunnerAvailability, LatestCodeRun } from "@repo/contracts";
+import type { AttemptCodeRunSummary, CodeRun, CodeRunnerAvailability, LatestCodeRun } from "@repo/contracts";
 import { ApiError, apiClient } from "@/lib/api/client";
 
 const questionPath = (activityId: string, questionId: string) => `/me/activities/${activityId}/questions/${questionId}/code-runs`;
@@ -14,6 +14,12 @@ export const codeRunsApi = {
 /** 021 research Y3: whether the Code Runner can run now, for the teacher applying a work. */
 export const codeRunnerApi = {
   availability: () => apiClient.get<CodeRunnerAvailability>("/code-runner/availability"),
+};
+
+/** 021 research Y7: the teacher's summary of a student's runs in a work (counts and verdicts, no content). */
+export const codeRunReviewApi = {
+  summary: (classId: string, activityId: string, attemptId: string) =>
+    apiClient.get<AttemptCodeRunSummary>(`/classes/${classId}/activities/${activityId}/attempts/${attemptId}/code-runs`),
 };
 
 /** The seconds of `Retry-After` of a `429 RATE_LIMITED`, or null for any other failure. */
