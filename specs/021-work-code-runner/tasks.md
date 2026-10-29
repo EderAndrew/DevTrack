@@ -180,7 +180,7 @@ executa um programa certo, um errado e um com erro de sintaxe; nenhum caso priva
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T012 [P] [US1] `apps/api/test/integration/021-us1-run-work.spec.ts`: `021/US1-1` (a visão do aluno
+- [X] T012 [P] [US1] `apps/api/test/integration/021-us1-run-work.spec.ts`: `021/US1-1` (a visão do aluno
   traz `execution` AVAILABLE na questão CODE com heartbeat; `NO_PUBLIC_CASES`/`NOT_SUPPORTED` como na
   019), `021/US1-2` (programa certo → 2 de 2; saída diferente; erro de compilação; tempo esgotado, pelo
   worker em processo), `021/US1-4` (execuções feitas e entrega: a resposta entregue é a salva, a
@@ -189,10 +189,10 @@ executa um programa certo, um errado e um com erro de sintaxe; nenhum caso priva
   com a opção: a execução é aceita e nenhum evento de `attempt_integrity_events` é criado por ela),
   `021/FR-010` (execução pendente num Exercício → o pedido no Trabalho devolve a pendente; as 10 por
   minuto contam as duas atividades), `code_run.requested` com `activityType: "ASSIGNMENT"`.
-- [ ] T013 [P] [US1] `apps/api/test/security/021-private-cases.spec.ts` (`021/US1-3`, `021/SC-002`):
+- [X] T013 [P] [US1] `apps/api/test/security/021-private-cases.spec.ts` (`021/US1-3`, `021/SC-002`):
   `PRIVATE_RUN_MARKER` e `MARCADOR-PRIVADO-012` fora de toda resposta ao aluno de um trabalho com a
   opção (atividade, questão, criar, `latest`, `get`), sem contagem de casos privados.
-- [ ] T014 [P] [US1] Web, testes primeiro em
+- [X] T014 [P] [US1] Web, testes primeiro em
   `apps/web/features/student-activities/components/activity-answering.test.tsx` e no teste da tela de
   foco de `features/controlled-attempt` (`021/US1-1`, `021/US1-5`, `021/US1-6`, `021/US1-7`,
   `021/SC-008`): `CodeRunPanel` numa questão CODE de trabalho com `execution`, nenhum painel nem aviso
@@ -201,14 +201,14 @@ executa um programa certo, um errado e um com erro de sintaxe; nenhum caso priva
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] API:
+- [X] T015 [US1] API:
   - `apps/api/src/modules/activities/views/student-view.ts`: `executionOf` também para um ASSIGNMENT
     com `codeExecutionAllowed` (research Y9);
   - `apps/api/src/modules/code-runs/code-runs.service.ts`: `runnableQuestion` aceita EXERCISE ou
     ASSIGNMENT com a opção (EXAM e trabalho sem a opção → `OutOfContext`), `code_run.requested` com
     `activityType` (e `code_run.requested` sai de `PENDING_CHANGED_021` em `audit-coverage.spec.ts`); T012 e
     T013 verdes, e o `it.skip` de `021/FR-010` em `test/security/021-concurrency.spec.ts` (T008a) ativado.
-- [ ] T016 [US1] Web: em `apps/web/features/student-activities/components/activity-answering.tsx`, montar
+- [X] T016 [US1] Web: em `apps/web/features/student-activities/components/activity-answering.tsx`, montar
   `CodeRunPanel` com `question.type === "CODE" && question.execution && editable` (comentário 021); T014
   verde. `021/US1` sai de `pending`.
 

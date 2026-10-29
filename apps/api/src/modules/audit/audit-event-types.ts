@@ -295,7 +295,8 @@ export const AUDIT_EVENT_METADATA = {
   "exercise_result.marked": ["activityId", "questionId", "from", "to", "points", "hasComment"],
   // 019 — a student's code run (contracts/audit-events.md): ids, enums, counts and times, never a
   // program, an input, an output or a compiler message. `verdicts` counts the cases per verdict.
-  "code_run.requested": ["activityId", "questionId", "execution", "publicCaseCount", "sourceBytes"],
+  // 021: `activityType` tells an exercise's run from a work's (research Y11).
+  "code_run.requested": ["activityId", "activityType", "questionId", "execution", "publicCaseCount", "sourceBytes"],
   "code_run.finished": ["status", "outcome", "failureReason", "passedCount", "publicCaseCount", "durationMs", "verdicts"],
   // 019 — a new run refused by the per-minute limit (research B11): no run was created, no target.
   "code_run.rate_limited": ["scope"],

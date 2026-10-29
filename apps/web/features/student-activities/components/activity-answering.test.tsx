@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { codeMirrorContent, codeMirrorText, syntaxSegments, typeCode } from "../../../test/code-editor";
-import { expectTabOrder } from "../../../test/keyboard";
+import { expectTabOrder, tabTo } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { readPendingAnswers, writePendingAnswers } from "../store/pending-answers";
 import {
@@ -18,6 +18,8 @@ import {
 } from "./activity-answering";
 import { CONFIRM_EXIT, EXIT_ROOM, PAUSED_TITLE, RESUME, RETURN_RELEASED } from "@/features/attendance/schemas/attendance";
 import { apiError, exerciseActivity, exerciseAttempt, json, routedFetch, studentActivity } from "./test-fixtures";
+import { STALE_RESULT } from "@/features/code-run/schemas/code-run";
+import { available, codeRun } from "@/features/code-run/components/test-fixtures";
 
 // 012/US3 — the answering screen: start, answer each type, navigate, autosave status, offline and
 // conflict alerts, refusals with the API's reason, deadline warnings from the server clock.
@@ -750,10 +752,11 @@ describe("019/US1 \"Executar\" na tela de responder", () => {
     expect(api.calls.some((call) => call.method === "PUT" || call.url.endsWith("/complete"))).toBe(false);
   });
 
-  it("019/FR-005 num Trabalho, nenhum Executar, mesmo com a questão de Código", async () => {
-    setup({ [GET]: json(200, started({ questions: [runnable] })) });
+  it("019/FR-005 021/US1-5 num Trabalho sem a opção (execution nulo), nenhum Executar nem aviso sobre execução", async () => {
+    setup({ [GET]: json(200, started({ questions: [codeQuestion] })) });
     expect(await screen.findByText("Implemente a soma.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
+    expect(screen.queryByText(/execu/i)).toBeNull();
   });
 
   it("019/FR-005 exercício já concluído (sem tentativa aberta): nenhum Executar", async () => {
@@ -761,6 +764,52 @@ describe("019/US1 \"Executar\" na tela de responder", () => {
       [GET]: json(200, exerciseActivity({ status: "COMPLETED", canAnswer: false, questions: [runnable], completedAttempts: [{ number: 1, completedAt: "2026-10-03T14:05:00.000Z" }] })),
     });
     await screen.findByRole("heading", { level: 1, name: "Prática de herança" });
+    expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
+  });
+});
+
+describe("021/US1 \"Executar\" numa questão de Código do Trabalho", () => {
+  const [, , codeQuestion] = activity.questions as [StudentQuestion, StudentQuestion, StudentQuestion];
+  const runnable: StudentQuestion = { ...codeQuestion, execution: available({ languageVersion: "Java 25", convention: "JAVA_MAIN_CLASS" }) };
+  const RUNS = `/api/me/activities/${activity.id}/questions/${runnable.id}/code-runs`;
+  const finished = (sourceCode: string) =>
+    codeRun({ questionId: runnable.id, sourceCode, publicCaseCount: 1, passedCount: 1, cases: [{ position: 0, verdict: "PASSED", stdout: "5", stderr: "", durationMs: 40 }] });
+
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("online"));
+  });
+
+  it("021/US1-1 021/SC-008 trabalho com a opção: Executar pelo teclado envia o código do editor e mostra o resultado, sem salvar nem entregar", async () => {
+    const { user, api, container } = setup({
+      [GET]: json(200, started({ questions: [runnable] })),
+      [`GET ${RUNS}/latest`]: json(200, { run: null }),
+      [`POST ${RUNS}`]: json(202, finished("class Main {}")),
+    });
+    const button = await screen.findByRole("button", { name: "Executar" });
+    expect(screen.getByText(/Em Java, a classe deve se chamar Main\./)).toBeTruthy();
+    await tabTo(user, button);
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("1 de 1 caso público passou")).toBeTruthy();
+    const posted = api.calls.find((call) => call.method === "POST" && call.url === RUNS);
+    expect(JSON.parse(String(posted?.body))).toEqual({ sourceCode: "class Main {}" });
+    expect(api.calls.some((call) => call.method === "PUT" || call.url.endsWith("/submit"))).toBe(false);
+    await expectNoA11yViolations(container);
+  });
+
+  it("021/US1-7 o resultado de um código diferente do editor avisa que é de uma versão anterior", async () => {
+    setup({
+      [GET]: json(200, started({ questions: [runnable] })),
+      [`GET ${RUNS}/latest`]: json(200, { run: finished("class Main { int antigo; }") }),
+    });
+    expect(await screen.findByText(STALE_RESULT)).toBeTruthy();
+  });
+
+  it("021/US1-5 trabalho entregue: nenhum Executar, mesmo com execution na questão", async () => {
+    setup({ [GET]: json(200, submitted({ questions: [runnable] })) });
+    expect(await screen.findByText("Implemente a soma.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
   });
 });

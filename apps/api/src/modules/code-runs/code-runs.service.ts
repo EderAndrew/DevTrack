@@ -8,6 +8,7 @@ import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
+import { runsCode } from "../activities/views/student-view";
 import { AuditService } from "../audit/audit.service";
 import { type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { RunnerAvailability, questionExecution } from "./availability";
@@ -32,7 +33,7 @@ class OverRate extends Error {
 const RATE_SCOPE = "code-runs";
 const MINUTE_SEC = 60;
 
-/** The CODE question of an EXERCISE the student may run: its profile key and its PUBLIC case count. */
+/** The CODE question the student may run: its profile key and its PUBLIC case count. */
 interface RunnableQuestion {
   execution: ExecutionKey | null;
   publicCaseCount: number;
@@ -40,8 +41,9 @@ interface RunnableQuestion {
 
 /**
  * The student's code runs (019 US1, research B8, B9, B13). Every route starts from the session user's
- * ACTIVE enrollment (`StudentActivityLoader`): an EXERCISE of their class, published, not cancelled
- * nor closed, and a CODE question of it; anything else is the same 404 (`student_access.denied` when
+ * ACTIVE enrollment (`StudentActivityLoader`): an EXERCISE of their class, or since 021 a work applied
+ * with "Permitir executar o código" (research Y4), published, not cancelled nor closed, and a CODE
+ * question of it; anything else is the same 404 (`student_access.denied` when
  * the activity exists outside the context). Creating needs the student's own attempt in progress
  * (`409 ATTEMPT_NOT_IN_PROGRESS`), a language with execution and a PUBLIC case (`409
  * CODE_RUN_NOT_AVAILABLE`) and a live worker (`409 CODE_RUNNER_UNAVAILABLE`). One pending run per
@@ -72,7 +74,7 @@ export class CodeRunsService {
     let created: boolean;
     try {
       ({ runId, created } = await this.prisma.runInTransaction(async (tx) => {
-        const { attempt, question } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
+        const { activityType, attempt, question } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
         if (!attempt || attempt.status !== "IN_PROGRESS") throw new AppException("ATTEMPT_NOT_IN_PROGRESS");
         if (question.execution === null) throw new AppException("CODE_RUN_NOT_AVAILABLE", undefined, {}, { reason: "NOT_SUPPORTED" });
         if (question.publicCaseCount === 0) throw new AppException("CODE_RUN_NOT_AVAILABLE", undefined, {}, { reason: "NO_PUBLIC_CASES" });
@@ -111,6 +113,7 @@ export class CodeRunsService {
           requestId,
           metadata: {
             activityId,
+            activityType,
             questionId,
             execution: question.execution,
             publicCaseCount: question.publicCaseCount,
@@ -162,8 +165,9 @@ export class CodeRunsService {
 
   /**
    * The question the student may run, under the activity's and the attempt's `FOR SHARE`: an
-   * EXERCISE of the context that is neither closed nor of an inactive class, and a CODE question of
-   * it. Anything else throws `OutOfContext`.
+   * EXERCISE, or a work with the option (021, `runsCode`), of the context that is neither closed nor
+   * of an inactive class, and a CODE question of it. Anything else (an exam, a work without the option)
+   * throws `OutOfContext`.
    */
   private async runnableQuestion(
     tx: Tx,
@@ -171,9 +175,9 @@ export class CodeRunsService {
     activityId: string,
     questionId: string,
     now: Date,
-  ): Promise<{ attempt: OwnAttemptContext["attempt"]; question: RunnableQuestion }> {
+  ): Promise<{ activityType: "EXERCISE" | "ASSIGNMENT"; attempt: OwnAttemptContext["attempt"]; question: RunnableQuestion }> {
     const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx);
-    if (!context || context.type !== "EXERCISE" || context.activityStatus !== "ACTIVE" || !context.classActive) throw new OutOfContext();
+    if (!context || !runsCode(context) || context.activityStatus !== "ACTIVE" || !context.classActive) throw new OutOfContext();
     const question = await tx.classActivityQuestion.findFirst({
       where: { id: questionId, activityId, type: "CODE" },
       select: { language: { select: { execution: true } }, _count: { select: { testCases: { where: { visibility: "PUBLIC" } } } } },
@@ -181,6 +185,7 @@ export class CodeRunsService {
     if (!question) throw new OutOfContext();
     // `execution` is CHECKed to the contract's profile keys (research B5).
     return {
+      activityType: context.type,
       attempt: context.attempt,
       question: { execution: (question.language?.execution ?? null) as ExecutionKey | null, publicCaseCount: question._count.testCases },
     };

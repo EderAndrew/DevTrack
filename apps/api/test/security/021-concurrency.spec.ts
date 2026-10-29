@@ -65,8 +65,7 @@ describe("021 concorrência da opção de executar e das execuções num trabalh
     expect(await t.prisma.auditEvent.count({ where: { type: "activity.settings_changed" } })).toBeLessThanOrEqual(ROUNDS);
   });
 
-  // Enabled by T015 (021/US1): the run routes accept a work's CODE question only from then on.
-  it.skip("021/FR-010 10 execuções simultâneas do mesmo aluno num trabalho → uma só pendente", async () => {
+  it("021/FR-010 10 execuções simultâneas do mesmo aluno num trabalho → uma só pendente", async () => {
     const { activity, questionIds } = await createCodeWork(t, schoolClass);
     await seedHeartbeat(t, clock.now());
     expect((await startAttempt(client, activity.id)).status).toBe(200);

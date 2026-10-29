@@ -83,6 +83,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   type: "ASSIGNMENT",
   executionMode: "CONTROLLED",
   aiHelpAllowance: 3,
+  codeExecutionAllowed: false,
   aiHelpUsed: 1,
   title: "Sistema Bancário",
   instructions: "Leia com atenção.",

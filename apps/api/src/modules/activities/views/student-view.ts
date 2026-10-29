@@ -34,7 +34,7 @@ import type { ActivityQuestionRow } from "./rows";
 
 /**
  * One question as the student may see it: 011/FR-033 applied to the snapshot. `executionOf` (019
- * research B17) is given only for an EXERCISE; it decides the execution of a CODE question from the
+ * research B17) is given only when the activity runs code (`runsCode`); it decides the execution of a CODE question from the
  * language's profile key and the PUBLIC case count, never from a private case.
  */
 export function toStudentQuestion(row: ActivityQuestionRow, executionOf: ExecutionOf | null = null): StudentQuestion {
@@ -66,6 +66,8 @@ export interface StudentActivityInput {
   /** 015: NORMAL or CONTROLLED, and the AI help per student (always NORMAL and 0 for EXERCISE). */
   executionMode: ExecutionMode;
   aiHelpAllowance: AiHelpAllowance;
+  /** 021: the work lets the student run code on its CODE questions (research Y9); false unless ASSIGNMENT. */
+  codeExecutionAllowed: boolean;
   title: string;
   instructions: string | null;
   class: { id: string; name: string };
@@ -191,8 +193,16 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
 }
 
 /**
+ * Whether the CODE questions of the activity carry an execution (research Y9): an EXERCISE (019) or a
+ * work applied with "Permitir executar o código" (021); a work without it and an exam never do.
+ */
+export function runsCode<T extends Pick<StudentActivityInput, "type" | "codeExecutionAllowed">>(input: T): input is T & { type: "EXERCISE" | "ASSIGNMENT" } {
+  return input.type === "EXERCISE" || (input.type === "ASSIGNMENT" && input.codeExecutionAllowed);
+}
+
+/**
  * `executionOf` (019): the Code Runner's availability at this read, applied to the CODE questions of
- * an EXERCISE only; a work's or an exam's questions never carry an execution.
+ * an activity that runs code (`runsCode`); any other activity's questions never carry an execution.
  */
 export function toStudentActivity(input: StudentActivityDetailInput, executionOf: ExecutionOf | null = null): StudentActivity {
   const { result: _summaryResult, ...summary } = toStudentSummary(input);
@@ -209,7 +219,7 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
       ? []
       : [...input.questions]
           .sort((a, b) => a.position - b.position)
-          .map((row) => toStudentQuestion(row, input.type === "EXERCISE" ? executionOf : null)),
+          .map((row) => toStudentQuestion(row, runsCode(input) ? executionOf : null)),
     attempt: input.attempt
       ? {
           number: input.attempt.number,

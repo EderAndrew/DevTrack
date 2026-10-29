@@ -321,7 +321,8 @@ describe("019/US1 aluno executa o código contra os casos públicos", () => {
       ["code_run.requested", "USER", "CODE_RUN", done.id],
       ["code_run.finished", "SYSTEM", "CODE_RUN", done.id],
     ]);
-    expect(events[0]!.metadata).toEqual({ activityId, questionId, execution: "python", publicCaseCount: 2, sourceBytes: Buffer.byteLength(source) });
+    // 021 research Y11: `activityType` tells an exercise's run from a work's.
+    expect(events[0]!.metadata).toEqual({ activityId, activityType: "EXERCISE", questionId, execution: "python", publicCaseCount: 2, sourceBytes: Buffer.byteLength(source) });
     expect(events[1]!.metadata).toMatchObject({ status: "COMPLETED", outcome: "EXECUTED", failureReason: null, passedCount: 2, publicCaseCount: 2 });
     expect((events[1]!.metadata as { verdicts: Record<string, number> }).verdicts).toMatchObject({ PASSED: 2, WRONG_OUTPUT: 0 });
     expect(JSON.stringify(events.map((event) => event.metadata))).not.toMatch(/MARCADOR|print|stdout/);

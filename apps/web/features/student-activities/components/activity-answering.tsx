@@ -526,8 +526,9 @@ function AttemptAnswering({
               </Alert>
             ) : null}
             {controlled?.questionNotice(question.id)}
-            {/* 019: "Executar" only on an EXERCISE CODE question of the open attempt; it never saves nor concludes. */}
-            {isExercise && question.type === "CODE" && editable ? (
+            {/* 019, 021: "Executar" on a CODE question the API gives an `execution` (an exercise, or a work
+                with the option), while editable; it never saves, concludes nor submits. */}
+            {question.type === "CODE" && question.execution && editable ? (
               <div className="mt-4">
                 <CodeRunPanel
                   key={question.id}

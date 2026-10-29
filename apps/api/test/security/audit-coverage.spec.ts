@@ -54,8 +54,8 @@ const PENDING_016 = new Set<string>([]);
 const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([]);
-/** 021 "Changed" rows whose metadata arrives with later user stories (US1: `activityType`); same rule. */
-const PENDING_CHANGED_021 = new Set<string>(["code_run.requested"]);
+/** 021 "Changed" rows whose metadata arrives with later user stories; same rule. */
+const PENDING_CHANGED_021 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
