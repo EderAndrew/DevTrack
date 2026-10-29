@@ -10,11 +10,11 @@ import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
-import { assignmentSchedule } from "../activities/status/facts";
 import { decideOperation } from "../activities/status/operations";
 import { AiExecutionsService } from "../ai/execution/ai-executions.service";
 import { AuditService } from "../audit/audit.service";
-import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
+import { saveFactsOf } from "../student-activities/save-facts";
+import { AttemptPaused, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { WORK_HELPER_KEY } from "./definitions/work-helper";
 import { reconcileHelpRequests } from "./help/reconcile";
 import { WORK_HELP_REQUEST } from "./definitions/request-content";
@@ -185,7 +185,7 @@ export class WorkHelpService {
     if (attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
     // 016/FR-013: no new request while the student is out of the room; one pending from before still resolves.
     if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
-    const outcome = decideOperation("SAVE", factsOf(context, now));
+    const outcome = decideOperation("SAVE", saveFactsOf(context, now));
     if (outcome.kind === "REFUSED") throw new AppException(outcome.code);
     const question = await tx.classActivityQuestion.count({ where: { id: body.questionId, activityId } });
     if (question === 0) throw new AppException("UNKNOWN_QUESTION");
@@ -258,18 +258,4 @@ export class WorkHelpService {
     }
     throw notFound();
   }
-}
-
-/** The 012 facts of the student's open attempt of a work, for the deadline rule of a save. */
-function factsOf(context: OwnAttemptContext, now: Date) {
-  return {
-    type: "ASSIGNMENT" as const,
-    activityStatus: context.activityStatus,
-    ...assignmentSchedule(context),
-    classActive: context.classActive,
-    attempt: context.attempt && { status: context.attempt.status },
-    submission: null,
-    released: false,
-    now,
-  };
 }

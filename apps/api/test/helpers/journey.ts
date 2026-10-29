@@ -41,7 +41,8 @@ import {
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
 import { createClassWithStudents, startAttempt } from "./activities";
-import { createCodeExercise, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
+import { markPresent as markPresentIn } from "./attendance";
+import { createCodeExercise, createCodeWork, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { sendFeedback } from "./feedback";
 import { postNotice, signedResendNotice } from "./mail-notices";
 import { api } from "./test-app";
@@ -1227,6 +1228,14 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   runSandbox.failDaemon();
   expect(await failing.worker.runOnce()).toBe(1);
   expect((await runClient.get(`/api/me/code-runs/${failedRequest.body.id}`)).body).toMatchObject({ status: "FAILED", failureReason: "SANDBOX_ERROR" });
+  // 021/US4 — on a work with "Permitir executar o código", a run while the student is out of the room is
+  // refused (`attempt_pause.write_refused` with `operation: "CODE_RUN"`): no run is created.
+  const runWork = await createCodeWork(t, runClass.schoolClass, { releaseMode: "PRESENT_ONLY" });
+  const runTeacherClient = api(t, { cookie: await keepLoginAs(runTeacher) });
+  expect((await markPresentIn(runTeacherClient, runClass.schoolClass.id, runWork.activity.id, [runClass.students[0]!.id])).status).toBe(200);
+  expect((await startAttempt(runClient, runWork.activity.id)).status).toBe(200);
+  expect((await runClient.post(`/api/me/activities/${runWork.activity.id}/attempt/pause`, { reason: "WATER" })).status).toBe(201);
+  expect((await requestRun(runClient, runWork.activity.id, runWork.questionIds[0]!, "print('fora da sala')")).body.code).toBe("ATTEMPT_PAUSED");
   // 019/US3 — the minute's limit used up (filled in one hit): the next new run is refused (`code_run.rate_limited`).
   const runLimit = t.config.rateLimit.codeRunsPerMinute;
   await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });

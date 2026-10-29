@@ -8,9 +8,11 @@ import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound, rateLimited } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
+import { decideOperation } from "../activities/status/operations";
 import { runsCode } from "../activities/views/student-view";
 import { AuditService } from "../audit/audit.service";
-import { type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
+import { saveFactsOf } from "../student-activities/save-facts";
+import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
 import { RunnerAvailability, questionExecution } from "./availability";
 import { settleStaleRuns } from "./settle-stale";
 import { CODE_RUN_SELECT, toStudentRun } from "./views/student-run-view";
@@ -51,7 +53,10 @@ interface RunnableQuestion {
  * returns it (200). Only a new run counts toward `RATE_LIMIT_CODE_RUNS_PER_MINUTE` (research B11):
  * past it, `429` with `Retry-After`, no run, and `code_run.rate_limited` recorded after the rollback.
  * The kill switch and a dead worker answer `409 CODE_RUNNER_UNAVAILABLE` (research B10).
- * Reading or creating settles the student's stale runs first. Nothing here
+ * On a work (021 research Y4, Y6) a run is created only when a save would be accepted: a paused
+ * attempt is `409 ATTEMPT_PAUSED` (`attempt_pause.write_refused` after the rollback), then the 012
+ * save rule answers its own code (a deadline with REJECT); its runs are read only during the
+ * attempt in progress and never while paused. Reading or creating settles the student's stale runs first. Nothing here
  * touches the answer, the attempt, the conclusion, the points or the ranking (FR-008).
  */
 @Injectable()
@@ -74,8 +79,14 @@ export class CodeRunsService {
     let created: boolean;
     try {
       ({ runId, created } = await this.prisma.runInTransaction(async (tx) => {
-        const { activityType, attempt, question } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
+        const { context, attempt, question } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
         if (!attempt || attempt.status !== "IN_PROGRESS") throw new AppException("ATTEMPT_NOT_IN_PROGRESS");
+        if (context.type === "ASSIGNMENT") {
+          // 021/FR-006: only when a save would be accepted (016 pause, then the 012 deadline rule).
+          if (context.paused) throw new AttemptPaused(attempt.id, context.paused.pauseId);
+          const outcome = decideOperation("SAVE", saveFactsOf(context, now));
+          if (outcome.kind === "REFUSED") throw new AppException(outcome.code);
+        }
         if (question.execution === null) throw new AppException("CODE_RUN_NOT_AVAILABLE", undefined, {}, { reason: "NOT_SUPPORTED" });
         if (question.publicCaseCount === 0) throw new AppException("CODE_RUN_NOT_AVAILABLE", undefined, {}, { reason: "NO_PUBLIC_CASES" });
 
@@ -113,7 +124,7 @@ export class CodeRunsService {
           requestId,
           metadata: {
             activityId,
-            activityType,
+            activityType: context.type,
             questionId,
             execution: question.execution,
             publicCaseCount: question.publicCaseCount,
@@ -125,6 +136,7 @@ export class CodeRunsService {
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, RUNS_ROUTE, requestId);
       if (error instanceof OverRate) return this.overRate(studentUserId, error, requestId);
+      if (error instanceof AttemptPaused) return this.pausedRefusal(studentUserId, activityId, error, requestId);
       throw error;
     }
     return { run: await this.read(runId), created };
@@ -135,8 +147,10 @@ export class CodeRunsService {
     const now = this.clock.now();
     try {
       const runId = await this.prisma.runInTransaction(async (tx) => {
-        const { attempt } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
+        const { context, attempt } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
         if (!attempt || attempt.status !== "IN_PROGRESS") return null;
+        // 021 research Y6: a run holds the program and outputs, which a paused attempt never shows (a read: no audit).
+        if (context.type === "ASSIGNMENT" && context.paused) throw new AppException("ATTEMPT_PAUSED");
         await settleStaleRuns(tx, this.audit, { now, scope: { studentUserId }, disabled: !this.config.codeRunner.enabled });
         const last = await tx.codeRun.findFirst({
           where: { attemptId: attempt.id, questionId, studentUserId },
@@ -152,14 +166,24 @@ export class CodeRunsService {
     }
   }
 
-  /** One run of the session student; another student's or an unknown id is the same 404. */
+  /**
+   * One run of the session student; another student's or an unknown id is the same 404. A work's run
+   * (021 research Y6) only during its attempt in progress (else the same 404) and never while paused.
+   */
   async get(studentUserId: string, runId: string): Promise<CodeRun> {
     const now = this.clock.now();
     const found = await this.prisma.runInTransaction(async (tx) => {
       await settleStaleRuns(tx, this.audit, { now, scope: { studentUserId }, disabled: !this.config.codeRunner.enabled });
-      return tx.codeRun.count({ where: { id: runId, studentUserId } });
+      const run = await tx.codeRun.findFirst({ where: { id: runId, studentUserId }, select: { activityId: true, attemptId: true } });
+      if (!run) return false;
+      const activity = await tx.classActivity.findUniqueOrThrow({ where: { id: run.activityId }, select: { type: true } });
+      if (activity.type !== "ASSIGNMENT") return true;
+      const context = await this.loader.ownAttempt(studentUserId, run.activityId, now, tx);
+      if (!context || context.attempt?.id !== run.attemptId || context.attempt.status !== "IN_PROGRESS") return false;
+      if (context.paused) throw new AppException("ATTEMPT_PAUSED");
+      return true;
     });
-    if (found === 0) throw notFound();
+    if (!found) throw notFound();
     return this.read(runId);
   }
 
@@ -175,7 +199,7 @@ export class CodeRunsService {
     activityId: string,
     questionId: string,
     now: Date,
-  ): Promise<{ activityType: "EXERCISE" | "ASSIGNMENT"; attempt: OwnAttemptContext["attempt"]; question: RunnableQuestion }> {
+  ): Promise<{ context: OwnAttemptContext & { type: "EXERCISE" | "ASSIGNMENT" }; attempt: OwnAttemptContext["attempt"]; question: RunnableQuestion }> {
     const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx);
     if (!context || !runsCode(context) || context.activityStatus !== "ACTIVE" || !context.classActive) throw new OutOfContext();
     const question = await tx.classActivityQuestion.findFirst({
@@ -185,7 +209,7 @@ export class CodeRunsService {
     if (!question) throw new OutOfContext();
     // `execution` is CHECKed to the contract's profile keys (research B5).
     return {
-      activityType: context.type,
+      context,
       attempt: context.attempt,
       question: { execution: (question.language?.execution ?? null) as ExecutionKey | null, publicCaseCount: question._count.testCases },
     };
@@ -193,6 +217,20 @@ export class CodeRunsService {
 
   private async read(runId: string): Promise<CodeRun> {
     return toStudentRun(await this.prisma.codeRun.findUniqueOrThrow({ where: { id: runId }, select: CODE_RUN_SELECT }));
+  }
+
+  /** 409 ATTEMPT_PAUSED, recorded on its own after the rollback (016 and 021 contracts/audit-events.md). */
+  private async pausedRefusal(studentUserId: string, activityId: string, error: AttemptPaused, requestId: string | null): Promise<never> {
+    await this.audit.record(this.prisma, {
+      type: "attempt_pause.write_refused",
+      actorType: "USER",
+      actorUserId: studentUserId,
+      targetType: "ACTIVITY_ATTEMPT",
+      targetId: error.attemptId,
+      requestId,
+      metadata: { activityId, pauseId: error.pauseId, operation: "CODE_RUN" },
+    });
+    throw new AppException("ATTEMPT_PAUSED");
   }
 
   /** 429 with `Retry-After`, auditing `code_run.rate_limited` once the refused run is rolled back. */

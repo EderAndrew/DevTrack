@@ -226,7 +226,7 @@ executar (409), desligar a execução e entregar normalmente.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T017 [P] [US4] `apps/api/test/integration/021-us4-rules.spec.ts`: `021/US4-1` (pausa aberta →
+- [X] T017 [P] [US4] `apps/api/test/integration/021-us4-rules.spec.ts`: `021/US4-1` (pausa aberta →
   `POST` 409 `ATTEMPT_PAUSED` sem linha e `attempt_pause.write_refused` com `operation: "CODE_RUN"`;
   `latest` e `get` → 409 `ATTEMPT_PAUSED`; liberada → aceito), `021/US4-2` (sem tentativa ou entregue →
   409 `ATTEMPT_NOT_IN_PROGRESS`; `latest` → `{ run: null }`, `get` → 404), `021/US4-3` (com
@@ -237,14 +237,14 @@ executar (409), desligar a execução e entregar normalmente.
   pausa e entrega da 012/015/016 funcionando), `021/US4-7` (execução pendente quando a tentativa é
   pausada, entregue ou a atividade encerrada: o worker termina num estado final e a tentativa, a
   resposta e a pausa ficam iguais).
-- [ ] T018 [P] [US4] `apps/api/test/security/021-refusals.spec.ts` (`021/SC-004`): a matriz inteira
+- [X] T018 [P] [US4] `apps/api/test/security/021-refusals.spec.ts` (`021/SC-004`): a matriz inteira
   (sem a opção, EXAM, pausada, entregue, prazo REJECT, encerrada, cancelada, outra turma) → recusado e
   `code_runs` sem linha nova; `021/SC-007`: com a execução desligada, os fluxos do trabalho (responder,
   salvar, CONTROLLED, ajuda da IA, chamada e pausa, entregar, corrigir, liberar) verdes num só roteiro.
 
 ### Implementation for User Story 4
 
-- [ ] T019 [US4] `apps/api/src/modules/code-runs/code-runs.service.ts` (research Y4, Y6): para um
+- [X] T019 [US4] `apps/api/src/modules/code-runs/code-runs.service.ts` (research Y4, Y6): para um
   ASSIGNMENT, depois da checagem da tentativa, `AttemptPaused` → 409 com `attempt_pause.write_refused`
   (`operation: "CODE_RUN"`) depois do rollback, e `decideOperation("SAVE", …)` da 012 com
   `saveFactsOf(context, now)`, movido de `work-help/work-help.service.ts` para

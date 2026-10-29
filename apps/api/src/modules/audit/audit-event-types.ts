@@ -247,7 +247,7 @@ export const AUDIT_EVENT_METADATA = {
   // 016 — room exits (research M6, M7): ids, enums and durations, never the text of "Outro".
   "attempt_pause.started": ["activityId", "pauseId", "initiatedBy", "reason"],
   "attempt_pause.released": ["activityId", "pauseId", "seconds"],
-  // `operation`: EVENTS | HELP (save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`).
+  // `operation`: EVENTS | HELP | CODE_RUN (021; save and submit write `activity_submission.rejected` with `code: ATTEMPT_PAUSED`).
   "attempt_pause.write_refused": ["activityId", "pauseId", "operation"],
   // 015: one controlled-mode event (research F4): by the student, or the server's own typing refusal (SYSTEM).
   "attempt_integrity.recorded": ["eventType", "buffered"],
