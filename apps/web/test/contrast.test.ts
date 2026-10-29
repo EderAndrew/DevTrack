@@ -20,9 +20,14 @@ function blockTokens(source: string, selector: RegExp): Tokens {
   return Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }
 
-// One dark theme since the Vice City palette (005 FR-013, amended 2026-10-22).
+// The dark theme (Vice City, 005 FR-013, amended 2026-10-22) and the optional light theme (022): the
+// light block overrides only color tokens, so the aliases resolve through the dark block's `var()`s,
+// as in the browser (022 research Z5, Z10).
+const DARK = blockTokens(css, /:root\s*\{/);
+const LIGHT = blockTokens(css, /:root\[data-theme="light"\]\s*\{/);
 const THEMES: Record<string, Tokens> = {
-  escuro: blockTokens(css, /:root\s*\{/),
+  escuro: DARK,
+  claro: { ...DARK, ...LIGHT },
 };
 
 /** Follows `var(--x)` aliases down to a literal value. */
@@ -73,7 +78,7 @@ const PAIRS: Pair[] = [
 ];
 
 describe.each(Object.entries(THEMES))(
-  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 contraste AA dos tokens do tema %s",
+  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 022/FR-011 022/SC-002 contraste AA dos tokens do tema %s",
   (_theme, tokens) => {
     it.each(PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
       const fg = resolve(tokens, foreground);
@@ -94,7 +99,7 @@ const SYNTAX_PAIRS: Pair[] = [...SYNTAX, "--foreground"].flatMap((text) =>
   CODE_BACKGROUNDS.map((background): Pair => [text, background, 4.5]),
 );
 
-describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das cores de sintaxe do tema %s", (_theme, tokens) => {
+describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 022/FR-011 022/SC-002 contraste AA das cores de sintaxe do tema %s", (_theme, tokens) => {
   it.each(SYNTAX_PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
     const fg = resolve(tokens, foreground);
     const bg = resolve(tokens, background);
@@ -104,11 +109,34 @@ describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das co
   });
 });
 
-describe("005/SC-002 tema único escuro (Vice City)", () => {
-  it("tokens.css tem um só tema, escuro, sem variação pela preferência do sistema nem data-theme", () => {
+/** The light block of `tokens.css` as written, `color-scheme` included (custom properties aside). */
+const lightBlock = (() => {
+  const start = css.search(/:root\[data-theme="light"\]\s*\{/);
+  if (start < 0) return "";
+  const open = css.indexOf("{", start);
+  return css.slice(open + 1, css.indexOf("}", open));
+})();
+
+const isColor = (value: string) => /^#[0-9a-f]{3,8}$/i.test(value) || /^rgba?\(/i.test(value);
+
+describe("022/FR-010 022/SC-006 o tema claro cobre todo token de cor", () => {
+  it("todo token de cor de :root tem valor no bloco claro", () => {
+    const colors = Object.entries(DARK).filter(([, value]) => isColor(value)).map(([name]) => name);
+    expect(colors.length).toBeGreaterThan(0);
+    expect(colors.filter((name) => LIGHT[name] === undefined)).toEqual([]);
+  });
+
+  it("o bloco claro só declara tokens de cor que :root também declara", () => {
+    expect(Object.keys(LIGHT).filter((name) => DARK[name] === undefined)).toEqual([]);
+    expect(Object.entries(LIGHT).filter(([, value]) => !isColor(value))).toEqual([]);
+  });
+});
+
+describe("005/SC-002 022/FR-003 tema escuro padrão e tema claro opcional", () => {
+  it("sem variação pela preferência do sistema; color-scheme dark em :root e light no bloco claro", () => {
     expect(css).not.toMatch(/prefers-color-scheme/);
-    expect(css).not.toMatch(/data-theme/);
-    expect(css).toMatch(/color-scheme:\s*dark;/);
+    expect(css).toMatch(/:root\s*\{[^}]*color-scheme:\s*dark;/);
+    expect(lightBlock).toMatch(/color-scheme:\s*light;/);
     expect(THEMES.escuro!["--background"]).toBe("#0b0f2b");
     expect(THEMES.escuro!["--primary"]).toBe("#ff5ca8");
   });

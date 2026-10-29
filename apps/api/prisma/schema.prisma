@@ -23,6 +23,14 @@ enum AccountStatus {
   @@map("account_status")
 }
 
+/// 022: the account's theme (research Z1).
+enum UiTheme {
+  DARK
+  LIGHT
+
+  @@map("ui_theme")
+}
+
 enum RoleAssignmentStatus {
   ACTIVE
   SUSPENDED
@@ -285,6 +293,7 @@ model User {
   emailVerifiedAt DateTime?     @map("email_verified_at") @db.Timestamptz(6)
   status          AccountStatus @default(ACTIVE)
   statusChangedAt DateTime?     @map("status_changed_at") @db.Timestamptz(6)
+  theme           UiTheme       @default(DARK)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 

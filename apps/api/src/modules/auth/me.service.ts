@@ -20,6 +20,7 @@ export class MeService {
         name: true,
         email: true,
         emailVerifiedAt: true,
+        theme: true,
         roles: { select: { status: true, role: { select: { key: true } } } },
       },
     });
@@ -36,6 +37,7 @@ export class MeService {
         .map((assignment) => ({ key: assignment.role.key as RoleKey, status: assignment.status }))
         .sort((a, b) => a.key.localeCompare(b.key)),
       permissions: [...permissions].sort(),
+      theme: user.theme,
     };
   }
 }

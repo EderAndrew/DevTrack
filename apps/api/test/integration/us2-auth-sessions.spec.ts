@@ -77,6 +77,8 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
             "sessoes.proprias.revogar",
             "turmas.proprias.listar",
           ],
+          // 022: the account's theme, DARK by default.
+          theme: "DARK",
         },
       });
 

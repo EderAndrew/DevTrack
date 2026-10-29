@@ -49,21 +49,21 @@ description: "Task list for 022 — Tema claro opcional: o usuário escolhe Escu
 
 **Purpose**: a 022 entra na guarda de rastreabilidade e os contratos que todas as histórias usam.
 
-- [ ] T001 Incluir a 022 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 021: `feature:
+- [X] T001 Incluir a 022 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 021: `feature:
   "022"`, `path: "specs/022-light-theme/spec.md"`, `stories: 4`, `scenarios: 18` (6 + 4 + 6 + 2), sem tabela de
   rastreabilidade (`rows: 0`, `rowsWithoutIds: []`),
   `successCriteria: sc(1, 7)` e `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-007"] }`, com o
   comentário "Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
   each SC with the test that cites it, so the lists are empty at the end of T024".
-- [ ] T002 [P] Contratos em `packages/contracts/src/me/` (contracts/http-api.md, research Z3):
+- [X] T002 [P] Contratos em `packages/contracts/src/me/` (contracts/http-api.md, research Z3):
   - novo `preferences.ts`: `UiThemeSchema = z.enum(["DARK", "LIGHT"])`, `UpdatePreferencesRequestSchema =
     z.strictObject({ theme: UiThemeSchema })`, `PreferencesViewSchema = z.strictObject({ theme: UiThemeSchema })` e os
     tipos por `z.infer`;
-  - `me.ts`: `theme: UiThemeSchema` em `MeViewSchema`;
-  - `endpoints.ts`: `"me.preferences.update": { method: "PATCH", path: "/me/preferences", body:
-    UpdatePreferencesRequestSchema, response: PreferencesViewSchema, status: 200 }` ao lado de `"me.get"`;
   - exportar em `packages/contracts/src/index.ts`; `pnpm --filter @repo/contracts build && pnpm --filter
     @repo/contracts test` (boundary, duplication, zod-version).
+  - O `theme` do `MeViewSchema` entra na T005 e a entrada `"me.preferences.update"` do `endpoints.ts` na T011,
+    junto com o código que os atende: antes disso, o interceptor de conformidade dos testes transformaria o
+    `GET /me` em 500 e o `endpoint-catalog.spec.ts` falharia por uma entrada sem rota.
 
 ---
 
@@ -73,21 +73,22 @@ description: "Task list for 022 — Tema claro opcional: o usuário escolhe Escu
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T003 Migração e Prisma (data-model.md, research Z1):
+- [X] T003 Migração e Prisma (data-model.md, research Z1):
   - `apps/api/prisma/schema.prisma`: `enum UiTheme { DARK LIGHT @@map("ui_theme") }` e `theme UiTheme
     @default(DARK)` em `User`;
   - `apps/api/prisma/migrations/<timestamp>_022_light_theme/migration.sql`: `CREATE TYPE "ui_theme" AS ENUM ('DARK',
     'LIGHT')` e `ALTER TABLE "users" ADD COLUMN "theme" "ui_theme" NOT NULL DEFAULT 'DARK'`;
   - `pnpm --filter api prisma generate` e `migrate deploy` no banco de dev;
   - se `apps/api/test/security/domain-boundary.spec.ts` listar enums, incluir `UiTheme` na lista esperada.
-- [ ] T004 [P] Teste `apps/api/test/integration/022-schema.spec.ts`: `022/FR-003` uma conta criada sem tema lê
+- [X] T004 [P] Teste `apps/api/test/integration/022-schema.spec.ts`: `022/FR-003` uma conta criada sem tema lê
   `DARK` no banco; um valor fora do enum é recusado pelo PostgreSQL; a coluna é `NOT NULL`.
-- [ ] T005 `MeService.get` (`apps/api/src/modules/auth/me.service.ts`) seleciona e devolve `theme`; o login
+- [X] T005 `theme: UiThemeSchema` em `MeViewSchema` (`packages/contracts/src/me/me.ts`, rebuild dos contratos);
+  `MeService.get` (`apps/api/src/modules/auth/me.service.ts`) seleciona e devolve `theme`; o login
   (`login.service.ts`, `user: MeView`) também. Testes em `apps/api/test/integration/022-preferences.spec.ts` (criado
   aqui, completado na US1): `022/FR-003` `GET /me` de uma conta nova devolve `theme: "DARK"`; a resposta do login traz
   `user.theme`. Ajustar os asserts que comparam o `MeView` inteiro por igualdade (`toEqual`/`toStrictEqual` sobre o
   corpo de `GET /me` ou o `user` do login; achar com `grep -rln '"/me"\|auth/login' apps/api/test`).
-- [ ] T006 [P] Testes primeiro em `apps/web/test/contrast.test.ts` (research Z10):
+- [X] T006 [P] Testes primeiro em `apps/web/test/contrast.test.ts` (research Z10):
   - `THEMES` ganha `claro: { ...dark, ...blockTokens(css, /:root\[data-theme="light"\]\s*\{/) }` (os aliases resolvem
     pelos `var()` do bloco escuro, como no navegador); os 76 pares de `PAIRS` e `SYNTAX_PAIRS` rodam para os dois
     temas — títulos com `022/FR-011 022/SC-002` além dos ids que já têm;
@@ -95,7 +96,7 @@ description: "Task list for 022 — Tema claro opcional: o usuário escolhe Escu
     e o bloco claro não declara nenhum token que `:root` não tenha nem token que não seja cor;
   - o teste antigo "tema único escuro" passa a ser `005/SC-002 022/FR-003`: sem `prefers-color-scheme`, `color-scheme:
     dark` em `:root` e `color-scheme: light` no bloco claro.
-- [ ] T007 Bloco claro em `apps/web/design-system/tokens.css` (research Z5, Z6): depois do `:root` atual, sem tocá-lo,
+- [X] T007 Bloco claro em `apps/web/design-system/tokens.css` (research Z5, Z6): depois do `:root` atual, sem tocá-lo,
   `:root[data-theme="light"] { … color-scheme: light; }` com os valores da tabela Z6 (fundo, superfície, textos,
   primária e variações, marca, bordas, foco, os quatro estados com `-text`/`-surface`, `--danger-foreground`,
   desabilitados, `--overlay`, os oito `--syntax-*` e `--chart-1`), cada grupo com um comentário curto da cor de
@@ -138,7 +139,9 @@ recarregar continua claro.
 ### Implementation for User Story 1
 
 - [ ] T011 [US1] API: `MeService.updatePreferences(userId, body)` (um `UPDATE users SET theme` pelo id) e `@Patch
-  ("preferences") @AllowUnverified()` em `apps/api/src/modules/auth/me.controller.ts`, validando com
+  ("preferences") @AllowUnverified()` em `apps/api/src/modules/auth/me.controller.ts` e a entrada
+  `"me.preferences.update": { method: "PATCH", path: "/me/preferences", body: UpdatePreferencesRequestSchema, response:
+  PreferencesViewSchema, status: 200 }` ao lado de `"me.get"` em `packages/contracts/src/endpoints.ts`, validando com
   `UpdatePreferencesRequestSchema` e devolvendo `PreferencesView`; linha `{ method: "PATCH", path: "/me/preferences",
   access: "session" }` em `apps/api/test/security/authorization-matrix.ts`; `endpoint-catalog.spec.ts` e
   `route-declarations.spec.ts` verdes. T008 fica verde.

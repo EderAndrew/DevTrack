@@ -288,6 +288,19 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Foundational phase (T007); each story leaves `pending` with the task that writes its
     // last test, each SC with the test that cites it, so the lists are empty at the end of T027.
     pending: { stories: [], successCriteria: [] },
+  },  {
+    feature: "022",
+    path: "specs/022-light-theme/spec.md",
+    stories: 4,
+    scenarios: 18,
+    // No "### Acceptance Criteria Traceability" table, as in 008–021.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 7),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
+    // each SC with the test that cites it, so the lists are empty at the end of T024.
+    // SC-002 and SC-006 left with the contrast test (T006, Foundational).
+    pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", "SC-003", "SC-004", "SC-005", "SC-007"] },
   },
 ];
 
