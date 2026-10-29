@@ -120,15 +120,15 @@ describe("015/US1 professor liga modo controlado e ajuda da IA", () => {
       expect(res.body).toMatchObject({ version: 2, executionMode: "CONTROLLED", aiHelp: { allowance: 3 } });
       const [changed] = await events("activity.settings_changed");
       expect(changed).toMatchObject({ actorType: "USER", actorUserId: teacher.id, targetType: "CLASS_ACTIVITY", targetId: body.id });
-      expect(changed!.metadata).toEqual({ classId, executionMode: "CONTROLLED", aiHelpAllowance: 3 });
+      expect(changed!.metadata).toEqual({ classId, executionMode: "CONTROLLED", aiHelpAllowance: 3, codeExecution: false });
       // Settings only: `activity.updated` lists the 012 fields and none changed.
       expect(await events("activity.updated")).toEqual([]);
 
       const back = await patch(body.id, { version: 2, executionMode: "NORMAL" });
       expect(back.body).toMatchObject({ version: 3, executionMode: "NORMAL", aiHelp: { allowance: 3 } });
       expect((await events("activity.settings_changed")).map((event) => event.metadata)).toEqual([
-        { classId, executionMode: "CONTROLLED", aiHelpAllowance: 3 },
-        { classId, executionMode: "NORMAL", aiHelpAllowance: 3 },
+        { classId, executionMode: "CONTROLLED", aiHelpAllowance: 3, codeExecution: false },
+        { classId, executionMode: "NORMAL", aiHelpAllowance: 3, codeExecution: false },
       ]);
     });
 

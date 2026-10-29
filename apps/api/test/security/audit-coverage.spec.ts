@@ -26,6 +26,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/018-controlled-exams/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
 ];
 
 /**
@@ -53,6 +54,8 @@ const PENDING_016 = new Set<string>([]);
 const PENDING_018 = new Set<string>([]);
 /** 018 "Changed" rows whose metadata arrives with later user stories; each leaves with the story that emits it. */
 const PENDING_CHANGED_018 = new Set<string>([]);
+/** 021 "Changed" rows whose metadata arrives with later user stories (US1: `activityType`); same rule. */
+const PENDING_CHANGED_021 = new Set<string>(["code_run.requested"]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
@@ -102,7 +105,7 @@ function changedRows(table: string): ContractRow[] {
     .flatMap((line) => {
       const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
       const type = backticked(typeCell!)[0]!;
-      if (PENDING_CHANGED_018.has(type)) return [];
+      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type)) return [];
       // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
         .filter((key) => !/^[A-Z_]+$/.test(key))

@@ -123,7 +123,7 @@ depois do primeiro início e ver `409 ACTIVITY_ALREADY_STARTED`.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T008 [P] [US2] `apps/api/test/integration/021-us2-option.spec.ts`: `021/US2-1` (trabalho elegível
+- [X] T008 [P] [US2] `apps/api/test/integration/021-us2-option.spec.ts`: `021/US2-1` (trabalho elegível
   aplicado sem o campo → `codeExecution: false`; com `true` → `true` na lista e no detalhe; `WorkSummary`
   com `runnableCodeQuestionCount` 1), `021/US2-2` (trabalho sem CODE, CODE só PRIVATE ou em C++ →
   `runnableCodeQuestionCount` 0 e `true` → `422 CODE_EXECUTION_NOT_ELIGIBLE`, nada gravado),
@@ -134,12 +134,12 @@ depois do primeiro início e ver `409 ACTIVITY_ALREADY_STARTED`.
   `021/US2-6` (sem heartbeat ou com `CODE_RUNNER_ENABLED=false`: a aplicação com `true` é aceita;
   `GET /code-runner/availability` → `{ available: false }`; com heartbeat → `true`), `021/FR-003`
   (atividade criada sem a coluna explícita fica `false`).
-- [ ] T008a [P] [US2] `apps/api/test/security/021-concurrency.spec.ts` (`021/FR-002`): 10 rodadas de
+- [X] T008a [P] [US2] `apps/api/test/security/021-concurrency.spec.ts` (`021/FR-002`): 10 rodadas de
   `PATCH { codeExecution: true }` e `POST …/attempt` do primeiro aluno ao mesmo tempo; em cada rodada,
   ou o PATCH entra e o início vê a opção ligada, ou o PATCH responde `409 ACTIVITY_ALREADY_STARTED` e a
   coluna fica igual — nunca a coluna muda com uma tentativa já gravada (o gatilho de T003 recusa).
   Também 10 `POST …/code-runs` simultâneos do mesmo aluno num trabalho → uma só execução pendente.
-- [ ] T009 [P] [US2] Web, testes primeiro em `apps/web/features/activities/components/new-activity.test.tsx`
+- [X] T009 [P] [US2] Web, testes primeiro em `apps/web/features/activities/components/new-activity.test.tsx`
   e `activity-detail.test.tsx` (`021/US2-1`, `021/US2-2`, `021/US2-4`, `021/US2-6`): a opção aparece
   desmarcada só com `runnableCodeQuestionCount > 0`, com o texto de contracts/web-ui.md; o corpo envia
   `codeExecution`; o aviso de indisponível quando `available: false` com a opção ainda marcável; no
@@ -148,7 +148,7 @@ depois do primeiro início e ver `409 ACTIVITY_ALREADY_STARTED`.
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] API:
+- [X] T010 [US2] API:
   - `apps/api/src/modules/activities/activities.service.ts`: `codeExecution` em `WorkOptions` (apply e
     update), checado com `codeExecutionEligible` sobre o snapshot (422), junto das opções da 015
     (`optionsChanged`, `ACTIVITY_ALREADY_STARTED`, `activity.settings_changed`), `activity.published`
@@ -159,7 +159,7 @@ depois do primeiro início e ver `409 ACTIVITY_ALREADY_STARTED`.
     `apps/api/src/modules/code-runs/availability.controller.ts`, de `RunnerAvailability.state`;
   - catálogo de endpoints, `MATRIX`, `route-declarations.spec.ts`, metadados em
     `audit-event-types.ts` + `contracts/audit-events.md` + `journey.ts`; T008 verde.
-- [ ] T011 [US2] Web: `apps/web/features/activities/components/work-options.tsx` (a opção, o texto e o
+- [X] T011 [US2] Web: `apps/web/features/activities/components/work-options.tsx` (a opção, o texto e o
   aviso), `new-activity.tsx` (envia `codeExecution`), `activity-detail.tsx` e `class-activities.tsx`
   (badge com texto), hook `useCodeRunnerAvailability` em `apps/web/features/code-run/{api,hooks}/`,
   textos em `features/activities/schemas/`, `CODE_EXECUTION_NOT_ELIGIBLE` em
@@ -206,7 +206,8 @@ executa um programa certo, um errado e um com erro de sintaxe; nenhum caso priva
     com `codeExecutionAllowed` (research Y9);
   - `apps/api/src/modules/code-runs/code-runs.service.ts`: `runnableQuestion` aceita EXERCISE ou
     ASSIGNMENT com a opção (EXAM e trabalho sem a opção → `OutOfContext`), `code_run.requested` com
-    `activityType`; T012 e T013 verdes.
+    `activityType` (e `code_run.requested` sai de `PENDING_CHANGED_021` em `audit-coverage.spec.ts`); T012 e
+    T013 verdes, e o `it.skip` de `021/FR-010` em `test/security/021-concurrency.spec.ts` (T008a) ativado.
 - [ ] T016 [US1] Web: em `apps/web/features/student-activities/components/activity-answering.tsx`, montar
   `CodeRunPanel` com `question.type === "CODE" && question.execution && editable` (comentário 021); T014
   verde. `021/US1` sai de `pending`.
@@ -290,7 +291,7 @@ execuções" e os vereditos; depois do job `code-run-content`, o mesmo resumo.
   `views/teacher-run-summary.ts` (allowlist), `GET /classes/:classId/activities/:activityId/attempts/:attemptId/code-runs`
   (`entregas.visualizar`) com `ClassContextPolicy`, `settleStaleRuns` do aluno antes, uma consulta para
   as contagens e a última terminada por questão (research Y7, Y8); catálogo de endpoints, `MATRIX`,
-  `route-declarations.spec.ts`; T020 e T021 verdes.
+  `route-declarations.spec.ts`, e a rota sai de `pending021` em `test/security/019-boundaries.spec.ts`; T020 e T021 verdes.
 - [ ] T024 [US3] Web: `apps/web/features/code-run/{api,hooks/use-attempt-code-runs.ts,components/code-run-summary.tsx}`
   e a montagem em `apps/web/features/activities/components/attempt-review.tsx` em cada questão CODE
   quando `activity.codeExecution`; textos em `features/code-run/schemas/`; T022 verde. `021/US3` sai de

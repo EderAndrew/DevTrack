@@ -208,10 +208,12 @@ export const AUDIT_EVENT_METADATA = {
     "durationMinutes",
     "inactivityLimitSeconds",
     "startWindowMinutes",
+    // 021: "Permitir executar o código" (false for EXERCISE and EXAM, research Y11).
+    "codeExecution",
   ],
   "activity.updated": ["classId", "fields"],
-  // 015: a work's mode or AI help changed before the first start (FR-005).
-  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance"],
+  // 015: a work's mode or AI help changed before the first start (FR-005); 021: its code execution too.
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution"],
   // 016: `pausedCount`, the open pauses the close or the cancellation ended by derivation (research M7).
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],

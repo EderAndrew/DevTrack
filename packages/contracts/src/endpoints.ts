@@ -81,6 +81,7 @@ import {
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
 import { ClassRankingSchema } from "./ranking/index.js";
+import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { CodeRunSchema, CreateCodeRunRequestSchema, LatestCodeRunSchema } from "./code-runs/run.js";
 import { HelpAvailabilitySchema, RequestHelpSchema, StudentHelpItemSchema, StudentHelpStateSchema, TeacherHelpStateSchema } from "./work-help/help.js";
 import { RecordIntegrityEventsRequestSchema, RecordIntegrityEventsResultSchema } from "./attempt-integrity/events.js";
@@ -1475,6 +1476,13 @@ export const endpoints = {
     path: "/me/code-runs/:runId",
     params: MyCodeRunParamsSchema,
     response: CodeRunSchema,
+    status: 200,
+  },
+  /** 021/US2-6 — whether the Code Runner can run now, for the teacher applying a work (research Y3). */
+  "codeRunner.availability": {
+    method: "GET",
+    path: "/code-runner/availability",
+    response: CodeRunnerAvailabilitySchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

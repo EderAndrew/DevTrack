@@ -122,6 +122,8 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       hasPlan: true,
       // 016: every work applied since 016 takes attendance (research M2).
       releaseMode: "PRESENT_ONLY",
+      // 021: "Permitir executar o código", off unless the teacher turns it on.
+      codeExecution: false,
     });
   });
 

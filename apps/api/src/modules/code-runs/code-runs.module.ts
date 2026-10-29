@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ActivitiesModule } from "../activities/activities.module";
 import { StudentActivitiesModule } from "../student-activities/student-activities.module";
 import { RunnerAvailability } from "./availability";
+import { CodeRunnerAvailabilityController } from "./availability.controller";
 import { CodeRunsController } from "./code-runs.controller";
 import { CodeRunsService } from "./code-runs.service";
 import { CodeRunContentJob } from "./content-retention.job";
@@ -16,7 +17,7 @@ import { CodeRunContentJob } from "./content-retention.job";
  */
 @Module({
   imports: [ActivitiesModule, StudentActivitiesModule],
-  controllers: [CodeRunsController],
+  controllers: [CodeRunsController, CodeRunnerAvailabilityController],
   providers: [CodeRunsService, RunnerAvailability, CodeRunContentJob],
 })
 export class CodeRunsModule {}

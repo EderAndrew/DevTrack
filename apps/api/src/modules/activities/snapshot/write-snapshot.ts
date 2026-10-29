@@ -26,6 +26,8 @@ export interface NewActivity {
   /** ASSIGNMENT's choice; an EXAM is always CONTROLLED and 0 (CHECK by type, 015 research F2, 018 T3). */
   executionMode: ExecutionMode;
   aiHelpAllowance: AiHelpAllowance;
+  /** 021 "Permitir executar o código": ASSIGNMENT only (CHECK, research Y1), fixed once a student starts (trigger). */
+  codeExecutionAllowed: boolean;
   /** PRESENT_ONLY for ASSIGNMENT and EXAM (CHECK by type, 016 research M2); fixed afterwards (trigger). */
   releaseMode: ReleaseMode;
   idempotencyKey: string;
