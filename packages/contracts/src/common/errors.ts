@@ -126,6 +126,8 @@ export const ErrorCodeSchema = z.enum([
   "ATTEMPT_NOT_IN_PROGRESS",
   "CODE_EXECUTION_NOT_ELIGIBLE",
   "GROUP_NEEDS_ATTENDANCE",
+  "GROUP_MEMBERS_UNAVAILABLE",
+  "GROUP_ALREADY_JOINED",
   "EXERCISE_RULES",
   "NOTICE_REJECTED",
   "NOTICE_TOO_LARGE",
@@ -159,6 +161,8 @@ export const ErrorDetailsSchema = z.union([
   z.strictObject({ violations: z.array(ExamRuleViolationSchema).min(1) }),
   z.strictObject({ count: z.int().min(1) }),
   z.strictObject({ reason: CodeRunUnavailableReasonSchema }),
+  // 023 `GROUP_MEMBERS_UNAVAILABLE`: the chosen classmates no longer eligible.
+  z.strictObject({ unavailableIds: z.array(UuidSchema).min(1) }),
 ]);
 export type ErrorDetails = z.infer<typeof ErrorDetailsSchema>;
 

@@ -83,6 +83,8 @@ const SCANNED = [
   "features/code-run",
   // 020: the student's feedback dialog and list, the ADMIN's list and detail.
   "features/feedback",
+  // 023: the group work's start dialog and bar (names of classmates).
+  "features/group-work",
 ];
 
 function filesUnder(dir: string): string[] {

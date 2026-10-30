@@ -222,7 +222,8 @@ export const AUDIT_EVENT_METADATA = {
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
   // 018: `rulesAccepted: true` when the attempt is an EXAM's (research T13).
-  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted"],
+  // 023: `group` and `memberCount` only on a group work (research U19).
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted", "group", "memberCount"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
   // `operation`: START | SAVE | SUBMIT, RETRY | COMPLETE of an EXERCISE (013) and EXIT of an EXAM (018); `code`: the 409 code of the refusal.
@@ -310,6 +311,10 @@ export const AUDIT_EVENT_METADATA = {
   "student_feedback.rate_limited": ["scope"],
   // 020 — the ADMIN moved a feedback to another status (research J5); a refused transition writes nothing.
   "student_feedback.status_changed": ["fromStatus", "toStatus"],
+  // 023 — a group formed at the start (contracts/audit-events.md): ids and the count, never names.
+  "activity_group.created": ["activityId", "attemptId", "memberCount"],
+  // 023 — one per member the leader brought in, at the start or by "Incluir integrantes".
+  "activity_group.member_added": ["activityId", "attemptId", "memberId"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

@@ -4,7 +4,9 @@ import {
   CreateAssignmentRequestSchema,
   CreateExamActivityRequestSchema,
   CreateExerciseActivityRequestSchema,
+  ErrorBodySchema,
   ErrorCodeSchema,
+  StartAttemptRequestSchema,
   UpdateActivityRequestSchema,
 } from "../src/index.js";
 
@@ -43,5 +45,26 @@ describe("023 formato do Trabalho (contracts/http-api.md)", () => {
     expect(UpdateActivityRequestSchema.parse({ version: 1, groupSize: null })).toMatchObject({ groupSize: null });
     expect(accepts(UpdateActivityRequestSchema, { version: 1, groupSize: 6 })).toBe(false);
     expect(ErrorCodeSchema.options).toContain("GROUP_NEEDS_ATTENDANCE");
+  });
+});
+
+describe("023 início do trabalho em grupo (contracts/http-api.md, research U6)", () => {
+  it("023/FR-006 o início aceita memberIds (1 a 4, distintos) ou alone, nunca os dois", () => {
+    expect(accepts(StartAttemptRequestSchema, {})).toBe(true);
+    expect(accepts(StartAttemptRequestSchema, { memberIds: [uuid(1), uuid(2)] })).toBe(true);
+    expect(accepts(StartAttemptRequestSchema, { alone: true })).toBe(true);
+    expect(accepts(StartAttemptRequestSchema, { memberIds: [] })).toBe(false);
+    expect(accepts(StartAttemptRequestSchema, { memberIds: [uuid(1), uuid(1)] })).toBe(false);
+    expect(accepts(StartAttemptRequestSchema, { memberIds: [1, 2, 3, 4, 5].map(uuid) })).toBe(false);
+    expect(accepts(StartAttemptRequestSchema, { alone: false })).toBe(false);
+    expect(accepts(StartAttemptRequestSchema, { memberIds: [uuid(1)], alone: true })).toBe(false);
+    expect(accepts(StartAttemptRequestSchema, { leaderId: uuid(1) })).toBe(false);
+  });
+
+  it("023/FR-006 a recusa nomeia só os ids indisponíveis", () => {
+    const body = { statusCode: 409, code: "GROUP_MEMBERS_UNAVAILABLE", message: "x", details: { unavailableIds: [uuid(2)] } };
+    expect(accepts(ErrorBodySchema, body)).toBe(true);
+    expect(accepts(ErrorBodySchema, { ...body, details: { unavailableIds: [] } })).toBe(false);
+    expect(ErrorCodeSchema.options).toEqual(expect.arrayContaining(["GROUP_MEMBERS_UNAVAILABLE", "GROUP_ALREADY_JOINED"]));
   });
 });

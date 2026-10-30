@@ -813,3 +813,41 @@ describe("021/US1 \"Executar\" numa questão de Código do Trabalho", () => {
     expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
   });
 });
+
+describe("023/US2 \"Iniciar\" num trabalho em grupo", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const CANDIDATES = `GET /api/me/activities/${activity.id}/group/candidates`;
+  const BRUNO = { id: "cccccccc-0000-4000-8000-000000000002", name: "Bruno Lima" };
+
+  it("023/US2-1 023/US2-2 abre a escolha dos integrantes; confirmar inicia com os escolhidos e segue para as questões", async () => {
+    const { user, api } = setup({
+      [GET]: json(200, studentActivity({ groupSize: 3 })),
+      [CANDIDATES]: json(200, { groupSize: 3, freeSlots: 2, candidates: [BRUNO] }),
+      [START]: json(200, started({ groupSize: 3 })),
+    });
+    await user.click(await screen.findByRole("button", { name: "Iniciar atividade" }));
+    expect(api.calls.filter((call) => call.method === "POST")).toEqual([]);
+    await user.click(await screen.findByRole("checkbox", { name: "Bruno Lima" }));
+    await user.click(screen.getByRole("button", { name: "Iniciar em grupo" }));
+    expect(await screen.findByText("Questão 1 de 3")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const post = api.calls.find((call) => call.method === "POST")!;
+    expect(JSON.parse(String(post.body))).toEqual({ memberIds: [BRUNO.id] });
+  });
+
+  it("023/US2-4 \"Continuar sozinho\" inicia individual", async () => {
+    const { user, api } = setup({
+      [GET]: json(200, studentActivity({ groupSize: 3 })),
+      [CANDIDATES]: json(200, { groupSize: 3, freeSlots: 2, candidates: [BRUNO] }),
+      [START]: json(200, started({ groupSize: 3 })),
+    });
+    await user.click(await screen.findByRole("button", { name: "Iniciar atividade" }));
+    await user.click(await screen.findByRole("button", { name: "Continuar sozinho" }));
+    expect(await screen.findByText("Questão 1 de 3")).toBeTruthy();
+    expect(JSON.parse(String(api.calls.find((call) => call.method === "POST")!.body))).toEqual({ alone: true });
+  });
+});

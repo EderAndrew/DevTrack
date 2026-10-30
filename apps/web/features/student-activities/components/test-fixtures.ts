@@ -72,6 +72,7 @@ export const studentActivity = (overrides: Partial<StudentActivity> = {}): Stude
     ...base,
     aiHelp: { allowance: 0, used: 0 },
     groupSize: null,
+    group: null,
     id: "bbbbbbbb-0000-4000-8000-000000000001",
     instructions: "Responda com suas palavras.",
     serverNow: "2026-10-02T12:00:00.000Z",

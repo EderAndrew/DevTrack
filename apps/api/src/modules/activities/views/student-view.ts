@@ -110,6 +110,20 @@ export interface OwnPauseInput extends OpenPauseInput {
   endedAt: Date | null;
 }
 
+/** 023: the session student's group in this activity, as the loader resolved it (research U9). */
+export interface StudentGroupInput {
+  groupSize: number;
+  leader: { id: string; name: string };
+  /** Leader included, by join time. */
+  members: { id: string; name: string }[];
+  editor: { id: string; name: string };
+  myRole: "LEADER" | "MEMBER";
+  canEdit: boolean;
+  addedBy: { id: string; name: string } | null;
+  freeSlots: number;
+  version: number;
+}
+
 export interface StudentActivityDetailInput extends StudentActivityInput {
   /** The AI helps delivered to the session student in this activity (015/FR-020). */
   aiHelpUsed: number;
@@ -126,6 +140,8 @@ export interface StudentActivityDetailInput extends StudentActivityInput {
   lastResult: ConcludedAttemptInput | null;
   /** EXAM only (018). */
   exam: StudentExamInput | null;
+  /** 023: the session student's group (FR-009), or null for an individual attempt or before the start. */
+  group: StudentGroupInput | null;
 }
 
 /** 018: an EXAM's facts for its student, as loaded (research T13); null for the other types. */
@@ -216,6 +232,7 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
     ...summary,
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
     groupSize: input.groupSize,
+    group: input.group && toStudentGroup(input.group),
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
     questions: paused
@@ -339,5 +356,22 @@ export function toStudentExerciseAttempt(questions: readonly ActivityQuestionRow
           },
         ];
       }),
+  };
+}
+
+const person = (entry: { id: string; name: string }) => ({ id: entry.id, name: entry.name });
+
+/** 023/FR-009: only ids and names of the group's members (never an e-mail or RA), copied field by field. */
+function toStudentGroup(group: StudentGroupInput): NonNullable<StudentActivity["group"]> {
+  return {
+    groupSize: group.groupSize,
+    leader: person(group.leader),
+    members: group.members.map(person),
+    editor: person(group.editor),
+    myRole: group.myRole,
+    canEdit: group.canEdit,
+    addedBy: group.addedBy && person(group.addedBy),
+    freeSlots: group.freeSlots,
+    version: group.version,
   };
 }

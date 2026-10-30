@@ -80,6 +80,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
+import { GroupCandidatesSchema } from "./activities/group.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
@@ -1359,8 +1360,20 @@ export const endpoints = {
     status: 200,
   },
   /**
+   * 023: the classmates the caller may choose for a group work (FR-005), by name; 404 out of context or
+   * on a work that isn't in group; `409 GROUP_ALREADY_JOINED` when the caller started alone or is a member.
+   */
+  "myActivities.groupCandidates": {
+    method: "GET",
+    path: "/me/activities/:activityId/group/candidates",
+    params: MyActivityParamsSchema,
+    response: GroupCandidatesSchema,
+    status: 200,
+  },
+  /**
    * Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). An EXAM
-   * requires `{ acceptRules: true }` (018 research T13).
+   * requires `{ acceptRules: true }` (018 research T13). A group work takes `{ memberIds }` or
+   * `{ alone: true }` (023 research U6; `409 GROUP_MEMBERS_UNAVAILABLE` with `unavailableIds`).
    */
   "myActivities.start": {
     method: "POST",

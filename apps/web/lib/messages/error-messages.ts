@@ -134,6 +134,8 @@ export const ERROR_MESSAGES = {
   CODE_EXECUTION_NOT_ELIGIBLE: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",
   // 023/FR-002: "Em grupo" on a work applied without attendance.
   GROUP_NEEDS_ATTENDANCE: "Este trabalho foi aplicado sem chamada e só pode ser individual.",
+  GROUP_MEMBERS_UNAVAILABLE: "Algum colega escolhido não está mais disponível. Revise a lista.",
+  GROUP_ALREADY_JOINED: "Você já participa de um grupo que está fazendo este trabalho.",
   SOURCE_TOO_LARGE: "O código passou do tamanho máximo de 64 KB.",
   ATTEMPT_NOT_IN_PROGRESS: "Comece ou refaça os exercícios para executar o código.",
   EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",

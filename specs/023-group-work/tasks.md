@@ -189,7 +189,7 @@ editor; "Continuar sozinho" é individual.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T014 [P] [US2] API `apps/api/test/integration/023-us2-start.spec.ts`:
+- [X] T014 [P] [US2] API `apps/api/test/integration/023-us2-start.spec.ts`:
   - `023/US2-1` `GET …/group/candidates` → `{ groupSize: 4, freeSlots: 3, candidates }` em ordem de nome, só `id` e
     `name`;
   - `023/US2-2` início com `{ memberIds: [b, c] }` → participantes A (dono), B e C, `attempt_groups` com líder e
@@ -203,7 +203,7 @@ editor; "Continuar sozinho" é individual.
   - `023/US2-6` a lista nunca traz o próprio aluno, colegas não presentes, sem matrícula ativa, de outra turma, nem
     quem já participa de uma tentativa do trabalho;
   - `023/FR-008` repetir o início com membros → 200 com a mesma tentativa, nada novo.
-- [ ] T015 [P] [US2] Web `apps/web/features/group-work/components/group-start-dialog.test.tsx`: `023/US2-1` a mensagem
+- [X] T015 [P] [US2] Web `apps/web/features/group-work/components/group-start-dialog.test.tsx`: `023/US2-1` a mensagem
   "Esse trabalho é em grupo, escolha os integrantes do grupo. Você pode incluir até 3", a lista e "Continuar sozinho";
   `023/US2-3` "n de N", caixas desmarcadas desabilitadas no limite, "Iniciar em grupo" exige 1; `023/US2-5` o `409`
   relê a lista e o `Alert` nomeia quem saiu; lista vazia → "Nenhum colega disponível agora." e só "Continuar sozinho";
@@ -211,17 +211,17 @@ editor; "Continuar sozinho" é individual.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Contratos: o corpo de `myActivities.start` aceita `{ memberIds }` ou `{ alone: true }` (validado contra
+- [X] T016 [US2] Contratos: o corpo de `myActivities.start` aceita `{ memberIds }` ou `{ alone: true }` (validado contra
   o formato no servidor); `StudentActivity.group: StudentGroup | null`; a rota `GET
   /me/activities/:activityId/group/candidates` em `endpoints.ts` + linhas no `MATRIX`; os códigos
   `GROUP_MEMBERS_UNAVAILABLE` e `GROUP_ALREADY_JOINED`.
-- [ ] T017 [US2] API (research U3, U6): `activities/group/group-roles.ts` (puro: papel, editor e líder efetivos, vagas)
+- [X] T017 [US2] API (research U3, U6): `activities/group/group-roles.ts` (puro: papel, editor e líder efetivos, vagas)
   com o seu teste de unidade; `student-activities/group-work.{service,controller}.ts` (candidatos); o início em
   `attempts.service.ts` sob `pg_advisory_xact_lock(hashtext('activity-group'), hashtext(activityId))`, rechecando cada
   id e criando tentativa, participantes e `attempt_groups` numa transação; o bloco `group` em
   `student-activity-loader.ts`/`views/student-view.ts` (allowlist: nomes e ids, sem e-mail nem RA); auditoria
   `activity_group.created`/`member_added` (tipos, contracts/audit-events.md, journey). T014 fica verde.
-- [ ] T018 [US2] Web `features/group-work/{api,hooks,schemas,components/group-start-dialog.tsx}` (novo) e o botão
+- [X] T018 [US2] Web `features/group-work/{api,hooks,schemas,components/group-start-dialog.tsx}` (novo) e o botão
   "Iniciar" de `features/student-activities` abrindo o diálogo num trabalho em grupo; mensagens dos códigos novos em
   `lib/messages/error-messages.ts`. T015 fica verde; a US2 sai de `pending`.
 

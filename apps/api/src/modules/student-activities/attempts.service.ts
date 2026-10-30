@@ -28,6 +28,7 @@ import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
 import { registerSubmission } from "../activities/submission/register-submission";
 import { ExamSettlement } from "../activities/exam-settlement";
+import { eligibleClassmates, lockActivityGroups } from "./group-eligibility";
 import { MyActivitiesService } from "./my-activities.service";
 import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
@@ -64,6 +65,8 @@ interface ContextRow {
   released: boolean;
   /** 016: a `PRESENT_ONLY` work is released only to the students marked present. */
   release_mode: ReleaseMode;
+  /** 023: "Em grupo" with its maximum, or null. */
+  group_size: number | null;
 }
 
 interface AttemptRow {
@@ -123,22 +126,51 @@ export class AttemptsService {
   /**
    * Starts the attempt, or returns the existing one (no event); 409 when the rules refuse it. An EXAM
    * starts only with its rules accepted (`acceptRules: true`, else 400) and up to its start deadline
-   * (018/FR-011, research T13).
+   * (018/FR-011, research T13). A group work (023 research U6) starts with the chosen classmates —
+   * the attempt, their participations and the group led and edited by the caller, all at once under the
+   * activity's advisory lock, each id re-checked (`409 GROUP_MEMBERS_UNAVAILABLE` with the ids, nothing
+   * created) — or alone, as an individual attempt. A student who already takes part (theirs or their
+   * group's) gets that attempt back (FR-010).
    */
   async start(studentUserId: string, activityId: string, body: StartAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("START", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       if (context.type === "EXAM" && body.acceptRules !== true) throw validationError();
+      assertStartFormat(context, body, studentUserId);
       await this.assertStartRate(tx, context, studentUserId);
+      if (context.group_size !== null) await lockActivityGroups(tx, activityId);
       const attempt = await findAttempt(tx, activityId, studentUserId, false);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("START", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       if (outcome.kind === "REPEAT") return;
 
+      const memberIds = body.memberIds ?? [];
+      if (memberIds.length > 0) {
+        const eligible = new Set((await eligibleClassmates(tx, activityId, studentUserId)).map((row) => row.id));
+        const unavailableIds = memberIds.filter((id) => !eligible.has(id));
+        if (unavailableIds.length > 0) throw new AppException("GROUP_MEMBERS_UNAVAILABLE", undefined, {}, { unavailableIds });
+      }
+
       const inserted = await tx.activityAttempt.createMany({ data: [{ activityId, studentUserId, startedAt: now }], skipDuplicates: true });
       if (inserted.count === 0) return; // Another tab or click inserted it first: same attempt, no event.
       const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, participants: { some: { studentUserId } }, number: 1 }, select: { id: true } });
+      if (memberIds.length > 0) {
+        // The group first: a member's participation needs it (trigger).
+        await tx.attemptGroup.create({
+          data: { attemptId: created.id, activityId, leaderUserId: studentUserId, editorUserId: studentUserId, createdAt: now },
+        });
+        await tx.attemptParticipant.createMany({
+          data: memberIds.map((memberId) => ({
+            attemptId: created.id,
+            activityId,
+            studentUserId: memberId,
+            attemptNumber: 1,
+            joinedAt: now,
+            addedByUserId: studentUserId,
+          })),
+        });
+      }
       await this.audit.record(tx, {
         type: "activity_attempt.started",
         actorType: "USER",
@@ -152,10 +184,29 @@ export class AttemptsService {
           afterDeadline: facts.type === "ASSIGNMENT" && wouldBeLate(facts),
           attemptNumber: 1,
           ...(facts.type === "EXAM" ? { rulesAccepted: true } : {}),
+          // 023: only on a group work, so an individual work's event reads as before (SC-007).
+          ...(context.group_size !== null ? { group: memberIds.length > 0, memberCount: memberIds.length + 1 } : {}),
         },
       });
+      if (memberIds.length > 0) await this.recordGroupCreated(tx, studentUserId, activityId, created.id, memberIds, requestId);
     });
     return this.myActivities.get(studentUserId, activityId, requestId);
+  }
+
+  /** 023 (contracts/audit-events.md): the group and one event per member brought in at the start. */
+  private async recordGroupCreated(
+    tx: Tx,
+    leaderId: string,
+    activityId: string,
+    attemptId: string,
+    memberIds: readonly string[],
+    requestId: string | null,
+  ): Promise<void> {
+    const event = { actorType: "USER", actorUserId: leaderId, targetType: "ACTIVITY_ATTEMPT", targetId: attemptId, requestId } as const;
+    await this.audit.record(tx, { ...event, type: "activity_group.created", metadata: { activityId, attemptId, memberCount: memberIds.length + 1 } });
+    for (const memberId of memberIds) {
+      await this.audit.record(tx, { ...event, type: "activity_group.member_added", metadata: { activityId, attemptId, memberId } });
+    }
   }
 
   /**
@@ -450,7 +501,8 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
   const rows = await tx.$queryRaw<ContextRow[]>`
     SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy,
            ca.publish_at, ca.start_window_minutes, ca.duration_minutes, ca.closed_at, ca.cancelled_at, ca.question_count,
-           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode
+           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode,
+           ca.group_size
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
     WHERE ca.id = ${activityId}::uuid
@@ -469,6 +521,20 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
     if (presence.length === 0) throw new OutOfContext();
   }
   return context;
+}
+
+/**
+ * 023 research U6: a group work starts with `memberIds` (1 to `groupSize − 1`, never the caller) or
+ * `alone`; any other work takes neither. The body's shape is the contract's; its fit to the format is here (400).
+ */
+function assertStartFormat(context: ContextRow, body: StartAttemptRequest, studentUserId: string): void {
+  if (context.group_size === null) {
+    if (body.memberIds !== undefined || body.alone !== undefined) throw validationError();
+    return;
+  }
+  if (body.alone === true) return;
+  const memberIds = body.memberIds;
+  if (!memberIds || memberIds.length > context.group_size - 1 || memberIds.includes(studentUserId)) throw validationError();
 }
 
 /**

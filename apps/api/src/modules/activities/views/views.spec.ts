@@ -85,6 +85,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   aiHelpAllowance: 3,
   codeExecutionAllowed: false,
   groupSize: null,
+  group: null,
   aiHelpUsed: 1,
   title: "Sistema Bancário",
   instructions: "Leia com atenção.",

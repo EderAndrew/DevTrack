@@ -9,7 +9,14 @@ import { endsAt, type ExamTiming, startDeadline } from "../activities/status/exa
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import { examEndOf, pauseTime } from "../activities/status/pause-time";
 import type { ActivityQuestionRow } from "../activities/views/rows";
-import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput, StudentExamInput } from "../activities/views/student-view";
+import { canEdit, groupRoles } from "../activities/group/group-roles";
+import type {
+  ConcludedAttemptInput,
+  StudentActivityDetailInput,
+  StudentActivityInput,
+  StudentExamInput,
+  StudentGroupInput,
+} from "../activities/views/student-view";
 
 /**
  * The session student's own attempt of one activity of their context (015 routes under
@@ -194,6 +201,91 @@ export class StudentActivityLoader {
         .sort((a, b) => b.number - a.number),
       lastResult: concluded ? await this.concludedInput(concluded) : null,
       exam,
+      group: attempt && activity.groupSize !== null ? await this.groupOf(studentUserId, attempt.id, activity) : null,
+    };
+  }
+
+  /**
+   * 023: the facts of a group work for its candidate list (research U6): null out of context (→ 404),
+   * else the format and the caller's participation — the stored leader of their group (null when they
+   * started alone) and how many take part.
+   */
+  async groupContext(
+    studentUserId: string,
+    activityId: string,
+    now: Date,
+  ): Promise<{ groupSize: number | null; participation: { leaderId: string | null; participantCount: number } | null } | null> {
+    const activity = await this.prisma.classActivity.findFirst({
+      where: { id: activityId, type: "ASSIGNMENT", ...visibleTo(studentUserId, now) },
+      select: { groupSize: true },
+    });
+    if (!activity) return null;
+    const attempt = await this.prisma.activityAttempt.findFirst({
+      where: { activityId, participants: { some: { studentUserId } } },
+      orderBy: { number: "desc" },
+      select: { group: { select: { leaderUserId: true } }, _count: { select: { participants: true } } },
+    });
+    return {
+      groupSize: activity.groupSize,
+      participation: attempt ? { leaderId: attempt.group?.leaderUserId ?? null, participantCount: attempt._count.participants } : null,
+    };
+  }
+
+  /**
+   * 023/FR-009 (research U9): the caller's group, with the effective leader and editor of `groupRoles` —
+   * a participant who lost the class or is paused doesn't edit — and who added the caller. Null for an
+   * attempt without a group ("Continuar sozinho").
+   */
+  private async groupOf(
+    studentUserId: string,
+    attemptId: string,
+    activity: Pick<ActivityRow, "groupSize" | "status" | "schoolClass">,
+  ): Promise<StudentGroupInput | null> {
+    const group = await this.prisma.attemptGroup.findUnique({
+      where: { attemptId },
+      select: { leaderUserId: true, editorUserId: true, version: true },
+    });
+    if (!group || activity.groupSize === null) return null;
+    const [participants, enrolled, paused] = await Promise.all([
+      // The owner first among those who joined in the same instant (the start), then by name.
+      this.prisma.attemptParticipant.findMany({
+        where: { attemptId },
+        orderBy: [{ joinedAt: "asc" }, { addedByUserId: { sort: "asc", nulls: "first" } }, { student: { user: { name: "asc" } } }],
+        select: { studentUserId: true, joinedAt: true, addedByUserId: true, student: { select: { user: { select: { name: true } } } } },
+      }),
+      this.prisma.enrollment.findMany({ where: { classId: activity.schoolClass.id, status: "ACTIVE" }, select: { studentUserId: true } }),
+      activity.status === "ACTIVE"
+        ? this.prisma.attemptPause.findMany({ where: { attemptId, releasedAt: null }, select: { studentUserId: true } })
+        : [],
+    ]);
+    const active = new Set(enrolled.map((row) => row.studentUserId));
+    const pausedIds = new Set(paused.map((row) => row.studentUserId));
+    const names = new Map(participants.map((row) => [row.studentUserId, row.student.user.name]));
+    const roles = groupRoles({
+      leaderId: group.leaderUserId,
+      editorId: group.editorUserId,
+      groupSize: activity.groupSize,
+      participants: participants.map((row) => ({
+        id: row.studentUserId,
+        joinedAt: row.joinedAt,
+        active: active.has(row.studentUserId),
+        paused: pausedIds.has(row.studentUserId),
+      })),
+    });
+    const person = (id: string) => ({ id, name: names.get(id) ?? "" });
+    const leaderId = roles.leaderId ?? group.leaderUserId;
+    const editorId = roles.editorId ?? leaderId;
+    const me = participants.find((row) => row.studentUserId === studentUserId);
+    return {
+      groupSize: activity.groupSize,
+      leader: person(leaderId),
+      members: roles.members.map((member) => person(member.id)),
+      editor: person(editorId),
+      myRole: leaderId === studentUserId ? "LEADER" : "MEMBER",
+      canEdit: canEdit(roles, studentUserId),
+      addedBy: me?.addedByUserId ? person(me.addedByUserId) : null,
+      freeSlots: roles.freeSlots,
+      version: group.version,
     };
   }
 

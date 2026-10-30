@@ -31,6 +31,7 @@ import { ControlledStart } from "@/features/controlled-attempt/components/contro
 import { ExamEndNotice, ExamEntry } from "@/features/exam-attempt/components/rules-screen";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
+import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -300,6 +301,9 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
 
 function StartAttempt({ activity }: { activity: StudentActivity }) {
   const start = useStartAttempt(activity.id);
+  // 023/US2: a group work opens the choice of the members (or "Continuar sozinho") instead of starting.
+  const [choosing, setChoosing] = useState(false);
+  const inGroup = activity.groupSize !== null;
   if (!activity.canAnswer) {
     return (
       <Alert variant="info">
@@ -313,10 +317,21 @@ function StartAttempt({ activity }: { activity: StudentActivity }) {
         {activity.questions.length === 1 ? "1 questão" : `${activity.questions.length} questões`}. Suas respostas são salvas
         automaticamente.
       </p>
-      <Button type="button" loading={start.isPending} onClick={() => start.mutate()}>
+      <Button type="button" loading={!inGroup && start.isPending} onClick={() => (inGroup ? setChoosing(true) : start.mutate())}>
         Iniciar atividade
       </Button>
-      {start.isError ? (
+      {inGroup ? (
+        <GroupStartDialog
+          activityId={activity.id}
+          open={choosing}
+          onOpenChange={setChoosing}
+          onStart={async (body) => {
+            await start.mutateAsync(body);
+            setChoosing(false);
+          }}
+        />
+      ) : null}
+      {!inGroup && start.isError ? (
         <Alert variant="danger">
           <AlertTitle>{messageForError(start.error)}</AlertTitle>
         </Alert>

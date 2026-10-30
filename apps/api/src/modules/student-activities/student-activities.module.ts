@@ -4,6 +4,8 @@ import { RankingModule } from "../ranking/ranking.module";
 import { AnswerSaveGuard } from "./answer-save-guard";
 import { AttemptsController, ExerciseAttemptsController } from "./attempts.controller";
 import { AttemptsService } from "./attempts.service";
+import { GroupWorkController } from "./group-work.controller";
+import { GroupWorkService } from "./group-work.service";
 import { MyActivitiesController } from "./my-activities.controller";
 import { MyActivitiesService } from "./my-activities.service";
 import { StudentActivityLoader } from "./student-activity-loader";
@@ -14,12 +16,13 @@ import { StudentActivityLoader } from "./student-activity-loader";
  * responses come only from `activities/views/student-view.ts`. Since 013 an
  * EXERCISE is practiced in numbered attempts: retry, conclusion and the concluded attempt. Since 015
  * it exports the `AnswerSaveGuard` hook that `attempt-integrity` registers and the
- * `StudentActivityLoader` the 015 student routes start from (research F1).
+ * `StudentActivityLoader` the 015 student routes start from (research F1). Since 023 a group work's
+ * routes (`group-work.*`): the candidates now, the inclusion and the editing with the later stories.
  */
 @Module({
   imports: [ActivitiesModule, RankingModule],
-  controllers: [MyActivitiesController, AttemptsController, ExerciseAttemptsController],
-  providers: [StudentActivityLoader, MyActivitiesService, AttemptsService, AnswerSaveGuard],
+  controllers: [MyActivitiesController, AttemptsController, ExerciseAttemptsController, GroupWorkController],
+  providers: [StudentActivityLoader, MyActivitiesService, AttemptsService, AnswerSaveGuard, GroupWorkService],
   exports: [AnswerSaveGuard, StudentActivityLoader],
 })
 export class StudentActivitiesModule {}

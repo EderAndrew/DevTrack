@@ -40,7 +40,7 @@ import {
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import { createClassWithStudents, startAttempt } from "./activities";
+import { createActivity, createClassWithStudents, startAttempt } from "./activities";
 import { markPresent as markPresentIn } from "./attendance";
 import { createCodeExercise, createCodeWork, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { sendFeedback } from "./feedback";
@@ -1265,6 +1265,17 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const runLimit = t.config.rateLimit.codeRunsPerMinute;
   await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
   expect((await requestRun(runClient, runExercise.activity.id, runQuestionId, "print('de novo')")).status).toBe(429);
+
+  // 023/US2 — a student starts a group work with a classmate (`activity_attempt.started` with `group` and
+  // `memberCount`, `activity_group.created`, `activity_group.member_added`: ids and counts, never names).
+  const groupClass = await createClassWithStudents(t, runTeacher.id, { students: 2 });
+  const { activity: groupWork } = await createActivity(t, groupClass.schoolClass, { type: "ASSIGNMENT", releaseMode: "PRESENT_ONLY", groupSize: 3 });
+  const groupLeader = groupClass.students[0]!;
+  const groupMember = groupClass.students[1]!;
+  expect((await markPresentIn(runTeacherClient, groupClass.schoolClass.id, groupWork.id, [groupLeader.id, groupMember.id])).status).toBe(200);
+  const groupLeaderClient = api(t, { cookie: await keepLoginAs(groupLeader) });
+  expect((await groupLeaderClient.get(`/api/me/activities/${groupWork.id}/group/candidates`)).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt`, { memberIds: [groupMember.id] })).status).toBe(200);
 
   // 020/US1 — the student sends a feedback to the platform (`student_feedback.submitted`), then passes the
   // limit of 5 in 24 h (`student_feedback.rate_limited`). The message and the origin path are content the

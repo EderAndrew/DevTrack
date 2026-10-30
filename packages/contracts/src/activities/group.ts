@@ -83,9 +83,10 @@ export const TeacherAttemptGroupSchema = z.strictObject({
 export type TeacherAttemptGroup = z.infer<typeof TeacherAttemptGroupSchema>;
 
 /** `POST /me/activities/:activityId/group/members`; the server checks the group's free slots. */
-export const AddGroupMembersRequestSchema = z.strictObject({
-  memberIds: z.array(UuidSchema).min(1).max(4).refine(hasNoRepeats, "DUPLICATE_MEMBER"),
-});
+/** The classmates chosen by the leader: 1–4 distinct ids; the server checks them against `groupSize` and the caller (U6). */
+export const GroupMemberIdsSchema = z.array(UuidSchema).min(1).max(4).refine(hasNoRepeats, "DUPLICATE_MEMBER");
+
+export const AddGroupMembersRequestSchema = z.strictObject({ memberIds: GroupMemberIdsSchema });
 export type AddGroupMembersRequest = z.infer<typeof AddGroupMembersRequestSchema>;
 
 /** `POST /me/activities/:activityId/group/editing`. */

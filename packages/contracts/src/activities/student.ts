@@ -24,7 +24,7 @@ import {
   StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
-import { GroupSizeSchema } from "./group.js";
+import { GroupMemberIdsSchema, GroupSizeSchema, StudentGroupSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
@@ -151,6 +151,8 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
    * the detail: the list's summary stays as before 023 (SC-007).
    */
   groupSize: GroupSizeSchema.nullable(),
+  /** 023: the caller's group in this activity (FR-009), or null (individual, alone, or not started). */
+  group: StudentGroupSchema.nullable(),
   instructions: z.string().nullable(),
   serverNow: IsoDateTimeSchema,
   /** In position order. */
@@ -207,9 +209,17 @@ export type StudentActivityPage = z.infer<typeof StudentActivityPageSchema>;
 
 /**
  * `POST /me/activities/:activityId/attempt`: `{}` for a work or exercises; an EXAM requires the
- * acceptance of its rules (018 research T13; the service answers 400 without it).
+ * acceptance of its rules (018 research T13; the service answers 400 without it). Since 023 a group
+ * work takes either the chosen classmates (`memberIds`) or "Continuar sozinho" (`alone`), never both;
+ * the service checks them against the activity's format (400 otherwise, research U6).
  */
-export const StartAttemptRequestSchema = z.strictObject({ acceptRules: z.literal(true).optional() });
+export const StartAttemptRequestSchema = z
+  .strictObject({
+    acceptRules: z.literal(true).optional(),
+    memberIds: GroupMemberIdsSchema.optional(),
+    alone: z.literal(true).optional(),
+  })
+  .refine((body) => body.memberIds === undefined || body.alone === undefined, { message: "MEMBERS_OR_ALONE" });
 export type StartAttemptRequest = z.infer<typeof StartAttemptRequestSchema>;
 
 const distinctQuestions = (items: readonly { questionId: string }[]) => new Set(items.map((item) => item.questionId)).size === items.length;
