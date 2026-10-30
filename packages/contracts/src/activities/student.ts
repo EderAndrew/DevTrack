@@ -24,7 +24,7 @@ import {
   StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
-import { GroupMemberIdsSchema, GroupSizeSchema, StudentGroupSchema } from "./group.js";
+import { GroupMemberIdsSchema, GroupPersonSchema, GroupSizeSchema, StudentGroupSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
@@ -93,6 +93,8 @@ export const StudentActivitySummarySchema = z.strictObject({
    * whether an answer of it waits for the teacher ("Pontos aguardando correção").
    */
   points: z.strictObject({ possible: PointsSchema, earned: PointsSchema, awaitingCorrection: z.boolean() }).nullable(),
+  /** 023: "Em grupo" with this maximum, only on a group work; an individual one's summary reads as before (SC-007). */
+  groupSize: GroupSizeSchema.optional(),
 });
 export type StudentActivitySummary = z.infer<typeof StudentActivitySummarySchema>;
 
@@ -115,7 +117,13 @@ export const StudentDashboardSchema = z.strictObject({
 });
 export type StudentDashboard = z.infer<typeof StudentDashboardSchema>;
 
-export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answer: AnswerSchema, revision: z.int().min(1) });
+export const StudentAnswerSchema = z.strictObject({
+  questionId: UuidSchema,
+  answer: AnswerSchema,
+  revision: z.int().min(1),
+  /** 023: who saved it last, only on a group's attempt (an individual attempt's answers read as before, SC-007). */
+  savedBy: GroupPersonSchema.optional(),
+});
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
 /**
@@ -147,8 +155,8 @@ export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result:
   /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
   aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
   /**
-   * 023: "Em grupo" with this maximum (leader included), or null for an individual activity. Only on
-   * the detail: the list's summary stays as before 023 (SC-007).
+   * 023: "Em grupo" with this maximum (leader included), or null for an individual activity. The
+   * list's summary carries it only for a group work (US3-3), so an individual one reads as before (SC-007).
    */
   groupSize: GroupSizeSchema.nullable(),
   /** 023: the caller's group in this activity (FR-009), or null (individual, alone, or not started). */

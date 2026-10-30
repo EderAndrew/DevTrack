@@ -26,7 +26,8 @@ export class GroupWorkService {
   /**
    * FR-004, FR-005: the eligible classmates by name and the slots the caller may still fill — `groupSize
    * − 1` before the start, `groupSize − participants` for the leader of a group. 404 out of context or on a
-   * work that isn't in group; `409 GROUP_ALREADY_JOINED` for a student who started alone or is a member.
+   * work that isn't in group; `409 GROUP_ALREADY_JOINED` for a student who started alone or is a member; the
+   * 012 START rule's 409 (`ACTIVITY_CLOSED`, `DEADLINE_PASSED`…) when a start would be refused now.
    */
   async candidates(studentUserId: string, activityId: string, requestId: string | null): Promise<GroupCandidates> {
     const now = this.clock.now();
@@ -52,6 +53,8 @@ export class GroupWorkService {
       if (context.participation.leaderId !== studentUserId) throw new AppException("GROUP_ALREADY_JOINED");
       freeSlots = Math.max(0, context.groupSize - context.participation.participantCount);
     }
+    // FR-005: no list on a work that no longer accepts a start (closed, deadline passed under REJECT…).
+    if (context.startRefusal) throw new AppException(context.startRefusal);
     return { groupSize: context.groupSize, freeSlots, candidates: await eligibleClassmates(this.prisma, activityId, studentUserId) };
   }
 }

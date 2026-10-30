@@ -238,14 +238,16 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T019 [P] [US3] API `apps/api/test/integration/023-us3-members.spec.ts`: `023/US3-1` B lê a atividade:
+- [X] T019 [P] [US3] API `apps/api/test/integration/023-us3-members.spec.ts`: `023/US3-1` B lê a atividade:
   `group.addedBy` = A, `members`, `editor`, `myRole: "MEMBER"`, `canEdit: false`, a tentativa e as respostas do grupo
   com `savedBy`; `023/US3-2` B tenta iniciar (com ou sem membros, de duas abas ao mesmo tempo) → 200 com a tentativa
   do grupo, nada novo; `GET …/group/candidates` por B → `409 GROUP_ALREADY_JOINED`; `023/US3-3` `GET /me/activities`
   de B traz o trabalho com a situação da tentativa do grupo e `groupSize`; `023/FR-010` um aluno fora do grupo (da
   turma ou de outra) recebe 404 em toda rota da tentativa do grupo; `023/FR-009` o painel da sala do professor (016)
-  e a lista de entregas mostram B com a situação da tentativa do grupo, nunca "Não iniciado".
-- [ ] T020 [P] [US3] Web `apps/web/features/group-work/components/group-notice.test.tsx` e o teste da página da
+  e a lista de entregas mostram B com a situação da tentativa do grupo, nunca "Não iniciado"; `023/FR-005` (achado
+  `info` da auditoria da US2) `GET …/group/candidates` num trabalho que não aceita mais início (encerrado, ou prazo
+  vencido sem entrega atrasada) → `409` com o código da recusa do início (ex.: `ACTIVITY_CLOSED`), sem a lista.
+- [X] T020 [P] [US3] Web `apps/web/features/group-work/components/group-notice.test.tsx` e o teste da página da
   atividade: `023/US3-1` "Você está no grupo de <líder> neste trabalho", integrantes, "Editando agora" num
   `role="status"`, questões só leitura com "A edição está com <nome>."; `023/US3-3` "Em grupo" em "Minhas atividades";
   `023/US3-4 023/SC-004` com timers falsos, a página relê a atividade a cada 5 s só enquanto visível e mostra a
@@ -253,9 +255,10 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] API: `savedBy` nas respostas da visão do aluno e as regras de `GROUP_ALREADY_JOINED`/início
-  idempotente em `attempts.service.ts` e `group-work.service.ts`. T019 fica verde.
-- [ ] T022 [US3] Web: `group-notice.tsx` e `group-bar.tsx` (parte de leitura) em `features/group-work`; `readOnly` em
+- [X] T021 [US3] API: `savedBy` nas respostas da visão do aluno e as regras de `GROUP_ALREADY_JOINED`/início
+  idempotente em `attempts.service.ts` e `group-work.service.ts`; a lista de candidatos passa pela regra START da 012
+  (`decideOperation`) e recusa quando o início seria recusado (achado da auditoria da US2). T019 fica verde.
+- [X] T022 [US3] Web: `group-notice.tsx` e `group-bar.tsx` (parte de leitura) em `features/group-work`; `readOnly` em
   `features/student-activities/components/activity-answering.tsx` (também na página de foco); o polling de
   `GROUP_POLL_MS = 5000` no hook da atividade, só com a página visível; "Em grupo" na lista. T020 fica verde; a US3
   sai de `pending` e `023/SC-004` também.

@@ -8,6 +8,7 @@ import { type ActivityFacts, assignmentSchedule, examTiming } from "../activitie
 import { endsAt, type ExamTiming, startDeadline } from "../activities/status/exam-time";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import { examEndOf, pauseTime } from "../activities/status/pause-time";
+import { decideOperation, type OperationRefusal } from "../activities/status/operations";
 import type { ActivityQuestionRow } from "../activities/views/rows";
 import { canEdit, groupRoles } from "../activities/group/group-roles";
 import type {
@@ -169,6 +170,9 @@ export class StudentActivityLoader {
     const exam = activity.type === "EXAM" ? await this.examOf(activity, attempt) : null;
     const hidden = pause !== null || exam?.hold != null;
     const answers = attempt && !hidden ? await this.answersOf(attempt.id) : [];
+    const group = attempt && activity.groupSize !== null ? await this.groupOf(studentUserId, attempt.id, activity) : null;
+    // 023: on a group's attempt each answer says who saved it — a participant, so one of the members.
+    const savedBy = group && new Map(group.members.map((member) => [member.id, member]));
     // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     // 016/FR-021: the own pauses, only after the submission; each end derived with the server's now.
@@ -194,14 +198,14 @@ export class StudentActivityLoader {
       pause,
       pauses: pauses.map(({ releasedAt, ...pause }) => ({ ...pause, endedAt: pauseTime({ ...pause, releasedAt }, pauseEnd, now).endedAt })),
       attempt: attempt
-        ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
+        ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map((row) => toStudentAnswer(row, savedBy)) }
         : null,
       completedAttempts: attempts
         .flatMap((row) => (row.completedAt ? [{ number: row.number, completedAt: row.completedAt }] : []))
         .sort((a, b) => b.number - a.number),
       lastResult: concluded ? await this.concludedInput(concluded) : null,
       exam,
-      group: attempt && activity.groupSize !== null ? await this.groupOf(studentUserId, attempt.id, activity) : null,
+      group,
     };
   }
 
@@ -214,12 +218,28 @@ export class StudentActivityLoader {
     studentUserId: string,
     activityId: string,
     now: Date,
-  ): Promise<{ groupSize: number | null; participation: { leaderId: string | null; participantCount: number } | null } | null> {
+  ): Promise<{
+    groupSize: number | null;
+    /** 023/FR-005: the 012 START rule's refusal on this work (closed, deadline passed under REJECT…), or null. */
+    startRefusal: OperationRefusal | null;
+    participation: { leaderId: string | null; participantCount: number } | null;
+  } | null> {
     const activity = await this.prisma.classActivity.findFirst({
       where: { id: activityId, type: "ASSIGNMENT", ...visibleTo(studentUserId, now) },
-      select: { groupSize: true },
+      select: { groupSize: true, status: true, deadline: true, latePolicy: true, resultReleasedAt: true, schoolClass: { select: { status: true } } },
     });
     if (!activity) return null;
+    // Whether a start without an attempt would be accepted now: the list is for a start or an inclusion.
+    const start = decideOperation("START", {
+      type: "ASSIGNMENT",
+      activityStatus: activity.status,
+      ...assignmentSchedule(activity),
+      classActive: activity.schoolClass.status === "ACTIVE",
+      attempt: null,
+      submission: null,
+      released: activity.resultReleasedAt !== null,
+      now,
+    });
     const attempt = await this.prisma.activityAttempt.findFirst({
       where: { activityId, participants: { some: { studentUserId } } },
       orderBy: { number: "desc" },
@@ -227,6 +247,7 @@ export class StudentActivityLoader {
     });
     return {
       groupSize: activity.groupSize,
+      startRefusal: start.kind === "REFUSED" ? start.code : null,
       participation: attempt ? { leaderId: attempt.group?.leaderUserId ?? null, participantCount: attempt._count.participants } : null,
     };
   }
@@ -361,7 +382,7 @@ export class StudentActivityLoader {
   private answersOf(attemptId: string) {
     return this.prisma.activityAnswer.findMany({
       where: { attemptId },
-      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
+      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true, savedByUserId: true },
     });
   }
 
@@ -603,8 +624,10 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
 }
 
 /** A saved answer with its revision (research P8). */
-const toStudentAnswer = (row: AnswerRow & { questionId: string; revision: number }): StudentAnswer => ({
-  questionId: row.questionId,
-  answer: answerOfRow(row),
-  revision: row.revision,
-});
+const toStudentAnswer = (
+  row: AnswerRow & { questionId: string; revision: number; savedByUserId: string },
+  savedBy: ReadonlyMap<string, { id: string; name: string }> | null,
+): StudentAnswer => {
+  const by = savedBy?.get(row.savedByUserId);
+  return { questionId: row.questionId, answer: answerOfRow(row), revision: row.revision, ...(by ? { savedBy: by } : {}) };
+};

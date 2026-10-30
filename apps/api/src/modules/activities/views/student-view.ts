@@ -207,6 +207,8 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
           }
         : null,
     points: input.points && { ...input.points },
+    // 023/US3-3: "Em grupo" in the list; an individual work's summary has no such key (SC-007).
+    ...(input.groupSize !== null ? { groupSize: input.groupSize } : {}),
   };
 }
 
@@ -245,7 +247,15 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
           number: input.attempt.number,
           startedAt: input.attempt.startedAt.toISOString(),
           lastSavedAt: input.attempt.lastSavedAt?.toISOString() ?? null,
-          answers: paused ? [] : input.attempt.answers.map((answer) => ({ questionId: answer.questionId, answer: answer.answer, revision: answer.revision })),
+          answers: paused
+            ? []
+            : input.attempt.answers.map((answer) => ({
+                questionId: answer.questionId,
+                answer: answer.answer,
+                revision: answer.revision,
+                // 023 (contracts/http-api.md): who saved it, only id and name, only on a group's attempt.
+                ...(answer.savedBy ? { savedBy: { id: answer.savedBy.id, name: answer.savedBy.name } } : {}),
+              })),
         }
       : null,
     submission: input.submission

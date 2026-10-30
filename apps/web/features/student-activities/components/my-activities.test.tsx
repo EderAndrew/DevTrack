@@ -137,3 +137,18 @@ describe("013/US2 Minhas atividades — Exercício com pontos", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("023/US3 Minhas atividades num trabalho em grupo", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("023/US3-3 o trabalho em grupo mostra \"Em grupo\" com a situação da tentativa do grupo; o individual, não", async () => {
+    const group = summary({ id: "bbbbbbbb-0000-4000-8000-000000000071", title: "Trabalho em grupo", type: "ASSIGNMENT", status: "IN_PROGRESS", groupSize: 3 });
+    const alone = summary({ id: "bbbbbbbb-0000-4000-8000-000000000072", title: "Trabalho individual", type: "ASSIGNMENT", status: "IN_PROGRESS" });
+    setup({ "GET /api/me/activities": json(200, { items: [group, alone], nextCursor: null }) });
+    const groupCard = (await screen.findByRole("heading", { name: "Trabalho em grupo" })).closest("article") as HTMLElement;
+    expect(within(groupCard).getByText("Em grupo")).toBeTruthy();
+    expect(within(groupCard).getByText("Em andamento")).toBeTruthy();
+    const aloneCard = screen.getByRole("heading", { name: "Trabalho individual" }).closest("article") as HTMLElement;
+    expect(within(aloneCard).queryByText("Em grupo")).toBeNull();
+  });
+});

@@ -31,10 +31,13 @@ import { ControlledStart } from "@/features/controlled-attempt/components/contro
 import { ExamEndNotice, ExamEntry } from "@/features/exam-attempt/components/rules-screen";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
+import { GroupBar } from "@/features/group-work/components/group-bar";
+import { GroupNotice } from "@/features/group-work/components/group-notice";
 import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
+import { editingWith } from "@/features/group-work/schemas/group-work";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
-import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
+import { readsGroupAttempt, useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   emptyAnswer,
@@ -225,13 +228,18 @@ export function AnsweringSession({
   }
   return (
     <>
+      {/* 023/US3: the group's notice and bar above the questions, here and on the focus page. */}
+      {activity.group ? <GroupNotice group={activity.group} /> : null}
+      {activity.group ? <GroupBar group={activity.group} /> : null}
       {changedElsewhere && activity.submission === null ? (
         <Alert variant="warning">
           <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
         </Alert>
       ) : null}
       <AttemptAnswering
-        key={`${generation}:${revisionsKey(activity)}`}
+        // A reader of a group's attempt keeps the screen (and the question) while the polling brings
+        // the editor's saves; anyone else starts a fresh screen on new revisions.
+        key={`${generation}:${readsGroupAttempt(activity) ? "leitura" : revisionsKey(activity)}`}
         activity={activity}
         userId={userId}
         controlled={controlled}
@@ -357,7 +365,12 @@ function AttemptAnswering({
   /** The attempt is paused now (the own exit, with its id, or a refused write): read the activity again. */
   onPaused: (pauseId?: string) => void;
 }) {
-  const editable = activity.canAnswer && activity.submission === null;
+  const open = activity.canAnswer && activity.submission === null;
+  // 023/FR-012: in a group only the effective editor writes; the others read the group's answers as the
+  // API last sent them (polled, US3-4), never a copy kept in this browser.
+  const readOnly = readsGroupAttempt(activity);
+  const editable = open && !readOnly;
+  const serverAnswers = new Map((activity.attempt?.answers ?? []).map((item) => [item.questionId, item.answer]));
   const answers = useAttemptAnswers({
     userId,
     activityId: activity.id,
@@ -371,7 +384,8 @@ function AttemptAnswering({
   const warning = useDeadlineWarning(activity.deadline, activity.serverNow, editable);
   const questions = activity.questions;
   const question = questions[index]!;
-  const answeredCount = questions.filter((item) => isAnswered(item, answers.answerOf(item.id))).length;
+  const answerOf = (questionId: string) => (readOnly ? (serverAnswers.get(questionId) ?? null) : answers.answerOf(questionId));
+  const answeredCount = questions.filter((item) => isAnswered(item, answerOf(item.id))).length;
   const refused = answers.error !== null && isRefusal(answers.error.status);
   // An Exercício is concluded, never submitted: no deadline, no grade, the answer key after (013/US2).
   const isExercise = activity.type === "EXERCISE";
@@ -383,7 +397,7 @@ function AttemptAnswering({
   const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
   // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007); in an exam only
   // the teacher pauses (018/FR-026).
-  const canExitRoom = editable && activity.type === "ASSIGNMENT";
+  const canExitRoom = open && activity.type === "ASSIGNMENT";
   const [exitingRoom, setExitingRoom] = useState(false);
   const declareExit = useDeclareExit(activity.id);
   // A save or submission refused because the attempt is paused (another device, the teacher): the
@@ -502,9 +516,14 @@ function AttemptAnswering({
           <AlertDescription>Suas respostas continuam na tela.</AlertDescription>
         </Alert>
       ) : null}
+      {readOnly && activity.group ? (
+        <Alert variant="info">
+          <AlertTitle>{editingWith(activity.group.editor.name)}</AlertTitle>
+        </Alert>
+      ) : null}
       <ExamProgress current={index + 1} total={questions.length} answered={answeredCount} />
       <QuestionNavigator
-        questions={questions.map((item) => ({ id: item.id, answered: isAnswered(item, answers.answerOf(item.id)) }))}
+        questions={questions.map((item) => ({ id: item.id, answered: isAnswered(item, answerOf(item.id)) }))}
         currentIndex={index}
         onSelect={goTo}
       />
@@ -513,7 +532,7 @@ function AttemptAnswering({
           number={index + 1}
           typeLabel={QUESTION_TYPE_LABELS[question.type]}
           valueLabel={valueLabel(question)}
-          answered={isAnswered(question, answers.answerOf(question.id))}
+          answered={isAnswered(question, answerOf(question.id))}
           headingId={`questao-${question.id}`}
           headingRef={heading}
         />
@@ -530,7 +549,7 @@ function AttemptAnswering({
             <AnswerArea
               key={question.id}
               question={question}
-              answer={answers.answerOf(question.id) ?? emptyAnswer(question)}
+              answer={answerOf(question.id) ?? emptyAnswer(question)}
               onChange={(answer) => answers.setAnswer(question.id, answer)}
               disabled={!editable}
               blockClipboard={Boolean(controlled?.blockClipboard) && editable}
@@ -550,7 +569,7 @@ function AttemptAnswering({
                   activityId={activity.id}
                   questionId={question.id}
                   execution={question.execution}
-                  sourceCode={sourceOf(answers.answerOf(question.id) ?? emptyAnswer(question))}
+                  sourceCode={sourceOf(answerOf(question.id) ?? emptyAnswer(question))}
                   publicTestCases={question.publicTestCases}
                 />
               </div>

@@ -37,7 +37,7 @@ TeacherAttemptGroup = {
 
 | Method & path | Permission | Change |
 |---|---|---|
-| `GET /me/activities`, `GET /me/activities/:activityId` | `atividades.proprias.visualizar` | `StudentActivity` gains `groupSize: number \| null` and `group: StudentGroup \| null` (the caller's group in this activity). The attempt and its answers are the group's for every member; each answer gains `savedBy: { id, name }`. The result (012) is served to every participant under the 012 rules. |
+| `GET /me/activities`, `GET /me/activities/:activityId` | `atividades.proprias.visualizar` | `StudentActivity` gains `groupSize: number \| null` and `group: StudentGroup \| null` (the caller's group in this activity); the list's `StudentActivitySummary` gains `groupSize` only on a group work (key absent on an individual one, SC-007). The attempt and its answers are the group's for every member; on a group's attempt each answer gains `savedBy: { id, name }` (absent on an individual attempt). The result (012) is served to every participant under the 012 rules. |
 | `POST /me/activities/:activityId/attempt` | `atividades.proprias.responder` | Group work: body `{ memberIds: uuid[] }` (1 to `groupSize − 1` distinct ids) or `{ alone: true }`; an empty body on a group work → `400`; either field on an individual work → `400`. Already a participant of an attempt 1 → `200` with it, nothing created. Unavailable members → `409 GROUP_MEMBERS_UNAVAILABLE` `{ unavailableIds }`, nothing created. |
 | `PUT /me/activities/:activityId/attempt/answers` | `atividades.proprias.responder` | In a group: only the effective editor; otherwise `409 GROUP_NOT_EDITOR`. |
 | `POST /me/activities/:activityId/attempt/submit` | `atividades.proprias.responder` | In a group: only the leader, holding the editing; otherwise `409 GROUP_NOT_LEADER` / `409 GROUP_NOT_EDITOR`. |
@@ -63,7 +63,7 @@ StudentGroup = {
 
 | Method & path | Permission | Body | Response | Errors |
 |---|---|---|---|---|
-| `GET /me/activities/:activityId/group/candidates` | `atividades.proprias.visualizar` | — | `GroupCandidates` | 404 (not a group work, not visible to the caller); `409 GROUP_ALREADY_JOINED` (the caller already started alone or is in a group and is not its leader) |
+| `GET /me/activities/:activityId/group/candidates` | `atividades.proprias.visualizar` | — | `GroupCandidates` | 404 (not a group work, not visible to the caller); `409 GROUP_ALREADY_JOINED` (the caller already started alone or is in a group and is not its leader); the 012 START refusal (`409 ACTIVITY_CLOSED`, `DEADLINE_PASSED`, `CLASS_NOT_ACTIVE`) when a start would be refused now (FR-005) |
 | `POST /me/activities/:activityId/group/members` | `atividades.proprias.responder` | `{ memberIds: uuid[] }` (1 to `freeSlots`) | `StudentActivity` | `409 GROUP_NOT_LEADER`; `409 GROUP_FULL`; `409 GROUP_MEMBERS_UNAVAILABLE`; `409 INVALID_STATE_TRANSITION` (submitted, closed, cancelled) |
 | `POST /me/activities/:activityId/group/editing` | `atividades.proprias.responder` | `{ action: "HAND", toUserId }` \| `{ action: "TAKE_BACK" }` \| `{ action: "RETURN" }` | `StudentActivity` | `409 GROUP_NOT_LEADER` (HAND, TAKE_BACK by a member); `409 GROUP_NOT_EDITOR` (RETURN by someone not editing, or by the leader); `422 GROUP_MEMBER_NOT_AVAILABLE` (HAND to a paused or inactive member, or to someone outside the group); `409 INVALID_STATE_TRANSITION`; `409 ATTEMPT_PAUSED` (the caller is paused) |
 

@@ -77,10 +77,9 @@ describe("023/US1 professor aplica um Trabalho em grupo", () => {
     const list = (await client.get(base())).body as TeacherActivityList;
     expect(list.items.map((item) => [item.id, item.groupSize])).toEqual([[activity.id, 4]]);
 
-    // The student's list keeps the 012 summary (SC-007); the detail carries the format.
+    // The student's list says "Em grupo" (023/US3-3; an individual work's summary has no such key, SC-007).
     const page = (await studentClient.get("/api/me/activities")).body as StudentActivityPage;
-    expect(page.items.map((item) => item.id)).toEqual([activity.id]);
-    expect(page.items[0]).not.toHaveProperty("groupSize");
+    expect(page.items.map((item) => [item.id, item.groupSize])).toEqual([[activity.id, 4]]);
     expect(((await studentClient.get(`/api/me/activities/${activity.id}`)).body as StudentActivity).groupSize).toBe(4);
   });
 

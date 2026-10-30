@@ -1,12 +1,13 @@
 "use client";
 
 import type { StudentActivitySummary } from "@repo/contracts";
-import { AlarmClock, MessageSquareText } from "lucide-react";
+import { AlarmClock, MessageSquareText, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
+import { IN_GROUP } from "@/features/group-work/schemas/group-work";
 import {
   ACTIVITY_TYPE_LABELS,
   STATUS_VARIANTS,
@@ -48,7 +49,16 @@ export function ActivityCard({ item, detailed = false, headingLevel: Heading = "
         <Heading id={headingId} className="m-0 text-h3">
           {item.title}
         </Heading>
-        <UrgentBadge item={item} />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 023/US3-3: a group work, for every member, with the group attempt's situation below. */}
+          {item.groupSize !== undefined ? (
+            <Badge variant="neutral">
+              <Users aria-hidden="true" />
+              {IN_GROUP}
+            </Badge>
+          ) : null}
+          <UrgentBadge item={item} />
+        </div>
       </div>
       {detailed && item.summary ? <p className="m-0 text-body-sm text-text-secondary">{item.summary}</p> : null}
       <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-body-sm">

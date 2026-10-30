@@ -21,7 +21,9 @@ export type GroupEventKind = z.infer<typeof GroupEventKindSchema>;
 export const GroupEventReasonSchema = z.enum(["PAUSED", "ACCESS_LOST"]);
 export type GroupEventReason = z.infer<typeof GroupEventReasonSchema>;
 
-const GroupPersonSchema = z.strictObject({ id: UuidSchema, name: z.string() });
+/** A participant as another participant sees them: only id and name (FR-005, FR-009). */
+export const GroupPersonSchema = z.strictObject({ id: UuidSchema, name: z.string() });
+export type GroupPerson = z.infer<typeof GroupPersonSchema>;
 const hasNoRepeats = (ids: readonly string[]) => new Set(ids).size === ids.length;
 
 /** The caller's group in an activity, inside `StudentActivity.group`. */
