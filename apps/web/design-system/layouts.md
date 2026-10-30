@@ -11,6 +11,11 @@ por causa do layout: os grupos de rota só escolhem a moldura.
 | `app/(catalog)` | moldura simples | `/design-system` (fora de produção) |
 | `app/(auth)`, `app/(public)` | molduras próprias | entrar, esqueci a senha, links de e-mail |
 
+O tema (022) não é de nenhum layout: o layout raiz (`app/layout.tsx`) lê `GET /me` e põe
+`<html data-theme="light">` quando `me.theme` é `LIGHT`, e `dark` com `DARK` ou sem sessão. Todas as
+molduras acima, a tela de foco e os portais (diálogos, menus, avisos) seguem esse atributo; o catálogo tem
+um seletor "Tema do catálogo" que só o troca durante a visita.
+
 O layout de avaliação (Exam Mode) é só contrato nesta fase e será construído com a feature
 de avaliações.
 

@@ -440,3 +440,7 @@ What the code alone doesn't make obvious:
   review, the teacher's reads) runs first in its own transaction. `exam-sessions` grades only through
   `activities/submission` and calls no AI. The occurrence counting (`attempt-integrity/exam-occurrences.ts`) runs in
   `FocusEventsService`'s batch transaction under the attempt's `FOR UPDATE`.
+- Preferences (022): `PATCH /me/preferences` (`auth/me.controller.ts`, `MeService`) takes only `{ theme }`
+  (`DARK`/`LIGHT`, strict body) and writes `users.theme` of the session's user; session access like `GET /me`
+  (unverified accounts too), no permission, no audit event, and a repeat of the same value does not rewrite the row.
+  `GET /me` and the login's `user` carry `theme`.

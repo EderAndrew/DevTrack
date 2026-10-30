@@ -163,3 +163,63 @@ describe("022/US3-6 022/FR-013 cores forçadas iguais nos dois temas", () => {
     expect(rule).not.toMatch(/data-theme/);
   });
 });
+
+/**
+ * The dark theme's color values before 022, copied from `tokens.css` on `main` (005 amendment
+ * 2026-10-22, Vice City) when Phase 6 started. A change here is a change to the dark theme (SC-005).
+ */
+const DARK_BEFORE_022: Tokens = {
+  "--background": "#0b0f2b",
+  "--surface": "#151a3d",
+  "--foreground": "#f2eeff",
+  "--text-secondary": "#aaa6d4",
+  "--primary": "#ff5ca8",
+  "--primary-foreground": "#0b0f2b",
+  "--primary-hover": "#ff85be",
+  "--primary-strong": "#ffc2de",
+  "--primary-subtle": "#3d1747",
+  "--brand-secondary": "#00f0ff",
+  "--border": "#2b305e",
+  "--border-control": "#807cb8",
+  "--ring": "#00f0ff",
+  "--success": "#4ade9a",
+  "--success-text": "#4ade9a",
+  "--success-surface": "#0b2e26",
+  "--warning": "#ffb86b",
+  "--warning-text": "#ffb86b",
+  "--warning-surface": "#3a2410",
+  "--danger": "#ff6b6b",
+  "--danger-text": "#ff7b7b",
+  "--danger-surface": "#3d0e1a",
+  "--danger-foreground": "#0b0f2b",
+  "--info": "#00f0ff",
+  "--info-text": "#00f0ff",
+  "--info-surface": "#062c3d",
+  "--disabled-bg": "#1d2249",
+  "--disabled-fg": "#9e9ac8",
+  "--disabled-border": "#2b305e",
+  "--overlay": "rgb(5 7 20 / 0.7)",
+  "--syntax-keyword": "#d29bff",
+  "--syntax-string": "#7cf0b0",
+  "--syntax-number": "#ffb86b",
+  "--syntax-comment": "#9e9ac8",
+  "--syntax-type": "#00f0ff",
+  "--syntax-function": "#ff8fc4",
+  "--syntax-operator": "#ff8a80",
+  "--syntax-punctuation": "#c8c4ea",
+  "--chart-1": "#a66bff",
+};
+
+describe("022/US4 o tema escuro continua igual", () => {
+  it("022/US4-1 022/FR-002 022/SC-005 o bloco :root tem, token a token, os valores de cor de antes da 022", () => {
+    expect(Object.fromEntries(Object.entries(DARK).filter(([, value]) => isColor(value)))).toEqual(DARK_BEFORE_022);
+  });
+
+  it("022/US4-2 nenhuma regra @media (prefers-color-scheme…) em tokens.css nem em globals.css", () => {
+    const globals = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+    expect(globals.length).toBeGreaterThan(0);
+    for (const [file, source] of [["tokens.css", css], ["globals.css", globals]] as const) {
+      expect(source, file).not.toMatch(/@media[^{]*prefers-color-scheme/);
+    }
+  });
+});

@@ -6,7 +6,7 @@ decoração.
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [tokens.md](./tokens.md) | cada token de `tokens.css`, valores do tema único (escuro, Vice City) e uso permitido |
+| [tokens.md](./tokens.md) | cada token de `tokens.css`, valores dos dois temas (escuro, Vice City, padrão; claro, opcional) e uso permitido |
 | [components.md](./components.md) | cada componente fundamental: variantes, estados, quando usar, quando não usar, exemplo e acessibilidade |
 | [layouts.md](./layouts.md) | AppShell e layout do aluno, e como a tela de conta escolhe entre eles |
 | [exam-mode.md](./exam-mode.md) | contrato visual do modo avaliação e dos componentes de avaliação em `components/ui/assessment` (construídos pelas fases 012, 015 e 018) |
@@ -51,7 +51,10 @@ Cada cor semântica tem três papéis: a cor base para ícones, bordas e gráfic
 (`--success`), a variante de texto que atinge 4,5:1 (`--success-text`) e o fundo suave dos
 avisos e selos (`--success-surface`). Texto nunca usa a cor base. `--border` é só para
 divisórias decorativas; campos, caixas, opções e o interruptor usam `--border-control`
-(3:1). Há um só tema, escuro, com a paleta Vice City; os pares de contraste estão em
+(3:1). Há dois temas: o escuro, padrão, com a paleta Vice City, e o claro, opcional (022), que o
+usuário escolhe em "Meu perfil" e fica guardado na conta. O tema vem do layout raiz
+(`app/layout.tsx` lê `GET /me` e põe `<html data-theme>`; sem sessão, escuro), nunca da preferência do
+sistema; trocar de tema muda só os valores dos tokens. Os pares de contraste dos dois temas estão em
 `test/contrast.test.ts`.
 
 ## Regras contra UI genérica

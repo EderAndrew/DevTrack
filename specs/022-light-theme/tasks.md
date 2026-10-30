@@ -232,27 +232,27 @@ e com os pares de contraste verdes.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T022 [P] [US4] Em `apps/web/test/contrast.test.ts`: `022/US4-1 022/FR-002 022/SC-005` o bloco `:root` é
+- [X] T022 [P] [US4] Em `apps/web/test/contrast.test.ts`: `022/US4-1 022/FR-002 022/SC-005` o bloco `:root` é
   igual, token a token, a uma cópia literal dos valores de cor de antes da 022 (copiada do `tokens.css` de `main` no
   início da fase); `022/US4-2` nenhuma regra `@media (prefers-color-scheme…)` em `tokens.css` nem em `globals.css`.
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] Nenhum código novo esperado; se T022 falhar, desfazer a mudança no bloco escuro. A US4 sai de
+- [X] T023 [US4] Nenhum código novo esperado; se T022 falhar, desfazer a mudança no bloco escuro. A US4 sai de
   `pending`.
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T024 E2E `apps/web/e2e/light-theme.spec.ts` (quickstart):
+- [X] T024 E2E `apps/web/e2e/light-theme.spec.ts` (quickstart):
   - `022/US1-2` "Claro" em "Meu perfil" muda `<html data-theme>` sem navegação;
   - `022/SC-003` recarregar: o HTML da resposta já traz `data-theme="light"`;
   - `022/SC-004` outro contexto do navegador, login → primeira tela clara;
   - `022/SC-007` sair → `/entrar` com `data-theme="dark"`;
   - `022/US2-3` outra conta no mesmo contexto → escura.
   Todos os SC saem de `pending`, que fica vazio.
-- [ ] T025 [P] Documentação:
+- [X] T025 [P] Documentação:
   - `specs/005-design-system/spec.md` FR-013: emenda 2026-10-29 ("tema escuro padrão e tema claro opcional, escolhido
     pelo usuário em Meu perfil (022)");
   - `apps/web/design-system/tokens.md`: os dois temas, a tabela de valores claros com a cor de origem (Z6);

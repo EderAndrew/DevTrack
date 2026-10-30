@@ -360,9 +360,10 @@ as verificações falham apontando o arquivo e a linha; remover e conferir que p
   já adotada pelo projeto), com espessura e tamanhos oficiais; ícones não substituem
   rótulos importantes, e ícones sem texto de significado não evidente DEVEM ter nome
   acessível e dica.
-- **FR-013** (emenda 2026-10-22): Os tokens DEVEM definir um tema único, escuro, com a paleta
-  Vice City, que não muda com a preferência do sistema, com os requisitos de contraste da FR-003;
-  trocar a paleta muda só valores de tokens, sem mudar componentes.
+- **FR-013** (emenda 2026-10-22; emenda 2026-10-29, 022): Os tokens DEVEM definir um tema escuro padrão,
+  com a paleta Vice City, e um tema claro opcional, escolhido pelo usuário em "Meu perfil" (022) e
+  guardado na conta; nenhum dos dois muda com a preferência do sistema, ambos com os requisitos de
+  contraste da FR-003; trocar a paleta ou o tema muda só valores de tokens, sem mudar componentes.
 
 **Componentes fundamentais**
 
