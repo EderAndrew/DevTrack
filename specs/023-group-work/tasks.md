@@ -81,7 +81,7 @@ eles; as features antigas continuam iguais.
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] `apps/api/test/integration/023-schema.spec.ts` (data-model.md), escrito antes da migração:
+- [X] T003 [P] `apps/api/test/integration/023-schema.spec.ts` (data-model.md), escrito antes da migração:
   - `023/FR-001` `group_size` aceita NULL e 2–5, recusa 1 e 6, recusa não NULL em EXERCISE, EXAM e em ASSIGNMENT
     `ALL_ENROLLED`; muda antes da primeira tentativa e é recusado depois (trigger);
   - `023/FR-008` `attempt_participants`: o dono de toda tentativa nova tem a sua linha; `UNIQUE (activity_id,
@@ -100,7 +100,7 @@ eles; as features antigas continuam iguais.
   - backfill: numa cópia (esquema de rascunho, como `013-migration`) com tentativas, respostas, entregas, eventos,
     ajudas, pausas e execuções de 012–021, a migração cria um participante por tentativa, preenche
     `saved_by_user_id`/`submitted_by_user_id` e nenhuma linha antiga fica inválida.
-- [ ] T004 [P] `apps/api/test/group-work-boundary.spec.ts` (research U5), que deve falhar antes da T007: nos módulos
+- [X] T004 [P] `apps/api/test/group-work-boundary.spec.ts` (research U5), que deve falhar antes da T007: nos módulos
   `student-activities`, `attempt-integrity`, `work-help`, `attendance`, `code-runs`, `exam-sessions` e em
   `activities/{exam-settlement,roster,attempts-review.service}.ts`, nenhuma consulta que procura "a tentativa de um
   aluno" (do lado do aluno ou do professor) filtra `activity_attempts` por `student_user_id` (só pela junção com
@@ -110,7 +110,7 @@ eles; as features antigas continuam iguais.
 
 ### Implementation for Foundational
 
-- [ ] T005 Migração `apps/api/prisma/migrations/<ts>_group_work/migration.sql` + `schema.prisma` (data-model.md,
+- [X] T005 Migração `apps/api/prisma/migrations/<ts>_group_work/migration.sql` + `schema.prisma` (data-model.md,
   research U2–U4, U8, U10): `class_activities.group_size` com as CHECKs e o trigger de congelamento ampliado; enums
   `attempt_group_event_kind`/`attempt_group_event_reason`; tabelas `attempt_participants` (com o backfill de um
   participante por tentativa existente), `attempt_groups`, `attempt_group_events`, `activity_answer_saves`; colunas
@@ -122,10 +122,10 @@ eles; as features antigas continuam iguais.
   (`AttemptParticipant`, `AttemptGroup`, `AttemptGroupEvent`, `ActivityAnswerSave`, com o comentário "023
   (specs/023-group-work/data-model.md) — a group shares the attempt; who takes part, who edits and who saved"). T003
   fica verde.
-- [ ] T006 O início de toda tentativa grava o participante dono na mesma transação: `student-activities/attempts.service.ts`
+- [X] T006 O início de toda tentativa grava o participante dono na mesma transação: `student-activities/attempts.service.ts`
   (`start`, e a tentativa n do `retry` da 013) e qualquer outro `INSERT` em `activity_attempts` do código de produção
   e de `test/helpers/activities.ts` (`createAttemptRow`, `createActivity`) e `test/helpers/code-runs.ts`.
-- [ ] T007 Consultas pelos participantes (research U5), cada módulo na sua própria consulta escopada:
+- [X] T007 Consultas pelos participantes (research U5), cada módulo na sua própria consulta escopada:
   `student-activities/{attempts.service.ts (findAttempt, lockContext), student-activity-loader.ts,
   my-activities.service.ts}`, `attempt-integrity/*` (o `FocusEventsService` e as leituras próprias),
   `work-help/work-help.service.ts`, `attendance/{my-pause.service.ts, pauses.service.ts, attendance.service.ts}` ("Pausar aluno" e as pausas de
@@ -134,7 +134,7 @@ eles; as features antigas continuam iguais.
   attempts-review.service.ts}` (a situação de cada aluno para o professor). As respostas
   salvas passam a gravar `saved_by_user_id` (o aluno da sessão) e a entrega `submitted_by_user_id`
   (`activities/submission/register-submission.ts`; NULL no "Aceitar como entrega"). T004 fica verde.
-- [ ] T008 Invariância (SC-007): `pnpm --filter api test` completo, com as suítes 012–021 **sem mudança de
+- [X] T008 Invariância (SC-007): `pnpm --filter api test` completo, com as suítes 012–021 **sem mudança de
   asserção**; `pnpm --filter web test`. Se algo antigo mudar, o defeito está em T005–T007. Test helper novo
   `apps/api/test/helpers/group-work.ts`: `applyGroupWork(client, classId, workId, groupSize)` (via `applyWork`, com a
   turma inteira presente), `startGroup(client, activityId, memberIds)`, `startAlone`, `getCandidates`, `addMembers`,
