@@ -1,12 +1,15 @@
 import { GROUPS, REGISTRY } from "../registry";
+import { CatalogThemeSwitch } from "./catalog-theme-switch";
 
 /**
- * The visual catalog (005 FR-031, research V14): an index by group, then one section per entry
- * of the registry with its name, its source file and its showcase. Fixed sample data only.
+ * The visual catalog (005 FR-031, research V14): the theme switch (022 FR-014), an index by group,
+ * then one section per entry of the registry with its name, its source file and its showcase.
+ * Fixed sample data only.
  */
 export function Catalog() {
   return (
     <>
+      <CatalogThemeSwitch />
       <nav aria-label="Índice do catálogo" className="mb-10">
         <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0">
           {GROUPS.map((group) => (

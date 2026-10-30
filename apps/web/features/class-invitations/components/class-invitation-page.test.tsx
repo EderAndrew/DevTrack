@@ -32,6 +32,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
   beforeEach(() => {
     fetchMock.mockReset();
     router.replace.mockReset();
+    router.refresh.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     window.sessionStorage.clear();
     window.history.replaceState(null, "", `/convite-turma?token=${TOKEN}`);
@@ -46,7 +47,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
     await user.type(screen.getByLabelText(/^Confirmar senha/), confirmation);
   };
 
-  it("mostra turma, professor e e-mail só leitura; conclui, mostra \"Você agora faz parte da turma.\" e leva a Minhas turmas (FR-038)", async () => {
+  it("mostra turma, professor e e-mail só leitura; conclui, mostra \"Você agora faz parte da turma.\" e leva a Minhas turmas (FR-038); 022/US2-1 recarrega o layout raiz com a sessão nova", async () => {
     fetchMock.mockResolvedValueOnce(json(200, PREVIEW)).mockResolvedValueOnce(json(200, ACCEPTED));
     const { container, queryClient } = renderWithProviders(<ClassInvitationPage token={TOKEN} />);
 
@@ -68,6 +69,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
 
     expect(await screen.findByText("Você agora faz parte da turma.")).toBeTruthy();
     expect(router.replace).toHaveBeenCalledWith("/minhas-turmas?bem-vindo=1");
+    expect(router.refresh.mock.invocationCallOrder[0]).toBeGreaterThan(router.replace.mock.invocationCallOrder[0]!);
     expect(fetchMock.mock.calls[1]![0]).toBe("/api/class-invitations/accept");
     expect(bodyOf(1)).toEqual({ token: TOKEN, name: "Aluna Nova", ra: "RA-2026.001", password: PASSWORD });
     await expectTokenNotKept(queryClient, TOKEN);

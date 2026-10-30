@@ -34,7 +34,7 @@ describe("002/US4-4 logout e \"sair de todos\" descartam o cache (FR-024)", () =
     return queryClient;
   };
 
-  it("Sair limpa o cache antes de navegar para /entrar", async () => {
+  it("022/US2-4 Sair limpa o cache antes de navegar para /entrar e recarrega o layout raiz (tema escuro)", async () => {
     fetchMock.mockResolvedValue(reply(204));
     const queryClient = withPreviousSession();
     let cachedAtNavigation = -1;
@@ -48,6 +48,7 @@ describe("002/US4-4 logout e \"sair de todos\" descartam o cache (FR-024)", () =
     expect(fetchMock.mock.calls[0]![0]).toBe("/api/auth/logout");
     expect(cachedAtNavigation).toBe(0);
     expect(router.refresh).toHaveBeenCalled();
+    expect(router.refresh.mock.invocationCallOrder[0]).toBeGreaterThan(router.replace.mock.invocationCallOrder[0]!);
   });
 
   it("012/FR-019 Sair apaga as respostas não enviadas guardadas neste navegador", async () => {

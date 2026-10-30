@@ -145,3 +145,45 @@ describe("022/US1 PATCH /me/preferences", () => {
     expect(await t.prisma.auditEvent.count()).toBe(auditsBefore);
   });
 });
+
+/** 022 research Z8: the theme belongs to the account, so every session reads it on its next `GET /me`. */
+describe("022/US2 o tema segue a conta em qualquer sessão", () => {
+  let t: TestApp;
+
+  beforeAll(async () => {
+    t = await createTestApp();
+  });
+  afterAll(() => t.close());
+
+  beforeEach(async () => {
+    await resetDb(t.prisma);
+  });
+
+  it("022/US2-1 LIGHT gravado numa sessão: o login em outro navegador já traz LIGHT, e o GET /me da nova sessão também", async () => {
+    const user = await createUser(t);
+    await api(t, { cookie: await loginAs(t, user) }).patch("/api/me/preferences", { theme: "LIGHT" });
+
+    const login = await api(t).post("/api/auth/login", { email: user.email, password: user.password });
+    expect(login.status).toBe(200);
+    expect(login.body.user.theme).toBe("LIGHT");
+    const setCookie = ([] as string[]).concat(login.headers["set-cookie"] ?? []);
+    const cookie = setCookie[0]!.split(";")[0]!;
+
+    const me = await api(t, { cookie }).get("/api/me");
+    expect(me.status).toBe(200);
+    expect(me.body.theme).toBe("LIGHT");
+  });
+
+  it("022/US2-2 duas sessões abertas: a troca numa é lida pela outra no próximo GET /me", async () => {
+    const user = await createUser(t);
+    const first = api(t, { cookie: await loginAs(t, user) });
+    const second = api(t, { cookie: await loginAs(t, user) });
+    expect((await second.get("/api/me")).body.theme).toBe("DARK");
+
+    await first.patch("/api/me/preferences", { theme: "LIGHT" });
+    expect((await second.get("/api/me")).body.theme).toBe("LIGHT");
+
+    await second.patch("/api/me/preferences", { theme: "DARK" });
+    expect((await first.get("/api/me")).body.theme).toBe("DARK");
+  });
+});

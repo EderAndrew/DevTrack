@@ -117,6 +117,8 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
       setState({ step: "done", alreadyEnrolled: result.alreadyEnrolled });
       // FR-038: a new enrollment goes on to "Minhas turmas", which repeats the confirmation.
       if (!result.alreadyEnrolled) router.replace(`${MY_CLASSES_PATH}?bem-vindo=1`);
+      // 022 Z8: a new or claimed account may have just signed in; the root layout reads its theme again.
+      router.refresh();
     },
     onUnusable: (error: unknown) => setState({ step: "unusable", message: unusableMessage(error) }),
   };

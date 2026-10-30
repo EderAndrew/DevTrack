@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { checkText } from "../../../test/design-system/scan";
 import { ExamTimer, formatSecondsLeft } from "./exam-timer";
 
 // 018/FR-012 (design-system/exam-mode.md, "ExamTimer"): the server's time left, "mm:ss restantes",
@@ -52,5 +53,31 @@ describe("018/FR-012 ExamTimer", () => {
     expect(formatSecondsLeft(59)).toBe("00:59");
     expect(formatSecondsLeft(3_599)).toBe("59:59");
     expect(formatSecondsLeft(7_200)).toBe("2:00:00");
+  });
+});
+
+// 022/US3-4: the theme is only the tokens' values; the Exam Mode keeps its classes and rules.
+describe("022/US3-4 ExamTimer no tema claro", () => {
+  beforeEach(() => {
+    document.documentElement.dataset.theme = "light";
+  });
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+  });
+
+  it("as classes do cronômetro continuam só de tokens em cada estado e axe não aponta violações", async () => {
+    const classes = new Map<string, string>();
+    for (const ms of [30 * MINUTE, 4 * MINUTE, 30_000]) {
+      const { unmount } = render(<ExamTimer remaining={() => ms} />);
+      const timer = screen.getByRole("timer", { name: "Tempo restante" });
+      classes.set(timer.dataset.state ?? "", timer.className);
+      unmount();
+    }
+    expect([...classes.keys()]).toEqual(["normal", "warning", "danger"]);
+    render(<ExamTimer remaining={() => 30_000} />);
+    for (const className of classes.values()) {
+      expect(checkText("components/ui/assessment/exam-timer.tsx", `<div className="${className}">`)).toEqual([]);
+    }
+    await expectNoA11yViolations(document.body);
   });
 });

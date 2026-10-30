@@ -78,7 +78,7 @@ const PAIRS: Pair[] = [
 ];
 
 describe.each(Object.entries(THEMES))(
-  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 022/FR-011 022/SC-002 contraste AA dos tokens do tema %s",
+  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 022/FR-011 022/SC-002 022/US3-2 contraste AA dos tokens do tema %s",
   (_theme, tokens) => {
     it.each(PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
       const fg = resolve(tokens, foreground);
@@ -139,5 +139,27 @@ describe("005/SC-002 022/FR-003 tema escuro padrão e tema claro opcional", () =
     expect(lightBlock).toMatch(/color-scheme:\s*light;/);
     expect(THEMES.escuro!["--background"]).toBe("#0b0f2b");
     expect(THEMES.escuro!["--primary"]).toBe("#ff5ca8");
+  });
+});
+
+describe("022/US3-6 022/FR-013 cores forçadas iguais nos dois temas", () => {
+  it("a regra forced-colors de tokens.css fica fora dos dois blocos de tema e não cita tema", () => {
+    const start = css.search(/@media\s*\(forced-colors:\s*active\)/);
+    expect(start).toBeGreaterThan(0);
+    const before = css.slice(0, start);
+    const depth = (before.match(/\{/g) ?? []).length - (before.match(/\}/g) ?? []).length;
+    expect(depth, "fora de qualquer bloco").toBe(0);
+    let open = 0;
+    let end = start;
+    for (let index = css.indexOf("{", start); index < css.length; index += 1) {
+      if (css[index] === "{") open += 1;
+      if (css[index] === "}" && --open === 0) {
+        end = index;
+        break;
+      }
+    }
+    const rule = css.slice(start, end + 1);
+    expect(rule).toMatch(/CanvasText/);
+    expect(rule).not.toMatch(/data-theme/);
   });
 });

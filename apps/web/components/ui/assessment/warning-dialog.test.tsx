@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
+import { checkText } from "../../../test/design-system/scan";
 import { OCCURRENCE_LABELS, WarningDialog, warningText } from "./warning-dialog";
 
 // 018/US4-1, US4-2, US4-3 (contracts/web-ui.md, "Warning dialog"): after each counted occurrence,
@@ -57,5 +58,27 @@ describe("018/US4 WarningDialog", () => {
   it("sem violações de acessibilidade", async () => {
     const { baseElement } = render(<WarningDialog open ordinal={2} kind="CLIPBOARD" onReturn={() => undefined} />);
     await expectNoA11yViolations(baseElement);
+  });
+});
+
+// 022/US3-4: the warning in the light theme keeps the Exam Mode's classes, all of them tokens.
+describe("022/US3-4 WarningDialog no tema claro", () => {
+  beforeEach(() => {
+    document.documentElement.dataset.theme = "light";
+  });
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+  });
+
+  it("o aviso usa só classes de tokens e axe não aponta violações", async () => {
+    render(<WarningDialog open ordinal={2} kind="SCREEN" onReturn={() => undefined} />);
+    const dialog = screen.getByRole("alertdialog", { name: "Aviso 2 de 3" });
+    const styled = [dialog, ...dialog.querySelectorAll<HTMLElement>("[class]")];
+    expect(styled.length).toBeGreaterThan(1);
+    for (const element of styled) {
+      const className = element.getAttribute("class") ?? "";
+      expect(checkText("components/ui/assessment/warning-dialog.tsx", `<div className="${className}">`), className).toEqual([]);
+    }
+    await expectNoA11yViolations(document.body);
   });
 });

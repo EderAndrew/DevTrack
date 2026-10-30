@@ -6,8 +6,13 @@ import { fileURLToPath } from "node:url";
 // per line with its real number, block comments blanked out (line numbers kept) and the
 // `ds-exception: <reason>` marker of the line or the one above it.
 
-/** `apps/web`, with forward slashes in every path this module returns. */
-export const WEB_ROOT = fileURLToPath(new URL("../..", import.meta.url));
+/**
+ * `apps/web`, with forward slashes in every path this module returns. Under jsdom `import.meta.url`
+ * is not a `file:` URL, so a component test that only checks class lists falls back to the
+ * working directory (vitest runs in `apps/web`).
+ */
+const HERE = new URL("../..", import.meta.url);
+export const WEB_ROOT = HERE.protocol === "file:" ? fileURLToPath(HERE) : process.cwd();
 
 /** Directories the guards read: routes, features and components (tests excluded). */
 export const SCANNED_DIRS = ["app", "features", "components"] as const;

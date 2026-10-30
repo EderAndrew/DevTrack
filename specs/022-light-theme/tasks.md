@@ -174,16 +174,16 @@ recarregar continua claro.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T015 [P] [US2] API em `022-preferences.spec.ts`: `022/US2-1` gravar `LIGHT` numa sessão e fazer login de novo
+- [X] T015 [P] [US2] API em `022-preferences.spec.ts`: `022/US2-1` gravar `LIGHT` numa sessão e fazer login de novo
   (outra sessão) → `user.theme` e o `GET /me` da nova sessão são `LIGHT`; `022/US2-2` duas sessões: a troca numa é
   lida pela outra no próximo `GET /me`.
-- [ ] T016 [P] [US2] Web: `022/US2-3 022/US2-4` em `apps/web/features/auth/components/entrar.test.tsx` (login) e
+- [X] T016 [P] [US2] Web: `022/US2-3 022/US2-4` em `apps/web/features/auth/components/entrar.test.tsx` (login) e
   `apps/web/features/auth/components/logout.test.tsx`: o login e a saída chamam `router.refresh()` depois de navegar
   (o layout raiz relê o tema da conta; research Z8). Se já houver o assert, só acrescentar os ids ao título.
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Se T016 falhar, garantir `router.refresh()` depois de `router.replace(...)` no login
+- [X] T017 [US2] Se T016 falhar, garantir `router.refresh()` depois de `router.replace(...)` no login
   (`login-form.tsx`), na aceitação de convite que entra direto (`features/class-invitations`, `features/invitations`)
   e em `useLeave` (`components/shared/logout-button.tsx`). A US2 sai de `pending`.
 
@@ -200,22 +200,22 @@ e com os pares de contraste verdes.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T018 [P] [US3] Varredura de dependências do tema escuro em `apps/web/test/design-system/theme-agnostic.test.ts`
+- [X] T018 [P] [US3] Varredura de dependências do tema escuro em `apps/web/test/design-system/theme-agnostic.test.ts`
   (novo): `022/FR-012 022/US3-1` nenhum arquivo de `app/`, `components/` ou `features/` usa `prefers-color-scheme`,
   `dark:` do Tailwind, `colorScheme`/`color-scheme` fora de `tokens.css`, ou passa `dark: true` a um tema do
   CodeMirror; `022/US3-3` o tema do editor (`components/ui/code/editor-theme.ts`) e o do `CodeBlock` usam só
   `var(--…)`.
-- [ ] T019 [P] [US3] Catálogo em `apps/web/features/design-system/components/catalog.test.tsx`: `022/FR-014 022/US3-5`
+- [X] T019 [P] [US3] Catálogo em `apps/web/features/design-system/components/catalog.test.tsx`: `022/FR-014 022/US3-5`
   o seletor "Tema do catálogo" troca `data-theme` de `<html>` sem chamada à API; axe e a ordem de Tab rodam com
   `data-theme="dark"` e com `data-theme="light"`.
-- [ ] T020 [P] [US3] Modo prova e cores forçadas: `022/US3-4` num teste do `ExamTimer`/`WarningDialog`
+- [X] T020 [P] [US3] Modo prova e cores forçadas: `022/US3-4` num teste do `ExamTimer`/`WarningDialog`
   (`apps/web/components/ui/assessment/*.test.tsx`) com `data-theme="light"`, as classes continuam só de tokens e axe
   sem violações; `022/US3-6 022/FR-013` a regra `forced-colors` de `tokens.css` continua fora dos dois blocos de tema
   (asserção em `contrast.test.ts`).
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Corrigir o que T018 apontar (trocar por tokens; nenhum `dark:` nem cor literal) e o seletor do
+- [X] T021 [US3] Corrigir o que T018 apontar (trocar por tokens; nenhum `dark:` nem cor literal) e o seletor do
   catálogo: `apps/web/features/design-system/components/catalog-theme-switch.tsx` (`RadioGroup` "Tema do catálogo",
   muda `document.documentElement.dataset.theme`, sem salvar) montado no topo da página do catálogo; entrada no
   `registry.ts` se a varredura do catálogo exigir. T018–T020 ficam verdes; a US3 sai de `pending`.
