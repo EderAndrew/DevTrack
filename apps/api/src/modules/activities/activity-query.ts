@@ -86,6 +86,8 @@ export const ACTIVITY_HEADER_SELECT = {
   releaseMode: true,
   /** 021: the work's "Permitir executar o código" (research Y1). */
   codeExecutionAllowed: true,
+  /** 023: "Em grupo" with its maximum, or null (research U2). */
+  groupSize: true,
   status: true,
   title: true,
   instructions: true,

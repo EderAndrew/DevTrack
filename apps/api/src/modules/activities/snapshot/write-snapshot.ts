@@ -28,6 +28,8 @@ export interface NewActivity {
   aiHelpAllowance: AiHelpAllowance;
   /** 021 "Permitir executar o código": ASSIGNMENT only (CHECK, research Y1), fixed once a student starts (trigger). */
   codeExecutionAllowed: boolean;
+  /** 023 "Em grupo" (2–5) or null: ASSIGNMENT `PRESENT_ONLY` only (CHECK, research U2), fixed once a student starts (trigger). */
+  groupSize: number | null;
   /** PRESENT_ONLY for ASSIGNMENT and EXAM (CHECK by type, 016 research M2); fixed afterwards (trigger). */
   releaseMode: ReleaseMode;
   idempotencyKey: string;

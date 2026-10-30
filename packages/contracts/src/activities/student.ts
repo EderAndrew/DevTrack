@@ -24,6 +24,7 @@ import {
   StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
+import { GroupSizeSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
@@ -145,6 +146,11 @@ const withoutContent = (detail: { questions: unknown[]; attempt: { answers: unkn
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
   /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
   aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
+  /**
+   * 023: "Em grupo" with this maximum (leader included), or null for an individual activity. Only on
+   * the detail: the list's summary stays as before 023 (SC-007).
+   */
+  groupSize: GroupSizeSchema.nullable(),
   instructions: z.string().nullable(),
   serverNow: IsoDateTimeSchema,
   /** In position order. */

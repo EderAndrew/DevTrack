@@ -174,6 +174,8 @@ export const ErrorCatalog = {
     status: 422,
     message: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",
   },
+  // 023/FR-002: "Em grupo" needs the attendance; a work applied before 016 has none (research U2).
+  GROUP_NEEDS_ATTENDANCE: { status: 422, message: "Este trabalho foi aplicado sem chamada e só pode ser individual." },
   // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
   EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the

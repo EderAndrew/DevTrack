@@ -210,10 +210,13 @@ export const AUDIT_EVENT_METADATA = {
     "startWindowMinutes",
     // 021: "Permitir executar o código" (false for EXERCISE and EXAM, research Y11).
     "codeExecution",
+    // 023: "Em grupo" with its maximum, only for a group work (contracts/audit-events.md).
+    "groupSize",
   ],
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005); 021: its code execution too.
-  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution"],
+  // 023: `groupSize` when the work is in group or its format changed.
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution", "groupSize"],
   // 016: `pausedCount`, the open pauses the close or the cancellation ended by derivation (research M7).
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],

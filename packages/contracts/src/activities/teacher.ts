@@ -33,6 +33,7 @@ import {
   PublicationPhaseSchema,
   RosterStatusSchema,
 } from "./enums.js";
+import { GroupSizeSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 
 // The teacher's side of class activities (012 contracts/http-api.md, "Teacher routes"). Grades use
@@ -107,6 +108,11 @@ export const CreateAssignmentRequestSchema = z
      * eligible CODE question → `422 CODE_EXECUTION_NOT_ELIGIBLE`. EXERCISE and EXAM refuse it (strict).
      */
     codeExecution: z.boolean().default(false),
+    /**
+     * 023 "Formato" (FR-001): `null` (default) is "Individual"; 2–5 is "Em grupo" with that maximum,
+     * the leader included. EXERCISE and EXAM refuse it (strict).
+     */
+    groupSize: GroupSizeSchema.nullable().default(null),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type CreateAssignmentRequest = z.infer<typeof CreateAssignmentRequestSchema>;
@@ -163,6 +169,11 @@ export const UpdateActivityRequestSchema = z
     aiHelpAllowance: AiHelpAllowanceSchema.optional(),
     /** ASSIGNMENT only, fixed like the mode once a student starts (015/FR-002, 021 research Y10). */
     codeExecution: z.boolean().optional(),
+    /**
+     * 023: ASSIGNMENT only, fixed like the mode once a student starts (FR-002); only on a work that
+     * takes attendance (`422 GROUP_NEEDS_ATTENDANCE`).
+     */
+    groupSize: GroupSizeSchema.nullable().optional(),
   })
   .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type UpdateActivityRequest = z.infer<typeof UpdateActivityRequestSchema>;
@@ -219,6 +230,8 @@ export const TeacherActivitySummarySchema = z.strictObject({
   aiHelp: ActivityAiHelpSchema,
   /** "Permitir executar o código" (021); always false for EXERCISE and EXAM. */
   codeExecution: z.boolean(),
+  /** 023: "Em grupo" with this maximum (leader included), or null for "Individual"; always null for EXERCISE and EXAM. */
+  groupSize: GroupSizeSchema.nullable(),
   /** Set by the server (016 research M2): `PRESENT_ONLY` for every work applied since 016. */
   releaseMode: ReleaseModeSchema,
   /** `PRESENT_ONLY` only; null for `ALL_ENROLLED`. */

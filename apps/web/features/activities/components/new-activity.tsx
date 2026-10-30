@@ -30,6 +30,7 @@ import {
   DIFFICULTY_LABELS,
   EXAM_APPLY_NOTICE,
   EXAM_FIELD_DEFAULTS,
+  GROUP_SIZE_DEFAULT,
   formatGrade,
   formatPoints,
   hasWorkOptions,
@@ -40,7 +41,7 @@ import {
   toCreateActivityRequest,
 } from "../schemas/activity-form";
 import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
-import { WorkOptionsFieldset } from "./work-options";
+import { GroupFormatField, WorkOptionsFieldset } from "./work-options";
 
 export const NEW_ACTIVITY_FIELD_IDS = {
   title: "atividade-titulo",
@@ -51,6 +52,7 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   controlled: "atividade-modo-controlado",
   aiHelp: "atividade-ajuda-ia",
   codeExecution: "atividade-executar-codigo",
+  groupSize: "atividade-max-integrantes",
   durationMinutes: "atividade-duracao",
   inactivityLimitSeconds: "atividade-inatividade",
   startWindowMinutes: "atividade-limite-iniciar",
@@ -448,6 +450,8 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       controlled: false,
       aiHelp: false,
       codeExecution: false,
+      groupFormat: "INDIVIDUAL",
+      groupSize: GROUP_SIZE_DEFAULT,
       ...EXAM_FIELD_DEFAULTS,
     },
   });
@@ -458,6 +462,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
   const withCodeExecution = withOptions && chosen.runnableCodeQuestionCount > 0;
   const runner = useCodeRunnerAvailability(withCodeExecution);
   const publishMode = useWatch({ control, name: "publishMode" });
+  const groupFormat = useWatch({ control, name: "groupFormat" });
 
   const onSubmit = handleSubmit(async (formValues) => {
     setErrors([]);
@@ -561,6 +566,15 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
         </>
       )}
+      {withOptions ? (
+        <GroupFormatField
+          idPrefix="atividade"
+          format={register("groupFormat")}
+          size={register("groupSize")}
+          inGroup={groupFormat === "GROUP"}
+          error={errorFor(FIELD_IDS.groupSize)}
+        />
+      ) : null}
       {withOptions ? (
         <WorkOptionsFieldset
           idPrefix="atividade"

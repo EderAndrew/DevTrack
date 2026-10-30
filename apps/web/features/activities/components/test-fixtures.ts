@@ -127,6 +127,7 @@ export const activity = (overrides: Partial<TeacherActivity> = {}): TeacherActiv
   executionMode: "NORMAL",
   aiHelp: { allowance: 0 },
   codeExecution: false,
+  groupSize: null,
   releaseMode: "ALL_ENROLLED",
   attendance: null,
   title: "Lista de herança",

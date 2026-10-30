@@ -68,6 +68,8 @@ export interface StudentActivityInput {
   aiHelpAllowance: AiHelpAllowance;
   /** 021: the work lets the student run code on its CODE questions (research Y9); false unless ASSIGNMENT. */
   codeExecutionAllowed: boolean;
+  /** 023: "Em grupo" with its maximum, or null (research U2). */
+  groupSize: number | null;
   title: string;
   instructions: string | null;
   class: { id: string; name: string };
@@ -213,6 +215,7 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
   return {
     ...summary,
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
+    groupSize: input.groupSize,
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
     questions: paused

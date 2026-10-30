@@ -152,27 +152,27 @@ eles; as features antigas continuam iguais.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T009 [P] [US1] API `apps/api/test/integration/023-us1-apply.spec.ts`: `023/US1-1` sem `groupSize` → individual
+- [X] T009 [P] [US1] API `apps/api/test/integration/023-us1-apply.spec.ts`: `023/US1-1` sem `groupSize` → individual
   (`groupSize: null`); `023/US1-2` `groupSize: 4` → em grupo, também no detalhe e na lista do professor e na visão do
   aluno; `023/US1-3` 1, 6, 2.5, `"3"` → 400 sem criar nada; `023/US1-4` PATCH antes do primeiro início muda, depois →
   `409 ACTIVITY_ALREADY_STARTED`; `023/FR-002` PATCH num trabalho `ALL_ENROLLED` → `422 GROUP_NEEDS_ATTENDANCE`;
   `023/US1-5` `groupSize` no corpo de EXERCISE e EXAM (aplicar e editar) → 400; `023/US1-6` trabalho antigo (linha sem
   `group_size`) continua individual; `activity.published` e `activity.settings_changed` trazem `groupSize`.
-- [ ] T010 [P] [US1] Web `apps/web/features/activities/components/work-options.test.tsx` (e o teste da aplicação):
+- [X] T010 [P] [US1] Web `apps/web/features/activities/components/work-options.test.tsx` (e o teste da aplicação):
   `023/US1-1 023/US1-2` "Formato" com "Individual" marcado; "Em grupo" mostra "Máximo de integrantes, com o líder"
   (2–5, padrão 3) e envia `groupSize`; "Individual" envia `groupSize: null`; fixo depois do início com a mensagem da
   015; axe e Tab.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Contratos: `groupSize` no corpo de aplicar ASSIGNMENT e no PATCH (recusado nos de EXERCISE/EXAM),
+- [X] T011 [US1] Contratos: `groupSize` no corpo de aplicar ASSIGNMENT e no PATCH (recusado nos de EXERCISE/EXAM),
   `groupSize` em `TeacherActivitySummary`, `TeacherActivity` e `StudentActivity`
   (`packages/contracts/src/activities/{teacher,student}.ts`); o código `GROUP_NEEDS_ATTENDANCE`.
-- [ ] T012 [US1] API: `activities/activities.service.ts` (aplicar e editar opções, `422` sem chamada),
+- [X] T012 [US1] API: `activities/activities.service.ts` (aplicar e editar opções, `422` sem chamada),
   `activity-query.ts`, `views/teacher-view.ts`, `views/student-view.ts` (`groupSize` copiado na allowlist), metadados
   de `activity.published`/`activity.settings_changed` (`audit-event-types.ts`, contracts/audit-events.md). T009 fica
   verde.
-- [ ] T013 [US1] Web: "Formato" em `features/activities/components/work-options.tsx` (`RadioGroup` + `NativeSelect`,
+- [X] T013 [US1] Web: "Formato" em `features/activities/components/work-options.tsx` (`RadioGroup` + `NativeSelect`,
   React Hook Form com o schema do contrato), "Em grupo (até N)" no detalhe e na lista da atividade; a mensagem de
   `GROUP_NEEDS_ATTENDANCE` em `lib/messages/error-messages.ts`. T010 fica verde; a US1 sai de `pending`.
 

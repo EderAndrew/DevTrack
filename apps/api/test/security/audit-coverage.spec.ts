@@ -27,6 +27,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/023-group-work/contracts/audit-events.md"),
 ];
 
 /**
@@ -56,6 +57,16 @@ const PENDING_018 = new Set<string>([]);
 const PENDING_CHANGED_018 = new Set<string>([]);
 /** 021 "Changed" rows whose metadata arrives with later user stories; same rule. */
 const PENDING_CHANGED_021 = new Set<string>([]);
+/** 023 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_023 = new Set<string>([
+  "activity_group.created",
+  "activity_group.member_added",
+  "activity_group.editing_changed",
+  "activity_group.leader_changed",
+  "activity_group.write_refused",
+]);
+/** 023 "Changed" rows whose metadata arrives with later user stories; same rule. */
+const PENDING_CHANGED_023 = new Set<string>(["activity_attempt.started", "activity_submission.created"]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
@@ -70,6 +81,7 @@ const PENDING = new Set([
   ...PENDING_018,
   ...PENDING_019,
   ...PENDING_020,
+  ...PENDING_023,
 ]);
 
 interface ContractRow {
@@ -91,21 +103,22 @@ function contractRows(file: string): ContractRow[] {
   // 018's and 019's "Changed" tables (two columns) list metadata their stories add to earlier types;
   // each row joins the earlier type's row with the story that emits it (`changedRows`).
   const [text = "", changed = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m);
-  return [...eventRows(text), ...changedRows(changed)];
+  // 023 shares changed types with 018 (`activity_attempt.started`), so its pending rows are skipped only in its own file.
+  return [...eventRows(text), ...changedRows(changed, file.includes("/023-") ? PENDING_CHANGED_023 : new Set())];
 }
 
 /**
  * The 018 "Changed" rows whose story has arrived: the earlier type with the keys it adds
  * (`type: EXAM` names the existing key `type`). Its actors and target stay the earlier row's.
  */
-function changedRows(table: string): ContractRow[] {
+function changedRows(table: string, pendingHere: ReadonlySet<string>): ContractRow[] {
   return table
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
     .flatMap((line) => {
       const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
       const type = backticked(typeCell!)[0]!;
-      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type)) return [];
+      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type) || pendingHere.has(type)) return [];
       // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
         .filter((key) => !/^[A-Z_]+$/.test(key))

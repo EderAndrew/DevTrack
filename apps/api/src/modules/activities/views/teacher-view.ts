@@ -84,6 +84,8 @@ export function toTeacherActivitySummary(
     releaseMode: header.releaseMode,
     // 021: false for EXERCISE and EXAM by the CHECK (research Y1).
     codeExecution: header.codeExecutionAllowed,
+    // 023: null for an individual work, EXERCISE and EXAM (CHECK, research U2).
+    groupSize: header.groupSize,
     attendance,
     title: header.title,
     status: header.status,
