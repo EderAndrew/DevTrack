@@ -323,6 +323,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
   // 023 — the classmates a group work's leader may choose (contracts/permissions.md).
   { method: "GET", path: "/me/activities/:activityId/group/candidates", access: "atividades.proprias.visualizar" },
+  { method: "POST", path: "/me/activities/:activityId/group/editing", access: "atividades.proprias.responder" },
   { method: "PUT", path: "/me/activities/:activityId/attempt/answers", access: "atividades.proprias.responder" },
   { method: "POST", path: "/me/activities/:activityId/attempt/submit", access: "atividades.proprias.responder" },
   // 013 — practice attempts of an EXERCISE (contracts/permissions.md).

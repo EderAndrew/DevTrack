@@ -275,7 +275,7 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T023 [P] [US4] API `apps/api/test/integration/023-us4-editing.spec.ts`:
+- [X] T023 [P] [US4] API `apps/api/test/integration/023-us4-editing.spec.ts`:
   - `023/US4-1` HAND para B → editor B, `version` +1, `attempt_group_events` `EDITING_HANDED`,
     `activity_group.editing_changed`; o `GET` de A e de C mostra B;
   - `023/US4-2` TAKE_BACK → editor A; o salvamento seguinte de B → `409 GROUP_NOT_EDITOR`, resposta inalterada,
@@ -289,22 +289,22 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
     INVALID_STATE_TRANSITION`; salvar → a recusa da 012;
   - `023/FR-013` HAND por B (não líder) → `409 GROUP_NOT_LEADER`; HAND para quem não é do grupo, pausado ou sem
     matrícula ativa → `422 GROUP_MEMBER_NOT_AVAILABLE`.
-- [ ] T024 [P] [US4] Web `apps/web/features/group-work/components/group-bar.test.tsx`: `023/US4-1` "Passar a edição"
+- [X] T024 [P] [US4] Web `apps/web/features/group-work/components/group-bar.test.tsx`: `023/US4-1` "Passar a edição"
   (só para o líder) lista os integrantes e envia HAND; `023/US4-2` "Retomar a edição"; `023/US4-4` "Devolver a
   edição" só para o integrante que edita; um `409 GROUP_NOT_EDITOR` ao salvar troca a página para leitura com "A
   edição voltou para <líder>. O que não foi salvo foi perdido."; axe e teclado.
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Contratos: `POST /me/activities/:activityId/group/editing` em `endpoints.ts` + `MATRIX`; os códigos
+- [X] T025 [US4] Contratos: `POST /me/activities/:activityId/group/editing` em `endpoints.ts` + `MATRIX`; os códigos
   `GROUP_NOT_EDITOR`, `GROUP_NOT_LEADER`, `GROUP_MEMBER_NOT_AVAILABLE`.
-- [ ] T026 [US4] API (research U7–U9): as ações em `group-work.service.ts` sob o `FOR UPDATE` da tentativa (UPDATE
+- [X] T026 [US4] API (research U7–U9): as ações em `group-work.service.ts` sob o `FOR UPDATE` da tentativa (UPDATE
   condicional pela `version`, uma linha de evento por mudança aplicada); a checagem de editor em `saveAnswers` e de
   líder + editor em `submit` (`attempts.service.ts`); `activities/group/settle-group.ts` (persiste editor pausado ou
   sem acesso → líder, e líder sem acesso → o integrante ativo mais antigo, actor SYSTEM) rodando antes de toda rota e
   leitura do grupo; auditoria `activity_group.editing_changed`, `leader_changed` e `write_refused`; cada ação conta no limite
   `activity-saves` da 012 (research U18). T023 fica verde.
-- [ ] T027 [US4] Web: ações do `group-bar.tsx` com mutações TanStack que invalidam a atividade; o tratamento do `409`
+- [X] T027 [US4] Web: ações do `group-bar.tsx` com mutações TanStack que invalidam a atividade; o tratamento do `409`
   no salvamento automático de `activity-answering.tsx`. T024 fica verde; a US4 sai de `pending`.
 
 **Checkpoint**: MVP — trabalho em grupo utilizável de ponta a ponta até antes da entrega.

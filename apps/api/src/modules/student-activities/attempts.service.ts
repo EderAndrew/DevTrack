@@ -28,7 +28,11 @@ import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
 import { registerSubmission } from "../activities/submission/register-submission";
 import { ExamSettlement } from "../activities/exam-settlement";
+import { GroupSettlement } from "../activities/group-settlement";
+import { canEdit } from "../activities/group/group-roles";
+import { readGroup } from "../activities/group/settle-group";
 import { eligibleClassmates, lockActivityGroups } from "./group-eligibility";
+import { GroupRefused, recordGroupRefusal } from "./group-refusal";
 import { MyActivitiesService } from "./my-activities.service";
 import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
@@ -119,6 +123,7 @@ export class AttemptsService {
     private readonly myActivities: MyActivitiesService,
     private readonly answerGuard: AnswerSaveGuard,
     private readonly examSettlement: ExamSettlement,
+    private readonly groupSettlement: GroupSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -213,9 +218,11 @@ export class AttemptsService {
    * Saves up to 10 answers (research P8), each on its own: equal content → UNCHANGED; `baseRevision`
    * equal to the stored one (or no row yet) → written with `revision + 1`, SAVED; otherwise CONFLICT
    * with the server's answer. Any answer that doesn't fit its question → 422 and nothing is written.
+   * In a group (023 research U8) only the effective editor saves (`409 GROUP_NOT_EDITOR`).
    */
   async saveAnswers(studentUserId: string, activityId: string, body: SaveAnswersRequest, requestId: string | null): Promise<SaveAnswersResult> {
     await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
+    await this.groupSettlement.ofStudent(studentUserId, activityId, this.clock.now(), requestId);
     return this.guarded("SAVE", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
@@ -225,6 +232,7 @@ export class AttemptsService {
       await assertExamTime(tx, context, attempt, now);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
+      await assertGroupWriter(tx, context, attempt!, activityId, studentUserId, "SAVE");
       const attemptId = attempt!.id;
       const guarded = guardedAttempt(context, attempt!, activityId, studentUserId);
       const guard = (items: GuardedAnswer[]) => this.answerGuard.check(tx, guarded, items, now);
@@ -240,10 +248,12 @@ export class AttemptsService {
    * `FOR SHARE` (a close waits) and the attempt `FOR UPDATE`; an attempt already submitted returns its
    * submission (no event, nothing written); otherwise the rules, the pending answers under the save's
    * revision rule — a stale revision with other content aborts with `409 ANSWER_CHANGED_ELSEWHERE` —,
-   * then the submission, its grading and `activity_submission.created`.
+   * then the submission, its grading and `activity_submission.created`. In a group (023/FR-018) only the
+   * leader submits (`409 GROUP_NOT_LEADER`), holding the editing (`409 GROUP_NOT_EDITOR`).
    */
   async submit(studentUserId: string, activityId: string, body: SubmitAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
+    await this.groupSettlement.ofStudent(studentUserId, activityId, this.clock.now(), requestId);
     await this.guarded("SUBMIT", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
@@ -255,6 +265,7 @@ export class AttemptsService {
       const outcome = decideOperation("SUBMIT", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       if (outcome.kind === "REPEAT" || facts.type === "EXERCISE") return;
+      await assertGroupWriter(tx, context, attempt!, activityId, studentUserId, "SUBMIT");
       const attemptId = attempt!.id;
 
       if (body.answers.length > 0) {
@@ -443,6 +454,7 @@ export class AttemptsService {
         await this.prisma.runInTransaction((tx) => error.record(tx));
         throw new AppException("TYPING_LIMIT_EXCEEDED");
       }
+      if (error instanceof GroupRefused) throw await recordGroupRefusal(this.prisma, this.audit, studentUserId, error, requestId);
       if (error instanceof Refused) {
         await this.audit.record(this.prisma, {
           type: "activity_submission.rejected",
@@ -549,6 +561,29 @@ async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow 
     SELECT 1 FROM attempt_pauses
     WHERE attempt_id = ${attempt.id}::uuid AND student_user_id = ${studentUserId}::uuid AND released_at IS NULL`;
   if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
+}
+
+/**
+ * 023/FR-012, FR-018 (research U8): in a group attempt only the editor writes answers, and only the leader
+ * submits, holding the editing — both as stored (the answer and submission triggers check those) and as
+ * effective now (not paused, still in the class). Read under the attempt's `FOR UPDATE`, which the editing
+ * changes also take: a save that reaches the lock after "Retomar a edição" is refused.
+ */
+async function assertGroupWriter(
+  tx: Tx,
+  context: ContextRow,
+  attempt: AttemptRow,
+  activityId: string,
+  studentUserId: string,
+  operation: "SAVE" | "SUBMIT",
+): Promise<void> {
+  if (context.group_size === null) return;
+  const group = await readGroup(tx, attempt.id);
+  if (!group) return;
+  if (operation === "SUBMIT" && (group.leaderId !== studentUserId || group.roles.leaderId !== studentUserId)) {
+    throw new GroupRefused(operation, "NOT_LEADER", activityId, attempt.id);
+  }
+  if (group.editorId !== studentUserId || !canEdit(group.roles, studentUserId)) throw new GroupRefused(operation, "NOT_EDITOR", activityId, attempt.id);
 }
 
 /**

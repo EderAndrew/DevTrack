@@ -180,6 +180,12 @@ export const ErrorCatalog = {
   GROUP_MEMBERS_UNAVAILABLE: { status: 409, message: "Algum colega escolhido não está mais disponível. Revise a lista." },
   // 023/FR-010: the caller already started alone or is in a group of this work.
   GROUP_ALREADY_JOINED: { status: 409, message: "Você já participa de um grupo que está fazendo este trabalho." },
+  // 023/FR-012, FR-013: a save, a submit or "Devolver a edição" by someone who isn't editing now.
+  GROUP_NOT_EDITOR: { status: 409, message: "Outro integrante está editando agora. Suas respostas não foram salvas." },
+  // 023/FR-013, FR-018: passing or taking back the editing, or submitting, is the leader's.
+  GROUP_NOT_LEADER: { status: 409, message: "Só o líder do grupo pode fazer isso." },
+  // 023/FR-013: the editing goes only to an active, unpaused member of the group.
+  GROUP_MEMBER_NOT_AVAILABLE: { status: 422, message: "Este integrante não pode receber a edição agora." },
   // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
   EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the

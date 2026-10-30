@@ -80,7 +80,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
-import { GroupCandidatesSchema } from "./activities/group.js";
+import { GroupCandidatesSchema, GroupEditingRequestSchema } from "./activities/group.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
@@ -1368,6 +1368,19 @@ export const endpoints = {
     path: "/me/activities/:activityId/group/candidates",
     params: MyActivityParamsSchema,
     response: GroupCandidatesSchema,
+    status: 200,
+  },
+  /**
+   * 023 research U7: HAND (leader, to an active unpaused member), TAKE_BACK (leader) or RETURN (the member
+   * editing); a HAND to the current editor changes nothing. `409 GROUP_NOT_LEADER` / `GROUP_NOT_EDITOR`,
+   * `422 GROUP_MEMBER_NOT_AVAILABLE`, `409 INVALID_STATE_TRANSITION` after the end.
+   */
+  "myActivities.groupEditing": {
+    method: "POST",
+    path: "/me/activities/:activityId/group/editing",
+    params: MyActivityParamsSchema,
+    body: GroupEditingRequestSchema,
+    response: StudentActivitySchema,
     status: 200,
   },
   /**

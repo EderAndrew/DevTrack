@@ -28,7 +28,7 @@ describe("023/US3 aviso e barra do grupo", () => {
     const { container } = renderWithProviders(
       <>
         <GroupNotice group={group()} />
-        <GroupBar group={group()} />
+        <GroupBar activityId="bbbbbbbb-0000-4000-8000-000000000001" open={false} group={group()} />
       </>,
     );
     expect(screen.getByText("Você está no grupo de Ana Souza neste trabalho.")).toBeTruthy();
@@ -43,7 +43,7 @@ describe("023/US3 aviso e barra do grupo", () => {
     renderWithProviders(
       <>
         <GroupNotice group={group({ myRole: "LEADER", addedBy: null })} />
-        <GroupBar group={group({ myRole: "LEADER", addedBy: null, editor: BRUNO })} />
+        <GroupBar activityId="bbbbbbbb-0000-4000-8000-000000000001" open={false} group={group({ myRole: "LEADER", addedBy: null, editor: BRUNO })} />
       </>,
     );
     expect(screen.queryByText(/Você está no grupo de/)).toBeNull();
@@ -55,7 +55,7 @@ describe("023/US3 aviso e barra do grupo", () => {
     const { container } = renderWithProviders(
       <>
         <GroupNotice group={group({ leader: xss, members: [xss, BRUNO], editor: xss, addedBy: xss })} />
-        <GroupBar group={group({ leader: xss, members: [xss, BRUNO], editor: xss, addedBy: xss })} />
+        <GroupBar activityId="bbbbbbbb-0000-4000-8000-000000000001" open={false} group={group({ leader: xss, members: [xss, BRUNO], editor: xss, addedBy: xss })} />
       </>,
     );
     expect(container.querySelector("img")).toBeNull();

@@ -34,7 +34,7 @@ import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
 import { GroupBar } from "@/features/group-work/components/group-bar";
 import { GroupNotice } from "@/features/group-work/components/group-notice";
 import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
-import { editingWith } from "@/features/group-work/schemas/group-work";
+import { editingLostMessage, editingWith } from "@/features/group-work/schemas/group-work";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { readsGroupAttempt, useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -192,6 +192,8 @@ export function AnsweringSession({
 }) {
   const [generation, setGeneration] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  // 023/US4-2: a save refused because the editing moved (the leader took it back): this page reads now.
+  const [editingLost, setEditingLost] = useState(false);
   // A work or an exam (018/US6-1: the teacher's pause arrives the same way); an Exercício never pauses.
   const watching = activity.type !== "EXERCISE" && activity.canAnswer && activity.submission === null && activity.pause === null;
   const watch = useMyPause(activity.id, watching, "watch");
@@ -208,6 +210,13 @@ export function AnsweringSession({
     clearPendingAnswers(userId, activity.id);
     await reload();
     setChangedElsewhere(true);
+    setGeneration((current) => current + 1);
+  };
+  const onEditingLost = async () => {
+    // What wasn't saved can't be written any more: the group's answers are the editor's now.
+    clearPendingAnswers(userId, activity.id);
+    await reload();
+    setEditingLost(true);
     setGeneration((current) => current + 1);
   };
   if (activity.pause) {
@@ -230,7 +239,14 @@ export function AnsweringSession({
     <>
       {/* 023/US3: the group's notice and bar above the questions, here and on the focus page. */}
       {activity.group ? <GroupNotice group={activity.group} /> : null}
-      {activity.group ? <GroupBar group={activity.group} /> : null}
+      {activity.group ? (
+        <GroupBar activityId={activity.id} group={activity.group} open={activity.canAnswer && activity.submission === null} />
+      ) : null}
+      {editingLost && activity.group && !activity.group.canEdit && activity.submission === null ? (
+        <Alert variant="warning">
+          <AlertTitle>{editingLostMessage(activity.group.editor.name)}</AlertTitle>
+        </Alert>
+      ) : null}
       {changedElsewhere && activity.submission === null ? (
         <Alert variant="warning">
           <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
@@ -244,6 +260,7 @@ export function AnsweringSession({
         userId={userId}
         controlled={controlled}
         onChangedElsewhere={() => void onChangedElsewhere()}
+        onEditingLost={() => void onEditingLost()}
         onPaused={(pauseId) => {
           if (pauseId) handled.current = pauseId;
           void reload();
@@ -356,12 +373,15 @@ function AttemptAnswering({
   userId,
   controlled,
   onChangedElsewhere,
+  onEditingLost,
   onPaused,
 }: {
   activity: StudentActivity;
   userId: string;
   controlled?: ControlledAnswering;
   onChangedElsewhere: () => void;
+  /** 023/US4-2: a save or submission refused with `GROUP_NOT_EDITOR`: read the activity again, as a reader. */
+  onEditingLost: () => void;
   /** The attempt is paused now (the own exit, with its id, or a refused write): read the activity again. */
   onPaused: (pauseId?: string) => void;
 }) {
@@ -410,6 +430,14 @@ function AttemptAnswering({
   useEffect(() => {
     if (pausedRefusal) paused.current();
   }, [pausedRefusal]);
+  const editingRefusal = apiErrorCode(answers.error) === "GROUP_NOT_EDITOR" || (submit.isError && apiErrorCode(submit.error) === "GROUP_NOT_EDITOR");
+  const lost = useRef(onEditingLost);
+  useEffect(() => {
+    lost.current = onEditingLost;
+  });
+  useEffect(() => {
+    if (editingRefusal) lost.current();
+  }, [editingRefusal]);
 
   /** Research M10's order: monitor off, answers and events sent, pause, then fullscreen off. */
   const exitRoom = async (body: DeclareExit) => {

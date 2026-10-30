@@ -12,6 +12,9 @@ Metadata holds only ids, enums and counts — never a name, an answer, a stateme
 | `activity_group.leader_changed` | SYSTEM | ACTIVITY_ATTEMPT | `activityId`, `attemptId`, `fromUserId`, `toUserId`, `reason` (`ACCESS_LOST`) |
 | `activity_group.write_refused` | USER | ACTIVITY_ATTEMPT | `activityId`, `attemptId`, `operation` (`SAVE` \| `SUBMIT` \| `HELP` \| `ADD_MEMBERS` \| `EDITING`), `reason` (`NOT_EDITOR` \| `NOT_LEADER` \| `FULL` \| `MEMBERS_UNAVAILABLE`) |
 
+A change of the editing asked by a paused student is refused with `409 ATTEMPT_PAUSED` and audited as the 016
+`attempt_pause.write_refused` with `operation: "GROUP_EDITING"` (same keys).
+
 `created` and `member_added` are written by the leader; `editing_changed` by the student who changes the
 editing, or SYSTEM for the settlement (U9); `write_refused` by the student refused.
 

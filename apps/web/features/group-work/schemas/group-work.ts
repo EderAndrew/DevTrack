@@ -29,3 +29,12 @@ export const EDITING_NOW = "Editando agora";
 export const editingWith = (name: string) => `A edição está com ${name}.`;
 /** "Minhas atividades": a group work, for every member. */
 export const IN_GROUP = "Em grupo";
+
+/** US4 (FR-013): the leader's and the editor's actions. */
+export const HAND_EDITING = "Passar a edição";
+export const TAKE_BACK_EDITING = "Retomar a edição";
+export const RETURN_EDITING = "Devolver a edição";
+/** The menu of "Passar a edição": the members who may receive it. */
+export const HAND_TO_LABEL = "Passar para";
+/** US4-2: a save refused because the leader took the editing back; the page turns to reading. */
+export const editingLostMessage = (leader: string) => `A edição voltou para ${leader}. O que não foi salvo foi perdido.`;

@@ -315,6 +315,12 @@ export const AUDIT_EVENT_METADATA = {
   "activity_group.created": ["activityId", "attemptId", "memberCount"],
   // 023 — one per member the leader brought in, at the start or by "Incluir integrantes".
   "activity_group.member_added": ["activityId", "attemptId", "memberId"],
+  // 023 — the editing moved (research U7): by the student who moved it, or SYSTEM for the settlement (U9).
+  "activity_group.editing_changed": ["activityId", "attemptId", "kind", "reason", "fromUserId", "toUserId"],
+  // 023 — the settlement gave the leadership to the first active member (FR-023), SYSTEM.
+  "activity_group.leader_changed": ["activityId", "attemptId", "fromUserId", "toUserId", "reason"],
+  // 023 — a group write refused to its author: the operation and a reason code, never the content.
+  "activity_group.write_refused": ["activityId", "attemptId", "operation", "reason"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

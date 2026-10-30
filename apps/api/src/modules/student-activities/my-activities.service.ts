@@ -20,6 +20,7 @@ import { RankingService } from "../ranking/ranking.service";
 import { runsCode, toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
 import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
+import { GroupSettlement } from "../activities/group-settlement";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
@@ -63,6 +64,7 @@ export class MyActivitiesService {
     private readonly audit: AuditService,
     private readonly ranking: RankingService,
     private readonly examSettlement: ExamSettlement,
+    private readonly groupSettlement: GroupSettlement,
     private readonly codeRuns: CodeRunAvailability,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -108,6 +110,8 @@ export class MyActivitiesService {
     const now = this.clock.now();
     // 018 research T5: an expired exam attempt is settled before it is read.
     await this.examSettlement.ofAttempt(userId, activityId, now, requestId);
+    // 023 research U9: a group's fallbacks (paused editor, leader without the class) persisted before the read.
+    await this.groupSettlement.ofStudent(userId, activityId, now, requestId);
     const input = await this.loader.loadOne(userId, activityId, now, await this.canSeeResults(userId));
     if (input) {
       // 019 research B17, 021 Y9: the execution of the CODE questions of an activity that runs code, as of now.

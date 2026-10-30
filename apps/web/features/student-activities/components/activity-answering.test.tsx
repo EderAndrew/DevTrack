@@ -936,4 +936,23 @@ describe("023/US3 o integrante abre o trabalho do grupo", () => {
     await act(() => vi.advanceTimersByTimeAsync(3 * GROUP_POLL_MS));
     expect(reads).toBe(1);
   });
+
+  it("023/US4-2 um 409 GROUP_NOT_EDITOR ao salvar troca a página para leitura com o aviso; o que não foi salvo some", async () => {
+    let reads = 0;
+    const editing = started({ groupSize: 3, group: { ...memberGroup, editor: BRUNO, canEdit: true } });
+    const reading = started({ groupSize: 3, group: { ...memberGroup, editor: ANA, canEdit: false } });
+    const { user } = setup({
+      [GET]: () => json(200, reads++ === 0 ? editing : reading),
+      [SAVE]: apiError(409, "GROUP_NOT_EDITOR", "x"),
+    });
+    const field = await screen.findByLabelText("Sua resposta");
+    await user.type(field, "Texto não salvo");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(await screen.findByText("A edição voltou para Ana Souza. O que não foi salvo foi perdido.")).toBeTruthy();
+    expect(screen.getByText("A edição está com Ana Souza.")).toBeTruthy();
+    expect(readPendingAnswers("aluno-1", activity.id)).toEqual([]);
+    // A fresh reading screen, back on the first question, with the group's answer (none saved).
+    const reread = screen.getByLabelText("Sua resposta") as HTMLTextAreaElement;
+    expect([reread.disabled, reread.value]).toEqual([true, ""]);
+  });
 });

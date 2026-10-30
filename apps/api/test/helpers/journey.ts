@@ -1277,6 +1277,18 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await groupLeaderClient.get(`/api/me/activities/${groupWork.id}/group/candidates`)).status).toBe(200);
   expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt`, { memberIds: [groupMember.id] })).status).toBe(200);
 
+  // 023/US4 — the leader hands the editing to the member (`activity_group.editing_changed`), then tries to
+  // submit without it (`activity_group.write_refused`); the leader leaves the class and the member's next read
+  // settles the group (`activity_group.leader_changed`, SYSTEM). Ids and enums only.
+  const groupMemberClient = api(t, { cookie: await keepLoginAs(groupMember) });
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "HAND", toUserId: groupMember.id })).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(409);
+  await t.prisma.enrollment.updateMany({
+    where: { classId: groupClass.schoolClass.id, studentUserId: groupLeader.id },
+    data: { status: "REMOVED", removedAt: new Date(), removedById: runTeacher.id },
+  });
+  expect((await groupMemberClient.get(`/api/me/activities/${groupWork.id}`)).status).toBe(200);
+
   // 020/US1 — the student sends a feedback to the platform (`student_feedback.submitted`), then passes the
   // limit of 5 in 24 h (`student_feedback.rate_limited`). The message and the origin path are content the
   // scans look for: never in logs or audit metadata (020/SC-004).

@@ -58,11 +58,7 @@ const PENDING_CHANGED_018 = new Set<string>([]);
 /** 021 "Changed" rows whose metadata arrives with later user stories; same rule. */
 const PENDING_CHANGED_021 = new Set<string>([]);
 /** 023 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_023 = new Set<string>([
-  "activity_group.editing_changed",
-  "activity_group.leader_changed",
-  "activity_group.write_refused",
-]);
+const PENDING_023 = new Set<string>([]);
 /** 023 "Changed" rows whose metadata arrives with later user stories; same rule. */
 const PENDING_CHANGED_023 = new Set<string>(["activity_submission.created"]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
