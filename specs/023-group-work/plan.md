@@ -120,10 +120,11 @@ Touches outside the new code:
   `roster.ts`, `attempts-review.service.ts` (participants), `submission/register-submission.ts` (`submitted_by`);
 - `student-activities`: `attempts.service.ts` (start with members, editor/leader checks, participant lookups),
   `student-activity-loader.ts`, `my-activities.service.ts`;
-- `attempt-integrity`, `work-help`, `attendance` (`MyPauseService`, unmark rule), `code-runs`, `activities/exam-settlement.ts`:
-  their attempt lookups through `attempt_participants`;
+- `attempt-integrity`, `work-help`, `attendance` (`MyPauseService`, `PausesService`, the room query, the unmark rule),
+  `code-runs`, `activities/exam-settlement.ts`, and the teacher's `roster.ts`/`attempts-review.service.ts`: their
+  attempt lookups through `attempt_participants`;
 - `audit-event-types.ts`, endpoint catalog, `authorization-matrix.ts`, `traceability.spec.ts` (`SPECS += 023`),
-  journey (`MARCADOR-GRUPO-023`), `domain-boundary.spec.ts` if it pins these models;
+  journey (`MARCADOR-GRUPO-023`), `domain-boundary.spec.ts` (the four 023 models);
 - docs: README, `CLAUDE.md` (root, api, web), constitution 3.6.0 sync.
 
 ## Project Structure

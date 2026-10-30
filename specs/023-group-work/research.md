@@ -77,7 +77,11 @@ table, and every existing row stays valid because U3 backfills the owner's parti
 **Decision**: the student-side lookups that today filter `activity_attempts.student_user_id = <session>`
 (`attempts.service.ts` `findAttempt`, `StudentActivityLoader`, `MyActivitiesService`, `FocusEventsService`,
 `WorkHelpService`, `MyPauseService`, `CodeRunsService`, `exam-settlement`) join `attempt_participants` instead,
-each in its own scoped query (the 016 rule: no cross-module imports). The teacher-side roster and review read
+each in its own scoped query (the 016 rule: no cross-module imports). The teacher-side reads that find a student's
+attempt by `student_user_id` also go through the participants: `attendance/pauses.service.ts` ("Pausar aluno" and
+an attempt's pauses), the room query of `attendance/attendance.service.ts` (each student's `roomStatus`),
+`activities/roster.ts` and `activities/attempts-review.service.ts` (each student's situation). A member's situation
+is the group attempt's; their pause is their own. The teacher-side roster and review read
 the attempt and list its participants. A guard (`test/group-work-boundary.spec.ts`) fails when a student-side
 module filters attempts by `a.student_user_id` instead of the participant.
 
@@ -197,7 +201,10 @@ dependency.
 
 ## U14 — One submission, one grade, released to every member
 
-**Decision**: the submission is the attempt's, as today; `registerSubmission` is unchanged. The student's result
+**Decision**: the submission is the attempt's, as today; `registerSubmission` is unchanged. The leader submits only
+holding the editing (spec FR-018). The teacher's "Aceitar como entrega" works on the group's attempt as on any other
+(`submitted_by_user_id` NULL, `accepted_by_id` the teacher) and so counts for every member. The teacher's counters
+("x de y entregaram") count per student: each participant of a submitted attempt is submitted. The student's result
 (012 P14) is served to every participant of the attempt, only when released, complete and with
 `notas.proprias.visualizar`; `result_viewed_at` keeps the first read of anyone (no per-member read state). The
 teacher's roster lists one row per attempt with its participants; grading and release do not change.

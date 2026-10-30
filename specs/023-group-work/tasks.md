@@ -101,9 +101,10 @@ eles; as features antigas continuam iguais.
     ajudas, pausas e execuções de 012–021, a migração cria um participante por tentativa, preenche
     `saved_by_user_id`/`submitted_by_user_id` e nenhuma linha antiga fica inválida.
 - [ ] T004 [P] `apps/api/test/group-work-boundary.spec.ts` (research U5), que deve falhar antes da T007: nos módulos
-  `student-activities`, `attempt-integrity`, `work-help`, `attendance`, `code-runs` e em
-  `activities/exam-settlement.ts`, nenhuma consulta do lado do aluno filtra `activity_attempts` por
-  `student_user_id = <sessão>` (só pela junção com `attempt_participants`); a única escrita de `attempt_participants`
+  `student-activities`, `attempt-integrity`, `work-help`, `attendance`, `code-runs`, `exam-sessions` e em
+  `activities/{exam-settlement,roster,attempts-review.service}.ts`, nenhuma consulta que procura "a tentativa de um
+  aluno" (do lado do aluno ou do professor) filtra `activity_attempts` por `student_user_id` (só pela junção com
+  `attempt_participants`); a única escrita de `attempt_participants`
   fora da migração é a do início (`student-activities`) e a da inclusão (`group-work.service.ts`); nenhum desses
   módulos importa outro (as regras da 015/016 continuam).
 
@@ -117,15 +118,20 @@ eles; as features antigas continuam iguais.
   (backfill, CHECK, imutável); as quatro FKs compostas (`attempt_integrity_events`, `work_help_requests`,
   `attempt_pauses`, `code_runs`) passam a referenciar `attempt_participants`; `attempt_paused_writes` por quem
   escreve; os triggers de editor, líder, registro e só-INSERT. `resetDb` (`test/helpers/test-app.ts`) passa a
-  esvaziar as tabelas novas. T003 fica verde.
+  esvaziar as tabelas novas. O bloco da 023 entra em `apps/api/test/security/domain-boundary.spec.ts`
+  (`AttemptParticipant`, `AttemptGroup`, `AttemptGroupEvent`, `ActivityAnswerSave`, com o comentário "023
+  (specs/023-group-work/data-model.md) — a group shares the attempt; who takes part, who edits and who saved"). T003
+  fica verde.
 - [ ] T006 O início de toda tentativa grava o participante dono na mesma transação: `student-activities/attempts.service.ts`
   (`start`, e a tentativa n do `retry` da 013) e qualquer outro `INSERT` em `activity_attempts` do código de produção
   e de `test/helpers/activities.ts` (`createAttemptRow`, `createActivity`) e `test/helpers/code-runs.ts`.
 - [ ] T007 Consultas pelos participantes (research U5), cada módulo na sua própria consulta escopada:
   `student-activities/{attempts.service.ts (findAttempt, lockContext), student-activity-loader.ts,
   my-activities.service.ts}`, `attempt-integrity/*` (o `FocusEventsService` e as leituras próprias),
-  `work-help/work-help.service.ts`, `attendance/{my-pause.service.ts, attendance.service.ts}` (a recusa de desmarcar
-  olha a participação, research U15), `code-runs/code-runs.service.ts`, `activities/exam-settlement.ts`. As respostas
+  `work-help/work-help.service.ts`, `attendance/{my-pause.service.ts, pauses.service.ts, attendance.service.ts}` ("Pausar aluno" e as pausas de
+  uma tentativa, a consulta da sala com o `roomStatus` de cada aluno e a recusa de desmarcar olham a participação,
+  research U5, U15), `code-runs/code-runs.service.ts`, `activities/{exam-settlement.ts, roster.ts,
+  attempts-review.service.ts}` (a situação de cada aluno para o professor). As respostas
   salvas passam a gravar `saved_by_user_id` (o aluno da sessão) e a entrega `submitted_by_user_id`
   (`activities/submission/register-submission.ts`; NULL no "Aceitar como entrega"). T004 fica verde.
 - [ ] T008 Invariância (SC-007): `pnpm --filter api test` completo, com as suítes 012–021 **sem mudança de
@@ -237,7 +243,8 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
   com `savedBy`; `023/US3-2` B tenta iniciar (com ou sem membros, de duas abas ao mesmo tempo) → 200 com a tentativa
   do grupo, nada novo; `GET …/group/candidates` por B → `409 GROUP_ALREADY_JOINED`; `023/US3-3` `GET /me/activities`
   de B traz o trabalho com a situação da tentativa do grupo e `groupSize`; `023/FR-010` um aluno fora do grupo (da
-  turma ou de outra) recebe 404 em toda rota da tentativa do grupo.
+  turma ou de outra) recebe 404 em toda rota da tentativa do grupo; `023/FR-009` o painel da sala do professor (016)
+  e a lista de entregas mostram B com a situação da tentativa do grupo, nunca "Não iniciado".
 - [ ] T020 [P] [US3] Web `apps/web/features/group-work/components/group-notice.test.tsx` e o teste da página da
   atividade: `023/US3-1` "Você está no grupo de <líder> neste trabalho", integrantes, "Editando agora" num
   `role="status"`, questões só leitura com "A edição está com <nome>."; `023/US3-3` "Em grupo" em "Minhas atividades";
@@ -292,7 +299,8 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
   condicional pela `version`, uma linha de evento por mudança aplicada); a checagem de editor em `saveAnswers` e de
   líder + editor em `submit` (`attempts.service.ts`); `activities/group/settle-group.ts` (persiste editor pausado ou
   sem acesso → líder, e líder sem acesso → o integrante ativo mais antigo, actor SYSTEM) rodando antes de toda rota e
-  leitura do grupo; auditoria `activity_group.editing_changed`, `leader_changed` e `write_refused`. T023 fica verde.
+  leitura do grupo; auditoria `activity_group.editing_changed`, `leader_changed` e `write_refused`; cada ação conta no limite
+  `activity-saves` da 012 (research U18). T023 fica verde.
 - [ ] T027 [US4] Web: ações do `group-bar.tsx` com mutações TanStack que invalidam a atividade; o tratamento do `409`
   no salvamento automático de `activity-answering.tsx`. T024 fica verde; a US4 sai de `pending`.
 
@@ -312,7 +320,9 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
   pelo líder inclui elegíveis até o máximo (`added_by_user_id` = líder, `member_added`); `023/US5-2` além do máximo →
   `409 GROUP_FULL`; `023/US5-3` incluir ou entregar por um integrante → `409 GROUP_NOT_LEADER`; `023/US5-4` a entrega do
   líder (segurando a edição) fica entregue para todos, com `submitted_by_user_id`, `late` pela regra da 012 e
-  `activity_submission.created` com `submittedById`; o líder sem a edição → `409 GROUP_NOT_EDITOR`; `023/US5-5
+  `activity_submission.created` com `submittedById`; o líder sem a edição → `409 GROUP_NOT_EDITOR` (a página pede "Retome a edição para
+  entregar"); `023/FR-018` "Aceitar como entrega" do professor numa tentativa de grupo não entregue vale para todos os
+  integrantes (`submitted_by_user_id` NULL, `accepted_by_id` o professor); `023/US5-5
   023/SC-006` correção e liberação: cada integrante lê a mesma nota e retorno, nenhum antes da liberação nem sem
   `notas.proprias.visualizar`; `023/US5-6` não existe rota de sair nem de remover (o catálogo de rotas não tem);
   `023/FR-016` incluir depois da entrega → `409 INVALID_STATE_TRANSITION`.
@@ -323,7 +333,8 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 ### Implementation for User Story 5
 
 - [ ] T030 [US5] Contratos + API: `POST /me/activities/:activityId/group/members` (`endpoints.ts`, `MATRIX`,
-  `GROUP_FULL`), a inclusão em `group-work.service.ts` com o mesmo bloqueio e as mesmas regras do início; o resultado
+  `GROUP_FULL`), a inclusão em `group-work.service.ts` com o mesmo bloqueio e as mesmas regras do início, contando no limite
+  `activity-saves`; o resultado
   da 012 servido a todo participante (`student-activity-loader.ts`, `views/student-view.ts`). T028 fica verde.
 - [ ] T031 [US5] Web: "Incluir integrantes" (reusa a lista do diálogo) e as regras de "Entregar" em `group-bar.tsx` e
   `activity-answering.tsx`. T029 fica verde; a US5 sai de `pending` e `023/SC-006` também.
@@ -339,7 +350,8 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 ### Tests for User Story 6 ⚠️
 
 - [ ] T032 [P] [US6] API `apps/api/test/integration/023-us6-review.spec.ts`: `023/US6-1` a lista de entregas traz uma
-  linha por tentativa com `participants` (o grupo e quem fez sozinho); `023/US6-2` `GET …/attempts/:attemptId/group` →
+  linha por tentativa com `participants` (o grupo e quem fez sozinho); `023/FR-020` os contadores do professor contam
+  por aluno (um grupo de 3 que entregou soma 3 entregues); `023/US6-2` `GET …/attempts/:attemptId/group` →
   líder, integrantes com `joinedAt`/`addedById` e `events` em ordem; `023/US6-3 023/SC-005` `saves` por questão, do
   primeiro ao último, com aluno e revisão; `023/US6-4` a linha do tempo da 015 e as pausas da 016 trazem o aluno de cada
   fato; `023/US6-5` nenhuma rota de nota lê os registros (nota única para o grupo); a rota para uma tentativa
@@ -351,7 +363,7 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 ### Implementation for User Story 6
 
 - [ ] T034 [US6] Contratos + API: `participants` no roster e na tentativa (`activities/roster.ts`,
-  `attempts-review.service.ts`); `GET /classes/:classId/activities/:activityId/attempts/:attemptId/group` em
+  `attempts-review.service.ts`); os contadores da atividade por aluno (cada participante de uma tentativa entregue); `GET /classes/:classId/activities/:activityId/attempts/:attemptId/group` em
   `attempts-review.controller.ts` com `views/teacher-group-view.ts` (allowlist, `entregas.visualizar`,
   `ClassContextPolicy`, sem auditoria); o nome do aluno nos fatos da 015/016 do professor. T032 fica verde.
 - [ ] T035 [US6] Web `features/activities/components/group-facts.tsx` montado em `attempt-review.tsx`; a lista de
@@ -372,16 +384,19 @@ dois integrantes executam, cada um o seu.
   processo da 019):
   - `023/US7-1` eventos do modo controlado de B ficam com `student_user_id` B; A não os lê
     (`/attempt/integrity` só devolve os próprios);
-  - `023/US7-2` pausa de B (sair da sala e "Pausar aluno"): B não vê as questões nem salva (`409 ATTEMPT_PAUSED`), A
-    segue; se B editava, o próximo toque devolve a edição a A (`EDITING_RESET`, `reason: "PAUSED"`) e, liberado o
-    retorno, B não a recebe de volta;
+  - `023/US7-2` pausa de B (sair da sala e "Pausar aluno"; B não tem tentativa própria e a pausa abre na tentativa do
+    grupo, nunca `NOT_STARTED`): B não vê as questões nem salva (`409 ATTEMPT_PAUSED`), A segue; se B editava, o
+    próximo toque devolve a edição a A (`EDITING_RESET`, `reason: "PAUSED"`) e, liberado o retorno, B não a recebe
+    de volta;
   - `023/US7-3 023/SC-008` ajuda: só o editor pede (`409 GROUP_NOT_EDITOR` para os outros); três entregues e a quarta
     recusada para qualquer integrante; todos leem as orientações do grupo;
   - `023/US7-4` execução: C (que só lê) executa uma questão de Código; a execução é de C (pendente e limite por
     aluno), nada é salvo; pausado, C recebe `409 ATTEMPT_PAUSED`;
   - `023/US7-5` desmarcar a presença de B → `409 ATTENDANCE_STARTED`; o líder só vê presentes;
   - `023/FR-023` líder com a matrícula encerrada → no próximo toque a liderança passa ao integrante ativo mais
-    antigo (`LEADER_CHANGED`, `activity_group.leader_changed`).
+    antigo (`LEADER_CHANGED`, `activity_group.leader_changed`); editor removido da turma → a edição volta ao líder
+    (`EDITING_RESET`, `reason: "ACCESS_LOST"`); líder pausado → passar a edição, entregar e incluir são recusados
+    (`409 ATTEMPT_PAUSED`) e os integrantes seguem lendo.
 - [ ] T037 [P] [US7] Web: `023/US7-1` a barra do grupo aparece na página de foco; `023/US7-3` o pedido de ajuda só para
   quem edita e as orientações para todos; `023/US7-4` "Executar" também para quem lê (testes em
   `features/work-help`, `features/code-run` e `features/group-work`).
@@ -405,14 +420,22 @@ dois integrantes executam, cada um o seu.
     simultâneas no limite, salvar × TAKE_BACK, entregar × incluir — nunca um aluno em dois grupos nem em grupo e
     sozinho;
   - `023-boundaries.spec.ts`: corpos estritos (campos de servidor como `leaderId`, `editorId`, `groupId`,
-    `attemptId`, `joinedAt` → 400), 0/1/4/5 ids, `groupSize` 1/2/5/6;
+    `attemptId`, `joinedAt` → 400), 0/1/4/5 ids, `groupSize` 1/2/5/6, e uma passagem recusada pelo limite
+    `activity-saves` (429);
+  - `023-invariance.spec.ts` `023/SC-007`: num trabalho individual, num exercício (013) e numa prova (018), o início,
+    os salvamentos, a entrega, a nota, os eventos da 015, as pausas da 016 e as execuções da 019/021 dão os mesmos
+    resultados e os mesmos eventos de auditoria de antes da 023; cada tentativa tem só o dono como participante e
+    nenhuma linha em `attempt_groups`;
   - `023-audit.spec.ts`: nomes e respostas com `MARCADOR-GRUPO-023` fora da auditoria e dos logs; o journey
     (`test/helpers/journey.ts`) forma um grupo, passa, retoma e entrega com eles;
   - `023-performance.spec.ts`: candidatos de uma turma de 60 p95 < 100 ms; `GET /me/activities/:id` de um grupo
     p95 < 150 ms; o `GET …/group` do professor com 5 integrantes × 10 questões × 50 salvamentos p95 < 150 ms;
   - web: `test/student-portal-xss.test.tsx` cobre os nomes no diálogo, na barra, no aviso e nos fatos do professor;
-  - `023/SC-001 023/SC-007` citados nos testes que os provam (T014 e T008).
-- [ ] T041 E2E `apps/web/e2e/group-work.spec.ts` (três contextos do navegador, quickstart passos 1–9): aplicar em
+    `023/FR-026` `test/exam-wording.test.ts` passa a varrer também `features/group-work` e
+    `features/activities/components/group-facts.tsx`;
+  - `023/SC-001` fica no E2E (T041) e `023/SC-007` em `023-invariance.spec.ts`.
+- [ ] T041 E2E `apps/web/e2e/group-work.spec.ts`, com `023/SC-001` no título (três contextos do navegador,
+  quickstart passos 1–9; formar o grupo de 3 a partir de "Iniciar" em menos de 1 minuto): aplicar em
   grupo, formar, ler o salvamento em até 10 s, passar e retomar, incluir, entregar pelo líder, corrigir e ver a mesma
   nota nos integrantes. Rodar com `pnpm --filter web test:e2e group-work` (exige consentimento para o reset do
   `devtrack_e2e`).

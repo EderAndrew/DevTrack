@@ -185,8 +185,10 @@ aviso. O líder entrega e os três veem a tentativa como entregue.
    recusado.
 3. **Given** um integrante que não é o líder, **When** ele procura incluir ou entregar, **Then** não há essas
    opções e um pedido direto é recusado.
-4. **Given** o líder, **When** ele entrega, **Then** a tentativa do grupo fica entregue para todos os integrantes,
-   com a data e a hora da entrega e a marca de atrasada quando for o caso (012), e ninguém mais edita.
+4. **Given** o líder segurando a edição, **When** ele entrega, **Then** a tentativa do grupo fica entregue para
+   todos os integrantes, com a data e a hora da entrega e a marca de atrasada quando for o caso (012), e ninguém
+   mais edita; **When** a edição está com outro integrante, **Then** "Entregar" pede que o líder retome a edição
+   antes.
 5. **Given** a entrega, **When** o professor corrige e libera a nota, **Then** cada integrante vê a mesma nota e o
    mesmo retorno, só depois da liberação (012).
 6. **Given** qualquer integrante, **When** ele procura "Sair do grupo" ou o líder procura "Remover", **Then** essas
@@ -272,6 +274,8 @@ o código, cada um do próprio computador.
 - Prazo encerrado sem entrega atrasada: a tentativa do grupo fica sem entrega, como uma tentativa individual
   (012); nada é entregue automaticamente.
 - Atividade cancelada ou encerrada pelo professor: vale para o grupo inteiro, como para os individuais.
+- "Aceitar como entrega" do professor (012) numa tentativa de grupo não entregue: vale para a tentativa do grupo e
+  conta como entregue para todos os integrantes.
 - Mudança de formato antes do primeiro início, com alunos com a página aberta: veem o novo formato na próxima
   leitura; um "Iniciar" com o formato antigo é recusado e a página relê a atividade.
 - Salvamento automático pendente na tela do integrante quando o líder retoma: é recusado; a tela avisa que a
@@ -336,15 +340,18 @@ o código, cada um do próprio computador.
   (FR-005) até completar o máximo, com as mesmas regras de FR-006 e FR-009.
 - **FR-017**: Nesta etapa NÃO DEVE existir saída do grupo, remoção de integrante nem troca de líder pelo aluno;
   a liderança só muda no caso de FR-023.
-- **FR-018**: Só o líder DEVE poder entregar; a entrega DEVE ser única para o grupo, seguir as regras de prazo e
-  entrega atrasada da 012 e valer para todos os integrantes.
+- **FR-018**: Só o líder DEVE poder entregar, e só segurando a edição (se um integrante está editando, o líder
+  retoma a edição antes de entregar, para nada não salvo se perder sem aviso); a entrega DEVE ser única para o
+  grupo, seguir as regras de prazo e entrega atrasada da 012 e valer para todos os integrantes. O "Aceitar como
+  entrega" do professor (012) vale para a tentativa do grupo e, portanto, para todos os integrantes.
 - **FR-019**: A nota e o retorno do professor DEVEM ser os mesmos para todos os integrantes e só DEVEM aparecer a
   cada um depois da liberação, com as regras da 012 (inclusive a permissão de ver as próprias notas).
 
 **Correção (professor)**
 
 - **FR-020**: A lista de entregas da atividade DEVE mostrar uma linha por grupo (líder e integrantes) e uma por
-  aluno que fez sozinho; a correção do grupo DEVE mostrar o líder, os integrantes com a hora em que entraram e
+  aluno que fez sozinho; os contadores do professor ("x de y entregaram" e afins) DEVEM contar por aluno: cada
+  integrante de um grupo que entregou conta como entregue; a correção do grupo DEVE mostrar o líder, os integrantes com a hora em que entraram e
   quem os incluiu, as passagens da edição e, por questão, quem salvou e quando.
 - **FR-021**: Os registros do modo controlado (015), as pausas (016) e as execuções de código (021) DEVEM
   continuar por aluno e aparecer na correção com o nome do aluno.
