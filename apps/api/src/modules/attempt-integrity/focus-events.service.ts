@@ -280,6 +280,7 @@ export async function storedEvents(db: Pick<Tx, "attemptIntegrityEvent">, attemp
     where: { attemptId, ...(studentUserId ? { studentUserId } : {}) },
     orderBy: [{ recordedAt: "asc" }, { id: "asc" }],
     select: {
+      studentUserId: true,
       type: true,
       questionId: true,
       recordedAt: true,

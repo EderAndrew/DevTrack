@@ -7,6 +7,7 @@ import {
   ErrorBodySchema,
   ErrorCodeSchema,
   StartAttemptRequestSchema,
+  TeacherAttemptGroupSchema,
   UpdateActivityRequestSchema,
 } from "../src/index.js";
 
@@ -66,5 +67,28 @@ describe("023 início do trabalho em grupo (contracts/http-api.md, research U6)"
     expect(accepts(ErrorBodySchema, body)).toBe(true);
     expect(accepts(ErrorBodySchema, { ...body, details: { unavailableIds: [] } })).toBe(false);
     expect(ErrorCodeSchema.options).toEqual(expect.arrayContaining(["GROUP_MEMBERS_UNAVAILABLE", "GROUP_ALREADY_JOINED"]));
+  });
+});
+
+describe("023/US6 fatos do grupo para o professor (contracts/http-api.md)", () => {
+  const AT = "2026-10-30T13:00:00.000Z";
+  const facts = {
+    leaderId: uuid(1),
+    members: [
+      { id: uuid(1), name: "Ana", joinedAt: AT, addedById: null },
+      { id: uuid(2), name: "Bruno", joinedAt: AT, addedById: uuid(1) },
+    ],
+    events: [{ kind: "EDITING_HANDED", reason: null, actorId: uuid(1), fromId: uuid(1), toId: uuid(2), occurredAt: AT }],
+    saves: [{ questionId: uuid(9), entries: [{ studentId: uuid(2), revision: 1, savedAt: AT }] }],
+  };
+
+  it("023/FR-020 integrantes, passagens e salvamentos: só ids, nomes, tipos e horários", () => {
+    expect(accepts(TeacherAttemptGroupSchema, facts)).toBe(true);
+    // A system settlement has no actor and carries its reason.
+    expect(accepts(TeacherAttemptGroupSchema, { ...facts, events: [{ ...facts.events[0], kind: "EDITING_RESET", reason: "PAUSED", actorId: null }] })).toBe(true);
+    // Never an answer, a grade or a label.
+    expect(accepts(TeacherAttemptGroupSchema, { ...facts, saves: [{ ...facts.saves[0], entries: [{ ...facts.saves[0]!.entries[0], text: "x" }] }] })).toBe(false);
+    expect(accepts(TeacherAttemptGroupSchema, { ...facts, grade: "1.00" })).toBe(false);
+    expect(accepts(TeacherAttemptGroupSchema, { ...facts, events: [{ ...facts.events[0], kind: "FRAUD" }] })).toBe(false);
   });
 });

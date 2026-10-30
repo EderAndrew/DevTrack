@@ -5,6 +5,8 @@ import { deriveRoomStatus } from "./room-status";
 /** One stored room exit (016 data-model.md `attempt_pauses`). */
 export interface StoredPause {
   id: string;
+  /** 023/FR-021: the participant who left the room. */
+  studentUserId: string;
   initiatedBy: PauseInitiator;
   reason: PauseReason;
   note: string | null;
@@ -17,6 +19,7 @@ export function toTeacherPause(pause: StoredPause, context: PauseEndContext, now
   const time = pauseTime(pause, context, now);
   return {
     id: pause.id,
+    studentUserId: pause.studentUserId,
     initiatedBy: pause.initiatedBy,
     reason: pause.reason,
     note: pause.note,

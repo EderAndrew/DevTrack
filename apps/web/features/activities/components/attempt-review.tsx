@@ -65,6 +65,7 @@ import {
   ExamAttemptRecords,
   RoomExitRecords,
 } from "./attempt-records";
+import { GroupFacts, GroupLabel } from "./group-facts";
 import {
   formatGrade,
   formatPoints,
@@ -195,7 +196,13 @@ export function AttemptReview({
           </Link>
         </p>
         <h2 id="tentativa-titulo" className="m-0 text-h2">
-          Tentativa de {attempt.student.name}
+          {attempt.group ? (
+            <>
+              Tentativa de <GroupLabel participants={attempt.participants} />
+            </>
+          ) : (
+            <>Tentativa de {attempt.student.name}</>
+          )}
         </h2>
         {error ? (
           <p role="alert" className="m-0 text-danger-text">
@@ -311,11 +318,17 @@ export function AttemptReview({
         ) : null}
       </div>
 
+      {/* 023/US6: the group's members, editing history and who saved each answer. */}
+      {attempt.group ? (
+        <GroupFacts classId={classId} activityId={activityId} attemptId={attempt.id} questions={activity.questions} />
+      ) : null}
+
       {!isExercise && activity.executionMode === "CONTROLLED" ? (
         <IntegrityRecords
           classId={classId}
           activityId={activityId}
           attemptId={attempt.id}
+          participants={attempt.group ? attempt.participants : null}
         />
       ) : null}
 
@@ -324,7 +337,7 @@ export function AttemptReview({
 
       {/* 016/US4: the room exits of a work that takes attendance. */}
       {!isExercise && activity.releaseMode === "PRESENT_ONLY" ? (
-        <RoomExitRecords classId={classId} activityId={activityId} attemptId={attempt.id} />
+        <RoomExitRecords classId={classId} activityId={activityId} attemptId={attempt.id} participants={attempt.group ? attempt.participants : null} />
       ) : null}
 
       <AttemptHelpContext.Provider value={helpQuery.data?.items ?? null}>

@@ -12,6 +12,7 @@ import type {
   TeacherActivity,
   TeacherActivityList,
   TeacherAttempt,
+  TeacherAttemptGroup,
   TeacherHelpState,
   UpdateActivityRequest,
   WorkPage,
@@ -59,6 +60,9 @@ export const attemptsApi = {
     apiClient.get<IntegrityTimeline>(`${attemptPath(classId, activityId, attemptId)}/integrity`),
   /** 015: the attempt's requests of AI help per question (US4). */
   help: (classId: string, activityId: string, attemptId: string) => apiClient.get<TeacherHelpState>(`${attemptPath(classId, activityId, attemptId)}/help`),
+  /** 023: a group attempt's members, editing handoffs and saves per question (US6). */
+  group: (classId: string, activityId: string, attemptId: string) =>
+    apiClient.get<TeacherAttemptGroup>(`${attemptPath(classId, activityId, attemptId)}/group`),
 };
 
 /**

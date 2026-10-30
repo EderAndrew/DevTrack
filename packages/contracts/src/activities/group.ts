@@ -54,6 +54,10 @@ export const GroupCandidatesSchema = z.strictObject({
 });
 export type GroupCandidates = z.infer<typeof GroupCandidatesSchema>;
 
+/** A participant of an attempt as the teacher's roster and attempt show it (023 contracts/http-api.md). */
+export const AttemptParticipantSchema = z.strictObject({ id: UuidSchema, name: z.string(), isLeader: z.boolean() });
+export type AttemptParticipant = z.infer<typeof AttemptParticipantSchema>;
+
 /** `GET /classes/:classId/activities/:activityId/attempts/:attemptId/group`. */
 export const TeacherAttemptGroupSchema = z.strictObject({
   leaderId: UuidSchema,

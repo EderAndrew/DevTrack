@@ -80,7 +80,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
-import { AddGroupMembersRequestSchema, GroupCandidatesSchema, GroupEditingRequestSchema } from "./activities/group.js";
+import { AddGroupMembersRequestSchema, GroupCandidatesSchema, GroupEditingRequestSchema, TeacherAttemptGroupSchema } from "./activities/group.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
@@ -1539,6 +1539,14 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId/code-runs",
     params: ClassActivityAttemptParamsSchema,
     response: AttemptCodeRunSummarySchema,
+    status: 200,
+  },
+  /** 023/US6 — a group attempt's members, editing handoffs and saves per question (FR-020); an individual attempt → 404. */
+  "activities.attemptGroup": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/group",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherAttemptGroupSchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

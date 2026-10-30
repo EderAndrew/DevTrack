@@ -12,6 +12,7 @@ import {
   type QuestionGrading,
   type TeacherAttempt,
   type TeacherAttemptExam,
+  type TeacherAttemptGroup,
   type WorkQuestionType,
 } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
@@ -35,7 +36,9 @@ import { type AssignmentFacts, assignmentSchedule, examTiming } from "./status/f
 import { answerOfRow } from "./status/answers";
 import { acceptanceRefusal } from "./status/operations";
 import { pointsFor } from "./results/exercise-results";
+import { orderedParticipants } from "./roster";
 import { registerSubmission } from "./submission/register-submission";
+import { toTeacherAttemptGroup } from "./views/teacher-group-view";
 
 const HOUR_SEC = 3_600;
 
@@ -47,6 +50,12 @@ const ATTEMPT_SELECT = {
   startedAt: true,
   lastSavedAt: true,
   student: { select: { userId: true, user: { select: { name: true } } } },
+  // 023: the participants (leader first in the view) and the group's leader.
+  participants: {
+    orderBy: [{ joinedAt: "asc" }, { studentUserId: "asc" }],
+    select: { studentUserId: true, student: { select: { user: { select: { name: true } } } } },
+  },
+  group: { select: { leaderUserId: true } },
   // EXAM (018/FR-031): the timing that derives the end, the occurrences and the decisions with their author.
   activity: { select: { type: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
   occurrences: { orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } },
@@ -131,6 +140,44 @@ export class AttemptsReviewService {
     await this.classes.findOwnedOrNotFound(teacherId, classId);
     await this.examSettlement.ofActivity(classId, activityId, this.clock.now(), null);
     return this.readAttempt(teacherId, classId, activityId, attemptId);
+  }
+
+  /**
+   * 023/US6 — a group attempt's members, editing events and saves per question (FR-020, SC-005), through the
+   * allowlist `toTeacherAttemptGroup`. An individual attempt, another activity's attempt or another teacher's
+   * class → 404. A read: not audited, and no grading code reads these facts (US6-5).
+   */
+  async getGroup(teacherId: string, classId: string, activityId: string, attemptId: string): Promise<TeacherAttemptGroup> {
+    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    const group = await this.prisma.attemptGroup.findFirst({
+      where: { attemptId, activityId, attempt: { activity: { classId } } },
+      select: {
+        leaderUserId: true,
+        attempt: {
+          select: {
+            participants: {
+              select: { studentUserId: true, joinedAt: true, addedByUserId: true, student: { select: { user: { select: { name: true } } } } },
+            },
+          },
+        },
+        events: {
+          orderBy: { occurredAt: "asc" },
+          select: { kind: true, reason: true, actorUserId: true, fromUserId: true, toUserId: true, occurredAt: true },
+        },
+      },
+    });
+    if (!group) throw notFound();
+    const [saves, questions] = await Promise.all([
+      this.prisma.activityAnswerSave.findMany({ where: { attemptId }, select: { questionId: true, revision: true, studentUserId: true, savedAt: true } }),
+      this.prisma.classActivityQuestion.findMany({ where: { activityId }, orderBy: { position: "asc" }, select: { id: true } }),
+    ]);
+    return toTeacherAttemptGroup({
+      leaderUserId: group.leaderUserId,
+      participants: group.attempt.participants.map(({ student, ...row }) => ({ ...row, name: student.user.name })),
+      events: group.events,
+      saves,
+      questionIds: questions.map((question) => question.id),
+    });
   }
 
   /** The attempt as it is, inside the caller's transaction (`db`) when given. */
@@ -478,6 +525,8 @@ function toTeacherAttempt(attempt: AttemptRecord): TeacherAttempt {
   return {
     id: attempt.id,
     student: { userId: attempt.student.userId, name: attempt.student.user.name },
+    participants: orderedParticipants(attempt.participants, attempt.group?.leaderUserId ?? attempt.student.userId),
+    group: attempt.group !== null,
     status: attempt.status,
     startedAt: attempt.startedAt.toISOString(),
     lastSavedAt: attempt.lastSavedAt?.toISOString() ?? null,

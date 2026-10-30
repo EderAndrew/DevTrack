@@ -117,6 +117,7 @@ describe("016/US5 professor pausa um aluno", () => {
       const paused = await pause(activity.id);
       expect(paused).toEqual({
         id: expect.any(String),
+        studentUserId: student.id,
         initiatedBy: "TEACHER",
         reason: "TEACHER",
         note: null,

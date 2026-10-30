@@ -194,9 +194,9 @@ describe("016/US4 professor vê presença e pausas ao corrigir", () => {
       const ended = (from: Date, minutes: number) => new Date(from.getTime() + minutes * MINUTE).toISOString();
       expect(await pausesOf(id, attempt.id)).toEqual({
         items: [
-          { id: water, initiatedBy: "STUDENT", reason: "WATER", note: null, startedAt: first.toISOString(), endedAt: ended(first, 4), endedBy: "RELEASE", seconds: 240 },
-          { id: other, initiatedBy: "STUDENT", reason: "OTHER", note: NOTE, startedAt: second.toISOString(), endedAt: ended(second, 3), endedBy: "RELEASE", seconds: 180 },
-          { id: byTeacher.id, initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: third.toISOString(), endedAt: ended(third, 2), endedBy: "RELEASE", seconds: 120 },
+          { id: water, studentUserId: paused.id, initiatedBy: "STUDENT", reason: "WATER", note: null, startedAt: first.toISOString(), endedAt: ended(first, 4), endedBy: "RELEASE", seconds: 240 },
+          { id: other, studentUserId: paused.id, initiatedBy: "STUDENT", reason: "OTHER", note: NOTE, startedAt: second.toISOString(), endedAt: ended(second, 3), endedBy: "RELEASE", seconds: 180 },
+          { id: byTeacher.id, studentUserId: paused.id, initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: third.toISOString(), endedAt: ended(third, 2), endedBy: "RELEASE", seconds: 120 },
         ],
         totalSecondsAway: 540,
       });

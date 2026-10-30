@@ -469,6 +469,7 @@ describe("016/US4 \"Saídas da sala\" na correção", () => {
   const presentOnly = gradingActivity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } });
   const pause = (overrides: Partial<TeacherPause>): TeacherPause => ({
     id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
     initiatedBy: "STUDENT",
     reason: "WATER",
     note: null,

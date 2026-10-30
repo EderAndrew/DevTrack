@@ -115,7 +115,7 @@ export class ExamMonitorService {
             : null;
         const unreleased =
           inProgress && row.pause_id && row.pause_initiated_by && row.pause_reason && row.pause_started_at
-            ? { id: row.pause_id, initiatedBy: row.pause_initiated_by, reason: row.pause_reason, note: row.pause_note, startedAt: row.pause_started_at }
+            ? { id: row.pause_id, studentUserId: row.student_user_id, initiatedBy: row.pause_initiated_by, reason: row.pause_reason, note: row.pause_note, startedAt: row.pause_started_at }
             : null;
         const openPause = openPauseOf(unreleased, { acceptedAt: null, activityEndedAt, examEndsAt: end }, now);
         return {

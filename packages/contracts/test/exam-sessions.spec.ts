@@ -83,7 +83,7 @@ describe("018 acompanhamento da prova (contracts/http-api.md, research T12)", ()
     const held = student({ examStatus: "AWAITING_DECISION", occurrenceCount: 4, openHold: hold() });
     const paused = student({
       examStatus: "PAUSED",
-      openPause: { id: uuid(8), initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: AT, endedAt: null, endedBy: null, seconds: 30 },
+      openPause: { id: uuid(8), studentUserId: uuid(9), initiatedBy: "TEACHER", reason: "TEACHER", note: null, startedAt: AT, endedAt: null, endedBy: null, seconds: 30 },
     });
     expect(accepts(ExamMonitorSchema, monitor([held, paused, student(), notMarked]))).toBe(true);
     expect(accepts(ExamMonitorSchema, monitor([student({ occurrenceCount: -1 })]))).toBe(false);

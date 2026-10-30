@@ -331,6 +331,7 @@ describe("016 nota de \"Outro\" como texto", () => {
   const PAUSE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee16";
   const teacherPause: TeacherPause = {
     id: PAUSE_ID,
+    studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
     initiatedBy: "STUDENT",
     reason: "OTHER",
     note: SCRIPT,

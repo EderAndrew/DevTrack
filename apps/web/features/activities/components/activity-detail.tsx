@@ -32,6 +32,7 @@ import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability, useIntegritySummary } from "../hooks/use-activities";
 import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
+import { rosterLines } from "../schemas/group-facts";
 import {
   ACTIVITY_TYPE_LABELS,
   activityStarted,
@@ -54,6 +55,7 @@ import { ActivityQuestions } from "./activity-questions";
 import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_EXAM, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
+import { GroupLabel } from "./group-facts";
 import { GroupFormatField, WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
 export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostramos a versão atual; revise antes de continuar.";
@@ -555,11 +557,14 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
             </TableRow>
           </TableHeader>
           <TableBody>
-            {activity.roster.map((entry) => (
+            {/* 023/FR-020: one line per attempt; a group's line is its leader's, "Ana e mais 2 — Em grupo". */}
+            {rosterLines(activity.roster).map((entry) => (
               <TableRow key={entry.studentUserId}>
                 <TableCell>
                   {entry.attemptId ? (
-                    <Link href={`/turmas/${classId}/atividades/${activity.id}/tentativas/${entry.attemptId}`}>{entry.name}</Link>
+                    <Link href={`/turmas/${classId}/atividades/${activity.id}/tentativas/${entry.attemptId}`}>
+                      {entry.group ? <GroupLabel participants={entry.participants} /> : entry.name}
+                    </Link>
                   ) : (
                     entry.name
                   )}

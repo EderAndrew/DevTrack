@@ -6,6 +6,7 @@ import {
   type MarkExerciseResultsRequest,
   MarkExerciseResultsRequestSchema,
   type TeacherAttempt,
+  type TeacherAttemptGroup,
   UuidSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -29,6 +30,18 @@ export class AttemptsReviewController {
     @Ctx() ctx: RequestContext,
   ): Promise<TeacherAttempt> {
     return this.review.getAttempt(ctx.auth!.userId, classId, activityId, attemptId);
+  }
+
+  /** 023/US6 — the group's members, editing handoffs and saves per question (FR-020); an individual attempt → 404. */
+  @Get("group")
+  @RequirePermissions("entregas.visualizar")
+  group(
+    @Param("classId", idPipe) classId: string,
+    @Param("activityId", idPipe) activityId: string,
+    @Param("attemptId", idPipe) attemptId: string,
+    @Ctx() ctx: RequestContext,
+  ): Promise<TeacherAttemptGroup> {
+    return this.review.getGroup(ctx.auth!.userId, classId, activityId, attemptId);
   }
 
   @Put("grades")

@@ -116,6 +116,7 @@ describe("016/US3 RoomPanel — quem está fora da sala", () => {
   const RELEASE_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/pauses/${PAUSE_ID}/release`;
   const openPause = {
     id: PAUSE_ID,
+    studentUserId: CAIO,
     initiatedBy: "STUDENT" as const,
     reason: "BATHROOM" as const,
     note: null,
@@ -179,6 +180,7 @@ describe("016/US5 RoomPanel — \"Pausar aluno\"", () => {
   const PAUSE_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/students/${BRUNO}/pause`;
   const teacherPause = {
     id: PAUSE_ID,
+    studentUserId: BRUNO,
     initiatedBy: "TEACHER" as const,
     reason: "TEACHER" as const,
     note: null,

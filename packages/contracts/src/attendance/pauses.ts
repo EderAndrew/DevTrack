@@ -25,6 +25,8 @@ export type DeclareExit = z.infer<typeof DeclareExitSchema>;
 export const TeacherPauseSchema = z
   .strictObject({
     id: UuidSchema,
+    /** 023/FR-021: the student who left the room (a group attempt has one pause per participant). */
+    studentUserId: UuidSchema,
     initiatedBy: PauseInitiatorSchema,
     reason: PauseReasonSchema,
     note: z.string().max(PAUSE_NOTE_MAX).nullable(),

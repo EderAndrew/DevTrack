@@ -357,6 +357,8 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       markedAt: null,
       pauses: { count: 0, secondsAway: 0, open: false },
       occurrenceCount: null,
+      participants: [{ id: uuid(1), name: "Ana", isLeader: true }],
+      group: false,
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -595,6 +597,8 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     markedAt: null,
     pauses: { count: 0, secondsAway: 0, open: false },
     occurrenceCount: null,
+    participants: [],
+    group: false,
   };
   const question = {
     id: uuid(5),

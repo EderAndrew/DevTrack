@@ -1,6 +1,6 @@
 "use client";
 
-import type { AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherAttemptExam, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
+import type { AttemptParticipant, AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherAttemptExam, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
 import { createContext, useContext } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/ui/code/code-block";
@@ -35,13 +35,28 @@ import {
   RECORDS_NOTE,
   RECORDS_TITLE,
 } from "../schemas/attempt-records";
+import { STUDENT_COLUMN } from "../schemas/group-facts";
+
+/** 023/FR-021: in a group attempt each fact names its student; null for an individual attempt (no column). */
+type Participants = readonly AttemptParticipant[] | null;
+const nameIn = (participants: readonly AttemptParticipant[], id: string) => participants.find((person) => person.id === id)?.name ?? "Aluno";
 
 /**
  * "Registros do modo controlado" (015 US4, FR-025): the attempt's events in time order with the
  * server's time, and each exit's duration from the derived intervals ("sem retorno registrado" when
  * open). Records, never a verdict.
  */
-export function IntegrityRecords({ classId, activityId, attemptId }: { classId: string; activityId: string; attemptId: string }) {
+export function IntegrityRecords({
+  classId,
+  activityId,
+  attemptId,
+  participants = null,
+}: {
+  classId: string;
+  activityId: string;
+  attemptId: string;
+  participants?: Participants;
+}) {
   const query = useAttemptIntegrity(classId, activityId, attemptId, true);
   return (
     <section aria-labelledby="registros-titulo" className="flex flex-col gap-2">
@@ -59,16 +74,18 @@ export function IntegrityRecords({ classId, activityId, attemptId }: { classId: 
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <Timeline timeline={query.data} />
+        <Timeline timeline={query.data} participants={participants} />
       )}
     </section>
   );
 }
 
-function Timeline({ timeline }: { timeline: IntegrityTimeline }) {
+function Timeline({ timeline, participants }: { timeline: IntegrityTimeline; participants: Participants }) {
   const { totals } = timeline;
   if (timeline.events.length === 0) return <p className="m-0">Nenhum registro nesta tentativa.</p>;
-  const durationOf = (kind: string, at: string) => timeline.intervals.find((interval) => interval.kind === kind && interval.from === at);
+  // 023: each student's exits end at their own returns, so the interval is the same student's.
+  const durationOf = (kind: string, at: string, studentUserId: string) =>
+    timeline.intervals.find((interval) => interval.kind === kind && interval.from === at && interval.studentUserId === studentUserId);
   return (
     <>
       <dl className="m-0 grid gap-1">
@@ -94,6 +111,7 @@ function Timeline({ timeline }: { timeline: IntegrityTimeline }) {
         <TableHeader>
           <TableRow>
             <TableHead scope="col">Horário</TableHead>
+            {participants ? <TableHead scope="col">{STUDENT_COLUMN}</TableHead> : null}
             <TableHead scope="col">Evento</TableHead>
             <TableHead scope="col">Duração</TableHead>
           </TableRow>
@@ -102,13 +120,14 @@ function Timeline({ timeline }: { timeline: IntegrityTimeline }) {
           {timeline.events.map((event, index) => {
             const at = occurredAt(event);
             const kind = EXIT_KINDS[event.type];
-            const interval = kind ? durationOf(kind, at) : undefined;
+            const interval = kind ? durationOf(kind, at, event.studentUserId) : undefined;
             return (
               <TableRow key={`${at}-${index}`}>
                 <TableCell>
                   {formatTime(at)}
                   {event.buffered ? " (enviado depois, sem conexão)" : ""}
                 </TableCell>
+                {participants ? <TableCell>{nameIn(participants, event.studentUserId)}</TableCell> : null}
                 <TableCell>
                   {EVENT_LABELS[event.type]}
                   {event.questionPosition !== null ? ` · questão ${event.questionPosition + 1}` : ""}
@@ -161,7 +180,17 @@ export function QuestionHelpRecords({ question }: { question: TeacherQuestion })
  * it, the exit, the return and the duration, all derived by the server. A pause that the close, the
  * cancellation or the acceptance ended says so. Records, never a verdict (SC-008).
  */
-export function RoomExitRecords({ classId, activityId, attemptId }: { classId: string; activityId: string; attemptId: string }) {
+export function RoomExitRecords({
+  classId,
+  activityId,
+  attemptId,
+  participants = null,
+}: {
+  classId: string;
+  activityId: string;
+  attemptId: string;
+  participants?: Participants;
+}) {
   const query = useAttemptPauses(classId, activityId, attemptId, true);
   return (
     <section aria-labelledby="saidas-sala-titulo" className="flex flex-col gap-2">
@@ -178,13 +207,13 @@ export function RoomExitRecords({ classId, activityId, attemptId }: { classId: s
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <RoomExits pauses={query.data} />
+        <RoomExits pauses={query.data} participants={participants} />
       )}
     </section>
   );
 }
 
-function RoomExits({ pauses }: { pauses: AttemptPauses }) {
+function RoomExits({ pauses, participants }: { pauses: AttemptPauses; participants: Participants }) {
   if (pauses.items.length === 0) return <p className="m-0">{NO_ROOM_EXITS}</p>;
   return (
     <>
@@ -193,6 +222,7 @@ function RoomExits({ pauses }: { pauses: AttemptPauses }) {
         <TableCaption>Saídas da sala desta tentativa, no horário do servidor.</TableCaption>
         <TableHeader>
           <TableRow>
+            {participants ? <TableHead scope="col">{STUDENT_COLUMN}</TableHead> : null}
             <TableHead scope="col">Motivo</TableHead>
             <TableHead scope="col">Quem pausou</TableHead>
             <TableHead scope="col">Saída</TableHead>
@@ -203,6 +233,7 @@ function RoomExits({ pauses }: { pauses: AttemptPauses }) {
         <TableBody>
           {pauses.items.map((pause) => (
             <TableRow key={pause.id}>
+              {participants ? <TableCell>{nameIn(participants, pause.studentUserId)}</TableCell> : null}
               <TableCell>{pauseReasonText(pause)}</TableCell>
               <TableCell>{PAUSE_INITIATOR_LABELS[pause.initiatedBy]}</TableCell>
               <TableCell>

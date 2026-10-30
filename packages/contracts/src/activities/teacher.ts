@@ -33,7 +33,7 @@ import {
   PublicationPhaseSchema,
   RosterStatusSchema,
 } from "./enums.js";
-import { GroupSizeSchema } from "./group.js";
+import { AttemptParticipantSchema, GroupSizeSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 
 // The teacher's side of class activities (012 contracts/http-api.md, "Teacher routes"). Grades use
@@ -309,6 +309,10 @@ export const RosterEntrySchema = z.strictObject({
   pauses: z.strictObject({ count: z.int().min(0), secondsAway: z.int().min(0), open: z.boolean() }),
   /** EXAM only: the attempt's occurrences (018/FR-018), 0 without an attempt; null for the others. */
   occurrenceCount: z.int().min(0).nullable(),
+  /** 023: the attempt's participants, leader first (the owner alone for an individual attempt); empty without one. */
+  participants: z.array(AttemptParticipantSchema).max(5),
+  /** 023: the attempt is a group's. */
+  group: z.boolean(),
 });
 export type RosterEntry = z.infer<typeof RosterEntrySchema>;
 
@@ -380,6 +384,10 @@ export type TeacherAttemptExam = z.infer<typeof TeacherAttemptExamSchema>;
 export const TeacherAttemptSchema = z.strictObject({
   id: UuidSchema,
   student: z.strictObject({ userId: UuidSchema, name: z.string() }),
+  /** 023: leader first, then by `joinedAt` (the owner alone for an individual attempt). */
+  participants: z.array(AttemptParticipantSchema).min(1).max(5),
+  /** 023: the attempt is a group's; its facts are at `…/attempts/:attemptId/group`. */
+  group: z.boolean(),
   status: AttemptStatusSchema,
   startedAt: IsoDateTimeSchema,
   lastSavedAt: IsoDateTimeSchema.nullable(),

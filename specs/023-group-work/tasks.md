@@ -352,24 +352,24 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T032 [P] [US6] API `apps/api/test/integration/023-us6-review.spec.ts`: `023/US6-1` a lista de entregas traz uma
+- [X] T032 [P] [US6] API `apps/api/test/integration/023-us6-review.spec.ts`: `023/US6-1` a lista de entregas traz uma
   linha por tentativa com `participants` (o grupo e quem fez sozinho); `023/FR-020` os contadores do professor contam
   por aluno (um grupo de 3 que entregou soma 3 entregues); `023/US6-2` `GET …/attempts/:attemptId/group` →
   líder, integrantes com `joinedAt`/`addedById` e `events` em ordem; `023/US6-3 023/SC-005` `saves` por questão, do
   primeiro ao último, com aluno e revisão; `023/US6-4` a linha do tempo da 015 e as pausas da 016 trazem o aluno de cada
   fato; `023/US6-5` nenhuma rota de nota lê os registros (nota única para o grupo); a rota para uma tentativa
   individual → 404; professor B → 404; outros papéis → 403.
-- [ ] T033 [P] [US6] Web `apps/web/features/activities/components/group-facts.test.tsx`: `023/US6-1` "A e mais 2 — Em
+- [X] T033 [P] [US6] Web `apps/web/features/activities/components/group-facts.test.tsx`: `023/US6-1` "A e mais 2 — Em
   grupo" na lista; `023/US6-2 023/US6-3` integrantes, histórico em palavras e "Salvo por <nome> às hh:mm (revisão n)"
   com os anteriores num `Collapsible`; nenhum texto com "fraude", "cola" ou "violação"; axe.
 
 ### Implementation for User Story 6
 
-- [ ] T034 [US6] Contratos + API: `participants` no roster e na tentativa (`activities/roster.ts`,
+- [X] T034 [US6] Contratos + API: `participants` no roster e na tentativa (`activities/roster.ts`,
   `attempts-review.service.ts`); os contadores da atividade por aluno (cada participante de uma tentativa entregue); `GET /classes/:classId/activities/:activityId/attempts/:attemptId/group` em
   `attempts-review.controller.ts` com `views/teacher-group-view.ts` (allowlist, `entregas.visualizar`,
   `ClassContextPolicy`, sem auditoria); o nome do aluno nos fatos da 015/016 do professor. T032 fica verde.
-- [ ] T035 [US6] Web `features/activities/components/group-facts.tsx` montado em `attempt-review.tsx`; a lista de
+- [X] T035 [US6] Web `features/activities/components/group-facts.tsx` montado em `attempt-review.tsx`; a lista de
   entregas com o grupo. T033 fica verde; a US6 sai de `pending` e `023/SC-005` também.
 
 ---

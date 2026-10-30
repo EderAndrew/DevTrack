@@ -24,6 +24,7 @@ const LATER = "2026-10-09T13:05:00.000Z";
 
 const teacherPause = (overrides: Record<string, unknown> = {}) => ({
   id: uuid(900),
+  studentUserId: uuid(901),
   initiatedBy: "STUDENT",
   reason: "BATHROOM",
   note: null,

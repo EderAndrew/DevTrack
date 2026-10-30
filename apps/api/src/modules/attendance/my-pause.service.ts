@@ -16,7 +16,7 @@ const HOUR_SEC = 3600;
 /** The route pattern `student_access.denied` names (never the URL with its ids). */
 const PAUSE_ROUTE = "/me/activities/:activityId/attempt/pause";
 
-const PAUSE_SELECT = { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
+const PAUSE_SELECT = { id: true, studentUserId: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
 
 /** Thrown inside the transaction when the activity is out of the student's context (→ 404 after the rollback). */
 class OutOfContext extends Error {}

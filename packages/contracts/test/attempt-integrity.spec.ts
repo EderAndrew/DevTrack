@@ -87,15 +87,18 @@ describe("015 eventos do modo controlado (contracts/http-api.md, research F4)", 
     expect(accepts(IntegritySummarySchema, { studentUserId: uuid(1), attemptId: uuid(2), ...totals, suspicious: true })).toBe(false);
     const timeline = {
       events: [
-        { type: "SCREEN_LEFT", questionPosition: null, recordedAt: AT, clientOccurredAt: null, buffered: false, occurrenceOrdinal: null, idleSeconds: null },
+        { type: "SCREEN_LEFT", questionPosition: null, recordedAt: AT, clientOccurredAt: null, buffered: false, occurrenceOrdinal: null, idleSeconds: null, studentUserId: uuid(1) },
       ],
-      intervals: [{ kind: "CONNECTION", from: AT, to: AT, seconds: 0, open: true }],
+      intervals: [{ kind: "CONNECTION", from: AT, to: AT, seconds: 0, open: true, studentUserId: uuid(1) }],
       totals,
       holds: [],
     };
     expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, intervals: [{ ...timeline.intervals[0], kind: "TAB" }] })).toBe(false);
-    expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(true);
+    // The student's own view never names a student (023: only the teacher's timeline does).
+    const own = timeline.events.map(({ studentUserId: _student, ...event }) => event);
+    expect(accepts(StudentIntegritySchema, { events: own, totals })).toBe(true);
+    expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(false);
   });
 });
 
@@ -144,11 +147,14 @@ describe("018 ocorrências da prova nos eventos (contracts/http-api.md, research
   });
 
   it("018/FR-016 a linha do tempo traz o ordinal da ocorrência, a ociosidade e as retenções da tentativa", () => {
-    const timeline = { events: [view(), view({ type: "SCREEN_RETURNED", occurrenceOrdinal: null, idleSeconds: null })], intervals: [], totals, holds: [hold] };
+    const timeline = { events: [view(), view({ type: "SCREEN_RETURNED", occurrenceOrdinal: null, idleSeconds: null })].map((item) => ({ ...item, studentUserId: uuid(1) })), intervals: [], totals, holds: [hold] };
     expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, holds: undefined })).toBe(false);
-    expect(accepts(IntegrityTimelineSchema, { ...timeline, events: [view({ occurrenceOrdinal: 0 })] })).toBe(false);
+    expect(accepts(IntegrityTimelineSchema, { ...timeline, events: [{ ...view({ occurrenceOrdinal: 0 }), studentUserId: uuid(1) }] })).toBe(false);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, holds: [{ ...hold, occurrenceOrdinal: 3 }] })).toBe(false);
-    expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(true);
+    // The student's own view never names a student (023: only the teacher's timeline does).
+    const own = timeline.events.map(({ studentUserId: _student, ...event }) => event);
+    expect(accepts(StudentIntegritySchema, { events: own, totals })).toBe(true);
+    expect(accepts(StudentIntegritySchema, { events: timeline.events, totals })).toBe(false);
   });
 });

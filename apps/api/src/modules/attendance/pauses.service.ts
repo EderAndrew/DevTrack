@@ -8,11 +8,12 @@ import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { type StoredPause, toTeacherPause } from "./views";
 
-const PAUSE_SELECT = { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
+const PAUSE_SELECT = { id: true, studentUserId: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
 
 interface PauseRow {
   id: string;
   attempt_id: string;
+  student_user_id: string;
   initiated_by: PauseInitiator;
   reason: PauseReason;
   note: string | null;
@@ -134,7 +135,7 @@ export class PausesService {
       const activity = activities[0];
       if (!activity) throw notFound();
       const pauses = await tx.$queryRaw<PauseRow[]>`
-        SELECT p.id, p.attempt_id, p.initiated_by::text AS initiated_by, p.reason::text AS reason, p.note, p.started_at, p.released_at,
+        SELECT p.id, p.attempt_id, p.student_user_id, p.initiated_by::text AS initiated_by, p.reason::text AS reason, p.note, p.started_at, p.released_at,
                s.submitted_at AS accepted_at, a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at
         FROM attempt_pauses p
         JOIN activity_attempts a ON a.id = p.attempt_id
@@ -183,7 +184,7 @@ export class PausesService {
         submission: { select: { submittedAt: true, acceptedById: true } },
         pauses: {
           orderBy: [{ startedAt: "asc" }, { id: "asc" }],
-          select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
+          select: PAUSE_SELECT,
         },
       },
     });
@@ -201,6 +202,7 @@ export class PausesService {
 
 const storedPause = (row: PauseRow): StoredPause => ({
   id: row.id,
+  studentUserId: row.student_user_id,
   initiatedBy: row.initiated_by,
   reason: row.reason,
   note: row.note,
