@@ -302,6 +302,22 @@ const SPECS: FeatureSpec[] = [
     // SC-002 and SC-006 left with the contrast test (T006, Foundational); US1 and SC-001 with T014; US2 with T017; US3 with T021; US4 and SC-005 with T023; SC-003, SC-004 and SC-007 with the E2E (T024).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "023",
+    path: "specs/023-group-work/spec.md",
+    stories: 7,
+    scenarios: 38,
+    // No "### Acceptance Criteria Traceability" table, as in 008–022.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 8),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
+    // each SC with the test that cites it, so the lists are empty at the end of T040.
+    pending: {
+      stories: [1, 2, 3, 4, 5, 6, 7],
+      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007", "SC-008"],
+    },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

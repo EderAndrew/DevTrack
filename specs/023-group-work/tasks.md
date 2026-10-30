@@ -51,13 +51,13 @@ description: "Task list for 023 — Trabalho individual ou em grupo: o professor
 
 **Purpose**: a 023 entra na guarda de rastreabilidade; os contratos compartilhados existem.
 
-- [ ] T001 Incluir a 023 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 022:
+- [X] T001 Incluir a 023 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 022:
   `feature: "023"`, `path: "specs/023-group-work/spec.md"`, `stories: 7`, `scenarios: 38` (6 + 6 + 4 + 6 + 6 + 5 + 5),
   sem tabela de rastreabilidade (`rows: 0`, `rowsWithoutIds: []`), `successCriteria: sc(1, 8)` e
   `pending: { stories: [1, 2, 3, 4, 5, 6, 7], successCriteria: ["SC-001", …, "SC-008"] }`, com o comentário "Joined in
   the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC with the test
   that cites it, so the lists are empty at the end of T040".
-- [ ] T002 [P] Contratos em `packages/contracts/src/activities/group.ts` (novo) e export em `activities/index.ts`/
+- [X] T002 [P] Contratos em `packages/contracts/src/activities/group.ts` (novo) e export em `activities/index.ts`/
   `src/index.ts` (contracts/http-api.md):
   - `GroupSizeSchema = z.number().int().min(2).max(5)`;
   - `StudentGroupSchema`, `GroupCandidatesSchema`, `TeacherAttemptGroupSchema`, `GroupEventKindSchema`
