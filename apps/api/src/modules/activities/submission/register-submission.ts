@@ -7,7 +7,11 @@ import { answerOfRow, isBlankAnswer } from "../status/answers";
 export interface RegisterSubmissionInput {
   attemptId: string;
   activityId: string;
-  studentUserId: string;
+  /**
+   * 023: the student who submitted (in a group, its leader, research U8); null for the teacher's
+   * acceptance and an exam ended by the time, the close or the teacher's decision (CHECK).
+   */
+  submittedByUserId: string | null;
   /** Server clock. */
   now: Date;
   late: boolean;
@@ -90,12 +94,14 @@ export async function registerSubmission(tx: Tx, input: RegisterSubmissionInput)
     ? { gradeCents: 0, partial: false, gradings: [] }
     : await gradeSubmission(gradingQuestions, answers, requiredCents(activity.totalGrade), undefined, zeroBlanks);
 
-  await tx.activityAttempt.update({ where: { id: input.attemptId }, data: { status: "SUBMITTED" } });
+  // The submission belongs to the attempt's owner, whoever of the group submits it (023 research U3).
+  const attempt = await tx.activityAttempt.update({ where: { id: input.attemptId }, data: { status: "SUBMITTED" }, select: { studentUserId: true } });
   const submission = await tx.activitySubmission.create({
     data: {
       attemptId: input.attemptId,
       activityId: input.activityId,
-      studentUserId: input.studentUserId,
+      studentUserId: attempt.studentUserId,
+      submittedByUserId: input.submittedByUserId,
       submittedAt: input.now,
       late: input.late,
       blankCount,

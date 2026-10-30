@@ -8,39 +8,45 @@ One migration (`…_group_work`). Decisions in research U2–U10.
 
 | Column | Type | Rule |
 |--------|------|------|
-| `group_size` | `smallint NULL` | `NULL` = individual; 2–5 = group, counting the leader (CHECK `group_size BETWEEN 2 AND 5`). Not NULL only when `type = 'ASSIGNMENT'` and `release_mode = 'PRESENT_ONLY'` (CHECK). Changes only before the first attempt (the 015/021 freeze trigger gains it). |
+| `group_size` | `smallint NULL` | `NULL` = individual; 2–5 = group, counting the leader (CHECK `group_size BETWEEN 2 AND 5`). Not NULL only when `type = 'ASSIGNMENT'` and `release_mode = 'PRESENT_ONLY'` (CHECK). Changes only before the first attempt (its own freeze trigger, `class_activities_group_size_fixed`, as 021 did for `code_execution_allowed`). |
 
 ### `activity_answers`
 
 | Column | Type | Rule |
 |--------|------|------|
-| `saved_by_user_id` | `uuid NOT NULL` | Who wrote the current revision. Backfill: the attempt's `student_user_id`. FK `(attempt_id, activity_id, saved_by_user_id) → attempt_participants`. Trigger: in a group attempt it must equal `attempt_groups.editor_user_id`. |
+| `saved_by_user_id` | `uuid NOT NULL` | Who wrote the current revision. Backfill: the attempt's `student_user_id` (and one `activity_answer_saves` row for the current revision; older revisions were never kept). FK `(attempt_id, activity_id, saved_by_user_id) → attempt_participants`. Trigger: in a group attempt it must equal `attempt_groups.editor_user_id`. |
 
 ### `activity_submissions`
 
 | Column | Type | Rule |
 |--------|------|------|
-| `submitted_by_user_id` | `uuid NULL` | The student who submitted; NULL only when `accepted_by_id` is set (CHECK) or for a system-settled exam (`end_reason` not `STUDENT_SUBMITTED`). Backfill: the attempt's owner where `accepted_by_id IS NULL` and the end reason allows it. Trigger: in a group attempt it must equal `attempt_groups.leader_user_id`. Immutable (the submitted-facts trigger gains it). |
+| `submitted_by_user_id` | `uuid NULL` | The student who submitted; NULL exactly when `accepted_by_id` is set or `end_reason` is set and not `STUDENT_SUBMITTED` (CHECK). Backfill: the attempt's owner where `accepted_by_id IS NULL` and the end reason allows it. FK `(attempt_id, activity_id, submitted_by_user_id) → attempt_participants`. Trigger: in a group attempt it must equal `attempt_groups.leader_user_id`. Immutable (the submitted-facts trigger gains it). The submission's own `student_user_id` stays the attempt's owner (its FK to the attempt). |
 
 ### Per-student facts — FK target moves (U4)
 
 `attempt_integrity_events`, `work_help_requests`, `attempt_pauses`, `code_runs`: the composite FK
 `(attempt_id, activity_id, student_user_id)` now references `attempt_participants (attempt_id, activity_id,
-student_user_id)` instead of `activity_attempts (id, activity_id, student_user_id)`. Columns unchanged. Exam tables
-keep their FK.
+student_user_id)` instead of `activity_attempts (id, activity_id, student_user_id)`, and each gains a 2-column FK
+`(attempt_id, activity_id) → activity_attempts (id, activity_id)` (the Prisma `attempt` relation). Columns unchanged.
+Exam tables keep their FK.
 
 ### Triggers changed
 
 - `attempt_paused_writes` (016/018): the open pause looked up is the **writer's** on that attempt
-  (`saved_by_user_id`, `submitted_by_user_id`, `student_user_id`) — U10.
-- The options freeze trigger (015 F2, 021 Y1): also `group_size`.
+  (`saved_by_user_id`, `submitted_by_user_id`, `student_user_id`) — U10. The partial UNIQUE
+  `attempt_pauses_one_open` becomes one open pause per `(attempt_id, student_user_id)`: each participant has
+  their own room exit (FR-023); in an individual attempt that is the same rule.
+- `activity_attendances_guard` (016): a presence stays once the student has an `attempt_participants` row in the
+  activity, theirs or a group's (FR-025, U15).
+- The options freeze (015 F2, 021 Y1): `group_size` gets its own `BEFORE UPDATE OF group_size` trigger, like 021's option.
 
 ## New tables
 
 ### `attempt_participants`
 
-Who takes part in an attempt. Every attempt has its owner's row (insert in the start's transaction; the migration
-backfills one per existing attempt); a group attempt has one more per member.
+Who takes part in an attempt. Every attempt has its owner's row, written by an `AFTER INSERT` trigger on
+`activity_attempts` in the same statement, so no insert path (the start, the 013 retry, the test helpers) can
+leave it out; the migration backfills one per existing attempt. A group attempt has one more per member.
 
 | Column | Type | Rule |
 |--------|------|------|
@@ -71,6 +77,7 @@ The state of a group attempt. One row per group; none for individual attempts.
 | `version` | `int` | Bumped on every change |
 | `created_at` | `timestamptz` | |
 
+- UNIQUE `(attempt_id, activity_id)` (required by Prisma for the one-to-one composite relation).
 - Created in the start's transaction (leader = editor = the owner); UPDATE only of `leader_user_id`,
   `editor_user_id`, `version`, and only while the attempt is `IN_PROGRESS` (trigger); no DELETE.
 

@@ -284,7 +284,7 @@ export class AttemptsReviewService {
       const submission = await registerSubmission(tx, {
         attemptId,
         activityId,
-        studentUserId: attempt.student_user_id,
+        submittedByUserId: null,
         now,
         late: true,
         acceptedById: teacherId,

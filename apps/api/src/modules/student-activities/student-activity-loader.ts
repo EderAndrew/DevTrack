@@ -13,7 +13,8 @@ import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivity
 
 /**
  * The session student's own attempt of one activity of their context (015 routes under
- * `/me/activities/:activityId/attempt/…`, research F4): the activity's facts and the latest attempt.
+ * `/me/activities/:activityId/attempt/…`, research F4): the activity's facts and the latest attempt
+ * the student takes part in — theirs or, since 023, their group's (research U5).
  */
 export interface OwnAttemptContext {
   classActive: boolean;
@@ -32,8 +33,9 @@ export interface OwnAttemptContext {
   /** 018: an EXAM's time (research T4); null for the other types. */
   exam: ExamTiming | null;
   /**
-   * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause not released while the activity
-   * is ACTIVE. Read after the attempt's lock, so a pause committed before it is seen.
+   * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause of the session student not
+   * released while the activity is ACTIVE (023/FR-023: each participant's own). Read after the attempt's
+   * lock, so a pause committed before it is seen.
    */
   paused: { pauseId: string } | null;
 }
@@ -150,7 +152,8 @@ export class StudentActivityLoader {
     const pause =
       attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.releaseMode === "PRESENT_ONLY"
         ? await this.prisma.attemptPause.findFirst({
-            where: { attemptId: attempt.id, releasedAt: null },
+            // 023/FR-023: the caller's own pause; a group member's pause stops only that member.
+            where: { attemptId: attempt.id, studentUserId, releasedAt: null },
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true },
           })
         : null;
@@ -165,7 +168,7 @@ export class StudentActivityLoader {
     const pauses =
       attempt && submission && activity.releaseMode === "PRESENT_ONLY"
         ? await this.prisma.attemptPause.findMany({
-            where: { attemptId: attempt.id },
+            where: { attemptId: attempt.id, studentUserId },
             orderBy: [{ startedAt: "asc" }, { id: "asc" }],
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
           })
@@ -245,7 +248,7 @@ export class StudentActivityLoader {
     if (!activity) return { inContext: false, found: null };
     if (activity.type !== "EXERCISE") return { inContext: true, found: null };
     const attempt = await this.prisma.activityAttempt.findFirst({
-      where: { activityId, studentUserId, number, completedAt: { not: null } },
+      where: { activityId, participants: { some: { studentUserId } }, number, completedAt: { not: null } },
       select: ATTEMPT_SELECT,
     });
     if (!attempt) return { inContext: true, found: null };
@@ -323,8 +326,9 @@ export class StudentActivityLoader {
     >`
       SELECT a.id, a.status::text AS status, a.started_at, s.submitted_at, s.end_reason::text AS end_reason
       FROM activity_attempts a
+      JOIN attempt_participants p ON p.attempt_id = a.id
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
-      WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+      WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
       ORDER BY a.number DESC LIMIT 1
       ${tx ? (exclusive ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
@@ -332,7 +336,8 @@ export class StudentActivityLoader {
     const pauses =
       attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.release_mode === "PRESENT_ONLY"
         ? await db.$queryRaw<{ id: string }[]>`
-            SELECT id FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`
+            SELECT id FROM attempt_pauses
+            WHERE attempt_id = ${attempt.id}::uuid AND student_user_id = ${studentUserId}::uuid AND released_at IS NULL`
         : [];
     return {
       classActive: activity.class_active,
@@ -382,11 +387,14 @@ export class StudentActivityLoader {
     return null;
   }
 
-  /** The student's attempts of each activity, by number (one for an ASSIGNMENT; 1..n for an EXERCISE). */
+  /**
+   * The attempts the student takes part in, of each activity, by number (one for an ASSIGNMENT, theirs or
+   * their group's; 1..n for an EXERCISE) — through the participation, never the owner (023 research U5).
+   */
   private async attemptsOf(studentUserId: string, activityIds: readonly string[]): Promise<Map<string, AttemptRow[]>> {
     if (activityIds.length === 0) return new Map();
     const rows = await this.prisma.activityAttempt.findMany({
-      where: { studentUserId, activityId: { in: [...activityIds] } },
+      where: { participants: { some: { studentUserId } }, activityId: { in: [...activityIds] } },
       select: ATTEMPT_SELECT,
       orderBy: { number: "asc" },
     });

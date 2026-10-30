@@ -92,6 +92,7 @@ describe("012 desempenho do portal do aluno e do detalhe do professor", () => {
           questionType: "OPEN_ANSWER" as const,
           text: "Minha resposta",
           savedAt: at(-DAY),
+          savedByUserId: student.id,
         })),
       });
       const submitted = attempts.filter((attempt) => attempt.index % 3 === 2);
@@ -101,6 +102,7 @@ describe("012 desempenho do portal do aluno e do detalhe do professor", () => {
           attemptId: attempt.id,
           activityId: attempt.activityId,
           studentUserId: student.id,
+          submittedByUserId: student.id,
           submittedAt: at(-DAY),
           late: false,
           blankCount: 0,

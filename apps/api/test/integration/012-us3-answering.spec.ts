@@ -370,7 +370,7 @@ describe("012/US3 aluno inicia, responde e salva uma atividade", () => {
     const attempt = await t.prisma.activityAttempt.findFirstOrThrow({ where: { activityId: activity.id } });
     await t.prisma.activityAttempt.update({ where: { id: attempt.id }, data: { status: "SUBMITTED" } });
     await t.prisma.activitySubmission.create({
-      data: { attemptId: attempt.id, activityId: activity.id, studentUserId: student.id, submittedAt: at(0), late: false, blankCount: 3, grade: "0.00", gradePartial: true },
+      data: { attemptId: attempt.id, activityId: activity.id, studentUserId: student.id, submittedByUserId: student.id, submittedAt: at(0), late: false, blankCount: 3, grade: "0.00", gradePartial: true },
     });
 
     const res = await saveAnswers(client, activity.id, [{ questionId: questionIds[0]!, answer: text("x"), baseRevision: 0 }]);

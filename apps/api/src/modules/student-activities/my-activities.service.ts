@@ -157,7 +157,8 @@ export class MyActivitiesService {
     await this.prisma.runInTransaction(async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>`
         UPDATE activity_submissions SET result_viewed_at = ${now}
-        WHERE activity_id = ${activityId}::uuid AND student_user_id = ${userId}::uuid AND result_viewed_at IS NULL
+        WHERE activity_id = ${activityId}::uuid AND result_viewed_at IS NULL
+          AND attempt_id IN (SELECT attempt_id FROM attempt_participants WHERE activity_id = ${activityId}::uuid AND student_user_id = ${userId}::uuid)
         RETURNING id`;
       const submission = rows[0];
       if (!submission) return;

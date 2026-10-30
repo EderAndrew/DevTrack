@@ -69,10 +69,11 @@ export class PausesService {
       if (!enrolled[0]) throw notFound();
       if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");
       const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; started_at: Date }[]>`
-        SELECT id, status::text AS status, started_at FROM activity_attempts
-        WHERE activity_id = ${activityId}::uuid AND student_user_id = ${studentUserId}::uuid
-        ORDER BY number DESC LIMIT 1
-        FOR UPDATE`;
+        SELECT a.id, a.status::text AS status, a.started_at FROM activity_attempts a
+        JOIN attempt_participants pt ON pt.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND pt.student_user_id = ${studentUserId}::uuid
+        ORDER BY a.number DESC LIMIT 1
+        FOR UPDATE OF a`;
       const attempt = attempts[0];
       if (!attempt) throw new AppException("NOT_STARTED");
       if (attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
@@ -89,7 +90,8 @@ export class PausesService {
       if (examEndsAt && now >= examEndsAt) throw new AppException("EXAM_TIME_OVER");
       // An IN_PROGRESS attempt of an ACTIVE activity within its time: a pause with no release is open.
       const context = { acceptedAt: null, activityEndedAt: null, examEndsAt };
-      const open = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, releasedAt: null }, select: PAUSE_SELECT });
+      // 023/FR-023: the student's own open pause; a group member may have theirs at the same time.
+      const open = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, studentUserId, releasedAt: null }, select: PAUSE_SELECT });
       if (open) return { pause: toTeacherPause(open, context, now), created: false };
 
       const pause: StoredPause = await tx.attemptPause.create({

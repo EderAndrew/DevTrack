@@ -145,7 +145,7 @@ export class FocusEventsService {
     const context = await this.loader.ownAttempt(studentUserId, activityId, now);
     if (!context) return this.denied(studentUserId, activityId, now, INTEGRITY_ROUTE, requestId);
     if (!context.attempt) throw notFound();
-    const timeline = buildTimeline(await storedEvents(this.prisma, context.attempt.id), context.attempt.submittedAt ?? now);
+    const timeline = buildTimeline(await storedEvents(this.prisma, context.attempt.id, studentUserId), context.attempt.submittedAt ?? now);
     return { events: timeline.events.map(toEventView), totals: timeline.totals };
   }
 
@@ -271,10 +271,13 @@ async function assertQuestions(tx: Tx, activityId: string, events: RecordIntegri
   if (found !== ids.length) throw new AppException("UNKNOWN_QUESTION");
 }
 
-/** An attempt's events with their question's position (the teacher's timeline reads the same, US4). */
-export async function storedEvents(db: Pick<Tx, "attemptIntegrityEvent">, attemptId: string): Promise<StoredIntegrityEvent[]> {
+/**
+ * An attempt's events with their question's position (the teacher's timeline reads the same, US4); with
+ * `studentUserId`, only that participant's (023/FR-021: each group member records and reads their own).
+ */
+export async function storedEvents(db: Pick<Tx, "attemptIntegrityEvent">, attemptId: string, studentUserId?: string): Promise<StoredIntegrityEvent[]> {
   const rows = await db.attemptIntegrityEvent.findMany({
-    where: { attemptId },
+    where: { attemptId, ...(studentUserId ? { studentUserId } : {}) },
     orderBy: [{ recordedAt: "asc" }, { id: "asc" }],
     select: {
       type: true,

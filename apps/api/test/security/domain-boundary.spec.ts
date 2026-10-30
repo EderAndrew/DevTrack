@@ -115,6 +115,12 @@ const EXPECTED_MODELS = [
   // history of its status.
   "StudentFeedback",
   "StudentFeedbackStatusChange",
+  // 023 (specs/023-group-work/data-model.md) — a group shares the attempt; who takes part, who edits
+  // and who saved.
+  "AttemptParticipant",
+  "AttemptGroup",
+  "AttemptGroupEvent",
+  "ActivityAnswerSave",
 ];
 
 /**

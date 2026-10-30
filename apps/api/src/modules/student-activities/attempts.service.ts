@@ -138,7 +138,7 @@ export class AttemptsService {
 
       const inserted = await tx.activityAttempt.createMany({ data: [{ activityId, studentUserId, startedAt: now }], skipDuplicates: true });
       if (inserted.count === 0) return; // Another tab or click inserted it first: same attempt, no event.
-      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, studentUserId, number: 1 }, select: { id: true } });
+      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, participants: { some: { studentUserId } }, number: 1 }, select: { id: true } });
       await this.audit.record(tx, {
         type: "activity_attempt.started",
         actorType: "USER",
@@ -169,7 +169,7 @@ export class AttemptsService {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
-      await assertNotPaused(tx, context, attempt);
+      await assertNotPaused(tx, context, attempt, studentUserId);
       await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
@@ -178,7 +178,7 @@ export class AttemptsService {
       const guarded = guardedAttempt(context, attempt!, activityId, studentUserId);
       const guard = (items: GuardedAnswer[]) => this.answerGuard.check(tx, guarded, items, now);
 
-      const { questions, stored, results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now, guard });
+      const { questions, stored, results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now, guard });
       if (saved > 0) await this.recordProgress(tx, { studentUserId, activityId, attempt: attempt!, context, questions, stored, now, requestId });
       return { savedAt: now.toISOString(), results };
     });
@@ -197,7 +197,7 @@ export class AttemptsService {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
-      await assertNotPaused(tx, context, attempt);
+      await assertNotPaused(tx, context, attempt, studentUserId);
       await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const facts = factsOf(context, attempt, now);
@@ -209,7 +209,7 @@ export class AttemptsService {
       if (body.answers.length > 0) {
         const guarded = guardedAttempt(context, attempt!, activityId, studentUserId);
         const guard = (items: GuardedAnswer[]) => this.answerGuard.check(tx, guarded, items, now);
-        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now, guard });
+        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now, guard });
         if (results.some((result) => result.outcome === "CONFLICT")) throw new Refused("ANSWER_CHANGED_ELSEWHERE");
         const refused = body.answers.filter((item) => results.some((result) => result.questionId === item.questionId && result.outcome === "TYPING_LIMIT_EXCEEDED"));
         if (refused.length > 0) throw new TypingRefused((recordTx) => this.recordTypingRefusal(recordTx, guarded, refused, now));
@@ -218,7 +218,7 @@ export class AttemptsService {
       // An EXAM is never late: it has no deadline, and its time was checked above (018 research T4).
       const late = facts.type === "ASSIGNMENT" && wouldBeLate(facts);
       const endReason = facts.type === "EXAM" ? ("STUDENT_SUBMITTED" as const) : undefined;
-      const submission = await registerSubmission(tx, { attemptId, activityId, studentUserId, now, late, endReason });
+      const submission = await registerSubmission(tx, { attemptId, activityId, submittedByUserId: studentUserId, now, late, endReason });
       await this.audit.record(tx, {
         type: "activity_submission.created",
         actorType: "USER",
@@ -258,7 +258,7 @@ export class AttemptsService {
       const number = afterNumber + 1;
       const inserted = await tx.activityAttempt.createMany({ data: [{ activityId, studentUserId, number, startedAt: now }], skipDuplicates: true });
       if (inserted.count === 0) return; // Another tab or click created it first: same attempt, no event.
-      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, studentUserId, number }, select: { id: true } });
+      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, participants: { some: { studentUserId } }, number }, select: { id: true } });
       await this.audit.record(tx, {
         type: "activity_attempt.started",
         actorType: "USER",
@@ -296,7 +296,7 @@ export class AttemptsService {
       const attemptId = attempt!.id;
 
       if (body.answers.length > 0) {
-        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now });
+        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now });
         if (results.some((result) => result.outcome === "CONFLICT")) throw new Refused("ANSWER_CHANGED_ELSEWHERE");
         if (saved > 0) await tx.activityAttempt.update({ where: { id: attemptId }, data: { lastSavedAt: now } });
       }
@@ -476,10 +476,12 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
  * released while the activity is ACTIVE — is refused. Read after the attempt's `FOR UPDATE`, which the
  * pause also takes: whatever reached the lock before the pause committed was accepted (US3-9).
  */
-async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow | null): Promise<void> {
+async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow | null, studentUserId: string): Promise<void> {
   if (context.release_mode !== "PRESENT_ONLY" || context.status !== "ACTIVE" || attempt?.status !== "IN_PROGRESS") return;
+  // 023/FR-023: the writer's own pause; another group member's pause doesn't stop them.
   const open = await tx.$queryRaw<unknown[]>`
-    SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`;
+    SELECT 1 FROM attempt_pauses
+    WHERE attempt_id = ${attempt.id}::uuid AND student_user_id = ${studentUserId}::uuid AND released_at IS NULL`;
   if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
 }
 
@@ -524,7 +526,8 @@ async function assertExamTime(tx: Tx, context: ContextRow, attempt: AttemptRow |
 
 /**
  * The student's latest attempt (number 1 of an ASSIGNMENT; the open or latest practice attempt of an
- * EXERCISE, 013 K3), `FOR UPDATE` when the answers change (research P8). Its own `status` says
+ * EXERCISE, 013 K3) — the one they take part in, theirs or their group's (023 research U5) —, `FOR UPDATE`
+ * when the answers change (research P8). Its own `status` says
  * whether it was submitted (the submission is written in the same transaction): after waiting for the
  * lock, READ COMMITTED returns the row's latest version, while a subquery on another table would still
  * read the statement's older snapshot.
@@ -534,13 +537,15 @@ async function findAttempt(tx: Tx, activityId: string, studentUserId: string, lo
     ? await tx.$queryRaw<AttemptRow[]>`
         SELECT a.id, a.number, a.status::text AS status, a.started_at, a.last_progress_audited_at
         FROM activity_attempts a
-        WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+        JOIN attempt_participants p ON p.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
         ORDER BY a.number DESC LIMIT 1
         FOR UPDATE OF a`
     : await tx.$queryRaw<AttemptRow[]>`
         SELECT a.id, a.number, a.status::text AS status, a.started_at, a.last_progress_audited_at
         FROM activity_attempts a
-        WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+        JOIN attempt_participants p ON p.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
         ORDER BY a.number DESC LIMIT 1`;
   return rows[0] ?? null;
 }
@@ -560,12 +565,14 @@ async function writeAnswers(
   input: {
     activityId: string;
     attemptId: string;
+    /** 023: the session student, who wrote these revisions (`activity_answer_saves`, research U8). */
+    savedByUserId: string;
     answers: SaveAnswersRequest["answers"];
     now: Date;
     guard?: (answers: GuardedAnswer[]) => Promise<("OK" | "TYPING_LIMIT_EXCEEDED")[]>;
   },
 ): Promise<{ questions: Map<string, Question>; stored: Map<string, StoredAnswer>; results: SaveAnswersResult["results"]; saved: number }> {
-  const { activityId, attemptId, now } = input;
+  const { activityId, attemptId, savedByUserId, now } = input;
   const questions = await loadQuestions(tx, activityId);
   for (const item of input.answers) {
     const question = questions.get(item.questionId);
@@ -601,8 +608,8 @@ async function writeAnswers(
       const columns = columnsOf(item.answer);
       await tx.activityAnswer.upsert({
         where: { attemptId_questionId: { attemptId, questionId: item.questionId } },
-        create: { attemptId, activityId, questionId: item.questionId, questionType: question.type, ...columns, revision, savedAt: now },
-        update: { ...columns, revision, savedAt: now },
+        create: { attemptId, activityId, questionId: item.questionId, questionType: question.type, ...columns, revision, savedAt: now, savedByUserId },
+        update: { ...columns, revision, savedAt: now, savedByUserId },
       });
       stored.set(item.questionId, { questionId: item.questionId, questionType: question.type, ...columns, revision });
       results.push({ questionId: item.questionId, outcome: "SAVED", revision });

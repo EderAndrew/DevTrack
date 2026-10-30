@@ -142,7 +142,7 @@ describe("016/SC-003 escrita e leitura com a tentativa pausada", () => {
     ).rejects.toThrow(/is paused/);
     await expect(
       t.prisma.activitySubmission.create({
-        data: { attemptId, activityId: created.activity.id, studentUserId: student.id, submittedAt: now, late: false, blankCount: 0, grade: "0.00", gradePartial: true },
+        data: { attemptId, activityId: created.activity.id, studentUserId: student.id, submittedByUserId: student.id, submittedAt: now, late: false, blankCount: 0, grade: "0.00", gradePartial: true },
       }),
     ).rejects.toThrow(/is paused/);
     await expect(

@@ -86,8 +86,9 @@ export class AttendanceService {
           WHERE activity_id = ${activityId}::uuid AND student_user_id = ANY(${batch.unmark}::uuid[])
           ORDER BY student_user_id
           FOR UPDATE`;
+        // 023/FR-025: a student who takes part in an attempt, theirs or a group's, keeps the presence.
         const started = await tx.$queryRaw<{ student_user_id: string }[]>`
-          SELECT DISTINCT student_user_id FROM activity_attempts
+          SELECT DISTINCT student_user_id FROM attempt_participants
           WHERE activity_id = ${activityId}::uuid AND student_user_id = ANY(${batch.unmark}::uuid[])
           ORDER BY student_user_id`;
         if (started.length > 0) {
@@ -160,11 +161,12 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
     LEFT JOIN activity_attendances aa ON aa.activity_id = ca.id AND aa.student_user_id = e.student_user_id
     LEFT JOIN LATERAL (
       SELECT at.id, at.status, at.started_at FROM activity_attempts at
-      WHERE at.activity_id = ca.id AND at.student_user_id = e.student_user_id
+      JOIN attempt_participants pt ON pt.attempt_id = at.id
+      WHERE at.activity_id = ca.id AND pt.student_user_id = e.student_user_id
       ORDER BY at.number DESC LIMIT 1
     ) a ON true
     LEFT JOIN activity_submissions s ON s.attempt_id = a.id AND s.accepted_by_id IS NOT NULL
-    LEFT JOIN attempt_pauses p ON p.attempt_id = a.id AND p.released_at IS NULL
+    LEFT JOIN attempt_pauses p ON p.attempt_id = a.id AND p.student_user_id = e.student_user_id AND p.released_at IS NULL
     WHERE e.class_id = ${classId}::uuid AND e.status = 'ACTIVE'`;
   const students = rows
     .map(

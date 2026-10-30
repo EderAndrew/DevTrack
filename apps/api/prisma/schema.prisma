@@ -439,6 +439,7 @@ model StudentProfile {
   enrollments      Enrollment[]
   activityAttempts ActivityAttempt[]
   attendances      ActivityAttendance[]
+  participations   AttemptParticipant[]
 
   @@map("student_profiles")
 }
@@ -2133,6 +2134,9 @@ model ClassActivity {
   /// 021: students may run their code on the CODE questions; true only for ASSIGNMENT (CHECK), changes
   /// only before the first attempt (trigger, Y1).
   codeExecutionAllowed Boolean               @default(false) @map("code_execution_allowed")
+  /// 023: NULL = individual; 2–5 = a group counting the leader, only for a PRESENT_ONLY ASSIGNMENT (CHECK);
+  /// changes only before the first attempt (trigger, U2).
+  groupSize            Int?                  @map("group_size") @db.SmallInt
   status               ClassActivityStatus   @default(ACTIVE)
   /// 1–200 characters (CHECK).
   title                String
@@ -2314,6 +2318,9 @@ model ActivityAttempt {
   occurrences     ExamOccurrence[]
   holds           ExamAttemptHold[]
   codeRuns        CodeRun[]
+  /// 023: the owner's row (written by trigger with the attempt) and, in a group, the members' (U3).
+  participants    AttemptParticipant[]
+  group           AttemptGroup?
 
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
@@ -2339,8 +2346,11 @@ model ActivityAnswer {
   source        String?
   revision      Int                  @default(1)
   savedAt       DateTime             @map("saved_at") @db.Timestamptz(6)
+  /// 023: who wrote the current revision, a participant; in a group, its editor (trigger, U8).
+  savedByUserId String               @map("saved_by_user_id") @db.Uuid
 
   attempt     ActivityAttempt           @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  savedBy     AttemptParticipant        @relation(fields: [attemptId, activityId, savedByUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   question    ClassActivityQuestion     @relation(fields: [questionId, activityId, questionType], references: [id, activityId, type], onDelete: Restrict)
   alternative ClassActivityAlternative? @relation(fields: [questionId, alternativeId], references: [questionId, id], onDelete: Restrict)
 
@@ -2374,10 +2384,14 @@ model ActivitySubmission {
   endReason       ExamEndReason? @map("end_reason")
   /// Set iff `endReason = CANCELLED` (CHECK): the teacher who confirmed it; grade 0 (CHECK, trigger).
   cancelledById   String?   @map("cancelled_by_id") @db.Uuid
+  /// 023: the student who submitted, a participant; in a group, its leader (trigger, U8). NULL exactly for the
+  /// teacher's acceptance and an exam ended by the system or the teacher (CHECK); immutable.
+  submittedByUserId String? @map("submitted_by_user_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   attempt    ActivityAttempt           @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  submittedBy AttemptParticipant?      @relation(fields: [attemptId, activityId, submittedByUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   acceptedBy User?                     @relation("ActivitySubmissionAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict)
   cancelledBy User?                    @relation("ActivitySubmissionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   gradings   ActivityQuestionGrading[]
@@ -2518,7 +2532,9 @@ model AttemptIntegrityEvent {
   /// 30–60, set iff INACTIVITY (CHECK, 018 T7).
   idleSeconds      Int?                      @map("idle_seconds") @db.SmallInt
 
-  attempt     ActivityAttempt        @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  attempt     ActivityAttempt        @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  /// 023 (U4): the student this fact is about takes part in the attempt.
+  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   question    ClassActivityQuestion? @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
   occurrences ExamOccurrence[]
 
@@ -2554,7 +2570,9 @@ model WorkHelpRequest {
   /// Set iff not REQUESTED (CHECK).
   resolvedAt     DateTime?      @map("resolved_at") @db.Timestamptz(6)
 
-  attempt     ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  attempt     ActivityAttempt       @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  /// 023 (U4): the student this fact is about takes part in the attempt.
+  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   questionRef ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
   aiExecution AiExecution?          @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
 
@@ -2615,8 +2633,8 @@ model ActivityAttendance {
 
 /// A room exit of an IN_PROGRESS attempt of an ACTIVE PRESENT_ONLY work (016 M6, trigger): declared by
 /// the student or opened by the teacher, released only by the teacher, once (trigger). One open pause
-/// per attempt (partial UNIQUE). While open and the activity ACTIVE, the attempt's writes are refused
-/// (triggers). PAUSED, the end and the duration are derived on read, never stored; never deleted.
+/// per student of the attempt (partial UNIQUE, 023). While open and the activity ACTIVE, that student's writes
+/// on the attempt are refused (triggers). PAUSED, the end and the duration are derived on read, never stored; never deleted.
 model AttemptPause {
   id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   attemptId     String                @map("attempt_id") @db.Uuid
@@ -2633,7 +2651,9 @@ model AttemptPause {
   releasedAt    DateTime?             @map("released_at") @db.Timestamptz(6)
   releasedById  String?               @map("released_by_id") @db.Uuid
 
-  attempt    ActivityAttempt @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  attempt    ActivityAttempt @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  /// 023 (U4): the student this fact is about takes part in the attempt.
+  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   startedBy  User            @relation("AttemptPauseStartedBy", fields: [startedById], references: [id], onDelete: Restrict)
   releasedBy User?           @relation("AttemptPauseReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
 
@@ -3001,7 +3021,9 @@ model CodeRun {
   contentPurgedAt DateTime?             @map("content_purged_at") @db.Timestamptz(6)
 
   question ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
-  attempt  ActivityAttempt       @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  attempt  ActivityAttempt       @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  /// 023 (U4): the student this fact is about takes part in the attempt.
+  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   student  User                  @relation("CodeRunStudent", fields: [studentUserId], references: [id], onDelete: Restrict)
   cases    CodeRunCase[]
 
@@ -3144,4 +3166,126 @@ enum StudentFeedbackStatus {
   ARCHIVED
 
   @@map("student_feedback_status")
+}
+
+// ── 023: group work (specs/023-group-work/data-model.md) ──
+
+enum AttemptGroupEventKind {
+  EDITING_HANDED
+  EDITING_TAKEN_BACK
+  EDITING_RETURNED
+  EDITING_RESET
+  LEADER_CHANGED
+
+  @@map("attempt_group_event_kind")
+}
+
+/// Why the system settlement moved the editing or the leadership (U9).
+enum AttemptGroupEventReason {
+  PAUSED
+  ACCESS_LOST
+
+  @@map("attempt_group_event_reason")
+}
+
+/// Who takes part in an attempt (U3). Every attempt has its owner's row, written by trigger with the attempt;
+/// a group adds one per member (`addedByUserId` = the leader), only while the attempt is IN_PROGRESS, within
+/// `groupSize` and for a student marked present (trigger). Never changed or removed (trigger).
+model AttemptParticipant {
+  attemptId     String    @map("attempt_id") @db.Uuid
+  activityId    String    @map("activity_id") @db.Uuid
+  studentUserId String    @map("student_user_id") @db.Uuid
+  /// The attempt's `number` (trigger).
+  attemptNumber Int       @map("attempt_number")
+  /// Server clock.
+  joinedAt      DateTime  @map("joined_at") @db.Timestamptz(6)
+  /// NULL for the owner.
+  addedByUserId String?   @map("added_by_user_id") @db.Uuid
+
+  attempt         ActivityAttempt         @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  student         StudentProfile          @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  addedBy         AttemptParticipant?     @relation("AttemptParticipantAddedBy", fields: [attemptId, addedByUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+  added           AttemptParticipant[]    @relation("AttemptParticipantAddedBy")
+  leading         AttemptGroup[]          @relation("AttemptGroupLeader")
+  editing         AttemptGroup[]          @relation("AttemptGroupEditor")
+  eventsActed     AttemptGroupEvent[]     @relation("AttemptGroupEventActor")
+  eventsFrom      AttemptGroupEvent[]     @relation("AttemptGroupEventFrom")
+  eventsTo        AttemptGroupEvent[]     @relation("AttemptGroupEventTo")
+  answers         ActivityAnswer[]
+  submissions     ActivitySubmission[]
+  saves           ActivityAnswerSave[]
+  integrityEvents AttemptIntegrityEvent[]
+  helpRequests    WorkHelpRequest[]
+  pauses          AttemptPause[]
+  codeRuns        CodeRun[]
+
+  @@id([attemptId, studentUserId])
+  /// Target of the per-student facts' composite FKs (U4).
+  @@unique([attemptId, activityId, studentUserId])
+  /// FR-008: one participation per attempt number of an activity.
+  @@unique([activityId, studentUserId, attemptNumber])
+  @@map("attempt_participants")
+}
+
+/// The state of a group attempt (U3, U7): created with it, led and edited by its owner (trigger); only the
+/// leader, the editor and the version change, and only while the attempt is IN_PROGRESS (trigger).
+model AttemptGroup {
+  attemptId    String   @id @map("attempt_id") @db.Uuid
+  /// A group work (`groupSize` set, trigger).
+  activityId   String   @map("activity_id") @db.Uuid
+  leaderUserId String   @map("leader_user_id") @db.Uuid
+  /// The one student who writes answers (FR-012).
+  editorUserId String   @map("editor_user_id") @db.Uuid
+  version      Int      @default(1)
+  createdAt    DateTime @map("created_at") @db.Timestamptz(6)
+
+  attempt ActivityAttempt     @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  leader  AttemptParticipant  @relation("AttemptGroupLeader", fields: [attemptId, leaderUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+  editor  AttemptParticipant  @relation("AttemptGroupEditor", fields: [attemptId, editorUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+  events  AttemptGroupEvent[]
+
+  /// Required by Prisma for the one-to-one composite relation; `attemptId` alone is already unique.
+  @@unique([attemptId, activityId])
+  @@map("attempt_groups")
+}
+
+/// The editing and leadership history (FR-015, FR-020, FR-023); append-only (trigger).
+model AttemptGroupEvent {
+  id          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId   String                   @map("attempt_id") @db.Uuid
+  kind        AttemptGroupEventKind
+  /// Set iff EDITING_RESET or LEADER_CHANGED (CHECK).
+  reason      AttemptGroupEventReason?
+  /// NULL exactly for the system settlement (CHECK, U9).
+  actorUserId String?                  @map("actor_user_id") @db.Uuid
+  fromUserId  String                   @map("from_user_id") @db.Uuid
+  /// Different from `fromUserId` (CHECK).
+  toUserId    String                   @map("to_user_id") @db.Uuid
+  /// Server clock.
+  occurredAt  DateTime                 @map("occurred_at") @db.Timestamptz(6)
+
+  group AttemptGroup        @relation(fields: [attemptId], references: [attemptId], onDelete: Restrict)
+  actor AttemptParticipant? @relation("AttemptGroupEventActor", fields: [attemptId, actorUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+  from  AttemptParticipant  @relation("AttemptGroupEventFrom", fields: [attemptId, fromUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+  to    AttemptParticipant  @relation("AttemptGroupEventTo", fields: [attemptId, toUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+
+  @@index([attemptId, occurredAt])
+  @@map("attempt_group_events")
+}
+
+/// Who saved each revision of each answer (FR-015); written only by a trigger on `activity_answers`, no content,
+/// append-only (trigger).
+model ActivityAnswerSave {
+  attemptId     String   @map("attempt_id") @db.Uuid
+  questionId    String   @map("question_id") @db.Uuid
+  revision      Int
+  /// The answer's `savedByUserId`.
+  studentUserId String   @map("student_user_id") @db.Uuid
+  /// The answer's `savedAt`.
+  savedAt       DateTime @map("saved_at") @db.Timestamptz(6)
+
+  participant AttemptParticipant @relation(fields: [attemptId, studentUserId], references: [attemptId, studentUserId], onDelete: Restrict)
+
+  @@id([attemptId, questionId, revision])
+  @@map("activity_answer_saves")
 }

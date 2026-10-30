@@ -69,11 +69,12 @@ describe("012/SC-002 isolamento de atividades, tentativas e entregas", () => {
         questionType: "OPEN_ANSWER",
         text: `Resposta de ${owner.name}`,
         savedAt: at(0),
+        savedByUserId: owner.id,
       },
     });
     await t.prisma.activityAttempt.update({ where: { id: attemptId }, data: { status: "SUBMITTED" } });
     await t.prisma.activitySubmission.create({
-      data: { attemptId, activityId: activity.activity.id, studentUserId: owner.id, submittedAt: at(0), late: false, blankCount: 0, grade: "0.00", gradePartial: true },
+      data: { attemptId, activityId: activity.activity.id, studentUserId: owner.id, submittedByUserId: owner.id, submittedAt: at(0), late: false, blankCount: 0, grade: "0.00", gradePartial: true },
     });
     return { teacher, schoolClass, activity, attemptId };
   }
