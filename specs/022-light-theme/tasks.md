@@ -261,7 +261,7 @@ e com os pares de contraste verdes.
     `features/profile`, nada de `prefers-color-scheme`/`dark:`);
   - `apps/api/CLAUDE.md`: a rota `PATCH /me/preferences` (acesso de sessão, sem auditoria).
   `docs.test.ts` verde.
-- [ ] T026 Verificação final: `pnpm lint && pnpm check-types && pnpm test`; percorrer o quickstart no navegador nos
+- [X] T026 Verificação final: `pnpm lint && pnpm check-types && pnpm test`; percorrer o quickstart no navegador nos
   dois temas (telas de cada papel, prova controlada, catálogo); `pending` da 022 vazio em `traceability.spec.ts`.
 
 ---
