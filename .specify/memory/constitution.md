@@ -1,36 +1,34 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.4.0 → 3.5.0
-Motivo (MINOR): o XI ganha uma exceção explícita e delimitada. A spec de uma avaliação pode
-definir uma regra determinística que suspende a tentativa do aluno quando os fatos registrados
-atingem um limite, se a regra é mostrada e aceita antes do início, a contagem é do servidor com
-avisos antes do limite, a suspensão não cancela, não anula, não dá nota, não penaliza nem rotula,
-e o professor decide entre anular (com a penalidade da spec) e devolver. O tempo pode continuar
-correndo durante a suspensão quando a spec o anuncia. Anulação, penalidade e bloqueio disciplinar
-continuam decisões do professor. É MINOR (e não PATCH) porque permite algo que a leitura literal
-do texto anterior ("bloqueio disciplinar") proibia a mecanismos automáticos.
-Origem: /speckit-analyze da 018 (achado C1); registro em
-specs/018-controlled-exams/constitution-amendment-3.5.0.md.
+Version change: 3.5.0 → 3.6.0
+Motivo (MINOR): o XXIV ganha uma exceção explícita e delimitada para o trabalho em grupo. Num
+trabalho que o professor aplicou em grupo, os integrantes de um mesmo grupo compartilham uma única
+tentativa (respostas, nomes, quem edita, orientações entregues e, depois da liberação, a nota e o
+retorno da entrega do grupo), e o aluno pode ver só o nome dos colegas da turma, presentes e sem
+início naquele trabalho, para formar ou completar o grupo. Fatos individuais de cada integrante
+continuam privados e nada de outro grupo, trabalho ou turma é exposto. É MINOR (e não PATCH) porque
+permite algo que o texto anterior ("um aluno vê somente as próprias notas e respostas") proibia.
+Origem: /speckit-plan da 023 (Constitution Check, research U1); registro em
+specs/023-group-work/constitution-amendment-3.6.0.md.
 
 Princípios modificados:
-  XI. Supervisão Humana em Decisões Críticas — exceção da suspensão da tentativa por regra da
-  avaliação.
+  XXIV. Isolamento por Contexto Acadêmico — exceção do trabalho em grupo.
 
-Seções modificadas: Governance — histórico ganha a entrada 3.5.0.
+Seções modificadas: Governance — histórico ganha a entrada 3.6.0.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XI cita a exceção da suspensão
+  ✅ .specify/templates/plan-template.md  — gate XXIV cita a exceção do trabalho em grupo
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
   ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.5.0
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.6.0
 
 Follow-ups:
-  - specs/018-controlled-exams/{spec,plan,research}.md: citam a v3.5.0; o Complexity Tracking
-    deixa de registrar a leitura do XI como interpretação.
+  - specs/023-group-work/{plan,research}.md e constitution-amendment-3.6.0.md: passam a citar a
+    v3.6.0 como aplicada.
 -->
 
 # DevTrack Constitution
@@ -483,6 +481,16 @@ análise de evolução.
   matrícula ativa na mesma turma e pelo professor dela. Pontos de prática não são nota nem
   resultado de avaliação. O ranking NUNCA expõe respostas, resultados por exercício, notas de
   trabalhos ou provas, nem dados de turmas em que o aluno não está matriculado.
+- **Exceção — trabalho em grupo**: num trabalho que o professor aplicou em grupo, os
+  integrantes de um mesmo grupo compartilham uma única tentativa: cada um PODE ver as
+  respostas do grupo, os nomes dos outros integrantes, quem está editando, as orientações
+  de estudo entregues ao grupo e, depois da liberação, a nota e o retorno da entrega do
+  grupo, que valem para todos. Para formar ou completar o grupo, o aluno PODE ver apenas o
+  nome dos colegas da mesma turma, com matrícula ativa e presença marcada naquele
+  trabalho, que ainda não o iniciaram. Fatos individuais de cada integrante (registros do
+  modo controlado, pausas, execuções de código, notas de outras atividades) NUNCA são
+  vistos pelos outros integrantes; nada de outro grupo, de outro trabalho ou de outra
+  turma é exposto.
 - Conhecer o identificador de uma turma ou recurso NUNCA é suficiente para obter
   acesso. Distinção de respostas:
   - **sem a capacidade** (o papel não possui a permissão para aquele tipo de
@@ -806,7 +814,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.5.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-12
+**Version**: 3.6.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-30
 
 Histórico:
 
@@ -843,3 +851,6 @@ Histórico:
   determinística definida na spec da avaliação (regra mostrada e aceita antes do início,
   contagem do servidor com avisos, sem anulação, nota, penalidade ou rótulo automáticos;
   o professor decide entre anular e devolver; o tempo pode correr se a spec anunciar).
+- **3.6.0** — XXIV: exceção explícita para o trabalho em grupo (integrantes do mesmo grupo
+  compartilham a tentativa, as orientações entregues e a nota liberada; o aluno vê só o nome
+  dos colegas presentes e sem início para formar o grupo; fatos individuais continuam privados).

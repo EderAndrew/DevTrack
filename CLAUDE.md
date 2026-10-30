@@ -96,7 +96,7 @@ on those files with the given `SESSION_ID` (audit only, no code changes during i
 `.claude/hooks/audit-complete.sh <SESSION_ID>` records the confirmation. A new edit invalidates a
 previous audit. The log is `.claude/hooks/security.log`.
 
-`.specify/memory/constitution.md` (v3.5.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.6.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -128,6 +128,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `class_activities.code_execution_allowed` (ASSIGNMENT only, fixed after the first attempt), `code_runs_insert_valid` widened to works with the option, `code_runs_paused` trigger (021-work-code-runner)
 - No new dependency (022-light-theme)
 - PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
+- No new dependency (023-group-work)
+- PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
 
 ## Stack notes
 
@@ -435,9 +437,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 023-group-work (planned): works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 - 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 - 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
-- 020-student-feedback: student feedback to the platform ADMIN — "Enviar feedback" dialog in the student layout (never on the focus page of exams and CONTROLLED works), category + 10–2 000 chars + origin path, idempotent by `submissionId`, 5 per student in 24 h; ADMIN list/filters/badge/detail with name and e-mail, status RECEIVED → IN_REVIEW → RESOLVED/ARCHIVED with append-only history; "Meus feedbacks" shows own status; no AI, no mail, text never in audit/logs, closed feedbacks purged after 24 months
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
