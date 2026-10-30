@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { getMeForNavigation } from "@/features/auth/api/server";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -65,15 +66,18 @@ export const metadata: Metadata = {
 /**
  * Shell shared by every screen. Each route group brings its own frame and `<main id="conteudo">`:
  * `(auth)` none, `(public)` the site header, `(app)` the side menu (AppShell), `(student)` the
- * student layout and `(account)` either one, by the menu's permissions.
+ * student layout and `(account)` either one, by the menu's permissions. `<html data-theme>` is the
+ * account's theme (022 research Z4), rendered on the server so the first paint is already right; no
+ * session, or any failure, is the dark theme (FR-004).
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const me = await getMeForNavigation();
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-theme={me?.theme === "LIGHT" ? "light" : "dark"}>
       <body className={`${inter.variable} ${jetbrainsMono.variable} ${fredoka.variable}`}>
         <Providers>
           <a className="skip-link" href="#conteudo">

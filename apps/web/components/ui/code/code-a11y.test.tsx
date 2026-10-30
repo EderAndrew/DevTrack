@@ -42,9 +42,9 @@ describe("014/US4 cores do código acessíveis em qualquer tema", () => {
     const used = new Set([...container.querySelectorAll("code span")].map((span) => span.className));
     for (const category of CATEGORIES) {
       expect(used, `categoria ${category}`).toContain(SYNTAX_CLASSES[category]);
-      // One dark theme (005 FR-013, amended 2026-10-22): one definition in :root.
+      // The dark theme in :root and the optional light theme (022): one definition in each.
       const definitions = TOKENS_CSS.match(new RegExp(`--syntax-${category}:\\s*#`, "g")) ?? [];
-      expect(definitions.length, `--syntax-${category} no tema`).toBe(1);
+      expect(definitions.length, `--syntax-${category} nos dois temas`).toBe(2);
       expect(TOKENS_CSS).toMatch(new RegExp(`--color-syntax-${category}:\\s*var\\(--syntax-${category}\\)`));
     }
     // The classes are the only color: no inline style on a segment.

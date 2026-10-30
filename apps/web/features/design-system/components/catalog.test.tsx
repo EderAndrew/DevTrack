@@ -119,8 +119,9 @@ describe("005/US4-2 cada mostruário mostra variantes e estados", () => {
 });
 
 /**
- * Elements a Tab press should reach: one per radio group, nothing disabled, hidden or removed from
- * the order. A Radix tab list is a roving focus group that hands its focus to the selected tab.
+ * Elements a Tab press should reach: one per radio group (its checked radio, else the first), nothing
+ * disabled, hidden or removed from the order. A Radix tab list is a roving focus group that hands its
+ * focus to the selected tab.
  */
 function tabbable(container: Element): HTMLElement[] {
   const candidates = [
@@ -129,13 +130,15 @@ function tabbable(container: Element): HTMLElement[] {
     (element) =>
       element.tabIndex >= 0 && !element.matches(':disabled, [role="tablist"]') && !element.closest("[inert], [hidden]"),
   );
-  const groups = new Set<string>();
-  return candidates.filter((element) => {
-    if (!(element instanceof HTMLInputElement) || element.type !== "radio" || !element.name) return true;
-    if (groups.has(element.name)) return false;
-    groups.add(element.name);
-    return true;
-  });
+  const isRadio = (element: HTMLElement): element is HTMLInputElement =>
+    element instanceof HTMLInputElement && element.type === "radio" && element.name !== "";
+  const entry = new Map<string, HTMLInputElement>();
+  for (const element of candidates) {
+    if (!isRadio(element)) continue;
+    const chosen = entry.get(element.name);
+    if (!chosen || (element.checked && !chosen.checked)) entry.set(element.name, element);
+  }
+  return candidates.filter((element) => !isRadio(element) || entry.get(element.name) === element);
 }
 
 const hidesOutline = (element: Element) =>
@@ -143,8 +146,10 @@ const hidesOutline = (element: Element) =>
 const replacesOutline = (element: Element) =>
   /(^|\s)focus-visible:(ring|outline|border)/.test(element.getAttribute("class") ?? "");
 
-describe("005/SC-003 005/SC-004 catálogo acessível e operável pelo teclado", () => {
+// 022/US3-5 (research Z9): axe and the Tab order run in both themes.
+describe.each(["dark", "light"])("005/SC-003 005/SC-004 022/US3-5 catálogo acessível e operável pelo teclado (tema %s)", (theme) => {
   beforeEach(() => {
+    document.documentElement.dataset.theme = theme;
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: false,
       media: query,
@@ -152,7 +157,10 @@ describe("005/SC-003 005/SC-004 catálogo acessível e operável pelo teclado", 
       removeEventListener: () => undefined,
     }));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+    vi.unstubAllGlobals();
+  });
 
   it("sem violações de acessibilidade", async () => {
     const { container } = renderInApp(<Catalog />);
@@ -183,4 +191,51 @@ describe("005/SC-003 005/SC-004 catálogo acessível e operável pelo teclado", 
     ).toEqual([]);
     expect(screen.queryAllByRole("dialog")).toEqual([]);
   }, 60_000);
+});
+
+describe("022/FR-014 022/US3-5 o catálogo mostra os componentes nos dois temas", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    document.documentElement.dataset.theme = "dark";
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+  });
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+    vi.unstubAllGlobals();
+  });
+
+  it("o seletor \"Tema do catálogo\" troca data-theme de <html> sem chamar a API, e a saída do catálogo devolve o tema", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderInApp(<Catalog />);
+    const group = screen.getByRole("group", { name: "Tema do catálogo" });
+    const dark = within(group).getByRole("radio", { name: "Escuro" }) as HTMLInputElement;
+    const light = within(group).getByRole("radio", { name: "Claro" }) as HTMLInputElement;
+    expect(dark.checked).toBe(true);
+
+    await user.click(light);
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(light.checked).toBe(true);
+    await user.click(dark);
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    await user.click(light);
+
+    unmount();
+    expect(document.documentElement.dataset.theme, "o tema da conta volta ao sair do catálogo").toBe("dark");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("começa no tema que a página já tem", () => {
+    document.documentElement.dataset.theme = "light";
+    renderInApp(<Catalog />);
+    const group = screen.getByRole("group", { name: "Tema do catálogo" });
+    expect((within(group).getByRole("radio", { name: "Claro" }) as HTMLInputElement).checked).toBe(true);
+  });
 });

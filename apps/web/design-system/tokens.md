@@ -1,11 +1,12 @@
 # Tokens
 
 Fonte única: [`tokens.css`](./tokens.css). Cada token vira um utilitário do Tailwind (entre
-parênteses); as escalas padrão do Tailwind foram zeradas, então só estes existem. Há um só
-tema, escuro, com a paleta Vice City (Ocean Night `#0B0F2B`, Sunset Pink `#FF5CA8`, Vice Cyan
-`#00F0FF`, Neon Purple `#BC6CFF`, Miami Peach `#FFB86B`; 005 FR-013, emenda de 2026-10-22); ele não
-muda com a preferência do sistema. `test/design-system/docs.test.ts`
-confere que cada token de `tokens.css` aparece aqui.
+parênteses); as escalas padrão do Tailwind foram zeradas, então só estes existem. Há dois
+temas (005 FR-013, emendas de 2026-10-22 e 2026-10-29): o escuro, padrão, com a paleta Vice City
+(Ocean Night `#0B0F2B`, Sunset Pink `#FF5CA8`, Vice Cyan `#00F0FF`, Neon Purple `#BC6CFF`, Miami
+Peach `#FFB86B`), em `:root`; e o claro, opcional (022), em `:root[data-theme="light"]`, que redefine só
+os tokens de cor (tabela em [Tema claro](#tema-claro)). Nenhum muda com a preferência do sistema.
+`test/design-system/docs.test.ts` confere que cada token de `tokens.css` aparece aqui.
 
 ## Cor
 
@@ -48,6 +49,44 @@ A distribuição (80% neutros, 15% identidade, 5% semânticas) está no
 `--danger-foreground` sobre `--danger` (4,5:1); `--primary-strong` sobre
 `--primary-subtle` (4,5:1); as cores semânticas base, `--border-control` e `--ring` sobre
 `--background` e `--surface` (3:1).
+
+## Tema claro
+
+Opcional, escolhido em "Meu perfil" e guardado na conta (022). O layout raiz põe
+`<html data-theme="light">` quando `me.theme` é `LIGHT`; sem sessão, ou com `DARK`, a página fica no
+escuro. O bloco `:root[data-theme="light"]` de `tokens.css` redefine cada token de cor de `:root` e
+nada mais: os aliases do shadcn, a tipografia, os raios, as sombras e o movimento são os mesmos.
+Vem da paleta #E63946, #F1FAEE, #A8DADC, #457B9D, #1D3557 (022 research Z6): a cor original onde nada é
+lido sobre ela, um tom derivado mais escuro onde texto fica sobre ela ou por cima dela. `test/contrast.test.ts`
+mede os mesmos pares nos dois temas; o uso de cada token é o da tabela de [Cor](#cor).
+
+| Token | Claro | Origem |
+|-------|-------|--------|
+| `--background` | `#F1FAEE` | F1FAEE |
+| `--surface` | `#FFFFFF` | — |
+| `--foreground` | `#1D3557` | 1D3557 |
+| `--text-secondary` | `#4A5F78` | 1D3557 clareado |
+| `--primary` | `#C1121F` | E63946 escurecido (E63946 dá 3,9:1 sobre a página) |
+| `--primary-foreground` | `#FFFFFF` | — |
+| `--primary-hover` | `#A00F1A` | E63946 escurecido |
+| `--primary-strong` | `#8A0D17` | E63946 escurecido |
+| `--primary-subtle` | `#FDE2E4` | E63946 em tom suave |
+| `--brand-secondary` | `#2F6585` | 457B9D escurecido (457B9D dá 4,3:1) |
+| `--border` | `#A8DADC` | A8DADC |
+| `--border-control` | `#457B9D` | 457B9D |
+| `--ring` | `#457B9D` | 457B9D |
+| `--success` / `--success-text` / `--success-surface` | `#2E7D4F` / `#1F6B3F` / `#DCF2E3` | — |
+| `--warning` / `--warning-text` / `--warning-surface` | `#A86200` / `#8A4F00` / `#FCEFD6` | — |
+| `--danger` / `--danger-text` / `--danger-surface` / `--danger-foreground` | `#C62833` / `#B01F2B` / `#FDE2E4` / `#FFFFFF` | família E63946 |
+| `--info` / `--info-text` / `--info-surface` | `#457B9D` / `#2F6585` / `#DCF0F1` | 457B9D; A8DADC em tom suave |
+| `--disabled-bg` / `--disabled-fg` / `--disabled-border` | `#E4EBE6` / `#5D6B78` / `#C5D3CF` | — |
+| `--overlay` | `#1D3557` a 45% | 1D3557 |
+| `--syntax-keyword` / `--syntax-string` / `--syntax-number` / `--syntax-comment` | `#6A32A8` / `#1F6B3F` / `#8A4F00` / `#5A6878` | oito matizes (a paleta tem menos) |
+| `--syntax-type` / `--syntax-function` / `--syntax-operator` / `--syntax-punctuation` | `#1F5A7A` / `#A3195B` / `#B01F2B` / `#3B4A5C` | 457B9D e E63946 escurecidos onde servem |
+| `--chart-1` | `#457B9D` | 457B9D |
+
+`color-scheme` é `dark` em `:root` e `light` no bloco claro (barras de rolagem e controles nativos). A regra de
+cores forçadas (`forced-colors`) fica fora dos dois blocos e vale igual nos dois temas.
 
 ### Aliases do shadcn/ui
 

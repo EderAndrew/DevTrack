@@ -73,6 +73,8 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
           "sessoes.proprias.revogar",
           "turmas.proprias.listar",
         ],
+        // 022: the account's theme, DARK by default.
+        theme: "DARK",
       });
 
       const blocked = await api(t, { cookie }).get("/api/fixture-us1/sessions");

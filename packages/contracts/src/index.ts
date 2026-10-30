@@ -7,6 +7,7 @@ export * from "./common/test-cases.js";
 export * from "./auth/requests.js";
 export * from "./auth/responses.js";
 export * from "./me/me.js";
+export * from "./me/preferences.js";
 export * from "./me/sessions.js";
 export * from "./accounts/accounts.js";
 export * from "./provisioning/invitations.js";

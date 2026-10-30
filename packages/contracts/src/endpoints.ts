@@ -193,6 +193,7 @@ import {
 } from "./exercises/exercise-batches.js";
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
+import { PreferencesViewSchema, UpdatePreferencesRequestSchema } from "./me/preferences.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
 import {
   AcceptInvitationRequestSchema,
@@ -331,6 +332,13 @@ export const endpoints = {
   },
 
   "me.get": { method: "GET", path: "/me", response: MeViewSchema, status: 200 },
+  "me.preferences.update": {
+    method: "PATCH",
+    path: "/me/preferences",
+    body: UpdatePreferencesRequestSchema,
+    response: PreferencesViewSchema,
+    status: 200,
+  },
   "sessions.list": { method: "GET", path: "/me/sessions", response: SessionListResponseSchema, status: 200 },
   "sessions.get": { method: "GET", path: "/me/sessions/:id", params: IdParamsSchema, response: SessionViewSchema, status: 200 },
   "sessions.revoke": { method: "DELETE", path: "/me/sessions/:id", params: IdParamsSchema, response: null, status: 204 },

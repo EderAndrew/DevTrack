@@ -1,7 +1,8 @@
 /*
  * DevTrack design tokens — the single source of every visual value (spec 005, research V1–V8,
- * contracts/tokens.md). One dark theme since the Vice City palette (005 FR-013, amended
- * 2026-10-22). Pairs meet WCAG 2.2 AA (text ≥ 4.5:1; state colors,
+ * contracts/tokens.md). Dark by default (the Vice City palette, 005 FR-013, amended 2026-10-22),
+ * optional light theme (022): `<html data-theme="light">`, set by the root layout from the account,
+ * overrides only the color tokens. Pairs of both themes meet WCAG 2.2 AA (text ≥ 4.5:1; state colors,
  * control borders and the focus ring ≥ 3:1), checked by test/contrast.test.ts. Semantic colors
  * (`--success`, `--warning`, `--danger`, `--info`) are for icons, borders and graphics; text uses
  * the `-text` variant.
@@ -108,6 +109,66 @@
   --gutter: 16px;
 
   color-scheme: dark;
+}
+
+/*
+ * The optional light theme (022, research Z5–Z6): a value for every color token of :root and
+ * nothing else; the shadcn aliases above resolve to these. From the palette #E63946, #F1FAEE,
+ * #A8DADC, #457B9D, #1D3557 — the originals where nothing is read on them, darker derived tones
+ * where text sits on or over them.
+ */
+:root[data-theme="light"] {
+  /* Page Honeydew #F1FAEE, white surfaces, text Prussian Blue #1D3557 */
+  --background: #f1faee;
+  --surface: #ffffff;
+  --foreground: #1d3557;
+  --text-secondary: #4a5f78;
+  /* Primary: Imperial Red #E63946 darkened (the original is 3.9:1 on the page) */
+  --primary: #c1121f;
+  --primary-foreground: #ffffff;
+  --primary-hover: #a00f1a;
+  --primary-strong: #8a0d17;
+  --primary-subtle: #fde2e4;
+  /* Wordmark "Track": Celadon Blue #457B9D darkened (the original is 4.3:1) */
+  --brand-secondary: #2f6585;
+  /* Borders and focus: Powder Blue #A8DADC (decorative) and Celadon Blue #457B9D (3:1) */
+  --border: #a8dadc;
+  --border-control: #457b9d;
+  --ring: #457b9d;
+  /* States; danger from the #E63946 family, info from #457B9D with an #A8DADC tint */
+  --success: #2e7d4f;
+  --success-text: #1f6b3f;
+  --success-surface: #dcf2e3;
+  --warning: #a86200;
+  --warning-text: #8a4f00;
+  --warning-surface: #fcefd6;
+  --danger: #c62833;
+  --danger-text: #b01f2b;
+  --danger-surface: #fde2e4;
+  --danger-foreground: #ffffff;
+  --info: #457b9d;
+  --info-text: #2f6585;
+  --info-surface: #dcf0f1;
+  --disabled-bg: #e4ebe6;
+  --disabled-fg: #5d6b78;
+  --disabled-border: #c5d3cf;
+  /* Dialog scrim from #1D3557 */
+  --overlay: rgb(29 53 87 / 0.45);
+
+  /* Code syntax (014 rules on the light backgrounds): eight hues, more than the palette has */
+  --syntax-keyword: #6a32a8;
+  --syntax-string: #1f6b3f;
+  --syntax-number: #8a4f00;
+  --syntax-comment: #5a6878;
+  --syntax-type: #1f5a7a;
+  --syntax-function: #a3195b;
+  --syntax-operator: #b01f2b;
+  --syntax-punctuation: #3b4a5c;
+
+  /* Charts: Celadon Blue #457B9D, marks only */
+  --chart-1: #457b9d;
+
+  color-scheme: light;
 }
 
 @media (min-width: 64rem) {

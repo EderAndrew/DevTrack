@@ -5,7 +5,7 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
 ## Architecture
 
 - Design system (005): every visual value comes from `design-system/tokens.css` (semantic colors
-  of one dark theme, the Vice City palette, type scale, radii, shadows, layers, breakpoints, motion, focus); the
+  of the dark theme, Vice City, and the optional light theme of 022, type scale, radii, shadows, layers, breakpoints, motion, focus); the
   Tailwind default scales are reset there, so `bg-red-500`, `text-2xl` or `shadow-lg` generate no
   CSS. Layers: tokens → `components/ui` (foundational components) → `components/layout` →
   `features` → `app` (ESLint-enforced). `components/layout` holds `AppShell` (side menu, `Topbar`,
@@ -113,6 +113,15 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   (only the buttons of the allowed transitions; a `409` refetches). The menu item "Feedbacks" (`feedbacks.visualizar`)
   carries the RECEIVED badge, named "Feedbacks, N novos", refetched on focus and invalidation, never polled. Words in
   `features/feedback/schemas/`; the message is always text.
+- Theme (022): the dark theme is `:root`, the light one `:root[data-theme="light"]` in `tokens.css`, which redefines
+  only the color tokens; colors reach the screens only through tokens. The attribute comes from the root layout
+  (`app/layout.tsx` reads `GET /me`: `LIGHT` → `light`, `DARK` or no session → `dark`), so the first HTML already has
+  it; login, logout and a class-invitation acceptance that signs in call `router.refresh()` so it is read again. The
+  switch is the moon/`Switch`/sun of "Meu perfil", in its `PageHeader` actions with no visible text (`features/profile`: `use-update-theme` sets `dataset.theme` at once, saves
+  with `PATCH /me/preferences` and reverts on failure). No `prefers-color-scheme`, Tailwind `dark:` or
+  `color-scheme` outside `tokens.css`, and no dark CodeMirror theme (`test/design-system/theme-agnostic.test.ts`);
+  the dark values are frozen in `test/contrast.test.ts`. The catalog's "Tema do catálogo" switches `<html>` only for
+  the visit.
 
 ## Guards
 

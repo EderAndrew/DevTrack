@@ -37,7 +37,7 @@ describe("LoginForm (US2, FR-021, FR-075)", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("envia só e-mail e senha e vai para o destino", async () => {
+  it("022/US2-3 envia só e-mail e senha, vai para o destino e recarrega o layout raiz (o tema da conta)", async () => {
     fetchMock.mockResolvedValue(json(200, { user: { id: "u" } }));
     renderWithProviders(<Toaster><LoginForm next="/conta/sessoes" /></Toaster>);
     await submit();
@@ -47,6 +47,7 @@ describe("LoginForm (US2, FR-021, FR-075)", () => {
     expect(JSON.parse(String(init?.body))).toEqual({ email: "aluna@example.test", password: "senha-forte-do-aluno" });
     expect(router.replace).toHaveBeenCalledWith("/conta/sessoes");
     expect(router.refresh).toHaveBeenCalled();
+    expect(router.refresh.mock.invocationCallOrder[0]).toBeGreaterThan(router.replace.mock.invocationCallOrder[0]!);
   });
 
   it("401 mostra a mensagem genérica num toast no rodapé, que some sozinho, sem apontar campo", async () => {

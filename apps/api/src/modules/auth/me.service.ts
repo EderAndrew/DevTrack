@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { MeView, RoleKey } from "@repo/contracts";
+import type { MeView, PreferencesView, RoleKey, UpdatePreferencesRequest } from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
@@ -20,6 +20,7 @@ export class MeService {
         name: true,
         email: true,
         emailVerifiedAt: true,
+        theme: true,
         roles: { select: { status: true, role: { select: { key: true } } } },
       },
     });
@@ -36,6 +37,17 @@ export class MeService {
         .map((assignment) => ({ key: assignment.role.key as RoleKey, status: assignment.status }))
         .sort((a, b) => a.key.localeCompare(b.key)),
       permissions: [...permissions].sort(),
+      theme: user.theme,
     };
+  }
+
+  /**
+   * `PATCH /me/preferences` (022 research Z2): one conditional UPDATE of the session's own row, so the
+   * stored value again changes nothing (not even `updated_at`) and still answers it; the last write wins.
+   * A visual preference: no audit (FR-015).
+   */
+  async updatePreferences(userId: string, body: UpdatePreferencesRequest): Promise<PreferencesView> {
+    await this.prisma.user.updateMany({ where: { id: userId, theme: { not: body.theme } }, data: { theme: body.theme } });
+    return { theme: body.theme };
   }
 }

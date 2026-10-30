@@ -20,9 +20,14 @@ function blockTokens(source: string, selector: RegExp): Tokens {
   return Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }
 
-// One dark theme since the Vice City palette (005 FR-013, amended 2026-10-22).
+// The dark theme (Vice City, 005 FR-013, amended 2026-10-22) and the optional light theme (022): the
+// light block overrides only color tokens, so the aliases resolve through the dark block's `var()`s,
+// as in the browser (022 research Z5, Z10).
+const DARK = blockTokens(css, /:root\s*\{/);
+const LIGHT = blockTokens(css, /:root\[data-theme="light"\]\s*\{/);
 const THEMES: Record<string, Tokens> = {
-  escuro: blockTokens(css, /:root\s*\{/),
+  escuro: DARK,
+  claro: { ...DARK, ...LIGHT },
 };
 
 /** Follows `var(--x)` aliases down to a literal value. */
@@ -73,7 +78,7 @@ const PAIRS: Pair[] = [
 ];
 
 describe.each(Object.entries(THEMES))(
-  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 contraste AA dos tokens do tema %s",
+  "005/SC-002 005/US1-2 002/US3-3 002/US3-4 022/FR-011 022/SC-002 022/US3-2 contraste AA dos tokens do tema %s",
   (_theme, tokens) => {
     it.each(PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
       const fg = resolve(tokens, foreground);
@@ -94,7 +99,7 @@ const SYNTAX_PAIRS: Pair[] = [...SYNTAX, "--foreground"].flatMap((text) =>
   CODE_BACKGROUNDS.map((background): Pair => [text, background, 4.5]),
 );
 
-describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das cores de sintaxe do tema %s", (_theme, tokens) => {
+describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 022/FR-011 022/SC-002 contraste AA das cores de sintaxe do tema %s", (_theme, tokens) => {
   it.each(SYNTAX_PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
     const fg = resolve(tokens, foreground);
     const bg = resolve(tokens, background);
@@ -104,12 +109,117 @@ describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 contraste AA das co
   });
 });
 
-describe("005/SC-002 tema único escuro (Vice City)", () => {
-  it("tokens.css tem um só tema, escuro, sem variação pela preferência do sistema nem data-theme", () => {
+/** The light block of `tokens.css` as written, `color-scheme` included (custom properties aside). */
+const lightBlock = (() => {
+  const start = css.search(/:root\[data-theme="light"\]\s*\{/);
+  if (start < 0) return "";
+  const open = css.indexOf("{", start);
+  return css.slice(open + 1, css.indexOf("}", open));
+})();
+
+const isColor = (value: string) => /^#[0-9a-f]{3,8}$/i.test(value) || /^rgba?\(/i.test(value);
+
+describe("022/FR-010 022/SC-006 o tema claro cobre todo token de cor", () => {
+  it("todo token de cor de :root tem valor no bloco claro", () => {
+    const colors = Object.entries(DARK).filter(([, value]) => isColor(value)).map(([name]) => name);
+    expect(colors.length).toBeGreaterThan(0);
+    expect(colors.filter((name) => LIGHT[name] === undefined)).toEqual([]);
+  });
+
+  it("o bloco claro só declara tokens de cor que :root também declara", () => {
+    expect(Object.keys(LIGHT).filter((name) => DARK[name] === undefined)).toEqual([]);
+    expect(Object.entries(LIGHT).filter(([, value]) => !isColor(value))).toEqual([]);
+  });
+});
+
+describe("005/SC-002 022/FR-003 tema escuro padrão e tema claro opcional", () => {
+  it("sem variação pela preferência do sistema; color-scheme dark em :root e light no bloco claro", () => {
     expect(css).not.toMatch(/prefers-color-scheme/);
-    expect(css).not.toMatch(/data-theme/);
-    expect(css).toMatch(/color-scheme:\s*dark;/);
+    expect(css).toMatch(/:root\s*\{[^}]*color-scheme:\s*dark;/);
+    expect(lightBlock).toMatch(/color-scheme:\s*light;/);
     expect(THEMES.escuro!["--background"]).toBe("#0b0f2b");
     expect(THEMES.escuro!["--primary"]).toBe("#ff5ca8");
+  });
+});
+
+describe("022/US3-6 022/FR-013 cores forçadas iguais nos dois temas", () => {
+  it("a regra forced-colors de tokens.css fica fora dos dois blocos de tema e não cita tema", () => {
+    const start = css.search(/@media\s*\(forced-colors:\s*active\)/);
+    expect(start).toBeGreaterThan(0);
+    const before = css.slice(0, start);
+    const depth = (before.match(/\{/g) ?? []).length - (before.match(/\}/g) ?? []).length;
+    expect(depth, "fora de qualquer bloco").toBe(0);
+    let open = 0;
+    let end = start;
+    for (let index = css.indexOf("{", start); index < css.length; index += 1) {
+      if (css[index] === "{") open += 1;
+      if (css[index] === "}" && --open === 0) {
+        end = index;
+        break;
+      }
+    }
+    const rule = css.slice(start, end + 1);
+    expect(rule).toMatch(/CanvasText/);
+    expect(rule).not.toMatch(/data-theme/);
+  });
+});
+
+/**
+ * The dark theme's color values before 022, copied from `tokens.css` on `main` (005 amendment
+ * 2026-10-22, Vice City) when Phase 6 started. A change here is a change to the dark theme (SC-005).
+ */
+const DARK_BEFORE_022: Tokens = {
+  "--background": "#0b0f2b",
+  "--surface": "#151a3d",
+  "--foreground": "#f2eeff",
+  "--text-secondary": "#aaa6d4",
+  "--primary": "#ff5ca8",
+  "--primary-foreground": "#0b0f2b",
+  "--primary-hover": "#ff85be",
+  "--primary-strong": "#ffc2de",
+  "--primary-subtle": "#3d1747",
+  "--brand-secondary": "#00f0ff",
+  "--border": "#2b305e",
+  "--border-control": "#807cb8",
+  "--ring": "#00f0ff",
+  "--success": "#4ade9a",
+  "--success-text": "#4ade9a",
+  "--success-surface": "#0b2e26",
+  "--warning": "#ffb86b",
+  "--warning-text": "#ffb86b",
+  "--warning-surface": "#3a2410",
+  "--danger": "#ff6b6b",
+  "--danger-text": "#ff7b7b",
+  "--danger-surface": "#3d0e1a",
+  "--danger-foreground": "#0b0f2b",
+  "--info": "#00f0ff",
+  "--info-text": "#00f0ff",
+  "--info-surface": "#062c3d",
+  "--disabled-bg": "#1d2249",
+  "--disabled-fg": "#9e9ac8",
+  "--disabled-border": "#2b305e",
+  "--overlay": "rgb(5 7 20 / 0.7)",
+  "--syntax-keyword": "#d29bff",
+  "--syntax-string": "#7cf0b0",
+  "--syntax-number": "#ffb86b",
+  "--syntax-comment": "#9e9ac8",
+  "--syntax-type": "#00f0ff",
+  "--syntax-function": "#ff8fc4",
+  "--syntax-operator": "#ff8a80",
+  "--syntax-punctuation": "#c8c4ea",
+  "--chart-1": "#a66bff",
+};
+
+describe("022/US4 o tema escuro continua igual", () => {
+  it("022/US4-1 022/FR-002 022/SC-005 o bloco :root tem, token a token, os valores de cor de antes da 022", () => {
+    expect(Object.fromEntries(Object.entries(DARK).filter(([, value]) => isColor(value)))).toEqual(DARK_BEFORE_022);
+  });
+
+  it("022/US4-2 nenhuma regra @media (prefers-color-scheme…) em tokens.css nem em globals.css", () => {
+    const globals = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+    expect(globals.length).toBeGreaterThan(0);
+    for (const [file, source] of [["tokens.css", css], ["globals.css", globals]] as const) {
+      expect(source, file).not.toMatch(/@media[^{]*prefers-color-scheme/);
+    }
   });
 });
