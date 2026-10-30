@@ -11,6 +11,9 @@ import { messageForError } from "@/lib/messages/error-messages";
 import { unavailableIds } from "../api/group-work-api";
 import { useGroupCandidates } from "../hooks/use-group-candidates";
 import {
+  ADD_MEMBERS,
+  ADD_MEMBERS_CONFIRM,
+  addMembersMessage,
   CANDIDATES_LEGEND,
   chosenCount,
   CONTINUE_ALONE,
@@ -26,16 +29,20 @@ export interface GroupStartDialogProps {
   activityId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Starts the attempt; a rejection keeps the dialog open with its reason. */
+  /** Starts the attempt (or, adding, includes the chosen); a rejection keeps the dialog open with its reason. */
   onStart: (body: StartAttemptRequest) => Promise<void>;
+  /** US5 "Incluir integrantes": the same checklist for the leader of a group, without "Continuar sozinho". */
+  mode?: "start" | "add";
 }
 
 /**
  * "Iniciar" on a group work (023 US2, contracts/web-ui.md): the eligible classmates by name with "n de N",
  * the unchecked boxes disabled at the limit, "Iniciar em grupo" with at least one and "Continuar sozinho".
- * A `409 GROUP_MEMBERS_UNAVAILABLE` reads the list again and names who left; the server decides.
+ * A `409 GROUP_MEMBERS_UNAVAILABLE` reads the list again and names who left; the server decides. In the
+ * `add` mode (US5, FR-016) it is "Incluir integrantes" with "Você pode incluir até <vagas>" and "Incluir".
  */
-export function GroupStartDialog({ activityId, open, onOpenChange, onStart }: GroupStartDialogProps) {
+export function GroupStartDialog({ activityId, open, onOpenChange, onStart, mode = "start" }: GroupStartDialogProps) {
+  const adding = mode === "add";
   const candidates = useGroupCandidates(activityId, open);
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -72,8 +79,10 @@ export function GroupStartDialog({ activityId, open, onOpenChange, onStart }: Gr
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{GROUP_START_TITLE}</DialogTitle>
-          <DialogDescription>{candidates.data ? groupStartMessage(slots) : LOADING_CANDIDATES}</DialogDescription>
+          <DialogTitle>{adding ? ADD_MEMBERS : GROUP_START_TITLE}</DialogTitle>
+          <DialogDescription>
+            {candidates.data ? (adding ? addMembersMessage(slots) : groupStartMessage(slots)) : LOADING_CANDIDATES}
+          </DialogDescription>
         </DialogHeader>
         {candidates.isError ? (
           <Alert variant="danger">
@@ -112,12 +121,14 @@ export function GroupStartDialog({ activityId, open, onOpenChange, onStart }: Gr
         <DialogFooter>
           {list.length > 0 ? (
             <Button type="button" onClick={() => void start({ memberIds })} disabled={memberIds.length === 0 || busy} loading={busy}>
-              {START_IN_GROUP}
+              {adding ? ADD_MEMBERS_CONFIRM : START_IN_GROUP}
             </Button>
           ) : null}
-          <Button type="button" variant="outline" onClick={() => void start({ alone: true })} disabled={busy || !candidates.data}>
-            {CONTINUE_ALONE}
-          </Button>
+          {adding ? null : (
+            <Button type="button" variant="outline" onClick={() => void start({ alone: true })} disabled={busy || !candidates.data}>
+              {CONTINUE_ALONE}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

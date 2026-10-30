@@ -34,7 +34,7 @@ import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
 import { GroupBar } from "@/features/group-work/components/group-bar";
 import { GroupNotice } from "@/features/group-work/components/group-notice";
 import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
-import { editingLostMessage, editingWith } from "@/features/group-work/schemas/group-work";
+import { editingLostMessage, editingWith, TAKE_BACK_TO_SUBMIT } from "@/features/group-work/schemas/group-work";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
 import { readsGroupAttempt, useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
@@ -414,6 +414,11 @@ function AttemptAnswering({
   const submit = isExercise ? completeAttempt : submitAttempt;
   const [confirming, setConfirming] = useState(false);
   const blankCount = questions.length - answeredCount;
+  // 023/FR-018: in a group only the leader submits, and only holding the editing; without it "Entregar"
+  // stays disabled with the reason, and a member never sees it. The API decides either way.
+  const group = activity.group;
+  const submitter = !group ? "YES" : group.myRole !== "LEADER" ? "NO" : group.canEdit ? "YES" : "NEEDS_EDITING";
+  const showSubmit = open && submitter !== "NO" && (editable || submitter === "NEEDS_EDITING");
   const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
   // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007); in an exam only
   // the teacher pauses (018/FR-026).
@@ -621,15 +626,24 @@ function AttemptAnswering({
         onPrevious={() => goTo(index - 1)}
         onNext={() => goTo(index + 1)}
         submit={
-          editable ? (
-            <Button
-              type="button"
-              variant={index === questions.length - 1 ? "primary" : "outline"}
-              loading={submit.isPending}
-              onClick={() => setConfirming(true)}
-            >
-              {isExercise ? "Concluir exercícios" : "Entregar atividade"}
-            </Button>
+          showSubmit ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {submitter === "NEEDS_EDITING" ? (
+                <p id="entregar-motivo" className="m-0 text-body-sm text-text-secondary">
+                  {TAKE_BACK_TO_SUBMIT}
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                variant={index === questions.length - 1 ? "primary" : "outline"}
+                loading={submit.isPending}
+                disabled={submitter === "NEEDS_EDITING"}
+                aria-describedby={submitter === "NEEDS_EDITING" ? "entregar-motivo" : undefined}
+                onClick={() => setConfirming(true)}
+              >
+                {isExercise ? "Concluir exercícios" : "Entregar atividade"}
+              </Button>
+            </div>
           ) : undefined
         }
       />

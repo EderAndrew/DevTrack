@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ActivityStatus, GroupCandidates, GroupEditingRequest, GroupEventKind, LatePolicy, StudentActivity } from "@repo/contracts";
+import type { ActivityStatus, AddGroupMembersRequest, GroupCandidates, GroupEditingRequest, GroupEventKind, LatePolicy, StudentActivity } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
@@ -12,13 +12,14 @@ import { GroupSettlement } from "../activities/group-settlement";
 import { readGroup } from "../activities/group/settle-group";
 import { assignmentSchedule } from "../activities/status/facts";
 import { decideOperation } from "../activities/status/operations";
-import { eligibleClassmates } from "./group-eligibility";
+import { eligibleClassmates, lockActivityGroups } from "./group-eligibility";
 import { GroupRefused, recordGroupRefusal } from "./group-refusal";
 import { MyActivitiesService } from "./my-activities.service";
 import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
 const CANDIDATES_ROUTE = "/me/activities/:activityId/group/candidates";
 const EDITING_ROUTE = "/me/activities/:activityId/group/editing";
+const MEMBERS_ROUTE = "/me/activities/:activityId/group/members";
 const MINUTE_SEC = 60;
 
 /** Thrown inside the transaction when the activity is out of the student's context (→ 404 after the rollback). */
@@ -46,7 +47,7 @@ interface EditingContext {
 
 /**
  * The student's side of a group work (023 contracts/http-api.md, "Student: group routes"): the
- * classmates the caller may choose (US2) and the editing (US4). Every read starts from the session
+ * classmates the caller may choose (US2), the leader's inclusion of members (US5) and the editing (US4). Every read starts from the session
  * student's context, as the 012 routes do (`StudentActivityLoader`); the candidate list is a read, not
  * audited.
  */
@@ -118,6 +119,78 @@ export class GroupWorkService {
       throw error;
     }
     return this.myActivities.get(studentUserId, activityId, requestId);
+  }
+
+  /**
+   * FR-016 (research U6): "Incluir integrantes", by the leader while the group's attempt would accept a save,
+   * after the group's settlement. Under the activity `FOR SHARE`, the activity's group lock (the one of the
+   * start, so a classmate never ends in two groups) and the attempt `FOR UPDATE`; all or nothing: a member →
+   * `409 GROUP_NOT_LEADER`, past `groupSize` → `409 GROUP_FULL`, any id no longer eligible (FR-005) →
+   * `409 GROUP_MEMBERS_UNAVAILABLE` with the ids, each audited `activity_group.write_refused`. Submitted, closed,
+   * past a REJECT deadline or cancelled → `409 INVALID_STATE_TRANSITION`. One participation (`added_by` = the
+   * leader) and one `activity_group.member_added` per classmate; counts in the 012 save limit (research U18).
+   */
+  async addMembers(studentUserId: string, activityId: string, body: AddGroupMembersRequest, requestId: string | null): Promise<StudentActivity> {
+    const now = this.clock.now();
+    await this.settlement.ofStudent(studentUserId, activityId, now, requestId);
+    try {
+      await this.prisma.runInTransaction((tx) => this.applyMembers(tx, studentUserId, activityId, body.memberIds, now, requestId));
+    } catch (error) {
+      if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, MEMBERS_ROUTE, requestId);
+      if (error instanceof GroupRefused) throw await recordGroupRefusal(this.prisma, this.audit, studentUserId, error, requestId);
+      throw error;
+    }
+    return this.myActivities.get(studentUserId, activityId, requestId);
+  }
+
+  private async applyMembers(
+    tx: Tx,
+    studentUserId: string,
+    activityId: string,
+    memberIds: readonly string[],
+    now: Date,
+    requestId: string | null,
+  ): Promise<void> {
+    const context = await lockEditingContext(tx, studentUserId, activityId, now);
+    if (context.group_size === null) throw notFound();
+    await lockActivityGroups(tx, activityId);
+    const attempt = await lockAttempt(tx, activityId, studentUserId);
+    const group = attempt && (await readGroup(tx, attempt.id));
+    if (!attempt || !group) throw notFound();
+    const state = await this.rateLimit.hit("activity-saves", studentUserId, { limit: this.config.rateLimit.activitySavesPerMinute, windowSec: MINUTE_SEC }, tx);
+    if (state.blocked) throw rateLimited(state.retryAfterSec);
+    if (context.status === "CANCELLED" || !acceptsSave(context, attempt.status, now)) throw new AppException("INVALID_STATE_TRANSITION");
+
+    if (group.leaderId !== studentUserId || group.roles.leaderId !== studentUserId) {
+      throw new GroupRefused("ADD_MEMBERS", "NOT_LEADER", activityId, attempt.id);
+    }
+    const participants = await tx.attemptParticipant.count({ where: { attemptId: attempt.id } });
+    if (participants + memberIds.length > context.group_size) throw new GroupRefused("ADD_MEMBERS", "FULL", activityId, attempt.id);
+    const eligible = new Set((await eligibleClassmates(tx, activityId, studentUserId)).map((row) => row.id));
+    const unavailableIds = memberIds.filter((id) => !eligible.has(id));
+    if (unavailableIds.length > 0) throw new GroupRefused("ADD_MEMBERS", "MEMBERS_UNAVAILABLE", activityId, attempt.id, unavailableIds);
+
+    await tx.attemptParticipant.createMany({
+      data: memberIds.map((memberId) => ({
+        attemptId: attempt.id,
+        activityId,
+        studentUserId: memberId,
+        attemptNumber: 1,
+        joinedAt: now,
+        addedByUserId: studentUserId,
+      })),
+    });
+    for (const memberId of memberIds) {
+      await this.audit.record(tx, {
+        type: "activity_group.member_added",
+        actorType: "USER",
+        actorUserId: studentUserId,
+        targetType: "ACTIVITY_ATTEMPT",
+        targetId: attempt.id,
+        requestId,
+        metadata: { activityId, attemptId: attempt.id, memberId },
+      });
+    }
   }
 
   private async applyEditing(

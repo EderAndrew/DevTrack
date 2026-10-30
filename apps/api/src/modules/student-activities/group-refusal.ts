@@ -4,11 +4,16 @@ import type { AuditService } from "../audit/audit.service";
 import type { PrismaService } from "../../platform/database/prisma.service";
 
 /** What a group member tried (023 contracts/audit-events.md, `activity_group.write_refused`). */
-export type GroupWriteOperation = "SAVE" | "SUBMIT" | "EDITING";
-/** Why: the caller isn't the effective editor, or isn't the leader. */
-export type GroupRefusalReason = "NOT_EDITOR" | "NOT_LEADER";
+export type GroupWriteOperation = "SAVE" | "SUBMIT" | "EDITING" | "ADD_MEMBERS";
+/** Why: the caller isn't the effective editor or the leader; or, adding members, the group is full or a classmate unavailable. */
+export type GroupRefusalReason = "NOT_EDITOR" | "NOT_LEADER" | "FULL" | "MEMBERS_UNAVAILABLE";
 
-const CODES: Record<GroupRefusalReason, ErrorCode> = { NOT_EDITOR: "GROUP_NOT_EDITOR", NOT_LEADER: "GROUP_NOT_LEADER" };
+const CODES: Record<GroupRefusalReason, ErrorCode> = {
+  NOT_EDITOR: "GROUP_NOT_EDITOR",
+  NOT_LEADER: "GROUP_NOT_LEADER",
+  FULL: "GROUP_FULL",
+  MEMBERS_UNAVAILABLE: "GROUP_MEMBERS_UNAVAILABLE",
+};
 
 /**
  * A group write refused to its author (023 research U8): thrown inside the operation's transaction, so
@@ -20,6 +25,8 @@ export class GroupRefused extends Error {
     readonly reason: GroupRefusalReason,
     readonly activityId: string,
     readonly attemptId: string,
+    /** `MEMBERS_UNAVAILABLE`: the chosen ids no longer eligible, for the error's `details`. */
+    readonly unavailableIds?: readonly string[],
   ) {
     super(CODES[reason]);
   }
@@ -42,5 +49,7 @@ export async function recordGroupRefusal(
     requestId,
     metadata: { activityId: error.activityId, attemptId: error.attemptId, operation: error.operation, reason: error.reason },
   });
-  return new AppException(CODES[error.reason]);
+  return error.unavailableIds
+    ? new AppException(CODES[error.reason], undefined, {}, { unavailableIds: [...error.unavailableIds] })
+    : new AppException(CODES[error.reason]);
 }

@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
-import { type GroupCandidates, type GroupEditingRequest, GroupEditingRequestSchema, type StudentActivity, UuidSchema } from "@repo/contracts";
+import { type AddGroupMembersRequest, AddGroupMembersRequestSchema, type GroupCandidates, type GroupEditingRequest, GroupEditingRequestSchema, type StudentActivity, UuidSchema } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodBody, ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
@@ -16,6 +16,17 @@ export class GroupWorkController {
   @RequirePermissions("atividades.proprias.visualizar")
   candidates(@Param("activityId", idPipe) activityId: string, @Ctx() ctx: RequestContext): Promise<GroupCandidates> {
     return this.groupWork.candidates(ctx.auth!.userId, activityId, ctx.requestId);
+  }
+
+  @Post("members")
+  @HttpCode(200)
+  @RequirePermissions("atividades.proprias.responder")
+  members(
+    @Param("activityId", idPipe) activityId: string,
+    @ZodBody(AddGroupMembersRequestSchema) body: AddGroupMembersRequest,
+    @Ctx() ctx: RequestContext,
+  ): Promise<StudentActivity> {
+    return this.groupWork.addMembers(ctx.auth!.userId, activityId, body, ctx.requestId);
   }
 
   @Post("editing")

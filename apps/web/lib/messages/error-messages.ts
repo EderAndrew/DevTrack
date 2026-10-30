@@ -135,6 +135,7 @@ export const ERROR_MESSAGES = {
   // 023/FR-002: "Em grupo" on a work applied without attendance.
   GROUP_NEEDS_ATTENDANCE: "Este trabalho foi aplicado sem chamada e só pode ser individual.",
   GROUP_MEMBERS_UNAVAILABLE: "Algum colega escolhido não está mais disponível. Revise a lista.",
+  GROUP_FULL: "O grupo já tem o máximo de integrantes deste trabalho.",
   GROUP_ALREADY_JOINED: "Você já participa de um grupo que está fazendo este trabalho.",
   GROUP_NOT_EDITOR: "Outro integrante está editando agora. Suas respostas não foram salvas.",
   GROUP_NOT_LEADER: "Só o líder do grupo pode fazer isso.",

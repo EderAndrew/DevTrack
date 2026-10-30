@@ -178,6 +178,8 @@ export const ErrorCatalog = {
   GROUP_NEEDS_ATTENDANCE: { status: 422, message: "Este trabalho foi aplicado sem chamada e só pode ser individual." },
   // 023/FR-006: a chosen classmate is no longer eligible; `details.unavailableIds` names them (research U6).
   GROUP_MEMBERS_UNAVAILABLE: { status: 409, message: "Algum colega escolhido não está mais disponível. Revise a lista." },
+  // 023/FR-016: adding these classmates would pass the group's maximum.
+  GROUP_FULL: { status: 409, message: "O grupo já tem o máximo de integrantes deste trabalho." },
   // 023/FR-010: the caller already started alone or is in a group of this work.
   GROUP_ALREADY_JOINED: { status: 409, message: "Você já participa de um grupo que está fazendo este trabalho." },
   // 023/FR-012, FR-013: a save, a submit or "Devolver a edição" by someone who isn't editing now.

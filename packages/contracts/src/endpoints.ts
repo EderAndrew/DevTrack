@@ -80,7 +80,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
-import { GroupCandidatesSchema, GroupEditingRequestSchema } from "./activities/group.js";
+import { AddGroupMembersRequestSchema, GroupCandidatesSchema, GroupEditingRequestSchema } from "./activities/group.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
@@ -1368,6 +1368,19 @@ export const endpoints = {
     path: "/me/activities/:activityId/group/candidates",
     params: MyActivityParamsSchema,
     response: GroupCandidatesSchema,
+    status: 200,
+  },
+  /**
+   * 023/FR-016 (research U6): "Incluir integrantes", by the leader while the attempt is in progress, all or
+   * nothing under the activity's group lock. `409 GROUP_NOT_LEADER` / `GROUP_FULL` / `GROUP_MEMBERS_UNAVAILABLE`
+   * (with `unavailableIds`), `409 INVALID_STATE_TRANSITION` after the end.
+   */
+  "myActivities.groupMembers": {
+    method: "POST",
+    path: "/me/activities/:activityId/group/members",
+    params: MyActivityParamsSchema,
+    body: AddGroupMembersRequestSchema,
+    response: StudentActivitySchema,
     status: 200,
   },
   /**

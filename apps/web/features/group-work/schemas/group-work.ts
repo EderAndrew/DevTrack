@@ -36,5 +36,11 @@ export const TAKE_BACK_EDITING = "Retomar a edição";
 export const RETURN_EDITING = "Devolver a edição";
 /** The menu of "Passar a edição": the members who may receive it. */
 export const HAND_TO_LABEL = "Passar para";
+/** US5 (FR-016): the leader adds classmates up to the maximum, in the checklist of the start. */
+export const ADD_MEMBERS = "Incluir integrantes";
+export const ADD_MEMBERS_CONFIRM = "Incluir";
+export const addMembersMessage = (slots: number) => `Você pode incluir até ${slots}.`;
+/** US5-4 (FR-018): the leader submits only holding the editing. */
+export const TAKE_BACK_TO_SUBMIT = "Retome a edição para entregar";
 /** US4-2: a save refused because the leader took the editing back; the page turns to reading. */
 export const editingLostMessage = (leader: string) => `A edição voltou para ${leader}. O que não foi salvo foi perdido.`;

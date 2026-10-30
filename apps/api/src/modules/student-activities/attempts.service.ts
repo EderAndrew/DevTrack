@@ -296,6 +296,8 @@ export class AttemptsService {
           questionCount: submission.questionCount,
           pendingTeacherCount: submission.pendingTeacherCount,
           ...(endReason ? { endReason } : {}),
+          // 023/FR-018: who submitted for the group; left out of other works' events (SC-007).
+          ...(context.group_size !== null ? { submittedById: studentUserId } : {}),
         },
       });
     });

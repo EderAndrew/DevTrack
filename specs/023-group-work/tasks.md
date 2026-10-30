@@ -319,7 +319,7 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T028 [P] [US5] API `apps/api/test/integration/023-us5-members-submit.spec.ts`: `023/US5-1` `POST …/group/members`
+- [X] T028 [P] [US5] API `apps/api/test/integration/023-us5-members-submit.spec.ts`: `023/US5-1` `POST …/group/members`
   pelo líder inclui elegíveis até o máximo (`added_by_user_id` = líder, `member_added`); `023/US5-2` além do máximo →
   `409 GROUP_FULL`; `023/US5-3` incluir ou entregar por um integrante → `409 GROUP_NOT_LEADER`; `023/US5-4` a entrega do
   líder (segurando a edição) fica entregue para todos, com `submitted_by_user_id`, `late` pela regra da 012 e
@@ -329,17 +329,17 @@ duas vezes; quem lê vê os salvamentos em até 10 s.
   023/SC-006` correção e liberação: cada integrante lê a mesma nota e retorno, nenhum antes da liberação nem sem
   `notas.proprias.visualizar`; `023/US5-6` não existe rota de sair nem de remover (o catálogo de rotas não tem);
   `023/FR-016` incluir depois da entrega → `409 INVALID_STATE_TRANSITION`.
-- [ ] T029 [P] [US5] Web: `023/US5-1 023/US5-2` "Incluir integrantes" com "Você pode incluir até <vagas>", some quando
+- [X] T029 [P] [US5] Web: `023/US5-1 023/US5-2` "Incluir integrantes" com "Você pode incluir até <vagas>", some quando
   cheio; `023/US5-4` "Entregar" só para o líder segurando a edição; `023/US5-5` o resultado liberado aparece para o
   integrante como na 012 (testes em `features/group-work` e `features/student-activities`).
 
 ### Implementation for User Story 5
 
-- [ ] T030 [US5] Contratos + API: `POST /me/activities/:activityId/group/members` (`endpoints.ts`, `MATRIX`,
+- [X] T030 [US5] Contratos + API: `POST /me/activities/:activityId/group/members` (`endpoints.ts`, `MATRIX`,
   `GROUP_FULL`), a inclusão em `group-work.service.ts` com o mesmo bloqueio e as mesmas regras do início, contando no limite
   `activity-saves`; o resultado
   da 012 servido a todo participante (`student-activity-loader.ts`, `views/student-view.ts`). T028 fica verde.
-- [ ] T031 [US5] Web: "Incluir integrantes" (reusa a lista do diálogo) e as regras de "Entregar" em `group-bar.tsx` e
+- [X] T031 [US5] Web: "Incluir integrantes" (reusa a lista do diálogo) e as regras de "Entregar" em `group-bar.tsx` e
   `activity-answering.tsx`. T029 fica verde; a US5 sai de `pending` e `023/SC-006` também.
 
 ---

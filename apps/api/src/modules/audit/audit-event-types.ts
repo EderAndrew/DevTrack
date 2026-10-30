@@ -229,7 +229,7 @@ export const AUDIT_EVENT_METADATA = {
   // `operation`: START | SAVE | SUBMIT, RETRY | COMPLETE of an EXERCISE (013) and EXIT of an EXAM (018); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
   // 018: `endReason: STUDENT_SUBMITTED` for an EXAM.
-  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],
+  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason", "submittedById"],
   // 018 — an expired exam attempt settled on its next touch (research T5), by the system.
   "exam_attempt.time_expired": ["activityId", "submissionId", "endReason", "blankCount"],
   // 018 — the occurrence that reaches the limit opens the hold (research T8), by the system, in the

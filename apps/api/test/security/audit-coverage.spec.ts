@@ -60,7 +60,7 @@ const PENDING_CHANGED_021 = new Set<string>([]);
 /** 023 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_023 = new Set<string>([]);
 /** 023 "Changed" rows whose metadata arrives with later user stories; same rule. */
-const PENDING_CHANGED_023 = new Set<string>(["activity_submission.created"]);
+const PENDING_CHANGED_023 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
@@ -337,11 +337,11 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(offendingMetadata(found)).toEqual([]);
       expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
       // The journey marks 3 times for works, four times for the 018/US3, US4 and US5 exams, once for the
-      // 021 work with code execution and twice for the 023 group work (two students), and unmarks once
+      // 021 work with code execution and three times for the 023 group work (three students), and unmarks once
       // (016/US2): one event per change, none for a no-op.
       const marked = found.filter((event) => event.type === "attendance.marked");
       const unmarked = found.filter((event) => event.type === "attendance.unmarked");
-      expect([marked.length, unmarked.length]).toEqual([10, 1]);
+      expect([marked.length, unmarked.length]).toEqual([11, 1]);
       expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
       // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt
       // (the 021 work's pause stays open: its run is refused).

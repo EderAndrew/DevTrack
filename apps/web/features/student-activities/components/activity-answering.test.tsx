@@ -956,3 +956,74 @@ describe("023/US3 o integrante abre o trabalho do grupo", () => {
     expect([reread.disabled, reread.value]).toEqual([true, ""]);
   });
 });
+
+describe("023/US5 entregar pelo grupo e o resultado de cada integrante", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const ANA = { id: "eeeeeeee-0000-4000-8000-000000000001", name: "Ana Souza" };
+  const BRUNO = { id: "eeeeeeee-0000-4000-8000-000000000002", name: "Bruno Lima" };
+  const groupOf = (overrides: Record<string, unknown>) => ({
+    groupSize: 3,
+    leader: ANA,
+    members: [ANA, BRUNO],
+    editor: ANA,
+    myRole: "LEADER" as const,
+    canEdit: true,
+    addedBy: null,
+    freeSlots: 1,
+    version: 1,
+    ...overrides,
+  });
+
+  it("023/US5-4 \"Entregar\" só para o líder segurando a edição; sem ela, desabilitado com \"Retome a edição para entregar\"", async () => {
+    const leading = setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({}) })) });
+    const enabled = (await screen.findByRole("button", { name: "Entregar atividade" })) as HTMLButtonElement;
+    expect(enabled.disabled).toBe(false);
+    expect(screen.queryByText("Retome a edição para entregar")).toBeNull();
+    leading.unmount();
+
+    const waiting = setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({ editor: BRUNO, canEdit: false }) })) });
+    const disabled = (await screen.findByRole("button", { name: "Entregar atividade" })) as HTMLButtonElement;
+    expect(disabled.disabled).toBe(true);
+    expect(screen.getByText("Retome a edição para entregar")).toBeTruthy();
+    expect(disabled.getAttribute("aria-describedby")).toBe(screen.getByText("Retome a edição para entregar").id);
+    await expectNoA11yViolations(waiting.container);
+    waiting.unmount();
+
+    // A member, even while editing, never sees it (FR-018).
+    setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({ editor: BRUNO, myRole: "MEMBER", canEdit: true, addedBy: ANA }) })) });
+    await screen.findByRole("navigation", { name: "Questões" });
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+  });
+
+  it("023/US5-5 o resultado liberado aparece para o integrante como na 012", async () => {
+    setup({
+      [GET]: json(
+        200,
+        submitted({
+          status: "GRADED",
+          groupSize: 3,
+          group: groupOf({ myRole: "MEMBER", canEdit: false, addedBy: ANA }),
+          result: {
+            grade: "0.85",
+            generalFeedback: "Bom trabalho do grupo.",
+            questions: [
+              { questionId: open.id, grade: "0.35", feedback: "Faltou citar a interface." },
+              { questionId: multiple.id, grade: "0.30", feedback: null },
+              { questionId: code.id, grade: "0.20", feedback: null },
+            ],
+          },
+        }),
+      ),
+    });
+    const result = await screen.findByRole("region", { name: "Resultado" });
+    expect(within(result).getByText("0,85 de 1,00")).toBeTruthy();
+    expect(within(result).getByText("Bom trabalho do grupo.")).toBeTruthy();
+    expect(screen.getByText("Você está no grupo de Ana Souza neste trabalho.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+  });
+});

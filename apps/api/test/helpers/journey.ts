@@ -1268,14 +1268,21 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
 
   // 023/US2 — a student starts a group work with a classmate (`activity_attempt.started` with `group` and
   // `memberCount`, `activity_group.created`, `activity_group.member_added`: ids and counts, never names).
-  const groupClass = await createClassWithStudents(t, runTeacher.id, { students: 2 });
+  const groupClass = await createClassWithStudents(t, runTeacher.id, { students: 3 });
   const { activity: groupWork } = await createActivity(t, groupClass.schoolClass, { type: "ASSIGNMENT", releaseMode: "PRESENT_ONLY", groupSize: 3 });
   const groupLeader = groupClass.students[0]!;
   const groupMember = groupClass.students[1]!;
-  expect((await markPresentIn(runTeacherClient, groupClass.schoolClass.id, groupWork.id, [groupLeader.id, groupMember.id])).status).toBe(200);
+  const groupLateMember = groupClass.students[2]!;
+  expect(
+    (await markPresentIn(runTeacherClient, groupClass.schoolClass.id, groupWork.id, [groupLeader.id, groupMember.id, groupLateMember.id])).status,
+  ).toBe(200);
   const groupLeaderClient = api(t, { cookie: await keepLoginAs(groupLeader) });
   expect((await groupLeaderClient.get(`/api/me/activities/${groupWork.id}/group/candidates`)).status).toBe(200);
   expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt`, { memberIds: [groupMember.id] })).status).toBe(200);
+  // 023/US5 — "Incluir integrantes" (`activity_group.member_added`), then past the maximum
+  // (`activity_group.write_refused` with ADD_MEMBERS / FULL).
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/members`, { memberIds: [groupLateMember.id] })).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/members`, { memberIds: [groupLateMember.id] })).status).toBe(409);
 
   // 023/US4 — the leader hands the editing to the member (`activity_group.editing_changed`), then tries to
   // submit without it (`activity_group.write_refused`); the leader leaves the class and the member's next read
@@ -1288,6 +1295,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     data: { status: "REMOVED", removedAt: new Date(), removedById: runTeacher.id },
   });
   expect((await groupMemberClient.get(`/api/me/activities/${groupWork.id}`)).status).toBe(200);
+  // 023/US5 — the new leader, holding the editing, submits for the group (`activity_submission.created` with `submittedById`).
+  expect((await groupMemberClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(200);
 
   // 020/US1 — the student sends a feedback to the platform (`student_feedback.submitted`), then passes the
   // limit of 5 in 24 h (`student_feedback.rate_limited`). The message and the origin path are content the
