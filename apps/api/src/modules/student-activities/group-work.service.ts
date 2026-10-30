@@ -1,11 +1,23 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ActivityStatus, AddGroupMembersRequest, GroupCandidates, GroupEditingRequest, GroupEventKind, LatePolicy, StudentActivity } from "@repo/contracts";
+import type {
+  ActivityStatus,
+  AddGroupMembersRequest,
+  GroupCandidates,
+  GroupEditingRequest,
+  GroupEventKind,
+  LatePolicy,
+  StudentActivity,
+} from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { APP_CONFIG } from "../../platform/config/config.module";
 import type { AppConfig } from "../../platform/config/config.schema";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { AppException, notFound, rateLimited } from "../../platform/http/errors";
+import {
+  AppException,
+  notFound,
+  rateLimited,
+} from "../../platform/http/errors";
 import { RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { GroupSettlement } from "../activities/group-settlement";
@@ -15,7 +27,10 @@ import { decideOperation } from "../activities/status/operations";
 import { eligibleClassmates, lockActivityGroups } from "./group-eligibility";
 import { GroupRefused, recordGroupRefusal } from "./group-refusal";
 import { MyActivitiesService } from "./my-activities.service";
-import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
+import {
+  releasedToSql,
+  StudentActivityLoader,
+} from "./student-activity-loader";
 
 const CANDIDATES_ROUTE = "/me/activities/:activityId/group/candidates";
 const EDITING_ROUTE = "/me/activities/:activityId/group/editing";
@@ -70,19 +85,46 @@ export class GroupWorkService {
    * work that isn't in group; `409 GROUP_ALREADY_JOINED` for a student who started alone or is a member; the
    * 012 START rule's 409 (`ACTIVITY_CLOSED`, `DEADLINE_PASSED`…) when a start would be refused now.
    */
-  async candidates(studentUserId: string, activityId: string, requestId: string | null): Promise<GroupCandidates> {
+  async candidates(
+    studentUserId: string,
+    activityId: string,
+    requestId: string | null,
+  ): Promise<GroupCandidates> {
     const now = this.clock.now();
-    const context = await this.loader.groupContext(studentUserId, activityId, now);
-    if (!context) return this.denied(studentUserId, activityId, now, CANDIDATES_ROUTE, requestId);
+    const context = await this.loader.groupContext(
+      studentUserId,
+      activityId,
+      now,
+    );
+    if (!context)
+      return this.denied(
+        studentUserId,
+        activityId,
+        now,
+        CANDIDATES_ROUTE,
+        requestId,
+      );
     if (context.groupSize === null) throw notFound();
     let freeSlots = context.groupSize - 1;
     if (context.participation) {
-      if (context.participation.leaderId !== studentUserId) throw new AppException("GROUP_ALREADY_JOINED");
-      freeSlots = Math.max(0, context.groupSize - context.participation.participantCount);
+      if (context.participation.leaderId !== studentUserId)
+        throw new AppException("GROUP_ALREADY_JOINED");
+      freeSlots = Math.max(
+        0,
+        context.groupSize - context.participation.participantCount,
+      );
     }
     // FR-005: no list on a work that no longer accepts a start (closed, deadline passed under REJECT…).
     if (context.startRefusal) throw new AppException(context.startRefusal);
-    return { groupSize: context.groupSize, freeSlots, candidates: await eligibleClassmates(this.prisma, activityId, studentUserId) };
+    return {
+      groupSize: context.groupSize,
+      freeSlots,
+      candidates: await eligibleClassmates(
+        this.prisma,
+        activityId,
+        studentUserId,
+      ),
+    };
   }
 
   /**
@@ -95,27 +137,43 @@ export class GroupWorkService {
    * REJECT deadline — or the work was cancelled: `409 INVALID_STATE_TRANSITION`. Counts in the 012 save
    * limit (research U18).
    */
-  async changeEditing(studentUserId: string, activityId: string, body: GroupEditingRequest, requestId: string | null): Promise<StudentActivity> {
+  async changeEditing(
+    studentUserId: string,
+    activityId: string,
+    body: GroupEditingRequest,
+    requestId: string | null,
+  ): Promise<StudentActivity> {
     const now = this.clock.now();
     await this.settlement.ofStudent(studentUserId, activityId, now, requestId);
     try {
-      await this.prisma.runInTransaction((tx) => this.applyEditing(tx, studentUserId, activityId, body, now, requestId));
+      await this.prisma.runInTransaction((tx) =>
+        this.applyEditing(tx, studentUserId, activityId, body, now, requestId),
+      );
     } catch (error) {
-      if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, EDITING_ROUTE, requestId);
-      if (error instanceof GroupRefused) throw await recordGroupRefusal(this.prisma, this.audit, studentUserId, error, requestId);
-      if (error instanceof CallerPaused) {
-        // Audited as the other writes refused while paused, here with operation GROUP_EDITING.
-        await this.audit.record(this.prisma, {
-          type: "attempt_pause.write_refused",
-          actorType: "USER",
-          actorUserId: studentUserId,
-          targetType: "ACTIVITY_ATTEMPT",
-          targetId: error.attemptId,
+      if (error instanceof OutOfContext)
+        return this.denied(
+          studentUserId,
+          activityId,
+          now,
+          EDITING_ROUTE,
           requestId,
-          metadata: { activityId, pauseId: error.pauseId, operation: "GROUP_EDITING" },
-        });
-        throw new AppException("ATTEMPT_PAUSED");
-      }
+        );
+      if (error instanceof GroupRefused)
+        throw await recordGroupRefusal(
+          this.prisma,
+          this.audit,
+          studentUserId,
+          error,
+          requestId,
+        );
+      if (error instanceof CallerPaused)
+        return this.pausedRefusal(
+          studentUserId,
+          activityId,
+          error,
+          "GROUP_EDITING",
+          requestId,
+        );
       throw error;
     }
     return this.myActivities.get(studentUserId, activityId, requestId);
@@ -130,17 +188,73 @@ export class GroupWorkService {
    * past a REJECT deadline or cancelled → `409 INVALID_STATE_TRANSITION`. One participation (`added_by` = the
    * leader) and one `activity_group.member_added` per classmate; counts in the 012 save limit (research U18).
    */
-  async addMembers(studentUserId: string, activityId: string, body: AddGroupMembersRequest, requestId: string | null): Promise<StudentActivity> {
+  async addMembers(
+    studentUserId: string,
+    activityId: string,
+    body: AddGroupMembersRequest,
+    requestId: string | null,
+  ): Promise<StudentActivity> {
     const now = this.clock.now();
     await this.settlement.ofStudent(studentUserId, activityId, now, requestId);
     try {
-      await this.prisma.runInTransaction((tx) => this.applyMembers(tx, studentUserId, activityId, body.memberIds, now, requestId));
+      await this.prisma.runInTransaction((tx) =>
+        this.applyMembers(
+          tx,
+          studentUserId,
+          activityId,
+          body.memberIds,
+          now,
+          requestId,
+        ),
+      );
     } catch (error) {
-      if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, MEMBERS_ROUTE, requestId);
-      if (error instanceof GroupRefused) throw await recordGroupRefusal(this.prisma, this.audit, studentUserId, error, requestId);
+      if (error instanceof OutOfContext)
+        return this.denied(
+          studentUserId,
+          activityId,
+          now,
+          MEMBERS_ROUTE,
+          requestId,
+        );
+      if (error instanceof GroupRefused)
+        throw await recordGroupRefusal(
+          this.prisma,
+          this.audit,
+          studentUserId,
+          error,
+          requestId,
+        );
+      if (error instanceof CallerPaused)
+        return this.pausedRefusal(
+          studentUserId,
+          activityId,
+          error,
+          "GROUP_MEMBERS",
+          requestId,
+        );
       throw error;
     }
     return this.myActivities.get(studentUserId, activityId, requestId);
+  }
+
+  /** 409 ATTEMPT_PAUSED, audited as the other writes refused while paused (016), after the rollback. */
+  private async pausedRefusal(
+    studentUserId: string,
+    activityId: string,
+    error: CallerPaused,
+    operation: "GROUP_EDITING" | "GROUP_MEMBERS",
+    requestId: string | null,
+  ): Promise<never> {
+    await this.audit.record(this.prisma, {
+      type: "attempt_pause.write_refused",
+      actorType: "USER",
+      actorUserId: studentUserId,
+      targetType: "ACTIVITY_ATTEMPT",
+      targetId: error.attemptId,
+      requestId,
+      metadata: { activityId, pauseId: error.pauseId, operation },
+    });
+    throw new AppException("ATTEMPT_PAUSED");
   }
 
   private async applyMembers(
@@ -151,24 +265,69 @@ export class GroupWorkService {
     now: Date,
     requestId: string | null,
   ): Promise<void> {
-    const context = await lockEditingContext(tx, studentUserId, activityId, now);
+    const context = await lockEditingContext(
+      tx,
+      studentUserId,
+      activityId,
+      now,
+    );
     if (context.group_size === null) throw notFound();
     await lockActivityGroups(tx, activityId);
     const attempt = await lockAttempt(tx, activityId, studentUserId);
     const group = attempt && (await readGroup(tx, attempt.id));
     if (!attempt || !group) throw notFound();
-    const state = await this.rateLimit.hit("activity-saves", studentUserId, { limit: this.config.rateLimit.activitySavesPerMinute, windowSec: MINUTE_SEC }, tx);
+    const state = await this.rateLimit.hit(
+      "activity-saves",
+      studentUserId,
+      {
+        limit: this.config.rateLimit.activitySavesPerMinute,
+        windowSec: MINUTE_SEC,
+      },
+      tx,
+    );
     if (state.blocked) throw rateLimited(state.retryAfterSec);
-    if (context.status === "CANCELLED" || !acceptsSave(context, attempt.status, now)) throw new AppException("INVALID_STATE_TRANSITION");
+    if (
+      context.status === "CANCELLED" ||
+      !acceptsSave(context, attempt.status, now)
+    )
+      throw new AppException("INVALID_STATE_TRANSITION");
+    // 023/FR-023: a paused leader doesn't include anyone until the teacher releases the return.
+    const pause = await tx.attemptPause.findFirst({
+      where: { attemptId: attempt.id, studentUserId, releasedAt: null },
+      select: { id: true },
+    });
+    if (pause) throw new CallerPaused(attempt.id, pause.id);
 
-    if (group.leaderId !== studentUserId || group.roles.leaderId !== studentUserId) {
-      throw new GroupRefused("ADD_MEMBERS", "NOT_LEADER", activityId, attempt.id);
+    if (
+      group.leaderId !== studentUserId ||
+      group.roles.leaderId !== studentUserId
+    ) {
+      throw new GroupRefused(
+        "ADD_MEMBERS",
+        "NOT_LEADER",
+        activityId,
+        attempt.id,
+      );
     }
-    const participants = await tx.attemptParticipant.count({ where: { attemptId: attempt.id } });
-    if (participants + memberIds.length > context.group_size) throw new GroupRefused("ADD_MEMBERS", "FULL", activityId, attempt.id);
-    const eligible = new Set((await eligibleClassmates(tx, activityId, studentUserId)).map((row) => row.id));
+    const participants = await tx.attemptParticipant.count({
+      where: { attemptId: attempt.id },
+    });
+    if (participants + memberIds.length > context.group_size)
+      throw new GroupRefused("ADD_MEMBERS", "FULL", activityId, attempt.id);
+    const eligible = new Set(
+      (await eligibleClassmates(tx, activityId, studentUserId)).map(
+        (row) => row.id,
+      ),
+    );
     const unavailableIds = memberIds.filter((id) => !eligible.has(id));
-    if (unavailableIds.length > 0) throw new GroupRefused("ADD_MEMBERS", "MEMBERS_UNAVAILABLE", activityId, attempt.id, unavailableIds);
+    if (unavailableIds.length > 0)
+      throw new GroupRefused(
+        "ADD_MEMBERS",
+        "MEMBERS_UNAVAILABLE",
+        activityId,
+        attempt.id,
+        unavailableIds,
+      );
 
     await tx.attemptParticipant.createMany({
       data: memberIds.map((memberId) => ({
@@ -201,34 +360,67 @@ export class GroupWorkService {
     now: Date,
     requestId: string | null,
   ): Promise<void> {
-    const context = await lockEditingContext(tx, studentUserId, activityId, now);
+    const context = await lockEditingContext(
+      tx,
+      studentUserId,
+      activityId,
+      now,
+    );
     if (context.group_size === null) throw notFound();
     const attempt = await lockAttempt(tx, activityId, studentUserId);
     const group = attempt && (await readGroup(tx, attempt.id));
     if (!attempt || !group) throw notFound();
-    const state = await this.rateLimit.hit("activity-saves", studentUserId, { limit: this.config.rateLimit.activitySavesPerMinute, windowSec: MINUTE_SEC }, tx);
+    const state = await this.rateLimit.hit(
+      "activity-saves",
+      studentUserId,
+      {
+        limit: this.config.rateLimit.activitySavesPerMinute,
+        windowSec: MINUTE_SEC,
+      },
+      tx,
+    );
     if (state.blocked) throw rateLimited(state.retryAfterSec);
-    if (context.status === "CANCELLED" || !acceptsSave(context, attempt.status, now)) throw new AppException("INVALID_STATE_TRANSITION");
+    if (
+      context.status === "CANCELLED" ||
+      !acceptsSave(context, attempt.status, now)
+    )
+      throw new AppException("INVALID_STATE_TRANSITION");
     // 016/FR-013, 023/FR-023: a paused caller doesn't move the editing.
-    const pause = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, studentUserId, releasedAt: null }, select: { id: true } });
+    const pause = await tx.attemptPause.findFirst({
+      where: { attemptId: attempt.id, studentUserId, releasedAt: null },
+      select: { id: true },
+    });
     if (pause) throw new CallerPaused(attempt.id, pause.id);
 
-    const refuse = (reason: "NOT_EDITOR" | "NOT_LEADER") => new GroupRefused("EDITING", reason, activityId, attempt.id);
+    const refuse = (reason: "NOT_EDITOR" | "NOT_LEADER") =>
+      new GroupRefused("EDITING", reason, activityId, attempt.id);
     const { roles } = group;
-    const leads = roles.leaderId === studentUserId && group.leaderId === studentUserId;
+    const leads =
+      roles.leaderId === studentUserId && group.leaderId === studentUserId;
     let to: string;
     let kind: GroupEventKind;
     if (body.action === "RETURN") {
-      if (leads || roles.editorId !== studentUserId || group.editorId !== studentUserId) throw refuse("NOT_EDITOR");
+      if (
+        leads ||
+        roles.editorId !== studentUserId ||
+        group.editorId !== studentUserId
+      )
+        throw refuse("NOT_EDITOR");
       [to, kind] = [group.leaderId, "EDITING_RETURNED"];
     } else if (!leads) {
       throw refuse("NOT_LEADER");
     } else if (body.action === "TAKE_BACK") {
       [to, kind] = [studentUserId, "EDITING_TAKEN_BACK"];
     } else {
-      const target = roles.members.find((member) => member.id === body.toUserId);
-      if (!target?.active || target.paused) throw new AppException("GROUP_MEMBER_NOT_AVAILABLE");
-      [to, kind] = [target.id, target.id === studentUserId ? "EDITING_TAKEN_BACK" : "EDITING_HANDED"];
+      const target = roles.members.find(
+        (member) => member.id === body.toUserId,
+      );
+      if (!target?.active || target.paused)
+        throw new AppException("GROUP_MEMBER_NOT_AVAILABLE");
+      [to, kind] = [
+        target.id,
+        target.id === studentUserId ? "EDITING_TAKEN_BACK" : "EDITING_HANDED",
+      ];
     }
     const from = group.editorId;
     if (to === from) return; // Already editing: nothing changes, no row (idempotent).
@@ -237,9 +429,18 @@ export class GroupWorkService {
       where: { attemptId: attempt.id, version: group.version },
       data: { editorUserId: to, version: { increment: 1 } },
     });
-    if (updated.count !== 1) throw new Error("the group changed under its attempt's lock");
+    if (updated.count !== 1)
+      throw new Error("the group changed under its attempt's lock");
     await tx.attemptGroupEvent.create({
-      data: { attemptId: attempt.id, kind, reason: null, actorUserId: studentUserId, fromUserId: from, toUserId: to, occurredAt: now },
+      data: {
+        attemptId: attempt.id,
+        kind,
+        reason: null,
+        actorUserId: studentUserId,
+        fromUserId: from,
+        toUserId: to,
+        occurredAt: now,
+      },
     });
     await this.audit.record(tx, {
       type: "activity_group.editing_changed",
@@ -248,13 +449,30 @@ export class GroupWorkService {
       targetType: "ACTIVITY_ATTEMPT",
       targetId: attempt.id,
       requestId,
-      metadata: { activityId, attemptId: attempt.id, kind, reason: null, fromUserId: from, toUserId: to },
+      metadata: {
+        activityId,
+        attemptId: attempt.id,
+        kind,
+        reason: null,
+        fromUserId: from,
+        toUserId: to,
+      },
     });
   }
 
   /** 404, auditing `student_access.denied` when the activity exists (012 research P18). */
-  private async denied(studentUserId: string, activityId: string, now: Date, route: string, requestId: string | null): Promise<never> {
-    const reason = await this.loader.deniedReason(studentUserId, activityId, now);
+  private async denied(
+    studentUserId: string,
+    activityId: string,
+    now: Date,
+    route: string,
+    requestId: string | null,
+  ): Promise<never> {
+    const reason = await this.loader.deniedReason(
+      studentUserId,
+      activityId,
+      now,
+    );
     if (reason) {
       await this.audit.record(this.prisma, {
         type: "student_access.denied",
@@ -274,7 +492,12 @@ export class GroupWorkService {
  * The group work in the student's context — published, of a class where they are ACTIVE, released to them
  * (016) — under `FOR SHARE` (a close waits); cancelled included, unlike the 012 `lockContext`. Else `OutOfContext`.
  */
-async function lockEditingContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<EditingContext> {
+async function lockEditingContext(
+  tx: Tx,
+  studentUserId: string,
+  activityId: string,
+  now: Date,
+): Promise<EditingContext> {
   const rows = await tx.$queryRaw<EditingContext[]>`
     SELECT ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.group_size,
            c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released
@@ -292,8 +515,14 @@ async function lockEditingContext(tx: Tx, studentUserId: string, activityId: str
 }
 
 /** The attempt the student takes part in (023 research U5), `FOR UPDATE`: the group's serialization point. */
-async function lockAttempt(tx: Tx, activityId: string, studentUserId: string): Promise<{ id: string; status: "IN_PROGRESS" | "SUBMITTED" } | null> {
-  const rows = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED" }[]>`
+async function lockAttempt(
+  tx: Tx,
+  activityId: string,
+  studentUserId: string,
+): Promise<{ id: string; status: "IN_PROGRESS" | "SUBMITTED" } | null> {
+  const rows = await tx.$queryRaw<
+    { id: string; status: "IN_PROGRESS" | "SUBMITTED" }[]
+  >`
     SELECT a.id, a.status::text AS status
     FROM activity_attempts a
     JOIN attempt_participants p ON p.attempt_id = a.id
@@ -304,14 +533,24 @@ async function lockAttempt(tx: Tx, activityId: string, studentUserId: string): P
 }
 
 /** Whether the 012 SAVE rule would accept a write now: the editing moves only while answers can change. */
-function acceptsSave(context: EditingContext, attemptStatus: "IN_PROGRESS" | "SUBMITTED", now: Date): boolean {
+function acceptsSave(
+  context: EditingContext,
+  attemptStatus: "IN_PROGRESS" | "SUBMITTED",
+  now: Date,
+): boolean {
   const outcome = decideOperation("SAVE", {
     type: "ASSIGNMENT",
     activityStatus: context.status,
-    ...assignmentSchedule({ deadline: context.deadline, latePolicy: context.late_policy }),
+    ...assignmentSchedule({
+      deadline: context.deadline,
+      latePolicy: context.late_policy,
+    }),
     classActive: context.class_status === "ACTIVE",
     attempt: { status: attemptStatus },
-    submission: attemptStatus === "SUBMITTED" ? { late: false, gradingComplete: false } : null,
+    submission:
+      attemptStatus === "SUBMITTED"
+        ? { late: false, gradingComplete: false }
+        : null,
     released: context.released,
     now,
   });

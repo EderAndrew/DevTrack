@@ -4,9 +4,11 @@ import type { AuditService } from "../audit/audit.service";
 import type { PrismaService } from "../../platform/database/prisma.service";
 
 /** What a group member tried (023 contracts/audit-events.md, `activity_group.write_refused`). */
-export type GroupWriteOperation = "SAVE" | "SUBMIT" | "EDITING" | "ADD_MEMBERS";
+export type GroupWriteOperation =
+  "SAVE" | "SUBMIT" | "HELP" | "EDITING" | "ADD_MEMBERS";
 /** Why: the caller isn't the effective editor or the leader; or, adding members, the group is full or a classmate unavailable. */
-export type GroupRefusalReason = "NOT_EDITOR" | "NOT_LEADER" | "FULL" | "MEMBERS_UNAVAILABLE";
+export type GroupRefusalReason =
+  "NOT_EDITOR" | "NOT_LEADER" | "FULL" | "MEMBERS_UNAVAILABLE";
 
 const CODES: Record<GroupRefusalReason, ErrorCode> = {
   NOT_EDITOR: "GROUP_NOT_EDITOR",
@@ -47,9 +49,19 @@ export async function recordGroupRefusal(
     targetType: "ACTIVITY_ATTEMPT",
     targetId: error.attemptId,
     requestId,
-    metadata: { activityId: error.activityId, attemptId: error.attemptId, operation: error.operation, reason: error.reason },
+    metadata: {
+      activityId: error.activityId,
+      attemptId: error.attemptId,
+      operation: error.operation,
+      reason: error.reason,
+    },
   });
   return error.unavailableIds
-    ? new AppException(CODES[error.reason], undefined, {}, { unavailableIds: [...error.unavailableIds] })
+    ? new AppException(
+        CODES[error.reason],
+        undefined,
+        {},
+        { unavailableIds: [...error.unavailableIds] },
+      )
     : new AppException(CODES[error.reason]);
 }

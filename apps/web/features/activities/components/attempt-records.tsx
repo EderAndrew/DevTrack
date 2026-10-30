@@ -1,11 +1,28 @@
 "use client";
 
-import type { AttemptParticipant, AttemptPauses, CodeHighlight, IntegrityTimeline, TeacherAttemptExam, TeacherHelpItem, TeacherPause, TeacherQuestion } from "@repo/contracts";
+import type {
+  AttemptParticipant,
+  AttemptPauses,
+  CodeHighlight,
+  IntegrityTimeline,
+  TeacherAttemptExam,
+  TeacherHelpItem,
+  TeacherPause,
+  TeacherQuestion,
+} from "@repo/contracts";
 import { createContext, useContext } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/ui/code/code-block";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAttemptPauses } from "@/features/attendance/hooks/use-attendance";
 import {
   ENDED_BY_TIME,
@@ -35,11 +52,12 @@ import {
   RECORDS_NOTE,
   RECORDS_TITLE,
 } from "../schemas/attempt-records";
-import { STUDENT_COLUMN } from "../schemas/group-facts";
+import { askedBy, STUDENT_COLUMN } from "../schemas/group-facts";
 
 /** 023/FR-021: in a group attempt each fact names its student; null for an individual attempt (no column). */
 type Participants = readonly AttemptParticipant[] | null;
-const nameIn = (participants: readonly AttemptParticipant[], id: string) => participants.find((person) => person.id === id)?.name ?? "Aluno";
+const nameIn = (participants: readonly AttemptParticipant[], id: string) =>
+  participants.find((person) => person.id === id)?.name ?? "Aluno";
 
 /**
  * "Registros do modo controlado" (015 US4, FR-025): the attempt's events in time order with the
@@ -80,12 +98,24 @@ export function IntegrityRecords({
   );
 }
 
-function Timeline({ timeline, participants }: { timeline: IntegrityTimeline; participants: Participants }) {
+function Timeline({
+  timeline,
+  participants,
+}: {
+  timeline: IntegrityTimeline;
+  participants: Participants;
+}) {
   const { totals } = timeline;
-  if (timeline.events.length === 0) return <p className="m-0">Nenhum registro nesta tentativa.</p>;
+  if (timeline.events.length === 0)
+    return <p className="m-0">Nenhum registro nesta tentativa.</p>;
   // 023: each student's exits end at their own returns, so the interval is the same student's.
   const durationOf = (kind: string, at: string, studentUserId: string) =>
-    timeline.intervals.find((interval) => interval.kind === kind && interval.from === at && interval.studentUserId === studentUserId);
+    timeline.intervals.find(
+      (interval) =>
+        interval.kind === kind &&
+        interval.from === at &&
+        interval.studentUserId === studentUserId,
+    );
   return (
     <>
       <dl className="m-0 grid gap-1">
@@ -98,20 +128,27 @@ function Timeline({ timeline, participants }: { timeline: IntegrityTimeline; par
         <div>
           <dt className="inline text-text-secondary">Quedas de conexão: </dt>
           <dd className="m-0 inline">
-            {totals.disconnections} ({formatDuration(totals.offlineSeconds)} sem conexão)
+            {totals.disconnections} ({formatDuration(totals.offlineSeconds)} sem
+            conexão)
           </dd>
         </div>
         <div>
-          <dt className="inline text-text-secondary">Copiar/colar bloqueados: </dt>
+          <dt className="inline text-text-secondary">
+            Copiar/colar bloqueados:{" "}
+          </dt>
           <dd className="m-0 inline">{totals.clipboardBlocks}</dd>
         </div>
       </dl>
       <Table>
-        <TableCaption>Eventos da tentativa, no horário do servidor.</TableCaption>
+        <TableCaption>
+          Eventos da tentativa, no horário do servidor.
+        </TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead scope="col">Horário</TableHead>
-            {participants ? <TableHead scope="col">{STUDENT_COLUMN}</TableHead> : null}
+            {participants ? (
+              <TableHead scope="col">{STUDENT_COLUMN}</TableHead>
+            ) : null}
             <TableHead scope="col">Evento</TableHead>
             <TableHead scope="col">Duração</TableHead>
           </TableRow>
@@ -120,20 +157,30 @@ function Timeline({ timeline, participants }: { timeline: IntegrityTimeline; par
           {timeline.events.map((event, index) => {
             const at = occurredAt(event);
             const kind = EXIT_KINDS[event.type];
-            const interval = kind ? durationOf(kind, at, event.studentUserId) : undefined;
+            const interval = kind
+              ? durationOf(kind, at, event.studentUserId)
+              : undefined;
             return (
               <TableRow key={`${at}-${index}`}>
                 <TableCell>
                   {formatTime(at)}
                   {event.buffered ? " (enviado depois, sem conexão)" : ""}
                 </TableCell>
-                {participants ? <TableCell>{nameIn(participants, event.studentUserId)}</TableCell> : null}
+                {participants ? (
+                  <TableCell>
+                    {nameIn(participants, event.studentUserId)}
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   {EVENT_LABELS[event.type]}
-                  {event.questionPosition !== null ? ` · questão ${event.questionPosition + 1}` : ""}
+                  {event.questionPosition !== null
+                    ? ` · questão ${event.questionPosition + 1}`
+                    : ""}
                 </TableCell>
                 <TableCell>
-                  {interval ? `${formatDuration(interval.seconds)}${interval.open ? " (sem retorno registrado)" : ""}` : "—"}
+                  {interval
+                    ? `${formatDuration(interval.seconds)}${interval.open ? " (sem retorno registrado)" : ""}`
+                    : "—"}
                 </TableCell>
               </TableRow>
             );
@@ -145,29 +192,70 @@ function Timeline({ timeline, participants }: { timeline: IntegrityTimeline; par
 }
 
 /** The attempt's requests of help, by question position, for the questions of the review. */
-export const AttemptHelpContext = createContext<readonly TeacherHelpItem[] | null>(null);
+export const AttemptHelpContext = createContext<
+  readonly TeacherHelpItem[] | null
+>(null);
+
+/** 023/FR-021: the participants of a group attempt, for the facts that name who asked or ran; null otherwise. */
+export const AttemptParticipantsContext = createContext<Participants>(null);
 
 /**
  * "Ajuda da IA" in a question (015 US4, FR-025): the student's question, the orientation (text and
  * example as read-only code) and the status with the reason of a blocked one. Text, never HTML.
  */
-export function QuestionHelpRecords({ question }: { question: TeacherQuestion }) {
-  const items = useContext(AttemptHelpContext)?.filter((item) => item.questionPosition === question.position) ?? [];
+export function QuestionHelpRecords({
+  question,
+}: {
+  question: TeacherQuestion;
+}) {
+  const items =
+    useContext(AttemptHelpContext)?.filter(
+      (item) => item.questionPosition === question.position,
+    ) ?? [];
+  const participants = useContext(AttemptParticipantsContext);
   if (items.length === 0) return null;
-  const highlight: CodeHighlight | undefined = question.language?.highlight ?? undefined;
+  const highlight: CodeHighlight | undefined =
+    question.language?.highlight ?? undefined;
   return (
-    <section aria-label={`${HELP_TITLE} na questão ${question.position + 1}`} className="flex flex-col gap-2">
+    <section
+      aria-label={`${HELP_TITLE} na questão ${question.position + 1}`}
+      className="flex flex-col gap-2"
+    >
       <h4 className="m-0 text-body font-semibold">{HELP_TITLE}</h4>
       <ol className="m-0 flex list-none flex-col gap-3 p-0">
         {items.map((item) => (
-          <li key={item.id} className="flex flex-col gap-1 border-l-2 border-border pl-3">
+          <li
+            key={item.id}
+            className="flex flex-col gap-1 border-l-2 border-border pl-3"
+          >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-body-sm text-text-secondary">{formatLongDateTime(item.requestedAt)}</span>
-              <Badge variant={item.status === "DELIVERED" ? "info" : "neutral"}>{HELP_STATUS_LABELS[item.status]}</Badge>
+              <span className="text-body-sm text-text-secondary">
+                {formatLongDateTime(item.requestedAt)}
+              </span>
+              <Badge variant={item.status === "DELIVERED" ? "info" : "neutral"}>
+                {HELP_STATUS_LABELS[item.status]}
+              </Badge>
+              {participants ? (
+                <span className="text-body-sm">
+                  {askedBy(nameIn(participants, item.studentUserId))}
+                </span>
+              ) : null}
             </div>
-            <p className="m-0 whitespace-pre-wrap">Pergunta do aluno: {item.question}</p>
-            {item.message !== null ? <p className="m-0 whitespace-pre-wrap">Orientação: {item.message}</p> : null}
-            {item.example ? <CodeBlock label="Exemplo da orientação" code={item.example.code} highlight={highlight} /> : null}
+            <p className="m-0 whitespace-pre-wrap">
+              Pergunta do aluno: {item.question}
+            </p>
+            {item.message !== null ? (
+              <p className="m-0 whitespace-pre-wrap">
+                Orientação: {item.message}
+              </p>
+            ) : null}
+            {item.example ? (
+              <CodeBlock
+                label="Exemplo da orientação"
+                code={item.example.code}
+                highlight={highlight}
+              />
+            ) : null}
           </li>
         ))}
       </ol>
@@ -193,7 +281,10 @@ export function RoomExitRecords({
 }) {
   const query = useAttemptPauses(classId, activityId, attemptId, true);
   return (
-    <section aria-labelledby="saidas-sala-titulo" className="flex flex-col gap-2">
+    <section
+      aria-labelledby="saidas-sala-titulo"
+      className="flex flex-col gap-2"
+    >
       <h3 id="saidas-sala-titulo" className="m-0 text-h3">
         {ROOM_EXITS_TITLE}
       </h3>
@@ -213,16 +304,28 @@ export function RoomExitRecords({
   );
 }
 
-function RoomExits({ pauses, participants }: { pauses: AttemptPauses; participants: Participants }) {
+function RoomExits({
+  pauses,
+  participants,
+}: {
+  pauses: AttemptPauses;
+  participants: Participants;
+}) {
   if (pauses.items.length === 0) return <p className="m-0">{NO_ROOM_EXITS}</p>;
   return (
     <>
-      <p className="m-0">Tempo total fora: {formatDuration(pauses.totalSecondsAway)}</p>
+      <p className="m-0">
+        Tempo total fora: {formatDuration(pauses.totalSecondsAway)}
+      </p>
       <Table>
-        <TableCaption>Saídas da sala desta tentativa, no horário do servidor.</TableCaption>
+        <TableCaption>
+          Saídas da sala desta tentativa, no horário do servidor.
+        </TableCaption>
         <TableHeader>
           <TableRow>
-            {participants ? <TableHead scope="col">{STUDENT_COLUMN}</TableHead> : null}
+            {participants ? (
+              <TableHead scope="col">{STUDENT_COLUMN}</TableHead>
+            ) : null}
             <TableHead scope="col">Motivo</TableHead>
             <TableHead scope="col">Quem pausou</TableHead>
             <TableHead scope="col">Saída</TableHead>
@@ -233,11 +336,17 @@ function RoomExits({ pauses, participants }: { pauses: AttemptPauses; participan
         <TableBody>
           {pauses.items.map((pause) => (
             <TableRow key={pause.id}>
-              {participants ? <TableCell>{nameIn(participants, pause.studentUserId)}</TableCell> : null}
+              {participants ? (
+                <TableCell>
+                  {nameIn(participants, pause.studentUserId)}
+                </TableCell>
+              ) : null}
               <TableCell>{pauseReasonText(pause)}</TableCell>
               <TableCell>{PAUSE_INITIATOR_LABELS[pause.initiatedBy]}</TableCell>
               <TableCell>
-                <time dateTime={pause.startedAt}>{formatTime(pause.startedAt)}</time>
+                <time dateTime={pause.startedAt}>
+                  {formatTime(pause.startedAt)}
+                </time>
               </TableCell>
               <TableCell>{pauseEnd(pause)}</TableCell>
               <TableCell>{formatDuration(pause.seconds)}</TableCell>
@@ -264,18 +373,26 @@ function pauseEnd(pause: TeacherPause) {
  */
 export function ExamAttemptRecords({ exam }: { exam: TeacherAttemptExam }) {
   return (
-    <section aria-labelledby="ocorrencias-titulo" className="flex flex-col gap-2">
+    <section
+      aria-labelledby="ocorrencias-titulo"
+      className="flex flex-col gap-2"
+    >
       <h3 id="ocorrencias-titulo" className="m-0 text-h3">
         {OCCURRENCES_TITLE}
       </h3>
       {exam.occurrences.length === 0 ? (
         <p className="m-0">{NO_EXAM_OCCURRENCES}</p>
       ) : (
-        <ol aria-label={OCCURRENCES_TITLE} className="m-0 flex list-none flex-col gap-1 p-0">
+        <ol
+          aria-label={OCCURRENCES_TITLE}
+          className="m-0 flex list-none flex-col gap-1 p-0"
+        >
           {exam.occurrences.map((occurrence) => (
             <li key={occurrence.ordinal}>
               {occurrence.ordinal}. {OCCURRENCE_KIND_LABELS[occurrence.kind]} às{" "}
-              <time dateTime={occurrence.recordedAt}>{formatTime(occurrence.recordedAt)}</time>
+              <time dateTime={occurrence.recordedAt}>
+                {formatTime(occurrence.recordedAt)}
+              </time>
             </li>
           ))}
         </ol>
@@ -283,15 +400,23 @@ export function ExamAttemptRecords({ exam }: { exam: TeacherAttemptExam }) {
       {exam.decisions.length > 0 ? (
         <>
           <h4 className="m-0 text-body font-semibold">{DECISIONS_TITLE}</h4>
-          <ul aria-label={DECISIONS_TITLE} className="m-0 flex list-none flex-col gap-1 p-0">
+          <ul
+            aria-label={DECISIONS_TITLE}
+            className="m-0 flex list-none flex-col gap-1 p-0"
+          >
             {exam.decisions.map((decision) => (
               <li key={decision.holdId}>
                 Ocorrência {decision.occurrenceOrdinal}:{" "}
                 {decision.resolution && decision.resolvedAt ? (
                   <>
                     {HOLD_RESOLUTION_LABELS[decision.resolution]}
-                    {decision.resolvedBy ? ` por ${decision.resolvedBy.name}` : ""} às{" "}
-                    <time dateTime={decision.resolvedAt}>{formatTime(decision.resolvedAt)}</time>
+                    {decision.resolvedBy
+                      ? ` por ${decision.resolvedBy.name}`
+                      : ""}{" "}
+                    às{" "}
+                    <time dateTime={decision.resolvedAt}>
+                      {formatTime(decision.resolvedAt)}
+                    </time>
                   </>
                 ) : (
                   "aguardando decisão"

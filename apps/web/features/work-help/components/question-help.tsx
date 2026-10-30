@@ -1,7 +1,7 @@
 "use client";
 
 import type { CodeHighlight } from "@repo/contracts";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useRequestHelp, useWorkHelp } from "../hooks/use-work-help";
@@ -21,6 +21,7 @@ export function QuestionHelp({
   questionId,
   highlight,
   canAsk,
+  used,
   notice,
 }: {
   activityId: string;
@@ -28,10 +29,22 @@ export function QuestionHelp({
   highlight: CodeHighlight | undefined;
   /** The attempt is open: "Pedir ajuda" shows; otherwise only the orientations received. */
   canAsk: boolean;
+  /**
+   * The helps delivered as the polled activity counts them (023/FR-022): when another group member's request
+   * is delivered, the count moves and the orientations are read again, so every member sees them.
+   */
+  used?: number;
   /** The controlled mode's message about the help field (a blocked paste). */
   notice?: ReactNode;
 }) {
   const help = useWorkHelp(activityId, true);
+  const { refetch } = help;
+  const seen = useRef(used);
+  useEffect(() => {
+    if (used === seen.current) return;
+    seen.current = used;
+    void refetch();
+  }, [used, refetch]);
   const request = useRequestHelp(activityId);
   const [open, setOpen] = useState(false);
   const state = help.data;
@@ -54,7 +67,13 @@ export function QuestionHelp({
         <div className="flex flex-wrap items-center gap-3">
           <HelpDialog
             trigger={
-              <Button type="button" variant="outline" disabled={exhausted} aria-describedby={counterId} onClick={() => request.reset()}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={exhausted}
+                aria-describedby={counterId}
+                onClick={() => request.reset()}
+              >
                 {ASK_HELP}
               </Button>
             }
@@ -66,13 +85,24 @@ export function QuestionHelp({
             notice={notice}
             onSend={send}
           />
-          <HelpCounter id={counterId} allowance={state.allowance} used={state.used} />
-          {exhausted ? <p className="m-0 text-body-sm">{HELP_EXHAUSTED}</p> : null}
+          <HelpCounter
+            id={counterId}
+            allowance={state.allowance}
+            used={state.used}
+          />
+          {exhausted ? (
+            <p className="m-0 text-body-sm">{HELP_EXHAUSTED}</p>
+          ) : null}
         </div>
       ) : null}
       <div aria-live="polite" className="flex flex-col gap-3">
         {items.map((item) => (
-          <HelpGuidance key={item.id} item={item} highlight={highlight} waitExpired={help.waitExpired} />
+          <HelpGuidance
+            key={item.id}
+            item={item}
+            highlight={highlight}
+            waitExpired={help.waitExpired}
+          />
         ))}
       </div>
     </section>

@@ -1,8 +1,15 @@
-import type { AiErrorCode, StudentHelpItem, TeacherHelpItem, WorkHelpBlockReason, WorkHelpStatus } from "@repo/contracts";
+import type {
+  AiErrorCode,
+  StudentHelpItem,
+  TeacherHelpItem,
+  WorkHelpBlockReason,
+  WorkHelpStatus,
+} from "@repo/contracts";
 
 /** A help request as the views read it. */
 export interface HelpRequestRow {
   id: string;
+  studentUserId: string;
   questionId: string;
   question: string;
   status: WorkHelpStatus;
@@ -15,6 +22,7 @@ export interface HelpRequestRow {
 
 export const HELP_REQUEST_SELECT = {
   id: true,
+  studentUserId: true,
   questionId: true,
   question: true,
   status: true,
@@ -26,7 +34,8 @@ export const HELP_REQUEST_SELECT = {
 } as const;
 
 /** Text only where the student may read it (FR-019, FR-022): an orientation or an out-of-scope reply. */
-const readable = (status: WorkHelpStatus) => status === "DELIVERED" || status === "OUT_OF_SCOPE";
+const readable = (status: WorkHelpStatus) =>
+  status === "DELIVERED" || status === "OUT_OF_SCOPE";
 
 /**
  * The student's item (015 research F13), by allowlist: BLOCKED and FAILED carry no text and no
@@ -39,18 +48,27 @@ export function toStudentHelpItem(row: HelpRequestRow): StudentHelpItem {
     question: row.question,
     status: row.status,
     message: readable(row.status) ? row.message : null,
-    example: row.status === "DELIVERED" && row.exampleCode !== null ? { code: row.exampleCode } : null,
+    example:
+      row.status === "DELIVERED" && row.exampleCode !== null
+        ? { code: row.exampleCode }
+        : null,
     requestedAt: row.requestedAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
 }
 
-/** The teacher's item (FR-025): the student's item, the question's position and why it was blocked or failed. */
-export function toTeacherHelpItem(row: HelpRequestRow & { questionPosition: number }): TeacherHelpItem {
+/** The teacher's item (FR-025): the student's item, who asked (023/FR-021), the question's position and why it was blocked or failed. */
+export function toTeacherHelpItem(
+  row: HelpRequestRow & { questionPosition: number },
+): TeacherHelpItem {
   const { questionId: _questionId, ...student } = toStudentHelpItem(row);
   return {
     ...student,
+    studentUserId: row.studentUserId,
     questionPosition: row.questionPosition,
-    reasonCode: row.status === "BLOCKED" || row.status === "FAILED" ? (row.reasonCode as WorkHelpBlockReason | AiErrorCode | null) : null,
+    reasonCode:
+      row.status === "BLOCKED" || row.status === "FAILED"
+        ? (row.reasonCode as WorkHelpBlockReason | AiErrorCode | null)
+        : null,
   };
 }
