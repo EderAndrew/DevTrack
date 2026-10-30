@@ -34,59 +34,86 @@ describe("022/US1 Aparência em Meu perfil", () => {
     delete document.documentElement.dataset.theme;
   });
 
-  it("022/US1-1 seção Aparência com o grupo Tema marcado pelo tema da conta, sem violações axe", async () => {
+  const toggle = () => screen.getByRole("switch", { name: "Tema claro" });
+
+  it("022/US1-1 só o interruptor (nome acessível Tema claro) entre a lua e o sol, sem texto visível, sem violações axe", async () => {
     const { container } = renderWithProviders(<AppearanceSettings theme="LIGHT" />);
-    expect(screen.getByRole("heading", { level: 2, name: "Aparência" })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Tema" })).toBeTruthy();
-    expect((screen.getByRole("radio", { name: "Escuro" }) as HTMLInputElement).checked).toBe(false);
-    expect((screen.getByRole("radio", { name: "Claro" }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(container.textContent?.trim()).toBe("");
+    expect(toggle().getAttribute("aria-checked")).toBe("true");
+    const moon = container.querySelector('[data-theme-icon="dark"]');
+    const sun = container.querySelector('[data-theme-icon="light"]');
+    expect(moon?.getAttribute("aria-hidden")).toBe("true");
+    expect(sun?.getAttribute("aria-hidden")).toBe("true");
+    // The moon sits before the switch and the sun after it; the current theme's icon is the strong one.
+    expect(moon!.compareDocumentPosition(toggle()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle().compareDocumentPosition(sun!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sun!.getAttribute("class")).toContain("text-foreground");
+    expect(moon!.getAttribute("class")).toContain("text-text-secondary");
     await expectNoA11yViolations(container);
   });
 
-  it("022/US1-2 022/SC-001 escolher Claro troca o tema antes da resposta e envia { theme: LIGHT }", async () => {
+  it("022/US1-1 conta no escuro: interruptor desligado e a lua em destaque", () => {
+    const { container } = renderWithProviders(<AppearanceSettings theme="DARK" />);
+    expect(toggle().getAttribute("aria-checked")).toBe("false");
+    expect(container.querySelector('[data-theme-icon="dark"]')!.getAttribute("class")).toContain("text-foreground");
+  });
+
+  it("022/US1-2 022/SC-001 ligar o tema claro troca o tema antes da resposta e envia { theme: LIGHT }", async () => {
     const held = heldFetch();
     fetchMock.mockReturnValue(held.pending);
     renderWithProviders(<AppearanceSettings theme="DARK" />);
 
-    await userEvent.setup().click(screen.getByRole("radio", { name: "Claro" }));
+    await userEvent.setup().click(toggle());
 
     expect(document.documentElement.dataset.theme).toBe("light");
-    const group = screen.getByRole("group", { name: "Tema" }) as HTMLFieldSetElement;
-    expect(group.disabled).toBe(true);
-    expect(group.getAttribute("aria-busy")).toBe("true");
+    expect(toggle().getAttribute("aria-checked")).toBe("true");
+    expect((toggle() as HTMLButtonElement).disabled).toBe(true);
+    expect(toggle().getAttribute("aria-busy")).toBe("true");
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("/api/me/preferences");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(init?.body as string)).toEqual({ theme: "LIGHT" });
 
     await held.release(json({ theme: "LIGHT" }));
-    await waitFor(() => expect(group.disabled).toBe(false));
-    expect(group.getAttribute("aria-busy")).toBe("false");
+    await waitFor(() => expect((toggle() as HTMLButtonElement).disabled).toBe(false));
+    expect(toggle().getAttribute("aria-busy")).toBeNull();
     expect(router.refresh).toHaveBeenCalledTimes(1);
-    expect((screen.getByRole("radio", { name: "Claro" }) as HTMLInputElement).checked).toBe(true);
+    expect(toggle().getAttribute("aria-checked")).toBe("true");
   });
 
-  it("022/US1-4 escolher Escuro volta ao tema escuro", async () => {
+  it("022/US1-2 o teclado alterna: Espaço liga o tema claro", async () => {
+    fetchMock.mockResolvedValue(json({ theme: "LIGHT" }));
+    renderWithProviders(<AppearanceSettings theme="DARK" />);
+    const user = userEvent.setup();
+    await user.tab();
+    expect(document.activeElement).toBe(toggle());
+    await user.keyboard(" ");
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toEqual({ theme: "LIGHT" });
+  });
+
+  it("022/US1-4 desligar volta ao tema escuro", async () => {
     document.documentElement.dataset.theme = "light";
     fetchMock.mockResolvedValue(json({ theme: "DARK" }));
     renderWithProviders(<AppearanceSettings theme="LIGHT" />);
 
-    await userEvent.setup().click(screen.getByRole("radio", { name: "Escuro" }));
+    await userEvent.setup().click(toggle());
 
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toEqual({ theme: "DARK" });
-    expect((screen.getByRole("radio", { name: "Escuro" }) as HTMLInputElement).checked).toBe(true);
+    expect(toggle().getAttribute("aria-checked")).toBe("false");
   });
 
-  it("022/US1-5 com a falha, o tema e a opção anteriores voltam e a mensagem aparece", async () => {
+  it("022/US1-5 com a falha, o tema e a posição anteriores voltam e a mensagem aparece", async () => {
     fetchMock.mockResolvedValue(json({ statusCode: 500, code: "INTERNAL_ERROR", message: "x" }, 500));
     renderWithProviders(<AppearanceSettings theme="DARK" />);
 
-    await userEvent.setup().click(screen.getByRole("radio", { name: "Claro" }));
+    await userEvent.setup().click(toggle());
 
     expect((await screen.findByRole("alert")).textContent).toBe(FAILURE);
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect((screen.getByRole("radio", { name: "Escuro" }) as HTMLInputElement).checked).toBe(true);
+    expect(toggle().getAttribute("aria-checked")).toBe("false");
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
@@ -94,17 +121,10 @@ describe("022/US1 Aparência em Meu perfil", () => {
     fetchMock.mockResolvedValue(json({ statusCode: 401, code: "UNAUTHENTICATED", message: "x" }, 401));
     renderWithProviders(<AppearanceSettings theme="DARK" />);
 
-    await userEvent.setup().click(screen.getByRole("radio", { name: "Claro" }));
+    await userEvent.setup().click(toggle());
 
     expect((await screen.findByRole("alert")).textContent).toBe("Autenticação necessária.");
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect((screen.getByRole("radio", { name: "Escuro" }) as HTMLInputElement).checked).toBe(true);
-  });
-
-  it("022/US1-2 escolher a opção já marcada não envia nada", async () => {
-    renderWithProviders(<AppearanceSettings theme="DARK" />);
-    await userEvent.setup().click(screen.getByRole("radio", { name: "Escuro" }));
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(toggle().getAttribute("aria-checked")).toBe("false");
   });
 });

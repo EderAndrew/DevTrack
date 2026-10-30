@@ -152,10 +152,12 @@ accent and border pairs checked; left for a later visual pass, the aliases keep 
 
 **Decision**: `features/profile` gains `api/preferences.ts` (`updatePreferences` through `lib/api`),
 `hooks/use-update-theme.ts` (TanStack mutation) and `components/appearance-settings.tsx`: the section
-"Aparência" with the 005 `RadioGroup` ("Escuro", "Claro"), checked from `me.theme`. On change: set
-`document.documentElement.dataset.theme` at once (SC-001), send the mutation (the group disabled while it
+theme switch: the 005 `Switch` (accessible name "Tema claro", no visible text) between a moon and a sun
+icon, in the `PageHeader` actions at the right of the title (amended twice on 2026-10-30 at the user's
+request; it was a section "Aparência" with a `RadioGroup` "Escuro"/"Claro"), on from `me.theme === "LIGHT"`. On change: set
+`document.documentElement.dataset.theme` at once (SC-001), send the mutation (the switch disabled while it
 is pending, `aria-busy`), then on success update the `me` query data and `router.refresh()` so the server
-render agrees; on failure put the previous value back on `<html>` and in the group and show "Não foi
+render agrees; on failure put the previous value back on `<html>` and on the switch and show "Não foi
 possível salvar a aparência. Tente de novo." (`role="alert"`). A `401` follows the app's existing
 session-expired handling. The page `/conta/perfil` renders it for every session (FR-005, also unverified).
 

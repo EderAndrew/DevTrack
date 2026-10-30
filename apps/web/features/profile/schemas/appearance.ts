@@ -1,11 +1,9 @@
-import { type UiTheme, UiThemeSchema } from "@repo/contracts";
+import type { UiTheme } from "@repo/contracts";
 
-// Texts of "Aparência" in "Meu perfil" (022 contracts/web-ui.md).
+// Texts of the theme switch of "Meu perfil" (022 contracts/web-ui.md).
 
-export const APPEARANCE_TITLE = "Aparência";
-export const THEME_LEGEND = "Tema";
-export const THEME_LABELS: Record<UiTheme, string> = { DARK: "Escuro", LIGHT: "Claro" };
-export const THEME_OPTIONS: readonly UiTheme[] = UiThemeSchema.options;
+/** The switch's accessible name (no visible text): on is "Claro", off is "Escuro" (amended 2026-10-30). */
+export const LIGHT_THEME_SWITCH = "Tema claro";
 export const APPEARANCE_SAVE_FAILED = "Não foi possível salvar a aparência. Tente de novo.";
 
 /** The value of `<html data-theme>` for an account's theme (the root layout renders the same). */

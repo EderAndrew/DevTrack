@@ -12,22 +12,21 @@
 
 ```text
 Meu perfil
+Meu perfil                                   ☾ [○──] ☀   ← PageHeader actions; off = Escuro, on = Claro
   Nome / E-mail / Papéis
-  ── Aparência ──────────────────────────────
-  Tema
-  (•) Escuro
-  ( ) Claro
   [role=alert] Não foi possível salvar a aparência. Tente de novo.   ← only after a failure
   ── Minhas sessões ─────────────────────────
 ```
 
-- `features/profile/components/appearance-settings.tsx`: `<section aria-labelledby="aparencia">`,
-  `<h2 id="aparencia">Aparência</h2>`, the 005 `RadioGroup` named "Tema" with "Escuro" and "Claro",
-  checked from `me.theme`. Shown for every session, including an unverified e-mail (FR-005).
-- Choosing an option: `<html data-theme>` changes at once, the group is disabled with `aria-busy` while
-  the request is pending; on success the `me` query data is updated and `router.refresh()` runs; on
-  failure the previous option and theme come back and the alert above shows (the text lives in
-  `features/profile/schemas/`). Choosing the checked option sends nothing.
+- `features/profile/components/appearance-settings.tsx`, given to the page's `PageHeader` as `actions` (at
+  the right of the title on wide screens, under it on narrow ones): no heading and no visible text, the 005
+  `Switch` with `aria-label="Tema claro"`, on when `me.theme` is `LIGHT`, between a Lucide `Moon` (left, dark) and `Sun` (right, light), both `aria-hidden`;
+  the icon of the current theme is in `--foreground`, the other in `--text-secondary` (the thumb's position and
+  `aria-checked` carry the state, never the color alone). Amended 2026-10-30 (the two radios became the switch; then the section "Aparência" and its texts went away,
+  leaving the switch and the icons at the right of the title). Shown for every session, including an unverified e-mail (FR-005).
+- Toggling: `<html data-theme>` changes at once, the switch is disabled with `aria-busy` while the request
+  is pending; on success the `me` query data is updated and `router.refresh()` runs; on failure the previous
+  position and theme come back and the alert above shows (the text lives in `features/profile/schemas/`).
 - `api/preferences.ts` → `hooks/use-update-theme.ts` → component (005 layers, ESLint-enforced).
 
 ## Design-system catalog (`/design-system`, out of production)

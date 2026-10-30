@@ -53,20 +53,22 @@ Sem sessão / nunca escolheu ──────────▶ tema escuro
 ### User Story 1 - Escolher o tema claro em "Meu perfil" (Priority: P1)
 
 Qualquer usuário com sessão (aluno, professor, gestor ou administrador) abre "Meu perfil" e encontra a
-seção "Aparência" com duas opções, "Escuro" (marcada para quem nunca escolheu) e "Claro". Ao escolher
-"Claro", a tela inteira (menu lateral, barra superior, conteúdo) passa para o tema claro na hora, sem
+no cabeçalho, à direita do título, um interruptor entre uma lua (escuro) e um sol (claro), sem texto,
+desligado para quem nunca escolheu (emendas 2026-10-30: interruptor no lugar das duas opções, depois só o
+interruptor com os ícones, à direita do título). Ao ligar o tema claro
+("Claro"), a tela inteira (menu lateral, barra superior, conteúdo) passa para o tema claro na hora, sem
 recarregar a página, e a escolha fica salva na conta.
 
 **Why this priority**: é a própria feature: sem a escolha, o tema claro não chega a ninguém.
 
-**Independent Test**: entrar com uma conta nova, abrir "Meu perfil", ver "Escuro" marcado, escolher
-"Claro" e ver a página mudar sem recarregar; recarregar e ver que continua clara.
+**Independent Test**: entrar com uma conta nova, abrir "Meu perfil", ver o interruptor desligado (Escuro),
+ligá-lo (Claro) e ver a página mudar sem recarregar; recarregar e ver que continua clara.
 
 **Acceptance Scenarios**:
 
 1. **Given** um usuário que nunca escolheu um tema, **When** ele abre "Meu perfil", **Then** a seção
-   "Aparência" mostra "Escuro" e "Claro" como opções exclusivas, com "Escuro" marcada, e o sistema está no
-   tema escuro.
+   página mostra, à direita do título, o interruptor desligado entre a lua (escuro) e o sol (claro), sem
+   texto visível (para leitores de tela ele se chama "Tema claro"), e o sistema está no tema escuro.
 2. **Given** o tema escuro, **When** o usuário escolhe "Claro", **Then** a página inteira passa para o tema
    claro em menos de 1 segundo, sem recarregar e sem perder o que estava na tela, e a escolha é salva na
    conta.
@@ -196,8 +198,9 @@ mudá-lo.
 
 **Escolha e preferência**
 
-- **FR-005**: "Meu perfil" DEVE ter a seção "Aparência" com as opções exclusivas "Escuro" e "Claro",
-  marcando o tema salvo na conta (ou "Escuro" se nunca escolheu), disponível para todo usuário com sessão,
+- **FR-005** (emendas 2026-10-30): "Meu perfil" DEVE ter, à direita do título da página, o interruptor de
+  tema (desligado = "Escuro", ligado = "Claro") entre os ícones de lua e de sol, sem texto visível e com o
+  nome acessível "Tema claro", refletindo o tema salvo na conta (desligado se nunca escolheu), disponível para todo usuário com sessão,
   de qualquer papel, inclusive com e-mail não confirmado.
 - **FR-006**: A escolha DEVE ser salva na conta do usuário, no servidor, e valer em qualquer navegador,
   dispositivo e sessão da mesma conta. Só o próprio usuário altera a própria preferência; a rota não

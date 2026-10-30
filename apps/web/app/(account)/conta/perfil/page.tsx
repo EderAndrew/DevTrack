@@ -22,9 +22,8 @@ export default async function ProfilePage() {
 
   return (
     <section className="w-full">
-      <PageHeader title="Meu perfil" />
+      <PageHeader title="Meu perfil" actions={<AppearanceSettings theme={me.theme} />} />
       <ProfileDetails me={me} />
-      <AppearanceSettings theme={me.theme} />
       <section aria-labelledby="minhas-sessoes">
         <h2 id="minhas-sessoes">Minhas sessões</h2>
         {sessions ? (
