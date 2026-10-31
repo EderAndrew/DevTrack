@@ -61,6 +61,7 @@ import { GroupStartDialog } from "@/features/group-work/components/group-start-d
 import {
   editingLostMessage,
   editingWith,
+  savedByMessage,
   TAKE_BACK_TO_SUBMIT,
 } from "@/features/group-work/schemas/group-work";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
@@ -291,6 +292,8 @@ export function AnsweringSession({
   controlled?: ControlledAnswering;
 }) {
   const [generation, setGeneration] = useState(0);
+  // 023: the question a group member is on: receiving or losing the editing remounts the screen, not the place.
+  const [groupQuestion, setGroupQuestion] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   // 023/US4-2: a save refused because the editing moved (the leader took it back): this page reads now.
   const [editingLost, setEditingLost] = useState(false);
@@ -310,6 +313,12 @@ export function AnsweringSession({
     void reload();
   }, [openPause, reload]);
 
+  // 023: a member who no longer edits has nothing pending; a later editing starts from the group's answers.
+  const reading = readsGroupAttempt(activity);
+  useEffect(() => {
+    if (reading) clearPendingAnswers(userId, activity.id);
+  }, [reading, userId, activity.id]);
+
   const onChangedElsewhere = async () => {
     clearPendingAnswers(userId, activity.id);
     await reload();
@@ -319,6 +328,7 @@ export function AnsweringSession({
   const onEditingLost = async () => {
     // What wasn't saved can't be written any more: the group's answers are the editor's now.
     clearPendingAnswers(userId, activity.id);
+    setGroupQuestion(0);
     await reload();
     setEditingLost(true);
     setGeneration((current) => current + 1);
@@ -366,12 +376,14 @@ export function AnsweringSession({
         </Alert>
       ) : null}
       <AttemptAnswering
-        // A reader of a group's attempt keeps the screen (and the question) while the polling brings
-        // the editor's saves; anyone else starts a fresh screen on new revisions.
-        key={`${generation}:${readsGroupAttempt(activity) ? "leitura" : revisionsKey(activity)}`}
+        // In a group the screen changes only with the role: the polling brings the editor's saves to the
+        // readers and must not remount the editor's form; anyone else starts a fresh screen on new revisions.
+        key={`${generation}:${activity.group ? (readsGroupAttempt(activity) ? "leitura" : "edicao") : revisionsKey(activity)}`}
         activity={activity}
         userId={userId}
         controlled={controlled}
+        groupQuestion={groupQuestion}
+        onGroupQuestionChange={setGroupQuestion}
         onChangedElsewhere={() => void onChangedElsewhere()}
         onEditingLost={() => void onEditingLost()}
         onPaused={(pauseId) => {
@@ -505,6 +517,8 @@ function AttemptAnswering({
   activity,
   userId,
   controlled,
+  groupQuestion,
+  onGroupQuestionChange,
   onChangedElsewhere,
   onEditingLost,
   onPaused,
@@ -512,6 +526,8 @@ function AttemptAnswering({
   activity: StudentActivity;
   userId: string;
   controlled?: ControlledAnswering;
+  groupQuestion: number;
+  onGroupQuestionChange: (index: number) => void;
   onChangedElsewhere: () => void;
   /** 023/US4-2: a save or submission refused with `GROUP_NOT_EDITOR`: read the activity again, as a reader. */
   onEditingLost: () => void;
@@ -536,7 +552,10 @@ function AttemptAnswering({
     enabled: editable,
     saveImmediately: controlled?.saveImmediately,
   });
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => (activity.group ? Math.min(groupQuestion, activity.questions.length - 1) : 0));
+  useEffect(() => {
+    onGroupQuestionChange(index);
+  }, [onGroupQuestionChange, index]);
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   const warning = useDeadlineWarning(
@@ -546,6 +565,8 @@ function AttemptAnswering({
   );
   const questions = activity.questions;
   const question = questions[index]!;
+  // 023: who saved the answer the reader is looking at (absent on an individual attempt).
+  const savedBy = activity.attempt?.answers.find((item) => item.questionId === question.id)?.savedBy;
   const answerOf = (questionId: string) =>
     readOnly
       ? (serverAnswers.get(questionId) ?? null)
@@ -734,6 +755,7 @@ function AttemptAnswering({
       {readOnly && activity.group ? (
         <Alert variant="info">
           <AlertTitle>{editingWith(activity.group.editor.name)}</AlertTitle>
+          {savedBy ? <AlertDescription>{savedByMessage(savedBy.name)}</AlertDescription> : null}
         </Alert>
       ) : null}
       <ExamProgress

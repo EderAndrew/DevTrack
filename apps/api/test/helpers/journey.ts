@@ -1269,10 +1269,18 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // 023/US2 — a student starts a group work with a classmate (`activity_attempt.started` with `group` and
   // `memberCount`, `activity_group.created`, `activity_group.member_added`: ids and counts, never names).
   const groupClass = await createClassWithStudents(t, runTeacher.id, { students: 3 });
-  const { activity: groupWork } = await createActivity(t, groupClass.schoolClass, { type: "ASSIGNMENT", releaseMode: "PRESENT_ONLY", groupSize: 3 });
+  const { activity: groupWork, questionIds: groupQuestionIds } = await createActivity(t, groupClass.schoolClass, {
+    type: "ASSIGNMENT",
+    releaseMode: "PRESENT_ONLY",
+    groupSize: 3,
+    questions: [{ type: "OPEN_ANSWER" }],
+  });
   const groupLeader = groupClass.students[0]!;
   const groupMember = groupClass.students[1]!;
   const groupLateMember = groupClass.students[2]!;
+  // 023: the members' names and the group's answer are content the scans look for (MARCADOR-GRUPO-023).
+  await t.prisma.user.update({ where: { id: groupLeader.id }, data: { name: text("nome do líder do grupo (023)", "MARCADOR-GRUPO-023 Líder da Jornada") } });
+  await t.prisma.user.update({ where: { id: groupMember.id }, data: { name: text("nome do integrante do grupo (023)", "MARCADOR-GRUPO-023 Integrante da Jornada") } });
   expect(
     (await markPresentIn(runTeacherClient, groupClass.schoolClass.id, groupWork.id, [groupLeader.id, groupMember.id, groupLateMember.id])).status,
   ).toBe(200);
@@ -1288,7 +1296,16 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // submit without it (`activity_group.write_refused`); the leader leaves the class and the member's next read
   // settles the group (`activity_group.leader_changed`, SYSTEM). Ids and enums only.
   const groupMemberClient = api(t, { cookie: await keepLoginAs(groupMember) });
-  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "HAND", toUserId: groupMember.id })).status).toBe(200);
+  const handGroupEditing = () => groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "HAND", toUserId: groupMember.id });
+  expect((await handGroupEditing()).status).toBe(200);
+  // The member saves with the editing, the leader takes it back and hands it again (023/US4).
+  const groupAnswer = { kind: "TEXT", text: text("resposta do grupo (023)", "MARCADOR-GRUPO-023 resposta salva pelo integrante") };
+  const groupSave = await groupMemberClient.put(`/api/me/activities/${groupWork.id}/attempt/answers`, {
+    answers: [{ questionId: groupQuestionIds[0]!, baseRevision: 0, answer: groupAnswer }],
+  });
+  expect(groupSave.status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "TAKE_BACK" })).status).toBe(200);
+  expect((await handGroupEditing()).status).toBe(200);
   expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(409);
   await t.prisma.enrollment.updateMany({
     where: { classId: groupClass.schoolClass.id, studentUserId: groupLeader.id },

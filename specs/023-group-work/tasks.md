@@ -418,7 +418,7 @@ dois integrantes executam, cada um o seu.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T040 Suítes de segurança em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
+- [x] T040 Suítes de segurança em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
   - `023-isolation.spec.ts`: de fora do grupo, de outra turma e professor B → 404 em todas as rotas; um integrante
     nunca lê eventos, pausas ou execuções de outro; nenhuma resposta traz e-mail ou RA de colega;
   - `023-concurrency.spec.ts` `023/SC-002`: dois líderes × o mesmo colega, início sozinho × incluído, dez inclusões
@@ -439,12 +439,12 @@ dois integrantes executam, cada um o seu.
     `023/FR-026` `test/exam-wording.test.ts` passa a varrer também `features/group-work` e
     `features/activities/components/group-facts.tsx`;
   - `023/SC-001` fica no E2E (T041) e `023/SC-007` em `023-invariance.spec.ts`.
-- [ ] T041 E2E `apps/web/e2e/group-work.spec.ts`, com `023/SC-001` no título (três contextos do navegador,
+- [x] T041 E2E `apps/web/e2e/group-work.spec.ts`, com `023/SC-001` no título (três contextos do navegador,
       quickstart passos 1–9; formar o grupo de 3 a partir de "Iniciar" em menos de 1 minuto): aplicar em
       grupo, formar, ler o salvamento em até 10 s, passar e retomar, incluir, entregar pelo líder, corrigir e ver a mesma
       nota nos integrantes. Rodar com `pnpm --filter web test:e2e group-work` (exige consentimento para o reset do
       `devtrack_e2e`).
-- [ ] T042 [P] Documentação: `apps/api/CLAUDE.md` (participantes, grupo, travas, helpers e suítes da 023),
+- [x] T042 [P] Documentação: `apps/api/CLAUDE.md` (participantes, grupo, travas, helpers e suítes da 023),
       `apps/web/CLAUDE.md` (`features/group-work`, o polling, a regra de só leitura), `CLAUDE.md` raiz (regra "Group work
       (023)" em "Rules that are easy to get wrong"; o `SPECS` da traceability cita a 023), `README.md`.
 - [ ] T043 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde; o quickstart percorrido no

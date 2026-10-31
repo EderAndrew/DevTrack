@@ -43,7 +43,8 @@ Grupo: Ana Souza (líder), Bruno Lima, Carla Dias      Editando agora: Bruno Lim
 ```
 
 - `GroupBar` above the questions on the normal and the focus page; "Editando agora" in a `role="status"` region.
-- Readers: the questions are read-only (`activity-answering.tsx` `readOnly`), with "A edição está com <nome>." The
+- Readers: the questions are read-only (`activity-answering.tsx` `readOnly`), with "A edição está com <nome>." and,
+  on a question with an answer, "Salvo por <nome>." The
   page polls `GET /me/activities/:id` every `GROUP_POLL_MS` (5 s) while visible.
 - "Entregar" only for the leader; without the editing it is disabled with "Retome a edição para entregar" next to
   "Retomar a edição" (spec FR-018). A member never sees it.

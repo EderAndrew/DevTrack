@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ExamMonitor,
   StudentActivity,
+  StudentGroup,
   StudentPause,
+  TeacherAttemptGroup,
   TeacherPause,
 } from "@repo/contracts";
 import { AttemptReview } from "@/features/activities/components/attempt-review";
@@ -25,6 +27,10 @@ import {
   teacherAttempt,
 } from "@/features/activities/components/test-fixtures";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { GroupFacts } from "@/features/activities/components/group-facts";
+import { GroupBar } from "@/features/group-work/components/group-bar";
+import { GroupNotice } from "@/features/group-work/components/group-notice";
+import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
 import { ExamAttempt } from "@/features/exam-attempt/components/exam-shell";
 import { ExamRoomPanel } from "@/features/exam-session/components/exam-room-panel";
 import { ExamDetail } from "@/features/exams/components/exam-detail";
@@ -1005,5 +1011,70 @@ describe("020/FR-013 feedback como texto", () => {
     // The student's name, next to the e-mail, also as text.
     expect(screen.getByText(`${SCRIPT} · ana@exemplo.com`)).toBeTruthy();
     noMarkup(container);
+  });
+});
+
+describe("023 nomes dos colegas como texto", () => {
+  const ACTIVITY = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+  const LEADER = { id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd2", name: SCRIPT };
+  const MEMBER = { id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3", name: `membro ${SCRIPT}` };
+  const AT = "2026-10-05T11:00:00.000Z";
+  const group: StudentGroup = {
+    groupSize: 3,
+    leader: LEADER,
+    members: [LEADER, MEMBER],
+    editor: LEADER,
+    myRole: "MEMBER",
+    canEdit: false,
+    addedBy: LEADER,
+    freeSlots: 1,
+    version: 1,
+  };
+  const noElements = () => expect(document.body.querySelector("script, img")).toBeNull();
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("diálogo de início: o nome do colega com HTML aparece como texto", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { groupSize: 3, freeSlots: 2, candidates: [MEMBER] })),
+    );
+    renderWithProviders(<GroupStartDialog activityId={ACTIVITY} open onOpenChange={() => {}} onStart={async () => {}} />);
+    expect(await screen.findByRole("checkbox", { name: MEMBER.name })).toBeTruthy();
+    noElements();
+  });
+
+  it("barra do grupo e aviso do integrante: os nomes com HTML aparecem como texto", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, {})),
+    );
+    renderWithProviders(
+      <>
+        <GroupNotice group={group} />
+        <GroupBar activityId={ACTIVITY} group={group} open />
+      </>,
+    );
+    expect(document.body.textContent).toContain(SCRIPT);
+    noElements();
+  });
+
+  it("fatos do professor: integrantes, passagens e salvamentos com HTML aparecem como texto", async () => {
+    const facts: TeacherAttemptGroup = {
+      leaderId: LEADER.id,
+      members: [
+        { ...LEADER, joinedAt: AT, addedById: null },
+        { ...MEMBER, joinedAt: AT, addedById: LEADER.id },
+      ],
+      events: [{ kind: "EDITING_HANDED", reason: null, actorId: LEADER.id, fromId: LEADER.id, toId: MEMBER.id, occurredAt: AT }],
+      saves: [{ questionId: OPEN_QUESTION_ID, entries: [{ studentId: MEMBER.id, revision: 1, savedAt: AT }] }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, facts)),
+    );
+    renderWithProviders(<GroupFacts classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} questions={gradingActivity().questions} />);
+    await waitFor(() => expect(document.body.textContent).toContain(MEMBER.name));
+    noElements();
   });
 });

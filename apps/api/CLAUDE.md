@@ -346,6 +346,19 @@ refusals, private cases, concurrency, invariance (0 or 50 runs → the same subm
 SC-003), audit (`MARCADOR-CODIGO-021` out of audit and logs, SC-009) and performance (run creation and a summary of 10
 questions × 200 runs, p95 < 150 ms); the journey runs executed and compilation-error runs on a work with
 `MARCADOR-CODIGO-021` and one refused while paused.
+Group work (023): the group lives in the activity modules, not in a module of its own. `activities/group/settle-group.ts`
+(`readGroup`, `settleGroup`) and `activities/group-settlement.ts` (`GroupSettlement`, run first by every touch, in its
+own transaction), `student-activities/group-work.service.ts` (candidates, `changeEditing`, the inclusion),
+`group-eligibility.ts` (`eligibleClassmates`, `lockActivityGroups`: `pg_advisory_xact_lock(hashtext('activity-group'), …)`,
+taken by the start and the inclusion before re-checking the ids) and `group-refusal.ts` (`activity_group.write_refused` after
+the rollback). Every attempt has `attempt_participants` rows (one for the owner, backfilled); only a group has `attempt_groups`.
+Reads that used to go through `activity_attempts.student_user_id` for "my attempt" go through the participants. `changeEditing`
+and the inclusion count in the `activity-saves` limit. Tests use `test/helpers/group-work.ts` (`applyGroupWork`, `startGroup`,
+`startAlone`, `getCandidates`, `addMembers`, `handEditing`, `takeBackEditing`, `returnEditing`, `getAttemptGroup`) and the
+`createActivity`/`applyWork` option `groupSize` (`createActivity` needs `releaseMode: "PRESENT_ONLY"`, CHECK). Suites:
+`023-schema`, `023-us1-apply` … `023-us7-options`, and in `test/security/` isolation, concurrency (`023/SC-002`), boundaries,
+invariance (`023/SC-007`), audit (`MARCADOR-GRUPO-023` in names and answers, out of audit and logs) and performance; the
+journey forms a group, passes, takes back and submits with those markers.
 Student feedback (020): `modules/student-feedback` holds `StudentFeedbackService` (`create` under
 `pg_advisory_xact_lock(hashtext('student-feedback'), hashtext(studentId))`: an existing `submissionId` returns the first
 feedback, then the 24 h count by the injected `Clock`, `INSERT … ON CONFLICT DO NOTHING`; the limit's refusal rolls back

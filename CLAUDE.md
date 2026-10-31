@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–021 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–023 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -63,8 +63,13 @@ new feature through `/speckit-specify`.
   its CODE questions, also on the CONTROLLED focus page, only while a save would be accepted and never while
   paused; the teacher's review shows per CODE question the run count and the last run's verdicts
   (`GET …/attempts/:attemptId/code-runs`), never code or output; never a grade.
+- 022 optional light theme, stored on the account ("Aparência" in "Meu perfil").
+- 023 group work: a work applied "Em grupo" (2–5 with the leader, attendance-gated) is one shared attempt; the
+  student who starts leads, chooses present classmates or goes alone, and adds members later; one member edits at a
+  time, handed by the leader, every save logged per student; the leader submits and the released grade reaches every
+  member; the teacher's review shows the members, the handovers and who saved each answer.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–021 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–023 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -207,7 +212,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020 and 021; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022 and 023; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -432,12 +437,26 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   'on'`, RESOLVED/ARCHIVED 24 months after `status_changed_at`). Student and ADMIN shapes are allowlists
   (`views/`); the text is rendered as text, never in audit or logs. The badge refetches on focus and
   invalidation, never polling. No AI, mail, grade or points.
+- Group work (023): one attempt for the group (`attempt_groups`, `attempt_participants`); an individual attempt is the
+  owner alone with no group row, and an individual work, an exercise and an exam read as before 023 (`023/SC-007`: no
+  `group`, `memberCount`, `groupSize` or `submittedById` in their audit metadata, no `savedBy`). `groupSize` 2–5 only on an
+  ASSIGNMENT that takes attendance (`422 GROUP_NEEDS_ATTENDANCE`), fixed once a student starts. A student has one place per
+  activity: the start and "Incluir integrantes" run under `lockActivityGroups` (advisory lock) with the UNIQUE per
+  activity, student and attempt number underneath; a start needs `{ memberIds }` (1 to `groupSize − 1`) or `{ alone: true }`,
+  and a chosen classmate no longer eligible refuses the whole request (`409 GROUP_MEMBERS_UNAVAILABLE`). Only the effective
+  editor saves or asks for help (`409 GROUP_NOT_EDITOR`), only the leader holding the editing submits; there is no route
+  to leave or remove. `settleGroup` runs first on every touch and moves the editing or the leadership when someone is
+  paused or lost the class (SYSTEM events, `EDITING_RESET`, `LEADER_CHANGED`), never by a job. 015 events, 016 pauses and
+  019/021 runs stay per student (a member reads only their own); the 3 AI helps are the attempt's; a run needs no editing
+  and saves nothing. Saves are logged in `activity_answer_saves` (append-only), never as audit events, and those records
+  are never a grade: one grade for the group. A classmate is shown only by id and name, never e-mail or RA. Changes reach
+  the others by 5 s polling (`GROUP_POLL_MS`), never WebSockets.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
-- 023-group-work (planned): works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
+- 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 - 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 - 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
 

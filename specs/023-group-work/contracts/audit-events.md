@@ -26,9 +26,9 @@ editing, or SYSTEM for the settlement (U9); `write_refused` by the student refus
 | `activity.published`          | `groupSize` (2–5), only for a group work                                                                              |
 | `activity.settings_changed`   | `groupSize` (the value after the change, `null` back to Individual), when the work is in group or its format changed  |
 | `activity_attempt.started`    | `group` (boolean: false for "Continuar sozinho"), `memberCount` (participants, leader included), only on a group work |
-| `activity_submission.created` | `submittedById`                                                                                                       |
+| `activity_submission.created` | `submittedById`, only on a group work                                                                                 |
 
-`groupSize`, `group` and `memberCount` are left out of an individual work's events so they read exactly as before 023 (SC-007: the 012–021
+`groupSize`, `group`, `memberCount` and `submittedById` are left out of an individual work's events so they read exactly as before 023 (SC-007: the 012–021
 suites pin these metadata objects).
 
 The teacher's group read (`GET …/attempts/:attemptId/group`) and the candidate list are not audited (reads, like the

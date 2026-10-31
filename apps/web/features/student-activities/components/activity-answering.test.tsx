@@ -898,11 +898,28 @@ describe("023/US3 o integrante abre o trabalho do grupo", () => {
     expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(true);
     await user.click(screen.getByRole("button", { name: "Próxima" }));
     expect(selected()).toBe(first.id);
+    expect(screen.getByText("Salvo por Ana Souza.")).toBeTruthy();
     for (const radio of screen.getAllByRole("radio") as HTMLInputElement[]) expect(radio.disabled).toBe(true);
     // Neither "Iniciar" nor "Entregar" for a member.
     expect(screen.queryByRole("button", { name: "Iniciar atividade" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
     await expectNoA11yViolations(container);
+  });
+
+  it("023/US4-1 quem recebe a edição continua na questão em que estava", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    focusManager.setFocused(true);
+    const reading = asMember(first.id, 1);
+    const editing = { ...reading, group: { ...memberGroup, canEdit: true } };
+    let reads = 0;
+    const { user } = setup({ [GET]: () => json(200, reads++ === 0 ? reading : editing) });
+    await screen.findByText("A edição está com Ana Souza.");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(screen.getByText("Questão 2 de 3")).toBeTruthy();
+    await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
+    await vi.waitFor(() => expect(screen.queryByText("A edição está com Ana Souza.")).toBeNull());
+    expect(screen.getByText("Questão 2 de 3")).toBeTruthy();
+    vi.useRealTimers();
   });
 
   it("023/US3-4 023/SC-004 a página relê a atividade a cada 5 s e mostra a resposta nova, só visível", async () => {
@@ -924,17 +941,25 @@ describe("023/US3 o integrante abre o trabalho do grupo", () => {
     expect(reads).toBe(before);
   });
 
-  it("023/US3-4 quem edita não relê a atividade em ciclo (as próprias respostas ficam na tela)", async () => {
+  it("023/US4-2 quem edita também relê: o texto fica na tela e a retomada vira leitura em até 10 s", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     focusManager.setFocused(true);
-    let reads = 0;
-    const editing = started({ groupSize: 3, group: { ...memberGroup, myRole: "LEADER", addedBy: null, canEdit: true } });
-    setup({ [GET]: () => (reads++, json(200, editing)) });
+    const group = { ...memberGroup, editor: BRUNO, canEdit: true };
+    const editing = started({ groupSize: 3, group });
+    const reading = started({ groupSize: 3, group: { ...group, editor: ANA, canEdit: false } });
+    let takenBack = false;
+    const { user } = setup({ [GET]: () => json(200, takenBack ? reading : editing) });
     await screen.findByRole("navigation", { name: "Questões" });
-    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(false);
+    const box = screen.getByLabelText("Sua resposta") as HTMLTextAreaElement;
+    await user.type(box, "Texto em digitação");
+    await act(() => vi.advanceTimersByTimeAsync(2 * GROUP_POLL_MS));
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).value).toBe("Texto em digitação");
     expect(screen.queryByText(/A edição está com/)).toBeNull();
-    await act(() => vi.advanceTimersByTimeAsync(3 * GROUP_POLL_MS));
-    expect(reads).toBe(1);
+
+    takenBack = true;
+    await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
+    expect(await screen.findByText("A edição está com Ana Souza.")).toBeTruthy();
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(true);
   });
 
   it("023/US4-2 um 409 GROUP_NOT_EDITOR ao salvar troca a página para leitura com o aviso; o que não foi salvo some", async () => {

@@ -39,9 +39,12 @@ export const useStudentActivities = (filters: StudentActivityListFilters) =>
   });
 
 /**
- * 023/US3-4, SC-004: whoever reads a group's open attempt without editing it sees the saves of the one who
- * edits; the editor is never polled, so their answering screen is not read again under their typing.
+ * 023 research U12, SC-004: every member of an open group attempt reads it again — a reader sees the editor's
+ * saves and the editor sees a take-back within 10 s; `AnsweringSession`'s key keeps the editor's form mounted.
  */
+const inOpenGroupAttempt = (activity: StudentActivity | undefined) =>
+  activity?.group != null && activity.attempt !== null && activity.submission === null && activity.canAnswer;
+
 export const readsGroupAttempt = (activity: StudentActivity | undefined) =>
   activity?.group != null && !activity.group.canEdit && activity.attempt !== null && activity.submission === null && activity.canAnswer;
 
@@ -53,7 +56,7 @@ export const useStudentActivity = (activityId: string) =>
   useQuery({
     queryKey: studentActivitiesKeys.detail(activityId),
     queryFn: () => studentActivitiesApi.get(activityId),
-    refetchInterval: (query) => (readsGroupAttempt(query.state.data) ? GROUP_POLL_MS : false),
+    refetchInterval: (query) => (inOpenGroupAttempt(query.state.data) ? GROUP_POLL_MS : false),
     refetchIntervalInBackground: false,
   });
 

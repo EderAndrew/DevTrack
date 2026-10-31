@@ -1,6 +1,6 @@
 # DevTrack
 
-Plataforma de ensino e avaliação configurável por professor. As fases 001 a 021 estão
+Plataforma de ensino e avaliação configurável por professor. As fases 001 a 023 estão
 implementadas; cada uma tem a sua spec em `specs/` e está resumida abaixo. A **fase 001 —
 Foundation, Identity & Access** trouxe a identidade única com múltiplos papéis
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
@@ -174,6 +174,11 @@ por padrão, só num trabalho com questão de Código com caso público numa lin
 depois que um aluno inicia); o aluno executa também na tela de foco do modo controlado, só enquanto um
 salvamento seria aceito e nunca durante uma pausa; na correção, o professor vê por questão quantas
 execuções o aluno fez e os vereditos da última, sem código nem saída. Executar continua sem valer nota.
+A **fase 023 — Trabalho em grupo** permite aplicar um trabalho "Em grupo", de 2 a 5 integrantes com o líder, só
+para os alunos marcados presentes: quem inicia lidera, escolhe colegas presentes ou continua sozinho e pode incluir
+outros depois. O grupo divide uma tentativa, um integrante edita por vez (o líder passa e retoma a edição), cada
+salvamento fica registrado por aluno, o líder entrega e a nota liberada é a mesma para todos; na correção, o
+professor vê os integrantes, as passagens da edição e quem salvou cada resposta.
 
 Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases futuras. Os agentes
 de IA (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper` e `exam-generator`)
@@ -215,6 +220,7 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 | `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
 | `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
 | `specs/021-work-code-runner/` | O mesmo para a fase 021 (Code Runner nos trabalhos: a opção na aplicação, "Executar" também no modo controlado e o resumo na correção; decisões Y1–Y13) |
+| `specs/023-group-work/` | O mesmo para a fase 023 (trabalho em grupo: formação pelo líder, uma tentativa, um editor por vez, entrega pelo líder e nota única) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `docs/adr/` | Decisões de arquitetura (IA multimodelo e as políticas de segurança OWASP da auditoria automatizada) |
 | `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019) e o beta na Hostinger |

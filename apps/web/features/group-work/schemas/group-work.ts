@@ -27,6 +27,8 @@ export const LEADER_MARK = "(líder)";
 export const EDITING_NOW = "Editando agora";
 /** Next to the read-only questions of whoever is not editing. */
 export const editingWith = (name: string) => `A edição está com ${name}.`;
+/** Next to a read-only question: who saved its current answer (the quickstart's step 3). */
+export const savedByMessage = (name: string) => `Salvo por ${name}.`;
 /** "Minhas atividades": a group work, for every member. */
 export const IN_GROUP = "Em grupo";
 
