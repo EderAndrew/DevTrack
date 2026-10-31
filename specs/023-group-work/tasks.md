@@ -447,7 +447,7 @@ dois integrantes executam, cada um o seu.
 - [x] T042 [P] Documentação: `apps/api/CLAUDE.md` (participantes, grupo, travas, helpers e suítes da 023),
       `apps/web/CLAUDE.md` (`features/group-work`, o polling, a regra de só leitura), `CLAUDE.md` raiz (regra "Group work
       (023)" em "Rules that are easy to get wrong"; o `SPECS` da traceability cita a 023), `README.md`.
-- [ ] T043 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde; o quickstart percorrido no
+- [x] T043 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde; o quickstart percorrido no
       navegador; `pending` da 023 vazio em `traceability.spec.ts`.
 
 ---
