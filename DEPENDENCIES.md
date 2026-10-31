@@ -5,7 +5,7 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-10-20** (atualização geral, seção 12), Node 24.12, pnpm 11.25,
+Última verificação: **2026-10-31** (correção de vulnerabilidades, fim da seção 1), Node 24.12, pnpm 11.25,
 lockfile do commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
@@ -30,6 +30,22 @@ com `prisma generate`, `prisma validate`, `prisma migrate status`/`deploy` e a s
 da API. **Remover o override** quando o Prisma passar a depender de `deepmerge-ts` ≥ 8. Os
 outros overrides podem sair quando `@nestjs/platform-express`, `next` e `prisma` trouxerem as
 versões corrigidas.
+
+Em 2026-10-31, `pnpm audit` e OSV-Scanner apontaram 2 high em produção e avisos em dependências
+transitivas. Corrigidos com `overrides`, sem trocar dependências diretas:
+
+| Pacote | De → para | Trazido por | Avisos | Exposição antes da correção |
+|--------|-----------|-------------|--------|------------------------------|
+| `body-parser` | 2.3.0 → 2.4.0 | `express` | GHSA-27r3-jxmh-p828 (high) | Parser de corpo das requisições da API (DoS) |
+| `multer` | 2.4.0 → 2.5.0 | `@nestjs/platform-express` | GHSA-q7qp-rjg7-q26m (high) | Só as rotas `@AcceptsMultipart()` de envio de ementa (DoS) |
+| `fast-uri` | 3.1.8 → 3.1.9 | `ajv` | GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr (moderate); GHSA-xhq7-xmqj-769h, GHSA-333x-w4r6-6crp (low) | Dependência de validação do `ajv` |
+| `vite` | 8.3.0 → 8.3.5 | `vitest`, `unplugin-swc` (desenvolvimento) | GHSA-587h-7wmj-h5pm (high); GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg (moderate); GHSA-9jrq-w75r-8gcw (low) | Só desenvolvimento e testes |
+
+**Remover esses overrides** quando as dependências que os trazem exigirem as versões corrigidas.
+
+**Aceito por enquanto:** `minimatch` 9.0.9 e 10.2.6, GHSA-g3hv-75wg-m249 (moderate), só em
+desenvolvimento via `@swc/cli`. A correção é a versão maior 11, que essa dependência não declara.
+`pnpm audit --prod` fica limpo.
 
 ## 2. Licenças — `pnpm licenses list --prod`
 
