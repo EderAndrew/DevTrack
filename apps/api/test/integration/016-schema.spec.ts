@@ -84,6 +84,7 @@ describe("016/FR-001 016/FR-008 016/FR-013 regras da chamada e da pausa garantid
         questionType: "MULTIPLE_CHOICE",
         alternativeId: activity.alternativeIds[0]![alternative]!,
         savedAt: new Date(),
+        savedByUserId: student.id,
       },
       update: { alternativeId: activity.alternativeIds[0]![alternative]!, revision: { increment: 1 }, savedAt: new Date() },
     });
@@ -97,6 +98,7 @@ describe("016/FR-001 016/FR-008 016/FR-013 regras da chamada e da pausa garantid
         late: acceptedById !== null,
         blankCount: 0,
         acceptedById,
+        submittedByUserId: acceptedById === null ? who.id : null,
         grade: "0.00",
         gradePartial: true,
       },

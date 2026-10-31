@@ -1,8 +1,16 @@
 import { z } from "zod";
-import { AiHelpAllowanceSchema, AI_HELP_ALLOWANCE } from "../activities/enums.js";
+import {
+  AiHelpAllowanceSchema,
+  AI_HELP_ALLOWANCE,
+} from "../activities/enums.js";
 import { AiErrorCodeSchema } from "../ai/enums.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
-import { WorkHelperOutcomeSchema, WorkHelpBlockReasonSchema, WorkHelpStatusSchema, WorkHelpUnavailableReasonSchema } from "./enums.js";
+import {
+  WorkHelperOutcomeSchema,
+  WorkHelpBlockReasonSchema,
+  WorkHelpStatusSchema,
+  WorkHelpUnavailableReasonSchema,
+} from "./enums.js";
 
 // Requests and views of the AI help (015 contracts/http-api.md, research F11, F13). No view carries
 // the answer key, the execution id or the student's identity.
@@ -22,11 +30,18 @@ export const RequestHelpSchema = z.strictObject({
 });
 export type RequestHelp = z.infer<typeof RequestHelpSchema>;
 
-const HelpExampleSchema = z.strictObject({ code: z.string().min(1).max(HELP_EXAMPLE_MAX) });
+const HelpExampleSchema = z.strictObject({
+  code: z.string().min(1).max(HELP_EXAMPLE_MAX),
+});
 
 /** Text only when the student may read it: an orientation or an out-of-scope reply (FR-019, FR-022). */
-const textMatchesStatus = (item: { status: string; message: string | null; example: unknown }) =>
-  (item.message !== null) === (item.status === "DELIVERED" || item.status === "OUT_OF_SCOPE") &&
+const textMatchesStatus = (item: {
+  status: string;
+  message: string | null;
+  example: unknown;
+}) =>
+  (item.message !== null) ===
+    (item.status === "DELIVERED" || item.status === "OUT_OF_SCOPE") &&
   (item.example === null || item.status === "DELIVERED");
 
 export const StudentHelpItemSchema = z
@@ -56,12 +71,16 @@ export type StudentHelpState = z.infer<typeof StudentHelpStateSchema>;
 export const TeacherHelpItemSchema = z
   .strictObject({
     id: UuidSchema,
+    /** 023/FR-021: the participant who asked (in a group, the editor at the time). */
+    studentUserId: UuidSchema,
     questionPosition: z.int().min(0),
     question: z.string(),
     status: WorkHelpStatusSchema,
     message: z.string().max(HELP_MESSAGE_MAX).nullable(),
     example: HelpExampleSchema.nullable(),
-    reasonCode: z.union([WorkHelpBlockReasonSchema, AiErrorCodeSchema]).nullable(),
+    reasonCode: z
+      .union([WorkHelpBlockReasonSchema, AiErrorCodeSchema])
+      .nullable(),
     requestedAt: IsoDateTimeSchema,
     resolvedAt: IsoDateTimeSchema.nullable(),
   })
@@ -78,8 +97,14 @@ export type TeacherHelpState = z.infer<typeof TeacherHelpStateSchema>;
 
 /** `GET /work-help/availability` (research F3). */
 export const HelpAvailabilitySchema = z
-  .strictObject({ available: z.boolean(), reason: WorkHelpUnavailableReasonSchema.nullable() })
-  .refine((availability) => availability.available === (availability.reason === null), "REASON_MISMATCH");
+  .strictObject({
+    available: z.boolean(),
+    reason: WorkHelpUnavailableReasonSchema.nullable(),
+  })
+  .refine(
+    (availability) => availability.available === (availability.reason === null),
+    "REASON_MISMATCH",
+  );
 export type HelpAvailability = z.infer<typeof HelpAvailabilitySchema>;
 
 /**
@@ -92,5 +117,8 @@ export const WorkHelperOutputSchema = z
     message: z.string().min(1).max(HELP_MESSAGE_MAX),
     example: HelpExampleSchema.nullable(),
   })
-  .refine((output) => output.example === null || output.outcome === "GUIDANCE", { path: ["example"], message: "EXAMPLE_NOT_ALLOWED" });
+  .refine(
+    (output) => output.example === null || output.outcome === "GUIDANCE",
+    { path: ["example"], message: "EXAMPLE_NOT_ALLOWED" },
+  );
 export type WorkHelperOutput = z.infer<typeof WorkHelperOutputSchema>;

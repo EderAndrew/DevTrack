@@ -40,7 +40,7 @@ import {
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import { createClassWithStudents, startAttempt } from "./activities";
+import { createActivity, createClassWithStudents, startAttempt } from "./activities";
 import { markPresent as markPresentIn } from "./attendance";
 import { createCodeExercise, createCodeWork, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { sendFeedback } from "./feedback";
@@ -1265,6 +1265,55 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const runLimit = t.config.rateLimit.codeRunsPerMinute;
   await t.get(RateLimitService).hit("code-runs", runClass.students[0]!.id, { limit: runLimit, windowSec: 60, weight: runLimit });
   expect((await requestRun(runClient, runExercise.activity.id, runQuestionId, "print('de novo')")).status).toBe(429);
+
+  // 023/US2 — a student starts a group work with a classmate (`activity_attempt.started` with `group` and
+  // `memberCount`, `activity_group.created`, `activity_group.member_added`: ids and counts, never names).
+  const groupClass = await createClassWithStudents(t, runTeacher.id, { students: 3 });
+  const { activity: groupWork, questionIds: groupQuestionIds } = await createActivity(t, groupClass.schoolClass, {
+    type: "ASSIGNMENT",
+    releaseMode: "PRESENT_ONLY",
+    groupSize: 3,
+    questions: [{ type: "OPEN_ANSWER" }],
+  });
+  const groupLeader = groupClass.students[0]!;
+  const groupMember = groupClass.students[1]!;
+  const groupLateMember = groupClass.students[2]!;
+  // 023: the members' names and the group's answer are content the scans look for (MARCADOR-GRUPO-023).
+  await t.prisma.user.update({ where: { id: groupLeader.id }, data: { name: text("nome do líder do grupo (023)", "MARCADOR-GRUPO-023 Líder da Jornada") } });
+  await t.prisma.user.update({ where: { id: groupMember.id }, data: { name: text("nome do integrante do grupo (023)", "MARCADOR-GRUPO-023 Integrante da Jornada") } });
+  expect(
+    (await markPresentIn(runTeacherClient, groupClass.schoolClass.id, groupWork.id, [groupLeader.id, groupMember.id, groupLateMember.id])).status,
+  ).toBe(200);
+  const groupLeaderClient = api(t, { cookie: await keepLoginAs(groupLeader) });
+  expect((await groupLeaderClient.get(`/api/me/activities/${groupWork.id}/group/candidates`)).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt`, { memberIds: [groupMember.id] })).status).toBe(200);
+  // 023/US5 — "Incluir integrantes" (`activity_group.member_added`), then past the maximum
+  // (`activity_group.write_refused` with ADD_MEMBERS / FULL).
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/members`, { memberIds: [groupLateMember.id] })).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/members`, { memberIds: [groupLateMember.id] })).status).toBe(409);
+
+  // 023/US4 — the leader hands the editing to the member (`activity_group.editing_changed`), then tries to
+  // submit without it (`activity_group.write_refused`); the leader leaves the class and the member's next read
+  // settles the group (`activity_group.leader_changed`, SYSTEM). Ids and enums only.
+  const groupMemberClient = api(t, { cookie: await keepLoginAs(groupMember) });
+  const handGroupEditing = () => groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "HAND", toUserId: groupMember.id });
+  expect((await handGroupEditing()).status).toBe(200);
+  // The member saves with the editing, the leader takes it back and hands it again (023/US4).
+  const groupAnswer = { kind: "TEXT", text: text("resposta do grupo (023)", "MARCADOR-GRUPO-023 resposta salva pelo integrante") };
+  const groupSave = await groupMemberClient.put(`/api/me/activities/${groupWork.id}/attempt/answers`, {
+    answers: [{ questionId: groupQuestionIds[0]!, baseRevision: 0, answer: groupAnswer }],
+  });
+  expect(groupSave.status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/group/editing`, { action: "TAKE_BACK" })).status).toBe(200);
+  expect((await handGroupEditing()).status).toBe(200);
+  expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(409);
+  await t.prisma.enrollment.updateMany({
+    where: { classId: groupClass.schoolClass.id, studentUserId: groupLeader.id },
+    data: { status: "REMOVED", removedAt: new Date(), removedById: runTeacher.id },
+  });
+  expect((await groupMemberClient.get(`/api/me/activities/${groupWork.id}`)).status).toBe(200);
+  // 023/US5 — the new leader, holding the editing, submits for the group (`activity_submission.created` with `submittedById`).
+  expect((await groupMemberClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(200);
 
   // 020/US1 — the student sends a feedback to the platform (`student_feedback.submitted`), then passes the
   // limit of 5 in 24 h (`student_feedback.rate_limited`). The message and the origin path are content the

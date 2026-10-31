@@ -64,18 +64,25 @@ interface WorkOptions {
   aiHelpAllowance: AiHelpAllowance;
   /** 021 "Permitir executar o código" (ASSIGNMENT only, CHECK). */
   codeExecutionAllowed: boolean;
+  /** 023 "Em grupo" with its maximum, or null for "Individual" (ASSIGNMENT `PRESENT_ONLY` only, CHECK). */
+  groupSize: number | null;
 }
 
-const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0, codeExecutionAllowed: false };
+const NO_WORK_OPTIONS: WorkOptions = { executionMode: "NORMAL", aiHelpAllowance: 0, codeExecutionAllowed: false, groupSize: null };
 
 /** An EXAM's options are the server's, never the body's (018/FR-010): always CONTROLLED, never any help or run. */
-const EXAM_OPTIONS: WorkOptions = { executionMode: "CONTROLLED", aiHelpAllowance: 0, codeExecutionAllowed: false };
+const EXAM_OPTIONS: WorkOptions = { executionMode: "CONTROLLED", aiHelpAllowance: 0, codeExecutionAllowed: false, groupSize: null };
 
-/** The options as the audit metadata names them (contracts/audit-events.md). */
-const optionsMetadata = (options: WorkOptions) => ({
+/**
+ * The options as the audit metadata names them (contracts/audit-events.md). `groupSize` (023) only
+ * for a group work, or when the format changed back to "Individual", so an individual work's events
+ * read as before 023 (SC-007).
+ */
+const optionsMetadata = (options: WorkOptions, groupChanged = false) => ({
   executionMode: options.executionMode,
   aiHelpAllowance: options.aiHelpAllowance,
   codeExecution: options.codeExecutionAllowed,
+  ...(options.groupSize !== null || groupChanged ? { groupSize: options.groupSize } : {}),
 });
 
 /** An EXAM's time from the body (018/FR-007), its ranges and defaults already checked by the contract. */
@@ -223,7 +230,12 @@ export class ActivitiesService {
         : null;
     const options: WorkOptions =
       ACTIVITY_TYPES[body.source.type].workOptions && "executionMode" in body
-        ? { executionMode: body.executionMode, aiHelpAllowance: body.aiHelpAllowance, codeExecutionAllowed: body.codeExecution }
+        ? {
+            executionMode: body.executionMode,
+            aiHelpAllowance: body.aiHelpAllowance,
+            codeExecutionAllowed: body.codeExecution,
+            groupSize: body.groupSize,
+          }
         : examTime
           ? EXAM_OPTIONS
           : NO_WORK_OPTIONS;
@@ -326,7 +338,10 @@ export class ActivitiesService {
       const current = await lockActivity(tx, classId, activityId);
       const definition = ACTIVITY_TYPES[current.type];
       if (!definition.hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
-      if (!definition.workOptions && (body.executionMode !== undefined || body.aiHelpAllowance !== undefined || body.codeExecution !== undefined)) {
+      if (
+        !definition.workOptions &&
+        (body.executionMode !== undefined || body.aiHelpAllowance !== undefined || body.codeExecution !== undefined || body.groupSize !== undefined)
+      ) {
         throw validationError();
       }
       if (current.version !== body.version) throw new AppException("ACTIVITY_VERSION_CONFLICT");
@@ -334,17 +349,29 @@ export class ActivitiesService {
 
       const stored = await tx.classActivity.findUniqueOrThrow({
         where: { id: activityId },
-        select: { title: true, instructions: true, latePolicy: true, executionMode: true, aiHelpAllowance: true, codeExecutionAllowed: true },
+        select: {
+          title: true,
+          instructions: true,
+          latePolicy: true,
+          executionMode: true,
+          aiHelpAllowance: true,
+          codeExecutionAllowed: true,
+          groupSize: true,
+          releaseMode: true,
+        },
       });
       const options: WorkOptions = {
         executionMode: body.executionMode ?? stored.executionMode,
         aiHelpAllowance: body.aiHelpAllowance ?? aiHelpAllowanceOf(stored.aiHelpAllowance),
         codeExecutionAllowed: body.codeExecution ?? stored.codeExecutionAllowed,
+        groupSize: body.groupSize === undefined ? stored.groupSize : body.groupSize,
       };
+      const groupChanged = options.groupSize !== stored.groupSize;
       const optionsChanged =
         options.executionMode !== stored.executionMode ||
         options.aiHelpAllowance !== stored.aiHelpAllowance ||
-        options.codeExecutionAllowed !== stored.codeExecutionAllowed;
+        options.codeExecutionAllowed !== stored.codeExecutionAllowed ||
+        groupChanged;
       const publishAt = body.publishAt === undefined ? current.publishAt : new Date(body.publishAt);
       const deadline = body.deadline === undefined ? current.deadline : new Date(body.deadline);
       const changed: EditableField[] = [];
@@ -364,6 +391,8 @@ export class ActivitiesService {
         if ((await tx.activityAttempt.count({ where: { activityId } })) > 0) throw new AppException("ACTIVITY_ALREADY_STARTED");
         if (options.aiHelpAllowance > stored.aiHelpAllowance) await this.assertHelpAvailable();
         if (options.codeExecutionAllowed && !stored.codeExecutionAllowed) await assertCodeExecutionEligible(tx, await activityCodeQuestions(tx, activityId));
+        // 023/FR-002: a group needs the attendance (research U2); a work applied before 016 stays individual.
+        if (options.groupSize !== null && stored.releaseMode !== "PRESENT_ONLY") throw new AppException("GROUP_NEEDS_ATTENDANCE");
       }
 
       await tx.classActivity.update({
@@ -380,7 +409,7 @@ export class ActivitiesService {
       });
       const event = { actorType: "USER", actorUserId: teacherId, targetType: "CLASS_ACTIVITY", targetId: activityId, requestId } as const;
       if (changed.length > 0) await this.audit.record(tx, { ...event, type: "activity.updated", metadata: { classId, fields: changed } });
-      if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...optionsMetadata(options) } });
+      if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...optionsMetadata(options, groupChanged) } });
       return this.read(teacherId, classId, activityId, tx);
     });
   }

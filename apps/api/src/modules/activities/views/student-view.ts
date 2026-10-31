@@ -68,6 +68,8 @@ export interface StudentActivityInput {
   aiHelpAllowance: AiHelpAllowance;
   /** 021: the work lets the student run code on its CODE questions (research Y9); false unless ASSIGNMENT. */
   codeExecutionAllowed: boolean;
+  /** 023: "Em grupo" with its maximum, or null (research U2). */
+  groupSize: number | null;
   title: string;
   instructions: string | null;
   class: { id: string; name: string };
@@ -108,6 +110,20 @@ export interface OwnPauseInput extends OpenPauseInput {
   endedAt: Date | null;
 }
 
+/** 023: the session student's group in this activity, as the loader resolved it (research U9). */
+export interface StudentGroupInput {
+  groupSize: number;
+  leader: { id: string; name: string };
+  /** Leader included, by join time. */
+  members: { id: string; name: string }[];
+  editor: { id: string; name: string };
+  myRole: "LEADER" | "MEMBER";
+  canEdit: boolean;
+  addedBy: { id: string; name: string } | null;
+  freeSlots: number;
+  version: number;
+}
+
 export interface StudentActivityDetailInput extends StudentActivityInput {
   /** The AI helps delivered to the session student in this activity (015/FR-020). */
   aiHelpUsed: number;
@@ -124,6 +140,8 @@ export interface StudentActivityDetailInput extends StudentActivityInput {
   lastResult: ConcludedAttemptInput | null;
   /** EXAM only (018). */
   exam: StudentExamInput | null;
+  /** 023: the session student's group (FR-009), or null for an individual attempt or before the start. */
+  group: StudentGroupInput | null;
 }
 
 /** 018: an EXAM's facts for its student, as loaded (research T13); null for the other types. */
@@ -189,6 +207,8 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
           }
         : null,
     points: input.points && { ...input.points },
+    // 023/US3-3: "Em grupo" in the list; an individual work's summary has no such key (SC-007).
+    ...(input.groupSize !== null ? { groupSize: input.groupSize } : {}),
   };
 }
 
@@ -213,6 +233,8 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
   return {
     ...summary,
     aiHelp: { allowance: input.aiHelpAllowance, used: input.aiHelpUsed },
+    groupSize: input.groupSize,
+    group: input.group && toStudentGroup(input.group),
     instructions: input.instructions,
     serverNow: input.facts.now.toISOString(),
     questions: paused
@@ -225,7 +247,15 @@ export function toStudentActivity(input: StudentActivityDetailInput, executionOf
           number: input.attempt.number,
           startedAt: input.attempt.startedAt.toISOString(),
           lastSavedAt: input.attempt.lastSavedAt?.toISOString() ?? null,
-          answers: paused ? [] : input.attempt.answers.map((answer) => ({ questionId: answer.questionId, answer: answer.answer, revision: answer.revision })),
+          answers: paused
+            ? []
+            : input.attempt.answers.map((answer) => ({
+                questionId: answer.questionId,
+                answer: answer.answer,
+                revision: answer.revision,
+                // 023 (contracts/http-api.md): who saved it, only id and name, only on a group's attempt.
+                ...(answer.savedBy ? { savedBy: { id: answer.savedBy.id, name: answer.savedBy.name } } : {}),
+              })),
         }
       : null,
     submission: input.submission
@@ -336,5 +366,22 @@ export function toStudentExerciseAttempt(questions: readonly ActivityQuestionRow
           },
         ];
       }),
+  };
+}
+
+const person = (entry: { id: string; name: string }) => ({ id: entry.id, name: entry.name });
+
+/** 023/FR-009: only ids and names of the group's members (never an e-mail or RA), copied field by field. */
+function toStudentGroup(group: StudentGroupInput): NonNullable<StudentActivity["group"]> {
+  return {
+    groupSize: group.groupSize,
+    leader: person(group.leader),
+    members: group.members.map(person),
+    editor: person(group.editor),
+    myRole: group.myRole,
+    canEdit: group.canEdit,
+    addedBy: group.addedBy && person(group.addedBy),
+    freeSlots: group.freeSlots,
+    version: group.version,
   };
 }

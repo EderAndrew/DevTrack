@@ -321,6 +321,10 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },
   { method: "GET", path: "/me/activities/:activityId", access: "atividades.proprias.visualizar" },
   { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
+  // 023 — the classmates a group work's leader may choose (contracts/permissions.md).
+  { method: "GET", path: "/me/activities/:activityId/group/candidates", access: "atividades.proprias.visualizar" },
+  { method: "POST", path: "/me/activities/:activityId/group/members", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/group/editing", access: "atividades.proprias.responder" },
   { method: "PUT", path: "/me/activities/:activityId/attempt/answers", access: "atividades.proprias.responder" },
   { method: "POST", path: "/me/activities/:activityId/attempt/submit", access: "atividades.proprias.responder" },
   // 013 — practice attempts of an EXERCISE (contracts/permissions.md).
@@ -349,6 +353,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/code-runner/availability", access: "atividades.aplicar" },
   // 021/US3 — the run summary of an attempt in the review (contracts/permissions.md).
   { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/code-runs", access: "entregas.visualizar" },
+  // 023/US6 — a group attempt's members, handoffs and saves in the review (contracts/permissions.md).
+  { method: "GET", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/group", access: "entregas.visualizar" },
   // 020 — the student's feedback (contracts/permissions.md).
   { method: "POST", path: "/me/feedbacks", access: "feedbacks.enviar" },
   { method: "GET", path: "/me/feedbacks", access: "feedbacks.proprios.listar" },

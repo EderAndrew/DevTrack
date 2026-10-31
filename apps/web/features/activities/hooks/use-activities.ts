@@ -28,6 +28,7 @@ export const activitiesKeys = {
   attemptIntegrity: (classId: string, activityId: string, attemptId: string) =>
     [...activitiesKeys.attempt(classId, activityId, attemptId), "integrity"] as const,
   attemptHelp: (classId: string, activityId: string, attemptId: string) => [...activitiesKeys.attempt(classId, activityId, attemptId), "help"] as const,
+  attemptGroup: (classId: string, activityId: string, attemptId: string) => [...activitiesKeys.attempt(classId, activityId, attemptId), "group"] as const,
   exercises: (query: string) => ["activities", "sources", "exercises", query] as const,
 };
 
@@ -145,5 +146,13 @@ export const useAttemptHelp = (classId: string, activityId: string, attemptId: s
   useQuery({
     queryKey: activitiesKeys.attemptHelp(classId, activityId, attemptId),
     queryFn: () => attemptsApi.help(classId, activityId, attemptId),
+    enabled,
+  });
+
+/** 023/US6: a group attempt's facts (the attempt says whether it is a group's). */
+export const useAttemptGroup = (classId: string, activityId: string, attemptId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: activitiesKeys.attemptGroup(classId, activityId, attemptId),
+    queryFn: () => attemptsApi.group(classId, activityId, attemptId),
     enabled,
   });

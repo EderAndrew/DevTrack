@@ -3,6 +3,8 @@ import type { TimelineEvent, TimelineInterval } from "./timeline";
 
 /** A stored event with its question's position (clipboard and typing events only). */
 export interface StoredIntegrityEvent extends TimelineEvent {
+  /** 023/FR-021: the participant the fact is about. */
+  studentUserId?: string;
   questionPosition: number | null;
   /** 018: `INACTIVITY` only. */
   idleSeconds?: number | null;

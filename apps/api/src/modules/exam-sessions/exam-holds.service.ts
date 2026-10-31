@@ -96,7 +96,7 @@ export class ExamHoldsService {
       registerSubmission(tx, {
         attemptId: hold.attempt_id,
         activityId,
-        studentUserId: hold.student_user_id,
+        submittedByUserId: null,
         // Dated at the hold: the attempt ended there, whenever the teacher decides (research T9).
         now: hold.opened_at,
         late: false,

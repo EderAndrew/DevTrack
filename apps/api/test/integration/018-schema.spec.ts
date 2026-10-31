@@ -205,6 +205,7 @@ describe("018/FR-001 018/FR-004 018/FR-017 018/FR-019 regras da prova garantidas
           gradePartial: false,
           endReason,
           cancelledById: endReason === "CANCELLED" ? teacherId : null,
+          submittedByUserId: endReason === null || endReason === "STUDENT_SUBMITTED" ? student.id : null,
         },
       });
       if (endReason === "CANCELLED") {
@@ -429,6 +430,7 @@ describe("018/FR-001 018/FR-004 018/FR-017 018/FR-019 regras da prova garantidas
             questionType: "MULTIPLE_CHOICE",
             alternativeId: exam.alternativeIds[0]![0]!,
             savedAt: new Date(),
+            savedByUserId: student.id,
           },
         }),
       ).rejects.toThrow(/on hold/);

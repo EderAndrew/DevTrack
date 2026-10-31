@@ -52,6 +52,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
         questionId: q(question),
         questionType: (["MULTIPLE_CHOICE", "OPEN_ANSWER", "CODE"] as const)[question]!,
         savedAt: new Date(),
+        savedByUserId: student.id,
         ...fields,
       },
     });
@@ -67,6 +68,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
         blankCount: 0,
         grade: "0.00",
         gradePartial: true,
+        submittedByUserId: fields.acceptedById ? null : student.id,
         ...fields,
       },
     });
@@ -210,7 +212,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
       const { id } = await attempt();
       await expect(
         t.prisma.activityAnswer.create({
-          data: { attemptId: id, activityId: activityId(), questionId: q(OPEN), questionType: "CODE", source: "x", savedAt: new Date() },
+          data: { attemptId: id, activityId: activityId(), questionId: q(OPEN), questionType: "CODE", source: "x", savedAt: new Date(), savedByUserId: student.id },
         }),
       ).rejects.toThrow();
       const another = await createActivity(t, { id: classId, teacherId });
@@ -228,6 +230,7 @@ describe("012/FR-002 012/FR-016 012/FR-017 012/FR-025 regras das atividades gara
             questionId: another.questionIds[0]!,
             questionType: "MULTIPLE_CHOICE",
             savedAt: new Date(),
+            savedByUserId: student.id,
           },
         }),
       ).rejects.toThrow();

@@ -1,5 +1,6 @@
 import {
   type ActivityStatus,
+  type AttemptParticipant,
   type ActivityType,
   type AttemptStatus,
   type ExerciseResult,
@@ -29,6 +30,7 @@ export interface ClassStudent {
 export interface RosterAttempt {
   id: string;
   activityId: string;
+  /** A participant of the attempt (023 research U5): its owner, or a member of its group. */
   studentUserId: string;
   /** 1 for an ASSIGNMENT; the practice attempt's number for an EXERCISE (013 K3). */
   number: number;
@@ -47,12 +49,16 @@ export interface RosterAttempt {
   results: { result: ExerciseResult; points: number }[];
   /** The AI helps delivered in this attempt (015/FR-020: only DELIVERED count). */
   helpUsed: number;
-  /** 016: the attempt's room exits, as stored; their end and duration are derived (research M7). */
+  /** 016: the student's room exits in the attempt, as stored; their end and duration are derived (research M7). */
   pauses: PauseFacts[];
   /** 018 EXAM: the occurrences counted (gap-free ordinals, so their number is the last one). */
   occurrenceCount: number;
   /** 018 EXAM: a hold is open, "Encerrada por avisos — aguardando decisão" (research T8). */
   onHold: boolean;
+  /** 023: every participant of the attempt, leader first, then by `joinedAt` (the owner alone when individual). */
+  participants: AttemptParticipant[];
+  /** 023: the attempt is a group's. */
+  group: boolean;
 }
 
 /** 016: a presence in a `PRESENT_ONLY` activity (`activity_attendances`, research M9). */
@@ -188,6 +194,9 @@ export function buildRoster(
         pauses: pausesOf(activity, attempt, now),
         // EXAM only (018/FR-018).
         occurrenceCount: activity.type === "EXAM" ? (attempt?.occurrenceCount ?? 0) : null,
+        // 023/FR-020: every member's row points to the group attempt, so the web shows one line per attempt.
+        participants: attempt?.participants ?? [],
+        group: attempt?.group ?? false,
       };
     });
   const count = (status: RosterEntry["status"]) => roster.filter((entry) => entry.status === status).length;
@@ -242,12 +251,17 @@ export async function loadRosterData(
             id: true,
             activityId: true,
             studentUserId: true,
+            participants: {
+              orderBy: [{ joinedAt: "asc" }, { studentUserId: "asc" }],
+              select: { studentUserId: true, student: { select: { user: { select: { name: true } } } } },
+            },
+            group: { select: { leaderUserId: true } },
             number: true,
             status: true,
             startedAt: true,
             submission: { select: { submittedAt: true, late: true, grade: true, gradePartial: true, acceptedById: true, endReason: true } },
             results: { select: { result: true, points: true } },
-            pauses: { orderBy: { startedAt: "asc" }, select: { startedAt: true, releasedAt: true } },
+            pauses: { orderBy: { startedAt: "asc" }, select: { studentUserId: true, startedAt: true, releasedAt: true } },
             _count: { select: { helpRequests: { where: { status: "DELIVERED" } }, occurrences: true } },
             holds: { where: { resolution: null }, select: { id: true } },
           },
@@ -262,19 +276,36 @@ export async function loadRosterData(
   return {
     attendances,
     students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId)),
-    attempts: attempts.map(({ _count, holds, ...attempt }) => ({
-      ...attempt,
-      helpUsed: _count.helpRequests,
-      occurrenceCount: _count.occurrences,
-      onHold: holds.length > 0,
-      submission: attempt.submission && {
-        submittedAt: attempt.submission.submittedAt,
-        late: attempt.submission.late,
-        gradeCents: decimalToCents(attempt.submission.grade),
-        gradePartial: attempt.submission.gradePartial,
-        acceptedByTeacher: attempt.submission.acceptedById !== null,
-        endReason: attempt.submission.endReason,
-      },
-    })),
+    // One row per participant: a group member's situation is the group attempt's, their pauses their own (023 U5).
+    attempts: attempts.flatMap(({ _count, holds, participants, pauses, group, ...attempt }) => {
+      const people = orderedParticipants(participants, group?.leaderUserId ?? attempt.studentUserId);
+      return participants.map(({ studentUserId }) => ({
+        ...attempt,
+        participants: people,
+        group: group !== null,
+        studentUserId,
+        pauses: pauses.filter((pause) => pause.studentUserId === studentUserId).map(({ startedAt, releasedAt }) => ({ startedAt, releasedAt })),
+        helpUsed: _count.helpRequests,
+        occurrenceCount: _count.occurrences,
+        onHold: holds.length > 0,
+        submission: attempt.submission && {
+          submittedAt: attempt.submission.submittedAt,
+          late: attempt.submission.late,
+          gradeCents: decimalToCents(attempt.submission.grade),
+          gradePartial: attempt.submission.gradePartial,
+          acceptedByTeacher: attempt.submission.acceptedById !== null,
+          endReason: attempt.submission.endReason,
+        },
+      }));
+    }),
   };
+}
+
+/** The participants as the teacher sees them: leader first, then by `joinedAt` (the rows come in that order). */
+export function orderedParticipants(
+  rows: readonly { studentUserId: string; student: { user: { name: string } } }[],
+  leaderId: string,
+): AttemptParticipant[] {
+  const people = rows.map((row) => ({ id: row.studentUserId, name: row.student.user.name, isLeader: row.studentUserId === leaderId }));
+  return [...people.filter((person) => person.isLeader), ...people.filter((person) => !person.isLeader)];
 }

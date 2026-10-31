@@ -1,6 +1,10 @@
 "use client";
 
-import type { DeclareExit, StudentActivity, StudentQuestion } from "@repo/contracts";
+import type {
+  DeclareExit,
+  StudentActivity,
+  StudentQuestion,
+} from "@repo/contracts";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,26 +18,62 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CodeAnswer, EssayAnswer, MultipleChoiceAnswer } from "@/components/ui/assessment/answers";
+import {
+  CodeAnswer,
+  EssayAnswer,
+  MultipleChoiceAnswer,
+} from "@/components/ui/assessment/answers";
 import { AssessmentFooter } from "@/components/ui/assessment/assessment-footer";
-import { QuestionHeader, QuestionStatement } from "@/components/ui/assessment/question";
-import { ExamProgress, QuestionNavigator } from "@/components/ui/assessment/question-navigator";
+import {
+  QuestionHeader,
+  QuestionStatement,
+} from "@/components/ui/assessment/question";
+import {
+  ExamProgress,
+  QuestionNavigator,
+} from "@/components/ui/assessment/question-navigator";
 import { SaveStatus } from "@/components/ui/assessment/save-status";
 import { Button } from "@/components/ui/button";
 import { Status } from "@/components/ui/status";
 import { formatLongDateTime } from "@/lib/messages/dates";
-import { apiErrorCode, ERROR_MESSAGES, messageForError } from "@/lib/messages/error-messages";
+import {
+  apiErrorCode,
+  ERROR_MESSAGES,
+  messageForError,
+} from "@/lib/messages/error-messages";
 import { ExitRoomDialog } from "@/features/attendance/components/exit-room-dialog";
 import { PausedNotice } from "@/features/attendance/components/paused-notice";
-import { useDeclareExit, useMyPause } from "@/features/attendance/hooks/use-my-pause";
+import {
+  useDeclareExit,
+  useMyPause,
+} from "@/features/attendance/hooks/use-my-pause";
 import { EXIT_ROOM } from "@/features/attendance/schemas/attendance";
 import { ControlledStart } from "@/features/controlled-attempt/components/controlled-start";
-import { ExamEndNotice, ExamEntry } from "@/features/exam-attempt/components/rules-screen";
+import {
+  ExamEndNotice,
+  ExamEntry,
+} from "@/features/exam-attempt/components/rules-screen";
+import { HelpChat } from "@/features/work-help/components/help-chat";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
+import { GroupBar } from "@/features/group-work/components/group-bar";
+import { GroupNotice } from "@/features/group-work/components/group-notice";
+import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
+import {
+  editingLostMessage,
+  editingWith,
+  savedByMessage,
+  TAKE_BACK_TO_SUBMIT,
+} from "@/features/group-work/schemas/group-work";
 import { useAttemptAnswers } from "../hooks/use-attempt-answers";
 import { useDeadlineWarning } from "../hooks/use-deadline-warning";
-import { useCompleteAttempt, useStartAttempt, useStudentActivity, useSubmitAttempt } from "../hooks/use-student-activities";
+import {
+  readsGroupAttempt,
+  useCompleteAttempt,
+  useStartAttempt,
+  useStudentActivity,
+  useSubmitAttempt,
+} from "../hooks/use-student-activities";
 import {
   ACTIVITY_TYPE_LABELS,
   emptyAnswer,
@@ -51,11 +91,16 @@ import { clearPendingAnswers } from "../store/pending-answers";
 import { ActivityResult } from "./activity-result";
 import { ExerciseResult, RETRY_NOTICE } from "./exercise-result";
 import { Loading, LoadFailed } from "./load-states";
-import { OwnExamOccurrences, OwnRoomExits, ScreenExitRecords } from "./student-history";
+import {
+  OwnExamOccurrences,
+  OwnRoomExits,
+  ScreenExitRecords,
+} from "./student-history";
 
 export const OFFLINE_ALERT =
   "Você está sem conexão. Suas respostas ficam guardadas neste navegador e serão enviadas quando a conexão voltar.";
-export const CONFLICT_ALERT = "Esta resposta foi alterada em outra aba. Carregamos a versão mais recente.";
+export const CONFLICT_ALERT =
+  "Esta resposta foi alterada em outra aba. Carregamos a versão mais recente.";
 /** The catalog's text for `ANSWER_CHANGED_ELSEWHERE`, kept after the screen reloads. */
 export const CHANGED_ELSEWHERE = ERROR_MESSAGES.ANSWER_CHANGED_ELSEWHERE;
 /** 015/FR-013c: the answer grew faster than typing and the server kept the saved one. */
@@ -63,7 +108,8 @@ export const TYPING_LIMIT_MESSAGE = ERROR_MESSAGES.TYPING_LIMIT_EXCEEDED;
 export const SUBMIT_CONFIRMATION =
   "Tem certeza de que deseja entregar esta atividade? Depois de entregue, não será possível alterar as respostas.";
 /** "Concluir exercícios" (013 contracts/web-ui.md): the answer key comes with the conclusion. */
-export const COMPLETE_CONFIRMATION = "Você vai ver o gabarito e não poderá mais alterar estas respostas.";
+export const COMPLETE_CONFIRMATION =
+  "Você vai ver o gabarito e não poderá mais alterar estas respostas.";
 /** "N exercícios em branco valem 0 ponto nesta conclusão." (013/US2-8). */
 export function blankExercisesNotice(blankCount: number): string {
   if (blankCount === 0) return "Todos os exercícios estão respondidos.";
@@ -82,12 +128,24 @@ export const DEADLINE_WARNINGS = {
  * Whether the student may answer (`canAnswer`) and the situation come from the API; the screen only
  * shows them. Texts render as text.
  */
-export function ActivityAnswering({ activityId, userId }: { activityId: string; userId: string }) {
+export function ActivityAnswering({
+  activityId,
+  userId,
+}: {
+  activityId: string;
+  userId: string;
+}) {
   const query = useStudentActivity(activityId);
   if (query.isPending) {
     return (
       <>
-        <PageHeader title="Atividade" breadcrumb={[{ label: "Minhas atividades", href: MY_ACTIVITIES_PATH }, { label: "Atividade" }]} />
+        <PageHeader
+          title="Atividade"
+          breadcrumb={[
+            { label: "Minhas atividades", href: MY_ACTIVITIES_PATH },
+            { label: "Atividade" },
+          ]}
+        />
         <Loading label="Carregando a atividade…" />
       </>
     );
@@ -95,12 +153,24 @@ export function ActivityAnswering({ activityId, userId }: { activityId: string; 
   if (query.isError) {
     return (
       <>
-        <PageHeader title="Atividade" breadcrumb={[{ label: "Minhas atividades", href: MY_ACTIVITIES_PATH }, { label: "Atividade" }]} />
+        <PageHeader
+          title="Atividade"
+          breadcrumb={[
+            { label: "Minhas atividades", href: MY_ACTIVITIES_PATH },
+            { label: "Atividade" },
+          ]}
+        />
         <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
       </>
     );
   }
-  return <ActivityView activity={query.data} userId={userId} reload={() => query.refetch()} />;
+  return (
+    <ActivityView
+      activity={query.data}
+      userId={userId}
+      reload={() => query.refetch()}
+    />
+  );
 }
 
 /**
@@ -108,30 +178,57 @@ export function ActivityAnswering({ activityId, userId }: { activityId: string; 
  * here; this page shows what the mode does and starts it.
  */
 const answeredInFocus = (activity: StudentActivity) =>
-  activity.executionMode === "CONTROLLED" && activity.canAnswer && activity.submission === null;
+  activity.executionMode === "CONTROLLED" &&
+  activity.canAnswer &&
+  activity.submission === null;
 
-function ActivityView({ activity, userId, reload }: { activity: StudentActivity; userId: string; reload: () => Promise<unknown> }) {
+function ActivityView({
+  activity,
+  userId,
+  reload,
+}: {
+  activity: StudentActivity;
+  userId: string;
+  reload: () => Promise<unknown>;
+}) {
   return (
     <>
       <PageHeader
         title={activity.title}
-        breadcrumb={[{ label: "Minhas atividades", href: MY_ACTIVITIES_PATH }, { label: activity.title }]}
-        status={<Status variant={STATUS_VARIANTS[activity.status]}>{statusLabel(activity)}</Status>}
+        breadcrumb={[
+          { label: "Minhas atividades", href: MY_ACTIVITIES_PATH },
+          { label: activity.title },
+        ]}
+        status={
+          <Status variant={STATUS_VARIANTS[activity.status]}>
+            {statusLabel(activity)}
+          </Status>
+        }
       />
       <div className="flex flex-col gap-8">
         <ActivityDetails activity={activity} />
         {/* 018/US3: how an exam ended (the time), above its read-only answers. */}
-        {activity.type === "EXAM" ? <ExamEndNotice activity={activity} /> : null}
+        {activity.type === "EXAM" ? (
+          <ExamEndNotice activity={activity} />
+        ) : null}
         {activity.pause ? (
           // 016: paused, here or on the focus page, the attempt shows only the notice (FR-013).
-          <AnsweringSession activity={activity} userId={userId} reload={reload} />
+          <AnsweringSession
+            activity={activity}
+            userId={userId}
+            reload={reload}
+          />
         ) : activity.type === "EXAM" && activity.submission === null ? (
           // 018/US3: the rules and the start, or the way back to the focus page; never answered here.
           <ExamEntry activity={activity} />
         ) : answeredInFocus(activity) ? (
           <ControlledStart activity={activity} />
         ) : activity.attempt ? (
-          <AnsweringSession activity={activity} userId={userId} reload={reload} />
+          <AnsweringSession
+            activity={activity}
+            userId={userId}
+            reload={reload}
+          />
         ) : activity.lastResult ? (
           // An Exercício with no open attempt after a conclusion: its result and "Refazer" (013/US2).
           <ExerciseResult activity={activity} />
@@ -139,11 +236,15 @@ function ActivityView({ activity, userId, reload }: { activity: StudentActivity;
           <StartAttempt activity={activity} />
         )}
         {/* A delivered CONTROLLED work shows the student's own screen exits (015/US5-2). */}
-        {activity.executionMode === "CONTROLLED" && activity.submission ? <ScreenExitRecords activityId={activity.id} /> : null}
+        {activity.executionMode === "CONTROLLED" && activity.submission ? (
+          <ScreenExitRecords activityId={activity.id} />
+        ) : null}
         {/* 016/US4-4: the own room exits, which the API sends only after the submission. */}
         {activity.submission ? <OwnRoomExits pauses={activity.pauses} /> : null}
         {/* 018/US8-4: an exam's own occurrences, which the API sends only once the attempt ended. */}
-        {activity.exam && activity.submission ? <OwnExamOccurrences occurrences={activity.exam.ownOccurrences} /> : null}
+        {activity.exam && activity.submission ? (
+          <OwnExamOccurrences occurrences={activity.exam.ownOccurrences} />
+        ) : null}
       </div>
     </>
   );
@@ -161,7 +262,12 @@ export interface ControlledAnswering {
    * 016 "Sair da sala" (research M10): the monitor stops before anything else, the queued events are
    * sent with the answers, and fullscreen ends only after the pause; a refused exit turns it back on.
    */
-  roomExit: { stopMonitor: () => void; resumeMonitor: () => void; flushEvents: () => Promise<void>; leaveFullscreen: () => void };
+  roomExit: {
+    stopMonitor: () => void;
+    resumeMonitor: () => void;
+    flushEvents: () => Promise<void>;
+    leaveFullscreen: () => void;
+  };
   /** 016: "Retomar em modo controlado" asks for fullscreen in the student's own click. */
   resume: { label: string; onResume: () => void };
   /** 018: an exam's last minute saves each change at once (contracts/web-ui.md). */
@@ -187,9 +293,17 @@ export function AnsweringSession({
   controlled?: ControlledAnswering;
 }) {
   const [generation, setGeneration] = useState(0);
+  // 023: the question a group member is on: receiving or losing the editing remounts the screen, not the place.
+  const [groupQuestion, setGroupQuestion] = useState(0);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  // 023/US4-2: a save refused because the editing moved (the leader took it back): this page reads now.
+  const [editingLost, setEditingLost] = useState(false);
   // A work or an exam (018/US6-1: the teacher's pause arrives the same way); an Exercício never pauses.
-  const watching = activity.type !== "EXERCISE" && activity.canAnswer && activity.submission === null && activity.pause === null;
+  const watching =
+    activity.type !== "EXERCISE" &&
+    activity.canAnswer &&
+    activity.submission === null &&
+    activity.pause === null;
   const watch = useMyPause(activity.id, watching, "watch");
   /** The pause already acted on: a read from before the resume never reloads again. */
   const handled = useRef<string | null>(null);
@@ -200,10 +314,24 @@ export function AnsweringSession({
     void reload();
   }, [openPause, reload]);
 
+  // 023: a member who no longer edits has nothing pending; a later editing starts from the group's answers.
+  const reading = readsGroupAttempt(activity);
+  useEffect(() => {
+    if (reading) clearPendingAnswers(userId, activity.id);
+  }, [reading, userId, activity.id]);
+
   const onChangedElsewhere = async () => {
     clearPendingAnswers(userId, activity.id);
     await reload();
     setChangedElsewhere(true);
+    setGeneration((current) => current + 1);
+  };
+  const onEditingLost = async () => {
+    // What wasn't saved can't be written any more: the group's answers are the editor's now.
+    clearPendingAnswers(userId, activity.id);
+    setGroupQuestion(0);
+    await reload();
+    setEditingLost(true);
     setGeneration((current) => current + 1);
   };
   if (activity.pause) {
@@ -224,17 +352,41 @@ export function AnsweringSession({
   }
   return (
     <>
+      {/* 023/US3: the group's notice and bar above the questions, here and on the focus page. */}
+      {activity.group ? <GroupNotice group={activity.group} /> : null}
+      {activity.group ? (
+        <GroupBar
+          activityId={activity.id}
+          group={activity.group}
+          open={activity.canAnswer && activity.submission === null}
+        />
+      ) : null}
+      {editingLost &&
+      activity.group &&
+      !activity.group.canEdit &&
+      activity.submission === null ? (
+        <Alert variant="warning">
+          <AlertTitle>
+            {editingLostMessage(activity.group.editor.name)}
+          </AlertTitle>
+        </Alert>
+      ) : null}
       {changedElsewhere && activity.submission === null ? (
         <Alert variant="warning">
           <AlertTitle>{CHANGED_ELSEWHERE}</AlertTitle>
         </Alert>
       ) : null}
       <AttemptAnswering
-        key={`${generation}:${revisionsKey(activity)}`}
+        // In a group the screen changes only with the role: the polling brings the editor's saves to the
+        // readers and must not remount the editor's form; anyone else starts a fresh screen on new revisions.
+        key={`${generation}:${activity.group ? (readsGroupAttempt(activity) ? "leitura" : "edicao") : revisionsKey(activity)}`}
         activity={activity}
         userId={userId}
         controlled={controlled}
+        groupQuestion={groupQuestion}
+        onGroupQuestionChange={setGroupQuestion}
         onChangedElsewhere={() => void onChangedElsewhere()}
+        onEditingLost={() => void onEditingLost()}
         onPaused={(pauseId) => {
           if (pauseId) handled.current = pauseId;
           void reload();
@@ -246,14 +398,21 @@ export function AnsweringSession({
 
 /** The server's answers and revisions: new ones (after a reload) start a fresh answering screen. */
 const revisionsKey = (activity: StudentActivity) =>
-  (activity.attempt?.answers ?? []).map((answer) => `${answer.questionId}:${answer.revision}`).sort().join(",");
+  (activity.attempt?.answers ?? [])
+    .map((answer) => `${answer.questionId}:${answer.revision}`)
+    .sort()
+    .join(",");
 
 function ActivityDetails({ activity }: { activity: StudentActivity }) {
   return (
     <section aria-label="Sobre a atividade" className="flex flex-col gap-4">
       <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-body-sm">
         <dt className="text-text-secondary">Turma</dt>
-        <dd className="m-0">{activity.subjectName ? `${activity.class.name} · ${activity.subjectName}` : activity.class.name}</dd>
+        <dd className="m-0">
+          {activity.subjectName
+            ? `${activity.class.name} · ${activity.subjectName}`
+            : activity.class.name}
+        </dd>
         <dt className="text-text-secondary">Professor</dt>
         <dd className="m-0">{activity.teacherName}</dd>
         <dt className="text-text-secondary">Tipo</dt>
@@ -275,13 +434,17 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
         {activity.points ? (
           <>
             <dt className="text-text-secondary">Pontos</dt>
-            <dd className="m-0">Vale até {formatPoints(activity.points.possible)}</dd>
+            <dd className="m-0">
+              Vale até {formatPoints(activity.points.possible)}
+            </dd>
             {activity.completedAttempts.length > 0 ? (
               <>
                 <dt className="text-text-secondary">Seus pontos</dt>
                 <dd className="m-0">
                   {formatPoints(activity.points.earned)}
-                  {activity.points.awaitingCorrection ? " · Pontos aguardando correção" : ""}
+                  {activity.points.awaitingCorrection
+                    ? " · Pontos aguardando correção"
+                    : ""}
                 </dd>
               </>
             ) : null}
@@ -291,7 +454,9 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
       {activity.instructions ? (
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-h3">Instruções</h2>
-          <p className="m-0 text-reading whitespace-pre-wrap">{activity.instructions}</p>
+          <p className="m-0 text-reading whitespace-pre-wrap">
+            {activity.instructions}
+          </p>
         </div>
       ) : null}
     </section>
@@ -300,6 +465,9 @@ function ActivityDetails({ activity }: { activity: StudentActivity }) {
 
 function StartAttempt({ activity }: { activity: StudentActivity }) {
   const start = useStartAttempt(activity.id);
+  // 023/US2: a group work opens the choice of the members (or "Continuar sozinho") instead of starting.
+  const [choosing, setChoosing] = useState(false);
+  const inGroup = activity.groupSize !== null;
   if (!activity.canAnswer) {
     return (
       <Alert variant="info">
@@ -310,13 +478,30 @@ function StartAttempt({ activity }: { activity: StudentActivity }) {
   return (
     <div className="flex flex-col items-start gap-3">
       <p className="m-0 text-body">
-        {activity.questions.length === 1 ? "1 questão" : `${activity.questions.length} questões`}. Suas respostas são salvas
-        automaticamente.
+        {activity.questions.length === 1
+          ? "1 questão"
+          : `${activity.questions.length} questões`}
+        . Suas respostas são salvas automaticamente.
       </p>
-      <Button type="button" loading={start.isPending} onClick={() => start.mutate()}>
+      <Button
+        type="button"
+        loading={!inGroup && start.isPending}
+        onClick={() => (inGroup ? setChoosing(true) : start.mutate())}
+      >
         Iniciar atividade
       </Button>
-      {start.isError ? (
+      {inGroup ? (
+        <GroupStartDialog
+          activityId={activity.id}
+          open={choosing}
+          onOpenChange={setChoosing}
+          onStart={async (body) => {
+            await start.mutateAsync(body);
+            setChoosing(false);
+          }}
+        />
+      ) : null}
+      {!inGroup && start.isError ? (
         <Alert variant="danger">
           <AlertTitle>{messageForError(start.error)}</AlertTitle>
         </Alert>
@@ -326,23 +511,41 @@ function StartAttempt({ activity }: { activity: StudentActivity }) {
 }
 
 /** A refusal by a rule (409/422/404): its reason replaces the "tentaremos de novo" of a transient failure. */
-const isRefusal = (status: number) => status >= 400 && status < 500 && status !== 429;
+const isRefusal = (status: number) =>
+  status >= 400 && status < 500 && status !== 429;
 
 function AttemptAnswering({
   activity,
   userId,
   controlled,
+  groupQuestion,
+  onGroupQuestionChange,
   onChangedElsewhere,
+  onEditingLost,
   onPaused,
 }: {
   activity: StudentActivity;
   userId: string;
   controlled?: ControlledAnswering;
+  groupQuestion: number;
+  onGroupQuestionChange: (index: number) => void;
   onChangedElsewhere: () => void;
+  /** 023/US4-2: a save or submission refused with `GROUP_NOT_EDITOR`: read the activity again, as a reader. */
+  onEditingLost: () => void;
   /** The attempt is paused now (the own exit, with its id, or a refused write): read the activity again. */
   onPaused: (pauseId?: string) => void;
 }) {
-  const editable = activity.canAnswer && activity.submission === null;
+  const open = activity.canAnswer && activity.submission === null;
+  // 023/FR-012: in a group only the effective editor writes; the others read the group's answers as the
+  // API last sent them (polled, US3-4), never a copy kept in this browser.
+  const readOnly = readsGroupAttempt(activity);
+  const editable = open && !readOnly;
+  const serverAnswers = new Map(
+    (activity.attempt?.answers ?? []).map((item) => [
+      item.questionId,
+      item.answer,
+    ]),
+  );
   const answers = useAttemptAnswers({
     userId,
     activityId: activity.id,
@@ -350,13 +553,28 @@ function AttemptAnswering({
     enabled: editable,
     saveImmediately: controlled?.saveImmediately,
   });
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => (activity.group ? Math.min(groupQuestion, activity.questions.length - 1) : 0));
+  useEffect(() => {
+    onGroupQuestionChange(index);
+  }, [onGroupQuestionChange, index]);
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
-  const warning = useDeadlineWarning(activity.deadline, activity.serverNow, editable);
+  const warning = useDeadlineWarning(
+    activity.deadline,
+    activity.serverNow,
+    editable,
+  );
   const questions = activity.questions;
   const question = questions[index]!;
-  const answeredCount = questions.filter((item) => isAnswered(item, answers.answerOf(item.id))).length;
+  // 023: who saved the answer the reader is looking at (absent on an individual attempt).
+  const savedBy = activity.attempt?.answers.find((item) => item.questionId === question.id)?.savedBy;
+  const answerOf = (questionId: string) =>
+    readOnly
+      ? (serverAnswers.get(questionId) ?? null)
+      : answers.answerOf(questionId);
+  const answeredCount = questions.filter((item) =>
+    isAnswered(item, answerOf(item.id)),
+  ).length;
   const refused = answers.error !== null && isRefusal(answers.error.status);
   // An Exercício is concluded, never submitted: no deadline, no grade, the answer key after (013/US2).
   const isExercise = activity.type === "EXERCISE";
@@ -365,15 +583,30 @@ function AttemptAnswering({
   const submit = isExercise ? completeAttempt : submitAttempt;
   const [confirming, setConfirming] = useState(false);
   const blankCount = questions.length - answeredCount;
-  const submitRefused = submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
+  // 023/FR-018: in a group only the leader submits, and only holding the editing; without it "Entregar"
+  // stays disabled with the reason, and a member never sees it. The API decides either way.
+  const group = activity.group;
+  const submitter = !group
+    ? "YES"
+    : group.myRole !== "LEADER"
+      ? "NO"
+      : group.canEdit
+        ? "YES"
+        : "NEEDS_EDITING";
+  const showSubmit =
+    open && submitter !== "NO" && (editable || submitter === "NEEDS_EDITING");
+  const submitRefused =
+    submit.isError && apiErrorCode(submit.error) !== "ANSWER_CHANGED_ELSEWHERE";
   // 016: only a work's attempt has a room to leave (an Exercício never pauses, FR-007); in an exam only
   // the teacher pauses (018/FR-026).
-  const canExitRoom = editable && activity.type === "ASSIGNMENT";
+  const canExitRoom = open && activity.type === "ASSIGNMENT";
   const [exitingRoom, setExitingRoom] = useState(false);
   const declareExit = useDeclareExit(activity.id);
   // A save or submission refused because the attempt is paused (another device, the teacher): the
   // unsent answers stay in this browser (012 FR-019) and the notice replaces the questions.
-  const pausedRefusal = apiErrorCode(answers.error) === "ATTEMPT_PAUSED" || (submit.isError && apiErrorCode(submit.error) === "ATTEMPT_PAUSED");
+  const pausedRefusal =
+    apiErrorCode(answers.error) === "ATTEMPT_PAUSED" ||
+    (submit.isError && apiErrorCode(submit.error) === "ATTEMPT_PAUSED");
   const paused = useRef(onPaused);
   useEffect(() => {
     paused.current = onPaused;
@@ -381,6 +614,16 @@ function AttemptAnswering({
   useEffect(() => {
     if (pausedRefusal) paused.current();
   }, [pausedRefusal]);
+  const editingRefusal =
+    apiErrorCode(answers.error) === "GROUP_NOT_EDITOR" ||
+    (submit.isError && apiErrorCode(submit.error) === "GROUP_NOT_EDITOR");
+  const lost = useRef(onEditingLost);
+  useEffect(() => {
+    lost.current = onEditingLost;
+  });
+  useEffect(() => {
+    if (editingRefusal) lost.current();
+  }, [editingRefusal]);
 
   /** Research M10's order: monitor off, answers and events sent, pause, then fullscreen off. */
   const exitRoom = async (body: DeclareExit) => {
@@ -404,11 +647,16 @@ function AttemptAnswering({
       // The offline buffer of this activity is done with once the server has the answers.
       onSuccess: () => clearPendingAnswers(userId, activity.id),
       onError: (error: unknown) => {
-        if (apiErrorCode(error) === "ANSWER_CHANGED_ELSEWHERE") onChangedElsewhere();
+        if (apiErrorCode(error) === "ANSWER_CHANGED_ELSEWHERE")
+          onChangedElsewhere();
       },
     };
     const body = { answers: answers.takePending() };
-    if (isExercise) completeAttempt.mutate({ number: activity.attempt!.number, body }, callbacks);
+    if (isExercise)
+      completeAttempt.mutate(
+        { number: activity.attempt!.number, body },
+        callbacks,
+      );
     else submitAttempt.mutate(body, callbacks);
   };
 
@@ -430,9 +678,19 @@ function AttemptAnswering({
           Respostas
         </h2>
         <div className="flex flex-wrap items-center gap-3">
-          {editable ? <SaveStatus state={refused ? "idle" : answers.saveState} onRetry={answers.retry} /> : null}
+          {editable ? (
+            <SaveStatus
+              state={refused ? "idle" : answers.saveState}
+              onRetry={answers.retry}
+            />
+          ) : null}
           {canExitRoom ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => setExitingRoom(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setExitingRoom(true)}
+            >
               {EXIT_ROOM}
             </Button>
           ) : null}
@@ -449,10 +707,13 @@ function AttemptAnswering({
       {activity.submission ? (
         <Alert variant="success">
           <AlertTitle>
-            Atividade entregue em {formatLongDateTime(activity.submission.submittedAt)}.
+            Atividade entregue em{" "}
+            {formatLongDateTime(activity.submission.submittedAt)}.
             {activity.submission.late ? " Entrega com atraso." : ""}
           </AlertTitle>
-          <AlertDescription>Suas respostas ficam somente para leitura.</AlertDescription>
+          <AlertDescription>
+            Suas respostas ficam somente para leitura.
+          </AlertDescription>
         </Alert>
       ) : null}
       {submitRefused ? (
@@ -475,7 +736,12 @@ function AttemptAnswering({
         <Alert variant="info">
           <AlertTitle>{CONFLICT_ALERT}</AlertTitle>
           <AlertDescription>
-            <Button type="button" variant="secondary" size="sm" onClick={answers.dismissConflict}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={answers.dismissConflict}
+            >
               Entendi
             </Button>
           </AlertDescription>
@@ -487,35 +753,60 @@ function AttemptAnswering({
           <AlertDescription>Suas respostas continuam na tela.</AlertDescription>
         </Alert>
       ) : null}
-      <ExamProgress current={index + 1} total={questions.length} answered={answeredCount} />
+      {readOnly && activity.group ? (
+        <Alert variant="info">
+          <AlertTitle>{editingWith(activity.group.editor.name)}</AlertTitle>
+          {savedBy ? <AlertDescription>{savedByMessage(savedBy.name)}</AlertDescription> : null}
+        </Alert>
+      ) : null}
+      <ExamProgress
+        current={index + 1}
+        total={questions.length}
+        answered={answeredCount}
+      />
       <QuestionNavigator
-        questions={questions.map((item) => ({ id: item.id, answered: isAnswered(item, answers.answerOf(item.id)) }))}
+        questions={questions.map((item) => ({
+          id: item.id,
+          answered: isAnswered(item, answerOf(item.id)),
+        }))}
         currentIndex={index}
         onSelect={goTo}
       />
-      <article aria-labelledby={`questao-${question.id}`} data-question-id={question.id} className="flex flex-col gap-6">
+      <article
+        aria-labelledby={`questao-${question.id}`}
+        data-question-id={question.id}
+        className="flex flex-col gap-6"
+      >
         <QuestionHeader
           number={index + 1}
           typeLabel={QUESTION_TYPE_LABELS[question.type]}
           valueLabel={valueLabel(question)}
-          answered={isAnswered(question, answers.answerOf(question.id))}
+          answered={isAnswered(question, answerOf(question.id))}
           headingId={`questao-${question.id}`}
           headingRef={heading}
         />
         {/* A code question puts the statement on the left and the editor on the right from `lg` up. */}
         <div
           data-slot="question-body"
-          className={question.type === "CODE" ? "grid gap-6 lg:grid-cols-2 lg:items-start" : "flex flex-col gap-6"}
+          className={
+            question.type === "CODE"
+              ? "grid gap-6 lg:grid-cols-2 lg:items-start"
+              : "flex flex-col gap-6"
+          }
         >
           <div className="flex min-w-0 flex-col gap-3">
             <QuestionStatement>{question.statement}</QuestionStatement>
-            {question.instructions ? <p className="m-0 text-body-sm text-text-secondary whitespace-pre-wrap">{question.instructions}</p> : null}
+            {question.instructions ? (
+              <p className="m-0 text-body-sm text-text-secondary whitespace-pre-wrap">
+                {question.instructions}
+              </p>
+            ) : null}
           </div>
           <div className="min-w-0">
             <AnswerArea
               key={question.id}
               question={question}
-              answer={answers.answerOf(question.id) ?? emptyAnswer(question)}
+              answer={answerOf(question.id) ?? emptyAnswer(question)}
               onChange={(answer) => answers.setAnswer(question.id, answer)}
               disabled={!editable}
               blockClipboard={Boolean(controlled?.blockClipboard) && editable}
@@ -527,56 +818,95 @@ function AttemptAnswering({
             ) : null}
             {controlled?.questionNotice(question.id)}
             {/* 019, 021: "Executar" on a CODE question the API gives an `execution` (an exercise, or a work
-                with the option), while editable; it never saves, concludes nor submits. */}
-            {question.type === "CODE" && question.execution && editable ? (
+                with the option), while the attempt is open; it never saves, concludes nor submits. 023/FR-024:
+                in a group a reader runs too, the answer as their screen shows it (the run is theirs). */}
+            {question.type === "CODE" && question.execution && open ? (
               <div className="mt-4">
                 <CodeRunPanel
                   key={question.id}
                   activityId={activity.id}
                   questionId={question.id}
                   execution={question.execution}
-                  sourceCode={sourceOf(answers.answerOf(question.id) ?? emptyAnswer(question))}
+                  sourceCode={sourceOf(
+                    answerOf(question.id) ?? emptyAnswer(question),
+                  )}
                   publicTestCases={question.publicTestCases}
                 />
               </div>
             ) : null}
           </div>
         </div>
-        {activity.aiHelp.allowance > 0 ? (
+        {activity.aiHelp.allowance > 0 && !open ? (
           <QuestionHelp
             key={question.id}
             activityId={activity.id}
             questionId={question.id}
             highlight={question.language?.highlight ?? undefined}
-            canAsk={editable}
-            notice={controlled?.helpNotice(question.id)}
           />
         ) : null}
       </article>
+      {activity.aiHelp.allowance > 0 && open ? (
+        <HelpChat
+          activityId={activity.id}
+          questionId={question.id}
+          questions={questions}
+          // 023/FR-022: only the editor asks; every member reads the group's orientations.
+          canAsk={editable}
+          used={activity.aiHelp.used}
+          notice={controlled?.helpNotice(question.id)}
+        />
+      ) : null}
       <AssessmentFooter
         hasPrevious={index > 0}
         hasNext={index < questions.length - 1}
         onPrevious={() => goTo(index - 1)}
         onNext={() => goTo(index + 1)}
         submit={
-          editable ? (
-            <Button
-              type="button"
-              variant={index === questions.length - 1 ? "primary" : "outline"}
-              loading={submit.isPending}
-              onClick={() => setConfirming(true)}
-            >
-              {isExercise ? "Concluir exercícios" : "Entregar atividade"}
-            </Button>
+          showSubmit ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {submitter === "NEEDS_EDITING" ? (
+                <p
+                  id="entregar-motivo"
+                  className="m-0 text-body-sm text-text-secondary"
+                >
+                  {TAKE_BACK_TO_SUBMIT}
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                variant={index === questions.length - 1 ? "primary" : "outline"}
+                loading={submit.isPending}
+                disabled={submitter === "NEEDS_EDITING"}
+                aria-describedby={
+                  submitter === "NEEDS_EDITING" ? "entregar-motivo" : undefined
+                }
+                onClick={() => setConfirming(true)}
+              >
+                {isExercise ? "Concluir exercícios" : "Entregar atividade"}
+              </Button>
+            </div>
           ) : undefined
         }
       />
-      {canExitRoom ? <ExitRoomDialog open={exitingRoom} onOpenChange={setExitingRoom} deadline={activity.deadline} onConfirm={exitRoom} /> : null}
+      {canExitRoom ? (
+        <ExitRoomDialog
+          open={exitingRoom}
+          onOpenChange={setExitingRoom}
+          deadline={activity.deadline}
+          onConfirm={exitRoom}
+        />
+      ) : null}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isExercise ? "Concluir estes exercícios?" : "Entregar atividade?"}</AlertDialogTitle>
-            <AlertDialogDescription>{isExercise ? COMPLETE_CONFIRMATION : SUBMIT_CONFIRMATION}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {isExercise
+                ? "Concluir estes exercícios?"
+                : "Entregar atividade?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isExercise ? COMPLETE_CONFIRMATION : SUBMIT_CONFIRMATION}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <p className="m-0 text-body">
             {isExercise
@@ -589,7 +919,9 @@ function AttemptAnswering({
           </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar às questões</AlertDialogCancel>
-            <AlertDialogAction onClick={send}>{isExercise ? "Concluir" : "Entregar"}</AlertDialogAction>
+            <AlertDialogAction onClick={send}>
+              {isExercise ? "Concluir" : "Entregar"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -598,7 +930,8 @@ function AttemptAnswering({
 }
 
 /** The code of a CODE answer (what "Executar" sends); empty for the other kinds. */
-const sourceOf = (answer: ReturnType<typeof emptyAnswer>): string => (answer.kind === "CODE" ? answer.source : "");
+const sourceOf = (answer: ReturnType<typeof emptyAnswer>): string =>
+  answer.kind === "CODE" ? answer.source : "";
 
 function AnswerArea({
   question,
@@ -619,7 +952,9 @@ function AnswerArea({
         name={`resposta-${question.id}`}
         alternatives={question.alternatives}
         value={answer.alternativeId}
-        onChange={(alternativeId) => onChange({ kind: "ALTERNATIVE", alternativeId })}
+        onChange={(alternativeId) =>
+          onChange({ kind: "ALTERNATIVE", alternativeId })
+        }
         disabled={disabled}
       />
     );

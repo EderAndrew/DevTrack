@@ -41,6 +41,7 @@ export * from "./activities/teacher.js";
 export * from "./activities/student.js";
 export * from "./activities/points.js";
 export * from "./activities/exercise-results.js";
+export * from "./activities/group.js";
 export * from "./ranking/index.js";
 export * from "./attempt-integrity/enums.js";
 export * from "./attempt-integrity/events.js";

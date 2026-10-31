@@ -68,6 +68,12 @@ o que a spec da avaliação permitir explicitamente" — esta spec é essa permi
   feature traz a lista de chamada: o professor marca os presentes e libera o trabalho, e só os
   presentes o veem (fora do escopo aqui; ver Assumptions).
 
+> **Emenda 2026-10-31 (a tela da ajuda)**: "Pedir ajuda" deixa de ser um botão em cada questão: durante a tentativa, um ícone
+> de chat fixo à direita abre um painel lateral em forma de conversa, com a pergunta sobre a questão em tela; cada resposta
+> termina dizendo quantas ajudas restam (texto fixo da tela, nunca do modelo). O limite, a contagem, o `work-helper`, a checagem
+> de vazamento e a API não mudam. Onde esta spec diz "cada questão tem 'Pedir ajuda'" ou "sob a questão", vale
+> `contracts/web-ui.md`; depois da entrega, as orientações continuam sob cada questão.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os perfis são o **aluno** (papel STUDENT, matrícula `ACTIVE` na turma) e o **professor** da

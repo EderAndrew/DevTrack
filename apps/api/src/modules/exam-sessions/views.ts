@@ -28,6 +28,8 @@ export function toTeacherExamHold(hold: StoredHold, endsAt: Date, activityStatus
 /** A pause with no release, as the monitor reads it from `attempt_pauses` (research T12: its own query). */
 export interface UnreleasedPause {
   id: string;
+  /** The exam's student (an exam is never in group). */
+  studentUserId: string;
   initiatedBy: PauseInitiator;
   reason: PauseReason;
   note: string | null;
@@ -41,6 +43,7 @@ export function openPauseOf(pause: UnreleasedPause | null, context: PauseEndCont
   if (time.endedBy !== null) return null;
   return {
     id: pause.id,
+    studentUserId: pause.studentUserId,
     initiatedBy: pause.initiatedBy,
     reason: pause.reason,
     note: pause.note,

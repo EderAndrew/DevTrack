@@ -101,12 +101,14 @@ describe("005/US1-5 fontes substitutas equivalentes", () => {
     expect(layout).toContain('variable: "--font-fredoka"');
   });
 
-  it("--font-brand (Fredoka) termina em fontes de sistema e só aparece na marca", () => {
+  it("--font-brand (Fredoka) termina em fontes de sistema e só aparece na marca e na nota do card do aluno", () => {
     expect(declared(tokens, "--font-brand")).toMatch(/^var\(--font-fredoka\),.*system-ui.*,\s*sans-serif$/);
     const files = scanSources()
       .filter((line) => classTokens(line.code).some((token) => /(^|:)font-brand$/.test(token)))
       .map((line) => line.file);
-    expect(new Set(files)).toEqual(new Set(["components/shared/wordmark.tsx"]));
+    expect(new Set(files)).toEqual(
+      new Set(["components/shared/wordmark.tsx", "features/student-activities/components/activity-card.tsx"]),
+    );
   });
 });
 

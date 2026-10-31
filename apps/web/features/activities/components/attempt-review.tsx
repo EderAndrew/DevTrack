@@ -23,7 +23,13 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { createContext, type FormEvent, type ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  type FormEvent,
+  type ReactNode,
+  useContext,
+  useState,
+} from "react";
 import {
   ErrorSummary,
   Field,
@@ -57,14 +63,19 @@ import {
   useAttemptActions,
   useAttemptHelp,
 } from "../hooks/use-activities";
-import { EXAM_END_REASON_LABELS, helpsUsedLabel } from "../schemas/attempt-records";
+import {
+  EXAM_END_REASON_LABELS,
+  helpsUsedLabel,
+} from "../schemas/attempt-records";
 import {
   AttemptHelpContext,
+  AttemptParticipantsContext,
   IntegrityRecords,
   QuestionHelpRecords,
   ExamAttemptRecords,
   RoomExitRecords,
 } from "./attempt-records";
+import { GroupFacts, GroupLabel } from "./group-facts";
 import {
   formatGrade,
   formatPoints,
@@ -195,7 +206,13 @@ export function AttemptReview({
           </Link>
         </p>
         <h2 id="tentativa-titulo" className="m-0 text-h2">
-          Tentativa de {attempt.student.name}
+          {attempt.group ? (
+            <>
+              Tentativa de <GroupLabel participants={attempt.participants} />
+            </>
+          ) : (
+            <>Tentativa de {attempt.student.name}</>
+          )}
         </h2>
         {error ? (
           <p role="alert" className="m-0 text-danger-text">
@@ -262,9 +279,19 @@ export function AttemptReview({
           {/* 018/FR-031: an exam's end and why it ended, from the server's times. */}
           {attempt.exam ? (
             <>
-              <Item term="Fim do tempo">{formatLongDateTime(attempt.exam.endsAt)}</Item>
-              {attempt.exam.endedAt ? <Item term="Encerrada em">{formatLongDateTime(attempt.exam.endedAt)}</Item> : null}
-              {attempt.exam.endReason ? <Item term="Motivo do fim">{EXAM_END_REASON_LABELS[attempt.exam.endReason]}</Item> : null}
+              <Item term="Fim do tempo">
+                {formatLongDateTime(attempt.exam.endsAt)}
+              </Item>
+              {attempt.exam.endedAt ? (
+                <Item term="Encerrada em">
+                  {formatLongDateTime(attempt.exam.endedAt)}
+                </Item>
+              ) : null}
+              {attempt.exam.endReason ? (
+                <Item term="Motivo do fim">
+                  {EXAM_END_REASON_LABELS[attempt.exam.endReason]}
+                </Item>
+              ) : null}
             </>
           ) : null}
           {helpQuery.data ? (
@@ -311,11 +338,22 @@ export function AttemptReview({
         ) : null}
       </div>
 
+      {/* 023/US6: the group's members, editing history and who saved each answer. */}
+      {attempt.group ? (
+        <GroupFacts
+          classId={classId}
+          activityId={activityId}
+          attemptId={attempt.id}
+          questions={activity.questions}
+        />
+      ) : null}
+
       {!isExercise && activity.executionMode === "CONTROLLED" ? (
         <IntegrityRecords
           classId={classId}
           activityId={activityId}
           attemptId={attempt.id}
+          participants={attempt.group ? attempt.participants : null}
         />
       ) : null}
 
@@ -324,49 +362,58 @@ export function AttemptReview({
 
       {/* 016/US4: the room exits of a work that takes attendance. */}
       {!isExercise && activity.releaseMode === "PRESENT_ONLY" ? (
-        <RoomExitRecords classId={classId} activityId={activityId} attemptId={attempt.id} />
+        <RoomExitRecords
+          classId={classId}
+          activityId={activityId}
+          attemptId={attempt.id}
+          participants={attempt.group ? attempt.participants : null}
+        />
       ) : null}
 
-      <AttemptHelpContext.Provider value={helpQuery.data?.items ?? null}>
-      {/* 021/US3: the student's runs under each CODE question of a work that allows running code. */}
-      <AttemptCodeRunsContext.Provider
-        value={
-          !isExercise && activity.codeExecution
-            ? { classId, activityId, attemptId: attempt.id }
-            : null
-        }
+      <AttemptParticipantsContext.Provider
+        value={attempt.group ? attempt.participants : null}
       >
-        {isExercise ? (
-          <ExerciseReview
-            activity={activity}
-            attempt={attempt}
-            canMark={canMark}
-            onSave={saveMarks}
-          />
-        ) : submission && canGrade ? (
-          // Keyed by version: a save or another tab's change loads the correction again.
-          <GradingForm
-            key={submission.version}
-            activity={activity}
-            attempt={attempt}
-            onSave={save}
-          />
-        ) : (
-          <ol
-            aria-label="Respostas"
-            className="m-0 flex list-none flex-col gap-4 p-0"
+        <AttemptHelpContext.Provider value={helpQuery.data?.items ?? null}>
+          {/* 021/US3: the student's runs under each CODE question of a work that allows running code. */}
+          <AttemptCodeRunsContext.Provider
+            value={
+              !isExercise && activity.codeExecution
+                ? { classId, activityId, attemptId: attempt.id }
+                : null
+            }
           >
-            {activity.questions.map((question) => (
-              <QuestionReview
-                key={question.id}
-                question={question}
+            {isExercise ? (
+              <ExerciseReview
+                activity={activity}
                 attempt={attempt}
+                canMark={canMark}
+                onSave={saveMarks}
               />
-            ))}
-          </ol>
-        )}
-      </AttemptCodeRunsContext.Provider>
-      </AttemptHelpContext.Provider>
+            ) : submission && canGrade ? (
+              // Keyed by version: a save or another tab's change loads the correction again.
+              <GradingForm
+                key={submission.version}
+                activity={activity}
+                attempt={attempt}
+                onSave={save}
+              />
+            ) : (
+              <ol
+                aria-label="Respostas"
+                className="m-0 flex list-none flex-col gap-4 p-0"
+              >
+                {activity.questions.map((question) => (
+                  <QuestionReview
+                    key={question.id}
+                    question={question}
+                    attempt={attempt}
+                  />
+                ))}
+              </ol>
+            )}
+          </AttemptCodeRunsContext.Provider>
+        </AttemptHelpContext.Provider>
+      </AttemptParticipantsContext.Provider>
 
       <StudentNavigation
         classId={classId}
@@ -916,12 +963,14 @@ const AttemptCodeRunsContext = createContext<{
 
 function QuestionCodeRuns({ question }: { question: TeacherQuestion }) {
   const attempt = useContext(AttemptCodeRunsContext);
+  const participants = useContext(AttemptParticipantsContext);
   if (!attempt || question.type !== "CODE") return null;
   return (
     <CodeRunSummary
       {...attempt}
       questionId={question.id}
       position={question.position}
+      participants={participants}
     />
   );
 }

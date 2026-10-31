@@ -270,8 +270,8 @@ describe("015/US3-12 ajuda da IA dentro da página de foco", () => {
     expect(within(dialog).getByText(PASTE_BLOCKED_MESSAGE)).toBeTruthy();
     await waitFor(() => expect(events.map((event) => [event.type, event.questionId])).toEqual([["PASTE_BLOCKED", withHelp.questions[0]!.id]]));
     expect(types(events)).not.toContain("SCREEN_LEFT");
-    // The header and the question show the same counter.
-    expect(screen.getAllByText("Ajudas restantes: 3 de 3")).toHaveLength(2);
+    // The panel shows the same counter as the header.
+    expect(within(dialog).getByText("Ajudas restantes: 3 de 3")).toBeTruthy();
   });
 });
 

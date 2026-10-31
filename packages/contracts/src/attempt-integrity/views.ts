@@ -58,10 +58,19 @@ export const IntegrityIntervalSchema = z.strictObject({
 });
 export type IntegrityInterval = z.infer<typeof IntegrityIntervalSchema>;
 
-/** `GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity`, in time order. */
+/** 023/FR-021: the teacher's timeline names the student of each fact (one for an individual attempt). */
+export const TeacherIntegrityEventViewSchema = IntegrityEventViewSchema.extend({ studentUserId: UuidSchema });
+export type TeacherIntegrityEventView = z.infer<typeof TeacherIntegrityEventViewSchema>;
+export const TeacherIntegrityIntervalSchema = IntegrityIntervalSchema.extend({ studentUserId: UuidSchema });
+export type TeacherIntegrityInterval = z.infer<typeof TeacherIntegrityIntervalSchema>;
+
+/**
+ * `GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity`, in time order. In a group
+ * attempt the intervals are derived per student and the totals add theirs (023/FR-021).
+ */
 export const IntegrityTimelineSchema = z.strictObject({
-  events: z.array(IntegrityEventViewSchema),
-  intervals: z.array(IntegrityIntervalSchema),
+  events: z.array(TeacherIntegrityEventViewSchema),
+  intervals: z.array(TeacherIntegrityIntervalSchema),
   totals: IntegrityTotalsSchema,
   /** EXAM only (018): the attempt's holds, oldest first; empty for the others. */
   holds: z.array(TeacherExamHoldSchema),

@@ -1,9 +1,10 @@
 "use client";
 
-import type { StartAttemptRequest, SubmitAttemptRequest } from "@repo/contracts";
+import type { StartAttemptRequest, StudentActivity, SubmitAttemptRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { integrityApi } from "@/features/controlled-attempt/api/integrity";
+import { GROUP_POLL_MS } from "@/features/group-work/schemas/group-work";
 import { isOffline, type StudentActivityListFilters, studentActivitiesApi } from "../api/student-activities";
 
 export { isOffline };
@@ -37,9 +38,27 @@ export const useStudentActivities = (filters: StudentActivityListFilters) =>
     ...POLL_WHILE_VISIBLE,
   });
 
-/** One activity as the student sees it, with their attempt (012 US3). */
+/**
+ * 023 research U12, SC-004: every member of an open group attempt reads it again — a reader sees the editor's
+ * saves and the editor sees a take-back within 10 s; `AnsweringSession`'s key keeps the editor's form mounted.
+ */
+const inOpenGroupAttempt = (activity: StudentActivity | undefined) =>
+  activity?.group != null && activity.attempt !== null && activity.submission === null && activity.canAnswer;
+
+export const readsGroupAttempt = (activity: StudentActivity | undefined) =>
+  activity?.group != null && !activity.group.canEdit && activity.attempt !== null && activity.submission === null && activity.canAnswer;
+
+/**
+ * One activity as the student sees it, with their attempt (012 US3); a reader of a group's attempt reads
+ * it again every `GROUP_POLL_MS`, only while the page is visible (no WebSockets, research U18).
+ */
 export const useStudentActivity = (activityId: string) =>
-  useQuery({ queryKey: studentActivitiesKeys.detail(activityId), queryFn: () => studentActivitiesApi.get(activityId) });
+  useQuery({
+    queryKey: studentActivitiesKeys.detail(activityId),
+    queryFn: () => studentActivitiesApi.get(activityId),
+    refetchInterval: (query) => (inOpenGroupAttempt(query.state.data) ? GROUP_POLL_MS : false),
+    refetchIntervalInBackground: false,
+  });
 
 /** The student's own records of a CONTROLLED attempt, read after the submission (015/US5, FR-027). */
 export const useOwnIntegrity = (activityId: string, enabled: boolean) =>

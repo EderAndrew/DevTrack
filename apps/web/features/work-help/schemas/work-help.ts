@@ -14,6 +14,25 @@ export const HELP_UNAVAILABLE = "A ajuda está indisponível agora; tente de nov
 export const HELP_NONE_USED = "Nenhuma ajuda foi usada.";
 export const HELP_EXHAUSTED = "Você já usou as 3 ajudas deste trabalho";
 export const HELP_EXAMPLE_LABEL = "Exemplo da orientação";
+export const HELP_REPLY_LABEL = "Orientação da IA";
+
+/** The chat's label of a message: which question it is about. */
+export const questionLabel = (position: number) => `Questão ${position}`;
+
+/** The end of each reply in the chat: this screen's fixed text, never the model's (015 amendment 2026-10-31). */
+export const remainingMessage = (remaining: number) => {
+  if (remaining <= 0) return "Não restam mais ajudas.";
+  return remaining === 1 ? "Ainda resta 1 ajuda." : `Ainda restam ${remaining} ajudas.`;
+};
+
+/** The helps left once each item (oldest first) was answered: only a DELIVERED orientation counts (FR-015). */
+export function remainingAfterEach(items: readonly StudentHelpItem[], allowance: number): number[] {
+  let delivered = 0;
+  return items.map((item) => {
+    if (item.status === "DELIVERED") delivered += 1;
+    return Math.max(0, allowance - delivered);
+  });
+}
 
 /** "Ajudas restantes: n de 3" (FR-015). */
 export const remainingLabel = (allowance: number, used: number) => `Ajudas restantes: ${Math.max(0, allowance - used)} de ${allowance}`;

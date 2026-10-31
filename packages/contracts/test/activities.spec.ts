@@ -289,6 +289,7 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
     executionMode: "NORMAL",
     aiHelp: { allowance: 0 },
     codeExecution: false,
+    groupSize: null,
     releaseMode: "ALL_ENROLLED",
     attendance: null,
     title: "Prática",
@@ -356,6 +357,8 @@ describe("013 contratos do professor (contracts/http-api.md)", () => {
       markedAt: null,
       pauses: { count: 0, secondsAway: 0, open: false },
       occurrenceCount: null,
+      participants: [{ id: uuid(1), name: "Ana", isLeader: true }],
+      group: false,
     };
     expect(accepts(RosterEntrySchema, entry)).toBe(true);
     expect(accepts(RosterEntrySchema, { ...entry, pointsEarned: null, pendingMarks: null })).toBe(true);
@@ -563,6 +566,7 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     executionMode: "NORMAL",
     aiHelp: { allowance: 0 },
     codeExecution: false,
+    groupSize: null,
     releaseMode: "PRESENT_ONLY",
     attendance: { present: 0, enrolled: 2 },
     title: "Trabalho 1",
@@ -593,6 +597,8 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     markedAt: null,
     pauses: { count: 0, secondsAway: 0, open: false },
     occurrenceCount: null,
+    participants: [],
+    group: false,
   };
   const question = {
     id: uuid(5),
@@ -614,6 +620,8 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
     type: "ASSIGNMENT",
     executionMode: "NORMAL",
     aiHelp: { allowance: 0, used: 0 },
+    groupSize: null,
+    group: null,
     title: "Trabalho 1",
     summary: "",
     class: { id: uuid(2), name: "Turma A" },
@@ -786,6 +794,8 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
       type: "EXAM",
       executionMode: "CONTROLLED",
       aiHelp: { allowance: 0, used: 0 },
+      groupSize: null,
+      group: null,
       title: "Prova 1",
       summary: "",
       class: { id: uuid(2), name: "Turma A" },

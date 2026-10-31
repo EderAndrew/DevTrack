@@ -24,6 +24,7 @@ import {
   StudentExamEndReasonSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
+import { GroupMemberIdsSchema, GroupPersonSchema, GroupSizeSchema, StudentGroupSchema } from "./group.js";
 import { PointsSchema } from "./points.js";
 import { ACTIVITY_EXERCISES_MAX, ActivityAiHelpSchema } from "./teacher.js";
 
@@ -92,6 +93,8 @@ export const StudentActivitySummarySchema = z.strictObject({
    * whether an answer of it waits for the teacher ("Pontos aguardando correção").
    */
   points: z.strictObject({ possible: PointsSchema, earned: PointsSchema, awaitingCorrection: z.boolean() }).nullable(),
+  /** 023: "Em grupo" with this maximum, only on a group work; an individual one's summary reads as before (SC-007). */
+  groupSize: GroupSizeSchema.optional(),
 });
 export type StudentActivitySummary = z.infer<typeof StudentActivitySummarySchema>;
 
@@ -114,7 +117,13 @@ export const StudentDashboardSchema = z.strictObject({
 });
 export type StudentDashboard = z.infer<typeof StudentDashboardSchema>;
 
-export const StudentAnswerSchema = z.strictObject({ questionId: UuidSchema, answer: AnswerSchema, revision: z.int().min(1) });
+export const StudentAnswerSchema = z.strictObject({
+  questionId: UuidSchema,
+  answer: AnswerSchema,
+  revision: z.int().min(1),
+  /** 023: who saved it last, only on a group's attempt (an individual attempt's answers read as before, SC-007). */
+  savedBy: GroupPersonSchema.optional(),
+});
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
 /**
@@ -145,6 +154,13 @@ const withoutContent = (detail: { questions: unknown[]; attempt: { answers: unkn
 export const StudentActivitySchema = StudentActivitySummarySchema.omit({ result: true }).extend({
   /** With the helps already delivered to the session student (015/FR-020: only DELIVERED count). */
   aiHelp: z.strictObject({ allowance: AiHelpAllowanceSchema, used: z.int().min(0).max(AI_HELP_ALLOWANCE) }),
+  /**
+   * 023: "Em grupo" with this maximum (leader included), or null for an individual activity. The
+   * list's summary carries it only for a group work (US3-3), so an individual one reads as before (SC-007).
+   */
+  groupSize: GroupSizeSchema.nullable(),
+  /** 023: the caller's group in this activity (FR-009), or null (individual, alone, or not started). */
+  group: StudentGroupSchema.nullable(),
   instructions: z.string().nullable(),
   serverNow: IsoDateTimeSchema,
   /** In position order. */
@@ -201,9 +217,17 @@ export type StudentActivityPage = z.infer<typeof StudentActivityPageSchema>;
 
 /**
  * `POST /me/activities/:activityId/attempt`: `{}` for a work or exercises; an EXAM requires the
- * acceptance of its rules (018 research T13; the service answers 400 without it).
+ * acceptance of its rules (018 research T13; the service answers 400 without it). Since 023 a group
+ * work takes either the chosen classmates (`memberIds`) or "Continuar sozinho" (`alone`), never both;
+ * the service checks them against the activity's format (400 otherwise, research U6).
  */
-export const StartAttemptRequestSchema = z.strictObject({ acceptRules: z.literal(true).optional() });
+export const StartAttemptRequestSchema = z
+  .strictObject({
+    acceptRules: z.literal(true).optional(),
+    memberIds: GroupMemberIdsSchema.optional(),
+    alone: z.literal(true).optional(),
+  })
+  .refine((body) => body.memberIds === undefined || body.alone === undefined, { message: "MEMBERS_OR_ALONE" });
 export type StartAttemptRequest = z.infer<typeof StartAttemptRequestSchema>;
 
 const distinctQuestions = (items: readonly { questionId: string }[]) => new Set(items.map((item) => item.questionId)).size === items.length;

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { IntegritySummaryList, IntegrityTimeline } from "@repo/contracts";
+import type { IntegritySummaryList, IntegrityTimeline, IntegrityTotals } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
@@ -9,7 +9,7 @@ import { examTiming } from "../activities/status/facts";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { toTeacherExamHold } from "../exam-sessions/views";
 import { storedEvents } from "./focus-events.service";
-import { buildTimeline } from "./timeline";
+import { buildTimeline, occurredAt } from "./timeline";
 import { type StoredIntegrityEvent, toEventView, toIntervalView } from "./views";
 
 /**
@@ -75,11 +75,40 @@ export class IntegrityReviewService {
     });
     if (!attempt) throw notFound();
     const now = this.clock.now();
-    const timeline = buildTimeline(await storedEvents(this.prisma, attempt.id), attempt.submission?.submittedAt ?? now);
+    // 023/FR-021: each participant's exits end only at their own returns; the facts name their student.
+    const byStudent = new Map<string, StoredIntegrityEvent[]>();
+    for (const event of await storedEvents(this.prisma, attempt.id)) {
+      const student = event.studentUserId!;
+      byStudent.set(student, [...(byStudent.get(student) ?? []), event]);
+    }
+    const timelines = [...byStudent].map(([studentUserId, events]) => ({ studentUserId, ...buildTimeline(events, attempt.submission?.submittedAt ?? now) }));
+    const events = timelines
+      .flatMap((timeline) => timeline.events.map((event) => ({ ...toEventView(event), studentUserId: timeline.studentUserId, at: occurredAt(event).getTime() })))
+      .sort((a, b) => a.at - b.at || a.recordedAt.localeCompare(b.recordedAt))
+      .map(({ at: _at, ...event }) => event);
+    const intervals = timelines
+      .flatMap((timeline) => timeline.intervals.map((interval) => ({ ...toIntervalView(interval), studentUserId: timeline.studentUserId })))
+      .sort((a, b) => a.from.localeCompare(b.from));
     // An EXAM's holds with the teacher's decisions (018/FR-031, research T8); none for the others.
     const { activity } = attempt;
     const end = activity.type === "EXAM" ? endsAt(examTiming(activity), attempt.startedAt) : null;
     const holds = end ? attempt.holds.map((hold) => toTeacherExamHold(hold, end, activity.status, now)) : [];
-    return { events: timeline.events.map(toEventView), intervals: timeline.intervals.map(toIntervalView), totals: timeline.totals, holds };
+    return { events, intervals, totals: addTotals(timelines.map((timeline) => timeline.totals)), holds };
   }
+}
+
+/** The attempt's totals: the participants' counts and durations added, a flag set when any participant's is. */
+function addTotals(all: readonly IntegrityTotals[]): IntegrityTotals {
+  const sum = (key: Exclude<keyof IntegrityTotals, "fullscreenUnavailable" | "detectionUnavailable">) => all.reduce((total, totals) => total + totals[key], 0);
+  return {
+    screenExits: sum("screenExits"),
+    timeAwaySeconds: sum("timeAwaySeconds"),
+    fullscreenExits: sum("fullscreenExits"),
+    disconnections: sum("disconnections"),
+    offlineSeconds: sum("offlineSeconds"),
+    clipboardBlocks: sum("clipboardBlocks"),
+    typingLimitRejections: sum("typingLimitRejections"),
+    fullscreenUnavailable: all.some((totals) => totals.fullscreenUnavailable),
+    detectionUnavailable: all.some((totals) => totals.detectionUnavailable),
+  };
 }

@@ -9,6 +9,10 @@ distinct loading / empty / error / offline states (FR-033, SC-010). Dates as "se
 
 ## Student (student layout)
 
+Amendment 2026-10-31: on "Minhas atividades" each card also shows, larger on its right in the rounded brand font, the
+released grade of a work or exam, or an exercise's points ("Pontos parciais" until it is concluded and corrected; 013: never
+a grade). Nothing before the release; the unfinished exercise shows only points already earned, never a score of open answers.
+
 Menu: Painel, Minhas atividades, Histórico, Minhas turmas, Meu perfil. Start page `/painel`
 (research P23).
 

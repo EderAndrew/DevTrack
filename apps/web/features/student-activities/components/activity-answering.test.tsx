@@ -1,4 +1,5 @@
 import type { StudentQuestion } from "@repo/contracts";
+import { focusManager } from "@tanstack/react-query";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +20,7 @@ import {
 import { CONFIRM_EXIT, EXIT_ROOM, PAUSED_TITLE, RESUME, RETURN_RELEASED } from "@/features/attendance/schemas/attendance";
 import { apiError, exerciseActivity, exerciseAttempt, json, routedFetch, studentActivity } from "./test-fixtures";
 import { STALE_RESULT } from "@/features/code-run/schemas/code-run";
+import { GROUP_POLL_MS } from "@/features/group-work/schemas/group-work";
 import { available, codeRun } from "@/features/code-run/components/test-fixtures";
 
 // 012/US3 — the answering screen: start, answer each type, navigate, autosave status, offline and
@@ -574,7 +576,7 @@ describe("015/US3 \"Pedir ajuda\" na tela de responder (modo NORMAL)", () => {
     vi.restoreAllMocks();
   });
 
-  it("015/US3-1 015/FR-015 com a ajuda ligada, cada questão tem \"Pedir ajuda\" e o contador do trabalho", async () => {
+  it("015/US3-1 015/FR-015 com a ajuda ligada, o ícone \"Pedir ajuda\" e o contador do trabalho ficam na tela em cada questão", async () => {
     const help = json(200, { allowance: 3, used: 1, pending: false, items: [] });
     const { user, container } = setup({
       [GET]: json(200, started({ aiHelp: { allowance: 3, used: 1 } })),
@@ -811,5 +813,242 @@ describe("021/US1 \"Executar\" numa questão de Código do Trabalho", () => {
     setup({ [GET]: json(200, submitted({ questions: [runnable] })) });
     expect(await screen.findByText("Implemente a soma.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Executar" })).toBeNull();
+  });
+});
+
+describe("023/US2 \"Iniciar\" num trabalho em grupo", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const CANDIDATES = `GET /api/me/activities/${activity.id}/group/candidates`;
+  const BRUNO = { id: "cccccccc-0000-4000-8000-000000000002", name: "Bruno Lima" };
+
+  it("023/US2-1 023/US2-2 abre a escolha dos integrantes; confirmar inicia com os escolhidos e segue para as questões", async () => {
+    const { user, api } = setup({
+      [GET]: json(200, studentActivity({ groupSize: 3 })),
+      [CANDIDATES]: json(200, { groupSize: 3, freeSlots: 2, candidates: [BRUNO] }),
+      [START]: json(200, started({ groupSize: 3 })),
+    });
+    await user.click(await screen.findByRole("button", { name: "Iniciar atividade" }));
+    expect(api.calls.filter((call) => call.method === "POST")).toEqual([]);
+    await user.click(await screen.findByRole("checkbox", { name: "Bruno Lima" }));
+    await user.click(screen.getByRole("button", { name: "Iniciar em grupo" }));
+    expect(await screen.findByText("Questão 1 de 3")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const post = api.calls.find((call) => call.method === "POST")!;
+    expect(JSON.parse(String(post.body))).toEqual({ memberIds: [BRUNO.id] });
+  });
+
+  it("023/US2-4 \"Continuar sozinho\" inicia individual", async () => {
+    const { user, api } = setup({
+      [GET]: json(200, studentActivity({ groupSize: 3 })),
+      [CANDIDATES]: json(200, { groupSize: 3, freeSlots: 2, candidates: [BRUNO] }),
+      [START]: json(200, started({ groupSize: 3 })),
+    });
+    await user.click(await screen.findByRole("button", { name: "Iniciar atividade" }));
+    await user.click(await screen.findByRole("button", { name: "Continuar sozinho" }));
+    expect(await screen.findByText("Questão 1 de 3")).toBeTruthy();
+    expect(JSON.parse(String(api.calls.find((call) => call.method === "POST")!.body))).toEqual({ alone: true });
+  });
+});
+
+describe("023/US3 o integrante abre o trabalho do grupo", () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const ANA = { id: "eeeeeeee-0000-4000-8000-000000000001", name: "Ana Souza" };
+  const BRUNO = { id: "eeeeeeee-0000-4000-8000-000000000002", name: "Bruno Lima" };
+  const memberGroup = {
+    groupSize: 3,
+    leader: ANA,
+    members: [ANA, BRUNO],
+    editor: ANA,
+    myRole: "MEMBER" as const,
+    canEdit: false,
+    addedBy: ANA,
+    freeSlots: 1,
+    version: 1,
+  };
+  const [first, second] = multiple.alternatives as [(typeof multiple.alternatives)[number], (typeof multiple.alternatives)[number]];
+  const asMember = (alternativeId: string, revision: number) =>
+    started({
+      groupSize: 3,
+      group: memberGroup,
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T11:00:00.000Z",
+        lastSavedAt: "2026-10-02T11:30:00.000Z",
+        answers: [{ questionId: multiple.id, answer: { kind: "ALTERNATIVE", alternativeId }, revision, savedBy: ANA }],
+      },
+    });
+  const selected = () => (screen.getAllByRole("radio") as HTMLInputElement[]).find((radio) => radio.checked)?.value;
+
+  it("023/US3-1 aviso, integrantes, \"Editando agora\" e as questões só leitura com quem edita", async () => {
+    const { user, container } = setup({ [GET]: json(200, asMember(first.id, 1)) });
+    expect(await screen.findByText("Você está no grupo de Ana Souza neste trabalho.")).toBeTruthy();
+    expect(screen.getByText("Ana Souza (líder), Bruno Lima")).toBeTruthy();
+    expect(within(screen.getByRole("status", { name: "Editando agora" })).getByText("Ana Souza")).toBeTruthy();
+    expect(screen.getByText("A edição está com Ana Souza.")).toBeTruthy();
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(selected()).toBe(first.id);
+    expect(screen.getByText("Salvo por Ana Souza.")).toBeTruthy();
+    for (const radio of screen.getAllByRole("radio") as HTMLInputElement[]) expect(radio.disabled).toBe(true);
+    // Neither "Iniciar" nor "Entregar" for a member.
+    expect(screen.queryByRole("button", { name: "Iniciar atividade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("023/US4-1 quem recebe a edição continua na questão em que estava", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    focusManager.setFocused(true);
+    const reading = asMember(first.id, 1);
+    const editing = { ...reading, group: { ...memberGroup, canEdit: true } };
+    let reads = 0;
+    const { user } = setup({ [GET]: () => json(200, reads++ === 0 ? reading : editing) });
+    await screen.findByText("A edição está com Ana Souza.");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(screen.getByText("Questão 2 de 3")).toBeTruthy();
+    await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
+    await vi.waitFor(() => expect(screen.queryByText("A edição está com Ana Souza.")).toBeNull());
+    expect(screen.getByText("Questão 2 de 3")).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("023/US3-4 023/SC-004 a página relê a atividade a cada 5 s e mostra a resposta nova, só visível", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    focusManager.setFocused(true);
+    let reads = 0;
+    const { user } = setup({ [GET]: () => json(200, reads++ === 0 ? asMember(first.id, 1) : asMember(second.id, 2)) });
+    await screen.findByText("A edição está com Ana Souza.");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(selected()).toBe(first.id);
+    await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
+    await vi.waitFor(() => expect(selected()).toBe(second.id));
+    // The reader stays on the question they were reading.
+    expect(screen.getByText("Questão 2 de 3")).toBeTruthy();
+
+    const before = reads;
+    act(() => focusManager.setFocused(false));
+    await act(() => vi.advanceTimersByTimeAsync(3 * GROUP_POLL_MS));
+    expect(reads).toBe(before);
+  });
+
+  it("023/US4-2 quem edita também relê: o texto fica na tela e a retomada vira leitura em até 10 s", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    focusManager.setFocused(true);
+    const group = { ...memberGroup, editor: BRUNO, canEdit: true };
+    const editing = started({ groupSize: 3, group });
+    const reading = started({ groupSize: 3, group: { ...group, editor: ANA, canEdit: false } });
+    let takenBack = false;
+    const { user } = setup({ [GET]: () => json(200, takenBack ? reading : editing) });
+    await screen.findByRole("navigation", { name: "Questões" });
+    const box = screen.getByLabelText("Sua resposta") as HTMLTextAreaElement;
+    await user.type(box, "Texto em digitação");
+    await act(() => vi.advanceTimersByTimeAsync(2 * GROUP_POLL_MS));
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).value).toBe("Texto em digitação");
+    expect(screen.queryByText(/A edição está com/)).toBeNull();
+
+    takenBack = true;
+    await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
+    expect(await screen.findByText("A edição está com Ana Souza.")).toBeTruthy();
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(true);
+  });
+
+  it("023/US4-2 um 409 GROUP_NOT_EDITOR ao salvar troca a página para leitura com o aviso; o que não foi salvo some", async () => {
+    let reads = 0;
+    const editing = started({ groupSize: 3, group: { ...memberGroup, editor: BRUNO, canEdit: true } });
+    const reading = started({ groupSize: 3, group: { ...memberGroup, editor: ANA, canEdit: false } });
+    const { user } = setup({
+      [GET]: () => json(200, reads++ === 0 ? editing : reading),
+      [SAVE]: apiError(409, "GROUP_NOT_EDITOR", "x"),
+    });
+    const field = await screen.findByLabelText("Sua resposta");
+    await user.type(field, "Texto não salvo");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    expect(await screen.findByText("A edição voltou para Ana Souza. O que não foi salvo foi perdido.")).toBeTruthy();
+    expect(screen.getByText("A edição está com Ana Souza.")).toBeTruthy();
+    expect(readPendingAnswers("aluno-1", activity.id)).toEqual([]);
+    // A fresh reading screen, back on the first question, with the group's answer (none saved).
+    const reread = screen.getByLabelText("Sua resposta") as HTMLTextAreaElement;
+    expect([reread.disabled, reread.value]).toEqual([true, ""]);
+  });
+});
+
+describe("023/US5 entregar pelo grupo e o resultado de cada integrante", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const ANA = { id: "eeeeeeee-0000-4000-8000-000000000001", name: "Ana Souza" };
+  const BRUNO = { id: "eeeeeeee-0000-4000-8000-000000000002", name: "Bruno Lima" };
+  const groupOf = (overrides: Record<string, unknown>) => ({
+    groupSize: 3,
+    leader: ANA,
+    members: [ANA, BRUNO],
+    editor: ANA,
+    myRole: "LEADER" as const,
+    canEdit: true,
+    addedBy: null,
+    freeSlots: 1,
+    version: 1,
+    ...overrides,
+  });
+
+  it("023/US5-4 \"Entregar\" só para o líder segurando a edição; sem ela, desabilitado com \"Retome a edição para entregar\"", async () => {
+    const leading = setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({}) })) });
+    const enabled = (await screen.findByRole("button", { name: "Entregar atividade" })) as HTMLButtonElement;
+    expect(enabled.disabled).toBe(false);
+    expect(screen.queryByText("Retome a edição para entregar")).toBeNull();
+    leading.unmount();
+
+    const waiting = setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({ editor: BRUNO, canEdit: false }) })) });
+    const disabled = (await screen.findByRole("button", { name: "Entregar atividade" })) as HTMLButtonElement;
+    expect(disabled.disabled).toBe(true);
+    expect(screen.getByText("Retome a edição para entregar")).toBeTruthy();
+    expect(disabled.getAttribute("aria-describedby")).toBe(screen.getByText("Retome a edição para entregar").id);
+    await expectNoA11yViolations(waiting.container);
+    waiting.unmount();
+
+    // A member, even while editing, never sees it (FR-018).
+    setup({ [GET]: json(200, started({ groupSize: 3, group: groupOf({ editor: BRUNO, myRole: "MEMBER", canEdit: true, addedBy: ANA }) })) });
+    await screen.findByRole("navigation", { name: "Questões" });
+    expect((screen.getByLabelText("Sua resposta") as HTMLTextAreaElement).disabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
+  });
+
+  it("023/US5-5 o resultado liberado aparece para o integrante como na 012", async () => {
+    setup({
+      [GET]: json(
+        200,
+        submitted({
+          status: "GRADED",
+          groupSize: 3,
+          group: groupOf({ myRole: "MEMBER", canEdit: false, addedBy: ANA }),
+          result: {
+            grade: "0.85",
+            generalFeedback: "Bom trabalho do grupo.",
+            questions: [
+              { questionId: open.id, grade: "0.35", feedback: "Faltou citar a interface." },
+              { questionId: multiple.id, grade: "0.30", feedback: null },
+              { questionId: code.id, grade: "0.20", feedback: null },
+            ],
+          },
+        }),
+      ),
+    });
+    const result = await screen.findByRole("region", { name: "Resultado" });
+    expect(within(result).getByText("0,85 de 1,00")).toBeTruthy();
+    expect(within(result).getByText("Bom trabalho do grupo.")).toBeTruthy();
+    expect(screen.getByText("Você está no grupo de Ana Souza neste trabalho.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Entregar atividade" })).toBeNull();
   });
 });

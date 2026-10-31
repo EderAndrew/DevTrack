@@ -8,12 +8,21 @@ import { type ActivityFacts, assignmentSchedule, examTiming } from "../activitie
 import { endsAt, type ExamTiming, startDeadline } from "../activities/status/exam-time";
 import { type AnswerRow, answerOfRow } from "../activities/status/answers";
 import { examEndOf, pauseTime } from "../activities/status/pause-time";
+import { decideOperation, type OperationRefusal } from "../activities/status/operations";
 import type { ActivityQuestionRow } from "../activities/views/rows";
-import type { ConcludedAttemptInput, StudentActivityDetailInput, StudentActivityInput, StudentExamInput } from "../activities/views/student-view";
+import { canEdit, groupRoles } from "../activities/group/group-roles";
+import type {
+  ConcludedAttemptInput,
+  StudentActivityDetailInput,
+  StudentActivityInput,
+  StudentExamInput,
+  StudentGroupInput,
+} from "../activities/views/student-view";
 
 /**
  * The session student's own attempt of one activity of their context (015 routes under
- * `/me/activities/:activityId/attempt/…`, research F4): the activity's facts and the latest attempt.
+ * `/me/activities/:activityId/attempt/…`, research F4): the activity's facts and the latest attempt
+ * the student takes part in — theirs or, since 023, their group's (research U5).
  */
 export interface OwnAttemptContext {
   classActive: boolean;
@@ -32,8 +41,9 @@ export interface OwnAttemptContext {
   /** 018: an EXAM's time (research T4); null for the other types. */
   exam: ExamTiming | null;
   /**
-   * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause not released while the activity
-   * is ACTIVE. Read after the attempt's lock, so a pause committed before it is seen.
+   * 016: the attempt is PAUSED (research M6): IN_PROGRESS with a pause of the session student not
+   * released while the activity is ACTIVE (023/FR-023: each participant's own). Read after the attempt's
+   * lock, so a pause committed before it is seen.
    */
   paused: { pauseId: string } | null;
 }
@@ -65,6 +75,7 @@ const ACTIVITY_SELECT = {
   aiHelpAllowance: true,
   releaseMode: true,
   codeExecutionAllowed: true,
+  groupSize: true,
   title: true,
   instructions: true,
   status: true,
@@ -150,7 +161,8 @@ export class StudentActivityLoader {
     const pause =
       attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.releaseMode === "PRESENT_ONLY"
         ? await this.prisma.attemptPause.findFirst({
-            where: { attemptId: attempt.id, releasedAt: null },
+            // 023/FR-023: the caller's own pause; a group member's pause stops only that member.
+            where: { attemptId: attempt.id, studentUserId, releasedAt: null },
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true },
           })
         : null;
@@ -158,6 +170,9 @@ export class StudentActivityLoader {
     const exam = activity.type === "EXAM" ? await this.examOf(activity, attempt) : null;
     const hidden = pause !== null || exam?.hold != null;
     const answers = attempt && !hidden ? await this.answersOf(attempt.id) : [];
+    const group = attempt && activity.groupSize !== null ? await this.groupOf(studentUserId, attempt.id, activity) : null;
+    // 023: on a group's attempt each answer says who saved it — a participant, so one of the members.
+    const savedBy = group && new Map(group.members.map((member) => [member.id, member]));
     // EXERCISE: the latest concluded attempt, with its answer key (013/FR-012).
     const concluded = activity.type === "EXERCISE" ? attempts.filter((row) => row.completedAt !== null).at(-1) : undefined;
     // 016/FR-021: the own pauses, only after the submission; each end derived with the server's now.
@@ -165,7 +180,7 @@ export class StudentActivityLoader {
     const pauses =
       attempt && submission && activity.releaseMode === "PRESENT_ONLY"
         ? await this.prisma.attemptPause.findMany({
-            where: { attemptId: attempt.id },
+            where: { attemptId: attempt.id, studentUserId },
             orderBy: [{ startedAt: "asc" }, { id: "asc" }],
             select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
           })
@@ -183,13 +198,115 @@ export class StudentActivityLoader {
       pause,
       pauses: pauses.map(({ releasedAt, ...pause }) => ({ ...pause, endedAt: pauseTime({ ...pause, releasedAt }, pauseEnd, now).endedAt })),
       attempt: attempt
-        ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map(toStudentAnswer) }
+        ? { number: attempt.number, startedAt: attempt.startedAt, lastSavedAt: attempt.lastSavedAt, answers: answers.map((row) => toStudentAnswer(row, savedBy)) }
         : null,
       completedAttempts: attempts
         .flatMap((row) => (row.completedAt ? [{ number: row.number, completedAt: row.completedAt }] : []))
         .sort((a, b) => b.number - a.number),
       lastResult: concluded ? await this.concludedInput(concluded) : null,
       exam,
+      group,
+    };
+  }
+
+  /**
+   * 023: the facts of a group work for its candidate list (research U6): null out of context (→ 404),
+   * else the format and the caller's participation — the stored leader of their group (null when they
+   * started alone) and how many take part.
+   */
+  async groupContext(
+    studentUserId: string,
+    activityId: string,
+    now: Date,
+  ): Promise<{
+    groupSize: number | null;
+    /** 023/FR-005: the 012 START rule's refusal on this work (closed, deadline passed under REJECT…), or null. */
+    startRefusal: OperationRefusal | null;
+    participation: { leaderId: string | null; participantCount: number } | null;
+  } | null> {
+    const activity = await this.prisma.classActivity.findFirst({
+      where: { id: activityId, type: "ASSIGNMENT", ...visibleTo(studentUserId, now) },
+      select: { groupSize: true, status: true, deadline: true, latePolicy: true, resultReleasedAt: true, schoolClass: { select: { status: true } } },
+    });
+    if (!activity) return null;
+    // Whether a start without an attempt would be accepted now: the list is for a start or an inclusion.
+    const start = decideOperation("START", {
+      type: "ASSIGNMENT",
+      activityStatus: activity.status,
+      ...assignmentSchedule(activity),
+      classActive: activity.schoolClass.status === "ACTIVE",
+      attempt: null,
+      submission: null,
+      released: activity.resultReleasedAt !== null,
+      now,
+    });
+    const attempt = await this.prisma.activityAttempt.findFirst({
+      where: { activityId, participants: { some: { studentUserId } } },
+      orderBy: { number: "desc" },
+      select: { group: { select: { leaderUserId: true } }, _count: { select: { participants: true } } },
+    });
+    return {
+      groupSize: activity.groupSize,
+      startRefusal: start.kind === "REFUSED" ? start.code : null,
+      participation: attempt ? { leaderId: attempt.group?.leaderUserId ?? null, participantCount: attempt._count.participants } : null,
+    };
+  }
+
+  /**
+   * 023/FR-009 (research U9): the caller's group, with the effective leader and editor of `groupRoles` —
+   * a participant who lost the class or is paused doesn't edit — and who added the caller. Null for an
+   * attempt without a group ("Continuar sozinho").
+   */
+  private async groupOf(
+    studentUserId: string,
+    attemptId: string,
+    activity: Pick<ActivityRow, "groupSize" | "status" | "schoolClass">,
+  ): Promise<StudentGroupInput | null> {
+    const group = await this.prisma.attemptGroup.findUnique({
+      where: { attemptId },
+      select: { leaderUserId: true, editorUserId: true, version: true },
+    });
+    if (!group || activity.groupSize === null) return null;
+    const [participants, enrolled, paused] = await Promise.all([
+      // The owner first among those who joined in the same instant (the start), then by name.
+      this.prisma.attemptParticipant.findMany({
+        where: { attemptId },
+        orderBy: [{ joinedAt: "asc" }, { addedByUserId: { sort: "asc", nulls: "first" } }, { student: { user: { name: "asc" } } }],
+        select: { studentUserId: true, joinedAt: true, addedByUserId: true, student: { select: { user: { select: { name: true } } } } },
+      }),
+      this.prisma.enrollment.findMany({ where: { classId: activity.schoolClass.id, status: "ACTIVE" }, select: { studentUserId: true } }),
+      activity.status === "ACTIVE"
+        ? this.prisma.attemptPause.findMany({ where: { attemptId, releasedAt: null }, select: { studentUserId: true } })
+        : [],
+    ]);
+    const active = new Set(enrolled.map((row) => row.studentUserId));
+    const pausedIds = new Set(paused.map((row) => row.studentUserId));
+    const names = new Map(participants.map((row) => [row.studentUserId, row.student.user.name]));
+    const roles = groupRoles({
+      leaderId: group.leaderUserId,
+      editorId: group.editorUserId,
+      groupSize: activity.groupSize,
+      participants: participants.map((row) => ({
+        id: row.studentUserId,
+        joinedAt: row.joinedAt,
+        active: active.has(row.studentUserId),
+        paused: pausedIds.has(row.studentUserId),
+      })),
+    });
+    const person = (id: string) => ({ id, name: names.get(id) ?? "" });
+    const leaderId = roles.leaderId ?? group.leaderUserId;
+    const editorId = roles.editorId ?? leaderId;
+    const me = participants.find((row) => row.studentUserId === studentUserId);
+    return {
+      groupSize: activity.groupSize,
+      leader: person(leaderId),
+      members: roles.members.map((member) => person(member.id)),
+      editor: person(editorId),
+      myRole: leaderId === studentUserId ? "LEADER" : "MEMBER",
+      canEdit: canEdit(roles, studentUserId),
+      addedBy: me?.addedByUserId ? person(me.addedByUserId) : null,
+      freeSlots: roles.freeSlots,
+      version: group.version,
     };
   }
 
@@ -245,7 +362,7 @@ export class StudentActivityLoader {
     if (!activity) return { inContext: false, found: null };
     if (activity.type !== "EXERCISE") return { inContext: true, found: null };
     const attempt = await this.prisma.activityAttempt.findFirst({
-      where: { activityId, studentUserId, number, completedAt: { not: null } },
+      where: { activityId, participants: { some: { studentUserId } }, number, completedAt: { not: null } },
       select: ATTEMPT_SELECT,
     });
     if (!attempt) return { inContext: true, found: null };
@@ -265,7 +382,7 @@ export class StudentActivityLoader {
   private answersOf(attemptId: string) {
     return this.prisma.activityAnswer.findMany({
       where: { attemptId },
-      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true },
+      select: { questionId: true, questionType: true, text: true, alternativeId: true, source: true, revision: true, savedByUserId: true },
     });
   }
 
@@ -323,8 +440,9 @@ export class StudentActivityLoader {
     >`
       SELECT a.id, a.status::text AS status, a.started_at, s.submitted_at, s.end_reason::text AS end_reason
       FROM activity_attempts a
+      JOIN attempt_participants p ON p.attempt_id = a.id
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
-      WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+      WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
       ORDER BY a.number DESC LIMIT 1
       ${tx ? (exclusive ? Prisma.sql`FOR UPDATE OF a` : Prisma.sql`FOR SHARE OF a`) : Prisma.empty}`;
     const attempt = attempts[0];
@@ -332,7 +450,8 @@ export class StudentActivityLoader {
     const pauses =
       attempt?.status === "IN_PROGRESS" && activity.status === "ACTIVE" && activity.release_mode === "PRESENT_ONLY"
         ? await db.$queryRaw<{ id: string }[]>`
-            SELECT id FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`
+            SELECT id FROM attempt_pauses
+            WHERE attempt_id = ${attempt.id}::uuid AND student_user_id = ${studentUserId}::uuid AND released_at IS NULL`
         : [];
     return {
       classActive: activity.class_active,
@@ -382,11 +501,14 @@ export class StudentActivityLoader {
     return null;
   }
 
-  /** The student's attempts of each activity, by number (one for an ASSIGNMENT; 1..n for an EXERCISE). */
+  /**
+   * The attempts the student takes part in, of each activity, by number (one for an ASSIGNMENT, theirs or
+   * their group's; 1..n for an EXERCISE) — through the participation, never the owner (023 research U5).
+   */
   private async attemptsOf(studentUserId: string, activityIds: readonly string[]): Promise<Map<string, AttemptRow[]>> {
     if (activityIds.length === 0) return new Map();
     const rows = await this.prisma.activityAttempt.findMany({
-      where: { studentUserId, activityId: { in: [...activityIds] } },
+      where: { participants: { some: { studentUserId } }, activityId: { in: [...activityIds] } },
       select: ATTEMPT_SELECT,
       orderBy: { number: "asc" },
     });
@@ -465,6 +587,7 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
     executionMode: activity.executionMode,
     aiHelpAllowance: aiHelpAllowanceOf(activity.aiHelpAllowance),
     codeExecutionAllowed: activity.codeExecutionAllowed,
+    groupSize: activity.groupSize,
     title: activity.title,
     instructions: activity.instructions,
     class: { id: activity.schoolClass.id, name: activity.schoolClass.name },
@@ -501,8 +624,10 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
 }
 
 /** A saved answer with its revision (research P8). */
-const toStudentAnswer = (row: AnswerRow & { questionId: string; revision: number }): StudentAnswer => ({
-  questionId: row.questionId,
-  answer: answerOfRow(row),
-  revision: row.revision,
-});
+const toStudentAnswer = (
+  row: AnswerRow & { questionId: string; revision: number; savedByUserId: string },
+  savedBy: ReadonlyMap<string, { id: string; name: string }> | null,
+): StudentAnswer => {
+  const by = savedBy?.get(row.savedByUserId);
+  return { questionId: row.questionId, answer: answerOfRow(row), revision: row.revision, ...(by ? { savedBy: by } : {}) };
+};

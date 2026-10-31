@@ -53,9 +53,11 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   document listeners and, in the code editor, by `CodeEditor`'s `blockClipboard` (passed through
   `CodeAnswer`), fixed while mounted; nothing is ever read from the clipboard and typed text is never
   altered. Event times shown to anyone come from the server's `recordedAt` ("Estamos registrando este
-  evento" until it arrives); no text calls an exit fraud or a violation. The AI help (`QuestionHelp`,
-  `HelpGuidance`) shows the orientation as text and its example in `CodeBlock`; whether a help is used,
-  pending or refused comes from the API.
+  evento" until it arrives); no text calls an exit fraud or a violation. While the attempt is open the AI help is `HelpChat` (015 amendment 2026-10-31): a chat icon fixed on the
+  right opens a `Sheet` with the attempt's conversation; each reply ends with the helps left, a fixed text of the screen
+  (`remainingMessage`), never the model's. After the submission `QuestionHelp` and `HelpGuidance` show the orientations
+  under each question. The orientation is text and its example `CodeBlock`; whether a help is used, pending or refused
+  comes from the API.
 - Attendance (016): `features/attendance` holds the "Chamada" (`AttendanceTab`: the checklist with "Marcar todos" and
   a confirmed "Liberar para os presentes" that sends only the differences, then `RoomPanel` with each student's
   situation in words, "Marcar presente", "Desmarcar", "Liberar retorno" and "Pausar aluno"), `ExitRoomDialog` ("Sair
@@ -113,6 +115,16 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   (only the buttons of the allowed transitions; a `409` refetches). The menu item "Feedbacks" (`feedbacks.visualizar`)
   carries the RECEIVED badge, named "Feedbacks, N novos", refetched on focus and invalidation, never polled. Words in
   `features/feedback/schemas/`; the message is always text.
+- Group work (023): `features/group-work` holds `GroupStartDialog` (the checklist of "Iniciar", also "Incluir integrantes"
+  in `mode="add"`; a `409 GROUP_MEMBERS_UNAVAILABLE` reads the list again and names who left), `GroupBar` (members, "Editando
+  agora" in a `role="status"`, "Passar a edição", "Retomar a edição", "Devolver a edição", "Incluir integrantes") and
+  `GroupNotice`, mounted by `activity-answering.tsx` on the normal and the focus page. Whoever is not the effective editor reads
+  (`readsGroupAttempt`): questions disabled, "A edição está com <nome>." and "Salvo por <nome>.", the answers as the API last
+  sent them, never a browser copy, polled every `GROUP_POLL_MS` (5 s) while visible. A `409 GROUP_NOT_EDITOR` on a save turns the
+  page read-only with "A edição voltou para <líder>. O que não foi salvo foi perdido." The server decides every action; the
+  buttons only follow `group`. "Entregar atividade" only for the leader, disabled with "Retome a edição para entregar" without
+  the editing; "Executar" stays for readers. The teacher's `group-facts.tsx` (`GroupFacts`, `GroupLabel`) shows facts in words,
+  never "fraude", "cola" or "violação" (`test/exam-wording.test.ts` scans both).
 - Theme (022): the dark theme is `:root`, the light one `:root[data-theme="light"]` in `tokens.css`, which redefines
   only the color tokens; colors reach the screens only through tokens. The attribute comes from the root layout
   (`app/layout.tsx` reads `GET /me`: `LIGHT` → `light`, `DARK` or no session → `dark`), so the first HTML already has
@@ -135,7 +147,8 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the student's name in "Meus feedbacks" and the ADMIN's list and detail), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
   `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features,
-  `features/code-run` or `features/feedback`.
+  `features/code-run`, `features/feedback` or `features/group-work` (since 023 also the names in the group's dialog, bar,
+  notice and the teacher's facts).
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.
 - `test/lint-boundaries.test.ts` runs the real ESLint config to pin the layer rules, and

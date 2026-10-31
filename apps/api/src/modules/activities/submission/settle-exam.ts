@@ -56,7 +56,9 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
   const cutoff = new Date(now.getTime() - EXAM_END_GRACE_MS);
   const activityEnded = [timing.closedAt, timing.cancelledAt].some((date) => date !== null && date <= cutoff);
   const startedBy = new Date(cutoff.getTime() - timing.durationMinutes * 60_000);
-  const student = input.studentUserId ? Prisma.sql`AND a.student_user_id = ${input.studentUserId}::uuid` : Prisma.empty;
+  const student = input.studentUserId
+    ? Prisma.sql`AND EXISTS (SELECT 1 FROM attempt_participants pt WHERE pt.attempt_id = a.id AND pt.student_user_id = ${input.studentUserId}::uuid)`
+    : Prisma.empty;
   const candidates = await tx.$queryRaw<{ id: string; student_user_id: string; started_at: Date }[]>`
     SELECT a.id, a.student_user_id, a.started_at
     FROM activity_attempts a
@@ -78,7 +80,7 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
     const submission = await registerSubmission(tx, {
       attemptId: attempt.id,
       activityId,
-      studentUserId: attempt.student_user_id,
+      submittedByUserId: null,
       now: end,
       late: false,
       endReason,
@@ -103,8 +105,10 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
 export async function settleStudentExams(tx: Tx, audit: AuditService, input: { studentUserId: string; now: Date; requestId?: string | null }): Promise<number> {
   const activities = await tx.$queryRaw<{ activity_id: string }[]>`
     SELECT DISTINCT a.activity_id
-    FROM activity_attempts a JOIN class_activities ca ON ca.id = a.activity_id
-    WHERE a.student_user_id = ${input.studentUserId}::uuid AND a.status = 'IN_PROGRESS' AND ca.type = 'EXAM'
+    FROM activity_attempts a
+    JOIN attempt_participants pt ON pt.attempt_id = a.id
+    JOIN class_activities ca ON ca.id = a.activity_id
+    WHERE pt.student_user_id = ${input.studentUserId}::uuid AND a.status = 'IN_PROGRESS' AND ca.type = 'EXAM'
     ORDER BY a.activity_id`;
   let settled = 0;
   for (const { activity_id } of activities) settled += await settleExpiredExamAttempts(tx, audit, { ...input, activityId: activity_id });

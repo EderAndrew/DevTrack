@@ -49,6 +49,8 @@ export interface ApplyOverrides {
   aiHelpAllowance?: number;
   /** 021: "Permitir executar o código"; left out by default (false). Any value goes in as given, for the 400s. */
   codeExecution?: unknown;
+  /** 023: "Em grupo" with its maximum; left out by default (Individual). Any value goes in as given, for the 400s. */
+  groupSize?: unknown;
   /**
    * 016: not part of the body. `"ALL"` (default) marks every ACTIVE student of the class present
    * through the attendance route once a `PRESENT_ONLY` work is created, so the 012/013/015 suites
@@ -242,6 +244,8 @@ export interface CreateActivityOptions {
   releaseMode?: ActivityReleaseMode;
   /** 021: ASSIGNMENT only (CHECK, research Y1); default false. */
   codeExecutionAllowed?: boolean;
+  /** 023: 2–5 for a group work, only with `releaseMode: "PRESENT_ONLY"` (CHECK, research U2); default null (individual). */
+  groupSize?: number | null;
   /** EXAM only (CHECK): default a new APPROVED exam of the teacher, with its subject. */
   sourceExamId?: string;
   /** EXAM only (CHECK, 018 T3): defaults 60 min, 60 s and 15 min. */
@@ -332,6 +336,7 @@ export async function createActivity(
         aiHelpAllowance: options.aiHelpAllowance ?? 0,
         releaseMode: options.releaseMode ?? (exam ? "PRESENT_ONLY" : "ALL_ENROLLED"),
         codeExecutionAllowed: options.codeExecutionAllowed ?? false,
+        groupSize: options.groupSize ?? null,
         closedAt: status === "CLOSED" ? new Date(now) : null,
         cancelledAt: status === "CANCELLED" ? new Date(now) : null,
         ...(options.resultReleasedAt
@@ -439,6 +444,7 @@ export async function createAttemptRow(
       late: submission.late ?? Boolean(submission.acceptedById),
       blankCount: submission.blankCount ?? 0,
       acceptedById: submission.acceptedById ?? null,
+      submittedByUserId: submission.acceptedById ? null : studentUserId,
       grade: cents(submission.gradeCents ?? 0),
       gradePartial: submission.gradePartial ?? false,
       generalFeedback: submission.generalFeedback ?? null,

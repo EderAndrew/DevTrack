@@ -8,11 +8,12 @@ import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { type StoredPause, toTeacherPause } from "./views";
 
-const PAUSE_SELECT = { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
+const PAUSE_SELECT = { id: true, studentUserId: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true } as const;
 
 interface PauseRow {
   id: string;
   attempt_id: string;
+  student_user_id: string;
   initiated_by: PauseInitiator;
   reason: PauseReason;
   note: string | null;
@@ -69,10 +70,11 @@ export class PausesService {
       if (!enrolled[0]) throw notFound();
       if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");
       const attempts = await tx.$queryRaw<{ id: string; status: "IN_PROGRESS" | "SUBMITTED"; started_at: Date }[]>`
-        SELECT id, status::text AS status, started_at FROM activity_attempts
-        WHERE activity_id = ${activityId}::uuid AND student_user_id = ${studentUserId}::uuid
-        ORDER BY number DESC LIMIT 1
-        FOR UPDATE`;
+        SELECT a.id, a.status::text AS status, a.started_at FROM activity_attempts a
+        JOIN attempt_participants pt ON pt.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND pt.student_user_id = ${studentUserId}::uuid
+        ORDER BY a.number DESC LIMIT 1
+        FOR UPDATE OF a`;
       const attempt = attempts[0];
       if (!attempt) throw new AppException("NOT_STARTED");
       if (attempt.status === "SUBMITTED") throw new AppException("ATTEMPT_ALREADY_SUBMITTED");
@@ -89,7 +91,8 @@ export class PausesService {
       if (examEndsAt && now >= examEndsAt) throw new AppException("EXAM_TIME_OVER");
       // An IN_PROGRESS attempt of an ACTIVE activity within its time: a pause with no release is open.
       const context = { acceptedAt: null, activityEndedAt: null, examEndsAt };
-      const open = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, releasedAt: null }, select: PAUSE_SELECT });
+      // 023/FR-023: the student's own open pause; a group member may have theirs at the same time.
+      const open = await tx.attemptPause.findFirst({ where: { attemptId: attempt.id, studentUserId, releasedAt: null }, select: PAUSE_SELECT });
       if (open) return { pause: toTeacherPause(open, context, now), created: false };
 
       const pause: StoredPause = await tx.attemptPause.create({
@@ -132,7 +135,7 @@ export class PausesService {
       const activity = activities[0];
       if (!activity) throw notFound();
       const pauses = await tx.$queryRaw<PauseRow[]>`
-        SELECT p.id, p.attempt_id, p.initiated_by::text AS initiated_by, p.reason::text AS reason, p.note, p.started_at, p.released_at,
+        SELECT p.id, p.attempt_id, p.student_user_id, p.initiated_by::text AS initiated_by, p.reason::text AS reason, p.note, p.started_at, p.released_at,
                s.submitted_at AS accepted_at, a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at
         FROM attempt_pauses p
         JOIN activity_attempts a ON a.id = p.attempt_id
@@ -181,7 +184,7 @@ export class PausesService {
         submission: { select: { submittedAt: true, acceptedById: true } },
         pauses: {
           orderBy: [{ startedAt: "asc" }, { id: "asc" }],
-          select: { id: true, initiatedBy: true, reason: true, note: true, startedAt: true, releasedAt: true },
+          select: PAUSE_SELECT,
         },
       },
     });
@@ -199,6 +202,7 @@ export class PausesService {
 
 const storedPause = (row: PauseRow): StoredPause => ({
   id: row.id,
+  studentUserId: row.student_user_id,
   initiatedBy: row.initiated_by,
   reason: row.reason,
   note: row.note,

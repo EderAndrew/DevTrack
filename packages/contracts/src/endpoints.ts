@@ -80,6 +80,7 @@ import {
   SubmitAttemptRequestSchema,
 } from "./activities/student.js";
 import { RetryAttemptRequestSchema, StudentExerciseAttemptSchema } from "./activities/exercise-results.js";
+import { AddGroupMembersRequestSchema, GroupCandidatesSchema, GroupEditingRequestSchema, TeacherAttemptGroupSchema } from "./activities/group.js";
 import { ClassRankingSchema } from "./ranking/index.js";
 import { CodeRunnerAvailabilitySchema } from "./code-runs/availability.js";
 import { AttemptCodeRunSummarySchema } from "./code-runs/review.js";
@@ -1359,8 +1360,46 @@ export const endpoints = {
     status: 200,
   },
   /**
+   * 023: the classmates the caller may choose for a group work (FR-005), by name; 404 out of context or
+   * on a work that isn't in group; `409 GROUP_ALREADY_JOINED` when the caller started alone or is a member.
+   */
+  "myActivities.groupCandidates": {
+    method: "GET",
+    path: "/me/activities/:activityId/group/candidates",
+    params: MyActivityParamsSchema,
+    response: GroupCandidatesSchema,
+    status: 200,
+  },
+  /**
+   * 023/FR-016 (research U6): "Incluir integrantes", by the leader while the attempt is in progress, all or
+   * nothing under the activity's group lock. `409 GROUP_NOT_LEADER` / `GROUP_FULL` / `GROUP_MEMBERS_UNAVAILABLE`
+   * (with `unavailableIds`), `409 INVALID_STATE_TRANSITION` after the end.
+   */
+  "myActivities.groupMembers": {
+    method: "POST",
+    path: "/me/activities/:activityId/group/members",
+    params: MyActivityParamsSchema,
+    body: AddGroupMembersRequestSchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /**
+   * 023 research U7: HAND (leader, to an active unpaused member), TAKE_BACK (leader) or RETURN (the member
+   * editing); a HAND to the current editor changes nothing. `409 GROUP_NOT_LEADER` / `GROUP_NOT_EDITOR`,
+   * `422 GROUP_MEMBER_NOT_AVAILABLE`, `409 INVALID_STATE_TRANSITION` after the end.
+   */
+  "myActivities.groupEditing": {
+    method: "POST",
+    path: "/me/activities/:activityId/group/editing",
+    params: MyActivityParamsSchema,
+    body: GroupEditingRequestSchema,
+    response: StudentActivitySchema,
+    status: 200,
+  },
+  /**
    * Starts the single attempt; an existing attempt → 200 with the same one, no event (FR-016). An EXAM
-   * requires `{ acceptRules: true }` (018 research T13).
+   * requires `{ acceptRules: true }` (018 research T13). A group work takes `{ memberIds }` or
+   * `{ alone: true }` (023 research U6; `409 GROUP_MEMBERS_UNAVAILABLE` with `unavailableIds`).
    */
   "myActivities.start": {
     method: "POST",
@@ -1500,6 +1539,14 @@ export const endpoints = {
     path: "/classes/:classId/activities/:activityId/attempts/:attemptId/code-runs",
     params: ClassActivityAttemptParamsSchema,
     response: AttemptCodeRunSummarySchema,
+    status: 200,
+  },
+  /** 023/US6 — a group attempt's members, editing handoffs and saves per question (FR-020); an individual attempt → 404. */
+  "activities.attemptGroup": {
+    method: "GET",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/group",
+    params: ClassActivityAttemptParamsSchema,
+    response: TeacherAttemptGroupSchema,
     status: 200,
   },
   /** A concluded attempt of the session student with its answer key (013/FR-012). */

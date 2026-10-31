@@ -28,6 +28,11 @@ import { completeAttempt } from "../activities/results/complete-attempt";
 import { AnswerSaveGuard, type GuardedAnswer, type GuardedAttempt } from "./answer-save-guard";
 import { registerSubmission } from "../activities/submission/register-submission";
 import { ExamSettlement } from "../activities/exam-settlement";
+import { GroupSettlement } from "../activities/group-settlement";
+import { canEdit } from "../activities/group/group-roles";
+import { readGroup } from "../activities/group/settle-group";
+import { eligibleClassmates, lockActivityGroups } from "./group-eligibility";
+import { GroupRefused, recordGroupRefusal } from "./group-refusal";
 import { MyActivitiesService } from "./my-activities.service";
 import { releasedToSql, StudentActivityLoader } from "./student-activity-loader";
 
@@ -64,6 +69,8 @@ interface ContextRow {
   released: boolean;
   /** 016: a `PRESENT_ONLY` work is released only to the students marked present. */
   release_mode: ReleaseMode;
+  /** 023: "Em grupo" with its maximum, or null. */
+  group_size: number | null;
 }
 
 interface AttemptRow {
@@ -116,6 +123,7 @@ export class AttemptsService {
     private readonly myActivities: MyActivitiesService,
     private readonly answerGuard: AnswerSaveGuard,
     private readonly examSettlement: ExamSettlement,
+    private readonly groupSettlement: GroupSettlement,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -123,22 +131,51 @@ export class AttemptsService {
   /**
    * Starts the attempt, or returns the existing one (no event); 409 when the rules refuse it. An EXAM
    * starts only with its rules accepted (`acceptRules: true`, else 400) and up to its start deadline
-   * (018/FR-011, research T13).
+   * (018/FR-011, research T13). A group work (023 research U6) starts with the chosen classmates —
+   * the attempt, their participations and the group led and edited by the caller, all at once under the
+   * activity's advisory lock, each id re-checked (`409 GROUP_MEMBERS_UNAVAILABLE` with the ids, nothing
+   * created) — or alone, as an individual attempt. A student who already takes part (theirs or their
+   * group's) gets that attempt back (FR-010).
    */
   async start(studentUserId: string, activityId: string, body: StartAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.guarded("START", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       if (context.type === "EXAM" && body.acceptRules !== true) throw validationError();
+      assertStartFormat(context, body, studentUserId);
       await this.assertStartRate(tx, context, studentUserId);
+      if (context.group_size !== null) await lockActivityGroups(tx, activityId);
       const attempt = await findAttempt(tx, activityId, studentUserId, false);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("START", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       if (outcome.kind === "REPEAT") return;
 
+      const memberIds = body.memberIds ?? [];
+      if (memberIds.length > 0) {
+        const eligible = new Set((await eligibleClassmates(tx, activityId, studentUserId)).map((row) => row.id));
+        const unavailableIds = memberIds.filter((id) => !eligible.has(id));
+        if (unavailableIds.length > 0) throw new AppException("GROUP_MEMBERS_UNAVAILABLE", undefined, {}, { unavailableIds });
+      }
+
       const inserted = await tx.activityAttempt.createMany({ data: [{ activityId, studentUserId, startedAt: now }], skipDuplicates: true });
       if (inserted.count === 0) return; // Another tab or click inserted it first: same attempt, no event.
-      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, studentUserId, number: 1 }, select: { id: true } });
+      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, participants: { some: { studentUserId } }, number: 1 }, select: { id: true } });
+      if (memberIds.length > 0) {
+        // The group first: a member's participation needs it (trigger).
+        await tx.attemptGroup.create({
+          data: { attemptId: created.id, activityId, leaderUserId: studentUserId, editorUserId: studentUserId, createdAt: now },
+        });
+        await tx.attemptParticipant.createMany({
+          data: memberIds.map((memberId) => ({
+            attemptId: created.id,
+            activityId,
+            studentUserId: memberId,
+            attemptNumber: 1,
+            joinedAt: now,
+            addedByUserId: studentUserId,
+          })),
+        });
+      }
       await this.audit.record(tx, {
         type: "activity_attempt.started",
         actorType: "USER",
@@ -152,33 +189,55 @@ export class AttemptsService {
           afterDeadline: facts.type === "ASSIGNMENT" && wouldBeLate(facts),
           attemptNumber: 1,
           ...(facts.type === "EXAM" ? { rulesAccepted: true } : {}),
+          // 023: only on a group work, so an individual work's event reads as before (SC-007).
+          ...(context.group_size !== null ? { group: memberIds.length > 0, memberCount: memberIds.length + 1 } : {}),
         },
       });
+      if (memberIds.length > 0) await this.recordGroupCreated(tx, studentUserId, activityId, created.id, memberIds, requestId);
     });
     return this.myActivities.get(studentUserId, activityId, requestId);
+  }
+
+  /** 023 (contracts/audit-events.md): the group and one event per member brought in at the start. */
+  private async recordGroupCreated(
+    tx: Tx,
+    leaderId: string,
+    activityId: string,
+    attemptId: string,
+    memberIds: readonly string[],
+    requestId: string | null,
+  ): Promise<void> {
+    const event = { actorType: "USER", actorUserId: leaderId, targetType: "ACTIVITY_ATTEMPT", targetId: attemptId, requestId } as const;
+    await this.audit.record(tx, { ...event, type: "activity_group.created", metadata: { activityId, attemptId, memberCount: memberIds.length + 1 } });
+    for (const memberId of memberIds) {
+      await this.audit.record(tx, { ...event, type: "activity_group.member_added", metadata: { activityId, attemptId, memberId } });
+    }
   }
 
   /**
    * Saves up to 10 answers (research P8), each on its own: equal content → UNCHANGED; `baseRevision`
    * equal to the stored one (or no row yet) → written with `revision + 1`, SAVED; otherwise CONFLICT
    * with the server's answer. Any answer that doesn't fit its question → 422 and nothing is written.
+   * In a group (023 research U8) only the effective editor saves (`409 GROUP_NOT_EDITOR`).
    */
   async saveAnswers(studentUserId: string, activityId: string, body: SaveAnswersRequest, requestId: string | null): Promise<SaveAnswersResult> {
     await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
+    await this.groupSettlement.ofStudent(studentUserId, activityId, this.clock.now(), requestId);
     return this.guarded("SAVE", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-saves", studentUserId, this.config.rateLimit.activitySavesPerMinute, MINUTE_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
-      await assertNotPaused(tx, context, attempt);
+      await assertNotPaused(tx, context, attempt, studentUserId);
       await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const outcome = decideOperation("SAVE", factsOf(context, attempt, now));
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
+      await assertGroupWriter(tx, context, attempt!, activityId, studentUserId, "SAVE");
       const attemptId = attempt!.id;
       const guarded = guardedAttempt(context, attempt!, activityId, studentUserId);
       const guard = (items: GuardedAnswer[]) => this.answerGuard.check(tx, guarded, items, now);
 
-      const { questions, stored, results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now, guard });
+      const { questions, stored, results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now, guard });
       if (saved > 0) await this.recordProgress(tx, { studentUserId, activityId, attempt: attempt!, context, questions, stored, now, requestId });
       return { savedAt: now.toISOString(), results };
     });
@@ -189,27 +248,30 @@ export class AttemptsService {
    * `FOR SHARE` (a close waits) and the attempt `FOR UPDATE`; an attempt already submitted returns its
    * submission (no event, nothing written); otherwise the rules, the pending answers under the save's
    * revision rule — a stale revision with other content aborts with `409 ANSWER_CHANGED_ELSEWHERE` —,
-   * then the submission, its grading and `activity_submission.created`.
+   * then the submission, its grading and `activity_submission.created`. In a group (023/FR-018) only the
+   * leader submits (`409 GROUP_NOT_LEADER`), holding the editing (`409 GROUP_NOT_EDITOR`).
    */
   async submit(studentUserId: string, activityId: string, body: SubmitAttemptRequest, requestId: string | null): Promise<StudentActivity> {
     await this.examSettlement.ofAttempt(studentUserId, activityId, this.clock.now(), requestId);
+    await this.groupSettlement.ofStudent(studentUserId, activityId, this.clock.now(), requestId);
     await this.guarded("SUBMIT", studentUserId, activityId, requestId, async (tx, now) => {
       const context = await lockContext(tx, studentUserId, activityId, now);
       await this.assertRate(tx, "activity-submits", studentUserId, this.config.rateLimit.activitySubmitsPerHour, HOUR_SEC);
       const attempt = await findAttempt(tx, activityId, studentUserId, true);
-      await assertNotPaused(tx, context, attempt);
+      await assertNotPaused(tx, context, attempt, studentUserId);
       await assertNotHeld(tx, context, attempt);
       await assertExamTime(tx, context, attempt, now);
       const facts = factsOf(context, attempt, now);
       const outcome = decideOperation("SUBMIT", facts);
       if (outcome.kind === "REFUSED") throw new Refused(outcome.code);
       if (outcome.kind === "REPEAT" || facts.type === "EXERCISE") return;
+      await assertGroupWriter(tx, context, attempt!, activityId, studentUserId, "SUBMIT");
       const attemptId = attempt!.id;
 
       if (body.answers.length > 0) {
         const guarded = guardedAttempt(context, attempt!, activityId, studentUserId);
         const guard = (items: GuardedAnswer[]) => this.answerGuard.check(tx, guarded, items, now);
-        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now, guard });
+        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now, guard });
         if (results.some((result) => result.outcome === "CONFLICT")) throw new Refused("ANSWER_CHANGED_ELSEWHERE");
         const refused = body.answers.filter((item) => results.some((result) => result.questionId === item.questionId && result.outcome === "TYPING_LIMIT_EXCEEDED"));
         if (refused.length > 0) throw new TypingRefused((recordTx) => this.recordTypingRefusal(recordTx, guarded, refused, now));
@@ -218,7 +280,7 @@ export class AttemptsService {
       // An EXAM is never late: it has no deadline, and its time was checked above (018 research T4).
       const late = facts.type === "ASSIGNMENT" && wouldBeLate(facts);
       const endReason = facts.type === "EXAM" ? ("STUDENT_SUBMITTED" as const) : undefined;
-      const submission = await registerSubmission(tx, { attemptId, activityId, studentUserId, now, late, endReason });
+      const submission = await registerSubmission(tx, { attemptId, activityId, submittedByUserId: studentUserId, now, late, endReason });
       await this.audit.record(tx, {
         type: "activity_submission.created",
         actorType: "USER",
@@ -234,6 +296,8 @@ export class AttemptsService {
           questionCount: submission.questionCount,
           pendingTeacherCount: submission.pendingTeacherCount,
           ...(endReason ? { endReason } : {}),
+          // 023/FR-018: who submitted for the group; left out of other works' events (SC-007).
+          ...(context.group_size !== null ? { submittedById: studentUserId } : {}),
         },
       });
     });
@@ -258,7 +322,7 @@ export class AttemptsService {
       const number = afterNumber + 1;
       const inserted = await tx.activityAttempt.createMany({ data: [{ activityId, studentUserId, number, startedAt: now }], skipDuplicates: true });
       if (inserted.count === 0) return; // Another tab or click created it first: same attempt, no event.
-      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, studentUserId, number }, select: { id: true } });
+      const created = await tx.activityAttempt.findFirstOrThrow({ where: { activityId, participants: { some: { studentUserId } }, number }, select: { id: true } });
       await this.audit.record(tx, {
         type: "activity_attempt.started",
         actorType: "USER",
@@ -296,7 +360,7 @@ export class AttemptsService {
       const attemptId = attempt!.id;
 
       if (body.answers.length > 0) {
-        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, answers: body.answers, now });
+        const { results, saved } = await writeAnswers(tx, { activityId, attemptId, savedByUserId: studentUserId, answers: body.answers, now });
         if (results.some((result) => result.outcome === "CONFLICT")) throw new Refused("ANSWER_CHANGED_ELSEWHERE");
         if (saved > 0) await tx.activityAttempt.update({ where: { id: attemptId }, data: { lastSavedAt: now } });
       }
@@ -392,6 +456,7 @@ export class AttemptsService {
         await this.prisma.runInTransaction((tx) => error.record(tx));
         throw new AppException("TYPING_LIMIT_EXCEEDED");
       }
+      if (error instanceof GroupRefused) throw await recordGroupRefusal(this.prisma, this.audit, studentUserId, error, requestId);
       if (error instanceof Refused) {
         await this.audit.record(this.prisma, {
           type: "activity_submission.rejected",
@@ -450,7 +515,8 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
   const rows = await tx.$queryRaw<ContextRow[]>`
     SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy,
            ca.publish_at, ca.start_window_minutes, ca.duration_minutes, ca.closed_at, ca.cancelled_at, ca.question_count,
-           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode
+           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode,
+           ca.group_size
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
     WHERE ca.id = ${activityId}::uuid
@@ -472,15 +538,54 @@ async function lockContext(tx: Tx, studentUserId: string, activityId: string, no
 }
 
 /**
+ * 023 research U6: a group work starts with `memberIds` (1 to `groupSize − 1`, never the caller) or
+ * `alone`; any other work takes neither. The body's shape is the contract's; its fit to the format is here (400).
+ */
+function assertStartFormat(context: ContextRow, body: StartAttemptRequest, studentUserId: string): void {
+  if (context.group_size === null) {
+    if (body.memberIds !== undefined || body.alone !== undefined) throw validationError();
+    return;
+  }
+  if (body.alone === true) return;
+  const memberIds = body.memberIds;
+  if (!memberIds || memberIds.length > context.group_size - 1 || memberIds.includes(studentUserId)) throw validationError();
+}
+
+/**
  * 016/FR-013 (research M6): a save or submit of a paused attempt — IN_PROGRESS with a pause not
  * released while the activity is ACTIVE — is refused. Read after the attempt's `FOR UPDATE`, which the
  * pause also takes: whatever reached the lock before the pause committed was accepted (US3-9).
  */
-async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow | null): Promise<void> {
+async function assertNotPaused(tx: Tx, context: ContextRow, attempt: AttemptRow | null, studentUserId: string): Promise<void> {
   if (context.release_mode !== "PRESENT_ONLY" || context.status !== "ACTIVE" || attempt?.status !== "IN_PROGRESS") return;
+  // 023/FR-023: the writer's own pause; another group member's pause doesn't stop them.
   const open = await tx.$queryRaw<unknown[]>`
-    SELECT 1 FROM attempt_pauses WHERE attempt_id = ${attempt.id}::uuid AND released_at IS NULL`;
+    SELECT 1 FROM attempt_pauses
+    WHERE attempt_id = ${attempt.id}::uuid AND student_user_id = ${studentUserId}::uuid AND released_at IS NULL`;
   if (open.length > 0) throw new Refused("ATTEMPT_PAUSED");
+}
+
+/**
+ * 023/FR-012, FR-018 (research U8): in a group attempt only the editor writes answers, and only the leader
+ * submits, holding the editing — both as stored (the answer and submission triggers check those) and as
+ * effective now (not paused, still in the class). Read under the attempt's `FOR UPDATE`, which the editing
+ * changes also take: a save that reaches the lock after "Retomar a edição" is refused.
+ */
+async function assertGroupWriter(
+  tx: Tx,
+  context: ContextRow,
+  attempt: AttemptRow,
+  activityId: string,
+  studentUserId: string,
+  operation: "SAVE" | "SUBMIT",
+): Promise<void> {
+  if (context.group_size === null) return;
+  const group = await readGroup(tx, attempt.id);
+  if (!group) return;
+  if (operation === "SUBMIT" && (group.leaderId !== studentUserId || group.roles.leaderId !== studentUserId)) {
+    throw new GroupRefused(operation, "NOT_LEADER", activityId, attempt.id);
+  }
+  if (group.editorId !== studentUserId || !canEdit(group.roles, studentUserId)) throw new GroupRefused(operation, "NOT_EDITOR", activityId, attempt.id);
 }
 
 /**
@@ -524,7 +629,8 @@ async function assertExamTime(tx: Tx, context: ContextRow, attempt: AttemptRow |
 
 /**
  * The student's latest attempt (number 1 of an ASSIGNMENT; the open or latest practice attempt of an
- * EXERCISE, 013 K3), `FOR UPDATE` when the answers change (research P8). Its own `status` says
+ * EXERCISE, 013 K3) — the one they take part in, theirs or their group's (023 research U5) —, `FOR UPDATE`
+ * when the answers change (research P8). Its own `status` says
  * whether it was submitted (the submission is written in the same transaction): after waiting for the
  * lock, READ COMMITTED returns the row's latest version, while a subquery on another table would still
  * read the statement's older snapshot.
@@ -534,13 +640,15 @@ async function findAttempt(tx: Tx, activityId: string, studentUserId: string, lo
     ? await tx.$queryRaw<AttemptRow[]>`
         SELECT a.id, a.number, a.status::text AS status, a.started_at, a.last_progress_audited_at
         FROM activity_attempts a
-        WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+        JOIN attempt_participants p ON p.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
         ORDER BY a.number DESC LIMIT 1
         FOR UPDATE OF a`
     : await tx.$queryRaw<AttemptRow[]>`
         SELECT a.id, a.number, a.status::text AS status, a.started_at, a.last_progress_audited_at
         FROM activity_attempts a
-        WHERE a.activity_id = ${activityId}::uuid AND a.student_user_id = ${studentUserId}::uuid
+        JOIN attempt_participants p ON p.attempt_id = a.id
+        WHERE a.activity_id = ${activityId}::uuid AND p.student_user_id = ${studentUserId}::uuid
         ORDER BY a.number DESC LIMIT 1`;
   return rows[0] ?? null;
 }
@@ -560,12 +668,14 @@ async function writeAnswers(
   input: {
     activityId: string;
     attemptId: string;
+    /** 023: the session student, who wrote these revisions (`activity_answer_saves`, research U8). */
+    savedByUserId: string;
     answers: SaveAnswersRequest["answers"];
     now: Date;
     guard?: (answers: GuardedAnswer[]) => Promise<("OK" | "TYPING_LIMIT_EXCEEDED")[]>;
   },
 ): Promise<{ questions: Map<string, Question>; stored: Map<string, StoredAnswer>; results: SaveAnswersResult["results"]; saved: number }> {
-  const { activityId, attemptId, now } = input;
+  const { activityId, attemptId, savedByUserId, now } = input;
   const questions = await loadQuestions(tx, activityId);
   for (const item of input.answers) {
     const question = questions.get(item.questionId);
@@ -601,8 +711,8 @@ async function writeAnswers(
       const columns = columnsOf(item.answer);
       await tx.activityAnswer.upsert({
         where: { attemptId_questionId: { attemptId, questionId: item.questionId } },
-        create: { attemptId, activityId, questionId: item.questionId, questionType: question.type, ...columns, revision, savedAt: now },
-        update: { ...columns, revision, savedAt: now },
+        create: { attemptId, activityId, questionId: item.questionId, questionType: question.type, ...columns, revision, savedAt: now, savedByUserId },
+        update: { ...columns, revision, savedAt: now, savedByUserId },
       });
       stored.set(item.questionId, { questionId: item.questionId, questionType: question.type, ...columns, revision });
       results.push({ questionId: item.questionId, outcome: "SAVED", revision });

@@ -207,6 +207,10 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         // 020/US1: a student's feedback — the message and the page it was sent from (MARCADOR-*-020).
         "mensagem do feedback (020)",
         "tela de origem do feedback (020)",
+        // 023: a group work — the members' names and the answer saved by a member (MARCADOR-GRUPO-023).
+        "nome do líder do grupo (023)",
+        "nome do integrante do grupo (023)",
+        "resposta do grupo (023)",
       ]),
     );
     const events = await t.prisma.auditEvent.findMany({ select: { type: true, metadata: true } });

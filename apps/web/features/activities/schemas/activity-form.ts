@@ -17,6 +17,7 @@ import {
   EXAM_START_WINDOW_MINUTES_MIN,
   type ExerciseDifficulty,
   GradeStringSchema,
+  GroupSizeSchema,
   type HelpAvailability,
   type LatePolicy,
   LatePolicySchema,
@@ -88,6 +89,18 @@ export const CODE_RUNNER_UNAVAILABLE = "A execução está indisponível agora; 
 export const CODE_EXECUTION_BADGE = "Execução de código: permitida";
 export const WORK_OPTIONS_LOCKED = "Não é possível mudar depois que um aluno iniciou.";
 
+// 023 contracts/web-ui.md: "Formato" of a work, Individual by default; "Em grupo" with a maximum of 2 to 5.
+export const GROUP_FORMAT_TEXTS = {
+  legend: "Formato",
+  individual: "Individual",
+  group: "Em grupo",
+  size: "Máximo de integrantes, com o líder",
+} as const;
+export const GROUP_SIZE_OPTIONS = ["2", "3", "4", "5"] as const;
+export const GROUP_SIZE_DEFAULT = "3";
+export const GROUP_SIZE_MESSAGE = "Escolha de 2 a 5 integrantes, com o líder.";
+export const groupBadge = (groupSize: number) => `Em grupo (até ${groupSize})`;
+
 const HELP_UNAVAILABLE_REASONS: Record<NonNullable<HelpAvailability["reason"]>, string> = {
   AGENT_DISABLED: "o administrador ainda não ativou a ajuda da IA.",
   MODEL_UNAVAILABLE: "nenhum modelo de IA está disponível agora.",
@@ -111,14 +124,21 @@ export const OUT_OF_TAUGHT_SCOPE = "Fora do escopo ensinado";
 /** Only a Trabalho has a mode and an AI help (015/FR-002); an exam's are fixed by the server (018/FR-010). */
 export const hasWorkOptions = (type: ActivityType) => type === "ASSIGNMENT";
 
+/** 023/FR-002: the format of an applied work changes only on a work that takes attendance (`422 GROUP_NEEDS_ATTENDANCE`). */
+export const mayChooseGroup = (activity: Pick<TeacherActivity, "type" | "releaseMode">) =>
+  hasWorkOptions(activity.type) && activity.releaseMode === "PRESENT_ONLY";
+
 /** A student started it: the mode and the AI help can't change any more (015/FR-005). */
 export const activityStarted = (activity: TeacherActivity) => activity.roster.some((entry) => entry.attemptId !== null);
 
 /** The options turned on, as text (015/FR-006): never only an icon or a color. */
-export function workOptionBadges(activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp" | "codeExecution">): string[] {
+export function workOptionBadges(
+  activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp" | "codeExecution" | "groupSize">,
+): string[] {
   // An exam is always restricted and has no help (018/FR-010).
   if (activity.type === "EXAM") return [EXAM_RESTRICTED_BADGE];
   return [
+    ...(activity.groupSize !== null ? [groupBadge(activity.groupSize)] : []),
     ...(activity.executionMode === "CONTROLLED" ? ["Modo controlado"] : []),
     ...(activity.aiHelp.allowance > 0 ? [`Ajuda da IA: ${activity.aiHelp.allowance} por aluno`] : []),
     ...(activity.codeExecution ? [CODE_EXECUTION_BADGE] : []),
@@ -183,6 +203,20 @@ const EXAM_RANGES = {
 /** What the teacher typed as a whole number, or null when it isn't one. */
 const wholeNumber = (input: string): number | null => (/^\d+$/.test(input.trim()) ? Number.parseInt(input.trim(), 10) : null);
 
+/** 023: "Individual" or "Em grupo", the maximum as the select's value. */
+const GroupFormatSchema = z.enum(["INDIVIDUAL", "GROUP"]);
+export type GroupFormat = z.infer<typeof GroupFormatSchema>;
+
+/** The format as the request's `groupSize` (023/FR-001): null for "Individual", the contract's 2–5 otherwise. */
+const groupSizeOf = (values: { groupFormat: GroupFormat; groupSize: string }): number | null =>
+  values.groupFormat === "GROUP" ? GroupSizeSchema.parse(wholeNumber(values.groupSize)) : null;
+
+const checkGroupSize = (values: { groupFormat: GroupFormat; groupSize: string }, ctx: z.RefinementCtx) => {
+  if (values.groupFormat === "GROUP" && !GroupSizeSchema.safeParse(wholeNumber(values.groupSize)).success) {
+    ctx.addIssue({ code: "custom", path: ["groupSize"], message: GROUP_SIZE_MESSAGE });
+  }
+};
+
 /**
  * Step 2 of "Nova atividade" (contracts/web-ui.md). `type` and `needsAcknowledgement` come from
  * step 1 and the scope check. A Trabalho has a deadline after the publication (now when "Publicar
@@ -205,12 +239,16 @@ export const ActivityFormSchema = z
     aiHelp: z.boolean(),
     /** 021: offered only for a work with a runnable CODE question (`runnableCodeQuestionCount > 0`). */
     codeExecution: z.boolean(),
+    /** 023: a Trabalho's format; ignored for an Exercício and a Prova. */
+    groupFormat: GroupFormatSchema,
+    groupSize: z.string(),
     /** A Prova's time (018/FR-007), as typed: checked only for an EXAM. */
     durationMinutes: z.string(),
     inactivityLimitSeconds: z.string(),
     startWindowMinutes: z.string(),
   })
   .superRefine((values, ctx) => {
+    if (values.type === "ASSIGNMENT") checkGroupSize(values, ctx);
     if (values.type === "EXAM") {
       for (const key of Object.keys(EXAM_RANGES) as (keyof typeof EXAM_RANGES)[]) {
         const range = EXAM_RANGES[key];
@@ -281,6 +319,7 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
     executionMode: values.controlled ? "CONTROLLED" : "NORMAL",
     codeExecution: values.codeExecution,
     aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0,
+    groupSize: groupSizeOf(values),
   };
 }
 
@@ -300,8 +339,11 @@ export const ActivityEditSchema = z
     controlled: z.boolean(),
     aiHelp: z.boolean(),
     codeExecution: z.boolean(),
+    groupFormat: GroupFormatSchema,
+    groupSize: z.string(),
   })
   .superRefine((values, ctx) => {
+    checkGroupSize(values, ctx);
     if (values.hasDeadline && !values.deadline) ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
     if (values.publishAt && values.deadline && new Date(values.deadline).getTime() <= new Date(values.publishAt).getTime()) {
       ctx.addIssue({ code: "custom", path: ["deadline"], message: SCHEDULE_MESSAGE });
@@ -319,6 +361,8 @@ export const activityEditDefaults = (activity: TeacherActivity): ActivityEditVal
   controlled: activity.executionMode === "CONTROLLED",
   aiHelp: activity.aiHelp.allowance > 0,
   codeExecution: activity.codeExecution,
+  groupFormat: activity.groupSize === null ? "INDIVIDUAL" : "GROUP",
+  groupSize: activity.groupSize === null ? GROUP_SIZE_DEFAULT : String(activity.groupSize),
 });
 
 /** Only what changed, with the version read; the publication only while scheduled. */
@@ -336,5 +380,6 @@ export function toUpdateActivityRequest(values: ActivityEditValues, activity: Te
       : {}),
     ...(hasWorkOptions(activity.type) && values.aiHelp !== initial.aiHelp ? { aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0 } : {}),
     ...(hasWorkOptions(activity.type) && values.codeExecution !== initial.codeExecution ? { codeExecution: values.codeExecution } : {}),
+    ...(hasWorkOptions(activity.type) && groupSizeOf(values) !== activity.groupSize ? { groupSize: groupSizeOf(values) } : {}),
   };
 }

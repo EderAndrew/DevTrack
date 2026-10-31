@@ -90,7 +90,8 @@ export class ExamMonitorService {
       LEFT JOIN activity_attendances aa ON aa.activity_id = ${activityId}::uuid AND aa.student_user_id = e.student_user_id
       LEFT JOIN LATERAL (
         SELECT at.id, at.status, at.started_at FROM activity_attempts at
-        WHERE at.activity_id = ${activityId}::uuid AND at.student_user_id = e.student_user_id
+        JOIN attempt_participants pt ON pt.attempt_id = at.id
+        WHERE at.activity_id = ${activityId}::uuid AND pt.student_user_id = e.student_user_id
         ORDER BY at.number DESC LIMIT 1
       ) a ON true
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
@@ -114,7 +115,7 @@ export class ExamMonitorService {
             : null;
         const unreleased =
           inProgress && row.pause_id && row.pause_initiated_by && row.pause_reason && row.pause_started_at
-            ? { id: row.pause_id, initiatedBy: row.pause_initiated_by, reason: row.pause_reason, note: row.pause_note, startedAt: row.pause_started_at }
+            ? { id: row.pause_id, studentUserId: row.student_user_id, initiatedBy: row.pause_initiated_by, reason: row.pause_reason, note: row.pause_note, startedAt: row.pause_started_at }
             : null;
         const openPause = openPauseOf(unreleased, { acceptedAt: null, activityEndedAt, examEndsAt: end }, now);
         return {

@@ -47,6 +47,7 @@ const hold = (overrides: Partial<TeacherExamHold> = {}): TeacherExamHold => ({
 });
 const pause: TeacherPause = {
   id: PAUSE_ID,
+  studentUserId: "cccccccc-0000-4000-8000-000000000002",
   initiatedBy: "TEACHER",
   reason: "TEACHER",
   note: null,
@@ -199,6 +200,7 @@ describe("018/US5 ExamRoomPanel — a prova em andamento e as decisões do profe
       buffered: false,
       occurrenceOrdinal: ordinal,
       idleSeconds,
+      studentUserId: "cccccccc-0000-4000-8000-000000000002",
     });
     const timeline: IntegrityTimeline = {
       events: [

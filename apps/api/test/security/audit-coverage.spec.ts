@@ -27,6 +27,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/019-exercise-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/023-group-work/contracts/audit-events.md"),
 ];
 
 /**
@@ -56,6 +57,10 @@ const PENDING_018 = new Set<string>([]);
 const PENDING_CHANGED_018 = new Set<string>([]);
 /** 021 "Changed" rows whose metadata arrives with later user stories; same rule. */
 const PENDING_CHANGED_021 = new Set<string>([]);
+/** 023 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_023 = new Set<string>([]);
+/** 023 "Changed" rows whose metadata arrives with later user stories; same rule. */
+const PENDING_CHANGED_023 = new Set<string>([]);
 /** 019 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
@@ -70,6 +75,7 @@ const PENDING = new Set([
   ...PENDING_018,
   ...PENDING_019,
   ...PENDING_020,
+  ...PENDING_023,
 ]);
 
 interface ContractRow {
@@ -91,21 +97,22 @@ function contractRows(file: string): ContractRow[] {
   // 018's and 019's "Changed" tables (two columns) list metadata their stories add to earlier types;
   // each row joins the earlier type's row with the story that emits it (`changedRows`).
   const [text = "", changed = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m);
-  return [...eventRows(text), ...changedRows(changed)];
+  // 023 shares changed types with 018 (`activity_attempt.started`), so its pending rows are skipped only in its own file.
+  return [...eventRows(text), ...changedRows(changed, file.includes("/023-") ? PENDING_CHANGED_023 : new Set())];
 }
 
 /**
  * The 018 "Changed" rows whose story has arrived: the earlier type with the keys it adds
  * (`type: EXAM` names the existing key `type`). Its actors and target stay the earlier row's.
  */
-function changedRows(table: string): ContractRow[] {
+function changedRows(table: string, pendingHere: ReadonlySet<string>): ContractRow[] {
   return table
     .split("\n")
     .filter((line) => /^\| `[a-z_]+\.[a-z_.]+`/.test(line))
     .flatMap((line) => {
       const [typeCell, metadataCell] = line.split(/(?<!\\)\|/).slice(1, -1).map((cell) => cell.trim());
       const type = backticked(typeCell!)[0]!;
-      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type)) return [];
+      if (PENDING_CHANGED_018.has(type) || PENDING_CHANGED_021.has(type) || pendingHere.has(type)) return [];
       // Upper-case words are values of an existing key (the `code`s of `activity_submission.rejected`), not keys.
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""))
         .filter((key) => !/^[A-Z_]+$/.test(key))
@@ -329,11 +336,12 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
       expect(new Set(found.map((event) => event.type)).size).toBe(5);
       expect(offendingMetadata(found)).toEqual([]);
       expect(JSON.stringify(found.map((event) => event.metadata))).not.toMatch(/MARCADOR-NOTA-016|jornada/);
-      // The journey marks 3 times for works, four times for the 018/US3, US4 and US5 exams and once for the
-      // 021 work with code execution, and unmarks once (016/US2): one event per change, none for a no-op.
+      // The journey marks 3 times for works, four times for the 018/US3, US4 and US5 exams, once for the
+      // 021 work with code execution and three times for the 023 group work (three students), and unmarks once
+      // (016/US2): one event per change, none for a no-op.
       const marked = found.filter((event) => event.type === "attendance.marked");
       const unmarked = found.filter((event) => event.type === "attendance.unmarked");
-      expect([marked.length, unmarked.length]).toEqual([8, 1]);
+      expect([marked.length, unmarked.length]).toEqual([11, 1]);
       expect(await t.prisma.activityAttendance.count()).toBe(marked.length - unmarked.length);
       // One `started` per pause and one `released` per pause the teacher released, on the pause's attempt
       // (the 021 work's pause stays open: its run is refused).

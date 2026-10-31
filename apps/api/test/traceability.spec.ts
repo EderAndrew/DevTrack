@@ -40,7 +40,10 @@ interface FeatureSpec {
 }
 
 const sc = (from: number, to: number) =>
-  Array.from({ length: to - from + 1 }, (_, i) => `SC-${String(from + i).padStart(3, "0")}`);
+  Array.from(
+    { length: to - from + 1 },
+    (_, i) => `SC-${String(from + i).padStart(3, "0")}`,
+  );
 
 const SPECS: FeatureSpec[] = [
   {
@@ -288,7 +291,8 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Foundational phase (T007); each story leaves `pending` with the task that writes its
     // last test, each SC with the test that cites it, so the lists are empty at the end of T027.
     pending: { stories: [], successCriteria: [] },
-  },  {
+  },
+  {
     feature: "022",
     path: "specs/022-light-theme/spec.md",
     stories: 4,
@@ -302,11 +306,31 @@ const SPECS: FeatureSpec[] = [
     // SC-002 and SC-006 left with the contrast test (T006, Foundational); US1 and SC-001 with T014; US2 with T017; US3 with T021; US4 and SC-005 with T023; SC-003, SC-004 and SC-007 with the E2E (T024).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "023",
+    path: "specs/023-group-work/spec.md",
+    stories: 7,
+    scenarios: 38,
+    // No "### Acceptance Criteria Traceability" table, as in 008–022.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 8),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
+    // each SC with the test that cites it, so the lists are empty at the end of T040.
+    pending: { stories: [], successCriteria: [] },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
-const keyFor = (feature: string) => (id: string) => (feature === "001" || id.includes("/") ? id : `${feature}/${id}`);
-const SKIPPED_DIRS = new Set(["node_modules", ".next", "dist", "generated", ".turbo"]);
+const keyFor = (feature: string) => (id: string) =>
+  feature === "001" || id.includes("/") ? id : `${feature}/${id}`;
+const SKIPPED_DIRS = new Set([
+  "node_modules",
+  ".next",
+  "dist",
+  "generated",
+  ".turbo",
+]);
 /** Optional feature prefix (`003/`) and the bare id. */
 const ID = /\b(?:(\d{3})\/)?(US\d+-\d+|SC-\d{3}|FR-\d{3}[a-z]?)\b/g;
 
@@ -319,7 +343,10 @@ export function idKeys(title: string): string[] {
 
 function testFiles(dir: string, pattern: RegExp): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : testFiles(join(dir, entry.name), pattern);
+    if (entry.isDirectory())
+      return SKIPPED_DIRS.has(entry.name)
+        ? []
+        : testFiles(join(dir, entry.name), pattern);
     return pattern.test(entry.name) ? [join(dir, entry.name)] : [];
   });
 }
@@ -331,7 +358,9 @@ function testFiles(dir: string, pattern: RegExp): string[] {
  */
 export function testTitles(source: string): string[] {
   const titles: string[] = [];
-  for (const match of source.matchAll(/\b(?:describe|it|test)(?:\.(each|skip|only|todo|concurrent))?\(/g)) {
+  for (const match of source.matchAll(
+    /\b(?:describe|it|test)(?:\.(each|skip|only|todo|concurrent))?\(/g,
+  )) {
     let i = match.index + match[0].length;
     if (match[1] === "each") {
       for (let depth = 1; i < source.length && depth > 0; i += 1) {
@@ -400,13 +429,22 @@ interface TraceabilityRow {
 }
 
 export function traceabilityRows(spec: string): TraceabilityRow[] {
-  const section = spec.split("### Acceptance Criteria Traceability")[1]?.split(/\n## /)[0] ?? "";
+  const section =
+    spec.split("### Acceptance Criteria Traceability")[1]?.split(/\n## /)[0] ??
+    "";
   return section
     .split("\n")
     .filter((line) => /^\| \d+ \|/.test(line))
     .map((line) => {
-      const [number, criterion, verifiedBy] = line.split("|").slice(1, 4).map((cell) => cell.trim());
-      return { number: Number(number), criterion: criterion!, ids: idKeys(verifiedBy!) };
+      const [number, criterion, verifiedBy] = line
+        .split("|")
+        .slice(1, 4)
+        .map((cell) => cell.trim());
+      return {
+        number: Number(number),
+        criterion: criterion!,
+        ids: idKeys(verifiedBy!),
+      };
     });
 }
 
@@ -414,51 +452,85 @@ describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério
   const covered = coverage();
   const missing = (ids: string[]) => ids.filter((id) => !covered.has(id));
 
-  describe.each(SPECS.map((spec) => [spec.feature, spec] as const))("feature %s", (_feature, spec) => {
-    const text = readFileSync(join(REPO_ROOT, spec.path), "utf8");
-    const key = keyFor(spec.feature);
-    const rows = traceabilityRows(text).map((row) => ({ ...row, ids: row.ids.map(key) }));
+  describe.each(SPECS.map((spec) => [spec.feature, spec] as const))(
+    "feature %s",
+    (_feature, spec) => {
+      const text = readFileSync(join(REPO_ROOT, spec.path), "utf8");
+      const key = keyFor(spec.feature);
+      const rows = traceabilityRows(text).map((row) => ({
+        ...row,
+        ids: row.ids.map(key),
+      }));
 
-    it(`os parsers leem a spec inteira (${spec.stories} histórias, todos os cenários e critérios)`, () => {
-      const scenarios = acceptanceScenarios(text);
-      expect(scenarios).toHaveLength(spec.scenarios);
-      expect(new Set(scenarios.map((id) => id.split("-")[0]))).toEqual(
-        new Set(Array.from({ length: spec.stories }, (_, i) => `US${i + 1}`)),
+      it(`os parsers leem a spec inteira (${spec.stories} histórias, todos os cenários e critérios)`, () => {
+        const scenarios = acceptanceScenarios(text);
+        expect(scenarios).toHaveLength(spec.scenarios);
+        expect(new Set(scenarios.map((id) => id.split("-")[0]))).toEqual(
+          new Set(Array.from({ length: spec.stories }, (_, i) => `US${i + 1}`)),
+        );
+        expect(rows.map((row) => row.number)).toEqual(
+          Array.from({ length: spec.rows }, (_, i) => i + 1),
+        );
+        expect(
+          rows.filter((row) => row.ids.length === 0).map((row) => row.number),
+        ).toEqual(spec.rowsWithoutIds);
+      });
+
+      const pendingStories = new Set(
+        (spec.pending?.stories ?? []).map((story) => `US${story}`),
       );
-      expect(rows.map((row) => row.number)).toEqual(Array.from({ length: spec.rows }, (_, i) => i + 1));
-      expect(rows.filter((row) => row.ids.length === 0).map((row) => row.number)).toEqual(spec.rowsWithoutIds);
-    });
+      const scenarios = acceptanceScenarios(text);
+      const pendingScenarios = scenarios
+        .filter((id) => pendingStories.has(id.split("-")[0]!))
+        .map(key);
+      const pendingCriteria = (spec.pending?.successCriteria ?? []).map(key);
 
-    const pendingStories = new Set((spec.pending?.stories ?? []).map((story) => `US${story}`));
-    const scenarios = acceptanceScenarios(text);
-    const pendingScenarios = scenarios.filter((id) => pendingStories.has(id.split("-")[0]!)).map(key);
-    const pendingCriteria = (spec.pending?.successCriteria ?? []).map(key);
+      it("todo cenário de aceite USn-k tem teste", () => {
+        expect(
+          missing(scenarios.map(key)).filter(
+            (id) => !pendingScenarios.includes(id),
+          ),
+        ).toEqual([]);
+      });
 
-    it("todo cenário de aceite USn-k tem teste", () => {
-      expect(missing(scenarios.map(key)).filter((id) => !pendingScenarios.includes(id))).toEqual([]);
-    });
+      it("histórias e critérios pendentes saem da lista quando todos os seus ids têm teste", () => {
+        const of = (story: string) =>
+          pendingScenarios.filter((id) =>
+            id.split("/").at(-1)!.startsWith(`${story}-`),
+          );
+        const done = [...pendingStories].filter(
+          (story) => missing(of(story)).length === 0,
+        );
+        expect(done, "histórias pendentes já cobertas").toEqual([]);
+        expect(
+          pendingCriteria.filter((id) => covered.has(id)),
+          "critérios pendentes já cobertos",
+        ).toEqual([]);
+      });
 
-    it("histórias e critérios pendentes saem da lista quando todos os seus ids têm teste", () => {
-      const of = (story: string) => pendingScenarios.filter((id) => id.split("/").at(-1)!.startsWith(`${story}-`));
-      const done = [...pendingStories].filter((story) => missing(of(story)).length === 0);
-      expect(done, "histórias pendentes já cobertas").toEqual([]);
-      expect(pendingCriteria.filter((id) => covered.has(id)), "critérios pendentes já cobertos").toEqual([]);
-    });
-
-    it.each(rows.filter((row) => row.ids.length > 0).map((row) => [row.number, row] as const))(
-      "critério %i coberto",
-      (_n, row) => {
+      it.each(
+        rows
+          .filter((row) => row.ids.length > 0)
+          .map((row) => [row.number, row] as const),
+      )("critério %i coberto", (_n, row) => {
         const scenarioIds = row.ids.filter((id) => /(^|\/)US/.test(id));
         // Rows with scenarios are covered by them; rows without need their SC/FR ids.
         const required = scenarioIds.length > 0 ? scenarioIds : row.ids;
-        expect(missing(required), `critério ${row.number}: ${row.criterion}`).toEqual([]);
-      },
-    );
+        expect(
+          missing(required),
+          `critério ${row.number}: ${row.criterion}`,
+        ).toEqual([]);
+      });
 
-    it("os critérios de sucesso verificáveis aparecem em títulos de teste", () => {
-      expect(missing(spec.successCriteria.map(key)).filter((id) => !pendingCriteria.includes(id))).toEqual([]);
-    });
-  });
+      it("os critérios de sucesso verificáveis aparecem em títulos de teste", () => {
+        expect(
+          missing(spec.successCriteria.map(key)).filter(
+            (id) => !pendingCriteria.includes(id),
+          ),
+        ).toEqual([]);
+      });
+    },
+  );
 
   it("o extrator de títulos reconhece as formas usadas nos testes", () => {
     const source = [
@@ -481,6 +553,11 @@ describe("SC-010 003/D13 — rastreabilidade dos critérios de aceite (critério
       '  it("003/FR-048 e 001/US2-3 e SC-004", () => {});',
       "});",
     ].join("\n");
-    expect(testTitles(source).flatMap(idKeys)).toEqual(["003/US1-1", "003/FR-048", "US2-3", "SC-004"]);
+    expect(testTitles(source).flatMap(idKeys)).toEqual([
+      "003/US1-1",
+      "003/FR-048",
+      "US2-3",
+      "SC-004",
+    ]);
   });
 });

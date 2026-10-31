@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Ban, Lock, Send } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { ErrorSummary, Field, SubmitButton } from "@/components/shared";
 import {
   AlertDialog,
@@ -32,6 +32,7 @@ import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvailability, useIntegritySummary } from "../hooks/use-activities";
 import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
+import { rosterLines } from "../schemas/group-facts";
 import {
   ACTIVITY_TYPE_LABELS,
   activityStarted,
@@ -46,6 +47,7 @@ import {
   helpUnavailableText,
   LATE_POLICY_LABELS,
   mayAllowCodeExecution,
+  mayChooseGroup,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
@@ -53,7 +55,8 @@ import { ActivityQuestions } from "./activity-questions";
 import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_EXAM, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
 import { LatePolicyField, TextareaField } from "./form-fields";
-import { WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
+import { GroupLabel } from "./group-facts";
+import { GroupFormatField, WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
 export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostramos a versão atual; revise antes de continuar.";
 
@@ -65,6 +68,7 @@ export const EDIT_FIELD_IDS = {
   controlled: "editar-modo-controlado",
   aiHelp: "editar-ajuda-ia",
   codeExecution: "editar-executar-codigo",
+  groupSize: "editar-max-integrantes",
 } as const;
 
 const FIELD_OF_CODE: Record<string, string> = {
@@ -402,7 +406,7 @@ function ReleaseAction({
 
 function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onSave: (values: ActivityEditValues) => Promise<void> }) {
   const { errors, setErrors, onInvalid, errorFor } = useErrorSummary<ActivityEditValues>(EDIT_FIELD_IDS);
-  const { register, handleSubmit, formState } = useForm<ActivityEditValues>({
+  const { register, handleSubmit, formState, control } = useForm<ActivityEditValues>({
     shouldFocusError: false,
     resolver: zodResolver(ActivityEditSchema, { error: activityFormMessages }),
     defaultValues: activityEditDefaults(activity),
@@ -412,6 +416,7 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
   const availability = useHelpAvailability(withOptions);
   const withCodeExecution = mayAllowCodeExecution(activity);
   const runner = useCodeRunnerAvailability(withCodeExecution);
+  const groupFormat = useWatch({ control, name: "groupFormat" });
 
   const onSubmit = handleSubmit(async (values) => {
     setErrors([]);
@@ -461,6 +466,16 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
           />
           <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
         </>
+      ) : null}
+      {mayChooseGroup(activity) ? (
+        <GroupFormatField
+          idPrefix="editar"
+          format={register("groupFormat")}
+          size={register("groupSize")}
+          inGroup={groupFormat === "GROUP"}
+          locked={activityStarted(activity)}
+          error={errorFor(EDIT_FIELD_IDS.groupSize)}
+        />
       ) : null}
       {withOptions ? (
         <WorkOptionsFieldset
@@ -542,11 +557,14 @@ function Roster({ classId, activity }: { classId: string; activity: TeacherActiv
             </TableRow>
           </TableHeader>
           <TableBody>
-            {activity.roster.map((entry) => (
+            {/* 023/FR-020: one line per attempt; a group's line is its leader's, "Ana e mais 2 — Em grupo". */}
+            {rosterLines(activity.roster).map((entry) => (
               <TableRow key={entry.studentUserId}>
                 <TableCell>
                   {entry.attemptId ? (
-                    <Link href={`/turmas/${classId}/atividades/${activity.id}/tentativas/${entry.attemptId}`}>{entry.name}</Link>
+                    <Link href={`/turmas/${classId}/atividades/${activity.id}/tentativas/${entry.attemptId}`}>
+                      {entry.group ? <GroupLabel participants={entry.participants} /> : entry.name}
+                    </Link>
                   ) : (
                     entry.name
                   )}

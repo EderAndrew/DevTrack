@@ -6,9 +6,92 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { CODE_RUNNER_UNAVAILABLE, WORK_OPTION_TEXTS, WORK_OPTIONS_LEGEND, WORK_OPTIONS_LOCKED, workOptionBadges } from "../schemas/activity-form";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Radio, RadioGroup } from "@/components/ui/radio";
+import {
+  CODE_RUNNER_UNAVAILABLE,
+  GROUP_FORMAT_TEXTS,
+  GROUP_SIZE_OPTIONS,
+  WORK_OPTION_TEXTS,
+  WORK_OPTIONS_LEGEND,
+  WORK_OPTIONS_LOCKED,
+  workOptionBadges,
+} from "../schemas/activity-form";
 
 type RegisteredBox = Omit<ComponentProps<"input">, "id" | "type">;
+type RegisteredSelect = Omit<ComponentProps<"select">, "id">;
+
+const describedBy = (...ids: (string | false)[]) => ids.filter(Boolean).join(" ") || undefined;
+
+export interface GroupFormatFieldProps {
+  /** Prefix of the controls' ids: `<prefix>-formato-individual`, `<prefix>-formato-grupo`, `<prefix>-max-integrantes`. */
+  idPrefix: string;
+  /** The registered `groupFormat` field, spread on both radios. */
+  format: RegisteredBox;
+  /** The registered `groupSize` field (2–5). */
+  size: RegisteredSelect;
+  /** "Em grupo" is chosen: the maximum is shown. */
+  inGroup: boolean;
+  /** A student started: the format doesn't change any more (023/FR-002, the 015 rule). */
+  locked?: boolean;
+  error?: string;
+}
+
+/**
+ * "Formato" of a work (023 contracts/web-ui.md): "Individual" by default or "Em grupo" with the
+ * maximum of participants, the leader included. Locked with the 015 reason once a student started;
+ * the server decides either way.
+ */
+export function GroupFormatField({ idPrefix, format, size, inGroup, locked = false, error }: GroupFormatFieldProps) {
+  const ids = {
+    individual: `${idPrefix}-formato-individual`,
+    group: `${idPrefix}-formato-grupo`,
+    size: `${idPrefix}-max-integrantes`,
+    locked: `${idPrefix}-formato-travado`,
+    error: `${idPrefix}-max-integrantes-erro`,
+  };
+  const describedByLocked = locked ? ids.locked : undefined;
+  return (
+    <RadioGroup legend={GROUP_FORMAT_TEXTS.legend} className="mb-4" aria-describedby={describedByLocked}>
+      {locked ? (
+        <p id={ids.locked} className="m-0 text-text-secondary">
+          {WORK_OPTIONS_LOCKED}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <Radio id={ids.individual} value="INDIVIDUAL" disabled={locked} {...format} />
+        <Label htmlFor={ids.individual}>{GROUP_FORMAT_TEXTS.individual}</Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <Radio id={ids.group} value="GROUP" disabled={locked} {...format} />
+        <Label htmlFor={ids.group}>{GROUP_FORMAT_TEXTS.group}</Label>
+      </div>
+      {inGroup ? (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={ids.size}>{GROUP_FORMAT_TEXTS.size}</Label>
+          <NativeSelect
+            id={ids.size}
+            disabled={locked}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy(error ? ids.error : false, locked && ids.locked)}
+            {...size}
+          >
+            {GROUP_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </NativeSelect>
+          {error ? (
+            <p id={ids.error} className="m-0 text-danger-text">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </RadioGroup>
+  );
+}
 
 export interface WorkOptionsFieldsetProps {
   /** Prefix of the boxes' ids: `<prefix>-modo-controlado`, `<prefix>-ajuda-ia`. */
@@ -27,8 +110,6 @@ export interface WorkOptionsFieldsetProps {
    */
   codeExecution?: { box: RegisteredBox; runnerDown: boolean } | null;
 }
-
-const describedBy = (...ids: (string | false)[]) => ids.filter(Boolean).join(" ") || undefined;
 
 /**
  * "Como os alunos respondem" (015 contracts/web-ui.md): "Modo controlado" and "Ajuda da IA", each
@@ -126,8 +207,12 @@ function Option({
   );
 }
 
-/** The options turned on, as text badges (015/FR-006, 021/FR-004); nothing for a normal activity without help. */
-export function WorkOptionBadges({ activity }: { activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp" | "codeExecution"> }) {
+/** The options turned on, as text badges (015/FR-006, 021/FR-004, 023 "Em grupo (até N)"); nothing for a normal individual activity without help. */
+export function WorkOptionBadges({
+  activity,
+}: {
+  activity: Pick<TeacherActivitySummary, "type" | "executionMode" | "aiHelp" | "codeExecution" | "groupSize">;
+}) {
   const badges = workOptionBadges(activity);
   if (badges.length === 0) return null;
   return (

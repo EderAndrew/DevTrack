@@ -19,6 +19,9 @@ const SCANNED = [
   "components/ui/assessment/exam-timer.tsx",
   "components/ui/assessment/time-alert.tsx",
   "components/ui/assessment/final-countdown.tsx",
+  // 023/FR-026: a group work's facts are facts, in the same words.
+  "features/group-work",
+  "features/activities/components/group-facts.tsx",
 ];
 const LABELS = [/\bfraud/i, /\bfraude/i, /\bcola\b/i, /viola[cç][aã]o/i, /\bcheat/i];
 

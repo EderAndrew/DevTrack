@@ -2,7 +2,14 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ExamMonitor, StudentActivity, StudentPause, TeacherPause } from "@repo/contracts";
+import type {
+  ExamMonitor,
+  StudentActivity,
+  StudentGroup,
+  StudentPause,
+  TeacherAttemptGroup,
+  TeacherPause,
+} from "@repo/contracts";
 import { AttemptReview } from "@/features/activities/components/attempt-review";
 import {
   ACTIVITY_ID,
@@ -20,12 +27,24 @@ import {
   teacherAttempt,
 } from "@/features/activities/components/test-fixtures";
 import { AttendanceTab } from "@/features/attendance/components/attendance-tab";
+import { GroupFacts } from "@/features/activities/components/group-facts";
+import { GroupBar } from "@/features/group-work/components/group-bar";
+import { GroupNotice } from "@/features/group-work/components/group-notice";
+import { GroupStartDialog } from "@/features/group-work/components/group-start-dialog";
 import { ExamAttempt } from "@/features/exam-attempt/components/exam-shell";
 import { ExamRoomPanel } from "@/features/exam-session/components/exam-room-panel";
 import { ExamDetail } from "@/features/exams/components/exam-detail";
-import { examApiMock, examView } from "@/features/exams/components/test-fixtures";
+import {
+  examApiMock,
+  examView,
+} from "@/features/exams/components/test-fixtures";
 import { PausedNotice } from "@/features/attendance/components/paused-notice";
-import { ATTENDANCE_PATH, MARKED_AT, room, student } from "@/features/attendance/components/test-fixtures";
+import {
+  ATTENDANCE_PATH,
+  MARKED_AT,
+  room,
+  student,
+} from "@/features/attendance/components/test-fixtures";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
 import { RankingTable } from "@/features/ranking/components/ranking-table";
 import { row } from "@/features/ranking/components/test-fixtures";
@@ -57,7 +76,9 @@ import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
 
 // 018: the exam screens navigate (ExamDetail, ExamAttempt); the router is not mounted in a unit test.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 const SCRIPT = `<script>alert("xss")</script><img src=x onerror="alert(1)">`;
 const WEB_ROOT = resolve(__dirname, "..");
@@ -83,12 +104,18 @@ const SCANNED = [
   "features/code-run",
   // 020: the student's feedback dialog and list, the ADMIN's list and detail.
   "features/feedback",
+  // 023: the group work's start dialog and bar (names of classmates).
+  "features/group-work",
 ];
 
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
-    return statSync(path).isDirectory() ? filesUnder(path) : /\.tsx?$/.test(name) ? [path] : [];
+    return statSync(path).isDirectory()
+      ? filesUnder(path)
+      : /\.tsx?$/.test(name)
+        ? [path]
+        : [];
   });
 }
 
@@ -105,7 +132,9 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
   it("nenhum dangerouslySetInnerHTML nas telas da 012, no ranking da 013, nos componentes de avaliação e de código, nos bancos (014), no Code Runner (019) e nos feedbacks (020)", () => {
     const offenders = SCANNED.flatMap((dir) => filesUnder(join(WEB_ROOT, dir)))
       .filter((file) => !/\.test\.tsx?$/.test(file))
-      .filter((file) => readFileSync(file, "utf8").includes("dangerouslySetInnerHTML"));
+      .filter((file) =>
+        readFileSync(file, "utf8").includes("dangerouslySetInnerHTML"),
+      );
     expect(offenders).toEqual([]);
   });
 
@@ -118,20 +147,55 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
       status: "GRADED",
       canAnswer: false,
       questions: [{ ...open!, statement: SCRIPT }],
-      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [{ questionId: open!.id, answer: { kind: "TEXT", text: SCRIPT }, revision: 1 }] },
-      submission: { submittedAt: "2026-10-02T12:30:00.000Z", late: false, acceptedByTeacher: false, blankCount: 0 },
-      result: { grade: "0.40", generalFeedback: SCRIPT, questions: [{ questionId: open!.id, grade: "0.40", feedback: SCRIPT }] },
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T11:00:00.000Z",
+        lastSavedAt: null,
+        answers: [
+          {
+            questionId: open!.id,
+            answer: { kind: "TEXT", text: SCRIPT },
+            revision: 1,
+          },
+        ],
+      },
+      submission: {
+        submittedAt: "2026-10-02T12:30:00.000Z",
+        late: false,
+        acceptedByTeacher: false,
+        blankCount: 0,
+      },
+      result: {
+        grade: "0.40",
+        generalFeedback: SCRIPT,
+        questions: [{ questionId: open!.id, grade: "0.40", feedback: SCRIPT }],
+      },
     });
-    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${activity.id}`]: json(200, activity) }).fetch);
-    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${activity.id}`]: json(200, activity),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <ActivityAnswering activityId={activity.id} userId="aluno-1" />,
+    );
     await screen.findByRole("region", { name: "Resultado" });
     expect(container.querySelector("script, img")).toBeNull();
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThan(1);
   });
 
   it("tela do professor: resposta e feedback com HTML aparecem como texto", async () => {
     const attempt = teacherAttempt({
-      answers: [{ questionId: OPEN_QUESTION_ID, answer: { kind: "TEXT", text: SCRIPT }, savedAt: "2026-10-05T11:58:00.000Z" }],
+      answers: [
+        {
+          questionId: OPEN_QUESTION_ID,
+          answer: { kind: "TEXT", text: SCRIPT },
+          savedAt: "2026-10-05T11:58:00.000Z",
+        },
+      ],
     });
     const path = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
     vi.stubGlobal(
@@ -141,7 +205,15 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
         [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, attempt),
       }).fetch,
     );
-    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
+    const { container } = renderWithProviders(
+      <AttemptReview
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        attemptId={ATTEMPT_ID}
+        canGrade={false}
+        canMark={false}
+      />,
+    );
     await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
     expect(container.querySelector("script, img")).toBeNull();
     expect(screen.getByText(SCRIPT)).toBeTruthy();
@@ -153,7 +225,10 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
       ...base,
       questions: base.questions.map((question) => ({
         ...question,
-        answer: question.answer?.kind === "TEXT" ? { kind: "TEXT" as const, text: SCRIPT } : question.answer,
+        answer:
+          question.answer?.kind === "TEXT"
+            ? { kind: "TEXT" as const, text: SCRIPT }
+            : question.answer,
         expectedAnswer: question.expectedAnswer === null ? null : SCRIPT,
         explanation: SCRIPT,
         teacherComment: SCRIPT,
@@ -166,16 +241,31 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
       completedAttempts: [{ number: 1, completedAt: lastResult.completedAt }],
       lastResult,
     });
-    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${activity.id}`]: json(200, activity) }).fetch);
-    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${activity.id}`]: json(200, activity),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <ActivityAnswering activityId={activity.id} userId="aluno-1" />,
+    );
     await screen.findByRole("heading", { name: "Resultado da tentativa 1" });
     expect(container.querySelector("script, img")).toBeNull();
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(5);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it("013 marcação do professor: resposta e comentário com HTML aparecem como texto", async () => {
-    const attempt = teacherExerciseAttempt({ [MARK_CODE_ID]: { comment: SCRIPT } });
-    attempt.answers = attempt.answers.map((answer) => (answer.questionId === MARK_OPEN_ID ? { ...answer, answer: { kind: "TEXT", text: SCRIPT } } : answer));
+    const attempt = teacherExerciseAttempt({
+      [MARK_CODE_ID]: { comment: SCRIPT },
+    });
+    attempt.answers = attempt.answers.map((answer) =>
+      answer.questionId === MARK_OPEN_ID
+        ? { ...answer, answer: { kind: "TEXT", text: SCRIPT } }
+        : answer,
+    );
     const path = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
     vi.stubGlobal(
       "fetch",
@@ -185,38 +275,71 @@ describe("012/FR-035 conteúdo de aluno e professor como texto", () => {
       }).fetch,
     );
     const { container } = renderWithProviders(
-      <AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={EXERCISE_ATTEMPT_ID} canGrade={false} canMark={false} />,
+      <AttemptReview
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        attemptId={EXERCISE_ATTEMPT_ID}
+        canGrade={false}
+        canMark={false}
+      />,
     );
     await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
     expect(container.querySelector("script, img")).toBeNull();
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("013 ranking: nomes com HTML aparecem como texto na tabela e no cartão do painel", () => {
     const rows = [row(1, SCRIPT, 30, true), row(2, `Ana ${SCRIPT}`, 0)];
-    const table = renderWithProviders(<RankingTable rows={rows} caption="Ranking" />);
+    const table = renderWithProviders(
+      <RankingTable rows={rows} caption="Ranking" />,
+    );
     expect(table.container.querySelector("script, img")).toBeNull();
     expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(2);
     table.unmount();
-    const card = renderWithProviders(<RankingCard ranking={{ class: { id: CLASS_ID, name: SCRIPT }, top: rows }} />);
+    const card = renderWithProviders(
+      <RankingCard
+        ranking={{ class: { id: CLASS_ID, name: SCRIPT }, top: rows }}
+      />,
+    );
     expect(card.container.querySelector("script, img")).toBeNull();
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(3);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
-  it.each(["html", "java"])("014/SC-003 código com <script> e HTML em %s aparece como texto no editor e no CodeBlock", async (highlight) => {
-    const code = `${SCRIPT}\n<b onclick="alert(2)">negrito</b>`;
-    const editor = render(<CodeEditor id="xss" aria-label="Código" highlight={highlight} value={code} onChange={() => undefined} />);
-    const content = await codeMirrorContent(editor.container);
-    await waitFor(() => expect(content.querySelector("span[class]")).toBeTruthy());
-    expect(codeMirrorText(content)).toBe(code);
-    expect(document.querySelector("script, img, b")).toBeNull();
-    editor.unmount();
+  it.each(["html", "java"])(
+    "014/SC-003 código com <script> e HTML em %s aparece como texto no editor e no CodeBlock",
+    async (highlight) => {
+      const code = `${SCRIPT}\n<b onclick="alert(2)">negrito</b>`;
+      const editor = render(
+        <CodeEditor
+          id="xss"
+          aria-label="Código"
+          highlight={highlight}
+          value={code}
+          onChange={() => undefined}
+        />,
+      );
+      const content = await codeMirrorContent(editor.container);
+      await waitFor(() =>
+        expect(content.querySelector("span[class]")).toBeTruthy(),
+      );
+      expect(codeMirrorText(content)).toBe(code);
+      expect(document.querySelector("script, img, b")).toBeNull();
+      editor.unmount();
 
-    const block = render(<CodeBlock code={code} highlight={highlight} label="Código" />);
-    await waitFor(() => expect(block.container.querySelector("code span")).toBeTruthy());
-    expect(block.container.querySelector("code")!.textContent).toBe(code);
-    expect(document.querySelector("script, img, b")).toBeNull();
-  });
+      const block = render(
+        <CodeBlock code={code} highlight={highlight} label="Código" />,
+      );
+      await waitFor(() =>
+        expect(block.container.querySelector("code span")).toBeTruthy(),
+      );
+      expect(block.container.querySelector("code")!.textContent).toBe(code);
+      expect(document.querySelector("script, img, b")).toBeNull();
+    },
+  );
 });
 
 /**
@@ -233,7 +356,12 @@ describe("015 ajuda da IA e registros como texto", () => {
     const activity = studentActivity({
       status: "IN_PROGRESS",
       aiHelp: { allowance: 3, used: 1 },
-      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T11:00:00.000Z",
+        lastSavedAt: null,
+        answers: [],
+      },
     });
     const help = {
       allowance: 3,
@@ -259,11 +387,16 @@ describe("015 ajuda da IA e registros como texto", () => {
         [`GET /api/me/activities/${activity.id}/attempt/help`]: json(200, help),
       }).fetch,
     );
-    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
-    await screen.findByText(`Sua pergunta: ${SCRIPT}`);
-    expect(screen.getAllByText(SCRIPT).length).toBeGreaterThan(0);
-    await waitFor(() => expect(container.querySelector("pre")?.textContent).toContain("<script>"));
-    expect(container.querySelector("script, img")).toBeNull();
+    renderWithProviders(
+      <ActivityAnswering activityId={activity.id} userId="aluno-1" />,
+    );
+    (await screen.findByRole("button", { name: "Pedir ajuda" })).click();
+    expect((await screen.findAllByText(SCRIPT)).length).toBeGreaterThan(1);
+    const chat = screen.getByRole("dialog");
+    await waitFor(() =>
+      expect(chat.querySelector("pre")?.textContent).toContain("<script>"),
+    );
+    expect(chat.querySelector("script, img")).toBeNull();
   });
 
   it("tela do professor: pergunta e orientação com HTML aparecem como texto, ao lado da linha do tempo", async () => {
@@ -274,6 +407,7 @@ describe("015 ajuda da IA e registros como texto", () => {
       items: [
         {
           id: "eeeeeeee-0000-4000-8000-000000000002",
+          studentUserId: "ffffffff-0000-4000-8000-000000000001",
           questionPosition: 0,
           question: SCRIPT,
           status: "DELIVERED",
@@ -286,8 +420,24 @@ describe("015 ajuda da IA e registros como texto", () => {
       ],
     };
     const timeline = {
-      events: [{ type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:00:00.000Z", clientOccurredAt: null, buffered: false }],
-      intervals: [{ kind: "SCREEN", from: "2026-10-02T12:00:00.000Z", to: "2026-10-02T12:01:00.000Z", seconds: 60, open: true }],
+      events: [
+        {
+          type: "SCREEN_LEFT",
+          questionPosition: null,
+          recordedAt: "2026-10-02T12:00:00.000Z",
+          clientOccurredAt: null,
+          buffered: false,
+        },
+      ],
+      intervals: [
+        {
+          kind: "SCREEN",
+          from: "2026-10-02T12:00:00.000Z",
+          to: "2026-10-02T12:01:00.000Z",
+          seconds: 60,
+          open: true,
+        },
+      ],
       totals: {
         screenExits: 1,
         timeAwaySeconds: 60,
@@ -303,17 +453,37 @@ describe("015 ajuda da IA e registros como texto", () => {
     vi.stubGlobal(
       "fetch",
       teacherFetch({
-        [`GET ${path}`]: json(200, gradingActivity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } })),
+        [`GET ${path}`]: json(
+          200,
+          gradingActivity({
+            executionMode: "CONTROLLED",
+            aiHelp: { allowance: 3 },
+          }),
+        ),
         [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, teacherAttempt()),
         [`GET ${path}/attempts/${ATTEMPT_ID}/integrity`]: json(200, timeline),
         [`GET ${path}/attempts/${ATTEMPT_ID}/help`]: json(200, help),
       }).fetch,
     );
-    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
+    const { container } = renderWithProviders(
+      <AttemptReview
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        attemptId={ATTEMPT_ID}
+        canGrade={false}
+        canMark={false}
+      />,
+    );
     await screen.findByText(`Pergunta do aluno: ${SCRIPT}`);
     expect(screen.getByText(`Orientação: ${SCRIPT}`)).toBeTruthy();
-    expect(await screen.findByRole("table", { name: "Eventos da tentativa, no horário do servidor." })).toBeTruthy();
-    await waitFor(() => expect(container.querySelector("pre")?.textContent).toContain("<script>"));
+    expect(
+      await screen.findByRole("table", {
+        name: "Eventos da tentativa, no horário do servidor.",
+      }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(container.querySelector("pre")?.textContent).toContain("<script>"),
+    );
     expect(container.querySelector("script, img")).toBeNull();
   });
 });
@@ -323,12 +493,13 @@ describe("015 ajuda da IA e registros como texto", () => {
  * panel, in the review's "Saídas da sala", on the student's paused notice and in the student's own
  * delivery (history) it renders as text, never as HTML.
  */
-describe("016 nota de \"Outro\" como texto", () => {
+describe('016 nota de "Outro" como texto', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const PAUSE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee16";
   const teacherPause: TeacherPause = {
     id: PAUSE_ID,
+    studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
     initiatedBy: "STUDENT",
     reason: "OTHER",
     note: SCRIPT,
@@ -337,38 +508,91 @@ describe("016 nota de \"Outro\" como texto", () => {
     endedBy: null,
     seconds: 120,
   };
-  const studentPause: StudentPause = { id: PAUSE_ID, initiatedBy: "STUDENT", reason: "OTHER", note: SCRIPT, startedAt: "2026-10-02T13:30:00.000Z", endedAt: null };
+  const studentPause: StudentPause = {
+    id: PAUSE_ID,
+    initiatedBy: "STUDENT",
+    reason: "OTHER",
+    note: SCRIPT,
+    startedAt: "2026-10-02T13:30:00.000Z",
+    endedAt: null,
+  };
 
   it("painel da sala do professor: a nota aparece como texto", async () => {
-    const out = room([student("cccccccc-cccc-4ccc-8ccc-ccccccccccc1", "Ana Souza", { markedAt: MARKED_AT, roomStatus: "OUT_OF_ROOM", attemptId: ATTEMPT_ID, openPause: teacherPause })]);
-    vi.stubGlobal("fetch", teacherFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, out) }).fetch);
-    const { container } = renderWithProviders(<AttendanceTab classId={CLASS_ID} activityId={ACTIVITY_ID} />);
+    const out = room([
+      student("cccccccc-cccc-4ccc-8ccc-ccccccccccc1", "Ana Souza", {
+        markedAt: MARKED_AT,
+        roomStatus: "OUT_OF_ROOM",
+        attemptId: ATTEMPT_ID,
+        openPause: teacherPause,
+      }),
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      teacherFetch({ [`GET ${ATTENDANCE_PATH}`]: json(200, out) }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <AttendanceTab classId={CLASS_ID} activityId={ACTIVITY_ID} />,
+    );
     await screen.findByText(SCRIPT, { exact: false });
     expect(container.querySelector("script, img")).toBeNull();
   });
 
-  it("correção: \"Saídas da sala\" mostra a nota como texto", async () => {
+  it('correção: "Saídas da sala" mostra a nota como texto', async () => {
     const path = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
     vi.stubGlobal(
       "fetch",
       teacherFetch({
-        [`GET ${path}`]: json(200, gradingActivity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } })),
+        [`GET ${path}`]: json(
+          200,
+          gradingActivity({
+            releaseMode: "PRESENT_ONLY",
+            attendance: { present: 1, enrolled: 1 },
+          }),
+        ),
         [`GET ${path}/attempts/${ATTEMPT_ID}`]: json(200, teacherAttempt()),
         [`GET ${path}/attempts/${ATTEMPT_ID}/pauses`]: json(200, {
-          items: [{ ...teacherPause, endedAt: "2026-10-02T13:32:00.000Z", endedBy: "RELEASE" }],
+          items: [
+            {
+              ...teacherPause,
+              endedAt: "2026-10-02T13:32:00.000Z",
+              endedBy: "RELEASE",
+            },
+          ],
           totalSecondsAway: 120,
         }),
       }).fetch,
     );
-    const { container } = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={false} canMark={false} />);
+    const { container } = renderWithProviders(
+      <AttemptReview
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        attemptId={ATTEMPT_ID}
+        canGrade={false}
+        canMark={false}
+      />,
+    );
     await screen.findByText(`Outro: ${SCRIPT}`);
     expect(container.querySelector("script, img")).toBeNull();
   });
 
   it("aviso de pausa do aluno: a própria nota aparece como texto", async () => {
     const activity = "22222222-2222-4222-8222-222222222222";
-    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${activity}/attempt/pause`]: json(200, { pause: studentPause }) }).fetch);
-    const { container } = renderWithProviders(<PausedNotice activityId={activity} pause={studentPause} deadline="2026-10-02T17:00:00.000Z" onResume={() => undefined} />);
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${activity}/attempt/pause`]: json(200, {
+          pause: studentPause,
+        }),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <PausedNotice
+        activityId={activity}
+        pause={studentPause}
+        deadline="2026-10-02T17:00:00.000Z"
+        onResume={() => undefined}
+      />,
+    );
     expect(screen.getByRole("status").textContent).toContain(SCRIPT);
     expect(container.querySelector("script, img")).toBeNull();
   });
@@ -379,12 +603,29 @@ describe("016 nota de \"Outro\" como texto", () => {
       status: "SUBMITTED",
       canAnswer: false,
       submittedAt: "2026-10-02T14:30:00.000Z",
-      attempt: { number: 1, startedAt: "2026-10-02T13:00:00.000Z", lastSavedAt: null, answers: [] },
-      submission: { submittedAt: "2026-10-02T14:30:00.000Z", late: false, acceptedByTeacher: false, blankCount: 0 },
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T13:00:00.000Z",
+        lastSavedAt: null,
+        answers: [],
+      },
+      submission: {
+        submittedAt: "2026-10-02T14:30:00.000Z",
+        late: false,
+        acceptedByTeacher: false,
+        blankCount: 0,
+      },
       pauses: [{ ...studentPause, endedAt: "2026-10-02T13:32:00.000Z" }],
     });
-    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${delivered.id}`]: json(200, delivered) }).fetch);
-    const { container } = renderWithProviders(<ActivityAnswering activityId={delivered.id} userId="aluno-1" />);
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({
+        [`GET /api/me/activities/${delivered.id}`]: json(200, delivered),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <ActivityAnswering activityId={delivered.id} userId="aluno-1" />,
+    );
     const list = await screen.findByRole("list", { name: "Saídas da sala" });
     expect(list.textContent).toContain(`Outro (${SCRIPT})`);
     expect(container.querySelector("script, img")).toBeNull();
@@ -401,17 +642,48 @@ describe("018 prova como texto", () => {
 
   it("Banco de Provas: título, enunciado e resposta esperada com HTML ficam como texto nos campos", async () => {
     const base = examView();
-    const exam = examView({ title: SCRIPT, questions: base.questions.map((question) => ({ ...question, statement: SCRIPT, expectedAnswer: SCRIPT })) });
-    vi.stubGlobal("fetch", vi.fn(examApiMock(() => json(200, exam), { [`/api/exams/${exam.id}`]: () => json(200, exam) })));
-    const { container } = renderWithProviders(<ExamDetail examId={exam.id} canEdit={false} canApprove={false} canArchive={false} />);
+    const exam = examView({
+      title: SCRIPT,
+      questions: base.questions.map((question) => ({
+        ...question,
+        statement: SCRIPT,
+        expectedAnswer: SCRIPT,
+      })),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        examApiMock(() => json(200, exam), {
+          [`/api/exams/${exam.id}`]: () => json(200, exam),
+        }),
+      ),
+    );
+    const { container } = renderWithProviders(
+      <ExamDetail
+        examId={exam.id}
+        canEdit={false}
+        canApprove={false}
+        canArchive={false}
+      />,
+    );
     // The detail is the bank's form: the title, statements and expected answers are field values, never markup.
-    const values = async () => (await screen.findAllByRole("textbox")).map((field) => (field as HTMLInputElement).value);
-    await waitFor(async () => expect((await values()).filter((value) => value === SCRIPT)).toHaveLength(5));
+    const values = async () =>
+      (await screen.findAllByRole("textbox")).map(
+        (field) => (field as HTMLInputElement).value,
+      );
+    await waitFor(async () =>
+      expect((await values()).filter((value) => value === SCRIPT)).toHaveLength(
+        5,
+      ),
+    );
     expect(container.querySelector("script, img")).toBeNull();
   });
 
   it("prova do aluno na página de foco: enunciado e resposta salva com HTML aparecem como texto", async () => {
-    Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => true });
+    Object.defineProperty(document, "fullscreenEnabled", {
+      configurable: true,
+      get: () => true,
+    });
     const base = studentActivity();
     const [open] = base.questions;
     const startedAt = "2026-10-02T12:00:00.000Z";
@@ -424,7 +696,18 @@ describe("018 prova como texto", () => {
       status: "IN_PROGRESS",
       serverNow: startedAt,
       questions: [{ ...open!, statement: SCRIPT }],
-      attempt: { number: 1, startedAt, lastSavedAt: null, answers: [{ questionId: open!.id, answer: { kind: "TEXT", text: SCRIPT }, revision: 1 }] },
+      attempt: {
+        number: 1,
+        startedAt,
+        lastSavedAt: null,
+        answers: [
+          {
+            questionId: open!.id,
+            answer: { kind: "TEXT", text: SCRIPT },
+            revision: 1,
+          },
+        ],
+      },
       exam: {
         durationMinutes: 60,
         inactivityLimitSeconds: 60,
@@ -436,11 +719,21 @@ describe("018 prova como texto", () => {
         ownOccurrences: [],
       },
     });
-    vi.stubGlobal("fetch", studentFetch({ [`GET /api/me/activities/${exam.id}`]: json(200, exam) }).fetch);
-    const { container } = renderWithProviders(<ExamAttempt activityId={exam.id} userId="aluno-1" />);
+    vi.stubGlobal(
+      "fetch",
+      studentFetch({ [`GET /api/me/activities/${exam.id}`]: json(200, exam) })
+        .fetch,
+    );
+    const { container } = renderWithProviders(
+      <ExamAttempt activityId={exam.id} userId="aluno-1" />,
+    );
     await screen.findByRole("timer", { name: "Tempo restante" });
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThan(0);
-    expect((screen.getAllByRole("textbox")[0] as HTMLTextAreaElement).value).toBe(SCRIPT);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      (screen.getAllByRole("textbox")[0] as HTMLTextAreaElement).value,
+    ).toBe(SCRIPT);
     expect(container.querySelector("script, img")).toBeNull();
   });
 
@@ -466,8 +759,21 @@ describe("018 prova como texto", () => {
         },
       ],
     };
-    vi.stubGlobal("fetch", teacherFetch({ [`GET /api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/exam-monitor`]: json(200, monitor) }).fetch);
-    const { container } = renderWithProviders(<ExamRoomPanel classId={CLASS_ID} activityId={ACTIVITY_ID} canDecide active />);
+    vi.stubGlobal(
+      "fetch",
+      teacherFetch({
+        [`GET /api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}/exam-monitor`]:
+          json(200, monitor),
+      }).fetch,
+    );
+    const { container } = renderWithProviders(
+      <ExamRoomPanel
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        canDecide
+        active
+      />,
+    );
     await screen.findAllByText(SCRIPT, { exact: false });
     expect(container.querySelector("script, img")).toBeNull();
   });
@@ -483,17 +789,43 @@ describe("019/FR-021 resultado da execução como texto", () => {
       sourceCode: SCRIPT,
       passedCount: 0,
       publicCaseCount: 1,
-      cases: [{ position: 0, verdict: "RUNTIME_ERROR", stdout: SCRIPT, stderr: SCRIPT, durationMs: 70 }],
+      cases: [
+        {
+          position: 0,
+          verdict: "RUNTIME_ERROR",
+          stdout: SCRIPT,
+          stderr: SCRIPT,
+          durationMs: 70,
+        },
+      ],
     });
-    const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: SCRIPT, expectedOutput: SCRIPT }]} sourceCode={SCRIPT} />);
+    const { container } = renderWithProviders(
+      <CodeRunResult
+        run={run}
+        publicTestCases={[{ input: SCRIPT, expectedOutput: SCRIPT }]}
+        sourceCode={SCRIPT}
+      />,
+    );
     // The failing case opens by itself: input, expected output, obtained output and stderr.
     expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(4);
     expect(container.querySelector("script, img")).toBeNull();
   });
 
   it("mensagem do compilador com HTML aparece como texto", () => {
-    const run = codeRun({ sourceCode: SCRIPT, outcome: "COMPILATION_ERROR", passedCount: 0, cases: [], compileOutput: SCRIPT });
-    const { container } = renderWithProviders(<CodeRunResult run={run} publicTestCases={[{ input: "1", expectedOutput: "2" }]} sourceCode={SCRIPT} />);
+    const run = codeRun({
+      sourceCode: SCRIPT,
+      outcome: "COMPILATION_ERROR",
+      passedCount: 0,
+      cases: [],
+      compileOutput: SCRIPT,
+    });
+    const { container } = renderWithProviders(
+      <CodeRunResult
+        run={run}
+        publicTestCases={[{ input: "1", expectedOutput: "2" }]}
+        sourceCode={SCRIPT}
+      />,
+    );
     expect(screen.getAllByText(SCRIPT, { exact: false })).toHaveLength(1);
     expect(container.querySelector("script, img")).toBeNull();
   });
@@ -510,39 +842,76 @@ describe("021/FR-013 execução num Trabalho e resumo do professor como texto", 
   it("tela do aluno num Trabalho: saída, saída de erro e caso público com HTML aparecem como texto", async () => {
     const base = studentActivity();
     const code = base.questions.find((question) => question.type === "CODE")!;
-    const question = { ...code, publicTestCases: [{ input: SCRIPT, expectedOutput: SCRIPT }], execution: available() };
+    const question = {
+      ...code,
+      publicTestCases: [{ input: SCRIPT, expectedOutput: SCRIPT }],
+      execution: available(),
+    };
     const activity = studentActivity({
       status: "IN_PROGRESS",
       questions: [question],
-      attempt: { number: 1, startedAt: "2026-10-02T11:00:00.000Z", lastSavedAt: null, answers: [] },
+      attempt: {
+        number: 1,
+        startedAt: "2026-10-02T11:00:00.000Z",
+        lastSavedAt: null,
+        answers: [],
+      },
     });
     const run = codeRun({
       questionId: question.id,
       sourceCode: code.starterCode ?? "",
       passedCount: 0,
       publicCaseCount: 1,
-      cases: [{ position: 0, verdict: "RUNTIME_ERROR", stdout: SCRIPT, stderr: SCRIPT, durationMs: 70 }],
+      cases: [
+        {
+          position: 0,
+          verdict: "RUNTIME_ERROR",
+          stdout: SCRIPT,
+          stderr: SCRIPT,
+          durationMs: 70,
+        },
+      ],
     });
     vi.stubGlobal(
       "fetch",
       studentFetch({
         [`GET /api/me/activities/${activity.id}`]: json(200, activity),
-        [`GET /api/me/activities/${activity.id}/questions/${question.id}/code-runs/latest`]: json(200, { run }),
+        [`GET /api/me/activities/${activity.id}/questions/${question.id}/code-runs/latest`]:
+          json(200, { run }),
       }).fetch,
     );
-    const { container } = renderWithProviders(<ActivityAnswering activityId={activity.id} userId="aluno-1" />);
+    const { container } = renderWithProviders(
+      <ActivityAnswering activityId={activity.id} userId="aluno-1" />,
+    );
     expect(await screen.findByText("0 de 1 caso público passou")).toBeTruthy();
-    expect(screen.getAllByText(SCRIPT, { exact: false }).length).toBeGreaterThanOrEqual(4);
+    expect(
+      screen.getAllByText(SCRIPT, { exact: false }).length,
+    ).toBeGreaterThanOrEqual(4);
     expect(container.querySelector("script, img")).toBeNull();
   });
 
   it("resumo do professor: só contagens e vereditos, nenhum elemento criado", async () => {
     const summary = `/api/classes/${SUMMARY_CLASS_ID}/activities/${RUN_ACTIVITY_ID}/attempts/${RUN_ATTEMPT_ID}/code-runs`;
-    vi.stubGlobal("fetch", teacherFetch({ [`GET ${summary}`]: json(200, { questions: [summaryQuestion()] }) }).fetch);
-    const { container } = renderWithProviders(
-      <CodeRunSummary classId={SUMMARY_CLASS_ID} activityId={RUN_ACTIVITY_ID} attemptId={RUN_ATTEMPT_ID} questionId={RUN_QUESTION_ID} position={0} />,
+    vi.stubGlobal(
+      "fetch",
+      teacherFetch({
+        [`GET ${summary}`]: json(200, { questions: [summaryQuestion()] }),
+      }).fetch,
     );
-    expect(await screen.findByText("Última execução: 1 de 2 casos públicos passaram")).toBeTruthy();
+    const { container } = renderWithProviders(
+      <CodeRunSummary
+        classId={SUMMARY_CLASS_ID}
+        activityId={RUN_ACTIVITY_ID}
+        attemptId={RUN_ATTEMPT_ID}
+        questionId={RUN_QUESTION_ID}
+        position={0}
+      />,
+    );
+    expect(
+      await screen.findByText(
+        "Última execução: 1 de 2 casos públicos passaram",
+      ),
+    ).toBeTruthy();
     expect(container.querySelector("script, img")).toBeNull();
   });
 });
@@ -566,9 +935,23 @@ describe("020/FR-013 feedback como texto", () => {
     expect(container.querySelector(`a[href*="evil.example"]`)).toBeNull();
   };
 
-  it("020/FR-013 \"Meus feedbacks\": a mensagem com HTML e URL aparece como texto", async () => {
-    const page = { items: [{ id: ID, category: "PROBLEM", message: MESSAGE, status: "RECEIVED", createdAt: CREATED_AT }], nextCursor: null };
-    vi.stubGlobal("fetch", vi.fn(async () => json(200, page)));
+  it('020/FR-013 "Meus feedbacks": a mensagem com HTML e URL aparece como texto', async () => {
+    const page = {
+      items: [
+        {
+          id: ID,
+          category: "PROBLEM",
+          message: MESSAGE,
+          status: "RECEIVED",
+          createdAt: CREATED_AT,
+        },
+      ],
+      nextCursor: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, page)),
+    );
     const { container } = renderWithProviders(
       <Toaster>
         <MyFeedbacks />
@@ -579,9 +962,26 @@ describe("020/FR-013 feedback como texto", () => {
   });
 
   it("020/FR-013 lista do ADMIN: o trecho e o nome do aluno com HTML e URL aparecem como texto", async () => {
-    const page = { items: [{ id: ID, category: "PROBLEM", status: "RECEIVED", excerpt: MESSAGE, student: STUDENT, createdAt: CREATED_AT }], nextCursor: null };
-    vi.stubGlobal("fetch", vi.fn(async () => json(200, page)));
-    const { container } = renderWithProviders(<AdminFeedbackList initialFilters={{}} />);
+    const page = {
+      items: [
+        {
+          id: ID,
+          category: "PROBLEM",
+          status: "RECEIVED",
+          excerpt: MESSAGE,
+          student: STUDENT,
+          createdAt: CREATED_AT,
+        },
+      ],
+      nextCursor: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, page)),
+    );
+    const { container } = renderWithProviders(
+      <AdminFeedbackList initialFilters={{}} />,
+    );
     expect((await screen.findByText(MESSAGE)).textContent).toBe(MESSAGE);
     expect(screen.getByText(SCRIPT)).toBeTruthy();
     noMarkup(container);
@@ -599,7 +999,10 @@ describe("020/FR-013 feedback como texto", () => {
       statusChangedAt: CREATED_AT,
       history: [],
     };
-    vi.stubGlobal("fetch", vi.fn(async () => json(200, detail)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, detail)),
+    );
     const { container } = renderWithProviders(
       <Toaster>
         <AdminFeedbackDetail id={ID} canChange={false} />
@@ -609,5 +1012,70 @@ describe("020/FR-013 feedback como texto", () => {
     // The student's name, next to the e-mail, also as text.
     expect(screen.getByText(`${SCRIPT} · ana@exemplo.com`)).toBeTruthy();
     noMarkup(container);
+  });
+});
+
+describe("023 nomes dos colegas como texto", () => {
+  const ACTIVITY = "dddddddd-dddd-4ddd-8ddd-ddddddddddd1";
+  const LEADER = { id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd2", name: SCRIPT };
+  const MEMBER = { id: "dddddddd-dddd-4ddd-8ddd-ddddddddddd3", name: `membro ${SCRIPT}` };
+  const AT = "2026-10-05T11:00:00.000Z";
+  const group: StudentGroup = {
+    groupSize: 3,
+    leader: LEADER,
+    members: [LEADER, MEMBER],
+    editor: LEADER,
+    myRole: "MEMBER",
+    canEdit: false,
+    addedBy: LEADER,
+    freeSlots: 1,
+    version: 1,
+  };
+  const noElements = () => expect(document.body.querySelector("script, img")).toBeNull();
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("diálogo de início: o nome do colega com HTML aparece como texto", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { groupSize: 3, freeSlots: 2, candidates: [MEMBER] })),
+    );
+    renderWithProviders(<GroupStartDialog activityId={ACTIVITY} open onOpenChange={() => {}} onStart={async () => {}} />);
+    expect(await screen.findByRole("checkbox", { name: MEMBER.name })).toBeTruthy();
+    noElements();
+  });
+
+  it("barra do grupo e aviso do integrante: os nomes com HTML aparecem como texto", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, {})),
+    );
+    renderWithProviders(
+      <>
+        <GroupNotice group={group} />
+        <GroupBar activityId={ACTIVITY} group={group} open />
+      </>,
+    );
+    expect(document.body.textContent).toContain(SCRIPT);
+    noElements();
+  });
+
+  it("fatos do professor: integrantes, passagens e salvamentos com HTML aparecem como texto", async () => {
+    const facts: TeacherAttemptGroup = {
+      leaderId: LEADER.id,
+      members: [
+        { ...LEADER, joinedAt: AT, addedById: null },
+        { ...MEMBER, joinedAt: AT, addedById: LEADER.id },
+      ],
+      events: [{ kind: "EDITING_HANDED", reason: null, actorId: LEADER.id, fromId: LEADER.id, toId: MEMBER.id, occurredAt: AT }],
+      saves: [{ questionId: OPEN_QUESTION_ID, entries: [{ studentId: MEMBER.id, revision: 1, savedAt: AT }] }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, facts)),
+    );
+    renderWithProviders(<GroupFacts classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} questions={gradingActivity().questions} />);
+    await waitFor(() => expect(document.body.textContent).toContain(MEMBER.name));
+    noElements();
   });
 });

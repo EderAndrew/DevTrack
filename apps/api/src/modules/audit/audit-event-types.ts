@@ -210,22 +210,26 @@ export const AUDIT_EVENT_METADATA = {
     "startWindowMinutes",
     // 021: "Permitir executar o código" (false for EXERCISE and EXAM, research Y11).
     "codeExecution",
+    // 023: "Em grupo" with its maximum, only for a group work (contracts/audit-events.md).
+    "groupSize",
   ],
   "activity.updated": ["classId", "fields"],
   // 015: a work's mode or AI help changed before the first start (FR-005); 021: its code execution too.
-  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution"],
+  // 023: `groupSize` when the work is in group or its format changed.
+  "activity.settings_changed": ["classId", "executionMode", "aiHelpAllowance", "codeExecution", "groupSize"],
   // 016: `pausedCount`, the open pauses the close or the cancellation ended by derivation (research M7).
   "activity.closed": ["classId", "submittedCount", "missedCount", "pausedCount"],
   "activity.cancelled": ["classId", "from", "submittedCount", "pausedCount"],
   // 013: `attemptNumber`, 1 for the first attempt and n for each retry of an EXERCISE.
   // 018: `rulesAccepted: true` when the attempt is an EXAM's (research T13).
-  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted"],
+  // 023: `group` and `memberCount` only on a group work (research U19).
+  "activity_attempt.started": ["activityId", "classId", "afterDeadline", "attemptNumber", "rulesAccepted", "group", "memberCount"],
   // At most once per 15 minutes per attempt (research P19): counts only, never the answers.
   "activity_attempt.progress_saved": ["activityId", "answeredCount", "questionCount"],
   // `operation`: START | SAVE | SUBMIT, RETRY | COMPLETE of an EXERCISE (013) and EXIT of an EXAM (018); `code`: the 409 code of the refusal.
   "activity_submission.rejected": ["operation", "code"],
   // 018: `endReason: STUDENT_SUBMITTED` for an EXAM.
-  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason"],
+  "activity_submission.created": ["activityId", "attemptId", "late", "blankCount", "questionCount", "pendingTeacherCount", "endReason", "submittedById"],
   // 018 — an expired exam attempt settled on its next touch (research T5), by the system.
   "exam_attempt.time_expired": ["activityId", "submissionId", "endReason", "blankCount"],
   // 018 — the occurrence that reaches the limit opens the hold (research T8), by the system, in the
@@ -307,6 +311,16 @@ export const AUDIT_EVENT_METADATA = {
   "student_feedback.rate_limited": ["scope"],
   // 020 — the ADMIN moved a feedback to another status (research J5); a refused transition writes nothing.
   "student_feedback.status_changed": ["fromStatus", "toStatus"],
+  // 023 — a group formed at the start (contracts/audit-events.md): ids and the count, never names.
+  "activity_group.created": ["activityId", "attemptId", "memberCount"],
+  // 023 — one per member the leader brought in, at the start or by "Incluir integrantes".
+  "activity_group.member_added": ["activityId", "attemptId", "memberId"],
+  // 023 — the editing moved (research U7): by the student who moved it, or SYSTEM for the settlement (U9).
+  "activity_group.editing_changed": ["activityId", "attemptId", "kind", "reason", "fromUserId", "toUserId"],
+  // 023 — the settlement gave the leadership to the first active member (FR-023), SYSTEM.
+  "activity_group.leader_changed": ["activityId", "attemptId", "fromUserId", "toUserId", "reason"],
+  // 023 — a group write refused to its author: the operation and a reason code, never the content.
+  "activity_group.write_refused": ["activityId", "attemptId", "operation", "reason"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

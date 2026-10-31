@@ -6,7 +6,11 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { formatTime } from "@/lib/messages/dates";
-import { feedbackFieldId, GENERAL_FEEDBACK_FIELD_ID, gradeFieldId } from "../schemas/attempt-grading";
+import {
+  feedbackFieldId,
+  GENERAL_FEEDBACK_FIELD_ID,
+  gradeFieldId,
+} from "../schemas/attempt-grading";
 import { AttemptReview, GRADING_CONFLICT_NOTICE } from "./attempt-review";
 import { commentFieldId } from "../schemas/exercise-marks";
 import {
@@ -32,14 +36,26 @@ const ACTIVITY_PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const ATTEMPT_PATH = `${ACTIVITY_PATH}/attempts/${ATTEMPT_ID}`;
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 
-function setup(routes: Parameters<typeof routedFetch>[0] = {}, canGrade = true, canMark = false) {
+function setup(
+  routes: Parameters<typeof routedFetch>[0] = {},
+  canGrade = true,
+  canMark = false,
+) {
   const api = routedFetch({
     [`GET ${ACTIVITY_PATH}`]: json(200, gradingActivity()),
     [`GET ${ATTEMPT_PATH}`]: json(200, teacherAttempt()),
     ...routes,
   });
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} canGrade={canGrade} canMark={canMark} />);
+  const view = renderWithProviders(
+    <AttemptReview
+      classId={CLASS_ID}
+      activityId={ACTIVITY_ID}
+      attemptId={ATTEMPT_ID}
+      canGrade={canGrade}
+      canMark={canMark}
+    />,
+  );
   return { ...view, api, user: userEvent.setup() };
 }
 
@@ -70,14 +86,20 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
 
   it("012/US5-1 respostas ao lado do gabarito; MC marcada como corrigida automaticamente, aberta pendente", async () => {
     setup();
-    expect(await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" }),
+    ).toBeTruthy();
     const first = screen.getByRole("listitem", { name: "Questão 1" });
     expect(within(first).getByText("Corrigida automaticamente")).toBeTruthy();
-    expect(within(first).getByText("extends").closest("li")!.textContent).toBe("extends (escolhida) (correta)");
+    expect(within(first).getByText("extends").closest("li")!.textContent).toBe(
+      "extends (escolhida) (correta)",
+    );
     const second = screen.getByRole("listitem", { name: "Questão 2" });
     expect(within(second).getByText("Correção pendente")).toBeTruthy();
     expect(within(second).getByText("Proteger os atributos.")).toBeTruthy();
-    expect(within(second).getByText("Esconder o estado atrás de métodos.")).toBeTruthy();
+    expect(
+      within(second).getByText("Esconder o estado atrás de métodos."),
+    ).toBeTruthy();
     expect(field(gradeFieldId(0)).value).toBe("0,50");
     expect(field(gradeFieldId(1)).value).toBe("");
     expect(screen.getAllByText("0,00 a 0,50")).toHaveLength(2);
@@ -85,7 +107,9 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
   });
 
   it("012/US5-2 salvar correção envia só a questão alterada e o feedback geral, na versão lida", async () => {
-    const { api, user } = setup({ [`PUT ${ATTEMPT_PATH}/grades`]: json(200, decided) });
+    const { api, user } = setup({
+      [`PUT ${ATTEMPT_PATH}/grades`]: json(200, decided),
+    });
     await screen.findByRole("form", { name: "Correção" });
     await user.type(field(gradeFieldId(1)), "0,4");
     await user.type(field(feedbackFieldId(1)), "Faltou a interface pública.");
@@ -94,7 +118,13 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
     expect(await screen.findByText("Correção salva.")).toBeTruthy();
     expect(api.writes()[0]!.body).toEqual({
       version: 1,
-      decisions: [{ questionId: OPEN_QUESTION_ID, grade: "0.40", feedback: "Faltou a interface pública." }],
+      decisions: [
+        {
+          questionId: OPEN_QUESTION_ID,
+          grade: "0.40",
+          feedback: "Faltou a interface pública.",
+        },
+      ],
       generalFeedback: "Muito bem.",
     });
     expect(screen.getByText("0,90 de 1,00")).toBeTruthy();
@@ -107,7 +137,10 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
     await user.type(field(gradeFieldId(1)), "0,51");
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
     expectFieldErrorLinked(field(gradeFieldId(1)));
-    expect(screen.getAllByText("Questão 2: a nota deve ficar de 0,00 a 0,50.").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Questão 2: a nota deve ficar de 0,00 a 0,50.")
+        .length,
+    ).toBeGreaterThan(0);
     await user.clear(field(gradeFieldId(1)));
     await user.type(field(gradeFieldId(1)), "0,255");
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
@@ -117,23 +150,43 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
 
   it("outra aba salvou antes: recarrega a correção e avisa", async () => {
     const { api, user } = setup({
-      [`PUT ${ATTEMPT_PATH}/grades`]: apiError(409, "SUBMISSION_VERSION_CONFLICT", "Esta correção mudou em outra aba."),
+      [`PUT ${ATTEMPT_PATH}/grades`]: apiError(
+        409,
+        "SUBMISSION_VERSION_CONFLICT",
+        "Esta correção mudou em outra aba.",
+      ),
     });
     await screen.findByRole("form", { name: "Correção" });
     await user.type(field(gradeFieldId(1)), "0,1");
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
     expect(await screen.findByText(GRADING_CONFLICT_NOTICE)).toBeTruthy();
-    expect(api.calls.filter((call) => call.method === "GET" && call.url === ATTEMPT_PATH)).toHaveLength(2);
+    expect(
+      api.calls.filter(
+        (call) => call.method === "GET" && call.url === ATTEMPT_PATH,
+      ),
+    ).toHaveLength(2);
   });
 
   it("012/US5-6 não entregue: somente leitura, e quem não pode mais entregar tem Aceitar como entrega com confirmação", async () => {
     const missedId = "dddddddd-dddd-4ddd-8ddd-ddddddddddd3";
     const missedPath = `${ACTIVITY_PATH}/attempts/${missedId}`;
-    const open = teacherAttempt({ id: missedId, status: "IN_PROGRESS", student: { userId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3", name: "Carla Dias" }, submission: null });
+    const open = teacherAttempt({
+      id: missedId,
+      status: "IN_PROGRESS",
+      student: {
+        userId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
+        name: "Carla Dias",
+      },
+      submission: null,
+    });
     const accepted = teacherAttempt({
       ...open,
       status: "SUBMITTED",
-      submission: { ...teacherAttempt().submission!, late: true, acceptedByTeacher: true },
+      submission: {
+        ...teacherAttempt().submission!,
+        late: true,
+        acceptedByTeacher: true,
+      },
     });
     const api = routedFetch({
       [`GET ${ACTIVITY_PATH}`]: json(200, gradingActivity()),
@@ -141,18 +194,38 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
       [`POST ${missedPath}/accept-submission`]: json(200, accepted),
     });
     vi.stubGlobal("fetch", api.fetch);
-    renderWithProviders(<AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={missedId} canGrade canMark={false} />);
+    renderWithProviders(
+      <AttemptReview
+        classId={CLASS_ID}
+        activityId={ACTIVITY_ID}
+        attemptId={missedId}
+        canGrade
+        canMark={false}
+      />,
+    );
     const user = userEvent.setup();
 
     expect(await screen.findByText("Não entregue")).toBeTruthy();
     expect(screen.queryByRole("form", { name: "Correção" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Aceitar como entrega" }));
-    const dialog = await screen.findByRole("alertdialog", { name: "Aceitar esta tentativa como entrega?" });
-    expect(within(dialog).getByText(/As respostas salvas até .* viram a entrega deste aluno, marcada como atrasada\./)).toBeTruthy();
+    await user.click(
+      screen.getByRole("button", { name: "Aceitar como entrega" }),
+    );
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Aceitar esta tentativa como entrega?",
+    });
+    expect(
+      within(dialog).getByText(
+        /As respostas salvas até .* viram a entrega deste aluno, marcada como atrasada\./,
+      ),
+    ).toBeTruthy();
     expect(api.writes()).toEqual([]);
-    await user.click(within(dialog).getByRole("button", { name: "Aceitar como entrega" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Aceitar como entrega" }),
+    );
     expect(await screen.findByText("Entrega aceita.")).toBeTruthy();
-    expect(api.writes().map((call) => [call.method, call.url, call.body])).toEqual([["POST", `${missedPath}/accept-submission`, {}]]);
+    expect(
+      api.writes().map((call) => [call.method, call.url, call.body]),
+    ).toEqual([["POST", `${missedPath}/accept-submission`, {}]]);
     expect(screen.getByText("Entrega aceita pelo professor")).toBeTruthy();
     expect(screen.getByText("Entregue com atraso")).toBeTruthy();
   });
@@ -161,7 +234,9 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
     const open = teacherAttempt({ submission: null, status: "IN_PROGRESS" });
     setup({ [`GET ${ATTEMPT_PATH}`]: json(200, open) });
     expect(await screen.findByText("Não entregue")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Aceitar como entrega" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Aceitar como entrega" }),
+    ).toBeNull();
   });
 
   it("sem notas.lancar a correção aparece só para leitura", async () => {
@@ -169,14 +244,22 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
     const second = await screen.findByRole("listitem", { name: "Questão 2" });
     expect(screen.queryByRole("form", { name: "Correção" })).toBeNull();
     expect(within(second).getByText("0,40 de 0,50")).toBeTruthy();
-    expect(within(second).getByText("Faltou a interface pública.")).toBeTruthy();
+    expect(
+      within(second).getByText("Faltou a interface pública."),
+    ).toBeTruthy();
   });
 
   it("aluno anterior e próximo pela lista da atividade", async () => {
     setup();
-    const nav = await screen.findByRole("navigation", { name: "Outros alunos" });
+    const nav = await screen.findByRole("navigation", {
+      name: "Outros alunos",
+    });
     expect(within(nav).queryByText(/Aluno anterior/)).toBeNull();
-    expect(within(nav).getByRole("link", { name: "Próximo aluno: Carla Dias" }).getAttribute("href")).toBe(
+    expect(
+      within(nav)
+        .getByRole("link", { name: "Próximo aluno: Carla Dias" })
+        .getAttribute("href"),
+    ).toBe(
       `/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}/tentativas/dddddddd-dddd-4ddd-8ddd-ddddddddddd3`,
     );
   });
@@ -200,9 +283,16 @@ describe("012/US5 AttemptReview — respostas, gabarito, correção e aceite", (
 
 const EXERCISE_ATTEMPT_PATH = `${ACTIVITY_PATH}/attempts/${EXERCISE_ATTEMPT_ID}`;
 const radio = (position: number, label: "Certo" | "Errado") =>
-  within(screen.getByRole("group", { name: `Correção do exercício ${position + 1}` })).getByRole("radio", { name: label }) as HTMLInputElement;
+  within(
+    screen.getByRole("group", {
+      name: `Correção do exercício ${position + 1}`,
+    }),
+  ).getByRole("radio", { name: label }) as HTMLInputElement;
 
-function setupExercise(routes: Parameters<typeof routedFetch>[0] = {}, canMark = true) {
+function setupExercise(
+  routes: Parameters<typeof routedFetch>[0] = {},
+  canMark = true,
+) {
   const api = routedFetch({
     [`GET ${ACTIVITY_PATH}`]: json(200, markingActivity()),
     [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, exerciseAttempt()),
@@ -210,7 +300,13 @@ function setupExercise(routes: Parameters<typeof routedFetch>[0] = {}, canMark =
   });
   vi.stubGlobal("fetch", api.fetch);
   const view = renderWithProviders(
-    <AttemptReview classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={EXERCISE_ATTEMPT_ID} canGrade={false} canMark={canMark} />,
+    <AttemptReview
+      classId={CLASS_ID}
+      activityId={ACTIVITY_ID}
+      attemptId={EXERCISE_ATTEMPT_ID}
+      canGrade={false}
+      canMark={canMark}
+    />,
   );
   return { ...view, api, user: userEvent.setup() };
 }
@@ -228,72 +324,145 @@ describe("013/US3 AttemptReview — Exercício: Certo ou Errado por resposta", (
     const open = screen.getByRole("listitem", { name: "Exercício 2" });
     expect(within(open).getByText("Aguardando correção")).toBeTruthy();
     expect(within(open).getByText("Proteger os atributos.")).toBeTruthy();
-    expect(within(open).getByText("Esconder o estado atrás de métodos.")).toBeTruthy();
-    expect([radio(1, "Certo").checked, radio(1, "Errado").checked]).toEqual([false, false]);
-    expect([radio(2, "Certo").checked, radio(2, "Errado").checked]).toEqual([false, true]);
-    expect((document.getElementById(commentFieldId(2)) as HTMLTextAreaElement).value).toBe("Faltou o private.");
-    expect(screen.getByLabelText("Comentário do exercício 2 (opcional)")).toBeTruthy();
+    expect(
+      within(open).getByText("Esconder o estado atrás de métodos."),
+    ).toBeTruthy();
+    expect([radio(1, "Certo").checked, radio(1, "Errado").checked]).toEqual([
+      false,
+      false,
+    ]);
+    expect([radio(2, "Certo").checked, radio(2, "Errado").checked]).toEqual([
+      false,
+      true,
+    ]);
+    expect(
+      (document.getElementById(commentFieldId(2)) as HTMLTextAreaElement).value,
+    ).toBe("Faltou o private.");
+    expect(
+      screen.getByLabelText("Comentário do exercício 2 (opcional)"),
+    ).toBeTruthy();
 
     expect(screen.getByText("Vale 30 pontos")).toBeTruthy();
     expect(screen.getByText("15 de 105 pontos")).toBeTruthy();
     expect(screen.getByText("1 resposta aguardando correção")).toBeTruthy();
-    for (const label of [/^Nota/, /Feedback geral/]) expect(screen.queryByLabelText(label)).toBeNull();
-    expect(screen.queryByText(/Liberar resultado|Aceitar como entrega|Não entregue/)).toBeNull();
+    for (const label of [/^Nota/, /Feedback geral/])
+      expect(screen.queryByLabelText(label)).toBeNull();
+    expect(
+      screen.queryByText(/Liberar resultado|Aceitar como entrega|Não entregue/),
+    ).toBeNull();
   });
 
   it("013/US3-1 013/FR-017 salvar correção envia só as marcações alteradas, com o comentário", async () => {
-    const marked = exerciseAttempt({ [MARK_OPEN_ID]: { result: "CORRECT", points: 30, nature: "HUMAN_DECISION", comment: "Boa.", decidedAt: "2026-10-05T14:00:00.000Z" } });
-    const { api, user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, marked) });
+    const marked = exerciseAttempt({
+      [MARK_OPEN_ID]: {
+        result: "CORRECT",
+        points: 30,
+        nature: "HUMAN_DECISION",
+        comment: "Boa.",
+        decidedAt: "2026-10-05T14:00:00.000Z",
+      },
+    });
+    const { api, user } = setupExercise({
+      [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, marked),
+    });
     await screen.findByRole("form", { name: "Correção" });
     await user.click(radio(1, "Certo"));
     await user.type(document.getElementById(commentFieldId(1))!, "Boa.");
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
     expect(await screen.findByText("Correção salva.")).toBeTruthy();
-    expect(api.writes().map((call) => [call.method, call.url, call.body])).toEqual([
-      ["PUT", `${EXERCISE_ATTEMPT_PATH}/marks`, { marks: [{ questionId: MARK_OPEN_ID, result: "CORRECT", comment: "Boa." }] }],
+    expect(
+      api.writes().map((call) => [call.method, call.url, call.body]),
+    ).toEqual([
+      [
+        "PUT",
+        `${EXERCISE_ATTEMPT_PATH}/marks`,
+        {
+          marks: [
+            { questionId: MARK_OPEN_ID, result: "CORRECT", comment: "Boa." },
+          ],
+        },
+      ],
     ]);
     expect(screen.getByText("45 de 105 pontos")).toBeTruthy();
     expect(radio(1, "Certo").checked).toBe(true);
   });
 
   it("013/US3-2 mudar uma marcação feita envia o novo resultado e o comentário atual; nada alterado não envia nada", async () => {
-    const { api, user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, exerciseAttempt()) });
+    const { api, user } = setupExercise({
+      [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: json(200, exerciseAttempt()),
+    });
     await screen.findByRole("form", { name: "Correção" });
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
-    expect(await screen.findByText("Nenhuma alteração para salvar.")).toBeTruthy();
+    expect(
+      await screen.findByText("Nenhuma alteração para salvar."),
+    ).toBeTruthy();
     expect(api.writes()).toEqual([]);
 
     await user.click(radio(2, "Certo"));
     await user.clear(document.getElementById(commentFieldId(2))!);
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
     await screen.findByText("Correção salva.");
-    expect(api.writes()[0]!.body).toEqual({ marks: [{ questionId: MARK_CODE_ID, result: "CORRECT", comment: null }] });
+    expect(api.writes()[0]!.body).toEqual({
+      marks: [{ questionId: MARK_CODE_ID, result: "CORRECT", comment: null }],
+    });
   });
 
   it("013/FR-017 recusa do servidor aparece no resumo de erros", async () => {
-    const { user } = setupExercise({ [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: apiError(409, "INVALID_STATE_TRANSITION", "x") });
+    const { user } = setupExercise({
+      [`PUT ${EXERCISE_ATTEMPT_PATH}/marks`]: apiError(
+        409,
+        "INVALID_STATE_TRANSITION",
+        "x",
+      ),
+    });
     await screen.findByRole("form", { name: "Correção" });
     await user.click(radio(1, "Errado"));
     await user.click(screen.getByRole("button", { name: "Salvar correção" }));
-    expect(await screen.findByText("Não foi possível salvar a correção")).toBeTruthy();
+    expect(
+      await screen.findByText("Não foi possível salvar a correção"),
+    ).toBeTruthy();
   });
 
   it("013/FR-010a já pontuado em outra atividade: só leitura, sem Certo/Errado", async () => {
-    const attempt = exerciseAttempt({ [MARK_OPEN_ID]: { result: "UNSCORED", scoring: false, alreadyScored: true } });
+    const attempt = exerciseAttempt({
+      [MARK_OPEN_ID]: {
+        result: "UNSCORED",
+        scoring: false,
+        alreadyScored: true,
+      },
+    });
     setupExercise({ [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, attempt) });
     const open = await screen.findByRole("listitem", { name: "Exercício 2" });
-    expect(within(open).getByText("Já pontuado em outra atividade")).toBeTruthy();
+    expect(
+      within(open).getByText("Já pontuado em outra atividade"),
+    ).toBeTruthy();
     expect(within(open).queryByRole("radio")).toBeNull();
-    expect(screen.getByRole("group", { name: "Correção do exercício 3" })).toBeTruthy();
+    expect(
+      screen.getByRole("group", { name: "Correção do exercício 3" }),
+    ).toBeTruthy();
   });
 
   it("013/US3-3 tentativa de refazer: prática, sem correção do professor", async () => {
     const practice = exerciseAttempt(
-      { [MARK_OPEN_ID]: { result: "UNSCORED", scoring: false }, [MARK_CODE_ID]: { result: "UNSCORED", scoring: false, nature: null, comment: null, decidedAt: null }, [MARK_CHOICE_ID]: { scoring: false, points: 0 } },
+      {
+        [MARK_OPEN_ID]: { result: "UNSCORED", scoring: false },
+        [MARK_CODE_ID]: {
+          result: "UNSCORED",
+          scoring: false,
+          nature: null,
+          comment: null,
+          decidedAt: null,
+        },
+        [MARK_CHOICE_ID]: { scoring: false, points: 0 },
+      },
       { number: 2 },
     );
     setupExercise({ [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, practice) });
-    expect(await screen.findByText("Tentativa 2: prática. Não vale pontos e não vai para a correção.")).toBeTruthy();
+    expect(
+      await screen.findByText(
+        "Tentativa 2: prática. Não vale pontos e não vai para a correção.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole("form", { name: "Correção" })).toBeNull();
     expect(screen.getAllByText("Compare com o gabarito")).toHaveLength(2);
   });
@@ -327,54 +496,127 @@ describe("014/US2 AttemptReview — código colorido", () => {
 
   it("014/US2-2 a resposta do aluno e a solução esperada aparecem coloridas, uma abaixo da outra", async () => {
     const base = markingActivity();
-    const java = { id: "00000000-0000-4000-a000-000000000001", name: "Java", highlight: "java" };
-    const withJava = { ...base, questions: base.questions.map((question) => (question.id === MARK_CODE_ID ? { ...question, language: java } : question)) };
-    const { container } = setupExercise({ [`GET ${ACTIVITY_PATH}`]: json(200, withJava) });
+    const java = {
+      id: "00000000-0000-4000-a000-000000000001",
+      name: "Java",
+      highlight: "java",
+    };
+    const withJava = {
+      ...base,
+      questions: base.questions.map((question) =>
+        question.id === MARK_CODE_ID
+          ? { ...question, language: java }
+          : question,
+      ),
+    };
+    const { container } = setupExercise({
+      [`GET ${ACTIVITY_PATH}`]: json(200, withJava),
+    });
     const code = await screen.findByRole("listitem", { name: "Exercício 3" });
-    const answer = within(code).getByRole("group", { name: "Resposta do aluno" });
-    const solution = within(code).getByRole("group", { name: "Solução esperada" });
+    const answer = within(code).getByRole("group", {
+      name: "Resposta do aluno",
+    });
+    const solution = within(code).getByRole("group", {
+      name: "Solução esperada",
+    });
     await waitFor(() => {
       expect(answer.querySelector(".text-syntax-keyword")).toBeTruthy();
       expect(solution.querySelector(".text-syntax-keyword")).toBeTruthy();
     });
-    expect(answer.querySelector("pre code")!.textContent).toBe("class Conta { saldo; }");
-    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
+    expect(answer.querySelector("pre code")!.textContent).toBe(
+      "class Conta { saldo; }",
+    );
+    expect(solution.querySelector("pre code")!.textContent).toBe(
+      "class Conta { private saldo; }",
+    );
     // Stacked in the reading order: the answer, then the answer key.
-    expect(answer.compareDocumentPosition(solution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      answer.compareDocumentPosition(solution) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(code.querySelector("[contenteditable]")).toBeNull();
     await expectNoA11yViolations(container);
   });
 
-  it("014/US2-2 linguagem sem gramática mostra o código puro; resposta de código em branco continua \"Em branco\"", async () => {
+  it('014/US2-2 linguagem sem gramática mostra o código puro; resposta de código em branco continua "Em branco"', async () => {
     setupExercise({
       [`GET ${EXERCISE_ATTEMPT_PATH}`]: json(200, {
         ...exerciseAttempt(),
-        answers: exerciseAttempt().answers.map((item) => (item.questionId === MARK_CODE_ID ? { ...item, answer: { kind: "CODE", source: "  " } } : item)),
+        answers: exerciseAttempt().answers.map((item) =>
+          item.questionId === MARK_CODE_ID
+            ? { ...item, answer: { kind: "CODE", source: "  " } }
+            : item,
+        ),
       }),
     });
     const code = await screen.findByRole("listitem", { name: "Exercício 3" });
-    expect(within(code).queryByRole("group", { name: "Resposta do aluno" })).toBeNull();
+    expect(
+      within(code).queryByRole("group", { name: "Resposta do aluno" }),
+    ).toBeNull();
     expect(within(code).getByText("Em branco")).toBeTruthy();
-    const solution = within(code).getByRole("group", { name: "Solução esperada" });
+    const solution = within(code).getByRole("group", {
+      name: "Solução esperada",
+    });
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(solution.querySelector("span[class]")).toBeNull();
-    expect(solution.querySelector("pre code")!.textContent).toBe("class Conta { private saldo; }");
+    expect(solution.querySelector("pre code")!.textContent).toBe(
+      "class Conta { private saldo; }",
+    );
   });
 });
 
 describe("015/US4 registros do modo controlado e ajudas da IA na correção", () => {
   afterEach(() => vi.unstubAllGlobals());
-  const controlled = gradingActivity({ executionMode: "CONTROLLED", aiHelp: { allowance: 3 } });
+  const controlled = gradingActivity({
+    executionMode: "CONTROLLED",
+    aiHelp: { allowance: 3 },
+  });
   const timeline = {
     events: [
-      { type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:00:00.000Z", clientOccurredAt: null, buffered: false },
-      { type: "SCREEN_RETURNED", questionPosition: null, recordedAt: "2026-10-02T12:02:00.000Z", clientOccurredAt: null, buffered: false },
-      { type: "PASTE_BLOCKED", questionPosition: 1, recordedAt: "2026-10-02T12:03:00.000Z", clientOccurredAt: null, buffered: false },
-      { type: "SCREEN_LEFT", questionPosition: null, recordedAt: "2026-10-02T12:05:00.000Z", clientOccurredAt: null, buffered: false },
+      {
+        type: "SCREEN_LEFT",
+        questionPosition: null,
+        recordedAt: "2026-10-02T12:00:00.000Z",
+        clientOccurredAt: null,
+        buffered: false,
+      },
+      {
+        type: "SCREEN_RETURNED",
+        questionPosition: null,
+        recordedAt: "2026-10-02T12:02:00.000Z",
+        clientOccurredAt: null,
+        buffered: false,
+      },
+      {
+        type: "PASTE_BLOCKED",
+        questionPosition: 1,
+        recordedAt: "2026-10-02T12:03:00.000Z",
+        clientOccurredAt: null,
+        buffered: false,
+      },
+      {
+        type: "SCREEN_LEFT",
+        questionPosition: null,
+        recordedAt: "2026-10-02T12:05:00.000Z",
+        clientOccurredAt: null,
+        buffered: false,
+      },
     ],
     intervals: [
-      { kind: "SCREEN", from: "2026-10-02T12:00:00.000Z", to: "2026-10-02T12:02:00.000Z", seconds: 120, open: false },
-      { kind: "SCREEN", from: "2026-10-02T12:05:00.000Z", to: "2026-10-02T12:05:30.000Z", seconds: 30, open: true },
+      {
+        kind: "SCREEN",
+        from: "2026-10-02T12:00:00.000Z",
+        to: "2026-10-02T12:02:00.000Z",
+        seconds: 120,
+        open: false,
+      },
+      {
+        kind: "SCREEN",
+        from: "2026-10-02T12:05:00.000Z",
+        to: "2026-10-02T12:05:30.000Z",
+        seconds: 30,
+        open: true,
+      },
     ],
     totals: {
       screenExits: 2,
@@ -394,6 +636,7 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
     items: [
       {
         id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+        studentUserId: "ffffffff-0000-4000-8000-000000000001",
         questionPosition: 1,
         question: "Como começo? <b>agora</b>",
         status: "DELIVERED",
@@ -405,6 +648,7 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
       },
       {
         id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+        studentUserId: "ffffffff-0000-4000-8000-000000000001",
         questionPosition: 1,
         question: "Qual é a resposta?",
         status: "BLOCKED",
@@ -424,10 +668,26 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
 
   it("015/US4-2 015/FR-025 a linha do tempo com horário, evento e duração, e o aviso de que uma saída não significa uso indevido", async () => {
     const { container } = setup(routes);
-    const section = (await screen.findByRole("heading", { name: "Registros do modo controlado" })).closest("section")!;
-    expect(section.textContent).toContain("Registros de saída da tela. Uma saída não significa, sozinha, uso indevido.");
-    const table = await within(section).findByRole("table", { name: "Eventos da tentativa, no horário do servidor." });
-    const rows = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").slice(1).map((cell) => cell.textContent));
+    const section = (
+      await screen.findByRole("heading", {
+        name: "Registros do modo controlado",
+      })
+    ).closest("section")!;
+    expect(section.textContent).toContain(
+      "Registros de saída da tela. Uma saída não significa, sozinha, uso indevido.",
+    );
+    const table = await within(section).findByRole("table", {
+      name: "Eventos da tentativa, no horário do servidor.",
+    });
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .slice(1)
+          .map((cell) => cell.textContent),
+      );
     expect(rows).toEqual([
       ["Saiu da tela", "2 min"],
       ["Voltou à tela", "—"],
@@ -435,40 +695,59 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
       ["Saiu da tela", "30 s (sem retorno registrado)"],
     ]);
     expect(section.textContent).toContain("2 (2 min 30 s fora)");
-    expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b|suspeit/i);
+    expect(container.textContent).not.toMatch(
+      /fraude|violação|\bcola\b|suspeit/i,
+    );
     await expectNoA11yViolations(container);
   });
 
   it("015/US4-3 015/FR-025 em cada questão, as perguntas, as orientações e o status; o total usado", async () => {
     const { container } = setup(routes);
-    const help = await screen.findByRole("region", { name: "Ajuda da IA na questão 2" });
-    expect(within(help).getByText("Pergunta do aluno: Como começo? <b>agora</b>")).toBeTruthy();
-    expect(within(help).getByText("Orientação: Pense no que a classe protege.")).toBeTruthy();
+    const help = await screen.findByRole("region", {
+      name: "Ajuda da IA na questão 2",
+    });
+    expect(
+      within(help).getByText("Pergunta do aluno: Como começo? <b>agora</b>"),
+    ).toBeTruthy();
+    expect(
+      within(help).getByText("Orientação: Pense no que a classe protege."),
+    ).toBeTruthy();
     expect(within(help).getByText("Entregue")).toBeTruthy();
     expect(within(help).getByText("Bloqueada pela verificação")).toBeTruthy();
     expect(help.querySelector("pre")?.textContent).toContain("return x * 2;");
     expect(help.querySelector("b")).toBeNull();
-    expect(screen.queryByRole("region", { name: "Ajuda da IA na questão 1" })).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "Ajuda da IA na questão 1" }),
+    ).toBeNull();
     expect(screen.getByText("1 de 3")).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 
   it("trabalho NORMAL sem ajuda: nenhum registro nem ajuda consultados", async () => {
     const { api } = setup();
-    expect(await screen.findByRole("heading", { name: /Tentativa de/ })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: /Tentativa de/ }),
+    ).toBeTruthy();
     expect(screen.queryByText("Registros do modo controlado")).toBeNull();
-    expect(api.calls.some((call) => call.url.endsWith("/integrity") || call.url.endsWith("/help"))).toBe(false);
+    expect(
+      api.calls.some(
+        (call) => call.url.endsWith("/integrity") || call.url.endsWith("/help"),
+      ),
+    ).toBe(false);
   });
 });
 
-
-describe("016/US4 \"Saídas da sala\" na correção", () => {
+describe('016/US4 "Saídas da sala" na correção', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const PAUSES = `GET ${ATTEMPT_PATH}/pauses`;
-  const presentOnly = gradingActivity({ releaseMode: "PRESENT_ONLY", attendance: { present: 1, enrolled: 1 } });
+  const presentOnly = gradingActivity({
+    releaseMode: "PRESENT_ONLY",
+    attendance: { present: 1, enrolled: 1 },
+  });
   const pause = (overrides: Partial<TeacherPause>): TeacherPause => ({
     id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
     initiatedBy: "STUDENT",
     reason: "WATER",
     note: null,
@@ -481,42 +760,104 @@ describe("016/US4 \"Saídas da sala\" na correção", () => {
   const pauses = {
     items: [
       pause({}),
-      pause({ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2", reason: "OTHER", note: "Fui buscar o carregador", startedAt: "2026-10-02T13:30:00.000Z", endedAt: "2026-10-02T13:33:00.000Z", seconds: 180 }),
-      pause({ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3", initiatedBy: "TEACHER", reason: "TEACHER", startedAt: "2026-10-02T13:50:00.000Z", endedAt: "2026-10-02T14:00:00.000Z", endedBy: "ACTIVITY_CLOSED", seconds: 600 }),
+      pause({
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+        reason: "OTHER",
+        note: "Fui buscar o carregador",
+        startedAt: "2026-10-02T13:30:00.000Z",
+        endedAt: "2026-10-02T13:33:00.000Z",
+        seconds: 180,
+      }),
+      pause({
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3",
+        initiatedBy: "TEACHER",
+        reason: "TEACHER",
+        startedAt: "2026-10-02T13:50:00.000Z",
+        endedAt: "2026-10-02T14:00:00.000Z",
+        endedBy: "ACTIVITY_CLOSED",
+        seconds: 600,
+      }),
     ],
     totalSecondsAway: 1020,
   };
 
-  it("016/US4-2 016/FR-021 cada pausa com motivo, texto, quem pausou, saída, retorno e duração; \"Encerrada com a atividade\"", async () => {
-    const { container } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, pauses) });
-    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+  it('016/US4-2 016/FR-021 cada pausa com motivo, texto, quem pausou, saída, retorno e duração; "Encerrada com a atividade"', async () => {
+    const { container } = setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly),
+      [PAUSES]: json(200, pauses),
+    });
+    const section = await screen.findByRole("region", {
+      name: "Saídas da sala",
+    });
     const table = await within(section).findByRole("table");
-    const rows = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent));
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent),
+      );
     expect(rows).toEqual([
-      ["Beber água", "Aluno", formatTime("2026-10-02T13:10:00.000Z"), formatTime("2026-10-02T13:14:00.000Z"), "4 min"],
-      ["Outro: Fui buscar o carregador", "Aluno", formatTime("2026-10-02T13:30:00.000Z"), formatTime("2026-10-02T13:33:00.000Z"), "3 min"],
-      ["Pausado pelo professor", "Professor", formatTime("2026-10-02T13:50:00.000Z"), "Encerrada com a atividade", "10 min"],
+      [
+        "Beber água",
+        "Aluno",
+        formatTime("2026-10-02T13:10:00.000Z"),
+        formatTime("2026-10-02T13:14:00.000Z"),
+        "4 min",
+      ],
+      [
+        "Outro: Fui buscar o carregador",
+        "Aluno",
+        formatTime("2026-10-02T13:30:00.000Z"),
+        formatTime("2026-10-02T13:33:00.000Z"),
+        "3 min",
+      ],
+      [
+        "Pausado pelo professor",
+        "Professor",
+        formatTime("2026-10-02T13:50:00.000Z"),
+        "Encerrada com a atividade",
+        "10 min",
+      ],
     ]);
     expect(within(section).getByText("Tempo total fora: 17 min")).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 
   it("016/US4-3 016/SC-008 as pausas são registro: nenhuma nota ou rótulo muda, e o formulário de nota é o mesmo", async () => {
-    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, pauses) });
-    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+    setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly),
+      [PAUSES]: json(200, pauses),
+    });
+    const section = await screen.findByRole("region", {
+      name: "Saídas da sala",
+    });
     await within(section).findByRole("table");
-    expect(section.textContent).not.toMatch(/fraude|cola|viola|suspeit|desconto/i);
+    expect(section.textContent).not.toMatch(
+      /fraude|cola|viola|suspeit|desconto/i,
+    );
     await screen.findByRole("form", { name: "Correção" });
     expect(field(gradeFieldId(0)).value).toBe("0,50");
   });
 
-  it("016/FR-021 sem pausas: \"Nenhuma saída da sala\"; erro com a mensagem; ALL_ENROLLED não consulta as pausas", async () => {
-    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: json(200, { items: [], totalSecondsAway: 0 }) });
-    expect(await screen.findByText("Nenhuma saída da sala nesta tentativa.")).toBeTruthy();
+  it('016/FR-021 sem pausas: "Nenhuma saída da sala"; erro com a mensagem; ALL_ENROLLED não consulta as pausas', async () => {
+    setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly),
+      [PAUSES]: json(200, { items: [], totalSecondsAway: 0 }),
+    });
+    expect(
+      await screen.findByText("Nenhuma saída da sala nesta tentativa."),
+    ).toBeTruthy();
     vi.unstubAllGlobals();
     cleanup();
-    setup({ [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly), [PAUSES]: apiError(500, "INTERNAL_ERROR", "x") });
-    const section = await screen.findByRole("region", { name: "Saídas da sala" });
+    setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, presentOnly),
+      [PAUSES]: apiError(500, "INTERNAL_ERROR", "x"),
+    });
+    const section = await screen.findByRole("region", {
+      name: "Saídas da sala",
+    });
     expect(await within(section).findByRole("alert")).toBeTruthy();
     vi.unstubAllGlobals();
     cleanup();
@@ -532,16 +873,35 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
 
   const examAttempt = teacherAttempt({
     startedAt: "2026-10-01T12:00:00.000Z",
-    submission: { ...teacherAttempt().submission!, submittedAt: "2026-10-01T12:25:00.000Z" },
+    submission: {
+      ...teacherAttempt().submission!,
+      submittedAt: "2026-10-01T12:25:00.000Z",
+    },
     exam: {
       endsAt: "2026-10-01T12:30:00.000Z",
       endedAt: "2026-10-01T12:25:00.000Z",
       endReason: "STUDENT_SUBMITTED",
       occurrences: [
-        { ordinal: 1, kind: "SCREEN_LEFT", recordedAt: "2026-10-01T12:05:00.000Z" },
-        { ordinal: 2, kind: "FULLSCREEN_EXITED", recordedAt: "2026-10-01T12:06:00.000Z" },
-        { ordinal: 3, kind: "CLIPBOARD", recordedAt: "2026-10-01T12:07:00.000Z" },
-        { ordinal: 4, kind: "INACTIVITY", recordedAt: "2026-10-01T12:08:00.000Z" },
+        {
+          ordinal: 1,
+          kind: "SCREEN_LEFT",
+          recordedAt: "2026-10-01T12:05:00.000Z",
+        },
+        {
+          ordinal: 2,
+          kind: "FULLSCREEN_EXITED",
+          recordedAt: "2026-10-01T12:06:00.000Z",
+        },
+        {
+          ordinal: 3,
+          kind: "CLIPBOARD",
+          recordedAt: "2026-10-01T12:07:00.000Z",
+        },
+        {
+          ordinal: 4,
+          kind: "INACTIVITY",
+          recordedAt: "2026-10-01T12:08:00.000Z",
+        },
       ],
       decisions: [
         {
@@ -558,7 +918,22 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
   const routes = {
     [`GET ${ACTIVITY_PATH}`]: json(200, examActivity()),
     [`GET ${ATTEMPT_PATH}`]: json(200, examAttempt),
-    [`GET ${ATTEMPT_PATH}/integrity`]: json(200, { events: [], intervals: [], totals: { screenExits: 0, timeAwaySeconds: 0, fullscreenExits: 0, disconnections: 0, offlineSeconds: 0, clipboardBlocks: 0, typingLimitRejections: 0, fullscreenUnavailable: false, detectionUnavailable: false }, holds: [] }),
+    [`GET ${ATTEMPT_PATH}/integrity`]: json(200, {
+      events: [],
+      intervals: [],
+      totals: {
+        screenExits: 0,
+        timeAwaySeconds: 0,
+        fullscreenExits: 0,
+        disconnections: 0,
+        offlineSeconds: 0,
+        clipboardBlocks: 0,
+        typingLimitRejections: 0,
+        fullscreenUnavailable: false,
+        detectionUnavailable: false,
+      },
+      holds: [],
+    }),
     [`GET ${ATTEMPT_PATH}/pauses`]: json(200, { items: [] }),
   };
 
@@ -566,15 +941,23 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
     const { container } = setup(routes);
     await screen.findByRole("heading", { name: "Tentativa de Bruno Lima" });
     expect(await screen.findByText("Entregue pelo aluno")).toBeTruthy();
-    const occurrences = await screen.findByRole("list", { name: "Ocorrências" });
-    expect(within(occurrences).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+    const occurrences = await screen.findByRole("list", {
+      name: "Ocorrências",
+    });
+    expect(
+      within(occurrences)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
       `1. Saiu da tela às ${formatTime("2026-10-01T12:05:00.000Z")}`,
       `2. Saiu da tela cheia às ${formatTime("2026-10-01T12:06:00.000Z")}`,
       `3. Tentou copiar/colar às ${formatTime("2026-10-01T12:07:00.000Z")}`,
       `4. Sem interação às ${formatTime("2026-10-01T12:08:00.000Z")}`,
     ]);
     const decisions = screen.getByRole("list", { name: "Decisões" });
-    expect(decisions.textContent).toBe(`Ocorrência 4: Prova devolvida por Ana Professora às ${formatTime("2026-10-01T12:10:00.000Z")}`);
+    expect(decisions.textContent).toBe(
+      `Ocorrência 4: Prova devolvida por Ana Professora às ${formatTime("2026-10-01T12:10:00.000Z")}`,
+    );
     expect(screen.getByRole("region", { name: "Saídas da sala" })).toBeTruthy();
     expect(container.textContent).not.toMatch(/fraude|violação|\bcola\b/i);
     await expectNoA11yViolations(container);
@@ -583,7 +966,19 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
   it("uma decisão em aberto aparece como aguardando", async () => {
     const pending = teacherAttempt({
       submission: null,
-      exam: { ...examAttempt.exam!, endedAt: null, endReason: null, decisions: [{ ...examAttempt.exam!.decisions[0]!, resolution: null, resolvedAt: null, resolvedBy: null }] },
+      exam: {
+        ...examAttempt.exam!,
+        endedAt: null,
+        endReason: null,
+        decisions: [
+          {
+            ...examAttempt.exam!.decisions[0]!,
+            resolution: null,
+            resolvedAt: null,
+            resolvedBy: null,
+          },
+        ],
+      },
     });
     setup({ ...routes, [`GET ${ATTEMPT_PATH}`]: json(200, pending) });
     const decisions = await screen.findByRole("list", { name: "Decisões" });
@@ -598,7 +993,17 @@ describe("021/US3 resumo das execuções na correção de um trabalho", () => {
     const base = gradingActivity();
     return gradingActivity({
       codeExecution,
-      questions: [base.questions[0]!, { ...base.questions[1]!, type: "CODE", gradingStrategy: "TEST_CASES", expectedAnswer: null, rubric: null, expectedSolution: "print(2)" }],
+      questions: [
+        base.questions[0]!,
+        {
+          ...base.questions[1]!,
+          type: "CODE",
+          gradingStrategy: "TEST_CASES",
+          expectedAnswer: null,
+          rubric: null,
+          expectedSolution: "print(2)",
+        },
+      ],
     });
   };
   const summary = {
@@ -624,21 +1029,41 @@ describe("021/US3 resumo das execuções na correção de um trabalho", () => {
   };
 
   it("021/US3-1 021/SC-006 na questão de Código, o resumo sem sair da correção; a nota continua em branco", async () => {
-    const { container } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(true)), [`GET ${ATTEMPT_PATH}/code-runs`]: json(200, summary) });
+    const { container } = setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(true)),
+      [`GET ${ATTEMPT_PATH}/code-runs`]: json(200, summary),
+    });
     const question = await screen.findByRole("listitem", { name: "Questão 2" });
-    const runs = await within(question).findByRole("region", { name: "Execuções do aluno na questão 2" });
+    const runs = await within(question).findByRole("region", {
+      name: "Execuções do aluno na questão 2",
+    });
     expect(within(runs).getByText("3 execuções")).toBeTruthy();
-    expect(within(runs).getByText("Última execução: 1 de 2 casos públicos passaram")).toBeTruthy();
-    expect(within(screen.getByRole("listitem", { name: "Questão 1" })).queryByRole("region", { name: /Execuções do aluno/ })).toBeNull();
+    expect(
+      within(runs).getByText("Última execução: 1 de 2 casos públicos passaram"),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole("listitem", { name: "Questão 1" })).queryByRole(
+        "region",
+        { name: /Execuções do aluno/ },
+      ),
+    ).toBeNull();
     // 021/US3-6: nothing suggested from the runs.
     expect(field(gradeFieldId(1)).value).toBe("");
     await expectNoA11yViolations(container);
   });
 
   it("021/US3-5 trabalho sem a opção: nenhum resumo nem consulta", async () => {
-    const { api } = setup({ [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(false)) });
-    expect(await screen.findByRole("listitem", { name: "Questão 2" })).toBeTruthy();
-    expect(screen.queryByRole("region", { name: /Execuções do aluno/ })).toBeNull();
-    expect(api.calls.some((call) => call.url.endsWith("/code-runs"))).toBe(false);
+    const { api } = setup({
+      [`GET ${ACTIVITY_PATH}`]: json(200, codeWork(false)),
+    });
+    expect(
+      await screen.findByRole("listitem", { name: "Questão 2" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("region", { name: /Execuções do aluno/ }),
+    ).toBeNull();
+    expect(api.calls.some((call) => call.url.endsWith("/code-runs"))).toBe(
+      false,
+    );
   });
 });
