@@ -30,15 +30,18 @@
   server, else "Estamos registrando este evento"), with "Voltar para tela cheia" after a
   fullscreen exit; clipboard block message as an inline `Alert` near the field; typing-limit
   message on the answer.
-- **Pedir ajuda** (both modes when enabled): button per question with "Ajudas restantes: n de 3";
-  `Dialog` with the note "A IA orienta, mas não dá a resposta. Não escreva seu nome ou dados
-  pessoais.", a textarea (500, counter), "Enviar"; pending state announced in `aria-live` ("A IA
-  está preparando uma orientação…"); result shown under the question as `HelpGuidance`;
-  out-of-scope reply shown with "Esta pergunta não usou uma ajuda."; unavailable/blocked: "A ajuda
-  está indisponível agora; tente de novo em instantes." with "Nenhuma ajuda foi usada."; exhausted:
-  button disabled with "Você já usou as 3 ajudas deste trabalho".
+- **Pedir ajuda** (both modes when enabled; amendment 2026-10-31): while the attempt is open, one chat icon fixed on the
+  right of the screen, with the helps left, opens a `Sheet` on the right, in chat form. It holds the note "A IA orienta, mas
+  não dá a resposta. Não escreva seu nome ou dados pessoais.", "Ajudas restantes: n de 3", every question and reply of the
+  attempt oldest first, each labeled "Questão n", in an `aria-live` log, and a textarea (500, counter) with "Enviar" about the
+  question on screen; the panel stays open after sending. Pending: "A IA está preparando uma orientação…". Each finished reply
+  ends with the helps left, a fixed text of the screen and never of the model: "Ainda restam 2 ajudas.", "Ainda resta 1
+  ajuda.", "Não restam mais ajudas."; an out-of-scope reply also says "Esta pergunta não usou uma ajuda."; unavailable/blocked:
+  "A ajuda está indisponível agora; tente de novo em instantes." with "Nenhuma ajuda foi usada."; exhausted: no field, "Você já
+  usou as 3 ajudas deste trabalho", the conversation still readable. Whoever may not ask (a group reader, 023) reads it with no
+  field. After the submission, the orientations stay under each question as `HelpGuidance`, and there is no icon.
 - **Histórico** (012): the delivered guidance per question and "Saídas da tela registradas: n"
   with times.
 
 All with loading/empty/error/offline states, keyboard operable (dialog focus trap, Esc closes,
-focus returns to "Pedir ajuda"), design-system tokens only, text never rendered as HTML.
+focus returns to the chat icon), design-system tokens only, text never rendered as HTML.

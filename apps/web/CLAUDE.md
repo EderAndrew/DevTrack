@@ -53,9 +53,11 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   document listeners and, in the code editor, by `CodeEditor`'s `blockClipboard` (passed through
   `CodeAnswer`), fixed while mounted; nothing is ever read from the clipboard and typed text is never
   altered. Event times shown to anyone come from the server's `recordedAt` ("Estamos registrando este
-  evento" until it arrives); no text calls an exit fraud or a violation. The AI help (`QuestionHelp`,
-  `HelpGuidance`) shows the orientation as text and its example in `CodeBlock`; whether a help is used,
-  pending or refused comes from the API.
+  evento" until it arrives); no text calls an exit fraud or a violation. While the attempt is open the AI help is `HelpChat` (015 amendment 2026-10-31): a chat icon fixed on the
+  right opens a `Sheet` with the attempt's conversation; each reply ends with the helps left, a fixed text of the screen
+  (`remainingMessage`), never the model's. After the submission `QuestionHelp` and `HelpGuidance` show the orientations
+  under each question. The orientation is text and its example `CodeBlock`; whether a help is used, pending or refused
+  comes from the API.
 - Attendance (016): `features/attendance` holds the "Chamada" (`AttendanceTab`: the checklist with "Marcar todos" and
   a confirmed "Liberar para os presentes" that sends only the differences, then `RoomPanel` with each student's
   situation in words, "Marcar presente", "Desmarcar", "Liberar retorno" and "Pausar aluno"), `ExitRoomDialog` ("Sair

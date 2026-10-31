@@ -166,24 +166,24 @@ describe("023/US7 modo controlado, ajuda da IA e execução no grupo", () => {
       [`GET ${HELP}`]: () => json(200, helps),
     });
     await screen.findByText("A edição está com Ana Souza.");
-    expect(screen.queryByRole("button", { name: ASK_HELP })).toBeNull();
     // Ana's request is delivered: the polled count moves and Bruno reads the orientation.
     helps = helpState({ used: 1, items: [delivered] });
     await act(() => vi.advanceTimersByTimeAsync(GROUP_POLL_MS));
-    expect(
-      await screen.findByText("Comece lendo os dois inteiros da entrada."),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: ASK_HELP })).toBeNull();
+    // Bruno reads the conversation with no field.
+    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(await screen.findByRole("button", { name: ASK_HELP }));
+    const chat = screen.getByRole("dialog");
+    expect(await within(chat).findByText("Comece lendo os dois inteiros da entrada.")).toBeTruthy();
+    expect(within(chat).queryByRole("textbox")).toBeNull();
     reader.unmount();
 
     setup({
       [`GET ${DETAIL}`]: json(200, groupActivity({ editing: true, used: 1 })),
       [`GET ${HELP}`]: json(200, helpState({ used: 1, items: [delivered] })),
     });
-    expect(await screen.findByRole("button", { name: ASK_HELP })).toBeTruthy();
-    expect(
-      screen.getByText("Comece lendo os dois inteiros da entrada."),
-    ).toBeTruthy();
+    await userEvent.setup().click(await screen.findByRole("button", { name: ASK_HELP }));
+    const editorChat = screen.getByRole("dialog");
+    expect(await within(editorChat).findByText("Comece lendo os dois inteiros da entrada.")).toBeTruthy();
+    expect(within(editorChat).getByRole("textbox")).toBeTruthy();
   });
 
   it("023/US7-4 quem só lê também executa: envia a resposta do grupo que está na tela e não salva", async () => {

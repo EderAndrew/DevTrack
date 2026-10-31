@@ -138,6 +138,33 @@ describe("013/US2 Minhas atividades — Exercício com pontos", () => {
   });
 });
 
+describe("Minhas atividades — a nota maior à direita do card", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const cardOf = async (title: string) => (await screen.findByRole("heading", { name: title })).closest("article") as HTMLElement;
+  const scoreOf = (card: HTMLElement) => card.querySelector('div[aria-hidden="true"]')?.textContent;
+
+  it("012/FR-012 a nota liberada aparece maior e continua abaixo de Situação; sem liberação, nada", async () => {
+    const graded = summary({ title: "Corrigido", status: "GRADED", totalGrade: "0.75", result: { grade: "0.40", hasFeedback: false } });
+    const waiting = summary({ id: "bbbbbbbb-0000-4000-8000-000000000081", title: "Entregue", status: "SUBMITTED", totalGrade: "0.75", result: null });
+    setup({ "GET /api/me/activities": json(200, { items: [graded, waiting], nextCursor: null }) });
+    const card = await cardOf("Corrigido");
+    expect(scoreOf(card)).toBe("0,40Nota");
+    expect(within(card).getByText("0,40 de 0,75")).toBeTruthy();
+    expect(scoreOf(await cardOf("Entregue"))).toBeUndefined();
+  });
+
+  it("013/FR-015 Exercício: pontos, nunca nota; parciais até concluir e corrigir", async () => {
+    const exercise = { type: "EXERCISE" as const, deadline: null, latePolicy: null, totalGrade: null };
+    const open = summary({ ...exercise, title: "Aberto", status: "IN_PROGRESS", points: { possible: 105, earned: 0, awaitingCorrection: false } });
+    const awaiting = summary({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000082", title: "Corrigindo", status: "COMPLETED", points: { possible: 105, earned: 45, awaitingCorrection: true } });
+    const done = summary({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000083", title: "Pronto", status: "COMPLETED", points: { possible: 105, earned: 60, awaitingCorrection: false } });
+    setup({ "GET /api/me/activities": json(200, { items: [open, awaiting, done], nextCursor: null }) });
+    expect(scoreOf(await cardOf("Aberto"))).toBe("0Pontos parciais");
+    expect(scoreOf(await cardOf("Corrigindo"))).toBe("45Pontos parciais");
+    expect(scoreOf(await cardOf("Pronto"))).toBe("60Pontos");
+  });
+});
+
 describe("023/US3 Minhas atividades num trabalho em grupo", () => {
   afterEach(() => vi.unstubAllGlobals());
 

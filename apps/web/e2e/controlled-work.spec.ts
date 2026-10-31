@@ -139,9 +139,11 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     await page.keyboard.type("Não sei como começar essa resposta.");
     await tabTo(page, dialog.getByRole("button", { name: "Enviar" }));
     await page.keyboard.press("Enter");
+    await expect(dialog.getByText(GUIDANCE_START, { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(dialog.getByText("Ainda restam 2 ajudas.")).toBeVisible();
+    await expect(dialog.getByText("Ajudas restantes: 2 de 3")).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    await expect(page.getByText(GUIDANCE_START, { exact: false })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Ajudas restantes: 2 de 3").first()).toBeVisible();
 
     // Every question answered, then submitted with confirmation by keyboard.
     await answerAll(page);
@@ -201,7 +203,9 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     const dialog = page.getByRole("dialog", { name: "Pedir ajuda à IA" });
     await dialog.getByLabel("Sua pergunta sobre esta questão").fill("Não sei como começar essa resposta.");
     await dialog.getByRole("button", { name: "Enviar" }).click();
-    await expect(page.getByText(GUIDANCE_START, { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(dialog.getByText(GUIDANCE_START, { exact: false })).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
     await answerAll(page);
     await page.getByRole("button", { name: "Entregar atividade" }).click();
     await page.getByRole("alertdialog", { name: "Entregar atividade?" }).getByRole("button", { name: "Entregar", exact: true }).click();

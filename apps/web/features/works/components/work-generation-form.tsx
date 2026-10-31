@@ -356,7 +356,7 @@ export function WorkGenerationForm() {
           label="Nota total"
           required
           inputMode="decimal"
-          hint="Ex.: 10 ou 7,5."
+          placeholder="Ex.: 10 ou 7,5"
           error={errorFor("totalGrade")}
           {...register("totalGrade")}
         />

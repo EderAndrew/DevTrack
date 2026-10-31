@@ -387,15 +387,16 @@ describe("015 ajuda da IA e registros como texto", () => {
         [`GET /api/me/activities/${activity.id}/attempt/help`]: json(200, help),
       }).fetch,
     );
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <ActivityAnswering activityId={activity.id} userId="aluno-1" />,
     );
-    await screen.findByText(`Sua pergunta: ${SCRIPT}`);
-    expect(screen.getAllByText(SCRIPT).length).toBeGreaterThan(0);
+    (await screen.findByRole("button", { name: "Pedir ajuda" })).click();
+    expect((await screen.findAllByText(SCRIPT)).length).toBeGreaterThan(1);
+    const chat = screen.getByRole("dialog");
     await waitFor(() =>
-      expect(container.querySelector("pre")?.textContent).toContain("<script>"),
+      expect(chat.querySelector("pre")?.textContent).toContain("<script>"),
     );
-    expect(container.querySelector("script, img")).toBeNull();
+    expect(chat.querySelector("script, img")).toBeNull();
   });
 
   it("tela do professor: pergunta e orientação com HTML aparecem como texto, ao lado da linha do tempo", async () => {

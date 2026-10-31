@@ -53,6 +53,7 @@ import {
   ExamEndNotice,
   ExamEntry,
 } from "@/features/exam-attempt/components/rules-screen";
+import { HelpChat } from "@/features/work-help/components/help-chat";
 import { QuestionHelp } from "@/features/work-help/components/question-help";
 import { CodeRunPanel } from "@/features/code-run/components/code-run-panel";
 import { GroupBar } from "@/features/group-work/components/group-bar";
@@ -835,19 +836,26 @@ function AttemptAnswering({
             ) : null}
           </div>
         </div>
-        {activity.aiHelp.allowance > 0 ? (
+        {activity.aiHelp.allowance > 0 && !open ? (
           <QuestionHelp
             key={question.id}
             activityId={activity.id}
             questionId={question.id}
             highlight={question.language?.highlight ?? undefined}
-            // 023/FR-022: only the editor asks; every member reads the group's orientations.
-            canAsk={editable}
-            used={activity.aiHelp.used}
-            notice={controlled?.helpNotice(question.id)}
           />
         ) : null}
       </article>
+      {activity.aiHelp.allowance > 0 && open ? (
+        <HelpChat
+          activityId={activity.id}
+          questionId={question.id}
+          questions={questions}
+          // 023/FR-022: only the editor asks; every member reads the group's orientations.
+          canAsk={editable}
+          used={activity.aiHelp.used}
+          notice={controlled?.helpNotice(question.id)}
+        />
+      ) : null}
       <AssessmentFooter
         hasPrevious={index > 0}
         hasNext={index < questions.length - 1}

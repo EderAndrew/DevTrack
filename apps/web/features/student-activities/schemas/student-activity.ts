@@ -115,6 +115,17 @@ export const RESULT_VARIANTS: Record<ExerciseResult, StatusVariant> = {
 /** "Pontos: 45 de 105" of an Exercício's card (013 contracts/web-ui.md). */
 export const pointsSummary = (points: { possible: number; earned: number }) => `${points.earned} de ${points.possible}`;
 
+/**
+ * The larger score of a "Minhas atividades" card: only a released grade (the API sends `result` only then, 012) or
+ * an exercise's points (013, never called a grade). Points are partial until the conclusion and its correction.
+ */
+export function cardScore(item: Pick<StudentActivitySummary, "status" | "result" | "points">): { value: string; label: string } | null {
+  if (item.result) return { value: formatGrade(item.result.grade), label: "Nota" };
+  if (!item.points) return null;
+  const concluded = item.status === "COMPLETED" || item.status === "SUBMITTED" || item.status === "GRADED";
+  return { value: String(item.points.earned), label: concluded && !item.points.awaitingCorrection ? "Pontos" : "Pontos parciais" };
+}
+
 /** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
 export const valueLabel = (question: { value: string | null; points: number | null }) =>
   question.value !== null ? `Vale ${formatGrade(question.value)}` : `Vale ${formatPoints(question.points ?? 0)}`;

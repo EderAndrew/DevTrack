@@ -576,7 +576,7 @@ describe("015/US3 \"Pedir ajuda\" na tela de responder (modo NORMAL)", () => {
     vi.restoreAllMocks();
   });
 
-  it("015/US3-1 015/FR-015 com a ajuda ligada, cada questão tem \"Pedir ajuda\" e o contador do trabalho", async () => {
+  it("015/US3-1 015/FR-015 com a ajuda ligada, o ícone \"Pedir ajuda\" e o contador do trabalho ficam na tela em cada questão", async () => {
     const help = json(200, { allowance: 3, used: 1, pending: false, items: [] });
     const { user, container } = setup({
       [GET]: json(200, started({ aiHelp: { allowance: 3, used: 1 } })),

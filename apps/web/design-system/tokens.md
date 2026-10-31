@@ -171,7 +171,7 @@ Cada `--text-*` tem `--text-*--line-height` e `--text-*--font-weight` no mesmo b
 |-------|-------|-----|
 | `--font-sans` (`font-sans`) | `--font-inter`, depois fontes do sistema | todo o texto |
 | `--font-mono` (`font-mono`) | `--font-jetbrains-mono`, depois monoespaçadas do sistema | código e elementos técnicos |
-| `--font-brand` (`font-brand`) | `--font-fredoka`, `ui-rounded`, depois a Inter e fontes do sistema | só a marca DevTrack (`components/shared/wordmark.tsx`; `identity.test.ts` confere) |
+| `--font-brand` (`font-brand`) | `--font-fredoka`, `ui-rounded`, depois a Inter e fontes do sistema | a marca DevTrack (`components/shared/wordmark.tsx`) e a nota do card do aluno (`activity-card.tsx`); `identity.test.ts` confere |
 | `--font-weight-normal` (`font-normal`) | 400 | texto |
 | `--font-weight-medium` (`font-medium`) | 500 | rótulos |
 | `--font-weight-semibold` (`font-semibold`) | 600 | botões, títulos de seção, item ativo |
