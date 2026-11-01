@@ -147,6 +147,17 @@ certbot --nginx -d devtrack.nativcode.com.br --redirect
 O HTTPS é obrigatório: o cookie de sessão (`__Host-devtrack_session`) é `Secure`, e sem HTTPS ninguém
 consegue entrar.
 
+O arquivo também envia os cabeçalhos de segurança (HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
+CSP `frame-ancestors` e `Permissions-Policy`). O `update.sh` não toca no nginx: depois de mudar
+`nginx-devtrack.conf` no repositório, aplique a mudança à mão. Como o certbot já editou o arquivo instalado,
+não o substitua; copie as linhas `add_header` para o bloco `server` com `listen 443` de
+`/etc/nginx/sites-available/devtrack` e rode:
+
+```bash
+nginx -t && systemctl reload nginx
+curl -sI https://devtrack.nativcode.com.br/entrar | grep -iE 'strict-transport|x-frame|x-content|content-security|permissions'
+```
+
 ## 9. Primeiro administrador (como `devtrack`)
 
 ```bash
