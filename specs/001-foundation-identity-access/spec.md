@@ -450,6 +450,16 @@ recusa.
 - **FR-011**: Senhas DEVEM ter no mínimo 12 e no máximo 128 caracteres e NÃO DEVEM
   constar de uma lista de senhas comuns ou vazadas conhecidas; a validação definitiva
   ocorre no backend.
+- **FR-011a** (emenda 2026-11-06): A senha definida ao aceitar um convite (de professor,
+  gestor ou turma, inclusive em CLAIM_ACCOUNT) DEVE ter de 8 a 128 caracteres, com pelo
+  menos 1 letra maiúscula, 1 minúscula, 1 número e 1 caractere especial, e NÃO DEVE
+  constar da lista de FR-011 nem se reduzir a uma palavra dela ou a uma palavra comum
+  em português ou ao nome do produto, depois de ignorar acentos, números, símbolos e
+  substituições comuns (`Password1!`, `P@ssw0rd1!`, `S3nh@2026!`); a validação
+  definitiva ocorre no backend. A redefinição de
+  senha e a ativação de administrador continuam em FR-011. Só a senha nova é validada:
+  senhas já gravadas nunca são verificadas contra estas regras, e o login as aceita como
+  antes. O formulário de aceite pede a senha e a confirmação.
 - **FR-012**: O cadastro com e-mail já existente NÃO DEVE criar nova conta e DEVE
   retornar a mesma resposta pública de um cadastro bem sucedido; o titular do e-mail
   PODE ser notificado por e-mail.

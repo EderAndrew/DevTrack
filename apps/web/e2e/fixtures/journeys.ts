@@ -55,6 +55,7 @@ export async function invite(page: Page, path: string, invitee: Pick<Account, "n
 export async function acceptInvitationWithPassword(page: Page, invitee: Account): Promise<void> {
   await page.goto(await waitForLink(invitee.email, { path: "/convite" }));
   await field(page, "Nova senha").fill(invitee.password);
+  await field(page, "Confirmar senha").fill(invitee.password);
   await page.getByRole("button", { name: "Aceitar convite" }).click();
   await expect(page.getByRole("heading", { name: "Convite aceito" })).toBeVisible();
 }

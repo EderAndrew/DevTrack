@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { ErrorSummary, Field, Notice, SubmitButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useLogout } from "@/features/auth/hooks/use-auth";
-import { PASSWORD_HINT } from "@/features/auth/schemas/password";
+import { INVITATION_PASSWORD_HINT } from "@/features/auth/schemas/password";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { ROLE_LABELS } from "@/lib/messages/status-labels";
@@ -40,7 +40,7 @@ function storage(): Storage | null {
   }
 }
 
-const FIELD_IDS = { password: "senha" } as const;
+const FIELD_IDS = { password: "senha", passwordConfirmation: "confirmar-senha" } as const;
 const LOGIN_BACK_HERE = "/entrar?next=%2Fconvite";
 
 export interface InvitationAcceptanceProps {
@@ -63,7 +63,7 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
     // Focus goes to the ErrorSummary, which links to each field (FR-075).
     shouldFocusError: false,
     resolver: zodResolver(AcceptancePasswordFormSchema, { error: acceptancePasswordMessages }),
-    defaultValues: { password: "" },
+    defaultValues: { password: "", passwordConfirmation: "" },
   });
   const signedInForm = useForm();
 
@@ -219,10 +219,19 @@ export function InvitationAcceptance({ token: tokenFromUrl, signedInAs = null }:
         type="password"
         label="Nova senha"
         autoComplete="new-password"
-        hint={PASSWORD_HINT}
+        hint={INVITATION_PASSWORD_HINT}
         required
         error={errorFor("senha")}
         {...passwordForm.register("password")}
+      />
+      <Field
+        id="confirmar-senha"
+        type="password"
+        label="Confirmar senha"
+        autoComplete="new-password"
+        required
+        error={errorFor("confirmar-senha")}
+        {...passwordForm.register("passwordConfirmation")}
       />
       <SubmitButton pending={pending} pendingLabel="Aceitando…">
         Aceitar convite

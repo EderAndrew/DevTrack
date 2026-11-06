@@ -13,7 +13,7 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EMAIL = "aluna.nova@example.test";
-const PASSWORD = "girassol-azul-de-outono";
+const PASSWORD = "Girassol-azul-de-outono-7";
 const VALID = { name: "Aluna Nova", ra: " ra-2026.001 ", password: PASSWORD };
 
 describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-030–FR-036)", () => {

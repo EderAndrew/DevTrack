@@ -34,7 +34,8 @@ import { searchKey } from "../../src/platform/text/search-key";
 import { API_ROOT } from "./env";
 import { api, type TestApp } from "./test-app";
 
-export const DEFAULT_PASSWORD = "cavalo-correto-bateria-grampo";
+/** Meets both FR-011 and FR-011a, so it serves any flow. */
+export const DEFAULT_PASSWORD = "Cavalo-correto-bateria-42";
 
 export interface RoleSpec {
   key: RoleKey;

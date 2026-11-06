@@ -11,7 +11,7 @@ const serialize = (value: unknown) => JSON.stringify(value, (_key, v: unknown) =
 
 const DAY_MS = 24 * 3600 * 1000;
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
-const PASSWORD = "senha-forte-do-aluno-2026";
+const PASSWORD = "Senha-forte-do-aluno-2026";
 
 describe("job unverified-accounts (FR-017, contracts/maintenance-jobs.md)", () => {
   let t: TestApp;

@@ -11,7 +11,7 @@ function publicShape(res: { status: number; body: unknown; headers: Record<strin
 }
 
 const randomToken = () => Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
-const PASSWORD = "girassol-azul-de-outono";
+const PASSWORD = "Girassol-azul-de-outono-7";
 
 // The block that captures logs comes first: Nest keeps its static logger bound to the first
 // app created in the file.

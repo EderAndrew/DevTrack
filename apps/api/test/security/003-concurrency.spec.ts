@@ -11,7 +11,7 @@ import {
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
 const PARALLEL = 8;
-const PASSWORD = "girassol-azul-de-outono";
+const PASSWORD = "Girassol-azul-de-outono-7";
 
 /**
  * 003/SC-004 (FR-012, FR-037, FR-043): invitations, acceptances and removals fired at the same

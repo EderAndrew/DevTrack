@@ -12,7 +12,7 @@ import {
 } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const NEW_PASSWORD = "girassol-azul-de-outono";
+const NEW_PASSWORD = "Girassol-azul-de-outono-7";
 
 describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)", () => {
   let t: TestApp;

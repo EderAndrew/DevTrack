@@ -9,7 +9,7 @@ import { type UseFormRegisterReturn, useForm } from "react-hook-form";
 import { ErrorSummary, Field, type FormError, Notice, SubmitButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useLogout } from "@/features/auth/hooks/use-auth";
-import { PASSWORD_HINT } from "@/features/auth/schemas/password";
+import { INVITATION_PASSWORD_HINT } from "@/features/auth/schemas/password";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { MY_CLASSES_PATH } from "@/lib/navigation";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
@@ -229,7 +229,7 @@ function AccountForm({ email, withRa, onSubmit, onUnusable }: { email: string; w
         type="password"
         label="Senha"
         autoComplete="new-password"
-        hint={PASSWORD_HINT}
+        hint={INVITATION_PASSWORD_HINT}
         required
         error={errorFor(FIELD_IDS.password)}
         {...register("password")}

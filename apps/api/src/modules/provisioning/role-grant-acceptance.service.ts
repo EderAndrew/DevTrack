@@ -100,7 +100,7 @@ export class RoleGrantAcceptance {
     switch (mode) {
       case "CREATE_ACCOUNT": {
         if (!input.displayName) throw validationError();
-        const passwordHash = await this.validatedHash(input.password);
+        const passwordHash = await this.validatedHash(input.password, input.via);
         // A concurrent acceptance may have created the identity after our lookup: ON CONFLICT
         // DO NOTHING waits for it, and the loser is refused like a replayed token (FR-044, FR-049).
         const { count } = await tx.user.createMany({
@@ -123,7 +123,7 @@ export class RoleGrantAcceptance {
       case "CLAIM_ACCOUNT": {
         // FR-048: same identity, new password, e-mail proven by the link, old sessions revoked.
         if (!input.displayName) throw validationError();
-        const passwordHash = await this.validatedHash(input.password);
+        const passwordHash = await this.validatedHash(input.password, input.via);
         userId = existing!.id;
         await this.users.setPassword(tx, userId, passwordHash);
         await this.users.markEmailVerified(tx, userId);
@@ -192,9 +192,11 @@ export class RoleGrantAcceptance {
     return rows[0] ?? null;
   }
 
-  private async validatedHash(password: string | null | undefined): Promise<string> {
+  private async validatedHash(password: string | null | undefined, via: AcceptInput["via"]): Promise<string> {
     if (!password) throw passwordRequired();
-    this.passwordPolicy.validate(password);
+    // FR-011a covers invitations; the admin activation keeps FR-011.
+    if (via === "ADMIN_BOOTSTRAP") this.passwordPolicy.validate(password);
+    else this.passwordPolicy.validateForInvitation(password);
     return this.hasher.hash(password);
   }
 }

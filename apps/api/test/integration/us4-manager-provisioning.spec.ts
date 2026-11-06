@@ -4,7 +4,7 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const PASSWORD = "senha-forte-do-manager";
+const PASSWORD = "Senha-forte-do-manager-1";
 const MANAGER_PERMISSIONS = PERMISSIONS.filter((p) => p.startsWith("professores.") || p.startsWith("sessoes.")).sort();
 
 describe("US4 — ADMIN provisiona MANAGER (FR-040–FR-056)", () => {

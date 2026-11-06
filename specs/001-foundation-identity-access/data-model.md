@@ -301,7 +301,7 @@ Papéis e permissões **não** são enums: são linhas em `roles`/`permissions`.
 | Regra | Onde |
 |-------|------|
 | E-mail: formato RFC 5322 simplificado, ≤ 254, normalizado | schemas Zod de cadastro, login, recuperação, convite |
-| Senha: 12–128, fora da lista comum (FR-011) | `PasswordPolicy` (backend) |
+| Senha: 12–128, fora da lista comum (FR-011); no aceite de convite, 8–128 com maiúscula, minúscula, número e caractere especial, fora da lista comum (FR-011a) | `PasswordPolicy` (backend) |
 | Nome: 1–120 após `trim`, sem caracteres de controle | cadastro, convite |
 | Token: base64url de 43 caracteres | schemas de verificação, redefinição, convite, ativação |
 | Campos desconhecidos → `400 VALIDATION_ERROR` | todos os schemas (`.strict()`) |

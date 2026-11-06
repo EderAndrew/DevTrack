@@ -6,13 +6,14 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import { expectTokenNotKept } from "../../../test/tokens";
+import { INVITATION_PASSWORD_HINT, INVITATION_PASSWORD_MESSAGE } from "../../auth/schemas/password";
 import { ClassInvitationPage, loginBackTo } from "./class-invitation-page";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const TOKEN = "t".repeat(43);
-const PASSWORD = "girassol-azul-de-outono";
+const PASSWORD = "Girassol-azul-de-outono-7";
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const apiError = (status: number, code: string, message: string) => json(status, { statusCode: status, code, message });
@@ -98,7 +99,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
 
   it.each([
     ["RA_TAKEN", 409, "Este RA já está em uso.", /^RA/],
-    ["WEAK_PASSWORD", 400, "A senha deve ter entre 12 e 128 caracteres", /^Senha/],
+    ["WEAK_PASSWORD", 400, "A senha não atende às regras indicadas no campo", /^Senha/],
   ])("%s aparece junto ao campo", async (code, status, text, label) => {
     fetchMock.mockResolvedValueOnce(json(200, PREVIEW)).mockResolvedValueOnce(apiError(status, code, "Mensagem da API."));
     renderWithProviders(<ClassInvitationPage token={TOKEN} />);
@@ -111,6 +112,25 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
     await waitFor(() => expectFieldErrorLinked(field));
     expect(document.getElementById(field.getAttribute("aria-describedby")!.split(" ").find((id) => id.endsWith("-erro"))!)!.textContent).toContain(text);
     expect(screen.queryByText("Você agora faz parte da turma.")).toBeNull();
+  });
+
+  it("FR-011a mostra as regras e recusa, sem chamar o aceite, a senha que não as atende", async () => {
+    fetchMock.mockResolvedValueOnce(json(200, PREVIEW));
+    renderWithProviders(<ClassInvitationPage token={TOKEN} />);
+    await screen.findByText("Algoritmos");
+    const password = screen.getByLabelText(/^Senha/);
+    expect(document.getElementById(password.getAttribute("aria-describedby")!.split(" ")[0]!)!.textContent).toBe(INVITATION_PASSWORD_HINT);
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/^Nome completo/), "Aluna Nova");
+    await user.type(screen.getByLabelText(/^RA/), "RA-2026.001");
+    await user.type(password, "senhasemregras");
+    await user.type(screen.getByLabelText(/^Confirmar senha/), "senhasemregras");
+    await user.click(screen.getByRole("button", { name: "Entrar na turma" }));
+
+    await waitFor(() => expectFieldErrorLinked(password));
+    expect(screen.getByRole("group", { name: "Não foi possível concluir o cadastro" }).textContent).toContain(INVITATION_PASSWORD_MESSAGE);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([

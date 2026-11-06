@@ -4,8 +4,8 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const OWNER_PASSWORD = "senha-do-dono-do-email";
-const ATTACKER_PASSWORD = "senha-escolhida-pelo-atacante";
+const OWNER_PASSWORD = "Senha-do-dono-do-email-1";
+const ATTACKER_PASSWORD = "Senha-escolhida-pelo-atacante-1";
 
 /**
  * SC-011: whatever the vector, an attacker ends without a valid session, without TEACHER on

@@ -8,7 +8,7 @@ export const ErrorCatalog = {
   VALIDATION_ERROR: { status: 400, message: "Dados inválidos." },
   WEAK_PASSWORD: {
     status: 400,
-    message: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum.",
+    message: "A senha não atende às regras indicadas no campo ou é uma senha comum.",
   },
   PASSWORD_REQUIRED: { status: 400, message: "Defina uma senha para continuar." },
   TOKEN_INVALID: { status: 400, message: "Link inválido ou expirado." },
