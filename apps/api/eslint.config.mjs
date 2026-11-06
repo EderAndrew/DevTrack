@@ -63,6 +63,10 @@ export default [
       // TypeScript already reports unused/undefined identifiers precisely (type-only usages included).
       "no-unused-vars": "off",
       "no-undef": "off",
+      // @babel/parser 8.1 makes the scope analysis read a parameter's decorator name as the parameter, so two
+      // `@Inject(...)` in a constructor are reported as duplicates. TypeScript reports real duplicates (tsc in CI).
+      "no-dupe-args": "off",
+      "no-redeclare": "off",
     },
   },
   {
