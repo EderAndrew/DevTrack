@@ -7,7 +7,7 @@ import { AI_ERROR_GUIDANCE, apiErrorCode, ERROR_MESSAGES, messageForError } from
 // moving the texts into the web must not change a single character on screen (FR-012, FR-013).
 const PHASE_001_TEXTS = {
   VALIDATION_ERROR: "Dados inválidos.",
-  WEAK_PASSWORD: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum.",
+  WEAK_PASSWORD: "A senha não atende às regras indicadas no campo ou é uma senha comum.",
   PASSWORD_REQUIRED: "Defina uma senha para continuar.",
   TOKEN_INVALID: "Link inválido ou expirado.",
   UNAUTHENTICATED: "Autenticação necessária.",

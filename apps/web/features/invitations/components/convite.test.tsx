@@ -5,13 +5,15 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { expectTokenNotKept, pendingResponse } from "../../../test/tokens";
 import { expectFieldErrorLinked, expectTabOrder, tabTo } from "../../../test/keyboard";
+import { INVITATION_PASSWORD_HINT, INVITATION_PASSWORD_MESSAGE } from "../../auth/schemas/password";
 import { INVITATION_TOKEN_KEY, InvitationAcceptance } from "./invitation-acceptance";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const TOKEN = "i".repeat(43);
-const json = (status: number, body: unknown) =>
+const PASSWORD = "Senha-forte-da-gestora-1";
+const json =(status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const preview = (mode: string) =>
   json(200, { role: "MANAGER", email: "gestora@example.test", displayName: "Gestora Bia", mode });
@@ -42,12 +44,49 @@ describe("InvitationAcceptance (US4-2, FR-075)", () => {
     await expectNoA11yViolations(container);
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/Nova senha/), "senha-forte-da-gestora");
+    await user.type(screen.getByLabelText(/Nova senha/), PASSWORD);
+    await user.type(screen.getByLabelText(/Confirmar senha/), PASSWORD);
     await user.click(screen.getByRole("button", { name: "Aceitar convite" }));
     expect(await screen.findByRole("heading", { name: "Convite aceito" })).toBeTruthy();
     expect(fetchMock.mock.calls[1]![0]).toBe("/api/invitations/accept");
-    expect(bodyOf(1)).toEqual({ token: TOKEN, password: "senha-forte-da-gestora" });
+    expect(bodyOf(1)).toEqual({ token: TOKEN, password: PASSWORD });
     expect(window.sessionStorage.getItem(INVITATION_TOKEN_KEY)).toBeNull();
+  });
+
+  it("FR-011a mostra as regras e recusa, sem chamar o aceite, a senha que não as atende", async () => {
+    fetchMock.mockResolvedValueOnce(preview("CREATE_ACCOUNT"));
+    renderWithProviders(<InvitationAcceptance token={TOKEN} />);
+    const password = await screen.findByLabelText(/Nova senha/);
+    expect(document.getElementById(password.getAttribute("aria-describedby")!.split(" ")[0]!)!.textContent).toBe(INVITATION_PASSWORD_HINT);
+
+    const user = userEvent.setup();
+    await user.type(password, "senhasemregras");
+    await user.type(screen.getByLabelText(/Confirmar senha/), "senhasemregras");
+    await user.click(screen.getByRole("button", { name: "Aceitar convite" }));
+
+    expect((await screen.findByRole("group", { name: "Não foi possível aceitar" })).textContent).toContain(INVITATION_PASSWORD_MESSAGE);
+    expectFieldErrorLinked(password);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirmação vazia ou diferente: erro junto ao campo, sem chamar o aceite", async () => {
+    fetchMock.mockResolvedValueOnce(preview("CREATE_ACCOUNT"));
+    const { container } = renderWithProviders(<InvitationAcceptance token={TOKEN} />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(/Nova senha/), PASSWORD);
+    const confirmation = screen.getByLabelText(/Confirmar senha/);
+    await user.click(screen.getByRole("button", { name: "Aceitar convite" }));
+
+    const summary = await screen.findByRole("group", { name: "Não foi possível aceitar" });
+    expect(summary.textContent).toContain("Confirme a senha.");
+    expectFieldErrorLinked(confirmation);
+
+    await user.type(confirmation, "Outra-senha-forte-2");
+    await user.click(screen.getByRole("button", { name: "Aceitar convite" }));
+    await vi.waitFor(() => expect(summary.textContent).toContain("As senhas não conferem."));
+    expectFieldErrorLinked(confirmation);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await expectNoA11yViolations(container);
   });
 
   it("SIGN_IN_REQUIRED sem sessão: só o link para entrar, sem token na URL", async () => {
@@ -133,17 +172,19 @@ describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
     const { container } = renderWithProviders(<InvitationAcceptance token={TOKEN} />);
     const user = userEvent.setup();
     const senha = await screen.findByLabelText(/Nova senha/);
+    const confirmacao = screen.getByLabelText(/Confirmar senha/);
     const button = screen.getByRole("button", { name: "Aceitar convite" });
-    await expectTabOrder(user, [senha, button]);
+    await expectTabOrder(user, [senha, confirmacao, button]);
 
     await tabTo(user, button);
     await user.keyboard("{Enter}");
     expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível aceitar" }));
     expectFieldErrorLinked(senha);
+    expectFieldErrorLinked(confirmacao);
     await expectNoA11yViolations(container);
 
     await tabTo(user, senha);
-    await user.keyboard("senha-forte-do-docente{Enter}");
+    await user.keyboard(`${PASSWORD}{Tab}${PASSWORD}{Enter}`);
     expect(await screen.findByRole("heading", { name: "Convite aceito" })).toBeTruthy();
     await expectNoA11yViolations(container);
   });
@@ -176,7 +217,8 @@ describe("002/US4-3 e 002/FR-027 envio duplicado e token", () => {
     fetchMock.mockResolvedValueOnce(preview("CREATE_ACCOUNT"));
     const { queryClient, unmount } = renderWithProviders(<InvitationAcceptance token={TOKEN} />);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/Nova senha/), "senha-forte-da-gestora");
+    await user.type(await screen.findByLabelText(/Nova senha/), PASSWORD);
+    await user.type(screen.getByLabelText(/Confirmar senha/), PASSWORD);
 
     const release = pendingResponse(fetchMock, () => json(200, { role: "MANAGER", mode: "CREATE_ACCOUNT" }));
     await user.dblClick(screen.getByRole("button", { name: "Aceitar convite" }));

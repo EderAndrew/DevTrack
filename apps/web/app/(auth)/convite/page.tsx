@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
+import { Wordmark } from "@/components/shared/wordmark";
 import { getMe } from "@/features/auth/api/server";
-import { ClassInvitationPage } from "@/features/class-invitations/components/class-invitation-page";
+import { InvitationAcceptance } from "@/features/invitations/components/invitation-acceptance";
 
-/** The token must not leak to other sites through the Referer header (001/R7, 003 D11). */
-export const metadata: Metadata = { title: "Convite para turma", referrer: "no-referrer" };
+/** The token must not leak to other sites through the Referer header (R7). */
+export const metadata: Metadata = { title: "Convite", referrer: "no-referrer" };
 
-export default async function ClassInvitationRoute({
+export default async function InvitationPage({
   searchParams,
 }: {
   searchParams: Promise<{ token?: string | string[] }>;
@@ -16,8 +17,11 @@ export default async function ClassInvitationRoute({
   const me = await getMe().catch(() => null);
   return (
     <section className="mx-auto max-w-160 px-4 py-8">
-      <PageHeader title="Convite para turma" />
-      <ClassInvitationPage
+      <p className="mt-0 mb-6 text-center">
+        <Wordmark size="lg" />
+      </p>
+      <PageHeader title="Aceitar convite" />
+      <InvitationAcceptance
         token={typeof token === "string" ? token : null}
         signedInAs={me ? { name: me.name, email: me.email } : null}
       />

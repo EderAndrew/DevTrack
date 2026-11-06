@@ -6,7 +6,7 @@ import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEma
 import { registeredRoutes } from "../helpers/routes";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const PASSWORD = "senha-forte-do-professor";
+const PASSWORD = "Senha-forte-do-professor-1";
 
 describe("US5 — MANAGER convida e gerencia professores (FR-040–FR-051)", () => {
   let t: TestApp;

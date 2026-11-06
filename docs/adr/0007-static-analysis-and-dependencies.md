@@ -56,7 +56,7 @@ Poderá ser utilizado para executar regras de segurança sobre os arquivos do pr
 
 A escolha definitiva deverá considerar cobertura, manutenção, licenciamento, custo e compatibilidade com o ambiente.
 
-A ferramenta ainda não está integrada ao mecanismo atual.
+A ferramenta roda no CI (job `semgrep`, com as regras do projeto em `.semgrep/devtrack.yml`), mas ainda não está integrada ao mecanismo de auditoria por hooks.
 
 ## 4. Análise de dependências — SCA
 

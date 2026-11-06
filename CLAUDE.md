@@ -195,7 +195,8 @@ needs `pnpm build` beforehand.
 
 CI (`.github/workflows/ci.yml`, actions pinned by SHA) runs `pnpm lint`, `check-types`, `build` and
 `test` against a PostgreSQL 17 service on every push and pull request. Its second job, `sandbox` (019), pulls
-the Code Runner images and runs `test:sandbox` on the runner's Docker. E2E runs locally only.
+the Code Runner images and runs `test:sandbox` on the runner's Docker. Its third job, `semgrep` (ADR-0007), tests
+the project rules in `.semgrep/` and fails on any finding of those rules and the registry packs. E2E runs locally only.
 `prisma migrate reset` (used by the E2E `e2e/prepare-db.ts`) refuses to run under an AI agent
 unless the user consents; the E2E aborts unless the DB name contains `e2e`.
 

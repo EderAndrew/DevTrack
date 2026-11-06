@@ -3,7 +3,7 @@ import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 import { createUser, DEFAULT_PASSWORD, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const PASSWORD = "senha-nova-do-professor";
+const PASSWORD = "Senha-nova-do-professor-1";
 const DISPLAY_NAME = "Prof. Convidada";
 
 describe("US6 — aceite de convite de professor com identidade única (FR-044–FR-049)", () => {
@@ -234,7 +234,7 @@ describe("US6 — aceite de convite de professor com identidade única (FR-044�
 
   it("US6-10 atacante com pré-registro perde a conta para o dono do e-mail", async () => {
     const email = uniqueEmail("alvo");
-    const attackerPassword = "senha-escolhida-pelo-atacante";
+    const attackerPassword = "Senha-escolhida-pelo-atacante-1";
     await createUser(t, { name: "Atacante", email, password: attackerPassword, verified: false });
     const attackerVerifyToken = await requestVerificationToken(t, email);
     const attackerLogin = await login(email, attackerPassword);

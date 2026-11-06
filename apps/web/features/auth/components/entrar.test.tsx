@@ -100,6 +100,17 @@ describe("safeNextPath", () => {
     ["https://evil.example", "/"],
     ["//evil.example", "/"],
     ["/\\evil.example", "/"],
+    // URL parsers drop tabs and newlines and read "\" as "/", so these reach another host in a browser.
+    ["/\t/evil.example", "/"],
+    ["/\n/evil.example", "/"],
+    ["/\r/evil.example", "/"],
+    ["/\t\\evil.example", "/"],
+    ["/\\\t/evil.example", "/"],
+    // Dot segments can leave a path that starts with "//".
+    ["/.//evil.example", "/"],
+    ["/x/..//evil.example", "/"],
+    ["/conta/sessoes#minhas-sessoes", "/conta/sessoes#minhas-sessoes"],
+    ["/busca?u=//evil.example", "/busca?u=//evil.example"],
     ["", "/"],
     [null, "/"],
   ])("%s → %s", (input, expected) => {

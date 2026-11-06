@@ -2,7 +2,7 @@
 # Lint, types, build and tests of every workspace on each push and pull request; any failing step
 # fails the check (SC-009). No secrets: the tests use apps/api/.env.test.example and InMemoryMailer
 # (FR-037). The E2E suite runs locally only (clarification Q2 → C). Since 019 the job `sandbox` runs the
-# Code Runner's real-Docker suite.
+# Code Runner's real-Docker suite; the job `semgrep` runs the static analysis of ADR-0007.
 name: CI
 
 on:
@@ -111,3 +111,25 @@ jobs:
       - run: pnpm --filter api code-runner:images
 
       - run: pnpm --filter api test:sandbox
+
+  # ADR-0007: SAST independent of the agent's audit. Any finding fails the job; a false positive takes a
+  # justified `nosemgrep`. The registry packs are not pinned, so they may gain rules between runs. Semgrep's
+  # default ignore list skips test directories, and a `.semgrepignore` would replace that list.
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep@sha256:2e45517a85e13a9cca14a2a00df6bb48affd66b8ebfae1b0991cd57578362fb0 # 1.183.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: semgrep --test --metrics=off --config .semgrep/devtrack.yml .semgrep/devtrack.tsx
+
+      - run: >-
+          semgrep scan --metrics=off --error
+          --config .semgrep/devtrack.yml
+          --config p/owasp-top-ten --config p/typescript --config p/nodejs --config p/react
+          apps packages

@@ -168,7 +168,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     (await adminClient.post("/api/manager-invitations", { email: adminEmail, displayName: "Eu mesmo" })).body.code,
   ).toBe("SELF_INVITE_FORBIDDEN");
   const managerEmail = uniqueEmail("gestora");
-  const managerPassword = keep("senha da MANAGER", "senha-da-gestora-da-jornada");
+  const managerPassword = keep("senha da MANAGER", "Senha-da-gestora-da-jornada-1");
   const managerInvite = await adminClient.post("/api/manager-invitations", { email: managerEmail, displayName: "Gestora" });
   expect(managerInvite.status).toBe(201);
   expect((await adminClient.post(`/api/manager-invitations/${managerInvite.body.id}/resend`)).status).toBe(200);
@@ -189,7 +189,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     return keepToken("token de convite", t.mailer.lastTokenFor(email, "invitation-teacher"));
   };
   const teacherEmail = uniqueEmail("docente");
-  const teacherPassword = keep("senha do professor", "senha-do-docente-da-jornada");
+  const teacherPassword = keep("senha do professor", "Senha-do-docente-da-jornada-1");
   const teacherToken = await inviteTeacher(teacherEmail);
   expect((await api(t).post("/api/invitations/accept", { token: teacherToken, password: teacherPassword })).status).toBe(200);
 
@@ -198,7 +198,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
 
   const unverified = await createUser(t, { verified: false });
   await keepLoginAs(unverified);
-  const claimPassword = keep("senha do aceite com posse", "senha-nova-do-aceite-com-posse");
+  const claimPassword = keep("senha do aceite com posse", "Senha-nova-1-do-aceite-com-posse");
   const claimToken = await inviteTeacher(unverified.email);
   expect((await api(t).post("/api/invitations/accept", { token: claimToken, password: claimPassword })).body.mode).toBe(
     "CLAIM_ACCOUNT",
@@ -713,7 +713,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     return keepToken("token de convite de turma", t.mailer.lastTokenFor(email, "class-invitation"));
   };
   const classToken = await inviteToClass("aluno-convidado-jornada@example.test");
-  const classStudentPassword = keep("senha do aluno convidado", "aluno-convidado-da-jornada");
+  const classStudentPassword = keep("senha do aluno convidado", "Aluno-1-convidado-da-jornada");
   const classAccepted = await api(t).post("/api/class-invitations/accept", {
     token: classToken,
     name: "Aluno Convidado",

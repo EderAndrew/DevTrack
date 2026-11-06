@@ -13,7 +13,7 @@ type ProviderOnlyErrorCode = "NOTICE_REJECTED" | "NOTICE_TOO_LARGE";
  */
 export const ERROR_MESSAGES = {
   VALIDATION_ERROR: "Dados inválidos.",
-  WEAK_PASSWORD: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum.",
+  WEAK_PASSWORD: "A senha não atende às regras indicadas no campo ou é uma senha comum.",
   PASSWORD_REQUIRED: "Defina uma senha para continuar.",
   TOKEN_INVALID: "Link inválido ou expirado.",
   TOKEN_EXPIRED: "Este convite expirou.",

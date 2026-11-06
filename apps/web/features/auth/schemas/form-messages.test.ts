@@ -17,7 +17,7 @@ import { CreateAccountFormSchema, createAccountMessages } from "@/features/class
 import { AcceptancePasswordFormSchema, acceptancePasswordMessages } from "@/features/invitations/schemas/acceptance-form";
 import { InviteManagerFormSchema, inviteManagerMessages } from "@/features/managers/schemas/invite-form";
 import { InviteTeacherFormSchema, inviteTeacherMessages } from "@/features/teachers/schemas/invite-form";
-import { PASSWORD_LENGTH_MESSAGE } from "./password";
+import { INVITATION_PASSWORD_MESSAGE, PASSWORD_LENGTH_MESSAGE } from "./password";
 
 /** Message of each invalid field, as React Hook Form shows it (first issue per field). */
 function messages(schema: z.ZodType, map: z.core.$ZodErrorMap, values: Record<string, unknown>) {
@@ -28,7 +28,7 @@ function messages(schema: z.ZodType, map: z.core.$ZodErrorMap, values: Record<st
 }
 
 const EMAIL = "aluna@example.test";
-const PASSWORD = "senha-forte-do-aluno";
+const PASSWORD = "Senha-forte-do-aluno-1";
 const LONG_NAME = "a".repeat(121);
 const TOO_LONG_INPUT = "x".repeat(1025);
 
@@ -44,7 +44,7 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
       {
         name: "Informe seu nome completo.",
         ra: "Informe o RA.",
-        password: PASSWORD_LENGTH_MESSAGE,
+        password: INVITATION_PASSWORD_MESSAGE,
         passwordConfirmation: "Confirme a senha.",
       },
     ],
@@ -91,14 +91,13 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
     expect(messages(schema, map, values)).toEqual(expected);
   });
 
-  it("senha fora de 12–128 caracteres mantém o texto da dica", () => {
+  it("FR-011a senha fora das regras do convite mantém o texto da dica", () => {
     const account = (password: string) => ({ name: "Ana", ra: "RA-1", password, passwordConfirmation: password });
-    expect(messages(CreateAccountFormSchema, createAccountMessages, account("curta"))).toEqual({
-      password: PASSWORD_LENGTH_MESSAGE,
-    });
-    expect(messages(CreateAccountFormSchema, createAccountMessages, account("x".repeat(129)))).toEqual({
-      password: PASSWORD_LENGTH_MESSAGE,
-    });
+    for (const password of ["curta", `Ab1!${"x".repeat(125)}`, "senha-sem-maiuscula-1", "Senha-sem-numero", "SenhaSemEspecial1"]) {
+      expect(messages(CreateAccountFormSchema, createAccountMessages, account(password))).toEqual({
+        password: INVITATION_PASSWORD_MESSAGE,
+      });
+    }
   });
 
   it("confirmação de senha diferente → texto atual, junto com o erro da senha", () => {
@@ -143,14 +142,25 @@ describe("002/FR-022 formulários das demais features (S9)", () => {
     expect(messages(schema, map, { displayName: LONG_NAME, email: "x@" })).toEqual({ displayName: INVALID_DATA, email: INVALID_DATA });
   });
 
-  it.each([
-    ["aceite de convite", AcceptancePasswordFormSchema, acceptancePasswordMessages],
-    ["ativação de administrador", ActivationPasswordFormSchema, activationPasswordMessages],
-  ])("%s: senha vazia ou fora de 12–128 → texto da dica; acima do contrato → \"Dados inválidos.\"", (_form, schema, map) => {
-    expect(messages(schema, map, { password: "" })).toEqual({ password: PASSWORD_LENGTH_MESSAGE });
-    expect(messages(schema, map, { password: "curta" })).toEqual({ password: PASSWORD_LENGTH_MESSAGE });
-    expect(messages(schema, map, { password: TOO_LONG_INPUT })).toEqual({ password: INVALID_DATA });
-    expect(messages(schema, map, { password: PASSWORD })).toEqual({});
+  it("ativação de administrador: senha vazia ou fora de 12–128 → texto da dica; acima do contrato → \"Dados inválidos.\"", () => {
+    const check = (password: string) => messages(ActivationPasswordFormSchema, activationPasswordMessages, { password });
+    expect(check("")).toEqual({ password: PASSWORD_LENGTH_MESSAGE });
+    expect(check("curta")).toEqual({ password: PASSWORD_LENGTH_MESSAGE });
+    expect(check(TOO_LONG_INPUT)).toEqual({ password: INVALID_DATA });
+    expect(check(PASSWORD)).toEqual({});
+    // FR-011a is only for invitations.
+    expect(check("apenas letras minusculas")).toEqual({});
+  });
+
+  it("FR-011a aceite de convite: regras, confirmação e, acima do contrato, \"Dados inválidos.\"", () => {
+    const check = (password: string, passwordConfirmation = password) =>
+      messages(AcceptancePasswordFormSchema, acceptancePasswordMessages, { password, passwordConfirmation });
+    expect(check("")).toEqual({ password: INVITATION_PASSWORD_MESSAGE, passwordConfirmation: "Confirme a senha." });
+    expect(check("curta")).toEqual({ password: INVITATION_PASSWORD_MESSAGE });
+    expect(check("apenas letras minusculas")).toEqual({ password: INVITATION_PASSWORD_MESSAGE });
+    expect(check(TOO_LONG_INPUT)).toEqual({ password: INVALID_DATA });
+    expect(check(PASSWORD, "outra")).toEqual({ passwordConfirmation: "As senhas não conferem." });
+    expect(check("Abcdef1!")).toEqual({});
   });
 
   it("busca de contas: vazia é válida; acima de 120 caracteres → \"Dados inválidos.\"", () => {

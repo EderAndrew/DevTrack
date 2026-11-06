@@ -5,7 +5,7 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-10-31** (correção de vulnerabilidades, fim da seção 1), Node 24.12, pnpm 11.25,
+Última verificação: **2026-11-06** (atualização geral, seção 13), Node 24.12, pnpm 11.28,
 lockfile do commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
@@ -280,3 +280,36 @@ seção 1 saiu de `pnpm-workspace.yaml` (a versão resolvida segue 2.4.0); ficam
 `pnpm licenses list --prod`: 442 pacotes (365 MIT, 32 Apache-2.0, 31 ISC); as entradas novas do
 NestJS 12 (`load-esm`, `file-type`, `@standard-schema/spec`, `uid`) são MIT, e a tabela de exceções da
 seção 2 não mudou.
+
+## 13. Atualização geral — 2026-11-06
+
+As dependências diretas foram para a última versão estável, com as exceções abaixo. Patches e versões
+menores incluem `next`/`@next/eslint-plugin-next` 16.4.5, `@nestjs/*` 12.3.3, `vitest` 5.1.0, `eslint`
+10.14.0, `pdfjs-dist` 6.5.438, `fast-xml-parser` 5.12.0, `nodemailer` 10.3.1 e `turbo` 2.11.10. A única
+versão maior foi `@hookform/resolvers` 6.0.0 → 7.0.3 em `apps/web`, sem mudança no código: ela só quebra o
+resolver de typebox, e o projeto usa só `zodResolver`.
+
+Ficaram de fora:
+
+| Pacote | Fica em | Última | Motivo |
+|--------|---------|--------|--------|
+| `prisma`, `@prisma/*` | 7.10.1 | 8.0.0-rc.30 | A tag `latest` da CLI aponta para um release candidate; 7.10.1 é a última estável |
+| `@types/node` (api, contracts) | 24.x | 26.x | Casa com o runtime Node 24 LTS (seção 12) |
+| `chokidar` | 5.0.0 | 6.0.0 | Só existe para o `swc -w`, e o `@swc/cli` 0.8.2 declara o par `^5.0.0` |
+| `pnpm` | 11.28.11 | 12.18.0 | O pnpm 11 não consegue trocar sozinho para o 12 (`ENOEXEC`: o pacote traz um script provisório que só o `install.js` substitui pelo binário nativo). O corepack roda o 12; falta validar a `pnpm/action-setup` da CI e a VPS antes de subir |
+
+Os overrides de `nanoid`, `mysql2`, `deepmerge-ts` e `multer` saíram de `pnpm-workspace.yaml`, porque quem os
+trazia já exige a versão corrigida (resolvidas: 3.3.20, 3.24.4, 8.0.2 e 2.5.0). Ficam os de `body-parser`,
+`fast-uri` e `vite`, cujas faixas declaradas ainda aceitam versões vulneráveis.
+
+O `@babel/parser` 8.1.0 (transitiva de `@babel/core`) faz a análise de escopo do ESLint ler o nome do decorator
+de um parâmetro como o próprio parâmetro, e dois `@Inject(...)` num construtor viram falso positivo de
+`no-dupe-args` e `no-redeclare`. As duas regras foram desligadas em `apps/api/eslint.config.mjs`, onde o
+`tsc` do CI já acusa as duplicatas reais. **Religar** quando o `@babel/eslint-parser` deixar de produzir o
+falso positivo.
+
+`pnpm audit --prod --audit-level high`: `No known vulnerabilities found`. Segue aceito o `minimatch`
+(GHSA-g3hv-75wg-m249, moderate, só em desenvolvimento; seção 1).
+`pnpm -r licenses list --prod`: nenhuma entrada nova preocupante; fora da allowlist aparecem `nodemailer`,
+`@img/sharp-libvips-*` e `caniuse-lite` (seção 2) e `victory-vendor` (MIT AND ISC AND BSD-3-Clause, via
+`recharts`), todas permissivas ou já avaliadas.

@@ -7,11 +7,13 @@ import {
 } from "../../src/modules/provisioning/role-grant-acceptance.service";
 import { PasswordHasher } from "../../src/modules/identity/password-hasher";
 import { createUser, loginAs, uniqueEmail } from "../helpers/factories";
-import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
+import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { SessionService } from "../../src/modules/auth/session.service";
 import { SESSION_COOKIE_NAME } from "../../src/modules/auth/session-cookie";
 
-const NEW_PASSWORD = "nova-senha-muito-segura-42";
+const NEW_PASSWORD = "Nova-senha-muito-segura-42";
+/** Valid under FR-011, the only rule when this kind of password was created; refused by FR-011a. */
+const PRE_FR011A_PASSWORD = "cavalo-correto-bateria-grampo";
 
 describe("RoleGrantAcceptance (R15, FR-044–FR-048)", () => {
   let t: TestApp;
@@ -77,6 +79,35 @@ describe("RoleGrantAcceptance (R15, FR-044–FR-048)", () => {
       expect(await errorCode(accept({ email: uniqueEmail() }))).toBe("PASSWORD_REQUIRED");
       expect(await errorCode(accept({ email: uniqueEmail(), password: "unbelievable" }))).toBe("WEAK_PASSWORD");
       expect(await t.prisma.user.count()).toBe(0);
+    });
+
+    it.each(["INVITATION", "CLASS_INVITATION"] as const)("FR-011a %s follows the invitation rules", async (via) => {
+      const roleKey = via === "CLASS_INVITATION" ? "STUDENT" : "TEACHER";
+      for (const password of ["Abcde1!", PRE_FR011A_PASSWORD, "ABCDEF1!", "Abcdefg!", "Abcdefg1", "Password1!", "S3nh@2026!"]) {
+        expect(await errorCode(accept({ email: uniqueEmail(), password, via, roleKey }))).toBe("WEAK_PASSWORD");
+      }
+      expect(await t.prisma.user.count()).toBe(0);
+      expect((await accept({ email: uniqueEmail(), password: "Zebrua1!", via, roleKey })).mode).toBe("CREATE_ACCOUNT");
+    });
+
+    it("FR-011a the admin activation keeps FR-011", async () => {
+      const activation = { via: "ADMIN_BOOTSTRAP", roleKey: "ADMIN" } as const;
+      expect(await errorCode(accept({ email: uniqueEmail(), password: "Abcdef1!", ...activation }))).toBe("WEAK_PASSWORD");
+      const { mode } = await accept({ email: uniqueEmail(), password: PRE_FR011A_PASSWORD, ...activation });
+      expect(mode).toBe("CREATE_ACCOUNT");
+    });
+
+    it("FR-011a a stored password outside the invitation rules still signs in and accepts an invitation", async () => {
+      const owner = await createUser(t, { password: PRE_FR011A_PASSWORD });
+      const { passwordHash } = await t.prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
+
+      const login = await api(t).post("/api/auth/login", { email: owner.email, password: PRE_FR011A_PASSWORD });
+      expect(login.status).toBe(200);
+
+      const result = await accept({ email: owner.email, currentUserId: owner.id });
+      expect(result).toMatchObject({ mode: "SIGN_IN_REQUIRED", roleGranted: true });
+      const after = await t.prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
+      expect(after.passwordHash).toBe(passwordHash);
     });
 
     it("MANAGER gets no teacher profile", async () => {

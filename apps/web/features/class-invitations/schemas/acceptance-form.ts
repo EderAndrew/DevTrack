@@ -1,6 +1,6 @@
 import { AcceptClassInvitationRequestSchema } from "@repo/contracts";
 import { z } from "zod";
-import { NewPasswordSchema } from "@/features/auth/schemas/password";
+import { InvitationPasswordSchema } from "@/features/auth/schemas/password";
 import { fieldMessages } from "@/lib/forms/field-messages";
 
 const { shape } = AcceptClassInvitationRequestSchema;
@@ -15,7 +15,7 @@ export const PASSWORD_MISMATCH_MESSAGE = "As senhas não conferem.";
 const accountFields = z.object({
   name: shape.name.unwrap(),
   ra: shape.ra.unwrap(),
-  password: NewPasswordSchema,
+  password: InvitationPasswordSchema,
   passwordConfirmation: z.string().min(1),
 });
 

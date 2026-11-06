@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AppException } from "../../platform/http/errors";
-import { loadCommonPasswords, PasswordPolicy } from "./password-policy";
+import { loadCommonPasswords, LOCAL_WORDS_PATH, PasswordPolicy } from "./password-policy";
 
 describe("PasswordPolicy (FR-011)", () => {
   const policy = new PasswordPolicy(loadCommonPasswords());
@@ -37,6 +38,87 @@ describe("PasswordPolicy (FR-011)", () => {
       expect(error).toBeInstanceOf(AppException);
       expect((error as AppException).toBody()).toMatchObject({ statusCode: 400, code: "WEAK_PASSWORD" });
     }
+  });
+
+  describe("FR-011a password chosen when accepting an invitation", () => {
+    it.each([
+      ["7 characters", "Abcde1!", false],
+      ["8 characters", "Zebrua1!", true],
+      ["128 characters", `Ab1!${"x".repeat(124)}`, true],
+      ["129 characters", `Ab1!${"x".repeat(125)}`, false],
+      ["no uppercase", "abcdef1!", false],
+      ["no lowercase", "ABCDEF1!", false],
+      ["no number", "Abcdefg!", false],
+      ["no special character", "Abcdefg1", false],
+    ])("%s", (_label, password, ok) => {
+      expect(policy.isAcceptableForInvitation(password)).toBe(ok);
+    });
+
+    it("still rejects passwords from the common list, case-insensitively", () => {
+      const withCommon = new PasswordPolicy(new Set(["zebrua@123"]));
+      expect(withCommon.isAcceptableForInvitation("Zebrua@123")).toBe(false);
+      expect(withCommon.isAcceptableForInvitation("Zebrua@1234")).toBe(true);
+    });
+
+    it("validateForInvitation() throws 400 WEAK_PASSWORD", () => {
+      expect(() => policy.validateForInvitation("abcdefgh")).toThrow(AppException);
+      expect(() => policy.validateForInvitation("Password1!")).toThrow(AppException);
+      expect(() => policy.validateForInvitation("Zebrua1!")).not.toThrow();
+    });
+
+    it.each([
+      ["a common word with a number and a symbol", "Password1!"],
+      ["the same at the start", "1!Password"],
+      ["symbols inside the word", "Pass-word1"],
+      ["replaced letters", "P@ssw0rd1!"],
+      ["one read as an i", "Adm1n@2026"],
+      ["one read as an l", "We1come@26"],
+      ["a common password with symbols added", "Abc@1234"],
+      ["a common password with digits", "Qwerty@123"],
+      ["accents", "Pássword1!"],
+      ["a Portuguese word missing from the English list", "Senha@123"],
+      ["Portuguese, replaced letters", "S3nh@2026!"],
+      ["the product's name", "DevTrack1!"],
+      ["a Portuguese word with its accent", "Bem-Vindo1!"],
+      ["a Brazilian team", "Flamengo1!"],
+      ["another team", "Corinthians1!"],
+      ["a city in two words", "Sao-Paulo1!"],
+      ["a Brazilian name", "Joao@2026"],
+      ["a name with its accent", "João@2026"],
+      ["a short name", "Ana@2026"],
+      ["a religious word", "Deus@123"],
+      ["a family word", "Familia@1"],
+      ["a common number sequence with few letters", "Aa123456!"],
+      ["the same with the symbol first", "Aa@123456"],
+      ["a keyboard run", "1q2w3e4r!Q"],
+      ["another keyboard run", "Asdfgh1!"],
+      ["a keyboard run inside something longer", "Xy-Qwerty-77!"],
+    ])("rejects %s", (_label, password) => {
+      expect(policy.isAcceptableForInvitation(password)).toBe(false);
+    });
+
+    it.each([
+      ["a phrase of ordinary words", "Cavalo-correto-bateria-42"],
+      ["a common word inside something longer", "Password-do-girassol-azul-7"],
+      ["few letters left after removing the rest", "Ab7!2#9$kQ"],
+      ["no word at all", "Zq8!mK2#"],
+      ["a team inside a phrase", "Flamengo-campeao-de-bicicleta-7"],
+    ])("accepts %s", (_label, password) => {
+      expect(policy.isAcceptableForInvitation(password)).toBe(true);
+    });
+
+    it("the Portuguese list holds only unaccented lowercase letters, one entry per line", () => {
+      const entries = readFileSync(LOCAL_WORDS_PATH, "utf8").split("\n").filter(Boolean);
+      expect(entries.length).toBeGreaterThan(200);
+      expect(entries.filter((entry) => !/^[a-z]+$/.test(entry))).toEqual([]);
+      expect(new Set(entries).size).toBe(entries.length);
+    });
+
+    it("does not change the rule of the other flows", () => {
+      expect(policy.isAcceptable("Abcdef1!")).toBe(false);
+      expect(policy.isAcceptable("apenas letras minusculas")).toBe(true);
+      expect(policy.isAcceptable("Password-123!")).toBe(true);
+    });
   });
 
   it("loads the shipped list", () => {

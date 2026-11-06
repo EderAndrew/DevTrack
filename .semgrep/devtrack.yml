@@ -1,0 +1,79 @@
+# Project rules for what the Semgrep registry packs miss (ADR-0007). Check them with:
+#   semgrep --test --config .semgrep/devtrack.yml .semgrep/devtrack.tsx
+rules:
+  - id: devtrack-no-html-injection
+    languages: [typescript]
+    severity: ERROR
+    message: Render text, never HTML (012/FR-035).
+    metadata:
+      owasp: "A03:2021"
+      cwe: "CWE-79"
+    paths:
+      # Tests clear the DOM with `document.body.innerHTML = ""`.
+      exclude:
+        - "*.test.ts"
+        - "*.test.tsx"
+    pattern-either:
+      - pattern: <$EL ... dangerouslySetInnerHTML={...} ... />
+      - pattern: $X.innerHTML = $Y
+      - pattern: $X.outerHTML = $Y
+      - pattern: $X.insertAdjacentHTML(...)
+
+  - id: devtrack-no-dynamic-code
+    languages: [typescript]
+    severity: ERROR
+    message: Do not run code built at runtime. Student code runs only in the Code Runner worker (019).
+    metadata:
+      owasp: "A03:2021"
+      cwe: "CWE-95"
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: devtrack-no-dynamic-raw-sql
+    languages: [typescript]
+    severity: ERROR
+    message: Use the $queryRaw/$executeRaw tagged templates, which send values as parameters. Unsafe forms only with fixed text.
+    metadata:
+      owasp: "A03:2021"
+      cwe: "CWE-89"
+    patterns:
+      - pattern-either:
+          - pattern: $X.$queryRawUnsafe(...)
+          - pattern: $X.$executeRawUnsafe(...)
+          - pattern: Prisma.raw(...)
+      - pattern-not: $X.$queryRawUnsafe("...")
+      - pattern-not: $X.$executeRawUnsafe("...")
+      - pattern-not: Prisma.raw("...")
+      - pattern-not: 'Prisma.raw($COND ? "..." : "...")'
+
+  - id: devtrack-no-weak-hash
+    languages: [typescript]
+    severity: ERROR
+    message: MD5 and SHA-1 are broken; use SHA-256 or stronger.
+    metadata:
+      owasp: "A02:2021"
+      cwe: "CWE-328"
+    patterns:
+      - pattern-either:
+          - pattern: $C.createHash("$ALG", ...)
+          - pattern: createHash("$ALG", ...)
+          - pattern: $C.createHmac("$ALG", ...)
+          - pattern: createHmac("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(md5|sha-?1)$
+
+  - id: devtrack-child-process-only-in-sandbox
+    languages: [typescript]
+    severity: ERROR
+    message: Only code-runner/sandbox/docker-sandbox.ts starts processes (019).
+    metadata:
+      owasp: "A03:2021"
+      cwe: "CWE-78"
+    paths:
+      # apps/web/e2e is local test tooling (database reset and setup), never shipped.
+      exclude:
+        - "apps/api/src/code-runner/sandbox/docker-sandbox.ts"
+        - "apps/web/e2e/"
+    pattern-regex: (from\s+|require\(\s*|import\(\s*)["'](node:)?child_process["']

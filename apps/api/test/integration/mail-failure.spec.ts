@@ -6,7 +6,7 @@ import { createUser, loginAs, uniqueEmail } from "../helpers/factories";
 import { captureLogs } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const PASSWORD = "senha-forte-da-falha-de-email";
+const PASSWORD = "Senha-forte-da-falha-de-email-1";
 
 /** Status and body with per-request identifiers removed, to compare the failing and normal cases. */
 function shape(res: { status: number; body: Record<string, unknown> }) {
