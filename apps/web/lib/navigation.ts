@@ -108,11 +108,18 @@ export function areaFor(pathname: string): string | null {
 }
 
 /**
- * Post-login destination: only a path of this app (`/…`), never `//host` or `/\host`, so a
- * crafted `?next=` cannot send the user to another site. Defaults to the app root, which picks
- * the account's start page.
+ * Post-login destination: only a path of this app, so a crafted `?next=` cannot send the user to
+ * another site. It is checked as the browser will read it: URL parsers drop tabs and newlines and
+ * read `\` as `/`, so `/<tab>/host` is `//host`. Defaults to the app root, which picks the account's
+ * start page.
  */
 export function safeNextPath(next: string | null | undefined, fallback = START_PATH): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  return next;
+  if (!next?.startsWith("/")) return fallback;
+  const base = "http://app.invalid";
+  try {
+    const url = new URL(next, base);
+    return url.origin === base && !url.pathname.startsWith("//") ? next : fallback;
+  } catch {
+    return fallback;
+  }
 }
