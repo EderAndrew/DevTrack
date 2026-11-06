@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AppException } from "../../platform/http/errors";
-import { loadCommonPasswords, PasswordPolicy } from "./password-policy";
+import { loadCommonPasswords, LOCAL_WORDS_PATH, PasswordPolicy } from "./password-policy";
 
 describe("PasswordPolicy (FR-011)", () => {
   const policy = new PasswordPolicy(loadCommonPasswords());
@@ -79,6 +80,19 @@ describe("PasswordPolicy (FR-011)", () => {
       ["Portuguese, replaced letters", "S3nh@2026!"],
       ["the product's name", "DevTrack1!"],
       ["a Portuguese word with its accent", "Bem-Vindo1!"],
+      ["a Brazilian team", "Flamengo1!"],
+      ["another team", "Corinthians1!"],
+      ["a city in two words", "Sao-Paulo1!"],
+      ["a Brazilian name", "Joao@2026"],
+      ["a name with its accent", "João@2026"],
+      ["a short name", "Ana@2026"],
+      ["a religious word", "Deus@123"],
+      ["a family word", "Familia@1"],
+      ["a common number sequence with few letters", "Aa123456!"],
+      ["the same with the symbol first", "Aa@123456"],
+      ["a keyboard run", "1q2w3e4r!Q"],
+      ["another keyboard run", "Asdfgh1!"],
+      ["a keyboard run inside something longer", "Xy-Qwerty-77!"],
     ])("rejects %s", (_label, password) => {
       expect(policy.isAcceptableForInvitation(password)).toBe(false);
     });
@@ -88,8 +102,16 @@ describe("PasswordPolicy (FR-011)", () => {
       ["a common word inside something longer", "Password-do-girassol-azul-7"],
       ["few letters left after removing the rest", "Ab7!2#9$kQ"],
       ["no word at all", "Zq8!mK2#"],
+      ["a team inside a phrase", "Flamengo-campeao-de-bicicleta-7"],
     ])("accepts %s", (_label, password) => {
       expect(policy.isAcceptableForInvitation(password)).toBe(true);
+    });
+
+    it("the Portuguese list holds only unaccented lowercase letters, one entry per line", () => {
+      const entries = readFileSync(LOCAL_WORDS_PATH, "utf8").split("\n").filter(Boolean);
+      expect(entries.length).toBeGreaterThan(200);
+      expect(entries.filter((entry) => !/^[a-z]+$/.test(entry))).toEqual([]);
+      expect(new Set(entries).size).toBe(entries.length);
     });
 
     it("does not change the rule of the other flows", () => {

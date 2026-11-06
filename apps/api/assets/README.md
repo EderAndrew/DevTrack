@@ -11,3 +11,14 @@ Lista das 10 000 senhas mais comuns usada pela `PasswordPolicy` (FR-011, R4).
 
 A comparação é feita sem distinção de maiúsculas/minúsculas. Para atualizar a lista,
 substitua o arquivo e atualize o checksum acima.
+
+## common-words-pt-br.txt
+
+Palavras que a lista acima não cobre e que tendem a aparecer em senhas no Brasil: nomes, times,
+cidades, família, religião e o nome do produto. Só a regra do aceite de convite usa (FR-011a).
+
+- Origem: seleção manual do projeto, não uma lista de vazamentos; não pretende ser completa.
+- Formato: uma palavra por linha, em ordem, só letras minúsculas sem acento (nomes compostos sem
+  espaço: `saopaulo`).
+
+Para atualizar, edite o arquivo mantendo esse formato; o teste de `PasswordPolicy` o verifica.

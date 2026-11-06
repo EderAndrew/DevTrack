@@ -17,28 +17,14 @@ export function loadCommonPasswords(path: string = COMMON_PASSWORDS_PATH): Reado
   return new Set(entries);
 }
 
-/** Shorter leftovers would refuse random passwords whose few letters happen to be in the list. */
-const MIN_WORD_LENGTH = 4;
+/** What the English-heavy list lacks and people here would pick (FR-011a); see assets/README.md. */
+export const LOCAL_WORDS_PATH = resolve(__dirname, "../../../assets/common-words-pt-br.txt");
 
-/** What the English-heavy list lacks and people here would pick (FR-011a). */
-const LOCAL_WORDS: ReadonlySet<string> = new Set([
-  "aluna",
-  "aluno",
-  "bemvindo",
-  "devtrack",
-  "escola",
-  "gestor",
-  "gestora",
-  "minhasenha",
-  "mudar",
-  "mudarsenha",
-  "novasenha",
-  "professor",
-  "professora",
-  "senha",
-  "teste",
-  "trocar",
-]);
+/** Shorter leftovers would refuse random passwords whose few letters happen to be in the big list. */
+const MIN_LIST_WORD_LENGTH = 4;
+const MIN_LOCAL_WORD_LENGTH = 3;
+const MIN_DIGITS_LENGTH = 6;
+const KEYBOARD_RUNS = ["qwert", "asdf", "zxcv", "qazwsx", "1q2w3e", "q1w2e3"];
 
 const REPLACED_LETTERS: Readonly<Record<string, string>> = { "@": "a", $: "s", "0": "o", "3": "e", "4": "a", "5": "s", "7": "t" };
 
@@ -55,9 +41,11 @@ function commonForms(password: string): { whole: string[]; words: string[] } {
   const read = stems.flatMap((stem) =>
     ["i", "l"].map((one) => lettersOf(stem.replace(/[@$013457]/g, (char) => (char === "1" ? one : REPLACED_LETTERS[char]!)))),
   );
+  const digits = plain.replace(/\P{Nd}/gu, "");
   return {
-    whole: [plain, plain.replace(/[\p{P}\p{S}]/gu, "")],
-    words: [lettersOf(plain), ...read].filter((word) => word.length >= MIN_WORD_LENGTH),
+    // The digits alone catch `Aa123456!`, whose letters are too few to read as a word.
+    whole: [plain, plain.replace(/[\p{P}\p{S}]/gu, ""), ...(digits.length >= MIN_DIGITS_LENGTH ? [digits] : [])],
+    words: [lettersOf(plain), ...read].filter((word) => word.length >= MIN_LOCAL_WORD_LENGTH),
   };
 }
 
@@ -70,9 +58,11 @@ function commonForms(password: string): { whole: string[]; words: string[] } {
  */
 export class PasswordPolicy {
   private readonly common: ReadonlySet<string>;
+  private readonly localWords: ReadonlySet<string>;
 
-  constructor(common?: ReadonlySet<string>) {
+  constructor(common?: ReadonlySet<string>, localWords?: ReadonlySet<string>) {
     this.common = common ?? loadCommonPasswords();
+    this.localWords = localWords ?? loadCommonPasswords(LOCAL_WORDS_PATH);
   }
 
   isAcceptable(password: string): boolean {
@@ -90,7 +80,8 @@ export class PasswordPolicy {
   isAcceptableForInvitation(password: string): boolean {
     if (!meetsInvitationPasswordRules(password)) return false;
     const { whole, words } = commonForms(password);
-    return !whole.some((form) => this.common.has(form)) && !words.some((word) => this.common.has(word) || LOCAL_WORDS.has(word));
+    if (whole.some((form) => this.common.has(form) || KEYBOARD_RUNS.some((run) => form.includes(run)))) return false;
+    return !words.some((word) => this.localWords.has(word) || (word.length >= MIN_LIST_WORD_LENGTH && this.common.has(word)));
   }
 
   /** Throws `400 WEAK_PASSWORD` when a password chosen in an invitation does not meet FR-011a. */
