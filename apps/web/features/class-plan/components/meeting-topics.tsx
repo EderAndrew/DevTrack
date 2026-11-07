@@ -1,6 +1,7 @@
 import type { ClassMeetingView, TopicView } from "@repo/contracts";
 import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { meetingLabel } from "@/features/class-calendar/components/calendar-dates";
 
 /**
@@ -72,23 +73,37 @@ export function TopicList({
   );
 }
 
-/** A class day ("Aula 05 — 18/03/2027") with its topics (FR-034: zero, one or many). */
+/**
+ * A class day ("Aula 05 — 18/03/2027") with its topics (FR-034: zero, one or many). A day with no
+ * topic offers "Criar tópico com esta data" when `onCreateTopic` is given (004/US5-7, FR-033).
+ */
 export function MeetingTopics({
   meeting,
   topics,
   renderActions,
+  onCreateTopic,
 }: {
   meeting: ClassMeetingView;
   topics: readonly TopicView[];
   renderActions?: RenderTopicActions;
+  /** UX only (`planejamento.editar` on a plan that is not archived). */
+  onCreateTopic?: () => void;
 }) {
   const headingId = `aula-${meeting.id}`;
+  const label = meetingLabel(meeting.number, meeting.date);
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h3 id={headingId} className="m-0">
-        {meetingLabel(meeting.number, meeting.date)}
+        {label}
       </h3>
       <TopicList topics={topics} empty="Nenhum tópico nesta aula." renderActions={renderActions} />
+      {topics.length === 0 && onCreateTopic ? (
+        <div>
+          <Button type="button" variant="secondary" aria-label={`Criar tópico com esta data: ${label}`} onClick={onCreateTopic}>
+            Criar tópico com esta data
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }
