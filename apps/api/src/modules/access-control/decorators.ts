@@ -4,6 +4,8 @@ import type { PermissionKey } from "./permissions";
 export const IS_PUBLIC_KEY = "access:public";
 export const ALLOW_UNVERIFIED_KEY = "access:allow-unverified";
 export const REQUIRED_PERMISSIONS_KEY = "access:permissions";
+export const MOBILE_ACCESS_KEY = "access:mobile";
+export const MOBILE_ENTRY_KEY = "access:mobile-entry";
 
 type RouteDecorator = MethodDecorator & ClassDecorator;
 
@@ -19,3 +21,13 @@ export const AllowUnverified = (): RouteDecorator => SetMetadata(ALLOW_UNVERIFIE
 /** Verified session plus every listed permission (FR-060, FR-061). */
 export const RequirePermissions = (...keys: [PermissionKey, ...PermissionKey[]]): RouteDecorator =>
   SetMetadata(REQUIRED_PERMISSIONS_KEY, keys);
+
+/**
+ * 024 research Y4: the route is on the app's allowlist — a MOBILE session's bearer is accepted here (and
+ * only here; anywhere else it is `403 MOBILE_ROUTE_NOT_ALLOWED`), and with no session cookie the CSRF
+ * barrier does not ask for an Origin. The route's own access rule still applies.
+ */
+export const MobileAccess = (): RouteDecorator => SetMetadata(MOBILE_ACCESS_KEY, true);
+
+/** 024: the app's sign-in (`POST /auth/mobile/sessions`), which may come with no Origin; only that route. */
+export const MobileEntry = (): MethodDecorator => SetMetadata(MOBILE_ENTRY_KEY, true);

@@ -190,7 +190,7 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T012 [P] [US1] `apps/api/test/integration/024-us1-mobile-session.spec.ts`:
+- [x] T012 [P] [US1] `apps/api/test/integration/024-us1-mobile-session.spec.ts`:
   - `024/US1-1` login de professor → `201` com `token` de 43 caracteres, `expiresAt` e `user`; o banco guarda só o
     hash, com `client = MOBILE` e `absolute_expires_at` = agora + 90 d; `GET /me` e `GET /mobile/exams` com o bearer →
     `200`; `mobile_session.created` na mesma transação;
@@ -215,7 +215,7 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
     fora do regex ou `platform` inválida → `400` (`024/FR-018`);
   - `GET /mobile/exams` (`024/FR-006`): só EXAM das turmas do professor, publicada, antes de `closesAt`, não cancelada,
     turma não arquivada, ordenada por `closesAt`, `muted: false`, com `serverNow`; agendada não aparece.
-- [ ] T013 [P] [US1] `apps/api/test/security/024-mobile-allowlist.spec.ts` e `024-origin.spec.ts` (research Y4,
+- [x] T013 [P] [US1] `apps/api/test/security/024-mobile-allowlist.spec.ts` e `024-origin.spec.ts` (research Y4,
       `024/FR-005`):
   - com um bearer MOBILE: cada rota da tabela de `routes.ts` sem `@MobileAccess()` → `403 MOBILE_ROUTE_NOT_ALLOWED`
     (geradas a partir do catálogo, não à mão), incluindo `…/exam-holds/:holdId/{cancel,return,keep}`, a chamada e as
@@ -226,14 +226,15 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
   - bearer sem cookie numa rota `@MobileAccess()` insegura sem `Origin` → aceito; bearer **com** cookie de sessão sem
     `Origin` → `403 ORIGIN_NOT_ALLOWED`; toda rota da web sem `Origin` continua `403` (sem mudança de asserção nas
     suítes 001/002).
-- [ ] T014 [P] [US1] Testes do app (RNTL, por papel e nome):
+- [x] T014 [P] [US1] Testes do app (RNTL, por papel e nome):
   - `apps/mobile/features/mobile-auth/components/login-form.test.tsx`: `024/US1-1` entra e navega para
     `/(app)/provas`, grava o segredo no secure store; `024/US1-2` mostra a mensagem genérica da web; `024/US1-3` mostra
     "Este aplicativo é para professores acompanharem provas."; `429` mostra a espera; campos vazios validados pelo
     schema;
   - `apps/mobile/features/mobile-auth/hooks/use-logout.test.tsx`: `024/US1-4` chama o `DELETE`, apaga o segredo e o
     cache e volta a `/entrar`;
-  - `apps/mobile/app/entrar.test.tsx`: `024/US1-5` e `024/US1-6` um `401` em qualquer pedido apaga o segredo e mostra
+  - `apps/mobile/test/screens/entrar.test.tsx` (fora de `app/`, onde o Expo Router trata todo arquivo como rota; o mesmo
+    vale para `test/screens/provas.test.tsx`): `024/US1-5` e `024/US1-6` um `401` em qualquer pedido apaga o segredo e mostra
     "Sua sessão expirou. Entre novamente para voltar a receber avisos.";
   - `apps/mobile/features/push/hooks/use-push-registration.test.tsx`: depois do login pede a permissão, cria os dois
     canais e chama `PUT /mobile/device` com o token Expo; chama de novo quando o token muda; `024/US1-7` com a
@@ -244,7 +245,7 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Sessão por tipo: `apps/api/src/modules/auth/session.service.ts` — `create(userId, client, tx)` grava
+- [x] T015 [US1] Sessão por tipo: `apps/api/src/modules/auth/session.service.ts` — `create(userId, client, tx)` grava
       `client` e `absolute_expires_at` pelo tipo (WEB 7 d, MOBILE 90 d); `validate(secret, client)` aplica o ocioso
       do tipo (WEB 8 h, MOBILE 30 d), renova `last_used_at` só em pedidos do app (o worker nunca chama `validate`) e
       recusa o tipo errado; constantes no arquivo (contracts/configuration.md). `revoke` e `revokeAllForUser` apagam,
@@ -252,13 +253,13 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
       `SESSION_REVOKED` (SYSTEM) para cada uma (research Y9; `AuditService` injetado; o motivo novo em
       `audit-event-types.ts`, contracts/audit-events.md e `journey.ts`). Os chamadores da web passam `WEB`
       explicitamente; as suítes de sessão da 001/002 continuam verdes sem mudança de asserção.
-- [ ] T016 [US1] Decoradores e guardas (research Y4): `@MobileAccess()` e `@MobileEntry()` em
+- [x] T016 [US1] Decoradores e guardas (research Y4): `@MobileAccess()` e `@MobileEntry()` em
       `apps/api/src/modules/access-control/decorators.ts`; `guards/session.guard.ts` lê o cookie → WEB, ou o
       `Authorization: Bearer` → MOBILE só em rota `@MobileAccess()` (senão `403 MOBILE_ROUTE_NOT_ALLOWED`; com os dois,
       o cookie manda e o bearer é ignorado); `apps/api/src/platform/http/origin.guard.ts` com as duas exceções;
       códigos novos em `apps/api/src/platform/http/errors.ts`. `@MobileAccess()` em `GET /me`
       (`auth/me.controller.ts`).
-- [ ] T017 [US1] Login e logout do app: `apps/api/src/modules/auth/mobile-session.service.ts` (reusa o caminho de
+- [x] T017 [US1] Login e logout do app: `apps/api/src/modules/auth/mobile-session.service.ts` (reusa o caminho de
       `login.service.ts` para credenciais, Argon2, mensagem genérica e escopos de limite; depois exige ACTIVE,
       e-mail verificado e `chamada.registrar` pelo `permission-resolver`, senão `mobile_session.refused` numa transação
       própria e `403 MOBILE_NOT_ALLOWED`; cria a sessão MOBILE + registro de acesso + `mobile_session.created` na mesma
@@ -267,22 +268,22 @@ conferir que a sessão e o celular foram removidos; "Sair de todos os dispositiv
       /auth/mobile/sessions/current` `@MobileAccess()`), registrados em `auth.module.ts`. Tipos `mobile_session.*` em
       `audit-event-types.ts`, contracts/audit-events.md e `journey.ts`. Entradas em `endpoints.ts`, `MATRIX` e
       `routes.ts`.
-- [ ] T018 [US1] Módulo `apps/api/src/modules/exam-alerts/exam-alerts.module.ts` (importado pelo `AppModule`) com
+- [x] T018 [US1] Módulo `apps/api/src/modules/exam-alerts/exam-alerts.module.ts` (importado pelo `AppModule`) com
       `mobile-devices.service.ts` + `mobile-devices.controller.ts` (`PUT /mobile/device` `@MobileAccess()`: upsert da
       sessão atual sob `SELECT … FOR UPDATE` do token, `REPLACED` quando o token muda de sessão, nada novo na repetição;
       limite `mobile-writes` em `platform/rate-limit` com `RATE_LIMIT_MOBILE_WRITES_PER_MINUTE`). Tipos
       `mobile_device.registered`/`removed` em `audit-event-types.ts`, contracts e `journey.ts`. Entradas em
       `endpoints.ts`, `MATRIX` e `routes.ts`.
-- [ ] T019 [US1] `apps/api/src/modules/exam-alerts/mobile-exams.service.ts` + `mobile-exams.controller.ts`
+- [x] T019 [US1] `apps/api/src/modules/exam-alerts/mobile-exams.service.ts` + `mobile-exams.controller.ts`
       (`GET /mobile/exams`, `@RequirePermissions("chamada.registrar") @MobileAccess()`): consulta escopada às turmas
       do professor, pelo `Clock` injetado, com `muted` pela existência da linha em `exam_alert_mutes` (sempre `false`
       até a US4). Entradas em `endpoints.ts`, `MATRIX` e `routes.ts`. T012 e T013 ficam verdes.
-- [ ] T020 [US1] App — entrada e sessão: `apps/mobile/features/mobile-auth/{api,hooks,schemas,components}`
+- [x] T020 [US1] App — entrada e sessão: `apps/mobile/features/mobile-auth/{api,hooks,schemas,components}`
       (`login`, `logout`, `useLogin`, `useLogout`, `LoginForm` com React Hook Form + `MobileLoginRequestSchema`,
       mensagens por código), `apps/mobile/app/entrar.tsx`, guarda de rota em `apps/mobile/app/(app)/_layout.tsx` (sem
       segredo → `/entrar`; `GET /me` define o tema, 022), `onUnauthorized` do cliente apaga o segredo e o cache e
       leva a `/entrar` com a mensagem de sessão expirada.
-- [ ] T021 [US1] App — push e lista: `apps/mobile/features/push/channels.ts` (os dois canais da research Y7, com
+- [x] T021 [US1] App — push e lista: `apps/mobile/features/push/channels.ts` (os dois canais da research Y7, com
       `lockscreenVisibility: PRIVATE`), `apps/mobile/features/push/hooks/use-push-registration.ts` (permissão,
       canais, `getExpoPushTokenAsync` com o project id do EAS, `PUT /mobile/device`, listener de troca de token,
       estado da permissão relido ao voltar para o primeiro plano), `apps/mobile/features/exam-list/{api,hooks,components}`

@@ -28,6 +28,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/020-student-feedback/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/023-group-work/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/024-mobile-exam-monitor/contracts/audit-events.md"),
 ];
 
 /**

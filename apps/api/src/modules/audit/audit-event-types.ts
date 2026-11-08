@@ -321,6 +321,14 @@ export const AUDIT_EVENT_METADATA = {
   "activity_group.leader_changed": ["activityId", "attemptId", "fromUserId", "toUserId", "reason"],
   // 023 — a group write refused to its author: the operation and a reason code, never the content.
   "activity_group.write_refused": ["activityId", "attemptId", "operation", "reason"],
+  // 024 — the app's session (contracts/audit-events.md): ids and a code, never the token.
+  "mobile_session.created": ["sessionId"],
+  // 024 — right password, but the account can't use the app; no session was created.
+  "mobile_session.refused": ["code"],
+  "mobile_session.ended": ["sessionId"],
+  // 024 — a push device linked to a MOBILE session, or removed: never the push token.
+  "mobile_device.registered": ["sessionId", "platform"],
+  "mobile_device.removed": ["reason"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;
@@ -374,4 +382,5 @@ export type AuditTargetType =
   | "WORK_HELP_REQUEST"
   | "MAIL_DELIVERY"
   | "CODE_RUN"
-  | "STUDENT_FEEDBACK";
+  | "STUDENT_FEEDBACK"
+  | "MOBILE_DEVICE";

@@ -2,7 +2,7 @@ import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { AppModule } from "../../src/app.module";
-import { IS_PUBLIC_KEY } from "../../src/modules/access-control/decorators";
+import { IS_PUBLIC_KEY, MOBILE_ACCESS_KEY, MOBILE_ENTRY_KEY } from "../../src/modules/access-control/decorators";
 import { routeKey } from "./contract-conformance.interceptor";
 import { LogCapture } from "./log-capture";
 import { testConfig } from "./test-app";
@@ -11,6 +11,9 @@ export interface RegisteredRoute {
   /** e.g. `POST /teachers/:userId/suspend` (without the global `/api` prefix). */
   route: string;
   isPublic: boolean;
+  /** 024: on the app's allowlist (`@MobileAccess()`), or its sign-in (`@MobileEntry()`). */
+  mobileAccess: boolean;
+  mobileEntry: boolean;
 }
 
 /** Every route of the application, discovered from a compiled AppModule (no HTTP server). */
@@ -34,6 +37,8 @@ export async function registeredRoutes(): Promise<RegisteredRoute[]> {
         routes.push({
           route: routeKey(Reflect.getMetadata(METHOD_METADATA, handler), base, path),
           isPublic: Boolean(reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler, metatype])),
+          mobileAccess: Boolean(reflector.getAllAndOverride<boolean>(MOBILE_ACCESS_KEY, [handler, metatype])),
+          mobileEntry: Boolean(reflector.getAllAndOverride<boolean>(MOBILE_ENTRY_KEY, [handler, metatype])),
         });
       }
     }

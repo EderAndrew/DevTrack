@@ -9,7 +9,7 @@ notification text (`exam-alerts-boundary.spec.ts`, SC-005).
 | `mobile_session.refused` | USER | USER | `code` (always `"MOBILE_NOT_ALLOWED"`) |
 | `mobile_session.ended` | USER | SESSION | `sessionId` |
 | `mobile_device.registered` | USER | MOBILE_DEVICE | `sessionId`, `platform` |
-| `mobile_device.removed` | USER or SYSTEM | MOBILE_DEVICE | `reason` (`LOGOUT`, `REPLACED`, `SESSION_REVOKED`, `PROVIDER_UNREGISTERED`) |
+| `mobile_device.removed` | USER \| SYSTEM | MOBILE_DEVICE | `reason` (`LOGOUT`, `REPLACED`, `SESSION_REVOKED`, `PROVIDER_UNREGISTERED`) |
 
 `mobile_session.created` is written in the transaction that creates the session, with the access record, like
 `auth.login.succeeded` for the web. `mobile_session.refused` is written on its own when the password was right but

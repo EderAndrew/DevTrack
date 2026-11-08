@@ -154,6 +154,8 @@ export interface ApiClientOptions {
   cookie?: string;
   /** Overrides the allowed Origin; `null` omits the header (CSRF tests). */
   origin?: string | null;
+  /** 024: the mobile session's secret, sent as `Authorization: Bearer`. */
+  bearer?: string;
 }
 
 /** supertest client that sends the allowed Origin and JSON bodies by default. */
@@ -162,6 +164,7 @@ export function api(t: TestApp, options: ApiClientOptions = {}) {
   const decorate = (req: request.Test): request.Test => {
     if (origin !== null) req.set("Origin", origin);
     if (options.cookie) req.set("Cookie", options.cookie);
+    if (options.bearer) req.set("Authorization", `Bearer ${options.bearer}`);
     return req;
   };
   const withBody = (req: request.Test, body: object) =>

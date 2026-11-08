@@ -1355,6 +1355,35 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   ]);
   expect(race.map((r) => r.status).sort()).toEqual([200, 409]);
 
+  // 024/US1 — the app: a student is refused (`mobile_session.refused`); a teacher signs in
+  // (`mobile_session.created`) and registers the phone (`mobile_device.registered`); another teacher signs in
+  // on the same phone and takes its token (`mobile_device.removed` REPLACED + `registered`), then signs out
+  // (`removed` LOGOUT + `mobile_session.ended`); the first one's "sair de todos" on the web removes the new
+  // device (`removed` SESSION_REVOKED, SYSTEM). The session secrets and push tokens never reach logs or audit.
+  const appClient = (token?: string) => api(t, { origin: null, ...(token ? { bearer: token } : {}) });
+  const appStudent = await createUser(t, { roles: ["STUDENT"], name: "Aluna do app" });
+  expect((await appClient().post("/api/auth/mobile/sessions", { email: appStudent.email, password: appStudent.password })).body.code).toBe(
+    "MOBILE_NOT_ALLOWED",
+  );
+  const signInApp = async (user: { email: string; password: string }) => {
+    const res = await appClient().post("/api/auth/mobile/sessions", { email: user.email, password: user.password });
+    expect(res.status, "login do app").toBe(201);
+    return keepToken("sessão do app (024)", res.body.token as string);
+  };
+  const appTeacher = await createUser(t, { roles: ["TEACHER"], name: "Professora do app" });
+  const appTeacherToken = await signInApp(appTeacher);
+  const pushToken = keep("token de push (024)", `ExponentPushToken[${"jornada024".repeat(2)}ABC]`);
+  expect((await appClient(appTeacherToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await appClient(appTeacherToken).get("/api/mobile/exams")).status).toBe(200);
+  const otherAppTeacher = await createUser(t, { roles: ["TEACHER"], name: "Outra professora do app" });
+  const otherAppToken = await signInApp(otherAppTeacher);
+  expect((await appClient(otherAppToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await appClient(otherAppToken).delete("/api/auth/mobile/sessions/current")).status).toBe(204);
+  const secondPushToken = keep("token de push (024)", `ExpoPushToken[${"segundo024".repeat(2)}XYZ]`);
+  expect((await appClient(appTeacherToken).put("/api/mobile/device", { pushToken: secondPushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await api(t, { cookie: await keepLoginAs(appTeacher) }).post("/api/auth/logout-all")).status).toBe(204);
+  expect((await appClient(appTeacherToken).get("/api/me")).status).toBe(401);
+
   // FR-017, FR-076, FR-077 — retention jobs.
   await createUser(t, { verified: false, createdAt: new Date(Date.now() - (UNVERIFIED_ACCOUNT_TTL_DAYS + 1) * DAY_MS) });
   await t.prisma.$executeRaw`

@@ -6,6 +6,8 @@ export interface AuthContext {
   sessionId: string;
   userId: string;
   emailVerified: boolean;
+  /** 024: WEB (the cookie) or MOBILE (the app's bearer). */
+  client: "WEB" | "MOBILE";
 }
 
 declare module "express-serve-static-core" {
