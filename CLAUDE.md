@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–023 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–024 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -68,8 +68,13 @@ new feature through `/speckit-specify`.
   student who starts leads, chooses present classmates or goes alone, and adds members later; one member edits at a
   time, handed by the leader, every save logged per student; the leader submits and the released grade reaches every
   member; the teacher's review shows the members, the handovers and who saved each answer.
+- 024 mobile exam monitor: `apps/mobile`, a read-only Expo app (Android first, internal EAS distribution) where the
+  teacher signs in with a MOBILE session (bearer, 30 d idle / 90 d), lists the exams in progress of their classes and
+  watches the 018 room and a student's occurrences; each counted occurrence and each hold sends a push alert (vibrate
+  and sound, hidden on a locked phone) through an outbox and Expo Push; "Silenciar avisos desta prova" per teacher
+  and exam; decisions, attendance and pauses stay on the computer.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–023 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–024 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -185,6 +190,10 @@ pnpm --filter web test -t "<test name>"                 # single test, or an id 
 pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
 pnpm --filter @repo/contracts test                      # boundary, duplication, zod-version guards
 
+# apps/mobile (024; stack, layers and tests: apps/mobile/CLAUDE.md; EAS and push: docs/deploy/mobile.md)
+pnpm --filter mobile start | android | test | lint | check-types
+pnpm --filter @repo/design-tokens generate              # tokens.css -> packages/design-tokens/src/generated.ts (committed)
+
 # E2E (Playwright, local only; first-run setup in apps/web/CLAUDE.md)
 pnpm --filter web test:e2e                              # needs postgres-test + mailpit up and `pnpm build` first
 pnpm --filter web test:e2e work-bank                    # one spec by path regex
@@ -262,6 +271,13 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `features/feedback` (web) away from AI, AI help, mail, the activities, the banks, the ranking and
   `code-runs`, and keeps the message and the origin path out of the `student_feedback.*` audit types and
   the module's log calls.
+- `apps/api/test/exam-alerts-boundary.spec.ts` (024) lets `attempt-integrity` reach the alerts only through its
+  `ExamAlertSink` hook, keeps `exam-alerts` away from grading, decisions, pauses, exam sessions and AI and from any
+  write to the exam's tables, allows Expo only in `platform/push/expo-push.client.ts` over `fetch` (no push SDK),
+  and keeps tokens, names, titles and notification texts out of the audit and log calls of the alerts and the
+  mobile session; `test/security/024-mobile-allowlist.spec.ts` checks that the bearer gets
+  `403 MOBILE_ROUTE_NOT_ALLOWED` on every route without `@MobileAccess()`. `packages/design-tokens/test/in-sync.test.ts`
+  fails when `src/generated.ts` differs from what `apps/web/design-system/tokens.css` generates.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -454,12 +470,29 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and saves nothing. Saves are logged in `activity_answer_saves` (append-only), never as audit events, and those records
   are never a grade: one grade for the group. A classmate is shown only by id and name, never e-mail or RA. Changes reach
   the others by 5 s polling (`GROUP_POLL_MS`), never WebSockets.
+- Mobile exam monitor (024): the app is read-only — it reads only `GET /me`, `GET /mobile/exams` and the 018 monitor and timeline;
+  decisions, attendance and pauses stay on the computer. A session has a fixed `client` (`WEB` cookie / `MOBILE`
+  bearer, `Authorization: Bearer`, never a cookie); a bearer works only on routes marked `@MobileAccess()` (elsewhere
+  `403 MOBILE_ROUTE_NOT_ALLOWED`), and only `POST /auth/mobile/sessions` is `@MobileEntry()` (teachers only,
+  `chamada.registrar`, else `403 MOBILE_NOT_ALLOWED`; it shares the web login limits). A MOBILE session lives 30 d idle
+  / 90 d; every revocation deletes its device in the same transaction (`mobile_device.removed`). One device per MOBILE
+  session, the push token unique (a token seen in another session moves). Each counted occurrence and each hold writes
+  one `exam_alerts` row in the events batch's transaction through `ExamAlertSink` (UNIQUE per attempt and ordinal);
+  `ExamAlertWorker` claims with `FOR UPDATE SKIP LOCKED`, resolves the recipients at send time (the class's teacher,
+  a valid MOBILE session, the account active with `chamada.registrar`, the class not archived, the exam not muted),
+  sends once per device (PK per alert and device), retries 2 s and 5 s, never sends an alert older than 60 s
+  (EXPIRED) and removes a device Expo reports `DeviceNotRegistered`. A failed send never touches the exam. The message
+  carries only the student's name, the exam's title and class and ids in `data` — never a statement, answer, grade,
+  e-mail or RA, nor "fraude", "cola" or "violação"; audit and logs carry ids, enums and codes, never tokens, names or
+  texts. The mute is a row per teacher and exam (`PUT …/exam-alerts { muted }`, idempotent, no audit); an alert of a
+  muted exam ends SKIPPED and is never sent late. `PUSH_ENABLED=false` is the kill switch (alerts end SKIPPED). The
+  app polls the room every 5 s while visible, never WebSockets; its UI uses only `@repo/design-tokens`.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
-- 024-mobile-exam-monitor (planned): read-only Expo app for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; constitution 3.7.0 (mobile app and stack, push)
+- 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 - 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 - 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 

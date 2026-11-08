@@ -6,6 +6,8 @@ import { ExamAlertOutbox } from "./exam-alert-outbox";
 import { ExamAlertPreferencesController } from "./exam-alert-preferences.controller";
 import { ExamAlertPreferencesService } from "./exam-alert-preferences.service";
 import { ExamAlertWorker } from "./exam-alert.worker";
+import { ExamAlertsRetentionJob } from "./exam-alerts.job";
+import { MobileDevicesRetentionJob } from "./mobile-devices.job";
 import { MobileDevicesController } from "./mobile-devices.controller";
 import { MobileDevicesService } from "./mobile-devices.service";
 import { MobileExamsController } from "./mobile-exams.controller";
@@ -21,7 +23,7 @@ import { AlertRecipients } from "./recipients";
 @Module({
   imports: [AttemptIntegrityModule, PushModule, ClassesModule],
   controllers: [MobileDevicesController, MobileExamsController, ExamAlertPreferencesController],
-  providers: [MobileDevicesService, ExamAlertPreferencesService, MobileExamsService, MobileWriteLimit, AlertRecipients, ExamAlertWorker, ExamAlertOutbox],
+  providers: [MobileDevicesService, ExamAlertPreferencesService, MobileExamsService, MobileWriteLimit, AlertRecipients, ExamAlertWorker, ExamAlertOutbox, ExamAlertsRetentionJob, MobileDevicesRetentionJob],
   exports: [ExamAlertWorker],
 })
 export class ExamAlertsModule {}

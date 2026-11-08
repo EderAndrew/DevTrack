@@ -451,11 +451,11 @@ religar e conferir que a próxima volta a avisar, sem aviso atrasado.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 [P] Jobs de retenção (contracts/configuration.md, research Y12): `apps/api/src/modules/exam-alerts/exam-alerts.job.ts`
+- [x] T037 [P] Jobs de retenção (contracts/configuration.md, research Y12): `apps/api/src/modules/exam-alerts/exam-alerts.job.ts`
       (alertas e entregas com `created_at` > 7 dias, lotes de 1 000, `SET LOCAL` que o trigger de linha final aceita)
       e `mobile-devices.job.ts` (celulares de sessões expiradas; a revogação já os apagou, T015), registrados no
       `platform/maintenance/maintenance.service.ts`; sem auditoria (o run loga o nome e a contagem).
-- [ ] T038 Suítes de segurança em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
+- [x] T038 Suítes de segurança em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
   - `024-isolation.spec.ts` `024/SC-004`: professor B, aluno, gestor e ADMIN → `404`/`403` em lista, sala,
     ocorrências e silenciar; nenhum alerta de uma turma alheia chega a um celular;
   - `024-concurrency.spec.ts`: dois lotes simultâneos da 4ª ocorrência → um `HOLD` e um envio por celular; dois
@@ -473,7 +473,7 @@ religar e conferir que a próxima volta a avisar, sem aviso atrasado.
     T026);
   - `024/SC-007` fica no roteiro do piloto (T040), registrado no título de `apps/mobile/test/pilot-flow.test.tsx`
     (entrar → lista → sala com o cliente mockado, em menos de três toques depois do login).
-- [ ] T039 [P] Documentação: `apps/api/CLAUDE.md` (sessão MOBILE, `@MobileAccess()`/`@MobileEntry()`, outbox e worker,
+- [x] T039 [P] Documentação: `apps/api/CLAUDE.md` (sessão MOBILE, `@MobileAccess()`/`@MobileEntry()`, outbox e worker,
       `FakePushClient`, helpers e suítes da 024, guarda `exam-alerts-boundary`), `apps/mobile/CLAUDE.md` (novo: stack,
       camadas, tokens, polling, regra de só leitura, comandos), `CLAUDE.md` raiz (024 em "Project state", regra
       "Mobile exam monitor (024)" em "Rules that are easy to get wrong", o guard novo, comandos do app e dos tokens; a
@@ -484,7 +484,7 @@ religar e conferir que a próxima volta a avisar, sem aviso atrasado.
       build): celular bloqueado mostra só "DevTrack" e "Conteúdo oculto"; vibração mais forte na retida; cronometrar
       `024/SC-001` (aviso em ≤ 10 s) e `024/SC-007` (entrar e abrir a sala em < 1 min). Anotar os resultados no
       plan.md.
-- [ ] T041 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde (inclui `@repo/design-tokens` e
+- [x] T041 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde (inclui `@repo/design-tokens` e
       `apps/mobile`); `pending` da 024 vazio em `traceability.spec.ts`; Semgrep sem achados nos arquivos novos.
 
 ---

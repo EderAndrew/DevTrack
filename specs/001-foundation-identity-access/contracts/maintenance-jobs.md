@@ -23,6 +23,8 @@ esvazia 500 execuções por transação).
 | `code-run-content` (019) | `code_runs` finais (`COMPLETED`/`FAILED`) ainda não esvaziados com `finished_at < now() − (CODE_RUN_CONTENT_RETENTION_HOURS − MAINTENANCE_INTERVAL_SECONDS)` (padrão 24 h − 1 h = 23 h) | esvazia o conteúdo (código, mensagem do compilador, stdout e stderr dos casos → `NULL`) e marca `content_purged_at`, em lotes de 500; as linhas ficam (situação, vereditos, contagens, tempos) | nenhuma | 019/FR-019, research B12 |
 | `mail-records` (017) | `mail_notices` com mais de 90 dias; `mail_deliveries` finais com `updated_at < now() − MAIL_RECORDS_RETENTION_DAYS`, exceto a última entrega de um convite ainda `PENDING` | remove sob `SET LOCAL devtrack.mail_purge = 'on'` | nenhuma | 017 research N13 |
 | `student-feedback` (020) | `student_feedbacks` `RESOLVED`/`ARCHIVED` com `status_changed_at < now() − 24 meses` | remove sob `SET LOCAL devtrack.feedback_purge = 'on'`; o histórico (`student_feedback_status_changes`) sai em cascata; `RECEIVED`/`IN_REVIEW` nunca | nenhuma (log só com o nome e a contagem) | 020/FR-015, research J8 |
+| `exam-alerts` (024) | `exam_alerts` com `created_at < now() − 7 d` | remove sob `SET LOCAL devtrack.exam_alert_purge = 'on'`; as entregas (`exam_alert_deliveries`) saem em cascata | nenhuma (log só com o nome e a contagem) | 024 research Y12 |
+| `mobile-devices` (024) | `mobile_devices` cuja sessão MOBILE expirou (fim absoluto ou ociosa há mais de 30 d; a revogação já apagou o celular) | remove | nenhuma (log só com o nome e a contagem) | 024 research Y9, Y12 |
 
 Sem `--job`, executa todos na ordem acima. Exit codes: `0` sucesso (inclusive sem
 remoções), `1` erro (mensagem genérica, sem dados pessoais). A saída informa apenas
@@ -43,3 +45,5 @@ Garantias testadas:
   numa execução final (`test/security/019-retention.spec.ts`).
 - `student-feedback` nunca remove feedback `RECEIVED` ou `IN_REVIEW`, nem encerrado há menos de 24
   meses, e `DELETE` fora do job continua falhando (`test/security/020-retention.spec.ts`).
+- `exam-alerts` nunca remove alerta com 7 dias ou menos, e `DELETE` fora do job continua falhando; `mobile-devices`
+  nunca remove o celular de uma sessão válida (`test/security/024-retention.spec.ts`).

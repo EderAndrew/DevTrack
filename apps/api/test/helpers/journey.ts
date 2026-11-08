@@ -40,7 +40,9 @@ import {
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import { createActivity, createClassWithStudents, startAttempt } from "./activities";
+import { createActivity, createAttemptRow, createClassWithStudents, startAttempt } from "./activities";
+import { runAlertWorker } from "./exam-alerts";
+import { integrityEvent } from "./integrity";
 import { markPresent as markPresentIn } from "./attendance";
 import { createCodeExercise, createCodeWork, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { sendFeedback } from "./feedback";
@@ -1375,6 +1377,29 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const pushToken = keep("token de push (024)", `ExponentPushToken[${"jornada024".repeat(2)}ABC]`);
   expect((await appClient(appTeacherToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
   expect((await appClient(appTeacherToken).get("/api/mobile/exams")).status).toBe(200);
+  // 024/US3, US4 — an exam of the app teacher's class whose student name and title carry
+  // `MARCADOR-ALERTA-024`: the teacher mutes and unmutes it (no audit), the student's occurrence becomes one
+  // alert and the phone receives it. The name and title reach only the notification, never logs or audit.
+  const alertClass = await createClassWithStudents(t, appTeacher.id, { students: 1 });
+  const alertStudent = alertClass.students[0]!;
+  await t.prisma.user.update({ where: { id: alertStudent.id }, data: { name: text("nome do aluno no aviso (024)", "Aluno MARCADOR-ALERTA-024") } });
+  const { activity: alertExam } = await createActivity(t, alertClass.schoolClass, {
+    type: "EXAM",
+    title: text("título da prova no aviso (024)", "Prova MARCADOR-ALERTA-024"),
+    publishAt: new Date(Date.now() - 60_000),
+    durationMinutes: 60,
+    startWindowMinutes: 15,
+  });
+  const appTeacherWeb = api(t, { cookie: await keepLoginAs(appTeacher) });
+  expect((await markPresentIn(appTeacherWeb, alertClass.schoolClass.id, alertExam.id, [alertStudent.id])).status).toBe(200);
+  await createAttemptRow(t, alertExam.id, alertStudent.id);
+  const alertsPath = `/api/classes/${alertClass.schoolClass.id}/activities/${alertExam.id}/exam-alerts`;
+  expect((await appClient(appTeacherToken).put(alertsPath, { muted: true })).body).toEqual({ muted: true });
+  expect((await appClient(appTeacherToken).put(alertsPath, { muted: false })).body).toEqual({ muted: false });
+  const alertStudentClient = api(t, { cookie: await keepLoginAs(alertStudent) });
+  expect((await alertStudentClient.post(`/api/me/activities/${alertExam.id}/attempt/events`, { events: [integrityEvent("SCREEN_LEFT")] })).status).toBe(200);
+  await runAlertWorker(t);
+  expect(t.push.sent.filter((message) => message.to === pushToken)).toHaveLength(1);
   const otherAppTeacher = await createUser(t, { roles: ["TEACHER"], name: "Outra professora do app" });
   const otherAppToken = await signInApp(otherAppTeacher);
   expect((await appClient(otherAppToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
