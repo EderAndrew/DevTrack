@@ -48,6 +48,7 @@ describe("024/US2-8 os textos do aplicativo", () => {
         occurrenceCount: 0,
         openHold: null,
         openPause: examStatus === "PAUSED" ? ({ startedAt: "2026-11-07T13:02:00.000Z" } as never) : null,
+        nudge: null,
       };
       expect({ examStatus, words: examStatusLabel(row, monitor).length > 3, tone: STATUS_TONES[examStatus] !== undefined }).toEqual({
         examStatus,

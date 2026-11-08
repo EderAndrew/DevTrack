@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { TeacherExamNudgeSchema } from "../exam-nudges/nudge.js";
 import { TeacherExamHoldSchema } from "../exam-sessions/holds.js";
 import { IntegrityEventTypeSchema, IntegrityIntervalKindSchema } from "./enums.js";
 
@@ -74,6 +75,8 @@ export const IntegrityTimelineSchema = z.strictObject({
   totals: IntegrityTotalsSchema,
   /** EXAM only (018): the attempt's holds, oldest first; empty for the others. */
   holds: z.array(TeacherExamHoldSchema),
+  /** EXAM only (025): the teacher's warnings to the student, oldest first; empty for the others. */
+  nudges: z.array(TeacherExamNudgeSchema),
 });
 export type IntegrityTimeline = z.infer<typeof IntegrityTimelineSchema>;
 

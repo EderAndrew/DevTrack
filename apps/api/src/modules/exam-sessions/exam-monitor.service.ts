@@ -133,6 +133,8 @@ export class ExamMonitorService {
           occurrenceCount: row.occurrence_count,
           openHold,
           openPause,
+          // 025: the warnings summary is read in T017; until then the bell stays off.
+          nudge: null,
         };
       })
       .sort((a, b) => rank(a.examStatus) - rank(b.examStatus) || a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId));

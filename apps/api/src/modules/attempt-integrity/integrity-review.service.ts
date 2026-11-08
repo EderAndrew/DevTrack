@@ -93,7 +93,8 @@ export class IntegrityReviewService {
     const { activity } = attempt;
     const end = activity.type === "EXAM" ? endsAt(examTiming(activity), attempt.startedAt) : null;
     const holds = end ? attempt.holds.map((hold) => toTeacherExamHold(hold, end, activity.status, now)) : [];
-    return { events, intervals, totals: addTotals(timelines.map((timeline) => timeline.totals)), holds };
+    // 025: the teacher's warnings are read in T029; until then none.
+    return { events, intervals, totals: addTotals(timelines.map((timeline) => timeline.totals)), holds, nudges: [] };
   }
 }
 

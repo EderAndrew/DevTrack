@@ -32,6 +32,7 @@ const studentRow = (name: string, overrides: Partial<ExamMonitorStudent> = {}): 
     occurrenceCount: 0,
     openHold: null,
     openPause: null,
+    nudge: null,
     ...overrides,
   };
 };
@@ -213,6 +214,7 @@ describe("018/US5 ExamRoomPanel — a prova em andamento e as decisões do profe
       intervals: [],
       totals: {} as IntegrityTimeline["totals"],
       holds: [hold()],
+      nudges: [],
     };
     vi.stubGlobal(
       "fetch",

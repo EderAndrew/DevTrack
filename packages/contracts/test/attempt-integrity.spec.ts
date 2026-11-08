@@ -92,6 +92,7 @@ describe("015 eventos do modo controlado (contracts/http-api.md, research F4)", 
       intervals: [{ kind: "CONNECTION", from: AT, to: AT, seconds: 0, open: true, studentUserId: uuid(1) }],
       totals,
       holds: [],
+      nudges: [],
     };
     expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, intervals: [{ ...timeline.intervals[0], kind: "TAB" }] })).toBe(false);
@@ -147,7 +148,7 @@ describe("018 ocorrências da prova nos eventos (contracts/http-api.md, research
   });
 
   it("018/FR-016 a linha do tempo traz o ordinal da ocorrência, a ociosidade e as retenções da tentativa", () => {
-    const timeline = { events: [view(), view({ type: "SCREEN_RETURNED", occurrenceOrdinal: null, idleSeconds: null })].map((item) => ({ ...item, studentUserId: uuid(1) })), intervals: [], totals, holds: [hold] };
+    const timeline = { events: [view(), view({ type: "SCREEN_RETURNED", occurrenceOrdinal: null, idleSeconds: null })].map((item) => ({ ...item, studentUserId: uuid(1) })), intervals: [], totals, holds: [hold], nudges: [] };
     expect(accepts(IntegrityTimelineSchema, timeline)).toBe(true);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, holds: undefined })).toBe(false);
     expect(accepts(IntegrityTimelineSchema, { ...timeline, events: [{ ...view({ occurrenceOrdinal: 0 }), studentUserId: uuid(1) }] })).toBe(false);

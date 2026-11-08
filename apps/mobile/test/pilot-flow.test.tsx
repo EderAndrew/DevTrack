@@ -37,6 +37,7 @@ const monitor = {
       occurrenceCount: 0,
       openHold: null,
       openPause: null,
+      nudge: null,
     },
   ],
 };

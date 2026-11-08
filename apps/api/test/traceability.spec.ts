@@ -334,6 +334,22 @@ const SPECS: FeatureSpec[] = [
     // each SC with the test that cites it, so the lists are empty at the end of T038.
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "025",
+    path: "specs/025-exam-student-nudge/spec.md",
+    stories: 3,
+    scenarios: 23, // 9 + 9 + 5
+    // No "### Acceptance Criteria Traceability" table, as in 008–024.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 7),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
+    // each SC with the test that cites it, so the lists are empty at the end of T030.
+    pending: {
+      stories: [1, 2, 3],
+      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007"],
+    },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

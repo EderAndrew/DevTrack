@@ -53,14 +53,14 @@ description: "Task list for 025 — Aviso discreto do professor ao aluno durante
 
 **Purpose**: a 025 entra na guarda de rastreabilidade e os contratos existem.
 
-- [ ] T001 Incluir a 025 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 024:
+- [X] T001 Incluir a 025 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 024:
       `feature: "025"`, `path: "specs/025-exam-student-nudge/spec.md"`, `stories: 3`, `scenarios: 23` (9 + 9 + 5),
       `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 7)` e
       `pending: { stories: [1, 2, 3], successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007"] }`,
       com o comentário "Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its
       last test, each SC with the test that cites it, so the lists are empty at the end of T030". Citar a 025 na
       lista de `SPECS` do `CLAUDE.md` raiz.
-- [ ] T002 [P] Contratos em `packages/contracts/src/exam-nudges/nudge.ts` (novo domínio; contracts/http-api.md
+- [X] T002 [P] Contratos em `packages/contracts/src/exam-nudges/nudge.ts` (novo domínio; contracts/http-api.md
       "Schemas"), exportados em `src/index.ts`: `ExamNudgeStatusSchema` (`PENDING`, `DISMISSED`, `UNSEEN`),
       `TeacherExamNudgeSchema`, `ExamNudgeSummarySchema`, `SendExamNudgeRequestSchema` (`z.strictObject({})`),
       `SendExamNudgeResponseSchema`, `StudentExamNudgeSchema`, `DismissExamNudgeRequestSchema`; os códigos

@@ -756,6 +756,7 @@ describe("018 prova como texto", () => {
           occurrenceCount: 1,
           openHold: null,
           openPause: null,
+          nudge: null,
         },
       ],
     };
