@@ -46,6 +46,8 @@ ativas), Data de início e Data de término. Menu lateral: "Minhas disciplinas" 
   18/03/2027") com seus tópicos; seção "Sem data"; por tópico: Editar, Subir, Descer,
   Aula (select), Dividir, Arquivar, e seleção para "Juntar tópicos"; "Novo tópico";
   "Cobertura da ementa" com itens cobertos/não cobertos e "Criar tópico com este item";
+  **Emenda 2026-11-07**: cada aula sem tópico mostra "Criar tópico com esta data" (só com
+  `planejamento.editar`), que abre o formulário de novo tópico com essa aula no select Aula;
   ao lado do título, "Concluir aula" (planejamento em andamento, aula de hoje ou passada) ou, no
   tópico concluído, a marca verde "Aula concluída" com "Reabrir aula"; no tópico concluído só
   "Arquivar" fica habilitado entre as ações abaixo dos itens (US9);

@@ -86,7 +86,7 @@ export function ClassPlanPage({ classId, canEdit, canChangeStatus = false }: Cla
 }
 
 type DialogState =
-  | { kind: "create"; initial?: { title: string; itemIds: string[] } }
+  | { kind: "create"; initial?: { title?: string; itemIds?: string[]; meetingId?: string } }
   | { kind: "edit"; topic: TopicView }
   | { kind: "merge"; topics: TopicView[] }
   | { kind: "split"; topic: TopicView };
@@ -299,6 +299,7 @@ function PlanBoard({ classId, plan, canEdit, canChangeStatus }: PlanBoardProps) 
               meeting={meeting}
               topics={plan.topics.filter((topic) => topic.meetingId === meeting.id)}
               renderActions={renderActions}
+              onCreateTopic={canEdit ? () => open({ kind: "create", initial: { meetingId: meeting.id } }) : undefined}
             />
           ))
         )}

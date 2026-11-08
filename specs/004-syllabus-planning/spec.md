@@ -33,6 +33,14 @@
   for arquivado. Arquivado, o tópico concluído mostra "Aula concluída" com a data da aula e
   não pode ser restaurado.
 
+### Session 2026-11-07
+
+- Q: Como o professor cria um tópico para uma aula específica sem procurar a data no
+  formulário? → A: Cada aula sem tópico no planejamento mostra "Criar tópico com esta data",
+  que abre o formulário de novo tópico com essa aula escolhida, editável antes de salvar,
+  como "Criar tópico com este item" faz com um item (US5-7, FR-033). É só um atalho da
+  interface: a data continua opcional e uma aula ainda pode ter vários tópicos (FR-034).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Professor organiza disciplinas e liga turmas a elas (Priority: P1)
@@ -247,6 +255,9 @@ ementa confirmada.
 6. **Given** a tela de planejamento, **When** o professor a abre, **Then** não há
    geração automática de tópicos nesta feature; a origem "Gerado" fica reservada à
    geração por IA da próxima fase.
+7. **Given** a aula 05 sem nenhum tópico (emenda 2026-11-07), **When** o professor escolhe
+   "Criar tópico com esta data" nela, **Then** o formulário de novo tópico abre com a aula 05
+   escolhida, editável antes de salvar; uma aula que já tem tópico não mostra o botão.
 
 ---
 
@@ -602,7 +613,9 @@ conferir que ele aparece como "Aula concluída" e não pode ser restaurado.
   criado pelo professor.
 - **FR-033**: O resumo de cobertura DEVE permitir começar um tópico a partir de um
   item não coberto, com o item escolhido e o título preenchido com o texto do item,
-  editáveis antes de salvar.
+  editáveis antes de salvar. Do mesmo modo, cada aula sem tópico do planejamento DEVE
+  permitir começar um tópico com essa aula escolhida ("Criar tópico com esta data",
+  emenda 2026-11-07), editável antes de salvar.
 - **FR-034**: Tópicos DEVEM ter título (1 a 200 caracteres), descrição opcional (até
   5.000 caracteres, texto simples), posição no planejamento, encontro opcional (da
   mesma turma), itens da ementa de origem (zero ou mais, do conteúdo confirmado usado
