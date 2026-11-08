@@ -69,8 +69,11 @@ export interface TopicFormDialogProps {
   meetings: readonly ClassMeetingView[];
   /** The groups and items of the syllabus revision the plan uses. */
   groups: PlanCoverage["groups"];
-  /** New topic from "Criar tópico com este item" (FR-033): the item already chosen and its text as the title. */
-  initial?: { title: string; itemIds: string[] };
+  /**
+   * New topic from "Criar tópico com este item" (the item chosen, its text as the title) or from
+   * "Criar tópico com esta data" (the meeting chosen) (FR-033, 004/US5-3, US5-7).
+   */
+  initial?: { title?: string; itemIds?: string[]; meetingId?: string };
   /** Editing this topic (FR-035). */
   topic?: TopicView;
   /** "Juntar tópicos" (FR-036): the first one stays; fields start from it, items from the union. */
@@ -97,7 +100,12 @@ function defaults(props: TopicFormDialogProps): TopicFormInput {
       itemIds: props.topic.items.map((item) => item.id),
     };
   }
-  return { title: props.initial?.title ?? "", description: "", meetingId: NO_MEETING, itemIds: props.initial?.itemIds ?? [] };
+  return {
+    title: props.initial?.title ?? "",
+    description: "",
+    meetingId: props.initial?.meetingId ?? NO_MEETING,
+    itemIds: props.initial?.itemIds ?? [],
+  };
 }
 
 /**

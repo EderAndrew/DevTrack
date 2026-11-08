@@ -6,9 +6,9 @@ import { renderWithProviders } from "../../../test/render";
 import { json } from "../../subjects/components/test-fixtures";
 import { ClassPlanPage } from "./class-plan-view";
 import { CoveragePanel } from "./coverage-panel";
-import { CLASS_ID, coverageView, envelope, planView, topicView } from "./test-fixtures";
+import { CLASS_ID, coverageView, envelope, meetingView, planView, topicView } from "./test-fixtures";
 
-describe("004/US5 CoveragePanel — cobertura da ementa", () => {
+describe("004/US5 CoveragePanel — cobertura da ementa e atalhos de novo tópico", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
@@ -75,5 +75,40 @@ describe("004/US5 CoveragePanel — cobertura da ementa", () => {
       title: "Construtores e inicialização",
       itemIds: [coverage.itemId("Construtores")],
     });
+  });
+
+  it("004/US5-7 \"Criar tópico com esta data\" só nas aulas sem tópico, abre o formulário com a aula escolhida, editável", async () => {
+    const user = userEvent.setup();
+    const aula1 = meetingView("2027-03-04", 1, 1);
+    const aula2 = meetingView("2027-03-11", 2);
+    const plan = planView({ revision: 4, meetings: [aula1, aula2], topics: [topicView("Classes", { meetingId: aula1.id })] });
+    fetchMock.mockImplementation(async (url, init) => {
+      if (init?.method === "POST") return json(201, plan);
+      return String(url).endsWith("/plan/coverage") ? json(200, coverage) : json(200, envelope(plan));
+    });
+    renderWithProviders(<ClassPlanPage classId={CLASS_ID} canEdit />);
+
+    await user.click(await screen.findByRole("button", { name: "Criar tópico com esta data: Aula 02 — 11/03/2027" }));
+    expect(screen.queryByRole("button", { name: /Criar tópico com esta data: Aula 01/ })).toBeNull();
+
+    const dialog = await screen.findByRole("dialog", { name: "Novo tópico" });
+    const aula = within(dialog).getByLabelText("Aula") as HTMLSelectElement;
+    expect(aula.value).toBe(aula2.id);
+    await user.type(within(dialog).getByLabelText(/^Título/), "Construtores");
+    await user.click(within(dialog).getByRole("button", { name: "Criar tópico" }));
+
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST")!;
+    expect(JSON.parse(String(post[1]!.body))).toMatchObject({ planRevision: 4, title: "Construtores", meetingId: aula2.id });
+  });
+
+  it("sem planejamento.editar, não oferece \"Criar tópico com esta data\"", async () => {
+    const plan = planView({ meetings: [meetingView("2027-03-04", 1)] });
+    fetchMock.mockImplementation(async (url) =>
+      String(url).endsWith("/plan/coverage") ? json(200, coverage) : json(200, envelope(plan)),
+    );
+    renderWithProviders(<ClassPlanPage classId={CLASS_ID} canEdit={false} />);
+
+    expect(await screen.findByText("Nenhum tópico nesta aula.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Criar tópico com esta data/ })).toBeNull();
   });
 });

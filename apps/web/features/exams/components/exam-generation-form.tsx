@@ -226,7 +226,15 @@ export function ExamGenerationForm() {
             </option>
           ))}
         </SelectField>
-        <InputField id={IDS.totalGrade} label="Nota total" required inputMode="decimal" hint="Ex.: 10 ou 7,5." error={errorFor("totalGrade")} {...register("totalGrade")} />
+        <InputField
+          id={IDS.totalGrade}
+          label="Nota total"
+          required
+          inputMode="decimal"
+          placeholder="Ex.: 10 ou 7,5"
+          error={errorFor("totalGrade")}
+          {...register("totalGrade")}
+        />
       </div>
 
       <fieldset className="m-0 mb-4 border-0 p-0" aria-describedby={[`${IDS.counts}-total`, errorFor("counts") ? fieldErrorId(IDS.counts) : null].filter(Boolean).join(" ")}>
