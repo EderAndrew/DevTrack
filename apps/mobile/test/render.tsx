@@ -40,7 +40,8 @@ export function fakeApi(routes: Record<string, FakeAnswer>) {
       if (!(key in routes)) throw new Error(`rota não programada no teste: ${key}`);
       const answer = routes[key];
       if (answer instanceof ApiError) throw answer;
-      const value = typeof answer === "function" ? (answer as (body: unknown) => unknown)(options.body) : answer;
+      // A function may answer later (a promise), to see the screen while the request is in flight.
+      const value = typeof answer === "function" ? await (answer as (body: unknown) => unknown)(options.body) : answer;
       return (options.schema ? options.schema.parse(value) : value) as never;
     },
   };

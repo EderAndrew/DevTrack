@@ -195,6 +195,7 @@ import {
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { PreferencesViewSchema, UpdatePreferencesRequestSchema } from "./me/preferences.js";
+import { ExamAlertPreferenceRequestSchema, ExamAlertPreferenceSchema } from "./mobile/alerts.js";
 import { MobileDeviceSchema, RegisterMobileDeviceRequestSchema } from "./mobile/devices.js";
 import { MobileExamListSchema } from "./mobile/exams.js";
 import { MobileLoginRequestSchema, MobileSessionSchema } from "./mobile/session.js";
@@ -347,6 +348,14 @@ export const endpoints = {
   "mobile.registerDevice": { method: "PUT", path: "/mobile/device", body: RegisterMobileDeviceRequestSchema, response: MobileDeviceSchema, status: 200 },
   /** 024: the teacher's exams in progress, by their latest end. */
   "mobile.exams": { method: "GET", path: "/mobile/exams", response: MobileExamListSchema, status: 200 },
+  /** 024/US4: turn an exam's alerts off or on for all of the teacher's phones (idempotent; also from the web). */
+  "mobile.examAlerts": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/exam-alerts",
+    body: ExamAlertPreferenceRequestSchema,
+    response: ExamAlertPreferenceSchema,
+    status: 200,
+  },
   "me.preferences.update": {
     method: "PATCH",
     path: "/me/preferences",

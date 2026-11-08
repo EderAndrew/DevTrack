@@ -167,6 +167,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "DELETE", path: "/auth/mobile/sessions/current", access: "session" },
   { method: "PUT", path: "/mobile/device", access: "chamada.registrar" },
   { method: "GET", path: "/mobile/exams", access: "chamada.registrar" },
+  { method: "PUT", path: "/classes/:classId/activities/:activityId/exam-alerts", access: "chamada.registrar" },
 
   { method: "GET", path: "/me/sessions", access: "sessoes.proprias.listar" },
   { method: "GET", path: "/me/sessions/:id", access: "sessoes.proprias.listar" },

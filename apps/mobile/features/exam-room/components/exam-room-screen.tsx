@@ -3,6 +3,7 @@ import { Notice, Screen, Text } from "../../../components/ui";
 import { messageForError } from "../../mobile-auth/schemas/messages";
 import { useExamRoom } from "../hooks/use-exam-room";
 import { ExamRoom } from "./exam-room";
+import { MuteSwitch } from "./mute-switch";
 
 export interface ExamRoomScreenProps {
   classId: string;
@@ -24,6 +25,7 @@ export function ExamRoomScreen({ classId, activityId, highlightStudentId, onOpen
           {room.exam.className}
         </Text>
       ) : null}
+      {room.exam ? <MuteSwitch classId={classId} activityId={activityId} muted={room.exam.muted} /> : null}
       {room.lost ? <Notice tone="danger">{messageForError(room.monitor.error)}</Notice> : null}
       <ExamRoom
         monitor={room.monitor.data}

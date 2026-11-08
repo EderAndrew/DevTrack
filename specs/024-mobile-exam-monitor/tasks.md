@@ -424,24 +424,24 @@ religar e conferir que a próxima volta a avisar, sem aviso atrasado.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T033 [P] [US4] `apps/api/test/integration/024-us4-mute.spec.ts`: `024/US4-1` silenciar A → ocorrências de A
+- [x] T033 [P] [US4] `apps/api/test/integration/024-us4-mute.spec.ts`: `024/US4-1` silenciar A → ocorrências de A
       terminam `SKIPPED`, as de B são enviadas; `024/US4-2` religar → a próxima de A é enviada e as anteriores continuam
       `SKIPPED` (`024/FR-021`); `024/US4-3` `GET /mobile/exams` mostra `muted: true` e o monitor continua igual;
       `024/US4-4` dois celulares do professor deixam de receber; `024/US4-5` silenciar/religar duas vezes → `200` com
       o mesmo estado, uma linha no máximo; a mesma rota pela sessão WEB funciona; `404` para turma de outro professor,
       atividade que não é EXAM e turma arquivada; corpo com campo extra ou `muted` não booleano → `400`; nenhum evento
       de auditoria.
-- [ ] T034 [P] [US4] Teste do app `apps/mobile/features/exam-room/components/mute-switch.test.tsx`: o `Switch`
+- [x] T034 [P] [US4] Teste do app `apps/mobile/features/exam-room/components/mute-switch.test.tsx`: o `Switch`
       "Silenciar avisos desta prova" / "Ligar avisos desta prova" com papel `switch` e estado acessível, otimista com
       desfazer em erro, selo "Avisos silenciados" na sala e no card da lista (`024/US4-3`).
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] `apps/api/src/modules/exam-alerts/exam-alert-preferences.service.ts` + `.controller.ts`
+- [x] T035 [US4] `apps/api/src/modules/exam-alerts/exam-alert-preferences.service.ts` + `.controller.ts`
       (`PUT /classes/:classId/activities/:activityId/exam-alerts`, `@RequirePermissions("chamada.registrar")
       @MobileAccess()`, `ClassContextPolicy`, `INSERT … ON CONFLICT DO NOTHING` / `DELETE`, limite `mobile-writes`);
       `recipients.ts` já respeita a linha (T030). Entradas em `endpoints.ts`, `MATRIX` e `routes.ts`. T033 fica verde.
-- [ ] T036 [US4] App: `apps/mobile/features/exam-room/{api,hooks}/` (`setExamAlerts`, `useExamAlertsMute` com
+- [x] T036 [US4] App: `apps/mobile/features/exam-room/{api,hooks}/` (`setExamAlerts`, `useExamAlertsMute` com
       invalidação da lista), `components/mute-switch.tsx` na sala e o selo no card da lista. T034 fica verde; US4 sai
       de `pending`.
 

@@ -225,8 +225,8 @@ describe("018 fronteiras da prova", () => {
       const documented = [...contract.matchAll(/^\| `(GET|POST|PUT|PATCH|DELETE) ([^`]+)` \|/gm)].map(([, method, path]) => `${method} ${path}`).sort();
       expect(documented).toHaveLength(16);
       const catalogued = Object.values(endpoints)
-        // 024's routes (the app's exam list, specs/024-mobile-exam-monitor/contracts/http-api.md) are not 018's.
-        .filter((entry) => /\/exams?(-|\/|$)/.test(entry.path) && !entry.path.startsWith("/mobile/"))
+        // 024's routes (the app's exam list and the per-exam mute, specs/024-mobile-exam-monitor/contracts/http-api.md) are not 018's.
+        .filter((entry) => /\/exams?(-|\/|$)/.test(entry.path) && !entry.path.startsWith("/mobile/") && !entry.path.endsWith("/exam-alerts"))
         .map((entry) => `${entry.method} ${entry.path}`)
         .sort();
       expect(catalogued).toEqual(documented);

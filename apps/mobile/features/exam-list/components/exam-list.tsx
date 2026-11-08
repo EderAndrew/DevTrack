@@ -2,6 +2,7 @@ import type { MobileExamListItem } from "@repo/contracts";
 import { StyleSheet, View } from "react-native";
 import { Badge, Card, Text } from "../../../components/ui";
 import { spacing } from "../../../components/ui/tokens";
+import { ALERTS_MUTED } from "../../exam-room/schemas/exam-room";
 
 /** "HH:MM" of a server time, in the phone's time zone. */
 export const clockTime = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -24,7 +25,7 @@ export function ExamList({ items, onOpen }: { items: readonly MobileExamListItem
             {item.className}
           </Text>
           <Text variant="bodySm">{`Encerra às ${clockTime(item.closesAt)}`}</Text>
-          {item.muted ? <Badge label="Avisos silenciados" tone="warning" /> : null}
+          {item.muted ? <Badge label={ALERTS_MUTED} tone="warning" /> : null}
         </Card>
       ))}
     </View>

@@ -252,6 +252,7 @@ describe("route access declarations", () => {
         "DELETE /auth/mobile/sessions/current @AllowUnverified @MobileAccess",
         "GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity @MobileAccess @RequirePermissions",
         "GET /classes/:classId/activities/:activityId/exam-monitor @MobileAccess @RequirePermissions",
+        "PUT /classes/:classId/activities/:activityId/exam-alerts @MobileAccess @RequirePermissions",
         "GET /me @AllowUnverified @MobileAccess",
         "GET /mobile/exams @MobileAccess @RequirePermissions",
         "POST /auth/mobile/sessions @Public @MobileEntry",
