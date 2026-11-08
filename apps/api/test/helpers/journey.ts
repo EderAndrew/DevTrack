@@ -1151,7 +1151,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
   await t.flushMail();
   const resetToken = keepToken("token de recuperação", t.mailer.lastTokenFor(studentEmail, "password-reset"));
-  const resetPassword = keep("senha redefinida", "senha-redefinida-da-jornada");
+  const resetPassword = keep("senha redefinida", "Senha-redefinida-da-jornada-1");
   expect(
     (await api(t).post("/api/auth/password-reset/confirm", { token: resetToken, password: resetPassword })).status,
   ).toBe(200);

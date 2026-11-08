@@ -35,24 +35,33 @@ describe("ResetPasswordForm (US8-2, US8-4, FR-075)", () => {
     expect(screen.getByText(/todas as sessões abertas da sua conta serão encerradas/)).toBeTruthy();
     await expectNoA11yViolations(container);
 
-    await fill("nova-senha-muito-segura");
+    await fill("Nova-senha-muito-segura-1");
     expect(fetchMock.mock.calls[0]![0]).toBe("/api/auth/password-reset/confirm");
-    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({ token: TOKEN, password: "nova-senha-muito-segura" });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({ token: TOKEN, password: "Nova-senha-muito-segura-1" });
     expect(await screen.findByRole("heading", { name: "Senha redefinida" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Entrar" }).getAttribute("href")).toBe("/entrar");
   });
 
   it("confirmação divergente ou senha curta não envia", async () => {
     renderWithProviders(<ResetPasswordForm token={TOKEN} />);
-    await fill("nova-senha-muito-segura", "outra-senha-muito-segura");
+    await fill("Nova-senha-muito-segura-1", "Outra-senha-muito-segura-1");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/^Confirme a nova senha/).getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("WEAK_PASSWORD fica ligado ao campo, com foco no resumo", async () => {
-    fetchMock.mockResolvedValue(json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha deve ter entre 12 e 128 caracteres e não pode ser uma senha comum." }));
+  it("001/FR-011a a dica é a regra do convite e uma senha sem maiúscula, minúscula, número ou caractere especial não envia", async () => {
     renderWithProviders(<ResetPasswordForm token={TOKEN} />);
-    await fill("senha-comum-demais");
+    expect(screen.getByText(/De 8 a 128 caracteres, com pelo menos 1 letra maiúscula, 1 minúscula, 1 número e 1 caractere especial/)).toBeTruthy();
+    // Valid under the old rule (12+ characters, no composition): refused now, before any request.
+    await fill("nova-senha-muito-segura");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Nova senha/).getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("WEAK_PASSWORD fica ligado ao campo, com foco no resumo", async () => {
+    fetchMock.mockResolvedValue(json(400, { statusCode: 400, code: "WEAK_PASSWORD", message: "A senha não atende às regras indicadas no campo ou é uma senha comum." }));
+    renderWithProviders(<ResetPasswordForm token={TOKEN} />);
+    await fill("Senha-comum-demais-1");
     const summary = await screen.findByRole("group", { name: "Não foi possível redefinir" });
     expect(document.activeElement).toBe(summary);
     expect(screen.getByLabelText(/^Nova senha/).getAttribute("aria-invalid")).toBe("true");
@@ -61,7 +70,7 @@ describe("ResetPasswordForm (US8-2, US8-4, FR-075)", () => {
   it("TOKEN_INVALID e ausência de token levam ao pedido de novo link", async () => {
     fetchMock.mockResolvedValue(json(400, { statusCode: 400, code: "TOKEN_INVALID", message: "Link inválido ou expirado." }));
     const { container, unmount } = renderWithProviders(<ResetPasswordForm token={TOKEN} />);
-    await fill("nova-senha-muito-segura");
+    await fill("Nova-senha-muito-segura-1");
     expect(await screen.findByText("Link inválido ou expirado.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Pedir um novo link" }).getAttribute("href")).toBe("/esqueci-senha");
     await expectNoA11yViolations(container);
@@ -97,14 +106,14 @@ describe("SC-012 — acessibilidade e teclado (FR-075)", () => {
     await expectTabOrder(user, [senha, confirmacao, button]);
 
     await tabTo(user, senha);
-    await user.keyboard("nova-senha-muito-segura{Enter}");
+    await user.keyboard("Nova-senha-muito-segura-1{Enter}");
     expect(document.activeElement).toBe(screen.getByRole("group", { name: "Não foi possível redefinir" }));
     expectFieldErrorLinked(confirmacao);
     expect(fetchMock).not.toHaveBeenCalled();
     await expectNoA11yViolations(container);
 
     await tabTo(user, confirmacao);
-    await user.keyboard("nova-senha-muito-segura{Enter}");
+    await user.keyboard("Nova-senha-muito-segura-1{Enter}");
     const heading = await screen.findByRole("heading", { name: "Senha redefinida" });
     expect(document.activeElement).toBe(heading.closest('[role="status"]'));
   });
@@ -125,8 +134,8 @@ describe("002/US4-3 e 002/FR-027 envio duplicado e token", () => {
     const release = pendingResponse(fetchMock, () => json(200, { message: "Senha redefinida. Entre com a nova senha." }));
     const { queryClient, unmount } = renderWithProviders(<ResetPasswordForm token={TOKEN} />);
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/^Nova senha/), "nova-senha-muito-segura");
-    await user.type(screen.getByLabelText(/^Confirme a nova senha/), "nova-senha-muito-segura");
+    await user.type(screen.getByLabelText(/^Nova senha/), "Nova-senha-muito-segura-1");
+    await user.type(screen.getByLabelText(/^Confirme a nova senha/), "Nova-senha-muito-segura-1");
     await user.dblClick(screen.getByRole("button", { name: "Redefinir senha" }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     release();

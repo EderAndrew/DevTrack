@@ -55,7 +55,8 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
       ResetPasswordFormSchema,
       resetPasswordMessages,
       { password: "", confirmation: "" },
-      { password: PASSWORD_LENGTH_MESSAGE },
+      // 001/FR-011a (amendment 2026-11-08): the reset follows the invitation's rule.
+      { password: INVITATION_PASSWORD_MESSAGE },
     ],
   ])("%s: campo vazio → texto atual do campo", (_form, schema, map, values, expected) => {
     expect(messages(schema, map, values)).toEqual(expected);
@@ -105,7 +106,7 @@ describe("002/FR-022 formulários validam com o schema do contrato e os textos d
       confirmation: "As senhas não coincidem.",
     });
     expect(messages(ResetPasswordFormSchema, resetPasswordMessages, { password: "curta", confirmation: "outra" })).toEqual({
-      password: PASSWORD_LENGTH_MESSAGE,
+      password: INVITATION_PASSWORD_MESSAGE,
       confirmation: "As senhas não coincidem.",
     });
   });

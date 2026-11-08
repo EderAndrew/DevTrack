@@ -65,8 +65,9 @@ export class PasswordResetService {
 
   async confirm(token: string, password: string, ctx: RequestContext): Promise<MessageResponse> {
     await this.rateLimit.enforce("password_reset_confirm", hashToken(token), ctx);
-    // Validated before the token is consumed: a weak password must not burn the link.
-    this.passwordPolicy.validate(password);
+    // Validated before the token is consumed: a weak password must not burn the link. The new password
+    // follows the invitation's rule (001/FR-011a, amendment 2026-11-08), not FR-011.
+    this.passwordPolicy.validateForInvitation(password);
     const passwordHash = await this.hasher.hash(password);
 
     await this.prisma.runInTransaction(async (tx) => {

@@ -458,8 +458,9 @@ recusa.
   (nomes, times, cidades e o nome do produto), depois de ignorar acentos, números,
   símbolos e substituições comuns (`Password1!`, `P@ssw0rd1!`, `S3nh@2026!`,
   `Flamengo1!`, `Aa123456!`); as listas não pretendem ser completas; a validação
-  definitiva ocorre no backend. A redefinição de
-  senha e a ativação de administrador continuam em FR-011. Só a senha nova é validada:
+  definitiva ocorre no backend. Emenda 2026-11-08: a mesma regra vale para a nova senha
+  da redefinição de senha (FR-029c); só a ativação de administrador continua em FR-011.
+  Só a senha nova é validada:
   senhas já gravadas nunca são verificadas contra estas regras, e o login as aceita como
   antes. O formulário de aceite pede a senha e a confirmação. Risco residual aceito pelo
   responsável do projeto em 2026-11-06: senhas previsíveis fora das listas continuam
@@ -528,7 +529,7 @@ recusa.
 - **FR-029b**: Se existir conta, o sistema DEVE enviar link de redefinição com token
   criptograficamente seguro, de uso único, válido por 1 hora e armazenado apenas como
   hash; uma nova solicitação invalida o link anterior.
-- **FR-029c**: Concluir a redefinição DEVE substituir a senha (validada por FR-011),
+- **FR-029c**: Concluir a redefinição DEVE substituir a senha (validada por FR-011a, emenda 2026-11-08),
   revogar todas as sessões do usuário (FR-026), marcar o e-mail como verificado se
   ainda não estiver, e ser auditado.
 - **FR-029d**: A redefinição NÃO DEVE reativar contas suspensas nem alterar papéis
@@ -715,7 +716,8 @@ recusa.
 - **Audit events**: ver FR-070.
 - **Untrusted input**: todo dado de cadastro, login, convite e ativação é validado
   no backend; campos não reconhecidos (ex.: `role`, `permissions`) fazem a
-  requisição ser rejeitada (400); e-mails normalizados; senhas validadas por FR-011.
+  requisição ser rejeitada (400); e-mails normalizados; senhas validadas por FR-011 (FR-011a no aceite de convite e na
+  redefinição de senha).
   Exceção explícita: no aceite de convite para conta verificada, o campo de senha é
   aceito pelo formato e descartado (FR-047).
 - **States & transitions**: convite `PENDING → ACCEPTED | EXPIRED | REVOKED`

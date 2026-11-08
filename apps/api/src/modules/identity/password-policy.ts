@@ -31,7 +31,7 @@ const REPLACED_LETTERS: Readonly<Record<string, string>> = { "@": "a", $: "s", "
 /**
  * The forms a password that meets the composition rules may hide a common one in (FR-011a): `Password1!`
  * has no entry of its own, since no entry of the list has a letter, a digit and a symbol, but it is
- * `password`. Only the invitation rule reads these.
+ * `password`. Only the FR-011a rule (invitation and reset) reads these.
  */
 function commonForms(password: string): { whole: string[]; words: string[] } {
   const plain = password.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -51,8 +51,8 @@ function commonForms(password: string): { whole: string[]; words: string[] } {
 
 /**
  * Password strength rule (FR-011): 12–128 characters, no composition rules, and not in the
- * common-passwords list (compared case-insensitively). A password chosen when accepting an
- * invitation follows FR-011a instead. Only a new password is checked, never a stored one. The list
+ * common-passwords list (compared case-insensitively); since 2026-11-08 only the admin activation uses
+ * it. A password chosen when accepting an invitation or in a password reset follows FR-011a instead. Only a new password is checked, never a stored one. The list
  * is loaded once at startup, so a missing file stops the API from booting instead of silently
  * accepting weak passwords. Provided through a factory in IdentityModule.
  */
@@ -84,7 +84,7 @@ export class PasswordPolicy {
     return !words.some((word) => this.localWords.has(word) || (word.length >= MIN_LIST_WORD_LENGTH && this.common.has(word)));
   }
 
-  /** Throws `400 WEAK_PASSWORD` when a password chosen in an invitation does not meet FR-011a. */
+  /** Throws `400 WEAK_PASSWORD` when a password chosen in an invitation or a reset does not meet FR-011a. */
   validateForInvitation(password: string): void {
     if (!this.isAcceptableForInvitation(password)) throw weakPassword();
   }

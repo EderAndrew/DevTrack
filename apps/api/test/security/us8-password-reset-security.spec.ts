@@ -4,7 +4,7 @@ import { createUser, uniqueEmail } from "../helpers/factories";
 import { LogCapture } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
-const NEW_PASSWORD = "nova-senha-muito-segura";
+const NEW_PASSWORD = "Nova-senha-muito-segura-1";
 const serialize = (value: unknown) =>
   JSON.stringify(value, (_key, v: unknown) => (typeof v === "bigint" ? v.toString() : v));
 

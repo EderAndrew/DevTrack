@@ -4,7 +4,7 @@ import { hashToken } from "../../src/platform/crypto/tokens";
 import { createUser, loginAs, requestVerificationToken, type TestUser, uniqueEmail } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-const NEW_PASSWORD = "nova-senha-muito-segura";
+const NEW_PASSWORD = "Nova-senha-muito-segura-1";
 
 describe("US8 — esqueci minha senha (FR-029a–e)", () => {
   let t: TestApp;
@@ -88,6 +88,20 @@ describe("US8 — esqueci minha senha (FR-029a–e)", () => {
       expect(weak.status).toBe(400);
       expect(weak.body.code).toBe("WEAK_PASSWORD");
       expect((await confirm(token)).status).toBe(200);
+    });
+
+    it("001/FR-011a a nova senha segue a regra do convite: 8+ com maiúscula, minúscula, número e caractere especial", async () => {
+      // Each misses one requirement; the first was valid under FR-011 (12+ characters, no composition). One link
+      // per try, since a link takes only a few confirmation attempts.
+      for (const weak of ["nova-senha-muito-segura", "Kx9vRm2qTp", "KX9!VRM2#Q", "kx9!vrm2#q", "Kx!vRm#qTp", "Kx9!vR2", "Password1!", "Senha@2026"]) {
+        const res = await confirm(await resetToken(await createUser(t)), weak);
+        expect({ weak, status: res.status, code: res.body.code }).toEqual({ weak, status: 400, code: "WEAK_PASSWORD" });
+      }
+      const user = await createUser(t);
+      const token = await resetToken(user);
+      // Eight characters with the four kinds: accepted, and the new password logs in.
+      expect((await confirm(token, "Kx9!vRm2")).status).toBe(200);
+      expect((await login(user.email, "Kx9!vRm2")).status).toBe(200);
     });
   });
 

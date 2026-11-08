@@ -85,7 +85,7 @@ describe("017/US1 todo e-mail sobrevive a uma falha de envio", () => {
         return { email: user.email, subjectId: user.id };
       },
       works: async (token) =>
-        (await api(t).post("/api/auth/password-reset/confirm", { token, password: "senha-nova-do-teste-017" })).status === 200,
+        (await api(t).post("/api/auth/password-reset/confirm", { token, password: "Senha-nova-do-teste-017" })).status === 200,
       retire: [
         { name: "conta SUSPENDED", reason: "REVOKED", apply: async (id) => void (await t.prisma.user.update({ where: { id }, data: { status: "SUSPENDED", statusChangedAt: new Date() } })) },
       ],
