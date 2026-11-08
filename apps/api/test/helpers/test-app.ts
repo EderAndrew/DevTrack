@@ -18,6 +18,8 @@ import { ContractConformanceInterceptor } from "./contract-conformance.intercept
 import { assertTestDatabase } from "./env";
 import { LogCapture } from "./log-capture";
 import { TEST_WORKER_PATH } from "./syllabus-worker";
+import { PushClient } from "../../src/platform/push/push-client";
+import { FakePushClient } from "../fixtures/push/fake-push-client";
 
 /**
  * Reference data seeded by migration: never truncated (010 adds the programming-language catalog; a
@@ -37,6 +39,8 @@ export interface TestAppOptions {
   overrides?: { provide: unknown; useValue: unknown }[];
   /** The server clock of request-driven rules (012 research P10); `FixedClock` in test/helpers/clock.ts. */
   clock?: Clock;
+  /** 024: stands in for Expo; a fresh FakePushClient by default (never a real push). */
+  push?: FakePushClient;
 }
 
 export interface TestApp {
@@ -48,6 +52,8 @@ export interface TestApp {
   config: AppConfig;
   /** The InMemoryMailer when no other mailer was given. */
   mailer: InMemoryMailer;
+  /** 024: what the alert worker sent, and the programmed answers of "Expo". */
+  push: FakePushClient;
   /** Allowed Origin sent by `api()` on every request. */
   origin: string;
   /** Also takes an abstract class used as a provider token (e.g. `FileStorage`). */
@@ -90,6 +96,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const config = testConfig(options.config);
   const mailer = options.mailer ?? new InMemoryMailer();
+  const push = options.push ?? new FakePushClient();
 
   let builder = Test.createTestingModule({
     imports: [AppModule.forRoot(config, { logDestination: options.logs ?? new LogCapture() })],
@@ -99,7 +106,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(mailer)
     // The reading worker compiled by the global setup (test/helpers/syllabus-worker.ts).
     .overrideProvider(SYLLABUS_WORKER_PATH)
-    .useValue(TEST_WORKER_PATH);
+    .useValue(TEST_WORKER_PATH)
+    .overrideProvider(PushClient)
+    .useValue(push);
   if (options.clock) builder = builder.overrideProvider(CLOCK).useValue(options.clock);
   for (const { provide, useValue } of options.overrides ?? []) {
     builder = builder.overrideProvider(provide).useValue(useValue);
@@ -125,6 +134,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     prisma: app.get(PrismaService),
     config,
     mailer: mailer as InMemoryMailer,
+    push,
     origin: config.allowedOrigins[0]!,
     get: <T>(token: Type<T> | Abstract<T> | string | symbol) => app.get<T>(token as Type<T>),
     flushMail: () => outbox.flush(),

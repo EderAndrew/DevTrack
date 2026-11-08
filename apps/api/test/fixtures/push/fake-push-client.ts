@@ -18,6 +18,8 @@ export class FakePushClient extends PushClient {
   readonly sent: PushMessage[] = [];
   /** Every receipt query, in order. */
   readonly receiptQueries: string[][] = [];
+  /** Every request fails this way until set back to null (an outage longer than the retries). */
+  failing: "transient" | "throw" | null = null;
   private readonly steps: TicketStep[] = [];
   private readonly receipts = new Map<string, PushReceipt>();
   private next = 0;
@@ -37,9 +39,12 @@ export class FakePushClient extends PushClient {
     this.receiptQueries.length = 0;
     this.steps.length = 0;
     this.receipts.clear();
+    this.failing = null;
   }
 
   async send(messages: readonly PushMessage[]): Promise<PushTicket[]> {
+    if (this.failing === "transient") throw new PushTransientError("NETWORK");
+    if (this.failing === "throw") throw new Error("fake push failure");
     const head = this.steps[0];
     if (head === "transient") {
       this.steps.shift();

@@ -355,7 +355,7 @@ retida, um por celular, nenhum para outro professor, nenhum depois do logout, e 
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] `apps/api/test/integration/024-us3-alerts.spec.ts` (com `EXAM_ALERT_INTERVAL_MS=0` e
+- [x] T026 [P] [US3] `apps/api/test/integration/024-us3-alerts.spec.ts` (com `EXAM_ALERT_INTERVAL_MS=0` e
       `runOnce(now)`; helper `apps/api/test/helpers/exam-alerts.ts`: `signInMobile`, `registerDevice`, `runAlertWorker`,
       `pushedMessages`):
   - `024/US3-1` ocorrência contada → uma linha `OCCURRENCE` com o ordinal; o fake recebe a mensagem no canal
@@ -376,13 +376,13 @@ retida, um por celular, nenhum para outro professor, nenhum depois do logout, e 
     (comparação campo a campo); `PUSH_ENABLED=false` → `SKIPPED`;
   - `024/SC-001` do commit ao `send` do fake com o worker ativo (intervalo 1000 ms e `kick()`) em ≤ 2 s em 95% de 40
     ocorrências.
-- [ ] T027 [P] [US3] `apps/api/test/integration/024-worker.spec.ts`: claim de até 50 por `created_at` com `FOR UPDATE
+- [x] T027 [P] [US3] `apps/api/test/integration/024-worker.spec.ts`: claim de até 50 por `created_at` com `FOR UPDATE
       SKIP LOCKED` (dois workers em paralelo nunca enviam o mesmo alerta, `exam_alert_deliveries` PK); lease de 30 s
       retomada depois de um worker morto; alerta com mais de 60 s → `EXPIRED` sem envio (`024/FR-019`); 429/5xx/rede
       → `tries + 1`, nova tentativa em 2 s e 5 s, depois `EXPIRED`; ticket `DeviceNotRegistered` → celular apagado e
       `mobile_device.removed` `PROVIDER_UNREGISTERED` (SYSTEM); recibos de 15 min–24 h em lotes de até 300, recibo
       `DeviceNotRegistered` apaga o celular; nenhum token, título ou nome nos logs capturados.
-- [ ] T028 [P] [US3] Testes do app: `apps/mobile/features/push/hooks/use-notification-response.test.tsx` — `024/US3-5`
+- [x] T028 [P] [US3] Testes do app: `apps/mobile/features/push/hooks/use-notification-response.test.tsx` — `024/US3-5`
       tocar num aviso (app fechado, em segundo plano e aberto) abre
       `/(app)/provas/[classId]/[activityId]?aluno=<studentUserId>` depois de `GET /me` validar a sessão; sem sessão,
       `/entrar` primeiro e a sala depois do login; `data` fora do `ExamAlertPushDataSchema` é ignorado;
@@ -392,20 +392,20 @@ retida, um por celular, nenhum para outro professor, nenhum depois do logout, e 
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Outbox: `apps/api/src/modules/exam-alerts/exam-alert-outbox.ts` implementa `ExamAlertSink` (INSERT
+- [x] T029 [US3] Outbox: `apps/api/src/modules/exam-alerts/exam-alert-outbox.ts` implementa `ExamAlertSink` (INSERT
       `ON CONFLICT (attempt_id, occurrence_ordinal) DO NOTHING` na transação recebida, `created_at` = `recordedAt`;
       `kick()` acorda o worker se o intervalo for > 0) e substitui o no-op no `exam-alerts.module.ts`.
-- [ ] T030 [US3] Mensagem e destinatários: `apps/api/src/modules/exam-alerts/message.ts` (puro: canal, título, corpo
+- [x] T030 [US3] Mensagem e destinatários: `apps/api/src/modules/exam-alerts/message.ts` (puro: canal, título, corpo
       e `data` por tipo e ordinal, contracts/push-notifications.md, nomes e títulos como texto) com
       `message.spec.ts`; `recipients.ts` (consulta dos celulares elegíveis no momento do envio, data-model "Derived":
       sessão MOBILE válida pelo `Clock`, usuário ACTIVE com `chamada.registrar`, professor da turma, turma não
       arquivada, sem silenciamento).
-- [ ] T031 [US3] Worker: `apps/api/src/modules/exam-alerts/exam-alert.worker.ts` (timer `EXAM_ALERT_INTERVAL_MS`,
+- [x] T031 [US3] Worker: `apps/api/src/modules/exam-alerts/exam-alert.worker.ts` (timer `EXAM_ALERT_INTERVAL_MS`,
       `runOnce(now)`, claim/lease, `EXPIRED`/`SKIPPED`/`SENT`, entregas gravadas antes do envio, retentativas,
       `DeviceNotRegistered`, recibos a cada 60 s, parada limpa no `onModuleDestroy`; `PUSH_ENABLED=false` termina
       `SKIPPED`); o `PushClient` injetado é o `ExpoPushClient` (o fake nos testes via `createTestApp`). T026 e T027
       ficam verdes; T006 inteiro verde.
-- [ ] T032 [US3] App — receber e abrir: `apps/mobile/features/push/hooks/use-notification-response.ts`
+- [x] T032 [US3] App — receber e abrir: `apps/mobile/features/push/hooks/use-notification-response.ts`
       (`addNotificationResponseReceivedListener` e `getLastNotificationResponseAsync`, `data` validado pelo schema,
       navegação depois da sessão), `setNotificationHandler` em `apps/mobile/app/_layout.tsx` (com o app aberto mostra
       o aviso e vibra pelo tipo), destaque do aluno na sala. T028 fica verde; US3 sai de `pending`.

@@ -21,8 +21,8 @@ export const EXAM_CHANNELS = {
 
 export type ExamChannelId = keyof typeof EXAM_CHANNELS;
 
-export async function ensureExamChannels(): Promise<void> {
-  if (Platform.OS !== "android") return;
+export async function ensureExamChannels(platform: string = Platform.OS): Promise<void> {
+  if (platform !== "android") return;
   for (const [id, channel] of Object.entries(EXAM_CHANNELS)) {
     await Notifications.setNotificationChannelAsync(id, {
       ...channel,

@@ -138,6 +138,13 @@ describe("024/US2 a sala da prova no celular", () => {
     expect(reads).toBeGreaterThan(before);
   });
 
+  it("ids que não são UUID (um link de outro app) não viram pedido à API", async () => {
+    const api = fakeApi({ "GET /mobile/exams": inProgress });
+    await renderApp(<ExamRoomScreen classId="../../mobile" activityId={ACTIVITY} onOpenStudent={jest.fn()} />, { store: memoryStore("f".repeat(43)) });
+    expect(await screen.findByText("Esta prova não está mais disponível.")).toBeOnTheScreen();
+    expect(api.calls.filter((call) => call.path.includes("exam-monitor"))).toEqual([]);
+  });
+
   it("024/FR-017 uma sala que não é mais do professor (404) diz isso em palavras", async () => {
     fakeApi({ [monitorPath]: apiError(404, "NOT_FOUND"), "GET /mobile/exams": inProgress });
     await renderRoom();

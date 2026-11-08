@@ -5,6 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMe } from "../features/mobile-auth/hooks/use-me";
+import { useForegroundAlerts } from "../features/push/hooks/use-foreground-alerts";
+import { useNotificationResponse } from "../features/push/hooks/use-notification-response";
 import { createQueryClient } from "../lib/query-client";
 import { SessionProvider } from "../lib/session/session-provider";
 import { FONT_FILES, ThemeProvider, useTheme } from "../lib/theme";
@@ -31,6 +33,9 @@ export default function RootLayout() {
 
 function AccountTheme() {
   const me = useMe();
+  // 024/US3: alerts shown and vibrated with the app open; a tapped alert opens its room.
+  useForegroundAlerts();
+  useNotificationResponse();
   return (
     <ThemeProvider theme={me.data?.theme}>
       <ThemedStack />

@@ -71,7 +71,8 @@ function calls(source: string, callee: RegExp): string[] {
 const AUDIT_CALL = /\b(?:this\.)?audit\.record\(/g;
 const LOG_CALL = /\b(?:this\.)?logger\.(?:log|warn|error|debug|info|verbose|fatal)\(/g;
 /** Fields that would carry a token, a name, a title or a notification text. */
-const SENSITIVE_FIELD = /\b(pushToken|token|title|body|studentName|className|name|text|message)\b\s*[:,}]/;
+/** An object key (after `{` or `,`), so `error.name` in an expression is not taken for a field. */
+const SENSITIVE_FIELD = /[{,]\s*(pushToken|token|title|body|studentName|className|name|text|message)\s*[:,}]/;
 
 /** Exam writes `exam-alerts` must never do: Prisma writes or SQL on the exam's own tables. */
 const EXAM_WRITE = [
@@ -165,6 +166,8 @@ describe("024/FR-016 auditoria e logs dos avisos e da sessão do celular só com
     expect(probe("{ deviceId, pushToken }")).toBe(true);
     expect(probe("{ title: activity.title }")).toBe(true);
     expect(probe("{ alertId, deviceId, errorCode: 'DeviceNotRegistered' }")).toBe(false);
+    expect(probe('{ errorName: error instanceof Error ? error.name : "unknown" }')).toBe(false);
+    expect(probe("{ alertId, name }")).toBe(true);
   });
 
   it('024/FR-022 nenhum texto de aviso diz "fraude", "cola" ou "violação"', () => {
