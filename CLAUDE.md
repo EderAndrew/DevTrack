@@ -146,6 +146,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
 - API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo SDK 58 (`expo ~58.0.23`, React Native 0.88, React 19.3.0, TypeScript 7 accepted; pnpm's isolated `node_modules` works with Metro, no hoisting), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
 - PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
+- No new dependency (025-exam-student-nudge)
+- PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
 
 ## Stack notes
 
@@ -496,9 +498,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 025-exam-student-nudge: (planned) the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the app's first write (024 read-only rule amended)
 - 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 - 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
-- 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
