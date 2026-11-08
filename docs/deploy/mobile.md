@@ -48,7 +48,7 @@ vencidas) rodam com os outros; `pnpm --filter api maintenance:run --job exam-ale
 
 | Perfil | Para quê | API |
 |---|---|---|
-| `development` | build de desenvolvimento, necessário para testar push localmente (exige instalar o `expo-dev-client` em `apps/mobile`, ainda fora das dependências) | `http://10.0.2.2:4000` (o host do emulador) |
+| `development` | build de desenvolvimento (`expo-dev-client`), necessário para testar push localmente; depois de instalado, `pnpm --filter mobile start` serve o código a ele | `http://10.0.2.2:4000` (o host do emulador) |
 | `internal` | o APK do piloto | `https://devtrack.nativcode.com.br` |
 
 ```bash

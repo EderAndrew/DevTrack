@@ -23,7 +23,8 @@ TS version the pinned Expo SDK supports; if it rejects TS 7, `typescript@~5.9` i
 **Primary Dependencies**: API: NestJS, Prisma (no new npm dependency; Expo Push over `fetch`). Mobile (new, per
 constitution 3.7.0): Expo SDK (latest stable, pinned), Expo Router, `expo-notifications`, `expo-secure-store`,
 `expo-haptics`, `expo-font`, `expo-device`, TanStack Query, React Hook Form + `@hookform/resolvers`, Zod (catalog),
-`lucide-react-native` + `react-native-svg`; dev: `jest-expo`, `@testing-library/react-native`
+`lucide-react-native` + `react-native-svg`, `expo-dev-client` (only for the `development` EAS build, where push is tested
+locally; Expo Go has no push); dev: `jest-expo`, `@testing-library/react-native`
 **Storage**: PostgreSQL 17 — one migration: `sessions.client`, tables `mobile_devices`, `exam_alert_mutes`,
 `exam_alerts`, `exam_alert_deliveries` (data-model.md)
 **Testing**: API Vitest (integration + security suites, `FakePushClient`); contracts and tokens Vitest; mobile Jest +

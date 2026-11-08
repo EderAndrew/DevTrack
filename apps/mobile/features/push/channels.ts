@@ -27,7 +27,8 @@ export async function ensureExamChannels(platform: string = Platform.OS): Promis
     await Notifications.setNotificationChannelAsync(id, {
       ...channel,
       vibrationPattern: [...channel.vibrationPattern],
-      sound: "default",
+      // No `sound`: Android then plays the system's notification sound. Any value, "default" included, is
+      // taken as the name of a custom file bundled with the app, and a missing file leaves the channel silent.
       enableVibrate: true,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });

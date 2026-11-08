@@ -8,7 +8,8 @@ occurrence and each hold (`specs/024-mobile-exam-monitor/`). Android first, inte
 
 One solution per responsibility, enforced by `eslint.config.mjs` (`no-restricted-imports`):
 
-- Expo SDK 58, React Native 0.88, React 19.3, TypeScript; Expo Router (file routes in `app/`).
+- Expo SDK 58, React Native 0.88, React 19.3, TypeScript; Expo Router (file routes in `app/`); `expo-dev-client` for
+  the `development` EAS build (push needs a development build, never Expo Go).
 - TanStack Query for every API read and write; `fetch` through `lib/api` (no axios).
 - Zod from `@repo/contracts`: every response is parsed with its contract schema (`lib/api/client.ts`).
 - `expo-secure-store` for the session secret only (`lib/session/secure-session.ts`); no AsyncStorage/MMKV.

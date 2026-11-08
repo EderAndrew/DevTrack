@@ -17,10 +17,15 @@ describe("024/US3-8 os canais do Android (research Y7)", () => {
     expect(mocked.setNotificationChannelAsync).toHaveBeenCalledTimes(2);
     const [occurrences, holds] = mocked.setNotificationChannelAsync.mock.calls;
     expect(occurrences![0]).toBe("exam-occurrences");
-    expect(occurrences![1]).toMatchObject({ importance: 4, vibrationPattern: [0, 250, 150, 250], sound: "default", lockscreenVisibility: 0 });
+    expect(occurrences![1]).toMatchObject({ importance: 4, vibrationPattern: [0, 250, 150, 250], lockscreenVisibility: 0 });
     expect(holds![0]).toBe("exam-holds");
-    expect(holds![1]).toMatchObject({ importance: 5, vibrationPattern: [0, 600, 200, 600, 200, 600], sound: "default", lockscreenVisibility: 0 });
+    expect(holds![1]).toMatchObject({ importance: 5, vibrationPattern: [0, 600, 200, 600, 200, 600], lockscreenVisibility: 0 });
     expect(Object.keys(EXAM_CHANNELS)).toEqual(["exam-occurrences", "exam-holds"]);
+  });
+
+  it("024/FR-012 os canais tocam o som do sistema: nenhum nome de som, que o Android leria como arquivo próprio", async () => {
+    await ensureExamChannels("android");
+    for (const [, options] of mocked.setNotificationChannelAsync.mock.calls) expect(options).not.toHaveProperty("sound");
   });
 
   it("fora do Android não há canal a criar", async () => {
