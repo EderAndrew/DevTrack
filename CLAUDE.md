@@ -135,7 +135,7 @@ hand-maintained.
 - PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
 - No new dependency (023-group-work)
 - PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
-- API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo (SDK pinned), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
+- API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo SDK 58 (`expo ~58.0.23`, React Native 0.88, React 19.3.0, TypeScript 7 accepted; pnpm's isolated `node_modules` works with Metro, no hoisting), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
 - PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
 
 ## Stack notes
@@ -215,9 +215,9 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022 and 023; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023 and 024; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
-  in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
+  in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
   `SPECS`.

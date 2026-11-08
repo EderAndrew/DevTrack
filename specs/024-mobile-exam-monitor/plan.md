@@ -175,5 +175,5 @@ plus `modules/exam-alerts` and `platform/push`; `attempt-integrity` reaches aler
 
 ## Complexity Tracking
 
-No violation. (If Metro can't resolve pnpm's isolated `node_modules` with the pinned SDK, a package-level
-`node-linker=hoisted` for `apps/mobile` is recorded here, research Y2.)
+No violation. Metro resolves pnpm's isolated `node_modules` with Expo SDK 58 (checked with `expo export
+--platform android` in T004), so no `node-linker=hoisted` is needed (research Y2).

@@ -56,7 +56,7 @@ description: "Task list for 024 — Monitoramento de provas no celular: app Expo
 
 **Purpose**: a 024 entra na guarda de rastreabilidade; os contratos, o pacote de tokens e o app existem no monorepo.
 
-- [ ] T001 Incluir a 024 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 023:
+- [x] T001 Incluir a 024 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 023:
       `feature: "024"`, `path: "specs/024-mobile-exam-monitor/spec.md"`, `stories: 4`, `scenarios: 29` (7 + 8 + 9 + 5),
       `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 7)` e
       `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-007"] }`, com o comentário "Joined in the
@@ -64,7 +64,7 @@ description: "Task list for 024 — Monitoramento de provas no celular: app Expo
       that cites it, so the lists are empty at the end of T038". Acrescentar às fontes de títulos
       `{ dir: join(REPO_ROOT, "apps/mobile"), pattern: /\.test\.tsx?$/ }` (ignorando `node_modules`), e citar a 024 na
       lista de `SPECS` do `CLAUDE.md` raiz.
-- [ ] T002 [P] Contratos em `packages/contracts/src/mobile/` (novo domínio; contracts/http-api.md), exportados em
+- [x] T002 [P] Contratos em `packages/contracts/src/mobile/` (novo domínio; contracts/http-api.md), exportados em
       `src/index.ts`:
   - `session.ts`: `MobileLoginRequestSchema` (as mesmas regras de `LoginRequestSchema`, estrito) e
     `MobileSessionSchema` `{ token, expiresAt, user: MeViewSchema }`;
@@ -78,13 +78,13 @@ description: "Task list for 024 — Monitoramento de provas no celular: app Expo
   - os códigos de erro `MOBILE_NOT_ALLOWED` e `MOBILE_ROUTE_NOT_ALLOWED` no catálogo de códigos dos contratos;
   - as entradas de `endpoints.ts` entram nas tarefas que criam cada rota (T017, T018, T019, T024, T035);
   - `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test` (boundary: nenhum texto de usuário).
-- [ ] T003 [P] Pacote `packages/design-tokens` (`@repo/design-tokens`, research Y11): `package.json` (build `tsc` →
+- [x] T003 [P] Pacote `packages/design-tokens` (`@repo/design-tokens`, research Y11): `package.json` (build `tsc` →
       `dist/`, test Vitest, `lint`, `check-types`, sem dependência de runtime), `tsconfig.json`,
       `scripts/generate.ts` que lê `apps/web/design-system/tokens.css` (`:root` e `:root[data-theme="light"]`) e
       escreve `src/generated.ts` (cores por tema, escala tipográfica rem → px a 16, raios, espaçamentos, famílias),
       `src/index.ts` (`tokens`, `type ThemeName = "dark" | "light"`, `colorsFor(theme)`), script
       `pnpm --filter @repo/design-tokens generate`. O `src/generated.ts` gerado é commitado.
-- [ ] T004 [P] Esqueleto do app `apps/mobile` (research Y1, Y2; constituição 3.7.0): Expo SDK estável mais recente,
+- [x] T004 [P] Esqueleto do app `apps/mobile` (research Y1, Y2; constituição 3.7.0): Expo SDK estável mais recente,
       fixado; `package.json` com `start`, `lint`, `check-types`, `test` (sem `build`), dependências da stack oficial
       (Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, `expo-device`,
       `expo-constants`, TanStack Query, React Hook Form + `@hookform/resolvers`, `zod: "catalog:"`,

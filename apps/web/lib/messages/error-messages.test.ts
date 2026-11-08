@@ -203,12 +203,19 @@ const apiError = (code: string, retryAfterSeconds: number | null = null) =>
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
   it("007/FR-040 cobre os 129 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018, da 019, da 021 e da 023", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
-    const webCodes = ErrorCodeSchema.options.filter((code) => code !== "NOTICE_REJECTED" && code !== "NOTICE_TOO_LARGE");
+    const notForWeb: string[] = ["NOTICE_REJECTED", "NOTICE_TOO_LARGE", "MOBILE_NOT_ALLOWED", "MOBILE_ROUTE_NOT_ALLOWED"];
+    const webCodes = ErrorCodeSchema.options.filter((code) => !notForWeb.includes(code));
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
     expect(Object.keys(ERROR_MESSAGES)).toHaveLength(131);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {
+    expect(ErrorCodeSchema.options).toContain(code);
+    expect(Object.keys(ERROR_MESSAGES)).not.toContain(code);
+    expect(messageForError(apiError(code))).toBe(PHASE_001_TEXTS[UNEXPECTED_RESPONSE]);
+  });
+
+  it.each(["MOBILE_NOT_ALLOWED", "MOBILE_ROUTE_NOT_ALLOWED"])("024 %s só chega ao aplicativo: o web não tem texto para ele", (code) => {
     expect(ErrorCodeSchema.options).toContain(code);
     expect(Object.keys(ERROR_MESSAGES)).not.toContain(code);
     expect(messageForError(apiError(code))).toBe(PHASE_001_TEXTS[UNEXPECTED_RESPONSE]);

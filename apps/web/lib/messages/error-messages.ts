@@ -4,6 +4,8 @@ import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 /** Codes only an e-mail provider receives (017 `POST /mail/notices/:provider`); the web never shows them. */
 type ProviderOnlyErrorCode = "NOTICE_REJECTED" | "NOTICE_TOO_LARGE";
+/** Codes only the mobile app receives (024: the app's login and a bearer outside its allowlist); the web never shows them. */
+type MobileOnlyErrorCode = "MOBILE_NOT_ALLOWED" | "MOBILE_ROUTE_NOT_ALLOWED";
 
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
@@ -147,7 +149,7 @@ export const ERROR_MESSAGES = {
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
   [UNEXPECTED_RESPONSE]: "Erro inesperado. Tente novamente mais tarde.",
-} as const satisfies Record<Exclude<ErrorCode, ProviderOnlyErrorCode> | ClientErrorCode, string>;
+} as const satisfies Record<Exclude<ErrorCode, ProviderOnlyErrorCode | MobileOnlyErrorCode> | ClientErrorCode, string>;
 
 const isKnownCode = (code: string): code is keyof typeof ERROR_MESSAGES => Object.hasOwn(ERROR_MESSAGES, code);
 
