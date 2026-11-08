@@ -180,6 +180,11 @@ Quando houver achados, use `result: "findings"` e preencha `findings` com objeto
 }
 ```
 
+Um achado pode ter o campo opcional `exception` (`SEC-EXC-NNNN`) somente quando houver, em
+`docs/security/exceptions/exceptions.json`, uma exceção aprovada por uma pessoa com a mesma regra, o mesmo arquivo e
+`maxSeverity` igual ou maior que a severidade do achado, ainda dentro da validade. Cite-a sem alterar a severidade nem o texto do achado; nunca crie, edite ou estenda uma
+exceção durante a auditoria (ADR-0005 §9 e §10). A política decide se a exceção vale.
+
 O campo `line` pode ser omitido quando não houver linha identificável. As severidades aceitas pelo validador atual são `info`, `low`, `medium`, `high` e `critical`. Utilize a categoria OWASP pertinente; o valor `A01:2021` acima é apenas um exemplo.
 
 O esquema atual não possui campos estruturados para verificações inconclusivas ou ferramentas executadas. Informe essas limitações no resumo apresentado ao usuário, sem inventar campos obrigatórios adicionais no JSON.

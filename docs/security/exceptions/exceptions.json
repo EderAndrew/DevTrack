@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "exceptions": [
+    {
+      "id": "SEC-EXC-0001",
+      "rule": "A07:2021",
+      "maxSeverity": "medium",
+      "files": [
+        "apps/api/src/modules/auth/password-reset.service.ts",
+        "apps/web/features/auth/schemas/forms.ts"
+      ],
+      "approvedBy": "Responsável do projeto (EderAndrew)",
+      "approvedAt": "2026-11-08",
+      "validUntil": "2027-05-08",
+      "document": "docs/security/exceptions/SEC-EXC-0001-senha-minimo-8.md"
+    }
+  ]
+}

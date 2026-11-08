@@ -136,6 +136,28 @@ Exceções vencidas deverão perder validade.
 
 A aprovação por exceção não deverá alterar nem remover o achado original.
 
+### Exceções reconhecidas pela política automatizada
+
+Cada exceção aprovada fica em `docs/security/exceptions/`: um documento com os campos acima e uma entrada em
+`exceptions.json` (identificador, regra OWASP, severidade máxima aprovada, arquivos cobertos, responsável, data da
+aprovação, validade e o caminho do documento). O agente auditor pode apenas citar, no campo opcional `exception` de um achado, uma exceção
+que já exista; ele não concede exceções (§10).
+
+`.claude/hooks/security-policy.sh` considera coberto o achado cuja exceção citada:
+
+- existe em `exceptions.json` e tem a mesma regra e um dos arquivos do achado;
+- foi aprovada para uma severidade igual ou maior que a do achado (`maxSeverity`): uma exceção de achado médio nunca
+  libera um achado alto ou crítico (§5);
+- foi aprovada até hoje e não venceu (`validUntil`);
+- tem o registro e o documento já mesclados em `main` no remoto (`origin`, lido no momento da avaliação) e idênticos
+  à cópia de trabalho. Um commit local, que o próprio agente poderia fazer, não é aprovação; a mesclagem em `main`
+  passa por pull request revisado (proteção da branch no GitHub). Sem acesso ao remoto, nenhuma exceção vale.
+
+O achado coberto permanece no relatório. A decisão usa a maior severidade dos achados não cobertos e registra a
+severidade original (`highestSeverity`), a efetiva (`effectiveSeverity`) e as exceções aplicadas
+(`exceptionsApplied`). Uma exceção vencida, alterada ou que não corresponda ao achado é ignorada, e o achado volta a
+exigir revisão ou correção. O caminho do registro é fixo na política. Os casos estão em `.claude/hooks/tests/security-policy.test.sh`.
+
 ## 10. Separação de responsabilidades
 
 ### Agente desenvolvedor

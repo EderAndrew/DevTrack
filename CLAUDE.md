@@ -104,7 +104,11 @@ covers fails), so the list is empty when the feature ends. `/speckit-specify` al
 by Write/Edit or Bash; at the end of the turn the Stop hook asks for the `owasp-security-auditor` skill
 on those files with the given `SESSION_ID` (audit only, no code changes during it), and
 `.claude/hooks/audit-complete.sh <SESSION_ID>` records the confirmation. A new edit invalidates a
-previous audit. The log is `.claude/hooks/security.log`.
+previous audit. The log is `.claude/hooks/security.log`. A `medium` finding asks for human review unless it cites, in
+`exception`, a risk acceptance approved by a person in `docs/security/exceptions/` (`exceptions.json` + the document,
+ADR-0005 §9) with the same rule and file, a `maxSeverity` at least the finding's and not expired, already merged into
+`main` on `origin` (a local commit does not count); the auditor never creates one. The policy's
+cases: `bash .claude/hooks/tests/security-policy.test.sh`.
 
 `.specify/memory/constitution.md` (v3.7.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.

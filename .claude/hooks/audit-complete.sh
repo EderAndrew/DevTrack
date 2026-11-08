@@ -74,7 +74,10 @@ if ! jq -e \
         (.severity | IN("low", "medium", "high", "critical", "info")) and
         (.file | type == "string" and length > 0) and
         (.description | type == "string" and length > 0) and
-        (.recommendation | type == "string" and length > 0);
+        (.recommendation | type == "string" and length > 0) and
+        # Optional: an exception approved by a human (ADR-0005 §9) that the finding cites; the policy
+        # checks it, the auditor never grants one.
+        ((has("exception") | not) or (.exception | type == "string" and test("^SEC-EXC-[0-9]{4}$")));
 
     ($pending_files | split("\n") | map(select(length > 0)) | unique) as $pending |
     .schemaVersion == 1 and

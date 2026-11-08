@@ -1,6 +1,6 @@
 # SEC-EXC-0001 — Senha com mínimo de 8 caracteres e composição (FR-011a)
 
-Exceção de segurança no formato da ADR-0005 §9. Ela não altera nem remove o achado original: o achado continua
+Exceção de segurança no formato da ADR-0005 §9, registrada também em `exceptions.json`. Ela não altera nem remove o achado original: o achado continua
 registrado no relatório da auditoria e volta a valer quando a exceção vencer.
 
 | Campo | Valor |

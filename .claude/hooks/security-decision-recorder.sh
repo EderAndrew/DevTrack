@@ -68,6 +68,8 @@ for EXISTING_RECORD in "$DESTINATION"/decision-*; do
         .sessionId == $expected.sessionId and
         .policyVersion == $expected.policyVersion and
         .highestSeverity == $expected.highestSeverity and
+        .effectiveSeverity == $expected.effectiveSeverity and
+        .exceptionsApplied == $expected.exceptionsApplied and
         .decision == $expected.decision and
         .reason == $expected.reason and
         .approvalStatus == $expected.approvalStatus and
