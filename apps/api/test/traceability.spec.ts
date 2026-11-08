@@ -16,6 +16,8 @@ const TEST_ROOTS = [
   { dir: join(REPO_ROOT, "apps/api/src"), pattern: /\.spec\.ts$/ },
   { dir: join(REPO_ROOT, "apps/web"), pattern: /\.test\.tsx?$/ },
   { dir: join(REPO_ROOT, "apps/web/e2e"), pattern: /\.spec\.ts$/ },
+  // 024: the Expo app's Jest + React Native Testing Library tests.
+  { dir: join(REPO_ROOT, "apps/mobile"), pattern: /\.test\.tsx?$/ },
   // The on-demand evaluation against the real models (008/US1-4), like the local E2E, outside CI.
   { dir: join(REPO_ROOT, "apps/api/test/eval"), pattern: /\.eval\.ts$/ },
 ];
@@ -317,6 +319,19 @@ const SPECS: FeatureSpec[] = [
     successCriteria: sc(1, 8),
     // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
     // each SC with the test that cites it, so the lists are empty at the end of T040.
+    pending: { stories: [], successCriteria: [] },
+  },
+  {
+    feature: "024",
+    path: "specs/024-mobile-exam-monitor/spec.md",
+    stories: 4,
+    scenarios: 29, // 7 + 8 + 9 + 5
+    // No "### Acceptance Criteria Traceability" table, as in 008–023.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 7),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
+    // each SC with the test that cites it, so the lists are empty at the end of T038.
     pending: { stories: [], successCriteria: [] },
   },
 ];

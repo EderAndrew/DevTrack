@@ -72,3 +72,7 @@ export * from "./ai/operations.js";
 export * from "./health/health.js";
 export * from "./mail/notices.js";
 export * from "./endpoints.js";
+export * from "./mobile/session.js";
+export * from "./mobile/devices.js";
+export * from "./mobile/exams.js";
+export * from "./mobile/alerts.js";

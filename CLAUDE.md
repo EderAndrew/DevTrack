@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–023 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–024 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -68,8 +68,13 @@ new feature through `/speckit-specify`.
   student who starts leads, chooses present classmates or goes alone, and adds members later; one member edits at a
   time, handed by the leader, every save logged per student; the leader submits and the released grade reaches every
   member; the teacher's review shows the members, the handovers and who saved each answer.
+- 024 mobile exam monitor: `apps/mobile`, a read-only Expo app (Android first, internal EAS distribution) where the
+  teacher signs in with a MOBILE session (bearer, 30 d idle / 90 d), lists the exams in progress of their classes and
+  watches the 018 room and a student's occurrences; each counted occurrence and each hold sends a push alert (vibrate
+  and sound, hidden on a locked phone) through an outbox and Expo Push; "Silenciar avisos desta prova" per teacher
+  and exam; decisions, attendance and pauses stay on the computer.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–023 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–024 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -99,9 +104,13 @@ covers fails), so the list is empty when the feature ends. `/speckit-specify` al
 by Write/Edit or Bash; at the end of the turn the Stop hook asks for the `owasp-security-auditor` skill
 on those files with the given `SESSION_ID` (audit only, no code changes during it), and
 `.claude/hooks/audit-complete.sh <SESSION_ID>` records the confirmation. A new edit invalidates a
-previous audit. The log is `.claude/hooks/security.log`.
+previous audit. The log is `.claude/hooks/security.log`. A `medium` finding asks for human review unless it cites, in
+`exception`, a risk acceptance approved by a person in `docs/security/exceptions/` (`exceptions.json` + the document,
+ADR-0005 §9) with the same rule and file, a `maxSeverity` at least the finding's and not expired, already merged into
+`main` on `origin` (a local commit does not count); the auditor never creates one. The policy's
+cases: `bash .claude/hooks/tests/security-policy.test.sh`.
 
-`.specify/memory/constitution.md` (v3.6.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.7.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -135,6 +144,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
 - No new dependency (023-group-work)
 - PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
+- API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo SDK 58 (`expo ~58.0.23`, React Native 0.88, React 19.3.0, TypeScript 7 accepted; pnpm's isolated `node_modules` works with Metro, no hoisting), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
+- PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
 
 ## Stack notes
 
@@ -183,6 +194,10 @@ pnpm --filter web test -t "<test name>"                 # single test, or an id 
 pnpm --filter @repo/contracts build                     # tsc -> dist/ (api and web import it)
 pnpm --filter @repo/contracts test                      # boundary, duplication, zod-version guards
 
+# apps/mobile (024; stack, layers and tests: apps/mobile/CLAUDE.md; EAS and push: docs/deploy/mobile.md)
+pnpm --filter mobile start | android | test | lint | check-types
+pnpm --filter @repo/design-tokens generate              # tokens.css -> packages/design-tokens/src/generated.ts (committed)
+
 # E2E (Playwright, local only; first-run setup in apps/web/CLAUDE.md)
 pnpm --filter web test:e2e                              # needs postgres-test + mailpit up and `pnpm build` first
 pnpm --filter web test:e2e work-bank                    # one spec by path regex
@@ -213,9 +228,9 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022 and 023; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023 and 024; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
-  in a `describe`/`it`/`test` title (API, web unit and `apps/web/e2e`), so name new tests with
+  in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
   `SPECS`.
@@ -260,6 +275,13 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   `features/feedback` (web) away from AI, AI help, mail, the activities, the banks, the ranking and
   `code-runs`, and keeps the message and the origin path out of the `student_feedback.*` audit types and
   the module's log calls.
+- `apps/api/test/exam-alerts-boundary.spec.ts` (024) lets `attempt-integrity` reach the alerts only through its
+  `ExamAlertSink` hook, keeps `exam-alerts` away from grading, decisions, pauses, exam sessions and AI and from any
+  write to the exam's tables, allows Expo only in `platform/push/expo-push.client.ts` over `fetch` (no push SDK),
+  and keeps tokens, names, titles and notification texts out of the audit and log calls of the alerts and the
+  mobile session; `test/security/024-mobile-allowlist.spec.ts` checks that the bearer gets
+  `403 MOBILE_ROUTE_NOT_ALLOWED` on every route without `@MobileAccess()`. `packages/design-tokens/test/in-sync.test.ts`
+  fails when `src/generated.ts` differs from what `apps/web/design-system/tokens.css` generates.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -452,14 +474,31 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and saves nothing. Saves are logged in `activity_answer_saves` (append-only), never as audit events, and those records
   are never a grade: one grade for the group. A classmate is shown only by id and name, never e-mail or RA. Changes reach
   the others by 5 s polling (`GROUP_POLL_MS`), never WebSockets.
+- Mobile exam monitor (024): the app is read-only — it reads only `GET /me`, `GET /mobile/exams` and the 018 monitor and timeline;
+  decisions, attendance and pauses stay on the computer. A session has a fixed `client` (`WEB` cookie / `MOBILE`
+  bearer, `Authorization: Bearer`, never a cookie); a bearer works only on routes marked `@MobileAccess()` (elsewhere
+  `403 MOBILE_ROUTE_NOT_ALLOWED`), and only `POST /auth/mobile/sessions` is `@MobileEntry()` (teachers only,
+  `chamada.registrar`, else `403 MOBILE_NOT_ALLOWED`; it shares the web login limits). A MOBILE session lives 30 d idle
+  / 90 d; every revocation deletes its device in the same transaction (`mobile_device.removed`). One device per MOBILE
+  session, the push token unique (a token seen in another session moves). Each counted occurrence and each hold writes
+  one `exam_alerts` row in the events batch's transaction through `ExamAlertSink` (UNIQUE per attempt and ordinal);
+  `ExamAlertWorker` claims with `FOR UPDATE SKIP LOCKED`, resolves the recipients at send time (the class's teacher,
+  a valid MOBILE session, the account active with `chamada.registrar`, the class not archived, the exam not muted),
+  sends once per device (PK per alert and device), retries 2 s and 5 s, never sends an alert older than 60 s
+  (EXPIRED) and removes a device Expo reports `DeviceNotRegistered`. A failed send never touches the exam. The message
+  carries only the student's name, the exam's title and class and ids in `data` — never a statement, answer, grade,
+  e-mail or RA, nor "fraude", "cola" or "violação"; audit and logs carry ids, enums and codes, never tokens, names or
+  texts. The mute is a row per teacher and exam (`PUT …/exam-alerts { muted }`, idempotent, no audit); an alert of a
+  muted exam ends SKIPPED and is never sent late. `PUSH_ENABLED=false` is the kill switch (alerts end SKIPPED). The
+  app polls the room every 5 s while visible, never WebSockets; its UI uses only `@repo/design-tokens`.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 - 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 - 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
-- 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

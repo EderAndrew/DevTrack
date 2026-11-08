@@ -11,6 +11,7 @@ import { acceptsEvent, endsAt } from "../activities/status/exam-time";
 import { AuditService } from "../audit/audit.service";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { AttemptPaused, type OwnAttemptContext, StudentActivityLoader } from "../student-activities/student-activity-loader";
+import { alertDrafts, type ExamAlertDraft, ExamAlertSink } from "./exam-alert-sink";
 import { countBatch } from "./exam-occurrences";
 import { type IntegrityAttempt, insertIntegrityEvents } from "./integrity-events";
 import { buildTimeline } from "./timeline";
@@ -53,6 +54,7 @@ export class FocusEventsService {
     private readonly rateLimit: RateLimitService,
     private readonly loader: StudentActivityLoader,
     private readonly examSettlement: ExamSettlement,
+    private readonly alertSink: ExamAlertSink,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -67,8 +69,10 @@ export class FocusEventsService {
     const now = this.clock.now();
     // 018 research T5: the activity module settles an expired exam attempt first, in its own transaction.
     await this.examSettlement.ofAttempt(studentUserId, activityId, now, requestId);
+    // 024 research Y5: the alerts this batch wrote, to wake the sender only after the commit.
+    const alerts: ExamAlertDraft[] = [];
     try {
-      return await this.prisma.runInTransaction(async (tx) => {
+      const result = await this.prisma.runInTransaction(async (tx) => {
         const context = await this.loader.ownAttempt(studentUserId, activityId, now, tx, "UPDATE_IF_EXAM");
         if (!context) throw new OutOfContext();
         await this.assertRate(tx, studentUserId, body.events.length);
@@ -104,9 +108,11 @@ export class FocusEventsService {
         );
         return {
           recorded: body.events.map((event) => ({ eventId: event.eventId, recordedAt: stored.get(event.eventId)!.toISOString() })),
-          exam: context.exam ? await this.countOccurrences(tx, own, endsAt(context.exam, attempt.startedAt), inserted, now, requestId) : null,
+          exam: context.exam ? await this.countOccurrences(tx, own, endsAt(context.exam, attempt.startedAt), inserted, now, requestId, alerts) : null,
         };
       });
+      if (alerts.length > 0) this.alertSink.kick();
+      return result;
     } catch (error) {
       if (error instanceof OutOfContext) return this.denied(studentUserId, activityId, now, EVENTS_ROUTE, requestId);
       if (error instanceof ExamEventsRefused) {
@@ -154,7 +160,9 @@ export class FocusEventsService {
    * attempt's `FOR UPDATE`: the events inserted now (a resend counts nothing) through `countBatch`,
    * from the attempt's last occurrence and hold. Nothing counts while a hold is open — the events stay
    * as facts (FR-020). The occurrence that reaches the limit opens the hold and `exam_attempt.held`
-   * (SYSTEM) in this transaction; nothing about a grade or a cancellation is written (FR-019).
+   * (SYSTEM) in this transaction; nothing about a grade or a cancellation is written (FR-019). Each new
+   * occurrence and the hold are handed to `ExamAlertSink` in the same transaction (024 research Y5), so an
+   * alert exists only for a committed fact and a resent batch, which counts nothing, writes none.
    */
   private async countOccurrences(
     tx: Tx,
@@ -163,6 +171,7 @@ export class FocusEventsService {
     inserted: ReadonlySet<string>,
     now: Date,
     requestId: string | null,
+    alerts: ExamAlertDraft[],
   ): Promise<{ occurrenceCount: number; held: boolean }> {
     const last = await tx.examOccurrence.findFirst({ where: { attemptId: attempt.id }, orderBy: { ordinal: "desc" }, select: { ordinal: true, recordedAt: true } });
     const lastHold = await tx.examAttemptHold.findFirst({
@@ -188,8 +197,9 @@ export class FocusEventsService {
     const ids = { attemptId: attempt.id, activityId: attempt.activityId, studentUserId: attempt.studentUserId };
     // One at a time: the trigger checks each ordinal against the latest one.
     for (const occurrence of occurrences) await tx.examOccurrence.create({ data: { ...ids, ...occurrence } });
+    let hold: { id: string } | null = null;
     if (holdAt !== null) {
-      const hold = await tx.examAttemptHold.create({ data: { ...ids, occurrenceOrdinal: holdAt, openedAt: now }, select: { id: true } });
+      hold = await tx.examAttemptHold.create({ data: { ...ids, occurrenceOrdinal: holdAt, openedAt: now }, select: { id: true } });
       await this.audit.record(tx, {
         type: "exam_attempt.held",
         actorType: "SYSTEM",
@@ -200,6 +210,9 @@ export class FocusEventsService {
         metadata: { activityId: attempt.activityId, holdId: hold.id, occurrenceOrdinal: holdAt },
       });
     }
+    const drafts = alertDrafts(ids, occurrences, hold && holdAt !== null ? { id: hold.id, ordinal: holdAt } : null);
+    await this.alertSink.record(tx, drafts);
+    alerts.push(...drafts);
     return { occurrenceCount: occurrences.at(-1)?.ordinal ?? lastOrdinal, held: holdAt !== null };
   }
 

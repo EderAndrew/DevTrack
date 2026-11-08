@@ -205,7 +205,7 @@ recebe.
 | Status | `code` | Uso |
 |--------|--------|-----|
 | 400 | `VALIDATION_ERROR` | schema inválido ou campo desconhecido |
-| 400 | `WEAK_PASSWORD` | FR-011 |
+| 400 | `WEAK_PASSWORD` | FR-011 (ativação de administrador); FR-011a (aceite de convite e redefinição de senha) |
 | 400 | `PASSWORD_REQUIRED` | aceite `CREATE_ACCOUNT`/`CLAIM_ACCOUNT` sem senha |
 | 400 | `TOKEN_INVALID` | token inexistente, expirado, usado, substituído, adulterado |
 | 401 | `UNAUTHENTICATED` | sem sessão válida |

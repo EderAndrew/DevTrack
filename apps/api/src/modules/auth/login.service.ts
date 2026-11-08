@@ -9,6 +9,7 @@ import type { RequestContext } from "../../platform/http/request-context";
 import { progressiveDelayMs, RateLimitService } from "../../platform/rate-limit/rate-limit.service";
 import { AuditService } from "../audit/audit.service";
 import { normalizeEmail } from "../identity/email";
+import type { User } from "../../generated/prisma/client";
 import { PasswordHasher } from "../identity/password-hasher";
 import { UserRepository } from "../identity/user.repository";
 import { MeService } from "./me.service";
@@ -29,6 +30,13 @@ const SCOPE = {
   origin: "login:origin",
   email: "login:email",
 } as const;
+
+/** The authenticated account, before any session (024: the app's login checks more before creating one). */
+export interface Authenticated {
+  user: User;
+  /** A new hash when the stored one uses old parameters; written with the session (R4). */
+  rehash: string | null;
+}
 
 export interface LoginResult {
   /** Goes only into the cookie. */
@@ -61,6 +69,37 @@ export class LoginService {
   ) {}
 
   async login(input: LoginRequest, ctx: RequestContext): Promise<LoginResult> {
+    const { user, rehash } = await this.authenticate(input, ctx);
+    const session = await this.prisma.runInTransaction(async (tx) => {
+      if (rehash) await this.users.setPassword(tx, user.id, rehash);
+      const created = await this.sessions.create(tx, user.id);
+      // Express always resolves an address for HTTP requests; the fallback only keeps the column valid.
+      await tx.accessRecord.create({ data: { userId: user.id, ip: ctx.ip ?? "0.0.0.0" } });
+      await this.audit.record(tx, {
+        type: "auth.login.succeeded",
+        actorType: "USER",
+        actorUserId: user.id,
+        targetType: "SESSION",
+        targetId: created.sessionId,
+        requestId: ctx.requestId,
+        metadata: { sessionId: created.sessionId },
+      });
+      return created;
+    });
+
+    return {
+      secret: session.secret,
+      absoluteExpiresAt: session.absoluteExpiresAt,
+      user: await this.me.get(user.id),
+    };
+  }
+
+  /**
+   * Checks the credentials with every rule of the web login — the rate-limit scopes, the progressive
+   * delay, the same Argon2 work and the same answer for an unknown e-mail, a suspended account revealed
+   * only to whoever knows its password — and creates nothing. Shared by the web and the app (024/FR-001).
+   */
+  async authenticate(input: LoginRequest, ctx: RequestContext): Promise<Authenticated> {
     const email = normalizeEmail(input.email);
     const ip = ctx.ip ?? "unknown";
     const { loginEmailOriginFailures, loginOriginFailures, windowSeconds } = this.config.rateLimit;
@@ -98,28 +137,7 @@ export class LoginService {
     if (user.status === "SUSPENDED") throw accountSuspended();
 
     const rehash = this.hasher.needsRehash(user.passwordHash) ? await this.hasher.hash(input.password) : null;
-    const session = await this.prisma.runInTransaction(async (tx) => {
-      if (rehash) await this.users.setPassword(tx, user.id, rehash);
-      const created = await this.sessions.create(tx, user.id);
-      // Express always resolves an address for HTTP requests; the fallback only keeps the column valid.
-      await tx.accessRecord.create({ data: { userId: user.id, ip: ctx.ip ?? "0.0.0.0" } });
-      await this.audit.record(tx, {
-        type: "auth.login.succeeded",
-        actorType: "USER",
-        actorUserId: user.id,
-        targetType: "SESSION",
-        targetId: created.sessionId,
-        requestId: ctx.requestId,
-        metadata: { sessionId: created.sessionId },
-      });
-      return created;
-    });
-
-    return {
-      secret: session.secret,
-      absoluteExpiresAt: session.absoluteExpiresAt,
-      user: await this.me.get(user.id),
-    };
+    return { user, rehash };
   }
 
   private async block(scope: "login_email_origin" | "login_origin", retryAfterSec: number, ctx: RequestContext): Promise<never> {

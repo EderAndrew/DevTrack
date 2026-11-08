@@ -372,6 +372,26 @@ uses more students. Suites: `020-schema`, `020-us1-send` … `020-us3-own`, and 
 MANAGER, roles), concurrency (same `submissionId`, the limit, two ADMINs), audit (`MARCADOR-FEEDBACK-020` out of audit and
 logs, SC-004), retention (`student-feedback` with a `FixedClock`) and performance; the journey sends, passes the limit
 and changes a status with `MARCADOR-FEEDBACK-020`/`MARCADOR-TELA-020`.
+Mobile exam monitor (024): the MOBILE session is the same opaque session with `sessions.client = 'MOBILE'` (fixed by a
+trigger), read from `Authorization: Bearer` (`SessionGuard`; a cookie is only WEB), 30 d idle / 90 d
+(`SESSION_LIFETIMES`); a bearer passes only on routes marked `@MobileAccess()` (`403 MOBILE_ROUTE_NOT_ALLOWED`
+elsewhere) and `@MobileEntry()` marks the app's login; `OriginGuard` lets the app's login and a bearer request without
+a cookie through. `modules/exam-alerts` holds the device registration (`PUT /mobile/device`, advisory lock on the
+token), `GET /mobile/exams`, the mute (`exam-alert-preferences.*`), `MobileWriteLimit` (scope `mobile-writes`), the
+outbox registered on `attempt-integrity`'s `ExamAlertSink`, `ExamAlertWorker` (claim `FOR UPDATE SKIP LOCKED` with a
+30 s lease, recipients from `recipients.ts` at send time, `message.ts` pure, retries 2 s/5 s, EXPIRED after 60 s,
+receipts 15 min–24 h later) and the jobs `exam-alerts` (7 days, `SET LOCAL devtrack.exam_alert_purge = 'on'`) and
+`mobile-devices` (expired sessions). Expo is reached only by `platform/push/expo-push.client.ts`; tests replace it with
+`FakePushClient` (`t.push`: `sent`, `failing = "transient" | "throw"`, `script(...)` per call, `receipt(ticketId, …)`,
+`reset()`), and `createTestApp` turns push on with the timer off (`alertIntervalMs: 0`): call
+`runAlertWorker(t, now)`. Helpers: `test/helpers/mobile.ts` (`mobileLogin`, `signInMobile`, `openMobileSession`,
+`mobileApi`, `registerDevice`, `expoToken`, `examActivity`) and `test/helpers/exam-alerts.ts` (`teacherPhone`,
+`runAlertWorker`, `pushedTo`); an EXAM written with `createActivity` needs the student's `activity_attendances` row
+before `createAttemptRow` or the events route. Suites: `024-us1-mobile-session` … `024-us4-mute`, `024-worker`,
+`exam-alerts-boundary.spec.ts`, and in `test/security/` the bearer allowlist, origin, isolation (`024/SC-004`),
+concurrency, rate limits, audit (`MARCADOR-ALERTA-024` in names and titles, out of audit and logs, `024/SC-005`),
+retention and performance (the worker on, commit → send ≤ 2 s in 95%); the journey signs in through the app,
+registers phones, mutes, receives an alert and signs out.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 
@@ -406,7 +426,9 @@ performance; read the feature's files for what each covers. What they need from 
   `definitions/model-catalog.ts` (009).
 - Maintenance job `mail-records` (017) purges with `SET LOCAL devtrack.mail_purge = 'on'`; `code-run-content` (019)
   empties final runs (500 per transaction) instead of deleting them; `student-feedback` (020) deletes closed feedbacks
-  with `SET LOCAL devtrack.feedback_purge = 'on'`, their history in cascade.
+  with `SET LOCAL devtrack.feedback_purge = 'on'`, their history in cascade; `exam-alerts` (024) deletes alerts older than
+  7 days with `SET LOCAL devtrack.exam_alert_purge = 'on'`, their deliveries in cascade, and `mobile-devices` the devices
+  of expired MOBILE sessions.
 
 ## Modules (moved from the root CLAUDE.md)
 

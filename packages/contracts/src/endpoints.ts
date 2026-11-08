@@ -195,6 +195,10 @@ import {
 import { HealthStatusSchema } from "./health/health.js";
 import { MeViewSchema } from "./me/me.js";
 import { PreferencesViewSchema, UpdatePreferencesRequestSchema } from "./me/preferences.js";
+import { ExamAlertPreferenceRequestSchema, ExamAlertPreferenceSchema } from "./mobile/alerts.js";
+import { MobileDeviceSchema, RegisterMobileDeviceRequestSchema } from "./mobile/devices.js";
+import { MobileExamListSchema } from "./mobile/exams.js";
+import { MobileLoginRequestSchema, MobileSessionSchema } from "./mobile/session.js";
 import { SessionListResponseSchema, SessionViewSchema } from "./me/sessions.js";
 import {
   AcceptInvitationRequestSchema,
@@ -317,6 +321,13 @@ export const endpoints = {
   "auth.login": { method: "POST", path: "/auth/login", body: LoginRequestSchema, response: LoginResponseSchema, status: 200 },
   "auth.logout": { method: "POST", path: "/auth/logout", response: null, status: 204 },
   "auth.logoutAll": { method: "POST", path: "/auth/logout-all", response: null, status: 204 },
+  /**
+   * 024: the app's sign-in (no Origin, research Y4); `403 MOBILE_NOT_ALLOWED` without `chamada.registrar`, an
+   * unverified e-mail or an inactive account. The secret travels only in this body.
+   */
+  "auth.mobileSignIn": { method: "POST", path: "/auth/mobile/sessions", body: MobileLoginRequestSchema, response: MobileSessionSchema, status: 201 },
+  /** 024: "Sair" in the app; the session revoked and its device deleted. */
+  "auth.mobileSignOut": { method: "DELETE", path: "/auth/mobile/sessions/current", response: null, status: 204 },
   "auth.passwordResetRequest": {
     method: "POST",
     path: "/auth/password-reset/request",
@@ -333,6 +344,18 @@ export const endpoints = {
   },
 
   "me.get": { method: "GET", path: "/me", response: MeViewSchema, status: 200 },
+  /** 024: the phone's push token for the current MOBILE session (upsert; a token of another session moves here). */
+  "mobile.registerDevice": { method: "PUT", path: "/mobile/device", body: RegisterMobileDeviceRequestSchema, response: MobileDeviceSchema, status: 200 },
+  /** 024: the teacher's exams in progress, by their latest end. */
+  "mobile.exams": { method: "GET", path: "/mobile/exams", response: MobileExamListSchema, status: 200 },
+  /** 024/US4: turn an exam's alerts off or on for all of the teacher's phones (idempotent; also from the web). */
+  "mobile.examAlerts": {
+    method: "PUT",
+    path: "/classes/:classId/activities/:activityId/exam-alerts",
+    body: ExamAlertPreferenceRequestSchema,
+    response: ExamAlertPreferenceSchema,
+    status: 200,
+  },
   "me.preferences.update": {
     method: "PATCH",
     path: "/me/preferences",

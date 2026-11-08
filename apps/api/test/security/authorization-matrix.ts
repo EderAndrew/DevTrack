@@ -2,7 +2,7 @@ import type { RoleKey } from "@repo/contracts";
 import type { PermissionKey } from "../../src/modules/access-control/permissions";
 
 /**
- * Transcribed by hand from contracts/permissions.md of specs 001, 003, 004, 006 and 010 (not derived from the seed), so a drift
+ * Transcribed by hand from contracts/permissions.md of specs 001, 003, 004, 006 and 010 (and 024 contracts/http-api.md) (not derived from the seed), so a drift
  * between the contract and the database breaks the tests.
  */
 
@@ -162,6 +162,12 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PATCH", path: "/me/preferences", access: "session" },
   { method: "POST", path: "/auth/logout", access: "session" },
   { method: "POST", path: "/auth/logout-all", access: "session" },
+  // 024 — the app (specs/024-mobile-exam-monitor/contracts/http-api.md). A web session has no app session
+  // or device (404), so the guards allow it; the bearer's allowlist is 024-mobile-allowlist.spec.ts.
+  { method: "DELETE", path: "/auth/mobile/sessions/current", access: "session" },
+  { method: "PUT", path: "/mobile/device", access: "chamada.registrar" },
+  { method: "GET", path: "/mobile/exams", access: "chamada.registrar" },
+  { method: "PUT", path: "/classes/:classId/activities/:activityId/exam-alerts", access: "chamada.registrar" },
 
   { method: "GET", path: "/me/sessions", access: "sessoes.proprias.listar" },
   { method: "GET", path: "/me/sessions/:id", access: "sessoes.proprias.listar" },

@@ -5,6 +5,9 @@ packages:
 catalog:
   zod: ^4.6.7
 allowBuilds:
+  # 024: pulled in by the Expo tooling; its prebuilt binaries come from the per-platform optional
+  # packages (@parcel/watcher-<os>-<arch>), so its node-gyp fallback script never needs to run.
+  '@parcel/watcher': false
   '@prisma/engines': true
   '@swc/core': true
   argon2: true

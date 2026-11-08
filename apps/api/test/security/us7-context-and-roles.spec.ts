@@ -132,9 +132,13 @@ describe("US7 — contexto, papéis e origem (FR-060–FR-063)", () => {
       // 017 research N6: the e-mail provider's notices come with no Origin and no session; that one
       // public route authenticates the provider's signature instead (017-notice-auth.spec.ts).
       const PROVIDER_NOTICE = "POST /mail/notices/:provider";
+      // 024 research Y4: the app's sign-in comes from a native client with no Origin (an Origin present must
+      // still be allowed, and only JSON is accepted); it sets no cookie (024-origin.spec.ts).
+      const MOBILE_SIGN_IN = "POST /auth/mobile/sessions";
       const all = (await registeredRoutes()).filter((r) => /^(POST|PATCH|DELETE) /.test(r.route));
       expect(all.map((r) => r.route)).toContain(PROVIDER_NOTICE);
-      const unsafe = all.filter((r) => r.route !== PROVIDER_NOTICE);
+      expect(all.map((r) => r.route)).toContain(MOBILE_SIGN_IN);
+      const unsafe = all.filter((r) => r.route !== PROVIDER_NOTICE && r.route !== MOBILE_SIGN_IN);
       expect(unsafe.length).toBeGreaterThan(20);
 
       const snapshot = async () => ({

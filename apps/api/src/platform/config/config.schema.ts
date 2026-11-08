@@ -1,5 +1,6 @@
 import { BlockList, isIP } from "node:net";
 import { z } from "zod";
+import { EXPO_PUSH_ORIGIN } from "../push/expo-push.client";
 
 const httpOrigin = z.url({ protocol: /^https?$/ }).transform((value) => new URL(value).origin);
 
@@ -194,12 +195,24 @@ export const configSchema = z.object({
   CODE_RUNNER_MEMORY_MB: positiveInt(256),
   CODE_RUNNER_OUTPUT_LIMIT_BYTES: positiveInt(65_536),
   CODE_RUNNER_PIDS_LIMIT: positiveInt(128),
+  // 024 (contracts/configuration.md): exam alerts by push. PUSH_ENABLED is the kill switch (off: alerts
+  // are written and end SKIPPED); the Expo access token is required to send and never logged.
+  PUSH_ENABLED: z.enum(["true", "false"]).default("false"),
+  EXPO_ACCESS_TOKEN: optional(z.string().trim().regex(/^\S{20,512}$/, "must be an Expo access token")),
+  EXPO_PUSH_BASE_URL: z.url({ protocol: /^https?$/ }).default(EXPO_PUSH_ORIGIN).transform((value) => new URL(value).origin),
+  EXAM_ALERT_INTERVAL_MS: nonNegativeInt(1000),
+  EXAM_ALERT_MAX_AGE_SECONDS: positiveInt(60),
+  RATE_LIMIT_MOBILE_WRITES_PER_MINUTE: positiveInt(30),
 }).superRefine((e, ctx) => {
   if (e.MAIL_NOTICE_PROVIDER === "resend" && !e.MAIL_NOTICE_SECRET) {
     ctx.addIssue({ code: "custom", path: ["MAIL_NOTICE_SECRET"], message: "obrigatória com MAIL_NOTICE_PROVIDER=resend" });
   }
   if (e.MAIL_NOTICE_PROVIDER === "ses" && !e.MAIL_SES_TOPIC_ARN) {
     ctx.addIssue({ code: "custom", path: ["MAIL_SES_TOPIC_ARN"], message: "obrigatória com MAIL_NOTICE_PROVIDER=ses" });
+  }
+  // 024: sending needs the project's access token (Expo's enhanced push security, research Y6).
+  if (e.PUSH_ENABLED === "true" && !e.EXPO_ACCESS_TOKEN) {
+    ctx.addIssue({ code: "custom", path: ["EXPO_ACCESS_TOKEN"], message: "obrigatória com PUSH_ENABLED=true" });
   }
   if (!e.MAIL_MESSAGE_ID_DOMAIN && !mailFromDomain(e.MAIL_FROM)) {
     ctx.addIssue({ code: "custom", path: ["MAIL_MESSAGE_ID_DOMAIN"], message: "MAIL_FROM sem domínio: informe o domínio" });
@@ -219,6 +232,10 @@ export const configSchema = z.object({
     }
     if (e.CODE_RUNNER_ENABLED === "true" && e.CODE_RUNNER_DOCKER_RUNTIME !== "runsc") {
       ctx.addIssue({ code: "custom", path: ["CODE_RUNNER_DOCKER_RUNTIME"], message: "em produção: runsc (gVisor)" });
+    }
+    // 024: only the test/E2E harness points the push client elsewhere; production talks to Expo over TLS.
+    if (!e.EXPO_PUSH_BASE_URL.startsWith("https://")) {
+      ctx.addIssue({ code: "custom", path: ["EXPO_PUSH_BASE_URL"], message: "em produção: https" });
     }
   }
 });
@@ -255,6 +272,20 @@ export interface AppConfig {
       | { provider: "ses"; topicArn: string };
   };
   trustProxyHops: number;
+  /**
+   * Exam alerts by push (024 contracts/configuration.md, research Y5, Y6). `enabled` is the kill switch
+   * (off: alerts are still written and end SKIPPED); `accessToken` authenticates the API to Expo and is
+   * never logged; `baseUrl` is Expo's origin, replaced only by the test harness. The worker runs every
+   * `alertIntervalMs` (`0` turns the timer and `kick()` off, as in the tests) and never sends an alert
+   * older than `alertMaxAgeSeconds`.
+   */
+  push: {
+    enabled: boolean;
+    accessToken: string | null;
+    baseUrl: string;
+    alertIntervalMs: number;
+    alertMaxAgeSeconds: number;
+  };
   /**
    * Code Runner (019 contracts/configuration.md). `enabled` is the kill switch (research B10; off
    * outside production unless set): off, the student routes answer UNAVAILABLE and the worker claims
@@ -327,6 +358,8 @@ export interface AppConfig {
     mailNoticesPerMinute: number;
     /** New Code Runner runs (019 research B11) per student per minute; returning the pending one is free. */
     codeRunsPerMinute: number;
+    /** The app's writes (024): device registration and exam mute, per user per minute. */
+    mobileWritesPerMinute: number;
   };
   /**
    * Controlled mode (015 research F7): an answer may grow `typingBurstChars` in one save plus
@@ -432,6 +465,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       notices: noticeConfig(e),
     },
     trustProxyHops: e.TRUST_PROXY_HOPS,
+    push: {
+      enabled: e.PUSH_ENABLED === "true",
+      accessToken: e.EXPO_ACCESS_TOKEN ?? null,
+      baseUrl: e.EXPO_PUSH_BASE_URL,
+      alertIntervalMs: e.EXAM_ALERT_INTERVAL_MS,
+      alertMaxAgeSeconds: e.EXAM_ALERT_MAX_AGE_SECONDS,
+    },
     codeRunner: {
       enabled: e.CODE_RUNNER_ENABLED === "true",
       queueDeadlineSeconds: e.CODE_RUN_QUEUE_DEADLINE_SECONDS,
@@ -478,6 +518,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       examGenerationsPerHour: e.RATE_LIMIT_EXAM_GENERATIONS_PER_HOUR,
       mailNoticesPerMinute: e.RATE_LIMIT_MAIL_NOTICES_PER_MINUTE,
       codeRunsPerMinute: e.RATE_LIMIT_CODE_RUNS_PER_MINUTE,
+      mobileWritesPerMinute: e.RATE_LIMIT_MOBILE_WRITES_PER_MINUTE,
     },
     controlledMode: {
       typingBurstChars: e.CONTROLLED_TYPING_BURST_CHARS,

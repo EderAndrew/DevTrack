@@ -183,6 +183,9 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
         "alternativa correta da prova (018)",
         // 018/US2: the title of the exam applied to the class.
         "título da prova aplicada (018)",
+        // 024: the student's name and the exam's title of an alert (MARCADOR-ALERTA-024), only in the notification.
+        "nome do aluno no aviso (024)",
+        "título da prova no aviso (024)",
         // 018/US7: "Criar prova com IA" — the request's title, the topic the generator read and its output.
         "título do pedido de prova (018)",
         "tópico lido pelo gerador de provas (018)",

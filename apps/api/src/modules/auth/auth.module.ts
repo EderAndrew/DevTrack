@@ -6,6 +6,8 @@ import { EmailVerificationService } from "./email-verification.service";
 import { defaultLoginDelay, LOGIN_DELAY, LoginService } from "./login.service";
 import { MeController } from "./me.controller";
 import { MeService } from "./me.service";
+import { MobileSessionController } from "./mobile-session.controller";
+import { MobileSessionService } from "./mobile-session.service";
 import { OwnSessionsController } from "./own-sessions.controller";
 import { OwnSessionsService } from "./own-sessions.service";
 import { PasswordResetService } from "./password-reset.service";
@@ -19,7 +21,7 @@ import { UserTokenService } from "./user-token.service";
  * PermissionResolver come from there, identity/audit/mail/rate limit from global modules.
  */
 @Module({
-  controllers: [EmailVerificationController, AuthController, MeController, OwnSessionsController],
+  controllers: [EmailVerificationController, AuthController, MeController, OwnSessionsController, MobileSessionController],
   providers: [
     SessionService,
     UserTokenService,
@@ -28,6 +30,7 @@ import { UserTokenService } from "./user-token.service";
     MeService,
     { provide: LOGIN_DELAY, useValue: defaultLoginDelay },
     LoginService,
+    MobileSessionService,
     SessionEndService,
     OwnSessionsService,
     PasswordResetService,

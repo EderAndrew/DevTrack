@@ -9,7 +9,7 @@ import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { useConfirmPasswordReset } from "../hooks/use-auth";
 import { type ResetPasswordFormInput, ResetPasswordFormSchema, resetPasswordMessages } from "../schemas/forms";
-import { PASSWORD_HINT } from "../schemas/password";
+import { INVITATION_PASSWORD_HINT } from "../schemas/password";
 
 const FIELD_IDS = { password: "senha", confirmation: "confirmacao" } as const;
 
@@ -99,7 +99,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         type="password"
         label="Nova senha"
         autoComplete="new-password"
-        hint={PASSWORD_HINT}
+        hint={INVITATION_PASSWORD_HINT}
         required
         error={errorFor("senha")}
         {...register("password")}

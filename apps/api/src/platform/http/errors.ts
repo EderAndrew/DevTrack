@@ -188,6 +188,11 @@ export const ErrorCatalog = {
   GROUP_NOT_LEADER: { status: 409, message: "Só o líder do grupo pode fazer isso." },
   // 023/FR-013: the editing goes only to an active, unpaused member of the group.
   GROUP_MEMBER_NOT_AVAILABLE: { status: 422, message: "Este integrante não pode receber a edição agora." },
+  // 024: right password, but the account can't use the app (no `chamada.registrar`, unverified, not
+  // active); no session is created (contracts/http-api.md).
+  MOBILE_NOT_ALLOWED: { status: 403, message: "Este aplicativo é para professores acompanharem provas." },
+  // 024: a mobile session's bearer on a route outside the app's allowlist (research Y4).
+  MOBILE_ROUTE_NOT_ALLOWED: { status: 403, message: "Esta ação não está disponível no aplicativo." },
   // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
   EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
@@ -235,6 +240,8 @@ export const unauthenticated = () => new AppException("UNAUTHENTICATED");
 export const invalidCredentials = () => new AppException("INVALID_CREDENTIALS");
 export const signInRequired = () => new AppException("SIGN_IN_REQUIRED");
 export const forbidden = () => new AppException("FORBIDDEN");
+/** 024: a mobile session's bearer outside the app's allowlist (research Y4). */
+export const mobileRouteNotAllowed = () => new AppException("MOBILE_ROUTE_NOT_ALLOWED");
 export const emailNotVerified = () => new AppException("EMAIL_NOT_VERIFIED");
 export const accountSuspended = () => new AppException("ACCOUNT_SUSPENDED");
 export const wrongAccount = () => new AppException("WRONG_ACCOUNT");

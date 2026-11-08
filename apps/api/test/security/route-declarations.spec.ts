@@ -7,6 +7,8 @@ import { AppModule } from "../../src/app.module";
 import {
   ALLOW_UNVERIFIED_KEY,
   IS_PUBLIC_KEY,
+  MOBILE_ACCESS_KEY,
+  MOBILE_ENTRY_KEY,
   REQUIRED_PERMISSIONS_KEY,
 } from "../../src/modules/access-control/decorators";
 import { PROVIDER_NOTICE_KEY } from "../../src/platform/http/origin.guard";
@@ -47,6 +49,8 @@ function collectRoutes(app: INestApplicationContext): RouteInfo[] {
       if (reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) declared.push("@Public");
       if (reflector.getAllAndOverride<boolean>(ALLOW_UNVERIFIED_KEY, targets)) declared.push("@AllowUnverified");
       if (reflector.getAllAndOverride<boolean>(PROVIDER_NOTICE_KEY, targets)) declared.push("@ProviderNotice");
+      if (reflector.getAllAndOverride<boolean>(MOBILE_ACCESS_KEY, targets)) declared.push("@MobileAccess");
+      if (reflector.getAllAndOverride<boolean>(MOBILE_ENTRY_KEY, targets)) declared.push("@MobileEntry");
       if (reflector.getAllAndMerge<string[]>(REQUIRED_PERMISSIONS_KEY, targets).length > 0) {
         declared.push("@RequirePermissions");
       }
@@ -56,7 +60,9 @@ function collectRoutes(app: INestApplicationContext): RouteInfo[] {
   return routes;
 }
 
-const undeclared = (routes: RouteInfo[]) => routes.filter((r) => r.declared.length === 0).map((r) => r.route);
+/** The app's markers say where a bearer may go, never who may call: they don't count as an access declaration. */
+const MOBILE_MARKERS = ["@MobileAccess", "@MobileEntry"];
+const undeclared = (routes: RouteInfo[]) => routes.filter((r) => r.declared.filter((d) => !MOBILE_MARKERS.includes(d)).length === 0).map((r) => r.route);
 
 /**
  * Deny-by-default is only as good as its declarations (R9, plan "Fluxo de requisição
@@ -236,9 +242,28 @@ describe("route access declarations", () => {
     ]);
   });
 
+  /**
+   * 024 research Y4, contracts/http-api.md: the app's allowlist, pinned. A route joins it only with the spec
+   * that needs it on the phone; the hold decisions, attendance and pauses never do (024/FR-010).
+   */
+  it("024/FR-010 @MobileAccess só nas rotas que o aplicativo usa e @MobileEntry só no login do app", () => {
+    expect(routes.filter((r) => r.declared.some((d) => MOBILE_MARKERS.includes(d))).map((r) => `${r.route} ${r.declared.join(" ")}`).sort()).toEqual(
+      [
+        "DELETE /auth/mobile/sessions/current @AllowUnverified @MobileAccess",
+        "GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity @MobileAccess @RequirePermissions",
+        "GET /classes/:classId/activities/:activityId/exam-monitor @MobileAccess @RequirePermissions",
+        "PUT /classes/:classId/activities/:activityId/exam-alerts @MobileAccess @RequirePermissions",
+        "GET /me @AllowUnverified @MobileAccess",
+        "GET /mobile/exams @MobileAccess @RequirePermissions",
+        "POST /auth/mobile/sessions @Public @MobileEntry",
+        "PUT /mobile/device @MobileAccess @RequirePermissions",
+      ].sort(),
+    );
+  });
+
   it("@Public is never combined with session or permission requirements", () => {
     const contradictory = routes
-      .filter((r) => r.declared.includes("@Public") && r.declared.some((d) => d !== "@Public" && d !== "@ProviderNotice"))
+      .filter((r) => r.declared.includes("@Public") && r.declared.some((d) => d !== "@Public" && d !== "@ProviderNotice" && d !== "@MobileEntry"))
       .map((r) => `${r.route} ${r.declared.join(" ")}`);
     expect(contradictory).toEqual([]);
   });

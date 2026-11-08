@@ -40,7 +40,9 @@ import {
 } from "./factories";
 import { SYLLABUS_MARKER } from "../fixtures/syllabus/build-fixtures";
 import { fakeCase, FakeSandbox } from "../../src/code-runner/sandbox/fake-sandbox";
-import { createActivity, createClassWithStudents, startAttempt } from "./activities";
+import { createActivity, createAttemptRow, createClassWithStudents, startAttempt } from "./activities";
+import { runAlertWorker } from "./exam-alerts";
+import { integrityEvent } from "./integrity";
 import { markPresent as markPresentIn } from "./attendance";
 import { createCodeExercise, createCodeWork, createRunWorker, requestRun, seedHeartbeat } from "./code-runs";
 import { sendFeedback } from "./feedback";
@@ -1149,7 +1151,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await api(t).post("/api/auth/password-reset/request", { email: studentEmail })).status).toBe(202);
   await t.flushMail();
   const resetToken = keepToken("token de recuperação", t.mailer.lastTokenFor(studentEmail, "password-reset"));
-  const resetPassword = keep("senha redefinida", "senha-redefinida-da-jornada");
+  const resetPassword = keep("senha redefinida", "Senha-redefinida-da-jornada-1");
   expect(
     (await api(t).post("/api/auth/password-reset/confirm", { token: resetToken, password: resetPassword })).status,
   ).toBe(200);
@@ -1354,6 +1356,58 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     api(t, { cookie: secondAdminCookie }).post(`/api/users/${adminUser.id}/suspend`),
   ]);
   expect(race.map((r) => r.status).sort()).toEqual([200, 409]);
+
+  // 024/US1 — the app: a student is refused (`mobile_session.refused`); a teacher signs in
+  // (`mobile_session.created`) and registers the phone (`mobile_device.registered`); another teacher signs in
+  // on the same phone and takes its token (`mobile_device.removed` REPLACED + `registered`), then signs out
+  // (`removed` LOGOUT + `mobile_session.ended`); the first one's "sair de todos" on the web removes the new
+  // device (`removed` SESSION_REVOKED, SYSTEM). The session secrets and push tokens never reach logs or audit.
+  const appClient = (token?: string) => api(t, { origin: null, ...(token ? { bearer: token } : {}) });
+  const appStudent = await createUser(t, { roles: ["STUDENT"], name: "Aluna do app" });
+  expect((await appClient().post("/api/auth/mobile/sessions", { email: appStudent.email, password: appStudent.password })).body.code).toBe(
+    "MOBILE_NOT_ALLOWED",
+  );
+  const signInApp = async (user: { email: string; password: string }) => {
+    const res = await appClient().post("/api/auth/mobile/sessions", { email: user.email, password: user.password });
+    expect(res.status, "login do app").toBe(201);
+    return keepToken("sessão do app (024)", res.body.token as string);
+  };
+  const appTeacher = await createUser(t, { roles: ["TEACHER"], name: "Professora do app" });
+  const appTeacherToken = await signInApp(appTeacher);
+  const pushToken = keep("token de push (024)", `ExponentPushToken[${"jornada024".repeat(2)}ABC]`);
+  expect((await appClient(appTeacherToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await appClient(appTeacherToken).get("/api/mobile/exams")).status).toBe(200);
+  // 024/US3, US4 — an exam of the app teacher's class whose student name and title carry
+  // `MARCADOR-ALERTA-024`: the teacher mutes and unmutes it (no audit), the student's occurrence becomes one
+  // alert and the phone receives it. The name and title reach only the notification, never logs or audit.
+  const alertClass = await createClassWithStudents(t, appTeacher.id, { students: 1 });
+  const alertStudent = alertClass.students[0]!;
+  await t.prisma.user.update({ where: { id: alertStudent.id }, data: { name: text("nome do aluno no aviso (024)", "Aluno MARCADOR-ALERTA-024") } });
+  const { activity: alertExam } = await createActivity(t, alertClass.schoolClass, {
+    type: "EXAM",
+    title: text("título da prova no aviso (024)", "Prova MARCADOR-ALERTA-024"),
+    publishAt: new Date(Date.now() - 60_000),
+    durationMinutes: 60,
+    startWindowMinutes: 15,
+  });
+  const appTeacherWeb = api(t, { cookie: await keepLoginAs(appTeacher) });
+  expect((await markPresentIn(appTeacherWeb, alertClass.schoolClass.id, alertExam.id, [alertStudent.id])).status).toBe(200);
+  await createAttemptRow(t, alertExam.id, alertStudent.id);
+  const alertsPath = `/api/classes/${alertClass.schoolClass.id}/activities/${alertExam.id}/exam-alerts`;
+  expect((await appClient(appTeacherToken).put(alertsPath, { muted: true })).body).toEqual({ muted: true });
+  expect((await appClient(appTeacherToken).put(alertsPath, { muted: false })).body).toEqual({ muted: false });
+  const alertStudentClient = api(t, { cookie: await keepLoginAs(alertStudent) });
+  expect((await alertStudentClient.post(`/api/me/activities/${alertExam.id}/attempt/events`, { events: [integrityEvent("SCREEN_LEFT")] })).status).toBe(200);
+  await runAlertWorker(t);
+  expect(t.push.sent.filter((message) => message.to === pushToken)).toHaveLength(1);
+  const otherAppTeacher = await createUser(t, { roles: ["TEACHER"], name: "Outra professora do app" });
+  const otherAppToken = await signInApp(otherAppTeacher);
+  expect((await appClient(otherAppToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await appClient(otherAppToken).delete("/api/auth/mobile/sessions/current")).status).toBe(204);
+  const secondPushToken = keep("token de push (024)", `ExpoPushToken[${"segundo024".repeat(2)}XYZ]`);
+  expect((await appClient(appTeacherToken).put("/api/mobile/device", { pushToken: secondPushToken, platform: "ANDROID" })).status).toBe(200);
+  expect((await api(t, { cookie: await keepLoginAs(appTeacher) }).post("/api/auth/logout-all")).status).toBe(204);
+  expect((await appClient(appTeacherToken).get("/api/me")).status).toBe(401);
 
   // FR-017, FR-076, FR-077 — retention jobs.
   await createUser(t, { verified: false, createdAt: new Date(Date.now() - (UNVERIFIED_ACCOUNT_TTL_DAYS + 1) * DAY_MS) });

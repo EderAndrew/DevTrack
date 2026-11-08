@@ -7,16 +7,17 @@ import {
 } from "@repo/contracts";
 import { type RequestContext, Ctx } from "../../platform/http/request-context";
 import { ZodBody } from "../../platform/http/zod-validation.pipe";
-import { AllowUnverified } from "../access-control/decorators";
+import { AllowUnverified, MobileAccess } from "../access-control/decorators";
 import { MeService } from "./me.service";
 
 @Controller("me")
 export class MeController {
   constructor(private readonly me: MeService) {}
 
-  /** Available before verification: the user can check their own state (FR-016). */
+  /** Available before verification: the user can check their own state (FR-016). Also the app's (024: theme, session check). */
   @Get()
   @AllowUnverified()
+  @MobileAccess()
   get(@Ctx() ctx: RequestContext): Promise<MeView> {
     return this.me.get(ctx.auth!.userId);
   }

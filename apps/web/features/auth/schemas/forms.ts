@@ -7,7 +7,7 @@ import {
 } from "@repo/contracts";
 import { z } from "zod";
 import { fieldMessages } from "@/lib/forms/field-messages";
-import { NewPasswordSchema } from "./password";
+import { InvitationPasswordSchema } from "./password";
 
 // Form schemas of the auth feature, derived from the request contracts (FR-022, 002 S9). Each
 // `*Messages` is the error map passed to `zodResolver`: empty field → its Phase 001 text, any
@@ -26,9 +26,12 @@ export const ForgotPasswordFormSchema = PasswordResetRequestSchema;
 export type ForgotPasswordFormInput = z.input<typeof ForgotPasswordFormSchema>;
 export const forgotPasswordMessages = fieldMessages({ email: "Informe seu e-mail." });
 
-/** The token comes from the link, not from the form; `confirmation` never leaves the browser. */
+/**
+ * The token comes from the link, not from the form; `confirmation` never leaves the browser. The new password
+ * follows the invitation's rule (001/FR-011a, amendment 2026-11-08).
+ */
 export const ResetPasswordFormSchema = PasswordResetConfirmRequestSchema.omit({ token: true })
-  .extend({ password: NewPasswordSchema, confirmation: z.string() })
+  .extend({ password: InvitationPasswordSchema, confirmation: z.string() })
   .refine((values) => values.confirmation === values.password, {
     path: ["confirmation"],
     error: "As senhas não coincidem.",

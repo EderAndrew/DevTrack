@@ -1,0 +1,29 @@
+{
+  "name": "@repo/design-tokens",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check-types": "tsc --noEmit",
+    "generate": "node scripts/generate.ts",
+    "lint": "eslint --max-warnings 0 .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^24.19.2",
+    "eslint": "10.14.0",
+    "typescript": "7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
