@@ -329,6 +329,10 @@ export const AUDIT_EVENT_METADATA = {
   // 024 — a push device linked to a MOBILE session, or removed: never the push token.
   "mobile_device.registered": ["sessionId", "platform"],
   "mobile_device.removed": ["reason"],
+  // 025 — the teacher's discreet warning (contracts/audit-events.md): ids, a count and a reason code, never a
+  // name or the warning's text.
+  "exam_nudge.sent": ["activityId", "nudgeId", "occurrenceCount"],
+  "exam_nudge.send_refused": ["activityId", "reason"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

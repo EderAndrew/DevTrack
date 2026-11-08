@@ -2,9 +2,13 @@ import type { ExamMonitor, ExamMonitorStudent } from "@repo/contracts";
 import { StyleSheet, View } from "react-native";
 import { Badge, Card, Notice, Text } from "../../../components/ui";
 import { spacing } from "../../../components/ui/tokens";
+import { NudgeBell } from "./nudge-bell";
 import { DECIDE_ON_COMPUTER, EXAM_CLOSED, examStatusLabel, OFFLINE, STATUS_TONES, STUDENTS_LABEL, updatedAtLabel } from "../schemas/exam-room";
 
 export interface ExamRoomProps {
+  /** 025: the room's ids, for the bell's send. */
+  classId: string;
+  activityId: string;
   monitor: ExamMonitor | undefined;
   closed: boolean;
   offline: boolean;
@@ -18,9 +22,10 @@ export interface ExamRoomProps {
 /**
  * The exam room on the phone (024/US2, contracts/mobile-ui.md): the students in the server's order (holds
  * first, then pauses), each with the web's situation in words; a held student says "Decida no computador"
- * and offers no decision (FR-010). Tapping a student with an attempt opens their occurrences.
+ * and offers no decision (FR-010). Tapping a student with an attempt opens their occurrences. 025/US1: the bell
+ * of the discreet warning, when the server allows it.
  */
-export function ExamRoom({ monitor, closed, offline, updatedAt, highlightStudentId, onOpenStudent }: ExamRoomProps) {
+export function ExamRoom({ classId, activityId, monitor, closed, offline, updatedAt, highlightStudentId, onOpenStudent }: ExamRoomProps) {
   return (
     <View style={styles.room}>
       {closed ? <Notice tone="info">{EXAM_CLOSED}</Notice> : null}
@@ -38,6 +43,8 @@ export function ExamRoom({ monitor, closed, offline, updatedAt, highlightStudent
           {monitor.students.map((student) => (
             <StudentRow
               key={student.studentUserId}
+              classId={classId}
+              activityId={activityId}
               student={student}
               label={examStatusLabel(student, monitor)}
               highlighted={student.studentUserId === highlightStudentId}
@@ -50,7 +57,21 @@ export function ExamRoom({ monitor, closed, offline, updatedAt, highlightStudent
   );
 }
 
-function StudentRow({ student, label, highlighted, onOpen }: { student: ExamMonitorStudent; label: string; highlighted: boolean; onOpen?: () => void }) {
+function StudentRow({
+  classId,
+  activityId,
+  student,
+  label,
+  highlighted,
+  onOpen,
+}: {
+  classId: string;
+  activityId: string;
+  student: ExamMonitorStudent;
+  label: string;
+  highlighted: boolean;
+  onOpen?: () => void;
+}) {
   const awaiting = student.examStatus === "AWAITING_DECISION";
   return (
     <Card onPress={onOpen} accessibilityLabel={`${student.name}, ${label}${awaiting ? `, ${DECIDE_ON_COMPUTER}` : ""}`} highlighted={highlighted}>
@@ -63,6 +84,7 @@ function StudentRow({ student, label, highlighted, onOpen }: { student: ExamMoni
           {DECIDE_ON_COMPUTER}
         </Text>
       ) : null}
+      <NudgeBell classId={classId} activityId={activityId} student={student} />
     </Card>
   );
 }

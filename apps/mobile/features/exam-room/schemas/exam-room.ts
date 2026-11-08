@@ -102,6 +102,19 @@ export function warningLabel(ordinal: number, holdOrdinals: ReadonlySet<number>)
   return "Nova ocorrência";
 }
 
+// ── 025: the teacher's discreet warning (specs/025-exam-student-nudge/contracts/ui.md) ───────
+
+/** The bell's accessible name, in the room's row and in the student's detail. */
+export const nudgeLabel = (name: string) => `Enviar aviso para ${name}`;
+export const nudgeQuestion = (name: string) => `Enviar aviso para ${name}?`;
+export const nudgeNotice = (name: string) => `Só ${name} verá o aviso na tela da prova.`;
+export const SEND_NUDGE = "Enviar aviso";
+export const CANCEL = "Cancelar";
+export const NUDGE_PENDING = "Aviso enviado — aguardando o aluno";
+/** The time of the server's last dismissal, in the phone's time zone. */
+export const lastNudgeDismissedLabel = (iso: string) => `Último aviso fechado às ${formatTime(iso)}`;
+export const NUDGE_NOT_ALLOWED = "Não é possível enviar o aviso agora.";
+
 /** The badge tone of each situation; the text always says it (FR-022: never colour alone). */
 export const STATUS_TONES: Record<ExamStatusOfStudent, "neutral" | "info" | "success" | "warning" | "danger"> = {
   NOT_MARKED: "neutral",

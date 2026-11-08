@@ -8,6 +8,7 @@ import { ExamSettlement } from "../activities/exam-settlement";
 import { closesAt, endsAt, type ExamTiming, startDeadline } from "../activities/status/exam-time";
 import { examTiming } from "../activities/status/facts";
 import { ClassContextPolicy } from "../classes/class-context.policy";
+import { canSendNudge } from "../exam-nudges/nudge-status";
 import { examStatusOf } from "./exam-status";
 import { openPauseOf, toTeacherExamHold } from "./views";
 
@@ -39,6 +40,7 @@ interface MonitorRow {
   attempt_status: "IN_PROGRESS" | "SUBMITTED" | null;
   started_at: Date | null;
   end_reason: ExamEndReason | null;
+  submitted_at: Date | null;
   occurrence_count: number;
   hold_id: string | null;
   hold_ordinal: number | null;
@@ -48,6 +50,9 @@ interface MonitorRow {
   pause_reason: PauseReason | null;
   pause_note: string | null;
   pause_started_at: Date | null;
+  nudge_count: number;
+  nudge_pending_since: Date | null;
+  nudge_last_dismissed_at: Date | null;
 }
 
 /** Students on hold first, then paused (contracts/http-api.md), then by name. */
@@ -60,6 +65,10 @@ const rank = (status: ExamStatusOfStudent) => RANK[status] ?? 2;
  * open pause, every one derived with the server's clock. The expired attempts are settled first
  * (research T5). The attendance, pause, occurrence and hold tables are read in one query of its own,
  * never through `attendance` (016 research M1). A read: nothing is audited.
+ *
+ * 025 (research N6): per student with an attempt, the discreet warnings' summary — whether the app's bell is
+ * enabled (`canSendNudge`, the pure derivation shared with the send), the pending one, how many were sent and the
+ * last dismissal — from one lateral aggregate of `exam_nudges` in the same query.
  */
 @Injectable()
 export class ExamMonitorService {
@@ -80,11 +89,13 @@ export class ExamMonitorService {
     const rows = await this.prisma.$queryRaw<MonitorRow[]>`
       SELECT e.student_user_id, u.name, aa.marked_at,
              a.id AS attempt_id, a.status::text AS attempt_status, a.started_at,
-             s.end_reason::text AS end_reason,
+             s.end_reason::text AS end_reason, s.submitted_at,
              COALESCE((SELECT max(o.ordinal) FROM exam_occurrences o WHERE o.attempt_id = a.id), 0)::int AS occurrence_count,
              h.id AS hold_id, h.occurrence_ordinal AS hold_ordinal, h.opened_at AS hold_opened_at,
              p.id AS pause_id, p.initiated_by::text AS pause_initiated_by, p.reason::text AS pause_reason,
-             p.note AS pause_note, p.started_at AS pause_started_at
+             p.note AS pause_note, p.started_at AS pause_started_at,
+             COALESCE(nz.sent_count, 0)::int AS nudge_count, nz.pending_since AS nudge_pending_since,
+             nz.last_dismissed_at AS nudge_last_dismissed_at
       FROM enrollments e
       JOIN users u ON u.id = e.student_user_id
       LEFT JOIN activity_attendances aa ON aa.activity_id = ${activityId}::uuid AND aa.student_user_id = e.student_user_id
@@ -97,6 +108,12 @@ export class ExamMonitorService {
       LEFT JOIN activity_submissions s ON s.attempt_id = a.id
       LEFT JOIN exam_attempt_holds h ON h.attempt_id = a.id AND h.resolution IS NULL
       LEFT JOIN attempt_pauses p ON p.attempt_id = a.id AND p.released_at IS NULL
+      LEFT JOIN LATERAL (
+        SELECT count(*)::int AS sent_count,
+               max(n.sent_at) FILTER (WHERE n.dismissed_at IS NULL) AS pending_since,
+               max(n.dismissed_at) AS last_dismissed_at
+        FROM exam_nudges n WHERE n.attempt_id = a.id
+      ) nz ON true
       WHERE e.class_id = ${classId}::uuid AND e.status = 'ACTIVE'`;
 
     const activityEndedAt = activity.closed_at ?? activity.cancelled_at;
@@ -133,8 +150,28 @@ export class ExamMonitorService {
           occurrenceCount: row.occurrence_count,
           openHold,
           openPause,
-          // 025: the warnings summary is read in T017; until then the bell stays off.
-          nudge: null,
+          nudge:
+            row.attempt_id && row.attempt_status && row.started_at && end
+              ? {
+                  canSend: canSendNudge(
+                    {
+                      attemptStatus: row.attempt_status,
+                      submittedAt: row.submitted_at,
+                      holdOpen: openHold !== null,
+                      openPause: unreleased ? { startedAt: unreleased.startedAt, releasedAt: null } : null,
+                      endsAt: end,
+                      activityStatus: activity.status,
+                      activityEndedAt,
+                      occurrenceCount: row.occurrence_count,
+                    },
+                    row.nudge_pending_since ? { sentAt: row.nudge_pending_since, dismissedAt: null } : null,
+                    now,
+                  ),
+                  pendingSince: row.nudge_pending_since?.toISOString() ?? null,
+                  sentCount: row.nudge_count,
+                  lastDismissedAt: row.nudge_last_dismissed_at?.toISOString() ?? null,
+                }
+              : null,
         };
       })
       .sort((a, b) => rank(a.examStatus) - rank(b.examStatus) || a.name.localeCompare(b.name, "pt-BR") || a.studentUserId.localeCompare(b.studentUserId));

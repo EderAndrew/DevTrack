@@ -149,7 +149,7 @@ pela API com o bearer; conferir um pendente só para aquele aluno, o mesmo aviso
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T011 [P] [US1] `apps/api/test/integration/025-us1-send.spec.ts` (helpers novos em
+- [X] T011 [P] [US1] `apps/api/test/integration/025-us1-send.spec.ts` (helpers novos em
       `apps/api/test/helpers/exam-nudges.ts`: prova aplicada, aluno presente com tentativa e N ocorrências via o lote
       de eventos real, sessão MOBILE do professor; `createNudge` direto no banco para as outras histórias):
   - `025/US1-1`, `025/US1-2`: `nudge.canSend` no monitor com 1, 2 e 3 ocorrências (lido pela rota do monitor com o
@@ -168,24 +168,24 @@ pela API com o bearer; conferir um pendente só para aquele aluno, o mesmo aviso
   - prova silenciada (024 US4) continua com `canSend` verdadeiro e o envio funciona (spec Edge Cases);
   - `025/US1-9` e `025/FR-013`: depois do envio, `exam_occurrences`, `exam_attempt_holds`, `attempt_pauses`,
     `activity_submissions`, `exam_alerts` e o `endsAt` da tentativa iguais aos de antes (nenhum push enfileirado).
-- [ ] T012 [P] [US1] `apps/api/test/security/025-concurrency.spec.ts` `025/SC-004`: 10 envios simultâneos → um aviso,
+- [X] T012 [P] [US1] `apps/api/test/security/025-concurrency.spec.ts` `025/SC-004`: 10 envios simultâneos → um aviso,
       um evento, os demais `200` com o mesmo `id`; envio simultâneo ao lote da 4ª ocorrência → ou o aviso entra antes
       e a retenção depois (aviso pendente, não mostrado), ou o envio recebe `409`; nunca um aviso inserido depois da
       retenção aberta.
-- [ ] T013 [P] [US1] Testes do app em `apps/mobile/features/exam-room/components/nudge-bell.test.tsx` (cliente
+- [X] T013 [P] [US1] Testes do app em `apps/mobile/features/exam-room/components/nudge-bell.test.tsx` (cliente
       mockado): `025/US1-1`/`025/US1-2` sino só com `nudge.canSend` (ou pendente, desabilitado), nome acessível
       "Enviar aviso para <nome>", na linha da sala e no detalhe do aluno; confirmação "Enviar aviso para <nome>?" →
       `POST …/exam-nudges` com `{}`; `025/US1-3` estado "Aviso enviado — aguardando o aluno"; `025/US1-5` "Último aviso
       fechado às HH:MM" com o horário do servidor; `025/US1-6` `409` → "Não é possível enviar o aviso agora." e a sala
       relida; cancelar não envia; sem cor como único sinal.
-- [ ] T014 [P] [US1] Atualizar `apps/mobile/test/no-decision-routes.test.ts`: `ALLOWED` ganha
+- [X] T014 [P] [US1] Atualizar `apps/mobile/test/no-decision-routes.test.ts`: `ALLOWED` ganha
       `…/attempts/${attemptId}/exam-nudges` (POST) com comentário "025: a única escrita do app (spec Emenda à 024)";
       o título passa a citar `024/FR-010` e `025/FR-007`, e um `it` novo afirma que nenhuma outra rota `POST`/`PUT`
       fora de sessão, celular, silenciar e aviso existe.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] `apps/api/src/modules/exam-nudges/exam-nudges.service.ts` → `send(teacherId, classId, activityId,
+- [X] T015 [US1] `apps/api/src/modules/exam-nudges/exam-nudges.service.ts` → `send(teacherId, classId, activityId,
       attemptId)` (research N5): `ClassContextPolicy.findOwnedOrNotFound`, `findExamActivity` (não EXAM → `404`, não o
       `409 NOT_AN_EXAM` do monitor), `ExamSettlement` da tentativa, transação com a tentativa `FOR UPDATE`, fatos lidos
       em query própria (status, submissão, retenção aberta, pausa não liberada, `max(ordinal)` das ocorrências),
@@ -193,17 +193,17 @@ pela API com o bearer; conferir um pendente só para aquele aluno, o mesmo aviso
       pendente (`created: false`); `exam_nudge.sent` na mesma transação; recusa → `exam_nudge.send_refused` em
       transação própria e `409 EXAM_NUDGE_NOT_ALLOWED`; erro do trigger mapeado para o mesmo `409`. Tipos de
       auditoria registrados (`audit-event-types.ts`, `journey.ts`).
-- [ ] T016 [US1] `apps/api/src/modules/exam-nudges/teacher-exam-nudges.controller.ts`: `POST
+- [X] T016 [US1] `apps/api/src/modules/exam-nudges/teacher-exam-nudges.controller.ts`: `POST
       classes/:classId/activities/:activityId/attempts/:attemptId/exam-nudges`, `@RequirePermissions(
       "chamada.registrar", "provas.avisos.enviar")`, `@MobileOnly()`, `ZodBody(SendExamNudgeRequestSchema)`,
       `201`/`200` conforme `created`; limite `mobile-writes` pelo `platform/http/mobile-write-limit.ts` (movido na
       T010); entrada em `endpoints.ts`, linhas do `MATRIX`, rota na lista de
       `024-mobile-allowlist.spec.ts`. T011 e T012 verdes.
-- [ ] T017 [US1] Monitor: `apps/api/src/modules/exam-sessions/exam-monitor.service.ts` lê por aluno, na mesma query,
+- [X] T017 [US1] Monitor: `apps/api/src/modules/exam-sessions/exam-monitor.service.ts` lê por aluno, na mesma query,
       um `LEFT JOIN LATERAL` de agregado de `exam_nudges` (pendente `sent_at`, contagem, último `dismissed_at`) e
       monta `nudge` (`null` sem tentativa) com `canSendNudge` do puro. Atualizar as asserções de shape do monitor nas
       suítes 018/024 só para incluir o campo.
-- [ ] T018 [US1] App: `apps/mobile/features/exam-room/api/exam-nudges.ts` (`sendNudge(classId, activityId,
+- [X] T018 [US1] App: `apps/mobile/features/exam-room/api/exam-nudges.ts` (`sendNudge(classId, activityId,
       attemptId)` com `SendExamNudgeResponseSchema`), `hooks/use-send-nudge.ts` (mutação que invalida a sala),
       `apps/mobile/components/ui/dialog.tsx` (modal de confirmação só com tokens; exportado em `components/ui/index.ts`),
       `features/exam-room/components/nudge-bell.tsx` (Lucide `Bell`) e o uso em `exam-room.tsx` (linha) e

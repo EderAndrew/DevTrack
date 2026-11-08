@@ -172,7 +172,9 @@ describe("012/SC-012 012/FR-036 015/FR-030 a prova só como tipo EXAM; o monitor
     const catalog = readFileSync(join(REPO_ROOT, "packages/contracts/src/endpoints.ts"), "utf8");
     const paths = [...catalog.matchAll(/path:\s*"([^"]+)"/g)].map((match) => match[1]!);
     // 024: the app's list of the teacher's exams in progress and the per-exam mute (`modules/exam-alerts`, specs/024 contracts/http-api.md).
-    const EXAM_ROUTES = /^\/exams(\/|$)|^\/exam-generation(-requests)?(\/|$)|\/activities\/:activityId\/exam-(monitor|holds|alerts)(\/|$)|^\/mobile\/exams$/;
+    // 025: the teacher's discreet warning to one attempt (`modules/exam-nudges`, specs/025 contracts/http-api.md).
+    const EXAM_ROUTES =
+      /^\/exams(\/|$)|^\/exam-generation(-requests)?(\/|$)|\/activities\/:activityId\/exam-(monitor|holds|alerts)(\/|$)|^\/mobile\/exams$|\/activities\/:activityId\/attempts\/:attemptId\/exam-nudges$/;
     expect(paths.filter((path) => /exam|prova/i.test(path) && !EXAM_ROUTES.test(path))).toEqual([]);
     // 018/FR-032: no screen of the activities calls an occurrence fraud, cheating or a violation.
     expect(offendingLines(WEB_SOURCES, [/\bfraude?/i, /\bcola\b/i, /viola[cç][aã]o/i])).toEqual([]);

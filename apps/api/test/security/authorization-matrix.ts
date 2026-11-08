@@ -15,6 +15,8 @@ export interface MatrixEntry {
   access: Access;
   /** `multipart/form-data` route (004): the matrix sends a small file instead of a JSON body. */
   upload?: true;
+  /** 025: `@MobileOnly()` — every web session (the matrix's cookie) gets `403 MOBILE_SESSION_REQUIRED`. */
+  mobileOnly?: true;
 }
 
 const PROFESSORES = [
@@ -170,6 +172,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PUT", path: "/mobile/device", access: "chamada.registrar" },
   { method: "GET", path: "/mobile/exams", access: "chamada.registrar" },
   { method: "PUT", path: "/classes/:classId/activities/:activityId/exam-alerts", access: "chamada.registrar" },
+  // 025 — the app's bell (specs/025-exam-student-nudge/contracts/http-api.md): also `chamada.registrar`, and only
+  // from the app; the bearer side is 025-mobile-only.spec.ts and 025-us1-send.spec.ts.
+  { method: "POST", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/exam-nudges", access: "provas.avisos.enviar", mobileOnly: true },
 
   { method: "GET", path: "/me/sessions", access: "sessoes.proprias.listar" },
   { method: "GET", path: "/me/sessions/:id", access: "sessoes.proprias.listar" },

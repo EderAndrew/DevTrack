@@ -92,6 +92,7 @@ import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSche
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
 import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
+import { SendExamNudgeRequestSchema, SendExamNudgeResponseSchema } from "./exam-nudges/nudge.js";
 import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
 import {
   AdminFeedbackPageSchema,
@@ -1307,6 +1308,18 @@ export const endpoints = {
     params: ClassActivityParamsSchema,
     response: ExamMonitorSchema,
     status: 200,
+  },
+  /**
+   * 025/US1: the app's bell sends the student a discreet warning (`@MobileOnly()`); body exactly `{}`. 201 new, 200 with
+   * the pending one; not running or fewer than 2 occurrences → 409.
+   */
+  "examNudges.send": {
+    method: "POST",
+    path: "/classes/:classId/activities/:activityId/attempts/:attemptId/exam-nudges",
+    params: ClassActivityAttemptParamsSchema,
+    body: SendExamNudgeRequestSchema,
+    response: SendExamNudgeResponseSchema,
+    status: 201,
   },
   /** 018/US5: "Confirmar cancelamento" (018/FR-021); a decided hold → 409. */
   "examSessions.cancelHold": {

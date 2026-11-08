@@ -13,8 +13,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
-  // 025: required by the send route (US1, T012).
-  "provas.avisos.enviar",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */
