@@ -248,6 +248,7 @@ export const signInRequired = () => new AppException("SIGN_IN_REQUIRED");
 export const forbidden = () => new AppException("FORBIDDEN");
 /** 024: a mobile session's bearer outside the app's allowlist (research Y4). */
 export const mobileRouteNotAllowed = () => new AppException("MOBILE_ROUTE_NOT_ALLOWED");
+export const mobileSessionRequired = () => new AppException("MOBILE_SESSION_REQUIRED");
 export const emailNotVerified = () => new AppException("EMAIL_NOT_VERIFIED");
 export const accountSuspended = () => new AppException("ACCOUNT_SUSPENDED");
 export const wrongAccount = () => new AppException("WRONG_ACCOUNT");

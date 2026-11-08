@@ -3,7 +3,7 @@ import type { ExamAlertPreference } from "@repo/contracts";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { ClassContextPolicy } from "../classes/class-context.policy";
-import { MobileWriteLimit } from "./mobile-write-limit";
+import { MobileWriteLimit } from "../../platform/http/mobile-write-limit";
 
 /**
  * "Silenciar avisos desta prova" (024/US4, research Y8): muted is a row per teacher and exam, for all of the

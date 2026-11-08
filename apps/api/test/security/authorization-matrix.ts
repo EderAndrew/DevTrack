@@ -130,6 +130,8 @@ export const EXAMS_TEACHER = [
   "provas.arquivar",
   "ia.provas.gerar",
   "provas.encerramentos.decidir",
+  // 025: the discreet warning, sent only from the app (@MobileOnly()).
+  "provas.avisos.enviar",
 ] as const satisfies PermissionKey[];
 
 /** 020: the student sends feedback to the platform and follows their own. */

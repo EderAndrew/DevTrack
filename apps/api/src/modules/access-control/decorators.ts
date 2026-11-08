@@ -1,4 +1,4 @@
-import { SetMetadata } from "@nestjs/common";
+import { applyDecorators, SetMetadata } from "@nestjs/common";
 import type { PermissionKey } from "./permissions";
 
 export const IS_PUBLIC_KEY = "access:public";
@@ -6,6 +6,7 @@ export const ALLOW_UNVERIFIED_KEY = "access:allow-unverified";
 export const REQUIRED_PERMISSIONS_KEY = "access:permissions";
 export const MOBILE_ACCESS_KEY = "access:mobile";
 export const MOBILE_ENTRY_KEY = "access:mobile-entry";
+export const MOBILE_ONLY_KEY = "access:mobile-only";
 
 type RouteDecorator = MethodDecorator & ClassDecorator;
 
@@ -31,3 +32,10 @@ export const MobileAccess = (): RouteDecorator => SetMetadata(MOBILE_ACCESS_KEY,
 
 /** 024: the app's sign-in (`POST /auth/mobile/sessions`), which may come with no Origin; only that route. */
 export const MobileEntry = (): MethodDecorator => SetMetadata(MOBILE_ENTRY_KEY, true);
+
+/**
+ * 025 research N3: only the app may call the route — it is on the app's allowlist (`@MobileAccess()`) and a WEB
+ * session (the cookie) gets `403 MOBILE_SESSION_REQUIRED` from `SessionGuard`, before any permission check. The
+ * route's own access rule still applies to the bearer.
+ */
+export const MobileOnly = (): RouteDecorator => applyDecorators(SetMetadata(MOBILE_ACCESS_KEY, true), SetMetadata(MOBILE_ONLY_KEY, true));

@@ -380,21 +380,21 @@ model User {
   worksReviewed          Work[]                  @relation("WorkReviewedBy")
   workGenerationRequests WorkGenerationRequest[] @relation("WorkGenerationRequestTeacher")
 
-  classActivitiesOwned    ClassActivity[]           @relation("ClassActivityTeacher")
-  classActivitiesReleased ClassActivity[]           @relation("ClassActivityReleasedBy")
-  submissionsAccepted     ActivitySubmission[]      @relation("ActivitySubmissionAcceptedBy")
-  gradingsDecided         ActivityQuestionGrading[] @relation("ActivityGradingDecidedBy")
-  exerciseResultsMarked   ExerciseQuestionResult[]  @relation("ExerciseResultDecidedBy")
-  attendancesMarked       ActivityAttendance[]      @relation("ActivityAttendanceMarkedBy")
-  pausesStarted           AttemptPause[]            @relation("AttemptPauseStartedBy")
-  pausesReleased          AttemptPause[]            @relation("AttemptPauseReleasedBy")
-  examsOwned              Exam[]                    @relation("ExamTeacher")
-  examsReviewed           Exam[]                    @relation("ExamReviewedBy")
-  examGenerationRequests  ExamGenerationRequest[]   @relation("ExamGenerationRequestTeacher")
-  submissionsCancelled    ActivitySubmission[]      @relation("ActivitySubmissionCancelledBy")
-  examHoldsResolved       ExamAttemptHold[]         @relation("ExamAttemptHoldResolvedBy")
-  codeRuns                CodeRun[]                 @relation("CodeRunStudent")
-  feedbacks               StudentFeedback[]         @relation("StudentFeedbackStudent")
+  classActivitiesOwned    ClassActivity[]               @relation("ClassActivityTeacher")
+  classActivitiesReleased ClassActivity[]               @relation("ClassActivityReleasedBy")
+  submissionsAccepted     ActivitySubmission[]          @relation("ActivitySubmissionAcceptedBy")
+  gradingsDecided         ActivityQuestionGrading[]     @relation("ActivityGradingDecidedBy")
+  exerciseResultsMarked   ExerciseQuestionResult[]      @relation("ExerciseResultDecidedBy")
+  attendancesMarked       ActivityAttendance[]          @relation("ActivityAttendanceMarkedBy")
+  pausesStarted           AttemptPause[]                @relation("AttemptPauseStartedBy")
+  pausesReleased          AttemptPause[]                @relation("AttemptPauseReleasedBy")
+  examsOwned              Exam[]                        @relation("ExamTeacher")
+  examsReviewed           Exam[]                        @relation("ExamReviewedBy")
+  examGenerationRequests  ExamGenerationRequest[]       @relation("ExamGenerationRequestTeacher")
+  submissionsCancelled    ActivitySubmission[]          @relation("ActivitySubmissionCancelledBy")
+  examHoldsResolved       ExamAttemptHold[]             @relation("ExamAttemptHoldResolvedBy")
+  codeRuns                CodeRun[]                     @relation("CodeRunStudent")
+  feedbacks               StudentFeedback[]             @relation("StudentFeedbackStudent")
   feedbackStatusChanges   StudentFeedbackStatusChange[] @relation("StudentFeedbackStatusChangedBy")
 
   mailDeliveries MailDelivery[]
@@ -403,6 +403,10 @@ model User {
   mobileDevices  MobileDevice[]
   examAlertMutes ExamAlertMute[]
   examAlerts     ExamAlert[]
+
+  // 025: the discreet warnings the teacher sent from the app.
+  examNudgesSent ExamNudge[] @relation("ExamNudgeSentBy")
+
   @@map("users")
 }
 
@@ -2171,60 +2175,60 @@ enum ActivityGradingNature {
 
 /// A work or 1–10 exercises of the teacher's banks applied to a class, as a snapshot (research P2).
 model ClassActivity {
-  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  classId              String                @map("class_id") @db.Uuid
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId                String                @map("class_id") @db.Uuid
   /// The class's teacher when applied; the class, type, grade and source never change (trigger).
-  teacherId            String                @map("teacher_id") @db.Uuid
-  type                 ClassActivityType
+  teacherId              String                @map("teacher_id") @db.Uuid
+  type                   ClassActivityType
   /// NORMAL unless ASSIGNMENT (CHECK); changes only before the first attempt (trigger, 015 F2).
-  executionMode        ActivityExecutionMode @default(NORMAL) @map("execution_mode")
+  executionMode          ActivityExecutionMode @default(NORMAL) @map("execution_mode")
   /// AI helps per student: 0 or 3 (CHECK), 0 unless ASSIGNMENT; changes only before the first attempt (trigger).
-  aiHelpAllowance      Int                   @default(0) @map("ai_help_allowance") @db.SmallInt
+  aiHelpAllowance        Int                   @default(0) @map("ai_help_allowance") @db.SmallInt
   /// PRESENT_ONLY only for ASSIGNMENT (CHECK); immutable (trigger). Every work applied since 016 is
   /// PRESENT_ONLY; exercises and older works stay ALL_ENROLLED (016 M2).
-  releaseMode          ActivityReleaseMode   @default(ALL_ENROLLED) @map("release_mode")
+  releaseMode            ActivityReleaseMode   @default(ALL_ENROLLED) @map("release_mode")
   /// 021: students may run their code on the CODE questions; true only for ASSIGNMENT (CHECK), changes
   /// only before the first attempt (trigger, Y1).
-  codeExecutionAllowed Boolean               @default(false) @map("code_execution_allowed")
+  codeExecutionAllowed   Boolean               @default(false) @map("code_execution_allowed")
   /// 023: NULL = individual; 2–5 = a group counting the leader, only for a PRESENT_ONLY ASSIGNMENT (CHECK);
   /// changes only before the first attempt (trigger, U2).
-  groupSize            Int?                  @map("group_size") @db.SmallInt
-  status               ClassActivityStatus   @default(ACTIVE)
+  groupSize              Int?                  @map("group_size") @db.SmallInt
+  status                 ClassActivityStatus   @default(ACTIVE)
   /// 1–200 characters (CHECK).
-  title                String
-  instructions         String?
+  title                  String
+  instructions           String?
   /// ASSIGNMENT only (CHECK by type, 013 K1): 0.01–100.00; the questions' values add up to it (deferred trigger).
-  totalGrade           Decimal?              @map("total_grade") @db.Decimal(5, 2)
+  totalGrade             Decimal?              @map("total_grade") @db.Decimal(5, 2)
   /// 1–10, equal to the number of questions (deferred trigger).
-  questionCount        Int                   @map("question_count")
-  publishAt            DateTime              @map("publish_at") @db.Timestamptz(6)
+  questionCount          Int                   @map("question_count")
+  publishAt              DateTime              @map("publish_at") @db.Timestamptz(6)
   /// ASSIGNMENT only (CHECK by type, 013 K1); after `publishAt` (CHECK).
-  deadline             DateTime?             @db.Timestamptz(6)
+  deadline               DateTime?             @db.Timestamptz(6)
   /// ASSIGNMENT only (CHECK by type, 013 K1).
-  latePolicy           ActivityLatePolicy?   @map("late_policy")
+  latePolicy             ActivityLatePolicy?   @map("late_policy")
   /// Set iff ASSIGNMENT (CHECK); informative, the content lives in the snapshot.
-  sourceWorkId         String?               @map("source_work_id") @db.Uuid
+  sourceWorkId           String?               @map("source_work_id") @db.Uuid
   /// Set iff EXAM (CHECK, 018 T3); informative, the content lives in the snapshot.
-  sourceExamId         String?               @map("source_exam_id") @db.Uuid
+  sourceExamId           String?               @map("source_exam_id") @db.Uuid
   /// The work's or the exam's subject, equal to the class's (research P5); null for EXERCISE (CHECK).
-  sourceSubjectId      String?               @map("source_subject_id") @db.Uuid
+  sourceSubjectId        String?               @map("source_subject_id") @db.Uuid
   /// EXAM only (CHECK, 018 T3, T4): 1–120 minutes from each student's start; immutable (trigger).
-  durationMinutes      Int?                  @map("duration_minutes") @db.SmallInt
+  durationMinutes        Int?                  @map("duration_minutes") @db.SmallInt
   /// EXAM only (CHECK): 30–60 seconds without interaction is an occurrence (018 T7); immutable.
-  inactivityLimitSeconds Int?                @map("inactivity_limit_seconds") @db.SmallInt
+  inactivityLimitSeconds Int?                  @map("inactivity_limit_seconds") @db.SmallInt
   /// EXAM only (CHECK): 0–60 minutes after `publishAt` to start (018 T4); immutable.
-  startWindowMinutes   Int?                  @map("start_window_minutes") @db.SmallInt
+  startWindowMinutes     Int?                  @map("start_window_minutes") @db.SmallInt
   /// Topics outside the taught scope that the teacher acknowledged (FR-005a).
-  outOfScopeTopicCount Int                   @default(0) @map("out_of_scope_topic_count")
+  outOfScopeTopicCount   Int                   @default(0) @map("out_of_scope_topic_count")
   /// Set together (CHECK), never for EXERCISE; governs what the students see (research P14).
-  resultReleasedAt     DateTime?             @map("result_released_at") @db.Timestamptz(6)
-  resultReleasedById   String?               @map("result_released_by_id") @db.Uuid
-  closedAt             DateTime?             @map("closed_at") @db.Timestamptz(6)
-  cancelledAt          DateTime?             @map("cancelled_at") @db.Timestamptz(6)
-  idempotencyKey       String                @map("idempotency_key") @db.Uuid
-  version              Int                   @default(1)
-  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resultReleasedAt       DateTime?             @map("result_released_at") @db.Timestamptz(6)
+  resultReleasedById     String?               @map("result_released_by_id") @db.Uuid
+  closedAt               DateTime?             @map("closed_at") @db.Timestamptz(6)
+  cancelledAt            DateTime?             @map("cancelled_at") @db.Timestamptz(6)
+  idempotencyKey         String                @map("idempotency_key") @db.Uuid
+  version                Int                   @default(1)
+  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   schoolClass      SchoolClass             @relation(fields: [classId], references: [id], onDelete: Restrict)
   teacher          User                    @relation("ClassActivityTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
@@ -2238,6 +2242,8 @@ model ClassActivity {
 
   examAlertMutes ExamAlertMute[]
   examAlerts     ExamAlert[]
+  examNudges     ExamNudge[]
+
   @@unique([teacherId, idempotencyKey])
   @@index([classId, status, deadline])
   @@index([classId, publishAt])
@@ -2376,7 +2382,10 @@ model ActivityAttempt {
   participants    AttemptParticipant[]
   group           AttemptGroup?
 
-  examAlerts      ExamAlert[]
+  examAlerts ExamAlert[]
+  /// 025: the teacher's discreet warnings (at most one pending, partial UNIQUE in SQL).
+  examNudges ExamNudge[]
+
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
   @@unique([id, activityId])
@@ -2415,41 +2424,41 @@ model ActivityAnswer {
 
 /// The submitted attempt; the submitted facts never change and it is never deleted (trigger).
 model ActivitySubmission {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  attemptId       String    @unique @map("attempt_id") @db.Uuid
-  activityId      String    @map("activity_id") @db.Uuid
-  studentUserId   String    @map("student_user_id") @db.Uuid
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId         String         @unique @map("attempt_id") @db.Uuid
+  activityId        String         @map("activity_id") @db.Uuid
+  studentUserId     String         @map("student_user_id") @db.Uuid
   /// Server clock.
-  submittedAt     DateTime  @map("submitted_at") @db.Timestamptz(6)
-  late            Boolean
+  submittedAt       DateTime       @map("submitted_at") @db.Timestamptz(6)
+  late              Boolean
   /// Blank questions by spec FR-023.
-  blankCount      Int       @map("blank_count")
+  blankCount        Int            @map("blank_count")
   /// Set when the teacher accepted the saved attempt (FR-006b); then `late` (CHECK).
-  acceptedById    String?   @map("accepted_by_id") @db.Uuid
+  acceptedById      String?        @map("accepted_by_id") @db.Uuid
   /// Sum of the final grades (011 `computeWorkGrade`); partial while a question has none.
-  grade           Decimal   @db.Decimal(5, 2)
-  gradePartial    Boolean   @map("grade_partial")
-  generalFeedback String?   @map("general_feedback")
-  gradedAt        DateTime? @map("graded_at") @db.Timestamptz(6)
+  grade             Decimal        @db.Decimal(5, 2)
+  gradePartial      Boolean        @map("grade_partial")
+  generalFeedback   String?        @map("general_feedback")
+  gradedAt          DateTime?      @map("graded_at") @db.Timestamptz(6)
   /// First student read of a released result (research P19).
-  resultViewedAt  DateTime? @map("result_viewed_at") @db.Timestamptz(6)
+  resultViewedAt    DateTime?      @map("result_viewed_at") @db.Timestamptz(6)
   /// Optimistic concurrency of the teacher's grading (research P13).
-  version         Int       @default(1)
+  version           Int            @default(1)
   /// Set iff the activity is EXAM (trigger, 018 T5, T9); immutable.
-  endReason       ExamEndReason? @map("end_reason")
+  endReason         ExamEndReason? @map("end_reason")
   /// Set iff `endReason = CANCELLED` (CHECK): the teacher who confirmed it; grade 0 (CHECK, trigger).
-  cancelledById   String?   @map("cancelled_by_id") @db.Uuid
+  cancelledById     String?        @map("cancelled_by_id") @db.Uuid
   /// 023: the student who submitted, a participant; in a group, its leader (trigger, U8). NULL exactly for the
   /// teacher's acceptance and an exam ended by the system or the teacher (CHECK); immutable.
-  submittedByUserId String? @map("submitted_by_user_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  submittedByUserId String?        @map("submitted_by_user_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  attempt    ActivityAttempt           @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
-  submittedBy AttemptParticipant?      @relation(fields: [attemptId, activityId, submittedByUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
-  acceptedBy User?                     @relation("ActivitySubmissionAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict)
-  cancelledBy User?                    @relation("ActivitySubmissionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
-  gradings   ActivityQuestionGrading[]
+  attempt     ActivityAttempt           @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Restrict)
+  submittedBy AttemptParticipant?       @relation(fields: [attemptId, activityId, submittedByUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
+  acceptedBy  User?                     @relation("ActivitySubmissionAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict)
+  cancelledBy User?                     @relation("ActivitySubmissionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  gradings    ActivityQuestionGrading[]
 
   /// Target of the gradings' composite FK.
   @@unique([id, activityId])
@@ -2589,7 +2598,7 @@ model AttemptIntegrityEvent {
 
   attempt     ActivityAttempt        @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
   /// 023 (U4): the student this fact is about takes part in the attempt.
-  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
+  participant AttemptParticipant     @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   question    ClassActivityQuestion? @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
   occurrences ExamOccurrence[]
 
@@ -2627,7 +2636,7 @@ model WorkHelpRequest {
 
   attempt     ActivityAttempt       @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
   /// 023 (U4): the student this fact is about takes part in the attempt.
-  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
+  participant AttemptParticipant    @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
   questionRef ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
   aiExecution AiExecution?          @relation(fields: [aiExecutionId], references: [id], onDelete: Restrict)
 
@@ -2706,11 +2715,11 @@ model AttemptPause {
   releasedAt    DateTime?             @map("released_at") @db.Timestamptz(6)
   releasedById  String?               @map("released_by_id") @db.Uuid
 
-  attempt    ActivityAttempt @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  attempt     ActivityAttempt    @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
   /// 023 (U4): the student this fact is about takes part in the attempt.
   participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
-  startedBy  User            @relation("AttemptPauseStartedBy", fields: [startedById], references: [id], onDelete: Restrict)
-  releasedBy User?           @relation("AttemptPauseReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
+  startedBy   User               @relation("AttemptPauseStartedBy", fields: [startedById], references: [id], onDelete: Restrict)
+  releasedBy  User?              @relation("AttemptPauseReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
 
   @@index([activityId, releasedAt])
   @@map("attempt_pauses")
@@ -2766,36 +2775,36 @@ enum ExamHoldResolution {
 /// An exam of the teacher's private Banco de Provas (018 T2), shaped like `Work`: always with a revision
 /// and topics, 1–20 questions, each question with its difficulty and topics on approval (deferred trigger).
 model Exam {
-  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// The owner; every query filters by it.
-  teacherId           String     @map("teacher_id") @db.Uuid
-  subjectId           String     @map("subject_id") @db.Uuid
+  teacherId           String      @map("teacher_id") @db.Uuid
+  subjectId           String      @map("subject_id") @db.Uuid
   /// The confirmed revision of the exam's topics (topics are required).
-  syllabusRevisionId  String     @map("syllabus_revision_id") @db.Uuid
+  syllabusRevisionId  String      @map("syllabus_revision_id") @db.Uuid
   title               String
   /// `searchKey(title)`, written by the application.
-  titleSearchKey      String     @map("title_search_key")
+  titleSearchKey      String      @map("title_search_key")
   description         String?
   /// 0.01–100.00 and ≥ 0.01 per question (CHECK); the questions' values add up to it (deferred trigger).
-  totalGrade          Decimal    @map("total_grade") @db.Decimal(5, 2)
+  totalGrade          Decimal     @map("total_grade") @db.Decimal(5, 2)
   /// 1–20, equal to the number of questions (deferred trigger).
-  questionCount       Int        @map("question_count")
+  questionCount       Int         @map("question_count")
   /// Never changes (trigger).
   origin              ExamOrigin
-  status              ExamStatus @default(DRAFT)
+  status              ExamStatus  @default(DRAFT)
   /// Set iff ARCHIVED (CHECK); the restore target.
   archivedFromStatus  ExamStatus? @map("archived_from_status")
   /// Set iff AI_GENERATED (CHECK).
-  generationRequestId String?    @unique @map("generation_request_id") @db.Uuid
-  humanReviewed       Boolean    @default(false) @map("human_reviewed")
-  humanEdited         Boolean    @default(false) @map("human_edited")
+  generationRequestId String?     @unique @map("generation_request_id") @db.Uuid
+  humanReviewed       Boolean     @default(false) @map("human_reviewed")
+  humanEdited         Boolean     @default(false) @map("human_edited")
   /// Set together (CHECK).
-  reviewedById        String?    @map("reviewed_by_id") @db.Uuid
-  reviewedAt          DateTime?  @map("reviewed_at") @db.Timestamptz(6)
+  reviewedById        String?     @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?   @map("reviewed_at") @db.Timestamptz(6)
   /// Optimistic concurrency of the whole aggregate.
-  version             Int        @default(1)
-  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version             Int         @default(1)
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   teacher           User                   @relation("ExamTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
   subject           Subject                @relation(fields: [subjectId], references: [id], onDelete: Restrict)
@@ -3014,6 +3023,7 @@ model ExamAttemptHold {
   resolvedBy User?           @relation("ExamAttemptHoldResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
 
   examAlerts ExamAlert[]
+
   @@index([activityId, resolution])
   @@map("exam_attempt_holds")
 }
@@ -3076,12 +3086,12 @@ model CodeRun {
   /// Set by the `code-run-content` maintenance job (research B12).
   contentPurgedAt DateTime?             @map("content_purged_at") @db.Timestamptz(6)
 
-  question ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
-  attempt  ActivityAttempt       @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
+  question    ClassActivityQuestion @relation(fields: [questionId, activityId], references: [id, activityId], onDelete: Restrict)
+  attempt     ActivityAttempt       @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
   /// 023 (U4): the student this fact is about takes part in the attempt.
-  participant AttemptParticipant @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
-  student  User                  @relation("CodeRunStudent", fields: [studentUserId], references: [id], onDelete: Restrict)
-  cases    CodeRunCase[]
+  participant AttemptParticipant    @relation(fields: [attemptId, activityId, studentUserId], references: [attemptId, activityId, studentUserId], onDelete: Restrict)
+  student     User                  @relation("CodeRunStudent", fields: [studentUserId], references: [id], onDelete: Restrict)
+  cases       CodeRunCase[]
 
   /// One pending run per student (partial UNIQUE `code_runs_one_pending_key`), the claim index and
   /// the purge index live in the migration.
@@ -3248,15 +3258,15 @@ enum AttemptGroupEventReason {
 /// a group adds one per member (`addedByUserId` = the leader), only while the attempt is IN_PROGRESS, within
 /// `groupSize` and for a student marked present (trigger). Never changed or removed (trigger).
 model AttemptParticipant {
-  attemptId     String    @map("attempt_id") @db.Uuid
-  activityId    String    @map("activity_id") @db.Uuid
-  studentUserId String    @map("student_user_id") @db.Uuid
+  attemptId     String   @map("attempt_id") @db.Uuid
+  activityId    String   @map("activity_id") @db.Uuid
+  studentUserId String   @map("student_user_id") @db.Uuid
   /// The attempt's `number` (trigger).
-  attemptNumber Int       @map("attempt_number")
+  attemptNumber Int      @map("attempt_number")
   /// Server clock.
-  joinedAt      DateTime  @map("joined_at") @db.Timestamptz(6)
+  joinedAt      DateTime @map("joined_at") @db.Timestamptz(6)
   /// NULL for the owner.
-  addedByUserId String?   @map("added_by_user_id") @db.Uuid
+  addedByUserId String?  @map("added_by_user_id") @db.Uuid
 
   attempt         ActivityAttempt         @relation(fields: [attemptId, activityId], references: [id, activityId], onDelete: Restrict)
   student         StudentProfile          @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
@@ -3436,4 +3446,29 @@ model ExamAlertDelivery {
   @@id([alertId, deviceId])
   @@index([status, sentAt])
   @@map("exam_alert_deliveries")
+}
+
+// ── 025: Aviso discreto do professor na prova (data-model.md) ───────────────────────────────
+
+/// The teacher's discreet warning to one student in an exam (research N1, N2). The text is fixed in the web,
+/// never stored. One pending per attempt (`exam_nudges_one_pending`, partial UNIQUE in SQL); only the
+/// student's dismissal changes it, once (trigger); it leaves only with its attempt (trigger). Statuses are
+/// derived on read (`exam-nudges/nudge-status.ts`).
+model ExamNudge {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId    String    @map("attempt_id") @db.Uuid
+  /// Equal to the attempt's activity (trigger).
+  activityId   String    @map("activity_id") @db.Uuid
+  sentByUserId String    @map("sent_by_user_id") @db.Uuid
+  /// Server clock.
+  sentAt       DateTime  @map("sent_at") @db.Timestamptz(6)
+  /// Set once by the student's dismissal, never before `sentAt` (CHECK, trigger).
+  dismissedAt  DateTime? @map("dismissed_at") @db.Timestamptz(6)
+
+  attempt  ActivityAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  activity ClassActivity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  sentBy   User            @relation("ExamNudgeSentBy", fields: [sentByUserId], references: [id], onDelete: Restrict)
+
+  @@index([attemptId, sentAt], map: "exam_nudges_attempt_sent")
+  @@map("exam_nudges")
 }

@@ -126,6 +126,8 @@ const EXPECTED_MODELS = [
   "ExamAlertMute",
   "ExamAlert",
   "ExamAlertDelivery",
+  // 025 (specs/025-exam-student-nudge/data-model.md) — the teacher's discreet warning to a student in an exam.
+  "ExamNudge",
 ];
 
 /**

@@ -83,7 +83,7 @@ módulo novo é vigiada.
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] `apps/api/test/integration/025-schema.spec.ts` (data-model.md), escrito antes da migração:
+- [X] T003 [P] `apps/api/test/integration/025-schema.spec.ts` (data-model.md), escrito antes da migração:
   - insere em tentativa `IN_PROGRESS` de EXAM; recusa (trigger) em tentativa `SUBMITTED`, de trabalho ou exercício,
     com `exam_attempt_holds` aberto, com `attempt_pauses` sem `released_at`, com `activity_id` diferente do da
     tentativa e com `dismissed_at` preenchido no insert;
@@ -91,12 +91,12 @@ módulo novo é vigiada.
   - CHECK `dismissed_at >= sent_at`; UPDATE só de `dismissed_at` de NULL para valor (mudar `sent_at`, `attempt_id`
     ou um `dismissed_at` já preenchido falha); DELETE direto falha e o apagamento em cascata da tentativa funciona;
   - a permissão `provas.avisos.enviar` existe e só o papel TEACHER a tem.
-- [ ] T004 [P] `apps/api/src/modules/exam-nudges/nudge-status.spec.ts` (research N6, data-model "Derived"), antes da
+- [X] T004 [P] `apps/api/src/modules/exam-nudges/nudge-status.spec.ts` (research N6, data-model "Derived"), antes da
       T008: `running` (cada condição isolada: submissão, retenção aberta, pausa aberta, pausa encerrada por derivação,
       `now >= endsAt`, atividade fechada/cancelada), `canSendNudge` com 0, 1, 2, 3 e 4 ocorrências (4 com retenção
       devolvida → pode), com pendente → não; `nudgeShown`; `nudgeStatus` → `DISMISSED`, `UNSEEN` (entregue, tempo
       esgotado sem submissão, atividade encerrada) e `PENDING` (inclusive retida ou pausada).
-- [ ] T005 [P] `apps/api/test/exam-nudges-boundary.spec.ts`, que deve falhar antes da T009:
+- [X] T005 [P] `apps/api/test/exam-nudges-boundary.spec.ts`, que deve falhar antes da T009:
   - `modules/exam-nudges` não importa `ai`, `*-ai`, `work-help`, `platform/push`, `exam-alerts`, `platform/mail`,
     `activities/submission`, grading (`works/grading`), `exam-holds`, `attendance` nem `attempt-integrity`; não
     contém `INSERT`/`UPDATE`/`DELETE` em `exam_occurrences`, `exam_attempt_holds`, `attempt_pauses`,
@@ -107,13 +107,13 @@ módulo novo é vigiada.
     "violação" (`025/SC-006`, também lido pela T030);
   - o texto do aviso ("o professor está acompanhando suas ações") não aparece em `apps/api/src` nem em
     `packages/contracts/src` (`025/FR-017`).
-- [ ] T006 [P] `apps/api/test/security/025-mobile-only.spec.ts` (research N3), antes da T010: uma rota de teste
+- [X] T006 [P] `apps/api/test/security/025-mobile-only.spec.ts` (research N3), antes da T010: uma rota de teste
       marcada `@MobileOnly()` responde `403 MOBILE_SESSION_REQUIRED` a uma sessão WEB (cookie) antes de checar a
       permissão, aceita o bearer MOBILE e conta como `@MobileAccess()` (a coluna do bearer da matriz).
 
 ### Implementation for Foundational
 
-- [ ] T007 Migração `apps/api/prisma/migrations/<ts>_025_exam_student_nudge/migration.sql` e
+- [X] T007 Migração `apps/api/prisma/migrations/<ts>_025_exam_student_nudge/migration.sql` e
       `apps/api/prisma/schema.prisma` (`model ExamNudge` mapeado para `exam_nudges`, relações com `ActivityAttempt`,
       `ClassActivity` e `User`): tabela, CHECK, índice único parcial `exam_nudges_one_pending`, índice
       `exam_nudges_attempt_sent`, triggers `exam_nudges_insert_valid`, `exam_nudges_update_guard` e
@@ -121,13 +121,13 @@ módulo novo é vigiada.
       durante a prova") para TEACHER, no padrão do seed da 018 (`ON CONFLICT DO NOTHING`). `PermissionKey` em
       `apps/api/src/modules/access-control/permissions.ts` ganha a chave. `pnpm --filter api prisma migrate deploy`
       no banco de teste; T003 verde.
-- [ ] T008 [P] `apps/api/src/modules/exam-nudges/nudge-status.ts` (puro, sem Prisma nem Nest): `NudgeAttemptFacts`,
+- [X] T008 [P] `apps/api/src/modules/exam-nudges/nudge-status.ts` (puro, sem Prisma nem Nest): `NudgeAttemptFacts`,
       `running`, `canSendNudge`, `nudgeShown`, `nudgeStatus`, `MIN_OCCURRENCES_FOR_NUDGE = 2`; usa `pauseTime`
       (`activities/status/pause-time`) e recebe `endsAt` pronto. T004 verde.
-- [ ] T009 Esqueleto `apps/api/src/modules/exam-nudges/exam-nudges.module.ts` registrado no `AppModule`, e
+- [X] T009 Esqueleto `apps/api/src/modules/exam-nudges/exam-nudges.module.ts` registrado no `AppModule`, e
       `views.ts` com as listas fechadas `toTeacherExamNudge(row, facts, now)` e `toStudentExamNudge(row, name)`.
       T005 verde.
-- [ ] T010 `@MobileOnly()` em `apps/api/src/modules/access-control/decorators.ts` (aplica `MOBILE_ACCESS_KEY` e
+- [X] T010 `@MobileOnly()` em `apps/api/src/modules/access-control/decorators.ts` (aplica `MOBILE_ACCESS_KEY` e
       `MOBILE_ONLY_KEY`) e a regra em `apps/api/src/modules/access-control/guards/session.guard.ts`: cookie (WEB) numa
       rota `@MobileOnly()` → `403 MOBILE_SESSION_REQUIRED`, antes do `PermissionsGuard`; helper de erro ao lado de
       `mobileRouteNotAllowed()`. Mover `MobileWriteLimit` de `apps/api/src/modules/exam-alerts/mobile-write-limit.ts`
