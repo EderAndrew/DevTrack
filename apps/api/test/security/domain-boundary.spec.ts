@@ -121,6 +121,11 @@ const EXPECTED_MODELS = [
   "AttemptGroup",
   "AttemptGroupEvent",
   "ActivityAnswerSave",
+  // 024 (specs/024-mobile-exam-monitor/data-model.md) — mobile devices, mutes and the exam alert outbox.
+  "MobileDevice",
+  "ExamAlertMute",
+  "ExamAlert",
+  "ExamAlertDelivery",
 ];
 
 /**

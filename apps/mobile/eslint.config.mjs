@@ -49,7 +49,7 @@ export default [
       globals: { ...globals.node, ...globals.jest },
       // The app's babel.config.js (babel-preset-expo, Babel 7) is for Metro and Jest only; ESLint's
       // parser runs on Babel 8 with the shared TypeScript preset, so it must not load that file.
-      parserOptions: { babelOptions: { babelrc: false, configFile: false, presets: [presetTypescript], parserOpts: { plugins: ["jsx"] } } },
+      parserOptions: { babelOptions: { babelrc: false, configFile: false, presets: [presetTypescript], parserOpts: { plugins: ["jsx", "typescript"] } } },
     },
     rules: {
       // TypeScript already reports unused/undefined identifiers precisely (type-only usages included).

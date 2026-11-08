@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "lint": "eslint --max-warnings 0 .",
     "check-types": "tsc --noEmit",
-    "test": "jest --passWithNoTests"
+    "test": "jest"
   },
   "dependencies": {
     "@hookform/resolvers": "7.0.3",
@@ -40,6 +40,7 @@
     "@repo/eslint-config": "workspace:*",
     "@testing-library/react-native": "14.1.0",
     "@types/jest": "30.0.0",
+    "@types/node": "^24.19.2",
     "@types/react": "19.3.0",
     "eslint": "10.14.0",
     "globals": "17.14.0",

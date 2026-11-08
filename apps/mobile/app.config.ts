@@ -1,8 +1,15 @@
 import type { ExpoConfig } from "expo/config";
 
 // 024 (research Y1, contracts/configuration.md): Android first, internal distribution through EAS.
-// EXPO_PUBLIC_API_ORIGIN comes from the EAS profile (eas.json); http://10.0.2.2:4000 only in development.
-const apiOrigin = process.env.EXPO_PUBLIC_API_ORIGIN ?? "http://10.0.2.2:4000";
+// EXPO_PUBLIC_API_ORIGIN comes from the EAS profile (eas.json). Cleartext (http://10.0.2.2:4000, the
+// emulator's host) only for local development: an EAS build of any other profile must talk to the API over
+// HTTPS, or the session's bearer would travel in clear (OWASP audit of T004, A05).
+const DEVELOPMENT_ORIGIN = "http://10.0.2.2:4000";
+const buildProfile = process.env.EAS_BUILD_PROFILE;
+const apiOrigin = process.env.EXPO_PUBLIC_API_ORIGIN ?? DEVELOPMENT_ORIGIN;
+if (buildProfile !== undefined && buildProfile !== "development" && !apiOrigin.startsWith("https://")) {
+  throw new Error(`EXPO_PUBLIC_API_ORIGIN must be https:// in the "${buildProfile}" profile`);
+}
 const easProjectId = process.env.EAS_PROJECT_ID;
 
 const config: ExpoConfig = {

@@ -84,6 +84,51 @@ enum SessionRevokeReason {
   @@map("session_revoke_reason")
 }
 
+/// 024 (research Y3): the kind of a session, fixed at creation (trigger). WEB: the cookie, 8 h idle / 7 d;
+/// MOBILE: the app's bearer, 30 d idle / 90 d, accepted only on `@MobileAccess()` routes.
+enum SessionClient {
+  WEB
+  MOBILE
+
+  @@map("session_client")
+}
+
+enum MobilePlatform {
+  ANDROID
+  IOS
+
+  @@map("mobile_platform")
+}
+
+/// 024 (research Y5): an alert of a counted occurrence (1–3, or later after a return) or of the hold.
+enum ExamAlertKind {
+  OCCURRENCE
+  HOLD
+
+  @@map("exam_alert_kind")
+}
+
+/// 024: PENDING → SENT (a device got a ticket) | SKIPPED (no recipient, muted, push off) | EXPIRED (older than
+/// 60 s at dispatch or 3 tries spent). Final rows change only by the retention job (trigger).
+enum ExamAlertStatus {
+  PENDING
+  SENT
+  SKIPPED
+  EXPIRED
+
+  @@map("exam_alert_status")
+}
+
+enum ExamAlertDeliveryStatus {
+  SENDING
+  TICKET_OK
+  TICKET_ERROR
+  RECEIPT_OK
+  RECEIPT_ERROR
+
+  @@map("exam_alert_delivery_status")
+}
+
 enum ActorType {
   USER
   OPERATOR
@@ -354,6 +399,10 @@ model User {
 
   mailDeliveries MailDelivery[]
 
+  // 024: the app's devices, the exams muted by the teacher and the alerts about a student.
+  mobileDevices  MobileDevice[]
+  examAlertMutes ExamAlertMute[]
+  examAlerts     ExamAlert[]
   @@map("users")
 }
 
@@ -923,8 +972,11 @@ model Session {
   absoluteExpiresAt DateTime             @map("absolute_expires_at") @db.Timestamptz(6)
   revokedAt         DateTime?            @map("revoked_at") @db.Timestamptz(6)
   revokeReason      SessionRevokeReason? @map("revoke_reason")
+  /// 024: WEB or MOBILE, fixed at creation (trigger).
+  client            SessionClient        @default(WEB)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  mobileDevice MobileDevice?
 
   @@index([userId, revokedAt])
   @@map("sessions")
@@ -2184,6 +2236,8 @@ model ClassActivity {
   attempts         ActivityAttempt[]
   attendances      ActivityAttendance[]
 
+  examAlertMutes ExamAlertMute[]
+  examAlerts     ExamAlert[]
   @@unique([teacherId, idempotencyKey])
   @@index([classId, status, deadline])
   @@index([classId, publishAt])
@@ -2322,6 +2376,7 @@ model ActivityAttempt {
   participants    AttemptParticipant[]
   group           AttemptGroup?
 
+  examAlerts      ExamAlert[]
   @@unique([activityId, studentUserId, number])
   /// Targets of the answers' and the submission's composite FKs.
   @@unique([id, activityId])
@@ -2958,6 +3013,7 @@ model ExamAttemptHold {
   occurrence ExamOccurrence  @relation(fields: [attemptId, occurrenceOrdinal], references: [attemptId, ordinal], onDelete: Restrict)
   resolvedBy User?           @relation("ExamAttemptHoldResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
 
+  examAlerts ExamAlert[]
   @@index([activityId, resolution])
   @@map("exam_attempt_holds")
 }
@@ -3288,4 +3344,96 @@ model ActivityAnswerSave {
 
   @@id([attemptId, questionId, revision])
   @@map("activity_answer_saves")
+}
+
+// ── 024: Monitoramento de provas no celular (data-model.md) ──────────────────────────────────
+
+/// A MOBILE session's device for push (research Y9): one per session, the Expo push token unique. Valid for
+/// sending while its session is valid (derived); deleted on logout, on every revocation, on
+/// `DeviceNotRegistered`, when the token moves to another session and by the job `mobile-devices`. The token
+/// never reaches audit or logs.
+model MobileDevice {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Only a `client = 'MOBILE'` session (trigger).
+  sessionId String         @unique @map("session_id") @db.Uuid
+  /// The session's user (trigger).
+  userId    String         @map("user_id") @db.Uuid
+  platform  MobilePlatform
+  /// `^Expo(nent)?PushToken\[[A-Za-z0-9_-]{10,200}\]$` (CHECK).
+  pushToken String         @unique @map("push_token")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mobile_devices")
+}
+
+/// "Silenciar avisos desta prova" (research Y8): muted = the row exists, per teacher and EXAM activity (trigger).
+model ExamAlertMute {
+  teacherUserId String   @map("teacher_user_id") @db.Uuid
+  activityId    String   @map("activity_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  teacher  User          @relation(fields: [teacherUserId], references: [id], onDelete: Cascade)
+  activity ClassActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([teacherUserId, activityId])
+  @@index([activityId])
+  @@map("exam_alert_mutes")
+}
+
+/// The alert outbox (research Y5): written by `attempt-integrity` through `ExamAlertSink` in the events
+/// batch's transaction, one per counted occurrence (UNIQUE), the recipients resolved by the worker at send
+/// time. Ids, enums and ordinals only: no name, title or text is stored.
+model ExamAlert {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind              ExamAlertKind
+  activityId        String          @map("activity_id") @db.Uuid
+  attemptId         String          @map("attempt_id") @db.Uuid
+  studentUserId     String          @map("student_user_id") @db.Uuid
+  /// ≥ 1 (CHECK): the occurrence, or the one that opened the hold.
+  occurrenceOrdinal Int             @map("occurrence_ordinal") @db.SmallInt
+  /// NOT NULL iff `kind = 'HOLD'` (CHECK).
+  holdId            String?         @map("hold_id") @db.Uuid
+  status            ExamAlertStatus @default(PENDING)
+  /// 0–3 (CHECK).
+  tries             Int             @default(0) @db.SmallInt
+  /// The worker's lease on its claim.
+  claimedUntil      DateTime?       @map("claimed_until") @db.Timestamptz(6)
+  /// The occurrence's server time.
+  createdAt         DateTime        @map("created_at") @db.Timestamptz(6)
+  processedAt       DateTime?       @map("processed_at") @db.Timestamptz(6)
+
+  activity   ClassActivity       @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  attempt    ActivityAttempt     @relation(fields: [attemptId, activityId, studentUserId], references: [id, activityId, studentUserId], onDelete: Cascade, map: "exam_alerts_attempt_fkey")
+  student    User                @relation(fields: [studentUserId], references: [id], onDelete: Cascade)
+  hold       ExamAttemptHold?    @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  deliveries ExamAlertDelivery[]
+
+  @@unique([attemptId, occurrenceOrdinal])
+  @@index([status, createdAt])
+  @@index([activityId])
+  @@map("exam_alerts")
+}
+
+/// One send of an alert to a device (research Y6): the PK makes "at most one per occurrence and device"
+/// structural. No FK to the device, which may be deleted later; only Expo's ticket id and an error code.
+model ExamAlertDelivery {
+  alertId          String                  @map("alert_id") @db.Uuid
+  deviceId         String                  @map("device_id") @db.Uuid
+  status           ExamAlertDeliveryStatus
+  ticketId         String?                 @map("ticket_id")
+  /// `^[A-Za-z][A-Za-z0-9_]{0,63}$` (CHECK): a code such as `DeviceNotRegistered`, never a message.
+  errorCode        String?                 @map("error_code")
+  sentAt           DateTime                @map("sent_at") @db.Timestamptz(6)
+  receiptCheckedAt DateTime?               @map("receipt_checked_at") @db.Timestamptz(6)
+
+  alert ExamAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@id([alertId, deviceId])
+  @@index([status, sentAt])
+  @@map("exam_alert_deliveries")
 }

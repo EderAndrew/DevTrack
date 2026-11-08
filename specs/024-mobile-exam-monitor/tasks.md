@@ -110,7 +110,7 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
 
 ### Tests for Foundational ⚠️
 
-- [ ] T005 [P] `apps/api/test/integration/024-schema.spec.ts` (data-model.md), escrito antes da migração:
+- [x] T005 [P] `apps/api/test/integration/024-schema.spec.ts` (data-model.md), escrito antes da migração:
   - `sessions.client` com default `WEB` nas linhas existentes; UPDATE de `client` recusado (trigger);
   - `mobile_devices`: só com sessão `MOBILE` (trigger), `user_id` igual ao da sessão (trigger), `session_id` e
     `push_token` UNIQUE, CHECK do regex do token (recusa `abc`, aceita `ExponentPushToken[xxxxxxxxxx]`), apagado em
@@ -119,7 +119,7 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
   - `exam_alerts`: UNIQUE `(attempt_id, occurrence_ordinal)`, `hold_id` NOT NULL sse `kind = 'HOLD'`, `tries` 0–3,
     `occurrence_ordinal ≥ 1`; linha final (`SENT`/`SKIPPED`/`EXPIRED`) não muda (trigger), só o job apaga;
   - `exam_alert_deliveries`: PK (alerta, celular), CHECK de `error_code`, apagada em cascata com o alerta.
-- [ ] T006 [P] `apps/api/test/exam-alerts-boundary.spec.ts` (research Y13), que deve falhar antes da T009:
+- [x] T006 [P] `apps/api/test/exam-alerts-boundary.spec.ts` (research Y13), que deve falhar antes da T009:
       `modules/exam-alerts` não importa `exam-sessions`, `activities/submission`, `attendance`, as rotas de decisão
       nem nada que escreva em `exam_occurrences`, `exam_attempt_holds`, `activity_attempts` ou `activity_submissions`;
       `attempt-integrity` só conhece `exam-alert-sink.ts` (nunca importa `exam-alerts`); só
@@ -127,13 +127,13 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
       `firebase-admin`, `@expo/*`) no `package.json` da API; nas chamadas de auditoria e de log de `exam-alerts`,
       `platform/push` e `auth/mobile-session*`, nenhum campo `pushToken`, `title`, `body`, `name` ou `token`;
       nenhum texto de `exam-alerts/message.ts` diz "fraude", "cola" ou "violação".
-- [ ] T007 [P] `packages/design-tokens/test/in-sync.test.ts` (regenera em memória e compara com `src/generated.ts`;
+- [x] T007 [P] `packages/design-tokens/test/in-sync.test.ts` (regenera em memória e compara com `src/generated.ts`;
       falha se `tokens.css` mudou sem regenerar) e `packages/design-tokens/test/contrast.test.ts` (os pares de
       contraste da 022, AA, recalculados nos valores gerados dos dois temas), `024/FR-023` no título.
 
 ### Implementation for Foundational
 
-- [ ] T008 Migração `apps/api/prisma/migrations/<ts>_024_mobile_exam_monitor/migration.sql` + `schema.prisma`
+- [x] T008 Migração `apps/api/prisma/migrations/<ts>_024_mobile_exam_monitor/migration.sql` + `schema.prisma`
       (data-model.md): enums `session_client`, `mobile_platform`, `exam_alert_kind`, `exam_alert_status`,
       `exam_alert_delivery_status`; `sessions.client` com o trigger de imutabilidade; tabelas `mobile_devices`,
       `exam_alert_mutes`, `exam_alerts` (índice `(status, created_at)`) e `exam_alert_deliveries` com as CHECKs e os
@@ -141,7 +141,7 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
       `apps/api/test/security/domain-boundary.spec.ts` (`MobileDevice`, `ExamAlertMute`, `ExamAlert`,
       `ExamAlertDelivery`, comentário "024 (specs/024-mobile-exam-monitor/data-model.md) — mobile devices, mutes and the
       exam alert outbox"). T005 fica verde.
-- [ ] T009 Hook sem efeito na 018 (research Y5): `apps/api/src/modules/attempt-integrity/exam-alert-sink.ts` com a
+- [x] T009 Hook sem efeito na 018 (research Y5): `apps/api/src/modules/attempt-integrity/exam-alert-sink.ts` com a
       interface `ExamAlertSink { record(tx, alerts: ExamAlertDraft[]): Promise<void>; kick(): void }`
       (`ExamAlertDraft = { kind, activityId, attemptId, studentUserId, occurrenceOrdinal, holdId, recordedAt }`), o token
       de injeção e a implementação no-op registrada por padrão em `attempt-integrity.module.ts` (como
@@ -149,7 +149,7 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
       `countBatch` (uma linha por ocorrência nova que não abre retenção; a que abre retenção vira `HOLD` com o
       `hold_id`), chama `sink.record(tx, …)` dentro da transação e `sink.kick()` depois do commit. As suítes 018
       continuam verdes sem mudança de asserção; T006 fica verde quanto à 018.
-- [ ] T010 [P] Porta de push e configuração (contracts/configuration.md, research Y6):
+- [x] T010 [P] Porta de push e configuração (contracts/configuration.md, research Y6):
       `apps/api/src/platform/push/push-client.ts` (porta `PushClient`: `send(messages) → tickets`,
       `getReceipts(ids) → receipts`, erros transitórios tipados), `apps/api/src/platform/push/expo-push.client.ts`
       (`fetch` para `${EXPO_PUSH_BASE_URL}/--/api/v2/push/send` em lotes de até 100 e `/getReceipts` até 300 ids,
@@ -160,7 +160,7 @@ tem a porta de push e a configuração; o app tem o cliente, a sessão segura, o
       `EXAM_ALERT_INTERVAL_MS` (default `1000`, `0` desliga), `EXAM_ALERT_MAX_AGE_SECONDS` (default `60`),
       `RATE_LIMIT_MOBILE_WRITES_PER_MINUTE` (default `30`); `.env.example`, `.env.test.example`
       (`EXAM_ALERT_INTERVAL_MS=0`) e o teste da configuração (variáveis inválidas, guarda de produção).
-- [ ] T011 [P] Esqueleto do app (contracts/mobile-ui.md): `apps/mobile/lib/api/client.ts` (fetch com
+- [x] T011 [P] Esqueleto do app (contracts/mobile-ui.md): `apps/mobile/lib/api/client.ts` (fetch com
       `EXPO_PUBLIC_API_ORIGIN`, `Authorization: Bearer`, `Content-Type: application/json` e `{}` em métodos
       inseguros, nunca cookie, parse do erro `{statusCode, code, message}`, resposta validada pelo schema do
       contrato, um `401` dispara `onUnauthorized`), `apps/mobile/lib/session/secure-session.ts` (`expo-secure-store`:
