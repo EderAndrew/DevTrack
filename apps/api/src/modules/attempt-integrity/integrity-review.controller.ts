@@ -2,7 +2,7 @@ import { Controller, Get, Param } from "@nestjs/common";
 import { type IntegritySummaryList, type IntegrityTimeline, UuidSchema } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
-import { RequirePermissions } from "../access-control/decorators";
+import { MobileAccess, RequirePermissions } from "../access-control/decorators";
 import { IntegrityReviewService } from "./integrity-review.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
@@ -18,8 +18,10 @@ export class IntegrityReviewController {
     return this.review.summary(ctx.auth!.userId, classId, activityId);
   }
 
+  /** Also the app's "occurrences of a student" (024/US2-4, research Y10): opened to the mobile session, nothing else changes. */
   @Get("attempts/:attemptId/integrity")
   @RequirePermissions("entregas.visualizar")
+  @MobileAccess()
   timeline(
     @Param("classId", idPipe) classId: string,
     @Param("activityId", idPipe) activityId: string,

@@ -250,6 +250,8 @@ describe("route access declarations", () => {
     expect(routes.filter((r) => r.declared.some((d) => MOBILE_MARKERS.includes(d))).map((r) => `${r.route} ${r.declared.join(" ")}`).sort()).toEqual(
       [
         "DELETE /auth/mobile/sessions/current @AllowUnverified @MobileAccess",
+        "GET /classes/:classId/activities/:activityId/attempts/:attemptId/integrity @MobileAccess @RequirePermissions",
+        "GET /classes/:classId/activities/:activityId/exam-monitor @MobileAccess @RequirePermissions",
         "GET /me @AllowUnverified @MobileAccess",
         "GET /mobile/exams @MobileAccess @RequirePermissions",
         "POST /auth/mobile/sessions @Public @MobileEntry",

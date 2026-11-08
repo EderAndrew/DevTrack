@@ -304,12 +304,12 @@ web; uma ocorrência aparece em até 10 s; um aluno retido mostra "Decida no com
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T022 [P] [US2] `apps/api/test/integration/024-us2-room.spec.ts`: com o bearer MOBILE, `GET …/exam-monitor` e
+- [x] T022 [P] [US2] `apps/api/test/integration/024-us2-room.spec.ts`: com o bearer MOBILE, `GET …/exam-monitor` e
       `GET …/attempts/:attemptId/integrity` devolvem **exatamente** o mesmo corpo que a sessão WEB do mesmo professor no
       mesmo instante (`024/SC-003`, `024/FR-007`); `024/US2-1` professor B (bearer) → `404` nas duas rotas e a prova de B
       fora de `GET /mobile/exams`; `024/US2-6` a prova encerrada ou cancelada sai de `GET /mobile/exams`;
       `024/FR-010` as rotas de decisão, chamada e pausa com o bearer → `403 MOBILE_ROUTE_NOT_ALLOWED`.
-- [ ] T023 [P] [US2] Testes do app:
+- [x] T023 [P] [US2] Testes do app:
   - `apps/mobile/features/exam-room/components/exam-room.test.tsx`: `024/US2-2` com timers falsos, um novo corpo do
     monitor em 5 s muda a contagem do aluno; `024/US2-3` retido primeiro, com o selo do aviso, "Encerrada por avisos
     — aguardando decisão" e "Decida no computador", sem botão; `024/US2-5` o tempo restante vem de `serverNow` (o
@@ -330,9 +330,9 @@ web; uma ocorrência aparece em até 10 s; um aluno retido mostra "Decida no com
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] `@MobileAccess()` em `GET …/exam-monitor` e `GET …/attempts/:attemptId/integrity` (controllers da
+- [x] T024 [US2] `@MobileAccess()` em `GET …/exam-monitor` e `GET …/attempts/:attemptId/integrity` (controllers da
       018/015, nada mais muda); `MATRIX` atualizado (coluna do bearer). T022 fica verde.
-- [ ] T025 [US2] App — sala: `apps/mobile/features/exam-room/schemas/exam-room.ts` (cópia do catálogo da web:
+- [x] T025 [US2] App — sala: `apps/mobile/features/exam-room/schemas/exam-room.ts` (cópia do catálogo da web:
       `examStatusLabel`, `occurrenceLabel`, formatação de tempo), `api/` (monitor e linha do tempo, validados pelos
       schemas de `@repo/contracts`), `hooks/use-exam-room.ts` e `hooks/use-student-occurrences.ts` (TanStack Query,
       `refetchInterval: EXAM_ROOM_POLL_MS = 5000` só com a tela em foco e o app ativo, `onlineManager`/estado de rede
