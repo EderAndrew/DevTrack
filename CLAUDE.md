@@ -101,7 +101,7 @@ on those files with the given `SESSION_ID` (audit only, no code changes during i
 `.claude/hooks/audit-complete.sh <SESSION_ID>` records the confirmation. A new edit invalidates a
 previous audit. The log is `.claude/hooks/security.log`.
 
-`.specify/memory/constitution.md` (v3.6.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v3.7.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -135,6 +135,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
 - No new dependency (023-group-work)
 - PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
+- API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo (SDK pinned), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
+- PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
 
 ## Stack notes
 
@@ -457,9 +459,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 024-mobile-exam-monitor (planned): read-only Expo app for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; constitution 3.7.0 (mobile app and stack, push)
 - 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 - 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
-- 021-work-code-runner: Code Runner in works — "Permitir executar o código" on applying a work (off by default, fixed once a student starts, only with an eligible CODE question); the 019 "Executar" on its CODE questions, also in the CONTROLLED focus page, only while a save would be accepted and never while paused; the teacher's review shows per question the run count and the last run's verdicts, no code or output; never a grade
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

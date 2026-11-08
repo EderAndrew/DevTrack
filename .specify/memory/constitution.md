@@ -1,34 +1,41 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.5.0 → 3.6.0
-Motivo (MINOR): o XXIV ganha uma exceção explícita e delimitada para o trabalho em grupo. Num
-trabalho que o professor aplicou em grupo, os integrantes de um mesmo grupo compartilham uma única
-tentativa (respostas, nomes, quem edita, orientações entregues e, depois da liberação, a nota e o
-retorno da entrega do grupo), e o aluno pode ver só o nome dos colegas da turma, presentes e sem
-início naquele trabalho, para formar ou completar o grupo. Fatos individuais de cada integrante
-continuam privados e nada de outro grupo, trabalho ou turma é exposto. É MINOR (e não PATCH) porque
-permite algo que o texto anterior ("um aluno vê somente as próprias notas e respostas") proibia.
-Origem: /speckit-plan da 023 (Constitution Check, research U1); registro em
-specs/023-group-work/constitution-amendment-3.6.0.md.
+Version change: 3.6.0 → 3.7.0
+Motivo (MINOR): nova seção "Stack oficial do mobile" e expansão material de XXVI e IX. O monorepo
+ganha apps/mobile (React Native/Expo), primeiro só para o professor acompanhar provas, com uma
+solução por responsabilidade espelhando o web (Expo Router, TanStack Query, Zod de
+packages/contracts, fetch nativo, expo-secure-store, expo-notifications, expo-haptics, Jest + RNTL),
+design pelos tokens do web via packages/design-tokens (gerado de tokens.css, sem valores literais),
+sessão opaca e revogável (nunca JWT, sem enfraquecer cookie/Origin do web) e notificação push como
+aviso não autoritativo com conteúdo mínimo. Nenhuma regra existente fica mais fraca, por isso não é
+MAJOR. Origem: /speckit-constitution de 2026-11-07, antes da spec do monitoramento de provas no
+celular.
 
 Princípios modificados:
-  XXIV. Isolamento por Contexto Acadêmico — exceção do trabalho em grupo.
+  IX. Simplicidade e Evolução Incremental — notificações push na lista de infraestrutura que só
+      entra com spec aprovada.
+  XXVI. Contratos Compartilhados — valem para API, web e mobile; mensagens no web e no mobile.
 
-Seções modificadas: Governance — histórico ganha a entrada 3.6.0.
+Seções modificadas:
+  Arquitetura e Stack Técnica — apps/mobile, packages/design-tokens e "Stack oficial do mobile"
+  (tabela, design, autenticação, push, organização, testes).
+  Padrões por Camada — "Frontend" vale para web e mobile.
+  Governance — versão 3.7.0 e entrada no histórico.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXIV cita a exceção do trabalho em grupo
+  ✅ .specify/templates/plan-template.md  — gate XXVI cita o mobile; novo gate "Mobile stack"
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
-  ✅ .specify/templates/tasks-template.md — sem mudança necessária
+  ✅ .specify/templates/tasks-template.md — sem mudança necessária (já prevê o caminho Mobile)
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.6.0
+  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.7.0
 
 Follow-ups:
-  - specs/023-group-work/{plan,research}.md e constitution-amendment-3.6.0.md: passam a citar a
-    v3.6.0 como aplicada.
+  - A spec do monitoramento no celular define o conteúdo mínimo da notificação, o registro e a
+    remoção do token de dispositivo e como a API autentica o app sem enfraquecer o OriginGuard.
+  - packages/design-tokens e apps/mobile nascem no plano dessa spec (nada é criado por esta emenda).
 -->
 
 # DevTrack Constitution
@@ -181,8 +188,9 @@ da fundação (ver Roadmap de Fases).
   (YAGNI, KISS, DRY — sem sacrificar segurança ou clareza).
 - Abstrações compartilhadas só existem quando há reutilização ou benefício
   arquitetural claro.
-- Infraestrutura adicional (Redis, BullMQ, WebSocket, sandbox de execução, IA etc.)
-  NÃO é obrigatória na fundação; entra somente quando uma spec aprovada exigir.
+- Infraestrutura adicional (Redis, BullMQ, WebSocket, sandbox de execução, IA,
+  notificações push etc.) NÃO é obrigatória na fundação; entra somente quando uma spec
+  aprovada exigir.
 
 ### X. Evidência Antes de Conclusão
 
@@ -631,27 +639,27 @@ erro caro de corrigir depois.
 ### XXVI. Contratos Compartilhados
 
 - Todo contrato entre aplicações do monorepo DEVE ser definido em
-  `packages/contracts` e consumido de lá pela API e pelo web.
+  `packages/contracts` e consumido de lá pela API, pelo web e pelo mobile.
 - Schemas Zod são a fonte primária dos contratos que exigem validação em runtime; os
   tipos TypeScript correspondentes DEVEM ser derivados com `z.infer`. É PROIBIDA a
-  duplicação manual de tipos equivalentes entre API e web (ex.: `CreateExamDto` na
-  API e `CreateExamRequest` no web descrevendo a mesma coisa).
+  duplicação manual de tipos equivalentes entre API, web e mobile (ex.:
+  `CreateExamDto` na API e `CreateExamRequest` no web descrevendo a mesma coisa).
 - O pacote contém apenas a fronteira entre aplicações: schemas de request e
   response, enums públicos, paginação, filtros, eventos trocados entre apps e o
   formato de erro `{statusCode, code, message}`.
 - NUNCA vão para o pacote: modelos ou tipos do Prisma, repositórios, services, tipos
   de persistência ou de domínio privado, nem estado de UI/Redux.
 - O contrato define forma e códigos; mensagens exibidas ao usuário (textos pt-BR)
-  NÃO ficam no contrato — pertencem ao web, que as associa aos códigos.
+  NÃO ficam no contrato — pertencem ao web e ao mobile, que as associam aos códigos.
 - Compartilhar o schema NÃO substitui a validação definitiva no backend (Princípio
   I): a API DEVE validar toda entrada com o schema do contrato, independentemente do
   que o frontend já validou.
 - Há uma única versão de Zod no workspace, fixada pelo `catalog` do pnpm; nenhum app
   ou pacote declara outra.
 - O pacote é compilado para `dist/` com declarações de tipo, de forma que a API (build
-  com SWC) e o web o consumam como qualquer dependência de workspace.
+  com SWC), o web e o mobile o consumam como qualquer dependência de workspace.
 
-**Rationale**: API e web descrevendo a mesma estrutura em dois lugares divergem em
+**Rationale**: API e clientes descrevendo a mesma estrutura em dois lugares divergem em
 silêncio; uma definição única com validação em runtime faz a divergência falhar no
 build ou no teste. Limitar o pacote à fronteira mantém a implementação interna livre
 para mudar sem quebrar o outro lado.
@@ -662,7 +670,12 @@ Monorepo com:
 
 - `apps/api` — backend NestJS.
 - `apps/web` — frontend Next.js.
-- `packages/contracts` — contratos compartilhados entre API e web (Princípio XXVI).
+- `apps/mobile` — app React Native (Expo); nasce restrito ao que uma spec aprovada
+  definir (a primeira: o professor acompanhar provas), nunca como cópia do web.
+- `packages/contracts` — contratos compartilhados entre API, web e mobile (Princípio
+  XXVI).
+- `packages/design-tokens` — tokens do Design System para o mobile, gerados a partir
+  de `apps/web/design-system/tokens.css`.
 - `packages/*` — demais bibliotecas e configurações compartilhadas, somente com
   necessidade real de reutilização.
 - `specs/*` — especificações funcionais e técnicas produzidas pelo Spec Kit.
@@ -701,6 +714,48 @@ Validação → Zod. UI → shadcn/ui.**
   Componentes shadcn ficam em `apps/web/components/ui`.
 - Testes E2E com Playwright rodam contra API e PostgreSQL reais.
 
+**Stack oficial do mobile** (`apps/mobile`) — mesma regra: uma solução por
+responsabilidade, espelhando o web; specs NÃO DEVEM introduzir alternativas sem emendar
+esta constituição:
+
+| Responsabilidade | Tecnologia |
+|------------------|------------|
+| Framework | React Native com Expo (SDK fixado) + TypeScript |
+| Navegação | Expo Router |
+| Estilização / ícones | `StyleSheet` do React Native alimentado por `packages/design-tokens`; Lucide (`lucide-react-native`) |
+| Server state (tudo que vem da API) | TanStack Query |
+| Client/application state global | Redux Toolkit, com a mesma regra do web (só estado real de cliente, nunca autoridade) |
+| Formulários | React Hook Form + Zod + `@hookform/resolvers` |
+| Validação e schemas | Zod, a partir de `packages/contracts` |
+| HTTP | `fetch` nativo, direto à origem HTTPS da API (sem Axios) |
+| Credencial da sessão | `expo-secure-store` |
+| Notificações push | `expo-notifications` (Expo Push → FCM/APNs) |
+| Vibração | `expo-haptics` |
+| Qualidade | ESLint, Prettier, Jest + React Native Testing Library (com consultas por papel e nome acessível) |
+
+- **Design**: o mobile usa o mesmo Design System do web. Cores dos temas escuro e
+  claro, tipografia, raios e espaçamentos vêm de `packages/design-tokens`, gerado a
+  partir de `tokens.css` (fonte única) e verificado por teste para não divergir; telas
+  NÃO DEVEM usar valores literais. Estados nunca dependem só de cor, e os textos seguem
+  as mesmas regras de redação do web.
+- **Autenticação**: o mobile usa a mesma identidade e as mesmas permissões (Princípio
+  II); não há outro mecanismo de autenticação. A credencial é uma sessão opaca e
+  revogável no servidor (nunca JWT), guardada apenas como hash no banco e, no
+  aparelho, somente no `expo-secure-store`; toda revogação de sessão (logout, troca de
+  senha, desativação, remoção de papel) a alcança. Aceitar requisições do app NÃO DEVE
+  enfraquecer as proteções do web (cookie, `Origin`).
+- **Notificação push** é aviso, nunca autoridade: o que conta é o estado lido da API
+  autenticada, que reautoriza toda leitura. O conteúdo da notificação carrega o mínimo
+  definido na spec — nunca enunciados, respostas, notas, e-mail ou dados de contato.
+  Tokens de dispositivo são registrados por usuário e removidos no logout e em toda
+  revogação de sessão.
+- Código do mobile segue a organização do web: rotas do Expo Router em
+  `apps/mobile/app/`, código por feature em
+  `apps/mobile/features/<feature>/{api,components,hooks,schemas,store,types}` e
+  componentes de base em `apps/mobile/components/ui`.
+- Testes E2E do mobile entram quando uma spec exigir (Princípio IX); até lá, os fluxos
+  críticos são cobertos pelos testes da API e por Jest + RNTL.
+
 **Transição**: a Fase 001 foi entregue antes desta stack. Sua migração — criar
 `packages/contracts` e mover para ele os schemas da 001; adotar Tailwind/shadcn nas
 páginas existentes preservando os testes de acessibilidade e teclado; remover
@@ -721,7 +776,7 @@ sem que a fundação precise implementá-los antecipadamente.
 - Regras de negócio ficam em services/use cases. Acesso ao banco é isolado da camada
   HTTP — sem chamadas Prisma em controllers.
 
-**Frontend**
+**Frontend** (web e mobile)
 
 - Componentes React priorizam apresentação e interação. UI, estado, comunicação com a
   API, validação e regras de domínio DEVEM ficar separados.
@@ -814,7 +869,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.6.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-30
+**Version**: 3.7.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-11-07
 
 Histórico:
 
@@ -854,3 +909,7 @@ Histórico:
 - **3.6.0** — XXIV: exceção explícita para o trabalho em grupo (integrantes do mesmo grupo
   compartilham a tentativa, as orientações entregues e a nota liberada; o aluno vê só o nome
   dos colegas presentes e sem início para formar o grupo; fatos individuais continuam privados).
+- **3.7.0** — App mobile `apps/mobile` (React Native/Expo) com stack oficial própria espelhando
+  o web, design pelos tokens do web via `packages/design-tokens`, sessão opaca e revogável no
+  `expo-secure-store`, notificação push como aviso não autoritativo (IX); XXVI passa a valer
+  para API, web e mobile.
