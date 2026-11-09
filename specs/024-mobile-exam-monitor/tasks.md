@@ -480,7 +480,7 @@ religar e conferir que a próxima volta a avisar, sem aviso atrasado.
       linha "(planned)" do Recent Changes vira a definitiva), `docs/deploy/mobile.md` (projeto EAS, `eas credentials`
       do FCM, `EXPO_ACCESS_TOKEN` e `PUSH_ENABLED` no VPS, build `internal`, instalação do APK no piloto) e
       `DEPENDENCIES.md` se houver override novo.
-- [ ] T040 Piloto manual: o quickstart passos 1–9 num aparelho Android com um build `development` (push exige dev/EAS
+- [x] T040 Piloto manual: o quickstart passos 1–9 num aparelho Android com um build `development` (push exige dev/EAS
       build): celular bloqueado mostra só "DevTrack" e "Conteúdo oculto"; vibração mais forte na retida; cronometrar
       `024/SC-001` (aviso em ≤ 10 s) e `024/SC-007` (entrar e abrir a sala em < 1 min). Anotar os resultados no
       plan.md.
