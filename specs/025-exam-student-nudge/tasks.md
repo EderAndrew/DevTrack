@@ -343,7 +343,7 @@ web e a revisão depois do fim; conferir os registros, as situações e que o al
 - [X] T032 [P] Revisão de desempenho em `apps/api/test/security/025-performance.spec.ts` (plan "Performance Goals"):
       `GET …/attempt/exam-nudge` p95 < 50 ms com 40 alunos e avisos; envio p95 < 150 ms; o monitor com o agregado
       novo no mesmo alvo da 018.
-- [ ] T033 Piloto manual: quickstart "Manual check" passos 1–6 com o build `development` do app; cronometrar
+- [X] T033 Piloto manual: quickstart "Manual check" passos 1–6 com o build `development` do app; cronometrar
       `025/SC-001` (aviso em ≤ 10 s) e `025/SC-007` (envio em < 5 s a partir da sala). Anotar no plan.md.
 - [X] T034 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde (inclui `apps/mobile`); `pending` da
       025 vazio em `traceability.spec.ts`; Semgrep sem achados nos arquivos novos.

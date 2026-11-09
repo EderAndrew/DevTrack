@@ -157,3 +157,15 @@ inside the existing `features/exam-room`.
 ## Complexity Tracking
 
 No violation.
+
+## Pilot (T033)
+
+Manual pilot on 2026-11-09, quickstart "Manual check" steps 1–6, the `development` build of the app on an Android
+phone (Samsung SM-A236M, USB with `adb reverse` to the local API), web and API from `pnpm dev`:
+
+- Steps 1–6 passed: the bell showed for the student with 2+ counted occurrences; the dialog reached only that student;
+  "Entendi" closed it; the app showed the bell back with the closed warning and both timeline entries; the web room
+  showed the count with no send button.
+- `025/SC-001`: `exam_nudge.sent` 12:56:25.291Z, `exam_nudge.dismissed` 12:56:34.721Z — the student saw the warning
+  within 9 s of the send (target ≤ 10 s).
+- `025/SC-007`: from the room to the send, about 3 s, timed by the teacher (target < 5 s).
