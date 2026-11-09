@@ -92,7 +92,7 @@ import { AttemptPausesSchema, DeclareExitSchema, MyPauseSchema, StudentPauseSche
 import { AttendanceBatchSchema, RoomSchema } from "./attendance/room.js";
 import { EmptyBodySchema, EmptyResponseSchema, UuidSchema } from "./common/primitives.js";
 import { TeacherExamHoldSchema } from "./exam-sessions/holds.js";
-import { SendExamNudgeRequestSchema, SendExamNudgeResponseSchema } from "./exam-nudges/nudge.js";
+import { DismissExamNudgeRequestSchema, SendExamNudgeRequestSchema, SendExamNudgeResponseSchema, StudentExamNudgeSchema } from "./exam-nudges/nudge.js";
 import { ExamMonitorSchema } from "./exam-sessions/monitor.js";
 import {
   AdminFeedbackPageSchema,
@@ -281,6 +281,10 @@ export type ClassActivityHoldParams = z.infer<typeof ClassActivityHoldParamsSche
 /** One of the session student's activities (012). */
 export const MyActivityParamsSchema = z.strictObject({ activityId: UuidSchema });
 export type MyActivityParams = z.infer<typeof MyActivityParamsSchema>;
+
+/** A discreet warning of the session student's own exam attempt (025). */
+export const MyExamNudgeParamsSchema = z.strictObject({ activityId: UuidSchema, nudgeId: UuidSchema });
+export type MyExamNudgeParams = z.infer<typeof MyExamNudgeParamsSchema>;
 
 /** A practice attempt by its number (013 research K3): a positive integer in the path. */
 export const AttemptNumberSchema = z.coerce.number().pipe(z.int().min(1).max(100_000));
@@ -1534,6 +1538,24 @@ export const endpoints = {
     path: "/me/activities/:activityId/attempt/pause",
     params: MyActivityParamsSchema,
     response: MyPauseSchema,
+    status: 200,
+  },
+  // 025/US2 — the student's discreet warning on the exam page (contracts/http-api.md, research N7).
+  /** The pending warning of the own exam attempt while it is shown, else `null`; polled every 5 s. */
+  "myExamNudge.get": {
+    method: "GET",
+    path: "/me/activities/:activityId/attempt/exam-nudge",
+    params: MyActivityParamsSchema,
+    response: StudentExamNudgeSchema,
+    status: 200,
+  },
+  /** "Entendi": body exactly `{}`; `{ nudge: null }` also when already dismissed; paused, held or ended → 409. */
+  "myExamNudge.dismiss": {
+    method: "POST",
+    path: "/me/activities/:activityId/attempt/exam-nudge/:nudgeId/dismiss",
+    params: MyExamNudgeParamsSchema,
+    body: DismissExamNudgeRequestSchema,
+    response: StudentExamNudgeSchema,
     status: 200,
   },
   // 019/US1 — "Executar" on an EXERCISE CODE question (contracts/http-api.md, research B9, B13).

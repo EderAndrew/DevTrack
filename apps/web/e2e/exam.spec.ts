@@ -1,6 +1,7 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
-import { sendSyllabus, syllabusFile, unique, upload } from "./fixtures/curriculum.ts";
-import { type Account, acceptClassInvitation, field, logIn, newAccount } from "./fixtures/journeys.ts";
+import { unique } from "./fixtures/curriculum.ts";
+import { confirmedSyllabus } from "./fixtures/exams.ts";
+import { type Account, acceptClassInvitation, logIn, newAccount } from "./fixtures/journeys.ts";
 import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** 018/SC-007: what one side does shows on the other within 10 s, through the 5 s polling, never a reload. */
@@ -48,29 +49,6 @@ async function warned(page: Page, n: number): Promise<void> {
   await page.keyboard.press("Enter");
   await expect(warning).toBeHidden();
   await page.waitForTimeout(BETWEEN_OCCURRENCES_MS);
-}
-
-/** The syllabus of the seed's subject (an image, filled in by hand) confirmed with one group; returns the revision and its item ids. */
-async function confirmedSyllabus(page: Page, subjectId: string, items: string[]): Promise<{ revisionId: string; itemIds: string[] }> {
-  await page.goto(`/disciplinas/${subjectId}`);
-  await sendSyllabus(page, upload("ementa.png", syllabusFile("ementa.png")));
-  await page.getByRole("link", { name: "ementa.png" }).click();
-  await page.getByRole("button", { name: "Preencher manualmente" }).first().click({ timeout: 30_000 });
-  const syllabus = page.getByRole("form", { name: "Revisão 1 do conteúdo" });
-  await syllabus.getByRole("button", { name: "Adicionar grupo" }).click();
-  await field(syllabus, "Título do grupo").fill("Orientação a objetos");
-  for (const [index, text] of items.entries()) {
-    const item = syllabus.getByRole("textbox", { name: `Item ${index + 1} do grupo 1`, exact: true });
-    if ((await item.count()) === 0) await syllabus.getByRole("button", { name: "Adicionar item ao grupo 1" }).click();
-    await item.fill(text);
-  }
-  await syllabus.getByRole("button", { name: "Confirmar conteúdo" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Confirmar conteúdo" }).click();
-  await expect(page.getByText(/Conteúdo confirmado — revisão 1\./)).toBeVisible();
-  const documents = (await (await page.request.get(`/api/subjects/${subjectId}/syllabus-documents`)).json()) as { items: { confirmedRevision: { id: string } | null }[] };
-  const revisionId = documents.items.find((document) => document.confirmedRevision)!.confirmedRevision!.id;
-  const revision = (await (await page.request.get(`/api/syllabus-revisions/${revisionId}`)).json()) as { groups: { items: { id: string }[] }[] };
-  return { revisionId, itemIds: revision.groups.flatMap((group) => group.items.map((item) => item.id)) };
 }
 
 /** The exam's two multiple-choice questions, 1,00 each: graded with no action of the teacher (018/SC-008). */

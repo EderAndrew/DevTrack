@@ -68,7 +68,7 @@ const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_020 = new Set<string>([]);
 /** 025 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_025 = new Set<string>(["exam_nudge.dismissed"]);
+const PENDING_025 = new Set<string>([]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,

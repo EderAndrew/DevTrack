@@ -224,7 +224,7 @@ fechar, recarregar e conferir que não volta e que nenhuma ocorrência foi regis
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T019 [P] [US2] `apps/api/test/integration/025-us2-student.spec.ts`:
+- [X] T019 [P] [US2] `apps/api/test/integration/025-us2-student.spec.ts`:
   - `025/US2-1`: `GET /me/activities/:id/attempt/exam-nudge` → `{ nudge: { id, studentName } }` com o nome da conta;
     sem pendente → `null`; o corpo tem só essas chaves (`025/FR-009`);
   - `025/US2-2`, `025/US2-3`: dismiss → `200 { nudge: null }`, `dismissed_at` do `Clock`, `exam_nudge.dismissed`;
@@ -236,10 +236,10 @@ fechar, recarregar e conferir que não volta e que nenhuma ocorrência foi regis
   - aluno não marcado presente, trabalho, exercício → `404` como as rotas de aluno da 018; bearer → `403
     MOBILE_ROUTE_NOT_ALLOWED`;
   - `025/FR-006` (fechamento): corpo com campo extra (`{ dismissedAt }`, `{ studentId }`) → `400`, nada muda.
-- [ ] T020 [P] [US2] `apps/api/test/security/025-never-occurrence.spec.ts` `025/SC-003`: duas tentativas iguais, uma
+- [X] T020 [P] [US2] `apps/api/test/security/025-never-occurrence.spec.ts` `025/SC-003`: duas tentativas iguais, uma
       com envio + fechamento, outra sem; mesmas ocorrências, contagem, `endsAt`, respostas, situação e nota depois da
       correção e liberação (0 diferenças).
-- [ ] T021 [P] [US2] Testes do web em `apps/web/features/exam-nudge/components/exam-nudge-dialog.test.tsx` e
+- [X] T021 [P] [US2] Testes do web em `apps/web/features/exam-nudge/components/exam-nudge-dialog.test.tsx` e
       `apps/web/features/exam-attempt/components/exam-nudge.test.tsx` (MSW/fetch mockado, timers falsos):
       `025/US2-1` diálogo "Mensagem do professor" depois de uma consulta de 5 s com o texto exato e o nome;
       `025/US2-2` "Entendi" e Escape fecham na hora, chamam o dismiss e o foco volta; `025/FR-011` falha de rede → o
@@ -252,23 +252,23 @@ fechar, recarregar e conferir que não volta e que nenhuma ocorrência foi regis
       diálogo; tempo esgotado esconde o diálogo; `025/US2-6` sem consulta (ou sem diálogo) com a tentativa pausada ou
       retida; espera o `WarningDialog` fechar; `025/US2-8` `role="alertdialog"`, foco preso, `vitest-axe` sem
       violações nos temas escuro e claro; consulta só com a página visível (`refetchIntervalInBackground: false`).
-- [ ] T022 [P] [US2] E2E `apps/web/e2e/exam-nudge.spec.ts` `025/SC-001`, `025/SC-002`: professor aplica a prova, dois
+- [X] T022 [P] [US2] E2E `apps/web/e2e/exam-nudge.spec.ts` `025/SC-001`, `025/SC-002`: professor aplica a prova, dois
       alunos presentes iniciam; o aluno A sai da tela duas vezes; o aviso é criado pela API com o bearer do professor
       (helper do e2e); A vê o diálogo em ≤ 10 s, B não vê nada em 15 s; A fecha e o diálogo não volta depois de
       recarregar; nenhum "Aviso n de 3" novo.
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] `exam-nudges.service.ts` → `studentPending(studentId, activityId)` e `dismiss(studentId, activityId,
+- [X] T023 [US2] `exam-nudges.service.ts` → `studentPending(studentId, activityId)` e `dismiss(studentId, activityId,
       nudgeId)` (research N7): tentativa própria localizada por `attempt_participants` com as regras de acesso de
       aluno da 018 (matrícula ACTIVE, presença 016; fora → `404`); `nudgeShown` com os fatos da tentativa; dismiss com
       `UPDATE … WHERE dismissed_at IS NULL RETURNING`, já fechado → `200` sem evento, os `409` da tabela de
       contracts/http-api.md; `exam_nudge.dismissed` na mesma transação (tipo registrado na auditoria e no journey).
-- [ ] T024 [US2] `apps/api/src/modules/exam-nudges/student-exam-nudge.controller.ts`: `GET
+- [X] T024 [US2] `apps/api/src/modules/exam-nudges/student-exam-nudge.controller.ts`: `GET
       me/activities/:activityId/attempt/exam-nudge` e `POST …/exam-nudge/:nudgeId/dismiss`
       (`@RequirePermissions("atividades.proprias.responder")`, `ZodBody(DismissExamNudgeRequestSchema)`), entradas
       em `endpoints.ts` e no `MATRIX`. T019 e T020 verdes.
-- [ ] T025 [US2] Web: `apps/web/features/exam-nudge/api/exam-nudge.ts`, `hooks/use-exam-nudge.ts`
+- [X] T025 [US2] Web: `apps/web/features/exam-nudge/api/exam-nudge.ts`, `hooks/use-exam-nudge.ts`
       (`refetchInterval: ATTENDANCE_POLL_MS`, `refetchIntervalInBackground: false`, `enabled` só com a prova
       rodando; dismiss que fecha na hora, guarda o id em `sessionStorage` e reenvia em segundo plano até ser aceito,
       filtrando da consulta os ids já fechados neste aparelho), `schemas/exam-nudge.ts` (textos, contracts/ui.md) e

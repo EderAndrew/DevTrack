@@ -1413,7 +1413,13 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     occurrenceCount: 2,
     held: false,
   });
-  expect((await appClient(appTeacherToken).post(nudgePath, {})).status).toBe(201);
+  const sentNudge = await appClient(appTeacherToken).post(nudgePath, {});
+  expect(sentNudge.status).toBe(201);
+  // 025/US2 — the student's poll shows it with their own name; "Entendi" dismisses it (`exam_nudge.dismissed`).
+  const studentNudgePath = `/api/me/activities/${alertExam.id}/attempt/exam-nudge`;
+  expect((await alertStudentClient.get(studentNudgePath)).body.nudge).toEqual({ id: sentNudge.body.nudge.id, studentName: (await t.prisma.user.findUniqueOrThrow({ where: { id: alertStudent.id } })).name });
+  expect((await alertStudentClient.post(`${studentNudgePath}/${sentNudge.body.nudge.id}/dismiss`, {})).body).toEqual({ nudge: null });
+  expect((await alertStudentClient.get(studentNudgePath)).body).toEqual({ nudge: null });
   const otherAppTeacher = await createUser(t, { roles: ["TEACHER"], name: "Outra professora do app" });
   const otherAppToken = await signInApp(otherAppTeacher);
   expect((await appClient(otherAppToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);

@@ -333,6 +333,7 @@ export const AUDIT_EVENT_METADATA = {
   // name or the warning's text.
   "exam_nudge.sent": ["activityId", "nudgeId", "occurrenceCount"],
   "exam_nudge.send_refused": ["activityId", "reason"],
+  "exam_nudge.dismissed": ["activityId", "nudgeId"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_METADATA;

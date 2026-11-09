@@ -381,6 +381,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   // 016/US3 — the declared exit, its polling and the release of the return (contracts/permissions.md).
   { method: "POST", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.responder" },
   { method: "GET", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.visualizar" },
+  // 025/US2 — the student's discreet warning on the exam page (web only).
+  { method: "GET", path: "/me/activities/:activityId/attempt/exam-nudge", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/attempt/exam-nudge/:nudgeId/dismiss", access: "atividades.proprias.responder" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/pauses/:pauseId/release", access: "chamada.registrar" },
   // 016/US5 — "Pausar aluno" (contracts/permissions.md).
   { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },

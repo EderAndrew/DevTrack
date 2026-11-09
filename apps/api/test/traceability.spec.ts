@@ -347,8 +347,8 @@ const SPECS: FeatureSpec[] = [
     // each SC with the test that cites it, so the lists are empty at the end of T030. SC-006 left with the
     // boundary spec (T005); US1 with T011–T013 and SC-004 with the concurrency spec (T012).
     pending: {
-      stories: [2, 3],
-      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-005", "SC-007"],
+      stories: [3],
+      successCriteria: ["SC-005", "SC-007"],
     },
   },
 ];

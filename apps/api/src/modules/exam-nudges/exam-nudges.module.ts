@@ -2,7 +2,9 @@ import { Module } from "@nestjs/common";
 import { MobileWriteLimit } from "../../platform/http/mobile-write-limit";
 import { ActivitiesModule } from "../activities/activities.module";
 import { ClassesModule } from "../classes/classes.module";
+import { StudentActivitiesModule } from "../student-activities/student-activities.module";
 import { ExamNudgesService } from "./exam-nudges.service";
+import { StudentExamNudgeController } from "./student-exam-nudge.controller";
 import { TeacherExamNudgesController } from "./teacher-exam-nudges.controller";
 
 /**
@@ -13,8 +15,8 @@ import { TeacherExamNudgesController } from "./teacher-exam-nudges.controller";
  * `views.ts`.
  */
 @Module({
-  imports: [ActivitiesModule, ClassesModule],
-  controllers: [TeacherExamNudgesController],
+  imports: [ActivitiesModule, ClassesModule, StudentActivitiesModule],
+  controllers: [TeacherExamNudgesController, StudentExamNudgeController],
   providers: [ExamNudgesService, MobileWriteLimit],
 })
 export class ExamNudgesModule {}

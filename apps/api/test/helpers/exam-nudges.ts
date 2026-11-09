@@ -27,6 +27,8 @@ export interface NudgeScene {
   classId: string;
   activityId: string;
   attemptId: string;
+  /** Other students of the same class, present and started in the same exam (`classmates` option). */
+  classmates: { student: TestUser; client: ApiClient; attemptId: string }[];
 }
 
 /**
@@ -34,18 +36,34 @@ export interface NudgeScene {
  * `occurrences` counted occurrences through the real events batch (each past the 2 s grouping window). Needs an
  * app built with the given `FixedClock`.
  */
-export async function nudgeScene(t: TestApp, clock: FixedClock, options: { occurrences?: number; teacher?: TestUser } = {}): Promise<NudgeScene> {
+export async function nudgeScene(
+  t: TestApp,
+  clock: FixedClock,
+  options: { occurrences?: number; teacher?: TestUser; classmates?: number } = {},
+): Promise<NudgeScene> {
   const teacher = options.teacher ?? (await createUser(t, { roles: ["TEACHER"], name: "Professora Ana" }));
-  const { schoolClass, students } = await createClassWithStudents(t, teacher.id, { students: 1 });
-  const student = students[0]!;
+  const { schoolClass, students } = await createClassWithStudents(t, teacher.id, { students: 1 + (options.classmates ?? 0) });
   const { activity } = await examActivity(t, schoolClass);
-  await t.prisma.activityAttendance.create({
-    data: { activityId: activity.id, studentUserId: student.id, classId: schoolClass.id, markedAt: clock.now(), markedById: teacher.id },
-  });
-  const { attemptId } = await createAttemptRow(t, activity.id, student.id, { startedAt: clock.now() });
-  const studentClient = api(t, { cookie: await loginAs(t, student) });
+  const started: { student: TestUser; client: ApiClient; attemptId: string }[] = [];
+  for (const one of students) {
+    await t.prisma.activityAttendance.create({
+      data: { activityId: activity.id, studentUserId: one.id, classId: schoolClass.id, markedAt: clock.now(), markedById: teacher.id },
+    });
+    const { attemptId } = await createAttemptRow(t, activity.id, one.id, { startedAt: clock.now() });
+    started.push({ student: one, client: api(t, { cookie: await loginAs(t, one) }), attemptId });
+  }
+  const [own, ...classmates] = started;
   const { token } = await openMobileSession(t, teacher);
-  const scene = { teacher, token, student, studentClient, classId: schoolClass.id, activityId: activity.id, attemptId };
+  const scene = {
+    teacher,
+    token,
+    student: own!.student,
+    studentClient: own!.client,
+    classId: schoolClass.id,
+    activityId: activity.id,
+    attemptId: own!.attemptId,
+    classmates,
+  };
   await occur(clock, scene, options.occurrences ?? 2);
   return scene;
 }
@@ -83,5 +101,14 @@ export async function createNudge(
   return { id: row.id, sentAt: row.sentAt };
 }
 
-/** The student's dismissal written straight in the database (US2 brings the route). */
+/** `GET /me/activities/:activityId/attempt/exam-nudge` (025/US2): the exam page's poll. */
+export const studentNudgePath = (activityId: string) => `/api/me/activities/${activityId}/attempt/exam-nudge`;
+
+export const getStudentNudge = (client: ApiClient, activityId: string) => client.get(studentNudgePath(activityId));
+
+/** `POST …/exam-nudge/:nudgeId/dismiss` (025/US2): "Entendi", the body exactly `{}`. */
+export const dismissNudge = (client: ApiClient, activityId: string, nudgeId: string, body: object = {}) =>
+  client.post(`${studentNudgePath(activityId)}/${nudgeId}/dismiss`, body);
+
+/** The student's dismissal written straight in the database (for the teacher's views). */
 export const dismissByHand = (t: TestApp, nudgeId: string, at: Date) => t.prisma.examNudge.update({ where: { id: nudgeId }, data: { dismissedAt: at } });
