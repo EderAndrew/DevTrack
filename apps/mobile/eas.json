@@ -8,12 +8,14 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_ORIGIN": "http://10.0.2.2:4000" }
+      "env": { "EXPO_PUBLIC_API_ORIGIN": "http://10.0.2.2:4000" },
+      "environment": "development"
     },
     "internal": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_ORIGIN": "https://devtrack.nativcode.com.br" }
+      "env": { "EXPO_PUBLIC_API_ORIGIN": "https://devtrack.nativcode.com.br" },
+      "environment": "preview"
     }
   }
 }

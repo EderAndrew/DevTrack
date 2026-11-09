@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "lint": "eslint --max-warnings 0 .",
     "check-types": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "eas-build-post-install": "pnpm --filter @repo/contracts --filter @repo/design-tokens build"
   },
   "dependencies": {
     "@hookform/resolvers": "7.0.3",
@@ -43,6 +44,7 @@
     "@types/jest": "30.0.0",
     "@types/node": "^24.19.2",
     "@types/react": "19.3.0",
+    "babel-preset-expo": "~58.0.24",
     "eslint": "10.14.0",
     "globals": "17.14.0",
     "jest": "30.5.2",
