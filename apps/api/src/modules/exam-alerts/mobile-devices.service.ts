@@ -4,7 +4,7 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
-import { MobileWriteLimit } from "./mobile-write-limit";
+import { MobileWriteLimit } from "../../platform/http/mobile-write-limit";
 
 /**
  * The phone's registration for alerts (024/FR-018, research Y9, contracts/audit-events.md): one device per

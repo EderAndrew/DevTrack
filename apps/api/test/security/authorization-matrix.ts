@@ -15,6 +15,8 @@ export interface MatrixEntry {
   access: Access;
   /** `multipart/form-data` route (004): the matrix sends a small file instead of a JSON body. */
   upload?: true;
+  /** 025: `@MobileOnly()` — every web session (the matrix's cookie) gets `403 MOBILE_SESSION_REQUIRED`. */
+  mobileOnly?: true;
 }
 
 const PROFESSORES = [
@@ -130,6 +132,8 @@ export const EXAMS_TEACHER = [
   "provas.arquivar",
   "ia.provas.gerar",
   "provas.encerramentos.decidir",
+  // 025: the discreet warning, sent only from the app (@MobileOnly()).
+  "provas.avisos.enviar",
 ] as const satisfies PermissionKey[];
 
 /** 020: the student sends feedback to the platform and follows their own. */
@@ -168,6 +172,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PUT", path: "/mobile/device", access: "chamada.registrar" },
   { method: "GET", path: "/mobile/exams", access: "chamada.registrar" },
   { method: "PUT", path: "/classes/:classId/activities/:activityId/exam-alerts", access: "chamada.registrar" },
+  // 025 — the app's bell (specs/025-exam-student-nudge/contracts/http-api.md): also `chamada.registrar`, and only
+  // from the app; the bearer side is 025-mobile-only.spec.ts and 025-us1-send.spec.ts.
+  { method: "POST", path: "/classes/:classId/activities/:activityId/attempts/:attemptId/exam-nudges", access: "provas.avisos.enviar", mobileOnly: true },
 
   { method: "GET", path: "/me/sessions", access: "sessoes.proprias.listar" },
   { method: "GET", path: "/me/sessions/:id", access: "sessoes.proprias.listar" },
@@ -374,6 +381,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   // 016/US3 — the declared exit, its polling and the release of the return (contracts/permissions.md).
   { method: "POST", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.responder" },
   { method: "GET", path: "/me/activities/:activityId/attempt/pause", access: "atividades.proprias.visualizar" },
+  // 025/US2 — the student's discreet warning on the exam page (web only).
+  { method: "GET", path: "/me/activities/:activityId/attempt/exam-nudge", access: "atividades.proprias.responder" },
+  { method: "POST", path: "/me/activities/:activityId/attempt/exam-nudge/:nudgeId/dismiss", access: "atividades.proprias.responder" },
   { method: "POST", path: "/classes/:classId/activities/:activityId/pauses/:pauseId/release", access: "chamada.registrar" },
   // 016/US5 — "Pausar aluno" (contracts/permissions.md).
   { method: "POST", path: "/classes/:classId/activities/:activityId/students/:studentUserId/pause", access: "chamada.registrar" },

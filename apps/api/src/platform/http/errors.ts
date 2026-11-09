@@ -193,6 +193,12 @@ export const ErrorCatalog = {
   MOBILE_NOT_ALLOWED: { status: 403, message: "Este aplicativo é para professores acompanharem provas." },
   // 024: a mobile session's bearer on a route outside the app's allowlist (research Y4).
   MOBILE_ROUTE_NOT_ALLOWED: { status: 403, message: "Esta ação não está disponível no aplicativo." },
+  // 025: a web (cookie) session on a `@MobileOnly()` route, before the permission guard (research N3).
+  MOBILE_SESSION_REQUIRED: { status: 403, message: "Esta ação só está disponível no aplicativo." },
+  // 025: the teacher's warning to a student whose exam is not running, is held or paused, or has < 2 occurrences.
+  EXAM_NUDGE_NOT_ALLOWED: { status: 409, message: "Não é possível enviar o aviso agora." },
+  // 025: the student closes a warning after the attempt ended (research N6).
+  EXAM_NUDGE_NOT_PENDING: { status: 409, message: "A prova terminou; esta mensagem não está mais pendente." },
   // 019: the exercise bank's rules, with `details.violations` (contracts/http-api.md).
   EXERCISE_RULES: { status: 422, message: "Revise os campos destacados do exercício antes de salvar." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
@@ -242,6 +248,7 @@ export const signInRequired = () => new AppException("SIGN_IN_REQUIRED");
 export const forbidden = () => new AppException("FORBIDDEN");
 /** 024: a mobile session's bearer outside the app's allowlist (research Y4). */
 export const mobileRouteNotAllowed = () => new AppException("MOBILE_ROUTE_NOT_ALLOWED");
+export const mobileSessionRequired = () => new AppException("MOBILE_SESSION_REQUIRED");
 export const emailNotVerified = () => new AppException("EMAIL_NOT_VERIFIED");
 export const accountSuspended = () => new AppException("ACCOUNT_SUSPENDED");
 export const wrongAccount = () => new AppException("WRONG_ACCOUNT");

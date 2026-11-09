@@ -14,6 +14,8 @@ import { Status } from "@/components/ui/status";
 import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { ControlledSession, type RecordEvent } from "@/features/controlled-attempt/components/controlled-attempt";
 import { enterFullscreen } from "@/features/controlled-attempt/hooks/use-fullscreen";
+import { ExamNudgeDialog } from "@/features/exam-nudge/components/exam-nudge-dialog";
+import { useExamNudge } from "@/features/exam-nudge/hooks/use-exam-nudge";
 import { activityHref } from "@/features/controlled-attempt/schemas/controlled-attempt";
 import type { SentEvents } from "@/features/controlled-attempt/store/pending-events";
 import { Loading, LoadFailed } from "@/features/student-activities/components/load-states";
@@ -43,7 +45,9 @@ import { ExamEndNotice, ExamHoldNotice } from "./rules-screen";
  * Restam n minutos." with "Retomar", which goes back to fullscreen on the student's click; a decision
  * that ends the exam shows its end notice. Since US6 a pause, only ever the teacher's, shows "Prova
  * pausada pelo professor. O tempo continua correndo." above the 016 paused notice, with the timer still
- * in the header and the end read again as it comes. Anything but a started exam goes back to its page.
+ * in the header and the end read again as it comes. Since 025 the teacher's discreet warning ("Mensagem do
+ * professor") shows while the exam runs, after any "Aviso n de 3", with inactivity suspended while it is open.
+ * Anything but a started exam goes back to its page.
  */
 export function ExamAttempt({ activityId, userId }: { activityId: string; userId: string }) {
   const query = useStudentActivity(activityId);
@@ -84,6 +88,10 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
   // The occurrences already known: a warning shows only for one the server counts after them.
   const counted = useRef(exam.occurrences.count);
   const returned = useHoldWatch(held, running, reload);
+  // 025/US2 (research N8): the teacher's discreet warning, polled only while the exam runs; it waits for the 018
+  // "Aviso n de 3" and, while open, inactivity does not count.
+  const nudge = useExamNudge(activity.id, running && !held);
+  const shownNudge = running && !held && warning === null ? nudge.nudge : null;
 
   // 018/FR-017, FR-018 (research T6): the count is the server's, in each batch's answer.
   const onEventsSent = (result: SentEvents, sent: readonly IntegrityEventInput[]) => {
@@ -141,7 +149,7 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
           // "Aviso n de 3" replaces the 015 exit warning.
           exitWarnings: false,
           onEventsSent,
-          monitors: (record) => <InactivityWatch limitSeconds={exam.inactivityLimitSeconds} enabled={running} record={record} />,
+          monitors: (record) => <InactivityWatch limitSeconds={exam.inactivityLimitSeconds} enabled={running && shownNudge === null} record={record} />,
         }}
       />
       <WarningDialog
@@ -153,6 +161,7 @@ function ExamSession({ activity, userId, reload }: { activity: StudentActivity; 
           void enterFullscreen();
         }}
       />
+      <ExamNudgeDialog nudge={shownNudge} onAcknowledge={nudge.dismiss} />
     </>
   );
 }

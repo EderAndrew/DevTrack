@@ -32,6 +32,7 @@ const studentRow = (name: string, overrides: Partial<ExamMonitorStudent> = {}): 
     occurrenceCount: 0,
     openHold: null,
     openPause: null,
+    nudge: null,
     ...overrides,
   };
 };
@@ -213,6 +214,7 @@ describe("018/US5 ExamRoomPanel — a prova em andamento e as decisões do profe
       intervals: [],
       totals: {} as IntegrityTimeline["totals"],
       holds: [hold()],
+      nudges: [],
     };
     vi.stubGlobal(
       "fetch",
@@ -279,5 +281,58 @@ describe("018/FR-024 ActivityDetail — a prova com decisões pendentes", () => 
     const section = await screen.findByRole("region", { name: "Chamada e prova" });
     expect(await within(section).findByRole("button", { name: "Não cancelar Ana Souza" })).toBeTruthy();
     expect(screen.getByText("1 decisão pendente")).toBeTruthy();
+  });
+});
+
+describe("025/US3 ExamRoomPanel — os avisos do professor no monitor da web", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const answering = (name: string, nudge: ExamMonitorStudent["nudge"], occurrenceCount = 2) =>
+    studentRow(name, {
+      examStatus: "ANSWERING",
+      attemptId: ATTEMPT_ID,
+      startedAt: "2026-10-01T12:00:00.000Z",
+      endsAt: "2026-10-01T12:30:00.000Z",
+      occurrenceCount,
+      nudge,
+    });
+
+  it("025/US3-2 aviso pendente e contagem de avisos enviados em palavras, sem botão de envio", async () => {
+    const rows = [
+      answering("Ana Souza", { canSend: false, pendingSince: "2026-10-01T12:18:00.000Z", sentCount: 2, lastDismissedAt: "2026-10-01T12:10:00.000Z" }),
+      answering("Bia Lima", { canSend: true, pendingSince: null, sentCount: 1, lastDismissedAt: "2026-10-01T12:12:00.000Z" }),
+      answering("Caio Reis", { canSend: true, pendingSince: null, sentCount: 0, lastDismissedAt: null }),
+    ];
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, monitor(rows)) }).fetch);
+    render();
+    await screen.findByText("Ana Souza");
+
+    expect(within(rowOf("Ana Souza")).getByText("Aviso do professor pendente")).toBeTruthy();
+    expect(within(rowOf("Ana Souza")).getByText("Avisos do professor enviados: 2")).toBeTruthy();
+    expect(within(rowOf("Bia Lima")).queryByText("Aviso do professor pendente")).toBeNull();
+    expect(within(rowOf("Bia Lima")).getByText("Avisos do professor enviados: 1")).toBeTruthy();
+    expect(within(rowOf("Caio Reis")).queryByText(/Aviso/)).toBeNull();
+    // The web never sends: the bell lives only in the app (FR-007).
+    expect(screen.queryByRole("button", { name: /aviso/i })).toBeNull();
+  });
+
+  it("025/US3-4 o aviso não entra na contagem de ocorrências e diz que não é uma ocorrência", async () => {
+    const row = answering("Ana Souza", { canSend: false, pendingSince: "2026-10-01T12:18:00.000Z", sentCount: 3, lastDismissedAt: null }, 2);
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, monitor([row])) }).fetch);
+    render();
+    await screen.findByText("Ana Souza");
+    const status = within(rowOf("Ana Souza")).getByText((_, element) => element?.hasAttribute("data-exam-status") ?? false);
+    expect(status.textContent).toContain("2 ocorrências");
+    expect(status.textContent).not.toMatch(/aviso/i);
+    const facts = within(rowOf("Ana Souza")).getByText("Aviso do professor pendente").closest("[data-nudge-facts]") as HTMLElement;
+    expect(within(facts).getByText("Não é uma ocorrência")).toBeTruthy();
+  });
+
+  it("025/US3-2 axe sem violações com os avisos no monitor", async () => {
+    const row = answering("Ana Souza", { canSend: false, pendingSince: "2026-10-01T12:18:00.000Z", sentCount: 1, lastDismissedAt: null });
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, monitor([row])) }).fetch);
+    const { container } = render();
+    await screen.findByText("Aviso do professor pendente");
+    await expectNoA11yViolations(container);
   });
 });

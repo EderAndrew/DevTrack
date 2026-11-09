@@ -449,6 +449,8 @@ describe("015 ajuda da IA e registros como texto", () => {
         fullscreenUnavailable: false,
         detectionUnavailable: false,
       },
+      holds: [],
+      nudges: [],
     };
     vi.stubGlobal(
       "fetch",
@@ -756,6 +758,7 @@ describe("018 prova como texto", () => {
           occurrenceCount: 1,
           openHold: null,
           openPause: null,
+          nudge: null,
         },
       ],
     };

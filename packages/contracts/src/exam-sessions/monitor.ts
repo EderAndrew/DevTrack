@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TeacherPauseSchema } from "../attendance/pauses.js";
 import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
+import { ExamNudgeSummarySchema } from "../exam-nudges/nudge.js";
 import { TeacherExamHoldSchema } from "./holds.js";
 
 // The teacher's exam monitor (018 contracts/http-api.md, research T12), polled every 5 s. Every
@@ -38,6 +39,8 @@ export const ExamMonitorStudentSchema = z.strictObject({
   occurrenceCount: z.int().min(0),
   openHold: TeacherExamHoldSchema.nullable(),
   openPause: TeacherPauseSchema.nullable(),
+  /** 025: the bell and the warnings sent; null when the student has no attempt. */
+  nudge: ExamNudgeSummarySchema.nullable(),
 });
 export type ExamMonitorStudent = z.infer<typeof ExamMonitorStudentSchema>;
 

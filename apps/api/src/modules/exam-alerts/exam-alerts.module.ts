@@ -12,7 +12,7 @@ import { MobileDevicesController } from "./mobile-devices.controller";
 import { MobileDevicesService } from "./mobile-devices.service";
 import { MobileExamsController } from "./mobile-exams.controller";
 import { MobileExamsService } from "./mobile-exams.service";
-import { MobileWriteLimit } from "./mobile-write-limit";
+import { MobileWriteLimit } from "../../platform/http/mobile-write-limit";
 import { AlertRecipients } from "./recipients";
 
 /**

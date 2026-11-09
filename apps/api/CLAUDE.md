@@ -392,6 +392,20 @@ before `createAttemptRow` or the events route. Suites: `024-us1-mobile-session` 
 concurrency, rate limits, audit (`MARCADOR-ALERTA-024` in names and titles, out of audit and logs, `024/SC-005`),
 retention and performance (the worker on, commit → send ≤ 2 s in 95%); the journey signs in through the app,
 registers phones, mutes, receives an alert and signs out.
+Exam nudge (025): `@MobileOnly()` (`access-control/decorators.ts`) is `@MobileAccess()` plus a flag that makes
+`SessionGuard` refuse a WEB (cookie) session with `403 MOBILE_SESSION_REQUIRED` before the permission guard; it counts
+as `@MobileAccess()` in the bearer column of the matrix. `modules/exam-nudges` holds `ExamNudgesService` (the send:
+`ClassContextPolicy` plus ARCHIVED → 404, the 024 `mobile-writes` limit, the 018 settlement first, then the attempt's
+`FOR UPDATE`, the pure `nudge-status.ts` and `INSERT … ON CONFLICT DO NOTHING` on the one-pending index; refusals audited
+in their own transaction; the student's poll and dismissal through `StudentActivityLoader`), the two controllers, and
+`nudge-status.ts`/`views.ts`, the only files `exam-sessions` (the monitor's `nudge` aggregate) and `attempt-integrity`
+(the timeline's `nudges`) import. Tests use `test/helpers/exam-nudges.ts` (`nudgeScene(t, clock, { occurrences,
+classmates, teacher })` — an EXAM in progress with the students present and started and the teacher's MOBILE session —,
+`occur`, `sendNudge`, `roomRow`, `createNudge`/`dismissByHand` straight in the database, `getStudentNudge`,
+`dismissNudge`). Suites: `025-schema`, `025-us1-send` … `025-us3-history`, `exam-nudges-boundary.spec.ts`, and in
+`test/security/` mobile-only, concurrency (`025/SC-004`), never-occurrence (`025/SC-003`), isolation, audit
+(`MARCADOR-AVISO-025` in names and the title, out of audit and logs, `025/SC-006`) and performance; the journey refuses,
+sends, polls and dismisses a warning.
 nestjs-pino sends logs written outside a request (workers) to the first app created in the process: a
 spec that creates several apps and checks those logs should give them all the same `LogCapture`.
 

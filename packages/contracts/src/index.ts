@@ -59,6 +59,7 @@ export * from "./exams/coverage.js";
 export * from "./exams/generation.js";
 export * from "./exam-sessions/holds.js";
 export * from "./exam-sessions/monitor.js";
+export * from "./exam-nudges/nudge.js";
 export * from "./code-runs/enums.js";
 export * from "./code-runs/run.js";
 export * from "./code-runs/execution.js";

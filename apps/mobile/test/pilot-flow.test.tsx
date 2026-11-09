@@ -37,6 +37,7 @@ const monitor = {
       occurrenceCount: 0,
       openHold: null,
       openPause: null,
+      nudge: null,
     },
   ],
 };
@@ -72,5 +73,26 @@ describe("024/SC-007 roteiro do piloto: entrar e abrir a sala da prova em andame
     expect(await screen.findByText("Aluno 1")).toBeOnTheScreen();
     expect(screen.getByRole("header", { name: "Prova de Java" })).toBeOnTheScreen();
     expect(taps).toBeLessThan(3);
+  });
+});
+
+describe("025/SC-007 roteiro do piloto: da sala aberta, o aviso sai em dois toques", () => {
+  it("025/SC-007 sala → sino → confirmar: dois toques e um POST com corpo {}, sem digitar nada", async () => {
+    const ready = { ...monitor.students[0]!, occurrenceCount: 2, nudge: { canSend: true, pendingSince: null, sentCount: 0, lastDismissedAt: null } };
+    const attemptId = ready.attemptId;
+    const sendPath = `POST /classes/${CLASS}/activities/${ACTIVITY}/attempts/${attemptId}/exam-nudges`;
+    const api = fakeApi({
+      "GET /mobile/exams": exams,
+      [`GET /classes/${CLASS}/activities/${ACTIVITY}/exam-monitor`]: { ...monitor, students: [ready] },
+      [sendPath]: { nudge: { id: "00000000-0000-4000-8000-000000000901", sentAt: plus(6), dismissedAt: null, status: "PENDING" } },
+    });
+    await renderApp(<ExamRoomScreen classId={CLASS} activityId={ACTIVITY} onOpenStudent={jest.fn()} />, { store: memoryStore("c".repeat(43)) });
+    let taps = 0;
+    await fireEvent.press(await screen.findByRole("button", { name: "Enviar aviso para Aluno 1" }));
+    taps += 1;
+    await fireEvent.press(screen.getByRole("button", { name: "Enviar aviso" }));
+    taps += 1;
+    expect(taps).toBe(2);
+    expect(api.calls.filter((call) => call.method === "POST").map((call) => call.body)).toEqual([{}]);
   });
 });

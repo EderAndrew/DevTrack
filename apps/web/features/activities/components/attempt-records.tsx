@@ -6,6 +6,7 @@ import type {
   CodeHighlight,
   IntegrityTimeline,
   TeacherAttemptExam,
+  TeacherExamNudge,
   TeacherHelpItem,
   TeacherPause,
   TeacherQuestion,
@@ -34,6 +35,7 @@ import {
   pauseReasonText,
   ROOM_EXITS_TITLE,
 } from "@/features/attendance/schemas/attendance";
+import { NOT_AN_OCCURRENCE, nudgeEntry } from "@/features/exam-nudge/schemas/exam-nudge";
 import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useAttemptIntegrity } from "../hooks/use-activities";
@@ -62,7 +64,8 @@ const nameIn = (participants: readonly AttemptParticipant[], id: string) =>
 /**
  * "Registros do modo controlado" (015 US4, FR-025): the attempt's events in time order with the
  * server's time, and each exit's duration from the derived intervals ("sem retorno registrado" when
- * open). Records, never a verdict.
+ * open). Records, never a verdict. 025/US3: an exam's warnings from the teacher between them, each
+ * marked "Não é uma ocorrência".
  */
 export function IntegrityRecords({
   classId,
@@ -154,7 +157,24 @@ function Timeline({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {timeline.events.map((event, index) => {
+          {withNudges(timeline).map((item, index) => {
+            if (item.kind === "nudge") {
+              const entry = nudgeEntry(item.nudge, formatTime);
+              return (
+                <TableRow key={`nudge-${item.nudge.id}`} data-nudge-row>
+                  <TableCell>
+                    <time dateTime={item.nudge.sentAt}>{formatTime(item.nudge.sentAt)}</time>
+                  </TableCell>
+                  {participants ? <TableCell>—</TableCell> : null}
+                  <TableCell>
+                    {entry.sent} · {entry.outcome}{" "}
+                    <Badge variant="neutral">{NOT_AN_OCCURRENCE}</Badge>
+                  </TableCell>
+                  <TableCell>—</TableCell>
+                </TableRow>
+              );
+            }
+            const { event } = item;
             const at = occurredAt(event);
             const kind = EXIT_KINDS[event.type];
             const interval = kind
@@ -189,6 +209,25 @@ function Timeline({
       </Table>
     </>
   );
+}
+
+/**
+ * 025/US3-1: the teacher's warnings between the events, in time order (each after the events up to its
+ * sending). The warnings are not events of the attempt: they never enter the totals.
+ */
+type TimelineItem =
+  | { kind: "event"; event: IntegrityTimeline["events"][number] }
+  | { kind: "nudge"; nudge: TeacherExamNudge };
+function withNudges(timeline: IntegrityTimeline): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  const nudges = [...timeline.nudges];
+  for (const event of timeline.events) {
+    const at = Date.parse(occurredAt(event));
+    while (nudges.length > 0 && Date.parse(nudges[0]!.sentAt) < at)
+      items.push({ kind: "nudge", nudge: nudges.shift()! });
+    items.push({ kind: "event", event });
+  }
+  return [...items, ...nudges.map((nudge): TimelineItem => ({ kind: "nudge", nudge }))];
 }
 
 /** The attempt's requests of help, by question position, for the questions of the review. */

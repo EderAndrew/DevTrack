@@ -4,8 +4,15 @@ import { ApiError, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "../api/client";
 type ClientErrorCode = typeof NETWORK_ERROR | typeof UNEXPECTED_RESPONSE;
 /** Codes only an e-mail provider receives (017 `POST /mail/notices/:provider`); the web never shows them. */
 type ProviderOnlyErrorCode = "NOTICE_REJECTED" | "NOTICE_TOO_LARGE";
-/** Codes only the mobile app receives (024: the app's login and a bearer outside its allowlist); the web never shows them. */
-type MobileOnlyErrorCode = "MOBILE_NOT_ALLOWED" | "MOBILE_ROUTE_NOT_ALLOWED";
+/**
+ * Codes only the mobile app receives (024: the app's login and a bearer outside its allowlist; 025: the warning's
+ * send, a mobile-only route); the web never shows them.
+ */
+type MobileOnlyErrorCode =
+  | "MOBILE_NOT_ALLOWED"
+  | "MOBILE_ROUTE_NOT_ALLOWED"
+  | "MOBILE_SESSION_REQUIRED"
+  | "EXAM_NUDGE_NOT_ALLOWED";
 
 /**
  * User-facing text for every error code: the contract's codes plus the web's own (002 S8, FR-013).
@@ -131,6 +138,7 @@ export const ERROR_MESSAGES = {
   EXAM_DECISIONS_PENDING: "Há provas encerradas por avisos aguardando a sua decisão.",
   EXIT_NOT_ALLOWED: "Na prova, chame o professor para sair da sala.",
   NOT_AN_EXAM: "Esta atividade não é uma prova.",
+  EXAM_NUDGE_NOT_PENDING: "A prova terminou; esta mensagem não está mais pendente.",
   CODE_RUN_NOT_AVAILABLE: "Este exercício não tem casos para executar.",
   CODE_RUNNER_UNAVAILABLE: "Execução indisponível no momento. Você pode continuar respondendo e concluir normalmente.",
   CODE_EXECUTION_NOT_ELIGIBLE: "Este trabalho não tem questão de Código com caso público numa linguagem com execução.",

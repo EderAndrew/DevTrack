@@ -2,10 +2,10 @@ import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/com
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import { readBearer } from "../../../platform/http/bearer";
-import { mobileRouteNotAllowed, unauthenticated } from "../../../platform/http/errors";
+import { mobileRouteNotAllowed, mobileSessionRequired, unauthenticated } from "../../../platform/http/errors";
 import { SessionCookie } from "../../auth/session-cookie";
 import { SessionService } from "../../auth/session.service";
-import { IS_PUBLIC_KEY, MOBILE_ACCESS_KEY, MOBILE_ENTRY_KEY } from "../decorators";
+import { IS_PUBLIC_KEY, MOBILE_ACCESS_KEY, MOBILE_ENTRY_KEY, MOBILE_ONLY_KEY } from "../decorators";
 
 /**
  * Deny-by-default (R9): every route requires a valid session of an `ACTIVE` account unless
@@ -16,6 +16,9 @@ import { IS_PUBLIC_KEY, MOBILE_ACCESS_KEY, MOBILE_ENTRY_KEY } from "../decorator
  * accepted only on `@MobileAccess()` routes; on any other route (but the app's sign-in, which ignores it)
  * it is `403 MOBILE_ROUTE_NOT_ALLOWED`, so a leaked app secret reads the exam room and nothing else.
  * With both, the cookie decides and the bearer is ignored.
+ *
+ * 025 research N3: on a `@MobileOnly()` route a valid WEB session (the cookie) is `403 MOBILE_SESSION_REQUIRED`,
+ * before the permission guard; only the app's bearer reaches it.
  */
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -46,6 +49,7 @@ export class SessionGuard implements CanActivate {
 
     if (isPublic) return true;
     if (!req.auth) throw unauthenticated();
+    if (req.auth.client === "WEB" && this.reflector.getAllAndOverride<boolean>(MOBILE_ONLY_KEY, targets)) throw mobileSessionRequired();
     return true;
   }
 }

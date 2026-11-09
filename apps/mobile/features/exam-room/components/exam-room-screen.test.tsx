@@ -26,6 +26,7 @@ const student = (n: number, overrides: Record<string, unknown>) => ({
   occurrenceCount: 0,
   openHold: null,
   openPause: null,
+  nudge: null,
   ...overrides,
 });
 

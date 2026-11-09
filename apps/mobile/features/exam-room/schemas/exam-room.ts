@@ -1,4 +1,4 @@
-import { EXAM_WARNINGS, type ExamMonitorStudent, type ExamStatusOfStudent, type IntegrityEventView } from "@repo/contracts";
+import { EXAM_WARNINGS, type ExamMonitorStudent, type ExamStatusOfStudent, type IntegrityEventView, type TeacherExamNudge } from "@repo/contracts";
 
 // 024 research Y10: the room's words are the web's (apps/web/features/exam-session/schemas/exam-session.ts),
 // copied verbatim so the phone says exactly what the computer says; test/wording-parity.test.ts compares the
@@ -100,6 +100,30 @@ export function warningLabel(ordinal: number, holdOrdinals: ReadonlySet<number>)
   if (holdOrdinals.has(ordinal)) return "Prova retida";
   if (ordinal <= EXAM_WARNINGS) return `Aviso ${ordinal} de ${EXAM_WARNINGS}`;
   return "Nova ocorrência";
+}
+
+// ── 025: the teacher's discreet warning (specs/025-exam-student-nudge/contracts/ui.md) ───────
+
+/** The bell's accessible name, in the room's row and in the student's detail. */
+export const nudgeLabel = (name: string) => `Enviar aviso para ${name}`;
+export const nudgeQuestion = (name: string) => `Enviar aviso para ${name}?`;
+export const nudgeNotice = (name: string) => `Só ${name} verá o aviso na tela da prova.`;
+export const SEND_NUDGE = "Enviar aviso";
+export const CANCEL = "Cancelar";
+export const NUDGE_PENDING = "Aviso enviado — aguardando o aluno";
+/** The time of the server's last dismissal, in the phone's time zone. */
+export const lastNudgeDismissedLabel = (iso: string) => `Último aviso fechado às ${formatTime(iso)}`;
+export const NUDGE_NOT_ALLOWED = "Não é possível enviar o aviso agora.";
+
+/** 025/US3: the warnings in the student's timeline, with the web's words; never an occurrence (US3-4). */
+export const NOT_AN_OCCURRENCE = "Não é uma ocorrência";
+export const NUDGE_WAITING = "Aguardando o aluno";
+export const NUDGE_UNSEEN = "Não visto";
+export const nudgeSentLabel = (iso: string) => `Aviso do professor enviado — ${formatTime(iso)}`;
+/** The outcome the server derived: closed by the student (with its time), still waiting, or not seen. */
+export function nudgeOutcomeLabel(nudge: Pick<TeacherExamNudge, "dismissedAt" | "status">): string {
+  if (nudge.status === "DISMISSED" && nudge.dismissedAt) return `Aviso fechado pelo aluno — ${formatTime(nudge.dismissedAt)}`;
+  return nudge.status === "UNSEEN" ? NUDGE_UNSEEN : NUDGE_WAITING;
 }
 
 /** The badge tone of each situation; the text always says it (FR-022: never colour alone). */

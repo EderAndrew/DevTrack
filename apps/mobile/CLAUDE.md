@@ -1,6 +1,6 @@
 # apps/mobile — the teacher's exam monitor (024)
 
-Read-only Expo app for a teacher to watch the 018 exam room on the phone and get push alerts on each counted
+Expo app, read-only except the 025 nudge, for a teacher to watch the 018 exam room on the phone and get push alerts on each counted
 occurrence and each hold (`specs/024-mobile-exam-monitor/`). Android first, internal distribution through EAS
 (`docs/deploy/mobile.md`); iOS later.
 
@@ -24,13 +24,17 @@ One solution per responsibility, enforced by `eslint.config.mjs` (`no-restricted
 only `features/*/api` calls `lib/api` (ESLint). Features: `mobile-auth` (Entrar, logout, `GET /me`),
 `exam-list` ("Provas em andamento"), `exam-room` (the room, a student's occurrences, the mute switch), `push`
 (registration, Android channels `exam-occurrences`/`exam-holds`, foreground alerts, opening a room from a
-notification). Shared UI is `components/ui` (Text, Button, Card, Badge, Notice, Switch, TextField, Screen).
+notification). Shared UI is `components/ui` (Text, Button, Card, Badge, Dialog, Notice, Switch, TextField, Screen).
 
 ## Rules
 
 - Read-only (024/FR-010): no decision (cancel, return, "Não cancelar"), attendance or pause anywhere in the app;
   `test/no-decision-routes.test.ts` scans for those routes and texts. The API refuses them to the bearer anyway
   (`403 MOBILE_ROUTE_NOT_ALLOWED`).
+- The one write (025): the bell of a student in the room (`features/exam-room/components/nudge-bell.tsx`, shown only
+  when the monitor's `nudge.canSend` says so) opens a confirmation in `components/ui/dialog.tsx` and posts `{}` to
+  `…/attempts/:attemptId/exam-nudges` (`use-send-nudge.ts`), then re-reads the room; nothing typed, no text sent. The
+  student's occurrences list the warnings between them, marked "Não é uma ocorrência".
 - The bearer is the MOBILE session's secret: in memory and in the secure store, never logged or in the query
   cache; a `401` clears it with the cache and returns to "Entrar" with the expired message.
 - Ids from a route or a notification are checked as UUIDs before any request path (`assertIds`); a push's

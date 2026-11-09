@@ -7,6 +7,15 @@ import { useLivePolling } from "./use-live-polling";
 export const examMonitorKey = (classId: string, activityId: string) => ["exam-monitor", classId, activityId] as const;
 
 /**
+ * The room as last read, kept live for a screen inside it (025: a student's detail shows the bell, which changes
+ * when a send makes the room be read again); no polling of its own: the cached room is kept until it is
+ * invalidated, and read only when there is none.
+ */
+export function useExamMonitor(classId: string, activityId: string) {
+  return useQuery({ queryKey: examMonitorKey(classId, activityId), queryFn: () => getExamMonitor(classId, activityId), staleTime: Infinity });
+}
+
+/**
  * The room of an exam (024/US2): the 018 monitor, refreshed every 5 s while visible, and the list of exams
  * in progress, so a closed or cancelled exam is said in words (US2-6). Without a connection the last room
  * stays on the screen with the time it was read (US2-7); the polling keeps trying.

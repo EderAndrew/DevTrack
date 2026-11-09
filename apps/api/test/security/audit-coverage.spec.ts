@@ -29,6 +29,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/021-work-code-runner/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/023-group-work/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/024-mobile-exam-monitor/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/025-exam-student-nudge/contracts/audit-events.md"),
 ];
 
 /**
@@ -66,6 +67,8 @@ const PENDING_CHANGED_023 = new Set<string>([]);
 const PENDING_019 = new Set<string>([]);
 /** 020 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_020 = new Set<string>([]);
+/** 025 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_025 = new Set<string>([]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,
@@ -77,6 +80,7 @@ const PENDING = new Set([
   ...PENDING_019,
   ...PENDING_020,
   ...PENDING_023,
+  ...PENDING_025,
 ]);
 
 interface ContractRow {
@@ -133,7 +137,8 @@ function eventRows(text: string): ContractRow[] {
         .slice(1, -1)
         .map((cell) => cell.trim());
       const [typeCell, actorCell, targetCell, metadataCell] = hasSpecName ? [cells[0], ...cells.slice(2)] : cells;
-      const actors = actorCell!.split(/\\\|/).map((a) => a.trim());
+      // 025 notes who the user is in parentheses ("USER (teacher)"); only the actor type is compared.
+      const actors = actorCell!.replace(/\([^)]*\)/g, "").split(/\\\|/).map((a) => a.trim());
       const target = targetCell === "—" ? null : targetCell!.replace(/\([^)]*\)/g, "").split(/\\\|/).map((t) => t.trim());
       // Allowed keys are the backticked words outside parentheses (those list values).
       const metadata = backticked(metadataCell!.replace(/\([^)]*\)/g, ""));

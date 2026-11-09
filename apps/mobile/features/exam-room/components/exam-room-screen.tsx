@@ -28,6 +28,8 @@ export function ExamRoomScreen({ classId, activityId, highlightStudentId, onOpen
       {room.exam ? <MuteSwitch classId={classId} activityId={activityId} muted={room.exam.muted} /> : null}
       {room.lost ? <Notice tone="danger">{messageForError(room.monitor.error)}</Notice> : null}
       <ExamRoom
+        classId={classId}
+        activityId={activityId}
         monitor={room.monitor.data}
         closed={room.closed}
         offline={room.offline}

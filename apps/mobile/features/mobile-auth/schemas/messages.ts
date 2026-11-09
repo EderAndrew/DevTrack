@@ -11,6 +11,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: "Dados inválidos.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   NOT_FOUND: "Esta prova não está mais disponível.",
+  // 025: the bell's send refused (not running, held, paused or fewer than 2 occurrences); the API's text.
+  EXAM_NUDGE_NOT_ALLOWED: "Não é possível enviar o aviso agora.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
   [UNEXPECTED_RESPONSE]: "Erro inesperado. Tente novamente mais tarde.",
 };

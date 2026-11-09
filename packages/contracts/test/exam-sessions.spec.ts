@@ -58,6 +58,7 @@ describe("018 acompanhamento da prova (contracts/http-api.md, research T12)", ()
     occurrenceCount: 1,
     openHold: null,
     openPause: null,
+    nudge: null,
     ...overrides,
   });
   const monitor = (students: unknown[]) => ({ activityId: uuid(1), durationMinutes: 20, startDeadline: AT, closesAt: LATER, serverNow: AT, students });

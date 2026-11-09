@@ -1392,7 +1392,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   });
   const appTeacherWeb = api(t, { cookie: await keepLoginAs(appTeacher) });
   expect((await markPresentIn(appTeacherWeb, alertClass.schoolClass.id, alertExam.id, [alertStudent.id])).status).toBe(200);
-  await createAttemptRow(t, alertExam.id, alertStudent.id);
+  const { attemptId: alertAttemptId } = await createAttemptRow(t, alertExam.id, alertStudent.id);
   const alertsPath = `/api/classes/${alertClass.schoolClass.id}/activities/${alertExam.id}/exam-alerts`;
   expect((await appClient(appTeacherToken).put(alertsPath, { muted: true })).body).toEqual({ muted: true });
   expect((await appClient(appTeacherToken).put(alertsPath, { muted: false })).body).toEqual({ muted: false });
@@ -1400,6 +1400,26 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await alertStudentClient.post(`/api/me/activities/${alertExam.id}/attempt/events`, { events: [integrityEvent("SCREEN_LEFT")] })).status).toBe(200);
   await runAlertWorker(t);
   expect(t.push.sent.filter((message) => message.to === pushToken)).toHaveLength(1);
+  // 025/US1 — the app's bell: with one occurrence the send is refused (`exam_nudge.send_refused`
+  // TOO_FEW_OCCURRENCES); a second occurrence (another batch, past the 2 s grouping window of the real clock)
+  // lights it and the send creates the warning (`exam_nudge.sent`). The student's name never reaches the audit
+  // trail or the logs.
+  const nudgePath = `/api/classes/${alertClass.schoolClass.id}/activities/${alertExam.id}/attempts/${alertAttemptId}/exam-nudges`;
+  expect((await appClient(appTeacherToken).post(nudgePath, {})).body.code).toBe("EXAM_NUDGE_NOT_ALLOWED");
+  const firstOccurrence = await t.prisma.examOccurrence.findFirstOrThrow({ where: { attemptId: alertAttemptId } });
+  const groupingLeft = firstOccurrence.recordedAt.getTime() + 2_100 - Date.now();
+  if (groupingLeft > 0) await new Promise((done) => setTimeout(done, groupingLeft));
+  expect((await alertStudentClient.post(`/api/me/activities/${alertExam.id}/attempt/events`, { events: [integrityEvent("SCREEN_LEFT")] })).body.exam).toEqual({
+    occurrenceCount: 2,
+    held: false,
+  });
+  const sentNudge = await appClient(appTeacherToken).post(nudgePath, {});
+  expect(sentNudge.status).toBe(201);
+  // 025/US2 — the student's poll shows it with their own name; "Entendi" dismisses it (`exam_nudge.dismissed`).
+  const studentNudgePath = `/api/me/activities/${alertExam.id}/attempt/exam-nudge`;
+  expect((await alertStudentClient.get(studentNudgePath)).body.nudge).toEqual({ id: sentNudge.body.nudge.id, studentName: (await t.prisma.user.findUniqueOrThrow({ where: { id: alertStudent.id } })).name });
+  expect((await alertStudentClient.post(`${studentNudgePath}/${sentNudge.body.nudge.id}/dismiss`, {})).body).toEqual({ nudge: null });
+  expect((await alertStudentClient.get(studentNudgePath)).body).toEqual({ nudge: null });
   const otherAppTeacher = await createUser(t, { roles: ["TEACHER"], name: "Outra professora do app" });
   const otherAppToken = await signInApp(otherAppTeacher);
   expect((await appClient(otherAppToken).put("/api/mobile/device", { pushToken, platform: "ANDROID" })).status).toBe(200);

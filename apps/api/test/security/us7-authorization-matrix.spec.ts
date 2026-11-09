@@ -41,6 +41,8 @@ describe("US7-1/US7-2 SC-003 — matriz de autorização (contracts/permissions.
 
   const expected = (entry: MatrixEntry, principal: Principal): { status: number; code: string } | "allowed" => {
     if (principal === "anônimo") return { status: 401, code: "UNAUTHENTICATED" };
+    // 025: a web session never reaches an app-only route, whatever its role (SessionGuard, before the permissions).
+    if (entry.mobileOnly) return { status: 403, code: "MOBILE_SESSION_REQUIRED" };
     if (entry.access === "session") return "allowed";
     if (principal === "STUDENT não verificado") return { status: 403, code: "EMAIL_NOT_VERIFIED" };
     return ROLE_PERMISSIONS[principal].includes(entry.access) ? "allowed" : { status: 403, code: "FORBIDDEN" };

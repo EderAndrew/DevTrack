@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–024 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–025 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -73,8 +73,12 @@ new feature through `/speckit-specify`.
   watches the 018 room and a student's occurrences; each counted occurrence and each hold sends a push alert (vibrate
   and sound, hidden on a locked phone) through an outbox and Expo Push; "Silenciar avisos desta prova" per teacher
   and exam; decisions, attendance and pauses stay on the computer.
+- 025 discreet exam nudge: the teacher's bell in the mobile room (a student in progress with 2+ counted occurrences)
+  sends a fixed warning that only that student sees in an `AlertDialog` on the exam page ("Entendi" closes it); one
+  pending per attempt, sent only from the app (`@MobileOnly()`), never an occurrence; the web room, the review and the
+  app show the warnings sent, closed and "Não visto". The app's only write.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–024 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–025 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -146,6 +150,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
 - API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo SDK 58 (`expo ~58.0.23`, React Native 0.88, React 19.3.0, TypeScript 7 accepted; pnpm's isolated `node_modules` works with Metro, no hoisting), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
 - PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
+- No new dependency (025-exam-student-nudge)
+- PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
 
 ## Stack notes
 
@@ -228,7 +234,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023 and 024; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024 and 025; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -282,6 +288,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   mobile session; `test/security/024-mobile-allowlist.spec.ts` checks that the bearer gets
   `403 MOBILE_ROUTE_NOT_ALLOWED` on every route without `@MobileAccess()`. `packages/design-tokens/test/in-sync.test.ts`
   fails when `src/generated.ts` differs from what `apps/web/design-system/tokens.css` generates.
+- `apps/api/test/exam-nudges-boundary.spec.ts` (025) keeps `exam-nudges` away from AI, push, mail, grading, decisions,
+  attendance and monitoring code and from any write to the exam's tables; `exam-sessions` and `attempt-integrity`
+  reach it only through `exam-nudges/nudge-status.ts` and `views.ts`; names and texts stay out of its audit and log
+  calls, and the warning's sentence lives only in the web and the app.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -474,7 +484,7 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and saves nothing. Saves are logged in `activity_answer_saves` (append-only), never as audit events, and those records
   are never a grade: one grade for the group. A classmate is shown only by id and name, never e-mail or RA. Changes reach
   the others by 5 s polling (`GROUP_POLL_MS`), never WebSockets.
-- Mobile exam monitor (024): the app is read-only — it reads only `GET /me`, `GET /mobile/exams` and the 018 monitor and timeline;
+- Mobile exam monitor (024): the app is read-only except the 025 nudge — it reads only `GET /me`, `GET /mobile/exams` and the 018 monitor and timeline;
   decisions, attendance and pauses stay on the computer. A session has a fixed `client` (`WEB` cookie / `MOBILE`
   bearer, `Authorization: Bearer`, never a cookie); a bearer works only on routes marked `@MobileAccess()` (elsewhere
   `403 MOBILE_ROUTE_NOT_ALLOWED`), and only `POST /auth/mobile/sessions` is `@MobileEntry()` (teachers only,
@@ -491,14 +501,27 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   texts. The mute is a row per teacher and exam (`PUT …/exam-alerts { muted }`, idempotent, no audit); an alert of a
   muted exam ends SKIPPED and is never sent late. `PUSH_ENABLED=false` is the kill switch (alerts end SKIPPED). The
   app polls the room every 5 s while visible, never WebSockets; its UI uses only `@repo/design-tokens`.
+- Exam nudge (025): `POST …/attempts/:attemptId/exam-nudges` is `@MobileOnly()` (a web cookie gets
+  `403 MOBILE_SESSION_REQUIRED` before the permission; `provas.avisos.enviar` and `chamada.registrar`), the body exactly
+  `{}` — no text, student or time; another class (archived, or no longer the teacher's), not an EXAM or another
+  activity's attempt → 404 with no event. It is accepted only while the attempt runs (not submitted, ended, paused or
+  held) with 2+ counted occurrences, re-derived under the attempt's `FOR UPDATE` by the pure `nudge-status.ts`; a
+  refusal is `409 EXAM_NUDGE_NOT_ALLOWED` with `exam_nudge.send_refused` in its own transaction. One pending per attempt
+  (partial UNIQUE, `ON CONFLICT DO NOTHING`): a repeat returns it with `200` and no event. The student's poll
+  (`GET /me/activities/:id/attempt/exam-nudge`, 5 s while the page is visible, never WebSockets) shows it only while the
+  attempt runs and is neither paused nor held, with only the id and the student's own name; "Entendi" (body `{}`) sets
+  `dismissedAt` by the server's clock once. PENDING/DISMISSED/UNSEEN are derived on read, never stored. The warning's
+  sentence lives only in the web and the app, never on the wire, in audit or logs; a warning is never an occurrence,
+  grade, discount, block or pause, and the 018 inactivity does not count while the dialog is open. Audit metadata holds
+  ids, enums and counts. Triggers refuse other inserts, updates and deletes on `exam_nudges`.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
 - 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 - 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
-- 022-light-theme: optional light theme — "Aparência" (Escuro/Claro) in "Meu perfil", stored on the account (`users.theme`, `PATCH /me/preferences`, session access like `GET /me`, no audit); the root layout renders `<html data-theme>` from `GET /me` (no flash, dark without a session); `tokens.css` gains `:root[data-theme="light"]` from the palette #E63946/#F1FAEE/#A8DADC/#457B9D/#1D3557 with darker derived tones for AA; dark values unchanged
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
