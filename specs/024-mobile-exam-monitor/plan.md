@@ -178,3 +178,19 @@ plus `modules/exam-alerts` and `platform/push`; `attempt-integrity` reaches aler
 
 No violation. Metro resolves pnpm's isolated `node_modules` with Expo SDK 58 (checked with `expo export
 --platform android` in T004), so no `node-linker=hoisted` is needed (research Y2).
+
+## Pilot (T040)
+
+Manual pilot on 2026-11-09, quickstart §3 steps 1–9, on an Android phone (Samsung SM-A236M) with the EAS `internal`
+APK (build d37ba5f9, FCM V1 credentials in EAS, `google-services.json` as an EAS file variable) against the beta
+(`https://devtrack.nativcode.com.br`, `PUSH_ENABLED=true` with `EXPO_ACCESS_TOKEN`):
+
+- Steps 1–8 passed: sign-in with the notification prompt and the exam list; the locked phone showed only "DevTrack"
+  and "Conteúdo oculto", unlocked "Ocorrência na prova — … — Aviso 1 de 3", and the tap opened the room; the 4th
+  occurrence sent "Prova retida — decisão pendente" with the stronger vibration and the room showed "Decida no
+  computador"; a muted exam sent no alert; "Sair de todos os dispositivos" returned the app to "Entrar" and stopped
+  the alerts.
+- Step 9 (`PUSH_ENABLED=false`): before the push was configured, the same beta sent no alert and the exam behaved the
+  same.
+- `024/SC-001`: the alert reached the phone about 3 s after the occurrence (target ≤ 10 s).
+- `024/SC-007`: sign-in to the room in under 1 minute.
