@@ -449,6 +449,8 @@ describe("015 ajuda da IA e registros como texto", () => {
         fullscreenUnavailable: false,
         detectionUnavailable: false,
       },
+      holds: [],
+      nudges: [],
     };
     vi.stubGlobal(
       "fetch",

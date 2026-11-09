@@ -293,25 +293,25 @@ web e a revisão depois do fim; conferir os registros, as situações e que o al
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] `apps/api/test/integration/025-us3-history.spec.ts`: `025/US3-1` `GET
+- [X] T026 [P] [US3] `apps/api/test/integration/025-us3-history.spec.ts`: `025/US3-1` `GET
       …/attempts/:attemptId/integrity` traz `nudges` em ordem de `sentAt` com `DISMISSED`, `PENDING` e, depois da
       entrega, `UNSEEN`, igual com o bearer e com a sessão web; trabalho → `nudges: []`; `025/US3-2` o monitor traz
       `pendingSince` e `sentCount`; `025/US3-3` depois do fim e da liberação, a mesma linha do tempo; `025/US3-5` as
       rotas do aluno (`GET /me/activities/:id`, `…/attempt/integrity` próprio, resultado liberado) não têm nenhum
       campo de aviso; `025/SC-005` em 40 alunos com situações variadas, `canSend` verdadeiro exatamente nos que estão
       em andamento com 2+ ocorrências e sem pendente.
-- [ ] T027 [P] [US3] Testes do web: `apps/web/features/exam-session/components/exam-room-panel.test.tsx` (`025/US3-2`
+- [X] T027 [P] [US3] Testes do web: `apps/web/features/exam-session/components/exam-room-panel.test.tsx` (`025/US3-2`
       "Aviso do professor pendente" e "Avisos do professor enviados: n", nenhum botão de envio, `025/US3-4` não entra na contagem de
       ocorrências) e `apps/web/features/activities/components/attempt-records.test.tsx` (`025/US3-1`, `025/US3-3`
       "Aviso do professor enviado — HH:MM", "Aviso fechado pelo aluno — HH:MM", "Aguardando o aluno", "Não visto",
       "Não é uma ocorrência"; não indicado só por cor).
-- [ ] T028 [P] [US3] Teste do app em `apps/mobile/features/exam-room/components/student-occurrences.test.tsx`
+- [X] T028 [P] [US3] Teste do app em `apps/mobile/features/exam-room/components/student-occurrences.test.tsx`
       (`025/US3-1`, `025/US3-4`): os avisos intercalados por horário entre as ocorrências, com os mesmos textos da
       web, fora da contagem de 1–3.
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] API: `apps/api/src/modules/attempt-integrity/integrity-review.service.ts` lê os avisos da tentativa
+- [X] T029 [US3] API: `apps/api/src/modules/attempt-integrity/integrity-review.service.ts` lê os avisos da tentativa
       em query própria (só EXAM; senão `[]`) e monta com `toTeacherExamNudge` e `nudgeStatus`; web:
       `exam-room-panel.tsx` e `attempt-records.tsx` com os textos de contracts/ui.md (em
       `apps/web/features/exam-nudge/schemas/exam-nudge.ts`, reexportados só como texto); app:

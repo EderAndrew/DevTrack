@@ -56,3 +56,39 @@ describe("024/US2-4 as ocorrências de um aluno", () => {
     expect(screen.getByText("Nenhuma ocorrência registrada.")).toBeOnTheScreen();
   });
 });
+
+describe("025/US3 os avisos do professor na linha do tempo do aluno", () => {
+  const nudge = (id: number, minute: number, overrides: Record<string, unknown> = {}) => ({
+    id: `00000000-0000-4000-8000-00000000040${id}`,
+    sentAt: at(minute),
+    dismissedAt: null,
+    status: "PENDING",
+    ...overrides,
+  });
+  const lines = () => screen.getAllByTestId(/^timeline-/).map((card) => card.props.testID as string);
+
+  it("025/US3-1 cada aviso intercalado por horário entre as ocorrências, com os textos da web", async () => {
+    const withNudges = {
+      ...timeline,
+      events: timeline.events.slice(0, 4),
+      holds: [],
+      nudges: [nudge(1, 3, { dismissedAt: at(3).replace(":00.000Z", ":30.000Z"), status: "DISMISSED" }), nudge(2, 6)],
+    };
+    await render(<StudentOccurrences timeline={withNudges as never} />);
+    expect(lines()).toEqual(["timeline-occurrence-1", "timeline-occurrence-2", "timeline-nudge-1", "timeline-occurrence-3", "timeline-nudge-2"]);
+    expect(screen.getByText(`Aviso do professor enviado — ${formatTime(at(3))}`)).toBeOnTheScreen();
+    expect(screen.getByText(`Aviso fechado pelo aluno — ${formatTime(at(3).replace(":00.000Z", ":30.000Z"))}`)).toBeOnTheScreen();
+    expect(screen.getByText(`Aviso do professor enviado — ${formatTime(at(6))}`)).toBeOnTheScreen();
+    expect(screen.getByText("Aguardando o aluno")).toBeOnTheScreen();
+  });
+
+  it("025/US3-4 um aviso diz Não é uma ocorrência em texto e não entra na contagem de 1–3", async () => {
+    const withNudges = { ...timeline, events: timeline.events.slice(0, 3), holds: [], nudges: [nudge(1, 2, { status: "UNSEEN" })] };
+    await render(<StudentOccurrences timeline={withNudges as never} />);
+    expect(screen.getByText("Não é uma ocorrência")).toBeOnTheScreen();
+    expect(screen.getByText("Não visto")).toBeOnTheScreen();
+    // The occurrences keep their own numbers and warnings: the warning between them counts nothing.
+    expect(screen.getByText(`${formatTime(at(3))} — Aviso 2 de 3`)).toBeOnTheScreen();
+    expect(screen.queryByText(/Aviso 3 de 3/)).toBeNull();
+  });
+});

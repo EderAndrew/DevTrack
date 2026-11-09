@@ -7,6 +7,7 @@ import { ExamSettlement } from "../activities/exam-settlement";
 import { endsAt } from "../activities/status/exam-time";
 import { examTiming } from "../activities/status/facts";
 import { ClassContextPolicy } from "../classes/class-context.policy";
+import { toTeacherExamNudge } from "../exam-nudges/views";
 import { toTeacherExamHold } from "../exam-sessions/views";
 import { storedEvents } from "./focus-events.service";
 import { buildTimeline, occurredAt } from "./timeline";
@@ -64,6 +65,7 @@ export class IntegrityReviewService {
       where: { id: attemptId, activityId, activity: { classId } },
       select: {
         id: true,
+        status: true,
         startedAt: true,
         submission: { select: { submittedAt: true } },
         activity: { select: { type: true, status: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
@@ -71,6 +73,7 @@ export class IntegrityReviewService {
           orderBy: { occurrenceOrdinal: "asc" },
           select: { id: true, attemptId: true, occurrenceOrdinal: true, openedAt: true, resolution: true, resolvedAt: true },
         },
+        examNudges: { orderBy: [{ sentAt: "asc" }, { id: "asc" }], select: { id: true, sentAt: true, dismissedAt: true } },
       },
     });
     if (!attempt) throw notFound();
@@ -93,8 +96,23 @@ export class IntegrityReviewService {
     const { activity } = attempt;
     const end = activity.type === "EXAM" ? endsAt(examTiming(activity), attempt.startedAt) : null;
     const holds = end ? attempt.holds.map((hold) => toTeacherExamHold(hold, end, activity.status, now)) : [];
-    // 025: the teacher's warnings are read in T029; until then none.
-    return { events, intervals, totals: addTotals(timelines.map((timeline) => timeline.totals)), holds, nudges: [] };
+    // 025/US3-1 (research N9): an EXAM's warnings, oldest first, the status derived with the server's `now` by the
+    // pure `nudgeStatus` (only the attempt's end matters to it: submitted, out of time, the activity closed or
+    // cancelled); none for the others.
+    const facts = end
+      ? {
+          attemptStatus: attempt.status,
+          submittedAt: attempt.submission?.submittedAt ?? null,
+          holdOpen: attempt.holds.some((hold) => hold.resolution === null),
+          openPause: null,
+          endsAt: end,
+          activityStatus: activity.status,
+          activityEndedAt: activity.closedAt ?? activity.cancelledAt,
+          occurrenceCount: 0,
+        }
+      : null;
+    const nudges = facts ? attempt.examNudges.map((nudge) => toTeacherExamNudge(nudge, facts, now)) : [];
+    return { events, intervals, totals: addTotals(timelines.map((timeline) => timeline.totals)), holds, nudges };
   }
 }
 

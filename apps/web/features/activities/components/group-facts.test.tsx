@@ -142,6 +142,7 @@ describe("023/US6 o grupo na correção do professor", () => {
         intervals: [{ kind: "SCREEN", from: at(30), to: at(31), seconds: 60, open: false, studentUserId: BRUNO.id }],
         totals,
         holds: [],
+        nudges: [],
       }),
       [`GET ${ATTEMPT_PATH}/pauses`]: json(200, {
         items: [

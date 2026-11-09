@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApplyAttendance } from "@/features/attendance/hooks/use-attendance";
+import { NOT_AN_OCCURRENCE, NUDGE_PENDING_BADGE, nudgesSentText } from "@/features/exam-nudge/schemas/exam-nudge";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useExamMonitor, useExamRoomActions } from "../hooks/use-exam-session";
 import {
@@ -65,7 +66,8 @@ export interface ExamRoomPanelProps {
  * refreshed every 5 s. Students awaiting a decision come first, then the paused ones (the server's
  * order). On a hold: "Ver ocorrências", "Confirmar cancelamento" (confirmed), and "Devolver prova"
  * while the attempt has time (`canReturn`) or "Não cancelar" once it is over. A refused action shows
- * the catalog's message; the monitor is read again either way.
+ * the catalog's message; the monitor is read again either way. 025/US3-2: the teacher's warnings to the
+ * student (pending, how many were sent), apart from the occurrences and with no send button.
  */
 export function ExamRoomPanel({ classId, activityId, canDecide, active }: ExamRoomPanelProps) {
   const query = useExamMonitor(classId, activityId);
@@ -204,6 +206,14 @@ function MonitorRows({ classId, activityId, monitor, canDecide, active }: Omit<E
                 </Button>
               ) : null}
             </div>
+            {/* 025/US3-2: the teacher's warnings in words, never a send button (only the app sends) nor an occurrence. */}
+            {row.nudge && (row.nudge.pendingSince || row.nudge.sentCount > 0) ? (
+              <div data-nudge-facts className="flex flex-wrap items-center gap-2 text-text-secondary">
+                {row.nudge.pendingSince ? <Badge variant="neutral">{NUDGE_PENDING_BADGE}</Badge> : null}
+                {row.nudge.sentCount > 0 ? <span>{nudgesSentText(row.nudge.sentCount)}</span> : null}
+                <span>{NOT_AN_OCCURRENCE}</span>
+              </div>
+            ) : null}
             {opened === row.studentUserId && row.attemptId ? (
               <OccurrenceList classId={classId} activityId={activityId} attemptId={row.attemptId} name={row.name} />
             ) : null}

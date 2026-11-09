@@ -629,6 +629,8 @@ describe("015/US4 registros do modo controlado e ajudas da IA na correção", ()
       fullscreenUnavailable: false,
       detectionUnavailable: false,
     },
+    holds: [],
+    nudges: [],
   };
   const helps = {
     allowance: 3,
@@ -933,6 +935,7 @@ describe("018/US8 AttemptReview — o cabeçalho e as seções da prova", () => 
         detectionUnavailable: false,
       },
       holds: [],
+      nudges: [],
     }),
     [`GET ${ATTEMPT_PATH}/pauses`]: json(200, { items: [] }),
   };
