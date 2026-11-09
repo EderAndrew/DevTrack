@@ -4,3 +4,9 @@ android/
 ios/
 *.apk
 *.aab
+# Firebase / EAS credentials: EAS file variables or `eas credentials`, never the repository (docs/deploy/mobile.md)
+google-services.json
+GoogleService-Info.plist
+credentials.json
+*.jks
+*.keystore

@@ -19,7 +19,12 @@ O `projectId` entra no build pela variável `EAS_PROJECT_ID` (`app.config.ts` �
 
 ## 2. Credenciais do FCM (Android)
 
-1. No Firebase Console, crie um projeto e um app Android com o pacote `br.com.nativcode.devtrack`.
+1. No Firebase Console, crie um projeto e um app Android com o pacote `br.com.nativcode.devtrack` (sem SHA-1;
+   pule os passos do SDK) e baixe o `google-services.json`. O app precisa dele para obter o token do aparelho:
+   envie-o como variável de arquivo do EAS, nunca no repositório (o `.gitignore` o recusa):
+   `eas env:create --name GOOGLE_SERVICES_JSON --type file --value <caminho>/google-services.json --environment preview --environment development --visibility sensitive`.
+   O `app.config.ts` o usa em `android.googleServicesFile` quando a variável existe; sem ela o build funciona e só
+   o registro do push falha.
 2. Em "Contas de serviço", gere uma chave privada (JSON) da API FCM v1.
 3. `eas credentials` → Android → `br.com.nativcode.devtrack` → "Google Service Account" → "Push Notifications
    (FCM V1)" → envie o JSON. Ele fica guardado no Expo; não o coloque no repositório nem no VPS.
@@ -55,6 +60,13 @@ vencidas) rodam com os outros; `pnpm --filter api maintenance:run --job exam-ale
 cd apps/mobile
 eas build --profile internal --platform android
 ```
+
+Cada perfil lê as variáveis de um ambiente do EAS (`environment` no `eas.json`: `internal` → `preview`,
+`development` → `development`). No servidor do EAS, o script `eas-build-post-install` do `apps/mobile/package.json`
+compila `@repo/contracts` e `@repo/design-tokens` (o `dist/` deles não está no repositório). O primeiro build precisa
+ser interativo para o EAS gerar e guardar a keystore do app ("Generate a new Android Keystore?" → Y); os seguintes
+podem usar `--non-interactive`. A assinatura difere da do build de debug: desinstale o build de desenvolvimento antes
+de instalar o APK `internal`.
 
 O `app.config.ts` recusa um perfil que não seja `development` com `EXPO_PUBLIC_API_ORIGIN` fora de `https://`.
 
