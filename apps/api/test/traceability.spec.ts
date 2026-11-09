@@ -346,10 +346,10 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
     // each SC with the test that cites it, so the lists are empty at the end of T030. SC-006 left with the
     // boundary spec (T005); US1 with T011–T013 and SC-004 with the concurrency spec (T012); US3 and SC-005 with
-    // T026–T029 (`025-us3-history.spec.ts`).
+    // T026–T029 (`025-us3-history.spec.ts`); SC-007 with the app's pilot flow (T030, `apps/mobile/test/pilot-flow.test.tsx`).
     pending: {
       stories: [],
-      successCriteria: ["SC-007"],
+      successCriteria: [],
     },
   },
 ];

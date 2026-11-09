@@ -238,7 +238,8 @@ outra gera aviso; religar e conferir que volta a avisar.
 - **FR-009**: Tocar num aluno DEVE mostrar as ocorrências dele com o tipo em palavras, o horário do servidor e o
   aviso de 1 a 3 correspondente, com os mesmos textos da web.
 - **FR-010**: O aplicativo NÃO DEVE oferecer nenhuma ação que altere a prova, a chamada, uma pausa ou uma decisão;
-  uma prova retida mostra "Decida no computador".
+  uma prova retida mostra "Decida no computador". *(Emenda da 025, `specs/025-exam-student-nudge/`: a única escrita do
+  aplicativo é o aviso discreto pelo sino, que não altera a prova, a chamada, uma pausa nem uma decisão.)*
 - **FR-011**: Tempos e situações DEVEM vir do relógio do servidor, nunca do relógio do celular.
 
 **Avisos**

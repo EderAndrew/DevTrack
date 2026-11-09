@@ -324,7 +324,7 @@ web e a revisão depois do fim; conferir os registros, as situações e que o al
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T030 Suítes finais em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
+- [X] T030 Suítes finais em `apps/api/test/security/` (os SC restantes saem de `pending`, que fica vazio):
   - `025-isolation.spec.ts`: professor B, gestor, ADMIN e aluno → `403`/`404` no envio; aluno B → `404` no dismiss
     do aviso de A; nenhuma resposta de aluno traz `sentBy`; professor removido da turma ou turma arquivada → `404`;
     sessão MOBILE revogada → `401` (spec Edge Cases, analysis C3);
@@ -333,19 +333,19 @@ web e a revisão depois do fim; conferir os registros, as situações e que o al
     envia, consulta e fecha um aviso;
   - `025/SC-007` fica no piloto (T033), registrado no título de `apps/mobile/test/pilot-flow.test.tsx` (sala → sino →
     confirmar em dois toques).
-- [ ] T031 [P] Documentação: `CLAUDE.md` raiz (025 em "Project state"; a regra "Mobile exam monitor (024)" passa de
+- [X] T031 [P] Documentação: `CLAUDE.md` raiz (025 em "Project state"; a regra "Mobile exam monitor (024)" passa de
       "the app is read-only" para "read-only except the 025 nudge"; nova regra "Exam nudge (025)" em "Rules that are
       easy to get wrong": um pendente por tentativa, só celular `@MobileOnly()`, 2+ ocorrências e em andamento, texto
       só no web/app, nunca ocorrência/nota/bloqueio, inatividade suspensa com o diálogo, consulta de 5 s; o guard
       `exam-nudges-boundary`; a linha "(planned)" do Recent Changes vira a definitiva), `apps/api/CLAUDE.md`
       (`@MobileOnly()`, módulo `exam-nudges`, helpers e suítes da 025), `apps/mobile/CLAUDE.md` (a única escrita, o
       `components/ui/dialog.tsx`), `specs/024-mobile-exam-monitor/spec.md` (nota em FR-010 apontando a emenda da 025).
-- [ ] T032 [P] Revisão de desempenho em `apps/api/test/security/025-performance.spec.ts` (plan "Performance Goals"):
+- [X] T032 [P] Revisão de desempenho em `apps/api/test/security/025-performance.spec.ts` (plan "Performance Goals"):
       `GET …/attempt/exam-nudge` p95 < 50 ms com 40 alunos e avisos; envio p95 < 150 ms; o monitor com o agregado
       novo no mesmo alvo da 018.
 - [ ] T033 Piloto manual: quickstart "Manual check" passos 1–6 com o build `development` do app; cronometrar
       `025/SC-001` (aviso em ≤ 10 s) e `025/SC-007` (envio em < 5 s a partir da sala). Anotar no plan.md.
-- [ ] T034 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde (inclui `apps/mobile`); `pending` da
+- [X] T034 Verificação final: `pnpm lint && pnpm check-types && pnpm test` verde (inclui `apps/mobile`); `pending` da
       025 vazio em `traceability.spec.ts`; Semgrep sem achados nos arquivos novos.
 
 ---

@@ -84,7 +84,9 @@ export class ExamNudgesService {
     attemptId: string,
     requestId: string | null,
   ): Promise<{ nudge: TeacherExamNudge; created: boolean }> {
-    await this.classes.findOwnedOrNotFound(teacherId, classId);
+    // An archived class is out of the app like the 024 mute (spec Edge Cases): the same 404, no event.
+    const schoolClass = await this.classes.findOwnedOrNotFound(teacherId, classId);
+    if (schoolClass.status === "ARCHIVED") throw notFound();
     // The app's writes per minute (024 `mobile-writes`), counted even when the send is refused.
     await this.prisma.runInTransaction((tx) => this.limit.assert(tx, teacherId));
     await this.examSettlement.ofActivity(classId, activityId, this.clock.now(), requestId);
