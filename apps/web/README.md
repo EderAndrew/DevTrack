@@ -54,6 +54,10 @@ as guardas de teste estão em [`CLAUDE.md`](CLAUDE.md).
 | 018 | `exams` (Banco de Provas e "Criar prova com IA"), `exam-session` (a sala da prova do professor), `exam-attempt` (a prova do aluno, com o tempo do servidor) |
 | 019 | `code-run` ("Executar" e o resultado de cada caso público) |
 | 020 | `feedback` ("Enviar feedback", "Meus feedbacks" e os "Feedbacks" do administrador) |
+| 021 | `code-run` também nas questões de Código dos trabalhos com "Permitir executar o código", e o resumo das execuções na correção |
+| 022 | `profile` ganhou a troca de tema (lua, chave e sol no cabeçalho de "Meu perfil"): escuro, o padrão, ou claro, guardado na conta e aplicado já no primeiro HTML pelo `app/layout.tsx` |
+| 023 | `group-work` (formação do grupo pelo líder, "Incluir integrantes", passagem da edição e quem salvou cada resposta na correção) |
+| 025 | `exam-nudge` (o aviso discreto na página da prova, fechado com "Entendi", e os avisos na sala e na correção do professor) |
 
 O editor de código (014) não fecha aspas nem parênteses, não completa e não reindenta o que se
 digita; desde 2026-10-27 o Enter indenta a nova linha pela gramática da linguagem.

@@ -1,6 +1,6 @@
 # DevTrack
 
-Plataforma de ensino e avaliação configurável por professor. As fases 001 a 023 estão
+Plataforma de ensino e avaliação configurável por professor. As fases 001 a 025 estão
 implementadas; cada uma tem a sua spec em `specs/` e está resumida abaixo. A **fase 001 —
 Foundation, Identity & Access** trouxe a identidade única com múltiplos papéis
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
@@ -22,8 +22,8 @@ Uma emenda de 2026-09-24 deixa o professor marcar a aula de um tópico como dada
 desfeita com "Reabrir aula"), e o professor passou a entrar em "Minhas disciplinas" depois do login.
 A **fase 005 — design system** trouxe os tokens de design, Inter e JetBrains Mono, os componentes
 base com variantes e estados, o AppShell e o layout do aluno, o catálogo `/design-system`, a
-documentação em `apps/web/design-system/` e o contrato visual do Modo Prova. Desde 2026-10-22 há
-um só tema, escuro, com a paleta Vice City. A **fase 006 —
+documentação em `apps/web/design-system/` e o contrato visual do Modo Prova. Desde 2026-10-22 o
+tema padrão é o escuro, com a paleta Vice City (a fase 022 acrescentou o tema claro opcional). A **fase 006 —
 fundação de IA** trouxe o registro de agentes, prompts, schemas de saída, ferramentas e
 configurações de modelo, o gateway independente de provedor, ferramentas negadas por padrão,
 saída estruturada validada, propostas revisadas pelo professor, execução assíncrona com limites,
@@ -174,11 +174,23 @@ por padrão, só num trabalho com questão de Código com caso público numa lin
 depois que um aluno inicia); o aluno executa também na tela de foco do modo controlado, só enquanto um
 salvamento seria aceito e nunca durante uma pausa; na correção, o professor vê por questão quantas
 execuções o aluno fez e os vereditos da última, sem código nem saída. Executar continua sem valer nota.
+A **fase 022 — tema claro opcional** deixa cada usuário trocar o tema no cabeçalho de "Meu perfil" (lua, chave e sol): o escuro
+continua o padrão, e a escolha fica guardada na conta, valendo em qualquer navegador.
 A **fase 023 — Trabalho em grupo** permite aplicar um trabalho "Em grupo", de 2 a 5 integrantes com o líder, só
 para os alunos marcados presentes: quem inicia lidera, escolhe colegas presentes ou continua sozinho e pode incluir
 outros depois. O grupo divide uma tentativa, um integrante edita por vez (o líder passa e retoma a edição), cada
 salvamento fica registrado por aluno, o líder entrega e a nota liberada é a mesma para todos; na correção, o
 professor vê os integrantes, as passagens da edição e quem salvou cada resposta.
+A **fase 024 — monitor de provas no celular** traz o app do professor (`apps/mobile`, Expo, Android primeiro, com
+distribuição interna pelo EAS): ele entra com uma sessão própria do celular (30 dias sem uso, 90 no máximo), vê as
+provas em andamento das suas turmas, acompanha a sala da prova da fase 018 e as ocorrências de cada aluno, e recebe um
+aviso por push (vibração e som, escondido com o celular bloqueado) a cada ocorrência contada e a cada retenção, enviado
+por uma fila e pelo Expo Push; "Silenciar avisos desta prova" vale por professor e prova. O app só lê: decisões, chamada
+e pausas continuam no computador. A **fase 025 — aviso discreto ao aluno na prova** dá ao app a sua única gravação: na
+sala, o sino de um aluno em andamento com 2 ou mais ocorrências contadas envia um aviso de texto fixo que só esse aluno
+vê, numa caixa de diálogo na página da prova ("Entendi" fecha). Há no máximo um aviso pendente por tentativa, o aviso
+nunca é uma ocorrência, e a sala do professor no web, a correção e o app mostram os avisos enviados, fechados e "Não
+visto".
 
 Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases futuras. Os agentes
 de IA (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper` e `exam-generator`)
@@ -190,6 +202,8 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 - pnpm 11 (`corepack enable`)
 - Docker (PostgreSQL 17 e Mailpit; desde a 019 também o worker do Code Runner, que roda cada programa
   num contêiner)
+- Para o app do celular (024), opcional: Android Studio com um emulador ou um aparelho Android, e o
+  `eas-cli` para os builds internos ([guia](docs/deploy/mobile.md))
 
 ## Estrutura
 
@@ -197,7 +211,9 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 |---------|----------|
 | `apps/api` | API NestJS 11 (porta 4000): Prisma 7 + PostgreSQL, sessões opacas em cookie, CLI operacional |
 | `apps/web` | Next.js 16 / React 19 (porta 3000); chama a API pelo rewrite same-origin `/api/*`. Código por domínio em `features/<feature>/{api,components,hooks,schemas}`; E2E em `e2e/` |
+| `apps/mobile` | App Expo do professor (024/025): monitor das provas, avisos por push e o aviso discreto ao aluno ([CLAUDE.md](apps/mobile/CLAUDE.md)) |
 | `packages/contracts` | `@repo/contracts`: todo contrato API↔web como schema Zod, com tipos derivados por `z.infer` |
+| `packages/design-tokens` | `@repo/design-tokens`: os tokens do app, gerados do `tokens.css` do web (os dois temas) |
 | `packages/eslint-config`, `packages/typescript-config` | Configurações compartilhadas de ESLint e TypeScript |
 | `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
 | `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
@@ -220,12 +236,16 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 | `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
 | `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
 | `specs/021-work-code-runner/` | O mesmo para a fase 021 (Code Runner nos trabalhos: a opção na aplicação, "Executar" também no modo controlado e o resumo na correção; decisões Y1–Y13) |
-| `specs/023-group-work/` | O mesmo para a fase 023 (trabalho em grupo: formação pelo líder, uma tentativa, um editor por vez, entrega pelo líder e nota única) |
+| `specs/022-light-theme/` | O mesmo para a fase 022 (tema claro opcional, guardado na conta; decisões Z1–Z10) |
+| `specs/023-group-work/` | O mesmo para a fase 023 (trabalho em grupo: formação pelo líder, uma tentativa, um editor por vez, entrega pelo líder e nota única; decisões U1–U19) |
+| `specs/024-mobile-exam-monitor/` | O mesmo para a fase 024 (app do professor: sessão do celular, sala da prova, avisos por push e silenciar; decisões Y1–Y13) |
+| `specs/025-exam-student-nudge/` | O mesmo para a fase 025 (aviso discreto ao aluno pelo sino do app; decisões N1–N10) |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `docs/adr/` | Decisões de arquitetura (IA multimodelo e as políticas de segurança OWASP da auditoria automatizada) |
-| `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019) e o beta na Hostinger |
+| `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019), app do celular (024) e o beta na Hostinger |
 | `deploy/hostinger/` | Arquivos do beta na VPS: nginx, PM2, PostgreSQL em Docker, backup e o script de atualização |
-| `.github/workflows/ci.yml` | CI: lint, tipos, build e testes a cada push e pull request |
+| `.github/workflows/ci.yml` | CI: lint, tipos, build e testes, o Code Runner com Docker e o Semgrep a cada push e pull request |
+| `.semgrep/` | Regras de análise estática do projeto (ADR-0007), com os testes delas |
 | `.github/workflows/deploy-hostinger.yml` | Implanta o beta depois que o CI de um push na `main` passa |
 | `.claude/` | Skills do fluxo Spec Kit e de avaliação de IA, e os hooks da auditoria de segurança |
 | `DEPENDENCIES.md` | Auditoria de vulnerabilidades e licenças e justificativa de cada dependência direta |
@@ -284,6 +304,10 @@ OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api e
 OPENROUTER_API_KEY=... EVAL_MODEL=openai-basic EVAL_RECORD=1 pnpm --filter api eval:exams
                                                 # etapa de liberação do gerador de provas (018), com o mesmo formato
 
+# App do celular (024): detalhes em apps/mobile/CLAUDE.md e docs/deploy/mobile.md
+pnpm --filter mobile start | android | test | lint | check-types
+pnpm --filter @repo/design-tokens generate      # tokens.css -> packages/design-tokens/src/generated.ts (versionado)
+
 # E2E (Playwright): banco devtrack_e2e recriado a cada execução, portas 3100/4100
 docker compose up -d postgres-test mailpit
 pnpm build
@@ -301,7 +325,8 @@ api e web importam o `dist/` do pacote de contratos.
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda `pnpm lint`, `pnpm check-types`,
 `pnpm build` e `pnpm test` (com PostgreSQL 17 de serviço) a cada push e pull request. As
 actions são fixadas por SHA. Desde a 019, o job `sandbox` baixa as imagens do Code Runner e roda
-`test:sandbox` com o Docker do runner. O E2E roda localmente (`pnpm --filter web test:e2e`).
+`test:sandbox` com o Docker do runner, e o job `semgrep` (ADR-0007) testa as regras de `.semgrep/` e
+falha com qualquer achado delas ou dos pacotes do registro. O E2E roda localmente (`pnpm --filter web test:e2e`).
 
 O beta roda numa VPS da Hostinger (`devtrack.nativcode.com.br`): nginx + certbot, web e API no PM2,
 PostgreSQL 17 em Docker e o Code Runner desligado. Depois que o CI de um push na `main` passa,
@@ -371,6 +396,12 @@ confere `/entrar` e `/api/health/ready`. O passo a passo está no
   gVisor, papel restrito no PostgreSQL, roteiro de incidente), siga o
   [guia de implantação do Code Runner](docs/deploy/code-runner.md); com `NODE_ENV=production` e a
   execução ligada, nada sobe sem `CODE_RUNNER_DOCKER_RUNTIME=runsc`.
+- Avisos por push (024): `PUSH_ENABLED` liga e desliga o envio (desligado, os avisos são gravados e
+  terminam sem envio); ligado, precisa do `EXPO_ACCESS_TOKEN` do projeto Expo, que nunca vai para os
+  logs. `EXAM_ALERT_INTERVAL_MS` (1000) é o intervalo do envio, `EXAM_ALERT_MAX_AGE_SECONDS` (60) a idade
+  a partir da qual um aviso não sai mais, e `RATE_LIMIT_MOBILE_WRITES_PER_MINUTE` (30) limita as
+  gravações do app por usuário. O projeto EAS, o FCM e a instalação no aparelho estão no
+  [guia do app do celular](docs/deploy/mobile.md).
 - Testes: [`apps/api/.env.test.example`](apps/api/.env.test.example); os testes recusam rodar
   fora de um banco cujo nome contenha `test`.
 
