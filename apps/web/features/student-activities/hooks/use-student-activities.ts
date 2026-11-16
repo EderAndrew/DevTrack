@@ -13,7 +13,8 @@ export { isOffline };
 export const studentActivitiesKeys = {
   all: ["student-activities"] as const,
   dashboard: () => [...studentActivitiesKeys.all, "dashboard"] as const,
-  list: (filters: StudentActivityListFilters) => [...studentActivitiesKeys.all, "list", filters.status, filters.type] as const,
+  list: (filters: StudentActivityListFilters, classId: string | null = null) =>
+    [...studentActivitiesKeys.all, "list", filters.status, filters.type, classId] as const,
   detail: (activityId: string) => [...studentActivitiesKeys.all, "detail", activityId] as const,
   attempt: (activityId: string, number: number) => [...studentActivitiesKeys.all, "attempt", activityId, number] as const,
   integrity: (activityId: string) => [...studentActivitiesKeys.all, "integrity", activityId] as const,
@@ -28,11 +29,15 @@ const POLL_WHILE_VISIBLE = { refetchInterval: ATTENDANCE_POLL_MS, refetchInterva
 export const useStudentDashboard = () =>
   useQuery({ queryKey: studentActivitiesKeys.dashboard(), queryFn: studentActivitiesApi.dashboard, ...POLL_WHILE_VISIBLE });
 
-/** "Minhas atividades", page by page ("Carregar mais"). */
-export const useStudentActivities = (filters: StudentActivityListFilters) =>
+/**
+ * "Minhas atividades", page by page ("Carregar mais"); with `classId` only that subject (026), and the 5 s poll asks for
+ * the same class (FR-015). `enabled: false` while the page still resolves which subject to show.
+ */
+export const useStudentActivities = (filters: StudentActivityListFilters, classId: string | null = null, options: { enabled?: boolean } = {}) =>
   useInfiniteQuery({
-    queryKey: studentActivitiesKeys.list(filters),
-    queryFn: ({ pageParam }) => studentActivitiesApi.list(filters, pageParam),
+    queryKey: studentActivitiesKeys.list(filters, classId),
+    queryFn: ({ pageParam }) => studentActivitiesApi.list(filters, pageParam, classId),
+    enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
     ...POLL_WHILE_VISIBLE,

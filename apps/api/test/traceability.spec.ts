@@ -363,10 +363,11 @@ const SPECS: FeatureSpec[] = [
     successCriteria: sc(1, 6),
     // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test,
     // each SC with the test that cites it, so the lists are empty at the end of T030. SC-005 left with the
-    // class-scope spec (T003, `026-class-scope.spec.ts`).
+    // class-scope spec (T003, `026-class-scope.spec.ts`); US1, SC-001, SC-002, SC-003 and SC-006 with T009–T010
+    // (`026-us1-list.spec.ts`, `my-activities.test.tsx`).
     pending: {
-      stories: [1, 2, 3, 4],
-      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-006"],
+      stories: [2, 3, 4],
+      successCriteria: ["SC-004"],
     },
   },
 ];

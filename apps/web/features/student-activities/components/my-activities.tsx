@@ -8,10 +8,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { StudentActivityListFilters } from "../api/student-activities";
+import { useCurrentSubject } from "../hooks/use-current-subject";
 import { useStudentActivities } from "../hooks/use-student-activities";
 import { ACTIVITY_TYPE_LABELS, FILTER_OPTIONS, formatHundredths, gradeSummary, myActivitiesHref, type GradeSummary } from "../schemas/student-activity";
 import { ActivityCard } from "./activity-card";
 import { LoadFailed, Loading } from "./load-states";
+import { SubjectSwitcher } from "./subject-switcher";
 
 export const FILTER_IDS = { status: "filtro-situacao", type: "filtro-tipo" } as const;
 export const MY_ACTIVITIES_SUBTITLE = "Acompanhe suas entregas, consulte suas notas e evolua a cada atividade.";
@@ -85,20 +87,40 @@ function GradeSummaryCards({ summary }: { summary: GradeSummary }) {
   );
 }
 
+export interface MyActivitiesProps {
+  filters: StudentActivityListFilters;
+  /** The `materia` of the address (026): checked against "Minhas turmas" before anything is asked. */
+  materia: string | null;
+}
+
 /**
- * "Minhas atividades" (012 US2, FR-012): every activity of the student by deadline, filtered by
- * situação and tipo through the URL (`?situacao=&tipo=`, so a counter of the dashboard links to it),
- * with "Carregar mais".
+ * "Minhas atividades" (012 US2, FR-012): the activities of one subject (026, the "Matéria" card, `?materia=<classId>`) by
+ * deadline, filtered by situação and tipo through the URL (`?situacao=&tipo=`, so a counter of the dashboard links to
+ * it), with "Carregar mais". The list is asked only once the subject is known, so it never mixes subjects; a student
+ * with no class gets the list of 012 (empty) with no card.
  */
-export function MyActivities({ filters }: { filters: StudentActivityListFilters }) {
+export function MyActivities({ filters, materia }: MyActivitiesProps) {
   const router = useRouter();
-  const query = useStudentActivities(filters);
-  const change = (next: Partial<StudentActivityListFilters>) => router.replace(myActivitiesHref({ ...filters, ...next }));
+  const subject = useCurrentSubject(materia);
+  const classId = subject.current?.id ?? null;
+  const query = useStudentActivities(filters, classId, { enabled: !subject.isPending && !subject.isError });
+  const go = (next: Partial<StudentActivityListFilters> & { materia?: string }) =>
+    router.replace(myActivitiesHref({ ...filters, materia: classId, ...next }));
+
+  if (subject.isError) return <LoadFailed error={subject.error} onRetry={subject.refetch} />;
 
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   const filtered = Boolean(filters.status || filters.type);
   return (
     <div className="flex flex-col gap-4">
+      {subject.current ? (
+        <SubjectSwitcher
+          options={subject.options}
+          currentId={subject.current.id}
+          unavailable={subject.unavailable}
+          onChange={(id) => go({ materia: id })}
+        />
+      ) : null}
       {query.isSuccess ? <GradeSummaryCards summary={gradeSummary(items)} /> : null}
       <form
         aria-label="Filtrar atividades"
@@ -110,7 +132,7 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
           <NativeSelect
             id={FILTER_IDS.status}
             value={filters.status ?? ""}
-            onChange={(event) => change({ status: StudentActivityFilterSchema.safeParse(event.target.value).data ?? null })}
+            onChange={(event) => go({ status: StudentActivityFilterSchema.safeParse(event.target.value).data ?? null })}
           >
             <option value="">Todas</option>
             {StudentActivityFilterSchema.options.map((filter) => (
@@ -125,7 +147,7 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
           <NativeSelect
             id={FILTER_IDS.type}
             value={filters.type ?? ""}
-            onChange={(event) => change({ type: ActivityTypeSchema.safeParse(event.target.value).data ?? null })}
+            onChange={(event) => go({ type: ActivityTypeSchema.safeParse(event.target.value).data ?? null })}
           >
             <option value="">Todos</option>
             {ActivityTypeSchema.options.map((type) => (
@@ -136,7 +158,7 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
           </NativeSelect>
         </div>
         {filtered ? (
-          <Button type="button" variant="ghost" onClick={() => change({ status: null, type: null })}>
+          <Button type="button" variant="ghost" onClick={() => go({ status: null, type: null })}>
             <X aria-hidden="true" />
             Limpar filtros
           </Button>

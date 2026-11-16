@@ -54,9 +54,10 @@ export function filtersFromSearch(search: { situacao?: string; tipo?: string }):
   };
 }
 
-/** `/minhas-atividades` with these filters in the URL. */
-export function myActivitiesHref(filters: Partial<StudentActivityListFilters>): string {
+/** `/minhas-atividades` with the subject (026, `materia=<classId>`, written first) and these filters in the URL. */
+export function myActivitiesHref(filters: Partial<StudentActivityListFilters> & { materia?: string | null }): string {
   const query = new URLSearchParams({
+    ...(filters.materia ? { materia: filters.materia } : {}),
     ...(filters.status ? { situacao: FILTER_OPTIONS[filters.status].slug } : {}),
     ...(filters.type ? { tipo: TYPE_SLUGS[filters.type] } : {}),
   });

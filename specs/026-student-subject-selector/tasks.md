@@ -81,7 +81,7 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Teste de integração `apps/api/test/integration/026-class-scope.spec.ts` (`resetDb`, `createTestApp`,
+- [X] T003 [P] Teste de integração `apps/api/test/integration/026-class-scope.spec.ts` (`resetDb`, `createTestApp`,
       um aluno com matrícula ativa em duas turmas de disciplinas diferentes, cada uma com um trabalho publicado):
       `026/FR-008` `GET /me/activities?classId=<A>` devolve só itens com `class.id = A` e `?classId=<B>` só os de B;
       `026/FR-009` `classId` de uma turma sem matrícula do aluno → `404 NOT_FOUND`; `classId=abc` → `400`
@@ -101,7 +101,7 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
 
 ### Implementation for Foundational
 
-- [ ] T006 Escopo por turma na API (research D2): em `apps/api/src/modules/student-activities/student-activity-loader.ts`,
+- [X] T006 Escopo por turma na API (research D2): em `apps/api/src/modules/student-activities/student-activity-loader.ts`,
       `loadAll(studentUserId, now, canSeeResults, classId?: string)` acrescenta `classId` ao `where` junto do
       `visibleTo(studentUserId, now)` (nada mais muda no escopo); em
       `apps/api/src/modules/student-activities/my-activities.service.ts`, um método privado
@@ -137,11 +137,11 @@ ver só a segunda, com os cartões de resumo recalculados e `materia=` no endere
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T009 [P] [US1] Integração `apps/api/test/integration/026-us1-list.spec.ts`: `026/US1-1` e `026/SC-002` com
+- [X] T009 [P] [US1] Integração `apps/api/test/integration/026-us1-list.spec.ts`: `026/US1-1` e `026/SC-002` com
       `classId` da turma A, nenhum item de B (nem com `status`/`type`), e o inverso; `026/US1-3` os filtros
       `status=PENDING`/`type=ASSIGNMENT` combinados com `classId`; `026/US1-4` turma sem atividades → `items: []`;
       `026/US1-5` `pageSize=1` + `cursor` com o mesmo `classId` percorre só a turma A, sem repetir nem pular.
-- [ ] T010 [P] [US1] Web `apps/web/features/student-activities/components/my-activities.test.tsx` (acrescentar; os
+- [X] T010 [P] [US1] Web `apps/web/features/student-activities/components/my-activities.test.tsx` (acrescentar; os
       testes de hoje passam a montar `GET /api/me/classes` e a esperar `classId=` na URL pedida):
       `026/US1-1` sem `materia`, o card mostra a matrícula mais recente e a lista pedida é
       `/api/me/activities?classId=<A>`; `026/US1-2` e `026/SC-003` escolher outra matéria no card (uma interação
@@ -154,15 +154,15 @@ ver só a segunda, com os cartões de resumo recalculados e `materia=` no endere
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] API: `MyActivitiesService.list` aceita `query.classId` — `assertActiveEnrollment` e
+- [X] T011 [US1] API: `MyActivitiesService.list` aceita `query.classId` — `assertActiveEnrollment` e
       `summaries(userId, now, query.classId)` (`apps/api/src/modules/student-activities/my-activities.service.ts`); o
       controller já valida o query com `StudentActivityListQuerySchema`. **Já ligado no T006**; aqui só conferir T009
       verde.
-- [ ] T012 [US1] Web: `apps/web/features/student-activities/api/student-activities.ts` — `list(filters, cursor,
+- [X] T012 [US1] Web: `apps/web/features/student-activities/api/student-activities.ts` — `list(filters, cursor,
       classId: string | null)` põe `classId` na query; `hooks/use-student-activities.ts` —
       `studentActivitiesKeys.list(filters, classId)` e `useStudentActivities(filters, classId, { enabled })`;
       `schemas/student-activity.ts` — `myActivitiesHref` aceita `materia` (escrito primeiro na query).
-- [ ] T013 [US1] Web: `apps/web/features/student-activities/components/my-activities.tsx` recebe `materia` e monta
+- [X] T013 [US1] Web: `apps/web/features/student-activities/components/my-activities.tsx` recebe `materia` e monta
       `SubjectSwitcher` acima dos cartões de resumo (só com `current`); pede a lista só depois de `useCurrentSubject`
       resolver, com o `classId` de `current` (sem turmas: sem `classId`, estado vazio de hoje); a troca e os filtros
       usam `router.replace(myActivitiesHref({ ...filters, materia }))`; "Limpar filtros" mantém `materia`.
