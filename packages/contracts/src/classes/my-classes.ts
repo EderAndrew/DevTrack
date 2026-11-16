@@ -10,6 +10,8 @@ export const MyClassViewSchema = z.strictObject({
   academicYear: z.int(),
   period: z.string().nullable(),
   teacherName: z.string(),
+  /** 026: the class's subject; null for a class without one (before 004). */
+  subjectName: z.string().nullable(),
   enrolledAt: IsoDateTimeSchema,
 });
 export type MyClassView = z.infer<typeof MyClassViewSchema>;

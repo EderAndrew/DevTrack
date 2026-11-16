@@ -75,6 +75,7 @@ import {
   StudentActivityListQuerySchema,
   StudentActivityPageSchema,
   StudentActivitySchema,
+  StudentDashboardQuerySchema,
   StudentDashboardSchema,
   StartAttemptRequestSchema,
   SubmitAttemptRequestSchema,
@@ -1382,7 +1383,13 @@ export const endpoints = {
 
   // 012 — the student portal: only the session student's ACTIVE enrollments (research P18).
   /** Counts, the next five by deadline and the overdue ones still accepting a submission (FR-010, P17). */
-  "myActivities.dashboard": { method: "GET", path: "/me/dashboard", response: StudentDashboardSchema, status: 200 },
+  "myActivities.dashboard": {
+    method: "GET",
+    path: "/me/dashboard",
+    query: StudentDashboardQuerySchema,
+    response: StudentDashboardSchema,
+    status: 200,
+  },
   /** "Minhas atividades": by deadline, filtered by situation and type, keyset cursor (FR-012, P16). */
   "myActivities.list": {
     method: "GET",

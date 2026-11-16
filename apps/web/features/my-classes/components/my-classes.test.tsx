@@ -17,6 +17,7 @@ const ALGEBRA: MyClassView = {
   academicYear: 2026,
   period: "Manhã",
   teacherName: "Professora Ada",
+  subjectName: null,
   enrolledAt: "2026-09-20T15:00:00.000Z",
 };
 const FISICA: MyClassView = {
@@ -26,6 +27,7 @@ const FISICA: MyClassView = {
   academicYear: 2025,
   period: null,
   teacherName: "Professor Caio",
+  subjectName: null,
   enrolledAt: "2026-09-21T15:00:00.000Z",
 };
 

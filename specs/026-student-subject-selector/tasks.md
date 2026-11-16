@@ -52,20 +52,25 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
 
 **Purpose**: a 026 entra na guarda de rastreabilidade e os contratos existem.
 
-- [ ] T001 Incluir a 026 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 025:
+- [X] T001 Incluir a 026 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 025:
       `feature: "026"`, `path: "specs/026-student-subject-selector/spec.md"`, `stories: 4`, `scenarios: 20`
       (7 + 5 + 6 + 2), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e
       `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006"] }`,
       com o comentário "Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its
       last test, each SC with the test that cites it, so the lists are empty at the end of T030". Citar a 026 na
       lista de `SPECS` do `CLAUDE.md` raiz ("…, 024, 025 and 026").
-- [ ] T002 [P] Contratos (contracts/http-api.md "packages/contracts changes"):
+- [X] T002 [P] Contratos (contracts/http-api.md "packages/contracts changes"):
       `packages/contracts/src/activities/student.ts` — `StudentActivityListQuerySchema` += `classId: UuidSchema.optional()`
       e o novo `StudentDashboardQuerySchema = z.strictObject({ classId: UuidSchema.optional() })` com o tipo
       `StudentDashboardQuery`; `packages/contracts/src/classes/my-classes.ts` — `MyClassViewSchema` +=
       `subjectName: z.string().nullable()`; `packages/contracts/src/endpoints.ts` — `myActivities.dashboard` ganha
       `query: StudentDashboardQuerySchema`; exportar em `src/index.ts` se o barril não reexportar o arquivo.
       `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test`.
+      **Antecipado na implementação** (decisão de 2026-11-16, para a fase fechar verde): como `subjectName` é
+      obrigatório no contrato, o `ContractConformanceInterceptor` derrubaria `GET /me/classes`; por isso o T002 já
+      faz a API devolvê-lo (o select de T023 em `my-classes.service.ts`), acrescenta `subjectName: null` à igualdade
+      dos dois itens de `003/US7-1` (`apps/api/test/integration/003-us7-my-classes.spec.ts`) e aos fixtures de
+      `apps/web/features/my-classes/components/my-classes.test.tsx`.
 
 ---
 
@@ -254,8 +259,8 @@ matéria.
 
 - [ ] T021 [P] [US4] Integração em `apps/api/test/integration/026-us4-my-classes.spec.ts`: `026/US4-1`
       `GET /me/classes` traz `subjectName` de cada turma, na ordem de hoje; `026/US4-2` turma sem disciplina →
-      `subjectName: null`; os testes `003/US7-*` de `003-us7-my-classes.spec.ts` continuam verdes (só o campo novo na
-      igualdade, se o teste compara o objeto inteiro).
+      `subjectName: null`; os testes `003/US7-*` de `003-us7-my-classes.spec.ts` continuam verdes (o campo novo já
+      entrou na igualdade no T002). Como o select foi antecipado no T002, estes testes passam ao serem escritos.
 - [ ] T022 [P] [US4] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (acrescentar): `026/US4-1` cada
       turma mostra "Disciplina: <nome>"; `026/US4-2` sem disciplina, nada a mais; axe.
 
@@ -263,7 +268,7 @@ matéria.
 
 - [ ] T023 [US4] API: `MyClassesService.list` seleciona `subject: { select: { name: true } }` e devolve
       `subjectName: schoolClass.subject?.name ?? null`
-      (`apps/api/src/modules/enrollments/my-classes.service.ts`). T021 verde.
+      (`apps/api/src/modules/enrollments/my-classes.service.ts`) — **já feito no T002**; aqui só conferir T021 verde.
 - [ ] T024 [US4] Web: `apps/web/features/my-classes/components/my-classes.tsx` mostra "Disciplina: <nome>" quando há.
       T022 verde; tirar `4` de `pending.stories`.
 

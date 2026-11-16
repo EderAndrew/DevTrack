@@ -206,8 +206,16 @@ export const StudentActivityListQuerySchema = z.strictObject({
   /** Opaque, from the previous page's `nextCursor`. */
   cursor: z.string().max(200).optional(),
   pageSize: z.coerce.number().pipe(z.int().min(1).max(STUDENT_ACTIVITIES_PAGE_SIZE_MAX)).optional(),
+  /** 026: only this class (an ACTIVE enrollment of the student, else 404); absent → every class, as before. */
+  classId: UuidSchema.optional(),
 });
 export type StudentActivityListQuery = z.infer<typeof StudentActivityListQuerySchema>;
+
+/** `GET /me/dashboard` (026): `classId` narrows every block to that class, as in the list. */
+export const StudentDashboardQuerySchema = z.strictObject({
+  classId: UuidSchema.optional(),
+});
+export type StudentDashboardQuery = z.infer<typeof StudentDashboardQuerySchema>;
 
 export const StudentActivityPageSchema = z.strictObject({
   items: z.array(StudentActivitySummarySchema),
