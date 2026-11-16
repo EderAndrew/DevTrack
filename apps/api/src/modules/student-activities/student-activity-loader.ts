@@ -140,8 +140,12 @@ export class StudentActivityLoader {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Every activity the student may see, with the facts of their own attempt. */
-  async loadAll(studentUserId: string, now: Date, canSeeResults: boolean): Promise<StudentActivityInput[]> {
-    const activities = await this.prisma.classActivity.findMany({ where: visibleTo(studentUserId, now), select: ACTIVITY_SELECT });
+  /** 026: `classId` narrows the same scope to one class (the caller has checked the ACTIVE enrollment). */
+  async loadAll(studentUserId: string, now: Date, canSeeResults: boolean, classId?: string): Promise<StudentActivityInput[]> {
+    const activities = await this.prisma.classActivity.findMany({
+      where: { ...visibleTo(studentUserId, now), ...(classId === undefined ? {} : { classId }) },
+      select: ACTIVITY_SELECT,
+    });
     const attempts = await this.attemptsOf(studentUserId, activities.map((activity) => activity.id));
     return activities.map((activity) => toInput(activity, attempts.get(activity.id) ?? [], now, canSeeResults));
   }

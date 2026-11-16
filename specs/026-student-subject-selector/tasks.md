@@ -87,12 +87,12 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
       `026/FR-009` `classId` de uma turma sem matrícula do aluno → `404 NOT_FOUND`; `classId=abc` → `400`
       `VALIDATION_ERROR` sem consulta ao banco (sem `500`); `026/SC-005` sem `classId`, o corpo é igual ao de antes
       (comparar com a resposta da mesma chamada sem o parâmetro no mesmo estado: os mesmos ids na mesma ordem).
-- [ ] T004 [P] Teste do web `apps/web/features/student-activities/hooks/use-current-subject.test.tsx` (com
+- [X] T004 [P] Teste do web `apps/web/features/student-activities/hooks/use-current-subject.test.tsx` (com
       `routedFetch` de `GET /api/me/classes`): `026/FR-003` sem `materia` resolve a primeira turma da lista;
       `026/FR-002` as opções são as turmas da lista, na ordem dela, sem "Todas"; `026/FR-011` uma `materia` fora da
       lista resolve a primeira e marca `unavailable: true`; `026/FR-012` sem turmas resolve `null` (sem card);
       enquanto a lista carrega, `isPending` (nenhuma atividade é pedida).
-- [ ] T005 [P] Teste do web `apps/web/features/student-activities/components/subject-switcher.test.tsx`:
+- [X] T005 [P] Teste do web `apps/web/features/student-activities/components/subject-switcher.test.tsx`:
       `026/FR-001` o card mostra "Matéria" e a opção "<disciplina> · <turma>"; `026/US1-6` turma sem disciplina mostra
       só "<turma>"; dois rótulos iguais ganham " · <período> · <professor>" (research D7); uma única matéria mostra
       "Sua única matéria"; `026/FR-014` `expectNoA11yViolations`, o `<label>` "Matéria" ligado ao select e a troca por
@@ -108,7 +108,9 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
       `assertActiveEnrollment(userId, classId)` com `prisma.enrollment.findFirst({ where: { studentUserId: userId,
       classId, status: "ACTIVE" }, select: { id: true } })` que lança `notFound()` sem auditar, e `summaries(userId,
       now, classId?)` repassa o `classId` ao loader depois da checagem. T003 verde nos cenários de escopo.
-- [ ] T007 [P] Resolução da matéria no web (research D6):
+      **Na implementação**: para o T003 passar, a lista já repassa `query.classId` a `summaries` (a linha do T011), e
+      o T003 cita `026/SC-005`, que saiu de `pending` aqui (não no T025).
+- [X] T007 [P] Resolução da matéria no web (research D6):
       `apps/web/features/student-activities/hooks/use-current-subject.ts` —
       `useCurrentSubject(materia: string | null)` usa `useMyClasses()` de `features/my-classes/hooks/use-my-classes.ts`
       e devolve `{ isPending, options, current: MyClassView | null, unavailable }`; e em
@@ -116,7 +118,7 @@ description: "Task list for 026 — Matéria atual do aluno: card \"Matéria\" n
       (com o desempate do D7), `subjectFromSearch(search: { materia?: string })` e os textos `SUBJECT_LABEL =
       "Matéria"`, `ONLY_SUBJECT = "Sua única matéria"`, `SUBJECT_UNAVAILABLE = "Essa matéria não está mais
       disponível para você."`. T004 verde.
-- [ ] T008 [P] `apps/web/features/student-activities/components/subject-switcher.tsx` (contracts/ui.md
+- [X] T008 [P] `apps/web/features/student-activities/components/subject-switcher.tsx` (contracts/ui.md
       "SubjectSwitcher"): um cartão com tokens do Design System (como os cartões do painel), ícone `BookOpen`
       decorativo, `Label` + `NativeSelect` (`id="materia-atual"`), as opções de `subjectLabel`, a legenda
       `ONLY_SUBJECT` com uma opção só e, acima, um `Alert` (info) com `SUBJECT_UNAVAILABLE` quando `unavailable`;
@@ -154,7 +156,8 @@ ver só a segunda, com os cartões de resumo recalculados e `materia=` no endere
 
 - [ ] T011 [US1] API: `MyActivitiesService.list` aceita `query.classId` — `assertActiveEnrollment` e
       `summaries(userId, now, query.classId)` (`apps/api/src/modules/student-activities/my-activities.service.ts`); o
-      controller já valida o query com `StudentActivityListQuerySchema`. T009 verde.
+      controller já valida o query com `StudentActivityListQuerySchema`. **Já ligado no T006**; aqui só conferir T009
+      verde.
 - [ ] T012 [US1] Web: `apps/web/features/student-activities/api/student-activities.ts` — `list(filters, cursor,
       classId: string | null)` põe `classId` na query; `hooks/use-student-activities.ts` —
       `studentActivitiesKeys.list(filters, classId)` e `useStudentActivities(filters, classId, { enabled })`;
