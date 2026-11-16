@@ -39,5 +39,8 @@ export const formatLongDateTime = (iso: string) => {
   return `${longDay.format(date)}, ${clock.format(date)}`;
 };
 
+/** The day of an instant written out in the browser's time zone, "segunda-feira, 16 de novembro" (the student's dashboard). */
+export const formatLongDay = (iso: string) => longDay.format(new Date(iso));
+
 /** The time of an instant in the browser's time zone, "14:32" (015 Exam Mode warnings). */
 export const formatTime = (iso: string) => clock.format(new Date(iso));

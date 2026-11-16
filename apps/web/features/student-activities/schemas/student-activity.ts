@@ -126,6 +126,64 @@ export function cardScore(item: Pick<StudentActivitySummary, "status" | "result"
   return { value: String(item.points.earned), label: concluded && !item.points.awaitingCorrection ? "Pontos" : "Pontos parciais" };
 }
 
+/** A grade of the contract ("0.60", two decimals) in whole hundredths (60); null when it is not in that shape. */
+function toHundredths(grade: string): number | null {
+  const match = /^(\d+)\.(\d{2})$/.exec(grade);
+  return match ? parseInt(`${match[1]}${match[2]}`, 10) : null;
+}
+
+/** A whole percentage of `part` over `whole`, both integers; null without a whole. Only for display (a bar and "80%"). */
+export function wholePercent(part: number, whole: number): number | null {
+  if (whole <= 0) return null;
+  return Math.min(100, Math.max(0, Math.round((part * 100) / whole)));
+}
+
+/** The released grade as a share of the activity's total (0,60 of 0,75 → 80), in whole hundredths, never floats (012). */
+export function gradePercent(grade: string, total: string | null): number | null {
+  if (total === null) return null;
+  const earned = toHundredths(grade);
+  const possible = toHundredths(total);
+  return earned === null || possible === null ? null : wholePercent(earned, possible);
+}
+
+/** Whole hundredths written as a grade: 85 → "0,85", 1250 → "12,50" (integer arithmetic only, 012). */
+export function formatHundredths(hundredths: number): string {
+  const whole = Math.floor(hundredths / 100);
+  const cents = hundredths % 100;
+  return `${whole},${cents < 10 ? "0" : ""}${cents}`;
+}
+
+export interface GradeSummary {
+  /** Activities with a released grade (the API sends `result` only after the release, 012). */
+  graded: number;
+  /** Sum of those grades and of their maximum grades, in whole hundredths. */
+  earned: number;
+  possible: number;
+  /** `earned` over `possible`, whole percent; null with nothing graded. */
+  percent: number | null;
+}
+
+/**
+ * The summary cards of "Minhas atividades" over the activities on screen (the list is paged and the API sends no
+ * total, so the cards say "nas atividades exibidas"). Only released grades count; an Exercício's points never mix
+ * with grades (013), and an activity whose grades are not in the contract's shape is left out.
+ */
+export function gradeSummary(items: readonly Pick<StudentActivitySummary, "result" | "totalGrade">[]): GradeSummary {
+  let graded = 0;
+  let earned = 0;
+  let possible = 0;
+  for (const item of items) {
+    if (!item.result || item.totalGrade === null) continue;
+    const grade = toHundredths(item.result.grade);
+    const total = toHundredths(item.totalGrade);
+    if (grade === null || total === null) continue;
+    graded += 1;
+    earned += grade;
+    possible += total;
+  }
+  return { graded, earned, possible, percent: graded > 0 ? wholePercent(earned, possible) : null };
+}
+
 /** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
 export const valueLabel = (question: { value: string | null; points: number | null }) =>
   question.value !== null ? `Vale ${formatGrade(question.value)}` : `Vale ${formatPoints(question.points ?? 0)}`;
