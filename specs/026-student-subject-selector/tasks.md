@@ -184,12 +184,12 @@ outra; tocar em "Pendentes" e chegar em "Minhas atividades" na mesma matéria.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T014 [P] [US2] Integração `apps/api/test/integration/026-us2-dashboard.spec.ts`: `026/US2-1` e `026/US2-2`
+- [X] T014 [P] [US2] Integração `apps/api/test/integration/026-us2-dashboard.spec.ts`: `026/US2-1` e `026/US2-2`
       `GET /me/dashboard?classId=<A>` conta e lista só a turma A (`counts`, `next`, `overdueOpen`), e com `<B>` só B;
       `026/US2-3` `rankings` tem só o bloco de A (com `ranking.turma.visualizar`), vazio sem a permissão e vazio para
       uma turma A arquivada ou inativa (research D4); `026/FR-009` `classId` alheio → `404`, malformado → `400`;
       `026/SC-005` sem `classId`, `rankings` tem um bloco por turma ativa, como hoje.
-- [ ] T015 [P] [US2] Web `apps/web/features/student-activities/components/student-dashboard.test.tsx` (acrescentar; os
+- [X] T015 [P] [US2] Web `apps/web/features/student-activities/components/student-dashboard.test.tsx` (acrescentar; os
       testes de hoje passam a montar `GET /api/me/classes` e a pedir `/api/me/dashboard?classId=<A>`):
       `026/US2-1` o card no topo com a matéria mais recente; `026/US2-2` trocar no card faz `router.replace` para
       `/painel?materia=<B>` e o painel pedido passa a ser o de B; `026/US2-3` só o cartão de ranking da turma
@@ -201,13 +201,13 @@ outra; tocar em "Pendentes" e chegar em "Minhas atividades" na mesma matéria.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] API: `MyActivitiesService.dashboard(userId, query)` com `classId` opcional — `assertActiveEnrollment`,
+- [X] T016 [US2] API: `MyActivitiesService.dashboard(userId, query)` com `classId` opcional — `assertActiveEnrollment`,
       `summaries(userId, now, classId)` e `ranking.dashboardFor(userId, classId)`; o controller lê
       `@Query(new ZodValidationPipe(StudentDashboardQuerySchema))`
       (`apps/api/src/modules/student-activities/my-activities.controller.ts`); `RankingService.dashboardFor(userId,
       classId?)` acrescenta `id: classId` ao `where` das turmas
       (`apps/api/src/modules/ranking/ranking.service.ts`). T014 verde e a 013 (`013-*`) sem mudança de asserção.
-- [ ] T017 [US2] Web: `studentActivitiesApi.dashboard(classId)`, `studentActivitiesKeys.dashboard(classId)` e
+- [X] T017 [US2] Web: `studentActivitiesApi.dashboard(classId)`, `studentActivitiesKeys.dashboard(classId)` e
       `useStudentDashboard(classId, { enabled })`; `apps/web/features/student-activities/components/student-dashboard.tsx`
       recebe `materia`, monta `SubjectSwitcher` abaixo do cabeçalho, pede o painel depois da resolução, e os links dos
       contadores e de "Ver todas" usam `myActivitiesHref({ ..., materia })`; `apps/web/app/(student)/painel/page.tsx`

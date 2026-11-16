@@ -5,6 +5,8 @@ import {
   StudentActivityListQuerySchema,
   type StudentActivityPage,
   type StudentDashboard,
+  type StudentDashboardQuery,
+  StudentDashboardQuerySchema,
   UuidSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -19,8 +21,11 @@ export class MyActivitiesController {
 
   @Get("dashboard")
   @RequirePermissions("atividades.proprias.visualizar")
-  dashboard(@Ctx() ctx: RequestContext): Promise<StudentDashboard> {
-    return this.myActivities.dashboard(ctx.auth!.userId);
+  dashboard(
+    @Query(new ZodValidationPipe(StudentDashboardQuerySchema)) query: StudentDashboardQuery,
+    @Ctx() ctx: RequestContext,
+  ): Promise<StudentDashboard> {
+    return this.myActivities.dashboard(ctx.auth!.userId, query);
   }
 
   @Get("activities")

@@ -113,6 +113,13 @@ describe("005/US5-1 layout do aluno", () => {
     expect(within(menus.at(-1)!).getAllByRole("link").map((link) => link.textContent)).toEqual(["Minhas turmas"]);
   });
 
+  it("026/US2-5 no Painel de uma matéria, o menu continua levando a \"Minhas atividades\" e ao Painel sem matéria", () => {
+    navigation.pathname = "/painel";
+    renderLayout();
+    expect(within(studentMenu()).getByRole("link", { name: "Minhas atividades" }).getAttribute("href")).toBe("/minhas-atividades");
+    expect(within(studentMenu()).getByRole("link", { name: "Painel" }).getAttribute("href")).toBe("/painel");
+  });
+
   it("020/US1-5 020/SC-006 \"Enviar feedback\" no rodapé do menu com feedbacks.enviar, também na página de uma atividade", () => {
     const feedback = <Button type="button">Enviar feedback</Button>;
     navigation.pathname = "/minhas-atividades/0f3c4b8e-1a2b-4c5d-8e9f-0a1b2c3d4e5f";

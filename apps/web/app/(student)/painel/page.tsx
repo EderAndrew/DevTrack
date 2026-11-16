@@ -3,18 +3,19 @@ import { redirect } from "next/navigation";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { StudentDashboard } from "@/features/student-activities/components/student-dashboard";
+import { subjectFromSearch } from "@/features/student-activities/schemas/student-activity";
 import { DASHBOARD_PATH } from "@/lib/navigation";
 
 export const metadata: Metadata = { title: "Painel" };
 
-/** The student's start page (012 US2, research P23). */
-export default async function DashboardPage() {
+/** The student's start page (012 US2, research P23); the subject lives in the URL (`?materia=`, 026). */
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ materia?: string }> }) {
   const me = await getMe();
   if (!me) redirect(`/entrar?next=${encodeURIComponent(DASHBOARD_PATH)}`);
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Painel" />;
   return (
     <section data-layout="wide">
-      <StudentDashboard />
+      <StudentDashboard materia={subjectFromSearch(await searchParams)} />
     </section>
   );
 }

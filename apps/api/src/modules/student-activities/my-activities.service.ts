@@ -4,6 +4,7 @@ import {
   STUDENT_ACTIVITIES_PAGE_SIZE,
   type StudentActivity,
   type StudentActivityListQuery,
+  type StudentDashboardQuery,
   type StudentActivityPage,
   type StudentActivityStatus,
   type StudentActivitySummary,
@@ -69,10 +70,11 @@ export class MyActivitiesService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async dashboard(userId: string): Promise<StudentDashboard> {
+  /** The Painel; with `classId` (026, research D4) every block, the ranking included, is that class's only. */
+  async dashboard(userId: string, query: StudentDashboardQuery = {}): Promise<StudentDashboard> {
     const now = this.clock.now();
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
-    const items = (await this.summaries(userId, now)).sort(byDeadline);
+    const items = (await this.summaries(userId, now, query.classId)).sort(byDeadline);
     const count = (...statuses: StudentActivityStatus[]) => items.filter((item) => statuses.includes(item.status)).length;
     return {
       firstName: user.name.trim().split(/\s+/)[0] ?? "",
@@ -84,7 +86,7 @@ export class MyActivitiesService {
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
-      rankings: await this.ranking.dashboardFor(userId),
+      rankings: await this.ranking.dashboardFor(userId, query.classId),
       serverNow: now.toISOString(),
     };
   }

@@ -1,9 +1,9 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { MyClassView } from "@repo/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
-import type { MyClassView } from "@repo/contracts";
 import { renderWithProviders } from "../../../test/render";
 import { formatLongDateTime } from "@/lib/messages/dates";
 import type { StudentActivityListFilters } from "../api/student-activities";
@@ -11,27 +11,15 @@ import { filtersFromSearch, myActivitiesHref } from "../schemas/student-activity
 import { LOAD_ERROR } from "./load-states";
 import { FILTER_IDS, MyActivities, NO_GRADE_YET, shownLabel } from "./my-activities";
 import { SUBJECT_SELECT_ID } from "./subject-switcher";
-import { apiError, json, routedFetch, summary } from "./test-fixtures";
+import { apiError, json, POO_CLASS, routedFetch, SQL_CLASS, summary } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const NONE: StudentActivityListFilters = { status: null, type: null };
 
-const myClass = (overrides: Partial<MyClassView>): MyClassView => ({
-  id: "11111111-1111-4111-8111-111111111111",
-  name: "ADS 3NA",
-  code: "ADS-3NA",
-  academicYear: 2026,
-  period: "2026.2",
-  teacherName: "Ana Professora",
-  subjectName: "Programação Orientada a Objetos",
-  enrolledAt: "2026-11-10T12:00:00.000Z",
-  ...overrides,
-});
-/** "Minhas turmas" lists the most recent enrollment first (026 research D6). */
-const POO = myClass({});
-const SQL = myClass({ id: "22222222-2222-4222-8222-222222222222", subjectName: "Banco de Dados", enrolledAt: "2026-11-01T12:00:00.000Z" });
+const POO = POO_CLASS;
+const SQL = SQL_CLASS;
 
 /** The list of one subject: `classId` first, then the 012 filters and the cursor. */
 const listOf = (classId: string, query = "") => `GET /api/me/activities?classId=${classId}${query ? `&${query}` : ""}`;
