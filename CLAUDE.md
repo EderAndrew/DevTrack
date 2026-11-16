@@ -152,6 +152,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
 - No new dependency (025-exam-student-nudge)
 - PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
+- No new dependency (026-student-subject-selector)
+- PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
 
 ## Stack notes
 
@@ -519,9 +521,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 - 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
 - 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
-- 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
