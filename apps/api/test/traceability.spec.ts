@@ -366,9 +366,9 @@ const SPECS: FeatureSpec[] = [
     // class-scope spec (T003, `026-class-scope.spec.ts`); US1, SC-001, SC-002, SC-003 and SC-006 with T009–T010
     // (`026-us1-list.spec.ts`, `my-activities.test.tsx`); US2 with T014–T015 (`026-us2-dashboard.spec.ts`,
     // `student-dashboard.test.tsx`, `student-layout.test.tsx`); US3 and SC-004 with T018–T019 (`026-isolation.spec.ts`
-    // and the 026/US3 blocks of both web tests).
+    // and the 026/US3 blocks of both web tests); US4 with T021–T022 (`026-us4-my-classes.spec.ts`, `my-classes.test.tsx`).
     pending: {
-      stories: [4],
+      stories: [],
       successCriteria: [],
     },
   },

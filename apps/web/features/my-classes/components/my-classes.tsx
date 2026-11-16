@@ -19,7 +19,7 @@ export interface MyClassesProps {
 
 /**
  * "Minhas turmas" (003 US7): the classes of the student's active enrollments, most recent first,
- * as the API orders them. Only the class and its teacher; nothing about other students.
+ * as the API orders them. Only the class, its subject (026/US4) and its teacher; nothing about other students.
  */
 export function MyClasses({ welcome, showRanking = false }: MyClassesProps) {
   const classes = useMyClasses();
@@ -65,7 +65,12 @@ export function MyClasses({ welcome, showRanking = false }: MyClassesProps) {
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
+                <TableCell>
+                  <span className="block">{item.name}</span>
+                  {item.subjectName ? (
+                    <span className="block text-body-sm text-muted-foreground">Disciplina: {item.subjectName}</span>
+                  ) : null}
+                </TableCell>
                 <TableCell>{item.code}</TableCell>
                 <TableCell>{item.academicYear}</TableCell>
                 <TableCell>{item.period ?? "—"}</TableCell>

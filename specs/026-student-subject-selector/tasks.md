@@ -260,19 +260,19 @@ matéria.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T021 [P] [US4] Integração em `apps/api/test/integration/026-us4-my-classes.spec.ts`: `026/US4-1`
+- [X] T021 [P] [US4] Integração em `apps/api/test/integration/026-us4-my-classes.spec.ts`: `026/US4-1`
       `GET /me/classes` traz `subjectName` de cada turma, na ordem de hoje; `026/US4-2` turma sem disciplina →
       `subjectName: null`; os testes `003/US7-*` de `003-us7-my-classes.spec.ts` continuam verdes (o campo novo já
       entrou na igualdade no T002). Como o select foi antecipado no T002, estes testes passam ao serem escritos.
-- [ ] T022 [P] [US4] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (acrescentar): `026/US4-1` cada
+- [X] T022 [P] [US4] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (acrescentar): `026/US4-1` cada
       turma mostra "Disciplina: <nome>"; `026/US4-2` sem disciplina, nada a mais; axe.
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] API: `MyClassesService.list` seleciona `subject: { select: { name: true } }` e devolve
+- [X] T023 [US4] API: `MyClassesService.list` seleciona `subject: { select: { name: true } }` e devolve
       `subjectName: schoolClass.subject?.name ?? null`
       (`apps/api/src/modules/enrollments/my-classes.service.ts`) — **já feito no T002**; aqui só conferir T021 verde.
-- [ ] T024 [US4] Web: `apps/web/features/my-classes/components/my-classes.tsx` mostra "Disciplina: <nome>" quando há.
+- [X] T024 [US4] Web: `apps/web/features/my-classes/components/my-classes.tsx` mostra "Disciplina: <nome>" quando há.
       T022 verde; tirar `4` de `pending.stories`.
 
 **Checkpoint**: todas as histórias funcionam de forma independente.
