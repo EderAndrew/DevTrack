@@ -5,7 +5,7 @@ Registro exigido pela Constituição (I — *Software Supply Chain Failures*; se
 raiz e cobre as dependências diretas de `apps/api`, `apps/web` e `packages/contracts`. Refazer a
 cada dependência nova ou atualização de versão maior.
 
-Última verificação: **2026-11-06** (atualização geral, seção 13), Node 24.12, pnpm 11.28,
+Última verificação: **2026-11-16** (atualização geral, seção 14), Node 24.12, pnpm 11.28,
 lockfile do commit desta tarefa.
 
 ## 1. Vulnerabilidades — `pnpm audit --prod --audit-level high`
@@ -313,3 +313,36 @@ falso positivo.
 `pnpm -r licenses list --prod`: nenhuma entrada nova preocupante; fora da allowlist aparecem `nodemailer`,
 `@img/sharp-libvips-*` e `caniuse-lite` (seção 2) e `victory-vendor` (MIT AND ISC AND BSD-3-Clause, via
 `recharts`), todas permissivas ou já avaliadas.
+
+## 14. Atualização geral — 2026-11-16
+
+As dependências diretas foram para a última versão estável, com as exceções abaixo. Só patches e versões
+menores: `@nestjs/*` 12.5.0, `next`/`@next/eslint-plugin-next` 16.4.6, `eslint` 10.15.0, `@babel/eslint-parser`
+8.1.2, `@playwright/test` 1.65.1, `@tanstack/react-query` 5.107.1, `react-hook-form` 7.92.0,
+`@hookform/resolvers` 7.0.6, `nodemailer` 10.5.0, `lucide-react`/`lucide-react-native` 1.73.0, `tailwindcss`
+4.3.5, `prettier` 3.10.1, `turbo` 2.11.11 e os patches do Expo SDK 58 (`expo` 58.0.25 e módulos). Nenhuma
+mudança de código.
+
+Ficaram de fora:
+
+| Pacote | Fica em | Última | Motivo |
+|--------|---------|--------|--------|
+| `prisma`, `@prisma/*` | 7.10.1 | 8.0.0-rc.33 | A tag `latest` ainda aponta para um release candidate (seção 13) |
+| `@types/node` | 24.x | 26.x | Casa com o runtime Node 24 LTS (seção 12) |
+| `chokidar` | 5.0.0 | 6.0.0 | O `@swc/cli` 0.8.2 segue declarando o par `^5.0.0` (seção 13) |
+| `jsdom` (web) | 30.1.3 | 31.0.1 | Com o 31, 20 testes do web falham na regra axe `label-content-name-mismatch` (botões de questão e ícones com `aria-label`); com o 30 e o mesmo axe-core passam. O código e a marcação não mudaram: é o jsdom 31 expondo o texto visível de outro jeito ao axe. Subir junto com uma investigação própria |
+| `react`, `react-dom` (mobile) | 19.3.0 | 19.3.1 | Versão que o Expo SDK 58 fixa (`expo install --check`); o web já usa 19.3.1 |
+| `react-native-svg` (mobile) | 15.16.0 | 15.16.1 | Idem, versão do Expo SDK 58 |
+| `pnpm` | 11.28.11 | 12.21.0 | Pendência da seção 13 (CI e VPS) |
+
+O `expo install --check` ainda pede `typescript ~6.0.3`; o TypeScript 7 segue aceito no mobile (024).
+
+Os overrides de `body-parser`, `fast-uri` e `vite` continuam: `express` declara `body-parser ^2.3.0`, `ajv`
+declara `fast-uri ^3.0.1` e o `vitest` aceita `vite` 6–8, faixas que ainda incluem versões vulneráveis.
+
+`pnpm audit --prod --audit-level high`: nenhuma alta ou crítica. Segue só o `minimatch` (GHSA-g3hv-75wg-m249,
+moderate, aceito na seção 1), agora também pelas ferramentas de build do Expo (`@expo/fingerprint`), que não
+vão para o app. `pnpm -r licenses list --prod`: nenhum pacote novo fora da allowlist; os que aparecem além dos
+da seção 13 (`argparse` Python-2.0, `lightningcss` MPL-2.0, `node-forge` BSD-3-Clause OR GPL-2.0, `big-integer`
+e `stream-buffers` Unlicense, `mdn-data` CC0-1.0, `fb-dotslash`, `type-fest`) já estavam no lockfile desde a 024
+e vêm das ferramentas do Expo.
