@@ -1,7 +1,403 @@
 # DevTrack
 
-Plataforma de ensino e avaliação configurável por professor. As fases 001 a 025 estão
-implementadas; cada uma tem a sua spec em `specs/` e está resumida abaixo. A **fase 001 —
+Plataforma de ensino e avaliação configurável por professor: disciplinas e ementas, planejamento de aulas,
+bancos privados de exercícios, trabalhos e provas (manuais ou gerados com IA revisada pelo professor), portal do
+aluno com modo controlado, provas com avisos e decisão do professor, execução de código isolada, trabalho em
+grupo e um app de celular para o professor acompanhar as provas.
+
+As fases 001 a 025 estão implementadas; cada uma tem a sua spec em [`specs/`](specs/) e está resumida em
+[Fases](#fases).
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Arquitetura](#arquitetura)
+  - [Componentes](#componentes)
+  - [Monorepo](#monorepo)
+  - [Pipeline de uma requisição](#pipeline-de-uma-requisição)
+  - [Camadas da API e do web](#camadas-da-api-e-do-web)
+  - [Trabalho em segundo plano, sem filas externas](#trabalho-em-segundo-plano-sem-filas-externas)
+  - [IA](#ia)
+  - [Code Runner](#code-runner)
+  - [Prova, monitor no celular e avisos](#prova-monitor-no-celular-e-avisos)
+  - [Modelo de dados](#modelo-de-dados)
+  - [Segurança](#segurança)
+  - [Implantação](#implantação)
+- [Fases](#fases)
+- [Pré-requisitos](#pré-requisitos) · [Estrutura](#estrutura) · [Primeiros passos](#primeiros-passos) ·
+  [Comandos](#comandos) · [CI](#ci) · [Configuração](#configuração) · [Como o projeto evolui](#como-o-projeto-evolui)
+
+## Visão geral
+
+| Papel | O que faz na plataforma |
+|-------|-------------------------|
+| **Professor** (`TEACHER`) | Disciplinas, ementas (com "Preencher com IA"), calendário e planejamento da turma; bancos de exercícios, trabalhos e provas; convida alunos; aplica atividades com chamada, modo controlado, ajuda da IA, execução de código e grupos; corrige, libera notas e decide as retenções das provas; acompanha as provas pelo app do celular |
+| **Aluno** (`STUDENT`) | Entra só por convite de turma; painel, atividades, histórico, ranking dos exercícios; responde com salvamento automático, executa código, pede ajuda à IA, faz provas e trabalhos em grupo; envia feedback à plataforma |
+| **Gestor** (`MANAGER`) | Convida professores |
+| **Administrador** (`ADMIN`) | Convida gestores e professores, opera a IA ("Operação de IA": agentes, modelos, custos, orçamentos) e trata os feedbacks dos alunos. O primeiro só nasce pela CLI |
+
+Uma pessoa é uma única identidade (`User`) com um ou mais papéis; cada ação exige uma permissão explícita
+(`recurso.acao`) **e** que o recurso pertença ao contexto do usuário.
+
+## Arquitetura
+
+### Componentes
+
+```mermaid
+flowchart LR
+  subgraph Clientes
+    B["Navegador<br/>(professor, aluno, admin)"]
+    M["App do professor<br/>apps/mobile · Expo"]
+  end
+
+  subgraph Servidor
+    W["Web · Next.js 16<br/>apps/web :3000"]
+    A["API · NestJS 12<br/>apps/api :4000"]
+    CR["Worker do Code Runner<br/>processo separado"]
+    DB[("PostgreSQL 17")]
+    D["Docker + gVisor<br/>um contêiner por etapa"]
+  end
+
+  subgraph Externos
+    OR["OpenRouter<br/>(modelos de IA)"]
+    SMTP["SMTP · Resend<br/>(Mailpit em dev)"]
+    EP["Expo Push → FCM"]
+  end
+
+  B -- "HTTPS, cookie de sessão" --> W
+  W -- "rewrite same-origin /api/*" --> A
+  M -- "HTTPS, Bearer (sessão MOBILE)" --> A
+  A <--> DB
+  CR <-- "fila code_runs<br/>FOR UPDATE SKIP LOCKED" --> DB
+  CR -- "docker CLI" --> D
+  A -- "só o servidor chama" --> OR
+  A -- "outbox mail_deliveries" --> SMTP
+  SMTP -. "avisos assinados<br/>POST /mail/notices/:provider" .-> A
+  A -- "outbox exam_alerts" --> EP
+  EP -. push .-> M
+```
+
+- O navegador nunca fala direto com a API: o Next.js repassa `/api/*` para ela, então cookie e origem são os
+  mesmos do site. `proxy.ts` do web só redireciona por experiência de uso; quem autoriza é sempre a API.
+- O worker do Code Runner é outro processo (`dist/code-runner/main.js`), que a API nunca importa. Os dois só
+  se encontram nas tabelas da fila.
+- Não há Redis, fila externa nem WebSockets: o trabalho em segundo plano usa tabelas do PostgreSQL, e as
+  telas que mudam sozinhas consultam a API a cada 5 s.
+
+### Monorepo
+
+pnpm workspaces + Turborepo. Todo contrato entre API, web e app é um schema Zod em `@repo/contracts`.
+
+```mermaid
+flowchart TB
+  subgraph apps
+    api["apps/api<br/>NestJS · Prisma 7"]
+    web["apps/web<br/>Next.js · React 19"]
+    mobile["apps/mobile<br/>Expo SDK 58"]
+  end
+  subgraph packages
+    contracts["@repo/contracts<br/>schemas Zod + catálogo de rotas"]
+    tokens["@repo/design-tokens<br/>tokens do app"]
+    eslint["@repo/eslint-config"]
+    ts["@repo/typescript-config"]
+  end
+  api --> contracts
+  web --> contracts
+  mobile --> contracts
+  mobile --> tokens
+  web -. "tokens.css gera" .-> tokens
+  api & web & mobile & contracts --> eslint & ts
+```
+
+- `packages/contracts` não importa Prisma, Nest nem React e não traz texto de interface; `endpoints.ts` lista
+  cada rota com os schemas de pedido e resposta, e os tipos saem de `z.infer`. Há uma única versão do Zod no
+  lockfile (catálogo do pnpm).
+- `packages/design-tokens` é gerado de `apps/web/design-system/tokens.css` (os dois temas); um teste falha se
+  o arquivo gerado ficar diferente.
+
+### Pipeline de uma requisição
+
+Toda rota protegida passa pela mesma cadeia. Os guards são globais e negam por padrão: uma rota precisa de
+`@Public()` ou `@RequirePermissions(...)`.
+
+```mermaid
+flowchart LR
+  R(["Requisição"]) --> O["OriginGuard<br/>Origin + JSON"]
+  O -->|403| X1[["ORIGIN_NOT_ALLOWED"]]
+  O --> S["SessionGuard<br/>sessão opaca"]
+  S -->|401| X2[["não autenticado"]]
+  S --> V["VerifiedGuard<br/>e-mail verificado"]
+  V -->|403| X3[["não verificado"]]
+  V --> P["PermissionsGuard<br/>recurso.acao"]
+  P -->|403| X4[["sem permissão"]]
+  P --> Z["ZodValidationPipe<br/>schema do contrato"]
+  Z -->|400| X5[["corpo inválido"]]
+  Z --> C["Controller<br/>fino"]
+  C --> SV["Service<br/>consultas com escopo"]
+  SV -->|404| X6[["fora do contexto"]]
+  SV -->|409 / 422| X7[["regra de negócio"]]
+  SV --> T[("Transação:<br/>dados + AuditService")]
+```
+
+- Sem a permissão → `403`; com a permissão mas o recurso fora do contexto do usuário → `404` (não revela que
+  existe). Erros são sempre `{statusCode, code, message}`.
+- Métodos que alteram dados exigem `Origin` permitida e `Content-Type: application/json` (mande `{}` sem corpo).
+- A sessão do celular (`MOBILE`, `Authorization: Bearer`) só vale nas rotas marcadas com `@MobileAccess()`;
+  nas demais, `403 MOBILE_ROUTE_NOT_ALLOWED`.
+- O evento de auditoria é gravado na mesma transação da mudança, numa tabela que só aceita inserções (trigger).
+
+### Camadas da API e do web
+
+**API** (`apps/api/src`)
+
+| Pasta | Conteúdo |
+|-------|----------|
+| `platform/` | Infraestrutura sem regra de domínio: `config` (Zod; a API não sobe com variável faltando), `database` (Prisma, transações, travas), `http`, `clock` (o relógio do servidor, injetado), `crypto`, `logging`, `rate-limit`, `mail` (outbox), `push`, `storage`, `maintenance`, `health` |
+| `modules/` | Um módulo Nest por domínio: identidade e acesso (`identity`, `auth`, `accounts`, `access-control`, `provisioning`, `audit`, `retention`), turmas (`classes`, `class-invitations`, `enrollments`), planejamento (`subjects`, `syllabus`, `class-plans`), bancos (`exercises`, `works`, `exams`), IA (`ai`, `curriculum-ai`, `exercise-ai`, `work-ai`, `exam-ai`, `work-help`), atividades (`activities`, `student-activities`, `attendance`, `attempt-integrity`, `exam-sessions`, `ranking`), código (`code-runs`), celular (`exam-alerts`, `exam-nudges`) e `student-feedback` |
+| `code-runner/` | O worker do Code Runner, um processo próprio; só `sandbox/docker-sandbox.ts` inicia processos |
+| `cli/` | `admin:bootstrap`, `maintenance:run`, `mail:notice` (rodam o `dist/`) |
+
+Controllers são finos e não importam Prisma; regras ficam nos services; o acesso a dados fica nos
+repositórios. Testes de fronteira (`apps/api/test/*-boundary.spec.ts`) impedem, por exemplo, que o banco de
+trabalhos importe o de exercícios, que um módulo de atividades chame a IA ou que a nota use aritmética de ponto
+flutuante.
+
+**Web** (`apps/web`)
+
+```mermaid
+flowchart LR
+  app["app/<br/>rotas do App Router"] --> features["features/{domínio}/<br/>api · components · hooks · schemas"]
+  features --> ui["components/ui<br/>shadcn/ui + componentes de avaliação"]
+  ui --> ds["design-system/<br/>tokens.css · documentação"]
+  features --> contracts["@repo/contracts"]
+```
+
+Dados do servidor com TanStack Query, formulários com React Hook Form + `zodResolver`, interface só com tokens e
+componentes do design system (tema escuro padrão e claro opcional), editor de código CodeMirror 6 carregado sob
+demanda. Componentes não têm regra de negócio: datas, situações e prazos vêm calculados pela API.
+
+### Trabalho em segundo plano, sem filas externas
+
+Cada processo em segundo plano lê uma tabela do PostgreSQL em intervalos e reivindica as linhas com
+`SELECT … FOR UPDATE SKIP LOCKED`, então várias instâncias podem rodar sem processar a mesma linha duas vezes.
+
+| Processo | Onde roda | Tabela | O que faz |
+|----------|-----------|--------|-----------|
+| Extração da ementa (004) | API | `syllabus_documents` | Lê o texto de PDF, DOCX, PNG ou JPG (sem OCR) |
+| Execuções de IA (006) | API | `ai_executions` | Chama o agente pelo gateway, valida a saída, grava a proposta |
+| E-mail (017) | API | `mail_deliveries` | Monta o e-mail de novo a cada tentativa e envia por SMTP, com novas tentativas |
+| Avisos da prova (024) | API | `exam_alerts` | Resolve os destinatários na hora e envia pelo Expo Push |
+| Code Runner (019) | worker | `code_runs` | Roda o programa contra os casos públicos, um contêiner por etapa |
+| Manutenção | API (`MAINTENANCE_INTERVAL_SECONDS`) ou CLI | várias | Retenção e limpeza: `unverified-accounts`, `access-records`, `audit-events`, `rate-limit-counters`, `ai-records`, `code-run-content`, `mail-records`, `student-feedback`, `exam-alerts`, `mobile-devices` |
+
+O padrão outbox garante que nada se perde nem sai antes da hora: a linha é criada na mesma transação do pedido,
+e o envio acontece depois do commit, fora do caminho da resposta.
+
+```mermaid
+sequenceDiagram
+  participant U as Usuário
+  participant API
+  participant DB as PostgreSQL
+  participant Wk as Worker da outbox
+  participant P as Provedor (SMTP / Expo)
+  U->>API: ação (ex.: convidar aluno)
+  API->>DB: BEGIN · dados + auditoria + linha na outbox · COMMIT
+  API-->>U: resposta (sem esperar o envio)
+  loop a cada intervalo
+    Wk->>DB: reivindica linhas pendentes (SKIP LOCKED)
+    Wk->>P: envia
+    alt sucesso
+      Wk->>DB: marca como enviada
+    else falha temporária
+      Wk->>DB: agenda nova tentativa
+    end
+  end
+```
+
+### IA
+
+Cinco agentes, todos registrados **desativados** até o administrador ativá-los em "Operação de IA":
+`curriculum-agent` (ementa), `exercise-generator`, `work-generator`, `exam-generator` e `work-helper` (ajuda ao
+aluno). A IA só propõe: nada gerado vira dado aprovado sem o professor (proposta L2).
+
+```mermaid
+flowchart LR
+  ag["Agente<br/>declara a tarefa"] --> task["Tarefa<br/>nível BASIC/STANDARD/ADVANCED"]
+  task --> pol{"Política de modelos (009)<br/>catálogo em código"}
+  pol -->|"modelo aprovado mais barato<br/>com evidência de avaliação"| gw["Gateway de IA"]
+  gw -->|principal| or1["OpenRouter · modelo A"]
+  gw -. "falha recuperável:<br/>fallback do mesmo nível, uma vez" .-> or2["OpenRouter · modelo B"]
+  gw --> val["Saída estruturada<br/>validada por schema"]
+  val --> prop["Proposta"] --> prof(["Professor revisa,<br/>edita e aprova"])
+```
+
+- O modelo não vem de variável de ambiente: o catálogo (`modules/ai/definitions/model-catalog.ts`) lista os
+  modelos por família, nível, ciclo de vida e preço, e um modelo só atende uma tarefa com aprovação baseada numa
+  avaliação versionada em `apps/api/test/fixtures/evaluations/` (skill `ai-release-gate`).
+- Um circuito por modelo evita chamar um modelo fora do ar; há limites por execução, por usuário e por agente, e
+  orçamentos que avisam sem bloquear.
+- O `work-helper` vê só o que o aluno vê, nunca o gabarito, e uma verificação determinística bloqueia a orientação
+  que vaze a resposta antes de ela chegar ao aluno.
+- Sem `OPENROUTER_API_KEY`, a API sobe normalmente e as ações de IA aparecem como indisponíveis.
+
+### Code Runner
+
+```mermaid
+sequenceDiagram
+  participant Al as Aluno (web)
+  participant API
+  participant DB as PostgreSQL
+  participant Wk as Worker
+  participant Dk as Docker (gVisor)
+  Al->>API: POST "Executar" { sourceCode }
+  API->>DB: grava code_runs (um pendente por aluno, 10/min)
+  API-->>Al: run PENDING
+  Wk->>DB: reivindica (FOR UPDATE SKIP LOCKED) + token
+  loop compilação e cada caso PÚBLICO
+    Wk->>Dk: contêiner novo: sem rede, raiz só leitura,<br/>limites de CPU, memória, pids e tempo
+    Dk-->>Wk: saída
+  end
+  Wk->>DB: vereditos por caso (uma única gravação)
+  loop enquanto pendente
+    Al->>API: GET run
+    API-->>Al: vereditos
+  end
+```
+
+O código do aluno nunca roda no processo da API. Os casos privados nunca chegam ao aluno, executar nunca muda
+resposta, nota ou pontos, e o código e as saídas são apagados 24 h depois (job `code-run-content`).
+
+### Prova, monitor no celular e avisos
+
+```mermaid
+sequenceDiagram
+  participant Al as Aluno (web)
+  participant API
+  participant Pr as Professor (app)
+  Al->>API: eventos (sair da tela, tela cheia, copiar, inatividade)
+  API->>API: ocorrências 1–3 = avisos · 4ª = retenção
+  API-)Pr: push por ocorrência e retenção (outbox exam_alerts)
+  Pr->>API: lê a sala a cada 5 s
+  opt 2+ ocorrências
+    Pr->>API: sino: aviso discreto (025, só pelo app)
+    Al->>API: consulta a cada 5 s e vê o aviso
+  end
+  Note over Pr,API: cancelar, devolver ou "Não cancelar"<br/>só no computador, pelo professor
+```
+
+O tempo é sempre o do servidor; o fim, a retenção e a pausa são calculados a cada leitura, nunca por um job. O
+sistema nunca cancela nem zera uma prova sozinho.
+
+### Modelo de dados
+
+PostgreSQL 17 com Prisma 7 (`apps/api/prisma/schema.prisma`, mais de 100 modelos); toda mudança de esquema é uma
+migration. O núcleo:
+
+```mermaid
+erDiagram
+  User ||--o{ UserRole : "tem"
+  Role ||--o{ UserRole : ""
+  Role ||--o{ RolePermission : ""
+  Permission ||--o{ RolePermission : ""
+  User ||--o{ Session : ""
+
+  User ||--o{ Subject : "professor"
+  Subject ||--o{ SyllabusDocument : "ementa"
+  SyllabusDocument ||--o{ SyllabusRevision : "revisões"
+  Subject ||--o{ SchoolClass : "turma"
+  SchoolClass ||--o{ Enrollment : "matrícula"
+  SchoolClass ||--|| ClassPlan : "planejamento"
+  ClassPlan ||--o{ Topic : "tópicos"
+
+  User ||--o{ Exercise : "banco"
+  User ||--o{ Work : "banco"
+  User ||--o{ Exam : "banco"
+
+  SchoolClass ||--o{ ClassActivity : "aplica"
+  ClassActivity ||--o{ ClassActivityQuestion : "cópia congelada"
+  ClassActivity ||--o{ ActivityAttendance : "chamada"
+  ClassActivity ||--o{ ActivityAttempt : "tentativas"
+  ActivityAttempt ||--o{ AttemptParticipant : "aluno(s)"
+  ActivityAttempt ||--o{ ActivityAnswer : "respostas"
+  ActivityAttempt ||--o| ActivitySubmission : "entrega"
+  ActivityAttempt ||--o{ ExamOccurrence : "ocorrências"
+  ActivityAttempt ||--o{ CodeRun : "execuções"
+```
+
+- Uma atividade aplicada é uma **cópia congelada** do exercício, trabalho ou prova (`ClassActivityQuestion`):
+  editar o banco depois não muda o que a turma recebeu.
+- Situações, prazos e durações são calculados a cada leitura pelo relógio do servidor, nunca guardados.
+- Fluxos usam enums de estado explícitos; uma transição inválida responde `409 INVALID_STATE_TRANSITION`.
+  Operações críticas são idempotentes (índices únicos e parciais, `FOR UPDATE`, travas consultivas).
+
+### Segurança
+
+- **Sessões** opacas e revogáveis no servidor (cookie `__Host-devtrack_session`), não JWT; tokens só guardados
+  como hash.
+- **Autorização** por permissão explícita + contexto do recurso, nunca por nome de papel.
+- **Sem cadastro público**: aluno só por convite de turma; professor e gestor só por convite; o primeiro admin só
+  pela CLI.
+- **Anti-enumeração** nos fluxos de autenticação; e-mails enviados depois do commit.
+- **Auditoria** na mesma transação, tabela só de inserção; logs sem senhas, tokens, cookies ou segredos.
+- **Cadeia de suprimentos**: [`DEPENDENCIES.md`](DEPENDENCIES.md) (vulnerabilidades, licenças, overrides),
+  Semgrep na CI ([ADR-0007](docs/adr/0007-static-analysis-and-dependencies.md)), actions fixadas por SHA.
+- **Auditoria OWASP automatizada** dos arquivos alterados pelo Claude Code (ADRs 0002–0006).
+
+### Implantação
+
+```mermaid
+flowchart LR
+  dev["push / PR"] --> ci["GitHub Actions · CI<br/>lint · tipos · build · testes<br/>sandbox · semgrep"]
+  ci -->|"push na main, CI verde"| dep["deploy-hostinger.yml<br/>SSH com comando forçado"]
+  dep --> vps
+  subgraph vps["VPS Hostinger (beta)"]
+    ng["nginx + certbot"] --> web["web · PM2<br/>127.0.0.1"]
+    ng --> api["API · PM2<br/>127.0.0.1"]
+    api --> pg[("PostgreSQL 17<br/>Docker · 127.0.0.1:5433")]
+  end
+  dep -. "confere /entrar e<br/>/api/health/ready" .-> ng
+```
+
+O Code Runner está desligado no beta; em produção ele roda numa máquina própria com Docker + gVisor
+([guia](docs/deploy/code-runner.md)). O app do celular é distribuído internamente pelo EAS
+([guia](docs/deploy/mobile.md)).
+
+## Fases
+
+| Fase | Entrega | Spec |
+|------|---------|------|
+| 001 | Identidade única com vários papéis, verificação de e-mail, sessões revogáveis, primeiro admin pela CLI, convites, recuperação de senha, auditoria e retenção | [spec](specs/001-foundation-identity-access/) · R1–R23 |
+| 002 | Stack oficial sem mudar comportamento: contratos Zod compartilhados, web com Tailwind/shadcn/TanStack Query, E2E Playwright, CI | [spec](specs/002-stack-alignment/) · S1–S19 |
+| 003 | Turmas, convite de aluno por e-mail, matrículas e "Minhas turmas" (fim do autocadastro) | [spec](specs/003-class-invitations-enrollment/) |
+| 004 | Disciplinas, envio e extração da ementa, calendário e planejamento com tópicos e cobertura | [spec](specs/004-syllabus-planning/) · E1–E23 |
+| 005 | Design system: tokens, componentes, AppShell, catálogo e o contrato visual do Modo Prova | [spec](specs/005-design-system/) · V1–V20 |
+| 006 | Fundação de IA: registro de agentes, gateway, saída validada, propostas, limites, custo e "Operação de IA" | [spec](specs/006-ai-foundation/) · A1–A22 |
+| 007 | Agente de ementa ("Preencher com IA") | [spec](specs/007-curriculum-agent/) · C1–C20 |
+| 008 | OpenRouter como único provedor, fallback e circuitos | [spec](specs/008-ai-gateway-openrouter/) · G1–G20 |
+| 009 | Política de modelos: catálogo em código, níveis, aprovação por avaliação, orçamentos | [spec](specs/009-ai-model-policy/) · H1–H16 |
+| 010 | Banco de exercícios com "Criar com IA" | [spec](specs/010-exercise-bank/) · X1–X20 |
+| 011 | Banco de trabalhos (1–10 questões, nota em centésimos exatos) com "Criar trabalho com IA" | [spec](specs/011-work-bank/) · W1–W22 |
+| 012 | Portal do aluno e atividades aplicadas à turma: salvamento automático, entrega, correção e liberação | [spec](specs/012-student-portal/) · P1–P24 |
+| 013 | Pontos dos exercícios (15/30/60) e ranking da turma | [spec](specs/013-exercise-points-ranking/) · K1–K18 |
+| 014 | Realce de sintaxe (CodeMirror 6 sob demanda) | [spec](specs/014-code-syntax-highlighting/) · L1–L14 |
+| 015 | Modo controlado e ajuda da IA nos trabalhos | [spec](specs/015-controlled-work-ai-help/) · F1–F18 |
+| 016 | Lista de chamada, liberação aos presentes e pausa na saída da sala | [spec](specs/016-attendance-gated-release/) · M1–M13 |
+| 017 | E-mail de produção: fila única, novas tentativas, avisos do provedor, modelos HTML e texto | [spec](specs/017-production-email/) · N1–N15 |
+| 018 | Banco de Provas e prova em modo restrito com avisos e decisão do professor | [spec](specs/018-controlled-exams/) · T1–T19 |
+| 019 | Code Runner nos exercícios: casos de teste e "Executar" em contêineres isolados | [spec](specs/019-exercise-code-runner/) · B1–B17 |
+| 020 | Feedback dos alunos ao administrador | [spec](specs/020-student-feedback/) · J1–J10 |
+| 021 | Code Runner nos trabalhos | [spec](specs/021-work-code-runner/) · Y1–Y13 |
+| 022 | Tema claro opcional, guardado na conta | [spec](specs/022-light-theme/) · Z1–Z10 |
+| 023 | Trabalho em grupo (2–5, líder, um editor por vez, nota única) | [spec](specs/023-group-work/) · U1–U19 |
+| 024 | App do professor: monitor de provas com avisos por push | [spec](specs/024-mobile-exam-monitor/) · Y1–Y13 |
+| 025 | Aviso discreto ao aluno pelo sino do app | [spec](specs/025-exam-student-nudge/) · N1–N10 |
+
+Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases futuras.
+
+<details>
+<summary><strong>Descrição detalhada de cada fase</strong></summary>
+
+A **fase 001 —
 Foundation, Identity & Access** trouxe a identidade única com múltiplos papéis
 (`STUDENT`, `TEACHER`, `MANAGER`, `ADMIN`), verificação de e-mail,
 sessões revogáveis, bootstrap seguro do primeiro administrador, convites de gestores e
@@ -196,6 +592,8 @@ Trabalhos para casa e a correção pelo Code Runner ou pela IA ficam para fases 
 de IA (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper` e `exam-generator`)
 nascem desativados até o administrador ativá-los em "Operação de IA".
 
+</details>
+
 ## Pré-requisitos
 
 - Node.js 24 LTS
@@ -209,37 +607,13 @@ nascem desativados até o administrador ativá-los em "Operação de IA".
 
 | Caminho | Conteúdo |
 |---------|----------|
-| `apps/api` | API NestJS 11 (porta 4000): Prisma 7 + PostgreSQL, sessões opacas em cookie, CLI operacional |
+| `apps/api` | API NestJS 12 (porta 4000): Prisma 7 + PostgreSQL, sessões opacas em cookie, CLI operacional |
 | `apps/web` | Next.js 16 / React 19 (porta 3000); chama a API pelo rewrite same-origin `/api/*`. Código por domínio em `features/<feature>/{api,components,hooks,schemas}`; E2E em `e2e/` |
 | `apps/mobile` | App Expo do professor (024/025): monitor das provas, avisos por push e o aviso discreto ao aluno ([CLAUDE.md](apps/mobile/CLAUDE.md)) |
 | `packages/contracts` | `@repo/contracts`: todo contrato API↔web como schema Zod, com tipos derivados por `z.infer` |
 | `packages/design-tokens` | `@repo/design-tokens`: os tokens do app, gerados do `tokens.css` do web (os dois temas) |
 | `packages/eslint-config`, `packages/typescript-config` | Configurações compartilhadas de ESLint e TypeScript |
-| `specs/001-foundation-identity-access/` | Spec, plano, decisões (R1–R23), modelo de dados, contratos e tarefas da fase 001 |
-| `specs/002-stack-alignment/` | O mesmo para a fase 002 (decisões S1–S19) |
-| `specs/003-class-invitations-enrollment/` | O mesmo para a fase 003 (turmas, convites de turma e matrículas) |
-| `specs/004-syllabus-planning/` | O mesmo para a fase 004 (disciplinas, ementa, calendário e planejamento; decisões E1–E23) |
-| `specs/005-design-system/` | O mesmo para a fase 005 (design system; decisões V1–V20) |
-| `specs/006-ai-foundation/` | O mesmo para a fase 006 (fundação de IA; decisões A1–A22) |
-| `specs/007-curriculum-agent/` | O mesmo para a fase 007 (agente de ementa; decisões C1–C20) |
-| `specs/008-ai-gateway-openrouter/` | O mesmo para a fase 008 (gateway de IA com OpenRouter; decisões G1–G20) |
-| `specs/009-ai-model-policy/` | O mesmo para a fase 009 (política de modelos de IA; decisões H1–H16) |
-| `specs/010-exercise-bank/` | O mesmo para a fase 010 (banco de exercícios; decisões X1–X20) |
-| `specs/011-work-bank/` | O mesmo para a fase 011 (banco de trabalhos; decisões W1–W22) |
-| `specs/012-student-portal/` | O mesmo para a fase 012 (portal do aluno e atividades da turma; decisões P1–P24) |
-| `specs/013-exercise-points-ranking/` | O mesmo para a fase 013 (pontos dos exercícios e ranking da turma; decisões K1–K18) |
-| `specs/014-code-syntax-highlighting/` | O mesmo para a fase 014 (realce de sintaxe do código; decisões L1–L14) |
-| `specs/015-controlled-work-ai-help/` | O mesmo para a fase 015 (modo controlado e ajuda da IA nos trabalhos; decisões F1–F18) |
-| `specs/016-attendance-gated-release/` | O mesmo para a fase 016 (lista de chamada, liberação aos presentes e pausa na saída da sala; decisões M1–M13) |
-| `specs/017-production-email/` | O mesmo para a fase 017 (e-mail de produção: fila única com novas tentativas, avisos do provedor e modelos HTML e texto; decisões N1–N15) |
-| `specs/018-controlled-exams/` | O mesmo para a fase 018 (Banco de Provas, prova em modo restrito com avisos e decisão do professor; decisões T1–T19) |
-| `specs/019-exercise-code-runner/` | O mesmo para a fase 019 (Code Runner nos exercícios: casos de teste, "Executar" num worker com contêineres isolados; decisões B1–B17) |
-| `specs/020-student-feedback/` | O mesmo para a fase 020 (feedback dos alunos ao administrador da plataforma, com situação e histórico; decisões J1–J10) |
-| `specs/021-work-code-runner/` | O mesmo para a fase 021 (Code Runner nos trabalhos: a opção na aplicação, "Executar" também no modo controlado e o resumo na correção; decisões Y1–Y13) |
-| `specs/022-light-theme/` | O mesmo para a fase 022 (tema claro opcional, guardado na conta; decisões Z1–Z10) |
-| `specs/023-group-work/` | O mesmo para a fase 023 (trabalho em grupo: formação pelo líder, uma tentativa, um editor por vez, entrega pelo líder e nota única; decisões U1–U19) |
-| `specs/024-mobile-exam-monitor/` | O mesmo para a fase 024 (app do professor: sessão do celular, sala da prova, avisos por push e silenciar; decisões Y1–Y13) |
-| `specs/025-exam-student-nudge/` | O mesmo para a fase 025 (aviso discreto ao aluno pelo sino do app; decisões N1–N10) |
+| `specs/NNN-nome/` | Uma pasta por fase: `spec.md` (requisitos FR-/SC-), `plan.md`, `research.md` (decisões com o prefixo da fase, listado em [Fases](#fases)), `data-model.md`, `contracts/`, `tasks.md` e `quickstart.md` |
 | `apps/web/design-system/` | Tokens (`tokens.css`) e documentação do design system: tokens, componentes, layouts, Modo Prova e exceções |
 | `docs/adr/` | Decisões de arquitetura (IA multimodelo e as políticas de segurança OWASP da auditoria automatizada) |
 | `docs/deploy/` | Guias de implantação: e-mail (017), Code Runner (019), app do celular (024) e o beta na Hostinger |
