@@ -1,7 +1,7 @@
 "use client";
 
 import { ActivityTypeSchema, StudentActivityFilterSchema } from "@repo/contracts";
-import { ListChecks } from "lucide-react";
+import { ChartColumn, CircleCheck, ListChecks, type LucideIcon, Trophy, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,11 +9,81 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { StudentActivityListFilters } from "../api/student-activities";
 import { useStudentActivities } from "../hooks/use-student-activities";
-import { ACTIVITY_TYPE_LABELS, FILTER_OPTIONS, myActivitiesHref } from "../schemas/student-activity";
+import { ACTIVITY_TYPE_LABELS, FILTER_OPTIONS, formatHundredths, gradeSummary, myActivitiesHref, type GradeSummary } from "../schemas/student-activity";
 import { ActivityCard } from "./activity-card";
 import { LoadFailed, Loading } from "./load-states";
 
 export const FILTER_IDS = { status: "filtro-situacao", type: "filtro-tipo" } as const;
+export const MY_ACTIVITIES_SUBTITLE = "Acompanhe suas entregas, consulte suas notas e evolua a cada atividade.";
+
+/** "Exibindo 3 atividades" (only what is loaded: the list is paged by "Carregar mais", the API sends no total). */
+export const shownLabel = (count: number) => `Exibindo ${count} ${count === 1 ? "atividade" : "atividades"}`;
+
+export const NO_GRADE_YET = "Nenhuma nota liberada nas exibidas";
+
+interface SummaryCard {
+  label: string;
+  value: string;
+  caption: string;
+  icon: LucideIcon;
+  /** The icon's tint; the label says the same in words. */
+  tone: string;
+}
+
+function summaryCards(summary: GradeSummary): SummaryCard[] {
+  const graded = summary.graded > 0;
+  return [
+    {
+      label: "Atividades corrigidas",
+      value: String(summary.graded),
+      caption: "com nota liberada, nas atividades exibidas",
+      icon: CircleCheck,
+      tone: "bg-success-surface text-success-text",
+    },
+    {
+      label: "Pontuação obtida",
+      value: graded ? formatHundredths(summary.earned) : "—",
+      caption: graded ? `de ${formatHundredths(summary.possible)} possíveis nas corrigidas` : NO_GRADE_YET,
+      icon: ChartColumn,
+      tone: "bg-primary-subtle text-primary",
+    },
+    {
+      label: "Aproveitamento",
+      value: summary.percent !== null ? `${summary.percent}%` : "—",
+      caption: summary.percent !== null ? "nas atividades exibidas" : NO_GRADE_YET,
+      icon: Trophy,
+      tone: "bg-warning-surface text-warning-text",
+    },
+  ];
+}
+
+/**
+ * The three summary cards (layout of 2026-11-16): computed over the activities on screen, in whole hundredths (the
+ * list is paged and the API sends no total, so every caption says so). Exercícios' points never count as a grade (013).
+ */
+function GradeSummaryCards({ summary }: { summary: GradeSummary }) {
+  return (
+    <section aria-labelledby="resumo-titulo">
+      <h2 id="resumo-titulo" className="sr-only">
+        Resumo das atividades exibidas
+      </h2>
+      <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
+        {summaryCards(summary).map(({ label, value, caption, icon: Icon, tone }) => (
+          <li key={label} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <span className="flex items-start justify-between gap-2">
+              <span className="text-body-sm text-text-secondary">{label}</span>
+              <span aria-hidden="true" className={`flex size-10 shrink-0 items-center justify-center rounded-md ${tone}`}>
+                <Icon className="size-5" />
+              </span>
+            </span>
+            <span className="text-display">{value}</span>
+            <span className="text-caption text-text-secondary">{caption}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * "Minhas atividades" (012 US2, FR-012): every activity of the student by deadline, filtered by
@@ -26,10 +96,16 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
   const change = (next: Partial<StudentActivityListFilters>) => router.replace(myActivitiesHref({ ...filters, ...next }));
 
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
+  const filtered = Boolean(filters.status || filters.type);
   return (
     <div className="flex flex-col gap-4">
-      <form aria-label="Filtrar atividades" className="flex flex-wrap gap-4" onSubmit={(event) => event.preventDefault()}>
-        <div className="flex flex-col gap-1">
+      {query.isSuccess ? <GradeSummaryCards summary={gradeSummary(items)} /> : null}
+      <form
+        aria-label="Filtrar atividades"
+        className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4 shadow-sm"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
           <Label htmlFor={FILTER_IDS.status}>Situação</Label>
           <NativeSelect
             id={FILTER_IDS.status}
@@ -44,7 +120,7 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
             ))}
           </NativeSelect>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
           <Label htmlFor={FILTER_IDS.type}>Tipo</Label>
           <NativeSelect
             id={FILTER_IDS.type}
@@ -59,6 +135,12 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
             ))}
           </NativeSelect>
         </div>
+        {filtered ? (
+          <Button type="button" variant="ghost" onClick={() => change({ status: null, type: null })}>
+            <X aria-hidden="true" />
+            Limpar filtros
+          </Button>
+        ) : null}
       </form>
 
       {query.isPending ? (
@@ -68,14 +150,21 @@ export function MyActivities({ filters }: { filters: StudentActivityListFilters 
       ) : items.length === 0 ? (
         <EmptyState
           icon={ListChecks}
-          title={filters.status || filters.type ? "Nenhuma atividade com esses filtros." : "Você ainda não tem atividades."}
+          title={filtered ? "Nenhuma atividade com esses filtros." : "Você ainda não tem atividades."}
         />
       ) : (
         <>
-          <ul aria-label="Suas atividades" className="m-0 flex list-none flex-col gap-3 p-0">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="m-0 text-body-sm font-semibold">
+              {shownLabel(items.length)}
+              {query.hasNextPage ? <span className="font-normal text-text-secondary"> · há mais para carregar</span> : null}
+            </p>
+            <p className="m-0 text-caption text-text-secondary">Ordenadas pelo prazo</p>
+          </div>
+          <ul aria-label="Suas atividades" className="m-0 flex list-none flex-col gap-4 p-0">
             {items.map((item) => (
               <li key={item.id}>
-                <ActivityCard item={item} detailed headingLevel="h2" />
+                <ActivityCard item={item} headingLevel="h2" />
               </li>
             ))}
           </ul>

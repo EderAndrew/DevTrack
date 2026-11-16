@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
-import { formatLongDateTime } from "@/lib/messages/dates";
+import { formatLongDateTime, formatLongDay } from "@/lib/messages/dates";
 import { LOAD_ERROR, OFFLINE } from "./load-states";
-import { EMPTY_DASHBOARD, StudentDashboard } from "./student-dashboard";
+import { DASHBOARD_SUBTITLE, EMPTY_DASHBOARD, StudentDashboard } from "./student-dashboard";
 import { apiError, dashboard, json, routedFetch, summary } from "./test-fixtures";
 
 const PATH = "GET /api/me/dashboard";
@@ -28,10 +28,10 @@ describe("012/US2 painel do aluno", () => {
 
     const counters = screen.getByRole("navigation", { name: "Resumo das suas atividades" });
     expect(within(counters).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
-      ["3Pendentes", "/minhas-atividades?situacao=pendentes"],
-      ["2Em andamento", "/minhas-atividades?situacao=em-andamento"],
-      ["1Atrasadas", "/minhas-atividades?situacao=atrasadas"],
-      ["8Concluídas", "/minhas-atividades?situacao=concluidas"],
+      ["Pendentes3Ainda não iniciadas", "/minhas-atividades?situacao=pendentes"],
+      ["Em andamento2Iniciadas, sem entrega", "/minhas-atividades?situacao=em-andamento"],
+      ["Atrasadas1Com o prazo vencido", "/minhas-atividades?situacao=atrasadas"],
+      ["Concluídas8Entregues ou corrigidas", "/minhas-atividades?situacao=concluidas"],
     ]);
 
     // Substitute check for the 10 s of SC-001: the first section of the page is "Próximas
@@ -105,7 +105,7 @@ describe("012/US2 painel do aluno", () => {
     await screen.findByRole("heading", { name: "Lista de herança" });
     await expectNoA11yViolations(container);
     const counters = within(screen.getByRole("navigation", { name: "Resumo das suas atividades" })).getAllByRole("link");
-    await expectTabOrder(user, [...counters, screen.getByRole("link", { name: "Iniciar" })]);
+    await expectTabOrder(user, [...counters, screen.getByRole("link", { name: "Ver todas" }), screen.getByRole("link", { name: "Iniciar" })]);
   });
 
   it("013/US4-5 013/FR-021 um cartão de ranking por turma, depois das atividades, com o link para a tela completa", async () => {
@@ -132,6 +132,40 @@ describe("012/US2 painel do aluno", () => {
     expect(within(cards[1]!).getByText("Ana Lima")).toBeTruthy();
     expect(within(cards[1]!).queryByText("60")).toBeNull();
     expect(within(section).getByRole("link", { name: "Ver ranking completo de POO Noturno" }).getAttribute("href")).toBe(`/minhas-turmas/${poo.id}/ranking`);
+  });
+
+  it("012/US2-1 o dia pelo relógio do servidor, o subtítulo e \"Ver todas\" levando à lista", async () => {
+    const data = dashboard();
+    setup(json(200, data));
+    await screen.findByRole("heading", { level: 1, name: "Olá, Bruna" });
+    expect(screen.getByText(formatLongDay(data.serverNow))).toBeTruthy();
+    expect(screen.getByText(DASHBOARD_SUBTITLE)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ver todas" }).getAttribute("href")).toBe("/minhas-atividades");
+  });
+
+  it("013/FR-021 \"Seu desempenho\" só com o aluno no top 5 enviado pelo servidor", async () => {
+    const poo = { id: "11111111-1111-4111-8111-111111111111", name: "POO Noturno" };
+    const bd = { id: "22222222-2222-4222-8222-222222222222", name: "Banco de Dados" };
+    const first = setup(
+      json(
+        200,
+        dashboard({
+          rankings: [
+            { class: poo, top: [{ position: 1, name: "Ana Lima", points: 105, isViewer: false }, { position: 4, name: "Bruna Costa", points: 45, isViewer: true }] },
+            { class: bd, top: [{ position: 1, name: "Ana Lima", points: 60, isViewer: false }] },
+          ],
+        }),
+      ),
+    );
+    const highlight = (await screen.findByRole("heading", { name: "Seu desempenho" })).parentElement!.parentElement!;
+    expect(within(highlight).getByText("Você está em 4º lugar")).toBeTruthy();
+    expect(within(highlight).getByText("POO Noturno · 45 pontos")).toBeTruthy();
+    expect(within(highlight).queryByText(/Banco de Dados/)).toBeNull();
+    first.unmount();
+
+    setup(json(200, dashboard({ rankings: [{ class: bd, top: [{ position: 1, name: "Ana Lima", points: 60, isViewer: false }] }] })));
+    await screen.findByRole("region", { name: "Ranking das turmas" });
+    expect(screen.queryByRole("heading", { name: "Seu desempenho" })).toBeNull();
   });
 
   it("013/FR-021 sem rankings (sem a permissão ou sem turma ativa), nenhuma seção de ranking", async () => {

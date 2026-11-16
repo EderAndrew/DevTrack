@@ -24,7 +24,7 @@ import {
 import { DASHBOARD_PATH, HISTORY_PATH, MY_ACTIVITIES_PATH, MY_CLASSES_PATH, MY_FEEDBACKS_PATH } from "@/lib/navigation";
 import { Topbar } from "./topbar";
 
-/** Up to 960 px; a page whose root has `data-layout="wide"` (the dashboard) takes the whole width, keeping the `--gutter`. */
+/** Up to 960 px; a page whose root has `data-layout="wide"` (the dashboard) takes the whole width, keeping the `--gutter` ("Minhas atividades" too). */
 const CONTENT = "mx-auto w-full max-w-240 flex-1 px-(--gutter) py-6 has-[>[data-layout=wide]]:max-w-none";
 const LINK = "text-sidebar-foreground no-underline";
 
