@@ -365,10 +365,11 @@ const SPECS: FeatureSpec[] = [
     // each SC with the test that cites it, so the lists are empty at the end of T030. SC-005 left with the
     // class-scope spec (T003, `026-class-scope.spec.ts`); US1, SC-001, SC-002, SC-003 and SC-006 with T009–T010
     // (`026-us1-list.spec.ts`, `my-activities.test.tsx`); US2 with T014–T015 (`026-us2-dashboard.spec.ts`,
-    // `student-dashboard.test.tsx`, `student-layout.test.tsx`).
+    // `student-dashboard.test.tsx`, `student-layout.test.tsx`); US3 and SC-004 with T018–T019 (`026-isolation.spec.ts`
+    // and the 026/US3 blocks of both web tests).
     pending: {
-      stories: [3, 4],
-      successCriteria: ["SC-004"],
+      stories: [4],
+      successCriteria: [],
     },
   },
 ];

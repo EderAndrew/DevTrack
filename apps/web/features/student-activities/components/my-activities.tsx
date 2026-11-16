@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { StudentActivityListFilters } from "../api/student-activities";
-import { useCurrentSubject } from "../hooks/use-current-subject";
+import { useCurrentSubject, useForgetMissingSubject } from "../hooks/use-current-subject";
 import { useStudentActivities } from "../hooks/use-student-activities";
 import { ACTIVITY_TYPE_LABELS, FILTER_OPTIONS, formatHundredths, gradeSummary, myActivitiesHref, type GradeSummary } from "../schemas/student-activity";
 import { ActivityCard } from "./activity-card";
@@ -104,6 +104,7 @@ export function MyActivities({ filters, materia }: MyActivitiesProps) {
   const subject = useCurrentSubject(materia);
   const classId = subject.current?.id ?? null;
   const query = useStudentActivities(filters, classId, { enabled: !subject.isPending && !subject.isError });
+  const forgetting = useForgetMissingSubject(subject, classId, query.error);
   const go = (next: Partial<StudentActivityListFilters> & { materia?: string }) =>
     router.replace(myActivitiesHref({ ...filters, materia: classId, ...next }));
 
@@ -165,7 +166,7 @@ export function MyActivities({ filters, materia }: MyActivitiesProps) {
         ) : null}
       </form>
 
-      {query.isPending ? (
+      {query.isPending || forgetting ? (
         <Loading label="Carregando suas atividades…" />
       ) : query.isError && items.length === 0 ? (
         <LoadFailed error={query.error} onRetry={() => void query.refetch()} />

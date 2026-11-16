@@ -227,14 +227,14 @@ matéria.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T018 [P] [US3] Segurança `apps/api/test/security/026-isolation.spec.ts`: `026/US3-2` e `026/SC-004` para
+- [X] T018 [P] [US3] Segurança `apps/api/test/security/026-isolation.spec.ts`: `026/US3-2` e `026/SC-004` para
       `GET /me/activities` e `GET /me/dashboard`, `classId` de (a) turma só do aluno B, (b) matrícula encerrada do
       próprio aluno, (c) UUID inexistente → `404` com corpo idêntico nos três e nenhuma atividade; nenhum evento de
       auditoria novo em `audit_events`; `026/US3-5` com `classId` da turma do aluno, um trabalho `PRESENT_ONLY` em que
       ele não foi marcado presente continua fora da lista e dos contadores (016); `026/FR-010` nenhuma nota antes da
       liberação e nenhum ponto de exercício como nota com `classId` (mesmas asserções da 012/013 para um item da
       turma); `026/US3-6` encerrar a matrícula e repetir o pedido → `404`.
-- [ ] T019 [P] [US3] Web: em `my-activities.test.tsx` e `student-dashboard.test.tsx`, `026/US3-1` as opções do card são
+- [X] T019 [P] [US3] Web: em `my-activities.test.tsx` e `student-dashboard.test.tsx`, `026/US3-1` as opções do card são
       só as de `GET /api/me/classes`; `026/US3-3` `materia` fora da lista mostra o aviso
       "Essa matéria não está mais disponível para você." e a primeira matéria, sem pedir a turma da URL;
       `026/US3-4` sem turmas, nenhum card e o estado vazio de hoje; `026/US3-6` a lista (e o painel) respondendo `404`
@@ -243,7 +243,7 @@ matéria.
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Web: em `use-current-subject.ts`, `unavailable` também quando a turma escolhida sumiu de "Minhas
+- [X] T020 [US3] Web: em `use-current-subject.ts`, `unavailable` também quando a turma escolhida sumiu de "Minhas
       turmas"; em `my-activities.tsx` e `student-dashboard.tsx`, um `404` (`ApiError` com `status === 404`) da lista
       ou do painel com `classId` chama `queryClient.invalidateQueries({ queryKey: myClassesKeys.list })` (sem
       reescrever a URL, research D6). T018 e T019 verdes; tirar `3` de `pending.stories` e `SC-004`.

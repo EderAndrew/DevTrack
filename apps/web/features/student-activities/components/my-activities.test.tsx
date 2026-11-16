@@ -366,3 +366,54 @@ describe("026/US1 Minhas atividades de uma matéria", () => {
     expect(myActivitiesHref({ materia: null, status: "PENDING" })).toBe("/minhas-atividades?situacao=pendentes");
   });
 });
+
+describe("026/US3 Minhas atividades só com as matérias do próprio aluno", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+  const subjectSelect = () => document.getElementById(SUBJECT_SELECT_ID) as HTMLSelectElement;
+  const GONE = "99999999-9999-4999-8999-999999999999";
+  const pooList = { [listRoute()]: json(200, { items: [summary({ title: "Trabalho de POO" })], nextCursor: null }) };
+
+  it("026/US3-1 as opções do card são só as de \"Minhas turmas\", na ordem dela", async () => {
+    setup(pooList, NONE, { classes: [POO, SQL] });
+    await screen.findByRole("heading", { name: "Trabalho de POO" });
+    expect(within(subjectSelect()).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual([POO.id, SQL.id]);
+  });
+
+  it("026/US3-3 matéria fora da lista: o aviso e a primeira matéria, sem pedir a turma do endereço", async () => {
+    const { api } = setup(pooList, NONE, { classes: [POO, SQL], materia: GONE });
+    await screen.findByRole("heading", { name: "Trabalho de POO" });
+    expect(screen.getByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    expect(subjectSelect().value).toBe(POO.id);
+    expect(activityCalls(api.calls)).toEqual([`/api/me/activities?classId=${POO.id}`]);
+    expect(api.calls.some((call) => call.url.includes(GONE))).toBe(false);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("026/US3-4 sem turmas: nenhum card e o estado vazio de hoje", async () => {
+    setup({ "GET /api/me/activities": json(200, { items: [], nextCursor: null }) }, NONE, { classes: [] });
+    expect(await screen.findByText("Você ainda não tem atividades.")).toBeTruthy();
+    expect(document.getElementById(SUBJECT_SELECT_ID)).toBeNull();
+    expect(screen.queryByText("Essa matéria não está mais disponível para você.")).toBeNull();
+  });
+
+  it("026/US3-6 a lista responde 404 para a matéria escolhida: \"Minhas turmas\" é pedida de novo e, sem ela, o aviso e a primeira matéria", async () => {
+    let classesCalls = 0;
+    const { api } = setup(
+      {
+        "GET /api/me/classes": () => json(200, { items: ++classesCalls === 1 ? [POO, SQL] : [POO] }),
+        [listOf(SQL.id)]: apiError(404, "NOT_FOUND", "Não encontrado."),
+        ...pooList,
+      },
+      NONE,
+      { classes: [POO, SQL], materia: SQL.id },
+    );
+    expect(await screen.findByRole("heading", { name: "Trabalho de POO" })).toBeTruthy();
+    expect(screen.getByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    expect(subjectSelect().value).toBe(POO.id);
+    expect(within(subjectSelect()).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual([POO.id]);
+    expect(classesCalls).toBe(2);
+    expect(activityCalls(api.calls)).toEqual([`/api/me/activities?classId=${SQL.id}`, `/api/me/activities?classId=${POO.id}`]);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+});

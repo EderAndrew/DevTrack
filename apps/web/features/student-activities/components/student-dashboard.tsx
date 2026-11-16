@@ -11,7 +11,7 @@ import { formatLongDay } from "@/lib/messages/dates";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
 import { formatPosition } from "@/features/ranking/schemas/ranking";
 import { DASHBOARD_PATH } from "@/lib/navigation";
-import { useCurrentSubject } from "../hooks/use-current-subject";
+import { useCurrentSubject, useForgetMissingSubject } from "../hooks/use-current-subject";
 import { useStudentDashboard } from "../hooks/use-student-activities";
 import { formatPoints, myActivitiesHref } from "../schemas/student-activity";
 import { DashboardActivityRow } from "./dashboard-activity-row";
@@ -114,6 +114,7 @@ export function StudentDashboard({ materia }: { materia: string | null }) {
   const subject = useCurrentSubject(materia);
   const classId = subject.current?.id ?? null;
   const query = useStudentDashboard(classId, { enabled: !subject.isPending && !subject.isError });
+  const forgetting = useForgetMissingSubject(subject, classId, query.error);
 
   const data = query.isSuccess ? query.data : undefined;
   return (
@@ -135,7 +136,7 @@ export function StudentDashboard({ materia }: { materia: string | null }) {
         ) : null}
         {subject.isError ? (
           <LoadFailed error={subject.error} onRetry={subject.refetch} />
-        ) : query.isPending ? (
+        ) : query.isPending || forgetting ? (
           <Loading label="Carregando suas atividades…" />
         ) : query.isError ? (
           <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
