@@ -4,6 +4,7 @@ import {
   STUDENT_ACTIVITIES_PAGE_SIZE,
   type StudentActivity,
   type StudentActivityListQuery,
+  type StudentDashboardQuery,
   type StudentActivityPage,
   type StudentActivityStatus,
   type StudentActivitySummary,
@@ -69,10 +70,11 @@ export class MyActivitiesService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async dashboard(userId: string): Promise<StudentDashboard> {
+  /** The Painel; with `classId` (026, research D4) every block, the ranking included, is that class's only. */
+  async dashboard(userId: string, query: StudentDashboardQuery = {}): Promise<StudentDashboard> {
     const now = this.clock.now();
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
-    const items = (await this.summaries(userId, now)).sort(byDeadline);
+    const items = (await this.summaries(userId, now, query.classId)).sort(byDeadline);
     const count = (...statuses: StudentActivityStatus[]) => items.filter((item) => statuses.includes(item.status)).length;
     return {
       firstName: user.name.trim().split(/\s+/)[0] ?? "",
@@ -84,7 +86,7 @@ export class MyActivitiesService {
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
-      rankings: await this.ranking.dashboardFor(userId),
+      rankings: await this.ranking.dashboardFor(userId, query.classId),
       serverNow: now.toISOString(),
     };
   }
@@ -93,7 +95,7 @@ export class MyActivitiesService {
     const after = query.cursor === undefined ? null : decodeNameCursor(query.cursor);
     const statuses = query.status ? FILTER_STATUSES[query.status] : null;
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
-    const matching = (await this.summaries(userId, this.clock.now()))
+    const matching = (await this.summaries(userId, this.clock.now(), query.classId))
       .filter((item) => (statuses === null || statuses.includes(item.status)) && (query.type === undefined || item.type === query.type))
       .sort(byDeadline)
       .filter((item) => after === null || isAfter(item, after.name, after.id));
@@ -178,10 +180,24 @@ export class MyActivitiesService {
     });
   }
 
-  private async summaries(userId: string, now: Date): Promise<StudentActivitySummary[]> {
+  /**
+   * The student's summaries; with `classId` (026, research D2) only that class's, after checking an ACTIVE
+   * enrollment of the student in it — the same 404 for another student's class, an ended enrollment and a class
+   * that doesn't exist, not audited (a class, not an activity: contracts/audit-events.md).
+   */
+  private async summaries(userId: string, now: Date, classId?: string): Promise<StudentActivitySummary[]> {
+    if (classId !== undefined) await this.assertActiveEnrollment(userId, classId);
     await this.examSettlement.ofStudent(userId, now, null);
-    const inputs = await this.loader.loadAll(userId, now, await this.canSeeResults(userId));
+    const inputs = await this.loader.loadAll(userId, now, await this.canSeeResults(userId), classId);
     return inputs.map(toStudentSummary);
+  }
+
+  private async assertActiveEnrollment(userId: string, classId: string): Promise<void> {
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { studentUserId: userId, classId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!enrollment) throw notFound();
   }
 
   private async canSeeResults(userId: string): Promise<boolean> {

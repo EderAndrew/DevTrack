@@ -3,16 +3,20 @@
 import type { DashboardRanking, StudentDashboard as Dashboard, StudentActivityFilter } from "@repo/contracts";
 import { AlarmClock, ArrowUpRight, ChevronRight, CircleCheck, ClipboardList, Hourglass, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatLongDay } from "@/lib/messages/dates";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
 import { formatPosition } from "@/features/ranking/schemas/ranking";
+import { DASHBOARD_PATH } from "@/lib/navigation";
+import { useCurrentSubject, useForgetMissingSubject } from "../hooks/use-current-subject";
 import { useStudentDashboard } from "../hooks/use-student-activities";
-import { MY_ACTIVITIES_PATH, formatPoints, myActivitiesHref } from "../schemas/student-activity";
+import { formatPoints, myActivitiesHref } from "../schemas/student-activity";
 import { DashboardActivityRow } from "./dashboard-activity-row";
 import { LoadFailed, Loading } from "./load-states";
+import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
 
 export const EMPTY_DASHBOARD = "Nenhuma atividade pendente.";
 export const DASHBOARD_SUBTITLE = "Organize seus estudos e acompanhe cada conquista.";
@@ -34,15 +38,15 @@ const COUNTERS: Counter[] = [
   { key: "completed", label: "Concluídas", caption: "Entregues ou corrigidas", filter: "COMPLETED", icon: CircleCheck, tone: "bg-success-surface text-success-text" },
 ];
 
-/** The four counters as cards, each a link to the filtered list (012 US2-1). */
-function Counters({ counts }: { counts: Dashboard["counts"] }) {
+/** The four counters as cards, each a link to the filtered list of the same subject (012 US2-1, 026/US2-4). */
+function Counters({ counts, materia }: { counts: Dashboard["counts"]; materia: string | null }) {
   return (
     <nav aria-label="Resumo das suas atividades">
       <ul className="m-0 grid list-none grid-cols-2 gap-4 p-0 lg:grid-cols-4">
         {COUNTERS.map(({ key, label, caption, filter, icon: Icon, tone }) => (
           <li key={key}>
             <Link
-              href={myActivitiesHref({ status: filter })}
+              href={myActivitiesHref({ status: filter, materia })}
               className="flex h-full min-h-11 flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground no-underline shadow-sm transition-colors hover:bg-accent"
             >
               <span className="flex items-start justify-between gap-2">
@@ -102,110 +106,131 @@ function ViewerHighlight({ rankings }: { rankings: DashboardRanking[] }) {
  * list), the next activities by deadline as the first section (SC-001: the next one and its deadline without
  * scrolling) and the overdue ones that still accept a submission. Since 013, one ranking card per class (FR-021),
  * after the activities; from `xl` the rankings sit in a column on the right (the page root is `data-layout="wide"`).
+ * Since 026 every block is one subject's (the "Matéria" card, `?materia=<classId>`), asked only once the subject is
+ * known, and the counters and "Ver todas" carry it to "Minhas atividades".
  */
-export function StudentDashboard() {
-  const query = useStudentDashboard();
+export function StudentDashboard({ materia }: { materia: string | null }) {
+  const router = useRouter();
+  const subject = useCurrentSubject(materia);
+  const classId = subject.current?.id ?? null;
+  const query = useStudentDashboard(classId, { enabled: !subject.isPending && !subject.isError });
+  const forgetting = useForgetMissingSubject(subject, classId, query.error);
 
-  if (query.isPending) {
-    return (
-      <>
-        <PageHeader title="Painel" />
-        <Loading label="Carregando suas atividades…" />
-      </>
-    );
-  }
-  if (query.isError) {
-    return (
-      <>
-        <PageHeader title="Painel" />
-        <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
-      </>
-    );
-  }
+  const data = query.isSuccess ? query.data : undefined;
+  return (
+    <>
+      {data ? <p className="m-0 mb-1 text-label uppercase text-text-secondary">{formatLongDay(data.serverNow)}</p> : null}
+      {/* One tree for every state, so the card (and its focus) stays while another subject loads. */}
+      <PageHeader
+        title={data ? (data.firstName ? `Olá, ${data.firstName}` : "Olá") : "Painel"}
+        description={data ? DASHBOARD_SUBTITLE : undefined}
+        actions={
+          subject.current ? (
+            <SubjectSwitcher
+              options={subject.options}
+              currentId={subject.current.id}
+              onChange={(id) => router.replace(`${DASHBOARD_PATH}?${new URLSearchParams({ materia: id })}`)}
+            />
+          ) : undefined
+        }
+      />
+      <div className="flex flex-col gap-6">
+        {subject.current && subject.unavailable ? <SubjectUnavailableNotice /> : null}
+        {subject.isError ? (
+          <LoadFailed error={subject.error} onRetry={subject.refetch} />
+        ) : query.isPending || forgetting ? (
+          <Loading label="Carregando suas atividades…" />
+        ) : query.isError ? (
+          <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
+        ) : (
+          <DashboardBody data={query.data} classId={classId} />
+        )}
+      </div>
+    </>
+  );
+}
 
-  const { firstName, counts, next, overdueOpen, rankings, serverNow } = query.data;
+/** The counters, the activities and the rankings of the subject shown. */
+function DashboardBody({ data, classId }: { data: Dashboard; classId: string | null }) {
+  const { counts, next, overdueOpen, rankings } = data;
   const withRankings = rankings.length > 0;
   return (
     <>
-      <p className="m-0 mb-1 text-label uppercase text-text-secondary">{formatLongDay(serverNow)}</p>
-      <PageHeader title={firstName ? `Olá, ${firstName}` : "Olá"} description={DASHBOARD_SUBTITLE} />
-      <div className="flex flex-col gap-6">
-        <Counters counts={counts} />
+      <Counters counts={counts} materia={classId} />
 
-        <div className={`grid items-start gap-6 ${withRankings ? "xl:grid-cols-3" : ""}`}>
-          <div className={`flex min-w-0 flex-col gap-6 ${withRankings ? "xl:col-span-2" : ""}`}>
-            <section aria-labelledby="proximas-titulo">
-              <Card className="gap-2 shadow-sm">
-                <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 id="proximas-titulo" className="m-0 text-h2">
-                    Próximas atividades
+      <div className={`grid items-start gap-6 ${withRankings ? "xl:grid-cols-3" : ""}`}>
+        <div className={`flex min-w-0 flex-col gap-6 ${withRankings ? "xl:col-span-2" : ""}`}>
+          <section aria-labelledby="proximas-titulo">
+            <Card className="gap-2 shadow-sm">
+              <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="proximas-titulo" className="m-0 text-h2">
+                  Próximas atividades
+                </h2>
+                <Link
+                  href={myActivitiesHref({ materia: classId })}
+                  className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-body-sm font-semibold text-primary no-underline hover:underline"
+                >
+                  Ver todas
+                  <ChevronRight aria-hidden="true" className="size-4" />
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {next.length === 0 ? (
+                  <EmptyState icon={CircleCheck} headingLevel="h3" title={EMPTY_DASHBOARD} />
+                ) : (
+                  <ul className="m-0 flex list-none flex-col divide-y divide-border p-0">
+                    {next.map((item) => (
+                      <li key={item.id}>
+                        <DashboardActivityRow item={item} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          {overdueOpen.length > 0 ? (
+            <section aria-labelledby="atrasadas-titulo">
+              <Card className="gap-2 border-warning shadow-sm">
+                <CardHeader className="flex items-center gap-2">
+                  <AlarmClock aria-hidden="true" className="size-5 text-warning-text" />
+                  <h2 id="atrasadas-titulo" className="m-0 text-h2">
+                    Atrasadas — ainda aceitam entrega
                   </h2>
-                  <Link
-                    href={MY_ACTIVITIES_PATH}
-                    className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-body-sm font-semibold text-primary no-underline hover:underline"
-                  >
-                    Ver todas
-                    <ChevronRight aria-hidden="true" className="size-4" />
-                  </Link>
                 </CardHeader>
                 <CardContent>
-                  {next.length === 0 ? (
-                    <EmptyState icon={CircleCheck} headingLevel="h3" title={EMPTY_DASHBOARD} />
-                  ) : (
-                    <ul className="m-0 flex list-none flex-col divide-y divide-border p-0">
-                      {next.map((item) => (
-                        <li key={item.id}>
-                          <DashboardActivityRow item={item} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="m-0 flex list-none flex-col divide-y divide-border p-0">
+                    {overdueOpen.map((item) => (
+                      <li key={item.id}>
+                        <DashboardActivityRow item={item} />
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             </section>
-
-            {overdueOpen.length > 0 ? (
-              <section aria-labelledby="atrasadas-titulo">
-                <Card className="gap-2 border-warning shadow-sm">
-                  <CardHeader className="flex items-center gap-2">
-                    <AlarmClock aria-hidden="true" className="size-5 text-warning-text" />
-                    <h2 id="atrasadas-titulo" className="m-0 text-h2">
-                      Atrasadas — ainda aceitam entrega
-                    </h2>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="m-0 flex list-none flex-col divide-y divide-border p-0">
-                      {overdueOpen.map((item) => (
-                        <li key={item.id}>
-                          <DashboardActivityRow item={item} />
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </section>
-            ) : null}
-          </div>
-
-          {withRankings ? (
-            <section aria-labelledby="ranking-titulo" className="flex min-w-0 flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <h2 id="ranking-titulo" className="m-0 text-h2">
-                  Ranking das turmas
-                </h2>
-                <p className="m-0 text-body-sm text-text-secondary">Pequenas entregas, grandes conquistas.</p>
-              </div>
-              <ViewerHighlight rankings={rankings} />
-              <ul className="m-0 grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-1">
-                {rankings.map((ranking) => (
-                  <li key={ranking.class.id}>
-                    <RankingCard ranking={ranking} />
-                  </li>
-                ))}
-              </ul>
-            </section>
           ) : null}
         </div>
+
+        {withRankings ? (
+          <section aria-labelledby="ranking-titulo" className="flex min-w-0 flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <h2 id="ranking-titulo" className="m-0 text-h2">
+                Ranking das turmas
+              </h2>
+              <p className="m-0 text-body-sm text-text-secondary">Pequenas entregas, grandes conquistas.</p>
+            </div>
+            <ViewerHighlight rankings={rankings} />
+            <ul className="m-0 grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-1">
+              {rankings.map((ranking) => (
+                <li key={ranking.class.id}>
+                  <RankingCard ranking={ranking} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </>
   );

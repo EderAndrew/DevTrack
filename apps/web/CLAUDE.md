@@ -144,10 +144,10 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the paused notice and in the history; since 018 the Banco de Provas form, the student's exam and the teacher's
   exam room; since 019 the run's output, stderr, compiler message and public cases (021: also on a work, and the
   teacher's run summary); since 020 the feedback message and
-  the student's name in "Meus feedbacks" and the ADMIN's list and detail), and no `dangerouslySetInnerHTML` in the 012
+  the student's name in "Meus feedbacks" and the ADMIN's list and detail; since 026 the subject and class names in the "Matéria" card and "Minhas turmas"), and no `dangerouslySetInnerHTML` in the 012
   features, `features/ranking`, `components/ui/assessment`, `components/ui/code`, the banks,
   `features/controlled-attempt`, `features/work-help`, `features/attendance`, the three exam features,
-  `features/code-run`, `features/feedback` or `features/group-work` (since 023 also the names in the group's dialog, bar,
+  `features/code-run`, `features/feedback`, `features/my-classes` (026) or `features/group-work` (since 023 also the names in the group's dialog, bar,
   notice and the teacher's facts).
 - `test/keyboard.ts` (`expectTabOrder`, `tabTo`, `expectFieldErrorLinked`) backs the `SC-012`
   keyboard tests in each page's test file.

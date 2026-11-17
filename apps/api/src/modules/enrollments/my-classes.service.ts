@@ -4,8 +4,8 @@ import { PrismaService } from "../../platform/database/prisma.service";
 
 /**
  * The student's own classes (003 US7): the classes of the session's active enrollments, most
- * recent first, with the teacher's name. Nothing about other students, invitations or the
- * class's administration.
+ * recent first, with the teacher's name and (026) the subject's. Nothing about other students,
+ * invitations or the class's administration.
  */
 @Injectable()
 export class MyClassesService {
@@ -18,14 +18,23 @@ export class MyClassesService {
       select: {
         enrolledAt: true,
         schoolClass: {
-          select: { id: true, name: true, code: true, academicYear: true, period: true, teacher: { select: { name: true } } },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            academicYear: true,
+            period: true,
+            teacher: { select: { name: true } },
+            subject: { select: { name: true } },
+          },
         },
       },
     });
     return {
-      items: enrollments.map(({ enrolledAt, schoolClass: { teacher, ...schoolClass } }) => ({
+      items: enrollments.map(({ enrolledAt, schoolClass: { teacher, subject, ...schoolClass } }) => ({
         ...schoolClass,
         teacherName: teacher.name,
+        subjectName: subject?.name ?? null,
         enrolledAt: enrolledAt.toISOString(),
       })),
     };

@@ -3,6 +3,7 @@ import {
   type ActivityType,
   ActivityTypeSchema,
   type ExerciseResult,
+  type MyClassView,
   type StudentActivityFilter,
   StudentActivityFilterSchema,
   type StudentActivityStatus,
@@ -53,9 +54,10 @@ export function filtersFromSearch(search: { situacao?: string; tipo?: string }):
   };
 }
 
-/** `/minhas-atividades` with these filters in the URL. */
-export function myActivitiesHref(filters: Partial<StudentActivityListFilters>): string {
+/** `/minhas-atividades` with the subject (026, `materia=<classId>`, written first) and these filters in the URL. */
+export function myActivitiesHref(filters: Partial<StudentActivityListFilters> & { materia?: string | null }): string {
   const query = new URLSearchParams({
+    ...(filters.materia ? { materia: filters.materia } : {}),
     ...(filters.status ? { situacao: FILTER_OPTIONS[filters.status].slug } : {}),
     ...(filters.type ? { tipo: TYPE_SLUGS[filters.type] } : {}),
   });
@@ -183,6 +185,32 @@ export function gradeSummary(items: readonly Pick<StudentActivitySummary, "resul
   }
   return { graded, earned, possible, percent: graded > 0 ? wholePercent(earned, possible) : null };
 }
+
+/** The subject card (026, contracts/ui.md "SubjectSwitcher"). */
+export const SUBJECT_LABEL = "Matéria";
+export const ONLY_SUBJECT = "Sua única matéria";
+export const SUBJECT_UNAVAILABLE = "Essa matéria não está mais disponível para você.";
+
+/** The subject of the page address (`?materia=<classId>`); empty is none. Checked against "Minhas turmas", never sent unchecked. */
+export const subjectFromSearch = (search: { materia?: string }): string | null => search.materia || null;
+
+type SubjectClass = Pick<MyClassView, "id" | "name" | "subjectName" | "period" | "teacherName">;
+
+const baseSubjectLabel = (item: SubjectClass) => (item.subjectName ? `${item.subjectName} · ${item.name}` : item.name);
+
+/**
+ * "<disciplina> · <turma>" (only "<turma>" without a subject); two classes that would read the same get the period and the
+ * teacher (026 research D7).
+ */
+export function subjectLabel(item: SubjectClass, all: readonly SubjectClass[]): string {
+  const base = baseSubjectLabel(item);
+  const tied = all.some((other) => other.id !== item.id && baseSubjectLabel(other) === base);
+  if (!tied) return base;
+  return [base, item.period, item.teacherName].filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+/** The card's options, in the order of "Minhas turmas" (most recent enrollment first). */
+export const subjectOptions = (items: readonly SubjectClass[]) => items.map((item) => ({ id: item.id, label: subjectLabel(item, items) }));
 
 /** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
 export const valueLabel = (question: { value: string | null; points: number | null }) =>

@@ -19,9 +19,13 @@ export interface StudentActivityListFilters {
 
 /** The student's own activities (012 contracts/http-api.md, "Student routes"); identity from the session only. */
 export const studentActivitiesApi = {
-  dashboard: () => apiClient.get<StudentDashboard>("/me/dashboard"),
-  list: (filters: StudentActivityListFilters, cursor: string | null) => {
+  /** 026: `classId` narrows every block of the Painel, the ranking included, to one class of the student. */
+  dashboard: (classId: string | null = null) =>
+    apiClient.get<StudentDashboard>(classId ? `/me/dashboard?${new URLSearchParams({ classId })}` : "/me/dashboard"),
+  /** 026: `classId` narrows the list to one class of the student (the server answers 404 for any other). */
+  list: (filters: StudentActivityListFilters, cursor: string | null, classId: string | null = null) => {
     const query = new URLSearchParams({
+      ...(classId ? { classId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.type ? { type: filters.type } : {}),
       ...(cursor ? { cursor } : {}),

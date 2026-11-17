@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–025 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–026 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -77,6 +77,10 @@ new feature through `/speckit-specify`.
   sends a fixed warning that only that student sees in an `AlertDialog` on the exam page ("Entendi" closes it); one
   pending per attempt, sent only from the app (`@MobileOnly()`), never an occurrence; the web room, the review and the
   app show the warnings sent, closed and "Não visto". The app's only write.
+
+- 026 the student's current subject: a "Matéria" card on the Painel and "Minhas atividades" shows one subject (class) at a
+  time (`?materia=<classId>`, the most recent enrollment by default); the lists, counters, summary cards and ranking of
+  those pages are of that class only; "Minhas turmas" shows each class's subject. No migration.
 
 Take-home works and grading by the Code Runner or AI are later features. The rules of 012–025 that are
 easy to break are under "Rules that are easy to get wrong" below.
@@ -152,6 +156,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
 - No new dependency (025-exam-student-nudge)
 - PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
+- No new dependency (026-student-subject-selector)
+- PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
 
 ## Stack notes
 
@@ -234,7 +240,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024 and 025; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025 and 026; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -514,14 +520,21 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   sentence lives only in the web and the app, never on the wire, in audit or logs; a warning is never an occurrence,
   grade, discount, block or pause, and the 018 inactivity does not count while the dialog is open. Audit metadata holds
   ids, enums and counts. Triggers refuse other inserts, updates and deletes on `exam_nudges`.
+- Student's current subject (026): `classId` on `GET /me/activities` and `GET /me/dashboard` is optional; without it
+  both answer exactly as before (`026/SC-005`). With it, the class must be one of the student's ACTIVE enrollments,
+  checked before any read, else `404` with the same body for another student's, an ended or an unknown class (never
+  403); a malformed id is `400` before any query; the cursor pages only within the class. The subject is never stored
+  on the server: the address (`materia=`) holds it. A class the student can no longer see (not in "Minhas turmas", or
+  the 5 s poll of the list or the Painel answering `404`) falls back to the most recent enrollment with "Essa matéria
+  não está mais disponível para você.", never WebSockets. The subject name is text, never HTML.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 - 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
 - 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
-- 023-group-work: works individual or in groups of 2–5 with the leader; the group shares one attempt, one editor at a time handed by the leader, every save logged per student, the leader submits and the released grade goes to every member; constitution 3.6.0 (XXIV group exception)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

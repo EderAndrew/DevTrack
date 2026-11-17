@@ -50,6 +50,7 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
             academicYear: 2025,
             period: null,
             teacherName: "Professor Caio",
+            subjectName: null, // 026: a class without a subject (before 004)
             enrolledAt: expect.any(String),
           },
           {
@@ -59,6 +60,7 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
             academicYear: 2026,
             period: "Manhã",
             teacherName: "Professora Ada",
+            subjectName: null, // 026: a class without a subject (before 004)
             enrolledAt: expect.any(String),
           },
         ],

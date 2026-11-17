@@ -55,12 +55,17 @@ export class RankingService {
 
   /**
    * The dashboard block (FR-021, research K13): the first five of each ACTIVE class where the student
-   * holds an ACTIVE enrollment, by class name; empty without `ranking.turma.visualizar`.
+   * holds an ACTIVE enrollment, by class name; empty without `ranking.turma.visualizar`. With `classId` (026, research
+   * D4) only that class's block, under the same rule (an INACTIVE or ARCHIVED class has none).
    */
-  async dashboardFor(studentUserId: string): Promise<DashboardRanking[]> {
+  async dashboardFor(studentUserId: string, classId?: string): Promise<DashboardRanking[]> {
     if (!(await this.permissions.effectivePermissions(studentUserId)).has("ranking.turma.visualizar")) return [];
     const classes = await this.prisma.schoolClass.findMany({
-      where: { status: "ACTIVE", enrollments: { some: { studentUserId, status: "ACTIVE" } } },
+      where: {
+        status: "ACTIVE",
+        enrollments: { some: { studentUserId, status: "ACTIVE" } },
+        ...(classId === undefined ? {} : { id: classId }),
+      },
       select: { id: true, name: true },
       orderBy: [{ name: "asc" }, { id: "asc" }],
     });

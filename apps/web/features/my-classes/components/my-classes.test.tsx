@@ -17,6 +17,7 @@ const ALGEBRA: MyClassView = {
   academicYear: 2026,
   period: "Manhã",
   teacherName: "Professora Ada",
+  subjectName: null,
   enrolledAt: "2026-09-20T15:00:00.000Z",
 };
 const FISICA: MyClassView = {
@@ -26,6 +27,7 @@ const FISICA: MyClassView = {
   academicYear: 2025,
   period: null,
   teacherName: "Professor Caio",
+  subjectName: null,
   enrolledAt: "2026-09-21T15:00:00.000Z",
 };
 
@@ -93,5 +95,43 @@ describe("003/US7-1 003/SC-011 MyClasses — Minhas turmas (FR-038)", () => {
     renderWithProviders(<MyClasses welcome={false} />);
     await screen.findByText("Álgebra");
     expect(screen.queryByRole("link", { name: /Ranking/ })).toBeNull();
+  });
+});
+
+describe("026/US4 MyClasses — a disciplina de cada turma", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("026/US4-1 cada turma mostra \"Disciplina: <nome>\"", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(200, {
+        items: [
+          { ...FISICA, subjectName: "Física Geral" },
+          { ...ALGEBRA, subjectName: "Álgebra Linear" },
+        ],
+      }),
+    );
+    const { container } = renderWithProviders(<MyClasses welcome={false} />);
+
+    const algebra = (await screen.findByText("Álgebra")).closest("tr")!;
+    expect(within(algebra).getByText("Disciplina: Álgebra Linear")).toBeTruthy();
+    const fisica = screen.getByText("Física").closest("tr")!;
+    expect(within(fisica).getByText("Disciplina: Física Geral")).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("026/US4-2 turma sem disciplina: nada a mais", async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { items: [{ ...FISICA, subjectName: "Física Geral" }, ALGEBRA] }));
+    const { container } = renderWithProviders(<MyClasses welcome={false} />);
+
+    const algebra = (await screen.findByText("Álgebra")).closest("tr")!;
+    expect(within(algebra).queryByText(/Disciplina:/)).toBeNull();
+    expect(screen.getAllByText(/Disciplina:/)).toHaveLength(1);
+    await expectNoA11yViolations(container);
   });
 });
