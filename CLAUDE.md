@@ -118,7 +118,7 @@ ADR-0005 §9) with the same rule and file, a `maxSeverity` at least the finding'
 `main` on `origin` (a local commit does not count); the auditor never creates one. The policy's
 cases: `bash .claude/hooks/tests/security-policy.test.sh`.
 
-`.specify/memory/constitution.md` (v3.7.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v4.1.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -158,6 +158,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
 - No new dependency (026-student-subject-selector)
 - PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
+- No new dependency (027-manager-classes)
+- PostgreSQL 17 — one migration that is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
 
 ## Stack notes
 
@@ -532,9 +534,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 027-manager-classes (planned): the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
 - 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 - 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
-- 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

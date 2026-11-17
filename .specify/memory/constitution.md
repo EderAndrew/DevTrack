@@ -1,41 +1,38 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.6.0 → 3.7.0
-Motivo (MINOR): nova seção "Stack oficial do mobile" e expansão material de XXVI e IX. O monorepo
-ganha apps/mobile (React Native/Expo), primeiro só para o professor acompanhar provas, com uma
-solução por responsabilidade espelhando o web (Expo Router, TanStack Query, Zod de
-packages/contracts, fetch nativo, expo-secure-store, expo-notifications, expo-haptics, Jest + RNTL),
-design pelos tokens do web via packages/design-tokens (gerado de tokens.css, sem valores literais),
-sessão opaca e revogável (nunca JWT, sem enfraquecer cookie/Origin do web) e notificação push como
-aviso não autoritativo com conteúdo mínimo. Nenhuma regra existente fica mais fraca, por isso não é
-MAJOR. Origem: /speckit-constitution de 2026-11-07, antes da spec do monitoramento de provas no
-celular.
+Version change: 4.0.0 → 4.1.0
+Motivo (MINOR): ampliação material de regras existentes, sem redefinição incompatível. O
+ingresso em turma ganha um segundo mecanismo controlado: o MANAGER inclui direto na turma uma
+conta que já tem o papel STUDENT (ativa, e-mail verificado), achada pelo e-mail exato, sem
+convite; o aluno é avisado por e-mail e a inclusão é auditada. O convite continua sendo a única
+forma de criar conta de aluno, e a inclusão nunca concede papel nem toca na credencial. Origem:
+/speckit-clarify da spec 027 em 2026-11-17 (turma de 2027 com alunos de 2026).
 
 Princípios modificados:
-  IX. Simplicidade e Evolução Incremental — notificações push na lista de infraestrutura que só
-      entra com spec aprovada.
-  XXVI. Contratos Compartilhados — valem para API, web e mobile; mensagens no web e no mobile.
+  XXIV. Isolamento por Contexto Acadêmico — ingresso por convite do MANAGER ou inclusão direta
+      de conta de aluno existente.
+  XXV. Provisionamento Controlado de Professores e Privilégios — quem inclui também não toca na
+      credencial; contas do antigo autocadastro também podem ser incluídas; escopo do MANAGER
+      ganha a consulta por e-mail exato (só o nome) e a inclusão direta.
 
 Seções modificadas:
-  Arquitetura e Stack Técnica — apps/mobile, packages/design-tokens e "Stack oficial do mobile"
-  (tabela, design, autenticação, push, organização, testes).
-  Padrões por Camada — "Frontend" vale para web e mobile.
-  Governance — versão 3.7.0 e entrada no histórico.
+  Governance — versão 4.1.0 e entrada no histórico.
 Princípios adicionados: nenhum.
 Princípios removidos: nenhum.
 
 Templates:
-  ✅ .specify/templates/plan-template.md  — gate XXVI cita o mobile; novo gate "Mobile stack"
+  ✅ .specify/templates/plan-template.md  — gates XXIV e XXV citam a inclusão direta
   ✅ .specify/templates/spec-template.md  — sem mudança necessária
-  ✅ .specify/templates/tasks-template.md — sem mudança necessária (já prevê o caminho Mobile)
+  ✅ .specify/templates/tasks-template.md — sem mudança necessária
   ✅ .specify/templates/commands/*.md      — diretório inexistente; nada a atualizar
-  ✅ CLAUDE.md — cita a versão da constituição; atualizado para v3.7.0
+  ✅ CLAUDE.md — referência da versão atualizada para v4.1.0
 
 Follow-ups:
-  - A spec do monitoramento no celular define o conteúdo mínimo da notificação, o registro e a
-    remoção do token de dispositivo e como a API autentica o app sem enfraquecer o OriginGuard.
-  - packages/design-tokens e apps/mobile nascem no plano dessa spec (nada é criado por esta emenda).
+  - A spec 027 (FR-034) define a inclusão direta: telas, permissão, e-mail de aviso (novo tipo
+    na caixa de saída da 017, sem token), auditoria e concorrência.
+  - Seguem valendo os follow-ups da 4.0.0: spec 028 ("Solicitações"); CLAUDE.md ("Rules that
+    are easy to get wrong", 003) e o código descrevem a regra antiga até a 027 ser implementada.
 -->
 
 # DevTrack Constitution
@@ -75,7 +72,7 @@ compromete diretamente a integridade acadêmica.
 
 - Autenticação e autorização são responsabilidades distintas.
 - Toda operação protegida DEVE validar identidade, autorização e o contexto do recurso
-  solicitado (ex.: o professor é responsável por *esta* turma).
+  solicitado (ex.: o professor é responsável por *esta* disciplina da turma).
 - O controle de acesso DEVE usar RBAC com permissões explícitas verificadas no backend,
   por exemplo: `usuarios.gerenciar`, `professores.criar`, `professores.ativar`,
   `professores.visualizar`, `professores.convidar`, `professores.reenviar_convite`,
@@ -99,10 +96,13 @@ compromete diretamente a integridade acadêmica.
   usuário (ver XXV — Identidade única).
 - Papéis de domínio, cada um um conjunto de permissões explícitas:
   - `ADMIN` — administra a plataforma e provisiona `MANAGER`s;
-  - `MANAGER` — garante **quem pode ser professor** (provisionamento cadastral);
-  - `TEACHER` — administra todo o seu processo pedagógico;
+  - `MANAGER` — garante **quem pode ser professor** (provisionamento cadastral) e
+    administra as **turmas** como grupos de alunos: cria a turma, convida os alunos,
+    encerra matrículas e encerra/arquiva a turma (XXV), sem autoridade pedagógica;
+  - `TEACHER` — administra todo o seu processo pedagógico nas disciplinas que oferece
+    nas turmas;
   - `STUDENT` — conta criada pelo aceite de convite de turma e participação nas
-    turmas em que foi admitido.
+    turmas em que foi admitido (e, por elas, nas disciplinas dessas turmas).
   Nomes exibidos na interface PODEM ser personalizados (ex.: "Gestor de Cadastros").
   No início, `ADMIN` PODE acumular as funções de `MANAGER`. Necessidades futuras
   (coordenação, secretaria, gestão acadêmica) DEVEM gerar papéis novos, nunca
@@ -367,8 +367,10 @@ o propósito continua sendo aprendizagem.
   nível e necessidades pedagógicas são **dados do domínio**, não código.
 - O **professor** é responsável pelo seu contexto pedagógico e DEVE poder criar e
   organizar: disciplinas/ofertas, período da oferta (ex.: "2026/2",
-  "Setembro/2026"), ementa (importada), plano de ensino, turmas, módulos, conteúdos,
-  aulas, objetivos de aprendizagem, exercícios, trabalhos e provas.
+  "Setembro/2026"), ementa (importada), as disciplinas que oferece nas turmas, plano de
+  ensino, módulos, conteúdos, aulas, objetivos de aprendizagem, exercícios, trabalhos e
+  provas. A turma em si (o grupo de alunos) é criada e administrada pelo `MANAGER`
+  (XXV); o professor a encontra e acrescenta a ela as suas disciplinas.
 - Ofertas PODEM ser de tipos diferentes (ex.: `ACADEMIC`, `EXTENSION`, `WORKSHOP`,
   `COURSE`), atendendo tanto semestres acadêmicos quanto aulas online e cursos
   independentes.
@@ -416,10 +418,11 @@ meio de progressão, não redução de expectativa.
     nas turmas desse professor e mudar entre semestres; DEVE ser versionada, e o
     plano DEVE referenciar a versão utilizada. Uma ementa não determina uma aula por
     tópico — a distribuição em aulas é decisão do professor.
-  - **Plano de ensino**: como o professor organiza a ementa para uma **turma**
-    (semanas, aulas, sequência, junção de conteúdos, linguagem/tecnologia adotada).
-    A ordem da ementa não é a ordem de ensino.
-  - **Aulas**: registro do que foi **efetivamente trabalhado** naquela turma.
+  - **Plano de ensino**: como o professor organiza a ementa para uma **disciplina da
+    turma** (semanas, aulas, sequência, junção de conteúdos, linguagem/tecnologia
+    adotada). A ordem da ementa não é a ordem de ensino.
+  - **Aulas**: registro do que foi **efetivamente trabalhado** naquela disciplina da
+    turma.
   - **Atividades** (exercícios, trabalhos e provas) e questões DEVEM ser vinculáveis
     aos conteúdos e objetivos de aprendizagem que avaliam. Nunca reduzir esse vínculo
     a um rótulo textual (ex.: `question.subject = "Java"`).
@@ -464,9 +467,19 @@ meio de progressão, não redução de expectativa.
   DEVE ser guardado um snapshot (`Question ≠ ExamQuestion`; um trabalho do banco ≠ a
   atividade `ASSIGNMENT` aplicada). Editar o banco NUNCA altera atividades já
   publicadas ou aplicadas.
-- **Disciplina ≠ turma**: a disciplina (e sua ementa, conteúdos e materiais) é
-  reutilizável; a turma é a oferta da disciplina em um período letivo, com seus
-  próprios alunos, plano, atividades e notas.
+- **Disciplina ≠ turma ≠ disciplina da turma**:
+  - a **disciplina** (e sua ementa, conteúdos e materiais) é do professor e
+    reutilizável;
+  - a **turma** é o grupo de alunos de um período letivo (ex.: "ADS 3NA 2026.2"),
+    criado pelo `MANAGER` sem disciplina; as matrículas são da turma;
+  - a **disciplina da turma** é a oferta de uma disciplina de um professor naquela
+    turma: só o professor a cria, a partir da sua disciplina; uma turma PODE ter várias,
+    de um ou de vários professores, e cada disciplina da turma pertence a uma única
+    turma (turmas nunca compartilham uma disciplina da turma). Plano, aulas, atividades,
+    chamada, provas, resultados, notas e ranking pertencem à disciplina da turma, e os
+    alunos dela são os da turma com matrícula ativa.
+  Nos princípios abaixo, "contexto da turma" de um recurso pedagógico é a sua disciplina
+  da turma.
 
 **Rationale**: a ementa passa de arquivo anexado a dado estruturado que orienta o
 semestre inteiro — planejamento, aulas, geração por IA, atividades, adaptações e
@@ -474,19 +487,24 @@ análise de evolução.
 
 ### XXIV. Isolamento por Contexto Acadêmico
 
-- Turmas são **fronteiras de isolamento acadêmico**. Exercícios, trabalhos, provas,
-  submissões, resultados e notas DEVEM ter contexto acadêmico explícito (turma) — uma
-  prova pertence à turma, não apenas ao professor que a criou.
+- Disciplinas da turma (XXIII) são **fronteiras de isolamento acadêmico**. Exercícios,
+  trabalhos, provas, submissões, resultados e notas DEVEM ter contexto acadêmico
+  explícito (a disciplina da turma) — uma prova pertence à disciplina da turma, não
+  apenas ao professor que a criou.
 - Ter uma role ou permissão NÃO é suficiente para acessar recurso de uma turma. O
   backend DEVE validar também o vínculo do usuário com o contexto solicitado:
-  - professores só gerenciam turmas às quais estão explicitamente vinculados;
-  - alunos só acessam recursos de turmas em que possuem matrícula ativa.
+  - professores só gerenciam as disciplinas da turma que são suas; estar numa turma
+    com uma disciplina sua NÃO dá acesso às disciplinas de outros professores nela;
+  - alunos só acessam recursos das disciplinas de turmas em que possuem matrícula
+    ativa;
+  - o `MANAGER` só administra a turma e suas matrículas e convites (XXV), nunca os
+    recursos pedagógicos das disciplinas da turma.
 - O sistema DEVE impedir acesso horizontal entre turmas, professores, alunos,
   avaliações, submissões, resultados e notas. Um aluno vê somente as próprias notas e
   respostas; um professor, somente as de suas turmas.
-- **Exceção — ranking de pontos de prática**: o ranking de engajamento da turma (posição,
-  nome e total de pontos de prática obtidos em exercícios) PODE ser visto pelos alunos com
-  matrícula ativa na mesma turma e pelo professor dela. Pontos de prática não são nota nem
+- **Exceção — ranking de pontos de prática**: o ranking de engajamento de uma disciplina da
+  turma (posição, nome e total de pontos de prática obtidos em exercícios) PODE ser visto
+  pelos alunos com matrícula ativa na turma e pelo professor dessa disciplina. Pontos de prática não são nota nem
   resultado de avaliação. O ranking NUNCA expõe respostas, resultados por exercício, notas de
   trabalhos ou provas, nem dados de turmas em que o aluno não está matriculado.
 - **Exceção — trabalho em grupo**: num trabalho que o professor aplicou em grupo, os
@@ -510,18 +528,25 @@ análise de evolução.
   (XXV), junto com a primeira matrícula, mas é um conceito distinto dela: remover
   uma matrícula nunca apaga a conta, e a conta sem matrícula ativa não dá acesso a
   nenhuma turma.
-- O ingresso em turma DEVE ocorrer por mecanismo controlado — código de ingresso,
-  convite, solicitação com aprovação do professor ou mecanismo institucional futuro.
+- O ingresso em turma DEVE ocorrer por mecanismo controlado — hoje o convite enviado
+  pelo `MANAGER` ou, para quem já tem conta, a inclusão direta pelo `MANAGER` (4.1.0):
+  só de uma conta ativa que já tenha o papel `STUDENT` e e-mail verificado, achada pelo
+  e-mail exato, sem conceder papel, criar conta ou tocar na credencial, com aviso ao
+  aluno por e-mail e auditoria; código de ingresso ou mecanismo institucional futuro
+  só com spec.
   Códigos de ingresso são credenciais: imprevisíveis, com limite de tentativas,
   revogáveis e regeneráveis.
-- A busca de turmas DEVE expor apenas o mínimo necessário para identificá-las (ex.:
-  disciplina, turma, período, turno, professor), nunca alunos ou atividades.
+- A busca de turmas pelo professor DEVE expor apenas o mínimo necessário para
+  identificá-las (ex.: turma, período, turno, nomes das disciplinas da turma e de seus
+  professores), nunca alunos ou atividades. Turma não encontrada é pedida ao `MANAGER`
+  por um canal registrado no sistema, definido em spec própria.
 - Matrículas DEVEM ter ciclo de vida explícito (XVI) — ex.: `PENDING`, `ACTIVE`,
   `REJECTED`, `CANCELLED` — cobrindo troca de turma, desistência e entrada tardia.
   Mudanças de matrícula DEVEM ser auditadas.
 - Papéis administrativos (`ADMIN`, `MANAGER`) NÃO atravessam esse isolamento
-  implicitamente: acesso a respostas, submissões e notas de turmas às quais não estão
-  vinculados exige permissão explícita, escopo definido e auditoria.
+  implicitamente: acesso a respostas, submissões e notas exige permissão explícita,
+  escopo definido e auditoria. Administrar a turma (XXV) não dá ao `MANAGER` acesso
+  aos recursos pedagógicos das suas disciplinas.
 - Toda autorização é aplicada no backend (II).
 
 **Rationale**: previne Broken Access Control/IDOR, o risco nº 1 do OWASP, na
@@ -538,8 +563,9 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
   preferencialmente por **convite** com validade limitada. `MANAGER`s são
   provisionados por `ADMIN`.
 - NÃO existe autocadastro público. Contas de aluno DEVEM ser criadas exclusivamente
-  pelo aceite de um convite de turma enviado pelo professor responsável pela turma;
-  o aceite concede apenas `STUDENT` e a matrícula nessa turma. Nenhum fluxo público
+  pelo aceite de um convite de turma enviado pelo `MANAGER` (ou `ADMIN` enquanto
+  acumular a função) com a permissão correspondente; o aceite concede apenas
+  `STUDENT` e a matrícula nessa turma. Nenhum fluxo público
   permite atribuir `TEACHER`, `MANAGER` ou `ADMIN`. Papel, turma e e-mail vêm do
   convite, nunca do pedido — um payload com `"role": "TEACHER"` ou outro e-mail é
   rejeitado, mesmo que a interface não ofereça essa opção.
@@ -551,10 +577,17 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
 - Convites de turma seguem as mesmas regras dos demais convites: uso único,
   vinculados ao e-mail convidado, com expiração, armazenados como hash e revogáveis;
   o aceite comprova a posse do e-mail, que passa a verificado.
-- O professor autoriza o ingresso, mas NÃO DEVE criar, conhecer, receber, enviar nem
-  redefinir a senha do aluno: o aluno define a própria credencial.
+- Quem convida ou inclui (XXIV) autoriza o ingresso, mas NÃO DEVE criar, conhecer,
+  receber, enviar nem redefinir a senha do aluno: o aluno define a própria credencial. O professor NÃO
+  convida alunos nem cria turmas.
+- **Transição (4.0.0)**: as turmas que existiam antes da emenda passam a ser turmas do
+  `MANAGER`, cada uma com a disciplina da turma que já tinha (mesmo professor, alunos,
+  plano, aulas, atividades, resultados e notas), e os convites de turma pendentes
+  continuam válidos; a migração é da spec que implementa a emenda e NÃO DEVE perder
+  nem reatribuir histórico.
 - Contas criadas pelo antigo autocadastro da Fase 001 continuam válidas e entram em
-  turmas pelo mesmo convite, como conta existente.
+  turmas pelo mesmo convite, como conta existente, ou pela inclusão direta (XXIV)
+  quando já têm o papel `STUDENT`.
 - **Transição**: o autocadastro da Fase 001 permanece no código até a implementação
   da spec `003-class-invitations-enrollment` removê-lo; código novo NÃO DEVE
   depender dele nem estendê-lo.
@@ -581,13 +614,21 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
 
 **Escopo do `MANAGER`**
 
-- `MANAGER` tem finalidade restrita ao provisionamento e à gestão cadastral de
-  professores (ex.: `professores.visualizar`, `professores.criar`,
-  `professores.convidar`, `professores.reenviar_convite`, `professores.ativar`,
-  `professores.desativar`).
-- Por padrão, `MANAGER` NÃO tem acesso a dados de alunos, matrículas, dados
-  pedagógicos das turmas, ementas e planos do professor, exercícios, trabalhos,
-  avaliações, submissões, correções, resultados ou notas.
+- `MANAGER` tem finalidade restrita a duas gestões cadastrais:
+  - **professores** (ex.: `professores.visualizar`, `professores.criar`,
+    `professores.convidar`, `professores.reenviar_convite`, `professores.ativar`,
+    `professores.desativar`);
+  - **turmas como grupos de alunos** (ex.: `turmas.criar`, `turmas.gerenciar`,
+    convites de turma e matrículas): criar e editar a turma, convidar alunos por
+    e-mail, reenviar e revogar convites, incluir direto um aluno que já tem conta
+    (XXIV), encerrar matrículas e encerrar/arquivar a turma, vendo da turma só o necessário para isso (nome e e-mail dos alunos
+    convidados ou matriculados, situação do convite e da matrícula, e quais
+    disciplinas da turma existem e de quais professores; para a inclusão direta, se um
+    e-mail exato é de uma conta de aluno apta e, dela, só o nome). O `MANAGER` também recebe
+    os pedidos de turma dos professores (XXIV).
+- Por padrão, `MANAGER` NÃO tem acesso a dados pedagógicos das disciplinas da turma,
+  ementas e planos do professor, exercícios, trabalhos, avaliações, submissões,
+  correções, resultados ou notas, nem a dados de alunos além dos da gestão da turma.
 - Essas restrições DEVEM ser aplicadas no backend: sem a capacidade, a API nega
   explicitamente (ex.: `GET /students` → `403`), em vez de responder vazio.
 
@@ -631,8 +672,8 @@ fronteira mais sensível do produto — notas e avaliações de alunos.
   de dados (LGPD) são atendidos por anonimização, preservando a integridade do
   registro acadêmico conforme a lei e a política institucional.
 
-**Rationale**: `MANAGER` controla quem pode ser professor; o professor controla seu
-ambiente pedagógico. Uma pessoa tem uma identidade e pode acumular papéis ao longo
+**Rationale**: `MANAGER` controla quem pode ser professor e quem está em cada turma; o
+professor controla seu ambiente pedagógico nas disciplinas que oferece. Uma pessoa tem uma identidade e pode acumular papéis ao longo
 da vida do sistema — projetar a autenticação como "aluno **ou** professor" seria um
 erro caro de corrigir depois.
 
@@ -842,7 +883,9 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
    do professor (tipo de oferta e período), turmas (turno e modalidade) e matrículas
    com ingresso controlado. A primeira spec da fase
    (`003-class-invitations-enrollment`) cria turmas, convites de turma por e-mail e
-   matrículas; o convite passa a ser a única forma de criar conta de aluno.
+   matrículas; o convite passa a ser a única forma de criar conta de aluno. Desde a
+   4.0.0, a turma (grupo de alunos) e os convites são do `MANAGER`, e o professor
+   acrescenta à turma as suas disciplinas (disciplina da turma, XXIII).
 3. **Fase 003 — Syllabus & Learning Plan**: ementa (versionada), plano de ensino por
    turma, módulos, aulas, conteúdos e objetivos de aprendizagem.
 4. **Fase 004 — Question Bank**: questões com níveis, tipos, tags e vínculo com
@@ -869,7 +912,7 @@ pertence; o Code Runner fica isolado e por último entre os componentes de risco
   - **MINOR**: novo princípio/seção ou expansão material de orientação.
   - **PATCH**: esclarecimentos, redação e correções não semânticas.
 
-**Version**: 3.7.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-11-07
+**Version**: 4.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-11-17
 
 Histórico:
 
@@ -913,3 +956,13 @@ Histórico:
   o web, design pelos tokens do web via `packages/design-tokens`, sessão opaca e revogável no
   `expo-secure-store`, notificação push como aviso não autoritativo (IX); XXVI passa a valer
   para API, web e mobile.
+- **4.0.0** — A turma passa a ser o grupo de alunos criado pelo `MANAGER` sem disciplina; o
+  `MANAGER` convida os alunos, encerra matrículas e encerra/arquiva a turma, sem acesso
+  pedagógico. O professor não cria turma nem convida alunos: acrescenta à turma as suas
+  disciplinas ("disciplina da turma", uma por turma, nunca compartilhada), que passam a ser a
+  fronteira de isolamento de plano, aulas, atividades, provas, notas e ranking. Turmas
+  existentes migram com a disciplina que já têm (II, XXI, XXIII, XXIV, XXV, roadmap).
+- **4.1.0** — Segundo mecanismo de ingresso: o `MANAGER` inclui direto na turma uma conta
+  ativa que já tem o papel `STUDENT` e e-mail verificado, achada pelo e-mail exato, sem
+  convite, com aviso por e-mail e auditoria; nunca concede papel, cria conta ou toca na
+  credencial. O convite segue como única forma de criar conta de aluno (XXIV, XXV).
