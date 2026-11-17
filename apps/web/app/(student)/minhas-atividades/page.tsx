@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
-import { MY_ACTIVITIES_SUBTITLE, MyActivities } from "@/features/student-activities/components/my-activities";
+import { MyActivities } from "@/features/student-activities/components/my-activities";
 import { filtersFromSearch, MY_ACTIVITIES_PATH, subjectFromSearch } from "@/features/student-activities/schemas/student-activity";
 
 export const metadata: Metadata = { title: "Minhas atividades" };
@@ -23,7 +22,6 @@ export default async function MyActivitiesPage({
   const search = await searchParams;
   return (
     <section data-layout="wide">
-      <PageHeader title="Minhas atividades" description={MY_ACTIVITIES_SUBTITLE} />
       <MyActivities filters={filtersFromSearch(search)} materia={subjectFromSearch(search)} />
     </section>
   );

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { ONLY_SUBJECT, SUBJECT_UNAVAILABLE, subjectOptions } from "../schemas/student-activity";
-import { SubjectSwitcher } from "./subject-switcher";
+import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
 
 const myClass = (overrides: Partial<MyClassView>): MyClassView => ({
   id: "11111111-1111-4111-8111-111111111111",
@@ -20,13 +20,12 @@ const myClass = (overrides: Partial<MyClassView>): MyClassView => ({
 const POO = myClass({});
 const SQL = myClass({ id: "22222222-2222-4222-8222-222222222222", subjectName: "Banco de Dados" });
 
-function setup(items: MyClassView[], options: { currentId?: string; unavailable?: boolean } = {}) {
+function setup(items: MyClassView[], options: { currentId?: string } = {}) {
   const onChange = vi.fn();
   const view = render(
     <SubjectSwitcher
       options={subjectOptions(items)}
       currentId={options.currentId ?? items[0]!.id}
-      unavailable={options.unavailable ?? false}
       onChange={onChange}
     />,
   );
@@ -69,8 +68,8 @@ describe("026 SubjectSwitcher — o card \"Matéria\"", () => {
     expect(screen.queryByText(ONLY_SUBJECT)).toBeNull();
   });
 
-  it("026/FR-011 com a matéria pedida indisponível, o aviso aparece acima do card", () => {
-    setup([POO, SQL], { unavailable: true });
-    expect(screen.getByText(SUBJECT_UNAVAILABLE)).toBeTruthy();
+  it("026/FR-011 o aviso de matéria indisponível é um Alert com o texto fixo", () => {
+    render(<SubjectUnavailableNotice />);
+    expect(screen.getByRole("status").textContent).toBe(SUBJECT_UNAVAILABLE);
   });
 });

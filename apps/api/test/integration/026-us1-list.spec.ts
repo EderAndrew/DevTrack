@@ -33,7 +33,9 @@ describe("026/US1 lista do aluno por matéria", () => {
       sourceWorkId: work.id,
       sourceSubjectId: work.subjectId,
     });
-  const exercise = (schoolClass: SchoolClass, title: string) => createActivity(t, schoolClass, { type: "EXERCISE", title });
+  // publishAt from the test's clock: the factory's default is the real time minus a day, which falls after START.
+  const exercise = (schoolClass: SchoolClass, title: string) =>
+    createActivity(t, schoolClass, { type: "EXERCISE", title, publishAt: at(-DAY) });
   const page = async (query: string) => {
     const res = await client.get(`/api/me/activities${query}`);
     expect(res.status).toBe(200);

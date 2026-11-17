@@ -16,7 +16,7 @@ import { useStudentDashboard } from "../hooks/use-student-activities";
 import { formatPoints, myActivitiesHref } from "../schemas/student-activity";
 import { DashboardActivityRow } from "./dashboard-activity-row";
 import { LoadFailed, Loading } from "./load-states";
-import { SubjectSwitcher } from "./subject-switcher";
+import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
 
 export const EMPTY_DASHBOARD = "Nenhuma atividade pendente.";
 export const DASHBOARD_SUBTITLE = "Organize seus estudos e acompanhe cada conquista.";
@@ -120,20 +120,22 @@ export function StudentDashboard({ materia }: { materia: string | null }) {
   return (
     <>
       {data ? <p className="m-0 mb-1 text-label uppercase text-text-secondary">{formatLongDay(data.serverNow)}</p> : null}
+      {/* One tree for every state, so the card (and its focus) stays while another subject loads. */}
       <PageHeader
         title={data ? (data.firstName ? `Olá, ${data.firstName}` : "Olá") : "Painel"}
         description={data ? DASHBOARD_SUBTITLE : undefined}
+        actions={
+          subject.current ? (
+            <SubjectSwitcher
+              options={subject.options}
+              currentId={subject.current.id}
+              onChange={(id) => router.replace(`${DASHBOARD_PATH}?${new URLSearchParams({ materia: id })}`)}
+            />
+          ) : undefined
+        }
       />
-      {/* One tree for every state, so the card (and its focus) stays while another subject loads. */}
       <div className="flex flex-col gap-6">
-        {subject.current ? (
-          <SubjectSwitcher
-            options={subject.options}
-            currentId={subject.current.id}
-            unavailable={subject.unavailable}
-            onChange={(id) => router.replace(`${DASHBOARD_PATH}?${new URLSearchParams({ materia: id })}`)}
-          />
-        ) : null}
+        {subject.current && subject.unavailable ? <SubjectUnavailableNotice /> : null}
         {subject.isError ? (
           <LoadFailed error={subject.error} onRetry={subject.refetch} />
         ) : query.isPending || forgetting ? (

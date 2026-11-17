@@ -3,6 +3,7 @@
 import { ActivityTypeSchema, StudentActivityFilterSchema } from "@repo/contracts";
 import { ChartColumn, CircleCheck, ListChecks, type LucideIcon, Trophy, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import { useStudentActivities } from "../hooks/use-student-activities";
 import { ACTIVITY_TYPE_LABELS, FILTER_OPTIONS, formatHundredths, gradeSummary, myActivitiesHref, type GradeSummary } from "../schemas/student-activity";
 import { ActivityCard } from "./activity-card";
 import { LoadFailed, Loading } from "./load-states";
-import { SubjectSwitcher } from "./subject-switcher";
+import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
 
 export const FILTER_IDS = { status: "filtro-situacao", type: "filtro-tipo" } as const;
 export const MY_ACTIVITIES_SUBTITLE = "Acompanhe suas entregas, consulte suas notas e evolua a cada atividade.";
@@ -108,105 +109,118 @@ export function MyActivities({ filters, materia }: MyActivitiesProps) {
   const go = (next: Partial<StudentActivityListFilters> & { materia?: string }) =>
     router.replace(myActivitiesHref({ ...filters, materia: classId, ...next }));
 
-  if (subject.isError) return <LoadFailed error={subject.error} onRetry={subject.refetch} />;
+  const header = (
+    <PageHeader
+      title="Minhas atividades"
+      description={MY_ACTIVITIES_SUBTITLE}
+      actions={
+        subject.current ? (
+          <SubjectSwitcher options={subject.options} currentId={subject.current.id} onChange={(id) => go({ materia: id })} />
+        ) : undefined
+      }
+    />
+  );
+  if (subject.isError)
+    return (
+      <>
+        {header}
+        <LoadFailed error={subject.error} onRetry={subject.refetch} />
+      </>
+    );
 
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   const filtered = Boolean(filters.status || filters.type);
   return (
-    <div className="flex flex-col gap-4">
-      {subject.current ? (
-        <SubjectSwitcher
-          options={subject.options}
-          currentId={subject.current.id}
-          unavailable={subject.unavailable}
-          onChange={(id) => go({ materia: id })}
-        />
-      ) : null}
-      {query.isSuccess ? <GradeSummaryCards summary={gradeSummary(items)} /> : null}
-      <form
-        aria-label="Filtrar atividades"
-        className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4 shadow-sm"
-        onSubmit={(event) => event.preventDefault()}
-      >
-        <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
-          <Label htmlFor={FILTER_IDS.status}>Situação</Label>
-          <NativeSelect
-            id={FILTER_IDS.status}
-            value={filters.status ?? ""}
-            onChange={(event) => go({ status: StudentActivityFilterSchema.safeParse(event.target.value).data ?? null })}
-          >
-            <option value="">Todas</option>
-            {StudentActivityFilterSchema.options.map((filter) => (
-              <option key={filter} value={filter}>
-                {FILTER_OPTIONS[filter].label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
-          <Label htmlFor={FILTER_IDS.type}>Tipo</Label>
-          <NativeSelect
-            id={FILTER_IDS.type}
-            value={filters.type ?? ""}
-            onChange={(event) => go({ type: ActivityTypeSchema.safeParse(event.target.value).data ?? null })}
-          >
-            <option value="">Todos</option>
-            {ActivityTypeSchema.options.map((type) => (
-              <option key={type} value={type}>
-                {ACTIVITY_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        {filtered ? (
-          <Button type="button" variant="ghost" onClick={() => go({ status: null, type: null })}>
-            <X aria-hidden="true" />
-            Limpar filtros
-          </Button>
-        ) : null}
-      </form>
-
-      {query.isPending || forgetting ? (
-        <Loading label="Carregando suas atividades…" />
-      ) : query.isError && items.length === 0 ? (
-        <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={ListChecks}
-          title={filtered ? "Nenhuma atividade com esses filtros." : "Você ainda não tem atividades."}
-        />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="m-0 text-body-sm font-semibold">
-              {shownLabel(items.length)}
-              {query.hasNextPage ? <span className="font-normal text-text-secondary"> · há mais para carregar</span> : null}
-            </p>
-            <p className="m-0 text-caption text-text-secondary">Ordenadas pelo prazo</p>
-          </div>
-          <ul aria-label="Suas atividades" className="m-0 flex list-none flex-col gap-4 p-0">
-            {items.map((item) => (
-              <li key={item.id}>
-                <ActivityCard item={item} headingLevel="h2" />
-              </li>
-            ))}
-          </ul>
-          {query.isFetchNextPageError ? <LoadFailed error={query.error} onRetry={() => void query.fetchNextPage()} /> : null}
-          {query.hasNextPage ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="self-start"
-              aria-disabled={query.isFetchingNextPage || undefined}
-              onClick={() => {
-                if (!query.isFetchingNextPage) void query.fetchNextPage();
-              }}
+    <>
+      {header}
+      <div className="flex flex-col gap-4">
+        {subject.current && subject.unavailable ? <SubjectUnavailableNotice /> : null}
+        {query.isSuccess ? <GradeSummaryCards summary={gradeSummary(items)} /> : null}
+        <form
+          aria-label="Filtrar atividades"
+          className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4 shadow-sm"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
+            <Label htmlFor={FILTER_IDS.status}>Situação</Label>
+            <NativeSelect
+              id={FILTER_IDS.status}
+              value={filters.status ?? ""}
+              onChange={(event) => go({ status: StudentActivityFilterSchema.safeParse(event.target.value).data ?? null })}
             >
-              {query.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+              <option value="">Todas</option>
+              {StudentActivityFilterSchema.options.map((filter) => (
+                <option key={filter} value={filter}>
+                  {FILTER_OPTIONS[filter].label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="flex min-w-48 flex-1 flex-col gap-1 sm:flex-none">
+            <Label htmlFor={FILTER_IDS.type}>Tipo</Label>
+            <NativeSelect
+              id={FILTER_IDS.type}
+              value={filters.type ?? ""}
+              onChange={(event) => go({ type: ActivityTypeSchema.safeParse(event.target.value).data ?? null })}
+            >
+              <option value="">Todos</option>
+              {ActivityTypeSchema.options.map((type) => (
+                <option key={type} value={type}>
+                  {ACTIVITY_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          {filtered ? (
+            <Button type="button" variant="ghost" onClick={() => go({ status: null, type: null })}>
+              <X aria-hidden="true" />
+              Limpar filtros
             </Button>
           ) : null}
-        </>
-      )}
-    </div>
+        </form>
+
+        {query.isPending || forgetting ? (
+          <Loading label="Carregando suas atividades…" />
+        ) : query.isError && items.length === 0 ? (
+          <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={ListChecks}
+            title={filtered ? "Nenhuma atividade com esses filtros." : "Você ainda não tem atividades."}
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="m-0 text-body-sm font-semibold">
+                {shownLabel(items.length)}
+                {query.hasNextPage ? <span className="font-normal text-text-secondary"> · há mais para carregar</span> : null}
+              </p>
+              <p className="m-0 text-caption text-text-secondary">Ordenadas pelo prazo</p>
+            </div>
+            <ul aria-label="Suas atividades" className="m-0 flex list-none flex-col gap-4 p-0">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <ActivityCard item={item} headingLevel="h2" />
+                </li>
+              ))}
+            </ul>
+            {query.isFetchNextPageError ? <LoadFailed error={query.error} onRetry={() => void query.fetchNextPage()} /> : null}
+            {query.hasNextPage ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="self-start"
+                aria-disabled={query.isFetchingNextPage || undefined}
+                onClick={() => {
+                  if (!query.isFetchingNextPage) void query.fetchNextPage();
+                }}
+              >
+                {query.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+              </Button>
+            ) : null}
+          </>
+        )}
+      </div>
+    </>
   );
 }

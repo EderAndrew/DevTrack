@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–025 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–026 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -77,6 +77,10 @@ new feature through `/speckit-specify`.
   sends a fixed warning that only that student sees in an `AlertDialog` on the exam page ("Entendi" closes it); one
   pending per attempt, sent only from the app (`@MobileOnly()`), never an occurrence; the web room, the review and the
   app show the warnings sent, closed and "Não visto". The app's only write.
+
+- 026 the student's current subject: a "Matéria" card on the Painel and "Minhas atividades" shows one subject (class) at a
+  time (`?materia=<classId>`, the most recent enrollment by default); the lists, counters, summary cards and ranking of
+  those pages are of that class only; "Minhas turmas" shows each class's subject. No migration.
 
 Take-home works and grading by the Code Runner or AI are later features. The rules of 012–025 that are
 easy to break are under "Rules that are easy to get wrong" below.
@@ -516,6 +520,13 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   sentence lives only in the web and the app, never on the wire, in audit or logs; a warning is never an occurrence,
   grade, discount, block or pause, and the 018 inactivity does not count while the dialog is open. Audit metadata holds
   ids, enums and counts. Triggers refuse other inserts, updates and deletes on `exam_nudges`.
+- Student's current subject (026): `classId` on `GET /me/activities` and `GET /me/dashboard` is optional; without it
+  both answer exactly as before (`026/SC-005`). With it, the class must be one of the student's ACTIVE enrollments,
+  checked before any read, else `404` with the same body for another student's, an ended or an unknown class (never
+  403); a malformed id is `400` before any query; the cursor pages only within the class. The subject is never stored
+  on the server: the address (`materia=`) holds it. A class the student can no longer see (not in "Minhas turmas", or
+  the 5 s poll of the list or the Painel answering `404`) falls back to the most recent enrollment with "Essa matéria
+  não está mais disponível para você.", never WebSockets. The subject name is text, never HTML.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

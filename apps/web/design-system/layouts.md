@@ -100,7 +100,11 @@ existem e que o usuário pode abrir; Ctrl/⌘+B alterna o menu. No rodapé, o me
 
 O mesmo menu lateral do `AppShell` (primitivos de `components/ui/sidebar`), só com os itens
 do aluno, a `Topbar` e o conteúdo até 960 px. Página larga: a raiz com `data-layout="wide"` ocupa a largura
-toda, mantendo o `--gutter` (hoje, o "Painel", com o ranking das turmas numa coluna à direita a partir de `xl`, e "Minhas atividades", cujos cards têm o painel da nota à direita). `defaultOpen` vem do cookie `sidebar_state`,
+toda, mantendo o `--gutter` (hoje, o "Painel", com o ranking das turmas numa coluna à direita a partir de `xl`, e "Minhas atividades", cujos cards têm o painel da nota à direita). Nas duas, o card "Matéria" (026, `SubjectSwitcher` de
+`features/student-activities`) fica nas `actions` do `PageHeader`, à direita do título ("Olá, <nome>" no Painel,
+"Minhas atividades" na lista) a partir de `md` e abaixo dele, na largura toda, no celular: um card compacto (`md:w-80`)
+com o ícone decorativo `BookOpen`, o rótulo visível "Matéria" e um `NativeSelect` com as turmas do aluno; o `Alert`
+(info) "Essa matéria não está mais disponível para você." aparece logo abaixo do cabeçalho, na largura toda. `defaultOpen` vem do cookie `sidebar_state`,
 como no AppShell; `preview` só no catálogo.
 
 ### Estados

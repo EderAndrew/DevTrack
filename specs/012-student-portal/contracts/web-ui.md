@@ -13,6 +13,17 @@ Amendment 2026-10-31: on "Minhas atividades" each card also shows, larger on its
 released grade of a work or exam, or an exercise's points ("Pontos parciais" until it is concluded and corrected; 013: never
 a grade). Nothing before the release; the unfinished exercise shows only points already earned, never a score of open answers.
 
+Amendment 2026-11-16 (visual, commit c45ca59): the Painel shows the day by the server's clock, the four counters as
+cards with an icon, "Próximas atividades" as rows with deadline, status and points, "Ver todas", the overdue ones in a
+card of their own and "Seu desempenho" when the student is in the top 5; "Minhas atividades" is a wide page with summary
+cards (corrigidas, pontuação obtida, aproveitamento) computed in integer hundredths over the activities shown, the
+filters in a card with "Limpar filtros" and the count of activities shown. Same API data; no grade before the release.
+
+Amendment 2026-11-16 (026): both pages show one subject at a time. The "Matéria" card (a `NativeSelect` of the
+student's classes, `?materia=<classId>`) sits at the right of the page title (2026-11-17), before the counters and the summary cards, and every count, list and
+card of the page is of that class; "Limpar filtros" never removes `materia`. The rules are in
+`specs/026-student-subject-selector/` (spec and `contracts/ui.md`); "Minhas turmas" also shows each class's subject.
+
 Menu: Painel, Minhas atividades, Histórico, Minhas turmas, Meu perfil. Start page `/painel`
 (research P23).
 

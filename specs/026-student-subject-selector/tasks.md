@@ -281,21 +281,21 @@ matéria.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T025 [P] Regressão SC-005: rodar as suítes `012-*`, `013-*`, `016-*`, `018-*`, `023-*`, `activities-boundary`,
+- [X] T025 [P] Regressão SC-005: rodar as suítes `012-*`, `013-*`, `016-*`, `018-*`, `023-*`, `activities-boundary`,
       `attendance-boundary` e `exams-boundary` da API e confirmar zero mudança de asserção; citar `026/SC-005` no
       teste de T003 (já escrito) e tirar `SC-005` de `pending.successCriteria`.
-- [ ] T026 [P] Guardas do web: `test/student-portal-xss.test.tsx` ganha o nome de disciplina e de turma com HTML no
+- [X] T026 [P] Guardas do web: `test/student-portal-xss.test.tsx` ganha o nome de disciplina e de turma com HTML no
       card (`026/FR-001` renderizado como texto); `test/design-system/token-usage.test.ts`,
       `identity.test.ts` e `lint-boundaries.test.ts` verdes com os arquivos novos.
-- [ ] T027 [P] Documentação: `apps/web/design-system/layouts.md` (o card "Matéria" no Painel e em "Minhas atividades");
+- [X] T027 [P] Documentação: `apps/web/design-system/layouts.md` (o card "Matéria" no Painel e em "Minhas atividades");
       a emenda das duas telas em `specs/012-student-portal/contracts/web-ui.md` (visual de 2026-11-16 e o card da 026,
       nota apontando para a 026); a regra da 026 em "Rules that are easy to get wrong" do `CLAUDE.md` raiz e o resumo
       em "Project state" ("026 matéria atual do aluno…").
-- [ ] T028 Rodar `quickstart.md` "Automated" (`pnpm --filter api test -t "026/"`, `pnpm --filter web test -t "026/"`,
+- [X] T028 Rodar `quickstart.md` "Automated" (`pnpm --filter api test -t "026/"`, `pnpm --filter web test -t "026/"`,
       `traceability.spec.ts`) e conferir `pending` vazio na entrada da 026.
-- [ ] T029 Rodar `pnpm lint && pnpm check-types && pnpm test` completo (em segundo plano; reiniciar o `postgres-test`
+- [X] T029 Rodar `pnpm lint && pnpm check-types && pnpm test` completo (em segundo plano; reiniciar o `postgres-test`
       antes se já houve duas execuções).
-- [ ] T030 Roteiro manual do `quickstart.md` (passos 1–7) no ambiente local e registro do resultado no fim do
+- [X] T030 Roteiro manual do `quickstart.md` (passos 1–7) no ambiente local e registro do resultado no fim do
       `plan.md` ("Pilot"), como na 025, incluindo o tempo medido da troca de matéria no passo 3 (`026/SC-003`, meta
       ≤ 2 s).
 

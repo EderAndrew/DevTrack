@@ -259,6 +259,8 @@ describe("026/US1 Minhas atividades de uma matéria", () => {
     );
     await screen.findByRole("heading", { name: "Trabalho de POO" });
     expect(screen.getByLabelText("Matéria")).toBe(subjectSelect());
+    // Amended 2026-11-17: the card is in the page header, beside "Minhas atividades".
+    expect(subjectSelect().closest("header")?.querySelector("h1")?.textContent).toBe("Minhas atividades");
     expect(subjectSelect().value).toBe(POO.id);
     expect(within(subjectSelect()).getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Programação Orientada a Objetos · ADS 3NA",

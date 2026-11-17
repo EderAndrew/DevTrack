@@ -68,6 +68,9 @@ import {
   summaryQuestion,
 } from "@/features/code-run/components/test-fixtures";
 import { CodeEditor } from "@/components/ui/code/code-editor";
+import { MyClasses } from "@/features/my-classes/components/my-classes";
+import { SubjectSwitcher } from "@/features/student-activities/components/subject-switcher";
+import { subjectOptions } from "@/features/student-activities/schemas/student-activity";
 import { AdminFeedbackDetail } from "@/features/feedback/components/admin-feedback-detail";
 import { AdminFeedbackList } from "@/features/feedback/components/admin-feedback-list";
 import { MyFeedbacks } from "@/features/feedback/components/my-feedbacks";
@@ -106,6 +109,8 @@ const SCANNED = [
   "features/feedback",
   // 023: the group work's start dialog and bar (names of classmates).
   "features/group-work",
+  // 026: "Minhas turmas" with each class's subject (the "Matéria" card is in features/student-activities).
+  "features/my-classes",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -1079,6 +1084,40 @@ describe("023 nomes dos colegas como texto", () => {
     );
     renderWithProviders(<GroupFacts classId={CLASS_ID} activityId={ACTIVITY_ID} attemptId={ATTEMPT_ID} questions={gradingActivity().questions} />);
     await waitFor(() => expect(document.body.textContent).toContain(MEMBER.name));
+    noElements();
+  });
+});
+
+describe("026/FR-001 matéria e turma como texto", () => {
+  const ITEM = {
+    id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    name: `turma ${SCRIPT}`,
+    code: "T-1",
+    academicYear: 2026,
+    period: null,
+    teacherName: "Professora Ada",
+    subjectName: `disciplina ${SCRIPT}`,
+    enrolledAt: "2026-11-10T12:00:00.000Z",
+  };
+  const noElements = () => expect(document.body.querySelector("script, img")).toBeNull();
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("card \"Matéria\": a disciplina e a turma com HTML aparecem como texto na opção", () => {
+    render(<SubjectSwitcher options={subjectOptions([ITEM])} currentId={ITEM.id} onChange={() => {}} />);
+    const select = screen.getByLabelText("Matéria") as HTMLSelectElement;
+    expect(select.selectedOptions[0]!.textContent).toBe(`${ITEM.subjectName} · ${ITEM.name}`);
+    noElements();
+  });
+
+  it("\"Minhas turmas\": o nome da disciplina com HTML aparece como texto", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { items: [ITEM] })),
+    );
+    renderWithProviders(<MyClasses welcome={false} />);
+    expect(await screen.findByText(`Disciplina: ${ITEM.subjectName}`)).toBeTruthy();
+    expect(screen.getByText(ITEM.name)).toBeTruthy();
     noElements();
   });
 });

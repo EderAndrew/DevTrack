@@ -216,6 +216,8 @@ describe("026/US2 painel por matéria", () => {
     await screen.findByRole("heading", { name: "Trabalho de POO" });
     expect(subjectSelect().value).toBe(POO.id);
     expect(screen.getByLabelText("Matéria")).toBe(subjectSelect());
+    // Amended 2026-11-17: the card is in the page header, beside "Olá, <nome>".
+    expect(subjectSelect().closest("header")?.querySelector("h1")?.textContent).toBe("Olá, Bruna");
     const counters = screen.getByRole("navigation", { name: "Resumo das suas atividades" });
     expect(subjectSelect().compareDocumentPosition(counters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(dashboardCalls(api.calls)).toEqual([`/api/me/dashboard?classId=${POO.id}`]);
