@@ -31,23 +31,30 @@ ALTER TABLE "cohorts" ADD CONSTRAINT "cohorts_academic_year_chk" CHECK ("academi
 -- ---------------------------------------------------------------------------
 -- (3) one cohort per group of classes with the same academic year and code (ignoring case): the data of
 -- the oldest class (created_at, then id), the most open status of the group (ACTIVE > INACTIVE >
--- ARCHIVED), created by the oldest class's teacher. search_key is name + code of that class, the same
--- the application computed for it (003 D10), so it is copied.
+-- ARCHIVED), created by the oldest class's teacher. status_changed_at is the latest change among the classes
+-- of the group that have that status (the oldest class's own date when the group is that class alone).
+-- search_key is name + code of that class, the same the application computed for it (003 D10), so it is copied.
 -- ---------------------------------------------------------------------------
+WITH "groups" AS (
+  SELECT o.*,
+         (SELECT CASE min(CASE s."status" WHEN 'ACTIVE' THEN 0 WHEN 'INACTIVE' THEN 1 ELSE 2 END)
+                   WHEN 0 THEN 'ACTIVE' WHEN 1 THEN 'INACTIVE' ELSE 'ARCHIVED' END::"class_status"
+            FROM "classes" s
+           WHERE s."academic_year" = o."academic_year" AND upper(s."code") = upper(o."code")) AS "group_status"
+    FROM "classes" o
+   WHERE NOT EXISTS (
+     SELECT 1 FROM "classes" p
+      WHERE p."academic_year" = o."academic_year" AND upper(p."code") = upper(o."code")
+        AND (p."created_at", p."id") < (o."created_at", o."id")
+   )
+)
 INSERT INTO "cohorts" ("name", "code", "academic_year", "period", "description", "status", "status_changed_at",
                        "search_key", "created_by_id", "created_at", "updated_at")
-SELECT o."name", o."code", o."academic_year", o."period", o."description",
-       (SELECT CASE min(CASE s."status" WHEN 'ACTIVE' THEN 0 WHEN 'INACTIVE' THEN 1 ELSE 2 END)
-                 WHEN 0 THEN 'ACTIVE' WHEN 1 THEN 'INACTIVE' ELSE 'ARCHIVED' END::"class_status"
-          FROM "classes" s
-         WHERE s."academic_year" = o."academic_year" AND upper(s."code") = upper(o."code")),
-       o."status_changed_at", o."search_key", o."teacher_id", o."created_at", now()
-  FROM "classes" o
- WHERE NOT EXISTS (
-   SELECT 1 FROM "classes" p
-    WHERE p."academic_year" = o."academic_year" AND upper(p."code") = upper(o."code")
-      AND (p."created_at", p."id") < (o."created_at", o."id")
- );
+SELECT g."name", g."code", g."academic_year", g."period", g."description", g."group_status",
+       (SELECT max(s."status_changed_at") FROM "classes" s
+         WHERE s."academic_year" = g."academic_year" AND upper(s."code") = upper(g."code") AND s."status" = g."group_status"),
+       g."search_key", g."teacher_id", g."created_at", now()
+  FROM "groups" g;
 
 -- ---------------------------------------------------------------------------
 -- (4) classes.cohort_id; each class keeps its own status (FR-027)

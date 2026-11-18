@@ -260,6 +260,40 @@ O script avança para o topo da `main` (`git fetch` + `git merge --ff-only`), fa
 Uma execução manual e a do GitHub esperam uma pela outra (trava em `/tmp/devtrack-update.lock`).
 Durante o `next build`, o site pode responder com erro por alguns segundos.
 
+### A atualização da 027 (turmas do gestor)
+
+A migration `20261118120000_027_manager_classes` é a própria transição (spec 027, FR-027–FR-030): cada turma de
+hoje vira uma turma do gestor (`cohorts`) e uma disciplina da turma do mesmo professor; turmas de mesmo código (sem
+diferenciar maiúsculas) e mesmo ano letivo viram uma só, e as matrículas e os convites pendentes repetidos são
+encerrados com o motivo `MERGED`. Ela roda uma vez, numa transação: se falhar, nada muda e o `update.sh` para antes
+do `pm2 reload`. Depois do deploy, os professores perdem a criação de turmas e os convites, que passam ao gestor:
+combine com o gestor antes.
+
+1. **Backup logo antes do merge** (root): `/home/devtrack/devtrack/deploy/hostinger/backup.sh` e confira o novo
+   arquivo em `/var/backups/devtrack`. Copie-o para fora da VPS.
+2. **Deploy**: faça o merge na `main` (o workflow roda o `update.sh`, que aplica as migrations com
+   `prisma migrate deploy`) ou rode o `update.sh` à mão. Entre o fim do `migrate deploy` e o `pm2 reload`, a API
+   antiga responde erro nas telas de turma por alguns segundos.
+3. **Confira a transição** (root):
+
+   ```bash
+   docker exec -i devtrack-prod-postgres-1 psql -U devtrack -d devtrack -c \
+     "SELECT occurred_at, metadata - 'permissionsMoved' - 'permissionsAdded' FROM audit_events WHERE type = 'cohort_transition.applied'"
+   ```
+
+   Deve haver exatamente uma linha, com `classes` igual ao número de turmas de antes, `cohorts` ≤ `classes` e
+   `mergedCohorts`, `mergedEnrollments` e `mergedInvitations` iguais ao que se esperava das turmas de mesmo código e
+   ano. Cada matrícula e cada convite reunidos têm o seu evento `enrollment.removed`/`class_invitation.cancelled` com
+   `"reason": "MERGED"`.
+4. **Se algo estiver errado**, restaure o backup do passo 1 (seção 11) e volte o código à mão, como `devtrack`, ao
+   commit anterior ao merge (`git checkout <commit>`, `pnpm install`, `pnpm build`,
+   `pm2 startOrReload deploy/hostinger/ecosystem.config.cjs`): o `update.sh` nunca publica um commit mais antigo.
+   Desligue o workflow de deploy até corrigir, ou o próximo push à `main` reaplica a transição.
+
+O teste `apps/api/test/integration/027-transition.spec.ts` aplica a transição numa base com turmas de três
+professores (códigos repetidos, uma sem disciplina, uma arquivada, convites pendentes, entregas, notas e pontos) e
+compara o que cada um vê antes e depois.
+
 ## 13. Problemas comuns
 
 | Sintoma | Causa provável |

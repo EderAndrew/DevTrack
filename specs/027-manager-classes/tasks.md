@@ -448,7 +448,7 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 6
 
-- [ ] T046 [US6] `apps/api/test/integration/027-transition.spec.ts` (research Q9): pela conexão do banco de teste, cria
+- [X] T046 [US6] `apps/api/test/integration/027-transition.spec.ts` (research Q9): pela conexão do banco de teste, cria
       um banco temporário com o nome do banco de teste + `_transition_027` (ex.: `devtrack_test_transition_027`, contém
       "test"; `DROP DATABASE IF EXISTS` antes e no `afterAll`); aplica nele, em ordem de nome, o `migration.sql` de cada
       pasta de `apps/api/prisma/migrations` anterior a `20261118115900_027_enum_values` (nunca `prisma migrate reset`);
@@ -461,9 +461,17 @@ migration e comparar o que cada um vê.
 
 ### Implementation for User Story 6
 
-- [ ] T047 [US6] Ajustes no SQL da T007 que o teste revelar; documentar em `docs/deploy/hostinger.md` o passo do
+- [X] T047 [US6] Ajustes no SQL da T007 que o teste revelar; documentar em `docs/deploy/hostinger.md` o passo do
       deploy (backup do banco antes, `migrate deploy`, conferir o evento `cohort_transition.applied`).
-- [ ] T048 [US6] Retirar US6 e `SC-002` de `pending`.
+- [X] T048 [US6] Retirar US6 e `SC-002` de `pending`.
+      **Registro (2026-11-18)**: o cenário pré-027 está em `apps/api/test/fixtures/transition-027/pre-027-seed.sql`
+      (professores A, B e C — `classes_teacher_code_key` era por professor, então a "ADS 3NA" de 2027 é de um terceiro
+      professor —, turma sem disciplina, turma arquivada, matrícula encerrada pelo professor, convites repetidos com
+      e-mail pendente, entregas, notas e pontos); depois da transição, um app sobre o banco temporário responde o que
+      cada professor e aluno vê e aceita um convite de antes. Ajuste no SQL da T007: o `status_changed_at` da turma
+      reunida vinha sempre da turma mais antiga, mesmo quando a situação vinha de outra; agora é a última mudança entre
+      as turmas do grupo com a situação escolhida (a migration ainda não foi publicada). Passo do deploy em
+      `docs/deploy/hostinger.md` ("A atualização da 027").
 
 ---
 
