@@ -66,7 +66,8 @@ Read-only; every pedagogical "is this student in this class" query uses it (Q3).
 ## Changed: enums
 
 - `mail_kind` += `CLASS_ENROLLMENT_NOTICE` (the subject lives in `enrollments`, registered as `MailSubject`; the
-  delivery references the enrollment through `mail_deliveries.subject_id`, as the other kinds do).
+  delivery references the enrollment through a new subject column `mail_deliveries.enrollment_id`, FK `enrollments`,
+  as each kind has its own: the 017 CHECK `mail_deliveries_subject_chk` and the immutability trigger include it).
 - `class_invitation_cancel_reason` += `MANAGER`, `ENROLLED_DIRECTLY`, `MERGED`.
 - new `enrollment_removal_reason` (`MANAGER`, `MERGED`), `enrollment_source` (`INVITATION`, `DIRECT`).
 

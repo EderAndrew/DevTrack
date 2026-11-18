@@ -54,9 +54,9 @@ describe("003/US1 — professor cria e administra as próprias turmas (FR-001–
         updatedAt: expect.any(String),
       });
 
-      const row = await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: res.body.id } });
+      const row = await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: res.body.id }, include: { cohort: true } });
       expect(row.teacherId).toBe(teacher.id);
-      expect(row.searchKey).toBe("programacao orientada a objetos poo-2026-01");
+      expect(row.cohort.searchKey).toBe("programacao orientada a objetos poo-2026-01");
 
       expect(await events("class.created")).toMatchObject([
         {
@@ -189,8 +189,8 @@ describe("003/US1 — professor cria e administra as próprias turmas (FR-001–
         description: "Nova descrição",
         status: "ACTIVE",
       });
-      const saved = await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: row.id } });
-      expect(saved.searchKey).toBe("algoritmos avancados alg-1");
+      const saved = await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: row.id }, include: { cohort: true } });
+      expect(saved.cohort.searchKey).toBe("algoritmos avancados alg-1");
 
       const [event] = await events("class.updated");
       expect(event).toMatchObject({ actorUserId: teacher.id, targetType: "CLASS", targetId: row.id });

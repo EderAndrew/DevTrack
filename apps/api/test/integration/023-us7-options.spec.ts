@@ -471,7 +471,7 @@ describe("023/US7 modo controlado, pausa, ajuda da IA e execução no grupo", ()
     it("líder com a matrícula encerrada → no próximo toque a liderança passa ao integrante ativo mais antigo", async () => {
       const { activityId, attemptId } = await startedGroup();
       await t.prisma.enrollment.updateMany({
-        where: { classId: schoolClass.id, studentUserId: ana.id },
+        where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: ana.id },
         data: {
           status: "REMOVED",
           removedAt: clock.now(),
@@ -508,7 +508,7 @@ describe("023/US7 modo controlado, pausa, ajuda da IA e execução no grupo", ()
       ok(await handEditing(as[ana.id]!, activityId, carla.id));
       clock.advance(MINUTE);
       await t.prisma.enrollment.updateMany({
-        where: { classId: schoolClass.id, studentUserId: carla.id },
+        where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: carla.id },
         data: {
           status: "REMOVED",
           removedAt: clock.now(),

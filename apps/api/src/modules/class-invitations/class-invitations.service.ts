@@ -58,7 +58,8 @@ export class ClassInvitationsService {
   async invite(auth: AuthContext, classId: string, rawEmail: string, requestId: string | null): Promise<ClassInvitationView> {
     const teacherId = auth.userId;
     const email = normalizeEmail(rawEmail);
-    await this.context.findOwnedOrNotFound(teacherId, classId);
+    // 027 (provisional until T030): the invitation belongs to the class's turma.
+    const { cohortId } = await this.context.findOwnedOrNotFound(teacherId, classId);
     await this.rateLimit.beforeInvite({ teacherId, classId, email });
 
     const token = generateToken();
@@ -67,21 +68,21 @@ export class ClassInvitationsService {
       await this.lockOpenClass(tx, teacherId, classId);
 
       const enrolled = await tx.enrollment.findFirst({
-        where: { classId, status: "ACTIVE", student: { user: { email } } },
+        where: { cohortId, status: "ACTIVE", student: { user: { email } } },
         select: { id: true },
       });
       if (enrolled) throw alreadyEnrolled();
 
       const now = new Date();
       await tx.classInvitation.updateMany({
-        where: { classId, email, status: "PENDING", expiresAt: { lte: now } },
+        where: { cohortId, email, status: "PENDING", expiresAt: { lte: now } },
         data: { status: "EXPIRED" },
       });
       // ON CONFLICT DO NOTHING against the partial unique index: a concurrent invite does not abort us.
       const [created] = await tx.classInvitation.createManyAndReturn({
         data: [
           {
-            classId,
+            cohortId,
             email,
             tokenHash: hashToken(token),
             status: "PENDING",
@@ -102,7 +103,7 @@ export class ClassInvitationsService {
         targetType: "CLASS_INVITATION",
         targetId: created.id,
         requestId,
-        metadata: { classId, email },
+        metadata: { cohortId, email },
       });
       const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", created.id, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
@@ -121,13 +122,13 @@ export class ClassInvitationsService {
    * and filter by the effective status, PENDING by default.
    */
   async list(teacherId: string, classId: string, { query, status, cursor }: ClassInvitationListQuery): Promise<ClassInvitationPage> {
-    await this.context.findOwnedOrNotFound(teacherId, classId);
+    const { cohortId } = await this.context.findOwnedOrNotFound(teacherId, classId);
     const after = cursor ? decodeCursor(cursor) : null;
     const term = query?.trim().toLowerCase() ?? "";
     const now = new Date();
     const rows = await this.prisma.classInvitation.findMany({
       where: {
-        classId,
+        cohortId,
         AND: [statusFilter(status, now), ...(after ? [afterCursor(after)] : [])],
         ...(term ? { email: { contains: escapeLike(term) } } : {}),
       },
@@ -154,8 +155,9 @@ export class ClassInvitationsService {
     const teacherId = auth.userId;
     const schoolClass = await this.context.findOwnedOrNotFound(teacherId, classId);
     if (schoolClass.status !== "ACTIVE") throw classNotOpen();
+    const { cohortId } = schoolClass;
     const current = await this.prisma.classInvitation.findFirst({
-      where: { id: invitationId, classId },
+      where: { id: invitationId, cohortId },
       select: { email: true, status: true, expiresAt: true },
     });
     if (!current) throw notFound();
@@ -169,11 +171,11 @@ export class ClassInvitationsService {
       ClassInvitationStateMachine.assertTransition(effectiveStatus(locked), "PENDING");
 
       const enrolled = await tx.enrollment.findFirst({
-        where: { classId, status: "ACTIVE", student: { user: { email: locked.email } } },
+        where: { cohortId, status: "ACTIVE", student: { user: { email: locked.email } } },
         select: { id: true },
       });
       if (enrolled) {
-        await this.cancelLocked(tx, invitationId, classId, teacherId, "ALREADY_ENROLLED", requestId);
+        await this.cancelLocked(tx, invitationId, cohortId, teacherId, "ALREADY_ENROLLED", requestId);
         return { kind: "enrolled" as const };
       }
 
@@ -195,7 +197,7 @@ export class ClassInvitationsService {
         targetType: "CLASS_INVITATION",
         targetId: invitationId,
         requestId,
-        metadata: { classId, sendCount: updated.sendCount },
+        metadata: { cohortId, sendCount: updated.sendCount },
       });
       const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", invitationId, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
@@ -218,7 +220,7 @@ export class ClassInvitationsService {
     const row = await this.prisma.runInTransaction(async (tx) => {
       const locked = await this.lockInvitation(tx, teacherId, classId, invitationId);
       ClassInvitationStateMachine.assertTransition(effectiveStatus(locked), "CANCELLED");
-      await this.cancelLocked(tx, invitationId, classId, teacherId, "TEACHER", requestId);
+      await this.cancelLocked(tx, invitationId, locked.cohortId, teacherId, "TEACHER", requestId);
       return tx.classInvitation.findUniqueOrThrow({ where: { id: invitationId }, select: CLASS_INVITATION_VIEW_SELECT });
     });
     return toClassInvitationView(row);
@@ -227,7 +229,7 @@ export class ClassInvitationsService {
   private async cancelLocked(
     tx: Tx,
     invitationId: string,
-    classId: string,
+    cohortId: string,
     teacherId: string,
     reason: "TEACHER" | "ALREADY_ENROLLED",
     requestId: string | null,
@@ -244,26 +246,26 @@ export class ClassInvitationsService {
       targetType: "CLASS_INVITATION",
       targetId: invitationId,
       requestId,
-      metadata: { classId, reason },
+      metadata: { cohortId, invitationId, reason },
     });
   }
 
   /** Locks the invitation only when it belongs to `classId` of `teacherId`; otherwise 404 (D7). */
   private async lockInvitation(tx: Tx, teacherId: string, classId: string, invitationId: string) {
     const rows = await tx.$queryRaw<{ id: string }[]>`
-      SELECT ci.id FROM class_invitations ci JOIN classes c ON c.id = ci.class_id
-      WHERE ci.id = ${invitationId}::uuid AND ci.class_id = ${classId}::uuid AND c.teacher_id = ${teacherId}::uuid
+      SELECT ci.id FROM class_invitations ci JOIN classes c ON c.cohort_id = ci.cohort_id
+      WHERE ci.id = ${invitationId}::uuid AND c.id = ${classId}::uuid AND c.teacher_id = ${teacherId}::uuid
       FOR UPDATE OF ci`;
     if (!rows[0]) throw notFound();
     return tx.classInvitation.findUniqueOrThrow({
       where: { id: invitationId },
-      select: { email: true, status: true, expiresAt: true },
+      select: { email: true, status: true, expiresAt: true, cohortId: true },
     });
   }
 
   private async lockOpenClass(tx: Tx, teacherId: string, classId: string): Promise<void> {
     const rows = await tx.$queryRaw<{ status: string }[]>`
-      SELECT status FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
+      SELECT class_effective_status(id)::text AS status FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
     const row = rows[0];
     if (!row) throw notFound();
     if (row.status !== "ACTIVE") throw classNotOpen();

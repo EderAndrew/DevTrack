@@ -4,6 +4,8 @@ import { PrismaService } from "../../platform/database/prisma.service";
 import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { ClassContextPolicy } from "../classes/class-context.policy";
+import { CLASS_LABEL_SELECT, labelOf } from "../classes/class-label";
+import { effectiveStatus } from "../classes/effective-status";
 import { rankClass } from "./rank";
 
 /** One ACTIVE enrollment with its points in the class: what the single query answers. */
@@ -45,12 +47,12 @@ export class RankingService {
    */
   async forStudent(studentUserId: string, classId: string): Promise<ClassRanking> {
     const schoolClass = await this.prisma.schoolClass.findFirst({
-      where: { id: classId, enrollments: { some: { studentUserId, status: "ACTIVE" } } },
-      select: { id: true, name: true },
+      where: { id: classId, cohort: { enrollments: { some: { studentUserId, status: "ACTIVE" } } } },
+      select: { id: true, ...CLASS_LABEL_SELECT },
     });
     if (!schoolClass) throw notFound();
     const rows = await this.rowsByClass([classId], studentUserId);
-    return { class: schoolClass, rows: rows.get(classId) ?? [] };
+    return { class: { id: schoolClass.id, name: labelOf(schoolClass) }, rows: rows.get(classId) ?? [] };
   }
 
   /**
@@ -60,15 +62,19 @@ export class RankingService {
    */
   async dashboardFor(studentUserId: string, classId?: string): Promise<DashboardRanking[]> {
     if (!(await this.permissions.effectivePermissions(studentUserId)).has("ranking.turma.visualizar")) return [];
-    const classes = await this.prisma.schoolClass.findMany({
+    // The effective status (027 FR-023) is ACTIVE only when both the class and its cohort are.
+    const found = await this.prisma.schoolClass.findMany({
       where: {
         status: "ACTIVE",
-        enrollments: { some: { studentUserId, status: "ACTIVE" } },
+        cohort: { status: "ACTIVE", enrollments: { some: { studentUserId, status: "ACTIVE" } } },
         ...(classId === undefined ? {} : { id: classId }),
       },
-      select: { id: true, name: true },
-      orderBy: [{ name: "asc" }, { id: "asc" }],
+      select: { id: true, status: true, ...CLASS_LABEL_SELECT },
     });
+    const classes = found
+      .filter((row) => effectiveStatus(row.cohort.status, row.status) === "ACTIVE")
+      .map((row) => ({ id: row.id, name: labelOf(row) }))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     if (classes.length === 0) return [];
     const rows = await this.rowsByClass(
       classes.map((schoolClass) => schoolClass.id),
@@ -81,7 +87,7 @@ export class RankingService {
   private async rowsByClass(classIds: string[], viewerId: string | null): Promise<Map<string, RankingRow[]>> {
     const points = await this.prisma.$queryRaw<PointsRow[]>`
       SELECT e.class_id, e.student_user_id, u.name, COALESCE(SUM(r.points), 0)::int AS points
-      FROM enrollments e
+      FROM class_enrollments e
       JOIN users u ON u.id = e.student_user_id
       LEFT JOIN (
         exercise_question_results r

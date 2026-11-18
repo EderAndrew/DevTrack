@@ -11,13 +11,16 @@ import { MailSubjectRegistry } from "../../platform/mail/outbox/mail-subject";
 export const INVITATION_MAIL_SELECT = {
   email: true,
   expiresAt: true,
-  schoolClass: { select: { name: true, code: true, period: true, teacher: { select: { name: true } } } },
+  cohort: { select: { name: true, code: true, period: true } },
+  invitedBy: { select: { name: true } },
 } as const;
 
+/** 027 (provisional until T030): the turma's data; the inviter stands where the 003 teacher stood. */
 type InvitationMailRow = {
   email: string;
   expiresAt: Date;
-  schoolClass: { name: string; code: string; period: string | null; teacher: { name: string } };
+  cohort: { name: string; code: string; period: string | null };
+  invitedBy: { name: string };
 };
 
 /**
@@ -43,15 +46,15 @@ export class ClassInvitationMailSubject implements MailSubject, OnModuleInit {
 
   /** The e-mail of `row` with the link of `token`. */
   mail(row: InvitationMailRow, token: string): PreparedMail {
-    const { schoolClass } = row;
+    const { cohort } = row;
     return {
       to: row.email,
       template: "class-invitation",
       params: {
-        className: schoolClass.name,
-        classCode: schoolClass.code,
-        period: schoolClass.period,
-        teacherName: schoolClass.teacher.name,
+        className: cohort.name,
+        classCode: cohort.code,
+        period: cohort.period,
+        teacherName: row.invitedBy.name,
         link: this.links.classInvitation(token),
         expiresAt: row.expiresAt,
       },

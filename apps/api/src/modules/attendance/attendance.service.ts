@@ -74,7 +74,7 @@ export class AttendanceService {
 
       const ids = [...new Set([...batch.mark, ...batch.unmark])];
       const enrolled = await tx.$queryRaw<{ student_user_id: string }[]>`
-        SELECT e.student_user_id FROM enrollments e
+        SELECT e.student_user_id FROM class_enrollments e
         WHERE e.class_id = ${classId}::uuid AND e.status = 'ACTIVE' AND e.student_user_id = ANY(${ids}::uuid[])`;
       if (new Set(enrolled.map((row) => row.student_user_id)).size !== ids.length) throw new AppException("STUDENT_NOT_IN_CLASS");
 
@@ -130,12 +130,12 @@ export class AttendanceService {
 async function findActivity(db: Tx, classId: string, activityId: string, lock: boolean): Promise<ActivityRow> {
   const rows = lock
     ? await db.$queryRaw<ActivityRow[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (c.status = 'ACTIVE') AS class_active
+        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid
         FOR SHARE OF ca`
     : await db.$queryRaw<ActivityRow[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (c.status = 'ACTIVE') AS class_active
+        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid`;
   const activity = rows[0];
@@ -155,7 +155,7 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
            a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at,
            p.id AS pause_id, p.initiated_by::text AS pause_initiated_by, p.reason::text AS pause_reason,
            p.note AS pause_note, p.started_at AS pause_started_at
-    FROM enrollments e
+    FROM class_enrollments e
     JOIN users u ON u.id = e.student_user_id
     JOIN class_activities ca ON ca.id = ${activityId}::uuid
     LEFT JOIN activity_attendances aa ON aa.activity_id = ca.id AND aa.student_user_id = e.student_user_id

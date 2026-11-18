@@ -39,7 +39,7 @@ describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)
       .find((cookie) => cookie.startsWith(`${SESSION_COOKIE_NAME}=`))
       ?.split(";")[0];
   const activeEnrollments = (userId: string) =>
-    t.prisma.enrollment.findMany({ where: { studentUserId: userId, status: "ACTIVE" }, orderBy: { classId: "asc" } });
+    t.prisma.enrollment.findMany({ where: { studentUserId: userId, status: "ACTIVE" }, orderBy: { cohortId: "asc" } });
   const invitationStatus = async (id: string) => (await t.prisma.classInvitation.findUniqueOrThrow({ where: { id } })).status;
   const refusals = () => t.prisma.auditEvent.findMany({ where: { type: "class_invitation.acceptance_refused" } });
 
@@ -84,7 +84,7 @@ describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)
       expect(sessionCookie(res)).toBeUndefined();
 
       expect(await t.prisma.user.count()).toBe(users);
-      expect((await activeEnrollments(student.id)).map((e) => e.classId).sort()).toEqual([first.id, second.id].sort());
+      expect((await activeEnrollments(student.id)).map((e) => e.cohortId).sort()).toEqual([first.cohortId, second.cohortId].sort());
       expect(await invitationStatus(invitation.id)).toBe("ACCEPTED");
       expect(await t.prisma.auditEvent.findFirstOrThrow({ where: { type: "class_invitation.accepted" } })).toMatchObject({
         actorType: "USER",
@@ -236,8 +236,8 @@ describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)
       const { token } = await createClassInvitation(t, third.id, student.email);
 
       expect((await accept({ token }, await loginAs(t, student))).status).toBe(200);
-      expect((await activeEnrollments(student.id)).map((e) => e.classId).sort()).toEqual(
-        [first.id, second.id, third.id].sort(),
+      expect((await activeEnrollments(student.id)).map((e) => e.cohortId).sort()).toEqual(
+        [first.cohortId, second.cohortId, third.cohortId].sort(),
       );
       expect(await t.prisma.user.count({ where: { email: student.email } })).toBe(1);
     });
@@ -259,7 +259,9 @@ describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)
   describe("003/FR-036 turma e professor responsável", () => {
     it("turma INACTIVE → TOKEN_INVALID com recusa auditada; reativada dentro do prazo, o aceite volta a funcionar", async () => {
       const { student } = await enrolledStudent();
-      const schoolClass = await newClass({ code: "B-1", status: "INACTIVE" });
+      // 027: the invitation is to the turma, so the turma (cohort) is the one closed and reopened.
+      const schoolClass = await newClass({ code: "B-1" });
+      await t.prisma.cohort.update({ where: { id: schoolClass.cohortId }, data: { status: "INACTIVE" } });
       const { token, invitation } = await createClassInvitation(t, schoolClass.id, student.email);
       const cookie = await loginAs(t, student);
 
@@ -268,7 +270,7 @@ describe("003/US4 — aluno que já tem conta aceita o convite (FR-032–FR-036)
       expect(await invitationStatus(invitation.id)).toBe("PENDING");
       expect(await refusals()).toMatchObject([{ actorType: "USER", metadata: { reason: "CLASS_NOT_OPEN" } }]);
 
-      await t.prisma.schoolClass.update({ where: { id: schoolClass.id }, data: { status: "ACTIVE" } });
+      await t.prisma.cohort.update({ where: { id: schoolClass.cohortId }, data: { status: "ACTIVE" } });
       expect((await accept({ token }, cookie)).status).toBe(200);
     });
 

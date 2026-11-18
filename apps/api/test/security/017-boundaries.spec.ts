@@ -204,12 +204,13 @@ describe("017 fronteiras do envio de e-mail", () => {
   });
 
   describe("017/FR-030 fora do escopo", () => {
-    it("017/FR-030 mail_kind tem exatamente os seis tipos", async () => {
+    it("017/FR-030 mail_kind tem exatamente os seis tipos (e o sétimo da 027, CLASS_ENROLLMENT_NOTICE)", async () => {
       const rows = await t.prisma.$queryRaw<{ label: string }[]>`
         SELECT e.enumlabel AS label FROM pg_enum e JOIN pg_type ty ON ty.oid = e.enumtypid
         WHERE ty.typname = 'mail_kind' ORDER BY e.enumlabel`;
       expect(rows.map((row) => row.label)).toEqual([
         "ADMIN_ACTIVATION",
+        "CLASS_ENROLLMENT_NOTICE",
         "CLASS_INVITATION",
         "INVITATION_MANAGER",
         "INVITATION_TEACHER",

@@ -29,23 +29,30 @@ const AUDITED_ERRORS: Partial<Record<string, RefusalReason>> = {
   WRONG_ACCOUNT: "WRONG_ACCOUNT",
 };
 
+/**
+ * 027 (provisional until T030): the invitation is to a turma; the preview shows the cohort and the inviter
+ * stands where the 003 teacher stood. `classId` of the answer is the cohort's first disciplina da turma.
+ */
 interface LockedInvitation {
   id: string;
-  classId: string;
+  cohortId: string;
   email: string;
   status: ClassInvitationStatus;
   invitedById: string;
   acceptedByUserId: string | null;
-  schoolClass: {
+  invitedBy: { name: string };
+  cohort: {
     name: string;
     code: string;
     academicYear: number;
     period: string | null;
     status: string;
-    teacherId: string;
-    teacher: { name: string };
+    classes: { id: string }[];
   };
 }
+
+/** The disciplina da turma the acceptance answers (provisional, see `LockedInvitation`). */
+const answeredClassId = (invitation: LockedInvitation) => invitation.cohort.classes[0]?.id ?? invitation.cohortId;
 
 type Lookup = { kind: "found"; invitation: LockedInvitation } | { kind: "rejected"; reason: RejectionReason };
 
@@ -97,15 +104,15 @@ export class ClassInvitationAcceptanceService {
         where: { email: invitation.email },
         select: { studentProfile: { select: { ra: true } } },
       });
-      const { schoolClass } = invitation;
+      const { cohort } = invitation;
       const preview: ClassInvitationPreview = {
         class: {
-          name: schoolClass.name,
-          code: schoolClass.code,
-          academicYear: schoolClass.academicYear,
-          period: schoolClass.period,
+          name: cohort.name,
+          code: cohort.code,
+          academicYear: cohort.academicYear,
+          period: cohort.period,
         },
-        teacherName: schoolClass.teacher.name,
+        teacherName: invitation.invitedBy.name,
         email: invitation.email,
         mode: await this.acceptance.resolveMode(tx, invitation.email),
         raRequired: !user?.studentProfile?.ra,
@@ -135,7 +142,7 @@ export class ClassInvitationAcceptanceService {
           return {
             kind: "accepted",
             result: {
-              classId: invitation.classId,
+              classId: answeredClassId(invitation),
               mode: await this.acceptance.resolveMode(tx, invitation.email),
               alreadyEnrolled: true,
             },
@@ -226,7 +233,7 @@ export class ClassInvitationAcceptanceService {
     const [enrollment] = await tx.enrollment.createManyAndReturn({
       data: [
         {
-          classId: invitation.classId,
+          cohortId: invitation.cohortId,
           studentUserId: userId,
           status: "ACTIVE",
           enrolledAt: new Date(),
@@ -243,7 +250,7 @@ export class ClassInvitationAcceptanceService {
         targetType: "ENROLLMENT",
         targetId: enrollment.id,
         requestId: ctx.requestId,
-        metadata: { classId: invitation.classId, userId, invitationId: invitation.id },
+        metadata: { cohortId: invitation.cohortId, userId, invitationId: invitation.id, source: "INVITATION" },
       });
     }
     const alreadyEnrolled = !enrollment;
@@ -258,10 +265,10 @@ export class ClassInvitationAcceptanceService {
       targetType: "CLASS_INVITATION",
       targetId: invitation.id,
       requestId: ctx.requestId,
-      metadata: { classId: invitation.classId, userId, mode, alreadyEnrolled },
+      metadata: { cohortId: invitation.cohortId, userId, mode, alreadyEnrolled },
     });
 
-    return { accepted: { classId: invitation.classId, mode, alreadyEnrolled }, userId, mode };
+    return { accepted: { classId: answeredClassId(invitation), mode, alreadyEnrolled }, userId, mode };
   }
 
   /** Locks the invitation of `token`; lazy expiry is written (the caller commits it). */
@@ -279,20 +286,20 @@ export class ClassInvitationAcceptanceService {
       where: { id: row.id },
       select: {
         id: true,
-        classId: true,
+        cohortId: true,
         email: true,
         status: true,
         invitedById: true,
         acceptedByUserId: true,
-        schoolClass: {
+        invitedBy: { select: { name: true } },
+        cohort: {
           select: {
             name: true,
             code: true,
             academicYear: true,
             period: true,
             status: true,
-            teacherId: true,
-            teacher: { select: { name: true } },
+            classes: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 1, select: { id: true } },
           },
         },
       },
@@ -302,9 +309,10 @@ export class ClassInvitationAcceptanceService {
 
   /** A pending invitation that can no longer be used for reasons outside the token itself. */
   private async refusalFor(tx: Tx, invitation: LockedInvitation): Promise<RefusalReason | null> {
-    if (invitation.schoolClass.status !== "ACTIVE") return "CLASS_NOT_OPEN";
+    if (invitation.cohort.status !== "ACTIVE") return "CLASS_NOT_OPEN";
+    // 027: whoever invited (the 003 teacher, the MANAGER from 027 on) must still hold an active role.
     const teacherRole = await tx.userRole.findFirst({
-      where: { userId: invitation.schoolClass.teacherId, status: "ACTIVE", role: { key: "TEACHER" } },
+      where: { userId: invitation.invitedById, status: "ACTIVE", role: { key: { in: ["TEACHER", "MANAGER", "ADMIN"] } } },
       select: { id: true },
     });
     if (!teacherRole) return "TEACHER_INACTIVE";

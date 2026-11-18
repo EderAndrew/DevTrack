@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DeliveryStatus, MailKind, Prisma, UndeliveredReason } from "../../src/generated/prisma/client";
-import { createClass, createClassInvitation, createUser, uniqueEmail } from "../helpers/factories";
+import { createClass, createClassInvitation, createEnrollment, createUser, uniqueEmail } from "../helpers/factories";
 import { createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 /**
@@ -37,6 +37,8 @@ describe("017/FR-001 017/FR-012 regras do envio de e-mail e dos avisos garantida
         lastSentAt: new Date(),
       },
     });
+    const enrolled = await createUser(t, { roles: ["STUDENT"] });
+    const enrollment = await createEnrollment(t, schoolClass.id, enrolled.id);
     const bootstrap = await t.prisma.adminBootstrap.create({
       data: { email: uniqueEmail("admin-017"), status: "PENDING", operatorHost: "host", operatorUser: "op" },
     });
@@ -47,6 +49,7 @@ describe("017/FR-001 017/FR-012 regras do envio de e-mail e dos avisos garantida
       VERIFY_EMAIL: { kind: "VERIFY_EMAIL", userId: teacher.id },
       PASSWORD_RESET: { kind: "PASSWORD_RESET", userId: teacher.id },
       ADMIN_ACTIVATION: { kind: "ADMIN_ACTIVATION", adminBootstrapId: bootstrap.id },
+      CLASS_ENROLLMENT_NOTICE: { kind: "CLASS_ENROLLMENT_NOTICE", enrollmentId: enrollment.id },
     };
   });
 

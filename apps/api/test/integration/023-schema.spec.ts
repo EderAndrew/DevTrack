@@ -901,6 +901,19 @@ describe("023/FR-003 migração das tentativas de 012–021", () => {
     });
   }
 
+  /**
+   * 027 moved the turma's fields to `cohorts` and keyed enrollments and invitations by the cohort: these tables are
+   * read back in their pre-027 shape (the factories make one class per cohort, so the cohort's first class is it).
+   */
+  const PRE_027_SOURCES: Record<string, string> = {
+    classes: `SELECT c.*, k.name, k.code, k.academic_year, k.period, k.description, k.search_key
+              FROM public.classes c JOIN public.cohorts k ON k.id = c.cohort_id`,
+    enrollments: `SELECT e.*, (SELECT c.id FROM public.classes c WHERE c.cohort_id = e.cohort_id ORDER BY c.created_at, c.id LIMIT 1) AS class_id
+                  FROM public.enrollments e`,
+    class_invitations: `SELECT i.*, (SELECT c.id FROM public.classes c WHERE c.cohort_id = i.cohort_id ORDER BY c.created_at, c.id LIMIT 1) AS class_id
+                        FROM public.class_invitations i`,
+  };
+
   /** Every table the migrations left empty gets the public rows, in the columns both have, enums cast by name. */
   async function copyPublicRows(): Promise<void> {
     const tables = await query<{ table_name: string }>(
@@ -910,14 +923,18 @@ describe("023/FR-003 migração das tentativas de 012–021", () => {
     await db.query("BEGIN");
     await db.query("SET LOCAL session_replication_role = replica");
     for (const { table_name: table } of tables) {
+      const source = PRE_027_SOURCES[table];
       const columns = await query<{
         column_name: string;
         data_type: string;
         udt_name: string;
       }>(
-        `SELECT s.column_name, s.data_type, s.udt_name FROM information_schema.columns s
-         JOIN information_schema.columns p ON p.table_schema = 'public' AND p.table_name = s.table_name AND p.column_name = s.column_name
-         WHERE s.table_schema = $1 AND s.table_name = $2 ORDER BY s.ordinal_position`,
+        source
+          ? `SELECT s.column_name, s.data_type, s.udt_name FROM information_schema.columns s
+             WHERE s.table_schema = $1 AND s.table_name = $2 ORDER BY s.ordinal_position`
+          : `SELECT s.column_name, s.data_type, s.udt_name FROM information_schema.columns s
+             JOIN information_schema.columns p ON p.table_schema = 'public' AND p.table_name = s.table_name AND p.column_name = s.column_name
+             WHERE s.table_schema = $1 AND s.table_name = $2 ORDER BY s.ordinal_position`,
         [SCHEMA, table],
       );
       // The tables the migrations seed (roles, permissions, languages) keep their own rows.
@@ -927,7 +944,7 @@ describe("023/FR-003 migração das tentativas de 012–021", () => {
       const values = columns
         .map((column) => (column.data_type === "USER-DEFINED" ? `"${column.column_name}"::text::${SCHEMA}."${column.udt_name}"` : `"${column.column_name}"`))
         .join(", ");
-      await db.query(`INSERT INTO ${SCHEMA}."${table}" (${names}) SELECT ${values} FROM public."${table}"`);
+      await db.query(`INSERT INTO ${SCHEMA}."${table}" (${names}) SELECT ${values} FROM ${source ? `(${source}) src` : `public."${table}"`}`);
     }
     await db.query("COMMIT");
   }

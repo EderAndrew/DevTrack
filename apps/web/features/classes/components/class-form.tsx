@@ -80,7 +80,11 @@ export function ClassForm({ initial, defaultSubjectId }: ClassFormProps) {
     setErrors([]);
     try {
       const body = toClassRequest(values);
-      const saved = initial ? await update.mutateAsync(body) : await create.mutateAsync(body);
+      // 027: the edit takes only the calendar (the turma's fields are the MANAGER's, the subject is fixed); the
+      // form itself changes with US3/US4 (T039, T044).
+      const saved = initial
+        ? await update.mutateAsync({ startsOn: body.startsOn ?? null, endsOn: body.endsOn ?? null })
+        : await create.mutateAsync(body);
       router.push(`/turmas/${saved.id}`);
     } catch (error) {
       const code = apiErrorCode(error);

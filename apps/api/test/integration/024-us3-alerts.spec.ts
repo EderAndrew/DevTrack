@@ -12,6 +12,7 @@ import { mobileApi } from "../helpers/mobile";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { FakePushClient } from "../fixtures/push/fake-push-client";
 import { createConfirmedSyllabus } from "../helpers/works";
+import { CLASS_LABEL_SELECT, labelOf } from "../../src/modules/classes/class-label";
 
 const SECOND = 1000;
 type Client = ReturnType<typeof api>;
@@ -86,7 +87,7 @@ describe("024/US3 o celular avisa a cada ocorrência e a cada prova retida", () 
       to: phone.pushToken,
       channelId: "exam-occurrences",
       title: "Ocorrência na prova",
-      body: `${students[0]!.name} — Aviso 1 de 3 — Prova de Java (${(await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId } })).name})`,
+      body: `${students[0]!.name} — Aviso 1 de 3 — Prova de Java (${labelOf(await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId }, select: CLASS_LABEL_SELECT }))})`,
       data: { kind: "OCCURRENCE", classId, activityId: activity.id, studentUserId: students[0]!.id },
       priority: "high",
       sound: "default",

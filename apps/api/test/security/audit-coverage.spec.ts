@@ -30,6 +30,7 @@ const CONTRACTS = [
   resolve(API_ROOT, "../../specs/023-group-work/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/024-mobile-exam-monitor/contracts/audit-events.md"),
   resolve(API_ROOT, "../../specs/025-exam-student-nudge/contracts/audit-events.md"),
+  resolve(API_ROOT, "../../specs/027-manager-classes/contracts/audit-events.md"),
 ];
 
 /**
@@ -69,6 +70,44 @@ const PENDING_019 = new Set<string>([]);
 const PENDING_020 = new Set<string>([]);
 /** 025 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_025 = new Set<string>([]);
+/** 027 types whose routes arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
+const PENDING_027 = new Set<string>([
+  "cohort.created", // US1
+  "cohort.updated", // US1
+  "cohort.status_changed", // US1
+  "cohort.student_lookup", // US2
+  "cohort.student_lookup_rate_limited", // US2
+]);
+/**
+ * 027 rows that replace the earlier feature's row of the same type (the turma took the invitations and the
+ * enrollments; the class became the disciplina da turma): their metadata is the 027 row's, not the union.
+ */
+const REPLACED_BY_027 = new Set<string>([
+  "class.created",
+  "class.updated",
+  "class.status_changed",
+  "class_invitation.created",
+  "class_invitation.resent",
+  "class_invitation.cancelled",
+  "class_invitation.accepted",
+  "class_invitation.acceptance_refused",
+  "enrollment.created",
+  "enrollment.removed",
+]);
+/**
+ * Catalogued types the journey does not emit: `cohort_transition.applied` only comes from the migration
+ * (`027-transition.spec.ts` checks it); the others leave this list with the 027 story that brings their route back
+ * to the journey (Phase 2 builds the turma, the class and the invitations with the factories).
+ */
+const NOT_IN_JOURNEY_027 = new Set<string>([
+  "cohort_transition.applied",
+  "class.created", // US3
+  "class.updated", // US3
+  "class_invitation.created", // US2
+  "class_invitation.resent", // US2
+  "class_invitation.cancelled", // US2
+  "enrollment.removed", // US5
+]);
 const PENDING = new Set([
   ...PENDING_010,
   ...PENDING_011,
@@ -81,6 +120,7 @@ const PENDING = new Set([
   ...PENDING_020,
   ...PENDING_023,
   ...PENDING_025,
+  ...PENDING_027,
 ]);
 
 interface ContractRow {
@@ -89,6 +129,8 @@ interface ContractRow {
   /** null = "—" (no target); several when the event targets the resource it was about (012). */
   target: string[] | null;
   metadata: string[];
+  /** A 027 row that replaces the earlier one (`REPLACED_BY_027`). */
+  replaces?: boolean;
 }
 
 const backticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
@@ -103,7 +145,8 @@ function contractRows(file: string): ContractRow[] {
   // each row joins the earlier type's row with the story that emits it (`changedRows`).
   const [text = "", changed = ""] = readFileSync(file, "utf8").split(/^## Tipos aposentados/m)[0]!.split(/^## Changed/m);
   // 023 shares changed types with 018 (`activity_attempt.started`), so its pending rows are skipped only in its own file.
-  return [...eventRows(text), ...changedRows(changed, file.includes("/023-") ? PENDING_CHANGED_023 : new Set())];
+  const rows = [...eventRows(text), ...changedRows(changed, file.includes("/023-") ? PENDING_CHANGED_023 : new Set())];
+  return file.includes("/027-") ? rows.map((row) => ({ ...row, replaces: REPLACED_BY_027.has(row.type) })) : rows;
 }
 
 /**
@@ -156,6 +199,10 @@ function mergeExtensions(all: ContractRow[]): ContractRow[] {
     const first = byType.get(row.type);
     if (!first) {
       byType.set(row.type, { ...row });
+      continue;
+    }
+    if (row.replaces) {
+      byType.set(row.type, { type: row.type, actors: row.actors, target: row.target, metadata: row.metadata });
       continue;
     }
     const union = (a: string[], b: string[]) => [...new Set([...a, ...b])];
@@ -215,7 +262,7 @@ describe("SC-008 — trilha de auditoria (FR-070, FR-071, critério 25)", () => 
     });
     afterAll(() => t.close());
 
-    it.each(rows.map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
+    it.each(rows.filter((row) => !NOT_IN_JOURNEY_027.has(row.type)).map((row) => [row.type, row] as const))("003/SC-009 %s: ator, alvo, data, requestId e metadata", (type, row) => {
       const found = events.filter((e) => e.type === type);
       expect(found.length, `nenhum evento ${type}`).toBeGreaterThan(0);
 

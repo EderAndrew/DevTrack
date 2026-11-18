@@ -28,9 +28,12 @@ export class AlertRecipients {
 
   async context(activityId: string, studentUserId: string): Promise<AlertContext | null> {
     const rows = await this.prisma.$queryRaw<AlertContext[]>`
-      SELECT a.class_id AS "classId", a.title AS "examTitle", c.name AS "className", st.name AS "studentName"
+      SELECT a.class_id AS "classId", a.title AS "examTitle",
+             COALESCE(sj.name || ' · ', '') || k.name AS "className", st.name AS "studentName"
       FROM class_activities a
       JOIN classes c ON c.id = a.class_id
+      JOIN cohorts k ON k.id = c.cohort_id
+      LEFT JOIN subjects sj ON sj.id = c.subject_id
       JOIN users st ON st.id = ${studentUserId}::uuid
       WHERE a.id = ${activityId}::uuid`;
     return rows[0] ?? null;
@@ -45,7 +48,7 @@ export class AlertRecipients {
       JOIN mobile_devices d ON d.user_id = u.id
       JOIN sessions s ON s.id = d.session_id
       WHERE c.id = ${classId}::uuid
-        AND c.status <> 'ARCHIVED'
+        AND class_effective_status(c.id) <> 'ARCHIVED'
         AND s.client = 'MOBILE'
         AND s.revoked_at IS NULL
         AND s.absolute_expires_at > ${now}

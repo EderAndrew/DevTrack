@@ -92,7 +92,7 @@ describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-0
       });
       const enrollments = await t.prisma.enrollment.findMany();
       expect(enrollments).toMatchObject([
-        { classId: schoolClass.id, studentUserId: user.id, status: "ACTIVE", invitationId: row.id },
+        { cohortId: schoolClass.cohortId, studentUserId: user.id, status: "ACTIVE", invitationId: row.id, source: "INVITATION" },
       ]);
       expect(await t.prisma.classInvitation.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({
         status: "ACCEPTED",
@@ -111,7 +111,7 @@ describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-0
           actorType: "ANONYMOUS",
           targetType: "CLASS_INVITATION",
           targetId: row.id,
-          metadata: { classId: schoolClass.id, userId: user.id, mode: "CREATE_ACCOUNT", alreadyEnrolled: false },
+          metadata: { cohortId: schoolClass.cohortId, userId: user.id, mode: "CREATE_ACCOUNT", alreadyEnrolled: false },
         },
       ]);
       expect(await audit("student.registered")).toMatchObject([
@@ -121,7 +121,7 @@ describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-0
         {
           targetType: "ENROLLMENT",
           targetId: enrollments[0]!.id,
-          metadata: { classId: schoolClass.id, userId: user.id, invitationId: row.id },
+          metadata: { cohortId: schoolClass.cohortId, userId: user.id, invitationId: row.id, source: "INVITATION" },
         },
       ]);
       expect(await audit("role.granted")).toMatchObject([
@@ -286,7 +286,8 @@ describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-0
     ] as const)("%s → TOKEN_INVALID e recusa auditada (%s)", async (_label, reason) => {
       const { token, schoolClass, invitation: row } = await invitation();
       if (reason === "CLASS_NOT_OPEN") {
-        await t.prisma.schoolClass.update({ where: { id: schoolClass.id }, data: { status: "INACTIVE" } });
+        // 027: the invitation is to the turma, so the turma (cohort) is the one closed.
+        await t.prisma.cohort.update({ where: { id: schoolClass.cohortId }, data: { status: "INACTIVE" } });
       } else {
         await t.prisma.userRole.updateMany({ where: { userId: teacher.id }, data: { status: "INACTIVE" } });
       }

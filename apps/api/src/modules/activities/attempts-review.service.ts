@@ -459,7 +459,7 @@ async function lockActivity(tx: Tx, classId: string, activityId: string, mode: "
     }[]
   >`
     SELECT ca.type::text AS type, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.total_grade, ca.result_released_at,
-           c.status::text AS class_status
+           class_effective_status(c.id)::text AS class_status
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
     WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid

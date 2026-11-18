@@ -144,7 +144,7 @@ describe("003/US6 — professor vê os alunos da turma e remove um aluno (FR-042
       expect(accepted.status).toBe(200);
       expect(accepted.body.alreadyEnrolled).toBe(false);
 
-      const rows = await t.prisma.enrollment.findMany({ where: { studentUserId: student.id, classId: schoolClass.id } });
+      const rows = await t.prisma.enrollment.findMany({ where: { studentUserId: student.id, cohort: { classes: { some: { id: schoolClass.id } } } } });
       expect(rows.map((r) => r.status).sort()).toEqual(["ACTIVE", "REMOVED"]);
       expect(names(await list())).toEqual(["Ana"]);
     });

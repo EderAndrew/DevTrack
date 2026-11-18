@@ -108,10 +108,10 @@ describe("004 datas de calendário", () => {
     expect(issuePaths(UpdateClassRequestSchema.safeParse({ endsOn: "2027-06-30" }))).toEqual(["startsOn"]);
   });
 
-  it("edição pode limpar as duas datas juntas ou mudar só outros campos", () => {
+  it("edição pode limpar as duas datas juntas; desde a 027 (FR-019) só as datas mudam", () => {
     expect(UpdateClassRequestSchema.safeParse({ startsOn: null, endsOn: null }).success).toBe(true);
-    expect(UpdateClassRequestSchema.safeParse({ subjectId: null }).success).toBe(true);
-    expect(UpdateClassRequestSchema.safeParse({ name: "Outra" }).success).toBe(true);
+    expect(UpdateClassRequestSchema.safeParse({ subjectId: null }).success).toBe(false);
+    expect(UpdateClassRequestSchema.safeParse({ name: "Outra" }).success).toBe(false);
   });
 
   it("filtro por disciplina na lista de turmas", () => {

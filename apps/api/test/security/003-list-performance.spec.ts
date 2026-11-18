@@ -45,7 +45,7 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     });
     await t.prisma.enrollment.createMany({
       data: [first.id, ...users.map((u) => u.id)].map((studentUserId) => ({
-        classId: big.id,
+        cohortId: big.cohortId,
         studentUserId,
         status: "ACTIVE" as const,
         enrolledAt: new Date(),
@@ -53,12 +53,12 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     });
     // The first student is in every class, so "Minhas turmas" also lists 100.
     await t.prisma.enrollment.createMany({
-      data: classes.slice(1).map((c) => ({ classId: c.id, studentUserId: first.id, status: "ACTIVE" as const, enrolledAt: new Date() })),
+      data: classes.slice(1).map((c) => ({ cohortId: c.cohortId, studentUserId: first.id, status: "ACTIVE" as const, enrolledAt: new Date() })),
     });
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await t.prisma.classInvitation.createMany({
       data: Array.from({ length: STUDENTS }, (_, i) => ({
-        classId: big.id,
+        cohortId: big.cohortId,
         email: `convidado-${i}@example.test`,
         tokenHash: randomUUID(),
         status: "PENDING" as const,

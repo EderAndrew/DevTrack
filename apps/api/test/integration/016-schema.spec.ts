@@ -136,7 +136,7 @@ describe("016/FR-001 016/FR-008 016/FR-013 regras da chamada e da pausa garantid
       await expect(mark(work, other, elsewhere.schoolClass.id)).rejects.toThrow(/must be in its class/);
 
       await t.prisma.enrollment.updateMany({
-        where: { classId: schoolClass.id, studentUserId: other.id },
+        where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: other.id },
         data: { status: "REMOVED", removedAt: new Date(), removedById: teacherId },
       });
       await expect(mark(work, other)).rejects.toThrow(/no active enrollment/);

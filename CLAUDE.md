@@ -300,6 +300,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   attendance and monitoring code and from any write to the exam's tables; `exam-sessions` and `attempt-integrity`
   reach it only through `exam-nudges/nudge-status.ts` and `views.ts`; names and texts stay out of its audit and log
   calls, and the warning's sentence lives only in the web and the app.
+- `apps/api/test/cohorts-boundary.spec.ts` (027) fails when a reader joins `enrollments` by a `class_id` (pedagogical
+  readers use the view `class_enrollments` or `schoolClass.cohort.enrollments`), when a module other than `cohorts`,
+  `class-invitations` and `enrollments` writes enrollments or invitations, and when a class's own `status` is read
+  without the cohort's (outside `ClassContextPolicy`, whose `status` is the effective one).
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).

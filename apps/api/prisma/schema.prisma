@@ -159,6 +159,9 @@ enum ClassInvitationCancelReason {
   TEACHER
   CLASS_ARCHIVED
   ALREADY_ENROLLED
+  MANAGER
+  ENROLLED_DIRECTLY
+  MERGED
 
   @@map("class_invitation_cancel_reason")
 }
@@ -183,6 +186,7 @@ enum MailKind {
   INVITATION_MANAGER
   ADMIN_ACTIVATION
   CLASS_INVITATION
+  CLASS_ENROLLMENT_NOTICE
 
   @@map("mail_kind")
 }
@@ -235,6 +239,20 @@ enum EnrollmentStatus {
   REMOVED
 
   @@map("enrollment_status")
+}
+
+enum EnrollmentRemovalReason {
+  MANAGER
+  MERGED
+
+  @@map("enrollment_removal_reason")
+}
+
+enum EnrollmentSource {
+  INVITATION
+  DIRECT
+
+  @@map("enrollment_source")
 }
 
 enum SubjectStatus {
@@ -359,6 +377,8 @@ model User {
   classInvitationsAccepted  ClassInvitation[] @relation("ClassInvitationAcceptedBy")
   classInvitationsCancelled ClassInvitation[] @relation("ClassInvitationCancelledBy")
   enrollmentsRemoved        Enrollment[]      @relation("EnrollmentRemovedBy")
+  enrollmentsEnrolled       Enrollment[]      @relation("EnrollmentEnrolledBy")
+  cohortsCreated            Cohort[]
 
   subjects                   Subject[]
   syllabusUploads            SyllabusDocument[]
@@ -497,19 +517,44 @@ model StudentProfile {
   @@map("student_profiles")
 }
 
-model SchoolClass {
+/// The turma (027 research Q1): the MANAGER's group of students of an academic year. Its enrollments and
+/// invitations belong to it; each teacher adds a disciplina da turma (`SchoolClass`) to it.
+model Cohort {
   id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  teacherId       String      @map("teacher_id") @db.Uuid
   name            String
+  /// Unique per academic year ignoring case (SQL index on (academic_year, upper(code)), FR-002).
   code            String
   academicYear    Int         @map("academic_year")
   period          String?
   description     String?
   status          ClassStatus @default(ACTIVE)
   statusChangedAt DateTime?   @map("status_changed_at") @db.Timestamptz(6)
-  /// Name + code, lowercase, without accents (searchKey, D10); written by the application.
+  /// Name + code, lowercase, without accents (searchKey, 003 D10); written by the application.
   searchKey       String      @map("search_key")
-  /// The class is the offering of this subject (004 E2); same teacher, checked by the service.
+  createdById     String      @map("created_by_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy   User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  classes     SchoolClass[]
+  invitations ClassInvitation[]
+  enrollments Enrollment[]
+
+  @@index([status, academicYear(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdById])
+  @@map("cohorts")
+}
+
+/// The disciplina da turma (027 research Q1): a teacher's subject inside a cohort. Teacher, cohort and
+/// subject are immutable (trigger `classes_identity_immutable`, FR-019); `status` is the class's own, the
+/// effective status is the most restrictive of it and the cohort's (FR-023, `effectiveStatus`).
+model SchoolClass {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId       String      @map("teacher_id") @db.Uuid
+  cohortId        String      @map("cohort_id") @db.Uuid
+  status          ClassStatus @default(ACTIVE)
+  statusChangedAt DateTime?   @map("status_changed_at") @db.Timestamptz(6)
+  /// NULL only for a class migrated without subject (FR-030); unique per cohort (FR-018).
   subjectId       String?     @map("subject_id") @db.Uuid
   /// Both or neither, endsOn >= startsOn (SQL CHECK).
   startsOn        DateTime?   @map("starts_on") @db.Date
@@ -518,9 +563,8 @@ model SchoolClass {
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   teacher         User                     @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  cohort          Cohort                   @relation(fields: [cohortId], references: [id], onDelete: Restrict)
   subject         Subject?                 @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  invitations     ClassInvitation[]
-  enrollments     Enrollment[]
   meetings        ClassMeeting[]
   plan            ClassPlan?
   activities      ClassActivity[]
@@ -528,14 +572,14 @@ model SchoolClass {
   exerciseResults ExerciseQuestionResult[]
 
   @@index([teacherId, status, createdAt(sort: Desc), id(sort: Desc)])
-  @@index([teacherId, academicYear])
+  @@index([cohortId])
   @@index([subjectId])
   @@map("classes")
 }
 
 model ClassInvitation {
   id               String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  classId          String                       @map("class_id") @db.Uuid
+  cohortId         String                       @map("cohort_id") @db.Uuid
   email            String
   tokenHash        String                       @unique @map("token_hash")
   status           ClassInvitationStatus
@@ -551,14 +595,14 @@ model ClassInvitation {
   createdAt        DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  schoolClass SchoolClass    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  cohort      Cohort         @relation(fields: [cohortId], references: [id], onDelete: Restrict)
   invitedBy   User           @relation("ClassInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict)
   acceptedBy  User?          @relation("ClassInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
   cancelledBy User?          @relation("ClassInvitationCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   deliveries  MailDelivery[]
   enrollments Enrollment[]
 
-  @@index([classId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([cohortId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([email])
   @@map("class_invitations")
 }
@@ -576,6 +620,8 @@ model MailDelivery {
   invitationId      String?            @map("invitation_id") @db.Uuid
   userId            String?            @map("user_id") @db.Uuid
   adminBootstrapId  String?            @map("admin_bootstrap_id") @db.Uuid
+  /// 027: the subject of CLASS_ENROLLMENT_NOTICE.
+  enrollmentId      String?            @map("enrollment_id") @db.Uuid
   status            DeliveryStatus
   attempts          Int                @default(0)
   nextAttemptAt     DateTime?          @map("next_attempt_at") @db.Timestamptz(6)
@@ -594,12 +640,14 @@ model MailDelivery {
   invitation      Invitation?      @relation(fields: [invitationId], references: [id], onDelete: Restrict)
   user            User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
   adminBootstrap  AdminBootstrap?  @relation(fields: [adminBootstrapId], references: [id], onDelete: Restrict)
+  enrollment      Enrollment?      @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
   notices         MailNotice[]
 
   @@index([status, nextAttemptAt])
   @@index([classInvitationId, createdAt(sort: Desc)])
   @@index([invitationId, createdAt(sort: Desc)])
   @@index([userId, kind])
+  @@index([enrollmentId, createdAt(sort: Desc)])
   @@index([adminBootstrapId])
   @@map("mail_deliveries")
 }
@@ -628,24 +676,34 @@ model MailNotice {
   @@map("mail_notices")
 }
 
+/// An enrollment in a turma (027): valid for every disciplina of the cohort (FR-013). Pedagogical readers
+/// go through the view `class_enrollments` or `schoolClass.cohort.enrollments` (research Q3).
 model Enrollment {
-  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  classId       String           @map("class_id") @db.Uuid
-  studentUserId String           @map("student_user_id") @db.Uuid
+  id            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cohortId      String                   @map("cohort_id") @db.Uuid
+  studentUserId String                   @map("student_user_id") @db.Uuid
   status        EnrollmentStatus
-  enrolledAt    DateTime         @map("enrolled_at") @db.Timestamptz(6)
-  invitationId  String?          @map("invitation_id") @db.Uuid
-  removedAt     DateTime?        @map("removed_at") @db.Timestamptz(6)
-  removedById   String?          @map("removed_by_id") @db.Uuid
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  enrolledAt    DateTime                 @map("enrolled_at") @db.Timestamptz(6)
+  invitationId  String?                  @map("invitation_id") @db.Uuid
+  /// INVITATION (accepted invitation) or DIRECT (the MANAGER enrolled an existing student, FR-034).
+  source        EnrollmentSource         @default(INVITATION)
+  /// The MANAGER of a DIRECT enrollment (CHECK: set exactly when DIRECT).
+  enrolledById  String?                  @map("enrolled_by_id") @db.Uuid
+  removedAt     DateTime?                @map("removed_at") @db.Timestamptz(6)
+  removedById   String?                  @map("removed_by_id") @db.Uuid
+  /// MANAGER from 027 on, MERGED by the transition; NULL for the 003 removals.
+  removalReason EnrollmentRemovalReason? @map("removal_reason")
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  schoolClass SchoolClass      @relation(fields: [classId], references: [id], onDelete: Restrict)
-  student     StudentProfile   @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
-  invitation  ClassInvitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict)
-  removedBy   User?            @relation("EnrollmentRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+  cohort     Cohort           @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  student    StudentProfile   @relation(fields: [studentUserId], references: [userId], onDelete: Restrict)
+  invitation ClassInvitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+  removedBy  User?            @relation("EnrollmentRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+  enrolledBy User?            @relation("EnrollmentEnrolledBy", fields: [enrolledById], references: [id], onDelete: Restrict)
+  deliveries MailDelivery[]
 
-  @@index([classId, status])
+  @@index([cohortId, status])
   @@index([studentUserId, status])
   @@map("enrollments")
 }

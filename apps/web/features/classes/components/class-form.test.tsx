@@ -146,16 +146,8 @@ describe("003/US1-1 003/US1-3 ClassForm (FR-001, FR-003)", () => {
     await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS.id}`));
     expect(fetchMock.mock.calls[0]![0]).toBe(`/api/classes/${CLASS.id}`);
     expect(fetchMock.mock.calls[0]![1]!.method).toBe("PATCH");
-    expect(sentBody(0, fetchMock)).toEqual({
-      name: "POO Avançada",
-      code: CLASS.code,
-      academicYear: 2026,
-      period: "2º semestre",
-      description: null,
-      subjectId: null,
-      startsOn: null,
-      endsOn: null,
-    });
+    // 027 FR-019: the edit sends only the calendar; the turma's fields are the MANAGER's (US1).
+    expect(sentBody(0, fetchMock)).toEqual({ startsOn: null, endsOn: null });
     expect(screen.getByRole("link", { name: "Cancelar" }).getAttribute("href")).toBe(`/turmas/${CLASS.id}`);
   });
 });
@@ -229,11 +221,8 @@ describe("004/US1-3 004/US1-4 004/US1-5 ClassForm — disciplina e datas da ofer
     );
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
     await vi.waitFor(() => expect(router.push).toHaveBeenCalled());
-    expect(sentBody(0, fetchMock)).toMatchObject({
-      subjectId: POO_SUBJECT.id,
-      startsOn: "2027-02-01",
-      endsOn: "2027-06-30",
-    });
+    // 027 FR-019: the subject is fixed, so only the dates are sent.
+    expect(sentBody(0, fetchMock)).toEqual({ startsOn: "2027-02-01", endsOn: "2027-06-30" });
   });
 
   it.each([

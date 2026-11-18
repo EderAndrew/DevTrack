@@ -308,7 +308,8 @@ describe("017/US1 todo e-mail sobrevive a uma falha de envio", () => {
     await t.flushMail();
     const before = await t.prisma.classInvitation.findUniqueOrThrow({ where: { id: subjectId } });
     const cookie = await loginAs(t, teacher);
-    const list = async () => (await api(t, { cookie }).get(`/api/classes/${before.classId}/invitations`)).body.items[0];
+    const classId = (await t.prisma.schoolClass.findFirstOrThrow({ where: { cohortId: before.cohortId }, select: { id: true } })).id;
+    const list = async () => (await api(t, { cookie }).get(`/api/classes/${classId}/invitations`)).body.items[0];
     expect(await list()).toMatchObject({ delivery: "SENDING", deliveryIssue: null });
 
     t.mailer.setFailing(false);

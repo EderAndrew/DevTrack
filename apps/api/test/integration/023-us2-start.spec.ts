@@ -204,7 +204,7 @@ describe("023/US2 aluno inicia e escolhe os integrantes", () => {
     const outsider = await createUser(t, { roles: ["STUDENT"], name: "Gabi de Outra Turma" });
     await createEnrollment(t, otherClass.id, outsider.id);
     expect((await markPresent(teacherClient, classId, activity.id, [ana.id, bruno.id, carla.id, davi.id, removed.id])).status).toBe(200);
-    await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: removed.id }, data: { status: "REMOVED", removedAt: new Date() } });
+    await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: removed.id }, data: { status: "REMOVED", removedAt: new Date() } });
     // Davi leads a group with Carla: neither is a candidate any more.
     expect((await startGroup(as[davi.id]!, activity.id, [carla.id])).status).toBe(200);
 

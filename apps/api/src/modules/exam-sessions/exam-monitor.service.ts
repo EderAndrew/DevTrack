@@ -96,7 +96,7 @@ export class ExamMonitorService {
              p.note AS pause_note, p.started_at AS pause_started_at,
              COALESCE(nz.sent_count, 0)::int AS nudge_count, nz.pending_since AS nudge_pending_since,
              nz.last_dismissed_at AS nudge_last_dismissed_at
-      FROM enrollments e
+      FROM class_enrollments e
       JOIN users u ON u.id = e.student_user_id
       LEFT JOIN activity_attendances aa ON aa.activity_id = ${activityId}::uuid AND aa.student_user_id = e.student_user_id
       LEFT JOIN LATERAL (

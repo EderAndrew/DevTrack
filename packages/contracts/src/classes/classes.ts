@@ -57,9 +57,12 @@ export function refineClassPeriod(
 export const CreateClassRequestSchema = ClassFieldsSchema.superRefine(refineClassPeriod);
 export type CreateClassRequest = z.infer<typeof CreateClassRequestSchema>;
 
-/** The same fields, all optional, at least one present. */
-export const UpdateClassRequestSchema = ClassFieldsSchema.partial()
-  .refine((value) => Object.values(value).some((field) => field !== undefined))
+/**
+ * 027 FR-019: a teacher edits only the calendar of a disciplina da turma — both dates or both null (004
+ * rules); the turma's fields belong to the cohort and the subject never changes (any other field → 400).
+ */
+export const UpdateClassRequestSchema = z
+  .strictObject({ startsOn: IsoDateSchema.nullable(), endsOn: IsoDateSchema.nullable() })
   .superRefine(refineClassPeriod);
 export type UpdateClassRequest = z.infer<typeof UpdateClassRequestSchema>;
 

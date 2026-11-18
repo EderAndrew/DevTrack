@@ -11,6 +11,8 @@ import { examEndOf, pauseTime } from "../activities/status/pause-time";
 import { decideOperation, type OperationRefusal } from "../activities/status/operations";
 import type { ActivityQuestionRow } from "../activities/views/rows";
 import { canEdit, groupRoles } from "../activities/group/group-roles";
+import { CLASS_LABEL_SELECT } from "../classes/class-label";
+import { effectiveStatus } from "../classes/effective-status";
 import type {
   ConcludedAttemptInput,
   StudentActivityDetailInput,
@@ -91,7 +93,7 @@ const ACTIVITY_SELECT = {
   durationMinutes: true,
   inactivityLimitSeconds: true,
   cancelledAt: true,
-  schoolClass: { select: { id: true, name: true, status: true, subject: { select: { name: true } } } },
+  schoolClass: { select: { id: true, status: true, ...CLASS_LABEL_SELECT } },
   teacher: { select: { name: true } },
   /** The EXERCISE's possible points (013/FR-003). */
   questions: { select: { points: true } },
@@ -230,7 +232,7 @@ export class StudentActivityLoader {
   } | null> {
     const activity = await this.prisma.classActivity.findFirst({
       where: { id: activityId, type: "ASSIGNMENT", ...visibleTo(studentUserId, now) },
-      select: { groupSize: true, status: true, deadline: true, latePolicy: true, resultReleasedAt: true, schoolClass: { select: { status: true } } },
+      select: { groupSize: true, status: true, deadline: true, latePolicy: true, resultReleasedAt: true, schoolClass: { select: { status: true, cohort: { select: { status: true } } } } },
     });
     if (!activity) return null;
     // Whether a start without an attempt would be accepted now: the list is for a start or an inclusion.
@@ -238,7 +240,7 @@ export class StudentActivityLoader {
       type: "ASSIGNMENT",
       activityStatus: activity.status,
       ...assignmentSchedule(activity),
-      classActive: activity.schoolClass.status === "ACTIVE",
+      classActive: effectiveStatus(activity.schoolClass.cohort.status, activity.schoolClass.status) === "ACTIVE",
       attempt: null,
       submission: null,
       released: activity.resultReleasedAt !== null,
@@ -278,7 +280,10 @@ export class StudentActivityLoader {
         orderBy: [{ joinedAt: "asc" }, { addedByUserId: { sort: "asc", nulls: "first" } }, { student: { user: { name: "asc" } } }],
         select: { studentUserId: true, joinedAt: true, addedByUserId: true, student: { select: { user: { select: { name: true } } } } },
       }),
-      this.prisma.enrollment.findMany({ where: { classId: activity.schoolClass.id, status: "ACTIVE" }, select: { studentUserId: true } }),
+      this.prisma.enrollment.findMany({
+        where: { status: "ACTIVE", cohort: { classes: { some: { id: activity.schoolClass.id } } } },
+        select: { studentUserId: true },
+      }),
       activity.status === "ACTIVE"
         ? this.prisma.attemptPause.findMany({ where: { attemptId, releasedAt: null }, select: { studentUserId: true } })
         : [],
@@ -426,14 +431,13 @@ export class StudentActivityLoader {
       }[]
     >`
       SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
-             ca.late_policy::text AS late_policy, ca.ai_help_allowance, (c.status = 'ACTIVE') AS class_active,
+             ca.late_policy::text AS late_policy, ca.ai_help_allowance, (class_effective_status(ca.class_id) = 'ACTIVE') AS class_active,
              ca.release_mode::text AS release_mode, ca.code_execution_allowed, ca.publish_at, ca.duration_minutes, ca.start_window_minutes, ca.closed_at, ca.cancelled_at
       FROM class_activities ca
-      JOIN classes c ON c.id = ca.class_id
       WHERE ca.id = ${activityId}::uuid
         AND ca.status <> 'CANCELLED'
         AND ca.publish_at <= ${now}
-        AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
+        AND EXISTS (SELECT 1 FROM class_enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
         AND ${releasedToSql(studentUserId)}
       ${lock}`;
     const activity = activities[0];
@@ -494,7 +498,9 @@ export class StudentActivityLoader {
       select: { classId: true, status: true, publishAt: true, releaseMode: true },
     });
     if (!activity) return null;
-    const enrolled = await this.prisma.enrollment.count({ where: { classId: activity.classId, studentUserId, status: "ACTIVE" } });
+    const enrolled = await this.prisma.enrollment.count({
+      where: { studentUserId, status: "ACTIVE", cohort: { classes: { some: { id: activity.classId } } } },
+    });
     if (enrolled === 0) return "NOT_ENROLLED";
     if (activity.status === "CANCELLED") return "CANCELLED";
     if (activity.publishAt.getTime() > now.getTime()) return "NOT_PUBLISHED";
@@ -530,7 +536,7 @@ const visibleTo = (studentUserId: string, now: Date) =>
   ({
     status: { not: "CANCELLED" },
     publishAt: { lte: now },
-    schoolClass: { enrollments: { some: { studentUserId, status: "ACTIVE" } } },
+    schoolClass: { cohort: { enrollments: { some: { studentUserId, status: "ACTIVE" } } } },
     OR: [{ releaseMode: "ALL_ENROLLED" }, { attendances: { some: { studentUserId } } }],
   }) satisfies Prisma.ClassActivityWhereInput;
 
@@ -545,7 +551,7 @@ export const releasedToSql = (studentUserId: string) =>
 /** The facts of the student's situation, by type (contracts/student-status.md). */
 function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date): ActivityFacts {
   const latest = attempts.at(-1) ?? null;
-  const classActive = activity.schoolClass.status === "ACTIVE";
+  const classActive = effectiveStatus(activity.schoolClass.cohort.status, activity.schoolClass.status) === "ACTIVE";
   if (activity.type === "EXERCISE") {
     return {
       type: "EXERCISE",
@@ -594,7 +600,8 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
     groupSize: activity.groupSize,
     title: activity.title,
     instructions: activity.instructions,
-    class: { id: activity.schoolClass.id, name: activity.schoolClass.name },
+    // The subject travels apart in `subjectName` (026), so the class is named by its turma (027).
+    class: { id: activity.schoolClass.id, name: activity.schoolClass.cohort.name },
     subjectName: activity.schoolClass.subject?.name ?? null,
     teacherName: activity.teacher.name,
     publishAt: activity.publishAt,

@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { SchoolClass } from "../../src/generated/prisma/client";
 import { createActivity, type CreatedActivity, saveAnswers, startAttempt, submitAttempt } from "../helpers/activities";
 import { getRoom, markPresent } from "../helpers/attendance";
 import { resetAiDb, type AiTestApp } from "../helpers/ai";
 import { DAY, FixedClock } from "../helpers/clock";
-import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
+import { createClass, createEnrollment, createUser, loginAs, type TestClass, type TestUser } from "../helpers/factories";
 import { integrityEvent, recordEvents } from "../helpers/integrity";
 import { api, testConfig } from "../helpers/test-app";
 import { createWorkHelpApp, requestHelp } from "../helpers/work-help";
@@ -38,14 +37,14 @@ describe("016/SC-001 isolamento do aluno não marcado presente", () => {
   let clock: FixedClock;
   let teacherA: TestUser;
   let teacherB: TestUser;
-  let classA: SchoolClass;
+  let classA: TestClass;
   let a1: TestUser;
   let a2: TestUser;
   let workA: CreatedActivity;
   let workB: CreatedActivity;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
-  const work = (schoolClass: SchoolClass) =>
+  const work = (schoolClass: TestClass) =>
     createActivity(t, schoolClass, {
       title: `Trabalho secreto ${schoolClass.name}`,
       publishAt: at(-DAY),

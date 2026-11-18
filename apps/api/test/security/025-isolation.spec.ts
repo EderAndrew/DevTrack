@@ -95,7 +95,12 @@ describe("025 isolamento do aviso discreto", () => {
   it("professor que deixou de ser o da turma → 404 no envio; o novo professor envia", async () => {
     const scene = await nudgeScene(t, clock);
     const successor = await createUser(t, { roles: ["TEACHER"] });
-    await t.prisma.schoolClass.update({ where: { id: scene.classId }, data: { teacherId: successor.id } });
+    // 027 FR-019 makes the teacher immutable (trigger `classes_identity_immutable`); the 025 rule is still kept
+    // for data written before it, so the change goes around the trigger, as `resetDb` does.
+    await t.prisma.$transaction([
+      t.prisma.$executeRawUnsafe("SET LOCAL session_replication_role = replica"),
+      t.prisma.schoolClass.update({ where: { id: scene.classId }, data: { teacherId: successor.id } }),
+    ]);
     const res = await sendNudge(t, scene);
     expect([res.status, res.body.code]).toEqual([404, "NOT_FOUND"]);
     await nothingWritten();

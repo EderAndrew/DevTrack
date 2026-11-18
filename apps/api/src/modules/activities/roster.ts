@@ -233,7 +233,7 @@ export async function loadRosterData(
   activityIds: readonly string[],
 ): Promise<{ students: ClassStudent[]; attempts: RosterAttempt[]; attendances: RosterAttendance[] }> {
   const enrollments = await db.enrollment.findMany({
-    where: { classId },
+    where: { cohort: { classes: { some: { id: classId } } } },
     select: { studentUserId: true, status: true, student: { select: { user: { select: { name: true } } } } },
   });
   const students = new Map<string, ClassStudent>();

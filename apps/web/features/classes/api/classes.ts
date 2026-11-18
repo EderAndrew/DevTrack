@@ -23,5 +23,7 @@ export const classesApi = {
   get: (id: string) => apiClient.get<ClassView>(`/classes/${id}`),
   create: (body: CreateClassRequest) => apiClient.post<ClassView>("/classes", body),
   update: (id: string, body: UpdateClassRequest) => apiClient.patch<ClassView>(`/classes/${id}`, body),
+  /** The 004 link of a subject; refused since 027 FR-019 (see `useLinkClassToSubject`). */
+  linkSubject: (id: string, subjectId: string) => apiClient.patch<ClassView>(`/classes/${id}`, { subjectId }),
   changeStatus: (id: string, status: ClassStatus) => apiClient.post<ClassView>(`/classes/${id}/status`, { status }),
 };

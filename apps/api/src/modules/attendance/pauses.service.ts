@@ -58,14 +58,14 @@ export class PausesService {
     return this.prisma.runInTransaction(async (tx) => {
       await this.classes.findOwnedOrNotFound(teacherId, classId, tx);
       const activities = await tx.$queryRaw<{ release_mode: ReleaseMode; status: ActivityStatus; class_active: boolean; duration_minutes: number | null }[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (c.status = 'ACTIVE') AS class_active, ca.duration_minutes
+        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active, ca.duration_minutes
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid
         FOR SHARE OF ca`;
       const activity = activities[0];
       if (!activity) throw notFound();
       const enrolled = await tx.$queryRaw<{ student_user_id: string }[]>`
-        SELECT student_user_id FROM enrollments
+        SELECT student_user_id FROM class_enrollments
         WHERE class_id = ${classId}::uuid AND student_user_id = ${studentUserId}::uuid AND status = 'ACTIVE'`;
       if (!enrolled[0]) throw notFound();
       if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");

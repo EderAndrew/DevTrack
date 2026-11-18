@@ -3,6 +3,7 @@ import type { MobileExamList } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import { closesAt } from "../activities/status/exam-time";
+import { CLASS_LABEL_SELECT, labelOf } from "../classes/class-label";
 
 /** The longest an exam can stay in progress after its publication: a 60 min start window plus 120 min. */
 const LONGEST_EXAM_MS = (60 + 120) * 60_000;
@@ -26,7 +27,8 @@ export class MobileExamsService {
         type: "EXAM",
         status: "ACTIVE",
         publishAt: { lte: now, gt: new Date(now.getTime() - LONGEST_EXAM_MS) },
-        schoolClass: { teacherId, status: { not: "ARCHIVED" } },
+        // Not archived by its effective status (027 FR-023): neither the class nor its cohort.
+        schoolClass: { teacherId, status: { not: "ARCHIVED" }, cohort: { status: { not: "ARCHIVED" } } },
       },
       select: {
         id: true,
@@ -37,7 +39,7 @@ export class MobileExamsService {
         startWindowMinutes: true,
         closedAt: true,
         cancelledAt: true,
-        schoolClass: { select: { name: true } },
+        schoolClass: { select: CLASS_LABEL_SELECT },
       },
     });
     const muted = new Set(
@@ -65,7 +67,7 @@ export class MobileExamsService {
       items: items.map(({ row, closes }) => ({
         activityId: row.id,
         classId: row.classId,
-        className: row.schoolClass.name,
+        className: labelOf(row.schoolClass),
         title: row.title,
         closesAt: closes.toISOString(),
         muted: muted.has(row.id),

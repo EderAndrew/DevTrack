@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { hashToken } from "../../src/platform/crypto/tokens";
-import { createClass, createClassInvitation, createUser, loginAs, uniqueEmail } from "../helpers/factories";
+import { generateToken, hashToken } from "../../src/platform/crypto/tokens";
+import { createClass, createClassInvitation, createUser, uniqueEmail } from "../helpers/factories";
 import { LogCapture } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
@@ -86,9 +86,11 @@ describe("003/FR-039 — respostas de tokens inválidos não revelam nada", () =
       expiresAt: new Date(Date.now() - 1000),
     });
     const resent = await createClassInvitation(t, schoolClass.id, uniqueEmail("reenviado"));
-    const teacherClient = api(t, { cookie: await loginAs(t, teacher) });
-    expect((await teacherClient.post(`/api/classes/${schoolClass.id}/invitations/${resent.invitation.id}/resend`, {})).status).toBe(200);
-    await t.flushMail();
+    // 027 Phase 2: a resend rotates the token (003 D5); the MANAGER's route comes back with US2 (T028).
+    await t.prisma.classInvitation.update({
+      where: { id: resent.invitation.id },
+      data: { tokenHash: hashToken(generateToken()), sendCount: { increment: 1 }, lastSentAt: new Date() },
+    });
     const pending = await createClassInvitation(t, schoolClass.id, uniqueEmail("adulterado"));
     const tampered = `${pending.token.slice(0, -1)}${pending.token.endsWith("A") ? "B" : "A"}`;
 

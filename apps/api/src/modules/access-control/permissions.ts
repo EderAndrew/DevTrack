@@ -2,7 +2,7 @@ import { RoleKeySchema } from "@repo/contracts";
 
 /**
  * Permission and role keys seeded by migrations `seed_roles_permissions` (001),
- * `classes_invitations_enrollments` (003), `curriculum_planning` (004), `ai_foundation` (006), `exercise_bank` (010), the later features' own migrations and `student_feedback` (020) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
+ * `classes_invitations_enrollments` (003), `curriculum_planning` (004), `ai_foundation` (006), `exercise_bank` (010), the later features' own migrations, `student_feedback` (020) and `027_manager_classes` (027) — contracts/permissions.md of each spec. Code checks permissions, never role names (Principle II);
  * role keys are used only to grant, change or count assignments.
  */
 export const PERMISSIONS = [
@@ -33,6 +33,15 @@ export const PERMISSIONS = [
   "turmas.cancelar_convite",
   "turmas.visualizar_alunos",
   "turmas.remover_aluno",
+  // 027: the turma's keys above belong to MANAGER and ADMIN (the cohort); `turmas.incluir_aluno` too (lookup and
+  // direct enrollment, FR-034). `turmas.buscar` and `disciplinas_turma.*` are the TEACHER's (the disciplina da turma).
+  "turmas.incluir_aluno",
+  "turmas.buscar",
+  "disciplinas_turma.visualizar",
+  "disciplinas_turma.criar",
+  "disciplinas_turma.editar",
+  "disciplinas_turma.alterar_situacao",
+  "disciplinas_turma.visualizar_alunos",
   "turmas.proprias.listar",
   "disciplinas.visualizar",
   "disciplinas.criar",

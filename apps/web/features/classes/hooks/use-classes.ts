@@ -50,11 +50,14 @@ export function useChangeClassStatus(id: string) {
   return useMutation({ mutationFn: (status: ClassStatus) => classesApi.changeStatus(id, status), onSuccess: afterChange });
 }
 
-/** Links one of the teacher's classes to a subject (004/US1-7); the API refuses a locked one (FR-004). */
+/**
+ * Links one of the teacher's classes to a subject (004/US1-7); the API refuses a locked one (FR-004). 027 FR-019
+ * fixes the subject of a disciplina da turma, so the API now answers 400; the dialog leaves with US3/US4 (T039, T044).
+ */
 export function useLinkClassToSubject() {
   const afterChange = useAfterChange();
   return useMutation({
-    mutationFn: ({ classId, subjectId }: { classId: string; subjectId: string }) => classesApi.update(classId, { subjectId }),
+    mutationFn: ({ classId, subjectId }: { classId: string; subjectId: string }) => classesApi.linkSubject(classId, subjectId),
     onSuccess: afterChange,
   });
 }

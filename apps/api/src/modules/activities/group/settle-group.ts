@@ -47,7 +47,7 @@ export async function readGroup(tx: Tx, attemptId: string): Promise<GroupRow | n
   if (!group || group.group_size === null) return null;
   const participants = await tx.$queryRaw<ParticipantRow[]>`
     SELECT p.student_user_id, p.joined_at,
-           EXISTS (SELECT 1 FROM enrollments e
+           EXISTS (SELECT 1 FROM class_enrollments e
                    WHERE e.class_id = ${group.class_id}::uuid AND e.student_user_id = p.student_user_id AND e.status = 'ACTIVE') AS active,
            EXISTS (SELECT 1 FROM attempt_pauses ap
                    WHERE ap.attempt_id = p.attempt_id AND ap.student_user_id = p.student_user_id AND ap.released_at IS NULL) AS paused
@@ -103,7 +103,7 @@ export async function settleGroup(tx: Tx, audit: AuditService, input: SettleGrou
     JOIN attempt_groups g ON g.attempt_id = a.id
     JOIN class_activities ca ON ca.id = a.activity_id
     WHERE a.activity_id = ${activityId}::uuid AND a.status = 'IN_PROGRESS' AND ca.status = 'ACTIVE'
-      AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
+      AND EXISTS (SELECT 1 FROM class_enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
     FOR UPDATE OF a`;
   const attemptId = attempts[0]?.id;
   if (!attemptId) return 0;

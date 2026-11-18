@@ -22,6 +22,9 @@ const SELECT_ROW = Prisma.sql`
  * Students of a teacher's class (003 US6, FR-044, FR-045). Every lookup is scoped to a class of
  * the session's teacher (404 otherwise, D7). Removing keeps the history: the enrollment becomes
  * REMOVED with its date and author; account, roles, profile and other enrollments are untouched.
+ *
+ * 027 (provisional until T043/T054): the enrollments are the class's turma's; the list reads the cohort of
+ * the teacher's class, and a removal ends the enrollment in the turma (every disciplina of it).
  */
 @Injectable()
 export class EnrollmentsService {
@@ -36,10 +39,10 @@ export class EnrollmentsService {
    * of the RA; status filter, ACTIVE by default (FR-045).
    */
   async list(teacherId: string, classId: string, { query, status, cursor }: EnrollmentListQuery): Promise<EnrollmentPage> {
-    await this.context.findOwnedOrNotFound(teacherId, classId);
+    const { cohortId } = await this.context.findOwnedOrNotFound(teacherId, classId);
     const after = cursor ? decodeNameCursor(cursor) : null;
     const term = query?.trim() ?? "";
-    const conditions = [Prisma.sql`e.class_id = ${classId}::uuid`, Prisma.sql`e.status = ${status ?? "ACTIVE"}::enrollment_status`];
+    const conditions = [Prisma.sql`e.cohort_id = ${cohortId}::uuid`, Prisma.sql`e.status = ${status ?? "ACTIVE"}::enrollment_status`];
     if (term) {
       const escaped = escapeLike(term);
       conditions.push(
@@ -68,11 +71,11 @@ export class EnrollmentsService {
   async remove(auth: AuthContext, classId: string, enrollmentId: string, requestId: string | null): Promise<EnrollmentView> {
     const teacherId = auth.userId;
     return this.prisma.runInTransaction(async (tx) => {
-      await this.lockClass(tx, teacherId, classId);
+      const cohortId = await this.lockClass(tx, teacherId, classId);
       const removed = await tx.$queryRaw<{ student_user_id: string }[]>`
         UPDATE enrollments
-        SET status = 'REMOVED', removed_at = now(), removed_by_id = ${teacherId}::uuid, updated_at = now()
-        WHERE id = ${enrollmentId}::uuid AND class_id = ${classId}::uuid AND status = 'ACTIVE'
+        SET status = 'REMOVED', removed_at = now(), removed_by_id = ${teacherId}::uuid, removal_reason = 'MANAGER', updated_at = now()
+        WHERE id = ${enrollmentId}::uuid AND cohort_id = ${cohortId}::uuid AND status = 'ACTIVE'
         RETURNING student_user_id`;
       if (removed[0]) {
         await this.audit.record(tx, {
@@ -82,22 +85,24 @@ export class EnrollmentsService {
           targetType: "ENROLLMENT",
           targetId: enrollmentId,
           requestId,
-          metadata: { classId, userId: removed[0].student_user_id },
+          metadata: { cohortId, userId: removed[0].student_user_id, reason: "MANAGER" },
         });
       }
       const rows = await tx.$queryRaw<EnrollmentRow[]>`
         ${SELECT_ROW}
-        WHERE e.id = ${enrollmentId}::uuid AND e.class_id = ${classId}::uuid`;
+        WHERE e.id = ${enrollmentId}::uuid AND e.cohort_id = ${cohortId}::uuid`;
       if (!rows[0]) throw notFound();
       return toEnrollmentView(rows[0]);
     });
   }
 
-  /** The teacher's class, locked against a concurrent archive; an archived class takes no removal. */
-  private async lockClass(tx: Tx, teacherId: string, classId: string): Promise<void> {
-    const rows = await tx.$queryRaw<{ status: string }[]>`
-      SELECT status FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
+  /** The teacher's class, locked against a concurrent archive; an archived class takes no removal. Its cohort. */
+  private async lockClass(tx: Tx, teacherId: string, classId: string): Promise<string> {
+    const rows = await tx.$queryRaw<{ status: string; cohort_id: string }[]>`
+      SELECT class_effective_status(id)::text AS status, cohort_id FROM classes
+      WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
     if (!rows[0]) throw notFound();
     if (rows[0].status === "ARCHIVED") throw invalidStateTransition();
+    return rows[0].cohort_id;
   }
 }

@@ -149,7 +149,7 @@ describe("015/US1 professor liga modo controlado e ajuda da IA", () => {
 
     it("depois que um aluno iniciou → 409 ACTIVITY_ALREADY_STARTED; o resto da edição continua permitido", async () => {
       const { body } = await applyWork(client, classId, workId);
-      const student = await t.prisma.enrollment.findFirstOrThrow({ where: { classId }, select: { studentUserId: true } });
+      const student = await t.prisma.enrollment.findFirstOrThrow({ where: { cohort: { classes: { some: { id: classId } } } }, select: { studentUserId: true } });
       await createAttemptRow(t, body.id, student.studentUserId);
       for (const change of [{ executionMode: "CONTROLLED" }, { aiHelpAllowance: 3 }]) {
         const refused = await patch(body.id, { version: 1, ...change });

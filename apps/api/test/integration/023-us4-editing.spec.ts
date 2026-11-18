@@ -283,7 +283,7 @@ describe("023/US4 um integrante edita por vez e o líder passa a edição", () =
       const paused = await handEditing(as[ana.id]!, activity.id, bruno.id);
       expect([paused.status, paused.body.code]).toEqual([422, "GROUP_MEMBER_NOT_AVAILABLE"]);
 
-      await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: carla.id }, data: { status: "REMOVED", removedAt: clock.now(), removedById: teacher.id } });
+      await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: carla.id }, data: { status: "REMOVED", removedAt: clock.now(), removedById: teacher.id } });
       const removed = await handEditing(as[ana.id]!, activity.id, carla.id);
       expect([removed.status, removed.body.code]).toEqual([422, "GROUP_MEMBER_NOT_AVAILABLE"]);
       expect(await groupRow(attemptId)).toEqual({ leaderUserId: ana.id, editorUserId: ana.id, version: 1 });
@@ -323,7 +323,7 @@ describe("023/US4 um integrante edita por vez e o líder passa a edição", () =
 
     it("o líder perde o acesso: a liderança e a edição passam ao integrante ativo que entrou primeiro", async () => {
       const { activity, attemptId } = await startedGroup();
-      await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: ana.id }, data: { status: "REMOVED", removedAt: clock.now(), removedById: teacher.id } });
+      await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: ana.id }, data: { status: "REMOVED", removedAt: clock.now(), removedById: teacher.id } });
 
       const view = await read(carla, activity.id);
       expect(view.group).toMatchObject({ leader: { id: bruno.id }, editor: { id: bruno.id }, myRole: "MEMBER" });

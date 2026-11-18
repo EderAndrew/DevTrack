@@ -4,6 +4,7 @@ import { extname, resolve } from "node:path";
 import type {
   AccountStatus,
   ClassInvitation,
+  Cohort,
   ClassMeeting,
   ClassPlan,
   ClassPlanStatus,
@@ -125,26 +126,41 @@ export async function loginAs(t: TestApp, user: Pick<TestUser, "id">): Promise<s
 const DAY_MS = 24 * 60 * 60 * 1000;
 let classSequence = 0;
 
-export type ClassOverrides = Partial<
-  Pick<SchoolClass, "name" | "code" | "academicYear" | "period" | "description" | "status" | "createdAt">
-> & {
+/** The turma's fields (027: they live in `cohorts`). */
+export type CohortFields = Pick<Cohort, "name" | "code" | "academicYear" | "period" | "description">;
+
+export type CohortOverrides = Partial<CohortFields & Pick<Cohort, "status" | "createdAt" | "createdById">>;
+
+export type ClassOverrides = Partial<CohortFields & Pick<SchoolClass, "status" | "createdAt">> & {
+  /** 027: the disciplina da turma joins this cohort instead of a new one (the cohort's fields are then ignored). */
+  cohortId?: string;
   /** 004 offering: a subject of the same teacher and the period, as "YYYY-MM-DD" (both or neither). */
   subjectId?: string | null;
   startsOn?: string | null;
   endsOn?: string | null;
 };
 
+/** A class as the suites of 003–026 read it: the row plus its turma's fields (027 moved them to the cohort). */
+export type TestClass = SchoolClass & CohortFields;
+
 /** A "YYYY-MM-DD" calendar date as the `Date` Prisma writes to a `@db.Date` column. */
 export const dbDate = (date: string): Date => new Date(`${date}T00:00:00.000Z`);
 
-/** Creates a class of `teacherId` directly in the database (003; offering fields since 004). */
-export async function createClass(t: TestApp, teacherId: string, overrides: ClassOverrides = {}): Promise<SchoolClass> {
+const FACTORY_MANAGER_EMAIL = "gestor-das-factories@example.test";
+
+/** The MANAGER that creates the factories' cohorts when no creator is given (027), created on demand. */
+async function factoryManagerId(t: TestApp): Promise<string> {
+  const existing = await t.prisma.user.findUnique({ where: { email: FACTORY_MANAGER_EMAIL }, select: { id: true } });
+  return existing?.id ?? (await createUser(t, { email: FACTORY_MANAGER_EMAIL, name: "Gestor das Factories", roles: ["MANAGER"] })).id;
+}
+
+/** Creates a turma directly in the database (027); its creator is a MANAGER unless `createdById` says otherwise. */
+export async function createCohort(t: TestApp, overrides: CohortOverrides = {}): Promise<Cohort> {
   classSequence += 1;
   const name = overrides.name ?? `Turma de Teste ${classSequence}`;
   const code = overrides.code ?? `T-${Date.now().toString(36)}-${classSequence}`;
-  return t.prisma.schoolClass.create({
+  return t.prisma.cohort.create({
     data: {
-      teacherId,
       name,
       code,
       academicYear: overrides.academicYear ?? 2026,
@@ -153,12 +169,55 @@ export async function createClass(t: TestApp, teacherId: string, overrides: Clas
       status: overrides.status ?? "ACTIVE",
       statusChangedAt: overrides.status && overrides.status !== "ACTIVE" ? new Date() : null,
       searchKey: searchKey(name, code),
+      createdById: overrides.createdById ?? (await factoryManagerId(t)),
+      ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
+    },
+  });
+}
+
+/**
+ * Creates a class of `teacherId` directly in the database (003; offering fields since 004). Since 027 the class
+ * is a disciplina da turma: unless `cohortId` is given, a cohort with the given turma fields is created behind it
+ * (created by the teacher, as the transition does), and `status` is the class's own. The result carries the
+ * cohort's fields, so the suites of 003–026 read `name`, `code`… as before.
+ */
+export async function createClass(t: TestApp, teacherId: string, overrides: ClassOverrides = {}): Promise<TestClass> {
+  const cohort = overrides.cohortId
+    ? await t.prisma.cohort.findUniqueOrThrow({ where: { id: overrides.cohortId } })
+    : await createCohort(t, {
+        name: overrides.name,
+        code: overrides.code,
+        academicYear: overrides.academicYear,
+        period: overrides.period,
+        description: overrides.description,
+        createdById: teacherId,
+        ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
+      });
+  const row = await t.prisma.schoolClass.create({
+    data: {
+      teacherId,
+      cohortId: cohort.id,
+      status: overrides.status ?? "ACTIVE",
+      statusChangedAt: overrides.status && overrides.status !== "ACTIVE" ? new Date() : null,
       subjectId: overrides.subjectId ?? null,
       startsOn: overrides.startsOn ? dbDate(overrides.startsOn) : null,
       endsOn: overrides.endsOn ? dbDate(overrides.endsOn) : null,
       ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
     },
   });
+  return {
+    ...row,
+    name: cohort.name,
+    code: cohort.code,
+    academicYear: cohort.academicYear,
+    period: cohort.period,
+    description: cohort.description,
+  };
+}
+
+/** The cohort of a class (027): invitations and enrollments are keyed by it. */
+export async function cohortIdOf(t: TestApp, classId: string): Promise<string> {
+  return (await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId }, select: { cohortId: true } })).cohortId;
 }
 
 export type ClassInvitationOverrides = Partial<
@@ -183,11 +242,11 @@ export async function createClassInvitation(
   const now = new Date();
   const lastSentAt = overrides.lastSentAt ?? now;
   const status = overrides.status ?? "PENDING";
-  const invitedById =
-    overrides.invitedById ?? (await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId } })).teacherId;
+  const schoolClass = await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: classId }, select: { teacherId: true, cohortId: true } });
+  const invitedById = overrides.invitedById ?? schoolClass.teacherId;
   const invitation = await t.prisma.classInvitation.create({
     data: {
-      classId,
+      cohortId: schoolClass.cohortId,
       email: email.trim().toLowerCase(),
       tokenHash: hashToken(token),
       status,
@@ -204,10 +263,13 @@ export async function createClassInvitation(
   return { invitation, token };
 }
 
-/** Creates an ACTIVE enrollment directly in the database; the student needs a StudentProfile (003). */
+/**
+ * Creates an ACTIVE enrollment directly in the database; the student needs a StudentProfile (003). Since 027 the
+ * enrollment is in the class's turma (so in every disciplina of it).
+ */
 export async function createEnrollment(t: TestApp, classId: string, studentUserId: string): Promise<Enrollment> {
   return t.prisma.enrollment.create({
-    data: { classId, studentUserId, status: "ACTIVE", enrolledAt: new Date() },
+    data: { cohortId: await cohortIdOf(t, classId), studentUserId, status: "ACTIVE", enrolledAt: new Date() },
   });
 }
 

@@ -14,13 +14,16 @@ import { EnrollmentsService } from "./enrollments.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
 
-/** Students of a teacher's own class (003 contracts/http-api.md, "Alunos da turma"). */
+/**
+ * Students of a teacher's own class (003 contracts/http-api.md, "Alunos da turma"). 027: the read-only roster
+ * is the teacher's (`disciplinas_turma.visualizar_alunos`); the removal moves to the MANAGER's cohort (T054).
+ */
 @Controller("classes/:id/enrollments")
 export class EnrollmentsController {
   constructor(private readonly enrollments: EnrollmentsService) {}
 
   @Get()
-  @RequirePermissions("turmas.visualizar_alunos")
+  @RequirePermissions("disciplinas_turma.visualizar_alunos")
   list(
     @Param("id", idPipe) classId: string,
     @Query(new ZodValidationPipe(EnrollmentListQuerySchema)) query: EnrollmentListQuery,

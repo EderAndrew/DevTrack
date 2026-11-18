@@ -366,7 +366,8 @@ describe("004/US4 — calendário de encontros da turma (FR-025 – FR-030)", ()
     const accepted = await client.patch(`/api/classes/${schoolClass.id}`, shorter);
     expect(accepted.status).toBe(200);
     expect(accepted.body.endsOn).toBe("2027-05-31");
-    expect((await client.patch(`/api/classes/${schoolClass.id}`, { name: "Outro nome" })).status).toBe(200);
+    // 027 FR-019: the turma's fields are the MANAGER's; the teacher's edit takes only the calendar.
+    expect((await client.patch(`/api/classes/${schoolClass.id}`, { name: "Outro nome" })).status).toBe(400);
   });
 
   it("004/SC-008 o banco recusa apagar direto um encontro com tópico", async () => {

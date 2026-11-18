@@ -38,7 +38,7 @@ describe("026/US3 só as matérias do próprio aluno", () => {
     createActivity(t, schoolClass, { title, publishAt: at(-DAY), deadline: at(7 * DAY), ...extra });
   const endEnrollment = (classId: string) =>
     t.prisma.enrollment.updateMany({
-      where: { classId, studentUserId: student.id },
+      where: { cohort: { classes: { some: { id: classId } } }, studentUserId: student.id },
       data: { status: "REMOVED", removedAt: clock.now(), removedById: teacher.id },
     });
 
