@@ -4,15 +4,12 @@ import type {
   ClassPage,
   ClassStatus,
   ClassView,
-  CreateClassRequest,
   UpdateClassRequest,
 } from "@repo/contracts";
-import { Prisma } from "../../generated/prisma/client";
 import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
-  classCodeTaken,
   invalidStateTransition,
   meetingsOutsidePeriod,
   notFound,
@@ -38,18 +35,14 @@ const OFFERING_FIELDS: readonly OfferingField[] = ["startsOn", "endsOn"];
 /** A `@db.Date` value from the contract's "YYYY-MM-DD" (null stays null). */
 const toDbDate = (value: string | null | undefined) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
 
-/** The only unique index the provisional create can hit is the cohort's `(academic_year, upper(code))`. */
-const isUniqueViolation = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-
 /**
  * A teacher's classes (003 US1, FR-001–FR-008). The teacher always comes from the session,
  * never from the request; every lookup by id goes through `ClassContextPolicy`, so another
  * teacher's class is a plain 404 (D7).
  *
- * 027 Phase 2 (provisional until US1/US3): a class is the disciplina da turma; its turma's data come from
- * the cohort. The 003 create still makes a cohort and its class (T022 retires it, T038 replaces it); the
- * edit takes only the calendar dates (FR-019); the status route changes only the class's own status and
+ * 027: a class is the disciplina da turma; its turma's data come from the cohort. The 003 create left with
+ * US1 (the turma is the MANAGER's, `CohortsService`) and US3 brings the create of a disciplina da turma (T038);
+ * the edit takes only the calendar dates (FR-019); the status route changes only the class's own status and
  * no longer touches invitations, which belong to the cohort.
  */
 @Injectable()
@@ -95,49 +88,6 @@ export class ClassesService {
     const row = await db.schoolClass.findFirst({ where: { id: classId, teacherId }, select: CLASS_VIEW_SELECT });
     if (!row) throw notFound();
     return toClassView(row);
-  }
-
-  async create(auth: AuthContext, input: CreateClassRequest, requestId: string | null): Promise<ClassView> {
-    try {
-      return await this.prisma.runInTransaction(async (tx) => {
-        if (input.subjectId) await this.assertSubjectOffered(tx, auth.userId, input.subjectId);
-        const cohort = await tx.cohort.create({
-          data: {
-            name: input.name,
-            code: input.code,
-            academicYear: input.academicYear,
-            period: input.period || null,
-            description: input.description || null,
-            searchKey: searchKey(input.name, input.code),
-            createdById: auth.userId,
-          },
-          select: { id: true },
-        });
-        const row = await tx.schoolClass.create({
-          data: {
-            teacherId: auth.userId,
-            cohortId: cohort.id,
-            subjectId: input.subjectId ?? null,
-            startsOn: toDbDate(input.startsOn),
-            endsOn: toDbDate(input.endsOn),
-          },
-          select: CLASS_VIEW_SELECT,
-        });
-        await this.audit.record(tx, {
-          type: "class.created",
-          actorType: "USER",
-          actorUserId: auth.userId,
-          targetType: "CLASS",
-          targetId: row.id,
-          requestId,
-          metadata: { cohortId: cohort.id, subjectId: input.subjectId ?? null },
-        });
-        return toClassView(row);
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) throw classCodeTaken();
-      throw error;
-    }
   }
 
   /** Edits the calendar of an ACTIVE or INACTIVE class (004 rules); the audit keeps the changed fields only. */

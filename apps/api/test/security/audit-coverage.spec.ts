@@ -72,9 +72,6 @@ const PENDING_020 = new Set<string>([]);
 const PENDING_025 = new Set<string>([]);
 /** 027 types whose routes arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_027 = new Set<string>([
-  "cohort.created", // US1
-  "cohort.updated", // US1
-  "cohort.status_changed", // US1
   "cohort.student_lookup", // US2
   "cohort.student_lookup_rate_limited", // US2
 ]);

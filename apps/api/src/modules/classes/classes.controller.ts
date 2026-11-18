@@ -6,8 +6,6 @@ import {
   ClassListQuerySchema,
   type ClassPage,
   type ClassView,
-  type CreateClassRequest,
-  CreateClassRequestSchema,
   type UpdateClassRequest,
   UpdateClassRequestSchema,
   UuidSchema,
@@ -21,8 +19,8 @@ const idPipe = new ZodValidationPipe(UuidSchema);
 
 /**
  * A teacher's own classes (003 contracts/http-api.md, "Turmas"); other teachers' classes are 404.
- * 027: the teacher's routes take the `disciplinas_turma.*` capabilities; the 003 create (`turmas.criar`,
- * now the MANAGER's) stays until US1/US3 replace it (T022, T038).
+ * 027: the teacher's routes take the `disciplinas_turma.*` capabilities; the 003 create left with US1 (the
+ * turma is the MANAGER's, `/cohorts`), and US3 brings the create of a disciplina da turma (T038).
  */
 @Controller("classes")
 export class ClassesController {
@@ -35,12 +33,6 @@ export class ClassesController {
     @Ctx() ctx: RequestContext,
   ): Promise<ClassPage> {
     return this.classes.list(ctx.auth!.userId, query);
-  }
-
-  @Post()
-  @RequirePermissions("turmas.criar")
-  create(@ZodBody(CreateClassRequestSchema) body: CreateClassRequest, @Ctx() ctx: RequestContext): Promise<ClassView> {
-    return this.classes.create(ctx.auth!, body, ctx.requestId);
   }
 
   @Get(":id")

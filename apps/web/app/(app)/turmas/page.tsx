@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Turmas" };
 export default async function ClassesPage() {
   const me = await getMe();
   if (!me) redirect("/entrar?next=%2Fturmas");
-  if (!me.permissions.includes("turmas.visualizar")) return <NoAccess title="Turmas" />;
+  if (!me.permissions.includes("disciplinas_turma.visualizar")) return <NoAccess title="Turmas" />;
 
   return (
     <section data-layout="wide" className="w-full">

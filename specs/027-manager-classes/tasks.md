@@ -235,33 +235,43 @@ nenhum professor envolvido; abrir uma turma com duas disciplinas.
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] `apps/api/test/integration/027-us1-cohorts.spec.ts`: `027/US1-1`…`027/US1-6` (um `it` cada;
+- [X] T019 [P] [US1] `apps/api/test/integration/027-us1-cohorts.spec.ts`: `027/US1-1`…`027/US1-6` (um `it` cada;
       US1-2 com o mesmo código no mesmo ano → `409 COHORT_CODE_TAKEN` e em outro ano → `201`, `027/FR-002`; US1-5 com
       os convites cancelados `CLASS_ARCHIVED` e a edição recusada `409 COHORT_ARCHIVED`; US1-6 sem nenhum campo
       pedagógico no `CohortDetail`); auditoria `cohort.created/updated/status_changed`; `027/FR-008` (nenhuma rota
       `DELETE` de turma no catálogo → `404`/`405`; `DELETE FROM cohorts` de uma turma com disciplina da turma ou
       matrícula falha pela FK `RESTRICT`).
-- [ ] T020 [P] [US1] Reescrever `apps/api/test/integration/003-us1-classes.spec.ts` com o gestor como ator nas rotas
+- [X] T020 [P] [US1] Reescrever `apps/api/test/integration/003-us1-classes.spec.ts` com o gestor como ator nas rotas
       `/cohorts`, mantendo os títulos `003/US1-*`; `003-list-performance.spec.ts` e `003-concurrency.spec.ts` (parte de
       turma) idem; `027/SC-006`: 20 `POST /cohorts` simultâneos com o mesmo código e ano → 1 turma.
-- [ ] T021 [P] [US1] Web `apps/web/features/cohorts/components/cohort-list.test.tsx`, `cohort-form.test.tsx`,
+- [X] T021 [P] [US1] Web `apps/web/features/cohorts/components/cohort-list.test.tsx`, `cohort-form.test.tsx`,
       `cohort-page.test.tsx`: lista com filtros, formulário com as mensagens de FR-032, ações de situação com
       AlertDialog no arquivar, aba "Disciplinas" sem dados pedagógicos; `027/FR-033` (nome de turma, disciplina e
       professor com `<b>x</b>` aparece como texto literal, sem elemento `b`); axe.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Módulo `apps/api/src/modules/cohorts/`: `cohorts.module.ts`, `cohorts.controller.ts` (rotas de
+- [X] T022 [US1] Módulo `apps/api/src/modules/cohorts/`: `cohorts.module.ts`, `cohorts.controller.ts` (rotas de
       contracts/http-api.md "MANAGER — turma", sem convites/matrículas), `cohorts.service.ts` (criar com `search_key`;
       `409 COHORT_CODE_TAKEN` pelo UNIQUE; editar; mudar situação com a máquina de `classes/class.state-machine.ts` e,
       ao arquivar, `SELECT … FOR UPDATE` da turma e cancelamento dos PENDING `CLASS_ARCHIVED` na mesma transação;
       listar com keyset `(academic_year desc, created_at desc, id desc)`; detalhe com contagem e disciplinas pela
       situação efetiva), `cohort.view.ts` (allowlist). Registrar em `app.module.ts` e no `MATRIX` de
       `authorization-matrix.ts`; retirar as rotas de turma da 003 de `classes.controller.ts`.
-- [ ] T023 [US1] Web: `apps/web/features/cohorts/{api,hooks,schemas,components}` e as páginas
+- [X] T023 [US1] Web: `apps/web/features/cohorts/{api,hooks,schemas,components}` e as páginas
       `apps/web/app/(app)/gestao/turmas/page.tsx` e `apps/web/app/(app)/gestao/turmas/[id]/page.tsx` (contracts/ui.md);
       item de menu "Turmas" (→ `/gestao/turmas`) para `turmas.visualizar` no layout `(app)`; textos de FR-032.
-- [ ] T024 [US1] Retirar US1 de `pending` em `traceability.spec.ts`; `SC-006` também.
+- [X] T024 [US1] Retirar US1 de `pending` em `traceability.spec.ts`; `SC-006` também.
+      **Registro (2026-11-18)**: códigos novos `409 COHORT_CODE_TAKEN` e `409 COHORT_ARCHIVED` (contratos, API, web);
+      alvo de auditoria `COHORT`; `cohort.*` saíram de `PENDING_027` (a jornada cria, edita, pesquisa e encerra a turma
+      pelo gestor) e `turmas.editar`/`turmas.alterar_situacao` de `SEEDED_BEFORE_ROUTES`. O `POST /classes` da 003 saiu
+      do controller e do catálogo (o web do professor só o perde de vez com a T039). `003-concurrency.spec.ts` não tem
+      parte de turma (convites → T028, remoção → T054); em `003-list-performance.spec.ts` as linhas de turma passaram ao
+      gestor (`/cohorts`, `/cohorts/:id`) e as dos convites voltam com `/cohorts/:id/invitations` (T030). Web: menu
+      "Turmas" do gestor (`turmas.visualizar` → `/gestao/turmas`), o "Turmas" do professor e as guardas de
+      `/turmas` e `/turmas/[id]` passaram a `disciplinas_turma.visualizar`, `/gestao/:path*` no `proxy.ts`; criar e
+      editar a turma num diálogo na lista e na página (sem rotas `nova`/`editar`); a página tem só a aba "Disciplinas"
+      até a T032.
 
 **Checkpoint**: o gestor administra turmas de ponta a ponta.
 
@@ -308,6 +318,8 @@ turma; o aluno vê no card as disciplinas da turma sem convite por matéria.
       de sempre; o service busca a turma (não a classe), exige ACTIVE (`409 COHORT_NOT_ACTIVE`), grava `cohort_id`,
       cancela com `MANAGER`; `class-invitation-acceptance.service.ts` cria a matrícula na turma (`source INVITATION`);
       `class-invitation.mail-subject.ts` e a página pública com nome, código e período da turma (FR-010).
+      Devolver a `003-list-performance.spec.ts` as linhas "convites da turma" (com e sem pesquisa) pela rota do gestor
+      (tiradas na T020).
 - [ ] T031 [US2] `apps/api/src/modules/enrollments/direct-enrollment.service.ts` + rotas
       `POST /cohorts/:id/student-lookup` e `POST /cohorts/:id/enrollments` (`turmas.incluir_aluno`): elegibilidade
       (ACTIVE, STUDENT, e-mail verificado), limite 30/min reaproveitando `class-invitations/invitation-rate-limit.ts`,

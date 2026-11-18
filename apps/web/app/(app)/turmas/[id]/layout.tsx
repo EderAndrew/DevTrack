@@ -10,7 +10,7 @@ export default async function ClassLayout({ params, children }: { params: Promis
   const { id } = await params;
   const me = await getMe();
   if (!me) redirect(`/entrar?next=${encodeURIComponent(`/turmas/${id}`)}`);
-  if (!me.permissions.includes("turmas.visualizar")) return <NoAccess title="Turma" />;
+  if (!me.permissions.includes("disciplinas_turma.visualizar")) return <NoAccess title="Turma" />;
 
   return (
     <section data-layout="wide" className="w-full">

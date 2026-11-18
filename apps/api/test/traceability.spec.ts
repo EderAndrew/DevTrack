@@ -387,8 +387,8 @@ const SPECS: FeatureSpec[] = [
     // US5 with T055; US6 and SC-002 with T048 (`027-transition.spec.ts`); US7 and SC-003 with T051; US8 with T060;
     // SC-004 with the E2E (T061, `manager-classes.spec.ts`); SC-005 with the full suite (T065).
     pending: {
-      stories: [1, 2, 3, 4, 5, 6, 7, 8],
-      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006"],
+      stories: [2, 3, 4, 5, 6, 7, 8],
+      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005"],
     },
   },
 ];

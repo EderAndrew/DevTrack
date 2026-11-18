@@ -32,11 +32,19 @@ import {
   ClassListQuerySchema,
   ClassPageSchema,
   ClassViewSchema,
-  CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
+import {
+  ChangeCohortStatusRequestSchema,
+  CohortDetailSchema,
+  CohortListQuerySchema,
+  CohortPageSchema,
+  CohortViewSchema,
+  CreateCohortRequestSchema,
+  UpdateCohortRequestSchema,
+} from "./cohorts/cohorts.js";
 import {
   AiExecutionListQuerySchema,
   AiExecutionPageSchema,
@@ -518,8 +526,28 @@ export const endpoints = {
     status: 200,
   },
 
+  // 027 — the MANAGER's turma (contracts/http-api.md "MANAGER — turma"); the 003 create of a class left (US1).
+  "cohorts.list": { method: "GET", path: "/cohorts", query: CohortListQuerySchema, response: CohortPageSchema, status: 200 },
+  "cohorts.create": { method: "POST", path: "/cohorts", body: CreateCohortRequestSchema, response: CohortViewSchema, status: 201 },
+  "cohorts.get": { method: "GET", path: "/cohorts/:id", params: IdParamsSchema, response: CohortDetailSchema, status: 200 },
+  "cohorts.update": {
+    method: "PATCH",
+    path: "/cohorts/:id",
+    params: IdParamsSchema,
+    body: UpdateCohortRequestSchema,
+    response: CohortViewSchema,
+    status: 200,
+  },
+  "cohorts.changeStatus": {
+    method: "POST",
+    path: "/cohorts/:id/status",
+    params: IdParamsSchema,
+    body: ChangeCohortStatusRequestSchema,
+    response: CohortViewSchema,
+    status: 200,
+  },
+
   "classes.list": { method: "GET", path: "/classes", query: ClassListQuerySchema, response: ClassPageSchema, status: 200 },
-  "classes.create": { method: "POST", path: "/classes", body: CreateClassRequestSchema, response: ClassViewSchema, status: 201 },
   "classes.get": { method: "GET", path: "/classes/:id", params: IdParamsSchema, response: ClassViewSchema, status: 200 },
   "classes.update": {
     method: "PATCH",

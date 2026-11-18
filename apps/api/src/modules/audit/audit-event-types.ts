@@ -47,6 +47,10 @@ export const AUDIT_EVENT_METADATA = {
   "student.registered": ["userId", "via"],
   "enrollment.created": ["cohortId", "userId", "invitationId", "source"],
   "enrollment.removed": ["cohortId", "userId", "reason"],
+  // 027 — the MANAGER's turma (US1).
+  "cohort.created": ["code", "academicYear"],
+  "cohort.updated": ["fields"],
+  "cohort.status_changed": ["from", "to", "cancelledInvitations"],
   // 027 — written only by the migration that is the transition (SYSTEM).
   "cohort_transition.applied": [
     "cohorts",
@@ -374,6 +378,7 @@ export type AuditTargetType =
   | "ADMIN_BOOTSTRAP"
   | "USER_ROLE"
   | "CLASS"
+  | "COHORT"
   | "CLASS_INVITATION"
   | "STUDENT_PROFILE"
   | "ENROLLMENT"

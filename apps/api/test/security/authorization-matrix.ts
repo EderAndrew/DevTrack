@@ -215,10 +215,15 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/users/:id/suspend", access: "usuarios.suspender" },
   { method: "POST", path: "/users/:id/reactivate", access: "usuarios.reativar" },
 
-  // 027 Phase 2: the teacher's routes of the disciplina da turma; the 003 create, the invitations and the removal
-  // stay on `turmas.*` (now the MANAGER's) until US1, US2 and US5 move them to `/cohorts/:id` (T022, T030, T054).
+  // 027 — the MANAGER's turma (US1).
+  { method: "GET", path: "/cohorts", access: "turmas.visualizar" },
+  { method: "POST", path: "/cohorts", access: "turmas.criar" },
+  { method: "GET", path: "/cohorts/:id", access: "turmas.visualizar" },
+  { method: "PATCH", path: "/cohorts/:id", access: "turmas.editar" },
+  { method: "POST", path: "/cohorts/:id/status", access: "turmas.alterar_situacao" },
+  // 027: the teacher's routes of the disciplina da turma; the invitations and the removal stay on `turmas.*`
+  // (now the MANAGER's) until US2 and US5 move them to `/cohorts/:id` (T030, T054).
   { method: "GET", path: "/classes", access: "disciplinas_turma.visualizar" },
-  { method: "POST", path: "/classes", access: "turmas.criar" },
   { method: "GET", path: "/classes/:id", access: "disciplinas_turma.visualizar" },
   { method: "PATCH", path: "/classes/:id", access: "disciplinas_turma.editar" },
   { method: "POST", path: "/classes/:id/status", access: "disciplinas_turma.alterar_situacao" },

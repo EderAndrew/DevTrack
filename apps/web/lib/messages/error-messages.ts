@@ -153,6 +153,9 @@ export const ERROR_MESSAGES = {
   SOURCE_TOO_LARGE: "O código passou do tamanho máximo de 64 KB.",
   ATTEMPT_NOT_IN_PROGRESS: "Comece ou refaça os exercícios para executar o código.",
   EXERCISE_RULES: "Revise os campos destacados do exercício antes de salvar.",
+  // 027/FR-032: the turma of the MANAGER.
+  COHORT_CODE_TAKEN: "Esse código de turma já está em uso.",
+  COHORT_ARCHIVED: "Esta turma está arquivada e não pode ser editada.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

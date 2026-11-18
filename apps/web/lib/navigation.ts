@@ -30,6 +30,9 @@ export const startPathFor = (permissions: readonly string[]): string =>
 /** "Meus feedbacks": the feedbacks the student sent and the status of each (020 US3). */
 export const MY_FEEDBACKS_PATH = "/meus-feedbacks";
 
+/** "Turmas" of the MANAGER (027/FR-031): every turma of the institution. */
+export const COHORTS_PATH = "/gestao/turmas";
+
 /** "Minhas turmas" of a student (003 US7); an accepted class invitation lands here with `?bem-vindo=1`. */
 export const MY_CLASSES_PATH = "/minhas-turmas";
 
@@ -75,6 +78,7 @@ export const FEEDBACKS_AREA = { href: "/admin/feedbacks", label: "Feedbacks", pe
  */
 export const STAFF_AREA_PERMISSIONS: readonly string[] = [
   "disciplinas.visualizar",
+  "disciplinas_turma.visualizar",
   "turmas.visualizar",
   ...USER_AREAS.map((area) => area.permission),
   AI_OPERATIONS_AREA.permission,
@@ -88,6 +92,7 @@ export const AREAS = [
   { prefix: "/trabalhos", name: "Banco de Trabalhos" },
   { prefix: "/provas", name: "Banco de Provas" },
   { prefix: "/turmas", name: "Turmas" },
+  { prefix: COHORTS_PATH, name: "Turmas" },
   { prefix: "/professores", name: "Professores" },
   { prefix: "/admin/managers", name: "Gestores" },
   { prefix: "/admin/usuarios", name: "Usuários" },
