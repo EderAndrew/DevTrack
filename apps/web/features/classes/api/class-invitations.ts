@@ -16,14 +16,17 @@ const search = (params: ClassInvitationListQuery) => {
   return query ? `?${query}` : "";
 };
 
-/** Invitations of a teacher's class (003 contracts/http-api.md, "Convites da turma"). */
+/**
+ * Invitations of a turma (003 "Convites da turma"; since 027 the MANAGER's, `/cohorts/:id/invitations`). The id is
+ * the turma's; the teacher's class pages lose their "Convites" with 027 T044.
+ */
 export const classInvitationsApi = {
-  list: (classId: string, params: ClassInvitationListQuery) =>
-    apiClient.get<ClassInvitationPage>(`/classes/${classId}/invitations${search(params)}`),
-  invite: (classId: string, body: InviteStudentRequest) =>
-    apiClient.post<ClassInvitationView>(`/classes/${classId}/invitations`, body),
-  resend: (classId: string, invitationId: string) =>
-    apiClient.post<ClassInvitationView>(`/classes/${classId}/invitations/${invitationId}/resend`, {} satisfies EmptyBody),
-  cancel: (classId: string, invitationId: string) =>
-    apiClient.post<ClassInvitationView>(`/classes/${classId}/invitations/${invitationId}/cancel`, {} satisfies EmptyBody),
+  list: (cohortId: string, params: ClassInvitationListQuery) =>
+    apiClient.get<ClassInvitationPage>(`/cohorts/${cohortId}/invitations${search(params)}`),
+  invite: (cohortId: string, body: InviteStudentRequest) =>
+    apiClient.post<ClassInvitationView>(`/cohorts/${cohortId}/invitations`, body),
+  resend: (cohortId: string, invitationId: string) =>
+    apiClient.post<ClassInvitationView>(`/cohorts/${cohortId}/invitations/${invitationId}/resend`, {} satisfies EmptyBody),
+  cancel: (cohortId: string, invitationId: string) =>
+    apiClient.post<ClassInvitationView>(`/cohorts/${cohortId}/invitations/${invitationId}/cancel`, {} satisfies EmptyBody),
 };

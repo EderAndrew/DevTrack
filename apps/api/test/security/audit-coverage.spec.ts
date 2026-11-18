@@ -71,10 +71,7 @@ const PENDING_020 = new Set<string>([]);
 /** 025 types whose flows arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
 const PENDING_025 = new Set<string>([]);
 /** 027 types whose routes arrive with later user stories (tasks.md); same rule as `PENDING_010`. */
-const PENDING_027 = new Set<string>([
-  "cohort.student_lookup", // US2
-  "cohort.student_lookup_rate_limited", // US2
-]);
+const PENDING_027 = new Set<string>([]);
 /**
  * 027 rows that replace the earlier feature's row of the same type (the turma took the invitations and the
  * enrollments; the class became the disciplina da turma): their metadata is the 027 row's, not the union.
@@ -100,9 +97,6 @@ const NOT_IN_JOURNEY_027 = new Set<string>([
   "cohort_transition.applied",
   "class.created", // US3
   "class.updated", // US3
-  "class_invitation.created", // US2
-  "class_invitation.resent", // US2
-  "class_invitation.cancelled", // US2
   "enrollment.removed", // US5
 ]);
 const PENDING = new Set([

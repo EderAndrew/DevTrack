@@ -51,6 +51,9 @@ export const AUDIT_EVENT_METADATA = {
   "cohort.created": ["code", "academicYear"],
   "cohort.updated": ["fields"],
   "cohort.status_changed": ["from", "to", "cancelledInvitations"],
+  // 027/FR-034 (US2): the lookup by exact e-mail; never the e-mail or the name.
+  "cohort.student_lookup": ["cohortId", "found"],
+  "cohort.student_lookup_rate_limited": ["cohortId"],
   // 027 — written only by the migration that is the transition (SYSTEM).
   "cohort_transition.applied": [
     "cohorts",

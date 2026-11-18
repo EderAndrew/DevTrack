@@ -286,21 +286,21 @@ turma; o aluno vê no card as disciplinas da turma sem convite por matéria.
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] `apps/api/test/integration/027-us2-invitations.spec.ts`: `027/US2-1`…`027/US2-6` (e-mail sem
+- [X] T025 [P] [US2] `apps/api/test/integration/027-us2-invitations.spec.ts`: `027/US2-1`…`027/US2-6` (e-mail sem
       professor nem disciplina, FR-010; convite duplicado; reenvio/cancelamento com motivo `MANAGER`; aceite por pessoa
       nova; o card oferece as duas disciplinas — `GET /me/classes` e `GET /me/activities?classId` de cada uma; turma
       inativa/arquivada → `409 COHORT_NOT_ACTIVE`); `027/SC-001` (um convite, N disciplinas).
-- [ ] T026 [P] [US2] `apps/api/test/integration/027-us2-direct-enrollment.spec.ts`: `027/US2-7`…`027/US2-9` e
+- [X] T026 [P] [US2] `apps/api/test/integration/027-us2-direct-enrollment.spec.ts`: `027/US2-7`…`027/US2-9` e
       `027/FR-034`: lookup encontrado (só `studentUserId`, `name` e `alreadyEnrolled`; aluno já matriculado →
       `found: true, alreadyEnrolled: true`), não encontrado igual para sem conta, conta sem
       STUDENT, e-mail não verificado e conta desativada; inclusão cria matrícula `DIRECT` com `enrolled_by_id`, cancela
       o convite PENDING do mesmo e-mail (`ENROLLED_DIRECTLY`), agenda `CLASS_ENROLLMENT_NOTICE` (Mailpit: assunto e
       corpo sem token, professor ou disciplina); `409 ALREADY_ENROLLED`; `422 STUDENT_NOT_ELIGIBLE`; 2 inclusões
       simultâneas → 1 matrícula; auditoria sem e-mail nem nome.
-- [ ] T027 [P] [US2] `apps/api/test/security/027-student-lookup.spec.ts`: 31º lookup do mesmo gestor em 1 min → `429`
+- [X] T027 [P] [US2] `apps/api/test/security/027-student-lookup.spec.ts`: 31º lookup do mesmo gestor em 1 min → `429`
       com `Retry-After` e `cohort.student_lookup_rate_limited`; o e-mail nunca aparece em URL, log ou auditoria
       (`log-scan` como em 020).
-- [ ] T028 [P] [US2] Reescrever `003-us2-class-invitations.spec.ts`, `003-us5-manage-invitations.spec.ts`,
+- [X] T028 [P] [US2] Reescrever `003-us2-class-invitations.spec.ts`, `003-us5-manage-invitations.spec.ts`,
       `003-class-invitation-delivery.spec.ts` e a parte de convites de `003-concurrency.spec.ts` com o gestor e as
       rotas `/cohorts/:id/invitations`, mantendo os ids `003/…`; `003-us3`/`003-us4`/`003-public-invitation` (aceite)
       só trocam a criação da turma (factory) e a expectativa do texto da turma (feito na Phase 2; o reenvio de
@@ -308,28 +308,34 @@ turma; o aluno vê no card as disciplinas da turma sem convite por matéria.
       `017-us2-notices`, `017-us3-templates`, `017-us4-config`, `017-boundaries`, `017-notice-auth`) com o gestor e
       `/cohorts/:id/invitations`, e a jornada (`test/helpers/journey.ts`) volta a convidar pela rota; os tipos
       `class_invitation.*` saem de `NOT_IN_JOURNEY_027`.
-- [ ] T029 [P] [US2] Web `apps/web/features/cohorts/components/add-student.test.tsx`: e-mail → lookup → "Incluir na
+- [X] T029 [P] [US2] Web `apps/web/features/cohorts/components/add-student.test.tsx`: e-mail → lookup → "Incluir na
       turma" / "Enviar convite" / "Esse aluno já está na turma."; resultado anunciado em `role="status"`; teclado; axe;
       `apps/web/features/class-invitations` (lista, reenviar, cancelar) dentro da página da turma do gestor.
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] `apps/api/src/modules/class-invitations/`: controller em `/cohorts/:id/invitations` com as permissões
+- [X] T030 [US2] `apps/api/src/modules/class-invitations/`: controller em `/cohorts/:id/invitations` com as permissões
       de sempre; o service busca a turma (não a classe), exige ACTIVE (`409 COHORT_NOT_ACTIVE`), grava `cohort_id`,
       cancela com `MANAGER`; `class-invitation-acceptance.service.ts` cria a matrícula na turma (`source INVITATION`);
       `class-invitation.mail-subject.ts` e a página pública com nome, código e período da turma (FR-010).
       Devolver a `003-list-performance.spec.ts` as linhas "convites da turma" (com e sem pesquisa) pela rota do gestor
       (tiradas na T020).
-- [ ] T031 [US2] `apps/api/src/modules/enrollments/direct-enrollment.service.ts` + rotas
+- [X] T031 [US2] `apps/api/src/modules/enrollments/direct-enrollment.service.ts` + rotas
       `POST /cohorts/:id/student-lookup` e `POST /cohorts/:id/enrollments` (`turmas.incluir_aluno`): elegibilidade
       (ACTIVE, STUDENT, e-mail verificado), limite 30/min reaproveitando `class-invitations/invitation-rate-limit.ts`,
       inclusão sob `FOR UPDATE` da turma + `ON CONFLICT` da partial UNIQUE, cancelamento do convite pendente, outbox
       `CLASS_ENROLLMENT_NOTICE`; `enrollment-notice.mail-subject.ts` registrado como `MailSubject` (017) com template
       HTML + texto em `apps/api/src/platform/mail/templates/` (padrão dos outros); `GET /cohorts/:id/enrollments` com
       nome, e-mail, situação e `source`.
-- [ ] T032 [US2] Web: aba "Alunos" e "Convites" da página da turma do gestor; diálogo "Adicionar aluno"
+- [X] T032 [US2] Web: aba "Alunos" e "Convites" da página da turma do gestor; diálogo "Adicionar aluno"
       (contracts/ui.md); mensagens "Aluno incluído na turma.", "Esse aluno já está na turma.", "Convite enviado.".
-- [ ] T033 [US2] Retirar US2 e `SC-001` de `pending`.
+- [X] T033 [US2] Retirar US2 e `SC-001` de `pending`.
+      **Registro (2026-11-18)**: o `POST /cohorts/:id/enrollments` também conta no limite de 30/min das consultas e é
+      auditado quando recusado (achado baixo da auditoria OWASP: a inclusão respondia 422/201 sem limite, revelando se
+      o e-mail é de aluno). A prévia pública do convite e o e-mail perderam `teacherName` (FR-010); `ALREADY_ENROLLED`
+      passou ao texto de FR-032 no web. As suítes 017 continuam com o mesmo usuário convidando, agora com os papéis
+      TEACHER e MANAGER (o assunto delas é o envio, não o ator). O web reaproveita a lista de convites de
+      `features/classes` com o id da turma; a aba "Convites" da página do professor sai na T044.
 
 **Checkpoint**: alunos entram na turma pelos dois caminhos.
 

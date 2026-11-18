@@ -20,7 +20,6 @@ const apiError = (status: number, code: string, message: string) => json(status,
 
 const PREVIEW: ClassInvitationPreview = {
   class: { name: "Algoritmos", code: "ALG-1", academicYear: 2026, period: "1º semestre" },
-  teacherName: "Professora Ada",
   email: "aluna.nova@example.test",
   mode: "CREATE_ACCOUNT",
   raRequired: true,
@@ -53,7 +52,7 @@ describe("003/US3-1 003/US3-2 003/US3-4 003/US3-5 ClassInvitationPage — aluno 
     const { container, queryClient } = renderWithProviders(<ClassInvitationPage token={TOKEN} />);
 
     expect(await screen.findByText("Algoritmos")).toBeTruthy();
-    expect(screen.getByText(/Professora Ada/)).toBeTruthy();
+    expect(screen.queryByText(/Professor/)).toBeNull();
     expect(screen.getByText(/ALG-1/)).toBeTruthy();
     const email = screen.getByLabelText(/^E-mail/) as HTMLInputElement;
     expect(email.value).toBe(PREVIEW.email);

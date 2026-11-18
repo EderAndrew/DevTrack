@@ -46,6 +46,13 @@ import {
   UpdateCohortRequestSchema,
 } from "./cohorts/cohorts.js";
 import {
+  CohortEnrollmentPageSchema,
+  CohortEnrollmentViewSchema,
+  DirectEnrollmentRequestSchema,
+  StudentLookupRequestSchema,
+  StudentLookupResponseSchema,
+} from "./cohorts/enrollments.js";
+import {
   AiExecutionListQuerySchema,
   AiExecutionPageSchema,
   AiExecutionResultSchema,
@@ -565,37 +572,63 @@ export const endpoints = {
     response: ClassViewSchema,
     status: 200,
   },
-  "classInvitations.create": {
+  // 027: the invitations belong to the turma (the MANAGER's, contracts/http-api.md "MANAGER — turma").
+  "cohortInvitations.create": {
     method: "POST",
-    path: "/classes/:id/invitations",
+    path: "/cohorts/:id/invitations",
     params: IdParamsSchema,
     body: InviteStudentRequestSchema,
     response: ClassInvitationViewSchema,
     status: 201,
   },
-  "classInvitations.list": {
+  "cohortInvitations.list": {
     method: "GET",
-    path: "/classes/:id/invitations",
+    path: "/cohorts/:id/invitations",
     params: IdParamsSchema,
     query: ClassInvitationListQuerySchema,
     response: ClassInvitationPageSchema,
     status: 200,
   },
-  "classInvitations.resend": {
+  "cohortInvitations.resend": {
     method: "POST",
-    path: "/classes/:id/invitations/:invitationId/resend",
+    path: "/cohorts/:id/invitations/:invitationId/resend",
     params: ClassInvitationParamsSchema,
     body: EmptyBodySchema,
     response: ClassInvitationViewSchema,
     status: 200,
   },
-  "classInvitations.cancel": {
+  "cohortInvitations.cancel": {
     method: "POST",
-    path: "/classes/:id/invitations/:invitationId/cancel",
+    path: "/cohorts/:id/invitations/:invitationId/cancel",
     params: ClassInvitationParamsSchema,
     body: EmptyBodySchema,
     response: ClassInvitationViewSchema,
     status: 200,
+  },
+  // 027/FR-034: the students of a turma, the lookup by exact e-mail and the direct enrollment.
+  "cohortEnrollments.list": {
+    method: "GET",
+    path: "/cohorts/:id/enrollments",
+    params: IdParamsSchema,
+    query: EnrollmentListQuerySchema,
+    response: CohortEnrollmentPageSchema,
+    status: 200,
+  },
+  "cohortEnrollments.lookup": {
+    method: "POST",
+    path: "/cohorts/:id/student-lookup",
+    params: IdParamsSchema,
+    body: StudentLookupRequestSchema,
+    response: StudentLookupResponseSchema,
+    status: 200,
+  },
+  "cohortEnrollments.create": {
+    method: "POST",
+    path: "/cohorts/:id/enrollments",
+    params: IdParamsSchema,
+    body: DirectEnrollmentRequestSchema,
+    response: CohortEnrollmentViewSchema,
+    status: 201,
   },
   "enrollments.list": {
     method: "GET",

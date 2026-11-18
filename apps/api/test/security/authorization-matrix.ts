@@ -221,16 +221,20 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/cohorts/:id", access: "turmas.visualizar" },
   { method: "PATCH", path: "/cohorts/:id", access: "turmas.editar" },
   { method: "POST", path: "/cohorts/:id/status", access: "turmas.alterar_situacao" },
-  // 027: the teacher's routes of the disciplina da turma; the invitations and the removal stay on `turmas.*`
-  // (now the MANAGER's) until US2 and US5 move them to `/cohorts/:id` (T030, T054).
+  // 027 — the MANAGER's invitations and students of a turma (US2).
+  { method: "GET", path: "/cohorts/:id/invitations", access: "turmas.visualizar" },
+  { method: "POST", path: "/cohorts/:id/invitations", access: "turmas.convidar_aluno" },
+  { method: "POST", path: "/cohorts/:id/invitations/:invitationId/resend", access: "turmas.reenviar_convite" },
+  { method: "POST", path: "/cohorts/:id/invitations/:invitationId/cancel", access: "turmas.cancelar_convite" },
+  { method: "GET", path: "/cohorts/:id/enrollments", access: "turmas.visualizar_alunos" },
+  { method: "POST", path: "/cohorts/:id/student-lookup", access: "turmas.incluir_aluno" },
+  { method: "POST", path: "/cohorts/:id/enrollments", access: "turmas.incluir_aluno" },
+  // 027: the teacher's routes of the disciplina da turma; the removal stays on `turmas.remover_aluno` (now the
+  // MANAGER's) until US5 moves it to `/cohorts/:id` (T054).
   { method: "GET", path: "/classes", access: "disciplinas_turma.visualizar" },
   { method: "GET", path: "/classes/:id", access: "disciplinas_turma.visualizar" },
   { method: "PATCH", path: "/classes/:id", access: "disciplinas_turma.editar" },
   { method: "POST", path: "/classes/:id/status", access: "disciplinas_turma.alterar_situacao" },
-  { method: "GET", path: "/classes/:id/invitations", access: "turmas.visualizar" },
-  { method: "POST", path: "/classes/:id/invitations", access: "turmas.convidar_aluno" },
-  { method: "POST", path: "/classes/:id/invitations/:invitationId/resend", access: "turmas.reenviar_convite" },
-  { method: "POST", path: "/classes/:id/invitations/:invitationId/cancel", access: "turmas.cancelar_convite" },
   { method: "GET", path: "/classes/:id/enrollments", access: "disciplinas_turma.visualizar_alunos" },
   { method: "POST", path: "/classes/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
   { method: "GET", path: "/me/classes", access: "turmas.proprias.listar" },

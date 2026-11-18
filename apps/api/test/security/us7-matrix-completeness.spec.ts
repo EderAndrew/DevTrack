@@ -14,8 +14,6 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
   // 027: seeded by the migration (T007); each leaves with its route (US1–US5).
-  "turmas.visualizar_alunos", // US2 (GET /cohorts/:id/enrollments)
-  "turmas.incluir_aluno", // US2
   "turmas.buscar", // US3
   "disciplinas_turma.criar", // US3
 ]);

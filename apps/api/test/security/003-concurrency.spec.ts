@@ -23,6 +23,8 @@ describe("003/SC-004 — concorrência de convites, aceites e remoções", () =>
   let teacher: TestUser;
   let schoolClass: SchoolClass;
   let teacherClient: ReturnType<typeof api>;
+  /** 027 (T028): the invitations are the MANAGER's, on the turma. */
+  let managerClient: ReturnType<typeof api>;
 
   beforeAll(async () => {
     const base = testConfig();
@@ -44,6 +46,7 @@ describe("003/SC-004 — concorrência de convites, aceites e remoções", () =>
     teacher = await createUser(t, { roles: ["TEACHER"], name: "Professora Ada" });
     schoolClass = await createClass(t, teacher.id, { code: "ALG-1" });
     teacherClient = api(t, { cookie: await loginAs(t, teacher) });
+    managerClient = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["MANAGER"], name: "Gestora" })) });
   });
 
   const times = <T>(n: number, fn: () => Promise<T>) => Promise.all(Array.from({ length: n }, fn));
@@ -52,7 +55,7 @@ describe("003/SC-004 — concorrência de convites, aceites e remoções", () =>
 
   it("003/FR-012 convites simultâneos para o mesmo e-mail → um pendente, uma entrega, uma auditoria", async () => {
     const results = await times(PARALLEL, () =>
-      teacherClient.post(`/api/classes/${schoolClass.id}/invitations`, { email: "corrida@example.test" }),
+      managerClient.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: "corrida@example.test" }),
     );
     expect(statuses(results).filter((s) => s === 201)).toHaveLength(1);
     expect(results.filter((res) => res.status !== 201).map((res) => res.body.code)).toEqual(
@@ -101,7 +104,7 @@ describe("003/SC-004 — concorrência de convites, aceites e remoções", () =>
       const { invitation, token } = await createClassInvitation(t, schoolClass.id, email);
       const [accepted, cancelled] = await Promise.all([
         accept({ token, name: "Aluno Disputa", ra: `RA-D${round}`, password: PASSWORD }),
-        teacherClient.post(`/api/classes/${schoolClass.id}/invitations/${invitation.id}/cancel`, {}),
+        managerClient.post(`/api/cohorts/${schoolClass.cohortId}/invitations/${invitation.id}/cancel`, {}),
       ]);
       const final = await t.prisma.classInvitation.findUniqueOrThrow({ where: { id: invitation.id } });
       const user = await t.prisma.user.findUnique({ where: { email } });

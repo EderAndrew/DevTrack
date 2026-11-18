@@ -33,11 +33,12 @@ describe("003/US2-6 003/SC-007 entrega do convite com novas tentativas", () => {
     logs.clear();
   });
 
-  /** Invites EMAIL to a new class; returns the invitation id after the first attempt ran. */
+  /** Invites EMAIL to a new turma as its MANAGER (027); returns the invitation id after the first attempt ran. */
   async function invite(): Promise<string> {
     const teacher = await createUser(t, { roles: ["TEACHER"], name: "Professora Ada" });
+    const manager = await createUser(t, { roles: ["MANAGER"], name: "Gestora" });
     const schoolClass = await createClass(t, teacher.id, { name: "Redes" });
-    const res = await api(t, { cookie: await loginAs(t, teacher) }).post(`/api/classes/${schoolClass.id}/invitations`, {
+    const res = await api(t, { cookie: await loginAs(t, manager) }).post(`/api/cohorts/${schoolClass.cohortId}/invitations`, {
       email: EMAIL,
     });
     expect(res.status).toBe(201);

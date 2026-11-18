@@ -52,7 +52,8 @@ export const ERROR_MESSAGES = {
   BOOTSTRAP_ALREADY_DONE: "Bootstrap administrativo já realizado.",
   CLASS_CODE_TAKEN: "Você já tem uma turma com este código.",
   CLASS_NOT_OPEN: "Esta turma não aceita novos alunos.",
-  ALREADY_ENROLLED: "Este aluno já está matriculado nesta turma.",
+  // 027/FR-032: the MANAGER's text, the same for the invitation and the direct inclusion.
+  ALREADY_ENROLLED: "Esse aluno já está na turma.",
   RA_TAKEN: "Este RA já está em uso.",
   SUBJECT_NAME_TAKEN: "Você já tem uma disciplina com este nome.",
   SUBJECT_INACTIVE: "Esta disciplina está desativada. Reative-a para usá-la.",
@@ -156,6 +157,8 @@ export const ERROR_MESSAGES = {
   // 027/FR-032: the turma of the MANAGER.
   COHORT_CODE_TAKEN: "Esse código de turma já está em uso.",
   COHORT_ARCHIVED: "Esta turma está arquivada e não pode ser editada.",
+  COHORT_NOT_ACTIVE: "Esta turma não está ativa. Reative-a para convidar ou incluir alunos.",
+  STUDENT_NOT_ELIGIBLE: "Esse e-mail não pode ser incluído direto. Envie um convite.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

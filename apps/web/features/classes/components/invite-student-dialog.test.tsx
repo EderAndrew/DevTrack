@@ -56,7 +56,7 @@ describe("003/US2-1 003/US2-2 003/US2-3 003/US2-4 InviteStudentDialog (FR-010, F
     expect(await screen.findByText("Convite enviado.")).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(trigger);
-    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/classes/${CLASS_ID}/invitations`);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations`);
     expect(fetchMock.mock.calls[0]![1]!.method).toBe("POST");
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1]!.body))).toEqual({ email: "aluno@example.test" });
   });
@@ -79,7 +79,7 @@ describe("003/US2-1 003/US2-2 003/US2-3 003/US2-4 InviteStudentDialog (FR-010, F
 
   it.each([
     ["INVITATION_ALREADY_PENDING", "Já existe um convite pendente para este e-mail."],
-    ["ALREADY_ENROLLED", "Este aluno já está matriculado nesta turma."],
+    ["ALREADY_ENROLLED", "Esse aluno já está na turma."],
   ])("%s aparece junto ao campo E-mail e o diálogo continua aberto", async (code, text) => {
     fetchMock.mockResolvedValueOnce(apiError(409, code, "Mensagem da API."));
     const { user, dialog } = await open();

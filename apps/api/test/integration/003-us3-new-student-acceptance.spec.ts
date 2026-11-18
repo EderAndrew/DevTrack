@@ -56,13 +56,12 @@ describe("003/US3 — aluno novo aceita o convite criando a própria conta (FR-0
   };
 
   describe("003/US3-1 página do convite", () => {
-    it("preview mostra turma, professor e e-mail, com modo CREATE_ACCOUNT e RA obrigatório", async () => {
+    it("preview mostra a turma e o e-mail (sem professor, 027/FR-010), com modo CREATE_ACCOUNT e RA obrigatório", async () => {
       const { token, invitation: row } = await invitation();
       const res = await preview(token);
       expect(res.status).toBe(200);
       expect(res.body).toEqual({
         class: { name: "Algoritmos", code: "ALG-1", academicYear: 2026, period: "1º semestre" },
-        teacherName: "Professora Ada",
         email: EMAIL,
         mode: "CREATE_ACCOUNT",
         raRequired: true,

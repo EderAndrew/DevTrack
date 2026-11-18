@@ -17,7 +17,7 @@ const CONTRACT = resolve(REPO_ROOT, "specs/017-production-email/contracts/http-a
  * shapes"): the three invitation lists and the teacher detail of ADMIN and gestor, which embeds the
  * teacher's `InvitationView` (001, `professores.visualizar`).
  */
-const INVITATION_VIEWS = /^\/(classes\/:id\/invitations|teacher-invitations|manager-invitations|teachers\/:userId)(\/|$)/;
+const INVITATION_VIEWS = /^\/(cohorts\/:id\/invitations|teacher-invitations|manager-invitations|teachers\/:userId)(\/|$)/;
 
 /** Every property name of a JSON Schema, at any depth. */
 function propertyNames(schema: unknown, found = new Set<string>()): Set<string> {
@@ -106,20 +106,21 @@ describe("017 fronteiras do envio de e-mail", () => {
     let classA: string;
 
     beforeEach(async () => {
-      teacherA = await createUser(t, { roles: ["TEACHER"] });
-      classA = (await createClass(t, teacherA.id)).id;
-      const res = await api(t, { cookie: await loginAs(t, teacherA) }).post(`/api/classes/${classA}/invitations`, { email: uniqueEmail("aluno") });
+      // 027: the invitations are the turma's, the MANAGER's (`classA` is the turma's id).
+      teacherA = await createUser(t, { roles: ["MANAGER"] });
+      classA = (await createClass(t, (await createUser(t, { roles: ["TEACHER"] })).id)).cohortId;
+      const res = await api(t, { cookie: await loginAs(t, teacherA) }).post(`/api/cohorts/${classA}/invitations`, { email: uniqueEmail("aluno") });
       expect(res.status).toBe(201);
       await t.flushMail();
     });
 
-    it("o professor B não vê os convites da turma de A (404); A vê a situação", async () => {
+    it("um professor não vê os convites da turma (403); o gestor vê a situação", async () => {
       const teacherB = await createUser(t, { roles: ["TEACHER"] });
-      const own = await api(t, { cookie: await loginAs(t, teacherA) }).get(`/api/classes/${classA}/invitations`);
+      const own = await api(t, { cookie: await loginAs(t, teacherA) }).get(`/api/cohorts/${classA}/invitations`);
       expect(own.status).toBe(200);
       expect(JSON.stringify(own.body)).toMatch(/"delivery":"SENT"/);
-      const other = await api(t, { cookie: await loginAs(t, teacherB) }).get(`/api/classes/${classA}/invitations`);
-      expect(other.status).toBe(404);
+      const other = await api(t, { cookie: await loginAs(t, teacherB) }).get(`/api/cohorts/${classA}/invitations`);
+      expect(other.status).toBe(403);
       expect(JSON.stringify(other.body)).not.toMatch(/delivery/);
     });
 
@@ -136,19 +137,19 @@ describe("017 fronteiras do envio de e-mail", () => {
         expect(teachers.status, `${role} /teacher-invitations`).toBe(granted.has("professores.visualizar") ? 200 : 403);
         const managers = await client.get("/api/manager-invitations");
         expect(managers.status, `${role} /manager-invitations`).toBe(granted.has("managers.visualizar") ? 200 : 403);
-        // Another teacher's class: outside the context (404) with the permission, 403 without it.
-        const classInvitations = await client.get(`/api/classes/${classA}/invitations`);
-        expect(classInvitations.status, `${role} turma de A`).toBe(granted.has("turmas.visualizar") ? 404 : 403);
+        // 027: a turma belongs to no one, so the permission alone decides (MANAGER and ADMIN 200, TEACHER 403).
+        const classInvitations = await client.get(`/api/cohorts/${classA}/invitations`);
+        expect(classInvitations.status, `${role} turma de A`).toBe(granted.has("turmas.visualizar") ? 200 : 403);
       }
     });
   });
 
   describe("a rota de avisos", () => {
     it("Origin de fora e cookie de sessão: nenhuma sessão nova, nenhum cookie, nenhum ator humano na auditoria", async () => {
-      const teacher = await createUser(t, { roles: ["TEACHER"] });
+      const teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"] });
       const schoolClass = await createClass(t, teacher.id);
       const cookie = await loginAs(t, teacher);
-      const invited = await api(t, { cookie }).post(`/api/classes/${schoolClass.id}/invitations`, { email: uniqueEmail("aluno") });
+      const invited = await api(t, { cookie }).post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: uniqueEmail("aluno") });
       await t.flushMail();
       const { messageId } = await t.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitationId: invited.body.id } });
       const sessionsBefore = await t.prisma.session.count();
@@ -233,12 +234,12 @@ describe("017 fronteiras do envio de e-mail", () => {
         .filter((entry) => /(bulk|import|batch|broadcast|newsletter|remind|digest)/i.test(entry.path) && /invit|mail/i.test(entry.path))
         .map((entry) => `${entry.method} ${entry.path}`);
       expect(bulk).toEqual([]);
-      const teacher = await createUser(t, { roles: ["TEACHER"] });
+      const teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"] });
       const schoolClass = await createClass(t, teacher.id);
       const client = api(t, { cookie: await loginAs(t, teacher) });
-      const many = await client.post(`/api/classes/${schoolClass.id}/invitations`, { emails: [uniqueEmail("a"), uniqueEmail("b")] });
+      const many = await client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { emails: [uniqueEmail("a"), uniqueEmail("b")] });
       expect(many.status).toBe(400);
-      const list = await client.post(`/api/classes/${schoolClass.id}/invitations`, { email: [uniqueEmail("a"), uniqueEmail("b")] });
+      const list = await client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: [uniqueEmail("a"), uniqueEmail("b")] });
       expect(list.status).toBe(400);
       expect(await t.prisma.mailDelivery.count()).toBe(0);
     });

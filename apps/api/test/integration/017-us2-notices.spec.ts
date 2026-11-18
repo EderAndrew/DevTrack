@@ -78,7 +78,8 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
     logs.clear();
     admin = await createUser(t, { roles: ["ADMIN"] });
     manager = await createUser(t, { roles: ["MANAGER"] });
-    teacher = await createUser(t, { roles: ["TEACHER"] });
+    // 027: the class invitation is the MANAGER's; this account also teaches the class it invites to.
+    teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"] });
   });
 
   const resend = (type: ResendEventType, messageId: string | null, options: { at?: Date; id?: string; bounceType?: "Permanent" | "Transient" } = {}) =>
@@ -91,14 +92,14 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
   async function inviteStudent(email = uniqueEmail("aluno")) {
     const schoolClass = await createClass(t, teacher.id);
     const client = api(t, { cookie: await loginAs(t, teacher) });
-    const res = await client.post(`/api/classes/${schoolClass.id}/invitations`, { email });
+    const res = await client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email });
     expect(res.status).toBe(201);
     await t.flushMail();
     const delivery = await deliveryOf("CLASS_INVITATION");
     /** The teacher's list row of this invitation, filtered by its current status. */
     const view = async () => {
       const { status } = await t.prisma.classInvitation.findUniqueOrThrow({ where: { id: res.body.id }, select: { status: true } });
-      const list = await client.get(`/api/classes/${schoolClass.id}/invitations?status=${status}`);
+      const list = await client.get(`/api/cohorts/${schoolClass.cohortId}/invitations?status=${status}`);
       expect(list.status).toBe(200);
       return (list.body.items as { id: string }[]).find((item) => item.id === res.body.id) as Record<string, unknown>;
     };
@@ -140,19 +141,19 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
     const invite = await inviteStudent();
     await resend("email.bounced", invite.messageId);
     const other = await createUser(t, { roles: ["TEACHER"] });
-    expect((await api(t, { cookie: await loginAs(t, other) }).get(`/api/classes/${invite.schoolClass.id}/invitations`)).status).toBe(404);
+    expect((await api(t, { cookie: await loginAs(t, other) }).get(`/api/cohorts/${invite.schoolClass.cohortId}/invitations`)).status).toBe(403);
     expect((await api(t, { cookie: await loginAs(t, manager) }).get("/api/manager-invitations")).status).toBe(403);
   });
 
   it("017/US2-3 cancelar o convite \"Não entregue\" e convidar outro endereço segue o fluxo normal", async () => {
     const invite = await inviteStudent();
     await resend("email.bounced", invite.messageId);
-    expect((await invite.client.post(`/api/classes/${invite.schoolClass.id}/invitations/${invite.invitationId}/cancel`)).status).toBe(200);
-    const corrected = await invite.client.post(`/api/classes/${invite.schoolClass.id}/invitations`, { email: uniqueEmail("aluno-certo") });
+    expect((await invite.client.post(`/api/cohorts/${invite.schoolClass.cohortId}/invitations/${invite.invitationId}/cancel`)).status).toBe(200);
+    const corrected = await invite.client.post(`/api/cohorts/${invite.schoolClass.cohortId}/invitations`, { email: uniqueEmail("aluno-certo") });
     expect(corrected.status).toBe(201);
     expect(corrected.body).toMatchObject({ status: "PENDING", deliveryIssue: null });
     await t.flushMail();
-    const pending = await invite.client.get(`/api/classes/${invite.schoolClass.id}/invitations?status=PENDING`);
+    const pending = await invite.client.get(`/api/cohorts/${invite.schoolClass.cohortId}/invitations?status=PENDING`);
     expect(pending.body.items).toEqual([expect.objectContaining({ id: corrected.body.id, status: "PENDING", delivery: "SENT", deliveryIssue: null })]);
     expect(await invite.view()).toMatchObject({ status: "CANCELLED" });
   });
@@ -161,7 +162,7 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
     const invite = await inviteStudent();
     await resend("email.bounced", invite.messageId);
     expect(await invite.view()).toMatchObject({ delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" });
-    const resent = await invite.client.post(`/api/classes/${invite.schoolClass.id}/invitations/${invite.invitationId}/resend`);
+    const resent = await invite.client.post(`/api/cohorts/${invite.schoolClass.cohortId}/invitations/${invite.invitationId}/resend`);
     expect(resent.status).toBe(200);
     await t.flushMail();
     expect(await invite.view()).toMatchObject({ delivery: "SENT", deliveryIssue: null });
@@ -295,9 +296,9 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
         mailer.hold();
         const schoolClass = await createClass(t, teacher.id);
         const client = api(t, { cookie: await loginAs(t, teacher) });
-        expect((await client.post(`/api/classes/${schoolClass.id}/invitations`, { email: uniqueEmail("em-voo") })).status).toBe(201);
+        expect((await client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: uniqueEmail("em-voo") })).status).toBe(201);
         await mailer.started;
-        const inFlight = await t.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitation: { classId: schoolClass.id } } });
+        const inFlight = await t.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitation: { cohortId: schoolClass.cohortId } } });
         expect(inFlight).toMatchObject({ status: "PENDING", attempts: 1 });
         expect((await resend(type, inFlight.messageId)).status).toBe(200);
         mailer.release();
@@ -332,7 +333,7 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
 
     it("envio substituído e tentativa antiga: a situação do convite segue o envio mais recente", async () => {
       const invite = await inviteStudent();
-      expect((await invite.client.post(`/api/classes/${invite.schoolClass.id}/invitations/${invite.invitationId}/resend`)).status).toBe(200);
+      expect((await invite.client.post(`/api/cohorts/${invite.schoolClass.cohortId}/invitations/${invite.invitationId}/resend`)).status).toBe(200);
       await t.flushMail();
       expect(await t.prisma.mailDelivery.count()).toBe(2);
       await resend("email.bounced", invite.messageId);
@@ -378,12 +379,12 @@ describe("017/US2 quem convidou vê que o convite não foi entregue", () => {
     it("017/FR-014 017/US2-1 voltou (Permanent) pelo SES → o professor vê \"Não entregue\"", async () => {
       const schoolClass = await createClass(ses, teacher.id);
       const client = api(ses, { cookie: await loginAs(ses, teacher) });
-      const invited = await client.post(`/api/classes/${schoolClass.id}/invitations`, { email: uniqueEmail("aluno-ses") });
+      const invited = await client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: uniqueEmail("aluno-ses") });
       await ses.flushMail();
       const delivery = await ses.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitationId: invited.body.id } });
       const notice = signedSnsNotice({ type: "Bounce", messageId: delivery.messageId, at: clock.now(), signer });
       for (let i = 0; i < 2; i++) expect((await postNotice(ses, "ses", notice)).status).toBe(200);
-      const list = await client.get(`/api/classes/${schoolClass.id}/invitations`);
+      const list = await client.get(`/api/cohorts/${schoolClass.cohortId}/invitations`);
       expect(list.body.items.find((item: { id: string }) => item.id === invited.body.id)).toMatchObject({ delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" });
       expect(await ses.prisma.mailNotice.findMany({ select: { provider: true, kind: true } })).toEqual([{ provider: "SES", kind: "BOUNCED" }]);
     });

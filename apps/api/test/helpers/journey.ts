@@ -9,7 +9,6 @@ import { RateLimitService } from "../../src/platform/rate-limit/rate-limit.servi
 import { SyllabusProcessingWorker } from "../../src/modules/syllabus/syllabus-processing.worker";
 import { AiExecutionWorker } from "../../src/modules/ai/execution/ai-execution.worker";
 import { MailDeliveryWorker } from "../../src/platform/mail/outbox/mail-delivery.worker";
-import { MailOutbox } from "../../src/platform/mail/outbox/mail-outbox";
 import { AiRegistrySync } from "../../src/modules/ai/registry/ai-registry.sync";
 import { CircuitBreaker } from "../../src/modules/ai/gateway/circuit-breaker";
 import { ModelGateway } from "../../src/modules/ai/gateway/model-gateway";
@@ -32,7 +31,6 @@ import { READ_WORK_HELP_REQUEST } from "../../src/modules/work-help/definitions/
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
   createClass,
-  createClassInvitation,
   createSyllabusDocument,
   createUser,
   DEFAULT_PASSWORD,
@@ -716,12 +714,10 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(appliedExam.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExam.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
-  // The invitation row comes from the factory (US2 brings the MANAGER's route back); its e-mail still goes through
-  // the 017 outbox, so the class-invitation template, link and token are sent and scanned as before.
+  // 027/US2 — the MANAGER invites to the turma (`/cohorts/:id/invitations`); the e-mail goes through the 017 outbox.
+  const cohortId = journeyClass.cohortId;
   const inviteToClass = async (email: string) => {
-    const { invitation } = await createClassInvitation(t, classId, email);
-    await t.prisma.runInTransaction((tx) => t.get(MailOutbox).schedule(tx, "CLASS_INVITATION", invitation.id));
-    await t.get(MailDeliveryWorker).runOnce(new Date(Date.now() + 60_000));
+    expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations`, { email })).status).toBe(201);
     await t.flushMail();
     return keepToken("token de convite de turma", t.mailer.lastTokenFor(email, "class-invitation"));
   };
@@ -734,6 +730,19 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     password: classStudentPassword,
   });
   expect(classAccepted.status).toBe(200);
+  // 027/FR-034 — the MANAGER finds the student by exact e-mail and includes them directly in another turma (the notice
+  // goes through the outbox, with no token); past 30 lookups a minute the lookup is refused and audited.
+  const otherCohort = await managerClient.post("/api/cohorts", { name: "Outra Turma da Jornada", code: "JOR-2", academicYear: 2027 });
+  const lookup = await managerClient.post(`/api/cohorts/${otherCohort.body.id}/student-lookup`, { email: "aluno-convidado-jornada@example.test" });
+  expect(lookup.body).toMatchObject({ found: true, alreadyEnrolled: false });
+  expect((await managerClient.post(`/api/cohorts/${otherCohort.body.id}/enrollments`, { email: "aluno-convidado-jornada@example.test" })).status).toBe(201);
+  await t.flushMail();
+  expect((await managerClient.get(`/api/cohorts/${otherCohort.body.id}/enrollments`)).body.items).toHaveLength(1);
+  let lookupStatus = 200;
+  for (let i = 0; i < 31 && lookupStatus === 200; i += 1) {
+    lookupStatus = (await managerClient.post(`/api/cohorts/${otherCohort.body.id}/student-lookup`, { email: uniqueEmail("busca") })).status;
+  }
+  expect(lookupStatus).toBe(429);
   // 006/US1, US3 — AI executions: one completed after a tool call, one failed on an invalid output,
   // one failed on a tool outside the allowlist, one cancelled in the queue, one cancelled while
   // running, and the rate limit. The input, the instructions, the
@@ -1128,12 +1137,23 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // ends in the turma (US5 brings the MANAGER's route back; here it ends as that route ends it).
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);
+  expect((await managerClient.get(`/api/cohorts/${cohortId}/enrollments?query=Aluno`)).body.items).toHaveLength(1);
   const enrollmentId = students.body.items[0].id as string;
   await t.prisma.enrollment.update({
     where: { id: enrollmentId },
     data: { status: "REMOVED", removedAt: new Date(), removalReason: "MANAGER" },
   });
   const lateToken = await inviteToClass("aluno-atrasado-jornada@example.test");
+  // 003/US5 — the MANAGER lists, resends and cancels an invitation (027/FR-011).
+  const resentEmail = "aluno-reenvio-jornada@example.test";
+  const resentId = (await managerClient.post(`/api/cohorts/${cohortId}/invitations`, { email: resentEmail })).body.id as string;
+  await t.flushMail();
+  keepToken("token de convite de turma", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
+  expect((await managerClient.get(`/api/cohorts/${cohortId}/invitations?query=reenvio`)).body.items).toHaveLength(1);
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations/${resentId}/resend`, {})).status).toBe(200);
+  await t.flushMail();
+  keepToken("token de convite de turma reenviado", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations/${resentId}/cancel`, {})).status).toBe(200);
   // The teacher closes the class (its own status); the MANAGER closes the turma (027/US1).
   expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "INACTIVE" })).status).toBe(200);
   expect((await managerClient.post(`/api/cohorts/${journeyClass.cohortId}/status`, { to: "INACTIVE" })).status).toBe(200);

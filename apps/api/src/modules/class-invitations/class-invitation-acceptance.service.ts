@@ -30,8 +30,8 @@ const AUDITED_ERRORS: Partial<Record<string, RefusalReason>> = {
 };
 
 /**
- * 027 (provisional until T030): the invitation is to a turma; the preview shows the cohort and the inviter
- * stands where the 003 teacher stood. `classId` of the answer is the cohort's first disciplina da turma.
+ * 027: the invitation is to a turma; the preview shows its name, code and period, never a teacher or a subject
+ * (FR-010). `classId` of the answer is the cohort's first disciplina da turma.
  */
 interface LockedInvitation {
   id: string;
@@ -40,7 +40,6 @@ interface LockedInvitation {
   status: ClassInvitationStatus;
   invitedById: string;
   acceptedByUserId: string | null;
-  invitedBy: { name: string };
   cohort: {
     name: string;
     code: string;
@@ -112,7 +111,6 @@ export class ClassInvitationAcceptanceService {
           academicYear: cohort.academicYear,
           period: cohort.period,
         },
-        teacherName: invitation.invitedBy.name,
         email: invitation.email,
         mode: await this.acceptance.resolveMode(tx, invitation.email),
         raRequired: !user?.studentProfile?.ra,
@@ -291,7 +289,6 @@ export class ClassInvitationAcceptanceService {
         status: true,
         invitedById: true,
         acceptedByUserId: true,
-        invitedBy: { select: { name: true } },
         cohort: {
           select: {
             name: true,

@@ -61,7 +61,7 @@ describe("004/US1-4 seções da turma", () => {
 
     renderWithProviders(<ClassInvitationsSection classId={CLASS.id} canResend canCancel />);
     expect(await screen.findByText("Nenhum convite pendente.")).toBeTruthy();
-    expect(urls()).toContain(`/api/classes/${CLASS.id}/invitations?status=PENDING`);
+    expect(urls()).toContain(`/api/cohorts/${CLASS.id}/invitations?status=PENDING`);
   });
 
   it("turma sem disciplina ou datas: o que falta preencher e o link para editar", async () => {

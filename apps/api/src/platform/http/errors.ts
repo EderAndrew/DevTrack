@@ -205,6 +205,10 @@ export const ErrorCatalog = {
   COHORT_CODE_TAKEN: { status: 409, message: "Esse código de turma já está em uso." },
   // 027/FR-003: an archived turma is never edited.
   COHORT_ARCHIVED: { status: 409, message: "Esta turma está arquivada e não pode ser editada." },
+  // 027/US2-6: invitations and direct enrollments only in an ACTIVE turma.
+  COHORT_NOT_ACTIVE: { status: 409, message: "Esta turma não está ativa." },
+  // 027/FR-034: the e-mail is not of an active, verified student account; the way is the invitation.
+  STUDENT_NOT_ELIGIBLE: { status: 422, message: "Este e-mail não pode ser incluído direto. Envie um convite." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
   // only caller, so the text never says which check failed (contracts/http-api.md).
   NOTICE_REJECTED: { status: 401, message: "Aviso recusado." },
@@ -272,6 +276,8 @@ export const bootstrapAlreadyDone = () => new AppException("BOOTSTRAP_ALREADY_DO
 export const classCodeTaken = () => new AppException("CLASS_CODE_TAKEN");
 export const cohortCodeTaken = () => new AppException("COHORT_CODE_TAKEN");
 export const cohortArchived = () => new AppException("COHORT_ARCHIVED");
+export const cohortNotActive = () => new AppException("COHORT_NOT_ACTIVE");
+export const studentNotEligible = () => new AppException("STUDENT_NOT_ELIGIBLE");
 export const classNotOpen = () => new AppException("CLASS_NOT_OPEN");
 export const alreadyEnrolled = () => new AppException("ALREADY_ENROLLED");
 export const raTaken = () => new AppException("RA_TAKEN");

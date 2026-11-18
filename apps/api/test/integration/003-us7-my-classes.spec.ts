@@ -89,8 +89,9 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
       const schoolClass = await createClass(t, teacher.id, { code: "ALG-1" });
       await enroll(schoolClass.id, student.id, 1);
       const studentClient = api(t, { cookie: await loginAs(t, student) });
-      for (const path of ["", "/enrollments", "/invitations"]) {
-        const res = await studentClient.get(`/api/classes/${schoolClass.id}${path}`);
+      // 027: the invitations and the students' e-mails are the turma's, the MANAGER's (`/cohorts/:id/...`).
+      for (const path of [`/classes/${schoolClass.id}`, `/classes/${schoolClass.id}/enrollments`, `/cohorts/${schoolClass.cohortId}/invitations`, `/cohorts/${schoolClass.cohortId}/enrollments`]) {
+        const res = await studentClient.get(`/api/${path.slice(1)}`);
         expect({ path, status: res.status, code: res.body.code }).toEqual({ path, status: 403, code: "FORBIDDEN" });
       }
 

@@ -12,15 +12,13 @@ export const INVITATION_MAIL_SELECT = {
   email: true,
   expiresAt: true,
   cohort: { select: { name: true, code: true, period: true } },
-  invitedBy: { select: { name: true } },
 } as const;
 
-/** 027 (provisional until T030): the turma's data; the inviter stands where the 003 teacher stood. */
+/** 027/FR-010: the turma's name, code and period; never a teacher or a subject. */
 type InvitationMailRow = {
   email: string;
   expiresAt: Date;
   cohort: { name: string; code: string; period: string | null };
-  invitedBy: { name: string };
 };
 
 /**
@@ -54,7 +52,6 @@ export class ClassInvitationMailSubject implements MailSubject, OnModuleInit {
         className: cohort.name,
         classCode: cohort.code,
         period: cohort.period,
-        teacherName: row.invitedBy.name,
         link: this.links.classInvitation(token),
         expiresAt: row.expiresAt,
       },

@@ -13,8 +13,7 @@ const LIMIT_MS = 1000;
  * with 100 classes and a class with 200 students (and 200 invitations). Each route is warmed
  * once, then the slowest of three calls is measured end to end through HTTP.
  * 027 (T020): the turmas are the MANAGER's (`/cohorts`, list and page); the teacher keeps the list of their
- * disciplinas da turma and the read-only roster. The invitations' list joins with its route `/cohorts/:id/invitations`
- * (US2, T030).
+ * disciplinas da turma and the read-only roster; the invitations' list is the MANAGER's `/cohorts/:id/invitations` (US2).
  */
 describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () => {
   let t: TestApp;
@@ -94,6 +93,9 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     ["turmas do gestor", () => managerClient.get("/api/cohorts")],
     ["turmas do gestor com pesquisa e filtro", () => managerClient.get("/api/cohorts?q=turma%2009&academicYear=2026")],
     ["página da turma do gestor", () => managerClient.get(`/api/cohorts/${big.cohortId}`)],
+    ["convites da turma", () => managerClient.get(`/api/cohorts/${big.cohortId}/invitations`)],
+    ["convites da turma com pesquisa", () => managerClient.get(`/api/cohorts/${big.cohortId}/invitations?query=convidado-19`)],
+    ["alunos da turma do gestor", () => managerClient.get(`/api/cohorts/${big.cohortId}/enrollments`)],
     ["disciplinas da turma do professor", () => client.get("/api/classes")],
     ["disciplinas da turma do professor com pesquisa e filtro", () => client.get("/api/classes?query=turma%2009&year=2026")],
     ["alunos da turma", () => client.get(`/api/classes/${big.id}/enrollments`)],

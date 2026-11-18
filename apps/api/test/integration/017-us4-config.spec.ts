@@ -176,12 +176,13 @@ describe("017/US4 operador coloca o envio em produção e troca de provedor só 
     beforeAll(async () => {
       resend = await createTestApp({ clock, logs });
       await resetDb(resend.prisma);
-      const teacher = await createUser(resend, { roles: ["TEACHER"] });
-      classId = (await createClass(resend, teacher.id)).id;
+      const teacher = await createUser(resend, { roles: ["TEACHER", "MANAGER"] });
+      // 027: the invitations are the turma's (the MANAGER's routes).
+      classId = (await createClass(resend, teacher.id)).cohortId;
       teacherCookie = await loginAs(resend, teacher);
       const client = api(resend, { cookie: teacherCookie });
       const invite = async () => {
-        const res = await client.post(`/api/classes/${classId}/invitations`, { email: uniqueEmail("aluno-troca") });
+        const res = await client.post(`/api/cohorts/${classId}/invitations`, { email: uniqueEmail("aluno-troca") });
         expect(res.status).toBe(201);
         await resend!.flushMail();
         return res.body.id as string;
@@ -250,7 +251,7 @@ describe("017/US4 operador coloca o envio em produção e troca de provedor só 
       expect((await postNotice(ses, "ses", delivered)).status).toBe(200);
       expect((await deliveryOf(ids.pending)).status).toBe("DELIVERED");
 
-      const list = await api(ses, { cookie: teacherCookie }).get(`/api/classes/${classId}/invitations`);
+      const list = await api(ses, { cookie: teacherCookie }).get(`/api/cohorts/${classId}/invitations`);
       const byId = new Map((list.body.items as Array<{ id: string; delivery: string; deliveryIssue: string | null }>).map((item) => [item.id, item]));
       expect(byId.get(ids.sent)).toMatchObject({ delivery: "SENT", deliveryIssue: null });
       expect(byId.get(ids.undelivered)).toMatchObject({ delivery: "UNDELIVERED", deliveryIssue: "BOUNCED" });

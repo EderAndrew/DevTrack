@@ -67,6 +67,7 @@ export const ClassInvitationPageSchema = z.strictObject({
 });
 export type ClassInvitationPage = z.infer<typeof ClassInvitationPageSchema>;
 
+/** 027/FR-010: the invitation is to the turma (name, code, period); never a teacher or a subject. */
 export const ClassInvitationPreviewSchema = z.strictObject({
   class: z.strictObject({
     name: z.string(),
@@ -74,7 +75,6 @@ export const ClassInvitationPreviewSchema = z.strictObject({
     academicYear: z.int(),
     period: z.string().nullable(),
   }),
-  teacherName: z.string(),
   email: z.email(),
   mode: AcceptanceModeSchema,
   raRequired: z.boolean(),
