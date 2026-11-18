@@ -19,22 +19,22 @@ import { messageForError } from "@/lib/messages/error-messages";
 import { useChangeClassStatus } from "../hooks/use-classes";
 
 const DONE: Record<ClassStatus, string> = {
-  ACTIVE: "Turma reativada.",
-  INACTIVE: "Turma inativada.",
-  ARCHIVED: "Turma arquivada.",
+  ACTIVE: "Disciplina da turma reativada.",
+  INACTIVE: "Disciplina da turma encerrada.",
+  ARCHIVED: "Disciplina da turma arquivada.",
 };
 
 /**
- * Status actions of a class (FR-004, FR-005): Inativar/Reativar, and Arquivar after a
- * confirmation, since it cannot be undone and cancels the pending invitations. An archived
- * class offers nothing; the API checks every transition again.
+ * Status actions of a disciplina da turma (027/FR-022), offered by `ClassDetails` only after the calendar's last day:
+ * "Encerrar disciplina"/"Reativar" on its own status, and "Arquivar disciplina" after a confirmation, since it is
+ * final. The turma and its other disciplinas never change; the API checks the date and every transition again.
  */
 export function ClassStatusActions({ schoolClass }: { schoolClass: ClassView }) {
   const change = useChangeClassStatus(schoolClass.id);
   const [errors, setErrors] = useState<FormError[]>([]);
   const [announcement, setAnnouncement] = useState("");
 
-  if (schoolClass.status === "ARCHIVED") return null;
+  if (schoolClass.ownStatus === "ARCHIVED") return null;
 
   const run = async (status: ClassStatus) => {
     if (change.isPending) return;
@@ -47,7 +47,8 @@ export function ClassStatusActions({ schoolClass }: { schoolClass: ClassView }) 
     }
   };
 
-  const toggle: ClassStatus = schoolClass.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+  const toggle: ClassStatus = schoolClass.ownStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+  const name = schoolClass.subject?.name ?? "a disciplina";
 
   return (
     <div>
@@ -57,25 +58,29 @@ export function ClassStatusActions({ schoolClass }: { schoolClass: ClassView }) 
       <ErrorSummary errors={errors} title="Não foi possível alterar a situação" />
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="secondary" aria-busy={change.isPending || undefined} onClick={() => void run(toggle)}>
-          {toggle === "INACTIVE" ? "Inativar" : "Reativar"}
+          {toggle === "INACTIVE" ? "Encerrar disciplina" : "Reativar"}
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button type="button" variant="danger">
-              Arquivar
+              Arquivar disciplina
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Arquivar a turma {schoolClass.name}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Arquivar {name} da turma {schoolClass.cohort.name}?
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Os convites pendentes serão cancelados e as matrículas continuam como estão. Uma turma arquivada não
-                pode ser editada nem voltar a ficar ativa.
+                A disciplina da turma deixa de aceitar novas atividades e alterações e continua disponível para
+                consulta. A turma e as outras disciplinas dela não mudam. Arquivar não pode ser desfeito.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction variant="danger" onClick={() => void run("ARCHIVED")}>Arquivar turma</AlertDialogAction>
+              <AlertDialogAction variant="danger" onClick={() => void run("ARCHIVED")}>
+                Arquivar disciplina
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -160,6 +160,7 @@ export const ERROR_MESSAGES = {
   COHORT_NOT_ACTIVE: "Esta turma não está ativa. Reative-a para convidar ou incluir alunos.",
   STUDENT_NOT_ELIGIBLE: "Esse e-mail não pode ser incluído direto. Envie um convite.",
   CLASS_SUBJECT_DUPLICATE: "Essa disciplina já está nesta turma.",
+  CLASS_CALENDAR_NOT_ENDED: "A disciplina só pode ser encerrada ou arquivada depois do último dia do calendário.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

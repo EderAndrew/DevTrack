@@ -8,14 +8,12 @@ import { PlanSyllabusPicker } from "@/features/class-plan/components/plan-syllab
 import { SyllabusSection } from "@/features/syllabus/components/syllabus-section";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClass } from "../hooks/use-classes";
-import { ClassInvitationsTab } from "./class-invitations-tab";
 import { ClassOfferingRequired } from "./class-offering-required";
 import { ClassStudentsTab } from "./class-students-tab";
 
 /**
  * The body of each section of a class page. The class itself comes from the cache filled by the
- * page header (`ClassDetails`), so the actions follow its status: nothing is removed from an
- * archived class and invitations are resent only while it is active.
+ * page header (`ClassDetails`), so the actions follow its (effective) status.
  */
 function useLoadedClass(classId: string) {
   const query = useClass(classId);
@@ -35,24 +33,11 @@ function useLoadedClass(classId: string) {
   return { schoolClass: query.data, fallback };
 }
 
-export function ClassStudentsSection({ classId, canRemove }: { classId: string; canRemove: boolean }) {
+/** "Alunos": the turma's students, read only (027/FR-021). */
+export function ClassStudentsSection({ classId }: { classId: string }) {
   const { schoolClass, fallback } = useLoadedClass(classId);
   if (!schoolClass) return fallback;
-  return <ClassStudentsTab classId={classId} canRemove={canRemove && schoolClass.status !== "ARCHIVED"} />;
-}
-
-export interface ClassInvitationsSectionProps {
-  classId: string;
-  canResend: boolean;
-  canCancel: boolean;
-}
-
-export function ClassInvitationsSection({ classId, canResend, canCancel }: ClassInvitationsSectionProps) {
-  const { schoolClass, fallback } = useLoadedClass(classId);
-  if (!schoolClass) return fallback;
-  return (
-    <ClassInvitationsTab classId={classId} canResend={canResend && schoolClass.status === "ACTIVE"} canCancel={canCancel} />
-  );
+  return <ClassStudentsTab classId={classId} />;
 }
 
 export interface ClassPlanSectionProps {

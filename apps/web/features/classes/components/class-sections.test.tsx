@@ -6,7 +6,6 @@ import { renderWithProviders } from "../../../test/render";
 import { documentView } from "../../syllabus/components/test-fixtures";
 import {
   ClassCalendarSection,
-  ClassInvitationsSection,
   ClassPlanSection,
   ClassStudentsSection,
   ClassSyllabusSection,
@@ -41,7 +40,7 @@ describe("004/US1-4 seções da turma", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const urls = () => fetchMock.mock.calls.map(([url]) => String(url));
 
-  /** GET /classes/:id answers `schoolClass`; the students and invitations lists come back empty. */
+  /** GET /classes/:id answers `schoolClass`; the students list comes back empty. */
   function serve(schoolClass: ClassView) {
     fetchMock.mockImplementation((input) =>
       Promise.resolve(
@@ -56,16 +55,12 @@ describe("004/US1-4 seções da turma", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("Alunos e Convites carregam as listas da turma", async () => {
+  it("Alunos carrega a lista da turma, só para leitura", async () => {
     serve(CLASS);
-    const { unmount } = renderWithProviders(<ClassStudentsSection classId={CLASS.id} canRemove />);
+    renderWithProviders(<ClassStudentsSection classId={CLASS.id} />);
     expect(await screen.findByText("Nenhum aluno nesta turma.")).toBeTruthy();
     expect(urls()).toContain(`/api/classes/${CLASS.id}/enrollments?status=ACTIVE`);
-    unmount();
-
-    renderWithProviders(<ClassInvitationsSection classId={CLASS.id} canResend canCancel />);
-    expect(await screen.findByText("Nenhum convite pendente.")).toBeTruthy();
-    expect(urls()).toContain(`/api/cohorts/${CLASS.id}/invitations?status=PENDING`);
+    expect(urls().some((url) => url.includes("/invitations"))).toBe(false);
   });
 
   it("turma sem disciplina ou datas: o que falta preencher e o link para editar", async () => {

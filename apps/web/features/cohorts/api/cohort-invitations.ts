@@ -20,7 +20,7 @@ const search = (params: ClassInvitationListQuery) => {
  * Invitations of a turma (003 "Convites da turma"; since 027 the MANAGER's, `/cohorts/:id/invitations`). The id is
  * the turma's; the teacher's class pages lose their "Convites" with 027 T044.
  */
-export const classInvitationsApi = {
+export const cohortInvitationsApi = {
   list: (cohortId: string, params: ClassInvitationListQuery) =>
     apiClient.get<ClassInvitationPage>(`/cohorts/${cohortId}/invitations${search(params)}`),
   invite: (cohortId: string, body: InviteStudentRequest) =>

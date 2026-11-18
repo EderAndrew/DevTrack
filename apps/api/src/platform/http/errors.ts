@@ -209,6 +209,8 @@ export const ErrorCatalog = {
   COHORT_NOT_ACTIVE: { status: 409, message: "Esta turma não está ativa." },
   // 027/FR-018: one disciplina da turma per turma and subject.
   CLASS_SUBJECT_DUPLICATE: { status: 409, message: "Essa disciplina já está nesta turma." },
+  // 027/FR-022: a disciplina da turma closes or archives only after the last day of its calendar.
+  CLASS_CALENDAR_NOT_ENDED: { status: 409, message: "A disciplina só pode ser encerrada ou arquivada depois do último dia do calendário." },
   // 027/FR-034: the e-mail is not of an active, verified student account; the way is the invitation.
   STUDENT_NOT_ELIGIBLE: { status: 422, message: "Este e-mail não pode ser incluído direto. Envie um convite." },
   // 017: a provider notice whose signature, timestamp or topic does not check; the provider is the
@@ -280,6 +282,7 @@ export const cohortCodeTaken = () => new AppException("COHORT_CODE_TAKEN");
 export const cohortArchived = () => new AppException("COHORT_ARCHIVED");
 export const cohortNotActive = () => new AppException("COHORT_NOT_ACTIVE");
 export const classSubjectDuplicate = () => new AppException("CLASS_SUBJECT_DUPLICATE");
+export const classCalendarNotEnded = () => new AppException("CLASS_CALENDAR_NOT_ENDED");
 export const studentNotEligible = () => new AppException("STUDENT_NOT_ELIGIBLE");
 export const classNotOpen = () => new AppException("CLASS_NOT_OPEN");
 export const alreadyEnrolled = () => new AppException("ALREADY_ENROLLED");

@@ -1,4 +1,4 @@
-import type { EmptyBody, EnrollmentListQuery, EnrollmentPage, EnrollmentView } from "@repo/contracts";
+import type { EnrollmentListQuery, EnrollmentPage } from "@repo/contracts";
 import { apiClient } from "@/lib/api/client";
 
 const search = (params: EnrollmentListQuery) => {
@@ -10,10 +10,8 @@ const search = (params: EnrollmentListQuery) => {
   return query ? `?${query}` : "";
 };
 
-/** Students of a teacher's class (003 contracts/http-api.md, "Alunos da turma"). */
+/** Students of a teacher's disciplina da turma, read only (027/FR-021); ending an enrollment is the MANAGER's. */
 export const enrollmentsApi = {
   list: (classId: string, params: EnrollmentListQuery) =>
     apiClient.get<EnrollmentPage>(`/classes/${classId}/enrollments${search(params)}`),
-  remove: (classId: string, enrollmentId: string) =>
-    apiClient.post<EnrollmentView>(`/classes/${classId}/enrollments/${enrollmentId}/remove`, {} satisfies EmptyBody),
 };

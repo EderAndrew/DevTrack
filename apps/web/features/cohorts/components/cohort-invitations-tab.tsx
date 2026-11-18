@@ -30,11 +30,11 @@ import { CLASS_INVITATION_STATUS_LABELS } from "@/lib/messages/status-labels";
 import { DeliveryStatus } from "@/features/invitations/components/delivery-status";
 import { ResendInvitationButton } from "@/features/invitations/components/resend-confirm-dialog";
 import {
-  type ClassInvitationFilters,
+  type CohortInvitationFilters,
   useCancelInvitation,
-  useClassInvitations,
+  useCohortInvitations,
   useResendInvitation,
-} from "../hooks/use-class-invitations";
+} from "../hooks/use-cohort-invitations";
 import {
   DEFAULT_INVITATION_FILTERS,
   type InvitationFiltersFormInput,
@@ -68,25 +68,25 @@ const STATUS_VARIANT = {
   CANCELLED: "neutral",
 } as const satisfies Record<ClassInvitationStatus, "info" | "success" | "neutral">;
 
-export interface ClassInvitationsTabProps {
-  classId: string;
+export interface CohortInvitationsTabProps {
+  cohortId: string;
   /** UX only (the API authorizes): which actions to offer on pending invitations. */
   canResend: boolean;
   canCancel: boolean;
 }
 
 /**
- * "Convites" tab of a class (FR-020–FR-023): search by e-mail and status filter applied by the
+ * "Convites" tab of a turma (003 FR-020–FR-023; since 027 the MANAGER's, on `/gestao/turmas/[id]`): search by e-mail and status filter applied by the
  * API (pending by default), 20 at a time; pending invitations can be resent or, after a
  * confirmation, cancelled. Next to the status, "Enviando" while the e-mail waits for its (next)
  * attempt and "Envio falhou" once the attempts ran out (FR-019); "Não entregue" with the reason when
  * the provider said the e-mail came back or was marked as spam, and then "Reenviar" asks first (017).
  */
-export function ClassInvitationsTab({ classId, canResend, canCancel }: ClassInvitationsTabProps) {
-  const [filters, setFilters] = useState<ClassInvitationFilters>(DEFAULT_INVITATION_FILTERS);
-  const invitations = useClassInvitations(classId, filters);
-  const resend = useResendInvitation(classId);
-  const cancel = useCancelInvitation(classId);
+export function CohortInvitationsTab({ cohortId, canResend, canCancel }: CohortInvitationsTabProps) {
+  const [filters, setFilters] = useState<CohortInvitationFilters>(DEFAULT_INVITATION_FILTERS);
+  const invitations = useCohortInvitations(cohortId, filters);
+  const resend = useResendInvitation(cohortId);
+  const cancel = useCancelInvitation(cohortId);
   const [actionErrors, setActionErrors] = useState<FormError[]>([]);
   const [announcement, setAnnouncement] = useState("");
   const { errors, setErrors, onInvalid, errorFor } = useErrorSummary<InvitationFiltersFormInput>(FIELD_IDS);

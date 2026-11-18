@@ -406,27 +406,35 @@ de convidar/remover/editar turma; encerrar e arquivar só depois do último dia.
 
 ### Tests for User Story 4
 
-- [ ] T041 [P] [US4] `apps/api/test/integration/027-us4-class-subject.spec.ts`: `027/US4-1`…`027/US4-5` (roster
+- [X] T041 [P] [US4] `apps/api/test/integration/027-us4-class-subject.spec.ts`: `027/US4-1`…`027/US4-5` (roster
       só leitura em `GET /classes/:id/enrollments`; rotas de turma/convite/matrícula → `403` para o professor;
       arquivar após o calendário: sem novas atividades (`409` de hoje) e consulta mantida, a turma e a outra disciplina
       intactas; atividade aplicada segue 012–025; US4-5 com `FixedClock` no último dia → `409 CLASS_CALENDAR_NOT_ENDED`
       e no dia seguinte → `200`, sem calendário → `409`); `027/FR-024`: trabalho e prova de outra disciplina →
       `SUBJECT_MISMATCH`; duas disciplinas do mesmo professor na mesma turma nunca mostram atividades, chamada ou
       ranking uma da outra.
-- [ ] T042 [P] [US4] Web `apps/web/features/classes/components/class-page.test.tsx`: título "<disciplina> · <turma>",
+- [X] T042 [P] [US4] Web `apps/web/features/classes/components/class-page.test.tsx`: título "<disciplina> · <turma>",
       aba "Alunos" sem ações, botões "Encerrar disciplina"/"Arquivar disciplina" só com `canChangeStatus`; axe.
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] `POST /classes/:id/status` (`disciplinas_turma.alterar_situacao`): `canCloseClass` com o `Clock`,
+- [X] T043 [US4] `POST /classes/:id/status` (`disciplinas_turma.alterar_situacao`): `canCloseClass` com o `Clock`,
       máquina da 003 sobre `ownStatus`, turma ARCHIVED → `409 INVALID_STATE_TRANSITION`; `class.status_changed`.
       `GET /classes/:id/enrollments` (`disciplinas_turma.visualizar_alunos`) só leitura, com os campos de
       contracts/http-api.md: nome, RA e situação da matrícula — nunca e-mail, `source` ou convites; se a view do
       professor da 003 (`enrollment.view.ts`) tiver outro campo, o contrato é corrigido antes da implementação.
-- [ ] T044 [US4] Web: página da disciplina da turma em `apps/web/app/(app)/turmas/[id]/` sem convidar/remover/editar
+- [X] T044 [US4] Web: página da disciplina da turma em `apps/web/app/(app)/turmas/[id]/` sem convidar/remover/editar
       turma, aba "Alunos" só leitura, ações de situação; remover os componentes de convite do professor de
       `features/classes`.
-- [ ] T045 [US4] Retirar US4 de `pending`.
+- [X] T045 [US4] Retirar US4 de `pending`.
+      **Registro (2026-11-18)**: código novo `409 CLASS_CALENDAR_NOT_ENDED` (verificado depois da turma arquivada e
+      antes do "mesma situação"; o `statusChangedAt` vem do `Clock`). O corpo do `POST /classes/:id/status` continua o
+      da 003 (`{ status }`) e o roster do professor continua a view da 003 com o e-mail (FR-021: "os dados que o
+      professor vê hoje"; nunca `source` nem convites) — contracts/http-api.md corrigido, como a T043 previa. Web: a
+      aba "Convites", o "Convidar aluno" e o "Remover" saíram da página do professor; a lista de convites, o hook, a
+      API e os schemas de convite foram para `features/cohorts` (`CohortInvitationsTab`, chaves `["cohorts", id,
+      "invitations"]`); `class-details.test.tsx` virou `class-page.test.tsx`. A remoção da matrícula pelo gestor (web e
+      rota) fica com a US5 (T053/T054). Os E2E que usam a aba "Convites" do professor ficam para a T061.
 
 ---
 

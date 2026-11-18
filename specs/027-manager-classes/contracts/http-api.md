@@ -34,8 +34,8 @@ The old `/classes/:id/invitations*`, `/classes/:id/enrollments/:enrollmentId/rem
 | `POST /classes` | `disciplinas_turma.criar` | `{ cohortId, subjectId, startsOn?, endsOn? }` | `201 ClassView`; `404` (cohort/subject unknown or not own), `409 COHORT_NOT_ACTIVE`, `409 SUBJECT_INACTIVE` (004: a subject is ACTIVE or INACTIVE), `409 CLASS_SUBJECT_DUPLICATE` |
 | `GET /classes/:id` | `disciplinas_turma.visualizar` | — | `ClassView` + `canChangeStatus` (FR-022) |
 | `PATCH /classes/:id` | `disciplinas_turma.editar` | `{ startsOn, endsOn }` (004 rules) | `ClassView` |
-| `POST /classes/:id/status` | `disciplinas_turma.alterar_situacao` | `{ to }` | `ClassView`; before the end / no calendar → `409 CLASS_CALENDAR_NOT_ENDED`; cohort ARCHIVED → `409 INVALID_STATE_TRANSITION` |
-| `GET /classes/:id/enrollments` | `disciplinas_turma.visualizar_alunos` | 003 query | read-only roster: the 003 teacher view of a student (name, RA, status) |
+| `POST /classes/:id/status` | `disciplinas_turma.alterar_situacao` | `{ status }` (the 003 body) | `ClassView`; before the end / no calendar → `409 CLASS_CALENDAR_NOT_ENDED`; cohort ARCHIVED → `409 INVALID_STATE_TRANSITION` |
+| `GET /classes/:id/enrollments` | `disciplinas_turma.visualizar_alunos` | 003 query | read-only roster: the 003 teacher view of a student (name, e-mail, RA, enrollment status and dates); never `source` or invitations |
 
 Every other `/classes/:id/...` route of 004–025 is unchanged; its context check is `ClassContextPolicy` with the
 effective status (research Q4).

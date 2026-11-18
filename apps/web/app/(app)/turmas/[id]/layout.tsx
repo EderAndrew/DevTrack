@@ -5,7 +5,7 @@ import { getMe } from "@/features/auth/api/server";
 import { ClassDetails } from "@/features/classes/components/class-details";
 import { ClassTabs } from "@/features/classes/components/class-tabs";
 
-/** Every page of a class: its header (data and actions), the section tabs, then the section. */
+/** Every page of a disciplina da turma: its header (data and actions), the section tabs, then the section. */
 export default async function ClassLayout({ params, children }: { params: Promise<{ id: string }>; children: ReactNode }) {
   const { id } = await params;
   const me = await getMe();
@@ -17,8 +17,7 @@ export default async function ClassLayout({ params, children }: { params: Promis
       <ClassDetails
         id={id}
         canEdit={me.permissions.includes("disciplinas_turma.editar")}
-        canChangeStatus={me.permissions.includes("turmas.alterar_situacao")}
-        canInvite={me.permissions.includes("turmas.convidar_aluno")}
+        canChangeStatus={me.permissions.includes("disciplinas_turma.alterar_situacao")}
       />
       <ClassTabs
         classId={id}

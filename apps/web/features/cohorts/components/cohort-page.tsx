@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClassInvitationsTab } from "@/features/classes/components/class-invitations-tab";
+import { CohortInvitationsTab } from "./cohort-invitations-tab";
 import { ClassStatusBadge } from "@/features/classes/components/class-status-badge";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useCohort } from "../hooks/use-cohorts";
@@ -111,7 +111,7 @@ export function CohortPage({
           </TabsContent>
         ) : null}
         <TabsContent value="convites">
-          <ClassInvitationsTab classId={cohort.id} canResend={canResend && cohort.status === "ACTIVE"} canCancel={canCancel} />
+          <CohortInvitationsTab cohortId={cohort.id} canResend={canResend && cohort.status === "ACTIVE"} canCancel={canCancel} />
         </TabsContent>
         <TabsContent value="disciplinas">
           {cohort.classes.length === 0 ? (

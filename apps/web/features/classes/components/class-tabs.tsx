@@ -15,7 +15,7 @@ export interface ClassTabsProps {
 }
 
 /**
- * Sections of a class page (004 contracts/web-ui.md): Alunos, Convites, Ementa, Calendário,
+ * Sections of a disciplina da turma (004 contracts/web-ui.md; 027: the invitations are the MANAGER's): Alunos, Ementa, Calendário,
  * Planejamento, (012) Atividades and (013) Ranking. Each one is its own route under `/turmas/[id]`, so these are links, and the
  * current one is marked `aria-current="page"`.
  */
@@ -24,7 +24,6 @@ export function ClassTabs({ classId, showPlanning, showActivities = false, showR
   const base = `/turmas/${classId}`;
   const tabs = [
     { href: base, label: "Alunos" },
-    { href: `${base}/convites`, label: "Convites" },
     ...(showPlanning
       ? [
           { href: `${base}/ementa`, label: "Ementa" },

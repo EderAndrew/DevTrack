@@ -17,12 +17,11 @@ describe("004/US1 ClassTabs — seções da turma", () => {
     navigation.pathname = "/turmas/c1";
   });
 
-  it("Alunos, Convites, Ementa, Calendário e Planejamento; a atual com aria-current", async () => {
+  it("027/FR-021 Alunos, Ementa, Calendário e Planejamento, sem Convites; a atual com aria-current", async () => {
     navigation.pathname = "/turmas/c1/calendario";
     const { container } = renderWithProviders(<ClassTabs classId="c1" showPlanning />);
     expect(tabs()).toEqual([
       ["Alunos", "/turmas/c1", null],
-      ["Convites", "/turmas/c1/convites", null],
       ["Ementa", "/turmas/c1/ementa", null],
       ["Calendário", "/turmas/c1/calendario", "page"],
       ["Planejamento", "/turmas/c1/planejamento", null],
@@ -35,7 +34,6 @@ describe("004/US1 ClassTabs — seções da turma", () => {
     renderWithProviders(<ClassTabs classId="c1" showPlanning={false} showActivities />);
     expect(tabs()).toEqual([
       ["Alunos", "/turmas/c1", null],
-      ["Convites", "/turmas/c1/convites", null],
       ["Atividades", "/turmas/c1/atividades", "page"],
     ]);
   });
@@ -45,17 +43,15 @@ describe("004/US1 ClassTabs — seções da turma", () => {
     renderWithProviders(<ClassTabs classId="c1" showPlanning={false} showActivities showRanking />);
     expect(tabs()).toEqual([
       ["Alunos", "/turmas/c1", null],
-      ["Convites", "/turmas/c1/convites", null],
       ["Atividades", "/turmas/c1/atividades", null],
       ["Ranking", "/turmas/c1/ranking", "page"],
     ]);
   });
 
-  it("sem planejamento.visualizar mostra só Alunos e Convites; Alunos é a página da turma", () => {
+  it("sem planejamento.visualizar mostra só Alunos; Alunos é a página da turma", () => {
     renderWithProviders(<ClassTabs classId="c1" showPlanning={false} />);
     expect(tabs()).toEqual([
       ["Alunos", "/turmas/c1", "page"],
-      ["Convites", "/turmas/c1/convites", null],
     ]);
   });
 });

@@ -17,8 +17,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useInviteStudent } from "@/features/classes/hooks/use-class-invitations";
-import { EMAIL_ERROR_CODES, type InviteStudentFormInput, InviteStudentFormSchema, inviteStudentMessages } from "@/features/classes/schemas/invite-student";
+import { useInviteStudent } from "../hooks/use-cohort-invitations";
+import { EMAIL_ERROR_CODES, type InviteStudentFormInput, InviteStudentFormSchema, inviteStudentMessages } from "../schemas/invite-student";
 import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 import { useEnrollStudent, useStudentLookup } from "../hooks/use-cohort-enrollments";

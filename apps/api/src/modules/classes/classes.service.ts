@@ -13,6 +13,7 @@ import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platf
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
+  classCalendarNotEnded,
   classSubjectDuplicate,
   cohortNotActive,
   invalidStateTransition,
@@ -27,6 +28,7 @@ import { planningToday } from "../class-plans/planning-date";
 import { SubjectContextPolicy } from "../subjects/subject-context.policy";
 import { ClassContextPolicy } from "./class-context.policy";
 import { ClassStateMachine } from "./class.state-machine";
+import { canCloseClass } from "./close-rule";
 import { CLASS_VIEW_SELECT, isoDate, toClassView } from "./class.view";
 
 export const CLASSES_PAGE_SIZE = 20;
@@ -175,19 +177,21 @@ export class ClassesService {
   }
 
   /**
-   * FR-004: the same status is a no-op; any other change of the class's own status follows
-   * `ClassStateMachine`; a class of an ARCHIVED cohort never changes (027 research Q5). The
-   * invitations belong to the cohort (027), so nothing else changes here.
+   * 027 FR-022, research Q5: the teacher changes the class's **own** status only after the last day of its calendar
+   * (`canCloseClass` with "today" of the injected clock in America/Sao_Paulo; without a calendar never →
+   * `409 CLASS_CALENDAR_NOT_ENDED`); a class of an ARCHIVED cohort never changes (`409 INVALID_STATE_TRANSITION`).
+   * Then, as in 003 FR-004, the same status is a no-op and any other change follows `ClassStateMachine` (ARCHIVED is
+   * final). The invitations belong to the cohort, so nothing else changes here.
    */
   async changeStatus(auth: AuthContext, classId: string, to: ClassStatus, requestId: string | null): Promise<ClassView> {
     return this.prisma.runInTransaction(async (tx) => {
       const current = await this.lockOwned(tx, auth.userId, classId);
       if (current.cohort.status === "ARCHIVED") throw invalidStateTransition();
+      if (!canCloseClass(current, this.today())) throw classCalendarNotEnded();
       if (current.ownStatus === to) return this.get(auth.userId, classId, tx);
       ClassStateMachine.assertTransition(current.ownStatus, to);
 
-      const now = new Date();
-      await tx.schoolClass.update({ where: { id: classId }, data: { status: to, statusChangedAt: now } });
+      await tx.schoolClass.update({ where: { id: classId }, data: { status: to, statusChangedAt: this.clock.now() } });
       await this.audit.record(tx, {
         type: "class.status_changed",
         actorType: "USER",

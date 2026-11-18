@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
-import { ClassInvitationsTab } from "./class-invitations-tab";
+import { CohortInvitationsTab } from "./cohort-invitations-tab";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -15,7 +15,7 @@ const apiError = (status: number, code: string, message: string, headers: Record
     headers: { "Content-Type": "application/json", ...headers },
   });
 
-const CLASS_ID = "66666666-6666-4666-8666-666666666666";
+const COHORT_ID = "66666666-6666-4666-8666-666666666666";
 let sequence = 0;
 const invitation = (email: string, overrides: Partial<ClassInvitationView> = {}): ClassInvitationView => {
   sequence += 1;
@@ -35,9 +35,9 @@ const invitation = (email: string, overrides: Partial<ClassInvitationView> = {})
 const page = (items: ClassInvitationView[], nextCursor: string | null = null) => json(200, { items, nextCursor });
 
 const render = (overrides: Partial<{ canResend: boolean; canCancel: boolean }> = {}) =>
-  renderWithProviders(<ClassInvitationsTab classId={CLASS_ID} canResend canCancel {...overrides} />);
+  renderWithProviders(<CohortInvitationsTab cohortId={COHORT_ID} canResend canCancel {...overrides} />);
 
-describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", () => {
+describe("003/US5-1 003/US5-2 003/US5-4 CohortInvitationsTab (FR-020–FR-023)", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
@@ -54,7 +54,7 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     const { container } = render();
 
     const row = (await screen.findByText("ana@example.test")).closest("tr")!;
-    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations?status=PENDING`);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations?status=PENDING`);
     expect(within(row).getByText("Pendente")).toBeTruthy();
     expect(within(row).getByText("2")).toBeTruthy();
     expect(within(row).getByText("30/09/2026, 12:00")).toBeTruthy();
@@ -90,11 +90,11 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     const row = (await screen.findByText("carla@example.test")).closest("tr")!;
     expect(within(row).getByText("Cancelado")).toBeTruthy();
     expect(within(row).queryByRole("button")).toBeNull();
-    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations?query=carl&status=CANCELLED`);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations?query=carl&status=CANCELLED`);
 
     await user.click(screen.getByRole("button", { name: "Carregar mais" }));
     expect(await screen.findByText("carlos@example.test")).toBeTruthy();
-    expect(fetchMock.mock.calls[2]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations?query=carl&status=CANCELLED&cursor=c1`);
+    expect(fetchMock.mock.calls[2]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations?query=carl&status=CANCELLED&cursor=c1`);
   });
 
   it("003/FR-053 reenviar: chama a API, anuncia e recarrega a lista", async () => {
@@ -108,7 +108,7 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     await user.click(await screen.findByRole("button", { name: "Reenviar convite para ana@example.test" }));
 
     expect(await screen.findByText("Convite reenviado.")).toBeTruthy();
-    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations/${pending.id}/resend`);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations/${pending.id}/resend`);
     expect(fetchMock.mock.calls[1]![1]!.method).toBe("POST");
     await waitFor(() => expect(within(screen.getByText("ana@example.test").closest("tr")!).getByText("2")).toBeTruthy());
   });
@@ -147,7 +147,7 @@ describe("003/US5-1 003/US5-2 003/US5-4 ClassInvitationsTab (FR-020–FR-023)", 
     await user.click(trigger);
     await user.click(await screen.findByRole("button", { name: "Cancelar convite" }));
     expect(await screen.findByText("Convite cancelado.")).toBeTruthy();
-    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations/${pending.id}/cancel`);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations/${pending.id}/cancel`);
     expect(await screen.findByText("Nenhum convite pendente.")).toBeTruthy();
   });
 
@@ -231,7 +231,7 @@ describe("017/US2-1 017/US2-2 017/US2-4 017/FR-015 017/FR-016 convite \"Não ent
     await user.click(trigger);
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reenviar" }));
     expect(await screen.findByText("Convite reenviado.")).toBeTruthy();
-    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${CLASS_ID}/invitations/${undelivered.id}/resend`);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/cohorts/${COHORT_ID}/invitations/${undelivered.id}/resend`);
   });
 
   it("017/US2-4 pelo teclado: Enter abre a confirmação e Esc volta sem reenviar", async () => {
@@ -258,7 +258,7 @@ describe("017/US2-1 017/US2-2 017/US2-4 017/FR-015 017/FR-016 convite \"Não ent
   });
 });
 
-describe("003/SC-011 SC-012 — ClassInvitationsTab só com teclado", () => {
+describe("003/SC-011 SC-012 — CohortInvitationsTab só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
