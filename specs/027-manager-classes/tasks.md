@@ -61,12 +61,12 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 
 **Purpose**: a 027 entra na guarda de rastreabilidade, os contratos existem e a 003 registra a emenda.
 
-- [ ] T001 Incluir a 027 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 026:
+- [X] T001 Incluir a 027 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 026:
       `feature: "027"`, `path: "specs/027-manager-classes/spec.md"`, `stories: 8`, `scenarios: 41`
       (6 + 9 + 6 + 5 + 3 + 4 + 4 + 4), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e
       `pending: { stories: [1, 2, 3, 4, 5, 6, 7, 8], successCriteria: ["SC-001", …, "SC-006"] }`, com o comentário de
       como cada id sai de `pending`. Citar a 027 na lista de `SPECS` do `CLAUDE.md` raiz ("…, 025, 026 and 027").
-- [ ] T002 [P] Contratos novos em `packages/contracts/src/cohorts/` (contracts/http-api.md): `cohorts.ts`
+- [X] T002 [P] Contratos novos em `packages/contracts/src/cohorts/` (contracts/http-api.md): `cohorts.ts`
       (`CohortCodeSchema`, `CreateCohortRequestSchema`, `UpdateCohortRequestSchema` strict parcial,
       `ChangeCohortStatusRequestSchema`, `CohortListQuerySchema` com `q`, `academicYear`, `status`, `cursor`, `limit`
       ≤ 50, `CohortViewSchema`, `CohortPageSchema`, `CohortDetailSchema` com `activeEnrollmentCount` e
@@ -74,8 +74,16 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       `q` 1–100 e `cursor`, `CohortDirectoryPageSchema` só com id, name, code, academicYear, period e
       `classes[{ subjectName, teacherName }]`), `enrollments.ts` (`StudentLookupRequestSchema { email }`,
       `StudentLookupResponseSchema` discriminada por `found`, com `alreadyEnrolled` no ramo `true`, `DirectEnrollmentRequestSchema { email }`,
-      `CohortEnrollmentViewSchema`/`PageSchema` com `source`). Exportar no barril.
-- [ ] T003 [P] Contratos alterados em `packages/contracts/src/classes/`: `classes.ts` — `CreateClassRequestSchema =
+      `CohortEnrollmentViewSchema`/`PageSchema` com `source`). Exportar no barril. As entradas `cohorts.*` de
+      `endpoints.ts` entram com as rotas (T022, T030, T031, T037, T054): `test/contracts/endpoint-catalog.spec.ts` exige
+      rota ↔ entrada.
+- [X] T003 [P] **Feito na Phase 1 só o aditivo**: `MyCohortListSchema` em `my-classes.ts` (e o teste
+      `packages/contracts/test/cohorts.spec.ts`). **O resto entra com a rota que o usa**, porque
+      `test/contracts/endpoint-catalog.spec.ts` exige rota ↔ entrada do catálogo e o `ContractConformanceInterceptor`
+      transforma em 500 uma resposta fora do contrato (trocar agora quebraria 004–026): `classes.ts` com a T038/T043,
+      `my-classes.ts` (`myClasses.list` → `MyCohortListSchema`) com a T058, `class-invitations.ts` com a T030 e as
+      entradas removidas de `endpoints.ts` com a T022/T030/T054. O enum de motivo de cancelamento não existe nos
+      contratos (só no banco). Alvo final, inalterado: `classes.ts` — `CreateClassRequestSchema =
       { cohortId, subjectId, startsOn?, endsOn? }` (strict; datas como hoje, ambas ou nenhuma), `UpdateClassRequestSchema
       = { startsOn, endsOn }`, `ClassViewSchema` com `subjectName`, `cohort { id, name, code, academicYear, period }`,
       `ownStatus`, `effectiveStatus`, `startsOn`, `endsOn`, `canChangeStatus`; `ClassListQuerySchema` mantém `q`,
@@ -86,7 +94,7 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       `cohortDirectory.search`, `cohortInvitations.*`, `cohortEnrollments.*`; `classes.*` reescritas;
       `classes.invitations*` e `classes.enrollments.remove` removidas; `myClasses.list` com o novo schema).
       `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test`.
-- [ ] T004 [P] Nota de emenda em `specs/003-class-invitations-enrollment/spec.md` (logo abaixo do cabeçalho):
+- [X] T004 [P] Nota de emenda em `specs/003-class-invitations-enrollment/spec.md` (logo abaixo do cabeçalho):
       "Emenda 2026-11-17 (027, constituição 4.0.0/4.1.0): a turma, os convites e as matrículas passam a ser do gestor
       (MANAGER/ADMIN); o professor não cria turma nem convida. O comportamento dos convites, do aceite e das matrículas
       não muda. Ver specs/027-manager-classes." — e o mesmo em `specs/004-syllabus-planning/spec.md` sobre a turma
