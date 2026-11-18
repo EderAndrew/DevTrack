@@ -14,8 +14,8 @@ as text (FR-033).
   **Convites** (003/017 list: situation and delivery, "Reenviar", "Cancelar") and **Disciplinas** (subject, teacher,
   situation — nothing pedagogical).
 - "Adicionar aluno": one e-mail field. On submit the web calls the lookup: found → "Bruna · já tem conta" with
-  "Incluir na turma" (→ "Aluno incluído na turma.") ; not found → "Enviar convite" (→ "Convite enviado."); already in
-  the cohort → "Esse aluno já está na turma.".
+  "Incluir na turma" (→ "Aluno incluído na turma.") ; not found → "Enviar convite" (→ "Convite enviado."); found
+  with `alreadyEnrolled` → "Esse aluno já está na turma." (no button).
 
 ## TEACHER — "Turmas" (`/turmas`, `features/classes`)
 
@@ -32,7 +32,8 @@ as text (FR-033).
 ## STUDENT
 
 - "Minhas turmas": sections per ano letivo (most recent first); each cohort once with its disciplinas and teachers,
-  "Encerrada" badge on INACTIVE/ARCHIVED cohorts, "Ainda não há disciplinas nesta turma."; each disciplina links to
+  every disciplina whatever its status, "Encerrada" badge on INACTIVE cohorts/classes and "Arquivada" on ARCHIVED, by
+  effective status; "Ainda não há disciplinas nesta turma."; each disciplina links to
   `/minhas-atividades?materia=<classId>` (read-only when closed).
 - The 026 card: options only from disciplinas whose effective status is ACTIVE.
 - Invitation page (`/convite-turma`): "Você foi convidado para a turma <nome> (<código>, <período>)".

@@ -1,6 +1,7 @@
 # Data model: Turmas do gestor e disciplinas da turma (027)
 
-One Prisma migration (`2026111xxxxxxx_027_manager_classes`), which is also the transition (research Q9). PostgreSQL 17.
+Two Prisma migrations: `20261118115900_027_enum_values` (enum values, which PostgreSQL cannot use in the transaction
+that adds them) and `20261118120000_027_manager_classes`, which is also the transition (research Q9). PostgreSQL 17.
 
 ## New: `cohorts` (Prisma `Cohort`) — the turma
 

@@ -14,8 +14,8 @@ with a one-word change (Q3). The effective status (most restrictive of cohort an
 `ClassContextPolicy` and a SQL function, so the 004–025 status checks hold unchanged (Q4). The MANAGER (and ADMIN)
 gets the 003 class permissions plus `turmas.incluir_aluno` (lookup by exact e-mail and direct enrollment of an
 existing student with an e-mail notice, constitution 4.1.0, Q7); the teacher gets `turmas.buscar` and
-`disciplinas_turma.*`, and closes/archives a disciplina only after its calendar's last day (Q5). The one migration is
-also the transition: it builds cohorts from today's classes, merging those with the same code and year, and moves
+`disciplinas_turma.*`, and closes/archives a disciplina only after its calendar's last day (Q5). The main migration
+(after one that only adds enum values) is also the transition: it builds cohorts from today's classes, merging those with the same code and year, and moves
 enrollments and invitations without deleting a row (Q9). Web: the MANAGER's `/gestao/turmas`, the teacher's
 `/turmas` rewritten around disciplinas da turma, "Minhas turmas" grouped by year.
 
@@ -23,7 +23,9 @@ enrollments and invitations without deleting a row (Q9). Web: the MANAGER's `/ge
 
 **Language/Version**: TypeScript 7 on Node.js 24 LTS (API, contracts, web)
 **Primary Dependencies**: no new dependency (NestJS + Prisma, Next.js + the Design System)
-**Storage**: PostgreSQL 17 — one migration: table `cohorts`; `classes.cohort_id` (+ moved columns dropped, UNIQUE
+**Storage**: PostgreSQL 17 — two migrations: `…_027_enum_values` (new enums and `ALTER TYPE … ADD VALUE`, which
+PostgreSQL does not allow to be used in the same transaction) and `…_027_manager_classes` (schema + transition +
+permissions, one transaction): table `cohorts`; `classes.cohort_id` (+ moved columns dropped, UNIQUE
 `(cohort_id, subject_id)`, identity trigger); `enrollments`/`class_invitations` keyed by `cohort_id` with
 `removal_reason`, `source`, `enrolled_by_id`; view `class_enrollments`; function `class_effective_status`; enums
 `mail_kind` += `CLASS_ENROLLMENT_NOTICE`, cancel reasons += `MANAGER`/`ENROLLED_DIRECTLY`/`MERGED`; permissions moved
@@ -112,7 +114,8 @@ specs/027-manager-classes/
 ```text
 apps/api/
 ├── prisma/schema.prisma                         # Cohort; SchoolClass/Enrollment/ClassInvitation changes
-├── prisma/migrations/2026111xxxxxxx_027_manager_classes/migration.sql   # schema + transition + permissions
+├── prisma/migrations/20261118115900_027_enum_values/migration.sql       # enum values only
+├── prisma/migrations/20261118120000_027_manager_classes/migration.sql   # schema + transition + permissions
 ├── src/modules/cohorts/                         # NEW: cohorts.controller/service, cohort-directory.controller,
 │   │                                            #      cohort.view, student-lookup (rate limit), cohort state
 ├── src/modules/classes/                         # create from cohort+subject, effective-status.ts, close rule,

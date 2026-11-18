@@ -52,8 +52,9 @@ Decisions carry the prefix **Q**, unused by the earlier features. Constitution v
   class, used by 20+ services) loads the class with its cohort and returns it with `status` replaced by the effective
   status (and `ownStatus` kept for the status route), so the existing checks (`status === "ARCHIVED"` → `409
   PLAN_ARCHIVED`, activity creation, attendance, exams) work unchanged. Raw SQL that filters by class status (student
-  loader, exam-alert worker recipients, group eligibility) uses a SQL function `class_effective_status(class_id)` or
-  the join — enumerated in the tasks.
+  attempts, exam-alert worker recipients, group eligibility) uses a SQL function `class_effective_status(class_id)` or
+  the join, and the Prisma readers that bypass the policy (activities, plannable class, student loader, exam nudges,
+  alert preferences) load the cohort and call `effectiveStatus()` — all enumerated in T012 and guarded by T006.
 - **Rationale**: derived on every read (FR-023), never stored; no cascade writes when the MANAGER changes the cohort.
 - **Alternatives considered**: cascading the cohort status into each class — rejected (stored derivation, and the
   teacher's own archive would be lost when the cohort is reactivated).
@@ -80,10 +81,11 @@ Decisions carry the prefix **Q**, unused by the earlier features. Constitution v
 ## Q7 — Direct enrollment of an existing student (FR-034, constitution 4.1.0)
 
 - **Decision**: two MANAGER routes on the cohort: `POST /cohorts/:id/student-lookup { email }` → `{ found: true,
-  studentUserId, name } | { found: false }` and `POST /cohorts/:id/enrollments { email }` (the server resolves the
-  e-mail again; never trusts an id from the body). Eligible = user ACTIVE, role STUDENT, e-mail verified, no ACTIVE
-  enrollment in the cohort (else `409 ALREADY_ENROLLED`); otherwise `found: false` (no reason given: sem conta, não
-  aluno, não verificado, desativada look the same) and `422 STUDENT_NOT_ELIGIBLE` on the enroll route. The enrollment
+  studentUserId, name, alreadyEnrolled } | { found: false }` and `POST /cohorts/:id/enrollments { email }` (the server
+  resolves the e-mail again; never trusts an id from the body). `found` depends only on the account (ACTIVE, role
+  STUDENT, e-mail verified); otherwise `found: false` (no reason given: sem conta, não aluno, não verificado,
+  desativada look the same) and `422 STUDENT_NOT_ELIGIBLE` on the enroll route. When found, `alreadyEnrolled` says
+  whether an ACTIVE enrollment in the cohort exists; the enroll route answers `409 ALREADY_ENROLLED` in that case. The enrollment
   is created under the cohort's row lock with the partial UNIQUE as backstop (`ON CONFLICT` → `409`), a pending
   invitation for the same e-mail in the cohort is cancelled (`cancel_reason = 'ENROLLED_DIRECTLY'`) in the same
   transaction, and a `CLASS_ENROLLMENT_NOTICE` mail is scheduled through the 017 outbox (no token; link to `/entrar`).
@@ -101,12 +103,13 @@ Decisions carry the prefix **Q**, unused by the earlier features. Constitution v
   `turmas.visualizar_alunos`, `turmas.remover_aluno`, plus the new `turmas.incluir_aluno` (FR-034). New TEACHER keys:
   `turmas.buscar` (FR-016), `disciplinas_turma.visualizar`, `disciplinas_turma.criar`, `disciplinas_turma.editar`
   (calendar dates), `disciplinas_turma.alterar_situacao`, `disciplinas_turma.visualizar_alunos`. Descriptions are
-  rewritten. STUDENT keeps `turmas.proprias.listar`. All in the one migration.
+  rewritten. STUDENT keeps `turmas.proprias.listar`. All in the main 027 migration.
 - **Rationale**: explicit capabilities (II); no role-name checks.
 
 ## Q9 — The transition (FR-027–FR-030) is the migration itself
 
-- **Decision**: one Prisma migration, in one transaction, before the new constraints:
+- **Decision**: the enum values in a first migration (`ALTER TYPE … ADD VALUE` cannot be used in the transaction
+  that adds it); the transition in a second one, in one transaction, before the new constraints:
   1. create `cohorts`; insert one cohort per group of `classes` with the same `academic_year` and `upper(code)`; name,
      code, period and description from the oldest class (`created_at`, then `id`); status the most open (ACTIVE >
      INACTIVE > ARCHIVED); `created_by_id` = the oldest class's teacher; `search_key` recomputed;
@@ -120,9 +123,13 @@ Decisions carry the prefix **Q**, unused by the earlier features. Constitution v
   5. drop the moved columns, the old indexes (`classes_teacher_code_key`, the class-keyed partial UNIQUEs) and create
      the new ones; partial UNIQUE `(cohort_id, subject_id) WHERE subject_id IS NOT NULL` on `classes` (FR-018);
   6. permissions moved (Q8); one `cohort_transition.applied` audit row (SYSTEM) with the counts (cohorts, classes,
-     merged cohorts, merged enrollments, merged invitations).
-  A verification script (`apps/api/test/integration/027-transition.spec.ts`) builds a pre-027 database state, runs the
-  migration SQL and compares, per teacher and student, what they see (SC-002).
+     merged cohorts, merged enrollments, merged invitations) and the permission changes (`permissionsMoved`,
+     `permissionsAdded`: keys and roles, constitution XXV), plus one SYSTEM `enrollment.removed` /
+     `class_invitation.cancelled` per merged row (constitution XXIV).
+  A verification test (`apps/api/test/integration/027-transition.spec.ts`) builds a pre-027 database state in a
+  temporary database (the test database's name + `_transition_027`, created and dropped by the test, never `prisma
+  migrate reset`) by running every earlier `migration.sql` in name order, seeds it, runs the two 027 migrations and
+  compares, per teacher and student, what they see (SC-002).
 - **Rationale**: the beta is small; running inside the deploy's `migrate deploy` keeps it atomic (FR-028) with no
   separate job.
 - **Alternatives considered**: a CLI run after deploy — rejected (a window where the code expects cohorts that don't

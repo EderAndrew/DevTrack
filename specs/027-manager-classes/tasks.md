@@ -7,8 +7,8 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 **Input**: os documentos de design em `/specs/027-manager-classes/`.
 **Prerequisites**:
 
-- plan.md, spec.md (US1–US8, FR-001–FR-034, SC-001–SC-006), research.md (Q1–Q12), data-model.md (uma migration, que é
-  também a transição);
+- plan.md, spec.md (US1–US8, FR-001–FR-034, SC-001–SC-006), research.md (Q1–Q12), data-model.md (duas migrations: a dos
+  valores de enum e a principal, que é também a transição);
 - contracts/: http-api, permissions, audit-events, ui;
 - quickstart.md;
 - constituição **v4.1.0** (emendas 4.0.0 e 4.1.0 já feitas).
@@ -27,9 +27,11 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 - **Fim de fase**: cada fase termina com `pnpm lint && pnpm check-types && pnpm test` verde (a suíte completa leva
   mais de 10 min: rodar em segundo plano e reiniciar o `postgres-test` antes, se já houve duas execuções). **Exceção
   da Phase 2**: ela termina com as suítes 004–026 verdes (SC-005); as suítes HTTP da 003 que usam rotas removidas
-  (`003-us1`, `003-us2`, `003-us5`, `003-us6`, `003-class-invitation-delivery`, `003-class-authorization-matrix`,
-  `003-concurrency`, `003-list-performance`) ficam vermelhas até serem reescritas em US1, US2 e US5; a lista exata é
-  registrada na T018.
+  ficam vermelhas até serem reescritas: `003-us1`, `003-list-performance` e `003-concurrency` (turma) em US1;
+  `003-us2`, `003-us5`, `003-class-invitation-delivery` e `003-concurrency` (convites) em US2; `003-us6` em US5;
+  `003-class-authorization-matrix` em US7. Da Phase 3 à Phase 9, cada fase termina com 004–026 e as suítes da 027
+  verdes, e só as suítes da 003 ainda não reescritas podem estar vermelhas; a partir do fim de US7 (Phase 9) a suíte
+  inteira fica verde. A lista exata é registrada na T018.
 - **Sem dependência nova, WebSocket ou job** (plan, IX).
 
 **Organization**: por user story.
@@ -40,11 +42,13 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 - **US1** (P1, turmas do gestor) → **US2** (P1, alunos na turma: convite e inclusão direta) → **US3** (P1, professor
   acrescenta disciplina) → **US4** (P1, professor trabalha como hoje + encerrar/arquivar após o calendário). US3
   depende de US1 só nos testes (precisa de uma turma criada pelo gestor; a factory cobre). US4 depende de US3.
-- **US6** (P1, transição) e **US7** (P1, isolamento): depois da Foundational; US7 roda depois de US1–US4 (exercita as
+- **US5** (P2, encerrar matrícula): depois de US2 e antes de US7; entra no MVP porque a T003 remove a rota do
+  professor e, sem US5, ninguém encerraria uma matrícula depois do deploy.
+- **US6** (P1, transição) e **US7** (P1, isolamento): depois da Foundational; US7 roda depois de US1–US5 (exercita as
   rotas delas).
-- **US5** (P2, encerrar matrícula) e **US8** (P3, "Minhas turmas" por ano): independentes depois de US2.
-- **MVP**: Setup + Foundational + US1 + US2 + US3 + US4 + US6 + US7 (sem isso o beta não pode receber o deploy: a
-  migration muda o dono das turmas).
+- **US8** (P3, "Minhas turmas" por ano): independente depois de US2.
+- **MVP**: Setup + Foundational + US1 + US2 + US3 + US4 + US5 + US6 + US7 (sem isso o beta não pode receber o
+  deploy: a migration muda o dono das turmas).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -58,8 +62,8 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 **Purpose**: a 027 entra na guarda de rastreabilidade, os contratos existem e a 003 registra a emenda.
 
 - [ ] T001 Incluir a 027 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 026:
-      `feature: "027"`, `path: "specs/027-manager-classes/spec.md"`, `stories: 8`, `scenarios: 40`
-      (6 + 9 + 6 + 5 + 3 + 4 + 4 + 3), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e
+      `feature: "027"`, `path: "specs/027-manager-classes/spec.md"`, `stories: 8`, `scenarios: 41`
+      (6 + 9 + 6 + 5 + 3 + 4 + 4 + 4), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e
       `pending: { stories: [1, 2, 3, 4, 5, 6, 7, 8], successCriteria: ["SC-001", …, "SC-006"] }`, com o comentário de
       como cada id sai de `pending`. Citar a 027 na lista de `SPECS` do `CLAUDE.md` raiz ("…, 025, 026 and 027").
 - [ ] T002 [P] Contratos novos em `packages/contracts/src/cohorts/` (contracts/http-api.md): `cohorts.ts`
@@ -69,7 +73,7 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       `classes[{ id, subjectName, teacherName, effectiveStatus }]`), `directory.ts` (`CohortDirectoryQuerySchema` com
       `q` 1–100 e `cursor`, `CohortDirectoryPageSchema` só com id, name, code, academicYear, period e
       `classes[{ subjectName, teacherName }]`), `enrollments.ts` (`StudentLookupRequestSchema { email }`,
-      `StudentLookupResponseSchema` discriminada por `found`, `DirectEnrollmentRequestSchema { email }`,
+      `StudentLookupResponseSchema` discriminada por `found`, com `alreadyEnrolled` no ramo `true`, `DirectEnrollmentRequestSchema { email }`,
       `CohortEnrollmentViewSchema`/`PageSchema` com `source`). Exportar no barril.
 - [ ] T003 [P] Contratos alterados em `packages/contracts/src/classes/`: `classes.ts` — `CreateClassRequestSchema =
       { cohortId, subjectId, startsOn?, endsOn? }` (strict; datas como hoje, ambas ou nenhuma), `UpdateClassRequestSchema
@@ -106,16 +110,18 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
 - [ ] T006 [P] Guarda `apps/api/test/cohorts-boundary.spec.ts` (research Q3): falha se algum `.ts` de `apps/api/src`
       juntar `enrollments` por `class_id` (regex em SQL cru: `enrollments\s+\w+\s+(ON|WHERE)[^;]*\.class_id`, e o
       filtro Prisma `schoolClass:\s*\{\s*enrollments`), e se um módulo fora de `cohorts`, `class-invitations` e
-      `enrollments` chamar `enrollment.create|update|upsert` ou `classInvitation.create|update`. Citar a guarda na lista
+      `enrollments` chamar `enrollment.create|update|upsert` ou `classInvitation.create|update`, e se `schoolClass.status`
+      ou `schoolClass: { status` aparecer em `apps/api/src` fora de `classes/class-context.policy.ts` e dos arquivos que
+      também leem `cohort.status` (FR-023). Citar a guarda na lista
       "Cross-cutting guards" do `CLAUDE.md` raiz.
 
 ### Implementation
 
-- [ ] T007 Migration `apps/api/prisma/migrations/20261118120000_027_manager_classes/migration.sql`, em ordem
-      (data-model.md, research Q9): (1) enums novos (`enrollment_removal_reason`, `enrollment_source`) e valores novos
-      (`mail_kind` += `CLASS_ENROLLMENT_NOTICE`, `class_invitation_cancel_reason` += `MANAGER`, `ENROLLED_DIRECTLY`,
-      `MERGED` — cada `ALTER TYPE … ADD VALUE` antes de qualquer uso, fora de transação se o Prisma exigir: separar em
-      uma migration `20261118115900_027_enum_values` se `migrate deploy` recusar); (2) `CREATE TABLE cohorts` com os
+- [ ] T007 Duas migrations (data-model.md, research Q9): (1) `apps/api/prisma/migrations/20261118115900_027_enum_values/migration.sql`:
+      `CREATE TYPE enrollment_removal_reason`, `enrollment_source`; `ALTER TYPE mail_kind ADD VALUE
+      'CLASS_ENROLLMENT_NOTICE'`, `class_invitation_cancel_reason ADD VALUE 'MANAGER'`, `'ENROLLED_DIRECTLY'`,
+      `'MERGED'`. Os passos (2)–(9), em ordem, ficam em
+      `apps/api/prisma/migrations/20261118120000_027_manager_classes/migration.sql`: (2) `CREATE TABLE cohorts` com os
       CHECKs da 003 (ano 1900–2100) e `UNIQUE (academic_year, upper(code))`; (3) `INSERT INTO cohorts` um por grupo
       `(academic_year, upper(code))` de `classes`, dados da turma mais antiga (`created_at`, `id`), situação a mais
       aberta, `created_by_id` = professor da mais antiga, `search_key` recalculado como em `classes`; (4)
@@ -123,8 +129,10 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       preenchidos; duplicadas ACTIVE por `(cohort_id, student_user_id)`: a mais antiga fica, as outras `REMOVED`,
       `removed_at = now()`, `removal_reason = 'MERGED'`; (6) `class_invitations.cohort_id`; PENDING duplicados por
       `(cohort_id, email)`: fica o de maior `expires_at`, o outro `CANCELLED`, `cancelled_at = now()`,
-      `cancel_reason = 'MERGED'`, `cancelled_by_id` NULL (relaxar o CHECK da 003 que exige `cancelled_by_id` só se ele
-      existir; conferir); (7) dropar `classes.name/code/academic_year/period/description/search_key`,
+      `cancel_reason = 'MERGED'`, `cancelled_by_id` NULL (a coluna já é anulável na 003); nos passos (5) e (6), um
+      `audit_events` SYSTEM por linha alterada (`enrollment.removed {cohortId, userId, reason: "MERGED"}` /
+      `class_invitation.cancelled {cohortId, invitationId, reason: "MERGED"}`), por `INSERT … SELECT` sobre os ids
+      devolvidos (`WITH … UPDATE … RETURNING`); (7) dropar `classes.name/code/academic_year/period/description/search_key`,
       `enrollments.class_id`, `class_invitations.class_id` e os índices antigos; criar os novos (data-model.md),
       a partial UNIQUE `(cohort_id, subject_id) WHERE subject_id IS NOT NULL`, o trigger
       `classes_identity_immutable`, a visão `class_enrollments` e a função `class_effective_status(uuid)`; (8)
@@ -132,7 +140,8 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       `DELETE FROM role_permissions` delas para TEACHER, `INSERT` para MANAGER e ADMIN, chaves novas `turmas.incluir_aluno`
       (MANAGER, ADMIN), `turmas.buscar` e `disciplinas_turma.{visualizar,criar,editar,alterar_situacao,visualizar_alunos}`
       (TEACHER); (9) um `audit_events` `cohort_transition.applied` (actor SYSTEM, como os eventos SYSTEM de 018) com as
-      contagens. Tudo numa transação.
+      contagens e as mudanças de permissão do passo (8) (`permissionsMoved`, `permissionsAdded`: chaves e papéis,
+      constituição XXV). Tudo numa transação.
 - [ ] T008 `apps/api/prisma/schema.prisma`: model `Cohort` (`@@map("cohorts")`), `SchoolClass` sem os campos movidos e
       com `cohortId`/`cohort`, `Enrollment` e `ClassInvitation` com `cohortId`, os enums novos e os valores novos.
       `pnpm --filter api prisma generate`; `pnpm --filter api prisma migrate deploy` no banco de dev (porta 5434) e
@@ -152,10 +161,15 @@ description: "Task list for 027 — Turmas do gestor e disciplinas da turma: `co
       → `{ cohort: { classes: { some: { id: classId } } } }`) em `attempt-integrity/integrity-review.service.ts`,
       `ranking/ranking.service.ts` (2), `student-activities/student-activity-loader.ts`; e
       `retention/unverified-accounts.job.ts` (só troca de coluna). T006 passa.
-- [ ] T012 Leitores de situação da classe em SQL cru → `class_effective_status(ca.class_id)` onde hoje leem
-      `classes.status` (`rtk proxy grep -rn "status" ` nos arquivos de T011 e em `exam-alerts/`, `exam-nudges/`,
-      `mobile-exams/`, `student-activities/`): o worker de alertas (destinatários: "a turma não arquivada"), a
-      elegibilidade de grupo, o loader do aluno e a lista móvel.
+- [ ] T012 Leitores da situação da classe → situação efetiva. **SQL cru**: `class_effective_status(ca.class_id)` onde
+      hoje se lê `c.status` (`student-activities/attempts.service.ts`, `student-activities/group-work.service.ts`, o
+      worker de `exam-alerts` — destinatários: "a turma não arquivada" —, `group-eligibility`, `mobile-exams`).
+      **Prisma fora do `ClassContextPolicy`**: `activities/activities.service.ts`, `classes/plannable-class.ts`,
+      `student-activities/student-activity-loader.ts` (`classActive`, l. 241 e 548), `exam-nudges/exam-nudges.service.ts`,
+      `exam-alerts/exam-alert-preferences.service.ts` e `class-invitations/*` (estes passam a ler a turma) — incluir
+      `cohort: { select: { status: true } }` e usar `effectiveStatus()`. Teste `027/FR-023` em
+      `027-us4-class-subject.spec.ts`: turma INATIVA → aplicar atividade, editar o plano e salvar a resposta do aluno
+      são recusados com os códigos de hoje.
 - [ ] T013 Leitores do nome da classe → turma + `classLabel` (research Q2): `classes/class.view.ts`, as views do
       professor que mostram a turma, `class-invitations/class-invitation.mail-subject.ts` (usa a turma: nome, código,
       período), `exam-alerts` (texto do push: rótulo da disciplina da turma), `mobile-exams` (lista), 
@@ -196,13 +210,16 @@ nenhum professor envolvido; abrir uma turma com duas disciplinas.
 - [ ] T019 [P] [US1] `apps/api/test/integration/027-us1-cohorts.spec.ts`: `027/US1-1`…`027/US1-6` (um `it` cada;
       US1-2 com o mesmo código no mesmo ano → `409 COHORT_CODE_TAKEN` e em outro ano → `201`, `027/FR-002`; US1-5 com
       os convites cancelados `CLASS_ARCHIVED` e a edição recusada `409 COHORT_ARCHIVED`; US1-6 sem nenhum campo
-      pedagógico no `CohortDetail`); auditoria `cohort.created/updated/status_changed`.
+      pedagógico no `CohortDetail`); auditoria `cohort.created/updated/status_changed`; `027/FR-008` (nenhuma rota
+      `DELETE` de turma no catálogo → `404`/`405`; `DELETE FROM cohorts` de uma turma com disciplina da turma ou
+      matrícula falha pela FK `RESTRICT`).
 - [ ] T020 [P] [US1] Reescrever `apps/api/test/integration/003-us1-classes.spec.ts` com o gestor como ator nas rotas
       `/cohorts`, mantendo os títulos `003/US1-*`; `003-list-performance.spec.ts` e `003-concurrency.spec.ts` (parte de
       turma) idem; `027/SC-006`: 20 `POST /cohorts` simultâneos com o mesmo código e ano → 1 turma.
 - [ ] T021 [P] [US1] Web `apps/web/features/cohorts/components/cohort-list.test.tsx`, `cohort-form.test.tsx`,
       `cohort-page.test.tsx`: lista com filtros, formulário com as mensagens de FR-032, ações de situação com
-      AlertDialog no arquivar, aba "Disciplinas" sem dados pedagógicos; axe.
+      AlertDialog no arquivar, aba "Disciplinas" sem dados pedagógicos; `027/FR-033` (nome de turma, disciplina e
+      professor com `<b>x</b>` aparece como texto literal, sem elemento `b`); axe.
 
 ### Implementation for User Story 1
 
@@ -236,7 +253,8 @@ turma; o aluno vê no card as disciplinas da turma sem convite por matéria.
       nova; o card oferece as duas disciplinas — `GET /me/classes` e `GET /me/activities?classId` de cada uma; turma
       inativa/arquivada → `409 COHORT_NOT_ACTIVE`); `027/SC-001` (um convite, N disciplinas).
 - [ ] T026 [P] [US2] `apps/api/test/integration/027-us2-direct-enrollment.spec.ts`: `027/US2-7`…`027/US2-9` e
-      `027/FR-034`: lookup encontrado (só `studentUserId` e `name`), não encontrado igual para sem conta, conta sem
+      `027/FR-034`: lookup encontrado (só `studentUserId`, `name` e `alreadyEnrolled`; aluno já matriculado →
+      `found: true, alreadyEnrolled: true`), não encontrado igual para sem conta, conta sem
       STUDENT, e-mail não verificado e conta desativada; inclusão cria matrícula `DIRECT` com `enrolled_by_id`, cancela
       o convite PENDING do mesmo e-mail (`ENROLLED_DIRECTLY`), agenda `CLASS_ENROLLMENT_NOTICE` (Mailpit: assunto e
       corpo sem token, professor ou disciplina); `409 ALREADY_ENROLLED`; `422 STUDENT_NOT_ELIGIBLE`; 2 inclusões
@@ -286,13 +304,17 @@ disciplina da turma entre as suas; o segundo professor acrescenta "Redes" na mes
       acento/maiúsculas só de ativas, só os campos de FR-016; criação com disciplina própria e ativa; duplicada
       `409 CLASS_SUBJECT_DUPLICATE`; mesma disciplina em outra turma → outra disciplina da turma; outro professor na
       mesma turma; busca vazia); disciplina de outro professor → `404`, arquivada → `422 SUBJECT_ARCHIVED`, turma
-      inativa → `409 COHORT_NOT_ACTIVE`; corpo com `teacherId` → `400`; auditoria `class.created`.
+      inativa → `409 COHORT_NOT_ACTIVE`; corpo com `teacherId` → `400`; auditoria `class.created`; `027/FR-019`
+      (`UPDATE classes SET teacher_id|cohort_id|subject_id` direto no banco é recusado pelo trigger
+      `classes_identity_immutable`, e `PATCH /classes/:id` com `cohortId`/`subjectId` → `400`).
 - [ ] T035 [P] [US3] `apps/api/test/security/027-concurrency.spec.ts`: o mesmo professor acrescenta a mesma disciplina
-      2× ao mesmo tempo → 1; gestor arquiva × professor acrescenta → nunca uma disciplina ativa numa turma arquivada
-      (100 rodadas); `027/SC-004` (fluxo de busca + criação em uma chamada cada, medido no E2E da T061).
+      2× ao mesmo tempo → 1; gestor arquiva × professor acrescenta, em 100 rodadas: ou o `POST /classes` responde
+      `409 COHORT_NOT_ACTIVE`, ou o `created_at` da classe é anterior ao `status_changed_at` do arquivamento e
+      `class_effective_status` dela é `ARCHIVED`; o fluxo de busca + criação em uma chamada cada (sem o id SC-004, que é do E2E da T061).
 - [ ] T036 [P] [US3] Web `apps/web/features/classes/components/add-class.test.tsx` (busca, escolha da turma e da
       disciplina, calendário opcional, "Turma não encontrada. Peça ao gestor que a crie.", mensagens) e
-      `class-list.test.tsx` ("<disciplina> · <turma>", situação efetiva); axe.
+      `class-list.test.tsx` ("<disciplina> · <turma>", situação efetiva; resultado da busca com nome `<b>x</b>`
+      mostrado como texto); axe.
 
 ### Implementation for User Story 3
 
@@ -305,7 +327,7 @@ disciplina da turma entre as suas; o segundo professor acrescenta "Redes" na mes
 - [ ] T039 [US3] Web: `apps/web/app/(app)/turmas/page.tsx` (lista das disciplinas da turma) e
       `apps/web/app/(app)/turmas/nova/page.tsx` ("Acrescentar disciplina a uma turma"); menu "Turmas" do professor para
       `disciplinas_turma.visualizar`.
-- [ ] T040 [US3] Retirar US3 e `SC-004` de `pending` (SC-004 só depois da T061).
+- [ ] T040 [US3] Retirar US3 de `pending`.
 
 **Checkpoint**: o professor monta as suas disciplinas nas turmas do gestor.
 
@@ -334,8 +356,9 @@ de convidar/remover/editar turma; encerrar e arquivar só depois do último dia.
 
 - [ ] T043 [US4] `POST /classes/:id/status` (`disciplinas_turma.alterar_situacao`): `canCloseClass` com o `Clock`,
       máquina da 003 sobre `ownStatus`, turma ARCHIVED → `409 INVALID_STATE_TRANSITION`; `class.status_changed`.
-      `GET /classes/:id/enrollments` (`disciplinas_turma.visualizar_alunos`) com a view do professor da 003 (sem e-mail
-      se hoje não há; conferir `enrollment.view.ts`).
+      `GET /classes/:id/enrollments` (`disciplinas_turma.visualizar_alunos`) só leitura, com os campos de
+      contracts/http-api.md: nome, RA e situação da matrícula — nunca e-mail, `source` ou convites; se a view do
+      professor da 003 (`enrollment.view.ts`) tiver outro campo, o contrato é corrigido antes da implementação.
 - [ ] T044 [US4] Web: página da disciplina da turma em `apps/web/app/(app)/turmas/[id]/` sem convidar/remover/editar
       turma, aba "Alunos" só leitura, ações de situação; remover os componentes de convite do professor de
       `features/classes`.
@@ -353,14 +376,16 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 6
 
-- [ ] T046 [US6] `apps/api/test/integration/027-transition.spec.ts`: monta o banco de teste na migration anterior
-      (`prisma migrate reset` não — usar um schema temporário `transition_027` com `CREATE SCHEMA` e o SQL das
-      migrations até a 025/026, ou um banco `*_test_transition` criado e descartado pelo teste, conforme
-      `apps/api/test/setup` permitir), semeia o cenário, aplica o SQL da T007 e verifica: `027/US6-1`…`027/US6-4`,
+- [ ] T046 [US6] `apps/api/test/integration/027-transition.spec.ts` (research Q9): pela conexão do banco de teste, cria
+      um banco temporário com o nome do banco de teste + `_transition_027` (ex.: `devtrack_test_transition_027`, contém
+      "test"; `DROP DATABASE IF EXISTS` antes e no `afterAll`); aplica nele, em ordem de nome, o `migration.sql` de cada
+      pasta de `apps/api/prisma/migrations` anterior a `20261118115900_027_enum_values` (nunca `prisma migrate reset`);
+      semeia o cenário por SQL; aplica as duas migrations da T007 e verifica: `027/US6-1`…`027/US6-4`,
       `027/FR-028` (fusão: dados da mais antiga, situação mais aberta, matrícula duplicada `REMOVED`/`MERGED`, convite
       duplicado `CANCELLED`/`MERGED`, o link mais longo ainda vale), `027/SC-002` (contagens antes = depois por tabela;
       cada atividade/entrega/nota/ponto no mesmo professor e aluno), o evento `cohort_transition.applied` com as
-      contagens e a reexecução impossível (migration aplicada uma vez).
+      contagens, o número de eventos `enrollment.removed`/`class_invitation.cancelled` com `reason MERGED` igual a
+      `mergedEnrollments`/`mergedInvitations`, e a reexecução impossível (migration aplicada uma vez).
 
 ### Implementation for User Story 6
 
@@ -370,30 +395,7 @@ migration e comparar o que cada um vê.
 
 ---
 
-## Phase 8: User Story 7 — Cada um só vê o que é seu (Priority: P1) 🎯 MVP
-
-**Goal**: nenhum acesso novo entre disciplinas da mesma turma, do gestor ao pedagógico, do aluno a outra turma.
-
-**Independent Test**: turma com disciplinas de dois professores; cada papel tenta abrir pelo id o que não é seu.
-
-### Tests for User Story 7
-
-- [ ] T049 [P] [US7] `apps/api/test/security/027-isolation.spec.ts`: `027/US7-1`…`027/US7-4` (professor A nas rotas de
-      plano, atividade, chamada, ranking, revisão e provas da disciplina de B → `404` com o mesmo corpo de um id
-      inexistente; gestor em atividade, entrega, nota, plano e ementa → `403`; professor em `/cohorts/*` → `403` e no
-      roster só o que vê hoje; aluno de "ADS 3NA" em disciplina, atividade e ranking de "ADS 3NB" → `404`);
-      `027/SC-003` (100% das tentativas, tabela de rotas × papéis gerada do `MATRIX`).
-- [ ] T050 [P] [US7] `apps/api/test/security/027-authorization-matrix.spec.ts` a partir de contracts/permissions.md
-      (cada rota nova × ADMIN, MANAGER, TEACHER, STUDENT, anônimo); reescrever `003-class-authorization-matrix.spec.ts`
-      para o novo dono mantendo os ids `003/…`.
-
-### Implementation for User Story 7
-
-- [ ] T051 [US7] Corrigir o que T049–T050 revelarem; retirar US7 e `SC-003` de `pending`.
-
----
-
-## Phase 9: User Story 5 — Gestor encerra a matrícula de um aluno (Priority: P2)
+## Phase 8: User Story 5 — Gestor encerra a matrícula de um aluno (Priority: P2) 🎯 MVP
 
 **Goal**: o gestor encerra a matrícula na turma; vale para todas as disciplinas dela.
 
@@ -416,6 +418,29 @@ migration e comparar o que cada um vê.
 
 ---
 
+## Phase 9: User Story 7 — Cada um só vê o que é seu (Priority: P1) 🎯 MVP
+
+**Goal**: nenhum acesso novo entre disciplinas da mesma turma, do gestor ao pedagógico, do aluno a outra turma.
+
+**Independent Test**: turma com disciplinas de dois professores; cada papel tenta abrir pelo id o que não é seu.
+
+### Tests for User Story 7
+
+- [ ] T049 [P] [US7] `apps/api/test/security/027-isolation.spec.ts`: `027/US7-1`…`027/US7-4` (professor A nas rotas de
+      plano, atividade, chamada, ranking, revisão e provas da disciplina de B → `404` com o mesmo corpo de um id
+      inexistente; gestor em atividade, entrega, nota, plano e ementa → `403`; professor em `/cohorts/*` → `403` e no
+      roster só o que vê hoje; aluno de "ADS 3NA" em disciplina, atividade e ranking de "ADS 3NB" → `404`);
+      `027/SC-003` (100% das tentativas, tabela de rotas × papéis gerada do `MATRIX`).
+- [ ] T050 [P] [US7] `apps/api/test/security/027-authorization-matrix.spec.ts` a partir de contracts/permissions.md
+      (cada rota nova × ADMIN, MANAGER, TEACHER, STUDENT, anônimo); reescrever `003-class-authorization-matrix.spec.ts`
+      para o novo dono mantendo os ids `003/…`.
+
+### Implementation for User Story 7
+
+- [ ] T051 [US7] Corrigir o que T049–T050 revelarem; retirar US7 e `SC-003` de `pending`.
+
+---
+
 ## Phase 10: User Story 8 — Aluno vê as suas turmas e matérias (Priority: P3)
 
 **Goal**: "Minhas turmas" por ano letivo, com as encerradas só para leitura; o card só com disciplinas ativas.
@@ -424,10 +449,11 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 8
 
-- [ ] T056 [P] [US8] `apps/api/test/integration/027-us8-my-cohorts.spec.ts`: `027/US8-1`…`027/US8-3` (`GET /me/classes`
+- [ ] T056 [P] [US8] `apps/api/test/integration/027-us8-my-cohorts.spec.ts`: `027/US8-1`…`027/US8-4` (`GET /me/classes`
       por ano, turma uma vez com as duas disciplinas e professores; turma sem disciplina; turma de 2026 encerrada em
       2027 aparece no seu ano com a situação, e as rotas do aluno dela respondem leitura mas recusam iniciar, salvar e
-      entregar — os códigos de hoje para turma fechada); `027/FR-004` (encerrar não mexe na matrícula); reescrever
+      entregar — os códigos de hoje para turma fechada; disciplina arquivada pelo professor listada com a situação
+      `ARCHIVED` e `GET /me/activities?classId=<arquivada>` → `200` só leitura); `027/FR-004` (encerrar não mexe na matrícula); reescrever
       `003-us7-my-classes.spec.ts` e `026-us4-my-classes.spec.ts` para o shape novo mantendo os ids.
 - [ ] T057 [P] [US8] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (seções por ano, selo
       "Encerrada", "Ainda não há disciplinas nesta turma.", links `?materia=`), `subject-switcher.test.tsx` e
@@ -448,13 +474,16 @@ migration e comparar o que cada um vê.
 
 - [ ] T061 [P] E2E `apps/web/e2e/manager-classes.spec.ts` (local): gestor cria turma, convida (Mailpit) e inclui um
       aluno existente; dois professores acrescentam disciplinas; aluno vê as duas no card; professor encerra após o
-      calendário (relógio do E2E). Ajustar `class-teacher.spec.ts`, `class-teacher-setup.spec.ts`,
+      calendário (relógio do E2E); um `test` com título `027/SC-004` que mede, do clique em "Turmas" à mensagem
+      "Disciplina acrescentada à turma.", ≤ 3 interações e < 60 s, e retira `SC-004` de `pending`. Ajustar `class-teacher.spec.ts`, `class-teacher-setup.spec.ts`,
       `class-new-student.spec.ts`, `class-existing-student.spec.ts`, `class-remove-student.spec.ts`,
       `class-invitation-keyboard.spec.ts` e o `e2e/fixtures` que cria turma pela UI do professor.
 - [ ] T062 [P] Documentação: `CLAUDE.md` raiz — "Project state" (027), "Rules that are easy to get wrong" (a turma é
       do gestor; `class_enrollments`; situação efetiva; encerrar/arquivar após o calendário; inclusão direta) e a regra
       da 003 em "One `User` identity…" (convite do gestor); `apps/api/CLAUDE.md` (módulo `cohorts`, factories);
-      `apps/web/CLAUDE.md` (`features/cohorts`, `/gestao/turmas`); `docs/` de deploy (T047).
+      `apps/web/CLAUDE.md` (`features/cohorts`, `/gestao/turmas`); `docs/` de deploy (T047); a linha
+      "Active Technologies" da 027 no `CLAUDE.md` raiz ("two migrations: …"); o sétimo tipo de e-mail
+      (`CLASS_ENROLLMENT_NOTICE`) em `docs/deploy/email.md` e no `CLAUDE.md` raiz (017: "the six e-mails" → sete).
 - [ ] T063 [P] `specs/027-manager-classes/quickstart.md` conferido de ponta a ponta no ambiente local; corrigir o que
       divergir.
 - [ ] T064 Auditoria de segurança do Stop hook (owasp-security-auditor) sobre os arquivos da feature; corrigir achados.
@@ -468,8 +497,8 @@ migration e comparar o que cada um vê.
 ## Dependencies & Execution Order
 
 - Setup (T001–T004) → Foundational (T005–T018) → US1 (T019–T024) → US2 (T025–T033) → US3 (T034–T040) → US4
-  (T041–T045); US6 (T046–T048) pode rodar depois da Foundational, em paralelo com US1–US4; US7 (T049–T051) depois de
-  US1–US4; US5 (T052–T055) e US8 (T056–T060) depois de US2; Polish por último.
+  (T041–T045) → US5 (T052–T055) → US7 (T049–T051); US6 (T046–T048) pode rodar depois da Foundational, em paralelo
+  com US1–US5; US8 (T056–T060) depois de US2; Polish por último.
 - Dentro de cada história: testes → API → web → `pending`.
 - T007 → T008 → (T009, T010, T011, T012, T013 em paralelo por arquivo) → T014 → T018.
 
@@ -482,7 +511,7 @@ migration e comparar o que cada um vê.
 
 ## Implementation Strategy
 
-1. **MVP (deploy possível)**: Setup, Foundational, US1, US2, US3, US4, US6, US7 — a migration troca o dono das turmas,
-   então o beta só recebe o deploy com tudo isso verde e a transição verificada.
-2. **Incremento**: US5 (encerrar matrícula) e US8 ("Minhas turmas" por ano).
+1. **MVP (deploy possível)**: Setup, Foundational, US1, US2, US3, US4, US5, US6, US7 — a migration troca o dono das
+   turmas, então o beta só recebe o deploy com tudo isso verde e a transição verificada.
+2. **Incremento**: US8 ("Minhas turmas" por ano).
 3. **Fecho**: Polish, auditoria, piloto.

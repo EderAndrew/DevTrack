@@ -42,8 +42,8 @@ A emenda 4.0.0 da constituição separa dois conceitos:
 
 ### Session 2026-11-17
 
-- Q: Quem cria a turma e convida os alunos? → A: O gestor (MANAGER), um convite por vez (e-mail individual). Os alunos
-  A conta de aluno nasce só pelo aceite do convite; quem já tem conta pode ser incluído direto (ver abaixo).
+- Q: Quem cria a turma e convida os alunos? → A: O gestor (MANAGER), um convite por vez (e-mail individual). A conta
+  de aluno nasce só pelo aceite do convite; quem já tem conta pode ser incluído direto (ver abaixo).
 - Q: Como o professor chega à turma? → A: Pesquisa na tela de turmas; se ela não existir, pede ao gestor numa área
   "Solicitações", com texto livre, como o feedback dos alunos. A área "Solicitações" é uma feature separada (028).
 - Q: Quantas disciplinas uma turma tem? → A: Nasce sem nenhuma; quem acrescenta são os professores, a partir da
@@ -302,6 +302,9 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
 3. **Given** um aluno em 2027 com "ADS 3NA" de 2026 encerrada pelo gestor e "ADS 4NA" de 2027 ativa, **When** ele abre
    "Minhas turmas", **Then** vê "ADS 4NA" em 2027 e "ADS 3NA" em 2026, marcada como encerrada, e consegue abrir as
    atividades e notas liberadas de 2026 só para leitura.
+4. **Given** "Banco de Dados · ADS 3NA" arquivada pelo professor numa turma ativa, **When** o aluno abre "Minhas
+   turmas", **Then** vê a disciplina marcada "Arquivada" e abre as suas notas liberadas só para leitura; o card
+   "Matéria" não a oferece.
 
 ---
 
@@ -318,8 +321,8 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
   turma.
 - **Dois professores acrescentam disciplinas à mesma turma ao mesmo tempo**: as duas entram. **O mesmo professor
   acrescenta a mesma disciplina duas vezes ao mesmo tempo**: só uma entra.
-- **Gestor arquiva a turma enquanto o professor acrescenta uma disciplina**: ou a disciplina entra antes e é arquivada
-  com a turma, ou é recusada; nunca fica uma disciplina ativa numa turma arquivada.
+- **Gestor arquiva a turma enquanto o professor acrescenta uma disciplina**: ou a disciplina entra antes do arquivamento
+  (e passa a se comportar como arquivada, FR-023), ou é recusada com `409 COHORT_NOT_ACTIVE`; nunca é criada depois dele.
 - **Gestor encerra uma matrícula durante uma prova ou trabalho em andamento do aluno**: vale o que acontece hoje
   quando o professor remove um aluno nessa situação.
 - **Aluno entra na turma depois de atividades já aplicadas**: vale o que acontece hoje para quem entra tarde numa turma
@@ -374,19 +377,19 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
   "Reenviar" de um convite "Não entregue".
 - **FR-012**: O aceite do convite NÃO muda (003 FR-030 a FR-041, anti-enumeração incluída): cria a conta de aluno ou usa
   a existente e cria a matrícula ativa **na turma**.
-- **FR-034**: O gestor DEVE poder, numa turma ativa, informar um e-mail (exato, sem busca por parte) e, se ele for de
-  uma conta ativa, com o papel de aluno e o e-mail verificado, ver o nome e incluí-la direto na turma: a matrícula ativa nasce na hora, sem
-  convite nem aceite, e um e-mail de aviso ("você foi incluído na turma <nome> (<código>, <período>)", com o link de
-  entrar, sem token) sai pela caixa de saída da 017. Um convite pendente para o mesmo e-mail na turma é cancelado na
-  mesma operação. Sem conta, conta sem o papel de aluno, com e-mail não verificado ou desativada → só o convite
-  (FR-009). A inclusão nunca
-  cria conta, nunca muda senha, papel ou dados da conta, e responde "já está na turma" quando a matrícula ativa existe
-  (FR-015).
 - **FR-013**: Uma matrícula ativa na turma DEVE fazer do aluno um aluno de todas as disciplinas da turma, as atuais e as
   que forem acrescentadas depois, sem nenhum outro convite ou aceite.
 - **FR-014**: O gestor DEVE poder encerrar a matrícula de um aluno, com as mesmas regras e efeitos da remoção de aluno
   de hoje (003 FR-044, FR-047), que passam a valer para todas as disciplinas da turma de uma vez.
 - **FR-015**: NÃO PODE existir mais de uma matrícula ativa do mesmo aluno na mesma turma (003 FR-043).
+- **FR-034** *(acrescentado na clarificação; numerado por último para não renumerar os demais)*: O gestor DEVE poder,
+  numa turma ativa, informar um e-mail (exato, sem busca por parte) e, se ele for de uma conta ativa, com o papel de
+  aluno e o e-mail verificado, ver o nome e incluí-la direto na turma: a matrícula ativa nasce na hora, sem convite nem
+  aceite, e um e-mail de aviso ("você foi incluído na turma <nome> (<código>, <período>)", com o link de entrar, sem
+  token) sai pela caixa de saída da 017. Um convite pendente para o mesmo e-mail na turma é cancelado na mesma operação.
+  Sem conta, conta sem o papel de aluno, com e-mail não verificado ou desativada → só o convite (FR-009). A inclusão
+  nunca cria conta, nunca muda senha, papel ou dados da conta, e responde "já está na turma" quando a matrícula ativa
+  existe (FR-015).
 
 **Disciplina da turma (professor)**
 
@@ -426,9 +429,10 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
 **Aluno**
 
 - **FR-025**: "Minhas turmas" DEVE mostrar cada turma do aluno uma vez, agrupada por ano letivo (o mais recente
-  primeiro), com as disciplinas da turma ativas ou inativas (nome da disciplina e do professor), ou a indicação de que a
-  turma ainda não tem disciplinas. Turmas encerradas aparecem no seu ano, marcadas como encerradas, e o aluno abre o que
-  teve nelas só para leitura (FR-004).
+  primeiro), com todas as suas disciplinas da turma (nome da disciplina e do professor, situação efetiva), ou a
+  indicação de que a turma ainda não tem disciplinas. Turmas e disciplinas inativas ou arquivadas aparecem marcadas
+  ("Encerrada"/"Arquivada"), e o aluno abre o que teve nelas só para leitura (atividades, entregas, notas liberadas,
+  pontos e ranking), enquanto a sua matrícula na turma estiver ativa (FR-004).
 - **FR-026**: O card "Matéria" do Painel e de "Minhas atividades" (026) DEVE oferecer uma opção por disciplina da turma
   das turmas do aluno, com o texto "<disciplina> · <turma>" e as regras da 026 (desempate, opção única, aviso de matéria
   indisponível). Turmas sem disciplina não aparecem no card.
@@ -446,7 +450,8 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
   a situação é a mais aberta entre elas (ativa > inativa > arquivada), e cada disciplina da turma mantém a situação da
   sua turma antiga. Os alunos são somados: quem estava em mais de uma tem uma matrícula, ativa se alguma estava ativa,
   e o histórico de matrículas encerradas é preservado. Dois convites pendentes para o mesmo e-mail ficam como um só (o
-  de validade mais longa; o outro é revogado pelo sistema, com auditoria). A transição NÃO DEVE perder, duplicar ou
+  de validade mais longa; o outro é revogado pelo sistema). Cada matrícula encerrada e cada convite revogado pela
+  reunião gera um evento de auditoria do sistema, com o motivo `MERGED`. A transição NÃO DEVE perder, duplicar ou
   trocar o dono de nenhum registro pedagógico.
 - **FR-029**: Convites pendentes de antes da mudança DEVEM continuar válidos até a sua validade, matriculando na turma
   correspondente.
@@ -469,7 +474,9 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
 - **Permissions**:
   - Gestor (`MANAGER`, e `ADMIN` enquanto acumular a função): criar, editar, listar e ver turmas, mudar a situação,
     convidar, reenviar e cancelar convites, encerrar matrículas — as permissões de turma e convite de hoje
-    (`turmas.criar`, `turmas.gerenciar` e as de convite e matrícula da 003) passam a ser dele, mais a nova de incluir
+    (`turmas.criar`, `turmas.visualizar`, `turmas.editar`, `turmas.alterar_situacao`, `turmas.convidar_aluno`,
+    `turmas.reenviar_convite`, `turmas.cancelar_convite`, `turmas.visualizar_alunos`, `turmas.remover_aluno`) passam a
+    ser dele, mais a nova de incluir
     um aluno existente (FR-034).
   - Professor (`TEACHER`): perde as de criar e gerenciar turma, convidar e remover aluno; ganha a de pesquisar turmas
     (`turmas.buscar`) e a de criar, encerrar, reativar e arquivar a sua disciplina da turma; mantém todas as de 004–025, agora sobre a
@@ -482,12 +489,13 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
   - Aluno: só as disciplinas das turmas em que tem matrícula ativa; as demais respondem como inexistentes (`404`).
 - **Audit events**: criar, editar e mudar a situação da turma; convidar, reenviar, cancelar e aceitar convite; consultar
   um e-mail para inclusão direta (encontrado ou não) e incluir um aluno existente; encerrar matrícula; criar, encerrar, reativar e arquivar disciplina da turma; a execução da transição (contagens por tipo de registro). Metadados
-  só com identificadores, situações e contagens — nunca e-mail, nome ou texto livre.
+  só com identificadores, situações e contagens — nunca e-mail, nome ou texto livre; a única exceção é a de hoje da 003:
+  `class_invitation.created` mantém o e-mail convidado.
 - **Untrusted input**: campos da turma validados como na 003; turma e disciplina da disciplina da turma por
   identificador, conferidos no servidor (turma ativa; disciplina do próprio professor e ativa); professor, gestor e
   situação nunca vindos do corpo do pedido; campos desconhecidos recusados (`400`).
-- **States & transitions**: turma `ACTIVE`/`INACTIVE`/`ARCHIVED` (FR-004); disciplina da turma `ACTIVE`/`ARCHIVED`
-  (FR-022) com a situação efetiva derivada (FR-023); convite e matrícula como na 003. Transição inválida → `409`.
+- **States & transitions**: turma `ACTIVE`/`INACTIVE`/`ARCHIVED` (FR-004); disciplina da turma `ACTIVE ⇄ INACTIVE →
+  ARCHIVED` sobre a situação própria, só depois do fim do calendário (FR-022), com a situação efetiva derivada (FR-023); convite e matrícula como na 003. Transição inválida → `409`.
 - **Idempotency**: código de turma único (FR-002); uma disciplina da turma por turma e disciplina (FR-018); um convite
   pendente por turma e e-mail; aceite idempotente (003); arquivar a turma e acrescentar uma disciplina sob concorrência
   nunca deixam disciplina ativa em turma arquivada; a transição roda uma vez e é verificável.
@@ -528,8 +536,9 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
   interações depois de abrir "Turmas" (pesquisar, escolher a turma, confirmar a disciplina).
 - **SC-005**: As suítes de comportamento das features 004–026 continuam passando com a disciplina da turma no lugar da
   turma, sem mudança nas regras que verificam.
-- **SC-006**: Sob 20 pedidos simultâneos, nunca existem duas turmas com o mesmo código nem duas disciplinas da turma com
-  a mesma turma e disciplina, e nenhuma disciplina fica ativa numa turma arquivada.
+- **SC-006**: Sob 20 pedidos simultâneos, nunca existem duas turmas com o mesmo código no mesmo ano letivo nem duas
+  disciplinas da turma com a mesma turma e disciplina, e nenhuma disciplina da turma é criada numa turma depois de ela
+  ser arquivada (as que já existiam passam a ter situação efetiva arquivada).
 
 ## Assumptions
 
@@ -546,8 +555,8 @@ Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela
 - A inclusão direta (FR-034) segue a emenda 4.1.0 da constituição (ingresso em turma pelo convite **ou** pela
   inclusão, pelo gestor, de uma conta de aluno que já existe); o e-mail de aviso é um novo tipo na caixa de saída da 017,
   sem token.
-- O card "Matéria" (026) oferece só as disciplinas das turmas ativas do aluno; as de turmas encerradas são abertas a
-  partir de "Minhas turmas", no seu ano letivo.
+- O card "Matéria" (026) oferece só as disciplinas da turma de situação efetiva ativa; as demais (de turmas encerradas
+  ou arquivadas, ou arquivadas pelo professor) são abertas a partir de "Minhas turmas", no seu ano letivo.
 - A transição roda uma vez, no deploy desta feature, sem parar o beta além do tempo do deploy.
 - A tela "Minhas turmas" do aluno e o card "Matéria" mudam só o necessário; Painel, "Minhas atividades", Histórico e a
   página da atividade não mudam.

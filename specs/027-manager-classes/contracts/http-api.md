@@ -19,7 +19,7 @@ message}`. A cohort outside the MANAGER's capability → `403`; a class of anoth
 | `POST /cohorts/:id/invitations/:invitationId/cancel` | `turmas.cancelar_convite` | `{}` | 003 (reason `MANAGER`) |
 | `GET /cohorts/:id/enrollments` | `turmas.visualizar_alunos` | 003 query | `CohortEnrollmentPage`: name, e-mail, status, source |
 | `POST /cohorts/:id/enrollments/:enrollmentId/remove` | `turmas.remover_aluno` | `{}` | 003 effects, for every class of the cohort (FR-014) |
-| `POST /cohorts/:id/student-lookup` | `turmas.incluir_aluno` | `{ email }` | `{ found: true, studentUserId, name } \| { found: false }`; 30/min → `429` |
+| `POST /cohorts/:id/student-lookup` | `turmas.incluir_aluno` | `{ email }` | `{ found: true, studentUserId, name, alreadyEnrolled } \| { found: false }`; 30/min → `429` |
 | `POST /cohorts/:id/enrollments` | `turmas.incluir_aluno` | `{ email }` | `201 CohortEnrollmentView`; `409 ALREADY_ENROLLED`, `422 STUDENT_NOT_ELIGIBLE`, `409 COHORT_NOT_ACTIVE` |
 
 The old `/classes/:id/invitations*`, `/classes/:id/enrollments/:enrollmentId/remove`, `POST /classes` (003 body) and
