@@ -31,7 +31,7 @@ The old `/classes/:id/invitations*`, `/classes/:id/enrollments/:enrollmentId/rem
 |---|---|---|---|
 | `GET /cohort-directory` | `turmas.buscar` | `q` (1–100), `cursor?` | ACTIVE cohorts: `{ id, name, code, academicYear, period, classes[{ subjectName, teacherName }] }` only (FR-016) |
 | `GET /classes` | `disciplinas_turma.visualizar` | `q?`, `status?`, `cursor?` | own classes: `{ id, subjectName, cohort{ id, name, code, academicYear, period }, ownStatus, effectiveStatus, startsOn, endsOn }` |
-| `POST /classes` | `disciplinas_turma.criar` | `{ cohortId, subjectId, startsOn?, endsOn? }` | `201 ClassView`; `404` (cohort/subject unknown or not own), `409 COHORT_NOT_ACTIVE`, `422 SUBJECT_ARCHIVED`, `409 CLASS_SUBJECT_DUPLICATE` |
+| `POST /classes` | `disciplinas_turma.criar` | `{ cohortId, subjectId, startsOn?, endsOn? }` | `201 ClassView`; `404` (cohort/subject unknown or not own), `409 COHORT_NOT_ACTIVE`, `409 SUBJECT_INACTIVE` (004: a subject is ACTIVE or INACTIVE), `409 CLASS_SUBJECT_DUPLICATE` |
 | `GET /classes/:id` | `disciplinas_turma.visualizar` | — | `ClassView` + `canChangeStatus` (FR-022) |
 | `PATCH /classes/:id` | `disciplinas_turma.editar` | `{ startsOn, endsOn }` (004 rules) | `ClassView` |
 | `POST /classes/:id/status` | `disciplinas_turma.alterar_situacao` | `{ to }` | `ClassView`; before the end / no calendar → `409 CLASS_CALENDAR_NOT_ENDED`; cohort ARCHIVED → `409 INVALID_STATE_TRANSITION` |

@@ -159,6 +159,7 @@ export const ERROR_MESSAGES = {
   COHORT_ARCHIVED: "Esta turma está arquivada e não pode ser editada.",
   COHORT_NOT_ACTIVE: "Esta turma não está ativa. Reative-a para convidar ou incluir alunos.",
   STUDENT_NOT_ELIGIBLE: "Esse e-mail não pode ser incluído direto. Envie um convite.",
+  CLASS_SUBJECT_DUPLICATE: "Essa disciplina já está nesta turma.",
   RATE_LIMITED: "Muitas tentativas. Tente novamente mais tarde.",
   INTERNAL_ERROR: "Erro interno. Tente novamente mais tarde.",
   [NETWORK_ERROR]: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",

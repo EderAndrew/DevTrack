@@ -32,6 +32,7 @@ import {
   ClassListQuerySchema,
   ClassPageSchema,
   ClassViewSchema,
+  CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
@@ -45,6 +46,7 @@ import {
   CreateCohortRequestSchema,
   UpdateCohortRequestSchema,
 } from "./cohorts/cohorts.js";
+import { CohortDirectoryPageSchema, CohortDirectoryQuerySchema } from "./cohorts/directory.js";
 import {
   CohortEnrollmentPageSchema,
   CohortEnrollmentViewSchema,
@@ -554,7 +556,16 @@ export const endpoints = {
     status: 200,
   },
 
+  // 027 — the teacher's search of ACTIVE turmas and the disciplina da turma (contracts/http-api.md "TEACHER").
+  "cohortDirectory.search": {
+    method: "GET",
+    path: "/cohort-directory",
+    query: CohortDirectoryQuerySchema,
+    response: CohortDirectoryPageSchema,
+    status: 200,
+  },
   "classes.list": { method: "GET", path: "/classes", query: ClassListQuerySchema, response: ClassPageSchema, status: 200 },
+  "classes.create": { method: "POST", path: "/classes", body: CreateClassRequestSchema, response: ClassViewSchema, status: 201 },
   "classes.get": { method: "GET", path: "/classes/:id", params: IdParamsSchema, response: ClassViewSchema, status: 200 },
   "classes.update": {
     method: "PATCH",

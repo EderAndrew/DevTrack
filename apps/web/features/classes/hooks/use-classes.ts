@@ -2,7 +2,7 @@
 
 import type { ClassListQuery, ClassStatus, ClassView, CreateClassRequest, UpdateClassRequest } from "@repo/contracts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { classesApi } from "../api/classes";
+import { classesApi, cohortDirectoryApi } from "../api/classes";
 
 /** Filters of the classes list (the cursor is handled by the infinite query). */
 export type ClassFilters = Omit<ClassListQuery, "cursor">;
@@ -50,14 +50,12 @@ export function useChangeClassStatus(id: string) {
   return useMutation({ mutationFn: (status: ClassStatus) => classesApi.changeStatus(id, status), onSuccess: afterChange });
 }
 
-/**
- * Links one of the teacher's classes to a subject (004/US1-7); the API refuses a locked one (FR-004). 027 FR-019
- * fixes the subject of a disciplina da turma, so the API now answers 400; the dialog leaves with US3/US4 (T039, T044).
- */
-export function useLinkClassToSubject() {
-  const afterChange = useAfterChange();
-  return useMutation({
-    mutationFn: ({ classId, subjectId }: { classId: string; subjectId: string }) => classesApi.linkSubject(classId, subjectId),
-    onSuccess: afterChange,
+/** ACTIVE turmas whose name or code contains `q` (027/FR-016), 20 at a time; nothing is asked while `q` is empty. */
+export const useCohortDirectory = (q: string) =>
+  useInfiniteQuery({
+    queryKey: ["cohort-directory", q] as const,
+    queryFn: ({ pageParam }) => cohortDirectoryApi.search({ q, cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    enabled: q.length > 0,
   });
-}

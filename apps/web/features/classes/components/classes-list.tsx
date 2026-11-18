@@ -23,19 +23,21 @@ import {
   DEFAULT_STATUS,
   toClassFilters,
 } from "../schemas/class-filters";
+import { classLabel } from "../schemas/class-label";
 import { ClassStatusBadge } from "./class-status-badge";
 
 const FIELD_IDS = { query: "busca", year: "ano", status: "situacao" } as const;
 const NO_FILTERS: ClassFiltersFormInput = { query: "", year: "", status: DEFAULT_STATUS };
 
 export interface ClassesListProps {
-  /** Shows "Nova turma" (UX only; the API authorizes). */
+  /** Shows "Acrescentar disciplina" (UX only; the API authorizes). */
   canCreate: boolean;
 }
 
 /**
- * The teacher's classes (FR-007): search by name or code and filters by year and status, all
- * applied by the API; newest first, 20 at a time with "Carregar mais".
+ * The teacher's disciplinas da turma (003 FR-007; 027/FR-020): "<disciplina> · <turma>", the turma's code, year and
+ * period and the effective status; search by the turma's name or code and filters by year and status, all applied by
+ * the API; newest first, 20 at a time with "Carregar mais". Names are text (FR-033).
  */
 export function ClassesList({ canCreate }: ClassesListProps) {
   const [filters, setFilters] = useState<ClassFilters>({});
@@ -61,7 +63,7 @@ export function ClassesList({ canCreate }: ClassesListProps) {
         <Button asChild className="mb-4">
           <Link href="/turmas/nova">
             <Plus aria-hidden="true" />
-            Nova turma
+            Acrescentar disciplina
           </Link>
         </Button>
       ) : null}
@@ -75,7 +77,7 @@ export function ClassesList({ canCreate }: ClassesListProps) {
         <Field
           id={FIELD_IDS.query}
           type="search"
-          label="Pesquisar por nome ou código"
+          label="Pesquisar por turma ou código"
           autoComplete="off"
           className="mb-0 flex-[1_1_16rem]"
           error={errorFor(FIELD_IDS.query)}
@@ -119,7 +121,7 @@ export function ClassesList({ canCreate }: ClassesListProps) {
       <ErrorSummary errors={errors} title="Corrija a pesquisa" />
 
       <p className="sr-only" aria-live="polite">
-        {classes.isSuccess && !classes.isFetching ? `${items.length} turma(s) listada(s).` : ""}
+        {classes.isSuccess && !classes.isFetching ? `${items.length} disciplina(s) da turma listada(s).` : ""}
       </p>
 
       {classes.isPending ? (
@@ -136,13 +138,13 @@ export function ClassesList({ canCreate }: ClassesListProps) {
           </Button>
         </div>
       ) : items.length === 0 ? (
-        <p>Nenhuma turma encontrada.</p>
+        <p>Nenhuma disciplina da turma encontrada.</p>
       ) : (
         <Table className="mb-6">
-          <TableCaption className="sr-only">Suas turmas</TableCaption>
+          <TableCaption className="sr-only">Suas disciplinas nas turmas</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead scope="col">Nome</TableHead>
+              <TableHead scope="col">Disciplina · Turma</TableHead>
               <TableHead scope="col">Código</TableHead>
               <TableHead scope="col">Ano</TableHead>
               <TableHead scope="col">Período</TableHead>
@@ -154,13 +156,13 @@ export function ClassesList({ canCreate }: ClassesListProps) {
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
-                  <Link href={`/turmas/${item.id}`}>{item.name}</Link>
+                  <Link href={`/turmas/${item.id}`}>{classLabel(item)}</Link>
                 </TableCell>
-                <TableCell>{item.code}</TableCell>
-                <TableCell>{item.academicYear}</TableCell>
-                <TableCell>{item.period ?? "—"}</TableCell>
+                <TableCell>{item.cohort.code}</TableCell>
+                <TableCell>{item.cohort.academicYear}</TableCell>
+                <TableCell>{item.cohort.period ?? "—"}</TableCell>
                 <TableCell>
-                  <ClassStatusBadge status={item.status} />
+                  <ClassStatusBadge status={item.effectiveStatus} />
                 </TableCell>
                 <TableCell>{item.activeStudentCount}</TableCell>
               </TableRow>

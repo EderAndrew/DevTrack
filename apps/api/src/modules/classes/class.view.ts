@@ -1,5 +1,6 @@
 import type { ClassView } from "@repo/contracts";
 import type { Prisma } from "../../generated/prisma/client";
+import { canCloseClass } from "./close-rule";
 import { effectiveStatus } from "./effective-status";
 
 /**
@@ -13,6 +14,7 @@ export const CLASS_VIEW_SELECT = {
   endsOn: true,
   cohort: {
     select: {
+      id: true,
       name: true,
       code: true,
       academicYear: true,
@@ -34,10 +36,11 @@ export type ClassViewRow = Prisma.SchoolClassGetPayload<{ select: typeof CLASS_V
 export const isoDate = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : null);
 
 /**
- * `ClassView` of the contract; dates as ISO (002 S4). The teacher is implied by the session. Provisional
- * shape until 027 T038: the turma's fields come from the cohort and `status` is the effective status (FR-023).
+ * `ClassView` of the contract; dates as ISO (002 S4). The teacher is implied by the session. 027: the turma's
+ * fields come from the cohort, `status`/`effectiveStatus` is the effective status (FR-023), `ownStatus` the class's
+ * own, and `canChangeStatus` says the calendar ended by `today` (America/Sao_Paulo, FR-022) in an unarchived turma.
  */
-export function toClassView(row: ClassViewRow): ClassView {
+export function toClassView(row: ClassViewRow, today: string): ClassView {
   const status = effectiveStatus(row.cohort.status, row.status);
   return {
     id: row.id,
@@ -53,6 +56,16 @@ export function toClassView(row: ClassViewRow): ClassView {
     endsOn: isoDate(row.endsOn),
     plannable: row.subject !== null && row.startsOn !== null && row.endsOn !== null && status !== "ARCHIVED",
     planStatus: row.plan?.status ?? null,
+    cohort: {
+      id: row.cohort.id,
+      name: row.cohort.name,
+      code: row.cohort.code,
+      academicYear: row.cohort.academicYear,
+      period: row.cohort.period,
+    },
+    ownStatus: row.status,
+    effectiveStatus: status,
+    canChangeStatus: row.cohort.status !== "ARCHIVED" && canCloseClass(row, today),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

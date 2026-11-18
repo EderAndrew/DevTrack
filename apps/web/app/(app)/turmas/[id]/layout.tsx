@@ -16,7 +16,7 @@ export default async function ClassLayout({ params, children }: { params: Promis
     <section data-layout="wide" className="w-full">
       <ClassDetails
         id={id}
-        canEdit={me.permissions.includes("turmas.editar")}
+        canEdit={me.permissions.includes("disciplinas_turma.editar")}
         canChangeStatus={me.permissions.includes("turmas.alterar_situacao")}
         canInvite={me.permissions.includes("turmas.convidar_aluno")}
       />

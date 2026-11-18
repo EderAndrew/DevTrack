@@ -39,7 +39,9 @@ describe("004/FR-045 contratos recusam campos desconhecidos e controlados pelo s
     ["CreateSubjectRequest", CreateSubjectRequestSchema, { name: "POO", status: "ACTIVE" }],
     ["CreateSubjectRequest (dono)", CreateSubjectRequestSchema, { name: "POO", teacherId: ID }],
     ["UpdateSubjectRequest", UpdateSubjectRequestSchema, { name: "POO", classCount: 3 }],
-    ["CreateClassRequest", CreateClassRequestSchema, { name: "Turma", code: "T1", academicYear: 2027, plannable: true }],
+    ["CreateClassRequest", CreateClassRequestSchema, { cohortId: ID, subjectId: ID2, plannable: true }],
+    ["CreateClassRequest (professor)", CreateClassRequestSchema, { cohortId: ID, subjectId: ID2, teacherId: ID }],
+    ["CreateClassRequest (dados da turma)", CreateClassRequestSchema, { cohortId: ID, subjectId: ID2, name: "Turma" }],
     ["CreateSyllabusRevisionRequest", CreateSyllabusRevisionRequestSchema, { source: "MANUAL", status: "CONFIRMED" }],
     ["SaveSyllabusRevisionRequest", SaveSyllabusRevisionRequestSchema, { groups: [], confirmedAt: "2027-01-01" }],
     [
@@ -83,14 +85,17 @@ describe("004 datas de calendário", () => {
     },
   );
 
-  const base = { name: "Turma A", code: "T-A", academicYear: 2027 };
+  const base = { cohortId: ID, subjectId: ID2 };
 
-  it("004/FR-003 turma sem disciplina nem datas continua válida", () => {
+  it("027/FR-017 disciplina da turma sem datas é válida; sem turma ou sem disciplina, não", () => {
     expect(CreateClassRequestSchema.safeParse(base).success).toBe(true);
+    expect(CreateClassRequestSchema.safeParse({ subjectId: ID2 }).success).toBe(false);
+    expect(CreateClassRequestSchema.safeParse({ cohortId: ID }).success).toBe(false);
+    expect(CreateClassRequestSchema.safeParse({ ...base, subjectId: null }).success).toBe(false);
   });
 
   it("004/US1-5 turma com disciplina e período válido", () => {
-    const value = { ...base, subjectId: ID, startsOn: "2027-02-01", endsOn: "2027-06-30" };
+    const value = { ...base, startsOn: "2027-02-01", endsOn: "2027-06-30" };
     expect(CreateClassRequestSchema.parse(value)).toEqual(value);
     expect(CreateClassRequestSchema.safeParse({ ...value, endsOn: "2027-02-01" }).success).toBe(true);
   });
@@ -134,6 +139,10 @@ describe("004 datas de calendário", () => {
       endsOn: "2027-06-30",
       plannable: true,
       planStatus: null,
+      cohort: { id: ID, name: "Turma A", code: "T-A", academicYear: 2027, period: null },
+      ownStatus: "ACTIVE",
+      effectiveStatus: "ACTIVE",
+      canChangeStatus: false,
       createdAt: "2027-01-01T00:00:00.000Z",
       updatedAt: "2027-01-01T00:00:00.000Z",
     };

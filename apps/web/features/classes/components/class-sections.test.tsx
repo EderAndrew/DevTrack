@@ -29,6 +29,10 @@ const CLASS: ClassView = {
   endsOn: null,
   plannable: false,
   planStatus: null,
+  cohort: { id: "99999999-9999-4999-8999-999999999999", name: "Turma de teste", code: "TT-1", academicYear: 2026, period: null },
+  ownStatus: "ACTIVE",
+  effectiveStatus: "ACTIVE",
+  canChangeStatus: false,
   createdAt: "2026-09-21T12:00:00.000Z",
   updatedAt: "2026-09-21T12:00:00.000Z",
 };
@@ -72,7 +76,7 @@ describe("004/US1-4 seções da turma", () => {
     expect(
       await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar."),
     ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Editar turma" }).getAttribute("href")).toBe(`/turmas/${CLASS.id}/editar`);
+    expect(screen.getByRole("link", { name: "Editar calendário" }).getAttribute("href")).toBe(`/turmas/${CLASS.id}/editar`);
     expect(screen.queryByText("Envie e confirme a ementa antes de criar tópicos.")).toBeNull();
     await expectNoA11yViolations(container);
   });
@@ -81,7 +85,7 @@ describe("004/US1-4 seções da turma", () => {
     serve({ ...CLASS, status: "ARCHIVED" });
     renderWithProviders(<ClassPlanSection classId={CLASS.id} canEditClass canEdit />);
     await screen.findByText("Informe a disciplina e as datas de início e término da turma para planejar.");
-    expect(screen.queryByRole("link", { name: "Editar turma" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Editar calendário" })).toBeNull();
   });
 
   it("004/US5 Planejamento de turma planejável sem ementa escolhida leva à ementa da turma", async () => {

@@ -28,9 +28,13 @@ const schoolClass = (name: string, overrides: Partial<ClassView> = {}): ClassVie
     endsOn: null,
     plannable: false,
     planStatus: null,
+    ownStatus: "ACTIVE",
+    canChangeStatus: false,
     createdAt: "2026-09-21T12:00:00.000Z",
     updatedAt: "2026-09-21T12:00:00.000Z",
     ...overrides,
+    cohort: { id: "99999999-9999-4999-8999-999999999999", name, code: `T-${sequence}`, academicYear: 2026, period: null, ...overrides.cohort },
+    effectiveStatus: overrides.effectiveStatus ?? overrides.status ?? "ACTIVE",
   };
 };
 
@@ -43,8 +47,8 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("lista as turmas com situação, alunos e link, e oferece Nova turma", async () => {
-    const poo = schoolClass("Programação Orientada a Objetos", { period: "2º semestre", activeStudentCount: 12 });
+  it("lista as turmas com situação, alunos e link, e oferece Acrescentar disciplina", async () => {
+    const poo = schoolClass("Programação Orientada a Objetos", { activeStudentCount: 12, cohort: { period: "2º semestre" } as ClassView["cohort"] });
     const bd = schoolClass("Banco de Dados", { status: "INACTIVE" });
     fetchMock.mockResolvedValueOnce(json(200, { items: [poo, bd], nextCursor: null }));
     const { container } = renderWithProviders(<ClassesList canCreate />);
@@ -57,16 +61,16 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
     expect(within(row).getByText("12")).toBeTruthy();
     expect(within(row).getByText("2º semestre")).toBeTruthy();
     expect(within(screen.getByRole("link", { name: bd.name }).closest("tr")!).getByText("Inativa")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Nova turma" }).getAttribute("href")).toBe("/turmas/nova");
+    expect(screen.getByRole("link", { name: "Acrescentar disciplina" }).getAttribute("href")).toBe("/turmas/nova");
     expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
     await expectNoA11yViolations(container);
   });
 
-  it("sem permissão de criar não mostra Nova turma", async () => {
+  it("sem permissão de criar não mostra Acrescentar disciplina", async () => {
     fetchMock.mockResolvedValueOnce(json(200, { items: [], nextCursor: null }));
     renderWithProviders(<ClassesList canCreate={false} />);
-    expect(await screen.findByText("Nenhuma turma encontrada.")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Nova turma" })).toBeNull();
+    expect(await screen.findByText("Nenhuma disciplina da turma encontrada.")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Acrescentar disciplina" })).toBeNull();
   });
 
   it("pesquisa com ano e situação no servidor e carrega mais com o cursor", async () => {
@@ -78,9 +82,9 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
       .mockResolvedValueOnce(json(200, { items: [second], nextCursor: null }));
     renderWithProviders(<ClassesList canCreate />);
     const user = userEvent.setup();
-    await screen.findByText("Nenhuma turma encontrada.");
+    await screen.findByText("Nenhuma disciplina da turma encontrada.");
 
-    await user.type(screen.getByLabelText("Pesquisar por nome ou código"), " algorítmos ");
+    await user.type(screen.getByLabelText("Pesquisar por turma ou código"), " algorítmos ");
     await user.type(screen.getByLabelText("Ano letivo"), "2026");
     await user.click(screen.getByRole("combobox", { name: "Situação" }));
     await user.click(await screen.findByRole("option", { name: "Arquivada" }));
@@ -102,7 +106,7 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
     fetchMock.mockResolvedValueOnce(json(200, { items: [], nextCursor: null }));
     renderWithProviders(<ClassesList canCreate />);
     const user = userEvent.setup();
-    await screen.findByText("Nenhuma turma encontrada.");
+    await screen.findByText("Nenhuma disciplina da turma encontrada.");
 
     await user.type(screen.getByLabelText("Ano letivo"), "20x6");
     await user.click(screen.getByRole("button", { name: "Pesquisar" }));
@@ -130,6 +134,43 @@ describe("003/US1-2 ClassesList — pesquisa, filtros e paginação (FR-007)", (
   });
 });
 
+describe("027/FR-020 ClassesList — disciplinas da turma do professor", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("027/US3-2 mostra \"<disciplina> · <turma>\", os dados da turma e a situação efetiva", async () => {
+    const bd = schoolClass("ADS 3NA", {
+      subject: { id: "33333333-3333-4333-8333-333333333333", name: "Banco de Dados" },
+      cohort: { id: "99999999-9999-4999-8999-999999999998", name: "ADS 3NA", code: "ADS-3NA", academicYear: 2027, period: "Noturno" },
+      status: "INACTIVE",
+      ownStatus: "ACTIVE",
+      effectiveStatus: "INACTIVE",
+    });
+    fetchMock.mockResolvedValueOnce(json(200, { items: [bd], nextCursor: null }));
+    const { container } = renderWithProviders(<ClassesList canCreate />);
+
+    const row = (await screen.findByRole("link", { name: "Banco de Dados · ADS 3NA" })).closest("tr")!;
+    expect(within(row).getByText("ADS-3NA")).toBeTruthy();
+    expect(within(row).getByText("2027")).toBeTruthy();
+    expect(within(row).getByText("Noturno")).toBeTruthy();
+    expect(within(row).getByText("Inativa")).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("027/FR-033 nomes com HTML aparecem como texto", async () => {
+    const xss = schoolClass("<b>Turma</b>", { subject: { id: "33333333-3333-4333-8333-333333333333", name: "<b>x</b>" } });
+    fetchMock.mockResolvedValueOnce(json(200, { items: [xss], nextCursor: null }));
+    const { container } = renderWithProviders(<ClassesList canCreate />);
+    expect(await screen.findByRole("link", { name: "<b>x</b> · <b>Turma</b>" })).toBeTruthy();
+    expect(container.querySelector("b")).toBeNull();
+  });
+});
+
 describe("003/SC-011 SC-012 — ClassesList só com teclado", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
@@ -147,9 +188,9 @@ describe("003/SC-011 SC-012 — ClassesList só com teclado", () => {
     const user = userEvent.setup();
     const link = await screen.findByRole("link", { name: "Compiladores" });
 
-    const search = screen.getByLabelText("Pesquisar por nome ou código");
+    const search = screen.getByLabelText("Pesquisar por turma ou código");
     await expectTabOrder(user, [
-      screen.getByRole("link", { name: "Nova turma" }),
+      screen.getByRole("link", { name: "Acrescentar disciplina" }),
       search,
       screen.getByLabelText("Ano letivo"),
       screen.getByRole("combobox", { name: "Situação" }),

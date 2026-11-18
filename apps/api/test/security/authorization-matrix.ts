@@ -231,7 +231,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/cohorts/:id/enrollments", access: "turmas.incluir_aluno" },
   // 027: the teacher's routes of the disciplina da turma; the removal stays on `turmas.remover_aluno` (now the
   // MANAGER's) until US5 moves it to `/cohorts/:id` (T054).
+  { method: "GET", path: "/cohort-directory", access: "turmas.buscar" },
   { method: "GET", path: "/classes", access: "disciplinas_turma.visualizar" },
+  { method: "POST", path: "/classes", access: "disciplinas_turma.criar" },
   { method: "GET", path: "/classes/:id", access: "disciplinas_turma.visualizar" },
   { method: "PATCH", path: "/classes/:id", access: "disciplinas_turma.editar" },
   { method: "POST", path: "/classes/:id/status", access: "disciplinas_turma.alterar_situacao" },

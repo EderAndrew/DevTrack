@@ -24,6 +24,10 @@ const CLASS: ClassView = {
   endsOn: null,
   plannable: false,
   planStatus: null,
+  cohort: { id: "99999999-9999-4999-8999-999999999999", name: "Turma de teste", code: "TT-1", academicYear: 2026, period: null },
+  ownStatus: "ACTIVE",
+  effectiveStatus: "ACTIVE",
+  canChangeStatus: false,
   createdAt: "2026-09-21T12:00:00.000Z",
   updatedAt: "2026-09-21T12:00:00.000Z",
 };

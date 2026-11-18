@@ -350,37 +350,48 @@ disciplina da turma entre as suas; o segundo professor acrescenta "Redes" na mes
 
 ### Tests for User Story 3
 
-- [ ] T034 [P] [US3] `apps/api/test/integration/027-us3-add-subject.spec.ts`: `027/US3-1`…`027/US3-6` (busca sem
+- [X] T034 [P] [US3] `apps/api/test/integration/027-us3-add-subject.spec.ts`: `027/US3-1`…`027/US3-6` (busca sem
       acento/maiúsculas só de ativas, só os campos de FR-016; criação com disciplina própria e ativa; duplicada
       `409 CLASS_SUBJECT_DUPLICATE`; mesma disciplina em outra turma → outra disciplina da turma; outro professor na
-      mesma turma; busca vazia); disciplina de outro professor → `404`, arquivada → `422 SUBJECT_ARCHIVED`, turma
+      mesma turma; busca vazia); disciplina de outro professor → `404`, desativada → `409 SUBJECT_INACTIVE` (a da 004), turma
       inativa → `409 COHORT_NOT_ACTIVE`; corpo com `teacherId` → `400`; auditoria `class.created`; `027/FR-019`
       (`UPDATE classes SET teacher_id|cohort_id|subject_id` direto no banco é recusado pelo trigger
       `classes_identity_immutable`, e `PATCH /classes/:id` com `cohortId`/`subjectId` → `400`).
-- [ ] T035 [P] [US3] `apps/api/test/security/027-concurrency.spec.ts`: o mesmo professor acrescenta a mesma disciplina
+- [X] T035 [P] [US3] `apps/api/test/security/027-concurrency.spec.ts`: o mesmo professor acrescenta a mesma disciplina
       2× ao mesmo tempo → 1; gestor arquiva × professor acrescenta, em 100 rodadas: ou o `POST /classes` responde
       `409 COHORT_NOT_ACTIVE`, ou o `created_at` da classe é anterior ao `status_changed_at` do arquivamento e
       `class_effective_status` dela é `ARCHIVED`; o fluxo de busca + criação em uma chamada cada (sem o id SC-004, que é do E2E da T061).
       Reescrever também `004-us1-class-offering.spec.ts` e o teste de criação de `004-cross-links.spec.ts` (T018) sobre
       `POST /classes { cohortId, subjectId }`, mantendo os ids `004/…`; a jornada passa a acrescentar a disciplina pela
       rota (`class.created`/`class.updated` saem de `NOT_IN_JOURNEY_027`).
-- [ ] T036 [P] [US3] Web `apps/web/features/classes/components/add-class.test.tsx` (busca, escolha da turma e da
+- [X] T036 [P] [US3] Web `apps/web/features/classes/components/add-class.test.tsx` (busca, escolha da turma e da
       disciplina, calendário opcional, "Turma não encontrada. Peça ao gestor que a crie.", mensagens) e
       `class-list.test.tsx` ("<disciplina> · <turma>", situação efetiva; resultado da busca com nome `<b>x</b>`
       mostrado como texto); axe.
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] `apps/api/src/modules/cohorts/cohort-directory.controller.ts` + service (`GET /cohort-directory`,
+- [X] T037 [US3] `apps/api/src/modules/cohorts/cohort-directory.controller.ts` + service (`GET /cohort-directory`,
       `turmas.buscar`, keyset 20 por página, view allowlist).
-- [ ] T038 [US3] `apps/api/src/modules/classes/classes.service.ts` e `classes.controller.ts`: `GET /classes` (próprias,
+- [X] T038 [US3] `apps/api/src/modules/classes/classes.service.ts` e `classes.controller.ts`: `GET /classes` (próprias,
       com a turma e a situação efetiva), `POST /classes` (research Q10: turma `FOR SHARE` e ACTIVE, disciplina própria e
       ativa, UNIQUE → `409`), `GET /classes/:id` com `canChangeStatus`, `PATCH /classes/:id` só datas (regras da 004);
       permissões `disciplinas_turma.*`; `MATRIX` atualizado.
-- [ ] T039 [US3] Web: `apps/web/app/(app)/turmas/page.tsx` (lista das disciplinas da turma) e
+- [X] T039 [US3] Web: `apps/web/app/(app)/turmas/page.tsx` (lista das disciplinas da turma) e
       `apps/web/app/(app)/turmas/nova/page.tsx` ("Acrescentar disciplina a uma turma"); menu "Turmas" do professor para
       `disciplinas_turma.visualizar`.
-- [ ] T040 [US3] Retirar US3 de `pending`.
+- [X] T040 [US3] Retirar US3 de `pending`.
+      **Registro (2026-11-18)**: a disciplina desativada responde o `409 SUBJECT_INACTIVE` da 004 (a disciplina só tem
+      ACTIVE/INACTIVE; contracts/http-api.md e research Q10 corrigidos); código novo `409 CLASS_SUBJECT_DUPLICATE`
+      ("Essa disciplina já está nesta turma."). O `ClassView` ganhou `cohort`, `ownStatus`, `effectiveStatus` e
+      `canChangeStatus` e manteve os campos da turma (`name`, `code`…, `status` = situação efetiva) que as telas da
+      004–026 leem; o título "<disciplina> · <turma>" da página fica com a T044. A busca ordena por ano desc, nome e id
+      (cursor próprio). `class.updated` continua em `NOT_IN_JOURNEY_027`: desde a 027 o professor só edita as datas
+      (`class.offering_updated`). Web: `/turmas/nova` é "Acrescentar disciplina a uma turma" (`AddClass`: busca, turma
+      por rádio, disciplina, calendário opcional; a mensagem fica na tela com o link da disciplina da turma); a lista
+      mostra "<disciplina> · <turma>" e a situação efetiva; o formulário de turma virou só o calendário (`/turmas/[id]/editar`,
+      `disciplinas_turma.editar`); na página da disciplina, "Nova turma" virou "Acrescentar a uma turma" e o
+      "Vincular turma existente" saiu (a disciplina de uma disciplina da turma nunca muda, FR-019).
 
 **Checkpoint**: o professor monta as suas disciplinas nas turmas do gestor.
 

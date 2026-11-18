@@ -15,7 +15,7 @@ export default async function ClassesPage() {
   return (
     <section data-layout="wide" className="w-full">
       <PageHeader title="Turmas" />
-      <ClassesList canCreate={me.permissions.includes("turmas.criar")} />
+      <ClassesList canCreate={me.permissions.includes("disciplinas_turma.criar")} />
     </section>
   );
 }

@@ -1,15 +1,20 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type {
   ClassListQuery,
   ClassPage,
   ClassStatus,
   ClassView,
+  CreateClassRequest,
   UpdateClassRequest,
 } from "@repo/contracts";
+import { Prisma } from "../../generated/prisma/client";
+import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
+  classSubjectDuplicate,
+  cohortNotActive,
   invalidStateTransition,
   meetingsOutsidePeriod,
   notFound,
@@ -18,6 +23,7 @@ import {
 import type { AuthContext } from "../../platform/http/request-context";
 import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
+import { planningToday } from "../class-plans/planning-date";
 import { SubjectContextPolicy } from "../subjects/subject-context.policy";
 import { ClassContextPolicy } from "./class-context.policy";
 import { ClassStateMachine } from "./class.state-machine";
@@ -32,6 +38,10 @@ const DEFAULT_STATUSES: ClassStatus[] = ["ACTIVE", "INACTIVE"];
 type OfferingField = "startsOn" | "endsOn";
 const OFFERING_FIELDS: readonly OfferingField[] = ["startsOn", "endsOn"];
 
+/** The only unique index a create can hit is `classes_cohort_subject_key` (FR-018). */
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
 /** A `@db.Date` value from the contract's "YYYY-MM-DD" (null stays null). */
 const toDbDate = (value: string | null | undefined) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
 
@@ -40,9 +50,8 @@ const toDbDate = (value: string | null | undefined) => (value ? new Date(`${valu
  * never from the request; every lookup by id goes through `ClassContextPolicy`, so another
  * teacher's class is a plain 404 (D7).
  *
- * 027: a class is the disciplina da turma; its turma's data come from the cohort. The 003 create left with
- * US1 (the turma is the MANAGER's, `CohortsService`) and US3 brings the create of a disciplina da turma (T038);
- * the edit takes only the calendar dates (FR-019); the status route changes only the class's own status and
+ * 027: a class is the disciplina da turma; its turma's data come from the cohort. The teacher creates one by
+ * adding an own ACTIVE subject to an ACTIVE turma (US3, research Q10); the edit takes only the calendar dates (FR-019); the status route changes only the class's own status and
  * no longer touches invitations, which belong to the cohort.
  */
 @Injectable()
@@ -52,7 +61,12 @@ export class ClassesService {
     private readonly context: ClassContextPolicy,
     private readonly subjects: SubjectContextPolicy,
     private readonly audit: AuditService,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  private today(): string {
+    return planningToday(this.clock.now());
+  }
 
   /** Keyset page, newest first; search on `search_key` ignores case and accents (D10). */
   async list(teacherId: string, { query, year, status, subjectId, cursor }: ClassListQuery): Promise<ClassPage> {
@@ -79,7 +93,7 @@ export class ClassesService {
     });
     const page = rows.slice(0, CLASSES_PAGE_SIZE);
     return {
-      items: page.map(toClassView),
+      items: page.map((row) => toClassView(row, this.today())),
       nextCursor: rows.length > CLASSES_PAGE_SIZE ? encodeCursor(page.at(-1)!) : null,
     };
   }
@@ -87,7 +101,49 @@ export class ClassesService {
   async get(teacherId: string, classId: string, db: Tx = this.prisma): Promise<ClassView> {
     const row = await db.schoolClass.findFirst({ where: { id: classId, teacherId }, select: CLASS_VIEW_SELECT });
     if (!row) throw notFound();
-    return toClassView(row);
+    return toClassView(row, this.today());
+  }
+
+  /**
+   * 027 FR-017/FR-018, research Q10: the subject must be the teacher's (else 404) and ACTIVE (`409
+   * SUBJECT_INACTIVE`); the turma must exist (404) and be ACTIVE (`409 COHORT_NOT_ACTIVE`), read under
+   * `FOR SHARE` so a concurrent archive (`FOR UPDATE`) waits for this insert or makes it see the archive; a second
+   * disciplina with the same subject in the turma hits the partial UNIQUE → `409 CLASS_SUBJECT_DUPLICATE`.
+   */
+  async create(auth: AuthContext, input: CreateClassRequest, requestId: string | null): Promise<ClassView> {
+    try {
+      return await this.prisma.runInTransaction(async (tx) => {
+        await this.assertSubjectOffered(tx, auth.userId, input.subjectId);
+        const [cohort] = await tx.$queryRaw<{ status: ClassStatus }[]>`
+          SELECT status FROM cohorts WHERE id = ${input.cohortId}::uuid FOR SHARE`;
+        if (!cohort) throw notFound();
+        if (cohort.status !== "ACTIVE") throw cohortNotActive();
+
+        const row = await tx.schoolClass.create({
+          data: {
+            teacherId: auth.userId,
+            cohortId: input.cohortId,
+            subjectId: input.subjectId,
+            startsOn: toDbDate(input.startsOn),
+            endsOn: toDbDate(input.endsOn),
+          },
+          select: { id: true },
+        });
+        await this.audit.record(tx, {
+          type: "class.created",
+          actorType: "USER",
+          actorUserId: auth.userId,
+          targetType: "CLASS",
+          targetId: row.id,
+          requestId,
+          metadata: { cohortId: input.cohortId, subjectId: input.subjectId },
+        });
+        return this.get(auth.userId, row.id, tx);
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw classSubjectDuplicate();
+      throw error;
+    }
   }
 
   /** Edits the calendar of an ACTIVE or INACTIVE class (004 rules); the audit keeps the changed fields only. */

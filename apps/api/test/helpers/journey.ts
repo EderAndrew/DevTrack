@@ -30,7 +30,6 @@ import { READ_CURRICULUM_DOCUMENT } from "../../src/modules/curriculum-ai/propos
 import { READ_WORK_HELP_REQUEST } from "../../src/modules/work-help/definitions/request-content";
 import { MaintenanceService } from "../../src/platform/maintenance/maintenance.service";
 import {
-  createClass,
   createSyllabusDocument,
   createUser,
   DEFAULT_PASSWORD,
@@ -210,21 +209,22 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // 003/US1 — classes: the class's calendar and its own status (inactivate, archive) before the teacher is
   // deactivated below. 003/US3 — a student invited to the class accepts by creating an account; the second is
   // refused once the turma is inactive.
-  // 027/US1 — the MANAGER creates and edits the turma (`/cohorts`). The disciplina da turma and the invitations
-  // come from the factories until US2 (invitations), US3 (adding a disciplina) and US5 (ending an enrollment) bring
-  // their routes back to the journey; the audit types they emit wait in `NOT_IN_JOURNEY_027` (audit-coverage.spec.ts).
+  // 027/US1 — the MANAGER creates and edits the turma (`/cohorts`); 027/US3 — the teacher finds it in the directory
+  // and adds the subject as a disciplina da turma (`POST /classes`). Ending an enrollment waits for US5
+  // (`NOT_IN_JOURNEY_027`, audit-coverage.spec.ts).
   const teacherClient = api(t, { cookie: await login(teacherEmail, teacherPassword) });
   // 004/US1 — the teacher creates, renames and deactivates a subject, and offers it in the class.
   const subject = await teacherClient.post("/api/subjects", { name: text("nome da disciplina", "Disciplina da Jornada Quatro") });
   expect(subject.status).toBe(201);
   const subjectId = subject.body.id as string;
-  const journeyTeacher = await t.prisma.user.findUniqueOrThrow({ where: { email: teacherEmail }, select: { id: true } });
   const journeyCohort = await managerClient.post("/api/cohorts", { name: "Turma da Jornada", code: "JOR-1", academicYear: 2026 });
   expect(journeyCohort.status).toBe(201);
   expect((await managerClient.patch(`/api/cohorts/${journeyCohort.body.id}`, { period: "1º semestre" })).status).toBe(200);
   expect((await managerClient.get(`/api/cohorts?q=jornada`)).body.items).toHaveLength(1);
-  const journeyClass = await createClass(t, journeyTeacher.id, { cohortId: journeyCohort.body.id, subjectId });
-  const classId = journeyClass.id;
+  expect((await teacherClient.get(`/api/cohort-directory?q=jornada`)).body.items).toHaveLength(1);
+  const journeyClass = await teacherClient.post("/api/classes", { cohortId: journeyCohort.body.id, subjectId });
+  expect(journeyClass.status).toBe(201);
+  const classId = journeyClass.body.id as string;
   expect((await teacherClient.patch(`/api/classes/${classId}`, { startsOn: "2026-02-02", endsOn: "2026-06-30" })).body.plannable).toBe(true);
   expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: text("descrição da disciplina", "Descrição da disciplina da jornada") })).status).toBe(200);
   // 004/US2 — syllabus upload and processing: one readable PDF, and an unreadable file stored
@@ -715,7 +715,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await teacherClient.post(`${activitiesPath}/${appliedExam.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
   // 027/US2 — the MANAGER invites to the turma (`/cohorts/:id/invitations`); the e-mail goes through the 017 outbox.
-  const cohortId = journeyClass.cohortId;
+  const cohortId = journeyCohort.body.id;
   const inviteToClass = async (email: string) => {
     expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations`, { email })).status).toBe(201);
     await t.flushMail();
@@ -1156,8 +1156,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations/${resentId}/cancel`, {})).status).toBe(200);
   // The teacher closes the class (its own status); the MANAGER closes the turma (027/US1).
   expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "INACTIVE" })).status).toBe(200);
-  expect((await managerClient.post(`/api/cohorts/${journeyClass.cohortId}/status`, { to: "INACTIVE" })).status).toBe(200);
-  expect((await managerClient.get(`/api/cohorts/${journeyClass.cohortId}`)).body.classes).toHaveLength(1);
+  expect((await managerClient.post(`/api/cohorts/${journeyCohort.body.id}/status`, { to: "INACTIVE" })).status).toBe(200);
+  expect((await managerClient.get(`/api/cohorts/${journeyCohort.body.id}`)).body.classes).toHaveLength(1);
   expect((await api(t).post("/api/class-invitations/preview", { token: lateToken })).status).toBe(400);
   const refused = await api(t).post("/api/class-invitations/accept", {
     token: lateToken,

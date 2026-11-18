@@ -3,7 +3,7 @@ import { Notice } from "@/components/shared";
 
 export interface ClassOfferingRequiredProps {
   classId: string;
-  /** Offers the link to the class form (UX only; `turmas.editar` and a class that is not archived). */
+  /** Offers the link to the class form (UX only; `disciplinas_turma.editar` and a class that is not archived). */
   canEdit: boolean;
 }
 
@@ -17,7 +17,7 @@ export function ClassOfferingRequired({ classId, canEdit }: ClassOfferingRequire
       <p className="mt-0">Informe a disciplina e as datas de início e término da turma para planejar.</p>
       {canEdit ? (
         <p className="mb-0">
-          <Link href={`/turmas/${classId}/editar`}>Editar turma</Link>
+          <Link href={`/turmas/${classId}/editar`}>Editar calendário</Link>
         </p>
       ) : null}
     </Notice>

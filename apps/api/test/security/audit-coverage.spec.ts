@@ -90,13 +90,13 @@ const REPLACED_BY_027 = new Set<string>([
 ]);
 /**
  * Catalogued types the journey does not emit: `cohort_transition.applied` only comes from the migration
- * (`027-transition.spec.ts` checks it); the others leave this list with the 027 story that brings their route back
- * to the journey (Phase 2 builds the turma, the class and the invitations with the factories).
+ * (`027-transition.spec.ts` checks it); `class.updated` has no route since 027 (the teacher edits only the calendar,
+ * `class.offering_updated`, FR-019); the others leave this list with the 027 story that brings their route back
+ * to the journey.
  */
 const NOT_IN_JOURNEY_027 = new Set<string>([
   "cohort_transition.applied",
-  "class.created", // US3
-  "class.updated", // US3
+  "class.updated",
   "enrollment.removed", // US5
 ]);
 const PENDING = new Set([

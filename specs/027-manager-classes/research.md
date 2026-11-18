@@ -141,7 +141,7 @@ Decisions carry the prefix **Q**, unused by the earlier features. Constitution v
   `search_key` (accent/case-insensitive, 003 D10), keyset by `academic_year desc, name, id`, 20 per page; each item:
   id, name, code, academicYear, period and its classes' `{ subjectName, teacherName }` — nothing else (FR-016,
   XXIV). `POST /classes { cohortId, subjectId, startsOn?, endsOn? }` creates the disciplina da turma: the subject must
-  be the teacher's and ACTIVE (else `404`/`422 SUBJECT_ARCHIVED`), the cohort ACTIVE (else `409 COHORT_NOT_ACTIVE`,
+  be the teacher's and ACTIVE (else `404`/`409 SUBJECT_INACTIVE`, the 004 code: a subject is ACTIVE or INACTIVE), the cohort ACTIVE (else `409 COHORT_NOT_ACTIVE`,
   re-checked under `SELECT … FOR SHARE` of the cohort so a concurrent archive cannot leave an active class in an
   archived cohort), duplicates → `409 CLASS_SUBJECT_DUPLICATE` (partial UNIQUE). `teacherId` comes from the session.
 - **Rationale**: FR-016–FR-019 and the concurrency edge case ("arquivar a turma × acrescentar disciplina"): archiving
