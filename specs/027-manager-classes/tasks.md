@@ -529,24 +529,24 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 8
 
-- [ ] T056 [P] [US8] `apps/api/test/integration/027-us8-my-cohorts.spec.ts`: `027/US8-1`…`027/US8-4` (`GET /me/classes`
+- [X] T056 [P] [US8] `apps/api/test/integration/027-us8-my-cohorts.spec.ts`: `027/US8-1`…`027/US8-4` (`GET /me/classes`
       por ano, turma uma vez com as duas disciplinas e professores; turma sem disciplina; turma de 2026 encerrada em
       2027 aparece no seu ano com a situação, e as rotas do aluno dela respondem leitura mas recusam iniciar, salvar e
       entregar — os códigos de hoje para turma fechada; disciplina arquivada pelo professor listada com a situação
       `ARCHIVED` e `GET /me/activities?classId=<arquivada>` → `200` só leitura); `027/FR-004` (encerrar não mexe na matrícula); reescrever
       `003-us7-my-classes.spec.ts` e `026-us4-my-classes.spec.ts` para o shape novo mantendo os ids.
-- [ ] T057 [P] [US8] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (seções por ano, selo
+- [X] T057 [P] [US8] Web `apps/web/features/my-classes/components/my-classes.test.tsx` (seções por ano, selo
       "Encerrada", "Ainda não há disciplinas nesta turma.", links `?materia=`), `subject-switcher.test.tsx` e
       `use-current-subject` (só disciplinas com situação efetiva ACTIVE; a 026 continua verde); axe.
 
 ### Implementation for User Story 8
 
-- [ ] T058 [US8] `apps/api/src/modules/enrollments/my-classes.service.ts` com o shape `MyCohortList`; conferir que as
+- [X] T058 [US8] `apps/api/src/modules/enrollments/my-classes.service.ts` com o shape `MyCohortList`; conferir que as
       rotas de escrita do aluno usam a situação efetiva (T012) e que a 026 (`classId`) aceita a disciplina de turma
       encerrada para leitura.
-- [ ] T059 [US8] Web: `apps/web/app/(student)/minhas-turmas/page.tsx` e `features/my-classes`; o card "Matéria"
+- [X] T059 [US8] Web: `apps/web/app/(student)/minhas-turmas/page.tsx` e `features/my-classes`; o card "Matéria"
       (`features/student-activities`) com as opções ativas; página pública do convite com a turma.
-- [ ] T060 [US8] Retirar US8 de `pending`.
+- [X] T060 [US8] Retirar US8 de `pending`.
 
 ---
 

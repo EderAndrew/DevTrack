@@ -93,7 +93,7 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
       <Notice role="status">
         <h2>Não foi possível usar este convite</h2>
         <p>{state.message}</p>
-        <p className="mb-0">Peça um novo convite ao professor da turma.</p>
+        <p className="mb-0">Peça um novo convite ao gestor da turma.</p>
       </Notice>
     );
   }

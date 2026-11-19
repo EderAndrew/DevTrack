@@ -850,7 +850,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // 003/US7 — the new student sees the class in "Minhas turmas".
   const classStudentClient = api(t, { cookie: keepCookie(classAccepted) });
   const myClasses = await classStudentClient.get("/api/me/classes");
-  expect(myClasses.body.items.map((c: { id: string }) => c.id)).toEqual([classId]);
+  // 027/US8: grouped by ano letivo and turma.
+  const myClassIds = (myClasses.body as { years: { cohorts: { classes: { classId: string }[] }[] }[] }).years.flatMap((year) =>
+    year.cohorts.flatMap((cohort) => cohort.classes.map((item) => item.classId)),
+  );
+  expect(myClassIds).toEqual([classId]);
   // 012/US2 — the student's dashboard and list never show the cancelled exercises, whose id answers 404
   // and writes `student_access.denied` (route pattern and reason). Since 016 the closed work was
   // released only to the students marked present (none): it is out of the student's context too

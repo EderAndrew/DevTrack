@@ -1,4 +1,4 @@
-import type { MyClassView } from "@repo/contracts";
+import type { MySubjectClass } from "@/features/my-classes/schemas/my-classes";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +6,7 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { ONLY_SUBJECT, SUBJECT_UNAVAILABLE, subjectOptions } from "../schemas/student-activity";
 import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
 
-const myClass = (overrides: Partial<MyClassView>): MyClassView => ({
+const myClass = (overrides: Partial<MySubjectClass>): MySubjectClass => ({
   id: "11111111-1111-4111-8111-111111111111",
   name: "ADS 3NA",
   code: "ADS-3NA",
@@ -14,13 +14,13 @@ const myClass = (overrides: Partial<MyClassView>): MyClassView => ({
   period: "2026.2",
   teacherName: "Eder Professor",
   subjectName: "Object Oriented Programming",
-  enrolledAt: "2026-11-10T12:00:00.000Z",
+  status: "ACTIVE",
   ...overrides,
 });
 const POO = myClass({});
 const SQL = myClass({ id: "22222222-2222-4222-8222-222222222222", subjectName: "Banco de Dados" });
 
-function setup(items: MyClassView[], options: { currentId?: string } = {}) {
+function setup(items: MySubjectClass[], options: { currentId?: string } = {}) {
   const onChange = vi.fn();
   const view = render(
     <SubjectSwitcher
@@ -71,5 +71,11 @@ describe("026 SubjectSwitcher — o card \"Matéria\"", () => {
   it("026/FR-011 o aviso de matéria indisponível é um Alert com o texto fixo", () => {
     render(<SubjectUnavailableNotice />);
     expect(screen.getByRole("status").textContent).toBe(SUBJECT_UNAVAILABLE);
+  });
+
+  it("027/US8-4 uma disciplina só de leitura escolhida diz a sua situação no card", () => {
+    const archived = myClass({ id: "44444444-4444-4444-8444-444444444444", subjectName: "Cálculo", status: "ARCHIVED" });
+    setup([POO, archived], { currentId: archived.id });
+    expect((screen.getByLabelText("Matéria") as HTMLSelectElement).selectedOptions[0]!.textContent).toBe("Cálculo · ADS 3NA · Arquivada");
   });
 });

@@ -36,7 +36,7 @@ import {
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
 import { EnrollmentListQuerySchema, EnrollmentPageSchema } from "./classes/enrollments.js";
-import { MyClassListSchema } from "./classes/my-classes.js";
+import { MyCohortListSchema } from "./classes/my-classes.js";
 import {
   ChangeCohortStatusRequestSchema,
   CohortDetailSchema,
@@ -658,7 +658,7 @@ export const endpoints = {
     response: EnrollmentPageSchema,
     status: 200,
   },
-  "myClasses.list": { method: "GET", path: "/me/classes", response: MyClassListSchema, status: 200 },
+  "myClasses.list": { method: "GET", path: "/me/classes", response: MyCohortListSchema, status: 200 },
   "classInvitations.preview": {
     method: "POST",
     path: "/class-invitations/preview",

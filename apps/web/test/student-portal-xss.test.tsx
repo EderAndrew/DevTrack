@@ -1097,7 +1097,7 @@ describe("026/FR-001 matéria e turma como texto", () => {
     period: null,
     teacherName: "Professora Ada",
     subjectName: `disciplina ${SCRIPT}`,
-    enrolledAt: "2026-11-10T12:00:00.000Z",
+    status: "ACTIVE" as const,
   };
   const noElements = () => expect(document.body.querySelector("script, img")).toBeNull();
 
@@ -1113,11 +1113,30 @@ describe("026/FR-001 matéria e turma como texto", () => {
   it("\"Minhas turmas\": o nome da disciplina com HTML aparece como texto", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => json(200, { items: [ITEM] })),
+      vi.fn(async () =>
+        json(200, {
+          years: [
+            {
+              academicYear: 2026,
+              cohorts: [
+                {
+                  id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+                  name: ITEM.name,
+                  code: ITEM.code,
+                  period: null,
+                  status: "ACTIVE",
+                  classes: [{ classId: ITEM.id, subjectName: ITEM.subjectName, teacherName: ITEM.teacherName, effectiveStatus: "ACTIVE" }],
+                },
+              ],
+            },
+          ],
+        }),
+      ),
     );
     renderWithProviders(<MyClasses welcome={false} />);
-    expect(await screen.findByText(`Disciplina: ${ITEM.subjectName}`)).toBeTruthy();
-    expect(screen.getByText(ITEM.name)).toBeTruthy();
+    // 027/US8: the turma's heading and the disciplina's cell.
+    expect(await screen.findByText(ITEM.subjectName)).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: ITEM.name })).toBeTruthy();
     noElements();
   });
 });

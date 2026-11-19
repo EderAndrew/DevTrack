@@ -1,11 +1,12 @@
-import type { MyClassView, StudentActivity, StudentActivitySummary, StudentDashboard, StudentExerciseAttempt, StudentQuestion } from "@repo/contracts";
+import type { MyCohortList, StudentActivity, StudentActivitySummary, StudentDashboard, StudentExerciseAttempt, StudentQuestion } from "@repo/contracts";
+import type { MySubjectClass } from "@/features/my-classes/schemas/my-classes";
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 export const apiError = (status: number, code: string, message: string) => json(status, { statusCode: status, code, message });
 
-/** A class of "Minhas turmas" (003, 026 `subjectName`). */
-export const myClass = (overrides: Partial<MyClassView> = {}): MyClassView => ({
+/** A disciplina da turma of "Minhas turmas" (003, 026 `subjectName`, 027/US8 `status`), flat as the card reads it. */
+export const myClass = (overrides: Partial<MySubjectClass> = {}): MySubjectClass => ({
   id: "11111111-1111-4111-8111-111111111111",
   name: "ADS 3NA",
   code: "ADS-3NA",
@@ -13,12 +14,37 @@ export const myClass = (overrides: Partial<MyClassView> = {}): MyClassView => ({
   period: "2026.2",
   teacherName: "Ana Professora",
   subjectName: "Programação Orientada a Objetos",
-  enrolledAt: "2026-11-10T12:00:00.000Z",
+  status: "ACTIVE",
   ...overrides,
 });
 /** Two subjects of one student; "Minhas turmas" lists the most recent enrollment first (026 research D6). */
 export const POO_CLASS = myClass();
-export const SQL_CLASS = myClass({ id: "22222222-2222-4222-8222-222222222222", subjectName: "Banco de Dados", enrolledAt: "2026-11-01T12:00:00.000Z" });
+export const SQL_CLASS = myClass({ id: "22222222-2222-4222-8222-222222222222", subjectName: "Banco de Dados" });
+
+let cohortSequence = 0;
+
+/**
+ * `GET /me/classes` (027 `MyCohortList`) listing `classes` in this order: one turma per item, each in an entry of its own
+ * year, so the card reads them exactly as given.
+ */
+export const myClassesBody = (classes: readonly MySubjectClass[]): MyCohortList => ({
+  years: classes.map((item) => {
+    cohortSequence += 1;
+    return {
+      academicYear: item.academicYear,
+      cohorts: [
+        {
+          id: `cccccccc-0000-4000-8000-${String(cohortSequence).padStart(12, "0")}`,
+          name: item.name,
+          code: item.code,
+          period: item.period,
+          status: "ACTIVE",
+          classes: [{ classId: item.id, subjectName: item.subjectName, teacherName: item.teacherName, effectiveStatus: item.status }],
+        },
+      ],
+    };
+  }),
+});
 
 let sequence = 0;
 
