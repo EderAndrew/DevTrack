@@ -167,6 +167,8 @@ hand-maintained.
 - PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
 - No new dependency (027-manager-classes)
 - PostgreSQL 17 — two migrations: `…_027_enum_values` (enum values only) and `…_027_manager_classes`, which is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
+- No new dependency (028-student-history-redesign)
+- PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
 
 ## Stack notes
 
@@ -568,9 +570,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 028-student-history-redesign (planned): the student's Histórico redesigned — cards of delivered/awaiting/graded, tabs with counts, search by title and a class filter, all on the server through `GET /me/history` (newest delivery first); no migration
 - 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
 - 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
-- 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
