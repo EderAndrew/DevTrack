@@ -385,10 +385,10 @@ const SPECS: FeatureSpec[] = [
     // with the test that cites it, so the lists are empty at the end of T065. US1 and SC-006 with T024
     // (`027-us1-cohorts.spec.ts`, the rewritten 003 suites); US2 and SC-001 with T033; US3 with T040; US4 with T045;
     // US5 with T055; US6 and SC-002 with T048 (`027-transition.spec.ts`); US7 and SC-003 with T051; US8 with T060;
-    // SC-004 with the E2E (T061, `manager-classes.spec.ts`); SC-005 with the full suite (T065).
+    // SC-004 with the E2E (T061, `manager-classes.spec.ts`); SC-005 with the full suite (T065, `027-sc005-factories.spec.ts`).
     pending: {
       stories: [],
-      successCriteria: ["SC-004", "SC-005"],
+      successCriteria: [],
     },
   },
 ];

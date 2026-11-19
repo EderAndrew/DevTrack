@@ -5,8 +5,10 @@ import {
   type Account,
   acceptClassInvitation,
   acceptInvitationWithPassword,
+  apiPost,
   bootstrapAdmin,
   invite,
+  uniqueCohortCode,
   logIn,
   newAccount,
 } from "../fixtures/journeys.ts";
@@ -24,22 +26,20 @@ export interface StudentPortalSeed {
   teacher: Account;
   student: Account;
   classId: string;
+  /** The turma's name (027: the class view's `name`). */
   className: string;
+  /** The turma of the class (027): its invitations go there, by the run's ADMIN. */
+  cohortId: string;
+  /** "<disciplina> · <turma>" (027 FR-030), how the ranking and the student's card name the class. */
+  classLabel: string;
   /** The subject the class offers and the work belongs to (a class of 016's attendance spec reuses it). */
   subjectId: string;
   workId: string;
   workTitle: string;
 }
 
-/**
- * Writes through the E2E API (behind the web's same-origin `/api/*` rewrite, with the session of
- * `page`): unsafe methods need the allowed `Origin` and a JSON body (OriginGuard, R6).
- */
-export async function apiPost<T>(page: Page, path: string, data: object): Promise<T> {
-  const res = await page.request.post(`/api${path}`, { data, headers: { Origin: WEB_URL } });
-  expect(res.status(), `${path}: ${await res.text()}`).toBeLessThan(300);
-  return (await res.json()) as T;
-}
+/** Writes through the E2E API with the session of a page (moved to the journeys fixture in 027). */
+export { apiPost };
 
 /**
  * 012/T071: everything the student-portal journey needs, without data of other E2E specs: a teacher
@@ -52,22 +52,23 @@ export async function seedStudentPortal(browser: Browser): Promise<StudentPortal
   const teacher = newAccount("portal-professor", `Professora do Portal ${suffix}`);
   const student = newAccount("portal-aluno", `Aluno do Portal ${suffix}`);
 
+  const className = `Turma do Portal ${suffix}`;
   const adminPage = await (await browser.newContext()).newPage();
   await logIn(adminPage, bootstrapAdmin(), "/professores");
   await invite(adminPage, "/professores", teacher);
-  await adminPage.context().close();
+  // 027: the turma and its invitations are the MANAGER's (the run's ADMIN holds the function).
+  const cohort = await apiPost<{ id: string }>(adminPage, "/cohorts", {
+    name: className,
+    code: uniqueCohortCode("E2E-P"),
+    academicYear: new Date().getFullYear(),
+  });
 
   const teacherPage = await (await browser.newContext()).newPage();
   await acceptInvitationWithPassword(teacherPage, teacher);
   await logIn(teacherPage, teacher, "/disciplinas");
-  const subject = await apiPost<{ id: string }>(teacherPage, "/subjects", { name: `Programação Orientada a Objetos ${suffix}` });
-  const className = `Turma do Portal ${suffix}`;
-  const schoolClass = await apiPost<{ id: string }>(teacherPage, "/classes", {
-    name: className,
-    code: `E2E-P-${suffix}`,
-    academicYear: new Date().getFullYear(),
-    subjectId: subject.id,
-  });
+  const subjectName = `Programação Orientada a Objetos ${suffix}`;
+  const subject = await apiPost<{ id: string }>(teacherPage, "/subjects", { name: subjectName });
+  const schoolClass = await apiPost<{ id: string }>(teacherPage, "/classes", { cohortId: cohort.id, subjectId: subject.id });
   const workTitle = `Trabalho misto ${suffix}`;
   const work = await apiPost<{ id: string }>(teacherPage, "/works", {
     subjectId: subject.id,
@@ -86,14 +87,22 @@ export async function seedStudentPortal(browser: Browser): Promise<StudentPortal
         : { type: question.type, statement: question.statement, topicItemIds: [], expectedAnswer: question.expectedAnswer },
     ),
   });
-  await apiPost(teacherPage, `/classes/${schoolClass.id}/invitations`, { email: student.email });
   await teacherPage.context().close();
+  await apiPost(adminPage, `/cohorts/${cohort.id}/invitations`, { email: student.email });
+  await adminPage.context().close();
 
   const studentPage = await (await browser.newContext()).newPage();
   await acceptClassInvitation(studentPage, student);
   await studentPage.context().close();
 
-  return { teacher, student, classId: schoolClass.id, className, subjectId: subject.id, workId: work.id, workTitle };
+  return {
+    teacher,
+    student,
+    classId: schoolClass.id,
+    className,
+    cohortId: cohort.id,
+    classLabel: `${subjectName} · ${className}`,
+    subjectId: subject.id, workId: work.id, workTitle };
 }
 
 /** The teacher applies the seed's work to the class through the API (`Publicar agora`, due in a week); returns its id. */

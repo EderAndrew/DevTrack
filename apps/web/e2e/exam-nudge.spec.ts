@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { API_URL } from "./env.ts";
 import { unique } from "./fixtures/curriculum.ts";
 import { confirmedSyllabus } from "./fixtures/exams.ts";
-import { type Account, acceptClassInvitation, logIn, newAccount } from "./fixtures/journeys.ts";
+import { type Account, acceptClassInvitation, inviteThroughApi, logIn, newAccount } from "./fixtures/journeys.ts";
 import { apiPost, markAllPresentThroughApi, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** 025/SC-001: the student sees the warning within 10 s of the send (the 5 s poll). */
@@ -55,7 +55,7 @@ test.describe("025 aviso discreto do professor na prova", () => {
     studentB = newAccount("aviso-aluno-b", `Aluna B ${unique()}`);
     const teacherPage = await (await browser.newContext()).newPage();
     await logIn(teacherPage, seed.teacher, "/disciplinas");
-    await apiPost(teacherPage, `/classes/${seed.classId}/invitations`, { email: studentB.email });
+    await inviteThroughApi(browser, seed.cohortId, [studentB.email]);
     const { revisionId, itemIds } = await confirmedSyllabus(teacherPage, seed.subjectId, ["Herança"]);
     const exam = await apiPost<{ id: string; version: number }>(teacherPage, "/exams", {
       subjectId: seed.subjectId,

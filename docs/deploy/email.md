@@ -3,14 +3,16 @@
 Este guia leva o DevTrack do Mailpit local ao envio real de e-mail: primeiro pelo Resend, depois
 pelo AWS SES, **só com configuração e DNS**, sem nova versão da API (spec 017, research N1 e N15).
 
-O DevTrack envia seis e-mails transacionais e nenhum outro:
+O DevTrack envia sete e-mails transacionais e nenhum outro:
 
 - confirmação de e-mail;
 - redefinição de senha;
 - convite de professor;
 - convite de gestor;
 - ativação do administrador;
-- convite de turma.
+- convite de turma (enviado pelo gestor, desde a 027);
+- aviso de inclusão na turma (027, `CLASS_ENROLLMENT_NOTICE`): o gestor incluiu um aluno que já tem conta;
+  leva só o nome, o código e o período da turma e o link de `/entrar`, sem token.
 
 Todos passam pela fila `mail_deliveries`: a primeira tentativa sai logo depois da ação, e as falhas
 temporárias são tentadas de novo por até 7 vezes. O envio usa SMTP padrão (`nodemailer`) e nenhuma
@@ -221,7 +223,7 @@ O provedor de e-mail trata dados pessoais em nome da instituição que opera o D
 **operador** (LGPD, art. 5º, VII, e art. 39), e a instituição é a controladora.
 
 - **O que o provedor recebe**: o endereço do destinatário, o nome dele no corpo do e-mail e o link
-  com um token de uso único. Nenhuma nota, resposta ou conteúdo das turmas sai por e-mail.
+  com um token de uso único (o aviso de inclusão na turma leva só o link de `/entrar`). Nenhuma nota, resposta ou conteúdo das turmas sai por e-mail.
 - **O que formalizar**: o contrato de tratamento de dados (DPA) com o provedor (o Resend publica o
   seu; na AWS, o DPA faz parte dos termos do serviço), registrado no inventário de tratamentos
   (ROPA) da instituição, com a finalidade (e-mails transacionais da conta e dos convites) e a base

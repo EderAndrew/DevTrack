@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type Browser, type Locator, type Page, expect } from "@playwright/test";
-import { WEB_DIR } from "../env.ts";
+import { WEB_DIR, WEB_URL } from "../env.ts";
 import { uniqueEmail } from "./emails.ts";
 import { waitForLink } from "./mailpit.ts";
 
@@ -71,9 +71,15 @@ export function bootstrapAdmin(): { email: string; link: string; password: strin
   return { email, link, password: ADMIN_PASSWORD };
 }
 
-/** Teacher and class created by class-teacher-setup.spec.ts (project `teacher`), shared through a file. */
+/**
+ * Teacher, turma and disciplina da turma created by class-teacher-setup.spec.ts (project `teacher`), shared through a
+ * file. Since 027 the turma (`cohortId`) is the ADMIN's (the MANAGER function) and the class is the teacher's subject in it.
+ */
 export interface ClassTeacher extends Account {
   classId: string;
+  cohortId: string;
+  cohortName: string;
+  subjectName: string;
 }
 
 /** Under outputDir, which Playwright empties at the start of each run: never a stale teacher. */
@@ -93,16 +99,56 @@ export function classTeacher(): ClassTeacher {
 }
 
 /**
- * Student account with a verified e-mail, the only way one exists since 003 (FR-048): the
- * teacher of the run invites the e-mail to its class and the student accepts through the link
- * of the e-mail, creating the account. Both happen in their own browser contexts, and the
- * session opened by the acceptance is ended there, so the caller's pages start signed out and
- * with no extra session in "Minhas sessões".
+ * Writes through the E2E API (behind the web's same-origin `/api/*` rewrite, with the session of
+ * `page`): unsafe methods need the allowed `Origin` and a JSON body (OriginGuard, R6).
  */
-export async function createEnrolledStudent(page: Page, journey: string, name?: string): Promise<Account> {
+export async function apiPost<T>(page: Page, path: string, data: object): Promise<T> {
+  const res = await page.request.post(`/api${path}`, { data, headers: { Origin: WEB_URL } });
+  expect(res.status(), `${path}: ${await res.text()}`).toBeLessThan(300);
+  return (await res.json()) as T;
+}
+
+/** A turma code unique in the run (027: unique per ano letivo). */
+export const uniqueCohortCode = (prefix = "E2E") =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+
+/** A page of the run's ADMIN (the MANAGER function: `turmas.*`, 027) in its own context; the caller closes it. */
+export async function adminPage(browser: Browser, next = "/gestao/turmas"): Promise<Page> {
+  const page = await (await browser.newContext()).newPage();
+  await logIn(page, bootstrapAdmin(), next);
+  return page;
+}
+
+/** Creates a turma (027) through the API, by the ADMIN of the run; returns its id. */
+export async function createCohortThroughApi(browser: Browser, name: string): Promise<string> {
+  const page = await adminPage(browser, "/conta/perfil");
+  const cohort = await apiPost<{ id: string }>(page, "/cohorts", {
+    name,
+    code: uniqueCohortCode(),
+    academicYear: new Date().getFullYear(),
+  });
+  await page.context().close();
+  return cohort.id;
+}
+
+/** Invites each e-mail to the turma through the API, by the ADMIN of the run (027: invitations are the MANAGER's). */
+export async function inviteThroughApi(browser: Browser, cohortId: string, emails: string[]): Promise<void> {
+  const page = await adminPage(browser, "/conta/perfil");
+  for (const email of emails) await apiPost(page, `/cohorts/${cohortId}/invitations`, { email });
+  await page.context().close();
+}
+
+/**
+ * Student account with a verified e-mail, the only way one exists since 003 (FR-048): the
+ * turma's manager (the run's ADMIN, 027) invites the e-mail to the turma of the run (or `cohortId`)
+ * and the student accepts through the link of the e-mail, creating the account. Both happen in
+ * their own browser contexts, and the session opened by the acceptance is ended there, so the
+ * caller's pages start signed out and with no extra session in "Minhas sessões".
+ */
+export async function createEnrolledStudent(page: Page, journey: string, name?: string, cohortId?: string): Promise<Account> {
   const browser = page.context().browser() as Browser;
   const account = newAccount(journey, name);
-  await inviteToClass(browser, account);
+  await inviteToCohort(browser, account, cohortId);
 
   const studentPage = await (await browser.newContext()).newPage();
   await acceptClassInvitation(studentPage, account);
@@ -113,35 +159,71 @@ export async function createEnrolledStudent(page: Page, journey: string, name?: 
 }
 
 /**
- * The teacher of the run invites `account` to one of its classes ("Convidar aluno"; the class of
- * the run by default), in its own context.
+ * The turma's manager (the run's ADMIN, 027) invites `account` — an e-mail with no student account — from the turma's
+ * page ("Adicionar aluno" → "Continuar" → "Enviar convite"; the turma of the run by default), in its own context.
  */
-export async function inviteToClass(
+export async function inviteToCohort(
   browser: Browser,
   account: Pick<Account, "email">,
-  classId = classTeacher().classId,
+  cohortId = classTeacher().cohortId,
 ): Promise<void> {
-  const teacher = classTeacher();
-  const teacherPage = await (await browser.newContext()).newPage();
-  await logIn(teacherPage, teacher, `/turmas/${classId}`);
-  await teacherPage.getByRole("button", { name: "Convidar aluno" }).click();
-  const dialog = teacherPage.getByRole("dialog", { name: "Convidar aluno" });
+  const page = await adminPage(browser, `/gestao/turmas/${cohortId}`);
+  await page.getByRole("button", { name: "Adicionar aluno" }).click();
+  const dialog = page.getByRole("dialog", { name: "Adicionar aluno" });
   await field(dialog, "E-mail").fill(account.email);
+  await dialog.getByRole("button", { name: "Continuar" }).click();
+  await expect(dialog.getByText("Esse e-mail ainda não tem conta de aluno.")).toBeVisible();
   await dialog.getByRole("button", { name: "Enviar convite" }).click();
-  await expect(teacherPage.getByText("Convite enviado.")).toBeVisible();
-  await teacherPage.context().close();
+  await expect(page.getByText("Convite enviado.")).toBeVisible();
+  await page.context().close();
 }
 
-/** Creates a class through "Nova turma" (the page must be signed in as a teacher); returns its id. */
-export async function createClassThroughForm(page: Page, name: string): Promise<string> {
-  await page.goto("/turmas/nova");
-  await field(page, "Nome").fill(name);
-  await field(page, "Código").fill(`E2E-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
-  await page.getByRole("button", { name: "Criar turma" }).click();
-  await expect(page).toHaveURL(/\/turmas\/[0-9a-f-]{36}$/);
+/** Creates a turma through "Nova turma" of `/gestao/turmas` (the page must be a MANAGER's or ADMIN's); returns its id. */
+export async function createCohortThroughForm(page: Page, name: string, code = uniqueCohortCode()): Promise<string> {
+  await page.goto("/gestao/turmas");
+  await page.getByRole("button", { name: "Nova turma" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nova turma" });
+  await field(dialog, "Nome").fill(name);
+  await field(dialog, "Código").fill(code);
+  await field(dialog, "Ano letivo").fill(String(new Date().getFullYear()));
+  await dialog.getByRole("button", { name: "Criar turma" }).click();
+  await expect(page.getByText("Turma criada.")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Pesquisar por nome ou código" }).fill(code);
+  await page.getByRole("button", { name: "Pesquisar", exact: true }).click();
+  await page.getByRole("link", { name, exact: true }).click();
+  await expect(page).toHaveURL(/\/gestao\/turmas\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   return new URL(page.url()).pathname.split("/").at(-1)!;
 }
+
+/**
+ * "Acrescentar disciplina a uma turma" (027, `/turmas/nova`; the page must be the teacher's): searches the turma by
+ * `search`, picks `cohortName` and the own subject `subjectName`, optionally the calendar; returns the class id.
+ */
+export async function addClassThroughForm(
+  page: Page,
+  search: string,
+  cohortName: string,
+  subjectName: string,
+  period?: { startsOn: string; endsOn: string },
+): Promise<string> {
+  await page.goto("/turmas/nova");
+  await page.getByRole("searchbox", { name: "Turma (nome ou código)" }).fill(search);
+  await page.getByRole("button", { name: "Pesquisar", exact: true }).click();
+  await page.getByRole("radio", { name: new RegExp(`^${escapeRegExp(cohortName)}\\b`) }).check();
+  await page.getByLabel("Disciplina", { exact: true }).selectOption({ label: subjectName });
+  if (period) {
+    await field(page, "Data de início").fill(period.startsOn);
+    await field(page, "Data de término").fill(period.endsOn);
+  }
+  await page.getByRole("button", { name: "Acrescentar disciplina" }).click();
+  await expect(page.getByText("Disciplina acrescentada à turma.")).toBeVisible();
+  await page.getByRole("link", { name: `Abrir ${subjectName} · ${cohortName}` }).click();
+  await expect(page).toHaveURL(/\/turmas\/[0-9a-f-]{36}$/);
+  return new URL(page.url()).pathname.split("/").at(-1)!;
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Opens the class invitation link of the e-mail and creates the account (name, RA, password). */
 export async function acceptClassInvitation(page: Page, account: Account): Promise<void> {

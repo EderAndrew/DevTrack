@@ -1,7 +1,7 @@
 import { type Browser, devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { WEB_URL } from "./env.ts";
 import { unique } from "./fixtures/curriculum.ts";
-import { type Account, acceptClassInvitation, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
+import { type Account, acceptClassInvitation, createCohortThroughApi, inviteThroughApi, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 import { apiPost, markAllPresentThroughApi, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
@@ -43,8 +43,8 @@ async function applyWork(page: Page, seed: StudentPortalSeed, classId: string, t
  * Students of `classId` created through the class invitations (003 FR-048), all through the API:
  * the teacher invites, each student accepts with the e-mail's token in a context of its own.
  */
-async function enrollStudents(browser: Browser, teacherPage: Page, classId: string, accounts: Account[]): Promise<void> {
-  for (const account of accounts) await apiPost(teacherPage, `/classes/${classId}/invitations`, { email: account.email });
+async function enrollStudents(browser: Browser, cohortId: string, accounts: Account[]): Promise<void> {
+  await inviteThroughApi(browser, cohortId, accounts.map((account) => account.email));
   const context = await browser.newContext();
   for (let i = 0; i < accounts.length; i += 10) {
     await Promise.all(
@@ -78,10 +78,7 @@ test.describe("016 chamada e liberação do trabalho aos presentes", () => {
     seed = await seedStudentPortal(browser);
     // A second student of the class: the late one.
     late = newAccount("chamada-atrasado", `Aluno Atrasado ${unique()}`);
-    const teacherPage = await (await browser.newContext()).newPage();
-    await logIn(teacherPage, seed.teacher, "/disciplinas");
-    await apiPost(teacherPage, `/classes/${seed.classId}/invitations`, { email: late.email });
-    await teacherPage.context().close();
+    await inviteThroughApi(browser, seed.cohortId, [late.email]);
     const latePage = await (await browser.newContext()).newPage();
     await acceptClassInvitation(latePage, late);
     await latePage.context().close();
@@ -194,14 +191,10 @@ test.describe("016 chamada e liberação do trabalho aos presentes", () => {
     const teacherPage = await (await browser.newContext()).newPage();
     await logIn(teacherPage, seed.teacher, "/disciplinas");
     const suffix = unique();
-    const big = await apiPost<{ id: string }>(teacherPage, "/classes", {
-      name: `Turma de 40 ${suffix}`,
-      code: `E2E-40-${suffix}`,
-      academicYear: new Date().getFullYear(),
-      subjectId: seed.subjectId,
-    });
+    const bigCohortId = await createCohortThroughApi(browser, `Turma de 40 ${suffix}`);
+    const big = await apiPost<{ id: string }>(teacherPage, "/classes", { cohortId: bigCohortId, subjectId: seed.subjectId });
     const accounts = Array.from({ length: 40 }, (_, i) => newAccount(`chamada-40-${i}`, `Aluno ${String(i + 1).padStart(2, "0")} ${suffix}`));
-    await enrollStudents(browser, teacherPage, big.id, accounts);
+    await enrollStudents(browser, bigCohortId, accounts);
     const activityId = await applyWork(teacherPage, seed, big.id, `Trabalho da turma de 40 ${suffix}`);
     await teacherPage.goto(`/turmas/${big.id}/atividades/${activityId}?aba=alunos`);
     const attendance = teacherPage.getByRole("region", { name: "Chamada", exact: true });

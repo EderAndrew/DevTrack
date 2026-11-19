@@ -1,5 +1,5 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
-import { accountMenu, inviteToClass, newAccount, raFor } from "./fixtures/journeys.ts";
+import { accountMenu, inviteToCohort, newAccount, raFor } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 
 /** Presses Tab until `target` has the focus (reading the focus is only an observation). */
@@ -18,7 +18,7 @@ async function typeInto(page: Page, target: Locator, text: string): Promise<void
 
 test("002/US5-2 003/US3-2 aceite do convite de turma, saída e login só com o teclado", async ({ page, browser }) => {
   const account = newAccount("teclado");
-  await inviteToClass(browser, account);
+  await inviteToCohort(browser, account);
 
   // The link arrives by e-mail: opening it is the address bar, not a click on the page.
   await page.goto(await waitForLink(account.email, { path: "/convite-turma" }));

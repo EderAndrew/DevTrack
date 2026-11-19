@@ -1,24 +1,16 @@
 import { expect, test } from "@playwright/test";
-import {
-  classTeacher,
-  createClassThroughForm,
-  createEnrolledStudent,
-  field,
-  inviteToClass,
-  logIn,
-} from "./fixtures/journeys.ts";
+import { createCohortThroughApi, createEnrolledStudent, field, inviteThroughApi } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 
-// 003 SC-010, journey 3: a student who already has an account is invited to a second class,
-// signs in from the invitation and accepts it without creating anything new.
+// 003 SC-010, journey 3: a student who already has an account is invited to a second turma,
+// signs in from the invitation and accepts it without creating anything new. (Since 027 the
+// manager's "Adicionar aluno" would include an existing student directly; the invitation sent
+// through the API keeps the 003 path covered.)
 test("003/SC-010 003/US4-1 aluno existente entra, aceita o convite da segunda turma e vê as duas", async ({ page, browser }) => {
   const student = await createEnrolledStudent(page, "aluno-existente", "Aluno Existente E2E");
 
-  const teacherPage = await (await browser.newContext()).newPage();
-  await logIn(teacherPage, classTeacher(), "/turmas");
-  const secondClassId = await createClassThroughForm(teacherPage, "Segunda Turma E2E");
-  await teacherPage.context().close();
-  await inviteToClass(browser, student, secondClassId);
+  const secondCohortId = await createCohortThroughApi(browser, "Segunda Turma E2E");
+  await inviteThroughApi(browser, secondCohortId, [student.email]);
 
   await page.goto(await waitForLink(student.email, { path: "/convite-turma" }));
   await expect(page.getByText("Segunda Turma E2E")).toBeVisible();
@@ -33,6 +25,6 @@ test("003/SC-010 003/US4-1 aluno existente entra, aceita o convite da segunda tu
   await expect(page).toHaveURL("/minhas-turmas?bem-vindo=1");
   await expect(page.getByRole("heading", { name: "Você agora faz parte da turma." })).toBeVisible();
   for (const name of ["Turma E2E", "Segunda Turma E2E"]) {
-    await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name, exact: true })).toBeVisible();
   }
 });

@@ -1,7 +1,7 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { unique } from "./fixtures/curriculum.ts";
 import { confirmedSyllabus } from "./fixtures/exams.ts";
-import { type Account, acceptClassInvitation, logIn, newAccount } from "./fixtures/journeys.ts";
+import { type Account, acceptClassInvitation, inviteThroughApi, logIn, newAccount } from "./fixtures/journeys.ts";
 import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** 018/SC-007: what one side does shows on the other within 10 s, through the 5 s polling, never a reload. */
@@ -78,7 +78,7 @@ test.describe("018 prova em modo restrito com avisos e decisão do professor", (
     studentB = newAccount("prova-aluno-b", `Aluna B ${unique()}`);
     const teacherPage = await (await browser.newContext()).newPage();
     await logIn(teacherPage, seed.teacher, "/disciplinas");
-    await apiPost(teacherPage, `/classes/${seed.classId}/invitations`, { email: studentB.email });
+    await inviteThroughApi(browser, seed.cohortId, [studentB.email]);
     const { revisionId, itemIds } = await confirmedSyllabus(teacherPage, seed.subjectId, ["Herança", "Objetos"]);
     examTitle = `Prova de POO ${unique()}`;
     // The draft is written through the API (the bank form has its own suite, exam-form.test.tsx); the

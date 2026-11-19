@@ -7,7 +7,10 @@ serially against one shared DB. Specs call `resetDb(t.prisma)` in `beforeEach`, 
 everything except the seeded roles/permissions and (010) the programming-language catalog, and bypasses the append-only audit trigger only
 inside that transaction. Build the app with `createTestApp()` from `test/helpers/test-app.ts`. It listens on
 127.0.0.1, swaps in an `InMemoryMailer` (`flushMail()` waits for after-commit emails), and lets you
-override config and providers. Use `test/helpers/factories.ts` for fixtures. The permission matrix
+override config and providers. Use `test/helpers/factories.ts` for fixtures. Since 027 `createClass(t, teacherId, …)` creates a turma
+(`createCohort`, created by the teacher unless `cohortId` is given) behind the disciplina da turma and returns the
+turma's `name`/`code`… with the class; `createEnrollment`/`createClassInvitation` take a class id and key the row by its
+cohort (`cohortIdOf`); a `createCohort` without `createdById` belongs to an on-demand factory MANAGER. The permission matrix
 lives in `test/security/authorization-matrix.ts`, and `route-declarations.spec.ts` fails for any
 route that has no access declaration.
 
@@ -452,6 +455,15 @@ What the code alone doesn't make obvious:
 - Scoping: `ClassContextPolicy` (003) and `SubjectContextPolicy` (004) scope every lookup to the session teacher → 404;
   student routes start from the session user's ACTIVE enrollments (`StudentActivityLoader`) → 404 and
   `student_access.denied`. Syllabus documents and revisions are reached only through their subject.
+- Turmas (027): `cohorts` holds the MANAGER's turma (`cohorts.service`, state through the 003 machine, archive cancels
+  pending invitations with `CLASS_ARCHIVED`) and the teacher's directory (`cohort-directory.service`, ACTIVE turmas only, minimum fields);
+  `enrollments` holds the turma's students (`direct-enrollment.service`: lookup and direct enrollment, 30/min per MANAGER;
+  `cohort-enrollment-removal.service`; `enrollment-notice.mail-subject` for `CLASS_ENROLLMENT_NOTICE`) and "Minhas turmas"
+  (`my-classes.service`, by year); `class-invitations` keeps the 003/017 flow under `/cohorts/:id`. `classes` is the
+  disciplina da turma: `effective-status.ts`, `close-rule.ts` (`canCloseClass`), `class-label.ts` ("<disciplina> ·
+  <turma>", or the turma alone for a class with no subject; `CLASS_LABEL_SELECT`/`labelOf` in the readers that name a class). `ClassContextPolicy.findInContext` returns
+  the effective status as `status` and keeps `ownStatus`; Prisma readers that bypass it load the cohort and call
+  `effectiveStatus()`, raw SQL uses `class_effective_status(class_id)` and the view `class_enrollments`.
 - Mail (017): `MailOutbox.schedule(tx, kind, subjectId)` in the request's transaction, `attemptNow` after the commit
   (`attemptSync` in the admin bootstrap CLI), then `MailDeliveryWorker` retries (1 min to 6 h, FAILED after 7) within
   `MAIL_SENDS_PER_MINUTE`; `MAIL_RETRY_INTERVAL_SECONDS=0` disables the timer and tests call `runOnce(now)`. Each owner

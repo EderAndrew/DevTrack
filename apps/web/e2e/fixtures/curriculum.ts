@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { API_DIR } from "../env.ts";
-import { field } from "./journeys.ts";
+import { addClassThroughForm, createCohortThroughApi, field } from "./journeys.ts";
 
 /** Syllabus fixtures shared with the API tests (apps/api/test/fixtures/syllabus/). */
 export const syllabusFile = (name: string) => readFileSync(join(API_DIR, "test/fixtures/syllabus", name));
@@ -25,23 +25,18 @@ export async function createSubject(page: Page, name: string): Promise<string> {
   return new URL(page.url()).pathname.split("/").at(-1)!;
 }
 
-/** "Nova turma" as the offering of `subjectName`, with its dates; returns the class id. */
+/**
+ * Since 027: a turma named `name` (created by the run's ADMIN, the MANAGER function) with the teacher's `subjectName`
+ * added to it through "Acrescentar disciplina a uma turma", with its dates; returns the class id.
+ */
 export async function createOffering(
   page: Page,
   name: string,
   subjectName: string,
   period: { startsOn: string; endsOn: string },
 ): Promise<string> {
-  await page.goto("/turmas/nova");
-  await field(page, "Nome").fill(name);
-  await field(page, "Código").fill(`E2E-${unique()}`);
-  await page.getByLabel("Disciplina").click();
-  await page.getByRole("option", { name: subjectName }).click();
-  await field(page, "Data de início").fill(period.startsOn);
-  await field(page, "Data de término").fill(period.endsOn);
-  await page.getByRole("button", { name: "Criar turma" }).click();
-  await expect(page).toHaveURL(/\/turmas\/[0-9a-f-]{36}$/);
-  return new URL(page.url()).pathname.split("/").at(-1)!;
+  await createCohortThroughApi(page.context().browser()!, name);
+  return addClassThroughForm(page, name, name, subjectName, period);
 }
 
 /** Sends a syllabus file from the page's upload area and waits for "Ementa enviada.". */

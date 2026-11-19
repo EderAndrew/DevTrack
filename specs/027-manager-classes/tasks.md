@@ -552,22 +552,22 @@ migration e comparar o que cada um vê.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T061 [P] E2E `apps/web/e2e/manager-classes.spec.ts` (local): gestor cria turma, convida (Mailpit) e inclui um
+- [X] T061 [P] E2E `apps/web/e2e/manager-classes.spec.ts` (local): gestor cria turma, convida (Mailpit) e inclui um
       aluno existente; dois professores acrescentam disciplinas; aluno vê as duas no card; professor encerra após o
       calendário (relógio do E2E); um `test` com título `027/SC-004` que mede, do clique em "Turmas" à mensagem
       "Disciplina acrescentada à turma.", ≤ 3 interações e < 60 s, e retira `SC-004` de `pending`. Ajustar `class-teacher.spec.ts`, `class-teacher-setup.spec.ts`,
       `class-new-student.spec.ts`, `class-existing-student.spec.ts`, `class-remove-student.spec.ts`,
       `class-invitation-keyboard.spec.ts` e o `e2e/fixtures` que cria turma pela UI do professor.
-- [ ] T062 [P] Documentação: `CLAUDE.md` raiz — "Project state" (027), "Rules that are easy to get wrong" (a turma é
+- [X] T062 [P] Documentação: `CLAUDE.md` raiz — "Project state" (027), "Rules that are easy to get wrong" (a turma é
       do gestor; `class_enrollments`; situação efetiva; encerrar/arquivar após o calendário; inclusão direta) e a regra
       da 003 em "One `User` identity…" (convite do gestor); `apps/api/CLAUDE.md` (módulo `cohorts`, factories);
       `apps/web/CLAUDE.md` (`features/cohorts`, `/gestao/turmas`); `docs/` de deploy (T047); a linha
       "Active Technologies" da 027 no `CLAUDE.md` raiz ("two migrations: …"); o sétimo tipo de e-mail
       (`CLASS_ENROLLMENT_NOTICE`) em `docs/deploy/email.md` e no `CLAUDE.md` raiz (017: "the six e-mails" → sete).
-- [ ] T063 [P] `specs/027-manager-classes/quickstart.md` conferido de ponta a ponta no ambiente local; corrigir o que
+- [X] T063 [P] `specs/027-manager-classes/quickstart.md` conferido de ponta a ponta no ambiente local; corrigir o que
       divergir.
-- [ ] T064 Auditoria de segurança do Stop hook (owasp-security-auditor) sobre os arquivos da feature; corrigir achados.
-- [ ] T065 `027/SC-005`: suíte completa (`pnpm lint && pnpm check-types && pnpm test`) verde; retirar `SC-005` de
+- [X] T064 Auditoria de segurança do Stop hook (owasp-security-auditor) sobre os arquivos da feature; corrigir achados.
+- [X] T065 `027/SC-005`: suíte completa (`pnpm lint && pnpm check-types && pnpm test`) verde; retirar `SC-005` de
       `pending`; `pending` vazio.
 - [ ] T066 Piloto no beta (manual, com o usuário): backup, deploy, conferir o evento da transição, uma turma real com
       duas disciplinas; registrar em `plan.md`.
