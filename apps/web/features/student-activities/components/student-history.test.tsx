@@ -1,24 +1,28 @@
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
 import type { IntegrityEventView, StudentHistoryItem, StudentHistoryPage, StudentIntegrity } from "@repo/contracts";
 import { formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
-import { HISTORY_FINAL_NOTE } from "../schemas/student-history";
+import type { StudentHistoryFilters } from "../api/student-activities";
+import { HISTORY_FINAL_NOTE, historyFromSearch } from "../schemas/student-history";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
 import { apiError, json, routedFetch, studentActivity, summary } from "./test-fixtures";
 
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
 const HISTORY = "GET /api/me/history";
 
-function setup(routes: Parameters<typeof routedFetch>[0]) {
+function setup(routes: Parameters<typeof routedFetch>[0], filters?: StudentHistoryFilters) {
   const api = routedFetch(routes);
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<StudentHistory />);
+  const view = renderWithProviders(<StudentHistory filters={filters} />);
   return { ...view, api, user: userEvent.setup() };
 }
 
@@ -219,6 +223,74 @@ describe("028/US1 Histórico: totais e lista redesenhada", () => {
       within(rows).getByRole("link", { name: "Lista de herança" }),
       screen.getByRole("button", { name: "Carregar mais" }),
     ]);
+  });
+});
+
+describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const COUNTS = { tabCounts: { all: 4, awaiting: 3, graded: 1 } };
+  const tabs = () => screen.findByRole("tablist", { name: "Situação das entregas" });
+
+  it("028/US2-1 as três abas com as contagens, \"Todas\" escolhida e o nome com a contagem", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
+    const list = await tabs();
+    const all = within(list).getAllByRole("tab");
+    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1"]);
+    expect(within(list).getByRole("tab", { name: "Aguardando, 3" }).textContent).toBe("Aguardando3");
+    expect(within(list).getByRole("tab", { name: "Todas, 4" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tabpanel", { name: "Todas, 4" })).toBeTruthy();
+  });
+
+  it("028/US2-2 028/SC-003 um clique em \"Corrigidas\" troca o endereço e a lista passa a pedir tab=GRADED", async () => {
+    const { user, api, rerender } = setup({
+      [HISTORY]: json(200, page(FOUR, COUNTS)),
+      [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { ...COUNTS, total: 1 })),
+    });
+    await user.click(within(await tabs()).getByRole("tab", { name: "Corrigidas, 1" }));
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=corrigidas");
+    rerender(<StudentHistory filters={historyFromSearch({ aba: "corrigidas" })} />);
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?tab=GRADED"))).toBe(true);
+    expect(screen.getByRole("tab", { name: "Corrigidas, 1" }).getAttribute("aria-selected")).toBe("true");
+    // Back to "Todas": no `aba` in the address.
+    await user.click(screen.getByRole("tab", { name: "Todas, 4" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico");
+  });
+
+  it("028/US2-4 aba vazia: a frase da aba, com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=AWAITING`]: json(200, page([], { ...COUNTS, total: 0 })) }, historyFromSearch({ aba: "aguardando" }));
+    expect(await screen.findByText("Nenhuma entrega aguardando correção.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    vi.unstubAllGlobals();
+    cleanup();
+    setup({ [`${HISTORY}?tab=GRADED`]: json(200, page([], { ...COUNTS, total: 0 })) }, historyFromSearch({ aba: "corrigidas" }));
+    expect(await screen.findByText("Nenhuma entrega corrigida ainda.")).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("028/US2-5 a página aberta com ?aba=corrigidas já pede tab=GRADED; ?aba=xyz vale \"Todas\"", async () => {
+    expect(historyFromSearch({ aba: "corrigidas" })).toEqual({ tab: "GRADED", q: "", classId: null });
+    expect(historyFromSearch({ aba: "aguardando" }).tab).toBe("AWAITING");
+    expect(historyFromSearch({ aba: "xyz" }).tab).toBeNull();
+    expect(historyFromSearch({ aba: "todas" }).tab).toBeNull();
+    expect(historyFromSearch({}).tab).toBeNull();
+    const { api } = setup({ [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { ...COUNTS, total: 1 })) }, historyFromSearch({ aba: "corrigidas" }));
+    expect(within(await tabs()).getByRole("tab", { name: "Corrigidas, 1" }).getAttribute("aria-selected")).toBe("true");
+    expect(api.calls.map((call) => call.url).filter((url) => url.includes("/me/history"))).toEqual([expect.stringMatching(/\/me\/history\?tab=GRADED$/)]);
+  });
+
+  it("028/US2 as setas do teclado trocam de aba", async () => {
+    const { user } = setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
+    const list = await tabs();
+    within(list).getByRole("tab", { name: "Todas, 4" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(within(list).getByRole("tab", { name: "Aguardando, 3" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=aguardando");
   });
 });
 

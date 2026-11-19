@@ -204,12 +204,12 @@ contagem em todas as páginas.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T014 [P] [US2] Integração `apps/api/test/integration/028-us2-tabs.spec.ts`: `028/US2-1` sem `tab`, `tabCounts`
+- [X] T014 [P] [US2] Integração `apps/api/test/integration/028-us2-tabs.spec.ts`: `028/US2-1` sem `tab`, `tabCounts`
       com as três contagens e `total = tabCounts.all`; `028/US2-2` `tab=AWAITING` só itens `AWAITING` (trabalho e prova
       sem resultado, exercício com pontos aguardando), em todas as páginas com `pageSize=1`, `total =
       tabCounts.awaiting`, e os `totals` iguais aos de sem `tab` (`028/FR-007`); `028/US2-3` `tab=GRADED` só `GRADED`;
       `028/US2-4` aba vazia → `items: []`, `total: 0`, contagens das outras intactas; `tab=OUTRA` → `400`.
-- [ ] T015 [P] [US2] Web `student-history.test.tsx` (acrescentar): `028/US2-1` as abas "Todas", "Aguardando" e
+- [X] T015 [P] [US2] Web `student-history.test.tsx` (acrescentar): `028/US2-1` as abas "Todas", "Aguardando" e
       "Corrigidas" com as contagens, "Todas" escolhida, o nome acessível "Aguardando, 3"; `028/US2-2` e `028/SC-003`
       um clique em "Corrigidas" faz `router.replace` com `aba=corrigidas` e a lista pedida passa a ter `tab=GRADED`;
       `028/US2-4` aba vazia: "Nenhuma entrega aguardando correção." / "Nenhuma entrega corrigida ainda.", com os cards
@@ -218,9 +218,9 @@ contagem em todas as páginas.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] API: `history` aplica `query.tab` à lista e ao `total` (não aos `totals` nem aos `tabCounts`).
+- [X] T016 [US2] API: `history` aplica `query.tab` à lista e ao `total` (não aos `totals` nem aos `tabCounts`).
       T014 verde.
-- [ ] T017 [US2] Web: `schemas/student-history.ts` — `historyFromSearch({ aba, busca, materia })` e
+- [X] T017 [US2] Web: `schemas/student-history.ts` — `historyFromSearch({ aba, busca, materia })` e
       `historyHref(filters)` (slugs `aguardando`/`corrigidas`, ordem `aba`, `busca`, `materia`); `student-history.tsx`
       monta os `Tabs` do Design System com as contagens e troca com `router.replace`; a página
       `app/(student)/historico/page.tsx` lê `aba` de `searchParams` e o repassa. T015 verde; tirar `2` de

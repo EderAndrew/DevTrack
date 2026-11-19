@@ -1,5 +1,7 @@
-import type { StudentHistoryItem } from "@repo/contracts";
+import type { StudentHistoryItem, StudentHistorySituation } from "@repo/contracts";
 import type { StatusVariant } from "@/components/ui/status";
+import { HISTORY_PATH } from "@/lib/navigation";
+import type { StudentHistoryFilters } from "../api/student-activities";
 import { gradePercent } from "./student-activity";
 
 // Texts of 028 contracts/ui.md: they live in the web only (XXVI).
@@ -52,4 +54,42 @@ export const historyStatusVariant = (item: Pick<StudentHistoryItem, "type" | "si
 /** An exercise's points (013, never a grade): "45 de 60 pontos", or "Pontos aguardando correção". */
 export function historyPoints(points: NonNullable<StudentHistoryItem["points"]>): string {
   return points.awaitingCorrection ? POINTS_AWAITING : `${points.earned} de ${points.possible} pontos`;
+}
+
+/** The tabs (028/US2, contracts/ui.md "Toolbar"): label, the address's `aba` slug and the empty text of each. */
+export const HISTORY_TABS = [
+  { tab: null, slug: "todas", label: "Todas", count: "all", empty: HISTORY_EMPTY },
+  { tab: "AWAITING", slug: "aguardando", label: "Aguardando", count: "awaiting", empty: "Nenhuma entrega aguardando correção." },
+  { tab: "GRADED", slug: "corrigidas", label: "Corrigidas", count: "graded", empty: "Nenhuma entrega corrigida ainda." },
+] as const satisfies readonly {
+  tab: StudentHistorySituation | null;
+  slug: string;
+  label: string;
+  count: "all" | "awaiting" | "graded";
+  empty: string;
+}[];
+
+export type HistoryTabSpec = (typeof HISTORY_TABS)[number];
+
+export const historyTabOf = (tab: StudentHistorySituation | null): HistoryTabSpec =>
+  HISTORY_TABS.find((spec) => spec.tab === tab) ?? HISTORY_TABS[0];
+
+/** The tab's accessible name with its count: "Aguardando, 3". */
+export const historyTabName = (label: string, count: number) => `${label}, ${count}`;
+
+/** The filters of the address (`?aba=`); an unknown `aba` is "Todas" (028/US2-5). */
+export function historyFromSearch(search: { aba?: string }): StudentHistoryFilters {
+  const spec = HISTORY_TABS.find((candidate) => candidate.slug === search.aba && candidate.tab !== null);
+  return { tab: spec?.tab ?? null, q: "", classId: null };
+}
+
+/** `/historico` with these filters in the address, in the order `aba`, `busca`, `materia` ("Todas" writes no `aba`). */
+export function historyHref(filters: StudentHistoryFilters): string {
+  const q = filters.q.trim();
+  const query = new URLSearchParams({
+    ...(filters.tab ? { aba: historyTabOf(filters.tab).slug } : {}),
+    ...(q ? { busca: q } : {}),
+    ...(filters.classId ? { materia: filters.classId } : {}),
+  });
+  return query.size > 0 ? `${HISTORY_PATH}?${query}` : HISTORY_PATH;
 }

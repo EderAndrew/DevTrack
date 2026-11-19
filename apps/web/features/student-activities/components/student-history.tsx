@@ -3,11 +3,14 @@
 import type { ExamOccurrenceView, StudentHistoryItem, StudentHistoryPage, StudentPause } from "@repo/contracts";
 import { Check, ChevronRight, Clock, FileText, History, Info, type LucideIcon, MessageSquareText } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { Status } from "@/components/ui/status";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDuration, NO_EXAM_OCCURRENCES, OCCURRENCE_KIND_LABELS, occurredAt } from "@/features/activities/schemas/attempt-records";
 import { NO_RETURN, PAUSE_REASON_LABELS, ROOM_EXITS_TITLE } from "@/features/attendance/schemas/attendance";
@@ -28,6 +31,10 @@ import {
   historyPoints,
   historyStatusLabel,
   historyStatusVariant,
+  HISTORY_TABS,
+  historyHref,
+  historyTabName,
+  historyTabOf,
   twoDigits,
   VIEW_ACTIVITY,
 } from "../schemas/student-history";
@@ -40,6 +47,20 @@ export const SCREEN_EXITS_NOTE = "O professor vê estes registros. Uma saída n�
 export const screenExitsLabel = (count: number) => `Saídas da tela registradas: ${count}`;
 
 const ALL: StudentHistoryFilters = { tab: null, q: "", classId: null };
+
+/** The tabs with their counts (028/US2-1), each named with its count ("Aguardando, 3"); arrows move between them. */
+function HistoryTabList({ counts }: { counts: StudentHistoryPage["tabCounts"] }) {
+  return (
+    <TabsList aria-label="Situação das entregas">
+      {HISTORY_TABS.map((spec) => (
+        <TabsTrigger key={spec.slug} value={spec.slug} aria-label={historyTabName(spec.label, counts[spec.count])}>
+          {spec.label}
+          <Badge aria-hidden="true">{counts[spec.count]}</Badge>
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  );
+}
 
 interface SummaryCardSpec {
   key: keyof StudentHistoryPage["totals"];
@@ -223,10 +244,18 @@ function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
  * "Histórico" (012 US6, redesigned in 028/US1): the three totals of every delivery, then the deliveries newest first
  * (`GET /me/history`) with the type, the class, the delivery date, the situation and the grade (or the points of an
  * exercise), the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
- * activity with the student's read-only answers.
+ * activity with the student's read-only answers. Since 028/US2 the tabs "Todas", "Aguardando" and "Corrigidas" (with
+ * the server's counts) narrow the list on the server and live in the address (`?aba=`).
  */
-export function StudentHistory() {
-  const query = useStudentHistory(ALL);
+export function StudentHistory({ filters = ALL }: { filters?: StudentHistoryFilters }) {
+  const router = useRouter();
+  const query = useStudentHistory(filters);
+  const current = historyTabOf(filters.tab);
+  // The tab chosen while the address has not caught up yet (Radix asks on mousedown and again on focus): it is
+  // selected at once and asked for once; a new address (`filters`) makes it stale.
+  const [chosen, setChosen] = useState<{ from: string; to: string } | null>(null);
+  const asked = useRef<{ from: string; to: string } | null>(null);
+  const selected = chosen?.from === current.slug ? chosen.to : current.slug;
   const pages = query.data?.pages ?? [];
   const items = pages.flatMap((page) => page.items);
   const first = pages[0];
@@ -242,12 +271,33 @@ export function StudentHistory() {
         <EmptyState icon={History} title={HISTORY_EMPTY} />
       ) : (
         <section aria-label="Suas entregas" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <HistoryTable items={items} />
-          <HistoryCards items={items} />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm text-text-secondary">
-            <span>{historyFooter(items.length, latest.total)}</span>
-            <span>{HISTORY_ORDER}</span>
-          </div>
+          <Tabs
+            value={selected}
+            onValueChange={(slug) => {
+              const next = HISTORY_TABS.find((spec) => spec.slug === slug);
+              const last = asked.current?.from === current.slug ? asked.current.to : current.slug;
+              if (!next || slug === last) return;
+              asked.current = { from: current.slug, to: slug };
+              setChosen(asked.current);
+              router.replace(historyHref({ ...filters, tab: next.tab }));
+            }}
+          >
+            <HistoryTabList counts={latest.tabCounts} />
+            <TabsContent value={selected} className="flex flex-col gap-4" aria-busy={query.isPlaceholderData || undefined}>
+              {items.length === 0 ? (
+                <p className="m-0 py-6 text-center text-text-secondary">{current.empty}</p>
+              ) : (
+                <>
+                  <HistoryTable items={items} />
+                  <HistoryCards items={items} />
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm text-text-secondary">
+                    <span>{historyFooter(items.length, latest.total)}</span>
+                    <span>{HISTORY_ORDER}</span>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
           {query.isFetchNextPageError ? <LoadFailed error={query.error} onRetry={() => void query.fetchNextPage()} /> : null}
           {query.hasNextPage ? (
             <Button

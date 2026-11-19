@@ -1,7 +1,7 @@
 "use client";
 
 import type { StartAttemptRequest, StudentActivity, SubmitAttemptRequest } from "@repo/contracts";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { integrityApi } from "@/features/controlled-attempt/api/integrity";
 import { GROUP_POLL_MS } from "@/features/group-work/schemas/group-work";
@@ -48,6 +48,8 @@ export const useStudentActivities = (filters: StudentActivityListFilters, classI
     enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
+    // 028/US2: another tab keeps the cards and the tabs on screen while its first page arrives.
+    placeholderData: keepPreviousData,
     ...POLL_WHILE_VISIBLE,
   });
 

@@ -137,13 +137,15 @@ export class MyActivitiesService {
     const items = entries.map((entry) => ({ entry, situation: historySituation(entry.summary) }));
     const awaiting = items.filter((item) => item.situation === "AWAITING").length;
     const counts = { all: items.length, awaiting, graded: items.length - awaiting };
-    const matching = items.sort((a, b) => byDelivery(a.entry, b.entry)).filter((item) => after === null || after(item.entry));
+    // 028/FR-007: the tab narrows the list and `total`, never `tabCounts` or `totals`.
+    const inTab = query.tab === undefined ? items : items.filter((item) => item.situation === query.tab);
+    const matching = inTab.sort((a, b) => byDelivery(a.entry, b.entry)).filter((item) => after === null || after(item.entry));
     const page = matching.slice(0, pageSize);
     const last = page.at(-1);
     return {
       items: page.map(({ entry, situation }): StudentHistoryItem => ({ ...entry.summary, deliveredAt: entry.deliveredAt.toISOString(), situation })),
       nextCursor: matching.length > pageSize && last ? historyCursor(last.entry) : null,
-      total: counts.all,
+      total: inTab.length,
       tabCounts: counts,
       totals: { delivered: counts.all, awaiting: counts.awaiting, graded: counts.graded },
     };
