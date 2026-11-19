@@ -512,10 +512,11 @@ describe("SC-005 — varredura de segredos em logs e auditoria (FR-071, FR-072, 
     return { type, metadata: Object.fromEntries(fields) };
   };
 
-  it("017/SC-007 endereços, nomes, links e tokens dos seis e-mails fora dos logs, da auditoria, dos envios, dos avisos e das respostas dos avisos", async () => {
+  it("017/SC-007 027/FR-034 endereços, nomes, links e tokens dos seis e-mails (e do aviso de inclusão da 027) fora dos logs, da auditoria, dos envios, dos avisos e das respostas dos avisos", async () => {
     const mails = [...t.mailer.outbox, ...t.mailer.failed];
     expect(new Set(mails.map(({ template }) => template))).toEqual(
-      new Set(["verify-email", "password-reset", "invitation-teacher", "invitation-manager", "admin-activation", "class-invitation"]),
+      // 027/FR-034: the journey's direct enrollment also sends the enrollment notice.
+      new Set(["verify-email", "password-reset", "invitation-teacher", "invitation-manager", "admin-activation", "class-invitation", "class-enrollment-notice"]),
     );
     // The links (and their tokens) as the e-mails carry them; the names as the e-mails' owners store them.
     const links = [...new Set(mails.flatMap((mail) => mail.text.match(/https?:\/\/\S+/g) ?? []))];

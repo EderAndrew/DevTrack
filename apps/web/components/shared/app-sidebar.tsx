@@ -51,6 +51,7 @@ import {
   type AiOperationsTab,
   aiOperationsTabOf,
   FEEDBACKS_AREA,
+  COHORTS_PATH,
   MY_CLASSES_PATH,
   USER_AREAS,
 } from "@/lib/navigation";
@@ -96,8 +97,11 @@ export function AppSidebar({ me }: AppSidebarProps) {
   const pathname = usePathname();
   const aiTab = aiOperationsTabOf(useSearchParams()?.get("aba"));
   const areas = me?.emailVerified ? USER_AREAS.filter((area) => me.permissions.includes(area.permission)) : [];
-  const classes = Boolean(me?.emailVerified && me.permissions.includes("turmas.visualizar"));
+  // 027/FR-031: the teacher's "Turmas" lists their disciplinas da turma; the MANAGER's lists every turma.
+  const classes = Boolean(me?.emailVerified && me.permissions.includes("disciplinas_turma.visualizar"));
   const inClasses = pathname === "/turmas" || pathname.startsWith("/turmas/");
+  const cohorts = Boolean(me?.emailVerified && me.permissions.includes("turmas.visualizar"));
+  const inCohorts = pathname === COHORTS_PATH || pathname.startsWith(`${COHORTS_PATH}/`);
   const ownClasses = Boolean(me?.emailVerified && me.permissions.includes("turmas.proprias.listar"));
   const subjects = Boolean(me?.emailVerified && me.permissions.includes("disciplinas.visualizar"));
   const aiOperations = Boolean(me?.emailVerified && me.permissions.includes(AI_OPERATIONS_AREA.permission));
@@ -289,6 +293,16 @@ export function AppSidebar({ me }: AppSidebarProps) {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={inClasses} tooltip="Turmas">
                       <Link href="/turmas" className={LINK} aria-current={pathname === "/turmas" ? "page" : undefined}>
+                        <School aria-hidden="true" />
+                        <span>Turmas</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : null}
+                {cohorts ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={inCohorts} tooltip="Turmas">
+                      <Link href={COHORTS_PATH} className={LINK} aria-current={pathname === COHORTS_PATH ? "page" : undefined}>
                         <School aria-hidden="true" />
                         <span>Turmas</span>
                       </Link>

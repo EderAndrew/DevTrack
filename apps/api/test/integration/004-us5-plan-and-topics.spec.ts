@@ -430,23 +430,20 @@ describe("004/US5 — planejamento e tópicos a partir da ementa confirmada (FR-
     });
   });
 
-  it("004/FR-004 trocar a disciplina da turma com ementa selecionada → 409 CLASS_SUBJECT_LOCKED", async () => {
+  it("004/FR-004 a disciplina da turma não muda com ementa selecionada (027 FR-019: nunca muda → 400; o banco recusa)", async () => {
     const { teacher, schoolClass, subject, client, select, confirmed } = await setup();
     const other = await createSubject(t, teacher.id, { name: "Banco de Dados" });
 
-    // Before a syllabus is selected the subject can still change.
-    const free = await client.patch(`/api/classes/${schoolClass.id}`, { subjectId: other.id });
-    expect(free.status).toBe(200);
-    await client.patch(`/api/classes/${schoolClass.id}`, { subjectId: subject.id });
-
+    // 027 FR-019 is stricter than 004 FR-004: the subject of a disciplina da turma never changes, before or after
+    // a syllabus is selected; the edit takes only the calendar, and the database refuses a direct change.
+    expect((await client.patch(`/api/classes/${schoolClass.id}`, { subjectId: other.id })).status).toBe(400);
     expect((await select(confirmed.revision.id)).status).toBe(200);
     for (const subjectId of [other.id, null]) {
       const res = await client.patch(`/api/classes/${schoolClass.id}`, { subjectId });
-      expect(res.status).toBe(409);
-      expect(res.body.code).toBe("CLASS_SUBJECT_LOCKED");
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("VALIDATION_ERROR");
     }
-    // Other fields still change.
-    expect((await client.patch(`/api/classes/${schoolClass.id}`, { name: "POO — Noite" })).status).toBe(200);
+    await expect(t.prisma.schoolClass.update({ where: { id: schoolClass.id }, data: { subjectId: other.id } })).rejects.toThrow(/immutable/);
     expect((await t.prisma.schoolClass.findUniqueOrThrow({ where: { id: schoolClass.id } })).subjectId).toBe(subject.id);
   });
 

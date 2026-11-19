@@ -12,7 +12,7 @@ import type {
   WorkDifficulty,
   WorkTestCaseVisibility,
 } from "../../src/generated/prisma/client";
-import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestUser } from "./factories";
+import { createClass, createEnrollment, createMeetings, createPlan, createTopic, createUser, type TestClass, type TestUser } from "./factories";
 import { createExercise, languageId } from "./exercises";
 import { createExam } from "./exams";
 import { createWork } from "./works";
@@ -160,7 +160,7 @@ export function releaseResult(client: ApiClient, classId: string, activityId: st
 }
 
 export interface ClassWithStudents {
-  schoolClass: SchoolClass;
+  schoolClass: TestClass;
   students: TestUser[];
 }
 

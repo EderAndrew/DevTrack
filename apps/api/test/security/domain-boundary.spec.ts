@@ -128,6 +128,8 @@ const EXPECTED_MODELS = [
   "ExamAlertDelivery",
   // 025 (specs/025-exam-student-nudge/data-model.md) — the teacher's discreet warning to a student in an exam.
   "ExamNudge",
+  // 027 (specs/027-manager-classes/data-model.md) — the turma; `classes` became the disciplina da turma.
+  "Cohort",
 ];
 
 /**

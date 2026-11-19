@@ -7,10 +7,10 @@ import { type RateLimitState, RateLimitService } from "../../platform/rate-limit
 const HOUR_SEC = 3600;
 const DAY_SEC = 24 * HOUR_SEC;
 
-/** Who sends to whom: the teacher, and the invited e-mail in one class. */
+/** Who sends to whom: the inviter (the MANAGER since 027), and the invited e-mail in one turma. */
 export interface InvitationSend {
-  teacherId: string;
-  classId: string;
+  inviterId: string;
+  cohortId: string;
   /** Normalized. */
   email: string;
 }
@@ -18,8 +18,8 @@ export interface InvitationSend {
 /**
  * Class invitation limits (FR-021, D6), counted in `RateLimitService` before anything is
  * written. Only creations and manual resends count; the delivery worker's retries never do.
- *   - sends per teacher per hour (`classInviteTeacherHourly`);
- *   - sends per invited e-mail in a class per 24 h (`classInviteDailySends`), keyed on class and
+ *   - sends per inviter per hour (`classInviteTeacherHourly`; the key keeps the 003 name);
+ *   - sends per invited e-mail in a turma per 24 h (`classInviteDailySends`), keyed on turma and
  *     e-mail rather than the invitation, so cancelling and inviting again does not reset it;
  *   - spacing between resends of one invitation (`classInviteResendSeconds`, 1 per window).
  */
@@ -44,13 +44,13 @@ export class InvitationRateLimit {
     await this.countSend(send);
   }
 
-  private async countSend({ teacherId, classId, email }: InvitationSend): Promise<void> {
+  private async countSend({ inviterId, cohortId, email }: InvitationSend): Promise<void> {
     const { classInviteTeacherHourly, classInviteDailySends } = this.config.rateLimit;
     enforce(
-      await this.rateLimit.hit("class_invite:teacher", teacherId, { limit: classInviteTeacherHourly, windowSec: HOUR_SEC }),
+      await this.rateLimit.hit("class_invite:teacher", inviterId, { limit: classInviteTeacherHourly, windowSec: HOUR_SEC }),
     );
     enforce(
-      await this.rateLimit.hit("class_invite:email", `${classId}:${email}`, {
+      await this.rateLimit.hit("class_invite:email", `${cohortId}:${email}`, {
         limit: classInviteDailySends,
         windowSec: DAY_SEC,
       }),

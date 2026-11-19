@@ -206,21 +206,26 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     "CLAIM_ACCOUNT",
   );
 
-  // 003/US1 — classes: create, edit, inactivate, archive (before the teacher is deactivated below).
-  // 003/US2 — while the class is active, students are invited by e-mail.
-  // 003/US3 — the first one accepts by creating an account; the second is refused once the
-  // class is inactive, and archiving then cancels it.
+  // 003/US1 — classes: the class's calendar and its own status (inactivate, archive) before the teacher is
+  // deactivated below. 003/US3 — a student invited to the class accepts by creating an account; the second is
+  // refused once the turma is inactive.
+  // 027/US1 — the MANAGER creates and edits the turma (`/cohorts`); 027/US3 — the teacher finds it in the directory
+  // and adds the subject as a disciplina da turma (`POST /classes`). Ending an enrollment waits for US5
+  // (`NOT_IN_JOURNEY_027`, audit-coverage.spec.ts).
   const teacherClient = api(t, { cookie: await login(teacherEmail, teacherPassword) });
-  const created = await teacherClient.post("/api/classes", { name: "Turma da Jornada", code: "JOR-1", academicYear: 2026 });
-  expect(created.status).toBe(201);
-  const classId = created.body.id as string;
-  expect((await teacherClient.patch(`/api/classes/${classId}`, { period: "1º semestre" })).status).toBe(200);
-  // 004/US1 — the teacher creates, renames and deactivates a subject, and links the class to it.
+  // 004/US1 — the teacher creates, renames and deactivates a subject, and offers it in the class.
   const subject = await teacherClient.post("/api/subjects", { name: text("nome da disciplina", "Disciplina da Jornada Quatro") });
   expect(subject.status).toBe(201);
   const subjectId = subject.body.id as string;
-  const offering = { subjectId, startsOn: "2026-02-02", endsOn: "2026-06-30" };
-  expect((await teacherClient.patch(`/api/classes/${classId}`, offering)).body.plannable).toBe(true);
+  const journeyCohort = await managerClient.post("/api/cohorts", { name: "Turma da Jornada", code: "JOR-1", academicYear: 2026 });
+  expect(journeyCohort.status).toBe(201);
+  expect((await managerClient.patch(`/api/cohorts/${journeyCohort.body.id}`, { period: "1º semestre" })).status).toBe(200);
+  expect((await managerClient.get(`/api/cohorts?q=jornada`)).body.items).toHaveLength(1);
+  expect((await teacherClient.get(`/api/cohort-directory?q=jornada`)).body.items).toHaveLength(1);
+  const journeyClass = await teacherClient.post("/api/classes", { cohortId: journeyCohort.body.id, subjectId });
+  expect(journeyClass.status).toBe(201);
+  const classId = journeyClass.body.id as string;
+  expect((await teacherClient.patch(`/api/classes/${classId}`, { startsOn: "2026-02-02", endsOn: "2026-06-30" })).body.plannable).toBe(true);
   expect((await teacherClient.patch(`/api/subjects/${subjectId}`, { description: text("descrição da disciplina", "Descrição da disciplina da jornada") })).status).toBe(200);
   // 004/US2 — syllabus upload and processing: one readable PDF, and an unreadable file stored
   // directly (the upload inspection would refuse it) so that processing fails for good.
@@ -709,8 +714,10 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(appliedExam.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExam.body.id}/cancel`, {})).status).toBe(200);
   expect((await teacherClient.post(`/api/subjects/${subjectId}/status`, { status: "INACTIVE" })).status).toBe(200);
+  // 027/US2 — the MANAGER invites to the turma (`/cohorts/:id/invitations`); the e-mail goes through the 017 outbox.
+  const cohortId = journeyCohort.body.id;
   const inviteToClass = async (email: string) => {
-    expect((await teacherClient.post(`/api/classes/${classId}/invitations`, { email })).status).toBe(201);
+    expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations`, { email })).status).toBe(201);
     await t.flushMail();
     return keepToken("token de convite de turma", t.mailer.lastTokenFor(email, "class-invitation"));
   };
@@ -723,6 +730,19 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     password: classStudentPassword,
   });
   expect(classAccepted.status).toBe(200);
+  // 027/FR-034 — the MANAGER finds the student by exact e-mail and includes them directly in another turma (the notice
+  // goes through the outbox, with no token); past 30 lookups a minute the lookup is refused and audited.
+  const otherCohort = await managerClient.post("/api/cohorts", { name: "Outra Turma da Jornada", code: "JOR-2", academicYear: 2027 });
+  const lookup = await managerClient.post(`/api/cohorts/${otherCohort.body.id}/student-lookup`, { email: "aluno-convidado-jornada@example.test" });
+  expect(lookup.body).toMatchObject({ found: true, alreadyEnrolled: false });
+  expect((await managerClient.post(`/api/cohorts/${otherCohort.body.id}/enrollments`, { email: "aluno-convidado-jornada@example.test" })).status).toBe(201);
+  await t.flushMail();
+  expect((await managerClient.get(`/api/cohorts/${otherCohort.body.id}/enrollments`)).body.items).toHaveLength(1);
+  let lookupStatus = 200;
+  for (let i = 0; i < 31 && lookupStatus === 200; i += 1) {
+    lookupStatus = (await managerClient.post(`/api/cohorts/${otherCohort.body.id}/student-lookup`, { email: uniqueEmail("busca") })).status;
+  }
+  expect(lookupStatus).toBe(429);
   // 006/US1, US3 — AI executions: one completed after a tool call, one failed on an invalid output,
   // one failed on a tool outside the allowlist, one cancelled in the queue, one cancelled while
   // running, and the rate limit. The input, the instructions, the
@@ -830,7 +850,11 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // 003/US7 — the new student sees the class in "Minhas turmas".
   const classStudentClient = api(t, { cookie: keepCookie(classAccepted) });
   const myClasses = await classStudentClient.get("/api/me/classes");
-  expect(myClasses.body.items.map((c: { id: string }) => c.id)).toEqual([classId]);
+  // 027/US8: grouped by ano letivo and turma.
+  const myClassIds = (myClasses.body as { years: { cohorts: { classes: { classId: string }[] }[] }[] }).years.flatMap((year) =>
+    year.cohorts.flatMap((cohort) => cohort.classes.map((item) => item.classId)),
+  );
+  expect(myClassIds).toEqual([classId]);
   // 012/US2 — the student's dashboard and list never show the cancelled exercises, whose id answers 404
   // and writes `student_access.denied` (route pattern and reason). Since 016 the closed work was
   // released only to the students marked present (none): it is out of the student's context too
@@ -1113,23 +1137,28 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const keptHold = await openHoldOf(keptExam);
   expect((await teacherClient.post(`${activitiesPath}/${keptExam}/close`, {})).status).toBe(200);
   expect((await decideHold(keptExam, keptHold, "keep")).body.resolution).toBe("NOT_CANCELLED");
-  // 003/US6 — the teacher lists the class's students and removes the one who joined.
+  // 003/US6 — the teacher lists the class's students (read-only since 027); 027/US5 — the MANAGER ends the enrollment
+  // of the one who joined, in the turma (`enrollment.removed` with `reason`).
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);
+  expect((await managerClient.get(`/api/cohorts/${cohortId}/enrollments?query=Aluno`)).body.items).toHaveLength(1);
   const enrollmentId = students.body.items[0].id as string;
-  expect((await teacherClient.post(`/api/classes/${classId}/enrollments/${enrollmentId}/remove`, {})).status).toBe(200);
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/enrollments/${enrollmentId}/remove`, {})).body.status).toBe("REMOVED");
   const lateToken = await inviteToClass("aluno-atrasado-jornada@example.test");
-  // 003/US5 — the teacher lists, resends and cancels an invitation.
+  // 003/US5 — the MANAGER lists, resends and cancels an invitation (027/FR-011).
   const resentEmail = "aluno-reenvio-jornada@example.test";
-  const resentId = (await teacherClient.post(`/api/classes/${classId}/invitations`, { email: resentEmail })).body.id as string;
+  const resentId = (await managerClient.post(`/api/cohorts/${cohortId}/invitations`, { email: resentEmail })).body.id as string;
   await t.flushMail();
   keepToken("token de convite de turma", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
-  expect((await teacherClient.get(`/api/classes/${classId}/invitations?query=reenvio`)).body.items).toHaveLength(1);
-  expect((await teacherClient.post(`/api/classes/${classId}/invitations/${resentId}/resend`, {})).status).toBe(200);
+  expect((await managerClient.get(`/api/cohorts/${cohortId}/invitations?query=reenvio`)).body.items).toHaveLength(1);
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations/${resentId}/resend`, {})).status).toBe(200);
   await t.flushMail();
   keepToken("token de convite de turma reenviado", t.mailer.lastTokenFor(resentEmail, "class-invitation"));
-  expect((await teacherClient.post(`/api/classes/${classId}/invitations/${resentId}/cancel`, {})).status).toBe(200);
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/invitations/${resentId}/cancel`, {})).status).toBe(200);
+  // The teacher closes the class (its own status); the MANAGER closes the turma (027/US1).
   expect((await teacherClient.post(`/api/classes/${classId}/status`, { status: "INACTIVE" })).status).toBe(200);
+  expect((await managerClient.post(`/api/cohorts/${journeyCohort.body.id}/status`, { to: "INACTIVE" })).status).toBe(200);
+  expect((await managerClient.get(`/api/cohorts/${journeyCohort.body.id}`)).body.classes).toHaveLength(1);
   expect((await api(t).post("/api/class-invitations/preview", { token: lateToken })).status).toBe(400);
   const refused = await api(t).post("/api/class-invitations/accept", {
     token: lateToken,
@@ -1310,7 +1339,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect((await handGroupEditing()).status).toBe(200);
   expect((await groupLeaderClient.post(`/api/me/activities/${groupWork.id}/attempt/submit`, { answers: [] })).status).toBe(409);
   await t.prisma.enrollment.updateMany({
-    where: { classId: groupClass.schoolClass.id, studentUserId: groupLeader.id },
+    where: { cohort: { classes: { some: { id: groupClass.schoolClass.id } } }, studentUserId: groupLeader.id },
     data: { status: "REMOVED", removedAt: new Date(), removedById: runTeacher.id },
   });
   expect((await groupMemberClient.get(`/api/me/activities/${groupWork.id}`)).status).toBe(200);

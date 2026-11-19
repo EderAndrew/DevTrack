@@ -15,7 +15,7 @@ export async function eligibleClassmates(
   return db.$queryRaw<{ id: string; name: string }[]>`
     SELECT u.id, u.name
     FROM class_activities ca
-    JOIN enrollments e ON e.class_id = ca.class_id AND e.status = 'ACTIVE'
+    JOIN class_enrollments e ON e.class_id = ca.class_id AND e.status = 'ACTIVE'
     JOIN users u ON u.id = e.student_user_id
     JOIN activity_attendances aa ON aa.activity_id = ca.id AND aa.student_user_id = e.student_user_id
     WHERE ca.id = ${activityId}::uuid

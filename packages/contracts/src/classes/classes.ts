@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateSchema, IsoDateTimeSchema, NameSchema, UuidSchema } from "../common/primitives.js";
+import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 import { ClassPlanStatusSchema } from "../curriculum/class-plan.js";
 
 // Classes of a teacher (003 contracts/http-api.md, "Turmas"). Strict: unknown fields → 400.
@@ -20,22 +20,6 @@ export type ClassCode = z.infer<typeof ClassCodeSchema>;
 export const AcademicYearSchema = z.int().min(1900).max(2100);
 export type AcademicYear = z.infer<typeof AcademicYearSchema>;
 
-/**
- * Fields of a class without the rule between the dates, for forms that extend them
- * (a refined object cannot be extended). Requests use the refined schemas below.
- */
-export const ClassFieldsSchema = z.strictObject({
-  name: NameSchema,
-  code: ClassCodeSchema,
-  academicYear: AcademicYearSchema,
-  period: z.string().trim().max(60).nullable().optional(),
-  description: z.string().trim().max(1000).nullable().optional(),
-  /** 004 offering: a subject of the same teacher. */
-  subjectId: UuidSchema.nullable().optional(),
-  startsOn: IsoDateSchema.nullable().optional(),
-  endsOn: IsoDateSchema.nullable().optional(),
-});
-export type ClassFields = z.infer<typeof ClassFieldsSchema>;
 
 /**
  * 004/US1-5: `startsOn` and `endsOn` are sent together, both dates or both null, and the end is
@@ -54,18 +38,46 @@ export function refineClassPeriod(
   if (startsOn && endsOn && endsOn < startsOn) ctx.addIssue({ code: "custom", path: ["endsOn"] });
 }
 
-export const CreateClassRequestSchema = ClassFieldsSchema.superRefine(refineClassPeriod);
+/**
+ * 027 FR-017, research Q10: the teacher adds one of their ACTIVE subjects to an ACTIVE turma, with an optional
+ * calendar (004 rules). The teacher comes from the session; the turma's data belong to the cohort.
+ */
+export const CreateClassFieldsSchema = z.strictObject({
+  cohortId: UuidSchema,
+  subjectId: UuidSchema,
+  startsOn: IsoDateSchema.nullable().optional(),
+  endsOn: IsoDateSchema.nullable().optional(),
+});
+export const CreateClassRequestSchema = CreateClassFieldsSchema.superRefine(refineClassPeriod);
 export type CreateClassRequest = z.infer<typeof CreateClassRequestSchema>;
 
-/** The same fields, all optional, at least one present. */
-export const UpdateClassRequestSchema = ClassFieldsSchema.partial()
-  .refine((value) => Object.values(value).some((field) => field !== undefined))
+/**
+ * 027 FR-019: a teacher edits only the calendar of a disciplina da turma — both dates or both null (004
+ * rules); the turma's fields belong to the cohort and the subject never changes (any other field → 400).
+ */
+export const UpdateClassRequestSchema = z
+  .strictObject({ startsOn: IsoDateSchema.nullable(), endsOn: IsoDateSchema.nullable() })
   .superRefine(refineClassPeriod);
 export type UpdateClassRequest = z.infer<typeof UpdateClassRequestSchema>;
 
 export const ChangeClassStatusRequestSchema = z.strictObject({ status: ClassStatusSchema });
 export type ChangeClassStatusRequest = z.infer<typeof ChangeClassStatusRequestSchema>;
 
+/** The turma of a disciplina da turma, as the teacher sees it (027 contracts/http-api.md). */
+export const ClassCohortSchema = z.strictObject({
+  id: UuidSchema,
+  name: z.string(),
+  code: z.string(),
+  academicYear: z.int(),
+  period: z.string().nullable(),
+});
+export type ClassCohort = z.infer<typeof ClassCohortSchema>;
+
+/**
+ * A disciplina da turma (027). `name`, `code`, `academicYear`, `period`, `description` and `activeStudentCount` are
+ * the turma's, kept for the 004–026 screens; `status` is the effective status (FR-023), as `effectiveStatus`;
+ * `ownStatus` is the class's own; `canChangeStatus` says the calendar is over (FR-022).
+ */
 export const ClassViewSchema = z.strictObject({
   id: UuidSchema,
   name: z.string(),
@@ -82,6 +94,10 @@ export const ClassViewSchema = z.strictObject({
   plannable: z.boolean(),
   /** Null while the class has no plan. */
   planStatus: ClassPlanStatusSchema.nullable(),
+  cohort: ClassCohortSchema,
+  ownStatus: ClassStatusSchema,
+  effectiveStatus: ClassStatusSchema,
+  canChangeStatus: z.boolean(),
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });

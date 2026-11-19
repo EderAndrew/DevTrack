@@ -10,11 +10,17 @@ import {
 } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
-describe("003/US6 — professor vê os alunos da turma e remove um aluno (FR-042–FR-047)", () => {
+/**
+ * 003/US6, rewritten by 027 (T052): the teacher still lists the students of the disciplina da turma (read-only);
+ * ending an enrollment is the MANAGER's, in the turma (`/cohorts/:id/enrollments/:enrollmentId/remove`, 027/FR-014).
+ */
+describe("003/US6 — professor vê os alunos da turma; o gestor encerra a matrícula (FR-042–FR-047, 027/FR-014)", () => {
   let t: TestApp;
   let teacher: TestUser;
+  let manager: TestUser;
   let schoolClass: SchoolClass;
   let client: ReturnType<typeof api>;
+  let managerClient: ReturnType<typeof api>;
 
   beforeAll(async () => {
     t = await createTestApp();
@@ -25,11 +31,13 @@ describe("003/US6 — professor vê os alunos da turma e remove um aluno (FR-042
     teacher = await createUser(t, { roles: ["TEACHER"], name: "Professora Ada" });
     schoolClass = await createClass(t, teacher.id, { code: "ALG-1" });
     client = api(t, { cookie: await loginAs(t, teacher) });
+    manager = await createUser(t, { roles: ["MANAGER"], name: "Gestora Lia" });
+    managerClient = api(t, { cookie: await loginAs(t, manager) });
   });
 
   const base = () => `/api/classes/${schoolClass.id}/enrollments`;
   const list = (query = "") => client.get(`${base()}${query ? `?${query}` : ""}`);
-  const remove = (id: string) => client.post(`${base()}/${id}/remove`, {});
+  const remove = (id: string, cohortId = schoolClass.cohortId) => managerClient.post(`/api/cohorts/${cohortId}/enrollments/${id}/remove`, {});
   const names = (res: { body: { items: { student: { name: string } }[] } }) => res.body.items.map((i) => i.student.name);
   const enroll = async (name: string, ra: string | undefined, classId = schoolClass.id) => {
     const student = await createUser(t, { name, ...(ra ? { ra } : {}) });
@@ -105,17 +113,18 @@ describe("003/US6 — professor vê os alunos da turma e remove um aluno (FR-042
       expect(res.body).toMatchObject({ id: enrollment.id, status: "REMOVED", removedAt: expect.any(String) });
       expect(await t.prisma.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } })).toMatchObject({
         status: "REMOVED",
-        removedById: teacher.id,
+        removedById: manager.id,
+        removalReason: "MANAGER",
       });
       expect(await t.prisma.user.findUniqueOrThrow({ where: { id: student.id }, include: { roles: true, studentProfile: true } })).toEqual(before);
       expect((await t.prisma.enrollment.findUniqueOrThrow({ where: { id: elsewhere.id } })).status).toBe("ACTIVE");
       expect(await t.prisma.auditEvent.findMany({ where: { type: "enrollment.removed" } })).toMatchObject([
         {
           actorType: "USER",
-          actorUserId: teacher.id,
+          actorUserId: manager.id,
           targetType: "ENROLLMENT",
           targetId: enrollment.id,
-          metadata: { classId: schoolClass.id, userId: student.id },
+          metadata: { cohortId: schoolClass.cohortId, userId: student.id, reason: "MANAGER" },
         },
       ]);
     });
@@ -144,29 +153,30 @@ describe("003/US6 — professor vê os alunos da turma e remove um aluno (FR-042
       expect(accepted.status).toBe(200);
       expect(accepted.body.alreadyEnrolled).toBe(false);
 
-      const rows = await t.prisma.enrollment.findMany({ where: { studentUserId: student.id, classId: schoolClass.id } });
+      const rows = await t.prisma.enrollment.findMany({ where: { studentUserId: student.id, cohort: { classes: { some: { id: schoolClass.id } } } } });
       expect(rows.map((r) => r.status).sort()).toEqual(["ACTIVE", "REMOVED"]);
       expect(names(await list())).toEqual(["Ana"]);
     });
   });
 
   describe("003/US6-6 contexto", () => {
-    it("matrícula de outra turma ou turma de outro professor → 404 como inexistente", async () => {
+    it("matrícula de outra turma ou turma inexistente → 404 como inexistente; o professor não remove (403)", async () => {
       const other = await createClass(t, teacher.id, { code: "OUTRA" });
       const { enrollment } = await enroll("Ana", "RA-1", other.id);
       const foreign = await remove(enrollment.id);
       expect(foreign.status).toBe(404);
       expect((await remove("00000000-0000-4000-8000-000000000009")).body).toEqual(foreign.body);
+      expect((await remove(enrollment.id, "00000000-0000-4000-8000-000000000008")).body).toEqual(foreign.body);
+      expect((await client.post(`/api/cohorts/${other.cohortId}/enrollments/${enrollment.id}/remove`, {})).status).toBe(403);
 
       const stranger = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["TEACHER"] })) });
       expect((await stranger.get(`/api/classes/${other.id}/enrollments`)).status).toBe(404);
-      expect((await stranger.post(`/api/classes/${other.id}/enrollments/${enrollment.id}/remove`, {})).status).toBe(404);
       expect((await t.prisma.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } })).status).toBe("ACTIVE");
     });
 
     it("turma arquivada → remoção 409 INVALID_STATE_TRANSITION; a lista continua disponível", async () => {
       const { enrollment } = await enroll("Ana", "RA-1");
-      await t.prisma.schoolClass.update({ where: { id: schoolClass.id }, data: { status: "ARCHIVED", statusChangedAt: new Date() } });
+      await t.prisma.cohort.update({ where: { id: schoolClass.cohortId }, data: { status: "ARCHIVED", statusChangedAt: new Date() } });
       const res = await remove(enrollment.id);
       expect(res.status).toBe(409);
       expect(res.body.code).toBe("INVALID_STATE_TRANSITION");

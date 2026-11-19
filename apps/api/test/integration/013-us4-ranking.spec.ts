@@ -188,7 +188,7 @@ describe("013/US4 aluno vê o ranking da turma", () => {
 
   it("013/US4-6 aluno removido não aparece; aluno de outra turma recebe 404", async () => {
     await playCast();
-    await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: students[0]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
+    await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: students[0]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
     const list = await rows(clients[1]!);
     expect(list.map((row) => row.name)).not.toContain("Ana Lima");
     expect(list[0]).toMatchObject({ position: 1, name: "Bruno Alves", points: 60 });
@@ -268,9 +268,9 @@ describe("013/US4 aluno vê o ranking da turma", () => {
   it("013/FR-019 removido e readmitido: os pontos anteriores voltam a contar", async () => {
     const activity = await apply(exerciseIds);
     await conclude(clients[4]!, activity.id, [1]);
-    await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: students[4]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
+    await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: students[4]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
     expect((await rows(clients[0]!)).map((row) => row.name)).not.toContain("Elisa Melo");
-    await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: students[4]!.id }, data: { status: "ACTIVE", removedAt: null } });
+    await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: students[4]!.id }, data: { status: "ACTIVE", removedAt: null } });
     expect((await rows(clients[0]!))[0]).toEqual({ position: 1, name: "Elisa Melo", points: 30, isViewer: false });
   });
 

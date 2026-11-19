@@ -36,7 +36,7 @@ export class IntegrityReviewService {
     const activity = await this.prisma.classActivity.findFirst({ where: { id: activityId, classId }, select: { id: true } });
     if (!activity) throw notFound();
     const attempts = await this.prisma.activityAttempt.findMany({
-      where: { activityId, student: { enrollments: { some: { classId, status: "ACTIVE" } } } },
+      where: { activityId, student: { enrollments: { some: { status: "ACTIVE", cohort: { classes: { some: { id: classId } } } } } } },
       select: { id: true, studentUserId: true, submission: { select: { submittedAt: true } } },
       orderBy: [{ studentUserId: "asc" }, { number: "asc" }],
     });

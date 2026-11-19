@@ -14,7 +14,7 @@ export default async function ClassSyllabusPage({ params }: { params: Promise<{ 
   return (
     <ClassSyllabusSection
       classId={id}
-      canEditClass={me.permissions.includes("turmas.editar")}
+      canEditClass={me.permissions.includes("disciplinas_turma.editar")}
       canUpload={me.permissions.includes("ementas.enviar")}
       canSelect={me.permissions.includes("planejamento.editar")}
     />

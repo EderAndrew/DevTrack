@@ -18,6 +18,7 @@ interface DueRow {
   invitation_id: string | null;
   user_id: string | null;
   admin_bootstrap_id: string | null;
+  enrollment_id: string | null;
   attempts: number;
   created_at: Date;
 }
@@ -53,7 +54,7 @@ export class MailDeliveryWorker implements OnApplicationBootstrap, OnApplication
     if (this.config.mail.sendsPerMinute <= 0) return 0;
     const attempts = await this.prisma.runInTransaction(async (tx) => {
       const due = await tx.$queryRaw<DueRow[]>`
-        SELECT id, kind, class_invitation_id, invitation_id, user_id, admin_bootstrap_id, attempts, created_at
+        SELECT id, kind, class_invitation_id, invitation_id, user_id, admin_bootstrap_id, enrollment_id, attempts, created_at
         FROM mail_deliveries
         WHERE status = 'PENDING' AND next_attempt_at <= ${now}
         ORDER BY next_attempt_at, created_at, id
@@ -69,6 +70,7 @@ export class MailDeliveryWorker implements OnApplicationBootstrap, OnApplication
           invitationId: row.invitation_id,
           userId: row.user_id,
           adminBootstrapId: row.admin_bootstrap_id,
+          enrollmentId: row.enrollment_id,
           attempts: row.attempts,
           createdAt: row.created_at,
         };

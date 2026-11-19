@@ -28,8 +28,10 @@ describe("AuditService metadata allowlist (FR-071)", () => {
   it("003/FR-061 accepts the 003 metadata keys and rejects anything else", () => {
     expect(sanitizeMetadata("class.updated", { fields: "name,period" })).toEqual({ fields: "name,period" });
     expect(
-      sanitizeMetadata("class_invitation.accepted", { classId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false }),
-    ).toEqual({ classId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false });
+      // 027: the invitation is to the turma (`cohortId`, which replaced the 003 `classId`).
+      sanitizeMetadata("class_invitation.accepted", { cohortId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false }),
+    ).toEqual({ cohortId: "c1", userId: "u1", mode: "CREATE_ACCOUNT", alreadyEnrolled: false });
+    expect(() => sanitizeMetadata("class_invitation.accepted", { classId: "c1" })).toThrow(AuditMetadataError);
     expect(sanitizeMetadata("role.granted", { userId: "u1", role: "STUDENT", via: "CLASS_INVITATION" })).toEqual({
       userId: "u1",
       role: "STUDENT",

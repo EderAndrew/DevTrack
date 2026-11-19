@@ -21,6 +21,7 @@ export const SUBJECT_COLUMN = {
   VERIFY_EMAIL: "userId",
   PASSWORD_RESET: "userId",
   ADMIN_ACTIVATION: "adminBootstrapId",
+  CLASS_ENROLLMENT_NOTICE: "enrollmentId",
 } as const satisfies Record<MailKind, keyof MailDelivery>;
 
 /** One attempt already claimed: the row counts it and carries its Message-ID. */
@@ -204,7 +205,7 @@ export class MailOutbox implements OnApplicationShutdown {
     const rows = subjectIds.length
       ? await db.mailDelivery.findMany({
           where: { kind: { in: [...kinds] }, [column]: { in: [...subjectIds] } },
-          select: { classInvitationId: true, invitationId: true, userId: true, adminBootstrapId: true, status: true, undeliveredReason: true },
+          select: { classInvitationId: true, invitationId: true, userId: true, adminBootstrapId: true, enrollmentId: true, status: true, undeliveredReason: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         })
       : [];

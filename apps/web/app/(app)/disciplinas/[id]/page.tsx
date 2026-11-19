@@ -25,8 +25,7 @@ export default async function SubjectPage({
         id={id}
         created={criada === "1"}
         canEdit={me.permissions.includes("disciplinas.editar")}
-        canCreateClass={me.permissions.includes("turmas.criar")}
-        canLinkClass={me.permissions.includes("turmas.editar")}
+        canCreateClass={me.permissions.includes("disciplinas_turma.criar")}
         canViewSyllabus={me.permissions.includes("ementas.visualizar")}
         canUploadSyllabus={me.permissions.includes("ementas.enviar")}
       />

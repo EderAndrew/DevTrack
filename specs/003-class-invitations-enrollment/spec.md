@@ -5,6 +5,10 @@
 **Status**: Draft
 **Input**: User description: "Feature: Turmas, Convites e Matrículas de Alunos — o professor cria e administra suas próprias turmas e adiciona alunos informando apenas o e-mail; o sistema envia um convite com link seguro; quem ainda não tem conta conclui o cadastro (nome, RA, senha) e quem já tem se autentica e aceita; a aceitação válida cria a matrícula. Inclui convites (reenvio, cancelamento, expiração), listagem de alunos e convites com pesquisa e filtros, remoção de aluno da turma sem apagar histórico, autorização por recurso, auditoria e contratos compartilhados. Fora de escopo: provas, exercícios, notas, importação de planilhas, integrações externas, IA e transferência entre turmas."
 
+> **Emenda 2026-11-17 (027, constituição 4.0.0/4.1.0)**: a turma, os convites e as matrículas passam a ser do gestor
+> (MANAGER/ADMIN); o professor não cria turma nem convida. O comportamento dos convites, do aceite e das matrículas
+> não muda. Ver specs/027-manager-classes.
+
 ## Clarifications
 
 ### Session 2026-09-22

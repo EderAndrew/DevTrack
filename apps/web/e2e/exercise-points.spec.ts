@@ -97,10 +97,10 @@ test.describe("013 pontos dos exercícios e ranking", () => {
     expect(await rankingRow(teacherPage, seed.student.name)).toEqual(["1º", seed.student.name, "45"]);
     await teacherPage.context().close();
     await page.goto("/painel");
-    await page.getByRole("link", { name: `Ver ranking completo de ${seed.className}` }).click();
+    await page.getByRole("link", { name: `Ver ranking completo de ${seed.classLabel}` }).click();
     // The dashboard card has a row with the same name: read the full page's only after it opens.
     await expect(page).toHaveURL(`/minhas-turmas/${seed.classId}/ranking`);
-    await expect(page.getByRole("heading", { level: 1, name: `Ranking — ${seed.className}` })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: `Ranking — ${seed.classLabel}` })).toBeVisible();
     const own = await rankingRow(page, seed.student.name);
     expect(own[0]).toBe("1º");
     expect(own[1]).toContain("Você");
@@ -151,14 +151,14 @@ test.describe("013 pontos dos exercícios e ranking", () => {
 
     // From the dashboard to the student's own row of the full ranking.
     const started = Date.now();
-    await page.getByRole("link", { name: `Ver ranking completo de ${seed.className}` }).click();
+    await page.getByRole("link", { name: `Ver ranking completo de ${seed.classLabel}` }).click();
     await expect(page).toHaveURL(`/minhas-turmas/${seed.classId}/ranking`);
-    await expect(page.getByRole("table", { name: `Ranking da turma ${seed.className}` }).getByRole("row").filter({ hasText: "Você" })).toBeVisible();
+    await expect(page.getByRole("table", { name: `Ranking da turma ${seed.classLabel}` }).getByRole("row").filter({ hasText: "Você" })).toBeVisible();
     expect(Date.now() - started).toBeLessThan(10_000);
     expect(await fitsTheScreen(page), "ranking").toBe(true);
 
     await page.goto("/painel");
-    await expect(page.getByRole("region", { name: `Ranking — ${seed.className}` })).toBeVisible();
+    await expect(page.getByRole("region", { name: `Ranking — ${seed.classLabel}` })).toBeVisible();
     expect(await fitsTheScreen(page), "painel").toBe(true);
 
     await page.goto(`/minhas-atividades/${activityId}`);

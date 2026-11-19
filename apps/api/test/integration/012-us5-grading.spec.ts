@@ -114,12 +114,12 @@ describe("012/US5 professor recebe, corrige e libera o resultado", () => {
       await createAttemptRow(t, activity.id, davi.id, { submission: { submittedAt: at(-MINUTE), late: true, acceptedById: teacher.id, gradePartial: true } });
       await createAttemptRow(t, activity.id, eva.id, { startedAt: at(-HOUR) });
       await t.prisma.enrollment.updateMany({
-        where: { classId: schoolClass.id, studentUserId: eva.id },
+        where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: eva.id },
         data: { status: "REMOVED", removedAt: at(-MINUTE), removedById: teacher.id },
       });
       const { student: fabio } = await enrolledStudent("Fábio Removido Sem Tentativa");
       await t.prisma.enrollment.updateMany({
-        where: { classId: schoolClass.id, studentUserId: fabio.id },
+        where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: fabio.id },
         data: { status: "REMOVED", removedAt: at(-MINUTE), removedById: teacher.id },
       });
 

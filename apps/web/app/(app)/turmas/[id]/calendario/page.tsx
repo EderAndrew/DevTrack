@@ -14,7 +14,7 @@ export default async function ClassCalendarPage({ params }: { params: Promise<{ 
   return (
     <ClassCalendarSection
       classId={id}
-      canEditClass={me.permissions.includes("turmas.editar")}
+      canEditClass={me.permissions.includes("disciplinas_turma.editar")}
       canManage={me.permissions.includes("calendario.gerenciar")}
     />
   );

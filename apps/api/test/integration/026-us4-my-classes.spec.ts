@@ -4,7 +4,8 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 /**
  * 026/US4 — "Minhas turmas" carries each class's subject name (`subjectName`), in the order of 003/US7 (most recent
- * enrollment first); a class without a subject answers `null`. The 003/US7 suite keeps the rest of the shape.
+ * enrollment first); a class without a subject answers `null`. The 003/US7 suite keeps the rest of the shape (027/US8:
+ * grouped by ano letivo and turma).
  */
 
 describe("026/US4 Minhas turmas com a disciplina", () => {
@@ -32,7 +33,11 @@ describe("026/US4 Minhas turmas com a disciplina", () => {
   const myClasses = async () => {
     const res = await api(t, { cookie: await loginAs(t, student) }).get("/api/me/classes");
     expect(res.status).toBe(200);
-    return (res.body as { items: { id: string; subjectName: string | null }[] }).items;
+    // 027: grouped by ano letivo and turma; each disciplina da turma keeps its subject name.
+    const body = res.body as { years: { cohorts: { classes: { classId: string; subjectName: string | null }[] }[] }[] };
+    return body.years.flatMap((year) =>
+      year.cohorts.flatMap((cohort) => cohort.classes.map(({ classId, subjectName }) => ({ id: classId, subjectName }))),
+    );
   };
 
   it("026/US4-1 cada turma traz o nome da sua disciplina, na ordem de hoje", async () => {

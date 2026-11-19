@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–026 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–027 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
   contracts, web stack, Playwright E2E, GitHub Actions CI).
 - 003 classes, class invitations by e-mail (the only way a student account is created),
-  enrollments, "Minhas turmas".
+  enrollments, "Minhas turmas" (since 027 the turma, its invitations and enrollments are the MANAGER's).
 - 004 subjects, syllabus upload/extraction/review, class calendar, class plan with manual topics
   and coverage; US9 (2026-09-24 amendment) marks a topic's class completed. A teacher lands on
   "Minhas disciplinas" after login.
@@ -36,8 +36,8 @@ new feature through `/speckit-specify`.
 - 016 attendance-gated release: a new work is released only to the students the teacher marks present
   in its "Chamada" (late students marked later); "Sair da sala" pauses the attempt until the teacher
   releases the return; exercises and works applied before 016 stay open to every enrolled student.
-- 017 production e-mail: the six e-mails (class, teacher and manager invitations, verification,
-  password reset, admin activation) go through one outbox with retries; provider notices (Resend now,
+- 017 production e-mail: the seven e-mails (class, teacher and manager invitations, verification,
+  password reset, admin activation and, since 027, the turma enrollment notice) go through one outbox with retries; provider notices (Resend now,
   AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
   production config guard and the deploy guide `docs/deploy/email.md`.
 - 018 controlled exams: the teacher's own Banco de Provas (1–20 questions with difficulty and topics,
@@ -81,8 +81,15 @@ new feature through `/speckit-specify`.
 - 026 the student's current subject: a "Matéria" card on the Painel and "Minhas atividades" shows one subject (class) at a
   time (`?materia=<classId>`, the most recent enrollment by default); the lists, counters, summary cards and ranking of
   those pages are of that class only; "Minhas turmas" shows each class's subject. No migration.
+- 027 turmas of the MANAGER: the turma (`cohorts`: name, code unique per ano letivo, year, period) belongs to the MANAGER
+  (and ADMIN) at `/gestao/turmas`, who invites students, enrolls an existing student directly by exact e-mail (notice
+  e-mail, no account created) and ends enrollments, closes and archives it; a teacher searches an active turma and adds
+  a "disciplina da turma" (`classes`, same id, routes and pedagogical tables as before) from one of their subjects,
+  several per turma (of different teachers too, one per subject), and closes/archives it only after its calendar's last
+  day; "Minhas turmas" is grouped by ano letivo. The migration was the transition: today's classes with the same code
+  and year merged into one turma.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–025 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–027 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -118,7 +125,7 @@ ADR-0005 §9) with the same rule and file, a `maxSeverity` at least the finding'
 `main` on `origin` (a local commit does not count); the auditor never creates one. The policy's
 cases: `bash .claude/hooks/tests/security-policy.test.sh`.
 
-`.specify/memory/constitution.md` (v3.7.0) is non-negotiable and overrides everything else; every
+`.specify/memory/constitution.md` (v4.1.0) is non-negotiable and overrides everything else; every
 plan has a Constitution Check gate, and deviations must be justified in *Complexity Tracking*.
 Amend it only via `/speckit-constitution`.
 
@@ -158,6 +165,8 @@ hand-maintained.
 - PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
 - No new dependency (026-student-subject-selector)
 - PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
+- No new dependency (027-manager-classes)
+- PostgreSQL 17 — two migrations: `…_027_enum_values` (enum values only) and `…_027_manager_classes`, which is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
 
 ## Stack notes
 
@@ -240,7 +249,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025 and 026; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026 and 027; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -298,6 +307,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   attendance and monitoring code and from any write to the exam's tables; `exam-sessions` and `attempt-integrity`
   reach it only through `exam-nudges/nudge-status.ts` and `views.ts`; names and texts stay out of its audit and log
   calls, and the warning's sentence lives only in the web and the app.
+- `apps/api/test/cohorts-boundary.spec.ts` (027) fails when a reader joins `enrollments` by a `class_id` (pedagogical
+  readers use the view `class_enrollments` or `schoolClass.cohort.enrollments`), when a module other than `cohorts`,
+  `class-invitations` and `enrollments` writes enrollments or invitations, and when a class's own `status` is read
+  without the cohort's (outside `ClassContextPolicy`, whose `status` is the effective one).
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -351,7 +364,8 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   has capability but resource outside the user's context → `404` (don't reveal existence).
 - One `User` identity with many roles via `User → UserRole → Role → RolePermission → Permission`;
   never a `users.role` column. No public self-signup (constitution 3.0.0): student accounts come only from
-  accepting a teacher's class invitation (spec 003); `POST /auth/signup` and `/cadastro` are gone (FR-048).
+  accepting a class invitation (spec 003; since 027 sent by a MANAGER/ADMIN from the turma, never by a teacher); `POST
+  /auth/signup` and `/cadastro` are gone (FR-048). The 027 direct enrollment only adds an existing student account.
   `TEACHER`/`MANAGER` come only from invitations; the first `ADMIN` only from the CLI (no endpoint,
   seed, default password or env credentials). The last active `ADMIN` can't be removed.
 - Workflows use explicit state enums, not boolean flags; invalid transitions → `409
@@ -405,7 +419,7 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   the deadline never moves for a pause, and a pause is never a grade, discount or fraud label. Audit
   metadata carries ids and enums, never the note of "Outro". Changes reach the other side by 5 s
   polling (`ATTENDANCE_POLL_MS`), never WebSockets.
-- E-mail (017): every e-mail of the six kinds goes through the outbox (`MailOutbox.schedule` in the
+- E-mail (017): every e-mail of the seven kinds (027 added `CLASS_ENROLLMENT_NOTICE`) goes through the outbox (`MailOutbox.schedule` in the
   request's transaction, `mail_deliveries`); only the outbox calls `Mailer.send`. Nothing of the
   e-mail is stored (no address, subject, link or token): each attempt rebuilds it with a fresh link
   through the owner module's `MailSubject`, and the Message-ID `<deliveryId.attempt@domain>` is the
@@ -527,14 +541,36 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   on the server: the address (`materia=`) holds it. A class the student can no longer see (not in "Minhas turmas", or
   the 5 s poll of the list or the Painel answering `404`) falls back to the most recent enrollment with "Essa matéria
   não está mais disponível para você.", never WebSockets. The subject name is text, never HTML.
+- Turmas of the MANAGER (027): the turma is `cohorts`; `classes` is the disciplina da turma (teacher + subject + calendar,
+  `cohort_id`, UNIQUE per turma and subject) and keeps every 004–026 table and route. Enrollments and invitations are keyed
+  by `cohort_id` (one ACTIVE enrollment per turma and student, one PENDING invitation per turma and e-mail): an enrollment
+  reaches every disciplina of the turma, present and future. Pedagogical readers ask "students of this class" through the
+  view `class_enrollments` (raw SQL) or `schoolClass.cohort.enrollments` (Prisma), never `enrollments.class_id`; only
+  `cohorts`, `class-invitations` and `enrollments` write enrollments or invitations (`cohorts-boundary.spec.ts`). The
+  `turmas.*` keys (create, edit, status, invite, resend, cancel, view students, remove, the new `turmas.incluir_aluno`)
+  are MANAGER/ADMIN; the teacher has `turmas.buscar` (the directory: active turmas with only name, code, year, period and
+  each disciplina's subject and teacher) and `disciplinas_turma.*`; the MANAGER never reaches a class's pedagogical
+  routes, another teacher's class in the same turma is `404`. The effective status of a class is the most restrictive of
+  the turma's and its own (ARCHIVED > INACTIVE > ACTIVE), derived on every read (`effectiveStatus()`,
+  `ClassContextPolicy` returns it as `status` with `ownStatus` kept, SQL `class_effective_status(class_id)`), never
+  stored or cascaded. The teacher changes the class's own status only when `planningToday(clock) > endsOn` (pure
+  `canCloseClass`; no calendar → never), else `409 CLASS_CALENDAR_NOT_ENDED`; the view's `canChangeStatus` drives the
+  web. A closed turma (INACTIVE) keeps its enrollments ACTIVE: the student reads, never writes, and the 026 card offers
+  only effectively ACTIVE classes. Direct enrollment (`POST /cohorts/:id/student-lookup` and `…/enrollments`, e-mail in
+  the body only) finds only an ACTIVE, verified STUDENT account with a profile, every other case the same `{ found:
+  false }` / `422 STUDENT_NOT_ELIGIBLE`; 30 per MANAGER per minute (`429`, audited); created under the turma's lock with
+  the partial UNIQUE (`409 ALREADY_ENROLLED`), a pending invitation of the same e-mail cancelled (`ENROLLED_DIRECTLY`),
+  a `CLASS_ENROLLMENT_NOTICE` scheduled (no token, link to `/entrar`). Removing an enrollment removes it from every
+  disciplina of the turma. Invitations and the notice name only the turma, never a teacher or subject; e-mails and
+  names stay out of the new audit metadata and logs.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
 - 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 - 025-exam-student-nudge: the teacher's bell in the mobile room sends one student with 2+ counted occurrences a fixed discreet warning, shown in an `AlertDialog` on the exam page by a 5 s poll; one pending per attempt, mobile-only send (`@MobileOnly()`), never an occurrence; the web room, the review timeline and the app show the warnings; the app's first write (024 read-only rule amended)
-- 024-mobile-exam-monitor: read-only Expo app (`apps/mobile`) for the teacher to watch the 018 exam room, with push alerts (vibrate/sound) on each counted occurrence and each hold through an outbox and Expo Push, and a per-exam mute; MOBILE kind of the opaque session (30 d idle / 90 d), bearer only on `@MobileAccess()` routes; `packages/design-tokens` generated from `tokens.css`; retention jobs `exam-alerts` and `mobile-devices`; constitution 3.7.0 (mobile app and stack, push)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

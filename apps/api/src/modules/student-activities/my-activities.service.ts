@@ -194,7 +194,7 @@ export class MyActivitiesService {
 
   private async assertActiveEnrollment(userId: string, classId: string): Promise<void> {
     const enrollment = await this.prisma.enrollment.findFirst({
-      where: { studentUserId: userId, classId, status: "ACTIVE" },
+      where: { studentUserId: userId, status: "ACTIVE", cohort: { classes: { some: { id: classId } } } },
       select: { id: true },
     });
     if (!enrollment) throw notFound();

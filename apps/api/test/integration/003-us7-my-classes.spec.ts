@@ -2,6 +2,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
+/** The disciplinas da turma of a 027 `MyCohortList`, in order. */
+const classIds = (body: { years: { cohorts: { classes: { classId: string }[] }[] }[] }) =>
+  body.years.flatMap((year) => year.cohorts.flatMap((cohort) => cohort.classes.map((item) => item.classId)));
+
 describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/http-api.md)", () => {
   let t: TestApp;
   let teacher: TestUser;
@@ -41,27 +45,34 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
 
       const res = await api(t, { cookie: await loginAs(t, student) }).get("/api/me/classes");
       expect(res.status).toBe(200);
+      // 027: grouped by ano letivo (most recent first), each turma with its disciplinas and their teachers.
       expect(res.body).toEqual({
-        items: [
+        years: [
           {
-            id: fisica.id,
-            name: "Física",
-            code: "FIS-1",
-            academicYear: 2025,
-            period: null,
-            teacherName: "Professor Caio",
-            subjectName: null, // 026: a class without a subject (before 004)
-            enrolledAt: expect.any(String),
+            academicYear: 2026,
+            cohorts: [
+              {
+                id: algebra.cohortId,
+                name: "Álgebra",
+                code: "ALG-1",
+                period: "Manhã",
+                status: "ACTIVE",
+                classes: [{ classId: algebra.id, subjectName: null, teacherName: "Professora Ada", effectiveStatus: "ACTIVE" }],
+              },
+            ],
           },
           {
-            id: algebra.id,
-            name: "Álgebra",
-            code: "ALG-1",
-            academicYear: 2026,
-            period: "Manhã",
-            teacherName: "Professora Ada",
-            subjectName: null, // 026: a class without a subject (before 004)
-            enrolledAt: expect.any(String),
+            academicYear: 2025,
+            cohorts: [
+              {
+                id: fisica.cohortId,
+                name: "Física",
+                code: "FIS-1",
+                period: null,
+                status: "ACTIVE",
+                classes: [{ classId: fisica.id, subjectName: null, teacherName: "Professor Caio", effectiveStatus: "ACTIVE" }],
+              },
+            ],
           },
         ],
       });
@@ -70,12 +81,12 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
 
     it("sem matrícula ativa → lista vazia; turma inativa ou arquivada continua listada", async () => {
       const client = api(t, { cookie: await loginAs(t, student) });
-      expect((await client.get("/api/me/classes")).body).toEqual({ items: [] });
+      expect((await client.get("/api/me/classes")).body).toEqual({ years: [] });
 
       const archived = await createClass(t, teacher.id, { code: "ARQ-1" });
       await enroll(archived.id, student.id, 1);
       await t.prisma.schoolClass.update({ where: { id: archived.id }, data: { status: "ARCHIVED", statusChangedAt: new Date() } });
-      expect((await client.get("/api/me/classes")).body.items.map((c: { id: string }) => c.id)).toEqual([archived.id]);
+      expect(classIds((await client.get("/api/me/classes")).body)).toEqual([archived.id]);
     });
 
     it("sem papel STUDENT → 403; sem sessão → 401", async () => {
@@ -89,8 +100,9 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
       const schoolClass = await createClass(t, teacher.id, { code: "ALG-1" });
       await enroll(schoolClass.id, student.id, 1);
       const studentClient = api(t, { cookie: await loginAs(t, student) });
-      for (const path of ["", "/enrollments", "/invitations"]) {
-        const res = await studentClient.get(`/api/classes/${schoolClass.id}${path}`);
+      // 027: the invitations and the students' e-mails are the turma's, the MANAGER's (`/cohorts/:id/...`).
+      for (const path of [`/classes/${schoolClass.id}`, `/classes/${schoolClass.id}/enrollments`, `/cohorts/${schoolClass.cohortId}/invitations`, `/cohorts/${schoolClass.cohortId}/enrollments`]) {
+        const res = await studentClient.get(`/api/${path.slice(1)}`);
         expect({ path, status: res.status, code: res.body.code }).toEqual({ path, status: 403, code: "FORBIDDEN" });
       }
 
@@ -100,7 +112,7 @@ describe("003/US7 — aluno vê as turmas de que participa (FR-038, contracts/ht
       const foreign = await both.get(`/api/classes/${schoolClass.id}`);
       expect(foreign.status).toBe(404);
       expect((await both.get("/api/classes/00000000-0000-4000-8000-000000000009")).body).toEqual(foreign.body);
-      expect((await both.get("/api/me/classes")).body.items.map((c: { id: string }) => c.id)).toEqual([schoolClass.id]);
+      expect(classIds((await both.get("/api/me/classes")).body)).toEqual([schoolClass.id]);
     });
   });
 });

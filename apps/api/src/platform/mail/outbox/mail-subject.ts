@@ -6,7 +6,7 @@ import type { MailMessage } from "../mailer";
 /** What `prepare` sees of a due delivery: its kind, its subject and how many attempts it had. */
 export type DueDelivery = Pick<
   MailDelivery,
-  "id" | "kind" | "classInvitationId" | "invitationId" | "userId" | "adminBootstrapId" | "attempts" | "createdAt"
+  "id" | "kind" | "classInvitationId" | "invitationId" | "userId" | "adminBootstrapId" | "enrollmentId" | "attempts" | "createdAt"
 >;
 
 /** The e-mail to send now: recipient, template and params, the fresh link among them. */

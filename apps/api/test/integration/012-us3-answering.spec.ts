@@ -324,7 +324,7 @@ describe("012/US3 aluno inicia, responde e salva uma atividade", () => {
     await start(activity.id);
     await save(activity.id, [{ questionId: questionIds[0]!, answer: text("antes de sair"), baseRevision: 0 }]);
     await t.prisma.enrollment.updateMany({
-      where: { classId: schoolClass.id, studentUserId: student.id },
+      where: { cohort: { classes: { some: { id: schoolClass.id } } }, studentUserId: student.id },
       data: { status: "REMOVED", removedAt: at(0), removedById: teacher.id },
     });
 

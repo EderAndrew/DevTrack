@@ -1,22 +1,11 @@
 "use client";
 
-import type { EnrollmentStatus, EnrollmentView } from "@repo/contracts";
+import type { EnrollmentStatus } from "@repo/contracts";
 import { EnrollmentStatusSchema } from "@repo/contracts";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ErrorSummary, Field, type FormError, SubmitButton } from "@/components/shared";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ErrorSummary, Field, SubmitButton } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,7 +16,7 @@ import { useErrorSummary } from "@/lib/forms/use-error-summary";
 import { formatDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/messages/status-labels";
-import { type EnrollmentFilters, useEnrollments, useRemoveEnrollment } from "../hooks/use-enrollments";
+import { type EnrollmentFilters, useEnrollments } from "../hooks/use-enrollments";
 import {
   DEFAULT_ENROLLMENT_FILTERS,
   type EnrollmentFiltersFormInput,
@@ -49,21 +38,16 @@ const EMPTY: Record<EnrollmentStatus, string> = {
 
 export interface ClassStudentsTabProps {
   classId: string;
-  /** UX only (the API authorizes): "Remover" on active enrollments. */
-  canRemove: boolean;
 }
 
 /**
- * "Alunos" tab of a class (FR-044, FR-045): search by name or RA and status filter applied by the
- * API (active enrollments by default, by name), 20 at a time. An active student can be removed
- * after a confirmation; the enrollment is kept as removed and the class's count is refreshed.
+ * "Alunos" tab of a disciplina da turma (003 FR-045; 027/FR-021): the students of the turma, read only — search by
+ * name or RA and status filter applied by the API (active enrollments by default, by name), 20 at a time. Inviting,
+ * including and ending an enrollment are the MANAGER's, on the turma's page.
  */
-export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) {
+export function ClassStudentsTab({ classId }: ClassStudentsTabProps) {
   const [filters, setFilters] = useState<EnrollmentFilters>(DEFAULT_ENROLLMENT_FILTERS);
   const enrollments = useEnrollments(classId, filters);
-  const remove = useRemoveEnrollment(classId);
-  const [actionErrors, setActionErrors] = useState<FormError[]>([]);
-  const [announcement, setAnnouncement] = useState("");
   const { errors, setErrors, onInvalid, errorFor } = useErrorSummary<EnrollmentFiltersFormInput>(FIELD_IDS);
   const { register, handleSubmit, control } = useForm({
     shouldFocusError: false,
@@ -75,18 +59,6 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
     setErrors([]);
     setFilters(toEnrollmentFilters(values));
   }, onInvalid);
-
-  const removeStudent = async (item: EnrollmentView) => {
-    if (remove.isPending) return;
-    setActionErrors([]);
-    setAnnouncement("");
-    try {
-      await remove.mutateAsync(item.id);
-      setAnnouncement("Aluno removido.");
-    } catch (error) {
-      setActionErrors([{ message: messageForError(error) }]);
-    }
-  };
 
   const items = enrollments.data?.pages.flatMap((page) => page.items) ?? [];
   const status = filters.status ?? "ACTIVE";
@@ -135,11 +107,6 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
       </form>
       <ErrorSummary errors={errors} title="Corrija a pesquisa" />
 
-      <p role="status" className="m-0 font-semibold">
-        {announcement}
-      </p>
-      <ErrorSummary errors={actionErrors} title="Não foi possível remover o aluno" />
-
       {enrollments.isPending ? (
         <div aria-busy="true" className="flex flex-col gap-2">
           <span className="sr-only">Carregando alunos…</span>
@@ -166,7 +133,6 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
               <TableHead scope="col">Situação</TableHead>
               <TableHead scope="col">Matrícula</TableHead>
               <TableHead scope="col">Remoção</TableHead>
-              <TableHead scope="col">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -182,11 +148,6 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
                 </TableCell>
                 <TableCell>{formatDateTime(item.enrolledAt)}</TableCell>
                 <TableCell>{item.removedAt ? formatDateTime(item.removedAt) : "—"}</TableCell>
-                <TableCell>
-                  {canRemove && item.status === "ACTIVE" ? (
-                    <RemoveStudent enrollment={item} onConfirm={() => void removeStudent(item)} />
-                  ) : null}
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -204,32 +165,5 @@ export function ClassStudentsTab({ classId, canRemove }: ClassStudentsTabProps) 
         </Button>
       ) : null}
     </div>
-  );
-}
-
-/** "Remover" with a confirmation (FR-044); the dialog returns focus to its button. */
-function RemoveStudent({ enrollment, onConfirm }: { enrollment: EnrollmentView; onConfirm: () => void }) {
-  const { name } = enrollment.student;
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="danger" aria-label={`Remover ${name} da turma`}>
-          Remover
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remover {name} da turma?</AlertDialogTitle>
-          <AlertDialogDescription>
-            A matrícula fica registrada como removida. A conta do aluno continua existindo, e ele pode voltar à turma por
-            um novo convite.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Voltar</AlertDialogCancel>
-          <AlertDialogAction variant="danger" onClick={onConfirm}>Remover aluno</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }

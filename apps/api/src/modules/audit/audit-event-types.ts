@@ -33,18 +33,37 @@ export const AUDIT_EVENT_METADATA = {
   "account.unverified_purged": [],
   "audit.purged": ["count", "olderThan"],
   "access_records.purged": ["count", "olderThan"],
-  // 003 — classes, class invitations and enrollments
-  "class.created": ["code", "academicYear"],
+  // 003 — classes, class invitations and enrollments; 027 moved the invitations and the enrollments to the
+  // turma (`cohortId`) and made the class the disciplina da turma (027 contracts/audit-events.md replaces
+  // these rows). The `cohort.*` types join with the routes that emit them (US1, US2).
+  "class.created": ["cohortId", "subjectId"],
   "class.updated": ["fields"],
-  "class.status_changed": ["from", "to", "cancelledInvitations"],
-  "class_invitation.created": ["classId", "email"],
-  "class_invitation.resent": ["classId", "sendCount"],
-  "class_invitation.cancelled": ["classId", "reason"],
-  "class_invitation.accepted": ["classId", "userId", "mode", "alreadyEnrolled"],
+  "class.status_changed": ["from", "to"],
+  "class_invitation.created": ["cohortId", "email"],
+  "class_invitation.resent": ["cohortId", "sendCount"],
+  "class_invitation.cancelled": ["cohortId", "invitationId", "reason"],
+  "class_invitation.accepted": ["cohortId", "userId", "mode", "alreadyEnrolled"],
   "class_invitation.acceptance_refused": ["reason"],
   "student.registered": ["userId", "via"],
-  "enrollment.created": ["classId", "userId", "invitationId"],
-  "enrollment.removed": ["classId", "userId"],
+  "enrollment.created": ["cohortId", "userId", "invitationId", "source"],
+  "enrollment.removed": ["cohortId", "userId", "reason"],
+  // 027 — the MANAGER's turma (US1).
+  "cohort.created": ["code", "academicYear"],
+  "cohort.updated": ["fields"],
+  "cohort.status_changed": ["from", "to", "cancelledInvitations"],
+  // 027/FR-034 (US2): the lookup by exact e-mail; never the e-mail or the name.
+  "cohort.student_lookup": ["cohortId", "found"],
+  "cohort.student_lookup_rate_limited": ["cohortId"],
+  // 027 — written only by the migration that is the transition (SYSTEM).
+  "cohort_transition.applied": [
+    "cohorts",
+    "classes",
+    "mergedCohorts",
+    "mergedEnrollments",
+    "mergedInvitations",
+    "permissionsMoved",
+    "permissionsAdded",
+  ],
   // 004 — subjects, syllabus, class calendar and plan. Never syllabus texts, topic titles or
   // descriptions, subject names, file names nor document content (FR-047).
   "subject.created": [],
@@ -362,6 +381,7 @@ export type AuditTargetType =
   | "ADMIN_BOOTSTRAP"
   | "USER_ROLE"
   | "CLASS"
+  | "COHORT"
   | "CLASS_INVITATION"
   | "STUDENT_PROFILE"
   | "ENROLLMENT"

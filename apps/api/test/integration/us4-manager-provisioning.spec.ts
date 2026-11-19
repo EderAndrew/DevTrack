@@ -5,7 +5,10 @@ import { createUser, loginAs, type TestUser, uniqueEmail } from "../helpers/fact
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 
 const PASSWORD = "Senha-forte-do-manager-1";
-const MANAGER_PERMISSIONS = PERMISSIONS.filter((p) => p.startsWith("professores.") || p.startsWith("sessoes.")).sort();
+/** 027: the MANAGER also holds the turma's keys (`turmas.*` but the student's `turmas.proprias.listar` and the teacher's `turmas.buscar`). */
+const MANAGER_PERMISSIONS = PERMISSIONS.filter(
+  (p) => p.startsWith("professores.") || p.startsWith("sessoes.") || (p.startsWith("turmas.") && !["turmas.proprias.listar", "turmas.buscar"].includes(p)),
+).sort();
 
 describe("US4 — ADMIN provisiona MANAGER (FR-040–FR-056)", () => {
   let t: TestApp;

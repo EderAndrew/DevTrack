@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { MyClassView } from "@repo/contracts";
+import type { MySubjectClass } from "@/features/my-classes/schemas/my-classes";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
@@ -11,7 +11,7 @@ import { filtersFromSearch, myActivitiesHref } from "../schemas/student-activity
 import { LOAD_ERROR } from "./load-states";
 import { FILTER_IDS, MyActivities, NO_GRADE_YET, shownLabel } from "./my-activities";
 import { SUBJECT_SELECT_ID } from "./subject-switcher";
-import { apiError, json, POO_CLASS, routedFetch, SQL_CLASS, summary } from "./test-fixtures";
+import { apiError, json, myClassesBody, POO_CLASS, routedFetch, SQL_CLASS, summary } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -29,9 +29,9 @@ const activityCalls = (calls: { url: string }[]) => calls.map((call) => call.url
 function setup(
   routes: Parameters<typeof routedFetch>[0],
   filters = NONE,
-  { classes = [POO], materia = null }: { classes?: MyClassView[]; materia?: string | null } = {},
+  { classes = [POO], materia = null }: { classes?: MySubjectClass[]; materia?: string | null } = {},
 ) {
-  const api = routedFetch({ "GET /api/me/classes": json(200, { items: classes }), ...routes });
+  const api = routedFetch({ "GET /api/me/classes": json(200, myClassesBody(classes)), ...routes });
   vi.stubGlobal("fetch", api.fetch);
   const view = renderWithProviders(<MyActivities filters={filters} materia={materia} />);
   return { ...view, api, user: userEvent.setup() };
@@ -403,7 +403,7 @@ describe("026/US3 Minhas atividades só com as matérias do próprio aluno", () 
     let classesCalls = 0;
     const { api } = setup(
       {
-        "GET /api/me/classes": () => json(200, { items: ++classesCalls === 1 ? [POO, SQL] : [POO] }),
+        "GET /api/me/classes": () => json(200, myClassesBody(++classesCalls === 1 ? [POO, SQL] : [POO])),
         [listOf(SQL.id)]: apiError(404, "NOT_FOUND", "Não encontrado."),
         ...pooList,
       },

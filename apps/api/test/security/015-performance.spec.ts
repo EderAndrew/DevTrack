@@ -53,7 +53,7 @@ describe("015 desempenho dos eventos, do pedido de ajuda e do resumo da turma", 
       }));
       await tx.user.createMany({ data: users });
       await tx.studentProfile.createMany({ data: users.map((user) => ({ userId: user.id, displayName: user.name })) });
-      await tx.enrollment.createMany({ data: users.map((user) => ({ classId: schoolClass.id, studentUserId: user.id, status: "ACTIVE" as const, enrolledAt: at(-DAY) })) });
+      await tx.enrollment.createMany({ data: users.map((user) => ({ cohortId: schoolClass.cohortId, studentUserId: user.id, status: "ACTIVE" as const, enrolledAt: at(-DAY) })) });
       const attempts = users.map((user) => ({ id: crypto.randomUUID(), activityId: activity.activity.id, studentUserId: user.id, number: 1, startedAt: at(-DAY), status: "IN_PROGRESS" as const }));
       await tx.activityAttempt.createMany({ data: attempts });
       await tx.attemptIntegrityEvent.createMany({

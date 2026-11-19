@@ -16,7 +16,8 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
-describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–FR-023)", () => {
+/** 003/US5 rewritten by 027 (T028): the MANAGER manages the turma's invitations (`/cohorts/:id/invitations`). */
+describe("003/US5 — o gestor acompanha, reenvia e cancela convites (FR-020–FR-023, emenda 027)", () => {
   let t: TestApp;
   let teacher: TestUser;
   let schoolClass: SchoolClass;
@@ -30,12 +31,12 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
     await resetDb(t.prisma);
     t.mailer.clear();
     t.mailer.setFailing(false);
-    teacher = await createUser(t, { roles: ["TEACHER"], name: "Professora Ada" });
+    teacher = await createUser(t, { roles: ["MANAGER"], name: "Gestora Ada" });
     schoolClass = await createClass(t, teacher.id, { name: "Redes" });
     client = api(t, { cookie: await loginAs(t, teacher) });
   });
 
-  const base = () => `/api/classes/${schoolClass.id}/invitations`;
+  const base = () => `/api/cohorts/${schoolClass.cohortId}/invitations`;
   const invite = async (email: string) => {
     const res = await client.post(base(), { email });
     expect(res.status).toBe(201);
@@ -130,7 +131,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       const deliveries = await t.prisma.mailDelivery.findMany({ where: { classInvitationId: id }, orderBy: { createdAt: "asc" } });
       expect(deliveries.map((d) => d.status)).toEqual(["SUPERSEDED", "SENT"]);
       expect(await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.resent" } })).toMatchObject([
-        { actorUserId: teacher.id, targetId: id, metadata: { classId: schoolClass.id, sendCount: 2 } },
+        { actorUserId: teacher.id, targetId: id, metadata: { cohortId: schoolClass.cohortId, sendCount: 2 } },
       ]);
     });
 
@@ -146,16 +147,16 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       await t.flushMail();
       expect(t.mailer.outbox).toHaveLength(0);
       expect(await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.cancelled" } })).toMatchObject([
-        { targetId: invitation.id, metadata: { classId: schoolClass.id, reason: "ALREADY_ENROLLED" } },
+        { targetId: invitation.id, metadata: { cohortId: schoolClass.cohortId, reason: "ALREADY_ENROLLED" } },
       ]);
     });
 
-    it("turma inativa → 409 CLASS_NOT_OPEN, nada muda", async () => {
+    it("turma inativa → 409 COHORT_NOT_ACTIVE, nada muda", async () => {
       const { invitation } = await createClassInvitation(t, schoolClass.id, "aluno@example.test");
-      await t.prisma.schoolClass.update({ where: { id: schoolClass.id }, data: { status: "INACTIVE" } });
+      await t.prisma.cohort.update({ where: { id: schoolClass.cohortId }, data: { status: "INACTIVE" } });
       const res = await resend(invitation.id);
       expect(res.status).toBe(409);
-      expect(res.body.code).toBe("CLASS_NOT_OPEN");
+      expect(res.body.code).toBe("COHORT_NOT_ACTIVE");
       expect((await row(invitation.id)).sendCount).toBe(1);
     });
   });
@@ -207,7 +208,7 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
   });
 
   describe("003/US5-4 cancelamento", () => {
-    it("CANCELLED com motivo TEACHER, link recusado, auditado, entrega pendente aposentada", async () => {
+    it("CANCELLED com motivo MANAGER (027), link recusado, auditado, entrega pendente aposentada", async () => {
       t.mailer.setFailing(true);
       const { id } = await invite("aluno@example.test");
       const token = t.mailer.failed.at(-1)!.text.match(/token=([\w-]+)/)![1]!;
@@ -215,13 +216,13 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       const res = await cancel(id);
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ id, status: "CANCELLED" });
-      expect(await row(id)).toMatchObject({ status: "CANCELLED", cancelReason: "TEACHER", cancelledById: teacher.id });
+      expect(await row(id)).toMatchObject({ status: "CANCELLED", cancelReason: "MANAGER", cancelledById: teacher.id });
       expect((await preview(token)).body.code).toBe("TOKEN_INVALID");
       expect((await t.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitationId: id } })).status).toBe(
         "SUPERSEDED",
       );
       expect(await t.prisma.auditEvent.findMany({ where: { type: "class_invitation.cancelled" } })).toMatchObject([
-        { actorUserId: teacher.id, targetId: id, metadata: { classId: schoolClass.id, reason: "TEACHER" } },
+        { actorUserId: teacher.id, targetId: id, metadata: { cohortId: schoolClass.cohortId, reason: "MANAGER" } },
       ]);
     });
   });
@@ -250,15 +251,15 @@ describe("003/US5 — professor acompanha, reenvia e cancela convites (FR-020–
       },
     );
 
-    it("convite de outra turma do mesmo professor ou de outro professor → 404", async () => {
+    it("convite de outra turma → 404; professor → 403", async () => {
       const other = await createClass(t, teacher.id, { code: "OUTRA" });
       const { invitation } = await createClassInvitation(t, other.id, "aluno@example.test");
       expect((await resend(invitation.id)).status).toBe(404);
       expect((await cancel(invitation.id)).status).toBe(404);
 
       const stranger = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["TEACHER"] })) });
-      const url = `/api/classes/${other.id}/invitations/${invitation.id}/cancel`;
-      expect((await stranger.post(url, {})).status).toBe(404);
+      const url = `/api/cohorts/${other.cohortId}/invitations/${invitation.id}/cancel`;
+      expect((await stranger.post(url, {})).status).toBe(403);
       expect((await row(invitation.id)).status).toBe("PENDING");
     });
   });

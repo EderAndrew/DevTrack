@@ -19,13 +19,17 @@ import { ClassesService } from "./classes.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
 
-/** A teacher's own classes (003 contracts/http-api.md, "Turmas"); other teachers' classes are 404. */
+/**
+ * A teacher's own classes (003 contracts/http-api.md, "Turmas"); other teachers' classes are 404.
+ * 027: the teacher's routes take the `disciplinas_turma.*` capabilities; the create adds a disciplina da turma
+ * (an own subject on a MANAGER's turma, US3); the turma itself is the MANAGER's (`/cohorts`).
+ */
 @Controller("classes")
 export class ClassesController {
   constructor(private readonly classes: ClassesService) {}
 
   @Get()
-  @RequirePermissions("turmas.visualizar")
+  @RequirePermissions("disciplinas_turma.visualizar")
   list(
     @Query(new ZodValidationPipe(ClassListQuerySchema)) query: ClassListQuery,
     @Ctx() ctx: RequestContext,
@@ -34,19 +38,19 @@ export class ClassesController {
   }
 
   @Post()
-  @RequirePermissions("turmas.criar")
+  @RequirePermissions("disciplinas_turma.criar")
   create(@ZodBody(CreateClassRequestSchema) body: CreateClassRequest, @Ctx() ctx: RequestContext): Promise<ClassView> {
     return this.classes.create(ctx.auth!, body, ctx.requestId);
   }
 
   @Get(":id")
-  @RequirePermissions("turmas.visualizar")
+  @RequirePermissions("disciplinas_turma.visualizar")
   get(@Param("id", idPipe) id: string, @Ctx() ctx: RequestContext): Promise<ClassView> {
     return this.classes.get(ctx.auth!.userId, id);
   }
 
   @Patch(":id")
-  @RequirePermissions("turmas.editar")
+  @RequirePermissions("disciplinas_turma.editar")
   update(
     @Param("id", idPipe) id: string,
     @ZodBody(UpdateClassRequestSchema) body: UpdateClassRequest,
@@ -56,7 +60,7 @@ export class ClassesController {
   }
 
   @Post(":id/status")
-  @RequirePermissions("turmas.alterar_situacao")
+  @RequirePermissions("disciplinas_turma.alterar_situacao")
   @HttpCode(200)
   changeStatus(
     @Param("id", idPipe) id: string,

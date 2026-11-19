@@ -67,7 +67,17 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   page is visible; there are no WebSockets. The answering page reads the pause from the activity and a
   `409 ATTEMPT_PAUSED` on save, so a pause opened elsewhere (another device, the teacher) takes the questions off
   the screen. Exercises never show "Chamada" or "Sair da sala".
-- Invitation e-mail status (017): the class tab (`features/classes/components/class-invitations-tab.tsx`) and the
+- Turmas (027): the MANAGER's "Turmas" is `/gestao/turmas` (`features/cohorts`: `CohortList` with search and year/situation
+  filters, `CohortForm`, `CohortPage` with `CohortStatusActions` and the tabs Alunos (`CohortStudentsTab`, "Encerrar
+  matrícula"), Convites (`CohortInvitationsTab`) and Disciplinas, and `AddStudent`: one e-mail field that calls the
+  lookup and offers "Incluir na turma", "Enviar convite" or "Esse aluno já está na turma.", announced in `role="status"`).
+  The teacher's `/turmas` (`features/classes`) lists their disciplinas da turma as "<disciplina> · <turma>"; `/turmas/nova`
+  (`AddClass`) searches the cohort directory, picks an own active subject and optional calendar dates ("Turma não
+  encontrada. Peça ao gestor que a crie."); the class's "Alunos" tab is read-only and "Encerrar disciplina"/"Arquivar
+  disciplina" show only with the API's `canChangeStatus` (after the calendar), never a date computed in the browser.
+  "Minhas turmas" (`features/my-classes`) is grouped by ano letivo with "Encerrada"/"Arquivada" by effective status, and
+  the 026 card offers only effectively ACTIVE classes. Names of turmas, subjects and teachers are text, never HTML.
+- Invitation e-mail status (017): the turma's tab (`features/cohorts/components/cohort-invitations-tab.tsx`, 027) and the
   teacher and manager lists show, only next to a PENDING invitation, `DeliveryStatus`
   (`features/invitations/components/delivery-status.tsx`): "Enviando", "Envio falhou", or the badge "Não entregue"
   with the reason in words (never colour alone), from the API's `delivery`/`deliveryIssue`; nothing once sent.

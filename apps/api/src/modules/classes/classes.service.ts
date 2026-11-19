@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type {
   ClassListQuery,
   ClassPage,
@@ -8,12 +8,14 @@ import type {
   UpdateClassRequest,
 } from "@repo/contracts";
 import { Prisma } from "../../generated/prisma/client";
+import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import {
-  classCodeTaken,
-  classSubjectLocked,
+  classCalendarNotEnded,
+  classSubjectDuplicate,
+  cohortNotActive,
   invalidStateTransition,
   meetingsOutsidePeriod,
   notFound,
@@ -22,9 +24,11 @@ import {
 import type { AuthContext } from "../../platform/http/request-context";
 import { searchKey } from "../../platform/text/search-key";
 import { AuditService } from "../audit/audit.service";
+import { planningToday } from "../class-plans/planning-date";
 import { SubjectContextPolicy } from "../subjects/subject-context.policy";
 import { ClassContextPolicy } from "./class-context.policy";
 import { ClassStateMachine } from "./class.state-machine";
+import { canCloseClass } from "./close-rule";
 import { CLASS_VIEW_SELECT, isoDate, toClassView } from "./class.view";
 
 export const CLASSES_PAGE_SIZE = 20;
@@ -32,29 +36,25 @@ export const CLASSES_PAGE_SIZE = 20;
 /** Statuses listed when the filter is absent (FR-007): archived classes only on request. */
 const DEFAULT_STATUSES: ClassStatus[] = ["ACTIVE", "INACTIVE"];
 
-/** The 003 fields, audited as `class.updated` (003 contract, unchanged). */
-type EditableField = Exclude<keyof UpdateClassRequest, "subjectId" | "startsOn" | "endsOn">;
-const EDITABLE_FIELDS: readonly EditableField[] = ["name", "code", "academicYear", "period", "description"];
+/** The calendar dates, the only fields a teacher edits (027 FR-019: the turma and the subject never change). */
+type OfferingField = "startsOn" | "endsOn";
+const OFFERING_FIELDS: readonly OfferingField[] = ["startsOn", "endsOn"];
 
-/**
- * The 004 offering fields, audited as `class.offering_updated`. `period` belongs to both
- * catalogues (003 `class.updated`, 004 `class.offering_updated`), so a change of period is
- * recorded in both events.
- */
-type OfferingField = "subjectId" | "period" | "startsOn" | "endsOn";
-const OFFERING_FIELDS: readonly OfferingField[] = ["subjectId", "period", "startsOn", "endsOn"];
+/** The only unique index a create can hit is `classes_cohort_subject_key` (FR-018). */
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
 /** A `@db.Date` value from the contract's "YYYY-MM-DD" (null stays null). */
 const toDbDate = (value: string | null | undefined) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
-
-/** The only unique index an insert or update of `classes` can hit is `(teacher_id, upper(code))`. */
-const isUniqueViolation = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
 /**
  * A teacher's classes (003 US1, FR-001–FR-008). The teacher always comes from the session,
  * never from the request; every lookup by id goes through `ClassContextPolicy`, so another
  * teacher's class is a plain 404 (D7).
+ *
+ * 027: a class is the disciplina da turma; its turma's data come from the cohort. The teacher creates one by
+ * adding an own ACTIVE subject to an ACTIVE turma (US3, research Q10); the edit takes only the calendar dates (FR-019); the status route changes only the class's own status and
+ * no longer touches invitations, which belong to the cohort.
  */
 @Injectable()
 export class ClassesService {
@@ -63,7 +63,12 @@ export class ClassesService {
     private readonly context: ClassContextPolicy,
     private readonly subjects: SubjectContextPolicy,
     private readonly audit: AuditService,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  private today(): string {
+    return planningToday(this.clock.now());
+  }
 
   /** Keyset page, newest first; search on `search_key` ignores case and accents (D10). */
   async list(teacherId: string, { query, year, status, subjectId, cursor }: ClassListQuery): Promise<ClassPage> {
@@ -73,9 +78,15 @@ export class ClassesService {
       where: {
         teacherId,
         status: status ?? { in: DEFAULT_STATUSES },
-        ...(year !== undefined ? { academicYear: year } : {}),
+        ...(year !== undefined || term
+          ? {
+              cohort: {
+                ...(year !== undefined ? { academicYear: year } : {}),
+                ...(term ? { searchKey: { contains: escapeLike(term) } } : {}),
+              },
+            }
+          : {}),
         ...(subjectId ? { subjectId } : {}),
-        ...(term ? { searchKey: { contains: escapeLike(term) } } : {}),
         ...(after ? { AND: [afterCursor(after)] } : {}),
       },
       select: CLASS_VIEW_SELECT,
@@ -84,7 +95,7 @@ export class ClassesService {
     });
     const page = rows.slice(0, CLASSES_PAGE_SIZE);
     return {
-      items: page.map(toClassView),
+      items: page.map((row) => toClassView(row, this.today())),
       nextCursor: rows.length > CLASSES_PAGE_SIZE ? encodeCursor(page.at(-1)!) : null,
     };
   }
@@ -92,32 +103,33 @@ export class ClassesService {
   async get(teacherId: string, classId: string, db: Tx = this.prisma): Promise<ClassView> {
     const row = await db.schoolClass.findFirst({ where: { id: classId, teacherId }, select: CLASS_VIEW_SELECT });
     if (!row) throw notFound();
-    return toClassView(row);
+    return toClassView(row, this.today());
   }
 
-  /** Number of ACTIVE enrollments of a class (FR-008). */
-  activeStudentCount(classId: string, db: Tx = this.prisma): Promise<number> {
-    return db.enrollment.count({ where: { classId, status: "ACTIVE" } });
-  }
-
+  /**
+   * 027 FR-017/FR-018, research Q10: the subject must be the teacher's (else 404) and ACTIVE (`409
+   * SUBJECT_INACTIVE`); the turma must exist (404) and be ACTIVE (`409 COHORT_NOT_ACTIVE`), read under
+   * `FOR SHARE` so a concurrent archive (`FOR UPDATE`) waits for this insert or makes it see the archive; a second
+   * disciplina with the same subject in the turma hits the partial UNIQUE → `409 CLASS_SUBJECT_DUPLICATE`.
+   */
   async create(auth: AuthContext, input: CreateClassRequest, requestId: string | null): Promise<ClassView> {
     try {
       return await this.prisma.runInTransaction(async (tx) => {
-        if (input.subjectId) await this.assertSubjectOffered(tx, auth.userId, input.subjectId);
+        await this.assertSubjectOffered(tx, auth.userId, input.subjectId);
+        const [cohort] = await tx.$queryRaw<{ status: ClassStatus }[]>`
+          SELECT status FROM cohorts WHERE id = ${input.cohortId}::uuid FOR SHARE`;
+        if (!cohort) throw notFound();
+        if (cohort.status !== "ACTIVE") throw cohortNotActive();
+
         const row = await tx.schoolClass.create({
           data: {
             teacherId: auth.userId,
-            name: input.name,
-            code: input.code,
-            academicYear: input.academicYear,
-            period: input.period || null,
-            description: input.description || null,
-            searchKey: searchKey(input.name, input.code),
-            subjectId: input.subjectId ?? null,
+            cohortId: input.cohortId,
+            subjectId: input.subjectId,
             startsOn: toDbDate(input.startsOn),
             endsOn: toDbDate(input.endsOn),
           },
-          select: CLASS_VIEW_SELECT,
+          select: { id: true },
         });
         await this.audit.record(tx, {
           type: "class.created",
@@ -126,128 +138,60 @@ export class ClassesService {
           targetType: "CLASS",
           targetId: row.id,
           requestId,
-          metadata: { code: row.code, academicYear: row.academicYear },
+          metadata: { cohortId: input.cohortId, subjectId: input.subjectId },
         });
-        return toClassView(row);
+        return this.get(auth.userId, row.id, tx);
       });
     } catch (error) {
-      if (isUniqueViolation(error)) throw classCodeTaken();
+      if (isUniqueViolation(error)) throw classSubjectDuplicate();
       throw error;
     }
   }
 
-  /** Edits ACTIVE or INACTIVE classes (FR-003); the audit keeps the names of the changed fields only. */
-  async update(
-    auth: AuthContext,
-    classId: string,
-    input: UpdateClassRequest,
-    requestId: string | null,
-  ): Promise<ClassView> {
-    try {
-      return await this.prisma.runInTransaction(async (tx) => {
-        const current = await this.lockOwned(tx, auth.userId, classId);
-        if (current.status === "ARCHIVED") throw invalidStateTransition();
+  /** Edits the calendar of an ACTIVE or INACTIVE class (004 rules); the audit keeps the changed fields only. */
+  async update(auth: AuthContext, classId: string, input: UpdateClassRequest, requestId: string | null): Promise<ClassView> {
+    return this.prisma.runInTransaction(async (tx) => {
+      const current = await this.lockOwned(tx, auth.userId, classId);
+      if (current.status === "ARCHIVED") throw invalidStateTransition();
+      const offering = { startsOn: input.startsOn, endsOn: input.endsOn };
+      const currentOffering = { startsOn: isoDate(current.startsOn), endsOn: isoDate(current.endsOn) };
+      const offeringFields = OFFERING_FIELDS.filter((field) => offering[field] !== currentOffering[field]);
+      if (offeringFields.length === 0) return this.get(auth.userId, classId, tx);
 
-        const next = {
-          name: input.name ?? current.name,
-          code: input.code ?? current.code,
-          academicYear: input.academicYear ?? current.academicYear,
-          period: input.period === undefined ? current.period : input.period || null,
-          description: input.description === undefined ? current.description : input.description || null,
-        };
-        // The contract sends both dates or neither, so the pair stays consistent.
-        const offering = {
-          subjectId: input.subjectId === undefined ? current.subjectId : input.subjectId,
-          period: next.period,
-          startsOn: input.startsOn === undefined ? isoDate(current.startsOn) : input.startsOn,
-          endsOn: input.endsOn === undefined ? isoDate(current.endsOn) : input.endsOn,
-        };
-        const currentOffering = {
-          subjectId: current.subjectId,
-          period: current.period,
-          startsOn: isoDate(current.startsOn),
-          endsOn: isoDate(current.endsOn),
-        };
-        const fields = EDITABLE_FIELDS.filter((field) => next[field] !== current[field]);
-        const offeringFields = OFFERING_FIELDS.filter((field) => offering[field] !== currentOffering[field]);
-        if (fields.length === 0 && offeringFields.length === 0) return this.get(auth.userId, classId, tx);
-
-        if (offeringFields.includes("subjectId")) {
-          // FR-004: once the class selected a syllabus (it has a plan, so possibly topics), its subject stays.
-          if (await tx.classPlan.count({ where: { classId } })) throw classSubjectLocked();
-          // SUBJECT_INACTIVE only when the subject changes: a class keeps its inactive subject.
-          if (offering.subjectId) await this.assertSubjectOffered(tx, auth.userId, offering.subjectId);
-        }
-        if (offeringFields.includes("startsOn") || offeringFields.includes("endsOn")) {
-          await this.assertMeetingsInside(tx, classId, offering.startsOn, offering.endsOn);
-        }
-
-        await tx.schoolClass.update({
-          where: { id: classId },
-          data: {
-            ...next,
-            searchKey: searchKey(next.name, next.code),
-            subjectId: offering.subjectId,
-            startsOn: toDbDate(offering.startsOn),
-            endsOn: toDbDate(offering.endsOn),
-          },
-        });
-        if (fields.length > 0) {
-          await this.audit.record(tx, {
-            type: "class.updated",
-            actorType: "USER",
-            actorUserId: auth.userId,
-            targetType: "CLASS",
-            targetId: classId,
-            requestId,
-            metadata: { fields },
-          });
-        }
-        if (offeringFields.length > 0) {
-          await this.audit.record(tx, {
-            type: "class.offering_updated",
-            actorType: "USER",
-            actorUserId: auth.userId,
-            targetType: "CLASS",
-            targetId: classId,
-            requestId,
-            metadata: { fields: offeringFields, subjectId: offering.subjectId },
-          });
-        }
-        return this.get(auth.userId, classId, tx);
+      await this.assertMeetingsInside(tx, classId, offering.startsOn, offering.endsOn);
+      await tx.schoolClass.update({
+        where: { id: classId },
+        data: { startsOn: toDbDate(offering.startsOn), endsOn: toDbDate(offering.endsOn) },
       });
-    } catch (error) {
-      if (isUniqueViolation(error)) throw classCodeTaken();
-      throw error;
-    }
+      await this.audit.record(tx, {
+        type: "class.offering_updated",
+        actorType: "USER",
+        actorUserId: auth.userId,
+        targetType: "CLASS",
+        targetId: classId,
+        requestId,
+        metadata: { fields: offeringFields, subjectId: current.subjectId },
+      });
+      return this.get(auth.userId, classId, tx);
+    });
   }
 
   /**
-   * FR-004, FR-005: the same status is a no-op; any other change follows `ClassStateMachine`.
-   * Archiving cancels the class's pending invitations in the same transaction (the stale ones
-   * are recorded as EXPIRED, as the token would do) and keeps the enrollments.
+   * 027 FR-022, research Q5: the teacher changes the class's **own** status only after the last day of its calendar
+   * (`canCloseClass` with "today" of the injected clock in America/Sao_Paulo; without a calendar never →
+   * `409 CLASS_CALENDAR_NOT_ENDED`); a class of an ARCHIVED cohort never changes (`409 INVALID_STATE_TRANSITION`).
+   * Then, as in 003 FR-004, the same status is a no-op and any other change follows `ClassStateMachine` (ARCHIVED is
+   * final). The invitations belong to the cohort, so nothing else changes here.
    */
   async changeStatus(auth: AuthContext, classId: string, to: ClassStatus, requestId: string | null): Promise<ClassView> {
     return this.prisma.runInTransaction(async (tx) => {
       const current = await this.lockOwned(tx, auth.userId, classId);
-      if (current.status === to) return this.get(auth.userId, classId, tx);
-      ClassStateMachine.assertTransition(current.status, to);
+      if (current.cohort.status === "ARCHIVED") throw invalidStateTransition();
+      if (!canCloseClass(current, this.today())) throw classCalendarNotEnded();
+      if (current.ownStatus === to) return this.get(auth.userId, classId, tx);
+      ClassStateMachine.assertTransition(current.ownStatus, to);
 
-      const now = new Date();
-      let cancelledInvitations: number | undefined;
-      if (to === "ARCHIVED") {
-        await tx.classInvitation.updateMany({
-          where: { classId, status: "PENDING", expiresAt: { lte: now } },
-          data: { status: "EXPIRED" },
-        });
-        const cancelled = await tx.classInvitation.updateMany({
-          where: { classId, status: "PENDING" },
-          data: { status: "CANCELLED", cancelledAt: now, cancelledById: auth.userId, cancelReason: "CLASS_ARCHIVED" },
-        });
-        cancelledInvitations = cancelled.count;
-      }
-
-      await tx.schoolClass.update({ where: { id: classId }, data: { status: to, statusChangedAt: now } });
+      await tx.schoolClass.update({ where: { id: classId }, data: { status: to, statusChangedAt: this.clock.now() } });
       await this.audit.record(tx, {
         type: "class.status_changed",
         actorType: "USER",
@@ -255,7 +199,7 @@ export class ClassesService {
         targetType: "CLASS",
         targetId: classId,
         requestId,
-        metadata: { from: current.status, to, cancelledInvitations },
+        metadata: { from: current.ownStatus, to },
       });
       return this.get(auth.userId, classId, tx);
     });

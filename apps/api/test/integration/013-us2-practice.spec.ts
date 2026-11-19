@@ -405,7 +405,7 @@ describe("013/US2 aluno pratica, conclui e vê gabarito e pontos", () => {
 
     it("013/FR-005 matrícula removida com tentativa aberta: 404 e nada pontua", async () => {
       const view = await start();
-      await t.prisma.enrollment.updateMany({ where: { classId, studentUserId: students[0]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
+      await t.prisma.enrollment.updateMany({ where: { cohort: { classes: { some: { id: classId } } }, studentUserId: students[0]!.id }, data: { status: "REMOVED", removedAt: new Date() } });
       expect((await completeAttempt(student, activityId, 1, answersFor(view))).status).toBe(404);
       expect((await getExerciseAttempt(student, activityId, 1)).status).toBe(404);
       expect(await results()).toEqual([]);

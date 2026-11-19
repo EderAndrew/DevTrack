@@ -1,7 +1,7 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { WEB_URL } from "./env.ts";
 import { unique } from "./fixtures/curriculum.ts";
-import { type Account, field, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
+import { type Account, field, inviteThroughApi, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
@@ -14,9 +14,9 @@ const localInput = (date: Date) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-/** Students of the class through its invitations (003 FR-048), each with the e-mail's token, all through the API. */
-async function enroll(browser: Browser, teacherPage: Page, classId: string, accounts: Account[]): Promise<void> {
-  for (const account of accounts) await apiPost(teacherPage, `/classes/${classId}/invitations`, { email: account.email });
+/** Students of the turma through its invitations (003 FR-048; the run's ADMIN invites since 027), each with the e-mail's token, all through the API. */
+async function enroll(browser: Browser, cohortId: string, accounts: Account[]): Promise<void> {
+  await inviteThroughApi(browser, cohortId, accounts.map((account) => account.email));
   const context = await browser.newContext();
   for (const account of accounts) {
     const token = new URL(await waitForLink(account.email, { path: "/convite-turma", timeoutMs: 60_000 })).searchParams.get("token")!;
@@ -51,7 +51,7 @@ test.describe("023 trabalho em grupo", () => {
     davi = newAccount("grupo-davi", `Davi do Grupo ${suffix}`);
     const teacherPage = await (await browser.newContext()).newPage();
     await logIn(teacherPage, seed.teacher, "/disciplinas");
-    await enroll(browser, teacherPage, seed.classId, [bruno, carla, davi]);
+    await enroll(browser, seed.cohortId, [bruno, carla, davi]);
     await teacherPage.context().close();
   });
 

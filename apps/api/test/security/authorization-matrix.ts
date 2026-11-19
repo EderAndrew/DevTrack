@@ -40,7 +40,7 @@ const MANAGERS = [
 
 const SESSOES = ["sessoes.proprias.listar", "sessoes.proprias.revogar"] as const satisfies PermissionKey[];
 
-/** 003: the teacher's class permissions (MANAGER and ADMIN get none). */
+/** 003 keys; since 027 the turma's (the cohort's), held by MANAGER and ADMIN, with `turmas.incluir_aluno` (FR-034). */
 const TURMAS = [
   "turmas.criar",
   "turmas.visualizar",
@@ -51,6 +51,17 @@ const TURMAS = [
   "turmas.cancelar_convite",
   "turmas.visualizar_alunos",
   "turmas.remover_aluno",
+  "turmas.incluir_aluno",
+] as const satisfies PermissionKey[];
+
+/** 027: the teacher's disciplina da turma and the search of active turmas (FR-016). */
+const DISCIPLINAS_TURMA = [
+  "turmas.buscar",
+  "disciplinas_turma.visualizar",
+  "disciplinas_turma.criar",
+  "disciplinas_turma.editar",
+  "disciplinas_turma.alterar_situacao",
+  "disciplinas_turma.visualizar_alunos",
 ] as const satisfies PermissionKey[];
 
 /** 004: subjects, syllabus, calendar and class plan — TEACHER only (MANAGER and ADMIN get none). */
@@ -153,9 +164,10 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
     "usuarios.reativar",
     ...AI_OPERATIONS,
     ...FEEDBACK_ADMIN,
+    ...TURMAS,
   ],
-  MANAGER: [...SESSOES, ...PROFESSORES],
-  TEACHER: [...SESSOES, ...TURMAS, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
+  MANAGER: [...SESSOES, ...PROFESSORES, ...TURMAS],
+  TEACHER: [...SESSOES, ...DISCIPLINAS_TURMA, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
   STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT, ...FEEDBACK_STUDENT],
 };
 
@@ -203,17 +215,30 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "POST", path: "/users/:id/suspend", access: "usuarios.suspender" },
   { method: "POST", path: "/users/:id/reactivate", access: "usuarios.reativar" },
 
-  { method: "GET", path: "/classes", access: "turmas.visualizar" },
-  { method: "POST", path: "/classes", access: "turmas.criar" },
-  { method: "GET", path: "/classes/:id", access: "turmas.visualizar" },
-  { method: "PATCH", path: "/classes/:id", access: "turmas.editar" },
-  { method: "POST", path: "/classes/:id/status", access: "turmas.alterar_situacao" },
-  { method: "GET", path: "/classes/:id/invitations", access: "turmas.visualizar" },
-  { method: "POST", path: "/classes/:id/invitations", access: "turmas.convidar_aluno" },
-  { method: "POST", path: "/classes/:id/invitations/:invitationId/resend", access: "turmas.reenviar_convite" },
-  { method: "POST", path: "/classes/:id/invitations/:invitationId/cancel", access: "turmas.cancelar_convite" },
-  { method: "GET", path: "/classes/:id/enrollments", access: "turmas.visualizar_alunos" },
-  { method: "POST", path: "/classes/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
+  // 027 — the MANAGER's turma (US1).
+  { method: "GET", path: "/cohorts", access: "turmas.visualizar" },
+  { method: "POST", path: "/cohorts", access: "turmas.criar" },
+  { method: "GET", path: "/cohorts/:id", access: "turmas.visualizar" },
+  { method: "PATCH", path: "/cohorts/:id", access: "turmas.editar" },
+  { method: "POST", path: "/cohorts/:id/status", access: "turmas.alterar_situacao" },
+  // 027 — the MANAGER's invitations and students of a turma (US2).
+  { method: "GET", path: "/cohorts/:id/invitations", access: "turmas.visualizar" },
+  { method: "POST", path: "/cohorts/:id/invitations", access: "turmas.convidar_aluno" },
+  { method: "POST", path: "/cohorts/:id/invitations/:invitationId/resend", access: "turmas.reenviar_convite" },
+  { method: "POST", path: "/cohorts/:id/invitations/:invitationId/cancel", access: "turmas.cancelar_convite" },
+  { method: "GET", path: "/cohorts/:id/enrollments", access: "turmas.visualizar_alunos" },
+  { method: "POST", path: "/cohorts/:id/student-lookup", access: "turmas.incluir_aluno" },
+  { method: "POST", path: "/cohorts/:id/enrollments", access: "turmas.incluir_aluno" },
+  // 027 — the MANAGER ends an enrollment in the turma (US5).
+  { method: "POST", path: "/cohorts/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
+  // 027: the teacher's routes of the disciplina da turma.
+  { method: "GET", path: "/cohort-directory", access: "turmas.buscar" },
+  { method: "GET", path: "/classes", access: "disciplinas_turma.visualizar" },
+  { method: "POST", path: "/classes", access: "disciplinas_turma.criar" },
+  { method: "GET", path: "/classes/:id", access: "disciplinas_turma.visualizar" },
+  { method: "PATCH", path: "/classes/:id", access: "disciplinas_turma.editar" },
+  { method: "POST", path: "/classes/:id/status", access: "disciplinas_turma.alterar_situacao" },
+  { method: "GET", path: "/classes/:id/enrollments", access: "disciplinas_turma.visualizar_alunos" },
   { method: "GET", path: "/me/classes", access: "turmas.proprias.listar" },
 
   { method: "GET", path: "/subjects", access: "disciplinas.visualizar" },

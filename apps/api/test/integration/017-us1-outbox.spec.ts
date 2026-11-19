@@ -37,7 +37,8 @@ describe("017/US1 todo e-mail sobrevive a uma falha de envio", () => {
     t.mailer.setFailing(false);
     admin = await createUser(t, { roles: ["ADMIN"], name: "Admin Jornada" });
     manager = await createUser(t, { roles: ["MANAGER"], name: "Gestora" });
-    teacher = await createUser(t, { roles: ["TEACHER"], name: "Professora Ada" });
+    // 027: the class invitation is the MANAGER's; this account also teaches the class it invites to.
+    teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"], name: "Professora Ada" });
   });
 
   const deliveries = (kind?: MailKind) => t.prisma.mailDelivery.findMany({ where: kind ? { kind } : {}, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
@@ -129,7 +130,7 @@ describe("017/US1 todo e-mail sobrevive a uma falha de envio", () => {
       async request() {
         const email = uniqueEmail("aluno-convidado");
         const schoolClass = await createClass(t, teacher.id);
-        const res = await api(t, { cookie: await loginAs(t, teacher) }).post(`/api/classes/${schoolClass.id}/invitations`, { email });
+        const res = await api(t, { cookie: await loginAs(t, teacher) }).post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email });
         expect(res.status).toBe(201);
         return { email, subjectId: res.body.id as string };
       },
@@ -302,13 +303,13 @@ describe("017/US1 todo e-mail sobrevive a uma falha de envio", () => {
     expect(await t.prisma.mailDelivery.count()).toBe(0);
   });
 
-  it("017/US1-7 o professor vê a mesma situação do convite de turma, e a nova tentativa não muda prazo nem contagem (003 FR-015)", async () => {
+  it("017/US1-7 o gestor vê a mesma situação do convite de turma, e a nova tentativa não muda prazo nem contagem (003 FR-015)", async () => {
     t.mailer.setFailing(true);
     const { subjectId } = await kinds[4]!.request();
     await t.flushMail();
     const before = await t.prisma.classInvitation.findUniqueOrThrow({ where: { id: subjectId } });
     const cookie = await loginAs(t, teacher);
-    const list = async () => (await api(t, { cookie }).get(`/api/classes/${before.classId}/invitations`)).body.items[0];
+    const list = async () => (await api(t, { cookie }).get(`/api/cohorts/${before.cohortId}/invitations`)).body.items[0];
     expect(await list()).toMatchObject({ delivery: "SENDING", deliveryIssue: null });
 
     t.mailer.setFailing(false);
@@ -401,12 +402,12 @@ describe("017/FR-008 limite de envios por minuto", () => {
       },
     });
     await resetDb(t.prisma);
-    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    const teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"] });
     const schoolClass = await createClass(t, teacher.id);
     const client = api(t, { cookie: await loginAs(t, teacher) });
     for (let batch = 0; batch < 10; batch += 1) {
       const responses = await Promise.all(
-        Array.from({ length: 20 }, (_, i) => client.post(`/api/classes/${schoolClass.id}/invitations`, { email: `aluno-${batch}-${i}@limite.test` })),
+        Array.from({ length: 20 }, (_, i) => client.post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: `aluno-${batch}-${i}@limite.test` })),
       );
       expect(responses.map((res) => res.status)).toEqual(responses.map(() => 201));
     }

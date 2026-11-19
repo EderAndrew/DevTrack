@@ -12,6 +12,7 @@ describe("proxy (UX only)", () => {
       "/admin/:path*",
       "/professores/:path*",
       "/turmas/:path*",
+      "/gestao/:path*",
       "/disciplinas/:path*",
       "/exercicios/:path*",
       "/trabalhos/:path*",

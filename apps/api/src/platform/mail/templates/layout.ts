@@ -13,8 +13,8 @@ export interface MailContent {
   paragraphs: string[];
   /** The one action: a link styled as a button and written out (017/FR-022). */
   action: { label: string; url: string };
-  /** Until when the link works. */
-  expiry: string;
+  /** Until when the link works; absent when the link does not expire (027 enrollment notice). */
+  expiry?: string;
   /** Why this address got the e-mail, opening the footer. */
   reason: string;
 }
@@ -44,7 +44,7 @@ function renderText(content: MailContent): string {
     content.heading,
     ...content.paragraphs,
     `${content.action.label}: ${content.action.url}`,
-    content.expiry,
+    ...(content.expiry ? [content.expiry] : []),
     `${content.reason} ${IGNORE}\n${SIGNATURE}`,
   ].join("\n\n");
 }
@@ -69,7 +69,7 @@ function renderHtml(content: MailContent): string {
       `<p style="margin:0;${SMALL}">${escapeHtml(LINK_HINT)}<br>` +
         `<a href="${url}" style="color:${c.primary};word-break:break-all;">${url}</a></p>`,
     ),
-    row(paragraph(content.expiry, SMALL)),
+    ...(content.expiry ? [row(paragraph(content.expiry, SMALL))] : []),
     row(
       `<p style="margin:0;padding-top:16px;border-top:1px solid ${c.border};${SMALL}">` +
         `${escapeHtml(content.reason)} ${escapeHtml(IGNORE)}<br>${escapeHtml(SIGNATURE)}</p>`,

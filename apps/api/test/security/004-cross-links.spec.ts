@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createClass,
+  createCohort,
   createConfirmedRevision,
   createSubject,
   createSyllabusDocument,
@@ -46,16 +47,11 @@ describe("004/US8-3 ligações cruzadas recusadas sem efeito", () => {
 
   const planRevision = async () => (await t.prisma.classPlan.findUniqueOrThrow({ where: { id: mine.planId } })).revision;
 
-  it("turma própria com disciplina alheia (criar e editar) → 404", async () => {
-    await refused(
-      () =>
-        client.post("/api/classes", { name: "Invasora", code: "INV-1", academicYear: 2027, subjectId: theirs.subjectId, ...PERIOD }),
-      404,
-      "NOT_FOUND",
-    );
-    // A class without a plan yet, so FR-004 does not lock its subject.
+  it("turma própria com disciplina alheia (criar) → 404; a disciplina não muda mais (027/FR-019)", async () => {
+    const cohort = await createCohort(t);
+    await refused(() => client.post("/api/classes", { cohortId: cohort.id, subjectId: theirs.subjectId, ...PERIOD }), 404, "NOT_FOUND");
     const fresh = await createClass(t, owner.id);
-    await refused(() => client.patch(`/api/classes/${fresh.id}`, { subjectId: theirs.subjectId }), 404, "NOT_FOUND");
+    await refused(() => client.patch(`/api/classes/${fresh.id}`, { subjectId: theirs.subjectId }), 400, "VALIDATION_ERROR");
   });
 
   it("seleção de revisão alheia, ou de outra disciplina própria, para o planejamento → 404", async () => {

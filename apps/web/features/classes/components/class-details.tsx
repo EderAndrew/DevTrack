@@ -9,24 +9,25 @@ import { formatDate } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClass } from "../hooks/use-classes";
 import { ClassStatusActions } from "./class-status-actions";
+import { classLabel } from "../schemas/class-label";
 import { ClassStatusBadge } from "./class-status-badge";
-import { InviteStudentDialog } from "./invite-student-dialog";
 
 export interface ClassDetailsProps {
   id: string;
-  /** UX only (the API authorizes): which actions to offer. */
+  /** UX only (the API authorizes): "Editar calendário" (`disciplinas_turma.editar`). */
   canEdit: boolean;
+  /** UX only: "Encerrar disciplina"/"Arquivar disciplina" (`disciplinas_turma.alterar_situacao`), shown with `canChangeStatus`. */
   canChangeStatus: boolean;
-  /** "Convidar aluno", offered only while the class is ACTIVE (FR-010). */
-  canInvite: boolean;
 }
 
 /**
- * Header of every class page (FR-008): data, the offering (subject, dates; 004/US1-3), status,
- * number of active students and the actions ("Convidar aluno", Editar, status changes). The
- * sections (Alunos, Convites, …) are routes below it, reached through `ClassTabs`.
+ * Header of every page of a disciplina da turma (003 FR-008; 027/FR-021): "<disciplina> · <turma>", the turma's
+ * code, year and period, the calendar (004/US1-3), the effective status, the number of active students and the
+ * actions — "Editar calendário" and, only after the calendar's last day (`canChangeStatus` of the API, FR-022), the
+ * status actions. No invitation, removal or edit of the turma: those are the MANAGER's. The sections (Alunos, …) are
+ * routes below it, reached through `ClassTabs`.
  */
-export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassDetailsProps) {
+export function ClassDetails({ id, canEdit, canChangeStatus }: ClassDetailsProps) {
   const query = useClass(id);
 
   if (query.isPending) {
@@ -50,37 +51,41 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
   }
 
   const schoolClass = query.data;
-  const archived = schoolClass.status === "ARCHIVED";
+  const title = classLabel(schoolClass);
+  const archived = schoolClass.effectiveStatus === "ARCHIVED";
+  const showEdit = canEdit && !archived;
+  const showStatus = canChangeStatus && schoolClass.canChangeStatus && !archived;
   const actions =
-    (canInvite && schoolClass.status === "ACTIVE") || (canEdit && !archived) || canChangeStatus ? (
+    showEdit || showStatus ? (
       <>
-        {canInvite && schoolClass.status === "ACTIVE" ? <InviteStudentDialog classId={schoolClass.id} /> : null}
-        {canEdit && !archived ? (
+        {showEdit ? (
           <Button asChild variant="secondary">
             <Link href={`/turmas/${schoolClass.id}/editar`}>
               <Pencil aria-hidden="true" />
-              Editar
+              Editar calendário
             </Link>
           </Button>
         ) : null}
-        {canChangeStatus ? <ClassStatusActions schoolClass={schoolClass} /> : null}
+        {showStatus ? <ClassStatusActions schoolClass={schoolClass} /> : null}
       </>
     ) : null;
 
   return (
     <div>
       <PageHeader
-        breadcrumb={[{ label: "Turmas", href: "/turmas" }, { label: schoolClass.name }]}
-        title={schoolClass.name}
-        status={<ClassStatusBadge status={schoolClass.status} />}
+        breadcrumb={[{ label: "Turmas", href: "/turmas" }, { label: title }]}
+        title={title}
+        status={<ClassStatusBadge status={schoolClass.effectiveStatus} />}
         actions={actions}
         className="mb-4"
       />
       <dl className="mb-6 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+        <dt className="font-semibold">Turma</dt>
+        <dd className="m-0">{schoolClass.cohort.name}</dd>
         <dt className="font-semibold">Código</dt>
-        <dd className="m-0">{schoolClass.code}</dd>
+        <dd className="m-0">{schoolClass.cohort.code}</dd>
         <dt className="font-semibold">Ano letivo</dt>
-        <dd className="m-0">{schoolClass.academicYear}</dd>
+        <dd className="m-0">{schoolClass.cohort.academicYear}</dd>
         <dt className="font-semibold">Disciplina</dt>
         <dd className="m-0">
           {schoolClass.subject ? (
@@ -90,7 +95,7 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
           )}
         </dd>
         <dt className="font-semibold">Período</dt>
-        <dd className="m-0">{schoolClass.period ?? "Não informado"}</dd>
+        <dd className="m-0">{schoolClass.cohort.period ?? "Não informado"}</dd>
         <dt className="font-semibold">Datas</dt>
         <dd className="m-0">
           {schoolClass.startsOn && schoolClass.endsOn
@@ -99,8 +104,6 @@ export function ClassDetails({ id, canEdit, canChangeStatus, canInvite }: ClassD
         </dd>
         <dt className="font-semibold">Alunos ativos</dt>
         <dd className="m-0">{schoolClass.activeStudentCount}</dd>
-        <dt className="font-semibold">Descrição</dt>
-        <dd className="m-0 whitespace-pre-line">{schoolClass.description ?? "Sem descrição"}</dd>
       </dl>
     </div>
   );

@@ -1,4 +1,4 @@
-import type { MyClassView } from "@repo/contracts";
+import type { MySubjectClass } from "@/features/my-classes/schemas/my-classes";
 import { focusManager } from "@tanstack/react-query";
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,7 +11,7 @@ import { formatLongDateTime, formatLongDay } from "@/lib/messages/dates";
 import { LOAD_ERROR, OFFLINE } from "./load-states";
 import { DASHBOARD_SUBTITLE, EMPTY_DASHBOARD, StudentDashboard } from "./student-dashboard";
 import { SUBJECT_SELECT_ID } from "./subject-switcher";
-import { apiError, dashboard, json, POO_CLASS, routedFetch, SQL_CLASS, summary } from "./test-fixtures";
+import { apiError, dashboard, json, myClassesBody, POO_CLASS, routedFetch, SQL_CLASS, summary } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -25,8 +25,8 @@ const dashboardCalls = (calls: { url: string }[]) => calls.map((call) => call.ur
 
 type Route = Parameters<typeof routedFetch>[0][string];
 
-function setupWith(routes: Record<string, Route>, { classes = [POO], materia = null }: { classes?: MyClassView[]; materia?: string | null } = {}) {
-  const api = routedFetch({ "GET /api/me/classes": json(200, { items: classes }), ...routes });
+function setupWith(routes: Record<string, Route>, { classes = [POO], materia = null }: { classes?: MySubjectClass[]; materia?: string | null } = {}) {
+  const api = routedFetch({ "GET /api/me/classes": json(200, myClassesBody(classes)), ...routes });
   vi.stubGlobal("fetch", api.fetch);
   const view = renderWithProviders(<StudentDashboard materia={materia} />);
   return { ...view, api, user: userEvent.setup() };
@@ -200,7 +200,7 @@ describe("026/US2 painel por matéria", () => {
   beforeEach(() => router.replace.mockReset());
   afterEach(() => vi.unstubAllGlobals());
   const subjectSelect = () => document.getElementById(SUBJECT_SELECT_ID) as HTMLSelectElement;
-  const ranking = (schoolClass: MyClassView, isViewer: boolean) => ({
+  const ranking = (schoolClass: MySubjectClass, isViewer: boolean) => ({
     class: { id: schoolClass.id, name: schoolClass.name },
     top: [
       { position: 1, name: "Ana Lima", points: 60, isViewer: false },
@@ -344,7 +344,7 @@ describe("026/US3 painel só com as matérias do próprio aluno", () => {
     let classesCalls = 0;
     const { api } = setupWith(
       {
-        "GET /api/me/classes": () => json(200, { items: ++classesCalls === 1 ? [POO, SQL] : [POO] }),
+        "GET /api/me/classes": () => json(200, myClassesBody(++classesCalls === 1 ? [POO, SQL] : [POO])),
         [dashboardOf(SQL.id)]: apiError(404, "NOT_FOUND", "Não encontrado."),
         ...pooDashboard,
       },

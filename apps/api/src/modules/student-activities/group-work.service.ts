@@ -500,13 +500,13 @@ async function lockEditingContext(
 ): Promise<EditingContext> {
   const rows = await tx.$queryRaw<EditingContext[]>`
     SELECT ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy, ca.group_size,
-           c.status::text AS class_status, (ca.result_released_at IS NOT NULL) AS released
+           class_effective_status(c.id)::text AS class_status, (ca.result_released_at IS NOT NULL) AS released
     FROM class_activities ca
     JOIN classes c ON c.id = ca.class_id
     WHERE ca.id = ${activityId}::uuid
       AND ca.type = 'ASSIGNMENT'
       AND ca.publish_at <= ${now}
-      AND EXISTS (SELECT 1 FROM enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
+      AND EXISTS (SELECT 1 FROM class_enrollments e WHERE e.class_id = ca.class_id AND e.student_user_id = ${studentUserId}::uuid AND e.status = 'ACTIVE')
       AND ${releasedToSql(studentUserId)}
     FOR SHARE OF ca`;
   const context = rows[0];

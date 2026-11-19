@@ -31,7 +31,7 @@ function samples(value: string): Sample[] {
     ["invitation-teacher", { displayName: value, link: LINK, expiresAt: EXPIRES }],
     ["invitation-manager", { displayName: value, link: LINK, expiresAt: EXPIRES }],
     ["admin-activation", { link: LINK, expiresAt: EXPIRES }],
-    ["class-invitation", { className: value, classCode: value, period: value, teacherName: value, link: LINK, expiresAt: EXPIRES }],
+    ["class-invitation", { className: value, classCode: value, period: value, link: LINK, expiresAt: EXPIRES }],
   ];
 }
 
@@ -86,7 +86,8 @@ describe("017/US3 e-mails com a cara do DevTrack", () => {
       const mail = render(sample);
       const source = content(sample);
       expect(mail.html).toContain(`<title>${escapeHtml(source.subject)}</title>`);
-      for (const piece of [source.heading, ...source.paragraphs, source.expiry, source.action.label, source.reason]) {
+      // `expiry` is optional since 027 (the enrollment notice's link never expires); the six of 017 all have one.
+      for (const piece of [source.heading, ...source.paragraphs, ...(source.expiry ? [source.expiry] : []), source.action.label, source.reason]) {
         expect(mail.text).toContain(piece);
         expect(mail.html).toContain(escapeHtml(piece));
       }
@@ -183,7 +184,7 @@ describe("017/US3 os seis e-mails saem da API com HTML e texto", () => {
     t.mailer.clear();
     admin = await createUser(t, { roles: ["ADMIN"], name: "Admin" });
     manager = await createUser(t, { roles: ["MANAGER"], name: "Gestora" });
-    teacher = await createUser(t, { roles: ["TEACHER"], name: `Prof ${HOSTILE}`.slice(0, 120) });
+    teacher = await createUser(t, { roles: ["TEACHER", "MANAGER"], name: `Prof ${HOSTILE}`.slice(0, 120) });
   });
 
   /** Asks for each kind through the API (or the CLI's service) with hostile names where they fit. */
@@ -227,7 +228,7 @@ describe("017/US3 os seis e-mails saem da API com HTML e texto", () => {
       async () => {
         const email = uniqueEmail("aluno");
         const schoolClass = await createClass(t, teacher.id, { name: HOSTILE, period: "1º <i>semestre</i>" });
-        const res = await api(t, { cookie: await loginAs(t, teacher) }).post(`/api/classes/${schoolClass.id}/invitations`, { email });
+        const res = await api(t, { cookie: await loginAs(t, teacher) }).post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email });
         expect(res.status).toBe(201);
         return email;
       },

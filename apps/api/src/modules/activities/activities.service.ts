@@ -603,7 +603,7 @@ const activityCodeQuestions = (tx: Tx, activityId: string) =>
 /** The class row under `FOR SHARE`: its status can't change while the activity is created. */
 async function lockClass(tx: Tx, teacherId: string, classId: string): Promise<{ status: string; subjectId: string | null }> {
   const rows = await tx.$queryRaw<{ status: string; subject_id: string | null }[]>`
-    SELECT status::text AS status, subject_id FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
+    SELECT class_effective_status(id)::text AS status, subject_id FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
   if (rows.length === 0) throw notFound();
   return { status: rows[0]!.status, subjectId: rows[0]!.subject_id };
 }

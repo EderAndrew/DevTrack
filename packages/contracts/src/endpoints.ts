@@ -35,8 +35,25 @@ import {
   CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
-import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
-import { MyClassListSchema } from "./classes/my-classes.js";
+import { EnrollmentListQuerySchema, EnrollmentPageSchema } from "./classes/enrollments.js";
+import { MyCohortListSchema } from "./classes/my-classes.js";
+import {
+  ChangeCohortStatusRequestSchema,
+  CohortDetailSchema,
+  CohortListQuerySchema,
+  CohortPageSchema,
+  CohortViewSchema,
+  CreateCohortRequestSchema,
+  UpdateCohortRequestSchema,
+} from "./cohorts/cohorts.js";
+import { CohortDirectoryPageSchema, CohortDirectoryQuerySchema } from "./cohorts/directory.js";
+import {
+  CohortEnrollmentPageSchema,
+  CohortEnrollmentViewSchema,
+  DirectEnrollmentRequestSchema,
+  StudentLookupRequestSchema,
+  StudentLookupResponseSchema,
+} from "./cohorts/enrollments.js";
 import {
   AiExecutionListQuerySchema,
   AiExecutionPageSchema,
@@ -518,6 +535,35 @@ export const endpoints = {
     status: 200,
   },
 
+  // 027 — the MANAGER's turma (contracts/http-api.md "MANAGER — turma"); the 003 create of a class left (US1).
+  "cohorts.list": { method: "GET", path: "/cohorts", query: CohortListQuerySchema, response: CohortPageSchema, status: 200 },
+  "cohorts.create": { method: "POST", path: "/cohorts", body: CreateCohortRequestSchema, response: CohortViewSchema, status: 201 },
+  "cohorts.get": { method: "GET", path: "/cohorts/:id", params: IdParamsSchema, response: CohortDetailSchema, status: 200 },
+  "cohorts.update": {
+    method: "PATCH",
+    path: "/cohorts/:id",
+    params: IdParamsSchema,
+    body: UpdateCohortRequestSchema,
+    response: CohortViewSchema,
+    status: 200,
+  },
+  "cohorts.changeStatus": {
+    method: "POST",
+    path: "/cohorts/:id/status",
+    params: IdParamsSchema,
+    body: ChangeCohortStatusRequestSchema,
+    response: CohortViewSchema,
+    status: 200,
+  },
+
+  // 027 — the teacher's search of ACTIVE turmas and the disciplina da turma (contracts/http-api.md "TEACHER").
+  "cohortDirectory.search": {
+    method: "GET",
+    path: "/cohort-directory",
+    query: CohortDirectoryQuerySchema,
+    response: CohortDirectoryPageSchema,
+    status: 200,
+  },
   "classes.list": { method: "GET", path: "/classes", query: ClassListQuerySchema, response: ClassPageSchema, status: 200 },
   "classes.create": { method: "POST", path: "/classes", body: CreateClassRequestSchema, response: ClassViewSchema, status: 201 },
   "classes.get": { method: "GET", path: "/classes/:id", params: IdParamsSchema, response: ClassViewSchema, status: 200 },
@@ -537,36 +583,71 @@ export const endpoints = {
     response: ClassViewSchema,
     status: 200,
   },
-  "classInvitations.create": {
+  // 027: the invitations belong to the turma (the MANAGER's, contracts/http-api.md "MANAGER — turma").
+  "cohortInvitations.create": {
     method: "POST",
-    path: "/classes/:id/invitations",
+    path: "/cohorts/:id/invitations",
     params: IdParamsSchema,
     body: InviteStudentRequestSchema,
     response: ClassInvitationViewSchema,
     status: 201,
   },
-  "classInvitations.list": {
+  "cohortInvitations.list": {
     method: "GET",
-    path: "/classes/:id/invitations",
+    path: "/cohorts/:id/invitations",
     params: IdParamsSchema,
     query: ClassInvitationListQuerySchema,
     response: ClassInvitationPageSchema,
     status: 200,
   },
-  "classInvitations.resend": {
+  "cohortInvitations.resend": {
     method: "POST",
-    path: "/classes/:id/invitations/:invitationId/resend",
+    path: "/cohorts/:id/invitations/:invitationId/resend",
     params: ClassInvitationParamsSchema,
     body: EmptyBodySchema,
     response: ClassInvitationViewSchema,
     status: 200,
   },
-  "classInvitations.cancel": {
+  "cohortInvitations.cancel": {
     method: "POST",
-    path: "/classes/:id/invitations/:invitationId/cancel",
+    path: "/cohorts/:id/invitations/:invitationId/cancel",
     params: ClassInvitationParamsSchema,
     body: EmptyBodySchema,
     response: ClassInvitationViewSchema,
+    status: 200,
+  },
+  // 027/FR-034: the students of a turma, the lookup by exact e-mail and the direct enrollment.
+  "cohortEnrollments.list": {
+    method: "GET",
+    path: "/cohorts/:id/enrollments",
+    params: IdParamsSchema,
+    query: EnrollmentListQuerySchema,
+    response: CohortEnrollmentPageSchema,
+    status: 200,
+  },
+  "cohortEnrollments.lookup": {
+    method: "POST",
+    path: "/cohorts/:id/student-lookup",
+    params: IdParamsSchema,
+    body: StudentLookupRequestSchema,
+    response: StudentLookupResponseSchema,
+    status: 200,
+  },
+  "cohortEnrollments.create": {
+    method: "POST",
+    path: "/cohorts/:id/enrollments",
+    params: IdParamsSchema,
+    body: DirectEnrollmentRequestSchema,
+    response: CohortEnrollmentViewSchema,
+    status: 201,
+  },
+  // 027/US5, FR-014: the MANAGER ends an enrollment in the turma (every disciplina of it at once).
+  "cohortEnrollments.remove": {
+    method: "POST",
+    path: "/cohorts/:id/enrollments/:enrollmentId/remove",
+    params: EnrollmentParamsSchema,
+    body: EmptyBodySchema,
+    response: CohortEnrollmentViewSchema,
     status: 200,
   },
   "enrollments.list": {
@@ -577,15 +658,7 @@ export const endpoints = {
     response: EnrollmentPageSchema,
     status: 200,
   },
-  "enrollments.remove": {
-    method: "POST",
-    path: "/classes/:id/enrollments/:enrollmentId/remove",
-    params: EnrollmentParamsSchema,
-    body: EmptyBodySchema,
-    response: EnrollmentViewSchema,
-    status: 200,
-  },
-  "myClasses.list": { method: "GET", path: "/me/classes", response: MyClassListSchema, status: 200 },
+  "myClasses.list": { method: "GET", path: "/me/classes", response: MyCohortListSchema, status: 200 },
   "classInvitations.preview": {
     method: "POST",
     path: "/class-invitations/preview",

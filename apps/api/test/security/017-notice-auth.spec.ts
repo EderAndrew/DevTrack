@@ -46,9 +46,9 @@ describe("017/SC-004 avisos do provedor: autenticação e repetição", () => {
 
   /** A class invitation sent, and the Message-ID of its attempt. */
   async function sentInvitation(app: TestApp = t) {
-    const teacher = await createUser(app, { roles: ["TEACHER"] });
+    const teacher = await createUser(app, { roles: ["TEACHER", "MANAGER"] });
     const schoolClass = await createClass(app, teacher.id);
-    const res = await api(app, { cookie: await loginAs(app, teacher) }).post(`/api/classes/${schoolClass.id}/invitations`, { email: uniqueEmail("aluno") });
+    const res = await api(app, { cookie: await loginAs(app, teacher) }).post(`/api/cohorts/${schoolClass.cohortId}/invitations`, { email: uniqueEmail("aluno") });
     expect(res.status).toBe(201);
     await app.flushMail();
     return app.prisma.mailDelivery.findFirstOrThrow({ where: { classInvitationId: res.body.id } });

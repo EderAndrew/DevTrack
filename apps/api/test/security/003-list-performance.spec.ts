@@ -12,10 +12,13 @@ const LIMIT_MS = 1000;
  * 003/SC-008: the lists of classes, students and invitations answer within 1 s for a teacher
  * with 100 classes and a class with 200 students (and 200 invitations). Each route is warmed
  * once, then the slowest of three calls is measured end to end through HTTP.
+ * 027 (T020): the turmas are the MANAGER's (`/cohorts`, list and page); the teacher keeps the list of their
+ * disciplinas da turma and the read-only roster; the invitations' list is the MANAGER's `/cohorts/:id/invitations` (US2).
  */
 describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () => {
   let t: TestApp;
   let client: ReturnType<typeof api>;
+  let managerClient: ReturnType<typeof api>;
   let big: SchoolClass;
   let studentCookie: string;
 
@@ -45,7 +48,7 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     });
     await t.prisma.enrollment.createMany({
       data: [first.id, ...users.map((u) => u.id)].map((studentUserId) => ({
-        classId: big.id,
+        cohortId: big.cohortId,
         studentUserId,
         status: "ACTIVE" as const,
         enrolledAt: new Date(),
@@ -53,12 +56,12 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     });
     // The first student is in every class, so "Minhas turmas" also lists 100.
     await t.prisma.enrollment.createMany({
-      data: classes.slice(1).map((c) => ({ classId: c.id, studentUserId: first.id, status: "ACTIVE" as const, enrolledAt: new Date() })),
+      data: classes.slice(1).map((c) => ({ cohortId: c.cohortId, studentUserId: first.id, status: "ACTIVE" as const, enrolledAt: new Date() })),
     });
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await t.prisma.classInvitation.createMany({
       data: Array.from({ length: STUDENTS }, (_, i) => ({
-        classId: big.id,
+        cohortId: big.cohortId,
         email: `convidado-${i}@example.test`,
         tokenHash: randomUUID(),
         status: "PENDING" as const,
@@ -69,6 +72,7 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
     });
 
     client = api(t, { cookie: await loginAs(t, teacher) });
+    managerClient = api(t, { cookie: await loginAs(t, await createUser(t, { roles: ["MANAGER"], name: "Gestora" })) });
     studentCookie = await loginAs(t, first);
   }, 120_000);
   afterAll(() => t.close());
@@ -86,13 +90,17 @@ describe("003/SC-008 — listas de turmas, alunos e convites em até 1 s", () =>
   };
 
   it.each([
-    ["turmas do professor", () => client.get("/api/classes")],
-    ["turmas do professor com pesquisa e filtro", () => client.get("/api/classes?query=turma%2009&year=2026")],
+    ["turmas do gestor", () => managerClient.get("/api/cohorts")],
+    ["turmas do gestor com pesquisa e filtro", () => managerClient.get("/api/cohorts?q=turma%2009&academicYear=2026")],
+    ["página da turma do gestor", () => managerClient.get(`/api/cohorts/${big.cohortId}`)],
+    ["convites da turma", () => managerClient.get(`/api/cohorts/${big.cohortId}/invitations`)],
+    ["convites da turma com pesquisa", () => managerClient.get(`/api/cohorts/${big.cohortId}/invitations?query=convidado-19`)],
+    ["alunos da turma do gestor", () => managerClient.get(`/api/cohorts/${big.cohortId}/enrollments`)],
+    ["disciplinas da turma do professor", () => client.get("/api/classes")],
+    ["disciplinas da turma do professor com pesquisa e filtro", () => client.get("/api/classes?query=turma%2009&year=2026")],
     ["alunos da turma", () => client.get(`/api/classes/${big.id}/enrollments`)],
     ["alunos da turma com pesquisa", () => client.get(`/api/classes/${big.id}/enrollments?query=aluno%2019`)],
-    ["convites da turma", () => client.get(`/api/classes/${big.id}/invitations`)],
-    ["convites da turma com pesquisa", () => client.get(`/api/classes/${big.id}/invitations?query=convidado-19`)],
-    ["detalhe da turma", () => client.get(`/api/classes/${big.id}`)],
+    ["detalhe da disciplina da turma", () => client.get(`/api/classes/${big.id}`)],
     ["minhas turmas do aluno", () => api(t, { cookie: studentCookie }).get("/api/me/classes")],
   ] as const)("%s ≤ 1 s", async (_name, call) => {
     expect(await slowest(call)).toBeLessThanOrEqual(LIMIT_MS);

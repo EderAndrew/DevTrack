@@ -124,7 +124,7 @@ export async function loadPresentCounts(db: Tx, activityIds: readonly string[]):
   const rows = await db.$queryRaw<{ activity_id: string; present: number }[]>`
     SELECT aa.activity_id, count(*)::int AS present
     FROM activity_attendances aa
-    JOIN enrollments e ON e.class_id = aa.class_id AND e.student_user_id = aa.student_user_id AND e.status = 'ACTIVE'
+    JOIN class_enrollments e ON e.class_id = aa.class_id AND e.student_user_id = aa.student_user_id AND e.status = 'ACTIVE'
     WHERE aa.activity_id = ANY(${[...activityIds]}::uuid[])
     GROUP BY aa.activity_id`;
   return new Map(rows.map((row) => [row.activity_id, row.present]));

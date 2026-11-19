@@ -3,7 +3,6 @@ import {
   type ActivityType,
   ActivityTypeSchema,
   type ExerciseResult,
-  type MyClassView,
   type StudentActivityFilter,
   StudentActivityFilterSchema,
   type StudentActivityStatus,
@@ -12,6 +11,7 @@ import {
   type WorkQuestionType,
 } from "@repo/contracts";
 import type { StatusVariant } from "@/components/ui/status";
+import { type MySubjectClass, STATUS_BADGE } from "@/features/my-classes/schemas/my-classes";
 import { MY_ACTIVITIES_PATH } from "@/lib/navigation";
 import type { StudentActivityListFilters } from "../api/student-activities";
 
@@ -194,7 +194,7 @@ export const SUBJECT_UNAVAILABLE = "Essa matéria não está mais disponível pa
 /** The subject of the page address (`?materia=<classId>`); empty is none. Checked against "Minhas turmas", never sent unchecked. */
 export const subjectFromSearch = (search: { materia?: string }): string | null => search.materia || null;
 
-type SubjectClass = Pick<MyClassView, "id" | "name" | "subjectName" | "period" | "teacherName">;
+type SubjectClass = Pick<MySubjectClass, "id" | "name" | "subjectName" | "period" | "teacherName" | "status">;
 
 const baseSubjectLabel = (item: SubjectClass) => (item.subjectName ? `${item.subjectName} · ${item.name}` : item.name);
 
@@ -209,8 +209,15 @@ export function subjectLabel(item: SubjectClass, all: readonly SubjectClass[]): 
   return [base, item.period, item.teacherName].filter((part): part is string => Boolean(part)).join(" · ");
 }
 
-/** The card's options, in the order of "Minhas turmas" (most recent enrollment first). */
-export const subjectOptions = (items: readonly SubjectClass[]) => items.map((item) => ({ id: item.id, label: subjectLabel(item, items) }));
+/**
+ * The card's options, in the order given (the ACTIVE disciplinas of "Minhas turmas", 027/US8); a read-only one says so
+ * ("· Encerrada", "· Arquivada").
+ */
+export const subjectOptions = (items: readonly SubjectClass[]) =>
+  items.map((item) => {
+    const badge = STATUS_BADGE[item.status];
+    return { id: item.id, label: badge ? `${subjectLabel(item, items)} · ${badge}` : subjectLabel(item, items) };
+  });
 
 /** "Vale 0,50" (a Trabalho's question) or "Vale 30 pontos" (an Exercício's, 013/FR-003). */
 export const valueLabel = (question: { value: string | null; points: number | null }) =>

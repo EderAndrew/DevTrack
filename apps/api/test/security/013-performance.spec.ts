@@ -60,7 +60,7 @@ describe("013 desempenho do ranking, do painel e da conclusão", () => {
       }));
       await tx.user.createMany({ data: users });
       await tx.studentProfile.createMany({ data: users.map((user) => ({ userId: user.id, displayName: user.name })) });
-      await tx.enrollment.createMany({ data: users.map((user) => ({ classId: schoolClass.id, studentUserId: user.id, status: "ACTIVE" as const, enrolledAt: at(-DAY) })) });
+      await tx.enrollment.createMany({ data: users.map((user) => ({ cohortId: schoolClass.cohortId, studentUserId: user.id, status: "ACTIVE" as const, enrolledAt: at(-DAY) })) });
       const attempts = users.map((user) => ({
         id: crypto.randomUUID(),
         activityId: activity.activity.id,

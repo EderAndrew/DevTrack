@@ -5,6 +5,10 @@
 **Status**: Draft
 **Input**: User description: "Área Privada do Professor, Ementas, Calendário Letivo e Tópicos de Aula — área acadêmica privada do professor com disciplinas, turmas (ofertas por semestre), envio da ementa institucional (PDF, DOCX, PNG, JPG) preservada como documento original, processamento assíncrono que extrai o conteúdo, revisão do conteúdo extraído pelo professor, calendário em que o professor marca os dias em que realmente terá aula (sem cálculo de feriados), proposta inicial de tópicos a partir da ementa e do número de encontros, e edição completa dos tópicos (editar, reordenar, mover de aula, juntar, dividir, criar, arquivar) sem alterar a ementa. Isolamento total por professor (ADMIN sem acesso ao conteúdo pedagógico), auditoria e segurança de upload. Os tópicos serão a base curricular obrigatória de questões e exercícios nas specs seguintes; provas e trabalhos poderão abranger vários tópicos. Fora de escopo: banco de questões, exercícios, IA, provas, trabalhos, notas, presença e feriados."
 
+> **Emenda 2026-11-17 (027, constituição 4.0.0/4.1.0)**: a turma como oferta de uma disciplina passa a ser a
+> disciplina da turma (027): a oferta de uma disciplina do professor numa turma criada pelo gestor. Ver
+> specs/027-manager-classes.
+
 ## Clarifications
 
 ### Session 2026-09-23

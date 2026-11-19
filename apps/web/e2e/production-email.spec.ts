@@ -2,7 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { type Locator, type Page, expect, test } from "@playwright/test";
 import { API_URL, e2eEnv } from "./env.ts";
 import { uniqueEmail } from "./fixtures/emails.ts";
-import { classTeacher, inviteToClass, logIn } from "./fixtures/journeys.ts";
+import { adminPage, classTeacher, inviteToCohort } from "./fixtures/journeys.ts";
 import { waitForMessages } from "./fixtures/mailpit.ts";
 
 /** Presses Tab until `target` has the focus (reading the focus is only an observation). */
@@ -43,11 +43,10 @@ async function postBounce(messageId: string): Promise<number> {
 }
 
 test("017/US3-1 017/US2-1 017/US2-4 convite em HTML e texto, aviso de bounce, \"Não entregue\" e reenvio confirmado, pelo teclado", async ({
-  page,
   browser,
 }) => {
   const email = uniqueEmail("nao-entregue");
-  await inviteToClass(browser, { email });
+  await inviteToCohort(browser, { email });
 
   // 017/US3-1: the e-mail has a visual and a text version with the same link, and no external image.
   const [invitationMail] = await waitForMessages(email, 1);
@@ -60,8 +59,12 @@ test("017/US3-1 017/US2-1 017/US2-4 convite em HTML e texto, aviso de bounce, \"
   // The provider says the address does not exist (017/US2-1).
   expect(await postBounce(invitationMail!.MessageID)).toBe(200);
 
-  const teacher = classTeacher();
-  await logIn(page, teacher, `/turmas/${teacher.classId}/convites`);
+  // Since 027 the invitations are the turma's manager's (the run's ADMIN): the turma's "Convites" tab.
+  const manager = await adminPage(browser, `/gestao/turmas/${classTeacher().cohortId}`);
+  await manager.getByRole("tablist", { name: "Seções da turma" }).getByRole("tab", { name: "Convites" }).click();
+  await manager.getByLabel("Pesquisar por e-mail").fill(email);
+  await manager.getByRole("button", { name: "Pesquisar", exact: true }).click();
+  const page = manager;
   const row = page.getByRole("row").filter({ hasText: email });
   await expect(row.getByText("Não entregue", { exact: true })).toBeVisible();
   await expect(row.getByText("O endereço não existe ou recusou a mensagem.")).toBeVisible();

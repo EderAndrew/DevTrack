@@ -5,10 +5,9 @@ import { generateToken, hashToken } from "../../platform/crypto/tokens";
 import { afterCursor, decodeCursor, encodeCursor, escapeLike } from "../../platform/database/keyset";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
-import { alreadyEnrolled, classNotOpen, invitationAlreadyPending, notFound } from "../../platform/http/errors";
+import { alreadyEnrolled, cohortNotActive, invitationAlreadyPending, notFound } from "../../platform/http/errors";
 import type { AuthContext } from "../../platform/http/request-context";
 import { AuditService } from "../audit/audit.service";
-import { ClassContextPolicy } from "../classes/class-context.policy";
 import { normalizeEmail } from "../identity/email";
 import { ClassInvitationStateMachine } from "./class-invitation.state-machine";
 import { CLASS_INVITATION_VIEW_SELECT, effectiveStatus, toClassInvitationView } from "./class-invitation.view";
@@ -16,7 +15,7 @@ import { MailOutbox } from "../../platform/mail/outbox/mail-outbox";
 import { ClassInvitationMailSubject, INVITATION_MAIL_SELECT } from "./class-invitation.mail-subject";
 import { InvitationRateLimit } from "./invitation-rate-limit";
 
-/** FR-012: a class invitation is valid for 7 days from its last send by the teacher. */
+/** FR-012: a class invitation is valid for 7 days from its last send. */
 export const CLASS_INVITATION_TTL_MS = 7 * 24 * 3600 * 1000;
 
 export const CLASS_INVITATIONS_PAGE_SIZE = 20;
@@ -34,15 +33,15 @@ function statusFilter(status: ClassInvitationListQuery["status"], now: Date): Pr
 }
 
 /**
- * Class invitations of the teacher's own classes (003 US2/US5, FR-010–FR-023). Tokens are stored
- * only as hashes; one PENDING invitation per class and e-mail is enforced by a partial unique
- * index. The e-mail goes through the 017 outbox: first attempt after commit, then retries.
+ * Invitations of a turma (003 US2/US5, FR-010–FR-023; since 027 the MANAGER's, `/cohorts/:id/invitations`,
+ * 027/FR-009–FR-011). A turma belongs to no one, so the only context check is that it exists (404). Tokens are
+ * stored only as hashes; one PENDING invitation per turma and e-mail is enforced by a partial unique index. The
+ * e-mail goes through the 017 outbox: first attempt after commit, then retries.
  */
 @Injectable()
 export class ClassInvitationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly context: ClassContextPolicy,
     private readonly audit: AuditService,
     private readonly outbox: MailOutbox,
     private readonly mailSubject: ClassInvitationMailSubject,
@@ -50,44 +49,42 @@ export class ClassInvitationsService {
   ) {}
 
   /**
-   * Invites `rawEmail` to the class (FR-010): 404 outside the teacher's context, 429 over the
-   * limits (before any write), 409 `CLASS_NOT_OPEN` unless the class is ACTIVE, 409
-   * `ALREADY_ENROLLED` for an active enrollment, 409 `INVITATION_ALREADY_PENDING` for a pending
-   * invitation (also under concurrency).
+   * Invites `rawEmail` to the turma (FR-010): 404 for an unknown turma, 409 `COHORT_NOT_ACTIVE` unless it is
+   * ACTIVE, 429 over the limits (before any write), 409 `ALREADY_ENROLLED` for an active enrollment, 409
+   * `INVITATION_ALREADY_PENDING` for a pending invitation (also under concurrency).
    */
-  async invite(auth: AuthContext, classId: string, rawEmail: string, requestId: string | null): Promise<ClassInvitationView> {
-    const teacherId = auth.userId;
+  async invite(auth: AuthContext, cohortId: string, rawEmail: string, requestId: string | null): Promise<ClassInvitationView> {
+    const inviterId = auth.userId;
     const email = normalizeEmail(rawEmail);
-    await this.context.findOwnedOrNotFound(teacherId, classId);
-    await this.rateLimit.beforeInvite({ teacherId, classId, email });
+    await this.assertActive(cohortId);
+    await this.rateLimit.beforeInvite({ inviterId, cohortId, email });
 
     const token = generateToken();
     const { invitation, deliveryId } = await this.prisma.runInTransaction(async (tx) => {
-      // FOR SHARE: archiving (FOR UPDATE) waits for this invitation, then cancels it; it never misses one.
-      await this.lockOpenClass(tx, teacherId, classId);
+      await this.lockActiveCohort(tx, cohortId);
 
       const enrolled = await tx.enrollment.findFirst({
-        where: { classId, status: "ACTIVE", student: { user: { email } } },
+        where: { cohortId, status: "ACTIVE", student: { user: { email } } },
         select: { id: true },
       });
       if (enrolled) throw alreadyEnrolled();
 
       const now = new Date();
       await tx.classInvitation.updateMany({
-        where: { classId, email, status: "PENDING", expiresAt: { lte: now } },
+        where: { cohortId, email, status: "PENDING", expiresAt: { lte: now } },
         data: { status: "EXPIRED" },
       });
       // ON CONFLICT DO NOTHING against the partial unique index: a concurrent invite does not abort us.
       const [created] = await tx.classInvitation.createManyAndReturn({
         data: [
           {
-            classId,
+            cohortId,
             email,
             tokenHash: hashToken(token),
             status: "PENDING",
             expiresAt: new Date(now.getTime() + CLASS_INVITATION_TTL_MS),
             lastSentAt: now,
-            invitedById: teacherId,
+            invitedById: inviterId,
           },
         ],
         select: { id: true },
@@ -98,11 +95,11 @@ export class ClassInvitationsService {
       await this.audit.record(tx, {
         type: "class_invitation.created",
         actorType: "USER",
-        actorUserId: teacherId,
+        actorUserId: inviterId,
         targetType: "CLASS_INVITATION",
         targetId: created.id,
         requestId,
-        metadata: { classId, email },
+        metadata: { cohortId, email },
       });
       const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", created.id, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
@@ -120,14 +117,14 @@ export class ClassInvitationsService {
    * Invitations of the class, newest first, 20 per page (FR-023): search by part of the e-mail
    * and filter by the effective status, PENDING by default.
    */
-  async list(teacherId: string, classId: string, { query, status, cursor }: ClassInvitationListQuery): Promise<ClassInvitationPage> {
-    await this.context.findOwnedOrNotFound(teacherId, classId);
+  async list(cohortId: string, { query, status, cursor }: ClassInvitationListQuery): Promise<ClassInvitationPage> {
+    await this.findCohort(cohortId);
     const after = cursor ? decodeCursor(cursor) : null;
     const term = query?.trim().toLowerCase() ?? "";
     const now = new Date();
     const rows = await this.prisma.classInvitation.findMany({
       where: {
-        classId,
+        cohortId,
         AND: [statusFilter(status, now), ...(after ? [afterCursor(after)] : [])],
         ...(term ? { email: { contains: escapeLike(term) } } : {}),
       },
@@ -145,35 +142,34 @@ export class ClassInvitationsService {
   /**
    * Resends a pending invitation (FR-020): new token (the previous link stops working), 7 more
    * days, `sendCount + 1`, audited, and a new delivery that retires the pending ones. Refusals
-   * come before the limits are counted (404, 409 `CLASS_NOT_OPEN`, 409
+   * come before the limits are counted (404, 409 `COHORT_NOT_ACTIVE`, 409
    * `INVALID_STATE_TRANSITION`), then 429 over the limits. When the e-mail meanwhile has an
    * active enrollment, the invitation is cancelled (`ALREADY_ENROLLED`) and the answer is 409
    * `ALREADY_ENROLLED`.
    */
-  async resend(auth: AuthContext, classId: string, invitationId: string, requestId: string | null): Promise<ClassInvitationView> {
-    const teacherId = auth.userId;
-    const schoolClass = await this.context.findOwnedOrNotFound(teacherId, classId);
-    if (schoolClass.status !== "ACTIVE") throw classNotOpen();
+  async resend(auth: AuthContext, cohortId: string, invitationId: string, requestId: string | null): Promise<ClassInvitationView> {
+    const inviterId = auth.userId;
+    await this.assertActive(cohortId);
     const current = await this.prisma.classInvitation.findFirst({
-      where: { id: invitationId, classId },
+      where: { id: invitationId, cohortId },
       select: { email: true, status: true, expiresAt: true },
     });
     if (!current) throw notFound();
     ClassInvitationStateMachine.assertTransition(effectiveStatus(current), "PENDING");
-    await this.rateLimit.beforeResend({ teacherId, classId, email: current.email }, invitationId);
+    await this.rateLimit.beforeResend({ inviterId, cohortId, email: current.email }, invitationId);
 
     const token = generateToken();
     const outcome = await this.prisma.runInTransaction(async (tx) => {
-      await this.lockOpenClass(tx, teacherId, classId);
-      const locked = await this.lockInvitation(tx, teacherId, classId, invitationId);
+      await this.lockActiveCohort(tx, cohortId);
+      const locked = await this.lockInvitation(tx, cohortId, invitationId);
       ClassInvitationStateMachine.assertTransition(effectiveStatus(locked), "PENDING");
 
       const enrolled = await tx.enrollment.findFirst({
-        where: { classId, status: "ACTIVE", student: { user: { email: locked.email } } },
+        where: { cohortId, status: "ACTIVE", student: { user: { email: locked.email } } },
         select: { id: true },
       });
       if (enrolled) {
-        await this.cancelLocked(tx, invitationId, classId, teacherId, "ALREADY_ENROLLED", requestId);
+        await this.cancelLocked(tx, invitationId, cohortId, inviterId, "ALREADY_ENROLLED", requestId);
         return { kind: "enrolled" as const };
       }
 
@@ -191,11 +187,11 @@ export class ClassInvitationsService {
       await this.audit.record(tx, {
         type: "class_invitation.resent",
         actorType: "USER",
-        actorUserId: teacherId,
+        actorUserId: inviterId,
         targetType: "CLASS_INVITATION",
         targetId: invitationId,
         requestId,
-        metadata: { classId, sendCount: updated.sendCount },
+        metadata: { cohortId, sendCount: updated.sendCount },
       });
       const deliveryId = await this.outbox.schedule(tx, "CLASS_INVITATION", invitationId, now);
       const invitation = await tx.classInvitation.findUniqueOrThrow({
@@ -205,20 +201,19 @@ export class ClassInvitationsService {
       return { kind: "resent" as const, invitation, deliveryId };
     });
 
-    // The cancellation is committed; the teacher is told why nothing was sent.
+    // The cancellation is committed; the MANAGER is told why nothing was sent.
     if (outcome.kind === "enrolled") throw alreadyEnrolled();
     const { invitation, deliveryId } = outcome;
     this.outbox.attemptNow(deliveryId, this.mailSubject.mail(invitation, token));
     return toClassInvitationView(invitation);
   }
 
-  /** Cancels a pending invitation (FR-022): the link stops working at once; audited with reason TEACHER. */
-  async cancel(auth: AuthContext, classId: string, invitationId: string, requestId: string | null): Promise<ClassInvitationView> {
-    const teacherId = auth.userId;
+  /** Cancels a pending invitation (FR-022): the link stops working at once; audited with reason MANAGER (027). */
+  async cancel(auth: AuthContext, cohortId: string, invitationId: string, requestId: string | null): Promise<ClassInvitationView> {
     const row = await this.prisma.runInTransaction(async (tx) => {
-      const locked = await this.lockInvitation(tx, teacherId, classId, invitationId);
+      const locked = await this.lockInvitation(tx, cohortId, invitationId);
       ClassInvitationStateMachine.assertTransition(effectiveStatus(locked), "CANCELLED");
-      await this.cancelLocked(tx, invitationId, classId, teacherId, "TEACHER", requestId);
+      await this.cancelLocked(tx, invitationId, cohortId, auth.userId, "MANAGER", requestId);
       return tx.classInvitation.findUniqueOrThrow({ where: { id: invitationId }, select: CLASS_INVITATION_VIEW_SELECT });
     });
     return toClassInvitationView(row);
@@ -227,33 +222,31 @@ export class ClassInvitationsService {
   private async cancelLocked(
     tx: Tx,
     invitationId: string,
-    classId: string,
-    teacherId: string,
-    reason: "TEACHER" | "ALREADY_ENROLLED",
+    cohortId: string,
+    actorId: string,
+    reason: "MANAGER" | "ALREADY_ENROLLED",
     requestId: string | null,
   ): Promise<void> {
     await tx.classInvitation.update({
       where: { id: invitationId },
-      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledById: teacherId, cancelReason: reason },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledById: actorId, cancelReason: reason },
     });
     await this.outbox.supersedePending(tx, "CLASS_INVITATION", invitationId);
     await this.audit.record(tx, {
       type: "class_invitation.cancelled",
       actorType: "USER",
-      actorUserId: teacherId,
+      actorUserId: actorId,
       targetType: "CLASS_INVITATION",
       targetId: invitationId,
       requestId,
-      metadata: { classId, reason },
+      metadata: { cohortId, invitationId, reason },
     });
   }
 
-  /** Locks the invitation only when it belongs to `classId` of `teacherId`; otherwise 404 (D7). */
-  private async lockInvitation(tx: Tx, teacherId: string, classId: string, invitationId: string) {
+  /** Locks the invitation only when it belongs to `cohortId`; otherwise 404 (D7). */
+  private async lockInvitation(tx: Tx, cohortId: string, invitationId: string) {
     const rows = await tx.$queryRaw<{ id: string }[]>`
-      SELECT ci.id FROM class_invitations ci JOIN classes c ON c.id = ci.class_id
-      WHERE ci.id = ${invitationId}::uuid AND ci.class_id = ${classId}::uuid AND c.teacher_id = ${teacherId}::uuid
-      FOR UPDATE OF ci`;
+      SELECT id FROM class_invitations WHERE id = ${invitationId}::uuid AND cohort_id = ${cohortId}::uuid FOR UPDATE`;
     if (!rows[0]) throw notFound();
     return tx.classInvitation.findUniqueOrThrow({
       where: { id: invitationId },
@@ -261,11 +254,22 @@ export class ClassInvitationsService {
     });
   }
 
-  private async lockOpenClass(tx: Tx, teacherId: string, classId: string): Promise<void> {
+  private async findCohort(cohortId: string) {
+    const cohort = await this.prisma.cohort.findUnique({ where: { id: cohortId }, select: { status: true } });
+    if (!cohort) throw notFound();
+    return cohort;
+  }
+
+  /** 404 for an unknown turma, `409 COHORT_NOT_ACTIVE` unless it is ACTIVE (027/US2-6); checked before the limits. */
+  private async assertActive(cohortId: string): Promise<void> {
+    if ((await this.findCohort(cohortId)).status !== "ACTIVE") throw cohortNotActive();
+  }
+
+  /** FOR SHARE: archiving (FOR UPDATE) waits for this write, then cancels what it left pending; it never misses one. */
+  private async lockActiveCohort(tx: Tx, cohortId: string): Promise<void> {
     const rows = await tx.$queryRaw<{ status: string }[]>`
-      SELECT status FROM classes WHERE id = ${classId}::uuid AND teacher_id = ${teacherId}::uuid FOR SHARE`;
-    const row = rows[0];
-    if (!row) throw notFound();
-    if (row.status !== "ACTIVE") throw classNotOpen();
+      SELECT status::text AS status FROM cohorts WHERE id = ${cohortId}::uuid FOR SHARE`;
+    if (!rows[0]) throw notFound();
+    if (rows[0].status !== "ACTIVE") throw cohortNotActive();
   }
 }

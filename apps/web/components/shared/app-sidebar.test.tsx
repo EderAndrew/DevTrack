@@ -19,15 +19,14 @@ const PERMISSIONS = {
   STUDENT: [...SESSOES, "turmas.proprias.listar"],
   TEACHER: [
     ...SESSOES,
-    "turmas.criar",
-    "turmas.visualizar",
-    "turmas.editar",
-    "turmas.alterar_situacao",
+    "turmas.buscar",
+    "disciplinas_turma.visualizar",
+    "disciplinas_turma.criar",
     "disciplinas.visualizar",
     "disciplinas.criar",
     "disciplinas.editar",
   ],
-  MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar"],
+  MANAGER: [...SESSOES, "professores.visualizar", "professores.convidar", "turmas.visualizar", "turmas.criar"],
   ADMIN: [...SESSOES, "professores.visualizar", "managers.visualizar", "usuarios.visualizar", "ia.operacao.visualizar", "ia.agentes.gerenciar", "feedbacks.visualizar", "feedbacks.alterar_situacao"],
 };
 
@@ -80,7 +79,7 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
   it.each([
     ["STUDENT", ["Minhas turmas"]],
     ["TEACHER", ["Minhas disciplinas", "Turmas"]],
-    ["MANAGER", ["Professores"]],
+    ["MANAGER", ["Professores", "Turmas"]],
     ["ADMIN", ["Professores", "Gestores", "Usuários", "Saúde", "Indicadores", "Orçamentos", "Tarefas", "Modelos", "Agentes", "Configurações de modelo", "Feedbacks"]],
   ] as const)("%s vê exatamente %j", async (role, expected) => {
     const { container } = renderSidebar({ me: me(PERMISSIONS[role]) });
@@ -158,6 +157,17 @@ describe("AppSidebar (menu lateral das telas internas, UX only)", () => {
     navigation.pathname = "/turmas/abc/editar";
     renderSidebar({ me: me(PERMISSIONS.TEACHER) });
     expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("data-active")).toBe("true");
+  });
+
+  it("027/FR-031 o gestor tem Turmas (turmas.visualizar) para /gestao/turmas, ativa nas telas da turma; o professor tem a sua Turmas", () => {
+    navigation.pathname = "/gestao/turmas/abc";
+    const { unmount } = renderSidebar({ me: me(PERMISSIONS.MANAGER) });
+    const link = screen.getByRole("link", { name: "Turmas" });
+    expect(link.getAttribute("href")).toBe("/gestao/turmas");
+    expect(link.getAttribute("data-active")).toBe("true");
+    unmount();
+    renderSidebar({ me: me(PERMISSIONS.TEACHER) });
+    expect(screen.getByRole("link", { name: "Turmas" }).getAttribute("href")).toBe("/turmas");
   });
 
   it("004/US1 Minhas disciplinas (disciplinas.visualizar) fica ativa nas telas de disciplina", () => {

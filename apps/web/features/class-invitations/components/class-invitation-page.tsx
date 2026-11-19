@@ -58,7 +58,7 @@ export interface ClassInvitationPageProps {
 }
 
 /**
- * Public class invitation page (003 US3/US4, D11). Shows the class, the teacher and the invited
+ * Public class invitation page (003 US3/US4, D11). Shows the turma (027/FR-010: never a teacher) and the invited
  * e-mail, then the form of the mode the API decided: a new account (CREATE_ACCOUNT), taking over
  * a never-verified account (CLAIM_ACCOUNT), or accepting with the account's own session
  * (SIGN_IN_REQUIRED). The token leaves the address bar as soon as it is read and is kept only
@@ -93,7 +93,7 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
       <Notice role="status">
         <h2>Não foi possível usar este convite</h2>
         <p>{state.message}</p>
-        <p className="mb-0">Peça um novo convite ao professor da turma.</p>
+        <p className="mb-0">Peça um novo convite ao gestor da turma.</p>
       </Notice>
     );
   }
@@ -152,7 +152,7 @@ export function ClassInvitationPage({ token, signedInAs = null }: ClassInvitatio
 }
 
 function InvitationSummary({ preview }: { preview: ClassInvitationPreview }) {
-  const { class: schoolClass, teacherName } = preview;
+  const { class: schoolClass } = preview;
   return (
     <div className="mb-6">
       <p className="mb-1">Você foi convidado para participar da turma</p>
@@ -161,7 +161,6 @@ function InvitationSummary({ preview }: { preview: ClassInvitationPreview }) {
         Código {schoolClass.code} · {schoolClass.academicYear}
         {schoolClass.period ? ` · ${schoolClass.period}` : ""}
       </p>
-      <p className="m-0">Professor(a): {teacherName}</p>
     </div>
   );
 }
