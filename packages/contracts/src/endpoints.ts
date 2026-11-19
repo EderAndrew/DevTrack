@@ -35,7 +35,7 @@ import {
   CreateClassRequestSchema,
   UpdateClassRequestSchema,
 } from "./classes/classes.js";
-import { EnrollmentListQuerySchema, EnrollmentPageSchema, EnrollmentViewSchema } from "./classes/enrollments.js";
+import { EnrollmentListQuerySchema, EnrollmentPageSchema } from "./classes/enrollments.js";
 import { MyClassListSchema } from "./classes/my-classes.js";
 import {
   ChangeCohortStatusRequestSchema,
@@ -641,20 +641,21 @@ export const endpoints = {
     response: CohortEnrollmentViewSchema,
     status: 201,
   },
+  // 027/US5, FR-014: the MANAGER ends an enrollment in the turma (every disciplina of it at once).
+  "cohortEnrollments.remove": {
+    method: "POST",
+    path: "/cohorts/:id/enrollments/:enrollmentId/remove",
+    params: EnrollmentParamsSchema,
+    body: EmptyBodySchema,
+    response: CohortEnrollmentViewSchema,
+    status: 200,
+  },
   "enrollments.list": {
     method: "GET",
     path: "/classes/:id/enrollments",
     params: IdParamsSchema,
     query: EnrollmentListQuerySchema,
     response: EnrollmentPageSchema,
-    status: 200,
-  },
-  "enrollments.remove": {
-    method: "POST",
-    path: "/classes/:id/enrollments/:enrollmentId/remove",
-    params: EnrollmentParamsSchema,
-    body: EmptyBodySchema,
-    response: EnrollmentViewSchema,
     status: 200,
   },
   "myClasses.list": { method: "GET", path: "/me/classes", response: MyClassListSchema, status: 200 },

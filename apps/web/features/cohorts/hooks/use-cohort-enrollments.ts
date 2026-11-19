@@ -33,3 +33,12 @@ export function useEnrollStudent(cohortId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: cohortsKeys.detail(cohortId) }),
   });
 }
+
+/** "Encerrar matrícula" (027/US5); the turma (its count) and its student list become stale, also after a refusal. */
+export function useRemoveEnrollment(cohortId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enrollmentId: string) => cohortEnrollmentsApi.remove(cohortId, enrollmentId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: cohortsKeys.detail(cohortId) }),
+  });
+}

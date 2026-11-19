@@ -483,18 +483,18 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 5
 
-- [ ] T052 [P] [US5] `apps/api/test/integration/027-us5-remove-enrollment.spec.ts`: `027/US5-1`…`027/US5-3`
+- [X] T052 [P] [US5] `apps/api/test/integration/027-us5-remove-enrollment.spec.ts`: `027/US5-1`…`027/US5-3`
       (aluno deixa de ver as duas disciplinas — lista, Painel, card, ranking — e a linha fica `REMOVED` com
       `removal_reason MANAGER`; o professor ainda vê a entrega, a nota e os fatos na revisão; novo convite aceito →
       nova matrícula ACTIVE); reescrever `003-us6-enrollments.spec.ts` com o gestor mantendo os ids.
-- [ ] T053 [P] [US5] Web: "Encerrar matrícula" na aba "Alunos" do gestor (AlertDialog), teste em
+- [X] T053 [P] [US5] Web: "Encerrar matrícula" na aba "Alunos" do gestor (AlertDialog), teste em
       `apps/web/features/cohorts/components/cohort-students.test.tsx`.
 
 ### Implementation for User Story 5
 
-- [ ] T054 [US5] `POST /cohorts/:id/enrollments/:enrollmentId/remove` em `apps/api/src/modules/enrollments/` (efeitos da
+- [X] T054 [US5] `POST /cohorts/:id/enrollments/:enrollmentId/remove` em `apps/api/src/modules/enrollments/` (efeitos da
       003 FR-044/FR-047 para todas as disciplinas da turma, `enrollment.removed` com `reason`); web da T053.
-- [ ] T055 [US5] Retirar US5 de `pending`.
+- [X] T055 [US5] Retirar US5 de `pending`.
 
 ---
 

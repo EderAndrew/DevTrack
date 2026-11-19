@@ -1133,16 +1133,13 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   const keptHold = await openHoldOf(keptExam);
   expect((await teacherClient.post(`${activitiesPath}/${keptExam}/close`, {})).status).toBe(200);
   expect((await decideHold(keptExam, keptHold, "keep")).body.resolution).toBe("NOT_CANCELLED");
-  // 003/US6 — the teacher lists the class's students (read-only since 027); the enrollment of the one who joined
-  // ends in the turma (US5 brings the MANAGER's route back; here it ends as that route ends it).
+  // 003/US6 — the teacher lists the class's students (read-only since 027); 027/US5 — the MANAGER ends the enrollment
+  // of the one who joined, in the turma (`enrollment.removed` with `reason`).
   const students = await teacherClient.get(`/api/classes/${classId}/enrollments?query=Aluno`);
   expect(students.body.items).toHaveLength(1);
   expect((await managerClient.get(`/api/cohorts/${cohortId}/enrollments?query=Aluno`)).body.items).toHaveLength(1);
   const enrollmentId = students.body.items[0].id as string;
-  await t.prisma.enrollment.update({
-    where: { id: enrollmentId },
-    data: { status: "REMOVED", removedAt: new Date(), removalReason: "MANAGER" },
-  });
+  expect((await managerClient.post(`/api/cohorts/${cohortId}/enrollments/${enrollmentId}/remove`, {})).body.status).toBe("REMOVED");
   const lateToken = await inviteToClass("aluno-atrasado-jornada@example.test");
   // 003/US5 — the MANAGER lists, resends and cancels an invitation (027/FR-011).
   const resentEmail = "aluno-reenvio-jornada@example.test";

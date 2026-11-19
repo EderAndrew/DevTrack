@@ -21,4 +21,7 @@ export const cohortEnrollmentsApi = {
     apiClient.get<CohortEnrollmentPage>(`/cohorts/${cohortId}/enrollments${search(params)}`),
   lookup: (cohortId: string, email: string) => apiClient.post<StudentLookupResponse>(`/cohorts/${cohortId}/student-lookup`, { email }),
   enroll: (cohortId: string, email: string) => apiClient.post<CohortEnrollmentView>(`/cohorts/${cohortId}/enrollments`, { email }),
+  /** 027/US5: ends the enrollment in the turma (every disciplina of it). */
+  remove: (cohortId: string, enrollmentId: string) =>
+    apiClient.post<CohortEnrollmentView>(`/cohorts/${cohortId}/enrollments/${enrollmentId}/remove`, {}),
 };

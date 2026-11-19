@@ -23,13 +23,15 @@ export interface CohortPageProps {
   canInvite?: boolean;
   canInclude?: boolean;
   canSeeStudents?: boolean;
+  /** "Encerrar matrícula" on the active students (`turmas.remover_aluno`, 027/US5). */
+  canRemoveStudents?: boolean;
   canResend?: boolean;
   canCancel?: boolean;
 }
 
 /**
  * The MANAGER's page of a turma (027/FR-007, contracts/ui.md): its data, the actions (Editar, Encerrar/Reativar,
- * Arquivar, "Adicionar aluno" while ACTIVE) and the tabs "Alunos" (US2), "Convites" (the 003/017 list) and "Disciplinas"
+ * Arquivar, "Adicionar aluno" while ACTIVE) and the tabs "Alunos" (US2, "Encerrar matrícula" US5), "Convites" (the 003/017 list) and "Disciplinas"
  * — each disciplina da turma with its teacher and situation, and nothing of its plan, classes, activities or grades.
  * Names are text (FR-033).
  */
@@ -40,6 +42,7 @@ export function CohortPage({
   canInvite = false,
   canInclude = false,
   canSeeStudents = false,
+  canRemoveStudents = false,
   canResend = false,
   canCancel = false,
 }: CohortPageProps) {
@@ -107,7 +110,7 @@ export function CohortPage({
         </TabsList>
         {canSeeStudents ? (
           <TabsContent value="alunos">
-            <CohortStudentsTab cohortId={cohort.id} />
+            <CohortStudentsTab cohortId={cohort.id} canRemove={canRemoveStudents && cohort.status !== "ARCHIVED"} />
           </TabsContent>
         ) : null}
         <TabsContent value="convites">

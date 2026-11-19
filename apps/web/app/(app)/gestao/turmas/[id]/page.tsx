@@ -22,6 +22,7 @@ export default async function CohortDetailPage({ params }: { params: Promise<{ i
         canInvite={me.permissions.includes("turmas.convidar_aluno")}
         canInclude={me.permissions.includes("turmas.incluir_aluno")}
         canSeeStudents={me.permissions.includes("turmas.visualizar_alunos")}
+        canRemoveStudents={me.permissions.includes("turmas.remover_aluno")}
         canResend={me.permissions.includes("turmas.reenviar_convite")}
         canCancel={me.permissions.includes("turmas.cancelar_convite")}
       />

@@ -93,7 +93,7 @@ describe("027/US4 — professor trabalha na sua disciplina da turma como hoje (F
       ["post", `/api/cohorts/${cohortId}/invitations`, { email: "aluno@example.test" }],
       ["post", `/api/cohorts/${cohortId}/student-lookup`, { email: "aluno@example.test" }],
       ["post", `/api/cohorts/${cohortId}/enrollments`, { email: "aluno@example.test" }],
-      ["post", `/api/classes/${schoolClass.id}/enrollments/${enrollment.id}/remove`, {}],
+      ["post", `/api/cohorts/${cohortId}/enrollments/${enrollment.id}/remove`, {}],
     ] as const) {
       const res = method === "get" ? await client.get(path) : await client[method](path, body ?? {});
       expect(res.status, `${method} ${path}`).toBe(403);

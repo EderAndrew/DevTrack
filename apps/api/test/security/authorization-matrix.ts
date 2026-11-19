@@ -229,8 +229,9 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/cohorts/:id/enrollments", access: "turmas.visualizar_alunos" },
   { method: "POST", path: "/cohorts/:id/student-lookup", access: "turmas.incluir_aluno" },
   { method: "POST", path: "/cohorts/:id/enrollments", access: "turmas.incluir_aluno" },
-  // 027: the teacher's routes of the disciplina da turma; the removal stays on `turmas.remover_aluno` (now the
-  // MANAGER's) until US5 moves it to `/cohorts/:id` (T054).
+  // 027 — the MANAGER ends an enrollment in the turma (US5).
+  { method: "POST", path: "/cohorts/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
+  // 027: the teacher's routes of the disciplina da turma.
   { method: "GET", path: "/cohort-directory", access: "turmas.buscar" },
   { method: "GET", path: "/classes", access: "disciplinas_turma.visualizar" },
   { method: "POST", path: "/classes", access: "disciplinas_turma.criar" },
@@ -238,7 +239,6 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "PATCH", path: "/classes/:id", access: "disciplinas_turma.editar" },
   { method: "POST", path: "/classes/:id/status", access: "disciplinas_turma.alterar_situacao" },
   { method: "GET", path: "/classes/:id/enrollments", access: "disciplinas_turma.visualizar_alunos" },
-  { method: "POST", path: "/classes/:id/enrollments/:enrollmentId/remove", access: "turmas.remover_aluno" },
   { method: "GET", path: "/me/classes", access: "turmas.proprias.listar" },
 
   { method: "GET", path: "/subjects", access: "disciplinas.visualizar" },

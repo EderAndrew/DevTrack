@@ -4,6 +4,7 @@ import {
   type CohortEnrollmentView,
   type DirectEnrollmentRequest,
   DirectEnrollmentRequestSchema,
+  EmptyBodySchema,
   type EnrollmentListQuery,
   EnrollmentListQuerySchema,
   type StudentLookupRequest,
@@ -14,17 +15,22 @@ import {
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
 import { ZodBody, ZodValidationPipe } from "../../platform/http/zod-validation.pipe";
 import { RequirePermissions } from "../access-control/decorators";
+import { CohortEnrollmentRemovalService } from "./cohort-enrollment-removal.service";
 import { DirectEnrollmentService } from "./direct-enrollment.service";
 
 const idPipe = new ZodValidationPipe(UuidSchema);
 
 /**
  * The students of a turma, the MANAGER's (027 contracts/http-api.md, "MANAGER — turma"): the list, the lookup by
- * exact e-mail and the direct enrollment (FR-034). The e-mail always travels in a POST body.
+ * exact e-mail, the direct enrollment (FR-034) and the end of an enrollment (US5, FR-014). The e-mail always travels in
+ * a POST body.
  */
 @Controller("cohorts/:id")
 export class CohortEnrollmentsController {
-  constructor(private readonly enrollments: DirectEnrollmentService) {}
+  constructor(
+    private readonly enrollments: DirectEnrollmentService,
+    private readonly removal: CohortEnrollmentRemovalService,
+  ) {}
 
   @Get("enrollments")
   @RequirePermissions("turmas.visualizar_alunos")
@@ -54,5 +60,17 @@ export class CohortEnrollmentsController {
     @Ctx() ctx: RequestContext,
   ): Promise<CohortEnrollmentView> {
     return this.enrollments.enroll(ctx.auth!, cohortId, body.email, ctx.requestId);
+  }
+
+  @Post("enrollments/:enrollmentId/remove")
+  @RequirePermissions("turmas.remover_aluno")
+  @HttpCode(200)
+  remove(
+    @Param("id", idPipe) cohortId: string,
+    @Param("enrollmentId", idPipe) enrollmentId: string,
+    @ZodBody(EmptyBodySchema) _body: object,
+    @Ctx() ctx: RequestContext,
+  ): Promise<CohortEnrollmentView> {
+    return this.removal.remove(ctx.auth!, cohortId, enrollmentId, ctx.requestId);
   }
 }
