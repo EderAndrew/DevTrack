@@ -4,15 +4,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
-import type { IntegrityEventView, StudentIntegrity } from "@repo/contracts";
-import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
+import type { IntegrityEventView, StudentHistoryItem, StudentHistoryPage, StudentIntegrity } from "@repo/contracts";
+import { formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
+import { HISTORY_FINAL_NOTE } from "../schemas/student-history";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
 import { apiError, json, routedFetch, studentActivity, summary } from "./test-fixtures";
 
-const LIST = "GET /api/me/activities?status=COMPLETED";
+const HISTORY = "GET /api/me/history";
 
 function setup(routes: Parameters<typeof routedFetch>[0]) {
   const api = routedFetch(routes);
@@ -21,58 +22,202 @@ function setup(routes: Parameters<typeof routedFetch>[0]) {
   return { ...view, api, user: userEvent.setup() };
 }
 
-const graded = summary({
+// Built from local time, so "13 de novembro" and "Sexta-feira, 16:47" read the same in any time zone.
+const FRIDAY = new Date(2026, 10, 13, 16, 47).toISOString();
+
+const entry = (overrides: Partial<StudentHistoryItem> = {}): StudentHistoryItem => ({
+  ...summary({ status: "SUBMITTED", canAnswer: false, submittedAt: FRIDAY }),
+  deliveredAt: FRIDAY,
+  situation: "AWAITING",
+  ...overrides,
+});
+const page = (items: StudentHistoryItem[], extra: Partial<StudentHistoryPage> = {}): StudentHistoryPage => ({
+  items,
+  nextCursor: null,
+  total: items.length,
+  tabCounts: { all: 4, awaiting: 2, graded: 2 },
+  totals: { delivered: 4, awaiting: 2, graded: 2 },
+  ...extra,
+});
+
+const graded = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000011",
   title: "Trabalho de interfaces",
-  type: "ASSIGNMENT",
   status: "GRADED",
-  late: true,
-  canAnswer: false,
-  submittedAt: "2026-10-04T10:00:00.000Z",
-  totalGrade: "1.00",
-  result: { grade: "0.90", hasFeedback: true },
+  situation: "GRADED",
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: "Programação Orientada a Objetos",
+  totalGrade: "3.00",
+  result: { grade: "1.80", hasFeedback: true },
 });
-const waiting = summary({
+const waiting = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000012",
   title: "Lista de herança",
-  status: "SUBMITTED",
-  canAnswer: false,
-  submittedAt: "2026-10-03T10:00:00.000Z",
-  result: null,
+  late: true,
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: null,
 });
+const exercise = entry({
+  id: "bbbbbbbb-0000-4000-8000-000000000013",
+  title: "Exercícios de laços",
+  type: "EXERCISE",
+  status: "COMPLETED",
+  situation: "GRADED",
+  deadline: null,
+  latePolicy: null,
+  totalGrade: null,
+  points: { possible: 60, earned: 45, awaitingCorrection: false },
+});
+const exam = entry({
+  id: "bbbbbbbb-0000-4000-8000-000000000014",
+  title: "Prova de POO",
+  type: "EXAM",
+  status: "GRADED",
+  situation: "GRADED",
+  totalGrade: "1.00",
+  result: { grade: "1.50", hasFeedback: false },
+});
+const FOUR = [graded, waiting, exercise, exam];
 
-describe("012/US6 Histórico", () => {
+const table = () => screen.findByRole("table", { name: "Atividades que você entregou." });
+const rowOf = async (title: string) =>
+  Array.from((await table()).querySelectorAll<HTMLElement>("tbody tr")).find((row) => row.textContent?.includes(title))!;
+
+describe("028/US1 Histórico: totais e lista redesenhada", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("012/US6-2 012/FR-031 atividade, tipo, turma, entregue em (com atraso), situação, nota e Com feedback; abre a atividade", async () => {
-    setup({ [LIST]: json(200, { items: [graded, waiting], nextCursor: null }) });
-    const table = await screen.findByRole("table", { name: "Atividades que você entregou." });
-    const [, first, second] = within(table).getAllByRole("row");
-    expect(within(first!).getByRole("link", { name: "Trabalho de interfaces" }).getAttribute("href")).toBe(`/minhas-atividades/${graded.id}`);
-    expect(within(first!).getByText("Trabalho")).toBeTruthy();
-    expect(within(first!).getByText(`${formatLongDateTime("2026-10-04T10:00:00.000Z")} (com atraso)`)).toBeTruthy();
-    expect(within(first!).getByText("0,90 de 1,00")).toBeTruthy();
-    expect(within(first!).getByText("Com feedback")).toBeTruthy();
-    expect(within(second!).getByText("Aguardando correção")).toBeTruthy();
-    expect(within(second!).queryByText("Com feedback")).toBeNull();
+  it("028/US1-1 os três cards com os totais do servidor, em dois dígitos e o número inteiro no texto acessível", async () => {
+    setup({ [HISTORY]: json(200, page([graded], { totals: { delivered: 4, awaiting: 2, graded: 12 } })) });
+    const summary = await screen.findByRole("region", { name: "Resumo das suas entregas" });
+    const cards = within(summary).getAllByRole("listitem");
+    expect(cards.map((card) => within(card).getByText(/^Atividades|^Aguardando/).textContent)).toEqual([
+      "Atividades entregues",
+      "Aguardando correção",
+      "Atividades corrigidas",
+    ]);
+    expect(within(cards[0]!).getByText("04")).toBeTruthy();
+    expect(within(cards[0]!).getByText("4 atividades entregues")).toBeTruthy();
+    expect(within(cards[0]!).getByText("Seu histórico de entregas")).toBeTruthy();
+    expect(within(cards[1]!).getByText("02")).toBeTruthy();
+    expect(within(cards[1]!).getByText("2 aguardando correção")).toBeTruthy();
+    expect(within(cards[1]!).getByText("Você já fez a sua parte")).toBeTruthy();
+    expect(within(cards[2]!).getByText("12")).toBeTruthy();
+    expect(within(cards[2]!).getByText("12 atividades corrigidas")).toBeTruthy();
+    expect(within(cards[2]!).getByText("Resultado disponível")).toBeTruthy();
   });
 
-  it("012/US6-1 vazio e erro são estados distintos", async () => {
-    setup({ [LIST]: json(200, { items: [], nextCursor: null }) });
+  it("028/US1-2 o rodapé diz quantas de quantas e a ordem", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    await table();
+    expect(screen.getByText("Exibindo 4 de 4 atividades")).toBeTruthy();
+    expect(screen.getByText("Mais recentes primeiro")).toBeTruthy();
+  });
+
+  it("028/US1-3 012/US6-2 aguardando: pílula \"Entregue com atraso\" e \"Aguardando correção\", sem número de nota", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Lista de herança");
+    expect(within(row).getByText("Entregue com atraso")).toBeTruthy();
+    expect(within(row).getByText("Aguardando correção")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(row.textContent).not.toMatch(/\d,\d\d/);
+  });
+
+  it("028/US1-4 012/FR-031 corrigida: \"Corrigida\", a nota de a total, a barra proporcional e \"Com feedback\"", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Trabalho de interfaces");
+    expect(within(row).getByText("Corrigida")).toBeTruthy();
+    expect(within(row).getByText("1,80")).toBeTruthy();
+    expect(within(row).getByText("de 3,00")).toBeTruthy();
+    const bar = within(row).getByRole("progressbar", { name: "Nota 1,80 de 3,00" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("60");
+    expect(within(row).getByText("Com feedback")).toBeTruthy();
+    // Edge case: a grade above the total fills the bar, never past it.
+    const over = await rowOf("Prova de POO");
+    expect(within(over).getByRole("progressbar", { name: "Nota 1,50 de 1,00" }).getAttribute("aria-valuenow")).toBe("100");
+    expect(within(over).queryByText("Com feedback")).toBeNull();
+  });
+
+  it("028/US1-5 exercício: \"Concluída\" e os pontos, nunca a barra; pontos aguardando correção", async () => {
+    const pendingPoints = entry({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000015", title: "Exercícios de vetores", points: { possible: 60, earned: 15, awaitingCorrection: true } });
+    setup({ [HISTORY]: json(200, page([exercise, pendingPoints])) });
+    const row = await rowOf("Exercícios de laços");
+    expect(within(row).getByText("Concluída")).toBeTruthy();
+    expect(within(row).getByText("45 de 60 pontos")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(await rowOf("Exercícios de vetores")).getByText("Pontos aguardando correção")).toBeTruthy();
+  });
+
+  it("028/US1-6 título, \"Ver atividade\" e a seta abrem a atividade; tipo, turma e disciplina, data em duas linhas", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Trabalho de interfaces");
+    const href = `/minhas-atividades/${graded.id}`;
+    expect(within(row).getByRole("link", { name: "Trabalho de interfaces" }).getAttribute("href")).toBe(href);
+    expect(within(row).getByText("Ver atividade").closest("a")!.getAttribute("href")).toBe(href);
+    expect(within(row).getByRole("link", { name: "Abrir Trabalho de interfaces" }).getAttribute("href")).toBe(href);
+    expect(within(row).getByText("Trabalho")).toBeTruthy();
+    expect(within(row).getByText("ADS 3NA")).toBeTruthy();
+    expect(within(row).getByText("Programação Orientada a Objetos")).toBeTruthy();
+    expect(within(row).getByText("13 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Sexta-feira, 16:47")).toBeTruthy();
+    // Only the turma when there is no subject; "com atraso" on the second line of the date.
+    const late = await rowOf("Lista de herança");
+    expect(within(late).getByText("ADS 3NA").parentElement!.children).toHaveLength(1);
+    expect(within(late).getByText("Sexta-feira, 16:47 (com atraso)")).toBeTruthy();
+    expect(within(await rowOf("Prova de POO")).getByText("Prova")).toBeTruthy();
+    // Phones: the same deliveries as cards, each one link.
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    expect(within(cards).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(FOUR.map((item) => `/minhas-atividades/${item.id}`));
+  });
+
+  it("028/US1-7 a tela termina com a nota sobre as notas", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    await table();
+    expect(screen.getByText(HISTORY_FINAL_NOTE).textContent).toBe("As notas aparecem aqui assim que a correção for concluída.");
+  });
+
+  it("028/US1-8 012/US6-1 sem entregas: cards em zero e o estado vazio; erro é outro estado", async () => {
+    setup({ [HISTORY]: json(200, page([], { tabCounts: { all: 0, awaiting: 0, graded: 0 }, totals: { delivered: 0, awaiting: 0, graded: 0 } })) });
     expect(await screen.findByText(HISTORY_EMPTY)).toBeTruthy();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
     vi.unstubAllGlobals();
-    setup({ [LIST]: apiError(500, "INTERNAL_ERROR", "x") });
+    cleanup();
+    setup({ [HISTORY]: apiError(500, "INTERNAL_ERROR", "x") });
     expect(await screen.findByText(LOAD_ERROR)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
   });
 
+  it("028/US1-9 \"Carregar mais\" pede o cursor e o N do rodapé cresce", async () => {
+    const { user, api } = setup({
+      [HISTORY]: json(200, page([graded, waiting], { nextCursor: "c1", total: 4 })),
+      [`${HISTORY}?cursor=c1`]: json(200, page([exercise, exam], { total: 4 })),
+    });
+    await table();
+    expect(screen.getByText("Exibindo 2 de 4 atividades")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Carregar mais" }));
+    expect(await screen.findByText("Exibindo 4 de 4 atividades")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?cursor=c1"))).toBe(true);
+    expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
+  });
+
+  it("028/FR-019 um título com HTML aparece como texto", async () => {
+    setup({ [HISTORY]: json(200, page([entry({ title: "<b>negrito</b>" })])) });
+    const row = await rowOf("<b>negrito</b>");
+    expect(within(row).getByRole("link", { name: "<b>negrito</b>" })).toBeTruthy();
+    expect(row.querySelector("b")).toBeNull();
+  });
+
   it("012/SC-009 sem violações de acessibilidade e na ordem de Tab", async () => {
-    const { user, container } = setup({ [LIST]: json(200, { items: [graded, waiting], nextCursor: null }) });
-    await screen.findByRole("table");
+    const { user, container } = setup({ [HISTORY]: json(200, page(FOUR, { nextCursor: "c1" })) });
+    const rows = await table();
     await expectNoA11yViolations(container);
     await expectTabOrder(user, [
-      screen.getByRole("link", { name: "Trabalho de interfaces" }),
-      screen.getByRole("link", { name: "Lista de herança" }),
+      within(rows).getByRole("link", { name: "Trabalho de interfaces" }),
+      within(rows).getByRole("link", { name: "Abrir Trabalho de interfaces" }),
+      within(rows).getByRole("link", { name: "Lista de herança" }),
+      screen.getByRole("button", { name: "Carregar mais" }),
     ]);
   });
 });

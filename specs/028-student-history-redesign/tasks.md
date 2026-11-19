@@ -149,7 +149,7 @@ concluído, abrir `/historico` e conferir os três totais, a ordem pela data da 
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T010 [P] [US1] Integração `apps/api/test/integration/028-us1-history.spec.ts`: `028/US1-1` os `totals` contam
+- [X] T010 [P] [US1] Integração `apps/api/test/integration/028-us1-history.spec.ts`: `028/US1-1` os `totals` contam
       todas as entregas mesmo com `pageSize=1`; `028/US1-2` e `028/SC-001` a ordem é por `deliveredAt` desc e `total`
       bate com a soma das páginas; `028/US1-3` entrega não liberada: `situation: "AWAITING"`, `result: null`;
       `028/US1-4` liberada com correção completa: `situation: "GRADED"`, `result.grade`, `totalGrade` e
@@ -159,7 +159,7 @@ concluído, abrir `/historico` e conferir os três totais, a ordem pela data da 
       entrega do grupo (edge case); prova (018) encerrada por tempo conta como entrega; uma prova retida
       (`exam_attempt_holds` aberta, sem entrega) não aparece, e depois de "Cancelar" pelo professor aparece como
       `AWAITING` até a liberação.
-- [ ] T011 [P] [US1] Web `apps/web/features/student-activities/components/student-history.test.tsx` (reescrever os
+- [X] T011 [P] [US1] Web `apps/web/features/student-activities/components/student-history.test.tsx` (reescrever os
       testes da lista de hoje; manter os de `ScreenExitRecords`, `OwnRoomExits` e `OwnExamOccurrences`; montar
       `GET /api/me/history` com `routedFetch`): `028/US1-1` os cards "Atividades entregues", "Aguardando correção" e
       "Atividades corrigidas" com os números de `totals` ("04"), as legendas e o nome acessível com o número inteiro;
@@ -176,12 +176,12 @@ concluído, abrir `/historico` e conferir os três totais, a ordem pela data da 
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Web `apps/web/features/student-activities/schemas/student-history.ts`: os textos de
+- [X] T012 [US1] Web `apps/web/features/student-activities/schemas/student-history.ts`: os textos de
       contracts/ui.md (cards, legendas, rodapé, nota final, estados), `gradePercent(grade, total)` (limitado 0–100,
       total 0 → 0), `twoDigits(n)`, o rótulo da turma (`item.class.name` + `item.subjectName`) e
       `historyStatusLabel(item)` (a pílula a partir de `situation`, `type` e `late`: GRADED → "Corrigida", AWAITING →
       "Entregue", EXERCISE → "Concluída", "… com atraso" quando `late`).
-- [ ] T013 [US1] Web `apps/web/features/student-activities/components/student-history.tsx`: reescrever
+- [X] T013 [US1] Web `apps/web/features/student-activities/components/student-history.tsx`: reescrever
       `StudentHistory` com `useStudentHistory` — os três cards (o padrão `Card` de `GradeSummaryCards` em
       `my-activities.tsx`, ícones `FileText`, `Clock`, `Check` decorativos, tom de sucesso na legenda das corrigidas),
       o painel com a `Table` (≥ `md`) e a lista de cartões (< `md`, o cartão inteiro um link), as colunas de

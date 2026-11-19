@@ -133,9 +133,9 @@ test.describe("012 portal do aluno", () => {
     // The student sees the grade in the history and the result on the activity, never the answer key.
     await page.goto("/historico");
     const row = page.getByRole("row").filter({ hasText: seed.workTitle });
-    await expect(row.getByText("0,95 de 1,00")).toBeVisible();
+    await expect(row.getByRole("progressbar", { name: "Nota 0,95 de 1,00" })).toBeVisible();
     await expect(row.getByText("Com feedback")).toBeVisible();
-    await row.getByRole("link", { name: seed.workTitle }).click();
+    await row.getByRole("link", { name: seed.workTitle, exact: true }).click();
     const result = page.getByRole("region", { name: "Resultado" });
     await expect(result.getByText("0,95 de 1,00")).toBeVisible();
     await expect(result.getByText("Bom trabalho.")).toBeVisible();

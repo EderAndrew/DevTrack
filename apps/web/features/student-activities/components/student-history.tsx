@@ -1,45 +1,148 @@
 "use client";
 
-import type { ExamOccurrenceView, StudentPause } from "@repo/contracts";
-import { History, MessageSquareText } from "lucide-react";
+import type { ExamOccurrenceView, StudentHistoryItem, StudentHistoryPage, StudentPause } from "@repo/contracts";
+import { Check, ChevronRight, Clock, FileText, History, Info, type LucideIcon, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Progress } from "@/components/ui/progress";
 import { Status } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDuration, NO_EXAM_OCCURRENCES, OCCURRENCE_KIND_LABELS, occurredAt } from "@/features/activities/schemas/attempt-records";
 import { NO_RETURN, PAUSE_REASON_LABELS, ROOM_EXITS_TITLE } from "@/features/attendance/schemas/attendance";
-import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
-import type { StudentActivityListFilters } from "../api/student-activities";
-import { useOwnIntegrity, useStudentActivities } from "../hooks/use-student-activities";
-import { ACTIVITY_TYPE_LABELS, activityHref, formatGrade, STATUS_VARIANTS, statusLabel } from "../schemas/student-activity";
+import { formatDayMonth, formatTime, formatWeekdayTime } from "@/lib/messages/dates";
+import type { StudentHistoryFilters } from "../api/student-activities";
+import { useOwnIntegrity, useStudentHistory } from "../hooks/use-student-activities";
+import {
+  AWAITING_GRADE,
+  HISTORY_CAPTION,
+  HISTORY_CARDS,
+  HISTORY_EMPTY,
+  HISTORY_FINAL_NOTE,
+  HISTORY_LOADING,
+  HISTORY_ORDER,
+  historyClassLines,
+  historyFooter,
+  historyGradePercent,
+  historyPoints,
+  historyStatusLabel,
+  historyStatusVariant,
+  twoDigits,
+  VIEW_ACTIVITY,
+} from "../schemas/student-history";
+import { ACTIVITY_TYPE_LABELS, activityHref, formatGrade } from "../schemas/student-activity";
 import { LoadFailed, Loading } from "./load-states";
 
-const COMPLETED: StudentActivityListFilters = { status: "COMPLETED", type: null };
-
-export const HISTORY_EMPTY = "Você ainda não entregou nenhuma atividade.";
+export { HISTORY_EMPTY };
 /** 015/US5-2: what the teacher sees of the student's screen exits, told to the student too. */
 export const SCREEN_EXITS_NOTE = "O professor vê estes registros. Uma saída não significa, sozinha, uso indevido.";
 export const screenExitsLabel = (count: number) => `Saídas da tela registradas: ${count}`;
 
-/**
- * "Histórico" (012 US6, FR-031): the submitted activities (`status=COMPLETED`) with atividade, tipo,
- * turma/disciplina, entregue em ("com atraso"), situação, and the grade and "Com feedback" once the
- * result is released; each opens the activity with the student's read-only answers.
- */
-export function StudentHistory() {
-  const query = useStudentActivities(COMPLETED);
-  const items = query.data?.pages.flatMap((page) => page.items) ?? [];
+const ALL: StudentHistoryFilters = { tab: null, q: "", classId: null };
 
-  if (query.isPending) return <Loading label="Carregando seu histórico…" />;
-  if (query.isError && items.length === 0) return <LoadFailed error={query.error} onRetry={() => void query.refetch()} />;
-  if (items.length === 0) return <EmptyState icon={History} title={HISTORY_EMPTY} />;
+interface SummaryCardSpec {
+  key: keyof StudentHistoryPage["totals"];
+  icon: LucideIcon;
+  tone: string;
+  captionTone: string;
+}
 
+const CARDS: SummaryCardSpec[] = [
+  { key: "delivered", icon: FileText, tone: "bg-primary-subtle text-primary", captionTone: "text-text-secondary" },
+  { key: "awaiting", icon: Clock, tone: "bg-warning-surface text-warning-text", captionTone: "text-text-secondary" },
+  { key: "graded", icon: Check, tone: "bg-success-surface text-success-text", captionTone: "text-success-text" },
+];
+
+/** The three totals of every delivery (028/FR-003), from the server, never from the loaded rows. */
+function HistorySummary({ totals }: { totals: StudentHistoryPage["totals"] }) {
   return (
-    <div className="flex flex-col gap-4">
+    <section aria-labelledby="historico-resumo">
+      <h2 id="historico-resumo" className="sr-only">
+        Resumo das suas entregas
+      </h2>
+      <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
+        {CARDS.map(({ key, icon: Icon, tone, captionTone }) => {
+          const card = HISTORY_CARDS[key];
+          return (
+            <li key={key} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
+              <span className="flex items-start justify-between gap-2">
+                <span className="text-body-sm text-text-secondary">{card.title}</span>
+                <span aria-hidden="true" className={`flex size-10 shrink-0 items-center justify-center rounded-md ${tone}`}>
+                  <Icon className="size-5" />
+                </span>
+              </span>
+              <span aria-hidden="true" className="text-display">
+                {twoDigits(totals[key])}
+              </span>
+              <span className="sr-only">{card.spoken(totals[key])}</span>
+              <span className={`text-caption ${captionTone}`}>{card.caption}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** The delivery date in two lines: "13 de novembro" and "Sexta-feira, 16:47" (with "com atraso" when late). */
+function DeliveredAt({ item }: { item: StudentHistoryItem }) {
+  return (
+    <span className="flex flex-col">
+      <time dateTime={item.deliveredAt}>{formatDayMonth(item.deliveredAt)}</time>
+      <span className="text-caption text-text-secondary">
+        {formatWeekdayTime(item.deliveredAt)}
+        {item.late ? " (com atraso)" : ""}
+      </span>
+    </span>
+  );
+}
+
+function ClassLines({ item }: { item: StudentHistoryItem }) {
+  const { turma, subject } = historyClassLines(item);
+  return (
+    <span className="flex flex-col">
+      <span>{turma}</span>
+      {subject ? <span className="text-caption text-text-secondary">{subject}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it; an
+ * exercise's points (013), never a grade or a bar.
+ */
+function HistoryScore({ item }: { item: StudentHistoryItem }) {
+  if (item.type === "EXERCISE") return <span>{item.points ? historyPoints(item.points) : "—"}</span>;
+  if (!item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
+  const grade = formatGrade(item.result.grade);
+  const total = formatGrade(item.totalGrade ?? "0.00");
+  return (
+    <span className="flex min-w-32 flex-col items-start gap-1">
+      <span>
+        <span className="text-h3">{grade}</span> <span className="text-body-sm text-text-secondary">de {total}</span>
+      </span>
+      <Progress value={historyGradePercent(item.result.grade, item.totalGrade)} aria-label={`Nota ${grade} de ${total}`} />
+      {item.result.hasFeedback ? (
+        <Badge variant="info">
+          <MessageSquareText aria-hidden="true" />
+          Com feedback
+        </Badge>
+      ) : null}
+    </span>
+  );
+}
+
+function HistoryStatus({ item }: { item: StudentHistoryItem }) {
+  return <Status variant={historyStatusVariant(item)}>{historyStatusLabel(item)}</Status>;
+}
+
+/** Wide screens: the table of contracts/ui.md "List". */
+function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
+  return (
+    <div className="hidden md:block">
       <Table>
-        <TableCaption>Atividades que você entregou.</TableCaption>
+        <TableCaption>{HISTORY_CAPTION}</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead scope="col">Atividade</TableHead>
@@ -48,58 +151,123 @@ export function StudentHistory() {
             <TableHead scope="col">Entregue em</TableHead>
             <TableHead scope="col">Situação</TableHead>
             <TableHead scope="col">Nota</TableHead>
+            <TableHead scope="col">
+              <span className="sr-only">Abrir</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
-                <Link href={activityHref(item.id)}>{item.title}</Link>
-              </TableCell>
-              <TableCell>{ACTIVITY_TYPE_LABELS[item.type]}</TableCell>
-              <TableCell>{item.subjectName ? `${item.class.name} · ${item.subjectName}` : item.class.name}</TableCell>
-              <TableCell>
-                {item.submittedAt ? formatLongDateTime(item.submittedAt) : "—"}
-                {item.late ? " (com atraso)" : ""}
-              </TableCell>
-              <TableCell>
-                <Status variant={STATUS_VARIANTS[item.status]}>{statusLabel(item)}</Status>
+                <Link href={activityHref(item.id)} className="flex flex-col text-primary">
+                  <span>{item.title}</span>
+                  <span aria-hidden="true" className="text-caption text-text-secondary">
+                    {VIEW_ACTIVITY}
+                  </span>
+                </Link>
               </TableCell>
               <TableCell>
-                {item.result ? (
-                  <div className="flex flex-col items-start gap-1">
-                    <span>
-                      {formatGrade(item.result.grade)} de {formatGrade(item.totalGrade ?? "0.00")}
-                    </span>
-                    {item.result.hasFeedback ? (
-                      <Badge variant="info">
-                        <MessageSquareText aria-hidden="true" />
-                        Com feedback
-                      </Badge>
-                    ) : null}
-                  </div>
-                ) : (
-                  "Aguardando correção"
-                )}
+                <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
+              </TableCell>
+              <TableCell>
+                <ClassLines item={item} />
+              </TableCell>
+              <TableCell>
+                <DeliveredAt item={item} />
+              </TableCell>
+              <TableCell>
+                <HistoryStatus item={item} />
+              </TableCell>
+              <TableCell>
+                <HistoryScore item={item} />
+              </TableCell>
+              <TableCell>
+                <Link href={activityHref(item.id)} aria-label={`Abrir ${item.title}`} className="flex text-text-secondary">
+                  <ChevronRight aria-hidden="true" className="size-5" />
+                </Link>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      {query.isFetchNextPageError ? <LoadFailed error={query.error} onRetry={() => void query.fetchNextPage()} /> : null}
-      {query.hasNextPage ? (
-        <Button
-          type="button"
-          variant="secondary"
-          className="self-start"
-          aria-disabled={query.isFetchingNextPage || undefined}
-          onClick={() => {
-            if (!query.isFetchingNextPage) void query.fetchNextPage();
-          }}
-        >
-          {query.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
-        </Button>
-      ) : null}
+    </div>
+  );
+}
+
+/** Phones: one card per delivery, the whole card one link. */
+function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
+  return (
+    <ul aria-label={HISTORY_CAPTION} className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
+      {items.map((item) => (
+        <li key={item.id}>
+          <Link href={activityHref(item.id)} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground">
+            <span className="flex items-start justify-between gap-2">
+              <span className="text-primary">{item.title}</span>
+              <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
+            </span>
+            <span className="text-body-sm text-text-secondary">
+              {item.subjectName ? `${item.class.name} · ${item.subjectName}` : item.class.name}
+            </span>
+            <DeliveredAt item={item} />
+            <HistoryStatus item={item} />
+            <HistoryScore item={item} />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * "Histórico" (012 US6, redesigned in 028/US1): the three totals of every delivery, then the deliveries newest first
+ * (`GET /me/history`) with the type, the class, the delivery date, the situation and the grade (or the points of an
+ * exercise), the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
+ * activity with the student's read-only answers.
+ */
+export function StudentHistory() {
+  const query = useStudentHistory(ALL);
+  const pages = query.data?.pages ?? [];
+  const items = pages.flatMap((page) => page.items);
+  const first = pages[0];
+
+  if (query.isPending) return <Loading label={HISTORY_LOADING} />;
+  if (!first) return <LoadFailed error={query.error} onRetry={() => void query.refetch()} />;
+  const latest = pages[pages.length - 1]!;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <HistorySummary totals={latest.totals} />
+      {latest.totals.delivered === 0 ? (
+        <EmptyState icon={History} title={HISTORY_EMPTY} />
+      ) : (
+        <section aria-label="Suas entregas" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <HistoryTable items={items} />
+          <HistoryCards items={items} />
+          <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm text-text-secondary">
+            <span>{historyFooter(items.length, latest.total)}</span>
+            <span>{HISTORY_ORDER}</span>
+          </div>
+          {query.isFetchNextPageError ? <LoadFailed error={query.error} onRetry={() => void query.fetchNextPage()} /> : null}
+          {query.hasNextPage ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="self-start"
+              aria-disabled={query.isFetchingNextPage || undefined}
+              onClick={() => {
+                if (!query.isFetchingNextPage) void query.fetchNextPage();
+              }}
+            >
+              {query.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+            </Button>
+          ) : null}
+        </section>
+      )}
+      <p className="m-0 flex items-center gap-2 text-body-sm text-text-secondary">
+        <Info aria-hidden="true" className="size-4 shrink-0" />
+        {HISTORY_FINAL_NOTE}
+      </p>
     </div>
   );
 }
