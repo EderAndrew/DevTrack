@@ -506,18 +506,18 @@ migration e comparar o que cada um vê.
 
 ### Tests for User Story 7
 
-- [ ] T049 [P] [US7] `apps/api/test/security/027-isolation.spec.ts`: `027/US7-1`…`027/US7-4` (professor A nas rotas de
+- [X] T049 [P] [US7] `apps/api/test/security/027-isolation.spec.ts`: `027/US7-1`…`027/US7-4` (professor A nas rotas de
       plano, atividade, chamada, ranking, revisão e provas da disciplina de B → `404` com o mesmo corpo de um id
       inexistente; gestor em atividade, entrega, nota, plano e ementa → `403`; professor em `/cohorts/*` → `403` e no
       roster só o que vê hoje; aluno de "ADS 3NA" em disciplina, atividade e ranking de "ADS 3NB" → `404`);
       `027/SC-003` (100% das tentativas, tabela de rotas × papéis gerada do `MATRIX`).
-- [ ] T050 [P] [US7] `apps/api/test/security/027-authorization-matrix.spec.ts` a partir de contracts/permissions.md
+- [X] T050 [P] [US7] `apps/api/test/security/027-authorization-matrix.spec.ts` a partir de contracts/permissions.md
       (cada rota nova × ADMIN, MANAGER, TEACHER, STUDENT, anônimo); reescrever `003-class-authorization-matrix.spec.ts`
       para o novo dono mantendo os ids `003/…`.
 
 ### Implementation for User Story 7
 
-- [ ] T051 [US7] Corrigir o que T049–T050 revelarem; retirar US7 e `SC-003` de `pending`.
+- [X] T051 [US7] Corrigir o que T049–T050 revelarem; retirar US7 e `SC-003` de `pending`.
 
 ---
 
