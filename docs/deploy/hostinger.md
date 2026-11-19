@@ -269,6 +269,19 @@ encerrados com o motivo `MERGED`. Ela roda uma vez, numa transação: se falhar,
 do `pm2 reload`. Depois do deploy, os professores perdem a criação de turmas e os convites, que passam ao gestor:
 combine com o gestor antes.
 
+Os convites passam a sair todos do gestor, que convida a turma inteira de uma vez, e o limite padrão de 50 convites
+por hora por quem convida trava uma turma de 40 alunos ou mais. No beta ele sobe para 200 (só no ambiente, o padrão da
+API não muda). Antes do deploy, como `devtrack`:
+
+```bash
+grep -q '^RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY=' ~/devtrack/apps/api/.env \
+  && sed -i 's/^RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY=.*/RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY=200/' ~/devtrack/apps/api/.env \
+  || echo 'RATE_LIMIT_CLASS_INVITE_TEACHER_HOURLY=200' >> ~/devtrack/apps/api/.env
+grep RATE_LIMIT_CLASS_INVITE ~/devtrack/apps/api/.env
+```
+
+A API lê o `.env` ao iniciar: o `pm2 reload` do deploy aplica o valor (sem deploy, `pm2 reload devtrack-api --update-env`).
+
 1. **Backup logo antes do merge** (root): `/home/devtrack/devtrack/deploy/hostinger/backup.sh` e confira o novo
    arquivo em `/var/backups/devtrack`. Copie-o para fora da VPS.
 2. **Deploy**: faça o merge na `main` (o workflow roda o `update.sh`, que aplica as migrations com
