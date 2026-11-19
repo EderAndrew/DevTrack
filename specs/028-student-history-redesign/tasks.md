@@ -54,14 +54,14 @@ description: "Task list for 028 — Histórico do aluno redesenhado: cards de to
 
 **Purpose**: a 028 entra na guarda de rastreabilidade e os contratos existem.
 
-- [ ] T001 Incluir a 028 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 027:
+- [X] T001 Incluir a 028 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 027:
       `feature: "028"`, `path: "specs/028-student-history-redesign/spec.md"`, `stories: 4`, `scenarios: 24`
       (9 + 5 + 6 + 4), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 7)` e
       `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007"] }`,
       com o comentário "Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its
       last test, each SC with the test that cites it, so the lists are empty at the end of T032; SC-005 leaves with T008 (T004)". Citar a 028 na
       lista de `SPECS` do `CLAUDE.md` raiz ("…, 026, 027 and 028").
-- [ ] T002 [P] Contratos (contracts/http-api.md "packages/contracts changes"):
+- [X] T002 [P] Contratos (contracts/http-api.md "packages/contracts changes"):
       `packages/contracts/src/activities/enums.ts` — `StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED"])`
       e o tipo; `packages/contracts/src/activities/student.ts` — `STUDENT_HISTORY_SEARCH_MAX = 100`,
       `StudentHistoryQuerySchema = z.strictObject({ tab: StudentHistorySituationSchema.optional(), q: z.string().trim()
@@ -126,6 +126,8 @@ entrega, na ordem nova, paginado e com as contagens; o web sabe pedi-lo.
       Em `my-activities.controller.ts`, `@Get("history")` com `@RequirePermissions("atividades.proprias.visualizar")`
       e `ZodValidationPipe(StudentHistoryQuerySchema)`. Acrescentar a linha `{ method: "GET", path: "/me/history",
       access: "atividades.proprias.visualizar" }` ao `MATRIX` de `apps/api/test/security/authorization-matrix.ts`.
+      Em `apps/api/test/contracts/endpoint-catalog.spec.ts`, a contagem do teste `003/FR-060` passa de 218 para 219
+      rotas e o título cita a 028 (a entrada do catálogo entrou no T002; até aqui a guarda falha por falta da rota).
       T004 verde; tirar `SC-005` de `pending` da 028 (citado no T004).
 - [ ] T009 [P] Web: `apps/web/lib/messages/dates.ts` — `formatDayMonth(iso)` e `formatWeekdayTime(iso)` (T005 verde);
       `apps/web/features/student-activities/api/student-activities.ts` — `history({ tab, q, classId }, cursor)` em

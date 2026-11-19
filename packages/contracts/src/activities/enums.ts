@@ -128,3 +128,10 @@ export const EXAM_INACTIVITY_SECONDS_DEFAULT = 60;
 export const EXAM_START_WINDOW_MINUTES_MIN = 0;
 export const EXAM_START_WINDOW_MINUTES_MAX = 60;
 export const EXAM_START_WINDOW_MINUTES_DEFAULT = 15;
+
+/**
+ * The situation of a delivery in the student's "Histórico" (028 research HI3), also the `tab` values of
+ * `GET /me/history`: AWAITING until the grade is visible to the student, then GRADED.
+ */
+export const StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED"]);
+export type StudentHistorySituation = z.infer<typeof StudentHistorySituationSchema>;

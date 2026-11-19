@@ -391,6 +391,22 @@ const SPECS: FeatureSpec[] = [
       successCriteria: [],
     },
   },
+  {
+    feature: "028",
+    path: "specs/028-student-history-redesign/spec.md",
+    stories: 4,
+    scenarios: 24, // 9 + 5 + 6 + 4
+    // No "### Acceptance Criteria Traceability" table, as in 008–027.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 7),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
+    // with the test that cites it, so the lists are empty at the end of T032; SC-005 leaves with T008 (T004).
+    pending: {
+      stories: [1, 2, 3, 4],
+      successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007"],
+    },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */
