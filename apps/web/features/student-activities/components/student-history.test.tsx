@@ -294,6 +294,67 @@ describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
   });
 });
 
+// 028/US4 — nothing of a grade before the release: the screen follows `situation`, so even a payload that carried a
+// result on an AWAITING item (never sent by the API, 028/SC-002) shows no grade, bar or "Com feedback".
+
+describe("028/US4 Histórico: nada de nota antes da liberação", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** The row of `title` in the table and its card in the phone list. */
+  const placesOf = async (title: string) => {
+    const row = await rowOf(title);
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    const card = within(cards)
+      .getAllByRole("listitem")
+      .find((item) => item.textContent?.includes(title))!;
+    return [row, card];
+  };
+
+  it("028/FR-018 um item AWAITING nunca mostra número de nota nem \"Com feedback\"", async () => {
+    const leaky = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000021",
+      title: "Trabalho sem liberação",
+      totalGrade: "3.00",
+      result: { grade: "2.40", hasFeedback: true },
+    });
+    setup({ [HISTORY]: json(200, page([leaky, waiting])) });
+    for (const title of ["Trabalho sem liberação", "Lista de herança"]) {
+      for (const place of await placesOf(title)) {
+        expect(within(place).getByText("Aguardando correção")).toBeTruthy();
+        expect(within(place).queryByRole("progressbar")).toBeNull();
+        expect(within(place).queryByText("Com feedback")).toBeNull();
+        expect(place.textContent).not.toMatch(/\d,\d\d/);
+      }
+    }
+  });
+
+  it("028/FR-018 um exercício nunca mostra a barra nem a palavra \"Nota\"", async () => {
+    setup({ [HISTORY]: json(200, page([exercise])) });
+    for (const place of await placesOf("Exercícios de laços")) {
+      expect(within(place).getByText("45 de 60 pontos")).toBeTruthy();
+      expect(within(place).queryByRole("progressbar")).toBeNull();
+      expect(place.textContent).not.toMatch(/Nota/);
+    }
+  });
+
+  it("028/US4-3 status GRADED com situation AWAITING (sem notas.proprias.visualizar): pílula \"Entregue\", nunca \"Corrigida\"", async () => {
+    const hidden = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000022",
+      title: "Trabalho liberado sem permissão",
+      status: "GRADED",
+      situation: "AWAITING",
+      totalGrade: "3.00",
+      result: null,
+    });
+    setup({ [HISTORY]: json(200, page([hidden])) });
+    for (const place of await placesOf("Trabalho liberado sem permissão")) {
+      expect(within(place).getByText("Entregue")).toBeTruthy();
+      expect(within(place).queryByText("Corrigida")).toBeNull();
+      expect(within(place).queryByRole("progressbar")).toBeNull();
+    }
+  });
+});
+
 // 015/US5 — the delivery the history opens: the AI's orientations under each question and the
 // screen exits recorded in a CONTROLLED work, with their times; no grade before the release.
 

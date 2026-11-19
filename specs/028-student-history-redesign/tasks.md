@@ -239,7 +239,7 @@ que ambas são "Aguardando", sem nota em nenhuma resposta nem na tela.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T018 [P] [US4] Segurança `apps/api/test/security/028-history-isolation.spec.ts` (parte 1): `028/US4-1` entrega
+- [X] T018 [P] [US4] Segurança `apps/api/test/security/028-history-isolation.spec.ts` (parte 1): `028/US4-1` entrega
       com todas as notas lançadas e `resultReleasedAt` nulo → `AWAITING`, `result: null`, e nenhum valor de nota nem
       texto de feedback em lugar algum do corpo (varrer o JSON pelos valores semeados), em `tab` ausente,
       `AWAITING` e `GRADED`; `028/US4-2` liberada com correção incompleta (`gradePartial`) → `AWAITING`, sem nota;
@@ -248,13 +248,13 @@ que ambas são "Aguardando", sem nota em nenhuma resposta nem na tela.
       `StudentHistoryItemSchema` (lista permitida), para toda combinação de `tab`; um aluno não vê a entrega de outro
       aluno da mesma turma; um aluno não marcado presente (016) não tem o trabalho no histórico; o Histórico não grava
       `activity_result.viewed` (contracts/audit-events.md).
-- [ ] T019 [P] [US4] Web `student-history.test.tsx` (acrescentar): `028/FR-018` um item `AWAITING` nunca mostra
+- [X] T019 [P] [US4] Web `student-history.test.tsx` (acrescentar): `028/FR-018` um item `AWAITING` nunca mostra
       número de nota nem "Com feedback"; um exercício nunca mostra `Progress` nem a palavra "Nota"; `028/US4-3` um item
       `status: "GRADED"` com `situation: "AWAITING"` mostra a pílula "Entregue", nunca "Corrigida".
 
 ### Implementation for User Story 4
 
-- [ ] T020 [US4] Sem código novo esperado (a regra é a de `toStudentSummary` + `historySituation`): rodar T018–T019;
+- [X] T020 [US4] Sem código novo esperado (a regra é a de `toStudentSummary` + `historySituation`): rodar T018–T019;
       se algo vazar, corrigir em `history.ts`/`my-activities.service.ts` sem afrouxar o teste. Tirar `4` de
       `pending.stories` e `SC-002`.
 

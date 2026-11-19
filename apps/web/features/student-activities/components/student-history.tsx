@@ -131,11 +131,12 @@ function ClassLines({ item }: { item: StudentHistoryItem }) {
 
 /**
  * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it; an
- * exercise's points (013), never a grade or a bar.
+ * exercise's points (013), never a grade or a bar. The grade shows only on a GRADED delivery (028/FR-018), the same
+ * `situation` the pill reads, so the two never disagree.
  */
 function HistoryScore({ item }: { item: StudentHistoryItem }) {
   if (item.type === "EXERCISE") return <span>{item.points ? historyPoints(item.points) : "—"}</span>;
-  if (!item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
+  if (item.situation !== "GRADED" || !item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
   const grade = formatGrade(item.result.grade);
   const total = formatGrade(item.totalGrade ?? "0.00");
   return (
