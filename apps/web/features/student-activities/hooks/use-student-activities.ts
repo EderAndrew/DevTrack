@@ -5,7 +5,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { ATTENDANCE_POLL_MS } from "@/features/attendance/schemas/attendance";
 import { integrityApi } from "@/features/controlled-attempt/api/integrity";
 import { GROUP_POLL_MS } from "@/features/group-work/schemas/group-work";
-import { isOffline, type StudentActivityListFilters, studentActivitiesApi } from "../api/student-activities";
+import { isOffline, type StudentActivityListFilters, type StudentHistoryFilters, studentActivitiesApi } from "../api/student-activities";
 
 export { isOffline };
 
@@ -15,6 +15,8 @@ export const studentActivitiesKeys = {
   dashboard: (classId: string | null = null) => [...studentActivitiesKeys.all, "dashboard", classId] as const,
   list: (filters: StudentActivityListFilters, classId: string | null = null) =>
     [...studentActivitiesKeys.all, "list", filters.status, filters.type, classId] as const,
+  history: (filters: StudentHistoryFilters) =>
+    [...studentActivitiesKeys.all, "history", filters.tab, filters.q.trim(), filters.classId] as const,
   detail: (activityId: string) => [...studentActivitiesKeys.all, "detail", activityId] as const,
   attempt: (activityId: string, number: number) => [...studentActivitiesKeys.all, "attempt", activityId, number] as const,
   integrity: (activityId: string) => [...studentActivitiesKeys.all, "integrity", activityId] as const,
@@ -43,6 +45,20 @@ export const useStudentActivities = (filters: StudentActivityListFilters, classI
   useInfiniteQuery({
     queryKey: studentActivitiesKeys.list(filters, classId),
     queryFn: ({ pageParam }) => studentActivitiesApi.list(filters, pageParam, classId),
+    enabled: options.enabled ?? true,
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    ...POLL_WHILE_VISIBLE,
+  });
+
+/**
+ * 028 "Histórico", page by page ("Carregar mais"), polled like the list; the key carries the tab, the search and the
+ * subject, so each combination pages with its own cursor (research HI5).
+ */
+export const useStudentHistory = (filters: StudentHistoryFilters, options: { enabled?: boolean } = {}) =>
+  useInfiniteQuery({
+    queryKey: studentActivitiesKeys.history(filters),
+    queryFn: ({ pageParam }) => studentActivitiesApi.history(filters, pageParam),
     enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,

@@ -99,6 +99,7 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   points: null,
   facts: facts(),
   canSeeResults: true,
+  firstCompletedAt: null,
   questions: QUESTIONS,
   attempt: { number: 1, startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers: [] },
   completedAttempts: [],

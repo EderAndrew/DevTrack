@@ -618,6 +618,8 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
         : null,
     facts,
     canSeeResults,
+    // Attempts come by number, so [0] is attempt 1, the conclusion that scores (013).
+    firstCompletedAt: activity.type === "EXERCISE" ? (attempts[0]?.completedAt ?? null) : null,
     submission: submission && {
       submittedAt: submission.submittedAt,
       late: submission.late,

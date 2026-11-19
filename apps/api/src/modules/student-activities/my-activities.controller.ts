@@ -7,6 +7,9 @@ import {
   type StudentDashboard,
   type StudentDashboardQuery,
   StudentDashboardQuerySchema,
+  type StudentHistoryPage,
+  type StudentHistoryQuery,
+  StudentHistoryQuerySchema,
   UuidSchema,
 } from "@repo/contracts";
 import { Ctx, type RequestContext } from "../../platform/http/request-context";
@@ -35,6 +38,16 @@ export class MyActivitiesController {
     @Ctx() ctx: RequestContext,
   ): Promise<StudentActivityPage> {
     return this.myActivities.list(ctx.auth!.userId, query);
+  }
+
+  /** 028: the "Histórico" — the student's deliveries with their situation and counts. */
+  @Get("history")
+  @RequirePermissions("atividades.proprias.visualizar")
+  history(
+    @Query(new ZodValidationPipe(StudentHistoryQuerySchema)) query: StudentHistoryQuery,
+    @Ctx() ctx: RequestContext,
+  ): Promise<StudentHistoryPage> {
+    return this.myActivities.history(ctx.auth!.userId, query);
   }
 
   @Get("activities/:activityId")

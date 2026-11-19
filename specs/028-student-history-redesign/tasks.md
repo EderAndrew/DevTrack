@@ -84,7 +84,7 @@ entrega, na ordem nova, paginado e com as contagens; o web sabe pedi-lo.
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Teste unitário `apps/api/test/unit/028-history.spec.ts` das funções puras de
+- [X] T003 [P] Teste unitário `apps/api/test/unit/028-history.spec.ts` das funções puras de
       `apps/api/src/modules/student-activities/history.ts` (research HI3–HI6): `028/FR-002` `historySituation` —
       trabalho/prova com `result` → `GRADED`, sem `result` (não liberado, liberado com correção incompleta ou sem a
       permissão de notas) → `AWAITING`, exercício com `points.awaitingCorrection` → `AWAITING`, sem → `GRADED`;
@@ -92,7 +92,7 @@ entrega, na ordem nova, paginado e com as contagens; o web sabe pedi-lo.
       (`encodeNameCursor`/`decodeNameCursor` de `platform/database/keyset.ts` sobre `{ name: deliveredAt, id }`)
       retoma depois do último item mesmo com dois `deliveredAt` iguais; `normalizeSearch` — "Prova", "PROVA" e
       "próva" casam com "prova de teste"; espaços nas pontas ignorados; um texto com `.*(` não é tratado como padrão.
-- [ ] T004 [P] Teste de integração `apps/api/test/integration/028-history-route.spec.ts` (`resetDb`, `createTestApp`,
+- [X] T004 [P] Teste de integração `apps/api/test/integration/028-history-route.spec.ts` (`resetDb`, `createTestApp`,
       factories da 027: uma turma com uma disciplina, um aluno matriculado; um trabalho entregue sem liberação, um
       trabalho liberado com correção completa, uma prova entregue e um exercício concluído, mais uma atividade
       pendente): `028/FR-016` `GET /me/history` → `200` com os quatro entregues e sem a pendente; cada item com
@@ -101,22 +101,22 @@ entrega, na ordem nova, paginado e com as contagens; o web sabe pedi-lo.
       páginas trazem os quatro ids uma vez cada e as contagens são as mesmas em todas; `028/SC-005` a resposta de
       `GET /me/activities?status=COMPLETED` no mesmo estado é a mesma de antes desta feature (os mesmos ids na ordem
       por prazo, sem `deliveredAt`/`situation`); sem sessão → `401`, sem `atividades.proprias.visualizar` → `403`.
-- [ ] T005 [P] Teste do web `apps/web/lib/messages/dates.test.ts` (acrescentar): `formatDayMonth` dá "13 de novembro"
+- [X] T005 [P] Teste do web `apps/web/lib/messages/dates.test.ts` (acrescentar): `formatDayMonth` dá "13 de novembro"
       e `formatWeekdayTime` dá "Sexta-feira, 16:47" (dia da semana com inicial maiúscula), no fuso do navegador como
       `formatLongDateTime`.
 
 ### Implementation for Foundational
 
-- [ ] T006 Data de conclusão do exercício (research HI4): `StudentActivityInput` em
+- [X] T006 Data de conclusão do exercício (research HI4): `StudentActivityInput` em
       `apps/api/src/modules/activities/views/student-view.ts` ganha `firstCompletedAt: Date | null`, preenchido em
       `toInput` (`apps/api/src/modules/student-activities/student-activity-loader.ts`) com o `completedAt` da tentativa
       de número 1 das linhas de tentativa que o loader já seleciona (null fora de EXERCISE); `toStudentSummary` não o
       expõe. Ajustar os fixtures de `apps/api/src/modules/activities/views/views.spec.ts` que montam um input.
-- [ ] T007 Funções puras em `apps/api/src/modules/student-activities/history.ts`: `historySituation(summary)`,
+- [X] T007 Funções puras em `apps/api/src/modules/student-activities/history.ts`: `historySituation(summary)`,
       `deliveredAt(input, summary)` (submissão ou `firstCompletedAt`), `byDelivery`, `historyCursor`/`afterCursor`
       (sobre o keyset de `platform/database/keyset.ts`), `normalizeSearch(text)` (`NFD`, sem `\p{M}`,
       `toLocaleLowerCase("pt-BR")`) e `matchesSearch(title, q)`. T003 verde.
-- [ ] T008 Rota e serviço: em `apps/api/src/modules/student-activities/my-activities.service.ts`,
+- [X] T008 Rota e serviço: em `apps/api/src/modules/student-activities/my-activities.service.ts`,
       `history(userId, query: StudentHistoryQuery): Promise<StudentHistoryPage>` — reusa `summaries(userId, now)` mas
       precisa do input (para `deliveredAt`): extrair de `summaries` um `inputs(userId, now, classId?)` que devolve os
       `StudentActivityInput` (o `list` e o `dashboard` continuam mapeando com `toStudentSummary`, sem mudar a
@@ -126,10 +126,10 @@ entrega, na ordem nova, paginado e com as contagens; o web sabe pedi-lo.
       Em `my-activities.controller.ts`, `@Get("history")` com `@RequirePermissions("atividades.proprias.visualizar")`
       e `ZodValidationPipe(StudentHistoryQuerySchema)`. Acrescentar a linha `{ method: "GET", path: "/me/history",
       access: "atividades.proprias.visualizar" }` ao `MATRIX` de `apps/api/test/security/authorization-matrix.ts`.
-      Em `apps/api/test/contracts/endpoint-catalog.spec.ts`, a contagem do teste `003/FR-060` passa de 218 para 219
-      rotas e o título cita a 028 (a entrada do catálogo entrou no T002; até aqui a guarda falha por falta da rota).
+      `apps/api/test/contracts/endpoint-catalog.spec.ts` não muda: `myActivities.history` entra na contagem da 012
+      (`/^(activities|myActivities)\./`); a guarda só falhava (desde o T002) pela rota ainda não registrada.
       T004 verde; tirar `SC-005` de `pending` da 028 (citado no T004).
-- [ ] T009 [P] Web: `apps/web/lib/messages/dates.ts` — `formatDayMonth(iso)` e `formatWeekdayTime(iso)` (T005 verde);
+- [X] T009 [P] Web: `apps/web/lib/messages/dates.ts` — `formatDayMonth(iso)` e `formatWeekdayTime(iso)` (T005 verde);
       `apps/web/features/student-activities/api/student-activities.ts` — `history({ tab, q, classId }, cursor)` em
       `GET /api/me/history`, validado com `StudentHistoryPageSchema`; `hooks/use-student-activities.ts` —
       `studentActivitiesKeys.history(filters)` e `useStudentHistory(filters)` (`useInfiniteQuery`, as páginas

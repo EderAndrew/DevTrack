@@ -10,6 +10,9 @@ import {
   type StudentActivitySummary,
   type StudentDashboard,
   type StudentExerciseAttempt,
+  type StudentHistoryItem,
+  type StudentHistoryPage,
+  type StudentHistoryQuery,
 } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { decodeNameCursor, encodeNameCursor } from "../../platform/database/keyset";
@@ -18,10 +21,17 @@ import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
 import { RankingService } from "../ranking/ranking.service";
-import { runsCode, toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
+import {
+  runsCode,
+  type StudentActivityInput,
+  toStudentActivity,
+  toStudentExerciseAttempt,
+  toStudentSummary,
+} from "../activities/views/student-view";
 import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { GroupSettlement } from "../activities/group-settlement";
+import { afterCursor, byDelivery, deliveredAt, historyCursor, historySituation, type HistoryEntry } from "./history";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
@@ -35,6 +45,9 @@ const FILTER_STATUSES: Record<NonNullable<StudentActivityListQuery["status"]>, r
   OVERDUE: ["OVERDUE"],
   COMPLETED: ["SUBMITTED", "GRADED", "COMPLETED"],
 };
+
+/** The statuses of a delivery: the "Histórico" (028) is what "Concluídas" held before it. */
+const DELIVERED_STATUSES: readonly StudentActivityStatus[] = FILTER_STATUSES.COMPLETED;
 
 const MAX_EPOCH_MS = 8_640_000_000_000_000;
 
@@ -104,6 +117,35 @@ export class MyActivitiesService {
     return {
       items,
       nextCursor: matching.length > pageSize && last ? encodeNameCursor({ name: orderKey(last), id: last.id }) : null,
+    };
+  }
+
+  /**
+   * The "Histórico" (028 research HI2–HI7): the delivered summaries of the scoped loader with each one's delivery date
+   * and situation, newest delivery first, counted and paged in memory. `totals` (the cards), `tabCounts` and `total`
+   * count every delivery; never an audit event (contracts/audit-events.md).
+   */
+  async history(userId: string, query: StudentHistoryQuery): Promise<StudentHistoryPage> {
+    const after = query.cursor === undefined ? null : afterCursor(query.cursor);
+    const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
+    const entries: HistoryEntry[] = [];
+    for (const input of await this.inputs(userId, this.clock.now())) {
+      const summary = toStudentSummary(input);
+      const date = deliveredAt(input);
+      if (DELIVERED_STATUSES.includes(summary.status) && date !== null) entries.push({ summary, deliveredAt: date });
+    }
+    const items = entries.map((entry) => ({ entry, situation: historySituation(entry.summary) }));
+    const awaiting = items.filter((item) => item.situation === "AWAITING").length;
+    const counts = { all: items.length, awaiting, graded: items.length - awaiting };
+    const matching = items.sort((a, b) => byDelivery(a.entry, b.entry)).filter((item) => after === null || after(item.entry));
+    const page = matching.slice(0, pageSize);
+    const last = page.at(-1);
+    return {
+      items: page.map(({ entry, situation }): StudentHistoryItem => ({ ...entry.summary, deliveredAt: entry.deliveredAt.toISOString(), situation })),
+      nextCursor: matching.length > pageSize && last ? historyCursor(last.entry) : null,
+      total: counts.all,
+      tabCounts: counts,
+      totals: { delivered: counts.all, awaiting: counts.awaiting, graded: counts.graded },
     };
   }
 
@@ -186,10 +228,14 @@ export class MyActivitiesService {
    * that doesn't exist, not audited (a class, not an activity: contracts/audit-events.md).
    */
   private async summaries(userId: string, now: Date, classId?: string): Promise<StudentActivitySummary[]> {
+    return (await this.inputs(userId, now, classId)).map(toStudentSummary);
+  }
+
+  /** The scoped inputs behind `summaries` (the history also needs their delivery date, 028 HI4). */
+  private async inputs(userId: string, now: Date, classId?: string): Promise<StudentActivityInput[]> {
     if (classId !== undefined) await this.assertActiveEnrollment(userId, classId);
     await this.examSettlement.ofStudent(userId, now, null);
-    const inputs = await this.loader.loadAll(userId, now, await this.canSeeResults(userId), classId);
-    return inputs.map(toStudentSummary);
+    return this.loader.loadAll(userId, now, await this.canSeeResults(userId), classId);
   }
 
   private async assertActiveEnrollment(userId: string, classId: string): Promise<void> {
