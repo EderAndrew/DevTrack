@@ -112,14 +112,14 @@ describe("028/US1 totais e lista redesenhada", () => {
   it("028/US1-1 os totais contam todas as entregas, mesmo com pageSize=1", async () => {
     const body = await historyOf(client, "?pageSize=1");
     expect(body.items).toHaveLength(1);
-    expect(body.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2 });
+    expect(body.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 0 });
   });
 
   it("028/US1-2 028/SC-001 a ordem é pela data da entrega, a mais recente primeiro, e o total bate com a soma das páginas", async () => {
     const pages = await allPages(client, 2);
     const items = pages.flatMap((page) => page.items);
     expect(items.map((item) => item.id)).toEqual([ids.unreleased, ids.exercise, ids.released]);
-    const times = items.map((item) => Date.parse(item.deliveredAt));
+    const times = items.map((item) => Date.parse(item.deliveredAt!));
     expect([...times].sort((a, b) => b - a)).toEqual(times);
     for (const page of pages) expect(page.total).toBe(items.length);
   });
@@ -145,8 +145,8 @@ describe("028/US1 totais e lista redesenhada", () => {
       items: [],
       nextCursor: null,
       total: 0,
-      tabCounts: { all: 0, awaiting: 0, graded: 0 },
-      totals: { delivered: 0, awaiting: 0, graded: 0 },
+      tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0 },
+      totals: { delivered: 0, awaiting: 0, graded: 0, missed: 0 },
     });
   });
 
@@ -213,6 +213,6 @@ describe("028/US1 totais e lista redesenhada", () => {
     expect(cancelled.status, JSON.stringify(cancelled.body)).toBe(200);
     const afterCancel = await historyOf(client);
     expect(afterCancel.items.find((item) => item.id === heldId)).toMatchObject({ situation: "AWAITING", result: null });
-    expect(afterCancel.totals).toEqual({ delivered: 5, awaiting: 3, graded: 2 });
+    expect(afterCancel.totals).toEqual({ delivered: 5, awaiting: 3, graded: 2, missed: 0 });
   });
 });

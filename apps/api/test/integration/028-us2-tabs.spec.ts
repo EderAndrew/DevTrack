@@ -139,8 +139,8 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
     gradedIds.push(exercise.activity.id);
   });
 
-  const COUNTS = { all: 5, awaiting: 3, graded: 2 };
-  const TOTALS = { delivered: 5, awaiting: 3, graded: 2 };
+  const COUNTS = { all: 5, awaiting: 3, graded: 2, missed: 0 };
+  const TOTALS = { delivered: 5, awaiting: 3, graded: 2, missed: 0 };
 
   it("028/US2-1 sem tab: as três contagens e o total igual a tabCounts.all", async () => {
     const body = await historyOf(client);
@@ -179,7 +179,7 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
       submission: { submittedAt: at(-HOUR) },
     });
     const body = await historyOf(api(t, { cookie: await loginAs(t, classmate) }), "?tab=GRADED");
-    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 1, awaiting: 1, graded: 0 } });
+    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 1, awaiting: 1, graded: 0, missed: 0 } });
   });
 
   it("028/US2 tab desconhecida → 400", async () => {

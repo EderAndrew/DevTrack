@@ -145,7 +145,8 @@ describe("012 desempenho do portal do aluno e do detalhe do professor", () => {
   it.each([
     ["painel", () => studentClient.get("/api/me/dashboard")],
     ["lista", () => studentClient.get("/api/me/activities")],
-    ["lista filtrada (concluídas)", () => studentClient.get("/api/me/activities?status=COMPLETED&pageSize=50")],
+    // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
+    ["histórico (concluídas, 028/FR-023)", () => studentClient.get("/api/me/history?pageSize=50")],
     ["lista das turmas do professor", () => teacherClient.get(`/api/classes/${rosterClass.id}/activities`)],
   ] as const)("%s ≤ 1 s com 10 turmas × 50 atividades", async (_name, call) => {
     expect(await slowest(call)).toBeLessThanOrEqual(LIMIT_MS);

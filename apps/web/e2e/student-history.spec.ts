@@ -6,12 +6,15 @@ import { markAllPresentThroughApi, seedStudentPortal, type StudentPortalSeed } f
 /**
  * 028 — the redesigned Histórico on the real screens: a student with two delivered works, one released, sees the cards
  * 2/1/1, the graded row with its grade and bar, "Corrigidas" with only the released one, the search narrowing the list,
- * and at 360 px, in the dark and light themes (the account's, 022), no horizontal scroll with the rows as cards.
+ * and at 360 px, in the dark and light themes (the account's, 022), no horizontal scroll with the rows as cards. Since the
+ * amendment of 2026-11-23 a third work, closed by the teacher without a delivery, is only in "Não entregues".
  * The works have only multiple-choice questions, so a blank submission is graded at once and can be released.
  */
 
 const RELEASED = "Prova liberada E2E";
 const PENDING = "Trabalho pendente E2E";
+/** 028 amendment: closed by the teacher with no delivery — only in the Histórico, under "Não entregues". */
+const CLOSED = "Trabalho encerrado E2E";
 
 /** A work of one multiple-choice question in the seed's subject, applied to its class; returns the activity id. */
 async function applyChoiceWork(teacherPage: Page, seed: StudentPortalSeed, title: string): Promise<string> {
@@ -64,6 +67,7 @@ async function seedHistory(browser: Browser): Promise<StudentPortalSeed> {
   await logIn(teacherPage, seed.teacher, "/disciplinas");
   const released = await applyChoiceWork(teacherPage, seed, RELEASED);
   const pending = await applyChoiceWork(teacherPage, seed, PENDING);
+  const closed = await applyChoiceWork(teacherPage, seed, CLOSED);
 
   const studentPage = await (await browser.newContext()).newPage();
   await logIn(studentPage, seed.student, "/painel");
@@ -72,6 +76,7 @@ async function seedHistory(browser: Browser): Promise<StudentPortalSeed> {
   await studentPage.context().close();
 
   await apiPost(teacherPage, `/classes/${seed.classId}/activities/${released}/release`, {});
+  await apiPost(teacherPage, `/classes/${seed.classId}/activities/${closed}/close`, {});
   await teacherPage.context().close();
   return seed;
 }
@@ -106,11 +111,30 @@ test.describe("028 Histórico redesenhado", () => {
     await expect(page.getByRole("row").filter({ hasText: RELEASED })).toBeVisible();
     await expect(page.getByRole("row").filter({ hasText: PENDING })).toHaveCount(0);
 
-    await page.getByRole("tab", { name: "Todas, 2" }).click();
+    await page.getByRole("tab", { name: "Todas, 3" }).click();
     await page.getByRole("searchbox", { name: "Buscar atividade" }).fill("pendente");
     await expect(page).toHaveURL(/busca=pendente/);
     await expect(page.getByRole("row").filter({ hasText: PENDING })).toBeVisible();
     await expect(page.getByRole("row").filter({ hasText: RELEASED })).toHaveCount(0);
+    await expect(summary.getByText("2 atividades entregues")).toBeAttached();
+    await page.context().close();
+  });
+
+  test("028/US5-2 a atividade encerrada sem entrega está em \"Não entregues\" e não em Minhas atividades", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const page = await (await browser.newContext()).newPage();
+    await logIn(page, seed.student, "/minhas-atividades");
+    // Every activity of the seed is delivered or missed: nothing left to do in the list.
+    await expect(page.getByText("Você ainda não tem atividades.")).toBeVisible();
+    for (const title of [RELEASED, PENDING, CLOSED]) await expect(page.getByText(title)).toHaveCount(0);
+
+    await page.goto("/historico");
+    await page.getByRole("tab", { name: "Não entregues, 1" }).click();
+    await expect(page).toHaveURL(/aba=nao-entregues/);
+    const row = page.getByRole("row").filter({ hasText: CLOSED });
+    await expect(row.getByText("Não entregue")).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: PENDING })).toHaveCount(0);
+    const summary = page.getByRole("region", { name: "Resumo das suas entregas" });
     await expect(summary.getByText("2 atividades entregues")).toBeAttached();
     await page.context().close();
   });

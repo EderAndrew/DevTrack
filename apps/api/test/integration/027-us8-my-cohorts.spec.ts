@@ -133,9 +133,13 @@ describe("027/US8 — aluno vê as suas turmas e matérias", () => {
     expect(body.years[0]!.cohorts[0]).toMatchObject({ id: current.id, status: "ACTIVE" });
 
     const client = await asStudent();
+    // 028/FR-022 (amendment 2026-11-23): a closed turma's activities can't be delivered any more, so they are
+    // "não entregues" in the "Histórico" (read-only as before), not in "Minhas atividades".
     const list = await client.get(`/api/me/activities?classId=${oldClass.id}`);
     expect(list.status).toBe(200);
-    expect(list.body.items.map((item: { id: string }) => item.id).sort()).toEqual([started.activity.id, notStarted.activity.id].sort());
+    expect(list.body.items).toEqual([]);
+    const missed = await client.get(`/api/me/history?classId=${oldClass.id}&tab=MISSED`);
+    expect(missed.body.items.map((item: { id: string }) => item.id).sort()).toEqual([started.activity.id, notStarted.activity.id].sort());
     expect((await client.get(`/api/me/dashboard?classId=${oldClass.id}`)).status).toBe(200);
     expect((await client.get(`/api/me/activities/${started.activity.id}`)).status).toBe(200);
 

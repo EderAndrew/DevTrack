@@ -38,18 +38,25 @@ export const historyClassLines = (item: Pick<StudentHistoryItem, "class" | "subj
   subject: item.subjectName,
 });
 
+/** 028 amendment (FR-024): the pill of an activity the student can no longer deliver. */
+export const MISSED_LABEL = "Não entregue";
+
 /**
- * The pill of a row (contracts/ui.md "Situação"): an exercise is "Concluída"; otherwise GRADED → "Corrigida" and
- * AWAITING → "Entregue", each "… com atraso" when the delivery was late.
+ * The pill of a row (contracts/ui.md "Situação"): MISSED → "Não entregue" (any type); an exercise is "Concluída";
+ * otherwise GRADED → "Corrigida" and AWAITING → "Entregue", each "… com atraso" when the delivery was late.
  */
 export function historyStatusLabel(item: Pick<StudentHistoryItem, "type" | "situation" | "late">): string {
+  if (item.situation === "MISSED") return MISSED_LABEL;
   if (item.type === "EXERCISE") return "Concluída";
   const base = item.situation === "GRADED" ? "Corrigida" : "Entregue";
   return item.late ? `${base} com atraso` : base;
 }
 
 export const historyStatusVariant = (item: Pick<StudentHistoryItem, "type" | "situation">): StatusVariant =>
-  item.type !== "EXERCISE" && item.situation === "AWAITING" ? "warning" : "success";
+  item.situation === "MISSED" ? "neutral" : item.type !== "EXERCISE" && item.situation === "AWAITING" ? "warning" : "success";
+
+/** The row's date: the delivery, or when a missed activity stopped accepting one (028 HI11); exactly one is set. */
+export const historyDate = (item: Pick<StudentHistoryItem, "deliveredAt" | "missedAt">): string => item.deliveredAt ?? item.missedAt ?? "";
 
 /** An exercise's points (013, never a grade): "45 de 60 pontos", or "Pontos aguardando correção". */
 export function historyPoints(points: NonNullable<StudentHistoryItem["points"]>): string {
@@ -61,11 +68,12 @@ export const HISTORY_TABS = [
   { tab: null, slug: "todas", label: "Todas", count: "all", empty: HISTORY_EMPTY },
   { tab: "AWAITING", slug: "aguardando", label: "Aguardando", count: "awaiting", empty: "Nenhuma entrega aguardando correção." },
   { tab: "GRADED", slug: "corrigidas", label: "Corrigidas", count: "graded", empty: "Nenhuma entrega corrigida ainda." },
+  { tab: "MISSED", slug: "nao-entregues", label: "Não entregues", count: "missed", empty: "Nenhuma atividade não entregue." },
 ] as const satisfies readonly {
   tab: StudentHistorySituation | null;
   slug: string;
   label: string;
-  count: "all" | "awaiting" | "graded";
+  count: "all" | "awaiting" | "graded" | "missed";
   empty: string;
 }[];
 

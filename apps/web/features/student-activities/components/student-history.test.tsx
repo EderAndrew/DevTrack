@@ -32,15 +32,27 @@ const FRIDAY = new Date(2026, 10, 13, 16, 47).toISOString();
 const entry = (overrides: Partial<StudentHistoryItem> = {}): StudentHistoryItem => ({
   ...summary({ status: "SUBMITTED", canAnswer: false, submittedAt: FRIDAY }),
   deliveredAt: FRIDAY,
+  missedAt: null,
   situation: "AWAITING",
   ...overrides,
 });
-const page = (items: StudentHistoryItem[], extra: Partial<StudentHistoryPage> = {}): StudentHistoryPage => ({
+/** A page; `missed` (028 amendment) defaults to 0 in the tab counts and the totals. */
+const page = (
+  items: StudentHistoryItem[],
+  {
+    tabCounts,
+    totals,
+    ...extra
+  }: Partial<Omit<StudentHistoryPage, "tabCounts" | "totals">> & {
+    tabCounts?: Partial<StudentHistoryPage["tabCounts"]>;
+    totals?: Partial<StudentHistoryPage["totals"]>;
+  } = {},
+): StudentHistoryPage => ({
   items,
   nextCursor: null,
   total: items.length,
-  tabCounts: { all: 4, awaiting: 2, graded: 2 },
-  totals: { delivered: 4, awaiting: 2, graded: 2 },
+  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, ...tabCounts },
+  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, ...totals },
   ...extra,
 });
 
@@ -237,7 +249,8 @@ describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
     setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
     const list = await tabs();
     const all = within(list).getAllByRole("tab");
-    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1"]);
+    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues".
+    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0"]);
     expect(within(list).getByRole("tab", { name: "Aguardando, 3" }).textContent).toBe("Aguardando3");
     expect(within(list).getByRole("tab", { name: "Todas, 4" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tabpanel", { name: "Todas, 4" })).toBeTruthy();
@@ -458,6 +471,62 @@ describe("028/US3 Histórico: buscar e filtrar por matéria", () => {
 
 // 028/US4 — nothing of a grade before the release: the screen follows `situation`, so even a payload that carried a
 // result on an AWAITING item (never sent by the API, 028/SC-002) shows no grade, bar or "Com feedback".
+
+describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Local time, as FRIDAY: "10 de novembro" and "Terça-feira, 23:59".
+  const TUESDAY = new Date(2026, 10, 10, 23, 59).toISOString();
+  const missed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000021",
+    title: "Trabalho perdido",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    missedAt: TUESDAY,
+    situation: "MISSED",
+    totalGrade: "2.00",
+  });
+  const COUNTS = { tabCounts: { all: 5, awaiting: 2, graded: 2, missed: 1 }, totals: { missed: 1 } };
+
+  it("028/US5-2 028/FR-024 a aba \"Não entregues\" com a contagem; a linha diz \"Não entregue\", a data em que fechou e \"—\" na Nota", async () => {
+    const { user } = setup({ [HISTORY]: json(200, page([graded, missed], COUNTS)) });
+    const tabs = await screen.findByRole("tablist", { name: "Situação das entregas" });
+    expect(within(tabs).getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Todas, 5",
+      "Aguardando, 2",
+      "Corrigidas, 2",
+      "Não entregues, 1",
+    ]);
+    const row = await rowOf("Trabalho perdido");
+    expect(within(row).getByText("Não entregue")).toBeTruthy();
+    expect(within(row).getByText("10 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(row).queryByText("Aguardando correção")).toBeNull();
+    // The cards are the deliveries only.
+    expect(screen.getByText("4 atividades entregues")).toBeTruthy();
+    await user.click(within(tabs).getByRole("tab", { name: "Não entregues, 1" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=nao-entregues");
+    expect(historyFromSearch({ aba: "nao-entregues" }).tab).toBe("MISSED");
+  });
+
+  it("028/US5-5 aba \"Não entregues\" vazia: a frase própria, com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=MISSED`]: json(200, page([], { total: 0 })) }, historyFromSearch({ aba: "nao-entregues" }));
+    expect(await screen.findByText("Nenhuma atividade não entregue.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("028/FR-015 sem entregas mas com não entregues: a lista, não o vazio da página", async () => {
+    setup({ [HISTORY]: json(200, page([missed], { totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 }, tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 } })) });
+    expect(await rowOf("Trabalho perdido")).toBeTruthy();
+    expect(screen.queryByText(HISTORY_EMPTY)).toBeNull();
+  });
+});
 
 describe("028/US4 Histórico: nada de nota antes da liberação", () => {
   afterEach(() => vi.unstubAllGlobals());

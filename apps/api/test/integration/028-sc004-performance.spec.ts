@@ -108,7 +108,7 @@ describe("028/SC-004 desempenho do Histórico com 500 entregas", () => {
 
   it("028/SC-004 sem filtro, por aba, por busca, por matéria e combinados: cada resposta em menos de 2 s", async () => {
     const first = await history("");
-    expect(first.body.totals).toEqual({ delivered: DELIVERIES, awaiting: DELIVERIES / 2, graded: DELIVERIES / 2 });
+    expect(first.body.totals).toEqual({ delivered: DELIVERIES, awaiting: DELIVERIES / 2, graded: DELIVERIES / 2, missed: 0 });
     expect(first.ms).toBeLessThan(LIMIT_MS);
 
     const cases = [

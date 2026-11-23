@@ -144,7 +144,7 @@ describe("028/US4 nada de nota antes da liberação", () => {
   it("028/US4-2 liberada com correção incompleta: AWAITING e sem nota", async () => {
     const body = await historyOf(client);
     expect(body.items.find((entry) => entry.id === ids.partial)).toMatchObject({ situation: "AWAITING", result: null });
-    expect(body.totals).toEqual({ delivered: 4, awaiting: 3, graded: 1 });
+    expect(body.totals).toEqual({ delivered: 4, awaiting: 3, graded: 1, missed: 0 });
     expect((await historyOf(client, "?tab=GRADED")).items.map((item) => item.id)).toEqual([ids.released]);
   });
 

@@ -38,6 +38,7 @@ import {
   HISTORY_SEARCH_PLACEHOLDER,
   HISTORY_SEARCH_WAIT_MS,
   historyClassLines,
+  historyDate,
   historyFiltered,
   historyFooter,
   historyGradePercent,
@@ -77,7 +78,8 @@ function HistoryTabList({ counts }: { counts: StudentHistoryPage["tabCounts"] })
 }
 
 interface SummaryCardSpec {
-  key: keyof StudentHistoryPage["totals"];
+  /** The cards are the deliveries; `totals.missed` is never a card (028 HI12). */
+  key: Exclude<keyof StudentHistoryPage["totals"], "missed">;
   icon: LucideIcon;
   tone: string;
   captionTone: string;
@@ -120,14 +122,18 @@ function HistorySummary({ totals }: { totals: StudentHistoryPage["totals"] }) {
   );
 }
 
-/** The delivery date in two lines: "13 de novembro" and "Sexta-feira, 16:47" (with "com atraso" when late). */
+/**
+ * The date in two lines: "13 de novembro" and "Sexta-feira, 16:47" (with "com atraso" when late) — the delivery, or
+ * when a missed activity stopped accepting one (028 HI11).
+ */
 function DeliveredAt({ item }: { item: StudentHistoryItem }) {
+  const date = historyDate(item);
   return (
     <span className="flex flex-col">
-      <time dateTime={item.deliveredAt}>{formatDayMonth(item.deliveredAt)}</time>
+      <time dateTime={date}>{formatDayMonth(date)}</time>
       <span className="text-caption text-text-secondary">
-        {formatWeekdayTime(item.deliveredAt)}
-        {item.late ? " (com atraso)" : ""}
+        {formatWeekdayTime(date)}
+        {item.late && item.situation !== "MISSED" ? " (com atraso)" : ""}
       </span>
     </span>
   );
@@ -149,6 +155,8 @@ function ClassLines({ item }: { item: StudentHistoryItem }) {
  * `situation` the pill reads, so the two never disagree.
  */
 function HistoryScore({ item }: { item: StudentHistoryItem }) {
+  // 028/FR-024: nothing was delivered, so there is nothing to grade or score.
+  if (item.situation === "MISSED") return <span>—</span>;
   if (item.type === "EXERCISE") return <span>{item.points ? historyPoints(item.points) : "—"}</span>;
   if (item.situation !== "GRADED" || !item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
   const grade = formatGrade(item.result.grade);
@@ -406,7 +414,7 @@ export function StudentHistory({ filters: address = ALL }: { filters?: StudentHi
         </Alert>
       ) : null}
       <HistorySummary totals={latest.totals} />
-      {latest.totals.delivered === 0 && sent.classId === null ? (
+      {latest.totals.delivered === 0 && latest.totals.missed === 0 && sent.classId === null ? (
         <EmptyState icon={History} title={HISTORY_EMPTY} />
       ) : (
         <section aria-label="Suas entregas" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">

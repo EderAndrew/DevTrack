@@ -1,7 +1,8 @@
 # HTTP API: Histórico do aluno redesenhado (028)
 
 One new read route. Pipeline, permission and error shape as every student route (`{statusCode, code, message}`).
-`GET /me/activities`, `GET /me/dashboard` and `GET /me/classes` do not change (spec FR-016, SC-005).
+`GET /me/classes` does not change. `GET /me/activities` and `GET /me/dashboard` change only by the amendment of
+2026-11-23 (spec FR-022–FR-025, research HI11–HI13; see the end of this file).
 
 ## `GET /me/history` — "Histórico"
 
@@ -62,3 +63,23 @@ Errors:
 | Route | Permission | Context |
 |-------|------------|---------|
 | `GET /me/history` | `atividades.proprias.visualizar` (grades inside items only with `notas.proprias.visualizar`) | own ACTIVE enrollments; with `classId`, that one |
+
+## Amendment 2026-11-23 — concluded activities only in the Histórico
+
+`GET /me/history`:
+
+- `tab` gains `"MISSED"`; `StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED", "MISSED"])`.
+- `StudentHistoryItem`: `deliveredAt: string | null` (null only for `MISSED`), new `missedAt: string | null` (non-null
+  only for `MISSED`, research HI11), `situation` with `MISSED`; a `MISSED` item has `result: null` and, for an exercise,
+  the points as the list shows them.
+- `tabCounts: { all, awaiting, graded, missed }` with `all = awaiting + graded + missed`; `totals` gains
+  `missed` (classId only), never added to `delivered`.
+- Order: `deliveredAt ?? missedAt` desc, then id asc.
+
+`GET /me/activities`: never returns an item that is delivered (`SUBMITTED`, `GRADED`, `COMPLETED`) or missed (HI11);
+`status` accepts `PENDING`, `IN_PROGRESS`, `OVERDUE` (`COMPLETED` → `400 VALIDATION_ERROR`); `OVERDUE` lists only the
+overdue that still accept a submission.
+
+`GET /me/dashboard`: `counts.overdue` = overdue that still accept a submission; `counts.completed` = the deliveries
+(SUBMITTED + GRADED + COMPLETED), unchanged in meaning; `next` and `overdueOpen` unchanged.
+

@@ -71,3 +71,15 @@ Below the panel: an info icon and **"As notas aparecem aqui assim que a correç�
   in text beside it.
 - axe (WCAG 2.2 AA) in both themes; contrast tests of the new tones; Tab order: cards are not focusable, then tabs →
   search → subject filter → rows → "Carregar mais".
+
+## Amendment 2026-11-23 — concluded activities only in the Histórico
+
+- **Histórico**: a fourth tab "Não entregues" (`?aba=nao-entregues`, accessible name "Não entregues, N"), after
+  "Corrigidas". A missed row: pill "Não entregue" (`Status` neutral variant, text, never color alone), the date column
+  shows `missedAt` (day and month, weekday and time), the Nota column "—". Empty tab: "Nenhuma atividade não entregue.".
+  The three cards don't change.
+- **Minhas atividades**: the situation filter keeps "Todas", "Pendentes", "Em andamento" and "Atrasadas"; "Entregues/
+  concluídas" is gone; `?situacao=concluidas` reads as "Todas".
+- **Painel**: the "Concluídas" counter links to `/historico` (with `?materia=` of the chosen subject); the "Atrasadas"
+  counter shows the overdue that still accept a submission. Nothing else changes.
+

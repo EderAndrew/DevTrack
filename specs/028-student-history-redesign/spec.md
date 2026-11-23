@@ -40,6 +40,9 @@ para que números e resultados sejam os de todas as entregas do aluno, não só 
 | Pílula de um aluno sem permissão de ver notas | "Corrigida" | "Entregue" (a entrega fica em "Aguardando") |
 | Rodapé | — | "Exibindo N de M atividades · Mais recentes primeiro" e a nota sobre a correção |
 | Quem vê o quê, liberação de notas, página da atividade, menu | — | **Não mudam** |
+| Atividades concluídas em "Minhas atividades" (emenda 2026-11-23) | Filtro "Entregues/concluídas" e as atrasadas que não aceitam mais entrega | Só as que o aluno ainda pode fazer; as entregues e as não entregues ficam só no Histórico |
+| Não entregues (emenda 2026-11-23) | Em "Minhas atividades" como "Atrasada" | No Histórico, aba "Não entregues", sem nota |
+| Painel (emenda 2026-11-23) | "Concluídas" abre "Minhas atividades" filtrada; "Atrasadas" conta todas | "Concluídas" abre o Histórico; "Atrasadas" conta só as que ainda aceitam entrega |
 
 ## Clarifications
 
@@ -53,6 +56,18 @@ para que números e resultados sejam os de todas as entregas do aluno, não só 
   ambiente fica fora desta feature.
 - Q: Uma prova retida à espera de decisão aparece? → A: Não; só depois de ter uma entrega (entregue, encerrada ou
   decidida pelo professor).
+
+### Session 2026-11-23 (emenda: concluídas só no Histórico)
+
+- Q: Onde ficam as atividades concluídas? → A: Só no Histórico. "Minhas atividades" e o Painel mostram só o que o aluno
+  ainda pode fazer.
+- Q: E uma atividade que o aluno não entregou e não pode mais entregar (encerrada pelo professor, de disciplina ou turma
+  encerrada ou arquivada, prazo vencido sem aceitar atraso, prova cuja janela de início fechou)? → A: Vai para o
+  Histórico, na aba nova "Não entregues", sem nota; os três cards continuam só sobre as entregas.
+- Q: O card "Concluídas" do Painel? → A: Continua com a contagem e abre o Histórico da mesma matéria; "Atrasadas" passa
+  a contar só as que ainda aceitam entrega.
+- Q: Isto muda o que a 028 prometia (SC-005, os pedidos da lista de atividades iguais)? → A: Sim, por emenda da 028:
+  `GET /me/activities` deixa de devolver as concluídas e as não entregues, e as contagens do Painel mudam como acima.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -176,6 +191,39 @@ nenhuma resposta do servidor nem na tela.
 
 ---
 
+### User Story 5 - Concluídas só no Histórico (Priority: P1) *(emenda 2026-11-23)*
+
+O aluno abre "Minhas atividades" e vê só o que ainda pode fazer. O que ele entregou e o que não entregou mas não pode
+mais entregar ficam no Histórico, este na aba "Não entregues", e o Painel leva ao Histórico pelo card "Concluídas".
+
+**Why this priority**: separar o que falta fazer do que já passou é o pedido do uso real; com as duas telas misturadas,
+"Minhas atividades" cresce com o que não exige mais nada do aluno.
+
+**Independent Test**: com uma atividade pendente, uma entregue, uma encerrada pelo professor sem entrega, uma de
+disciplina arquivada sem entrega e uma atrasada que ainda aceita entrega, abrir "Minhas atividades", o Painel e o
+Histórico e conferir onde cada uma aparece e as contagens.
+
+**Acceptance Scenarios**:
+
+1. **Given** atividades entregues (trabalho ou prova entregue ou corrigido, exercício concluído), **When** o aluno abre
+   "Minhas atividades", **Then** elas não aparecem em nenhum filtro, e o filtro "Entregues/concluídas" não existe mais;
+   elas continuam no Histórico.
+2. **Given** uma atividade sem entrega que o aluno não pode mais entregar (encerrada pelo professor, de disciplina ou
+   turma encerrada ou arquivada, prazo vencido sem aceitar atraso, prova com a janela de início fechada), **When** o
+   aluno abre "Minhas atividades", **Then** ela não aparece; **When** abre o Histórico, **Then** ela está nas abas
+   "Todas" e "Não entregues", com a pílula "Não entregue", sem nota nem barra, e não conta nos três cards.
+3. **Given** uma atividade atrasada que ainda aceita entrega (prazo vencido com entrega atrasada aceita), **When** o
+   aluno abre "Minhas atividades", **Then** ela continua lá como "Atrasada", e não está no Histórico.
+4. **Given** o Painel, **When** exibido, **Then** o card "Concluídas" tem a contagem das entregas e abre o Histórico da
+   mesma matéria, e "Atrasadas" conta só as atrasadas que ainda aceitam entrega.
+5. **Given** a aba "Não entregues" sem nenhuma atividade, **When** escolhida, **Then** a tela diz "Nenhuma atividade não
+   entregue." e continua mostrando os cards e as abas.
+6. **Given** uma atividade não entregue que o professor depois aceita como entrega atrasada (012 FR-006b), **When** o
+   aluno abre o Histórico, **Then** ela passa a ser uma entrega ("Aguardando" ou "Corrigidas"), não mais "Não
+   entregue".
+
+---
+
 ### Edge Cases
 
 - Um trabalho em grupo (023): aparece uma vez para cada membro, com a entrega do grupo (data, situação e, depois da
@@ -196,6 +244,14 @@ nenhuma resposta do servidor nem na tela.
 - O nome da atividade, da turma ou da disciplina com caracteres especiais ou marcação: aparece como texto, nunca como
   HTML.
 - Turma sem disciplina (anterior à 004): aparece só com o nome da turma, numa linha.
+- *(Emenda 2026-11-23)* Uma prova retida à espera da decisão do professor não é entrega nem "Não entregue": continua em
+  "Minhas atividades" até a decisão. Uma tentativa pausada (016) continua lá enquanto o aluno ainda puder entregar.
+- *(Emenda 2026-11-23)* Um exercício concluído sai de "Minhas atividades"; para tentar de novo (013), o aluno abre o
+  exercício pelo Histórico, onde a página da atividade continua com "Tentar novamente".
+- *(Emenda 2026-11-23)* A data de uma "Não entregue" é quando ela deixou de aceitar entrega (o prazo, o encerramento da
+  atividade, o fim da janela de início da prova ou o encerramento ou arquivamento da disciplina ou da turma, o que veio
+  primeiro); ela ordena a linha entre as entregas, mais recentes primeiro.
+- *(Emenda 2026-11-23)* Um endereço antigo de "Minhas atividades" com `?situacao=concluidas` abre com "Todas".
 
 ## Requirements *(mandatory)*
 
@@ -209,8 +265,9 @@ nenhuma resposta do servidor nem na tela.
   resposta à espera do professor) ou **aguardando** (todas as outras). "Atividades entregues" MUST ser a soma das duas.
 - **FR-003**: Os totais e as contagens MUST ser calculados pelo servidor sobre todas as entregas do aluno que atendem
   aos filtros, nunca sobre as linhas já carregadas na tela.
-- **FR-004**: O Histórico MUST ter as abas "Todas", "Aguardando" e "Corrigidas", cada uma com a sua contagem; a aba
-  escolhida MUST restringir a lista no servidor, em todas as páginas.
+- **FR-004**: O Histórico MUST ter as abas "Todas", "Aguardando", "Corrigidas" e *(emenda 2026-11-23)* "Não
+  entregues", cada uma com a sua contagem; "Todas" soma as entregas e as não entregues; a aba escolhida MUST restringir a
+  lista no servidor, em todas as páginas.
 - **FR-005**: O Histórico MUST ter uma busca pelo nome da atividade (contém, sem diferenciar maiúsculas, minúsculas e
   acentos, espaços nas pontas ignorados, até 100 caracteres), aplicada no servidor, em todas as páginas.
 - **FR-006**: O Histórico MUST ter um filtro "Matéria" com "Todas as matérias" e as matérias do aluno (as disciplinas
@@ -239,10 +296,13 @@ nenhuma resposta do servidor nem na tela.
   "Essa matéria não está mais disponível para você." (a frase da 026), sem dado algum da matéria pedida.
 - **FR-015**: Os estados vazios MUST distinguir: sem nenhuma entrega ("Você ainda não entregou nenhuma atividade.", como
   hoje); aba sem entregas ("Nenhuma entrega aguardando correção." / "Nenhuma entrega corrigida ainda."); busca ou matéria
-  sem resultado ("Nenhuma atividade encontrada.", com como limpar a busca e o filtro).
+  sem resultado ("Nenhuma atividade encontrada.", com como limpar a busca e o filtro); *(emenda 2026-11-23)* aba "Não
+  entregues" vazia ("Nenhuma atividade não entregue."). O estado "sem nenhuma entrega" só aparece sem entregas e sem
+  não entregues.
 - **FR-016**: O servidor MUST aceitar, no histórico do aluno, a situação (aguardando/corrigida), o texto da busca e a
   matéria (a disciplina da turma), e MUST devolver as entregas da página junto com o total da lista e as contagens das abas e dos cards; os pedidos
-  já existentes da lista de atividades do aluno (012, 026) MUST continuar respondendo exatamente como hoje.
+  já existentes da lista de atividades do aluno (012, 026) MUST continuar respondendo como hoje, exceto pelo que a
+  emenda de 2026-11-23 muda (FR-022–FR-025).
 - **FR-017**: Uma matéria que não é de matrícula ativa do aluno MUST ser respondida como inexistente (`404`), igual
   para a de outro aluno, a de matrícula encerrada e uma inexistente; um identificador mal formado, uma situação desconhecida
   ou uma busca acima do limite MUST ser recusados como entrada inválida (`400`) antes de qualquer consulta.
@@ -255,8 +315,28 @@ nenhuma resposta do servidor nem na tela.
   largura de celular (sem rolagem horizontal da página; a tabela pode virar uma lista de cartões), e cada controle MUST
   ter nome acessível e ser operável por teclado; as abas MUST anunciar a escolhida e a contagem.
 - **FR-021**: A página da atividade, o menu, a barra lateral, a liberação de notas e as demais telas do aluno MUST NOT
-  mudar; os itens da imagem que não existem no DevTrack (Biblioteca, Mensagens, sino, "Todas as entregas") MUST NOT
+  mudar, exceto "Minhas atividades" e o Painel pela emenda de 2026-11-23 (FR-022–FR-025); os itens da imagem que não existem no DevTrack (Biblioteca, Mensagens, sino, "Todas as entregas") MUST NOT
   ser criados.
+
+#### Emenda 2026-11-23: concluídas só no Histórico
+
+- **FR-022**: Uma atividade MUST ser **não entregue** quando, sem entrega do aluno (trabalho ou prova sem entrega,
+  exercício sem a primeira conclusão), o aluno não pode mais começá-la nem continuá-la: a atividade encerrada pelo
+  professor; a disciplina ou a turma não ativa (encerrada ou arquivada, 027); o prazo vencido sem aceitar entrega
+  atrasada; a janela de início da prova fechada sem tentativa. Uma prova retida à espera da decisão MUST NOT ser não
+  entregue; uma tentativa pausada (016) segue a mesma regra das outras (a pausa não muda o prazo nem o encerramento). É
+  derivada a cada leitura, nunca guardada.
+- **FR-023**: "Minhas atividades" MUST mostrar só as atividades que o aluno ainda pode fazer ou está fazendo (pendentes,
+  em andamento — pausadas inclusive — e atrasadas que ainda aceitam entrega, mais as provas retidas); entregas e não
+  entregues MUST NOT aparecer, em nenhum filtro nem página, e o filtro "Entregues/concluídas" MUST deixar de existir
+  (no servidor, um pedido com essa situação é entrada inválida, `400`).
+- **FR-024**: O Histórico MUST mostrar as não entregues na aba "Não entregues" e em "Todas", na ordem pela data em que
+  deixaram de aceitar entrega (FR-008 com essa data), com a pílula "Não entregue", a data com o dia da semana e a hora,
+  e "—" na Nota; elas MUST NOT contar nos três cards; a busca e a matéria valem para elas como para as entregas.
+- **FR-025**: No Painel, o card "Concluídas" MUST abrir o Histórico (com a matéria escolhida), e "Atrasadas" MUST contar
+  só as atrasadas que ainda aceitam entrega; as listas do Painel não mudam.
+- **FR-026**: A página de uma atividade concluída ou não entregue MUST continuar abrindo, só para leitura, pelo Histórico
+  (e pelo endereço), como hoje.
 
 ### Security, Permissions & Audit
 
@@ -269,7 +349,7 @@ nenhuma resposta do servidor nem na tela.
   a atividade, como hoje (o Histórico não marca resultado como visto).
 - **Untrusted input**: aba/situação de uma lista fechada; busca como texto (até 100 caracteres, sem caractere nulo),
   usada só como texto a procurar, nunca como padrão ou comando; matéria validada no formato de identificador universal.
-- **States & transitions**: nenhum estado novo; "aguardando" e "corrigida" são derivados a cada leitura das situações da
+- **States & transitions**: nenhum estado novo; "aguardando", "corrigida" e *(emenda)* "não entregue" são derivados a cada leitura das situações da
   012/013/018, nunca guardados.
 - **Idempotency**: só leituras.
 - **Evidence vs. decisions**: N/A (nenhuma decisão nova).
@@ -286,6 +366,8 @@ nenhuma resposta do servidor nem na tela.
   concluído) com a sua situação derivada **aguardando** ou **corrigida**; nenhum dado novo é guardado.
 - **Totais do Histórico**: as contagens de entregues, aguardando e corrigidas, derivadas a cada leitura, com a matéria; e
   as contagens das abas, com a matéria e a busca.
+- **Não entregue** *(emenda 2026-11-23)*: uma atividade sem entrega que o aluno não pode mais fazer (FR-022), com a
+  data em que deixou de aceitar entrega; derivada a cada leitura, nunca guardada.
 - **Matéria do aluno**: a disciplina de uma turma de "Minhas turmas" (matrícula ativa, 003/026/027), usada no filtro.
 
 ## Success Criteria *(mandatory)*
@@ -300,12 +382,18 @@ nenhuma resposta do servidor nem na tela.
   computador e celular) e chega à lista de corrigidas com 1 interação.
 - **SC-004**: Uma busca ou troca de aba ou matéria mostra o resultado em até 2 segundos numa conexão comum, com até 500
   entregas no histórico do aluno.
-- **SC-005**: Os pedidos já existentes da lista de atividades do aluno respondem exatamente como antes desta feature
-  (os testes da 012, 013, 016, 018, 023 e 026 continuam passando sem mudança nas expectativas da API).
+- **SC-005**: Os pedidos já existentes da lista de atividades do aluno respondem como antes desta feature, exceto pela
+  emenda de 2026-11-23: as expectativas da API da 012, 013, 016, 018, 023 e 026 mudam só onde listam uma atividade
+  entregue ou não entregue em "Minhas atividades", pedem o filtro "Entregues/concluídas" ou contam "Atrasadas" do
+  Painel, e cada mudança cita `028/FR-023` ou `028/FR-025`.
 - **SC-006**: Para uma matéria sem matrícula ativa do aluno (de outro aluno, encerrada, inexistente), as respostas são
   indistinguíveis entre si e não trazem nenhuma entrega nem contagem.
 - **SC-007**: A tela passa nas verificações automáticas de acessibilidade e de contraste nos temas escuro e claro e não
   tem rolagem horizontal da página na largura de 360 px.
+- **SC-008** *(emenda 2026-11-23)*: Para um aluno com atividades em cada situação (pendente, em andamento, atrasada
+  aceitando entrega, entregue, corrigida, exercício concluído, encerrada sem entrega, de disciplina arquivada sem
+  entrega, prova retida), cada atividade aparece em exatamente uma das duas telas ("Minhas atividades" ou Histórico),
+  em 100% dos casos, e as contagens do Painel e das abas batem com isso.
 
 ## Assumptions
 

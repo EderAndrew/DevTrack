@@ -121,3 +121,44 @@ Decisions carry the prefix **HI** (histórico): the single letters left unused (
 - No migration, permission, audit event, mobile change, menu or sidebar change; the image's "Biblioteca", "Mensagens",
   bell and "Todas as entregas" are not built. The activity page and the result's first-view audit stay as they are
   (the history never marks a result viewed).
+
+## HI11 — Amendment 2026-11-23: "não entregue" (`MISSED`) is derived from the facts the list already has
+
+- **Decision**: a pure `isMissed(facts)` next to `historySituation` in `student-activities/history.ts`: no delivery
+  (`submission === null` for ASSIGNMENT/EXAM, no attempt-1 conclusion for EXERCISE) ∧ `canAnswer(facts) === false`
+  (012 `status/operations.ts`: CLOSED, class or turma not effectively ACTIVE, deadline passed under REJECT, exam start
+  window closed) ∧ not an EXAM with an open hold (the list's facts now carry `onHold`, read in one query of the
+  student's open holds). A 016 pause doesn't change `canAnswer` (the deadline never moves for a pause), so a paused
+  attempt is missed exactly when an unpaused one would be. `StudentHistorySituation`
+  gains `MISSED`; the item's `deliveredAt` becomes nullable (null only for `MISSED`) and a `missedAt` (non-null only for
+  `MISSED`) carries the moment it stopped accepting: the earliest of the deadline (REJECT, passed), the activity's
+  `closedAt`, the exam's start-window end, and the class's or turma's `statusChangedAt` when not ACTIVE. The order key
+  is `deliveredAt ?? missedAt` (HI5 otherwise unchanged; the cursor encodes that key).
+- **Rationale**: `canAnswer` is already the single rule of "can the student still start or continue" used by the list's
+  action; reusing it keeps the two screens complementary (`028/SC-008`). Holds and pauses are excluded because the
+  activity is still in course for the student (018 FR-019).
+- **Alternatives considered**: storing a "missed" flag (rejected: statuses are derived on every read); using the 012
+  `OVERDUE` status (rejected: it includes overdue work that still accepts a late submission).
+
+## HI12 — Amendment 2026-11-23: counts
+
+- **Decision**: `totals` stays the three cards of deliveries (MISSED never counts there); `tabCounts` gains `missed`, and
+  `all = awaiting + graded + missed`; `total = tabCounts[tab ?? all]` as before. The whole-page empty state ("Você ainda
+  não entregou nenhuma atividade.") shows only when `totals.delivered === 0` and `totals.missed === 0` (`missed`, a new
+  field of `totals` the cards ignore, by `classId` only).
+- **Rationale**: spec FR-004, FR-015, FR-024; the cards keep meaning "what I delivered".
+
+## HI13 — Amendment 2026-11-23: "Minhas atividades" and the Painel
+
+- **Decision**: `MyActivitiesService.list` drops every input that is delivered (SUBMITTED, GRADED, COMPLETED) or
+  `isMissed`, before the status filter and the cursor; `StudentActivityFilterSchema` loses `COMPLETED` (a request with
+  it → `400`, FR-023). `dashboard`: `counts.overdue` = the overdue that still accept a submission (`overdueOpen` before
+  the `DASHBOARD` cut, so the number matches the list); `counts.completed` keeps counting the deliveries (SUBMITTED,
+  GRADED, COMPLETED) and the web card links to `/historico?materia=`. Pending/in-progress counts and the lists don't
+  change. The web drops the "Entregues/concluídas" option; an old `?situacao=concluidas` reads as "Todas"
+  (unknown slug, as today).
+- **Rationale**: spec FR-023, FR-025; filtering in the service keeps paging and counts on the server (no page with
+  holes), and the 012 status derivation stays untouched.
+- **Alternatives considered**: hiding them only in the web (rejected: pages would come back short and counts would
+  disagree with the list).
+

@@ -248,11 +248,15 @@ export const StudentHistoryQuerySchema = z.strictObject({
 });
 export type StudentHistoryQuery = z.infer<typeof StudentHistoryQuerySchema>;
 
-/** One delivery of the "Histórico": the 012 summary plus when it was delivered and its situation (HI3, HI4). */
+/**
+ * One row of the "Histórico": the 012 summary plus its situation (HI3) and its date — `deliveredAt` for a delivery (HI4),
+ * `missedAt` for one the student can no longer deliver (`MISSED`, amendment 2026-11-23, HI11); exactly one is set.
+ */
 export const StudentHistoryItemSchema = StudentActivitySummarySchema.extend({
-  deliveredAt: IsoDateTimeSchema,
+  deliveredAt: IsoDateTimeSchema.nullable(),
+  missedAt: IsoDateTimeSchema.nullable(),
   situation: StudentHistorySituationSchema,
-});
+}).refine((item) => (item.situation === "MISSED") === (item.deliveredAt === null) && (item.deliveredAt === null) !== (item.missedAt === null), "HISTORY_DATE");
 export type StudentHistoryItem = z.infer<typeof StudentHistoryItemSchema>;
 
 const HistoryCountSchema = z.int().min(0);
@@ -265,8 +269,10 @@ export const StudentHistoryPageSchema = z.strictObject({
   items: z.array(StudentHistoryItemSchema),
   nextCursor: z.string().nullable(),
   total: HistoryCountSchema,
-  tabCounts: z.strictObject({ all: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema }),
-  totals: z.strictObject({ delivered: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema }),
+  /** `all` = awaiting + graded + missed (HI12). */
+  tabCounts: z.strictObject({ all: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
+  /** The cards: `delivered` = awaiting + graded; `missed` is never added to them (HI12). */
+  totals: z.strictObject({ delivered: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
 });
 export type StudentHistoryPage = z.infer<typeof StudentHistoryPageSchema>;
 

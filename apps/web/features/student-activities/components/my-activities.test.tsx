@@ -86,11 +86,21 @@ describe("012/US2 Minhas atividades", () => {
 
     await user.selectOptions(screen.getByLabelText("Tipo"), "Todos");
     expect(router.replace).toHaveBeenLastCalledWith(`/minhas-atividades?materia=${POO.id}&situacao=atrasadas`);
-    await user.selectOptions(screen.getByLabelText("Situação"), "Entregues/concluídas");
-    expect(router.replace).toHaveBeenLastCalledWith(`/minhas-atividades?materia=${POO.id}&situacao=concluidas&tipo=trabalho`);
+    // 028/FR-023 (amendment 2026-11-23): no "Entregues/concluídas" option; they live in the "Histórico".
+    await user.selectOptions(screen.getByLabelText("Situação"), "Pendentes");
+    expect(router.replace).toHaveBeenLastCalledWith(`/minhas-atividades?materia=${POO.id}&situacao=pendentes&tipo=trabalho`);
 
     expect(filtersFromSearch({ situacao: "atrasadas", tipo: "trabalho" })).toEqual({ status: "OVERDUE", type: "ASSIGNMENT" });
     expect(filtersFromSearch({ situacao: "qualquer", tipo: "EXAM" })).toEqual(NONE);
+  });
+
+  it("028/US5-1 028/FR-023 a Situação não oferece \"Entregues/concluídas\"; um endereço antigo com ?situacao=concluidas vale Todas", async () => {
+    expect(filtersFromSearch({ situacao: "concluidas" })).toEqual(NONE);
+    const { api } = setup({ [listRoute()]: json(200, { items: [summary({ title: "Lista aberta" })], nextCursor: null }) });
+    await screen.findByRole("heading", { name: "Lista aberta" });
+    const options = [...(screen.getByLabelText("Situação") as HTMLSelectElement).options].map((option) => option.text);
+    expect(options).toEqual(["Todas", "Pendentes", "Em andamento", "Atrasadas"]);
+    expect(activityCalls(api.calls)).toEqual([`/api/me/activities?classId=${POO.id}`]);
   });
 
   it("012/FR-012 \"Carregar mais\" pede a página seguinte pelo cursor e junta os itens", async () => {

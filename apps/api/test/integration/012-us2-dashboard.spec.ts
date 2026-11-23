@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { StudentActivity, StudentActivityPage, StudentActivitySummary, StudentDashboard } from "@repo/contracts";
+import type { StudentActivity, StudentActivityPage, StudentActivitySummary, StudentDashboard, StudentHistoryPage } from "@repo/contracts";
 import { StudentActivitySchema, StudentActivitySummarySchema, StudentDashboardSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
@@ -109,13 +109,20 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
 
     const body = await dashboard();
     expect(body.next).toHaveLength(5);
-    expect(body.counts).toEqual({ pending: 7, inProgress: 0, overdue: 2, completed: 0 });
+    // 028/FR-025 (amendment 2026-11-23): "Atrasadas" counts only the overdue that still accept a delivery; the two
+    // that don't are "não entregues", out of the Painel and the list, in the "Histórico" (still not urgent).
+    expect(body.counts).toEqual({ pending: 7, inProgress: 0, overdue: 0, completed: 0 });
     expect(body.overdueOpen).toEqual([]);
-    const all = (await list()).items;
-    expect(all.filter((item) => [rejected.id, closed.id].includes(item.id)).map((item) => [item.status, item.canAnswer, item.urgent])).toEqual([
-      ["OVERDUE", false, false],
-      ["OVERDUE", false, false],
-    ]);
+    expect((await list()).items.map((item) => item.id)).not.toContain(rejected.id);
+    const missed = ((await client.get("/api/me/history?tab=MISSED")).body as StudentHistoryPage).items;
+    expect(
+      [...missed].sort((a, b) => a.id.localeCompare(b.id)).map((item) => [item.id, item.status, item.canAnswer, item.urgent]),
+    ).toEqual(
+      [
+        [rejected.id, "OVERDUE", false, false],
+        [closed.id, "OVERDUE", false, false],
+      ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    );
   });
 
   it("012/US2-2 012/FR-011 urgente com 47 h até o prazo, não com 49 h; entregue nunca é urgente", async () => {
@@ -128,7 +135,10 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
     const urgentOf = (id: string) => items.find((item) => item.id === id)!.urgent;
     expect(urgentOf(soon.id)).toBe(true);
     expect(urgentOf(later.id)).toBe(false);
-    expect(urgentOf(done.id)).toBe(false);
+    // 028/FR-023 (amendment 2026-11-23): the delivered one is only in the "Histórico", never urgent.
+    expect(items.map((item) => item.id)).not.toContain(done.id);
+    const history = ((await client.get("/api/me/history")).body as StudentHistoryPage).items;
+    expect(history.find((item) => item.id === done.id)!.urgent).toBe(false);
     // The clock moves: 49 h becomes 47 h without anything stored.
     clock.advance(2 * HOUR);
     expect((await list()).items.find((item) => item.id === later.id)!.urgent).toBe(true);
@@ -155,7 +165,13 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
   });
 
   it("012/US2-4 012/FR-012 filtra por \"Atrasadas\" e \"Trabalho\"; cada item traz os campos do contrato", async () => {
-    const lateAssignment = await activity(classA, -HOUR, { type: "ASSIGNMENT", title: "Trabalho atrasado", instructions: "  Entregar\n o diagrama   de classes. " });
+    // 028/FR-023 (amendment 2026-11-23): "Atrasadas" lists only the overdue that still accept a delivery.
+    const lateAssignment = await activity(classA, -HOUR, {
+      type: "ASSIGNMENT",
+      title: "Trabalho atrasado",
+      instructions: "  Entregar\n o diagrama   de classes. ",
+      latePolicy: "ACCEPT_MARKED",
+    });
     await activity(classA, -HOUR, { type: "EXERCISE" });
     await activity(classA, DAY, { type: "ASSIGNMENT" });
 
@@ -176,11 +192,11 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
       teacherName: "Ana Professora",
       publishedAt: at(-HOUR - DAY).toISOString(),
       deadline: at(-HOUR).toISOString(),
-      latePolicy: "REJECT",
+      latePolicy: "ACCEPT_MARKED",
       status: "OVERDUE",
       late: false,
-      canAnswer: false,
-      urgent: false,
+      canAnswer: true,
+      urgent: true,
       submittedAt: null,
       totalGrade: "1.00",
       result: null,
@@ -193,7 +209,7 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
     expect((await list()).items.find((entry) => entry.id === inB.id)!.subjectName).toBeNull();
   });
 
-  it("012/US2-4 012/FR-012 \"Entregues/concluídas\" junta entregues e corrigidas; nota e feedback só depois da liberação", async () => {
+  it("012/US2-4 012/FR-012 028/FR-023 as entregues e corrigidas (no Histórico desde a emenda da 028); nota e feedback só depois da liberação", async () => {
     const waiting = await activity(classA, DAY);
     await submitted(waiting.id, { gradeCents: 70, generalFeedback: "Bom trabalho." });
     const partial = await activity(classA, -DAY, released());
@@ -204,13 +220,22 @@ describe("012/US2 aluno vê o dashboard e \"Minhas atividades\"", () => {
     await submitted(lateOne.id, { gradeCents: 50, late: true });
     await activity(classA, 2 * DAY);
 
-    const items = (await list("?status=COMPLETED")).items;
-    expect(items.map((item) => [item.id, item.status, item.late, item.result])).toEqual([
-      [lateOne.id, "GRADED", true, { grade: "0.50", hasFeedback: false }],
-      [graded.id, "GRADED", false, { grade: "0.90", hasFeedback: true }],
-      [partial.id, "SUBMITTED", false, null],
-      [waiting.id, "SUBMITTED", false, null],
-    ]);
+    // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico" (same summary, its own order),
+    // and none of them is in "Minhas atividades" any more.
+    const history = await client.get("/api/me/history");
+    expect(history.status).toBe(200);
+    const items = (history.body as StudentHistoryPage).items;
+    const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
+    expect([...items].sort(byId).map((item) => [item.id, item.status, item.late, item.result])).toEqual(
+      [
+        [lateOne.id, "GRADED", true, { grade: "0.50", hasFeedback: false }],
+        [graded.id, "GRADED", false, { grade: "0.90", hasFeedback: true }],
+        [partial.id, "SUBMITTED", false, null],
+        [waiting.id, "SUBMITTED", false, null],
+      ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    );
+    const open = (await list()).items.map((item) => item.id);
+    for (const delivered of [lateOne.id, graded.id, partial.id, waiting.id]) expect(open).not.toContain(delivered);
     expect(items.every((item) => item.submittedAt === at(-HOUR).toISOString())).toBe(true);
     // Never a grade in the body before the release.
     const res = await client.get(`/api/me/activities/${waiting.id}`);

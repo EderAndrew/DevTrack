@@ -81,6 +81,9 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   the three cards from the API's `totals`, the tabs with `tabCounts`, the search (300 ms, ≤ 100 code points) and the
   "Matéria" select, all in the address (`?aba=&busca=&materia=`, `schemas/student-history.ts`) and filtered on the
   server; a table on wide screens and cards below `md`. A subject the student lost falls back with the 026 notice.
+  Since the amendment of 2026-11-23 a fourth tab "Não entregues" (`?aba=nao-entregues`) lists what can no longer be
+  delivered ("Não entregue", "—" in Nota); "Minhas atividades" has no "Entregues/concluídas" filter and the Painel's
+  "Concluídas" counter opens the Histórico.
 - Invitation e-mail status (017): the turma's tab (`features/cohorts/components/cohort-invitations-tab.tsx`, 027) and the
   teacher and manager lists show, only next to a PENDING invitation, `DeliveryStatus`
   (`features/invitations/components/delivery-status.tsx`): "Enviando", "Envio falhou", or the badge "Não entregue"

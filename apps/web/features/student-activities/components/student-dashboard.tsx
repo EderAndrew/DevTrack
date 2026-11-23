@@ -14,6 +14,7 @@ import { DASHBOARD_PATH } from "@/lib/navigation";
 import { useCurrentSubject, useForgetMissingSubject } from "../hooks/use-current-subject";
 import { useStudentDashboard } from "../hooks/use-student-activities";
 import { formatPoints, myActivitiesHref } from "../schemas/student-activity";
+import { historyHref } from "../schemas/student-history";
 import { DashboardActivityRow } from "./dashboard-activity-row";
 import { LoadFailed, Loading } from "./load-states";
 import { SubjectSwitcher, SubjectUnavailableNotice } from "./subject-switcher";
@@ -25,28 +26,41 @@ interface Counter {
   key: keyof Dashboard["counts"];
   label: string;
   caption: string;
-  filter: StudentActivityFilter;
+  /** The list of the same subject with this filter; "Concluídas" opens the "Histórico" instead (028/FR-025). */
+  href: (materia: string | null) => string;
   icon: LucideIcon;
   /** The icon's tint; the label says the same in words. */
   tone: string;
 }
 
+const listOf = (status: StudentActivityFilter) => (materia: string | null) => myActivitiesHref({ status, materia });
+
 const COUNTERS: Counter[] = [
-  { key: "pending", label: "Pendentes", caption: "Ainda não iniciadas", filter: "PENDING", icon: ClipboardList, tone: "bg-primary-subtle text-primary" },
-  { key: "inProgress", label: "Em andamento", caption: "Iniciadas, sem entrega", filter: "IN_PROGRESS", icon: Hourglass, tone: "bg-info-surface text-info-text" },
-  { key: "overdue", label: "Atrasadas", caption: "Com o prazo vencido", filter: "OVERDUE", icon: AlarmClock, tone: "bg-warning-surface text-warning-text" },
-  { key: "completed", label: "Concluídas", caption: "Entregues ou corrigidas", filter: "COMPLETED", icon: CircleCheck, tone: "bg-success-surface text-success-text" },
+  { key: "pending", label: "Pendentes", caption: "Ainda não iniciadas", href: listOf("PENDING"), icon: ClipboardList, tone: "bg-primary-subtle text-primary" },
+  { key: "inProgress", label: "Em andamento", caption: "Iniciadas, sem entrega", href: listOf("IN_PROGRESS"), icon: Hourglass, tone: "bg-info-surface text-info-text" },
+  { key: "overdue", label: "Atrasadas", caption: "Com o prazo vencido", href: listOf("OVERDUE"), icon: AlarmClock, tone: "bg-warning-surface text-warning-text" },
+  {
+    key: "completed",
+    label: "Concluídas",
+    caption: "Entregues ou corrigidas",
+    href: (materia) => historyHref({ tab: null, q: "", classId: materia }),
+    icon: CircleCheck,
+    tone: "bg-success-surface text-success-text",
+  },
 ];
 
-/** The four counters as cards, each a link to the filtered list of the same subject (012 US2-1, 026/US2-4). */
+/**
+ * The four counters as cards, each a link to the filtered list of the same subject (012 US2-1, 026/US2-4); "Concluídas"
+ * to the subject's "Histórico" (028/FR-025).
+ */
 function Counters({ counts, materia }: { counts: Dashboard["counts"]; materia: string | null }) {
   return (
     <nav aria-label="Resumo das suas atividades">
       <ul className="m-0 grid list-none grid-cols-2 gap-4 p-0 lg:grid-cols-4">
-        {COUNTERS.map(({ key, label, caption, filter, icon: Icon, tone }) => (
+        {COUNTERS.map(({ key, label, caption, href, icon: Icon, tone }) => (
           <li key={key}>
             <Link
-              href={myActivitiesHref({ status: filter, materia })}
+              href={href(materia)}
               className="flex h-full min-h-11 flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground no-underline shadow-sm transition-colors hover:bg-accent"
             >
               <span className="flex items-start justify-between gap-2">

@@ -137,7 +137,8 @@ describe("015/US5 aluno vê as próprias ajudas e saídas depois da entrega", ()
     const id = activity.activity.id;
     const responses = [
       (await client.get(`/api/me/activities/${id}`)).body,
-      (await client.get("/api/me/activities?status=COMPLETED")).body,
+      // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
+      (await client.get("/api/me/history")).body,
       (await getHelp(client, id)).body,
       (await getOwnIntegrity(client, id)).body,
     ];

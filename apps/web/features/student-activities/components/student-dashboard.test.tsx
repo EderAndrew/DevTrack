@@ -47,7 +47,8 @@ describe("012/US2 painel do aluno", () => {
       ["Pendentes3Ainda não iniciadas", `/minhas-atividades?materia=${POO.id}&situacao=pendentes`],
       ["Em andamento2Iniciadas, sem entrega", `/minhas-atividades?materia=${POO.id}&situacao=em-andamento`],
       ["Atrasadas1Com o prazo vencido", `/minhas-atividades?materia=${POO.id}&situacao=atrasadas`],
-      ["Concluídas8Entregues ou corrigidas", `/minhas-atividades?materia=${POO.id}&situacao=concluidas`],
+      // 028/FR-025 (amendment 2026-11-23): the deliveries are in the "Histórico".
+      ["Concluídas8Entregues ou corrigidas", `/historico?materia=${POO.id}`],
     ]);
 
     // Substitute check for the 10 s of SC-001: the first section of the page is "Próximas
@@ -261,7 +262,7 @@ describe("026/US2 painel por matéria", () => {
     expect(screen.queryByRole("heading", { name: "Seu desempenho" })).toBeNull();
   });
 
-  it("026/US2-4 os contadores e \"Ver todas\" levam a \"Minhas atividades\" da mesma matéria", async () => {
+  it("026/US2-4 028/US5-4 os contadores e \"Ver todas\" levam a \"Minhas atividades\" da mesma matéria; \"Concluídas\", ao Histórico dela", async () => {
     setupWith({ [dashboardOf(SQL.id)]: json(200, dashboard()) }, { classes: [POO, SQL], materia: SQL.id });
     await screen.findByRole("heading", { level: 1, name: "Olá, Bruna" });
     const counters = within(screen.getByRole("navigation", { name: "Resumo das suas atividades" })).getAllByRole("link");
@@ -269,7 +270,7 @@ describe("026/US2 painel por matéria", () => {
       `/minhas-atividades?materia=${SQL.id}&situacao=pendentes`,
       `/minhas-atividades?materia=${SQL.id}&situacao=em-andamento`,
       `/minhas-atividades?materia=${SQL.id}&situacao=atrasadas`,
-      `/minhas-atividades?materia=${SQL.id}&situacao=concluidas`,
+      `/historico?materia=${SQL.id}`,
     ]);
     expect(screen.getByRole("link", { name: "Ver todas" }).getAttribute("href")).toBe(`/minhas-atividades?materia=${SQL.id}`);
   });

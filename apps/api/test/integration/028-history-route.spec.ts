@@ -112,8 +112,8 @@ describe("028 GET /me/history (sem filtros)", () => {
 
   it("028/FR-003 totais e contagens calculados pelo servidor", async () => {
     const body = await history();
-    expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2 });
-    expect(body.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2 });
+    expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0 });
+    expect(body.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0 });
     expect(body.total).toBe(4);
     expect(body.nextCursor).toBeNull();
   });
@@ -124,7 +124,7 @@ describe("028 GET /me/history (sem filtros)", () => {
     for (let page = 0; page < 4; page += 1) {
       const body: StudentHistoryPage = await history(`?pageSize=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
       expect(body.items).toHaveLength(1);
-      expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2 });
+      expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0 });
       expect(body.tabCounts.all).toBe(4);
       expect(body.total).toBe(4);
       seen.push(body.items[0]!.id);
@@ -135,19 +135,20 @@ describe("028 GET /me/history (sem filtros)", () => {
     expect((await client.get("/api/me/history?cursor=xyz")).status).toBe(400);
   });
 
-  it("028/SC-005 GET /me/activities?status=COMPLETED continua igual: os mesmos ids na ordem por prazo, sem campos novos", async () => {
-    const res = await client.get("/api/me/activities?status=COMPLETED");
+  it("028/SC-005 028/FR-023 GET /me/activities mantém o formato da 012, sem as entregas (emenda 2026-11-23)", async () => {
+    // Amended SC-005: the list keeps its shape (no field of the history), but deliveries now live only in the
+    // "Histórico" (FR-023) and the "Entregues/concluídas" filter is gone.
+    const res = await client.get("/api/me/activities");
     expect(res.status).toBe(200);
     const body = res.body as StudentActivityPage;
     expect(Object.keys(body).sort()).toEqual(["items", "nextCursor"]);
-    // Prazo primeiro (os dois trabalhos têm o mesmo prazo, desempate pelo id), depois os sem prazo pela publicação
-    // mais recente (a prova, publicada há 2 h, antes do exercício, há um dia) — a ordem da 012, não a de entrega.
-    const works = [ids.unreleased, ids.released].sort();
-    expect(body.items.map((item) => item.id)).toEqual([...works, ids.exam, ids.exercise]);
+    const listed = body.items.map((item) => item.id);
+    for (const id of [ids.unreleased, ids.released, ids.exam, ids.exercise]) expect(listed).not.toContain(id);
     for (const item of body.items) {
       expect(item).not.toHaveProperty("deliveredAt");
       expect(item).not.toHaveProperty("situation");
     }
+    expect((await client.get("/api/me/activities?status=COMPLETED")).status).toBe(400);
   });
 
   it("028/FR-018 sem sessão → 401; sem atividades.proprias.visualizar → 403", async () => {

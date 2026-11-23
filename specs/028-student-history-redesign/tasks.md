@@ -348,10 +348,61 @@ matéria, conferindo lista, contagens das abas e cards.
 
 ---
 
+## Phase 8: User Story 5 - Concluídas só no Histórico (Priority: P1) *(emenda 2026-11-23)*
+
+**Goal**: "Minhas atividades" e o Painel só com o que o aluno ainda pode fazer; entregas e não entregues só no
+Histórico, estas na aba "Não entregues" (spec US5, FR-022–FR-026, SC-008; research HI11–HI13).
+
+**Independent Test**: um aluno com uma atividade em cada situação (SC-008); cada uma aparece numa só das duas telas e as
+contagens do Painel e das abas batem.
+
+### Setup da emenda
+
+- [X] T034 Rastreabilidade: em `apps/api/test/traceability.spec.ts`, a 028 com `stories: 5`, `scenarios: 30`
+      (9 + 5 + 6 + 4 + 6) e `pending: { stories: [5], successCriteria: ["SC-008"] }`.
+- [X] T035 Contratos (`packages/contracts`): `StudentHistorySituationSchema` += `MISSED`; `StudentHistoryItemSchema`
+      com `deliveredAt` anulável e `missedAt`; `tabCounts.missed` e `totals.missed`; `StudentActivityFilterSchema` sem
+      `COMPLETED` (contracts/http-api.md, emenda). Ajustar os usos que o `check-types` apontar.
+
+### Testes da User Story 5 (escrever primeiro, devem falhar)
+
+- [X] T036 [P] [US5] Unit `apps/api/test/unit/028-history.spec.ts`: `isMissed` em todas as combinações (encerrada,
+      turma ou disciplina não ativa, prazo vencido REJECT/ACCEPT_MARKED, janela da prova fechada, retida, pausada,
+      exercício concluído ou não) e `missedAt` como o mais cedo dos momentos (research HI11).
+- [X] T037 [P] [US5] Integração `apps/api/test/integration/028-us5-concluded.spec.ts`: `028/US5-1`…`028/US5-6` e
+      `028/SC-008` — um aluno com uma atividade em cada situação: `GET /me/activities` (cada filtro, todas as páginas)
+      sem entregas nem não entregues, `status=COMPLETED` → 400; `GET /me/history` com `tab=MISSED`, `tabCounts`,
+      `totals` (cards sem as não entregues) e a ordem por `deliveredAt ?? missedAt`; `GET /me/dashboard` com
+      `counts.overdue` só das que aceitam entrega; a aceitação tardia do professor (US5-6) muda a situação.
+- [X] T038 [P] [US5] Web `student-history.test.tsx` (aba "Não entregues", linha "Não entregue" com "—", vazio da aba,
+      página vazia só sem entregas e sem não entregues), `my-activities` (sem "Entregues/concluídas", `?situacao=
+      concluidas` = Todas) e `student-dashboard.test.tsx` ("Concluídas" abre `/historico?materia=`), com ids `028/US5-*`.
+
+### Implementação da User Story 5
+
+- [X] T039 [US5] API: `isMissed`/`missedAt` em `student-activities/history.ts` (o loader seleciona `closedAt`, a janela
+      da prova e o `statusChangedAt` da disciplina e da turma se ainda não seleciona); `history()` inclui as não
+      entregues (HI11, HI12).
+- [X] T040 [US5] API: `list()` sem entregas nem não entregues antes do filtro e do cursor; `dashboard()` com
+      `counts.overdue` das que aceitam entrega (HI13).
+- [X] T041 [US5] Ajustar as expectativas existentes que listam uma entrega ou não entregue em `/me/activities`, pedem
+      `status=COMPLETED` ou contam `overdue` (012, 013, 016, 018, 023, 026), cada mudança com um comentário citando
+      `028/FR-023` ou `028/FR-025` (SC-005 emendado).
+- [X] T042 [US5] Web: aba "Não entregues" e a linha (textos em `schemas/student-history.ts`), o filtro de "Minhas
+      atividades" sem "Entregues/concluídas", o card "Concluídas" do Painel para `/historico?materia=`.
+- [X] T043 [US5] E2E `apps/web/e2e/student-history.spec.ts`: `028/US5-2` uma atividade encerrada sem entrega aparece
+      em "Não entregues" e não em "Minhas atividades" (com o consentimento do usuário para o reset de `devtrack_e2e`).
+- [X] T044 [US5] Documentação (`CLAUDE.md` raiz: a regra da 028 com a emenda; `apps/web/CLAUDE.md`), suíte completa
+      (`pnpm lint && pnpm check-types && pnpm test`) e `pending` da 028 vazio.
+
+**Checkpoint**: cada atividade numa só das duas telas; nenhuma nota antes da liberação (US4) em nenhuma delas.
+
+---
+
 ## Dependencies & Execution Order
 
 - **Setup (T001–T002)** → **Foundational (T003–T009)** → **US1 (T010–T013)** → **US2 (T014–T017)** →
-  **US4 (T018–T020)** → **US3 (T021–T026)** → **Polish (T027–T033)**.
+  **US4 (T018–T020)** → **US3 (T021–T026)** → **Polish (T027–T033)** → **US5, emenda (T034–T044)**.
 - Dentro de cada fase: os testes [P] primeiro (devem falhar), depois a implementação na ordem.
 - T006 → T007 → T008 (o serviço usa o input com `firstCompletedAt` e as funções puras); T009 é independente da API.
 - T012 → T013 (os textos e o percentual antes do componente); T016 independe de T017; T024 → T025 (o teste de log

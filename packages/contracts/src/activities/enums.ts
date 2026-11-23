@@ -45,8 +45,11 @@ export type LatePolicy = z.infer<typeof LatePolicySchema>;
 export const StudentActivityStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
 export type StudentActivityStatus = z.infer<typeof StudentActivityStatusSchema>;
 
-/** The filter of "Minhas atividades": `COMPLETED` is SUBMITTED + GRADED ("entregues/concluídas"). */
-export const StudentActivityFilterSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
+/**
+ * The filter of "Minhas atividades". Since the 028 amendment (2026-11-23) the list holds only what the student can still
+ * do; deliveries and missed activities live in the "Histórico", so there is no `COMPLETED` filter.
+ */
+export const StudentActivityFilterSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE"]);
 export type StudentActivityFilter = z.infer<typeof StudentActivityFilterSchema>;
 
 /**
@@ -131,7 +134,8 @@ export const EXAM_START_WINDOW_MINUTES_DEFAULT = 15;
 
 /**
  * The situation of a delivery in the student's "Histórico" (028 research HI3), also the `tab` values of
- * `GET /me/history`: AWAITING until the grade is visible to the student, then GRADED.
+ * `GET /me/history`: AWAITING until the grade is visible to the student, then GRADED; MISSED (amendment 2026-11-23,
+ * HI11) for an activity without a delivery that the student can no longer start or continue.
  */
-export const StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED"]);
+export const StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED", "MISSED"]);
 export type StudentHistorySituation = z.infer<typeof StudentHistorySituationSchema>;

@@ -53,7 +53,8 @@ describe("013/SC-004 gabarito do exercício só depois da conclusão, só da pr�
     return [
       await who.get("/api/me/dashboard"),
       await who.get("/api/me/activities"),
-      await who.get("/api/me/activities?status=COMPLETED"),
+      // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
+      await who.get("/api/me/history"),
       await who.get(`/api/me/activities/${id}`),
       await who.get(`/api/me/classes/${schoolClass.id}/ranking`),
     ];

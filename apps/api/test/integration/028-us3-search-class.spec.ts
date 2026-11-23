@@ -93,13 +93,13 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     ids.trabalhoB = await delivered(classB, workB, "Trabalho de banco", 4 * HOUR, true);
   });
 
-  const TOTALS = { delivered: 4, awaiting: 2, graded: 2 };
+  const TOTALS = { delivered: 4, awaiting: 2, graded: 2, missed: 0 };
 
   it("028/US3-1 q=prova casa sem diferenciar maiúsculas e acentos; tabCounts e total seguem a busca, totals não", async () => {
     const body = await historyOf("?q=prova");
     expect(body.items.map((item) => item.id)).toEqual([ids.provaA, ids.provaFinalB, ids.provaAcentoA]);
     expect(body.total).toBe(3);
-    expect(body.tabCounts).toEqual({ all: 3, awaiting: 2, graded: 1 });
+    expect(body.tabCounts).toEqual({ all: 3, awaiting: 2, graded: 1, missed: 0 });
     expect(body.totals).toEqual(TOTALS);
     expect((await historyOf("?q=PRÓVA")).items.map((item) => item.id)).toEqual(body.items.map((item) => item.id));
   });
@@ -109,12 +109,12 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     expect(trimmed.items.map((item) => item.id)).toEqual([ids.provaFinalB]);
     const blank = await historyOf(`?q=${encodeURIComponent("   ")}`);
     expect(blank.total).toBe(4);
-    expect(blank.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2 });
+    expect(blank.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0 });
   });
 
   it("028/US3-2 busca sem resultado → items vazio e total 0, os cards intactos", async () => {
     const body = await historyOf("?q=inexistente");
-    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0 } });
+    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0 } });
     expect(body.totals).toEqual(TOTALS);
   });
 
@@ -123,8 +123,8 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     expect(body.items.map((item) => item.id)).toEqual([ids.provaA, ids.provaAcentoA]);
     expect(body.items.every((item) => item.class.id === classA.id)).toBe(true);
     expect(body.total).toBe(2);
-    expect(body.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1 });
-    expect(body.totals).toEqual({ delivered: 2, awaiting: 1, graded: 1 });
+    expect(body.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0 });
+    expect(body.totals).toEqual({ delivered: 2, awaiting: 1, graded: 1, missed: 0 });
     const onlyB = await historyOf(`?classId=${classB.id}`);
     expect(onlyB.items.map((item) => item.id)).toEqual([ids.provaFinalB, ids.trabalhoB]);
   });
@@ -137,8 +137,8 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     const awaiting = await allPages({ tab: "AWAITING", q: "prova", classId: classB.id });
     expect(awaiting.flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.provaFinalB]);
     for (const page of [...pages, ...awaiting]) {
-      expect(page.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1 });
-      expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2 });
+      expect(page.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0 });
+      expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 0 });
     }
     const allA = await allPages({ q: "prova", classId: classA.id });
     expect(allA.flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.provaA, ids.provaAcentoA]);
