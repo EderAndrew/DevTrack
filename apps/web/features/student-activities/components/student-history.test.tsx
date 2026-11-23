@@ -8,7 +8,7 @@ import type { IntegrityEventView, StudentHistoryItem, StudentHistoryPage, Studen
 import { formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
 import type { StudentHistoryFilters } from "../api/student-activities";
-import { HISTORY_FINAL_NOTE, historyFromSearch } from "../schemas/student-history";
+import { HISTORY_DESCRIPTION, HISTORY_FINAL_NOTE, HISTORY_TABS, historyFromSearch } from "../schemas/student-history";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
@@ -74,16 +74,13 @@ const waiting = entry({
   class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
   subjectName: null,
 });
-const exercise = entry({
+// 029/FR-001: rows are never exercises; the third row is another closed work, awaiting its grade.
+const collections = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000013",
-  title: "Exercícios de laços",
-  type: "EXERCISE",
-  status: "COMPLETED",
-  situation: "GRADED",
-  deadline: null,
-  latePolicy: null,
-  totalGrade: null,
-  points: { possible: 60, earned: 45, awaitingCorrection: false },
+  title: "Trabalho de coleções",
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: "Programação Orientada a Objetos",
+  totalGrade: "2.00",
 });
 const exam = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000014",
@@ -94,7 +91,7 @@ const exam = entry({
   totalGrade: "1.00",
   result: { grade: "1.50", hasFeedback: false },
 });
-const FOUR = [graded, waiting, exercise, exam];
+const FOUR = [graded, waiting, collections, exam];
 
 const table = () => screen.findByRole("table", { name: "Atividades que você entregou." });
 const rowOf = async (title: string) =>
@@ -154,14 +151,14 @@ describe("028/US1 Histórico: totais e lista redesenhada", () => {
     expect(within(over).queryByText("Com feedback")).toBeNull();
   });
 
-  it("028/US1-5 exercício: \"Concluída\" e os pontos, nunca a barra; pontos aguardando correção", async () => {
-    const pendingPoints = entry({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000015", title: "Exercícios de vetores", points: { possible: 60, earned: 15, awaitingCorrection: true } });
-    setup({ [HISTORY]: json(200, page([exercise, pendingPoints])) });
-    const row = await rowOf("Exercícios de laços");
-    expect(within(row).getByText("Concluída")).toBeTruthy();
-    expect(within(row).getByText("45 de 60 pontos")).toBeTruthy();
-    expect(within(row).queryByRole("progressbar")).toBeNull();
-    expect(within(await rowOf("Exercícios de vetores")).getByText("Pontos aguardando correção")).toBeTruthy();
+  // 029/FR-001: exercises never reach the history, so no row says "Concluída" or shows points.
+  it("028/US1-5 029/FR-001 sem exercícios: nenhuma linha diz \"Concluída\" nem mostra pontos", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const rows = await table();
+    expect(within(rows).queryByText("Concluída")).toBeNull();
+    expect(within(rows).queryByText("Exercício")).toBeNull();
+    expect(rows.textContent).not.toMatch(/pontos/);
+    expect(within(await rowOf("Trabalho de coleções")).getByText("Aguardando correção")).toBeTruthy();
   });
 
   it("028/US1-6 título, \"Ver atividade\" e a seta abrem a atividade; tipo, turma e disciplina, data em duas linhas", async () => {
@@ -209,7 +206,7 @@ describe("028/US1 Histórico: totais e lista redesenhada", () => {
   it("028/US1-9 \"Carregar mais\" pede o cursor e o N do rodapé cresce", async () => {
     const { user, api } = setup({
       [HISTORY]: json(200, page([graded, waiting], { nextCursor: "c1", total: 4 })),
-      [`${HISTORY}?cursor=c1`]: json(200, page([exercise, exam], { total: 4 })),
+      [`${HISTORY}?cursor=c1`]: json(200, page([collections, exam], { total: 4 })),
     });
     await table();
     expect(screen.getByText("Exibindo 2 de 4 atividades")).toBeTruthy();
@@ -503,7 +500,8 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
     ]);
     const row = await rowOf("Trabalho perdido");
     expect(within(row).getByText("Não entregue")).toBeTruthy();
-    expect(within(row).getByText("10 de novembro")).toBeTruthy();
+    // 029/FR-006: without a delivery, the date is the close.
+    expect(within(row).getByText("Encerrada em 10 de novembro")).toBeTruthy();
     expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
     expect(within(row).getByText("—")).toBeTruthy();
     expect(within(row).queryByRole("progressbar")).toBeNull();
@@ -526,6 +524,61 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
     setup({ [HISTORY]: json(200, page([missed], { totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 }, tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 } })) });
     expect(await rowOf("Trabalho perdido")).toBeTruthy();
     expect(screen.queryByText(HISTORY_EMPTY)).toBeNull();
+  });
+});
+
+describe("029/US1 Histórico só com o que o professor encerrou", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Local time, as FRIDAY: "10 de novembro" and "Terça-feira, 23:59".
+  const TUESDAY = new Date(2026, 10, 10, 23, 59).toISOString();
+  const closedMissed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000031",
+    title: "Prova não feita",
+    type: "EXAM",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    endedAt: TUESDAY,
+    situation: "MISSED",
+    totalGrade: "10.00",
+  });
+
+  it("029/US1-2 encerrada sem entrega: \"Não entregue\", \"Encerrada em …\" com o dia da semana e \"—\" na Nota, fora dos cards", async () => {
+    setup({ [HISTORY]: json(200, page([closedMissed], { tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 }, totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 } })) });
+    const row = await rowOf("Prova não feita");
+    expect(within(row).getByText("Não entregue")).toBeTruthy();
+    expect(within(row).getByText("Encerrada em 10 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    // A delivered row keeps the delivery's day alone (028).
+    vi.unstubAllGlobals();
+    cleanup();
+    setup({ [HISTORY]: json(200, page([graded])) });
+    expect(within(await rowOf("Trabalho de interfaces")).getByText("13 de novembro")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Data" })).toBeTruthy();
+  });
+
+  it("029/US1-6 Histórico vazio: cards em zero e \"Nenhuma atividade encerrada ainda.\"", async () => {
+    setup({ [HISTORY]: json(200, page([], { tabCounts: { all: 0, awaiting: 0, graded: 0 }, totals: { delivered: 0, awaiting: 0, graded: 0 } })) });
+    expect(await screen.findByText("Nenhuma atividade encerrada ainda.")).toBeTruthy();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("029/FR-011 os estados vazios: \"Todas\" com a frase nova, as outras abas como na 028", () => {
+    expect(HISTORY_EMPTY).toBe("Nenhuma atividade encerrada ainda.");
+    expect(HISTORY_TABS.map((spec) => [spec.slug, spec.empty])).toEqual([
+      ["todas", "Nenhuma atividade encerrada ainda."],
+      ["aguardando", "Nenhuma entrega aguardando correção."],
+      ["corrigidas", "Nenhuma entrega corrigida ainda."],
+      ["nao-entregues", "Nenhuma atividade não entregue."],
+    ]);
+    expect(HISTORY_DESCRIPTION).toBe("Provas e trabalhos encerrados ou cancelados pelo professor.");
   });
 });
 
@@ -557,15 +610,6 @@ describe("028/US4 Histórico: nada de nota antes da liberação", () => {
         expect(within(place).queryByText("Com feedback")).toBeNull();
         expect(place.textContent).not.toMatch(/\d,\d\d/);
       }
-    }
-  });
-
-  it("028/FR-018 um exercício nunca mostra a barra nem a palavra \"Nota\"", async () => {
-    setup({ [HISTORY]: json(200, page([exercise])) });
-    for (const place of await placesOf("Exercícios de laços")) {
-      expect(within(place).getByText("45 de 60 pontos")).toBeTruthy();
-      expect(within(place).queryByRole("progressbar")).toBeNull();
-      expect(place.textContent).not.toMatch(/Nota/);
     }
   });
 

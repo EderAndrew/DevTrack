@@ -39,10 +39,10 @@ import {
   HISTORY_SEARCH_WAIT_MS,
   historyClassLines,
   historyDate,
+  historyDateLabel,
   historyFiltered,
   historyFooter,
   historyGradePercent,
-  historyPoints,
   historyStatusLabel,
   historyStatusVariant,
   HISTORY_TABS,
@@ -124,13 +124,13 @@ function HistorySummary({ totals }: { totals: StudentHistoryPage["totals"] }) {
 
 /**
  * The date in two lines: "13 de novembro" and "Sexta-feira, 16:47" (with "com atraso" when late) — the delivery, or
- * when a missed activity stopped accepting one (028 HI11).
+ * "Encerrada em …" / "Cancelada em …" when nothing was delivered (029/FR-006).
  */
 function DeliveredAt({ item }: { item: StudentHistoryItem }) {
   const date = historyDate(item);
   return (
     <span className="flex flex-col">
-      <time dateTime={date}>{formatDayMonth(date)}</time>
+      <time dateTime={date}>{historyDateLabel(item, formatDayMonth(date))}</time>
       <span className="text-caption text-text-secondary">
         {formatWeekdayTime(date)}
         {item.late && item.situation !== "MISSED" ? " (com atraso)" : ""}
@@ -150,14 +150,13 @@ function ClassLines({ item }: { item: StudentHistoryItem }) {
 }
 
 /**
- * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it; an
- * exercise's points (013), never a grade or a bar. The grade shows only on a GRADED delivery (028/FR-018), the same
+ * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it (029/FR-001:
+ * never an exercise, so never points). The grade shows only on a GRADED delivery (028/FR-018), the same
  * `situation` the pill reads, so the two never disagree.
  */
 function HistoryScore({ item }: { item: StudentHistoryItem }) {
   // 028/FR-024: nothing was delivered, so there is nothing to grade or score.
   if (item.situation === "MISSED") return <span>—</span>;
-  if (item.type === "EXERCISE") return <span>{item.points ? historyPoints(item.points) : "—"}</span>;
   if (item.situation !== "GRADED" || !item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
   const grade = formatGrade(item.result.grade);
   const total = formatGrade(item.totalGrade ?? "0.00");
@@ -192,7 +191,7 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
             <TableHead scope="col">Atividade</TableHead>
             <TableHead scope="col">Tipo</TableHead>
             <TableHead scope="col">Turma</TableHead>
-            <TableHead scope="col">Entregue em</TableHead>
+            <TableHead scope="col">Data</TableHead>
             <TableHead scope="col">Situação</TableHead>
             <TableHead scope="col">Nota</TableHead>
             <TableHead scope="col">
@@ -365,9 +364,9 @@ function useHistorySubject(requested: string | null) {
 }
 
 /**
- * "Histórico" (012 US6, redesigned in 028/US1): the three totals of every delivery, then the deliveries newest first
- * (`GET /me/history`) with the type, the class, the delivery date, the situation and the grade (or the points of an
- * exercise), the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
+ * "Histórico" (012 US6, redesigned in 028/US1; since 029 only the works and exams the teacher closed or cancelled): the
+ * three totals of the deliveries, then the rows newest first (`GET /me/history`) with the type, the class, the date (the
+ * delivery, else the close), the situation and the grade, the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
  * activity with the student's read-only answers. Since 028/US2 the tabs "Todas", "Aguardando" and "Corrigidas" (with
  * the server's counts) narrow the list on the server and live in the address (`?aba=`); since 028/US3 the search by
  * title (`?busca=`) and the "Matéria" filter (`?materia=`) too, combined with the tab.

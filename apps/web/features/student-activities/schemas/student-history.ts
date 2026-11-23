@@ -4,17 +4,16 @@ import { HISTORY_PATH } from "@/lib/navigation";
 import type { StudentHistoryFilters } from "../api/student-activities";
 import { gradePercent } from "./student-activity";
 
-// Texts of 028 contracts/ui.md: they live in the web only (XXVI).
+// Texts of 028 and 029 contracts/ui.md: they live in the web only (XXVI).
 
-export const HISTORY_DESCRIPTION = "Acompanhe suas entregas, correções e resultados.";
+export const HISTORY_DESCRIPTION = "Provas e trabalhos encerrados ou cancelados pelo professor.";
 export const HISTORY_LOADING = "Carregando seu histórico…";
-export const HISTORY_EMPTY = "Você ainda não entregou nenhuma atividade.";
+export const HISTORY_EMPTY = "Nenhuma atividade encerrada ainda.";
 export const HISTORY_CAPTION = "Atividades que você entregou.";
 export const HISTORY_ORDER = "Mais recentes primeiro";
 export const HISTORY_FINAL_NOTE = "As notas aparecem aqui assim que a correção for concluída.";
 export const VIEW_ACTIVITY = "Ver atividade";
 export const AWAITING_GRADE = "Aguardando correção";
-export const POINTS_AWAITING = "Pontos aguardando correção";
 
 /** "Exibindo N de M atividades" (N = loaded rows, M = the server's `total`). */
 export const historyFooter = (shown: number, total: number) => `Exibindo ${shown} de ${total} ${total === 1 ? "atividade" : "atividades"}`;
@@ -42,25 +41,28 @@ export const historyClassLines = (item: Pick<StudentHistoryItem, "class" | "subj
 export const MISSED_LABEL = "Não entregue";
 
 /**
- * The pill of a row (contracts/ui.md "Situação"): MISSED → "Não entregue" (any type); an exercise is "Concluída";
- * otherwise GRADED → "Corrigida" and AWAITING → "Entregue", each "… com atraso" when the delivery was late.
+ * The pill of a row (contracts/ui.md "Situação"): MISSED → "Não entregue"; otherwise GRADED → "Corrigida" and
+ * AWAITING → "Entregue", each "… com atraso" when the delivery was late. 029/FR-001: never an exercise.
  */
-export function historyStatusLabel(item: Pick<StudentHistoryItem, "type" | "situation" | "late">): string {
+export function historyStatusLabel(item: Pick<StudentHistoryItem, "situation" | "late">): string {
   if (item.situation === "MISSED") return MISSED_LABEL;
-  if (item.type === "EXERCISE") return "Concluída";
   const base = item.situation === "GRADED" ? "Corrigida" : "Entregue";
   return item.late ? `${base} com atraso` : base;
 }
 
-export const historyStatusVariant = (item: Pick<StudentHistoryItem, "type" | "situation">): StatusVariant =>
-  item.situation === "MISSED" ? "neutral" : item.type !== "EXERCISE" && item.situation === "AWAITING" ? "warning" : "success";
+export const historyStatusVariant = (item: Pick<StudentHistoryItem, "situation">): StatusVariant =>
+  item.situation === "MISSED" ? "neutral" : item.situation === "AWAITING" ? "warning" : "success";
 
 /** The row's date (029/FR-006): the delivery when there is one, else when the teacher closed or cancelled it. */
 export const historyDate = (item: Pick<StudentHistoryItem, "deliveredAt" | "endedAt">): string => item.deliveredAt ?? item.endedAt;
 
-/** An exercise's points (013, never a grade): "45 de 60 pontos", or "Pontos aguardando correção". */
-export function historyPoints(points: NonNullable<StudentHistoryItem["points"]>): string {
-  return points.awaitingCorrection ? POINTS_AWAITING : `${points.earned} de ${points.possible} pontos`;
+/**
+ * The first line of the date (029 contracts/ui.md "Data"): the delivery's day, or "Encerrada em 13 de novembro" /
+ * "Cancelada em 13 de novembro" when nothing was delivered.
+ */
+export function historyDateLabel(item: Pick<StudentHistoryItem, "deliveredAt" | "situation">, day: string): string {
+  if (item.deliveredAt !== null) return day;
+  return `${item.situation === "CANCELLED" ? "Cancelada" : "Encerrada"} em ${day}`;
 }
 
 /** The tabs (028/US2, contracts/ui.md "Toolbar"): label, the address's `aba` slug and the empty text of each. */

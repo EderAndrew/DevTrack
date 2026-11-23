@@ -117,7 +117,7 @@ exercício concluído: só os dois encerrados no Histórico, com cards e abas ce
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T010 [P] [US1] Criar `apps/api/test/integration/029-us1-closed-history.spec.ts` com `029/US1-1`…`029/US1-6`
+- [X] T010 [P] [US1] Criar `apps/api/test/integration/029-us1-closed-history.spec.ts` com `029/US1-1`…`029/US1-6`
       (um `it` cada) sobre `/api/me/history`: encerrada entregue em AWAITING/GRADED e nos cards; encerrada sem entrega
       em MISSED com `endedAt` = encerramento, fora dos cards; ativa entregue ou não, ausente de itens e contagens;
       exercício concluído ativo e encerrado, ausente; encerrar uma ativa entregue a move (mesmo `FixedClock`, nova
@@ -125,16 +125,16 @@ exercício concluído: só os dois encerrados no Histórico, com cards e abas ce
       retida (AWAITING, `deliveredAt` nulo, conta em `totals.awaiting` e `totals.delivered`, `029/FR-004`); prova
       encerrada com a tentativa zerada pela decisão 018 (entrega, nota só após a liberação); trabalho em grupo encerrado
       (uma linha por membro, com a entrega do grupo).
-- [ ] T011 [P] [US1] Em `apps/web/features/student-activities/components/student-history.test.tsx`, testes `029/US1-2`
+- [X] T011 [P] [US1] Em `apps/web/features/student-activities/components/student-history.test.tsx`, testes `029/US1-2`
       (linha MISSED com "Encerrada em …" e "—"), `029/US1-6` (estado vazio "Nenhuma atividade encerrada ainda.") e
       `029/FR-011`; atualizar os testes 028 que usam `missedAt` ou exercícios (ids 028 mantidos, `// 029/FR-001`).
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] `apps/api/src/modules/student-activities/my-activities.service.ts`: `history()` com as linhas de
+- [X] T012 [US1] `apps/api/src/modules/student-activities/my-activities.service.ts`: `history()` com as linhas de
       `loadAll` filtradas por `inHistory` (só CLOSED por enquanto), situação e data de T008, `endedAt` no item,
       `tabCounts`/`totals` com `cancelled: 0`. T010 verde.
-- [ ] T013 [US1] Web: `apps/web/features/student-activities/schemas/student-history.ts` (data da linha a partir de
+- [X] T013 [US1] Web: `apps/web/features/student-activities/schemas/student-history.ts` (data da linha a partir de
       `deliveredAt ?? endedAt`, rótulos "Encerrada em"/"Cancelada em", textos vazios novos, descrição do cabeçalho de
       contracts/ui.md) e `components/student-history.tsx`; `app/(student)/historico/page.tsx` com a descrição nova.
       T011 verde. Tirar `029/US1` do `pending` (T001).

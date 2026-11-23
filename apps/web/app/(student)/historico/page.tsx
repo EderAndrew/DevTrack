@@ -10,7 +10,8 @@ import { HISTORY_PATH } from "@/lib/navigation";
 export const metadata: Metadata = { title: "Histórico" };
 
 /**
- * "Histórico" (012 US6, 028): the student's deliveries with their totals, grade and feedback once released; the tab, the
+ * "Histórico" (012 US6, 028, 029): the works and exams the teacher closed or cancelled, with the totals of the student's
+ * deliveries, grade and feedback once released; the tab, the
  * search and the subject live in the address (`?aba=&busca=&materia=`).
  */
 export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ aba?: string | string[]; busca?: string | string[]; materia?: string | string[] }> }) {
