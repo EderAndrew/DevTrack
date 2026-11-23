@@ -338,6 +338,21 @@ describe("028/US3 Histórico: buscar e filtrar por matéria", () => {
     expect(historyCalls(api).filter((url) => /q=l(i|is|ist)?$/.test(url))).toEqual([]);
   });
 
+  it("028/US3-5 a busca logo depois de trocar de aba, antes de o endereço mudar, mantém a aba escolhida", async () => {
+    const { user } = setup(
+      {
+        [CLASSES]: classes(),
+        [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { total: 1, tabCounts: { all: 4, awaiting: 3, graded: 1 } })),
+      },
+      historyFromSearch({ aba: "corrigidas" }),
+    );
+    await user.click(within(await screen.findByRole("tablist")).getByRole("tab", { name: "Todas, 4" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico");
+    // The router mock never moves the address: it is still `?aba=corrigidas` when the search applies.
+    await user.type(await search(), "prova{Enter}");
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=prova");
+  });
+
   it("028/US3-2 busca sem resultado: \"Nenhuma atividade encontrada.\" e \"Limpar busca e filtro\" mantém a aba", async () => {
     const { user, api } = setup(
       {

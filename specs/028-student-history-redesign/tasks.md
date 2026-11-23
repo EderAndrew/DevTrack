@@ -318,32 +318,32 @@ matéria, conferindo lista, contagens das abas e cards.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T027 [P] Desempenho `apps/api/test/integration/028-sc004-performance.spec.ts`: `028/SC-004` um aluno com 500
+- [X] T027 [P] Desempenho `apps/api/test/integration/028-sc004-performance.spec.ts`: `028/SC-004` um aluno com 500
       entregas (inserções em lote, como as suítes de desempenho da 025): `GET /me/history` com aba, busca e matéria
       responde em menos de 2 s cada, medido no teste. Tirar `SC-004` de `pending`.
-- [ ] T028 [P] Contraste e visual: `apps/web/test/contrast.test.ts` cobre os tons novos (legenda de sucesso do card,
+- [X] T028 [P] Contraste e visual: `apps/web/test/contrast.test.ts` cobre os tons novos (legenda de sucesso do card,
       "Aguardando correção" em aviso, a barra de nota) nos dois temas; axe nos dois temas no `student-history.test.tsx`
       (`028/FR-020`); checar os scans do Design System (`ds-exception` não deve ser preciso). A largura de 360 px fica
       no E2E (T029): o jsdom não calcula layout.
-- [ ] T029 E2E `apps/web/e2e/student-history.spec.ts` (o seed de `e2e/support/student-portal-seed.ts`): `028/US1-1`
+- [X] T029 E2E `apps/web/e2e/student-history.spec.ts` (o seed de `e2e/support/student-portal-seed.ts`): `028/US1-1`
       um aluno com um trabalho liberado e outro não abre "Histórico": cards 2/1/1, a linha corrigida com a nota e a
       barra; `028/US2-3` "Corrigidas" mostra só a liberada; `028/US3-1` a busca filtra; `028/SC-007` com
       `page.setViewportSize({ width: 360, height: 800 })`, nos temas escuro e claro (o tema da conta, 022),
       `document.documentElement.scrollWidth <= clientWidth` no Histórico com dados e as linhas como cartões
       (`@axe-core/playwright` se já houver no E2E). Tirar `SC-007` de `pending`. Rodar com o consentimento do usuário
       para o reset de `devtrack_e2e` (pedir antes).
-- [ ] T030 [P] Documentação: `CLAUDE.md` raiz — a 028 em "Project state" ("Features 001–028"), uma regra curta em
+- [X] T030 [P] Documentação: `CLAUDE.md` raiz — a 028 em "Project state" ("Features 001–028"), uma regra curta em
       "Rules that are easy to get wrong" (o histórico é derivado no servidor por `GET /me/history`: `GRADED` só com o
       resultado visível ao aluno, exercício pelos pontos, `q` redigido do log, a rota de `/me/activities` intocada) e
       tirar "(planned)" de "Recent Changes"; `apps/api/CLAUDE.md` e `apps/web/CLAUDE.md` — uma linha cada sobre
       `history.ts`/`GET /me/history` e o novo `StudentHistory`.
-- [ ] T031 Rodar `pnpm lint && pnpm check-types && pnpm test` (suíte completa, em segundo plano) — `028/SC-005`: as
+- [X] T031 Rodar `pnpm lint && pnpm check-types && pnpm test` (suíte completa, em segundo plano) — `028/SC-005`: as
       suítes 012, 013, 016, 018, 023 e 026 verdes sem mudança de asserção na API (o `SC-005` já saiu de `pending` no
       T008; aqui é a confirmação na suíte inteira); `028/FR-021` o `student-layout.test.tsx` de hoje continua verde sem
       mudança (menu e barra lateral intactos).
-- [ ] T032 Conferir `apps/api/test/traceability.spec.ts`: `pending` da 028 vazio (`stories: []`,
+- [X] T032 Conferir `apps/api/test/traceability.spec.ts`: `pending` da 028 vazio (`stories: []`,
       `successCriteria: []`): conferir que não sobrou id (todos saíram nas tarefas que os testam).
-- [ ] T033 Quickstart manual (`quickstart.md`, passos 1–8) no ambiente local, com o usuário; anotar os tempos de
+- [X] T033 Quickstart manual (`quickstart.md`, passos 1–8) no ambiente local, com o usuário; anotar os tempos de
       `028/SC-003` (1 interação até as corrigidas) e `028/SC-004` (≤ 2 s).
 
 ---

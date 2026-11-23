@@ -77,6 +77,10 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
   disciplina" show only with the API's `canChangeStatus` (after the calendar), never a date computed in the browser.
   "Minhas turmas" (`features/my-classes`) is grouped by ano letivo with "Encerrada"/"Arquivada" by effective status, and
   the 026 card offers only effectively ACTIVE classes. Names of turmas, subjects and teachers are text, never HTML.
+- Histórico (028): `/historico` renders `StudentHistory` (`features/student-activities/components/student-history.tsx`):
+  the three cards from the API's `totals`, the tabs with `tabCounts`, the search (300 ms, ≤ 100 code points) and the
+  "Matéria" select, all in the address (`?aba=&busca=&materia=`, `schemas/student-history.ts`) and filtered on the
+  server; a table on wide screens and cards below `md`. A subject the student lost falls back with the 026 notice.
 - Invitation e-mail status (017): the turma's tab (`features/cohorts/components/cohort-invitations-tab.tsx`, 027) and the
   teacher and manager lists show, only next to a PENDING invitation, `DeliveryStatus`
   (`features/invitations/components/delivery-status.tsx`): "Enviando", "Envio falhou", or the badge "Não entregue"

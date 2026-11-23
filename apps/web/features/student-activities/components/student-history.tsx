@@ -375,18 +375,20 @@ export function StudentHistory({ filters: address = ALL }: { filters?: StudentHi
   const query = useStudentHistory(sent, { enabled: !subject.waiting });
   const missing = sent.classId !== null && query.error != null && toApiError(query.error).status === 404 ? sent.classId : null;
   if (missing !== null) subject.forget(missing);
-  const apply = (next: { q?: string; classId?: string | null }) => {
-    const target = { ...sent, q: (next.q ?? filters.q).trim(), classId: next.classId === undefined ? sent.classId : next.classId };
-    if (target.q === filters.q.trim() && target.classId === filters.classId) return;
-    setApplied({ from: addressKey, q: target.q, classId: target.classId });
-    router.replace(historyHref(target));
-  };
   const current = historyTabOf(filters.tab);
   // The tab chosen while the address has not caught up yet (Radix asks on mousedown and again on focus): it is
   // selected at once and asked for once; a new address (`filters`) makes it stale.
   const [chosen, setChosen] = useState<{ from: string; to: string } | null>(null);
   const asked = useRef<{ from: string; to: string } | null>(null);
   const selected = chosen?.from === current.slug ? chosen.to : current.slug;
+  const apply = (next: { q?: string; classId?: string | null }) => {
+    // The tab on screen, not the address's: a search right after a tab click must not undo the click.
+    const tab = (HISTORY_TABS.find((spec) => spec.slug === selected) ?? current).tab;
+    const target = { ...sent, tab, q: (next.q ?? filters.q).trim(), classId: next.classId === undefined ? sent.classId : next.classId };
+    if (target.q === filters.q.trim() && target.classId === filters.classId) return;
+    setApplied({ from: addressKey, q: target.q, classId: target.classId });
+    router.replace(historyHref(target));
+  };
   const pages = query.data?.pages ?? [];
   const items = pages.flatMap((page) => page.items);
   const first = pages[0];
