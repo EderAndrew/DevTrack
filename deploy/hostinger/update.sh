@@ -39,6 +39,11 @@ git merge --ff-only --quiet "$DEPLOY_SHA"
 [[ "$(git rev-parse HEAD)" == "$DEPLOY_SHA" ]] || { echo "ERRO: HEAD diferente do SHA validado." >&2; exit 2; }
 
 pnpm install --frozen-lockfile
+# The Prisma client comes from the api's `postinstall`, which pnpm skips when the lockfile is unchanged ("Already up
+# to date"): a commit that changes only `schema.prisma` would build against the old client and fail on the new
+# fields (2026-11-23: `Unknown field enrollmentId` after 027). Generate it on every deploy, before the build;
+# `--no-hints` keeps the CLI from asking anything (it once offered to install "agent skills" for 30 s).
+pnpm --filter api prisma generate --no-hints
 # The web's version label carries the commit (next.config.js), but turbo's cache key doesn't: a commit that
 # changes no web file would replay the previous build and keep its label. APP_COMMIT is in turbo's build env.
 APP_COMMIT="$DEPLOY_SHA" pnpm build
