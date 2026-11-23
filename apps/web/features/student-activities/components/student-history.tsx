@@ -1,31 +1,44 @@
 "use client";
 
 import type { ExamOccurrenceView, StudentHistoryItem, StudentHistoryPage, StudentPause } from "@repo/contracts";
-import { Check, ChevronRight, Clock, FileText, History, Info, type LucideIcon, MessageSquareText } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronRight, Clock, FileText, History, Info, type LucideIcon, MessageSquareText, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { Status } from "@/components/ui/status";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDuration, NO_EXAM_OCCURRENCES, OCCURRENCE_KIND_LABELS, occurredAt } from "@/features/activities/schemas/attempt-records";
 import { NO_RETURN, PAUSE_REASON_LABELS, ROOM_EXITS_TITLE } from "@/features/attendance/schemas/attendance";
+import { myClassesKeys, useMyClasses } from "@/features/my-classes/hooks/use-my-classes";
+import { mySubjectClasses } from "@/features/my-classes/schemas/my-classes";
 import { formatDayMonth, formatTime, formatWeekdayTime } from "@/lib/messages/dates";
-import type { StudentHistoryFilters } from "../api/student-activities";
+import { type StudentHistoryFilters, toApiError } from "../api/student-activities";
 import { useOwnIntegrity, useStudentHistory } from "../hooks/use-student-activities";
 import {
+  ALL_SUBJECTS,
   AWAITING_GRADE,
+  CLEAR_FILTERS,
   HISTORY_CAPTION,
   HISTORY_CARDS,
   HISTORY_EMPTY,
   HISTORY_FINAL_NOTE,
   HISTORY_LOADING,
   HISTORY_ORDER,
+  HISTORY_SEARCH_LABEL,
+  HISTORY_SEARCH_PLACEHOLDER,
+  HISTORY_SEARCH_WAIT_MS,
   historyClassLines,
+  historyFiltered,
   historyFooter,
   historyGradePercent,
   historyPoints,
@@ -35,10 +48,11 @@ import {
   historyHref,
   historyTabName,
   historyTabOf,
+  NO_MATCH,
   twoDigits,
   VIEW_ACTIVITY,
 } from "../schemas/student-history";
-import { ACTIVITY_TYPE_LABELS, activityHref, formatGrade } from "../schemas/student-activity";
+import { ACTIVITY_TYPE_LABELS, activityHref, formatGrade, SUBJECT_LABEL, SUBJECT_UNAVAILABLE, subjectOptions } from "../schemas/student-activity";
 import { LoadFailed, Loading } from "./load-states";
 
 export { HISTORY_EMPTY };
@@ -241,16 +255,132 @@ function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
   );
 }
 
+const SEARCH_ID = "historico-busca";
+const SUBJECT_ID = "historico-materia";
+
+/**
+ * The search box (028/US3-1): its own text, applied (`onApply`) after `HISTORY_SEARCH_WAIT_MS` without typing or at
+ * once on Enter, never one request per keystroke. A search changed from outside (the address, "Limpar busca e filtro")
+ * replaces the text; the student's own applied text is kept as typed.
+ */
+function HistorySearch({ value, onApply }: { value: string; onApply: (q: string) => void }) {
+  const [text, setText] = useState(value);
+  const [seen, setSeen] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  if (value !== seen) {
+    setSeen(value);
+    if (text.trim() !== value) setText(value);
+  }
+  const stop = () => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stop, []);
+  return (
+    <form
+      role="search"
+      className="relative w-full md:w-72"
+      onSubmit={(event) => {
+        event.preventDefault();
+        stop();
+        onApply(text);
+      }}
+    >
+      <Label htmlFor={SEARCH_ID} className="sr-only">
+        {HISTORY_SEARCH_LABEL}
+      </Label>
+      <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-secondary" />
+      <Input
+        id={SEARCH_ID}
+        type="search"
+        className="pl-10"
+        maxLength={100}
+        placeholder={HISTORY_SEARCH_PLACEHOLDER}
+        value={text}
+        onChange={(event) => {
+          const next = event.target.value;
+          setText(next);
+          stop();
+          timer.current = setTimeout(() => {
+            timer.current = null;
+            onApply(next);
+          }, HISTORY_SEARCH_WAIT_MS);
+        }}
+      />
+    </form>
+  );
+}
+
+/** The "Matéria" filter (028/US3-3): "Todas as matérias" first, then the student's subjects as the 026 card writes them. */
+function SubjectFilter({ options, value, onChange }: { options: { id: string; label: string }[]; value: string | null; onChange: (classId: string | null) => void }) {
+  return (
+    <div className="flex w-full flex-col gap-1 md:w-64">
+      <Label htmlFor={SUBJECT_ID}>{SUBJECT_LABEL}</Label>
+      <NativeSelect id={SUBJECT_ID} className="w-full" value={value ?? ""} onChange={(event) => onChange(event.target.value || null)}>
+        <option value="">{ALL_SUBJECTS}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </NativeSelect>
+    </div>
+  );
+}
+
+/**
+ * The subject actually asked for (026 research D6, 028 HI8): the address's `materia` once "Minhas turmas" lists it;
+ * one it doesn't list, or one the history answered `404` for (the enrollment ended while open: "Minhas turmas" is asked
+ * again), falls back to every subject with the notice. Without "Minhas turmas" (a failure) the server decides. Only
+ * the server decides what the student may read; this only chooses what to ask.
+ */
+function useHistorySubject(requested: string | null) {
+  const queryClient = useQueryClient();
+  const classes = useMyClasses();
+  const items = mySubjectClasses(classes.data);
+  const [missing, setMissing] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (missing.length > 0) void queryClient.invalidateQueries({ queryKey: myClassesKeys.list });
+  }, [missing, queryClient]);
+  const listed = requested === null || !classes.isSuccess || items.some((item) => item.id === requested);
+  const unavailable = requested !== null && (missing.includes(requested) || !listed);
+  return {
+    options: subjectOptions(items),
+    /** "Minhas turmas" still loading with a subject in the address: nothing is asked yet. */
+    waiting: requested !== null && classes.isPending,
+    classId: unavailable ? null : requested,
+    unavailable,
+    forget: (classId: string) => {
+      if (!missing.includes(classId)) setMissing([...missing, classId]);
+    },
+  };
+}
+
 /**
  * "Histórico" (012 US6, redesigned in 028/US1): the three totals of every delivery, then the deliveries newest first
  * (`GET /me/history`) with the type, the class, the delivery date, the situation and the grade (or the points of an
  * exercise), the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
  * activity with the student's read-only answers. Since 028/US2 the tabs "Todas", "Aguardando" and "Corrigidas" (with
- * the server's counts) narrow the list on the server and live in the address (`?aba=`).
+ * the server's counts) narrow the list on the server and live in the address (`?aba=`); since 028/US3 the search by
+ * title (`?busca=`) and the "Matéria" filter (`?materia=`) too, combined with the tab.
  */
-export function StudentHistory({ filters = ALL }: { filters?: StudentHistoryFilters }) {
+export function StudentHistory({ filters: address = ALL }: { filters?: StudentHistoryFilters }) {
   const router = useRouter();
-  const query = useStudentHistory(filters);
+  // The search and the subject applied while the address has not caught up yet (as the tab below): asked for at once.
+  const addressKey = historyHref(address);
+  const [applied, setApplied] = useState<{ from: string; q: string; classId: string | null } | null>(null);
+  const filters: StudentHistoryFilters = applied?.from === addressKey ? { ...address, q: applied.q, classId: applied.classId } : address;
+  const subject = useHistorySubject(filters.classId);
+  const sent: StudentHistoryFilters = { ...filters, classId: subject.classId };
+  const query = useStudentHistory(sent, { enabled: !subject.waiting });
+  const missing = sent.classId !== null && query.error != null && toApiError(query.error).status === 404 ? sent.classId : null;
+  if (missing !== null) subject.forget(missing);
+  const apply = (next: { q?: string; classId?: string | null }) => {
+    const target = { ...sent, q: (next.q ?? filters.q).trim(), classId: next.classId === undefined ? sent.classId : next.classId };
+    if (target.q === filters.q.trim() && target.classId === filters.classId) return;
+    setApplied({ from: addressKey, q: target.q, classId: target.classId });
+    router.replace(historyHref(target));
+  };
   const current = historyTabOf(filters.tab);
   // The tab chosen while the address has not caught up yet (Radix asks on mousedown and again on focus): it is
   // selected at once and asked for once; a new address (`filters`) makes it stale.
@@ -261,14 +391,20 @@ export function StudentHistory({ filters = ALL }: { filters?: StudentHistoryFilt
   const items = pages.flatMap((page) => page.items);
   const first = pages[0];
 
-  if (query.isPending) return <Loading label={HISTORY_LOADING} />;
+  if (subject.waiting || query.isPending || missing !== null) return <Loading label={HISTORY_LOADING} />;
   if (!first) return <LoadFailed error={query.error} onRetry={() => void query.refetch()} />;
   const latest = pages[pages.length - 1]!;
+  const filtered = historyFiltered(sent);
 
   return (
     <div className="flex flex-col gap-6">
+      {subject.unavailable ? (
+        <Alert variant="info">
+          <AlertTitle>{SUBJECT_UNAVAILABLE}</AlertTitle>
+        </Alert>
+      ) : null}
       <HistorySummary totals={latest.totals} />
-      {latest.totals.delivered === 0 ? (
+      {latest.totals.delivered === 0 && sent.classId === null ? (
         <EmptyState icon={History} title={HISTORY_EMPTY} />
       ) : (
         <section aria-label="Suas entregas" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -280,12 +416,25 @@ export function StudentHistory({ filters = ALL }: { filters?: StudentHistoryFilt
               if (!next || slug === last) return;
               asked.current = { from: current.slug, to: slug };
               setChosen(asked.current);
-              router.replace(historyHref({ ...filters, tab: next.tab }));
+              router.replace(historyHref({ ...sent, tab: next.tab }));
             }}
           >
-            <HistoryTabList counts={latest.tabCounts} />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <HistoryTabList counts={latest.tabCounts} />
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                <HistorySearch value={filters.q} onApply={(q) => apply({ q })} />
+                <SubjectFilter options={subject.options} value={sent.classId} onChange={(classId) => apply({ classId })} />
+              </div>
+            </div>
             <TabsContent value={selected} className="flex flex-col gap-4" aria-busy={query.isPlaceholderData || undefined}>
-              {items.length === 0 ? (
+              {items.length === 0 && filtered ? (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <p className="m-0 text-text-secondary">{NO_MATCH}</p>
+                  <Button type="button" variant="secondary" onClick={() => apply({ q: "", classId: null })}>
+                    {CLEAR_FILTERS}
+                  </Button>
+                </div>
+              ) : items.length === 0 ? (
                 <p className="m-0 py-6 text-center text-text-secondary">{current.empty}</p>
               ) : (
                 <>

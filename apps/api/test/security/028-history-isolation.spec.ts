@@ -3,7 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
 import { createActivity, createAttemptRow, createClassWithStudents } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
-import { loginAs, createUser, type TestUser } from "../helpers/factories";
+import { createClass, createEnrollment, loginAs, createUser, type TestUser } from "../helpers/factories";
+import { captureLogs, type LogCapture } from "../helpers/log-capture";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helpers/works";
 
@@ -13,7 +14,7 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * the 012 `result` (released ∧ grading complete ∧ `notas.proprias.visualizar`); every item is the 012 allowlist plus
  * `deliveredAt` and `situation`; the reads write no audit event (contracts/audit-events.md).
  *
- * Part 1 (T018). Part 2 (T022, US3) adds the `classId`, the validation and the log redaction.
+ * Part 1 (T018). Part 2 (T022, US3), below, adds the `classId`, the validation and the log redaction.
  *
  * The clock starts at the real time, as 018's suites: the exam triggers compare with the database clock.
  */
@@ -21,6 +22,8 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
 type Client = ReturnType<typeof api>;
 
 const START = new Date(Math.floor(Date.now() / MINUTE) * MINUTE).toISOString();
+/** One capture for both apps of the file: nestjs-pino may send logs to the first app created (apps/api/CLAUDE.md). */
+const logs: LogCapture = captureLogs();
 const FEEDBACK_UNRELEASED = "FEEDBACK-NAO-LIBERADO-028";
 const FEEDBACK_PARTIAL = "FEEDBACK-CORRECAO-INCOMPLETA-028";
 const FEEDBACK_EXAM = "FEEDBACK-PROVA-028";
@@ -78,7 +81,7 @@ describe("028/US4 nada de nota antes da liberação", () => {
 
   beforeAll(async () => {
     clock = new FixedClock(START);
-    t = await createTestApp({ clock });
+    t = await createTestApp({ clock, logs });
   });
   afterAll(() => t.close());
 
@@ -207,5 +210,120 @@ describe("028/US4 nada de nota antes da liberação", () => {
     for (const tab of TABS) await historyOf(client, tab);
     expect(await t.prisma.auditEvent.count({ where: { type: "activity_result.viewed" } })).toBe(0);
     expect(await t.prisma.auditEvent.count()).toBe(before);
+  });
+});
+
+/**
+ * Part 2 (T022, US3): `classId` and the search on the security side (028/FR-017, SC-006; research HI6, HI8). A class
+ * without an ACTIVE enrollment of the student is the same 404 whatever the reason; malformed input is a 400 before any
+ * read; no read writes an audit event; the search text never reaches the logs.
+ */
+describe("028/US3 matéria e busca: isolamento, validação e logs", () => {
+  let t: TestApp;
+  let clock: FixedClock;
+  let client: Client;
+  let own: SchoolClass;
+  let foreign: SchoolClass;
+  let ended: SchoolClass;
+
+  const at = (offset: number) => new Date(clock.now().getTime() + offset);
+  const deliver = async (schoolClass: SchoolClass, work: WorkFixture, studentId: string, title: string) => {
+    const { activity } = await createActivity(t, schoolClass, {
+      type: "ASSIGNMENT",
+      title,
+      publishAt: at(-3 * DAY),
+      deadline: at(2 * DAY),
+      sourceWorkId: work.id,
+      sourceSubjectId: work.subjectId,
+    });
+    await createAttemptRow(t, activity.id, studentId, { startedAt: at(-2 * HOUR), submission: { submittedAt: at(-HOUR) } });
+  };
+
+  beforeAll(async () => {
+    clock = new FixedClock(START);
+    t = await createTestApp({ clock, logs });
+  });
+  afterAll(() => t.close());
+
+  beforeEach(async () => {
+    await resetDb(t.prisma);
+    clock.set(START);
+    const teacher = await createUser(t, { roles: ["TEACHER"] });
+    const syllabus = await createConfirmedSyllabus(t, teacher.id);
+    const work = await createWork(t, teacher.id, { syllabus });
+    const student = await createUser(t, { roles: ["STUDENT"] });
+    const other = await createUser(t, { roles: ["STUDENT"] });
+    own = await createClass(t, teacher.id, { subjectId: syllabus.subject.id });
+    foreign = await createClass(t, teacher.id, { subjectId: syllabus.subject.id });
+    ended = await createClass(t, teacher.id, { subjectId: syllabus.subject.id });
+    await createEnrollment(t, own.id, student.id);
+    await createEnrollment(t, foreign.id, other.id);
+    const endedEnrollment = await createEnrollment(t, ended.id, student.id);
+    await deliver(own, work, student.id, "Entrega própria");
+    await deliver(foreign, work, other.id, "ENTREGA-ALHEIA-028");
+    await deliver(ended, work, student.id, "ENTREGA-ENCERRADA-028");
+    await t.prisma.enrollment.update({ where: { id: endedEnrollment.id }, data: { status: "REMOVED", removedAt: clock.now(), removalReason: "MANAGER" } });
+    client = api(t, { cookie: await loginAs(t, student) });
+  });
+
+  it("028/FR-017 028/SC-006 classId de outro aluno, de matrícula encerrada e inexistente → 404 com corpos idênticos", async () => {
+    const bodies: unknown[] = [];
+    for (const classId of [foreign.id, ended.id, "00000000-0000-4000-8000-000000000000"]) {
+      for (const tab of ["", "&tab=GRADED", "&q=entrega"]) {
+        const res = await client.get(`/api/me/history?classId=${classId}${tab}`);
+        expect(res.status, `${classId}${tab}`).toBe(404);
+        const json = JSON.stringify(res.body);
+        expect(json).not.toMatch(/ENTREGA-|items|tabCounts|totals/);
+        bodies.push(res.body);
+      }
+    }
+    expect(new Set(bodies.map((body) => JSON.stringify(body))).size).toBe(1);
+    expect(bodies[0]).toEqual({ statusCode: 404, code: "NOT_FOUND", message: expect.any(String) });
+    // Sem classId, a matrícula encerrada também sai do Histórico.
+    const all = (await client.get("/api/me/history")).body as StudentHistoryPage;
+    expect(all.items.map((item) => item.title)).toEqual(["Entrega própria"]);
+  });
+
+  it("028/FR-017 entradas mal formadas → 400 VALIDATION_ERROR, nunca 500", async () => {
+    const bad = [
+      "classId=abc",
+      `q=${"a".repeat(101)}`,
+      "q=%00",
+      "tab=X",
+      "pageSize=0",
+      "desconhecido=1",
+    ];
+    for (const query of bad) {
+      const res = await client.get(`/api/me/history?${query}`);
+      expect(res.status, query).toBe(400);
+      expect((res.body as { code: string }).code, query).toBe("VALIDATION_ERROR");
+    }
+    // 100 caracteres (code points) ainda são aceitos.
+    expect((await client.get(`/api/me/history?q=${encodeURIComponent("é".repeat(100))}`)).status).toBe(200);
+  });
+
+  it("028/US3-6 nenhum evento de auditoria para esses pedidos", async () => {
+    const before = await t.prisma.auditEvent.count();
+    await client.get(`/api/me/history?classId=${own.id}&q=entrega`);
+    await client.get(`/api/me/history?classId=${foreign.id}`);
+    await client.get(`/api/me/history?classId=${ended.id}`);
+    await client.get("/api/me/history?classId=abc");
+    expect(await t.prisma.auditEvent.count()).toBe(before);
+  });
+
+  it("028/US3 a busca não vai para os logs: q=[REDACTED] em req.url", async () => {
+    logs.clear();
+    const res = await client.get(`/api/me/history?q=segredo-de-busca&classId=${own.id}`);
+    expect(res.status).toBe(200);
+    await client.get("/api/me/history?q=segredo-de-busca&tab=X");
+    const text = logs.text();
+    expect(text).not.toContain("segredo-de-busca");
+    const urls = logs
+      .lines()
+      .map((line) => (line.req as { url?: string } | undefined)?.url)
+      .filter((url): url is string => typeof url === "string" && url.includes("/me/history"));
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) expect(url).toMatch(/q=(\[REDACTED\]|%5BREDACTED%5D)/);
+    expect(urls.some((url) => url.includes(`classId=${own.id}`))).toBe(true);
   });
 });

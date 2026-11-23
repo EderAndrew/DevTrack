@@ -71,7 +71,8 @@ Decisions carry the prefix **HI** (histórico): the single letters left unused (
 - **Logging**: `q` travels in the query string, and pino-http's default request serializer logs `req.url` with it
   (`platform/logging/logging.module.ts` redacts headers and fields, not query values). The spec keeps the search out of
   the logs, so the logging module gets a `serializers.req` wrapper that replaces the value of the `q` query parameter
-  in `req.url` with `[REDACTED]` (any route; today no other route uses `q`). Tested with the module's capturable
+  in `req.url` with `[REDACTED]` (any route; today no other route uses `q`), and `REDACT_PATHS` gains `req.query.q`
+  (the default serializer also logs the parsed `req.query`, found in T022). Tested with the module's capturable
   `destination`, like the 001 secret scan. No audit event exists to carry it (HI10).
 - **Alternatives**: `POST /me/history/search` with the text in the body — rejected: a read as POST needs `Origin` +
   JSON and breaks the GET cache/poll model; dropping every query string from the logs — rejected: a cross-cutting

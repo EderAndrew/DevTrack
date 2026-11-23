@@ -272,21 +272,21 @@ matéria, conferindo lista, contagens das abas e cards.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T021 [P] [US3] Integração `apps/api/test/integration/028-us3-search-class.spec.ts` (a turma da 027 com duas
+- [X] T021 [P] [US3] Integração `apps/api/test/integration/028-us3-search-class.spec.ts` (a turma da 027 com duas
       disciplinas de professores diferentes, entregas nas duas): `028/US3-1` `q=prova` casa "Prova de teste" e
       "PROVA final" e "Próva", não "Trabalho"; `tabCounts` e `total` seguem a busca, `totals` não; `q` com espaços nas
       pontas = sem eles; `q` só de espaços = sem busca; `028/US3-2` busca sem resultado → `items: []`, `total: 0`;
       `028/US3-4` `classId=<disciplina A>` estreita `totals`, `tabCounts`, `items` e `total` só à A; `028/US3-5` aba +
       busca + matéria combinadas, em todas as páginas; matéria de uma turma encerrada (027, INACTIVE com matrícula ativa)
       continua aceita (edge case).
-- [ ] T022 [P] [US3] Segurança `apps/api/test/security/028-history-isolation.spec.ts` (parte 2): `028/FR-017` e
+- [X] T022 [P] [US3] Segurança `apps/api/test/security/028-history-isolation.spec.ts` (parte 2): `028/FR-017` e
       `028/SC-006` `classId` de uma matéria de outro aluno, de uma matrícula encerrada e inexistente → `404` com corpos
       idênticos e nenhum item ou contagem; `classId=abc`, `q` com 101 caracteres, `q` com `\u0000`, `tab=X`,
       `pageSize=0`, parâmetro desconhecido → `400 VALIDATION_ERROR` sem `500`; `028/US3-6` nenhum evento de auditoria
       para esses pedidos; redação do log (research HI6): com o `destination` capturável de `LoggingModule.forRoot`
       (como `secret-leak-scan.spec.ts`), `GET /me/history?q=segredo-de-busca` não deixa "segredo-de-busca" em nenhuma
       linha de log e deixa `q=[REDACTED]` (ou o valor codificado) em `req.url`.
-- [ ] T023 [P] [US3] Web `student-history.test.tsx` (acrescentar; montar também `GET /api/me/classes`): `028/US3-1`
+- [X] T023 [P] [US3] Web `student-history.test.tsx` (acrescentar; montar também `GET /api/me/classes`): `028/US3-1`
       digitar na busca ("Buscar atividade") pede `q=` só depois de 300 ms (timers falsos) ou no Enter, e escreve
       `busca=` no endereço; `028/US3-2` "Nenhuma atividade encontrada." e "Limpar busca e filtro" limpa `busca` e
       `materia` mantendo `aba`; `028/US3-3` o filtro "Matéria" oferece "Todas as matérias" e as turmas de "Minhas
@@ -298,13 +298,13 @@ matéria, conferindo lista, contagens das abas e cards.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] API: `history` aplica `query.q` (`matchesSearch`) à lista, ao `total` e aos `tabCounts`, e
+- [X] T024 [US3] API: `history` aplica `query.q` (`matchesSearch`) à lista, ao `total` e aos `tabCounts`, e
       `query.classId` (o `assertActiveEnrollment` da 026 antes de qualquer leitura, depois `inputs(userId, now,
       classId)`) a tudo, inclusive `totals`. T021 verde.
-- [ ] T025 [US3] Log: em `apps/api/src/platform/logging/logging.module.ts`, `serializers.req` que chama o serializador
+- [X] T025 [US3] Log: em `apps/api/src/platform/logging/logging.module.ts`, `serializers.req` que chama o serializador
       padrão do pino-http e troca o valor do parâmetro `q` de `req.url` por `[REDACTED]`; comentar a razão (028
       research HI6). T022 verde (com T024).
-- [ ] T026 [US3] Web: `historyFromSearch`/`historyHref` com `busca` e `materia`; `student-history.tsx` ganha a busca
+- [X] T026 [US3] Web: `historyFromSearch`/`historyHref` com `busca` e `materia`; `student-history.tsx` ganha a busca
       (`Input type="search"`, rótulo "Buscar atividade" visualmente oculto, `maxLength` 100, espera de 300 ms) e o
       `NativeSelect` "Matéria" ("Todas as matérias" primeiro) com as opções de `useMyClasses()` e o rótulo
       `subjectLabel` de `schemas/student-activity.ts`; o aviso de matéria indisponível (`SUBJECT_UNAVAILABLE` da 026,

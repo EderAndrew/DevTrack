@@ -31,7 +31,7 @@ import {
 import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { GroupSettlement } from "../activities/group-settlement";
-import { afterCursor, byDelivery, deliveredAt, historyCursor, historySituation, type HistoryEntry } from "./history";
+import { afterCursor, byDelivery, deliveredAt, historyCursor, historySituation, matchesSearch, type HistoryEntry } from "./history";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
@@ -122,22 +122,28 @@ export class MyActivitiesService {
 
   /**
    * The "Histórico" (028 research HI2–HI7): the delivered summaries of the scoped loader with each one's delivery date
-   * and situation, newest delivery first, counted and paged in memory. `totals` (the cards), `tabCounts` and `total`
-   * count every delivery; never an audit event (contracts/audit-events.md).
+   * and situation, newest delivery first, counted and paged in memory. HI7: `classId` (checked first, the 026 404)
+   * narrows everything; `totals` (the cards) count every delivery of it, `tabCounts` those matching `q`, and the
+   * list and `total` also the tab. Never an audit event (contracts/audit-events.md).
    */
   async history(userId: string, query: StudentHistoryQuery): Promise<StudentHistoryPage> {
     const after = query.cursor === undefined ? null : afterCursor(query.cursor);
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
     const entries: HistoryEntry[] = [];
-    for (const input of await this.inputs(userId, this.clock.now())) {
+    for (const input of await this.inputs(userId, this.clock.now(), query.classId)) {
       const summary = toStudentSummary(input);
       const date = deliveredAt(input);
       if (DELIVERED_STATUSES.includes(summary.status) && date !== null) entries.push({ summary, deliveredAt: date });
     }
-    const items = entries.map((entry) => ({ entry, situation: historySituation(entry.summary) }));
-    const awaiting = items.filter((item) => item.situation === "AWAITING").length;
-    const counts = { all: items.length, awaiting, graded: items.length - awaiting };
-    // 028/FR-007: the tab narrows the list and `total`, never `tabCounts` or `totals`.
+    const delivered = entries.map((entry) => ({ entry, situation: historySituation(entry.summary) }));
+    const countOf = (list: typeof delivered) => {
+      const awaiting = list.filter((item) => item.situation === "AWAITING").length;
+      return { all: list.length, awaiting, graded: list.length - awaiting };
+    };
+    const totals = countOf(delivered);
+    // 028/FR-007: the search narrows `tabCounts`, the list and `total`; the tab only the list and `total`.
+    const items = delivered.filter((item) => matchesSearch(item.entry.summary.title, query.q));
+    const counts = countOf(items);
     const inTab = query.tab === undefined ? items : items.filter((item) => item.situation === query.tab);
     const matching = inTab.sort((a, b) => byDelivery(a.entry, b.entry)).filter((item) => after === null || after(item.entry));
     const page = matching.slice(0, pageSize);
@@ -147,7 +153,7 @@ export class MyActivitiesService {
       nextCursor: matching.length > pageSize && last ? historyCursor(last.entry) : null,
       total: inTab.length,
       tabCounts: counts,
-      totals: { delivered: counts.all, awaiting: counts.awaiting, graded: counts.graded },
+      totals: { delivered: totals.all, awaiting: totals.awaiting, graded: totals.graded },
     };
   }
 

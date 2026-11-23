@@ -48,8 +48,6 @@ export const useStudentActivities = (filters: StudentActivityListFilters, classI
     enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
-    // 028/US2: another tab keeps the cards and the tabs on screen while its first page arrives.
-    placeholderData: keepPreviousData,
     ...POLL_WHILE_VISIBLE,
   });
 
@@ -64,6 +62,9 @@ export const useStudentHistory = (filters: StudentHistoryFilters, options: { ena
     enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
+    // 028/US2, US3: another tab, search or subject keeps the cards, the tabs and the toolbar on screen while its first
+    // page arrives (the search box keeps its focus).
+    placeholderData: keepPreviousData,
     ...POLL_WHILE_VISIBLE,
   });
 

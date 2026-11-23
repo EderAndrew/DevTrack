@@ -9,8 +9,11 @@ import { HISTORY_PATH } from "@/lib/navigation";
 
 export const metadata: Metadata = { title: "Histórico" };
 
-/** "Histórico" (012 US6, 028): the student's deliveries with their totals, grade and feedback once released; the tab lives in the address (`?aba=`). */
-export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
+/**
+ * "Histórico" (012 US6, 028): the student's deliveries with their totals, grade and feedback once released; the tab, the
+ * search and the subject live in the address (`?aba=&busca=&materia=`).
+ */
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ aba?: string | string[]; busca?: string | string[]; materia?: string | string[] }> }) {
   const me = await getMe();
   if (!me) redirect(`/entrar?next=${encodeURIComponent(HISTORY_PATH)}`);
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Histórico" />;

@@ -77,11 +77,31 @@ export const historyTabOf = (tab: StudentHistorySituation | null): HistoryTabSpe
 /** The tab's accessible name with its count: "Aguardando, 3". */
 export const historyTabName = (label: string, count: number) => `${label}, ${count}`;
 
-/** The filters of the address (`?aba=`); an unknown `aba` is "Todas" (028/US2-5). */
-export function historyFromSearch(search: { aba?: string }): StudentHistoryFilters {
-  const spec = HISTORY_TABS.find((candidate) => candidate.slug === search.aba && candidate.tab !== null);
-  return { tab: spec?.tab ?? null, q: "", classId: null };
+/** The search box and the subject filter (028/US3, contracts/ui.md "Toolbar"). */
+export const HISTORY_SEARCH_LABEL = "Buscar atividade";
+export const HISTORY_SEARCH_PLACEHOLDER = "Buscar por nome da atividade";
+export const HISTORY_SEARCH_WAIT_MS = 300;
+export const ALL_SUBJECTS = "Todas as matérias";
+export const NO_MATCH = "Nenhuma atividade encontrada.";
+export const CLEAR_FILTERS = "Limpar busca e filtro";
+
+/** The longest search, in code points (the API's `STUDENT_HISTORY_SEARCH_MAX`); a longer `busca` is cut, never sent. */
+const SEARCH_MAX = 100;
+const cutSearch = (text: string) => [...text.trim()].slice(0, SEARCH_MAX).join("").trim();
+
+/**
+ * The filters of the address (`?aba=&busca=&materia=`); an unknown `aba` is "Todas" (028/US2-5). `materia` is checked
+ * against "Minhas turmas" before it is sent (026 research D6).
+ */
+export function historyFromSearch(search: { aba?: string | string[]; busca?: string | string[]; materia?: string | string[] }): StudentHistoryFilters {
+  // A repeated parameter arrives as an array: only a single value counts.
+  const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");
+  const spec = HISTORY_TABS.find((candidate) => candidate.slug === one(search.aba) && candidate.tab !== null);
+  return { tab: spec?.tab ?? null, q: cutSearch(one(search.busca)), classId: one(search.materia) || null };
 }
+
+/** Whether a search or a subject narrows the list (the empty text is then "Nenhuma atividade encontrada."). */
+export const historyFiltered = (filters: Pick<StudentHistoryFilters, "q" | "classId">) => filters.q.trim() !== "" || filters.classId !== null;
 
 /** `/historico` with these filters in the address, in the order `aba`, `busca`, `materia` ("Todas" writes no `aba`). */
 export function historyHref(filters: StudentHistoryFilters): string {

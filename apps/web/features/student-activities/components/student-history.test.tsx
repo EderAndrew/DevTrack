@@ -12,7 +12,7 @@ import { HISTORY_FINAL_NOTE, historyFromSearch } from "../schemas/student-histor
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
-import { apiError, json, routedFetch, studentActivity, summary } from "./test-fixtures";
+import { apiError, json, myClass, myClassesBody, POO_CLASS, routedFetch, SQL_CLASS, studentActivity, summary } from "./test-fixtures";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -291,6 +291,153 @@ describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
     await user.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(within(list).getByRole("tab", { name: "Aguardando, 3" }));
     expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=aguardando");
+  });
+});
+
+describe("028/US3 Histórico: buscar e filtrar por matéria", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.theme;
+  });
+
+  const CLASSES = "GET /api/me/classes";
+  const classes = (list = [POO_CLASS, SQL_CLASS]) => json(200, myClassesBody(list));
+  const historyCalls = (api: { calls: { url: string }[] }) => api.calls.map((call) => call.url).filter((url) => url.includes("/me/history"));
+  const search = () => screen.findByRole("searchbox", { name: "Buscar atividade" });
+  const subjectSelect = () => screen.findByRole("combobox", { name: "Matéria" });
+
+  it("028/US3-1 digitar na busca pede q= só depois de 300 ms e escreve busca= no endereço; Enter pede na hora", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const api = routedFetch({
+      [CLASSES]: classes(),
+      [HISTORY]: json(200, page(FOUR)),
+      [`${HISTORY}?q=prova`]: json(200, page([exam], { total: 1 })),
+      [`${HISTORY}?q=lista`]: json(200, page([waiting], { total: 1 })),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    renderWithProviders(<StudentHistory />);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const box = await search();
+    expect(box.getAttribute("maxlength")).toBe("100");
+    await user.type(box, "prova");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(historyCalls(api).some((url) => url.includes("q="))).toBe(false);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=prova");
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api)).toContainEqual(expect.stringMatching(/\/me\/history\?q=prova$/));
+    expect((box as HTMLInputElement).value).toBe("prova");
+    // Enter: no wait.
+    await user.clear(box);
+    await user.type(box, "lista{Enter}");
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=lista");
+    expect(await screen.findByRole("link", { name: "Lista de herança" })).toBeTruthy();
+    expect(historyCalls(api).filter((url) => /q=l(i|is|ist)?$/.test(url))).toEqual([]);
+  });
+
+  it("028/US3-2 busca sem resultado: \"Nenhuma atividade encontrada.\" e \"Limpar busca e filtro\" mantém a aba", async () => {
+    const { user, api } = setup(
+      {
+        [CLASSES]: classes(),
+        [`${HISTORY}?tab=GRADED&q=xyz&classId=${POO_CLASS.id}`]: json(200, page([], { total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0 } })),
+        [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { total: 1 })),
+      },
+      historyFromSearch({ aba: "corrigidas", busca: "xyz", materia: POO_CLASS.id }),
+    );
+    expect(await screen.findByText("Nenhuma atividade encontrada.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Limpar busca e filtro" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=corrigidas");
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api).at(-1)).toMatch(/\/me\/history\?tab=GRADED$/);
+    expect(((await search()) as HTMLInputElement).value).toBe("");
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-3 o filtro \"Matéria\" oferece \"Todas as matérias\" e as matérias de \"Minhas turmas\" como o card da 026", async () => {
+    const closed = myClass({ id: "33333333-3333-4333-8333-333333333333", name: "ADS 2NA", subjectName: "Algoritmos", status: "INACTIVE" });
+    setup({ [CLASSES]: classes([POO_CLASS, SQL_CLASS, closed]), [HISTORY]: json(200, page(FOUR)) });
+    const select = await subjectSelect();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Todas as matérias",
+      "Programação Orientada a Objetos · ADS 3NA",
+      "Banco de Dados · ADS 3NA",
+      "Algoritmos · ADS 2NA · Encerrada",
+    ]);
+    expect((select as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-4 escolher uma matéria troca o endereço (materia=) e pede classId=", async () => {
+    const { user, api } = setup({
+      [CLASSES]: classes(),
+      [HISTORY]: json(200, page(FOUR)),
+      [`${HISTORY}?classId=${SQL_CLASS.id}`]: json(200, page([waiting], { total: 1, totals: { delivered: 1, awaiting: 1, graded: 0 } })),
+    });
+    await table();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    await user.selectOptions(await subjectSelect(), SQL_CLASS.id);
+    expect(router.replace).toHaveBeenLastCalledWith(`/historico?materia=${SQL_CLASS.id}`);
+    expect(await screen.findByText("1 atividade entregue")).toBeTruthy();
+    expect(historyCalls(api).at(-1)).toMatch(new RegExp(`/me/history\\?classId=${SQL_CLASS.id}$`));
+  });
+
+  it("028/US3-5 aberta com ?aba=corrigidas&busca=prova&materia=<A> pede as três juntas", async () => {
+    const filters = historyFromSearch({ aba: "corrigidas", busca: "  prova ", materia: POO_CLASS.id });
+    expect(filters).toEqual({ tab: "GRADED", q: "prova", classId: POO_CLASS.id });
+    const { api } = setup({ [CLASSES]: classes(), [`${HISTORY}?tab=GRADED&q=prova&classId=${POO_CLASS.id}`]: json(200, page([exam], { total: 1 })) }, filters);
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api)).toEqual([expect.stringMatching(new RegExp(`/me/history\\?tab=GRADED&q=prova&classId=${POO_CLASS.id}$`))]);
+    expect(((await search()) as HTMLInputElement).value).toBe("prova");
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe(POO_CLASS.id);
+    expect(screen.getByRole("tab", { name: "Corrigidas, 2" }).getAttribute("aria-selected")).toBe("true");
+    // A search longer than the API's limit is cut to 100 characters, a repeated parameter ignored.
+    expect(historyFromSearch({ busca: "a".repeat(150) }).q).toHaveLength(100);
+    expect(historyFromSearch({ busca: ["a", "b"], materia: ["x", "y"] })).toEqual({ tab: null, q: "", classId: null });
+  });
+
+  it("028/US3-6 matéria fora de \"Minhas turmas\": o aviso e o pedido sem classId", async () => {
+    const { api } = setup({ [CLASSES]: classes([POO_CLASS]), [HISTORY]: json(200, page(FOUR)) }, historyFromSearch({ materia: SQL_CLASS.id }));
+    expect(await screen.findByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    await table();
+    expect(historyCalls(api)).toEqual([expect.stringMatching(/\/me\/history$/)]);
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-6 um 404 da rota para a matéria: \"Minhas turmas\" de novo, o aviso e o pedido sem classId", async () => {
+    let classesCalls = 0;
+    const { api } = setup(
+      {
+        [CLASSES]: () => classes(++classesCalls === 1 ? [POO_CLASS, SQL_CLASS] : [POO_CLASS]),
+        [`${HISTORY}?classId=${SQL_CLASS.id}`]: apiError(404, "NOT_FOUND", "Não encontrado."),
+        [HISTORY]: json(200, page(FOUR)),
+      },
+      historyFromSearch({ materia: SQL_CLASS.id }),
+    );
+    expect(await screen.findByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    await table();
+    expect(classesCalls).toBeGreaterThanOrEqual(2);
+    expect(historyCalls(api)).toEqual([expect.stringContaining(`classId=${SQL_CLASS.id}`), expect.stringMatching(/\/me\/history$/)]);
+    expect(screen.queryByText(LOAD_ERROR)).toBeNull();
+  });
+
+  it("028/FR-020 sem violações de acessibilidade nos temas escuro e claro; Tab: abas → busca → matéria → linhas → Carregar mais", async () => {
+    const { user, container } = setup({ [CLASSES]: classes(), [HISTORY]: json(200, page(FOUR, { nextCursor: "c1" })) });
+    const rows = await table();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    await expectNoA11yViolations(container);
+    document.documentElement.dataset.theme = "light";
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      screen.getByRole("tab", { name: "Todas, 4" }),
+      await search(),
+      await subjectSelect(),
+      within(rows).getByRole("link", { name: "Trabalho de interfaces" }),
+      screen.getByRole("button", { name: "Carregar mais" }),
+    ]);
   });
 });
 
