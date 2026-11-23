@@ -174,6 +174,8 @@ hand-maintained.
 - PostgreSQL 17 — two migrations: `…_027_enum_values` (enum values only) and `…_027_manager_classes`, which is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
 - No new dependency (028-student-history-redesign)
 - PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
+- TypeScript 7 on Node.js 24 LTS (API, contracts, web) + no new dependency (029-history-closed-only)
+- PostgreSQL 17 — no migration (`class_activities.status`, `closed_at`, `cancelled_at` already exist) (029-history-closed-only)
 
 ## Stack notes
 
@@ -585,9 +587,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 - 028-student-history-redesign: the student's Histórico redesigned — cards of delivered/awaiting/graded, tabs with counts, search by title and a class filter, all on the server through `GET /me/history` (newest delivery first); no migration
 - 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
-- 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
