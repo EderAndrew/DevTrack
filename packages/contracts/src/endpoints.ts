@@ -91,6 +91,8 @@ import {
   SaveAnswersResultSchema,
   StudentActivityListQuerySchema,
   StudentActivityPageSchema,
+  StudentHistoryPageSchema,
+  StudentHistoryQuerySchema,
   StudentActivitySchema,
   StudentDashboardQuerySchema,
   StudentDashboardSchema,
@@ -1469,6 +1471,14 @@ export const endpoints = {
     path: "/me/activities",
     query: StudentActivityListQuerySchema,
     response: StudentActivityPageSchema,
+    status: 200,
+  },
+  /** 028: the student's deliveries with their situation, counts and totals; `classId` outside the student's → 404. */
+  "myActivities.history": {
+    method: "GET",
+    path: "/me/history",
+    query: StudentHistoryQuerySchema,
+    response: StudentHistoryPageSchema,
     status: 200,
   },
   /** The student view of one activity; out of context → 404 and `student_access.denied` (FR-008). */

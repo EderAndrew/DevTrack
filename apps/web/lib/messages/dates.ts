@@ -44,3 +44,16 @@ export const formatLongDay = (iso: string) => longDay.format(new Date(iso));
 
 /** The time of an instant in the browser's time zone, "14:32" (015 Exam Mode warnings). */
 export const formatTime = (iso: string) => clock.format(new Date(iso));
+
+const dayMonth = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long" });
+const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "long" });
+
+/** The day of an instant in the browser's time zone, "13 de novembro" (028 "Histórico", the delivery date). */
+export const formatDayMonth = (iso: string) => dayMonth.format(new Date(iso));
+
+/** The weekday and time of an instant in the browser's time zone, "Sexta-feira, 16:47" (028 "Histórico"). */
+export const formatWeekdayTime = (iso: string) => {
+  const date = new Date(iso);
+  const day = weekday.format(date);
+  return `${day.charAt(0).toLocaleUpperCase("pt-BR")}${day.slice(1)}, ${clock.format(date)}`;
+};

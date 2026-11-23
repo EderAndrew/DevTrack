@@ -8,6 +8,8 @@ import type {
   StudentActivityPage,
   StudentDashboard,
   StudentExerciseAttempt,
+  StudentHistoryPage,
+  StudentHistorySituation,
   SubmitAttemptRequest,
 } from "@repo/contracts";
 import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
@@ -15,6 +17,13 @@ import { ApiError, apiClient, NETWORK_ERROR } from "@/lib/api/client";
 export interface StudentActivityListFilters {
   status: StudentActivityFilter | null;
   type: ActivityType | null;
+}
+
+/** 028: what the "Histórico" asks for — the tab (null = all), the title search and the subject (class). */
+export interface StudentHistoryFilters {
+  tab: StudentHistorySituation | null;
+  q: string;
+  classId: string | null;
 }
 
 /** The student's own activities (012 contracts/http-api.md, "Student routes"); identity from the session only. */
@@ -31,6 +40,17 @@ export const studentActivitiesApi = {
       ...(cursor ? { cursor } : {}),
     });
     return apiClient.get<StudentActivityPage>(`/me/activities${query.size > 0 ? `?${query}` : ""}`);
+  },
+  /** 028: the deliveries with their situation and counts; the cursor only with the same filters. */
+  history: (filters: StudentHistoryFilters, cursor: string | null) => {
+    const q = filters.q.trim();
+    const query = new URLSearchParams({
+      ...(filters.tab ? { tab: filters.tab } : {}),
+      ...(q ? { q } : {}),
+      ...(filters.classId ? { classId: filters.classId } : {}),
+      ...(cursor ? { cursor } : {}),
+    });
+    return apiClient.get<StudentHistoryPage>(`/me/history${query.size > 0 ? `?${query}` : ""}`);
   },
   get: (activityId: string) => apiClient.get<StudentActivity>(`/me/activities/${activityId}`),
   /** The single attempt; an existing one comes back as it is (FR-016). An exam sends `acceptRules: true` (018). */

@@ -1034,7 +1034,8 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // 012/US6 — the student reads the released result (`activity_result.viewed`, once).
   expect((await classStudentClient.get(`/api/me/activities/${openWork.body.id}`)).body.status).toBe("GRADED");
   // The graded work and the concluded exercises (013/FR-015).
-  expect((await classStudentClient.get("/api/me/activities?status=COMPLETED")).body.items).toHaveLength(2);
+  // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
+  expect((await classStudentClient.get("/api/me/history")).body.items).toHaveLength(2);
   const acceptedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
   // 016/US2 — marked by mistake and unmarked before the start (`attendance.unmarked`), then marked again.
   await markPresent(acceptedWork.body.id);

@@ -57,7 +57,8 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(LatePolicySchema.options).toEqual(["REJECT", "ACCEPT_MARKED"]);
     // 013 adds COMPLETED to both statuses (an EXERCISE with a concluded attempt).
     expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
-    expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
+    // 028/FR-023 (amendment 2026-11-23): no COMPLETED filter; the deliveries live in the "Histórico".
+    expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE"]);
     // 016 adds ABSENT (a PRESENT_ONLY work, not marked present and without an attempt).
     // 018 adds the exam's ends, the open hold and the closed start.
     expect(RosterStatusSchema.options).toEqual([
@@ -455,7 +456,9 @@ describe("012 contratos do aluno (contracts/http-api.md)", () => {
   });
 
   it("filtros da lista: situação, tipo, cursor e página de até 50", () => {
-    expect(accepts(StudentActivityListQuerySchema, { status: "COMPLETED", type: "ASSIGNMENT", pageSize: "20" })).toBe(true);
+    expect(accepts(StudentActivityListQuerySchema, { status: "OVERDUE", type: "ASSIGNMENT", pageSize: "20" })).toBe(true);
+    // 028/FR-023 (amendment 2026-11-23): the "Entregues/concluídas" filter is gone.
+    expect(accepts(StudentActivityListQuerySchema, { status: "COMPLETED" })).toBe(false);
     expect(accepts(StudentActivityListQuerySchema, { status: "GRADED" })).toBe(false);
     expect(accepts(StudentActivityListQuerySchema, { pageSize: "51" })).toBe(false);
     expect(accepts(StudentActivityListQuerySchema, { studentUserId: uuid(1) })).toBe(false);

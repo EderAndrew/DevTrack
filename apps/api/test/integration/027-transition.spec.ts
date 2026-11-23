@@ -243,7 +243,8 @@ describe("027/US6 027/FR-027 as turmas de hoje continuam funcionando (transiçã
     expect(mine).toContain(cA1);
     expect(mine).toContain(cB1);
     expect(mine).not.toContain(cC1);
-    const redes = await student.get(`/api/me/activities?classId=${cB1}`);
+    // 028/FR-023 (amendment 2026-11-23): the graded work is a delivery, read from the "Histórico" of the subject.
+    const redes = await student.get(`/api/me/history?classId=${cB1}`);
     expect(redes.status).toBe(200);
     expect(redes.body.items.map((item: { id: string }) => item.id)).toEqual([workRedes]);
     expect((await student.get(`/api/me/activities/${workRedes}`)).body.result).toMatchObject({ grade: "0.60" });

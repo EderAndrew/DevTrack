@@ -357,6 +357,7 @@ export const MATRIX: readonly MatrixEntry[] = [
   // 012 — the student portal (contracts/permissions.md).
   { method: "GET", path: "/me/dashboard", access: "atividades.proprias.visualizar" },
   { method: "GET", path: "/me/activities", access: "atividades.proprias.visualizar" },
+  { method: "GET", path: "/me/history", access: "atividades.proprias.visualizar" },
   { method: "GET", path: "/me/activities/:activityId", access: "atividades.proprias.visualizar" },
   { method: "POST", path: "/me/activities/:activityId/attempt", access: "atividades.proprias.responder" },
   // 023 — the classmates a group work's leader may choose (contracts/permissions.md).

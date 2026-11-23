@@ -85,6 +85,11 @@ export interface StudentActivityInput {
   facts: ActivityFacts;
   /** The session holds `notas.proprias.visualizar`. */
   canSeeResults: boolean;
+  /** 028 research HI4: EXERCISE only, when attempt 1 was concluded (the "Histórico" delivery date); never in a view. */
+  firstCompletedAt: Date | null;
+  /** 028 amendment (HI11): when the activity was closed, and since when its class or turma isn't ACTIVE; never in a view. */
+  closedAt: Date | null;
+  inactiveSince: Date | null;
   submission: {
     submittedAt: Date;
     late: boolean;

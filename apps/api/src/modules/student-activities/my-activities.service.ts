@@ -10,6 +10,10 @@ import {
   type StudentActivitySummary,
   type StudentDashboard,
   type StudentExerciseAttempt,
+  type StudentHistoryItem,
+  type StudentHistoryPage,
+  type StudentHistoryQuery,
+  type StudentHistorySituation,
 } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { decodeNameCursor, encodeNameCursor } from "../../platform/database/keyset";
@@ -18,23 +22,51 @@ import { notFound } from "../../platform/http/errors";
 import { PermissionResolver } from "../access-control/permission-resolver";
 import { AuditService } from "../audit/audit.service";
 import { RankingService } from "../ranking/ranking.service";
-import { runsCode, toStudentActivity, toStudentExerciseAttempt, toStudentSummary } from "../activities/views/student-view";
+import {
+  runsCode,
+  type StudentActivityInput,
+  toStudentActivity,
+  toStudentExerciseAttempt,
+  toStudentSummary,
+} from "../activities/views/student-view";
 import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { GroupSettlement } from "../activities/group-settlement";
+import {
+  afterCursor,
+  byDelivery,
+  DELIVERED_STATUSES,
+  deliveredAt,
+  historyCursor,
+  historySituation,
+  isMissed,
+  matchesSearch,
+  missedAt,
+  type HistoryEntry,
+} from "./history";
 import { StudentActivityLoader } from "./student-activity-loader";
 
 /** The route patterns `student_access.denied` names (never the URL with its ids). */
 const GET_ROUTE = "/me/activities/:activityId";
 const GET_ATTEMPT_ROUTE = "/me/activities/:activityId/attempts/:number";
 
-/** "Minhas atividades" filter → the statuses it covers (`COMPLETED` = SUBMITTED + GRADED + an EXERCISE's COMPLETED). */
+/**
+ * "Minhas atividades" filter → the statuses it covers. Since the 028 amendment (HI13) the list holds only what the
+ * student can still do, so there is no `COMPLETED` filter: deliveries and missed activities are the "Histórico"'s.
+ */
 const FILTER_STATUSES: Record<NonNullable<StudentActivityListQuery["status"]>, readonly StudentActivityStatus[]> = {
   PENDING: ["PENDING"],
   IN_PROGRESS: ["IN_PROGRESS"],
   OVERDUE: ["OVERDUE"],
-  COMPLETED: ["SUBMITTED", "GRADED", "COMPLETED"],
 };
+
+/** One scoped activity of the student and where it belongs (028 HI11, HI13): delivered, missed, or still open. */
+interface Classified {
+  input: StudentActivityInput;
+  summary: StudentActivitySummary;
+  delivered: boolean;
+  missed: boolean;
+}
 
 const MAX_EPOCH_MS = 8_640_000_000_000_000;
 
@@ -74,7 +106,10 @@ export class MyActivitiesService {
   async dashboard(userId: string, query: StudentDashboardQuery = {}): Promise<StudentDashboard> {
     const now = this.clock.now();
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
-    const items = (await this.summaries(userId, now, query.classId)).sort(byDeadline);
+    const all = await this.classified(userId, now, query.classId);
+    // 028/FR-025 (HI13): the counters and lists are those of "Minhas atividades" (what is still open); "Concluídas"
+    // counts the deliveries, which the web links to the "Histórico".
+    const items = all.filter(isOpen).map((item) => item.summary).sort(byDeadline);
     const count = (...statuses: StudentActivityStatus[]) => items.filter((item) => statuses.includes(item.status)).length;
     return {
       firstName: user.name.trim().split(/\s+/)[0] ?? "",
@@ -82,7 +117,7 @@ export class MyActivitiesService {
         pending: count("PENDING"),
         inProgress: count("IN_PROGRESS"),
         overdue: count("OVERDUE"),
-        completed: count("SUBMITTED", "GRADED", "COMPLETED"),
+        completed: all.filter((item) => item.delivered).length,
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
@@ -95,7 +130,10 @@ export class MyActivitiesService {
     const after = query.cursor === undefined ? null : decodeNameCursor(query.cursor);
     const statuses = query.status ? FILTER_STATUSES[query.status] : null;
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
-    const matching = (await this.summaries(userId, this.clock.now(), query.classId))
+    // 028/FR-023 (HI13): only what the student can still do, before the filter and the cursor.
+    const matching = (await this.classified(userId, this.clock.now(), query.classId))
+      .filter(isOpen)
+      .map((item) => item.summary)
       .filter((item) => (statuses === null || statuses.includes(item.status)) && (query.type === undefined || item.type === query.type))
       .sort(byDeadline)
       .filter((item) => after === null || isAfter(item, after.name, after.id));
@@ -104,6 +142,46 @@ export class MyActivitiesService {
     return {
       items,
       nextCursor: matching.length > pageSize && last ? encodeNameCursor({ name: orderKey(last), id: last.id }) : null,
+    };
+  }
+
+  /**
+   * The "Histórico" (028 research HI2–HI7): the delivered summaries of the scoped loader with each one's delivery date
+   * and situation, newest delivery first, counted and paged in memory. HI7: `classId` (checked first, the 026 404)
+   * narrows everything; `totals` (the cards) count every delivery of it, `tabCounts` those matching `q`, and the
+   * list and `total` also the tab. Never an audit event (contracts/audit-events.md).
+   */
+  async history(userId: string, query: StudentHistoryQuery): Promise<StudentHistoryPage> {
+    const after = query.cursor === undefined ? null : afterCursor(query.cursor);
+    const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
+    const rows: { entry: HistoryEntry; situation: StudentHistorySituation }[] = [];
+    for (const item of await this.classified(userId, this.clock.now(), query.classId)) {
+      const date = deliveredAt(item.input);
+      if (item.delivered && date !== null) rows.push({ entry: { summary: item.summary, at: date }, situation: historySituation(item.summary) });
+      // 028/FR-024 (HI11): what the student can no longer deliver, dated when it stopped accepting a delivery.
+      else if (item.missed) rows.push({ entry: { summary: item.summary, at: missedAt(item.input) }, situation: "MISSED" });
+    }
+    const countOf = (list: typeof rows) => {
+      const of = (situation: StudentHistorySituation) => list.filter((row) => row.situation === situation).length;
+      return { all: list.length, awaiting: of("AWAITING"), graded: of("GRADED"), missed: of("MISSED") };
+    };
+    const totals = countOf(rows);
+    // 028/FR-007: the search narrows `tabCounts`, the list and `total`; the tab only the list and `total`.
+    const items = rows.filter((row) => matchesSearch(row.entry.summary.title, query.q));
+    const inTab = query.tab === undefined ? items : items.filter((row) => row.situation === query.tab);
+    const matching = inTab.sort((a, b) => byDelivery(a.entry, b.entry)).filter((row) => after === null || after(row.entry));
+    const page = matching.slice(0, pageSize);
+    const last = page.at(-1);
+    return {
+      items: page.map(({ entry, situation }): StudentHistoryItem => {
+        const at = entry.at.toISOString();
+        return { ...entry.summary, deliveredAt: situation === "MISSED" ? null : at, missedAt: situation === "MISSED" ? at : null, situation };
+      }),
+      nextCursor: matching.length > pageSize && last ? historyCursor(last.entry) : null,
+      total: inTab.length,
+      tabCounts: countOf(items),
+      // HI12: the cards are the deliveries; `missed` travels apart, never added to `delivered`.
+      totals: { delivered: totals.awaiting + totals.graded, awaiting: totals.awaiting, graded: totals.graded, missed: totals.missed },
     };
   }
 
@@ -181,15 +259,22 @@ export class MyActivitiesService {
   }
 
   /**
-   * The student's summaries; with `classId` (026, research D2) only that class's, after checking an ACTIVE
+   * The student's summaries, each classified (028 HI11, HI13); with `classId` (026, research D2) only that class's, after checking an ACTIVE
    * enrollment of the student in it — the same 404 for another student's class, an ended enrollment and a class
    * that doesn't exist, not audited (a class, not an activity: contracts/audit-events.md).
    */
-  private async summaries(userId: string, now: Date, classId?: string): Promise<StudentActivitySummary[]> {
+  private async classified(userId: string, now: Date, classId?: string): Promise<Classified[]> {
+    return (await this.inputs(userId, now, classId)).map((input) => {
+      const summary = toStudentSummary(input);
+      return { input, summary, delivered: DELIVERED_STATUSES.includes(summary.status), missed: isMissed(input) };
+    });
+  }
+
+  /** The scoped inputs behind `classified` (the history also needs their delivery date, 028 HI4). */
+  private async inputs(userId: string, now: Date, classId?: string): Promise<StudentActivityInput[]> {
     if (classId !== undefined) await this.assertActiveEnrollment(userId, classId);
     await this.examSettlement.ofStudent(userId, now, null);
-    const inputs = await this.loader.loadAll(userId, now, await this.canSeeResults(userId), classId);
-    return inputs.map(toStudentSummary);
+    return this.loader.loadAll(userId, now, await this.canSeeResults(userId), classId);
   }
 
   private async assertActiveEnrollment(userId: string, classId: string): Promise<void> {
@@ -204,6 +289,9 @@ export class MyActivitiesService {
     return (await this.permissions.effectivePermissions(userId)).has("notas.proprias.visualizar");
   }
 }
+
+/** Still for "Minhas atividades" (028 HI13): neither delivered nor missed. */
+const isOpen = (item: Classified): boolean => !item.delivered && !item.missed;
 
 /** Strictly after the cursor's `(orderKey, id)` in the list's order. */
 const isAfter = (item: StudentActivitySummary, key: string, id: string) => {

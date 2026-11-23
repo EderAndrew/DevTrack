@@ -136,14 +136,16 @@ describe("026/US3 só as matérias do próprio aluno", () => {
 
     const reads = [
       await client.get(`/api/me/activities?classId=${own.id}`),
-      await client.get(`/api/me/activities?classId=${own.id}&status=COMPLETED`),
+      // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
+      await client.get(`/api/me/history?classId=${own.id}`),
       await client.get(`/api/me/dashboard?classId=${own.id}`),
     ];
     for (const res of reads) {
       expect(res.status).toBe(200);
       expect(JSON.stringify(res.body)).not.toMatch(RESULT);
     }
-    const exerciseItem = reads[0]!.body.items.find((item: { id: string }) => item.id === exercise.activity.id);
+    // The concluded exercise is in the "Histórico" (028/FR-023), with its points, never a grade.
+    const exerciseItem = reads[1]!.body.items.find((item: { id: string }) => item.id === exercise.activity.id);
     expect(exerciseItem).toBeDefined();
     expect(JSON.stringify(exerciseItem)).not.toMatch(EXERCISE_GRADE);
   });

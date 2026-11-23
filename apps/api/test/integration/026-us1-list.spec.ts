@@ -24,12 +24,13 @@ describe("026/US1 lista do aluno por matéria", () => {
   let work: WorkFixture;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
-  const assignment = (schoolClass: SchoolClass, title: string, publishAt: number, dueIn: number) =>
+  const assignment = (schoolClass: SchoolClass, title: string, publishAt: number, dueIn: number, latePolicy: "REJECT" | "ACCEPT_MARKED" = "REJECT") =>
     createActivity(t, schoolClass, {
       type: "ASSIGNMENT",
       title,
       publishAt: at(publishAt),
       deadline: at(dueIn),
+      latePolicy,
       sourceWorkId: work.id,
       sourceSubjectId: work.subjectId,
     });
@@ -64,10 +65,11 @@ describe("026/US1 lista do aluno por matéria", () => {
 
     await assignment(classA, "A — Trabalho 1", -DAY, DAY);
     await assignment(classA, "A — Trabalho 2", -DAY, 2 * DAY);
-    await assignment(classA, "A — Trabalho atrasado", -3 * DAY, -DAY);
+    // 028/FR-023 (amendment 2026-11-23): an overdue work stays in "Minhas atividades" only while it still accepts one.
+    await assignment(classA, "A — Trabalho atrasado", -3 * DAY, -DAY, "ACCEPT_MARKED");
     await exercise(classA, "A — Exercício");
     await assignment(classB, "B — Trabalho", -DAY, DAY);
-    await assignment(classB, "B — Trabalho atrasado", -3 * DAY, -2 * DAY);
+    await assignment(classB, "B — Trabalho atrasado", -3 * DAY, -2 * DAY, "ACCEPT_MARKED");
     await exercise(classB, "B — Exercício");
   });
 

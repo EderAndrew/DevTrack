@@ -156,7 +156,7 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     await expect(page.getByText(/^Atividade entregue em /)).toBeVisible();
     // The delivery, opened from the history, shows the student's own exit and help (015/US5-1, US5-2).
     await page.goto("/historico");
-    await page.getByRole("row").filter({ hasText: seed.workTitle }).getByRole("link", { name: seed.workTitle }).click();
+    await page.getByRole("row").filter({ hasText: seed.workTitle }).getByRole("link", { name: seed.workTitle, exact: true }).click();
     await expect(page.getByRole("heading", { name: "Saídas da tela registradas: 1" })).toBeVisible();
     await page.context().close();
 

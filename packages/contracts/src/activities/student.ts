@@ -22,6 +22,7 @@ import {
   StudentActivityStatusSchema,
   ExamOccurrenceViewSchema,
   StudentExamEndReasonSchema,
+  StudentHistorySituationSchema,
 } from "./enums.js";
 import { StudentExerciseAttemptSchema } from "./exercise-results.js";
 import { GroupMemberIdsSchema, GroupPersonSchema, GroupSizeSchema, StudentGroupSchema } from "./group.js";
@@ -222,6 +223,58 @@ export const StudentActivityPageSchema = z.strictObject({
   nextCursor: z.string().nullable(),
 });
 export type StudentActivityPage = z.infer<typeof StudentActivityPageSchema>;
+
+/** 028: the longest search of the "Histórico", in code points after trim (as 020 counts the feedback). */
+export const STUDENT_HISTORY_SEARCH_MAX = 100;
+
+const codePoints = (value: string) => [...value].length;
+
+/**
+ * `GET /me/history` (028): `tab` absent = every delivery; `q` searches the title (empty after trim = no
+ * search); `classId` an ACTIVE enrollment of the student (else 404); the cursor only with the same filters.
+ */
+export const StudentHistoryQuerySchema = z.strictObject({
+  tab: StudentHistorySituationSchema.optional(),
+  q: z
+    .string()
+    .trim()
+    .refine((value) => codePoints(value) <= STUDENT_HISTORY_SEARCH_MAX)
+    .refine((value) => !value.includes("\u0000"))
+    .optional(),
+  classId: UuidSchema.optional(),
+  /** Opaque, from the previous page's `nextCursor`. */
+  cursor: z.string().max(200).optional(),
+  pageSize: z.coerce.number().pipe(z.int().min(1).max(STUDENT_ACTIVITIES_PAGE_SIZE_MAX)).optional(),
+});
+export type StudentHistoryQuery = z.infer<typeof StudentHistoryQuerySchema>;
+
+/**
+ * One row of the "Histórico": the 012 summary plus its situation (HI3) and its date — `deliveredAt` for a delivery (HI4),
+ * `missedAt` for one the student can no longer deliver (`MISSED`, amendment 2026-11-23, HI11); exactly one is set.
+ */
+export const StudentHistoryItemSchema = StudentActivitySummarySchema.extend({
+  deliveredAt: IsoDateTimeSchema.nullable(),
+  missedAt: IsoDateTimeSchema.nullable(),
+  situation: StudentHistorySituationSchema,
+}).refine((item) => (item.situation === "MISSED") === (item.deliveredAt === null) && (item.deliveredAt === null) !== (item.missedAt === null), "HISTORY_DATE");
+export type StudentHistoryItem = z.infer<typeof StudentHistoryItemSchema>;
+
+const HistoryCountSchema = z.int().min(0);
+
+/**
+ * `total` counts `classId` + `q` + `tab`; `tabCounts` `classId` + `q`; `totals` (the cards) `classId` only.
+ * Newest delivery first (`deliveredAt` desc, `id` asc).
+ */
+export const StudentHistoryPageSchema = z.strictObject({
+  items: z.array(StudentHistoryItemSchema),
+  nextCursor: z.string().nullable(),
+  total: HistoryCountSchema,
+  /** `all` = awaiting + graded + missed (HI12). */
+  tabCounts: z.strictObject({ all: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
+  /** The cards: `delivered` = awaiting + graded; `missed` is never added to them (HI12). */
+  totals: z.strictObject({ delivered: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
+});
+export type StudentHistoryPage = z.infer<typeof StudentHistoryPageSchema>;
 
 /**
  * `POST /me/activities/:activityId/attempt`: `{}` for a work or exercises; an EXAM requires the

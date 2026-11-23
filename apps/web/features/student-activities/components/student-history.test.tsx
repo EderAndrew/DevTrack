@@ -1,79 +1,588 @@
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { expectTabOrder } from "../../../test/keyboard";
 import { renderWithProviders } from "../../../test/render";
-import type { IntegrityEventView, StudentIntegrity } from "@repo/contracts";
-import { formatLongDateTime, formatTime } from "@/lib/messages/dates";
+import type { IntegrityEventView, StudentHistoryItem, StudentHistoryPage, StudentIntegrity } from "@repo/contracts";
+import { formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
+import type { StudentHistoryFilters } from "../api/student-activities";
+import { HISTORY_FINAL_NOTE, historyFromSearch } from "../schemas/student-history";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
-import { apiError, json, routedFetch, studentActivity, summary } from "./test-fixtures";
+import { apiError, json, myClass, myClassesBody, POO_CLASS, routedFetch, SQL_CLASS, studentActivity, summary } from "./test-fixtures";
 
-const LIST = "GET /api/me/activities?status=COMPLETED";
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-function setup(routes: Parameters<typeof routedFetch>[0]) {
+const HISTORY = "GET /api/me/history";
+
+function setup(routes: Parameters<typeof routedFetch>[0], filters?: StudentHistoryFilters) {
   const api = routedFetch(routes);
   vi.stubGlobal("fetch", api.fetch);
-  const view = renderWithProviders(<StudentHistory />);
+  const view = renderWithProviders(<StudentHistory filters={filters} />);
   return { ...view, api, user: userEvent.setup() };
 }
 
-const graded = summary({
+// Built from local time, so "13 de novembro" and "Sexta-feira, 16:47" read the same in any time zone.
+const FRIDAY = new Date(2026, 10, 13, 16, 47).toISOString();
+
+const entry = (overrides: Partial<StudentHistoryItem> = {}): StudentHistoryItem => ({
+  ...summary({ status: "SUBMITTED", canAnswer: false, submittedAt: FRIDAY }),
+  deliveredAt: FRIDAY,
+  missedAt: null,
+  situation: "AWAITING",
+  ...overrides,
+});
+/** A page; `missed` (028 amendment) defaults to 0 in the tab counts and the totals. */
+const page = (
+  items: StudentHistoryItem[],
+  {
+    tabCounts,
+    totals,
+    ...extra
+  }: Partial<Omit<StudentHistoryPage, "tabCounts" | "totals">> & {
+    tabCounts?: Partial<StudentHistoryPage["tabCounts"]>;
+    totals?: Partial<StudentHistoryPage["totals"]>;
+  } = {},
+): StudentHistoryPage => ({
+  items,
+  nextCursor: null,
+  total: items.length,
+  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, ...tabCounts },
+  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, ...totals },
+  ...extra,
+});
+
+const graded = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000011",
   title: "Trabalho de interfaces",
-  type: "ASSIGNMENT",
   status: "GRADED",
-  late: true,
-  canAnswer: false,
-  submittedAt: "2026-10-04T10:00:00.000Z",
-  totalGrade: "1.00",
-  result: { grade: "0.90", hasFeedback: true },
+  situation: "GRADED",
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: "Programação Orientada a Objetos",
+  totalGrade: "3.00",
+  result: { grade: "1.80", hasFeedback: true },
 });
-const waiting = summary({
+const waiting = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000012",
   title: "Lista de herança",
-  status: "SUBMITTED",
-  canAnswer: false,
-  submittedAt: "2026-10-03T10:00:00.000Z",
-  result: null,
+  late: true,
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: null,
 });
+const exercise = entry({
+  id: "bbbbbbbb-0000-4000-8000-000000000013",
+  title: "Exercícios de laços",
+  type: "EXERCISE",
+  status: "COMPLETED",
+  situation: "GRADED",
+  deadline: null,
+  latePolicy: null,
+  totalGrade: null,
+  points: { possible: 60, earned: 45, awaitingCorrection: false },
+});
+const exam = entry({
+  id: "bbbbbbbb-0000-4000-8000-000000000014",
+  title: "Prova de POO",
+  type: "EXAM",
+  status: "GRADED",
+  situation: "GRADED",
+  totalGrade: "1.00",
+  result: { grade: "1.50", hasFeedback: false },
+});
+const FOUR = [graded, waiting, exercise, exam];
 
-describe("012/US6 Histórico", () => {
+const table = () => screen.findByRole("table", { name: "Atividades que você entregou." });
+const rowOf = async (title: string) =>
+  Array.from((await table()).querySelectorAll<HTMLElement>("tbody tr")).find((row) => row.textContent?.includes(title))!;
+
+describe("028/US1 Histórico: totais e lista redesenhada", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("012/US6-2 012/FR-031 atividade, tipo, turma, entregue em (com atraso), situação, nota e Com feedback; abre a atividade", async () => {
-    setup({ [LIST]: json(200, { items: [graded, waiting], nextCursor: null }) });
-    const table = await screen.findByRole("table", { name: "Atividades que você entregou." });
-    const [, first, second] = within(table).getAllByRole("row");
-    expect(within(first!).getByRole("link", { name: "Trabalho de interfaces" }).getAttribute("href")).toBe(`/minhas-atividades/${graded.id}`);
-    expect(within(first!).getByText("Trabalho")).toBeTruthy();
-    expect(within(first!).getByText(`${formatLongDateTime("2026-10-04T10:00:00.000Z")} (com atraso)`)).toBeTruthy();
-    expect(within(first!).getByText("0,90 de 1,00")).toBeTruthy();
-    expect(within(first!).getByText("Com feedback")).toBeTruthy();
-    expect(within(second!).getByText("Aguardando correção")).toBeTruthy();
-    expect(within(second!).queryByText("Com feedback")).toBeNull();
+  it("028/US1-1 os três cards com os totais do servidor, em dois dígitos e o número inteiro no texto acessível", async () => {
+    setup({ [HISTORY]: json(200, page([graded], { totals: { delivered: 4, awaiting: 2, graded: 12 } })) });
+    const summary = await screen.findByRole("region", { name: "Resumo das suas entregas" });
+    const cards = within(summary).getAllByRole("listitem");
+    expect(cards.map((card) => within(card).getByText(/^Atividades|^Aguardando/).textContent)).toEqual([
+      "Atividades entregues",
+      "Aguardando correção",
+      "Atividades corrigidas",
+    ]);
+    expect(within(cards[0]!).getByText("04")).toBeTruthy();
+    expect(within(cards[0]!).getByText("4 atividades entregues")).toBeTruthy();
+    expect(within(cards[0]!).getByText("Seu histórico de entregas")).toBeTruthy();
+    expect(within(cards[1]!).getByText("02")).toBeTruthy();
+    expect(within(cards[1]!).getByText("2 aguardando correção")).toBeTruthy();
+    expect(within(cards[1]!).getByText("Você já fez a sua parte")).toBeTruthy();
+    expect(within(cards[2]!).getByText("12")).toBeTruthy();
+    expect(within(cards[2]!).getByText("12 atividades corrigidas")).toBeTruthy();
+    expect(within(cards[2]!).getByText("Resultado disponível")).toBeTruthy();
   });
 
-  it("012/US6-1 vazio e erro são estados distintos", async () => {
-    setup({ [LIST]: json(200, { items: [], nextCursor: null }) });
+  it("028/US1-2 o rodapé diz quantas de quantas e a ordem", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    await table();
+    expect(screen.getByText("Exibindo 4 de 4 atividades")).toBeTruthy();
+    expect(screen.getByText("Mais recentes primeiro")).toBeTruthy();
+  });
+
+  it("028/US1-3 012/US6-2 aguardando: pílula \"Entregue com atraso\" e \"Aguardando correção\", sem número de nota", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Lista de herança");
+    expect(within(row).getByText("Entregue com atraso")).toBeTruthy();
+    expect(within(row).getByText("Aguardando correção")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(row.textContent).not.toMatch(/\d,\d\d/);
+  });
+
+  it("028/US1-4 012/FR-031 corrigida: \"Corrigida\", a nota de a total, a barra proporcional e \"Com feedback\"", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Trabalho de interfaces");
+    expect(within(row).getByText("Corrigida")).toBeTruthy();
+    expect(within(row).getByText("1,80")).toBeTruthy();
+    expect(within(row).getByText("de 3,00")).toBeTruthy();
+    const bar = within(row).getByRole("progressbar", { name: "Nota 1,80 de 3,00" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("60");
+    expect(within(row).getByText("Com feedback")).toBeTruthy();
+    // Edge case: a grade above the total fills the bar, never past it.
+    const over = await rowOf("Prova de POO");
+    expect(within(over).getByRole("progressbar", { name: "Nota 1,50 de 1,00" }).getAttribute("aria-valuenow")).toBe("100");
+    expect(within(over).queryByText("Com feedback")).toBeNull();
+  });
+
+  it("028/US1-5 exercício: \"Concluída\" e os pontos, nunca a barra; pontos aguardando correção", async () => {
+    const pendingPoints = entry({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000015", title: "Exercícios de vetores", points: { possible: 60, earned: 15, awaitingCorrection: true } });
+    setup({ [HISTORY]: json(200, page([exercise, pendingPoints])) });
+    const row = await rowOf("Exercícios de laços");
+    expect(within(row).getByText("Concluída")).toBeTruthy();
+    expect(within(row).getByText("45 de 60 pontos")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(await rowOf("Exercícios de vetores")).getByText("Pontos aguardando correção")).toBeTruthy();
+  });
+
+  it("028/US1-6 título, \"Ver atividade\" e a seta abrem a atividade; tipo, turma e disciplina, data em duas linhas", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const row = await rowOf("Trabalho de interfaces");
+    const href = `/minhas-atividades/${graded.id}`;
+    expect(within(row).getByRole("link", { name: "Trabalho de interfaces" }).getAttribute("href")).toBe(href);
+    expect(within(row).getByText("Ver atividade").closest("a")!.getAttribute("href")).toBe(href);
+    expect(within(row).getByRole("link", { name: "Abrir Trabalho de interfaces" }).getAttribute("href")).toBe(href);
+    expect(within(row).getByText("Trabalho")).toBeTruthy();
+    expect(within(row).getByText("ADS 3NA")).toBeTruthy();
+    expect(within(row).getByText("Programação Orientada a Objetos")).toBeTruthy();
+    expect(within(row).getByText("13 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Sexta-feira, 16:47")).toBeTruthy();
+    // Only the turma when there is no subject; "com atraso" on the second line of the date.
+    const late = await rowOf("Lista de herança");
+    expect(within(late).getByText("ADS 3NA").parentElement!.children).toHaveLength(1);
+    expect(within(late).getByText("Sexta-feira, 16:47 (com atraso)")).toBeTruthy();
+    expect(within(await rowOf("Prova de POO")).getByText("Prova")).toBeTruthy();
+    // Phones: the same deliveries as cards, each one link.
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    expect(within(cards).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(FOUR.map((item) => `/minhas-atividades/${item.id}`));
+  });
+
+  it("028/US1-7 a tela termina com a nota sobre as notas", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    await table();
+    expect(screen.getByText(HISTORY_FINAL_NOTE).textContent).toBe("As notas aparecem aqui assim que a correção for concluída.");
+  });
+
+  it("028/US1-8 012/US6-1 sem entregas: cards em zero e o estado vazio; erro é outro estado", async () => {
+    setup({ [HISTORY]: json(200, page([], { tabCounts: { all: 0, awaiting: 0, graded: 0 }, totals: { delivered: 0, awaiting: 0, graded: 0 } })) });
     expect(await screen.findByText(HISTORY_EMPTY)).toBeTruthy();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
     vi.unstubAllGlobals();
-    setup({ [LIST]: apiError(500, "INTERNAL_ERROR", "x") });
+    cleanup();
+    setup({ [HISTORY]: apiError(500, "INTERNAL_ERROR", "x") });
     expect(await screen.findByText(LOAD_ERROR)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
   });
 
+  it("028/US1-9 \"Carregar mais\" pede o cursor e o N do rodapé cresce", async () => {
+    const { user, api } = setup({
+      [HISTORY]: json(200, page([graded, waiting], { nextCursor: "c1", total: 4 })),
+      [`${HISTORY}?cursor=c1`]: json(200, page([exercise, exam], { total: 4 })),
+    });
+    await table();
+    expect(screen.getByText("Exibindo 2 de 4 atividades")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Carregar mais" }));
+    expect(await screen.findByText("Exibindo 4 de 4 atividades")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?cursor=c1"))).toBe(true);
+    expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
+  });
+
+  it("028/FR-019 um título com HTML aparece como texto", async () => {
+    setup({ [HISTORY]: json(200, page([entry({ title: "<b>negrito</b>" })])) });
+    const row = await rowOf("<b>negrito</b>");
+    expect(within(row).getByRole("link", { name: "<b>negrito</b>" })).toBeTruthy();
+    expect(row.querySelector("b")).toBeNull();
+  });
+
   it("012/SC-009 sem violações de acessibilidade e na ordem de Tab", async () => {
-    const { user, container } = setup({ [LIST]: json(200, { items: [graded, waiting], nextCursor: null }) });
-    await screen.findByRole("table");
+    const { user, container } = setup({ [HISTORY]: json(200, page(FOUR, { nextCursor: "c1" })) });
+    const rows = await table();
     await expectNoA11yViolations(container);
     await expectTabOrder(user, [
-      screen.getByRole("link", { name: "Trabalho de interfaces" }),
-      screen.getByRole("link", { name: "Lista de herança" }),
+      within(rows).getByRole("link", { name: "Trabalho de interfaces" }),
+      within(rows).getByRole("link", { name: "Abrir Trabalho de interfaces" }),
+      within(rows).getByRole("link", { name: "Lista de herança" }),
+      screen.getByRole("button", { name: "Carregar mais" }),
     ]);
+  });
+});
+
+describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const COUNTS = { tabCounts: { all: 4, awaiting: 3, graded: 1 } };
+  const tabs = () => screen.findByRole("tablist", { name: "Situação das entregas" });
+
+  it("028/US2-1 as três abas com as contagens, \"Todas\" escolhida e o nome com a contagem", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
+    const list = await tabs();
+    const all = within(list).getAllByRole("tab");
+    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues".
+    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0"]);
+    expect(within(list).getByRole("tab", { name: "Aguardando, 3" }).textContent).toBe("Aguardando3");
+    expect(within(list).getByRole("tab", { name: "Todas, 4" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tabpanel", { name: "Todas, 4" })).toBeTruthy();
+  });
+
+  it("028/US2-2 028/SC-003 um clique em \"Corrigidas\" troca o endereço e a lista passa a pedir tab=GRADED", async () => {
+    const { user, api, rerender } = setup({
+      [HISTORY]: json(200, page(FOUR, COUNTS)),
+      [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { ...COUNTS, total: 1 })),
+    });
+    await user.click(within(await tabs()).getByRole("tab", { name: "Corrigidas, 1" }));
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=corrigidas");
+    rerender(<StudentHistory filters={historyFromSearch({ aba: "corrigidas" })} />);
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?tab=GRADED"))).toBe(true);
+    expect(screen.getByRole("tab", { name: "Corrigidas, 1" }).getAttribute("aria-selected")).toBe("true");
+    // Back to "Todas": no `aba` in the address.
+    await user.click(screen.getByRole("tab", { name: "Todas, 4" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico");
+  });
+
+  it("028/US2-4 aba vazia: a frase da aba, com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=AWAITING`]: json(200, page([], { ...COUNTS, total: 0 })) }, historyFromSearch({ aba: "aguardando" }));
+    expect(await screen.findByText("Nenhuma entrega aguardando correção.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    vi.unstubAllGlobals();
+    cleanup();
+    setup({ [`${HISTORY}?tab=GRADED`]: json(200, page([], { ...COUNTS, total: 0 })) }, historyFromSearch({ aba: "corrigidas" }));
+    expect(await screen.findByText("Nenhuma entrega corrigida ainda.")).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("028/US2-5 a página aberta com ?aba=corrigidas já pede tab=GRADED; ?aba=xyz vale \"Todas\"", async () => {
+    expect(historyFromSearch({ aba: "corrigidas" })).toEqual({ tab: "GRADED", q: "", classId: null });
+    expect(historyFromSearch({ aba: "aguardando" }).tab).toBe("AWAITING");
+    expect(historyFromSearch({ aba: "xyz" }).tab).toBeNull();
+    expect(historyFromSearch({ aba: "todas" }).tab).toBeNull();
+    expect(historyFromSearch({}).tab).toBeNull();
+    const { api } = setup({ [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { ...COUNTS, total: 1 })) }, historyFromSearch({ aba: "corrigidas" }));
+    expect(within(await tabs()).getByRole("tab", { name: "Corrigidas, 1" }).getAttribute("aria-selected")).toBe("true");
+    expect(api.calls.map((call) => call.url).filter((url) => url.includes("/me/history"))).toEqual([expect.stringMatching(/\/me\/history\?tab=GRADED$/)]);
+  });
+
+  it("028/US2 as setas do teclado trocam de aba", async () => {
+    const { user } = setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
+    const list = await tabs();
+    within(list).getByRole("tab", { name: "Todas, 4" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(within(list).getByRole("tab", { name: "Aguardando, 3" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=aguardando");
+  });
+});
+
+describe("028/US3 Histórico: buscar e filtrar por matéria", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.theme;
+  });
+
+  const CLASSES = "GET /api/me/classes";
+  const classes = (list = [POO_CLASS, SQL_CLASS]) => json(200, myClassesBody(list));
+  const historyCalls = (api: { calls: { url: string }[] }) => api.calls.map((call) => call.url).filter((url) => url.includes("/me/history"));
+  const search = () => screen.findByRole("searchbox", { name: "Buscar atividade" });
+  const subjectSelect = () => screen.findByRole("combobox", { name: "Matéria" });
+
+  it("028/US3-1 digitar na busca pede q= só depois de 300 ms e escreve busca= no endereço; Enter pede na hora", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const api = routedFetch({
+      [CLASSES]: classes(),
+      [HISTORY]: json(200, page(FOUR)),
+      [`${HISTORY}?q=prova`]: json(200, page([exam], { total: 1 })),
+      [`${HISTORY}?q=lista`]: json(200, page([waiting], { total: 1 })),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    renderWithProviders(<StudentHistory />);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const box = await search();
+    expect(box.getAttribute("maxlength")).toBe("100");
+    await user.type(box, "prova");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(historyCalls(api).some((url) => url.includes("q="))).toBe(false);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=prova");
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api)).toContainEqual(expect.stringMatching(/\/me\/history\?q=prova$/));
+    expect((box as HTMLInputElement).value).toBe("prova");
+    // Enter: no wait.
+    await user.clear(box);
+    await user.type(box, "lista{Enter}");
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=lista");
+    expect(await screen.findByRole("link", { name: "Lista de herança" })).toBeTruthy();
+    expect(historyCalls(api).filter((url) => /q=l(i|is|ist)?$/.test(url))).toEqual([]);
+  });
+
+  it("028/US3-5 a busca logo depois de trocar de aba, antes de o endereço mudar, mantém a aba escolhida", async () => {
+    const { user } = setup(
+      {
+        [CLASSES]: classes(),
+        [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { total: 1, tabCounts: { all: 4, awaiting: 3, graded: 1 } })),
+      },
+      historyFromSearch({ aba: "corrigidas" }),
+    );
+    await user.click(within(await screen.findByRole("tablist")).getByRole("tab", { name: "Todas, 4" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico");
+    // The router mock never moves the address: it is still `?aba=corrigidas` when the search applies.
+    await user.type(await search(), "prova{Enter}");
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?busca=prova");
+  });
+
+  it("028/US3-2 busca sem resultado: \"Nenhuma atividade encontrada.\" e \"Limpar busca e filtro\" mantém a aba", async () => {
+    const { user, api } = setup(
+      {
+        [CLASSES]: classes(),
+        [`${HISTORY}?tab=GRADED&q=xyz&classId=${POO_CLASS.id}`]: json(200, page([], { total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0 } })),
+        [`${HISTORY}?tab=GRADED`]: json(200, page([graded], { total: 1 })),
+      },
+      historyFromSearch({ aba: "corrigidas", busca: "xyz", materia: POO_CLASS.id }),
+    );
+    expect(await screen.findByText("Nenhuma atividade encontrada.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Limpar busca e filtro" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=corrigidas");
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api).at(-1)).toMatch(/\/me\/history\?tab=GRADED$/);
+    expect(((await search()) as HTMLInputElement).value).toBe("");
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-3 o filtro \"Matéria\" oferece \"Todas as matérias\" e as matérias de \"Minhas turmas\" como o card da 026", async () => {
+    const closed = myClass({ id: "33333333-3333-4333-8333-333333333333", name: "ADS 2NA", subjectName: "Algoritmos", status: "INACTIVE" });
+    setup({ [CLASSES]: classes([POO_CLASS, SQL_CLASS, closed]), [HISTORY]: json(200, page(FOUR)) });
+    const select = await subjectSelect();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Todas as matérias",
+      "Programação Orientada a Objetos · ADS 3NA",
+      "Banco de Dados · ADS 3NA",
+      "Algoritmos · ADS 2NA · Encerrada",
+    ]);
+    expect((select as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-4 escolher uma matéria troca o endereço (materia=) e pede classId=", async () => {
+    const { user, api } = setup({
+      [CLASSES]: classes(),
+      [HISTORY]: json(200, page(FOUR)),
+      [`${HISTORY}?classId=${SQL_CLASS.id}`]: json(200, page([waiting], { total: 1, totals: { delivered: 1, awaiting: 1, graded: 0 } })),
+    });
+    await table();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    await user.selectOptions(await subjectSelect(), SQL_CLASS.id);
+    expect(router.replace).toHaveBeenLastCalledWith(`/historico?materia=${SQL_CLASS.id}`);
+    expect(await screen.findByText("1 atividade entregue")).toBeTruthy();
+    expect(historyCalls(api).at(-1)).toMatch(new RegExp(`/me/history\\?classId=${SQL_CLASS.id}$`));
+  });
+
+  it("028/US3-5 aberta com ?aba=corrigidas&busca=prova&materia=<A> pede as três juntas", async () => {
+    const filters = historyFromSearch({ aba: "corrigidas", busca: "  prova ", materia: POO_CLASS.id });
+    expect(filters).toEqual({ tab: "GRADED", q: "prova", classId: POO_CLASS.id });
+    const { api } = setup({ [CLASSES]: classes(), [`${HISTORY}?tab=GRADED&q=prova&classId=${POO_CLASS.id}`]: json(200, page([exam], { total: 1 })) }, filters);
+    expect(await screen.findByText("Exibindo 1 de 1 atividade")).toBeTruthy();
+    expect(historyCalls(api)).toEqual([expect.stringMatching(new RegExp(`/me/history\\?tab=GRADED&q=prova&classId=${POO_CLASS.id}$`))]);
+    expect(((await search()) as HTMLInputElement).value).toBe("prova");
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe(POO_CLASS.id);
+    expect(screen.getByRole("tab", { name: "Corrigidas, 2" }).getAttribute("aria-selected")).toBe("true");
+    // A search longer than the API's limit is cut to 100 characters, a repeated parameter ignored.
+    expect(historyFromSearch({ busca: "a".repeat(150) }).q).toHaveLength(100);
+    expect(historyFromSearch({ busca: ["a", "b"], materia: ["x", "y"] })).toEqual({ tab: null, q: "", classId: null });
+  });
+
+  it("028/US3-6 matéria fora de \"Minhas turmas\": o aviso e o pedido sem classId", async () => {
+    const { api } = setup({ [CLASSES]: classes([POO_CLASS]), [HISTORY]: json(200, page(FOUR)) }, historyFromSearch({ materia: SQL_CLASS.id }));
+    expect(await screen.findByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    await table();
+    expect(historyCalls(api)).toEqual([expect.stringMatching(/\/me\/history$/)]);
+    expect(((await subjectSelect()) as HTMLSelectElement).value).toBe("");
+  });
+
+  it("028/US3-6 um 404 da rota para a matéria: \"Minhas turmas\" de novo, o aviso e o pedido sem classId", async () => {
+    let classesCalls = 0;
+    const { api } = setup(
+      {
+        [CLASSES]: () => classes(++classesCalls === 1 ? [POO_CLASS, SQL_CLASS] : [POO_CLASS]),
+        [`${HISTORY}?classId=${SQL_CLASS.id}`]: apiError(404, "NOT_FOUND", "Não encontrado."),
+        [HISTORY]: json(200, page(FOUR)),
+      },
+      historyFromSearch({ materia: SQL_CLASS.id }),
+    );
+    expect(await screen.findByText("Essa matéria não está mais disponível para você.")).toBeTruthy();
+    await table();
+    expect(classesCalls).toBeGreaterThanOrEqual(2);
+    expect(historyCalls(api)).toEqual([expect.stringContaining(`classId=${SQL_CLASS.id}`), expect.stringMatching(/\/me\/history$/)]);
+    expect(screen.queryByText(LOAD_ERROR)).toBeNull();
+  });
+
+  it("028/FR-020 sem violações de acessibilidade nos temas escuro e claro; Tab: abas → busca → matéria → linhas → Carregar mais", async () => {
+    const { user, container } = setup({ [CLASSES]: classes(), [HISTORY]: json(200, page(FOUR, { nextCursor: "c1" })) });
+    const rows = await table();
+    await screen.findByRole("option", { name: "Banco de Dados · ADS 3NA" });
+    await expectNoA11yViolations(container);
+    document.documentElement.dataset.theme = "light";
+    await expectNoA11yViolations(container);
+    await expectTabOrder(user, [
+      screen.getByRole("tab", { name: "Todas, 4" }),
+      await search(),
+      await subjectSelect(),
+      within(rows).getByRole("link", { name: "Trabalho de interfaces" }),
+      screen.getByRole("button", { name: "Carregar mais" }),
+    ]);
+  });
+});
+
+// 028/US4 — nothing of a grade before the release: the screen follows `situation`, so even a payload that carried a
+// result on an AWAITING item (never sent by the API, 028/SC-002) shows no grade, bar or "Com feedback".
+
+describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Local time, as FRIDAY: "10 de novembro" and "Terça-feira, 23:59".
+  const TUESDAY = new Date(2026, 10, 10, 23, 59).toISOString();
+  const missed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000021",
+    title: "Trabalho perdido",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    missedAt: TUESDAY,
+    situation: "MISSED",
+    totalGrade: "2.00",
+  });
+  const COUNTS = { tabCounts: { all: 5, awaiting: 2, graded: 2, missed: 1 }, totals: { missed: 1 } };
+
+  it("028/US5-2 028/FR-024 a aba \"Não entregues\" com a contagem; a linha diz \"Não entregue\", a data em que fechou e \"—\" na Nota", async () => {
+    const { user } = setup({ [HISTORY]: json(200, page([graded, missed], COUNTS)) });
+    const tabs = await screen.findByRole("tablist", { name: "Situação das entregas" });
+    expect(within(tabs).getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Todas, 5",
+      "Aguardando, 2",
+      "Corrigidas, 2",
+      "Não entregues, 1",
+    ]);
+    const row = await rowOf("Trabalho perdido");
+    expect(within(row).getByText("Não entregue")).toBeTruthy();
+    expect(within(row).getByText("10 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(row).queryByText("Aguardando correção")).toBeNull();
+    // The cards are the deliveries only.
+    expect(screen.getByText("4 atividades entregues")).toBeTruthy();
+    await user.click(within(tabs).getByRole("tab", { name: "Não entregues, 1" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=nao-entregues");
+    expect(historyFromSearch({ aba: "nao-entregues" }).tab).toBe("MISSED");
+  });
+
+  it("028/US5-5 aba \"Não entregues\" vazia: a frase própria, com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=MISSED`]: json(200, page([], { total: 0 })) }, historyFromSearch({ aba: "nao-entregues" }));
+    expect(await screen.findByText("Nenhuma atividade não entregue.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("028/FR-015 sem entregas mas com não entregues: a lista, não o vazio da página", async () => {
+    setup({ [HISTORY]: json(200, page([missed], { totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 }, tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 } })) });
+    expect(await rowOf("Trabalho perdido")).toBeTruthy();
+    expect(screen.queryByText(HISTORY_EMPTY)).toBeNull();
+  });
+});
+
+describe("028/US4 Histórico: nada de nota antes da liberação", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** The row of `title` in the table and its card in the phone list. */
+  const placesOf = async (title: string) => {
+    const row = await rowOf(title);
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    const card = within(cards)
+      .getAllByRole("listitem")
+      .find((item) => item.textContent?.includes(title))!;
+    return [row, card];
+  };
+
+  it("028/FR-018 um item AWAITING nunca mostra número de nota nem \"Com feedback\"", async () => {
+    const leaky = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000021",
+      title: "Trabalho sem liberação",
+      totalGrade: "3.00",
+      result: { grade: "2.40", hasFeedback: true },
+    });
+    setup({ [HISTORY]: json(200, page([leaky, waiting])) });
+    for (const title of ["Trabalho sem liberação", "Lista de herança"]) {
+      for (const place of await placesOf(title)) {
+        expect(within(place).getByText("Aguardando correção")).toBeTruthy();
+        expect(within(place).queryByRole("progressbar")).toBeNull();
+        expect(within(place).queryByText("Com feedback")).toBeNull();
+        expect(place.textContent).not.toMatch(/\d,\d\d/);
+      }
+    }
+  });
+
+  it("028/FR-018 um exercício nunca mostra a barra nem a palavra \"Nota\"", async () => {
+    setup({ [HISTORY]: json(200, page([exercise])) });
+    for (const place of await placesOf("Exercícios de laços")) {
+      expect(within(place).getByText("45 de 60 pontos")).toBeTruthy();
+      expect(within(place).queryByRole("progressbar")).toBeNull();
+      expect(place.textContent).not.toMatch(/Nota/);
+    }
+  });
+
+  it("028/US4-3 status GRADED com situation AWAITING (sem notas.proprias.visualizar): pílula \"Entregue\", nunca \"Corrigida\"", async () => {
+    const hidden = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000022",
+      title: "Trabalho liberado sem permissão",
+      status: "GRADED",
+      situation: "AWAITING",
+      totalGrade: "3.00",
+      result: null,
+    });
+    setup({ [HISTORY]: json(200, page([hidden])) });
+    for (const place of await placesOf("Trabalho liberado sem permissão")) {
+      expect(within(place).getByText("Entregue")).toBeTruthy();
+      expect(within(place).queryByText("Corrigida")).toBeNull();
+      expect(within(place).queryByRole("progressbar")).toBeNull();
+    }
   });
 });
 

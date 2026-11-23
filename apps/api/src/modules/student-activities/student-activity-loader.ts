@@ -93,7 +93,16 @@ const ACTIVITY_SELECT = {
   durationMinutes: true,
   inactivityLimitSeconds: true,
   cancelledAt: true,
-  schoolClass: { select: { id: true, status: true, ...CLASS_LABEL_SELECT } },
+  schoolClass: {
+    select: {
+      id: true,
+      status: true,
+      // 028 HI11: since when the class or the turma stopped being ACTIVE (a missed activity's date).
+      statusChangedAt: true,
+      ...CLASS_LABEL_SELECT,
+      cohort: { select: { ...CLASS_LABEL_SELECT.cohort.select, statusChangedAt: true } },
+    },
+  },
   teacher: { select: { name: true } },
   /** The EXERCISE's possible points (013/FR-003). */
   questions: { select: { points: true } },
@@ -149,7 +158,19 @@ export class StudentActivityLoader {
       select: ACTIVITY_SELECT,
     });
     const attempts = await this.attemptsOf(studentUserId, activities.map((activity) => activity.id));
-    return activities.map((activity) => toInput(activity, attempts.get(activity.id) ?? [], now, canSeeResults));
+    // 028 HI11: an exam held for the teacher's decision is still in course (never "não entregue"); one query.
+    const held = new Set(
+      (
+        await this.prisma.examAttemptHold.findMany({
+          where: { studentUserId, resolution: null, activityId: { in: activities.filter((activity) => activity.type === "EXAM").map((activity) => activity.id) } },
+          select: { activityId: true },
+        })
+      ).map((hold) => hold.activityId),
+    );
+    return activities.map((activity) => {
+      const input = toInput(activity, attempts.get(activity.id) ?? [], now, canSeeResults);
+      return input.facts.type === "EXAM" && held.has(activity.id) ? { ...input, facts: { ...input.facts, onHold: true } } : input;
+    });
   }
 
   /** One activity in the student's context with its questions and saved answers, or null (→ 404). */
@@ -548,6 +569,19 @@ export const releasedToSql = (studentUserId: string) =>
   Prisma.sql`(ca.release_mode = 'ALL_ENROLLED'
     OR EXISTS (SELECT 1 FROM activity_attendances aa WHERE aa.activity_id = ca.id AND aa.student_user_id = ${studentUserId}::uuid))`;
 
+/** 028 HI11: the earliest moment the class or its turma left ACTIVE (null while both are ACTIVE or unrecorded). */
+function inactiveSince(schoolClass: {
+  status: string;
+  statusChangedAt: Date | null;
+  cohort: { status: string; statusChangedAt: Date | null };
+}): Date | null {
+  const moments = [
+    schoolClass.status !== "ACTIVE" ? schoolClass.statusChangedAt : null,
+    schoolClass.cohort.status !== "ACTIVE" ? schoolClass.cohort.statusChangedAt : null,
+  ].filter((moment): moment is Date => moment !== null);
+  return moments.reduce<Date | null>((earliest, moment) => (earliest === null || moment < earliest ? moment : earliest), null);
+}
+
 /** The facts of the student's situation, by type (contracts/student-status.md). */
 function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date): ActivityFacts {
   const latest = attempts.at(-1) ?? null;
@@ -618,6 +652,10 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
         : null,
     facts,
     canSeeResults,
+    // Attempts come by number, so [0] is attempt 1, the conclusion that scores (013).
+    firstCompletedAt: activity.type === "EXERCISE" ? (attempts[0]?.completedAt ?? null) : null,
+    closedAt: activity.closedAt,
+    inactiveSince: inactiveSince(activity.schoolClass),
     submission: submission && {
       submittedAt: submission.submittedAt,
       late: submission.late,

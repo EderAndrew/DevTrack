@@ -8,6 +8,7 @@ import type {
   ClassActivity,
   ClassActivityStatus,
   ClassActivityType,
+  ExamEndReason,
   SchoolClass,
   WorkDifficulty,
   WorkTestCaseVisibility,
@@ -407,6 +408,8 @@ export interface SubmissionRowOptions {
   blankCount?: number;
   /** FR-006b: the teacher who accepted it (the submission is then late). */
   acceptedById?: string;
+  /** 018: an EXAM's submission has one, any other none (CHECK); 028 writes a delivered exam directly. */
+  endReason?: ExamEndReason;
 }
 
 /**
@@ -448,6 +451,7 @@ export async function createAttemptRow(
       grade: cents(submission.gradeCents ?? 0),
       gradePartial: submission.gradePartial ?? false,
       generalFeedback: submission.generalFeedback ?? null,
+      endReason: submission.endReason ?? null,
     },
   });
   return { attemptId: attempt.id, submissionId: created.id };

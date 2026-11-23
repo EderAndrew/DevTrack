@@ -464,6 +464,11 @@ What the code alone doesn't make obvious:
   <turma>", or the turma alone for a class with no subject; `CLASS_LABEL_SELECT`/`labelOf` in the readers that name a class). `ClassContextPolicy.findInContext` returns
   the effective status as `status` and keeps `ownStatus`; Prisma readers that bypass it load the cohort and call
   `effectiveStatus()`, raw SQL uses `class_effective_status(class_id)` and the view `class_enrollments`.
+- Histórico (028): `GET /me/history` is `MyActivitiesService.history` over the same scoped inputs as `/me/activities`
+  (`classId` checked first by `assertActiveEnrollment`); the pure parts (situation, delivery date, order, cursor, title
+  search) live in `student-activities/history.ts`. `platform/logging` redacts `q` from the logged URL and `req.query`.
+  Suites: `028-history-route`, `028-us1-history` … `028-us3-search-class`, `028-sc004-performance` (500 deliveries in batch), unit
+  `028-history`, security `028-history-isolation`.
 - Mail (017): `MailOutbox.schedule(tx, kind, subjectId)` in the request's transaction, `attemptNow` after the commit
   (`attemptSync` in the admin bootstrap CLI), then `MailDeliveryWorker` retries (1 min to 6 h, FAILED after 7) within
   `MAIL_SENDS_PER_MINUTE`; `MAIL_RETRY_INTERVAL_SECONDS=0` disables the timer and tests call `runOnce(now)`. Each owner

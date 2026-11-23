@@ -109,6 +109,29 @@ describe.each(Object.entries(THEMES))("014/FR-017 014/SC-005 022/FR-011 022/SC-0
   });
 });
 
+// 028: the Histórico's new tones — the "Corrigidas" card caption in success text and "Aguardando correção" in warning
+// text on the card, the cards' icons over their tinted squares, and the grade bar (`Progress`: `--primary` over its
+// `--border` track and the card around it).
+const HISTORY_PAIRS: Pair[] = [
+  ["--success-text", "--card", 4.5],
+  ["--warning-text", "--card", 4.5],
+  ["--primary", "--primary-subtle", 3],
+  ["--warning-text", "--warning-surface", 3],
+  ["--success-text", "--success-surface", 3],
+  ["--primary", "--border", 3],
+  ["--primary", "--card", 3],
+];
+
+describe.each(Object.entries(THEMES))("028/FR-020 028/SC-007 contraste dos tons novos do Histórico no tema %s", (_theme, tokens) => {
+  it.each(HISTORY_PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
+    const fg = resolve(tokens, foreground);
+    const bg = resolve(tokens, background);
+    expect(fg, foreground).toBeDefined();
+    expect(bg, background).toBeDefined();
+    expect(ratio(fg!, bg!)).toBeGreaterThanOrEqual(minimum);
+  });
+});
+
 /** The light block of `tokens.css` as written, `color-scheme` included (custom properties aside). */
 const lightBlock = (() => {
   const start = css.search(/:root\[data-theme="light"\]\s*\{/);

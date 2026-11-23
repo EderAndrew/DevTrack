@@ -22,7 +22,28 @@ export const REDACT_PATHS = [
   "*.tokenHash",
   "*.apiKey",
   "*.openrouter",
+  // 028 research HI6: the student's search; its copy in `req.url` is rewritten by `serializeRequest`.
+  "req.query.q",
 ];
+
+const SEARCH_PARAM = /(^|&)q=[^&#]*/g;
+
+/**
+ * 028 research HI6: the student's search (`GET /me/history?q=…`) travels in the query string, and pino-http logs
+ * `req.url`; the value of any `q` parameter is replaced by `[REDACTED]` (the path and the other parameters stay, for
+ * debugging). `REDACT_PATHS` can't do this: it redacts whole fields, not a part of the URL.
+ */
+export function redactSearchInUrl(url: string): string {
+  const mark = url.indexOf("?");
+  if (mark === -1) return url;
+  return url.slice(0, mark + 1) + url.slice(mark + 1).replace(SEARCH_PARAM, "$1q=[REDACTED]");
+}
+
+/** Runs after pino-http's default request serializer (`wrapSerializers`), on its plain `{ url, … }` object. */
+function serializeRequest(req: { url?: unknown }) {
+  if (typeof req.url === "string") req.url = redactSearchInUrl(req.url);
+  return req;
+}
 
 /** Accepts the caller's X-Request-Id only when it is a UUID; otherwise generates one. */
 export function requestIdFor(req: IncomingMessage, res: ServerResponse): string {
@@ -40,6 +61,7 @@ export class LoggingModule {
     const options = {
       level: config.logLevel,
       redact: { paths: REDACT_PATHS, censor: "[REDACTED]" },
+      serializers: { req: serializeRequest },
       genReqId: requestIdFor,
       quietReqLogger: false,
     };
