@@ -19,8 +19,8 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Histórico" />;
   const filters = historyFromSearch(await searchParams);
   return (
-    // A little wider than the student area's 960 px: the table has seven columns (lifts the cap, then 1152 px).
-    <section data-layout="wide" className="mx-auto w-full max-w-288">
+    // Wider than the student area's 960 px: the table has seven columns (lifts the cap, then 1280 px).
+    <section data-layout="wide" className="mx-auto w-full max-w-320">
       <PageHeader title="Histórico" description={HISTORY_DESCRIPTION} />
       <StudentHistory filters={filters} />
     </section>
