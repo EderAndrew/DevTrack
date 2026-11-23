@@ -1,7 +1,7 @@
 import type { StudentHistoryPage } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createActivity, createAttemptRow } from "../helpers/activities";
+import { closeByHand, createActivity, createAttemptRow } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
@@ -12,6 +12,8 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * (contains, case- and accent-insensitive) and narrows the list, `total` and `tabCounts`, never `totals`; `classId`
  * (an ACTIVE enrollment, the 026 check) narrows everything, `totals` too. A turma of 027 with two disciplinas of
  * different teachers, deliveries in both.
+ *
+ * 029/FR-001: only works and exams the teacher closed or cancelled are in the history, so each delivery is closed.
  */
 
 type Client = ReturnType<typeof api>;
@@ -30,7 +32,7 @@ describe("028/US3 buscar e filtrar por matéria", () => {
   const ids = {} as Record<"provaA" | "provaFinalB" | "provaAcentoA" | "trabalhoB", string>;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
-  /** A work delivered `ago` before now, released (GRADED) or not (AWAITING). */
+  /** A work delivered `ago` before now, released (GRADED) or not (AWAITING), then closed by the teacher (029/FR-001). */
   const delivered = async (schoolClass: SchoolClass, work: WorkFixture, title: string, ago: number, released: boolean) => {
     const { activity } = await createActivity(t, schoolClass, {
       type: "ASSIGNMENT",
@@ -45,6 +47,7 @@ describe("028/US3 buscar e filtrar por matéria", () => {
       startedAt: at(-ago - HOUR),
       submission: { submittedAt: at(-ago), gradeCents: 70 },
     });
+    await closeByHand(t, activity.id, at(-MINUTE));
     return activity.id;
   };
   const historyOf = async (query = "") => {
@@ -93,13 +96,13 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     ids.trabalhoB = await delivered(classB, workB, "Trabalho de banco", 4 * HOUR, true);
   });
 
-  const TOTALS = { delivered: 4, awaiting: 2, graded: 2, missed: 0 };
+  const TOTALS = { delivered: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0 };
 
   it("028/US3-1 q=prova casa sem diferenciar maiúsculas e acentos; tabCounts e total seguem a busca, totals não", async () => {
     const body = await historyOf("?q=prova");
     expect(body.items.map((item) => item.id)).toEqual([ids.provaA, ids.provaFinalB, ids.provaAcentoA]);
     expect(body.total).toBe(3);
-    expect(body.tabCounts).toEqual({ all: 3, awaiting: 2, graded: 1, missed: 0 });
+    expect(body.tabCounts).toEqual({ all: 3, awaiting: 2, graded: 1, missed: 0, cancelled: 0 });
     expect(body.totals).toEqual(TOTALS);
     expect((await historyOf("?q=PRÓVA")).items.map((item) => item.id)).toEqual(body.items.map((item) => item.id));
   });
@@ -109,12 +112,12 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     expect(trimmed.items.map((item) => item.id)).toEqual([ids.provaFinalB]);
     const blank = await historyOf(`?q=${encodeURIComponent("   ")}`);
     expect(blank.total).toBe(4);
-    expect(blank.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0 });
+    expect(blank.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0 });
   });
 
   it("028/US3-2 busca sem resultado → items vazio e total 0, os cards intactos", async () => {
     const body = await historyOf("?q=inexistente");
-    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0 } });
+    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 } });
     expect(body.totals).toEqual(TOTALS);
   });
 
@@ -123,8 +126,8 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     expect(body.items.map((item) => item.id)).toEqual([ids.provaA, ids.provaAcentoA]);
     expect(body.items.every((item) => item.class.id === classA.id)).toBe(true);
     expect(body.total).toBe(2);
-    expect(body.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0 });
-    expect(body.totals).toEqual({ delivered: 2, awaiting: 1, graded: 1, missed: 0 });
+    expect(body.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0, cancelled: 0 });
+    expect(body.totals).toEqual({ delivered: 2, awaiting: 1, graded: 1, missed: 0, cancelled: 0 });
     const onlyB = await historyOf(`?classId=${classB.id}`);
     expect(onlyB.items.map((item) => item.id)).toEqual([ids.provaFinalB, ids.trabalhoB]);
   });
@@ -137,8 +140,8 @@ describe("028/US3 buscar e filtrar por matéria", () => {
     const awaiting = await allPages({ tab: "AWAITING", q: "prova", classId: classB.id });
     expect(awaiting.flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.provaFinalB]);
     for (const page of [...pages, ...awaiting]) {
-      expect(page.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0 });
-      expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 0 });
+      expect(page.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 1, missed: 0, cancelled: 0 });
+      expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 0, cancelled: 0 });
     }
     const allA = await allPages({ q: "prova", classId: classA.id });
     expect(allA.flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.provaA, ids.provaAcentoA]);

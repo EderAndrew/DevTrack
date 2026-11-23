@@ -46,12 +46,12 @@ description: "Task list for 029 — Histórico só com provas e trabalhos encerr
 
 **Purpose**: a 029 entra na guarda de rastreabilidade e a 028 aponta para ela.
 
-- [ ] T001 Incluir a 029 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 028:
+- [X] T001 Incluir a 029 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 028:
       `feature: "029"`, `path: "specs/029-history-closed-only/spec.md"`, `stories: 3`, `scenarios: 18` (6 + 6 + 6),
       `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e `pending: { stories: [1, 2, 3], successCriteria:
       ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006"] }`, com o comentário de que cada história sai do
       `pending` na tarefa que escreve o seu último teste.
-- [ ] T002 [P] Em `specs/028-student-history-redesign/spec.md`, logo abaixo do título "#### Emenda 2026-11-23: concluídas
+- [X] T002 [P] Em `specs/028-student-history-redesign/spec.md`, logo abaixo do título "#### Emenda 2026-11-23: concluídas
       só no Histórico" e no início da "User Story 5", acrescentar a nota: "> Substituída pela 029 em 2026-11-23
       (`specs/029-history-closed-only/`): o Histórico tem só provas e trabalhos encerrados ou cancelados pelo professor;
       FR-022–FR-025 e US5 passam a valer como 029/FR-001–FR-009." Sem mudar os ids nem os cenários (HC8).
@@ -66,12 +66,12 @@ description: "Task list for 029 — Histórico só com provas e trabalhos encerr
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Em `packages/contracts/test/activities.spec.ts`, testes `029/FR-003` e `029/FR-008`:
+- [X] T003 [P] Em `packages/contracts/test/activities.spec.ts`, testes `029/FR-003` e `029/FR-008`:
       `StudentHistoryQuerySchema` aceita `tab: "CANCELLED"`; `StudentActivityListQuerySchema` aceita de novo
       `status: "COMPLETED"` (trocar a asserção da 028 que esperava a recusa, com o comentário `// 029/FR-008`);
       `StudentHistoryItemSchema` recusa `GRADED` sem `deliveredAt`, `MISSED` com `deliveredAt`, `CANCELLED` com `result`
       ou `points`, e exige `endedAt`; `StudentHistoryPageSchema` exige `tabCounts.cancelled` e `totals.cancelled`.
-- [ ] T004 [P] Criar `apps/api/test/unit/029-placement.spec.ts` (`029/FR-001`, `029/FR-002`, `029/FR-006`) sobre as
+- [X] T004 [P] Criar `apps/api/test/unit/029-placement.spec.ts` (`029/FR-001`, `029/FR-002`, `029/FR-006`) sobre as
       funções puras de `student-activities/history.ts`: `inHistory`/`inList` para cada tipo × status (ACTIVE, CLOSED,
       CANCELLED) — uma e só uma é verdadeira; `historySituation` de uma linha CLOSED entregue (AWAITING/GRADED pela
       regra da 028), CLOSED com prova retida sem entrega (AWAITING), CLOSED sem entrega (MISSED), CANCELLED com e sem
@@ -81,23 +81,23 @@ description: "Task list for 029 — Histórico só com provas e trabalhos encerr
 
 ### Implementation for Foundational
 
-- [ ] T005 Contratos em `packages/contracts/src/activities/enums.ts` e `student.ts` (contracts/http-api.md):
+- [X] T005 Contratos em `packages/contracts/src/activities/enums.ts` e `student.ts` (contracts/http-api.md):
       `StudentHistorySituationSchema` += `"CANCELLED"`; `StudentActivityFilterSchema` += `"COMPLETED"` (comentário da 012
       de volta: SUBMITTED + GRADED + COMPLETED); `StudentHistoryItemSchema`: `missedAt` → `endedAt` (não nulo), refine com
       as invariantes do contrato; `tabCounts`/`totals` += `cancelled`. `pnpm --filter @repo/contracts build`.
-- [ ] T006 `apps/api/src/modules/activities/views/student-view.ts`: `StudentActivityInput` += `cancelledAt: Date | null`;
+- [X] T006 `apps/api/src/modules/activities/views/student-view.ts`: `StudentActivityInput` += `cancelledAt: Date | null`;
       nova `toCancelledSummary(input)` que chama `toStudentSummary` e fixa `result: null`, `points: null`,
       `canAnswer: false`, `urgent: false` e `status` = `SUBMITTED` com entrega, senão `OVERDUE` (HC3), com o comentário
       de por que o `status` não é mostrado. Atualizar o construtor de teste em `views.spec.ts`.
-- [ ] T007 `apps/api/src/modules/student-activities/student-activity-loader.ts`: selecionar `cancelledAt`; novo
+- [X] T007 `apps/api/src/modules/student-activities/student-activity-loader.ts`: selecionar `cancelledAt`; novo
       `loadCancelled(userId, now, classId?)` (HC2) com `status: "CANCELLED"`, `type: { in: ["ASSIGNMENT", "EXAM"] }`,
       `publishAt ≤ now` e `publishAt ≤ cancelledAt` (filtro em memória se o Prisma não comparar colunas), a mesma
       matrícula ACTIVE e a mesma cláusula de liberação 016 de `visibleTo`, o mesmo `select`/`toInput` de `loadAll` e
       sempre `canSeeResults = false`. `visibleTo` NÃO muda.
-- [ ] T008 `apps/api/src/modules/student-activities/history.ts`: `inHistory`, `inList`, `historySituation` estendida
+- [X] T008 `apps/api/src/modules/student-activities/history.ts`: `inHistory`, `inList`, `historySituation` estendida
       (MISSED e CANCELLED, prova retida como AWAITING), `endedAt(input)` e `rowDate`; remover `isMissed`, `missedAt` e
       `MissedInput` (e o campo `inactiveSince` do loader e de `StudentActivityInput`, se mais nada o usar). T004 verde.
-- [ ] T009 Adaptar as fixtures da 028 à regra nova (HC8): em `apps/api/test/integration/028-history-route.spec.ts`,
+- [X] T009 Adaptar as fixtures da 028 à regra nova (HC8): em `apps/api/test/integration/028-history-route.spec.ts`,
       `028-us1-history.spec.ts`, `028-us2-tabs.spec.ts`, `028-us3-search-class.spec.ts`,
       `apps/api/test/security/028-history-isolation.spec.ts` e `028-sc004-performance.spec.ts` (este com as 500
       atividades criadas `status: "CLOSED"`, `closedAt`), encerrar as atividades que devem estar no Histórico e trocar

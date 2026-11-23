@@ -1,7 +1,7 @@
 import { type StudentHistoryPage, StudentHistoryItemSchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createActivity, createAttemptRow, createClassWithStudents } from "../helpers/activities";
+import { closeByHand, createActivity, createAttemptRow, createClassWithStudents } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { createClass, createEnrollment, loginAs, createUser, type TestUser } from "../helpers/factories";
 import { captureLogs, type LogCapture } from "../helpers/log-capture";
@@ -17,6 +17,9 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * Part 1 (T018). Part 2 (T022, US3), below, adds the `classId`, the validation and the log redaction.
  *
  * The clock starts at the real time, as 018's suites: the exam triggers compare with the database clock.
+ *
+ * 029/FR-001: only works and exams the teacher closed or cancelled are in the history, so every delivery here is
+ * closed (`closeByHand`) once written.
  */
 
 type Client = ReturnType<typeof api>;
@@ -126,6 +129,7 @@ describe("028/US4 nada de nota antes da liberação", () => {
     ids.partial = partial.activity.id;
     ids.exam = exam.activity.id;
     ids.released = released.activity.id;
+    for (const id of Object.values(ids)) await closeByHand(t, id, at(-30 * MINUTE));
   });
 
   it("028/US4-1 notas lançadas sem liberação: AWAITING, result nulo e nenhuma nota ou feedback no corpo, em toda aba", async () => {
@@ -144,7 +148,7 @@ describe("028/US4 nada de nota antes da liberação", () => {
   it("028/US4-2 liberada com correção incompleta: AWAITING e sem nota", async () => {
     const body = await historyOf(client);
     expect(body.items.find((entry) => entry.id === ids.partial)).toMatchObject({ situation: "AWAITING", result: null });
-    expect(body.totals).toEqual({ delivered: 4, awaiting: 3, graded: 1, missed: 0 });
+    expect(body.totals).toEqual({ delivered: 4, awaiting: 3, graded: 1, missed: 0, cancelled: 0 });
     expect((await historyOf(client, "?tab=GRADED")).items.map((item) => item.id)).toEqual([ids.released]);
   });
 
@@ -183,12 +187,17 @@ describe("028/US4 nada de nota antes da liberação", () => {
       startedAt: at(-2 * HOUR),
       submission: { submittedAt: at(-HOUR), gradeCents: 64 },
     });
+    await closeByHand(t, own.activity.id, at(-MINUTE));
     const body = await historyOf(client);
-    expect(body.items.map((item) => item.id)).not.toContain(own.activity.id);
+    // 029/FR-002: the closed work is a MISSED row of the student, never with the classmate's delivery or grade.
+    expect(body.items.find((item) => item.id === own.activity.id)).toMatchObject({ situation: "MISSED", deliveredAt: null, submittedAt: null, result: null });
+    expect(JSON.stringify(body)).not.toContain("0.64");
     expect(body.totals.delivered).toBe(4);
     const classmateBody = await historyOf(api(t, { cookie: await loginAs(t, classmate) }));
-    expect(classmateBody.items.map((item) => item.id)).toEqual([own.activity.id]);
-    expect(JSON.stringify(classmateBody)).not.toMatch(/Trabalho corrigido|Prova sem liberação|Trabalho liberado/);
+    // 029/FR-002: the classmate's only delivery; the student's closed works are MISSED rows of theirs, with none of the
+    // student's grades or feedback (the exam takes attendance and they weren't marked present).
+    expect(classmateBody.items.filter((item) => item.situation !== "MISSED").map((item) => item.id)).toEqual([own.activity.id]);
+    expect(JSON.stringify(classmateBody)).not.toMatch(/Prova sem liberação|0\.73|0\.41|0\.88|FEEDBACK-/);
   });
 
   it("028/US4 016: um aluno não marcado presente não tem o trabalho no histórico", async () => {
@@ -198,6 +207,7 @@ describe("028/US4 nada de nota antes da liberação", () => {
       startedAt: at(-2 * HOUR),
       submission: { submittedAt: at(-HOUR) },
     });
+    await closeByHand(t, gated.activity.id, at(-MINUTE));
     const body = await historyOf(client);
     expect(body.items.map((item) => item.id)).not.toContain(gated.activity.id);
     expect(JSON.stringify(body)).not.toContain("Trabalho com chamada");
@@ -237,6 +247,8 @@ describe("028/US3 matéria e busca: isolamento, validação e logs", () => {
       sourceSubjectId: work.subjectId,
     });
     await createAttemptRow(t, activity.id, studentId, { startedAt: at(-2 * HOUR), submission: { submittedAt: at(-HOUR) } });
+    // 029/FR-001: closed, so in the history.
+    await closeByHand(t, activity.id, at(-MINUTE));
   };
 
   beforeAll(async () => {

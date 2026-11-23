@@ -158,10 +158,11 @@ describe("028/US5 concluídas só no Histórico", () => {
     expect(missed.map((item) => item.id)).toEqual([ids.encerrada, ids.arquivada, ids.atrasadaRejeitada]);
     for (const item of missed) {
       expect(item).toMatchObject({ situation: "MISSED", deliveredAt: null, result: null });
-      expect(item.missedAt).not.toBeNull();
+      // 029/FR-006: `missedAt` became `endedAt`; this suite is rewritten by the 029 rule in T020.
+      expect(item.endedAt).not.toBeNull();
     }
-    expect(missed.find((item) => item.id === ids.atrasadaRejeitada)!.missedAt).toBe(at(-DAY).toISOString());
-    expect(missed.find((item) => item.id === ids.arquivada)!.missedAt).toBe(archivedAt.toISOString());
+    expect(missed.find((item) => item.id === ids.atrasadaRejeitada)!.endedAt).toBe(at(-DAY).toISOString());
+    expect(missed.find((item) => item.id === ids.arquivada)!.endedAt).toBe(archivedAt.toISOString());
     for (const page of pages) {
       expect(page.tabCounts).toEqual({ all: 6, awaiting: 1, graded: 2, missed: 3 });
       expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 3 });

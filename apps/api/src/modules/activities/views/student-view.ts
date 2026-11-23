@@ -85,11 +85,9 @@ export interface StudentActivityInput {
   facts: ActivityFacts;
   /** The session holds `notas.proprias.visualizar`. */
   canSeeResults: boolean;
-  /** 028 research HI4: EXERCISE only, when attempt 1 was concluded (the "Histórico" delivery date); never in a view. */
-  firstCompletedAt: Date | null;
-  /** 028 amendment (HI11): when the activity was closed, and since when its class or turma isn't ACTIVE; never in a view. */
+  /** 029 research HC4: when the teacher closed or cancelled the activity (the "Histórico" `endedAt`); never in a view. */
   closedAt: Date | null;
-  inactiveSince: Date | null;
+  cancelledAt: Date | null;
   submission: {
     submittedAt: Date;
     late: boolean;
@@ -214,6 +212,23 @@ export function toStudentSummary(input: StudentActivityInput): StudentActivitySu
     points: input.points && { ...input.points },
     // 023/US3-3: "Em grupo" in the list; an individual work's summary has no such key (SC-007).
     ...(input.groupSize !== null ? { groupSize: input.groupSize } : {}),
+  };
+}
+
+/**
+ * The summary of a work or exam the teacher cancelled, for the "Histórico" only (029 research HC3): the same allowlist,
+ * then no result or points whatever was released (the loader also loads it with `canSeeResults = false`), nothing to
+ * answer and nothing urgent. The summary's `status` is required by the contract but never shown for a cancelled row (the
+ * web shows the history's `situation`): SUBMITTED with a delivery, else OVERDUE.
+ */
+export function toCancelledSummary(input: StudentActivityInput): StudentActivitySummary {
+  return {
+    ...toStudentSummary(input),
+    status: input.submission !== null ? "SUBMITTED" : "OVERDUE",
+    canAnswer: false,
+    urgent: false,
+    result: null,
+    points: null,
   };
 }
 

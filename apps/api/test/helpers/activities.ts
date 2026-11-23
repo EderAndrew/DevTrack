@@ -413,6 +413,19 @@ export interface SubmissionRowOptions {
 }
 
 /**
+ * 029: the teacher closes (CLOSED, `closedAt`) or cancels (CANCELLED, `cancelledAt`) an activity, straight in the
+ * database — after its attempts are written, as the 029 "Histórico" suites need (only closed or cancelled works and
+ * exams are there). `at` is the moment of the act (the row's `endedAt`).
+ */
+export async function closeByHand(t: TestApp, activityId: string, at: Date): Promise<void> {
+  await t.prisma.classActivity.update({ where: { id: activityId }, data: { status: "CLOSED", closedAt: at } });
+}
+
+export async function cancelByHand(t: TestApp, activityId: string, at: Date): Promise<void> {
+  await t.prisma.classActivity.update({ where: { id: activityId }, data: { status: "CANCELLED", cancelledAt: at } });
+}
+
+/**
  * An attempt of `studentUserId` written straight to the database (012 US2, T026): IN_PROGRESS, or
  * SUBMITTED with its submission when `submission` is given (ASSIGNMENT). An EXERCISE attempt takes
  * its `number` and, concluded, `completedAt` instead of a submission (013 K3); the numbering trigger

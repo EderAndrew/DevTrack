@@ -55,8 +55,8 @@ export function historyStatusLabel(item: Pick<StudentHistoryItem, "type" | "situ
 export const historyStatusVariant = (item: Pick<StudentHistoryItem, "type" | "situation">): StatusVariant =>
   item.situation === "MISSED" ? "neutral" : item.type !== "EXERCISE" && item.situation === "AWAITING" ? "warning" : "success";
 
-/** The row's date: the delivery, or when a missed activity stopped accepting one (028 HI11); exactly one is set. */
-export const historyDate = (item: Pick<StudentHistoryItem, "deliveredAt" | "missedAt">): string => item.deliveredAt ?? item.missedAt ?? "";
+/** The row's date (029/FR-006): the delivery when there is one, else when the teacher closed or cancelled it. */
+export const historyDate = (item: Pick<StudentHistoryItem, "deliveredAt" | "endedAt">): string => item.deliveredAt ?? item.endedAt;
 
 /** An exercise's points (013, never a grade): "45 de 60 pontos", or "Pontos aguardando correção". */
 export function historyPoints(points: NonNullable<StudentHistoryItem["points"]>): string {

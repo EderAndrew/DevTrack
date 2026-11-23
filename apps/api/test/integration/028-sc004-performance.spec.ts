@@ -13,6 +13,9 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * The activities, questions, alternatives, attempts and submissions go in by batch (`createMany`) in one transaction
  * per kind, so the deferred snapshot triggers check them at commit as the routes would. The time is the route's, in
  * the test process (no network), so it is an upper bound of the server's share of the 2 s.
+ *
+ * 029/SC-004: the same bound with the 029 rule — the 500 works are closed by the teacher (`status: "CLOSED"`,
+ * `closedAt`) after their attempts are written, since only closed or cancelled works and exams are in the history.
  */
 
 const DELIVERIES = 500;
@@ -33,7 +36,7 @@ describe("028/SC-004 desempenho do Histórico com 500 entregas", () => {
   let student: TestUser;
   let client: ReturnType<typeof api>;
 
-  /** `count` delivered works of `schoolClass`, every other one released; titles "Prova N" or "Trabalho N". */
+  /** `count` delivered and closed works of `schoolClass`, every other one released; titles "Prova N" or "Trabalho N". */
   const seed = async (schoolClass: SchoolClass, work: WorkFixture, count: number, offset: number) => {
     const now = clock.now().getTime();
     const activities = Array.from({ length: count }, (_, index) => ({
@@ -78,6 +81,10 @@ describe("028/SC-004 desempenho do Histórico com 500 entregas", () => {
         submission: { submittedAt, gradeCents: 70 },
       });
     }
+    await t.prisma.classActivity.updateMany({
+      where: { id: { in: activities.map((activity) => activity.id) } },
+      data: { status: "CLOSED", closedAt: new Date(now - MINUTE) },
+    });
   };
 
   beforeAll(async () => {
@@ -106,9 +113,9 @@ describe("028/SC-004 desempenho do Histórico com 500 entregas", () => {
     return { body: res.body as StudentHistoryPage, ms };
   };
 
-  it("028/SC-004 sem filtro, por aba, por busca, por matéria e combinados: cada resposta em menos de 2 s", async () => {
+  it("028/SC-004 029/SC-004 sem filtro, por aba, por busca, por matéria e combinados: cada resposta em menos de 2 s", async () => {
     const first = await history("");
-    expect(first.body.totals).toEqual({ delivered: DELIVERIES, awaiting: DELIVERIES / 2, graded: DELIVERIES / 2, missed: 0 });
+    expect(first.body.totals).toEqual({ delivered: DELIVERIES, awaiting: DELIVERIES / 2, graded: DELIVERIES / 2, missed: 0, cancelled: 0 });
     expect(first.ms).toBeLessThan(LIMIT_MS);
 
     const cases = [

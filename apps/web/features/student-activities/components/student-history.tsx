@@ -78,8 +78,8 @@ function HistoryTabList({ counts }: { counts: StudentHistoryPage["tabCounts"] })
 }
 
 interface SummaryCardSpec {
-  /** The cards are the deliveries; `totals.missed` is never a card (028 HI12). */
-  key: Exclude<keyof StudentHistoryPage["totals"], "missed">;
+  /** The cards are the deliveries; `totals.missed` and `totals.cancelled` are never a card (028 HI12, 029 HC7). */
+  key: Exclude<keyof StudentHistoryPage["totals"], "missed" | "cancelled">;
   icon: LucideIcon;
   tone: string;
   captionTone: string;

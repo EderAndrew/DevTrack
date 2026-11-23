@@ -2,7 +2,7 @@ import { StudentActivitySchema, StudentActivitySummarySchema, TeacherQuestionSch
 import { describe, expect, it } from "vitest";
 import type { AssignmentFacts } from "../status/facts";
 import type { ActivityQuestionRow } from "./rows";
-import { type StudentActivityDetailInput, summaryOf, toStudentActivity, toStudentSummary } from "./student-view";
+import { type StudentActivityDetailInput, summaryOf, toCancelledSummary, toStudentActivity, toStudentSummary } from "./student-view";
 import { toTeacherQuestion } from "./teacher-view";
 
 /** Planted in every answer-key field: none may reach a student (012/SC-003). */
@@ -99,9 +99,8 @@ const input = (overrides: Partial<StudentActivityDetailInput> = {}): StudentActi
   points: null,
   facts: facts(),
   canSeeResults: true,
-  firstCompletedAt: null,
   closedAt: null,
-  inactiveSince: null,
+  cancelledAt: null,
   questions: QUESTIONS,
   attempt: { number: 1, startedAt: new Date("2026-10-02T12:00:00.000Z"), lastSavedAt: null, answers: [] },
   completedAttempts: [],
@@ -178,6 +177,18 @@ describe("012/FR-030 012/FR-032 visão do aluno por lista fechada (research P15)
     });
     expect(toStudentSummary(released).result).toEqual({ grade: "0.70", hasFeedback: true });
     expect(toStudentActivity({ ...released, canSeeResults: false }).result).toBeNull();
+  });
+
+  it("029/FR-005 a cancelada sai sem resultado nem pontos, mesmo liberada e completa; nada a responder", () => {
+    const cancelled = input({
+      facts: facts({ activityStatus: "CANCELLED", released: true }),
+      cancelledAt: new Date("2026-10-09T12:00:00.000Z"),
+    });
+    const summary = toCancelledSummary(cancelled);
+    expect(summary).toMatchObject({ status: "SUBMITTED", result: null, points: null, canAnswer: false, urgent: false });
+    expect(toCancelledSummary({ ...cancelled, submission: null }).status).toBe("OVERDUE");
+    expect(serialized(summary)).not.toContain("Bom trabalho");
+    expect(StudentActivitySummarySchema.safeParse(summary).success).toBe(true);
   });
 
   it("as visões respeitam os contratos estritos (um campo a mais quebraria o parse)", () => {

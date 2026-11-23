@@ -1,7 +1,7 @@
 import type { StudentHistoryPage } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createActivity, createAttemptRow, createClassWithStudents } from "../helpers/activities";
+import { closeByHand, createActivity, createAttemptRow, createClassWithStudents } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { loginAs, createUser, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
@@ -12,6 +12,9 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * `tabCounts` and `totals` stay those of every delivery. AWAITING = a work or exam without a visible result and an
  * exercise with points awaiting the teacher; GRADED = a released work with complete grading and an exercise with
  * nothing pending.
+ *
+ * 029/FR-001: only works and exams the teacher closed or cancelled are in the history, so the works and the exam are
+ * closed (`closeByHand`); the two exercises stay in "Minhas atividades" and are in no tab.
  */
 
 type Client = ReturnType<typeof api>;
@@ -123,7 +126,7 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
         nature: null,
       },
     });
-    awaitingIds.push(pendingExercise.activity.id);
+    // 029/FR-001: never in the history, so in no tab.
 
     // GRADED: trabalho liberado com correção completa.
     const released = await assignment("Trabalho corrigido", { resultReleasedAt: at(-HOUR) });
@@ -136,17 +139,20 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
     // GRADED: exercício concluído sem nada esperando o professor.
     const exercise = await createActivity(t, schoolClass, { type: "EXERCISE", title: "Lista de exercícios", publishAt: at(-DAY) });
     await createAttemptRow(t, exercise.activity.id, student.id, { startedAt: at(-6 * HOUR), completedAt: at(-5 * HOUR) });
-    gradedIds.push(exercise.activity.id);
+    // 029/FR-001: never in the history, so in no tab.
+
+    for (const id of [...awaitingIds, ...gradedIds]) await closeByHand(t, id, at(-30 * MINUTE));
   });
 
-  const COUNTS = { all: 5, awaiting: 3, graded: 2, missed: 0 };
-  const TOTALS = { delivered: 5, awaiting: 3, graded: 2, missed: 0 };
+  // 029/FR-001: without the two exercises; `cancelled` joins the counts (029/FR-003).
+  const COUNTS = { all: 3, awaiting: 2, graded: 1, missed: 0, cancelled: 0 };
+  const TOTALS = { delivered: 3, awaiting: 2, graded: 1, missed: 0, cancelled: 0 };
 
   it("028/US2-1 sem tab: as três contagens e o total igual a tabCounts.all", async () => {
     const body = await historyOf(client);
     expect(body.tabCounts).toEqual(COUNTS);
     expect(body.total).toBe(body.tabCounts.all);
-    expect(body.items).toHaveLength(5);
+    expect(body.items).toHaveLength(3);
   });
 
   it("028/US2-2 028/FR-007 tab=AWAITING: só as que esperam o professor, em todas as páginas, com os totais intactos", async () => {
@@ -167,7 +173,7 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
     expect(items.every((item) => item.situation === "GRADED")).toBe(true);
     expect(items.map((item) => item.id).sort()).toEqual([...gradedIds].sort());
     for (const page of pages) {
-      expect(page.total).toBe(2);
+      expect(page.total).toBe(1);
       expect(page.totals).toEqual(TOTALS);
     }
   });
@@ -178,8 +184,11 @@ describe("028/US2 abas Todas, Aguardando e Corrigidas", () => {
       startedAt: at(-2 * HOUR),
       submission: { submittedAt: at(-HOUR) },
     });
+    await closeByHand(t, unreleased.activity.id, at(-MINUTE));
     const body = await historyOf(api(t, { cookie: await loginAs(t, classmate) }), "?tab=GRADED");
-    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 1, awaiting: 1, graded: 0, missed: 0 } });
+    // 029/FR-002: the two closed works of the class the classmate didn't deliver are MISSED rows of theirs (the exam
+    // takes attendance and they weren't marked present).
+    expect(body).toMatchObject({ items: [], nextCursor: null, total: 0, tabCounts: { all: 3, awaiting: 1, graded: 0, missed: 2, cancelled: 0 } });
   });
 
   it("028/US2 tab desconhecida → 400", async () => {

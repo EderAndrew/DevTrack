@@ -193,6 +193,8 @@ nenhuma resposta do servidor nem na tela.
 
 ### User Story 5 - Concluídas só no Histórico (Priority: P1) *(emenda 2026-11-23)*
 
+> Substituída pela 029 em 2026-11-23 (`specs/029-history-closed-only/`): o Histórico tem só provas e trabalhos encerrados ou cancelados pelo professor; FR-022–FR-025 e US5 passam a valer como 029/FR-001–FR-009.
+
 O aluno abre "Minhas atividades" e vê só o que ainda pode fazer. O que ele entregou e o que não entregou mas não pode
 mais entregar ficam no Histórico, este na aba "Não entregues", e o Painel leva ao Histórico pelo card "Concluídas".
 
@@ -319,6 +321,8 @@ Histórico e conferir onde cada uma aparece e as contagens.
   ser criados.
 
 #### Emenda 2026-11-23: concluídas só no Histórico
+
+> Substituída pela 029 em 2026-11-23 (`specs/029-history-closed-only/`): o Histórico tem só provas e trabalhos encerrados ou cancelados pelo professor; FR-022–FR-025 e US5 passam a valer como 029/FR-001–FR-009.
 
 - **FR-022**: Uma atividade MUST ser **não entregue** quando, sem entrega do aluno (trabalho ou prova sem entrega,
   exercício sem a primeira conclusão), o aluno não pode mais começá-la nem continuá-la: a atividade encerrada pelo

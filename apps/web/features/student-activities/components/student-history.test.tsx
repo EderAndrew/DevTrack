@@ -32,7 +32,8 @@ const FRIDAY = new Date(2026, 10, 13, 16, 47).toISOString();
 const entry = (overrides: Partial<StudentHistoryItem> = {}): StudentHistoryItem => ({
   ...summary({ status: "SUBMITTED", canAnswer: false, submittedAt: FRIDAY }),
   deliveredAt: FRIDAY,
-  missedAt: null,
+  // 029/FR-006: `missedAt` became `endedAt` (the close), always set.
+  endedAt: FRIDAY,
   situation: "AWAITING",
   ...overrides,
 });
@@ -51,8 +52,8 @@ const page = (
   items,
   nextCursor: null,
   total: items.length,
-  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, ...tabCounts },
-  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, ...totals },
+  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0, ...tabCounts },
+  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0, ...totals },
   ...extra,
 });
 
@@ -485,7 +486,7 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
     late: false,
     submittedAt: null,
     deliveredAt: null,
-    missedAt: TUESDAY,
+    endedAt: TUESDAY,
     situation: "MISSED",
     totalGrade: "2.00",
   });

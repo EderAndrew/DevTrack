@@ -249,30 +249,46 @@ export const StudentHistoryQuerySchema = z.strictObject({
 export type StudentHistoryQuery = z.infer<typeof StudentHistoryQuerySchema>;
 
 /**
- * One row of the "Histórico": the 012 summary plus its situation (HI3) and its date — `deliveredAt` for a delivery (HI4),
- * `missedAt` for one the student can no longer deliver (`MISSED`, amendment 2026-11-23, HI11); exactly one is set.
+ * One row of the "Histórico" (029 research HC4): a work or exam the teacher closed or cancelled — the 012 summary plus its
+ * situation, `deliveredAt` (the submission; null without one) and `endedAt` (when it was closed or cancelled). GRADED
+ * needs a delivery, MISSED has none, a CANCELLED row carries no result or points (HC3), and no row is an EXERCISE.
  */
 export const StudentHistoryItemSchema = StudentActivitySummarySchema.extend({
   deliveredAt: IsoDateTimeSchema.nullable(),
-  missedAt: IsoDateTimeSchema.nullable(),
+  endedAt: IsoDateTimeSchema,
   situation: StudentHistorySituationSchema,
-}).refine((item) => (item.situation === "MISSED") === (item.deliveredAt === null) && (item.deliveredAt === null) !== (item.missedAt === null), "HISTORY_DATE");
+})
+  .refine((item) => item.type !== "EXERCISE", "HISTORY_TYPE")
+  .refine((item) => (item.situation !== "GRADED" || item.deliveredAt !== null) && (item.situation !== "MISSED" || item.deliveredAt === null), "HISTORY_DATE")
+  .refine((item) => item.situation !== "CANCELLED" || (item.result === null && item.points === null), "HISTORY_CANCELLED");
 export type StudentHistoryItem = z.infer<typeof StudentHistoryItemSchema>;
 
 const HistoryCountSchema = z.int().min(0);
 
 /**
  * `total` counts `classId` + `q` + `tab`; `tabCounts` `classId` + `q`; `totals` (the cards) `classId` only.
- * Newest delivery first (`deliveredAt` desc, `id` asc).
+ * Newest first by the row's date (`deliveredAt ?? endedAt` desc, `id` asc; 029 HC4).
  */
 export const StudentHistoryPageSchema = z.strictObject({
   items: z.array(StudentHistoryItemSchema),
   nextCursor: z.string().nullable(),
   total: HistoryCountSchema,
-  /** `all` = awaiting + graded + missed (HI12). */
-  tabCounts: z.strictObject({ all: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
-  /** The cards: `delivered` = awaiting + graded; `missed` is never added to them (HI12). */
-  totals: z.strictObject({ delivered: HistoryCountSchema, awaiting: HistoryCountSchema, graded: HistoryCountSchema, missed: HistoryCountSchema }),
+  /** `all` = awaiting + graded + missed + cancelled (029 HC7). */
+  tabCounts: z.strictObject({
+    all: HistoryCountSchema,
+    awaiting: HistoryCountSchema,
+    graded: HistoryCountSchema,
+    missed: HistoryCountSchema,
+    cancelled: HistoryCountSchema,
+  }),
+  /** The cards: `delivered` = awaiting + graded; `missed` and `cancelled` are never added to them (029 HC7). */
+  totals: z.strictObject({
+    delivered: HistoryCountSchema,
+    awaiting: HistoryCountSchema,
+    graded: HistoryCountSchema,
+    missed: HistoryCountSchema,
+    cancelled: HistoryCountSchema,
+  }),
 });
 export type StudentHistoryPage = z.infer<typeof StudentHistoryPageSchema>;
 

@@ -44,6 +44,9 @@ import {
   StartAttemptRequestSchema,
   StudentExamEndReasonSchema,
   StudentExamSchema,
+  StudentHistoryItemSchema,
+  StudentHistoryPageSchema,
+  StudentHistoryQuerySchema,
 } from "../src/index.js";
 
 describe("012 enums das atividades da turma e do portal do aluno", () => {
@@ -57,8 +60,8 @@ describe("012 enums das atividades da turma e do portal do aluno", () => {
     expect(LatePolicySchema.options).toEqual(["REJECT", "ACCEPT_MARKED"]);
     // 013 adds COMPLETED to both statuses (an EXERCISE with a concluded attempt).
     expect(StudentActivityStatusSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "SUBMITTED", "GRADED", "COMPLETED"]);
-    // 028/FR-023 (amendment 2026-11-23): no COMPLETED filter; the deliveries live in the "Histórico".
-    expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE"]);
+    // 029/FR-008: the "Entregues/concluídas" filter is back (028's amendment had removed it).
+    expect(StudentActivityFilterSchema.options).toEqual(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
     // 016 adds ABSENT (a PRESENT_ONLY work, not marked present and without an attempt).
     // 018 adds the exam's ends, the open hold and the closed start.
     expect(RosterStatusSchema.options).toEqual([
@@ -457,8 +460,8 @@ describe("012 contratos do aluno (contracts/http-api.md)", () => {
 
   it("filtros da lista: situação, tipo, cursor e página de até 50", () => {
     expect(accepts(StudentActivityListQuerySchema, { status: "OVERDUE", type: "ASSIGNMENT", pageSize: "20" })).toBe(true);
-    // 028/FR-023 (amendment 2026-11-23): the "Entregues/concluídas" filter is gone.
-    expect(accepts(StudentActivityListQuerySchema, { status: "COMPLETED" })).toBe(false);
+    // 029/FR-008: the "Entregues/concluídas" filter is back (028's amendment had removed it).
+    expect(accepts(StudentActivityListQuerySchema, { status: "COMPLETED" })).toBe(true);
     expect(accepts(StudentActivityListQuerySchema, { status: "GRADED" })).toBe(false);
     expect(accepts(StudentActivityListQuerySchema, { pageSize: "51" })).toBe(false);
     expect(accepts(StudentActivityListQuerySchema, { studentUserId: uuid(1) })).toBe(false);
@@ -844,5 +847,79 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
     // With a hold open, no statement and no answer reach the student.
     expect(accepts(StudentActivitySchema, { ...detail.data!, questions: [question] })).toBe(false);
     expect(accepts(StudentActivitySchema, { ...detail.data!, questions: [question], exam: { ...studentExam, hold: null } })).toBe(true);
+  });
+});
+
+describe("029 contratos do Histórico (contracts/http-api.md)", () => {
+  const row = {
+    id: uuid(1),
+    type: "ASSIGNMENT",
+    executionMode: "NORMAL",
+    aiHelp: { allowance: 0 },
+    title: "Trabalho",
+    summary: "",
+    class: { id: uuid(2), name: "Turma A" },
+    subjectName: null,
+    teacherName: "Prof",
+    publishedAt: "2026-10-01T00:00:00.000Z",
+    deadline: "2026-10-08T00:00:00.000Z",
+    latePolicy: "REJECT",
+    status: "SUBMITTED",
+    late: false,
+    canAnswer: false,
+    urgent: false,
+    submittedAt: "2026-10-05T00:00:00.000Z",
+    totalGrade: "10.00",
+    result: null,
+    points: null,
+    situation: "AWAITING",
+    deliveredAt: "2026-10-05T00:00:00.000Z",
+    endedAt: "2026-10-09T00:00:00.000Z",
+  };
+  const counts = { all: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 };
+  const totals = { delivered: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 };
+
+  it("029/FR-003 a aba \"Canceladas\" existe na consulta do Histórico", () => {
+    expect(accepts(StudentHistoryQuerySchema, { tab: "CANCELLED" })).toBe(true);
+    expect(accepts(StudentHistoryQuerySchema, { tab: "CANCELADA" })).toBe(false);
+  });
+
+  it("029/FR-008 \"Minhas atividades\" aceita de novo o filtro COMPLETED", () => {
+    expect(accepts(StudentActivityListQuerySchema, { status: "COMPLETED" })).toBe(true);
+  });
+
+  it("029/FR-002 029/FR-006 a linha tem situação e data coerentes, sempre com endedAt", () => {
+    expect(accepts(StudentHistoryItemSchema, row)).toBe(true);
+    expect(accepts(StudentHistoryItemSchema, { ...row, situation: "GRADED", result: { grade: "8.00", hasFeedback: false } })).toBe(true);
+    expect(accepts(StudentHistoryItemSchema, { ...row, situation: "GRADED", deliveredAt: null })).toBe(false);
+    expect(accepts(StudentHistoryItemSchema, { ...row, situation: "MISSED", deliveredAt: null, submittedAt: null })).toBe(true);
+    expect(accepts(StudentHistoryItemSchema, { ...row, situation: "MISSED" })).toBe(false);
+    // A held CLOSED exam: AWAITING without a delivery (029/FR-004).
+    expect(accepts(StudentHistoryItemSchema, { ...row, type: "EXAM", deliveredAt: null, submittedAt: null })).toBe(true);
+    const { endedAt: _endedAt, ...withoutEnd } = row;
+    expect(accepts(StudentHistoryItemSchema, withoutEnd)).toBe(false);
+    expect(accepts(StudentHistoryItemSchema, { ...row, endedAt: null })).toBe(false);
+    // 028's `missedAt` is gone.
+    expect(accepts(StudentHistoryItemSchema, { ...row, missedAt: null })).toBe(false);
+  });
+
+  it("029/FR-005 uma linha cancelada não leva resultado nem pontos", () => {
+    const cancelled = { ...row, situation: "CANCELLED" };
+    expect(accepts(StudentHistoryItemSchema, cancelled)).toBe(true);
+    expect(accepts(StudentHistoryItemSchema, { ...cancelled, deliveredAt: null, submittedAt: null, status: "OVERDUE" })).toBe(true);
+    expect(accepts(StudentHistoryItemSchema, { ...cancelled, result: { grade: "8.00", hasFeedback: true } })).toBe(false);
+    expect(accepts(StudentHistoryItemSchema, { ...cancelled, points: { possible: 15, earned: 15, awaitingCorrection: false } })).toBe(false);
+  });
+
+  it("029/FR-001 nenhuma linha do Histórico é um exercício", () => {
+    expect(accepts(StudentHistoryItemSchema, { ...row, type: "EXERCISE" })).toBe(false);
+  });
+
+  it("029/FR-003 029/FR-004 a página conta as canceladas nas abas e nos totais", () => {
+    expect(accepts(StudentHistoryPageSchema, { items: [], nextCursor: null, total: 0, tabCounts: counts, totals })).toBe(true);
+    const { cancelled: _tab, ...tabWithout } = counts;
+    const { cancelled: _total, ...totalsWithout } = totals;
+    expect(accepts(StudentHistoryPageSchema, { items: [], nextCursor: null, total: 0, tabCounts: tabWithout, totals })).toBe(false);
+    expect(accepts(StudentHistoryPageSchema, { items: [], nextCursor: null, total: 0, tabCounts: counts, totals: totalsWithout })).toBe(false);
   });
 });
