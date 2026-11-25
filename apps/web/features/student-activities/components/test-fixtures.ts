@@ -39,6 +39,7 @@ export const myClassesBody = (classes: readonly MySubjectClass[]): MyCohortList 
           code: item.code,
           period: item.period,
           status: "ACTIVE",
+          enrolledAt: "2026-11-07T21:08:00.000Z",
           classes: [{ classId: item.id, subjectName: item.subjectName, teacherName: item.teacherName, effectiveStatus: item.status }],
         },
       ],

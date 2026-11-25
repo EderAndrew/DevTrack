@@ -68,10 +68,10 @@ description: "Task list for 030 — \"Minhas turmas\" do aluno redesenhada: um c
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Em `packages/contracts/test/cohorts.spec.ts`, um `describe("030/FR-012 MyCohortSchema.enrolledAt")`:
+- [X] T003 [P] Em `packages/contracts/test/cohorts.spec.ts`, um `describe("030/FR-012 MyCohortSchema.enrolledAt")`:
       aceita uma turma com `enrolledAt` ISO (`"2026-11-07T21:08:00.000Z"`); recusa sem `enrolledAt`, com data mal formada
       e com um campo a mais (schema estrito). Deve falhar antes de T005.
-- [ ] T004 [P] Criar `apps/api/test/integration/030-my-classes.spec.ts` no molde de
+- [X] T004 [P] Criar `apps/api/test/integration/030-my-classes.spec.ts` no molde de
       `apps/api/test/integration/027-us8-my-cohorts.spec.ts` (`createTestApp` com `FixedClock`, `resetDb`, factories
       `createCohort`/`createClass`/`createEnrollment`/`createUser`, `loginAs`): `it("030/FR-012 cada turma traz o
       enrolledAt da matrícula ativa do aluno")` — duas turmas com `enrolledAt` diferentes (passar a data à factory ou
@@ -80,18 +80,18 @@ description: "Task list for 030 — \"Minhas turmas\" do aluno redesenhada: um c
 
 ### Implementation for Foundational
 
-- [ ] T005 Em `packages/contracts/src/classes/my-classes.ts`, acrescentar a `MyCohortSchema`
+- [X] T005 Em `packages/contracts/src/classes/my-classes.ts`, acrescentar a `MyCohortSchema`
       `enrolledAt: IsoDateTimeSchema` (o primitivo de data-hora já usado nos contratos; conferir o nome em
       `packages/contracts/src/common/primitives.ts`), com o JSDoc "030/FR-012: a matrícula ativa do próprio aluno na
       turma (a matrícula é da turma, 027)". `pnpm --filter @repo/contracts build && pnpm --filter @repo/contracts test`.
-- [ ] T006 Em `apps/api/src/modules/enrollments/my-classes.service.ts`, selecionar `enrolledAt: true` da matrícula e
+- [X] T006 Em `apps/api/src/modules/enrollments/my-classes.service.ts`, selecionar `enrolledAt: true` da matrícula e
       copiar `enrolledAt: enrolledAt.toISOString()` em cada turma; atualizar o JSDoc (030). T004 verde.
-- [ ] T007 [P] Dar `enrolledAt` às fixtures de `MyCohort` no web, para que os testes existentes voltem a compilar e
+- [X] T007 [P] Dar `enrolledAt` às fixtures de `MyCohort` no web, para que os testes existentes voltem a compilar e
       passar: `apps/web/features/student-activities/components/test-fixtures.ts`,
       `apps/web/features/cohorts/components/cohort-page.test.tsx` (se monta um `MyCohort`),
       `apps/web/test/student-portal-xss.test.tsx` e `apps/web/features/my-classes/components/my-classes.test.tsx`
       (só as fixtures, por ora). `pnpm --filter web check-types`.
-- [ ] T008 [P] Rodar `apps/api/test/integration/003-us7-my-classes.spec.ts`, `027-us8-my-cohorts.spec.ts` e
+- [X] T008 [P] Rodar `apps/api/test/integration/003-us7-my-classes.spec.ts`, `027-us8-my-cohorts.spec.ts` e
       `027-us1-cohorts.spec.ts`; onde comparam o corpo inteiro com `toEqual`, acrescentar `enrolledAt:
       expect.any(String)` (sem mudar outra asserção — SC-006).
 

@@ -1125,6 +1125,7 @@ describe("026/FR-001 matéria e turma como texto", () => {
                   code: ITEM.code,
                   period: null,
                   status: "ACTIVE",
+                  enrolledAt: "2026-11-07T21:08:00.000Z",
                   classes: [{ classId: ITEM.id, subjectName: ITEM.subjectName, teacherName: ITEM.teacherName, effectiveStatus: "ACTIVE" }],
                 },
               ],

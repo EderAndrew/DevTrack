@@ -20,6 +20,7 @@ const ADS_4NA: MyCohort = {
   code: "ADS-4NA",
   period: "Noite",
   status: "ACTIVE",
+  enrolledAt: "2026-11-07T21:08:00.000Z",
   classes: [
     { classId: BD_ID, subjectName: "Banco de Dados", teacherName: "Prof. Eder", effectiveStatus: "ACTIVE" },
     { classId: REDES_ID, subjectName: "Redes", teacherName: "Prof. Ana", effectiveStatus: "ACTIVE" },
@@ -31,9 +32,10 @@ const ADS_3NA_2026: MyCohort = {
   code: "ADS-3NA",
   period: null,
   status: "INACTIVE",
+  enrolledAt: "2026-11-07T21:08:00.000Z",
   classes: [{ classId: OLD_ID, subjectName: "Algoritmos", teacherName: "Prof. Caio", effectiveStatus: "INACTIVE" }],
 };
-const EMPTY: MyCohort = { id: "cccccccc-3333-4333-8333-333333333333", name: "ADS 1NA", code: "ADS-1NA", period: null, status: "ACTIVE", classes: [] };
+const EMPTY: MyCohort = { id: "cccccccc-3333-4333-8333-333333333333", name: "ADS 1NA", code: "ADS-1NA", period: null, status: "ACTIVE", enrolledAt: "2026-11-07T21:08:00.000Z", classes: [] };
 
 const body = (...years: [number, MyCohort[]][]): MyCohortList => ({
   years: years.map(([academicYear, cohorts]) => ({ academicYear, cohorts })),
