@@ -694,6 +694,44 @@ describe("029/US2 Histórico: provas e trabalhos cancelados", () => {
     document.documentElement.dataset.theme = "light";
     await expectNoA11yViolations(container);
   });
+
+  it("029/SC-006 as cinco abas, com uma linha de cada situação, sem violações de acessibilidade nos temas escuro e claro", async () => {
+    // The 360 px check needs a real layout: the E2E `028/SC-007` covers it in both themes.
+    const missed = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000043",
+      title: "Trabalho não entregue",
+      status: "OVERDUE",
+      submittedAt: null,
+      deliveredAt: null,
+      endedAt: WEDNESDAY,
+      situation: "MISSED",
+    });
+    const ALL = [graded, waiting, missed, ...CANCELLED];
+    const counts = { tabCounts: { all: 5, awaiting: 1, graded: 1, missed: 1, cancelled: 2 }, totals: { delivered: 2, awaiting: 1, graded: 1, missed: 1, cancelled: 2 } };
+    const tabs = [
+      ["", ALL],
+      ["AWAITING", [waiting]],
+      ["GRADED", [graded]],
+      ["MISSED", [missed]],
+      ["CANCELLED", CANCELLED],
+    ] as const;
+    try {
+      for (const [tab, items] of tabs) {
+        for (const theme of ["dark", "light"] as const) {
+          document.documentElement.dataset.theme = theme;
+          const route = tab ? `${HISTORY}?tab=${tab}` : HISTORY;
+          const slug = HISTORY_TABS.find((entry) => entry.tab === (tab || null))?.slug;
+          const { container, unmount } = setup({ [route]: json(200, page([...items], { ...counts, total: items.length })) }, historyFromSearch({ aba: slug }));
+          await table();
+          await expectNoA11yViolations(container);
+          unmount();
+          vi.unstubAllGlobals();
+        }
+      }
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
+  });
 });
 
 describe("028/US4 Histórico: nada de nota antes da liberação", () => {

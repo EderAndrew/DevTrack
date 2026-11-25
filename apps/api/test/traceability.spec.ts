@@ -418,12 +418,10 @@ const SPECS: FeatureSpec[] = [
     successCriteria: sc(1, 6),
     // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
     // with the test that cites it, so the lists are empty at the end of T027.
-    pending: {
-      stories: [], // US1 left with T013, US2 with T018, US3 with T023.
-      // SC-004 left with T009 (`028-sc004-performance.spec.ts`), SC-002 and SC-003 with T015 (`029-cancelled-isolation`),
-      // SC-001 with T019 (`029-us3-list-dashboard`).
-      successCriteria: ["SC-005", "SC-006"],
-    },
+    // US1 left with T013, US2 with T018, US3 with T023; SC-004 with T009 (`028-sc004-performance`), SC-002 and SC-003
+    // with T015 (`029-cancelled-isolation`), SC-001 with T019 (`029-us3-list-dashboard`), SC-005 with T020
+    // (`028-us5-concluded`) and SC-006 with T025 (`student-history.test.tsx`, E2E `student-history`).
+    pending: { stories: [], successCriteria: [] },
   },
 ];
 

@@ -217,19 +217,24 @@ exercício concluído: só os dois encerrados no Histórico, com cards e abas ce
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] E2E `apps/web/e2e/student-history.spec.ts`: o roteiro passa a encerrar e cancelar pelo professor antes de
+- [X] T024 [P] E2E `apps/web/e2e/student-history.spec.ts`: o roteiro passa a encerrar e cancelar pelo professor antes de
       conferir o Histórico (`029/US1-1`, `029/US2-4`) e confere que a ativa entregue está em "Minhas atividades"; os
       cenários 028 do arquivo mantêm os ids (pedir consentimento para o reset do `devtrack_e2e`).
-- [ ] T025 [P] `029/SC-006`: axe e contraste da tela do Histórico com as cinco abas e uma linha de cada situação nos dois
+- [X] T025 [P] `029/SC-006`: axe e contraste da tela do Histórico com as cinco abas e uma linha de cada situação nos dois
       temas, e sem rolagem horizontal em 360 px (no teste do componente e no E2E).
-- [ ] T026 [P] Documentação: em `CLAUDE.md` acrescentar a 029 à lista de features ("028 … 029 the Histórico holds only
+- [X] T026 [P] Documentação: em `CLAUDE.md` acrescentar a 029 à lista de features ("028 … 029 the Histórico holds only
       works and exams the teacher closed or cancelled…") e reescrever a regra "Student's Histórico (028)" com a
       fronteira nova (cancelada só no Histórico, sem resultado nem link, outras rotas `404`; exercícios e ativas em
       "Minhas atividades", `COMPLETED` de volta; Painel "Concluídas" = linhas do Histórico); em `apps/api/CLAUDE.md`
       atualizar o parágrafo "Histórico (028)" com `loadCancelled`, `toCancelledSummary` e as suítes 029.
-- [ ] T027 Rodar o quickstart manual (`specs/029-history-closed-only/quickstart.md`) no ambiente local e anotar o
+- [X] T027 Rodar o quickstart manual (`specs/029-history-closed-only/quickstart.md`) no ambiente local e anotar o
       resultado; tirar os SCs restantes do `pending` (o `pending` da 029 termina vazio).
-- [ ] T028 `pnpm lint && pnpm check-types && pnpm test` verde; marcar as tarefas `[X]`.
+      Resultado (2026-11-25, decidido com o usuário): o E2E `student-history` (T024) percorreu nas telas reais os passos
+      1–6 (encerradas e cancelada só no Histórico, a ativa entregue em "Minhas atividades" e em
+      `?situacao=concluidas`, "Canceladas" sem link e "—", cards 2/1/1) e passou 6/6; o passo 7 (encerrar uma ativa a
+      tira da lista) é `029/US1-1`/`029/US3-4` na API e o 8 (endereço da cancelada → 404) é `029/US2-4` de
+      `029-cancelled-isolation`.
+- [X] T028 `pnpm lint && pnpm check-types && pnpm test` verde; marcar as tarefas `[X]`.
 
 ---
 

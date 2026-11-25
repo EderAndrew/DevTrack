@@ -469,6 +469,13 @@ What the code alone doesn't make obvious:
   search) live in `student-activities/history.ts`. `platform/logging` redacts `q` from the logged URL and `req.query`.
   Suites: `028-history-route`, `028-us1-history` … `028-us3-search-class`, `028-sc004-performance` (500 deliveries in batch), unit
   `028-history`, security `028-history-isolation`.
+  Since 029 the rows are the CLOSED works and exams of those inputs (`inHistory`; `inList` is the rest, for the list and
+  the Painel) plus the cancelled ones of `StudentActivityLoader.loadCancelled` (its own query: ACTIVE enrollment, the 016
+  release, `publish_at ≤ cancelled_at`, read with `canSeeResults` false; `visibleTo` is unchanged, so every other route
+  stays `404`), each built by `toCancelledSummary` (`activities/views/student-view.ts`: no result or points). The Painel's
+  `counts.completed` is the number of those rows. Tests write the end with `closeByHand`/`cancelByHand`
+  (`test/helpers/activities.ts`). Suites: `029-us1-closed-history`, `029-us2-cancelled`, `029-us3-list-dashboard` (the
+  `029/SC-001` matrix), unit `029-placement`, security `029-cancelled-isolation`.
 - Mail (017): `MailOutbox.schedule(tx, kind, subjectId)` in the request's transaction, `attemptNow` after the commit
   (`attemptSync` in the admin bootstrap CLI), then `MailDeliveryWorker` retries (1 min to 6 h, FAILED after 7) within
   `MAIL_SENDS_PER_MINUTE`; `MAIL_RETRY_INTERVAL_SECONDS=0` disables the timer and tests call `runOnce(now)`. Each owner

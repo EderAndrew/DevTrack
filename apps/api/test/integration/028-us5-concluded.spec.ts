@@ -20,7 +20,7 @@ type Client = ReturnType<typeof api>;
 
 const START = new Date(Math.floor(Date.now() / MINUTE) * MINUTE).toISOString();
 
-describe("028/US5 concluídas só no Histórico", () => {
+describe("028/US5 029/SC-005 concluídas só no Histórico, pela regra da 029", () => {
   let t: TestApp;
   let clock: FixedClock;
   let classA: SchoolClass;
