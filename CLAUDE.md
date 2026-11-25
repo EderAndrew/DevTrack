@@ -181,6 +181,8 @@ hand-maintained.
 - PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
 - TypeScript 7 on Node.js 24 LTS (API, contracts, web) + no new dependency (029-history-closed-only)
 - PostgreSQL 17 — no migration (`class_activities.status`, `closed_at`, `cancelled_at` already exist) (029-history-closed-only)
+- No new dependency (030-student-classes-redesign)
+- PostgreSQL 17 — no migration (reads the existing `enrollments.enrolled_at`) (030-student-classes-redesign)
 
 ## Stack notes
 
@@ -598,9 +600,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 030-student-classes-redesign: the student's "Minhas turmas" redesigned — one card per disciplina da turma (teacher, year, period, enrollment date, "Acessar turma", ranking panel), search and year filter in the browser; `GET /me/classes` gains the turma's `enrolledAt`; no migration
 - 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 - 028-student-history-redesign: the student's Histórico redesigned — cards of delivered/awaiting/graded, tabs with counts, search by title and a class filter, all on the server through `GET /me/history` (newest delivery first); no migration
-- 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
