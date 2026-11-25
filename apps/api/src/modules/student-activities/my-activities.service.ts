@@ -33,7 +33,6 @@ import {
 import { CodeRunAvailability } from "../activities/code-run-availability";
 import { ExamSettlement } from "../activities/exam-settlement";
 import { GroupSettlement } from "../activities/group-settlement";
-import { canAnswer } from "../activities/status/operations";
 import {
   afterCursor,
   byDelivery,
@@ -43,6 +42,7 @@ import {
   historyCursor,
   historySituation,
   inHistory,
+  inList,
   matchesSearch,
   rowDate,
   type HistoryEntry,
@@ -60,14 +60,6 @@ const FILTER_STATUSES: Record<NonNullable<StudentActivityListQuery["status"]>, r
   OVERDUE: ["OVERDUE"],
   COMPLETED: DELIVERED_STATUSES,
 };
-
-/** One scoped activity of the student and where it belongs (028 HI11, HI13): delivered, missed, or still open. */
-interface Classified {
-  input: StudentActivityInput;
-  summary: StudentActivitySummary;
-  delivered: boolean;
-  missed: boolean;
-}
 
 /** One row of the "Histórico" (029 research HC4): its input, its dated summary and its situation. */
 interface HistoryRow {
@@ -114,10 +106,11 @@ export class MyActivitiesService {
   async dashboard(userId: string, query: StudentDashboardQuery = {}): Promise<StudentDashboard> {
     const now = this.clock.now();
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
-    const all = await this.classified(userId, now, query.classId);
-    // 028/FR-025 (HI13): the counters and lists are those of "Minhas atividades" (what is still open); "Concluídas"
-    // counts the deliveries, which the web links to the "Histórico".
-    const items = all.filter(isOpen).map((item) => item.summary).sort(byDeadline);
+    const inputs = await this.inputs(userId, now, query.classId);
+    // 029/FR-009 (HC6): the counters and lists are those of "Minhas atividades" (every overdue, accepting or not);
+    // "Concluídas" counts the rows of the Histórico of the same `classId` (closed + cancelled), which it opens.
+    const items = inputs.filter(inList).map(toStudentSummary).sort(byDeadline);
+    const cancelled = await this.loader.loadCancelled(userId, now, query.classId);
     const count = (...statuses: StudentActivityStatus[]) => items.filter((item) => statuses.includes(item.status)).length;
     return {
       firstName: user.name.trim().split(/\s+/)[0] ?? "",
@@ -125,7 +118,7 @@ export class MyActivitiesService {
         pending: count("PENDING"),
         inProgress: count("IN_PROGRESS"),
         overdue: count("OVERDUE"),
-        completed: all.filter((item) => item.delivered).length,
+        completed: inputs.filter(inHistory).length + cancelled.length,
       },
       next: items.filter((item) => item.status === "PENDING" || item.status === "IN_PROGRESS").slice(0, DASHBOARD_NEXT_MAX),
       overdueOpen: items.filter((item) => item.status === "OVERDUE" && item.canAnswer),
@@ -138,10 +131,10 @@ export class MyActivitiesService {
     const after = query.cursor === undefined ? null : decodeNameCursor(query.cursor);
     const statuses = query.status ? FILTER_STATUSES[query.status] : null;
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
-    // 028/FR-023 (HI13): only what the student can still do, before the filter and the cursor.
-    const matching = (await this.classified(userId, this.clock.now(), query.classId))
-      .filter(isOpen)
-      .map((item) => item.summary)
+    // 029/FR-007 (HC1, HC5): every exercise and every ACTIVE work or exam, in any status, before the filter and the cursor.
+    const matching = (await this.inputs(userId, this.clock.now(), query.classId))
+      .filter(inList)
+      .map(toStudentSummary)
       .filter((item) => (statuses === null || statuses.includes(item.status)) && (query.type === undefined || item.type === query.type))
       .sort(byDeadline)
       .filter((item) => after === null || isAfter(item, after.name, after.id));
@@ -277,21 +270,11 @@ export class MyActivitiesService {
   }
 
   /**
-   * The student's summaries, each classified (028 HI11, HI13); with `classId` (026, research D2) only that class's, after checking an ACTIVE
-   * enrollment of the student in it — the same 404 for another student's class, an ended enrollment and a class
-   * that doesn't exist, not audited (a class, not an activity: contracts/audit-events.md).
+   * The student's scoped inputs behind the list, the Painel and the history (029 research HC1); with `classId` (026,
+   * research D2) only that class's, after checking an ACTIVE enrollment of the student in it — the same 404 for another
+   * student's class, an ended enrollment and a class that doesn't exist, not audited (a class, not an activity:
+   * contracts/audit-events.md).
    */
-  private async classified(userId: string, now: Date, classId?: string): Promise<Classified[]> {
-    return (await this.inputs(userId, now, classId)).map((input) => {
-      const summary = toStudentSummary(input);
-      // Bridge until 029 T022 (US3): the 028 "não entregue" (no delivery, can no longer answer, not a held exam).
-      const delivered = DELIVERED_STATUSES.includes(summary.status);
-      const held = input.facts.type === "EXAM" && input.facts.onHold === true;
-      return { input, summary, delivered, missed: !delivered && !held && !canAnswer(input.facts) };
-    });
-  }
-
-  /** The scoped inputs behind `classified` and the history (029 research HC1). */
   private async inputs(userId: string, now: Date, classId?: string): Promise<StudentActivityInput[]> {
     if (classId !== undefined) await this.assertActiveEnrollment(userId, classId);
     await this.examSettlement.ofStudent(userId, now, null);
@@ -310,9 +293,6 @@ export class MyActivitiesService {
     return (await this.permissions.effectivePermissions(userId)).has("notas.proprias.visualizar");
   }
 }
-
-/** Still for "Minhas atividades" (028 HI13): neither delivered nor missed. */
-const isOpen = (item: Classified): boolean => !item.delivered && !item.missed;
 
 /** Strictly after the cursor's `(orderKey, id)` in the list's order. */
 const isAfter = (item: StudentActivitySummary, key: string, id: string) => {

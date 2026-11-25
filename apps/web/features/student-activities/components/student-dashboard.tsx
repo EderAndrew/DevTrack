@@ -26,7 +26,10 @@ interface Counter {
   key: keyof Dashboard["counts"];
   label: string;
   caption: string;
-  /** The list of the same subject with this filter; "Concluídas" opens the "Histórico" instead (028/FR-025). */
+  /**
+   * The list of the same subject with this filter; "Concluídas" opens the "Histórico" instead (028/FR-025), and its
+   * number is the Histórico's rows of that subject (029/FR-009).
+   */
   href: (materia: string | null) => string;
   icon: LucideIcon;
   /** The icon's tint; the label says the same in words. */
@@ -51,7 +54,7 @@ const COUNTERS: Counter[] = [
 
 /**
  * The four counters as cards, each a link to the filtered list of the same subject (012 US2-1, 026/US2-4); "Concluídas"
- * to the subject's "Histórico" (028/FR-025).
+ * to the subject's "Histórico" (028/FR-025), counting its rows (029/FR-009: closed or cancelled works and exams).
  */
 function Counters({ counts, materia }: { counts: Dashboard["counts"]; materia: string | null }) {
   return (

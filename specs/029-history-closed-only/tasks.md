@@ -185,29 +185,29 @@ exercício concluído: só os dois encerrados no Histórico, com cards e abas ce
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T019 [P] [US3] Criar `apps/api/test/integration/029-us3-list-dashboard.spec.ts` com `029/US3-1`…`029/US3-5` e
+- [X] T019 [P] [US3] Criar `apps/api/test/integration/029-us3-list-dashboard.spec.ts` com `029/US3-1`…`029/US3-5` e
       `029/SC-001`: entregue/corrigida ativa na lista e em `status=COMPLETED`; exercício concluído (ativo e encerrado) na
       lista e em `COMPLETED`; ativa que não aceita mais entrega em `OVERDUE`; encerrada/cancelada fora da lista e do
       Painel; Painel `pending/inProgress/overdue` da lista e `completed` = linhas do Histórico com a mesma `classId`;
       a matriz da SC-001 (as 13 situações da spec) com cada id em exatamente uma das duas rotas.
-- [ ] T020 [P] [US3] Reescrever `apps/api/test/integration/028-us5-concluded.spec.ts` pela regra nova (ids 028 mantidos,
+- [X] T020 [P] [US3] Reescrever `apps/api/test/integration/028-us5-concluded.spec.ts` pela regra nova (ids 028 mantidos,
       `// 029/FR-007`/`029/FR-009`), e mover de volta para `/api/me/activities` as expectativas que a emenda da 028
       mandou para `/api/me/history` onde a atividade continua ACTIVE (`029/SC-005`, cada uma com `// 029/FR-007`):
       `012-us6-history`, `012-us2-dashboard`, `013-us2-practice`, `015-us5-history`, `026-us1-list`,
       `027-us8-my-cohorts`, `027-transition` (integration) e `012-student-view`, `013-student-view`,
       `019-private-cases`, `012-performance`, `026-isolation` (security), mais `test/helpers/journey.ts`. Onde a
       atividade é encerrada no teste, a leitura no Histórico continua.
-- [ ] T021 [P] [US3] Web: `my-activities.test.tsx` (`029/US3-6`: `?situacao=concluidas` escolhe "Entregues/concluídas";
+- [X] T021 [P] [US3] Web: `my-activities.test.tsx` (`029/US3-6`: `?situacao=concluidas` escolhe "Entregues/concluídas";
       o filtro existe) e `student-dashboard.test.tsx` (`029/US3-5`: "Concluídas" com `counts.completed` abre
       `/historico?materia=`); atualizar os testes 028 desses arquivos com `// 029/FR-008`/`029/FR-009`.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] `my-activities.service.ts`: `FILTER_STATUSES.COMPLETED = ["SUBMITTED", "GRADED", "COMPLETED"]`; `list`
+- [X] T022 [US3] `my-activities.service.ts`: `FILTER_STATUSES.COMPLETED = ["SUBMITTED", "GRADED", "COMPLETED"]`; `list`
       e `dashboard` filtram por `inList` em vez de `isOpen`; `counts.overdue` = todas as atrasadas da lista;
       `counts.completed` = número de linhas do Histórico (CLOSED de `loadAll` + `loadCancelled`) com a mesma `classId`.
       Remover `Classified.delivered/missed` e `isOpen`. T019 e T020 verdes.
-- [ ] T023 [US3] Web: `apps/web/features/student-activities/schemas/student-activity.ts` com a opção `COMPLETED`
+- [X] T023 [US3] Web: `apps/web/features/student-activities/schemas/student-activity.ts` com a opção `COMPLETED`
       ("Entregues/concluídas", `?situacao=concluidas`) de volta; `components/student-dashboard.tsx` sem mudança de link,
       só os comentários. T021 verde. Tirar `029/US3` do `pending`.
 

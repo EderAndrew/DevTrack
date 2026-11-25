@@ -33,8 +33,8 @@ describe("019/FR-004 019/SC-002 casos privados nunca chegam ao aluno", () => {
   const reads = async (who: Client) => [
     await who.get("/api/me/dashboard"),
     await who.get("/api/me/activities"),
-    // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
-    await who.get("/api/me/history"),
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    await who.get("/api/me/activities?status=COMPLETED"),
     await who.get(`/api/me/activities/${activityId}`),
     await who.get(`/api/me/classes/${classId}/ranking`),
   ];

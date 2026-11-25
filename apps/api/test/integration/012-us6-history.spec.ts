@@ -1,5 +1,5 @@
 import type { Answer } from "@repo/contracts";
-import { StudentActivitySchema, StudentHistoryPageSchema } from "@repo/contracts";
+import { StudentActivityPageSchema, StudentActivitySchema } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
 import {
@@ -75,8 +75,8 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
   const studentResponses = async (activityId: string) => [
     (await client.get("/api/me/dashboard")).body,
     (await client.get("/api/me/activities")).body,
-    // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
-    (await client.get("/api/me/history")).body,
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    (await client.get("/api/me/activities?status=COMPLETED")).body,
     (await client.get(`/api/me/activities/${activityId}`)).body,
     (await client.post(`/api/me/activities/${activityId}/attempt`, {})).body,
     (await submitAttempt(client, activityId)).body,
@@ -99,7 +99,7 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
     await createEnrollment(t, schoolClass.id, student.id);
   });
 
-  it("012/FR-031 028/FR-023 o Histórico traz as entregues e corrigidas com data, atraso e situação; as demais ficam fora", async () => {
+  it("012/FR-031 status=COMPLETED traz as entregues e corrigidas com data, atraso e situação; as demais ficam fora", async () => {
     const onTime = await activityOf({ title: "No prazo", deadline: at(2 * DAY) });
     const late = await activityOf({ title: "Atrasada", deadline: at(HOUR), latePolicy: "ACCEPT_MARKED" });
     await activityOf({ title: "Pendente" });
@@ -107,9 +107,10 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
     clock.advance(2 * HOUR);
     await submitted(late);
 
-    const res = await client.get("/api/me/history");
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    const res = await client.get("/api/me/activities?status=COMPLETED");
     expect(res.status).toBe(200);
-    const page = StudentHistoryPageSchema.parse(res.body);
+    const page = StudentActivityPageSchema.parse(res.body);
     expect(page.items.map((item) => [item.title, item.status, item.late, item.submittedAt])).toEqual([
       ["Atrasada", "SUBMITTED", true, at(0).toISOString()],
       ["No prazo", "SUBMITTED", false, at(-2 * HOUR).toISOString()],
@@ -135,7 +136,8 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
     expect((await releaseResult(teacherClient, schoolClass.id, created.activity.id)).status).toBe(200);
     const view = (await client.get(`/api/me/activities/${created.activity.id}`)).body;
     expect([view.status, view.result]).toEqual(["SUBMITTED", null]);
-    const item = (await client.get("/api/me/history")).body.items[0];
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    const item = (await client.get("/api/me/activities?status=COMPLETED")).body.items[0];
     expect([item.status, item.result]).toEqual(["SUBMITTED", null]);
   });
 
@@ -156,7 +158,8 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
         { questionId: created.questionIds[1], grade: "0.45", feedback: "Faltou a interface pública." },
       ],
     });
-    const item = (await client.get("/api/me/history")).body.items[0];
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    const item = (await client.get("/api/me/activities?status=COMPLETED")).body.items[0];
     expect([item.status, item.result]).toEqual(["GRADED", { grade: "0.95", hasFeedback: true }]);
 
     await client.get(`/api/me/activities/${created.activity.id}`);
@@ -192,7 +195,8 @@ describe("012/US6 aluno consulta histórico, nota e feedback", () => {
     try {
       const view = (await client.get(`/api/me/activities/${created.activity.id}`)).body;
       expect(view.result).toBeNull();
-      expect((await client.get("/api/me/history")).body.items[0].result).toBeNull();
+      // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+      expect((await client.get("/api/me/activities?status=COMPLETED")).body.items[0].result).toBeNull();
       expect(await events("activity_result.viewed")).toEqual([]);
     } finally {
       await t.prisma.rolePermission.create({ data: { roleId: grant.roleId, permissionId: grant.permissionId } });

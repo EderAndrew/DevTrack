@@ -47,7 +47,7 @@ describe("012/US2 painel do aluno", () => {
       ["Pendentes3Ainda não iniciadas", `/minhas-atividades?materia=${POO.id}&situacao=pendentes`],
       ["Em andamento2Iniciadas, sem entrega", `/minhas-atividades?materia=${POO.id}&situacao=em-andamento`],
       ["Atrasadas1Com o prazo vencido", `/minhas-atividades?materia=${POO.id}&situacao=atrasadas`],
-      // 028/FR-025 (amendment 2026-11-23): the deliveries are in the "Histórico".
+      // 029/FR-009: "Concluídas" is `counts.completed` (the rows of the Histórico) and opens it.
       ["Concluídas8Entregues ou corrigidas", `/historico?materia=${POO.id}`],
     ]);
 
@@ -260,6 +260,22 @@ describe("026/US2 painel por matéria", () => {
     setupWith({ [dashboardOf(SQL.id)]: json(200, dashboard({ rankings: [ranking(SQL, false)] })) }, { classes: [POO, SQL], materia: SQL.id });
     await screen.findByRole("region", { name: "Ranking das turmas" });
     expect(screen.queryByRole("heading", { name: "Seu desempenho" })).toBeNull();
+  });
+
+  it("029/US3-5 \"Concluídas\" mostra counts.completed e abre o Histórico da mesma matéria", async () => {
+    // 029/FR-009: the number is the server's count of the Histórico's rows; the link is the 028 one, with the subject.
+    setupWith(
+      { [dashboardOf(SQL.id)]: json(200, dashboard({ counts: { pending: 1, inProgress: 0, overdue: 4, completed: 5 } })) },
+      { classes: [POO, SQL], materia: SQL.id },
+    );
+    await screen.findByRole("heading", { level: 1, name: "Olá, Bruna" });
+    const counters = within(screen.getByRole("navigation", { name: "Resumo das suas atividades" })).getAllByRole("link");
+    expect(counters.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Pendentes1Ainda não iniciadas", `/minhas-atividades?materia=${SQL.id}&situacao=pendentes`],
+      ["Em andamento0Iniciadas, sem entrega", `/minhas-atividades?materia=${SQL.id}&situacao=em-andamento`],
+      ["Atrasadas4Com o prazo vencido", `/minhas-atividades?materia=${SQL.id}&situacao=atrasadas`],
+      ["Concluídas5Entregues ou corrigidas", `/historico?materia=${SQL.id}`],
+    ]);
   });
 
   it("026/US2-4 028/US5-4 os contadores e \"Ver todas\" levam a \"Minhas atividades\" da mesma matéria; \"Concluídas\", ao Histórico dela", async () => {
