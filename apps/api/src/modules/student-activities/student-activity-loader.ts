@@ -92,15 +92,13 @@ const ACTIVITY_SELECT = {
   startWindowMinutes: true,
   durationMinutes: true,
   inactivityLimitSeconds: true,
+  /** 029 research HC4: a cancelled row's `endedAt` in the "Histórico". */
   cancelledAt: true,
   schoolClass: {
     select: {
       id: true,
       status: true,
-      // 028 HI11: since when the class or the turma stopped being ACTIVE (a missed activity's date).
-      statusChangedAt: true,
       ...CLASS_LABEL_SELECT,
-      cohort: { select: { ...CLASS_LABEL_SELECT.cohort.select, statusChangedAt: true } },
     },
   },
   teacher: { select: { name: true } },
@@ -157,8 +155,34 @@ export class StudentActivityLoader {
       where: { ...visibleTo(studentUserId, now), ...(classId === undefined ? {} : { classId }) },
       select: ACTIVITY_SELECT,
     });
+    return this.inputsOf(studentUserId, activities, now, canSeeResults);
+  }
+
+  /**
+   * 029 research HC2: the works and exams of the student's scope that the teacher cancelled, for the "Histórico" only —
+   * the same ACTIVE enrollment and 016 release as `visibleTo`, published before their cancellation (and before `now`),
+   * always without results (`canSeeResults = false`; the view also drops them, HC3). `visibleTo` keeps refusing them,
+   * so every other student route still answers 404 for a cancelled activity.
+   */
+  async loadCancelled(studentUserId: string, now: Date, classId?: string): Promise<StudentActivityInput[]> {
+    const activities = (
+      await this.prisma.classActivity.findMany({
+        where: {
+          ...releasedInScope(studentUserId, now),
+          status: "CANCELLED",
+          type: { in: ["ASSIGNMENT", "EXAM"] },
+          ...(classId === undefined ? {} : { classId }),
+        },
+        select: ACTIVITY_SELECT,
+      })
+    ).filter((activity) => activity.cancelledAt !== null && activity.publishAt.getTime() <= activity.cancelledAt.getTime());
+    return this.inputsOf(studentUserId, activities, now, false);
+  }
+
+  /** The inputs of loaded activities: the student's attempts and, for exams, an open hold (two queries). */
+  private async inputsOf(studentUserId: string, activities: ActivityRow[], now: Date, canSeeResults: boolean): Promise<StudentActivityInput[]> {
     const attempts = await this.attemptsOf(studentUserId, activities.map((activity) => activity.id));
-    // 028 HI11: an exam held for the teacher's decision is still in course (never "não entregue"); one query.
+    // 028 HI11, 029 HC4: an exam held for the teacher's decision waits for it (AWAITING in the history); one query.
     const held = new Set(
       (
         await this.prisma.examAttemptHold.findMany({
@@ -550,16 +574,20 @@ export class StudentActivityLoader {
 }
 
 /**
- * Published, not cancelled activities of the classes where the student is ACTIVE (FR-007), and since
- * 016 released to them: every enrollment, or the student marked present (016/FR-008, research M4).
+ * Published activities of the classes where the student is ACTIVE (FR-007), and since 016 released to
+ * them: every enrollment, or the student marked present (016/FR-008, research M4). Shared by
+ * `visibleTo` and the history's cancelled rows (029 HC2).
  */
-const visibleTo = (studentUserId: string, now: Date) =>
+const releasedInScope = (studentUserId: string, now: Date) =>
   ({
-    status: { not: "CANCELLED" },
     publishAt: { lte: now },
     schoolClass: { cohort: { enrollments: { some: { studentUserId, status: "ACTIVE" } } } },
     OR: [{ releaseMode: "ALL_ENROLLED" }, { attendances: { some: { studentUserId } } }],
   }) satisfies Prisma.ClassActivityWhereInput;
+
+/** What every student route may reach: `releasedInScope`, never a cancelled activity (012/FR-007). */
+const visibleTo = (studentUserId: string, now: Date) =>
+  ({ status: { not: "CANCELLED" }, ...releasedInScope(studentUserId, now) }) satisfies Prisma.ClassActivityWhereInput;
 
 /**
  * The same release clause for the raw queries over `class_activities ca` (016 research M4): here and
@@ -568,19 +596,6 @@ const visibleTo = (studentUserId: string, now: Date) =>
 export const releasedToSql = (studentUserId: string) =>
   Prisma.sql`(ca.release_mode = 'ALL_ENROLLED'
     OR EXISTS (SELECT 1 FROM activity_attendances aa WHERE aa.activity_id = ca.id AND aa.student_user_id = ${studentUserId}::uuid))`;
-
-/** 028 HI11: the earliest moment the class or its turma left ACTIVE (null while both are ACTIVE or unrecorded). */
-function inactiveSince(schoolClass: {
-  status: string;
-  statusChangedAt: Date | null;
-  cohort: { status: string; statusChangedAt: Date | null };
-}): Date | null {
-  const moments = [
-    schoolClass.status !== "ACTIVE" ? schoolClass.statusChangedAt : null,
-    schoolClass.cohort.status !== "ACTIVE" ? schoolClass.cohort.statusChangedAt : null,
-  ].filter((moment): moment is Date => moment !== null);
-  return moments.reduce<Date | null>((earliest, moment) => (earliest === null || moment < earliest ? moment : earliest), null);
-}
 
 /** The facts of the student's situation, by type (contracts/student-status.md). */
 function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Date): ActivityFacts {
@@ -652,10 +667,8 @@ function toInput(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
         : null,
     facts,
     canSeeResults,
-    // Attempts come by number, so [0] is attempt 1, the conclusion that scores (013).
-    firstCompletedAt: activity.type === "EXERCISE" ? (attempts[0]?.completedAt ?? null) : null,
     closedAt: activity.closedAt,
-    inactiveSince: inactiveSince(activity.schoolClass),
+    cancelledAt: activity.cancelledAt,
     submission: submission && {
       submittedAt: submission.submittedAt,
       late: submission.late,

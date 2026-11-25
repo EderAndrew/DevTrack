@@ -35,14 +35,14 @@ export const STATUS_VARIANTS: Record<StudentActivityStatus, StatusVariant> = {
 };
 
 /**
- * "Situação" filter of "Minhas atividades": the label and the URL value (`?situacao=`). Since the 028 amendment
- * (FR-023) there is no "Entregues/concluídas": deliveries live in the "Histórico", and an old `?situacao=concluidas`
- * is an unknown value (no filter).
+ * "Situação" filter of "Minhas atividades": the label and the URL value (`?situacao=`). "Entregues/concluídas" is back
+ * in 029 (FR-008): delivered active works and exams and concluded exercises stay in the list.
  */
 export const FILTER_OPTIONS: Record<StudentActivityFilter, { label: string; slug: string }> = {
   PENDING: { label: "Pendentes", slug: "pendentes" },
   IN_PROGRESS: { label: "Em andamento", slug: "em-andamento" },
   OVERDUE: { label: "Atrasadas", slug: "atrasadas" },
+  COMPLETED: { label: "Entregues/concluídas", slug: "concluidas" },
 };
 /** "Tipo" filter: the URL value (`?tipo=`). */
 export const TYPE_SLUGS: Record<ActivityType, string> = { EXERCISE: "exercicio", ASSIGNMENT: "trabalho", EXAM: "prova" };

@@ -46,10 +46,11 @@ export const StudentActivityStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "OV
 export type StudentActivityStatus = z.infer<typeof StudentActivityStatusSchema>;
 
 /**
- * The filter of "Minhas atividades". Since the 028 amendment (2026-11-23) the list holds only what the student can still
- * do; deliveries and missed activities live in the "Histórico", so there is no `COMPLETED` filter.
+ * The filter of "Minhas atividades"; `COMPLETED` covers SUBMITTED + GRADED + COMPLETED (012/013). Back in 029 (FR-008):
+ * the list holds every exercise and every active work or exam, delivered or not; only what the teacher closed or
+ * cancelled lives in the "Histórico".
  */
-export const StudentActivityFilterSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE"]);
+export const StudentActivityFilterSchema = z.enum(["PENDING", "IN_PROGRESS", "OVERDUE", "COMPLETED"]);
 export type StudentActivityFilter = z.infer<typeof StudentActivityFilterSchema>;
 
 /**
@@ -133,9 +134,9 @@ export const EXAM_START_WINDOW_MINUTES_MAX = 60;
 export const EXAM_START_WINDOW_MINUTES_DEFAULT = 15;
 
 /**
- * The situation of a delivery in the student's "Histórico" (028 research HI3), also the `tab` values of
- * `GET /me/history`: AWAITING until the grade is visible to the student, then GRADED; MISSED (amendment 2026-11-23,
- * HI11) for an activity without a delivery that the student can no longer start or continue.
+ * The situation of a row of the student's "Histórico" (029 research HC4), also the `tab` values of `GET /me/history`:
+ * for a work or exam the teacher closed, AWAITING until the grade is visible to the student (028 HI3; a held exam too),
+ * then GRADED, or MISSED without a delivery; CANCELLED for one the teacher cancelled, whatever the delivery.
  */
-export const StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED", "MISSED"]);
+export const StudentHistorySituationSchema = z.enum(["AWAITING", "GRADED", "MISSED", "CANCELLED"]);
 export type StudentHistorySituation = z.infer<typeof StudentHistorySituationSchema>;

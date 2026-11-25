@@ -86,7 +86,7 @@ describe("012/US2 Minhas atividades", () => {
 
     await user.selectOptions(screen.getByLabelText("Tipo"), "Todos");
     expect(router.replace).toHaveBeenLastCalledWith(`/minhas-atividades?materia=${POO.id}&situacao=atrasadas`);
-    // 028/FR-023 (amendment 2026-11-23): no "Entregues/concluídas" option; they live in the "Histórico".
+    // 029/FR-008: "Entregues/concluídas" is back; any other option keeps the type.
     await user.selectOptions(screen.getByLabelText("Situação"), "Pendentes");
     expect(router.replace).toHaveBeenLastCalledWith(`/minhas-atividades?materia=${POO.id}&situacao=pendentes&tipo=trabalho`);
 
@@ -94,13 +94,18 @@ describe("012/US2 Minhas atividades", () => {
     expect(filtersFromSearch({ situacao: "qualquer", tipo: "EXAM" })).toEqual(NONE);
   });
 
-  it("028/US5-1 028/FR-023 a Situação não oferece \"Entregues/concluídas\"; um endereço antigo com ?situacao=concluidas vale Todas", async () => {
-    expect(filtersFromSearch({ situacao: "concluidas" })).toEqual(NONE);
-    const { api } = setup({ [listRoute()]: json(200, { items: [summary({ title: "Lista aberta" })], nextCursor: null }) });
-    await screen.findByRole("heading", { name: "Lista aberta" });
-    const options = [...(screen.getByLabelText("Situação") as HTMLSelectElement).options].map((option) => option.text);
-    expect(options).toEqual(["Todas", "Pendentes", "Em andamento", "Atrasadas"]);
-    expect(activityCalls(api.calls)).toEqual([`/api/me/activities?classId=${POO.id}`]);
+  it("028/US5-1 028/FR-023 029/US3-6 029/FR-008 ?situacao=concluidas escolhe \"Entregues/concluídas\" e pede status=COMPLETED", async () => {
+    // 029/FR-008: the filter is back (the 028 amendment had removed it), with its 012 address.
+    const completed = { status: "COMPLETED", type: null } as const;
+    expect(filtersFromSearch({ situacao: "concluidas" })).toEqual(completed);
+    expect(myActivitiesHref({ ...completed, materia: POO.id })).toBe(`/minhas-atividades?materia=${POO.id}&situacao=concluidas`);
+    const delivered = summary({ title: "Trabalho entregue", type: "ASSIGNMENT", status: "SUBMITTED", canAnswer: false, submittedAt: "2026-10-04T10:00:00.000Z" });
+    const { api } = setup({ [listRoute("status=COMPLETED")]: json(200, { items: [delivered], nextCursor: null }) }, completed);
+    await screen.findByRole("heading", { name: "Trabalho entregue" });
+    const select = screen.getByLabelText("Situação") as HTMLSelectElement;
+    expect([...select.options].map((option) => option.text)).toEqual(["Todas", "Pendentes", "Em andamento", "Atrasadas", "Entregues/concluídas"]);
+    expect(select.value).toBe("COMPLETED");
+    expect(activityCalls(api.calls)).toEqual([`/api/me/activities?classId=${POO.id}&status=COMPLETED`]);
   });
 
   it("012/FR-012 \"Carregar mais\" pede a página seguinte pelo cursor e junta os itens", async () => {

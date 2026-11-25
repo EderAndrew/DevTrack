@@ -8,7 +8,7 @@ import type { IntegrityEventView, StudentHistoryItem, StudentHistoryPage, Studen
 import { formatTime } from "@/lib/messages/dates";
 import { helpItem, helpState } from "@/features/work-help/components/test-fixtures";
 import type { StudentHistoryFilters } from "../api/student-activities";
-import { HISTORY_FINAL_NOTE, historyFromSearch } from "../schemas/student-history";
+import { HISTORY_DESCRIPTION, HISTORY_FINAL_NOTE, HISTORY_TABS, historyFromSearch } from "../schemas/student-history";
 import { ActivityAnswering } from "./activity-answering";
 import { LOAD_ERROR } from "./load-states";
 import { HISTORY_EMPTY, OwnExamOccurrences, SCREEN_EXITS_NOTE, StudentHistory } from "./student-history";
@@ -32,7 +32,8 @@ const FRIDAY = new Date(2026, 10, 13, 16, 47).toISOString();
 const entry = (overrides: Partial<StudentHistoryItem> = {}): StudentHistoryItem => ({
   ...summary({ status: "SUBMITTED", canAnswer: false, submittedAt: FRIDAY }),
   deliveredAt: FRIDAY,
-  missedAt: null,
+  // 029/FR-006: `missedAt` became `endedAt` (the close), always set.
+  endedAt: FRIDAY,
   situation: "AWAITING",
   ...overrides,
 });
@@ -51,8 +52,8 @@ const page = (
   items,
   nextCursor: null,
   total: items.length,
-  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, ...tabCounts },
-  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, ...totals },
+  tabCounts: { all: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0, ...tabCounts },
+  totals: { delivered: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0, ...totals },
   ...extra,
 });
 
@@ -73,16 +74,13 @@ const waiting = entry({
   class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
   subjectName: null,
 });
-const exercise = entry({
+// 029/FR-001: rows are never exercises; the third row is another closed work, awaiting its grade.
+const collections = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000013",
-  title: "Exercícios de laços",
-  type: "EXERCISE",
-  status: "COMPLETED",
-  situation: "GRADED",
-  deadline: null,
-  latePolicy: null,
-  totalGrade: null,
-  points: { possible: 60, earned: 45, awaitingCorrection: false },
+  title: "Trabalho de coleções",
+  class: { id: "11111111-1111-4111-8111-111111111111", name: "ADS 3NA" },
+  subjectName: "Programação Orientada a Objetos",
+  totalGrade: "2.00",
 });
 const exam = entry({
   id: "bbbbbbbb-0000-4000-8000-000000000014",
@@ -93,7 +91,7 @@ const exam = entry({
   totalGrade: "1.00",
   result: { grade: "1.50", hasFeedback: false },
 });
-const FOUR = [graded, waiting, exercise, exam];
+const FOUR = [graded, waiting, collections, exam];
 
 const table = () => screen.findByRole("table", { name: "Atividades que você entregou." });
 const rowOf = async (title: string) =>
@@ -153,14 +151,14 @@ describe("028/US1 Histórico: totais e lista redesenhada", () => {
     expect(within(over).queryByText("Com feedback")).toBeNull();
   });
 
-  it("028/US1-5 exercício: \"Concluída\" e os pontos, nunca a barra; pontos aguardando correção", async () => {
-    const pendingPoints = entry({ ...exercise, id: "bbbbbbbb-0000-4000-8000-000000000015", title: "Exercícios de vetores", points: { possible: 60, earned: 15, awaitingCorrection: true } });
-    setup({ [HISTORY]: json(200, page([exercise, pendingPoints])) });
-    const row = await rowOf("Exercícios de laços");
-    expect(within(row).getByText("Concluída")).toBeTruthy();
-    expect(within(row).getByText("45 de 60 pontos")).toBeTruthy();
-    expect(within(row).queryByRole("progressbar")).toBeNull();
-    expect(within(await rowOf("Exercícios de vetores")).getByText("Pontos aguardando correção")).toBeTruthy();
+  // 029/FR-001: exercises never reach the history, so no row says "Concluída" or shows points.
+  it("028/US1-5 029/FR-001 sem exercícios: nenhuma linha diz \"Concluída\" nem mostra pontos", async () => {
+    setup({ [HISTORY]: json(200, page(FOUR)) });
+    const rows = await table();
+    expect(within(rows).queryByText("Concluída")).toBeNull();
+    expect(within(rows).queryByText("Exercício")).toBeNull();
+    expect(rows.textContent).not.toMatch(/pontos/);
+    expect(within(await rowOf("Trabalho de coleções")).getByText("Aguardando correção")).toBeTruthy();
   });
 
   it("028/US1-6 título, \"Ver atividade\" e a seta abrem a atividade; tipo, turma e disciplina, data em duas linhas", async () => {
@@ -208,7 +206,7 @@ describe("028/US1 Histórico: totais e lista redesenhada", () => {
   it("028/US1-9 \"Carregar mais\" pede o cursor e o N do rodapé cresce", async () => {
     const { user, api } = setup({
       [HISTORY]: json(200, page([graded, waiting], { nextCursor: "c1", total: 4 })),
-      [`${HISTORY}?cursor=c1`]: json(200, page([exercise, exam], { total: 4 })),
+      [`${HISTORY}?cursor=c1`]: json(200, page([collections, exam], { total: 4 })),
     });
     await table();
     expect(screen.getByText("Exibindo 2 de 4 atividades")).toBeTruthy();
@@ -249,8 +247,8 @@ describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
     setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
     const list = await tabs();
     const all = within(list).getAllByRole("tab");
-    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues".
-    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0"]);
+    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues". 029/FR-003: a fifth, "Canceladas".
+    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0", "Canceladas, 0"]);
     expect(within(list).getByRole("tab", { name: "Aguardando, 3" }).textContent).toBe("Aguardando3");
     expect(within(list).getByRole("tab", { name: "Todas, 4" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tabpanel", { name: "Todas, 4" })).toBeTruthy();
@@ -485,7 +483,7 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
     late: false,
     submittedAt: null,
     deliveredAt: null,
-    missedAt: TUESDAY,
+    endedAt: TUESDAY,
     situation: "MISSED",
     totalGrade: "2.00",
   });
@@ -499,10 +497,13 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
       "Aguardando, 2",
       "Corrigidas, 2",
       "Não entregues, 1",
+      // 029/FR-003: the fifth tab.
+      "Canceladas, 0",
     ]);
     const row = await rowOf("Trabalho perdido");
     expect(within(row).getByText("Não entregue")).toBeTruthy();
-    expect(within(row).getByText("10 de novembro")).toBeTruthy();
+    // 029/FR-006: without a delivery, the date is the close.
+    expect(within(row).getByText("Encerrada em 10 de novembro")).toBeTruthy();
     expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
     expect(within(row).getByText("—")).toBeTruthy();
     expect(within(row).queryByRole("progressbar")).toBeNull();
@@ -525,6 +526,211 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
     setup({ [HISTORY]: json(200, page([missed], { totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 }, tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 } })) });
     expect(await rowOf("Trabalho perdido")).toBeTruthy();
     expect(screen.queryByText(HISTORY_EMPTY)).toBeNull();
+  });
+});
+
+describe("029/US1 Histórico só com o que o professor encerrou", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  // Local time, as FRIDAY: "10 de novembro" and "Terça-feira, 23:59".
+  const TUESDAY = new Date(2026, 10, 10, 23, 59).toISOString();
+  const closedMissed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000031",
+    title: "Prova não feita",
+    type: "EXAM",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    endedAt: TUESDAY,
+    situation: "MISSED",
+    totalGrade: "10.00",
+  });
+
+  it("029/US1-2 encerrada sem entrega: \"Não entregue\", \"Encerrada em …\" com o dia da semana e \"—\" na Nota, fora dos cards", async () => {
+    setup({ [HISTORY]: json(200, page([closedMissed], { tabCounts: { all: 1, awaiting: 0, graded: 0, missed: 1 }, totals: { delivered: 0, awaiting: 0, graded: 0, missed: 1 } })) });
+    const row = await rowOf("Prova não feita");
+    expect(within(row).getByText("Não entregue")).toBeTruthy();
+    expect(within(row).getByText("Encerrada em 10 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Terça-feira, 23:59")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    // A delivered row keeps the delivery's day alone (028).
+    vi.unstubAllGlobals();
+    cleanup();
+    setup({ [HISTORY]: json(200, page([graded])) });
+    expect(within(await rowOf("Trabalho de interfaces")).getByText("13 de novembro")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Data" })).toBeTruthy();
+  });
+
+  it("029/US1-6 Histórico vazio: cards em zero e \"Nenhuma atividade encerrada ainda.\"", async () => {
+    setup({ [HISTORY]: json(200, page([], { tabCounts: { all: 0, awaiting: 0, graded: 0 }, totals: { delivered: 0, awaiting: 0, graded: 0 } })) });
+    expect(await screen.findByText("Nenhuma atividade encerrada ainda.")).toBeTruthy();
+    expect(screen.getByText("0 atividades entregues")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("029/FR-011 os estados vazios: \"Todas\" com a frase nova, as outras abas como na 028", () => {
+    expect(HISTORY_EMPTY).toBe("Nenhuma atividade encerrada ainda.");
+    expect(HISTORY_TABS.map((spec) => [spec.slug, spec.empty])).toEqual([
+      ["todas", "Nenhuma atividade encerrada ainda."],
+      ["aguardando", "Nenhuma entrega aguardando correção."],
+      ["corrigidas", "Nenhuma entrega corrigida ainda."],
+      ["nao-entregues", "Nenhuma atividade não entregue."],
+      ["canceladas", "Nenhuma atividade cancelada."],
+    ]);
+    expect(HISTORY_DESCRIPTION).toBe("Provas e trabalhos encerrados ou cancelados pelo professor.");
+  });
+});
+
+describe("029/US2 Histórico: provas e trabalhos cancelados", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.theme;
+  });
+
+  // Local time, as FRIDAY: "11 de novembro" and "Quarta-feira, 09:30".
+  const WEDNESDAY = new Date(2026, 10, 11, 9, 30).toISOString();
+  const cancelledDelivered = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000041",
+    title: "Trabalho cancelado entregue",
+    status: "SUBMITTED",
+    deliveredAt: FRIDAY,
+    endedAt: WEDNESDAY,
+    situation: "CANCELLED",
+    totalGrade: "2.00",
+  });
+  const cancelledMissed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000042",
+    title: "Prova cancelada",
+    type: "EXAM",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    endedAt: WEDNESDAY,
+    situation: "CANCELLED",
+    totalGrade: "10.00",
+  });
+  const CANCELLED = [cancelledDelivered, cancelledMissed];
+  const COUNTS = { tabCounts: { all: 6, awaiting: 2, graded: 2, missed: 0, cancelled: 2 }, totals: { cancelled: 2 } };
+
+  it("029/US2-1 a aba \"Canceladas\" com a contagem; um clique escreve ?aba=canceladas e pede tab=CANCELLED", async () => {
+    const { user, api, rerender } = setup({
+      [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)),
+      [`${HISTORY}?tab=CANCELLED`]: json(200, page(CANCELLED, { ...COUNTS, total: 2 })),
+    });
+    const tabs = await screen.findByRole("tablist", { name: "Situação das entregas" });
+    expect(within(tabs).getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Todas, 6",
+      "Aguardando, 2",
+      "Corrigidas, 2",
+      "Não entregues, 0",
+      "Canceladas, 2",
+    ]);
+    await user.click(within(tabs).getByRole("tab", { name: "Canceladas, 2" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=canceladas");
+    expect(historyFromSearch({ aba: "canceladas" }).tab).toBe("CANCELLED");
+    rerender(<StudentHistory filters={historyFromSearch({ aba: "canceladas" })} />);
+    expect(await screen.findByText("Exibindo 2 de 2 atividades")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?tab=CANCELLED"))).toBe(true);
+  });
+
+  it("029/US2-2 cancelada com entrega: pílula \"Cancelada\", a data da entrega e \"—\" na Nota, sem nota nem feedback", async () => {
+    // Even a payload that carried a result (never sent by the API, 029/SC-002) shows none: the row follows `situation`.
+    const leaked = { ...cancelledDelivered, result: { grade: "1.90", hasFeedback: true } };
+    setup({ [HISTORY]: json(200, page([leaked], COUNTS)) });
+    const row = await rowOf("Trabalho cancelado entregue");
+    expect(within(row).getByText("Cancelada")).toBeTruthy();
+    expect(within(row).getByText("13 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Sexta-feira, 16:47")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(row).queryByText("Com feedback")).toBeNull();
+    expect(within(row).queryByText("Aguardando correção")).toBeNull();
+    expect(row.textContent).not.toContain("1,90");
+  });
+
+  it("029/US2-3 cancelada sem entrega: \"Cancelada em …\" com o dia da semana e \"—\" na Nota", async () => {
+    setup({ [HISTORY]: json(200, page([cancelledMissed], COUNTS)) });
+    const row = await rowOf("Prova cancelada");
+    expect(within(row).getByText("Cancelada")).toBeTruthy();
+    expect(within(row).getByText("Cancelada em 11 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Quarta-feira, 09:30")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+  });
+
+  it("029/US2-4 a linha cancelada não é link: sem \"Ver atividade\", sem seta e, no celular, o cartão não é link", async () => {
+    setup({ [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)) });
+    for (const item of CANCELLED) {
+      const row = await rowOf(item.title);
+      expect(within(row).queryAllByRole("link")).toEqual([]);
+      expect(within(row).getByText(item.title)).toBeTruthy();
+      expect(within(row).queryByText("Ver atividade")).toBeNull();
+      expect(within(row).queryByLabelText(`Abrir ${item.title}`)).toBeNull();
+    }
+    // The other rows still open the activity.
+    expect(within(await rowOf("Trabalho de interfaces")).getByRole("link", { name: "Trabalho de interfaces" })).toBeTruthy();
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    expect(within(cards).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(cards).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/minhas-atividades/${graded.id}`]);
+    expect(within(cards).getByText("Prova cancelada")).toBeTruthy();
+  });
+
+  it("029/US2 aba \"Canceladas\" vazia: \"Nenhuma atividade cancelada.\", com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=CANCELLED`]: json(200, page([], { total: 0 })) }, historyFromSearch({ aba: "canceladas" }));
+    expect(await screen.findByText("Nenhuma atividade cancelada.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("029/US2 sem violações de acessibilidade com uma linha cancelada, nos temas escuro e claro", async () => {
+    const { container } = setup({ [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)) });
+    await table();
+    await expectNoA11yViolations(container);
+    document.documentElement.dataset.theme = "light";
+    await expectNoA11yViolations(container);
+  });
+
+  it("029/SC-006 as cinco abas, com uma linha de cada situação, sem violações de acessibilidade nos temas escuro e claro", async () => {
+    // The 360 px check needs a real layout: the E2E `028/SC-007` covers it in both themes.
+    const missed = entry({
+      id: "bbbbbbbb-0000-4000-8000-000000000043",
+      title: "Trabalho não entregue",
+      status: "OVERDUE",
+      submittedAt: null,
+      deliveredAt: null,
+      endedAt: WEDNESDAY,
+      situation: "MISSED",
+    });
+    const ALL = [graded, waiting, missed, ...CANCELLED];
+    const counts = { tabCounts: { all: 5, awaiting: 1, graded: 1, missed: 1, cancelled: 2 }, totals: { delivered: 2, awaiting: 1, graded: 1, missed: 1, cancelled: 2 } };
+    const tabs = [
+      ["", ALL],
+      ["AWAITING", [waiting]],
+      ["GRADED", [graded]],
+      ["MISSED", [missed]],
+      ["CANCELLED", CANCELLED],
+    ] as const;
+    try {
+      for (const [tab, items] of tabs) {
+        for (const theme of ["dark", "light"] as const) {
+          document.documentElement.dataset.theme = theme;
+          const route = tab ? `${HISTORY}?tab=${tab}` : HISTORY;
+          const slug = HISTORY_TABS.find((entry) => entry.tab === (tab || null))?.slug;
+          const { container, unmount } = setup({ [route]: json(200, page([...items], { ...counts, total: items.length })) }, historyFromSearch({ aba: slug }));
+          await table();
+          await expectNoA11yViolations(container);
+          unmount();
+          vi.unstubAllGlobals();
+        }
+      }
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
   });
 });
 
@@ -556,15 +762,6 @@ describe("028/US4 Histórico: nada de nota antes da liberação", () => {
         expect(within(place).queryByText("Com feedback")).toBeNull();
         expect(place.textContent).not.toMatch(/\d,\d\d/);
       }
-    }
-  });
-
-  it("028/FR-018 um exercício nunca mostra a barra nem a palavra \"Nota\"", async () => {
-    setup({ [HISTORY]: json(200, page([exercise])) });
-    for (const place of await placesOf("Exercícios de laços")) {
-      expect(within(place).getByText("45 de 60 pontos")).toBeTruthy();
-      expect(within(place).queryByRole("progressbar")).toBeNull();
-      expect(place.textContent).not.toMatch(/Nota/);
     }
   });
 

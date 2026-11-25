@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–028 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–029 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -93,8 +93,13 @@ new feature through `/speckit-specify`.
   (newest delivery first); a row shows the grade and its bar only once the result is visible to the student. Amended
   2026-11-23: concluded activities live only in the Histórico — "Minhas atividades" and the Painel hold what the
   student can still do, and what can no longer be delivered goes to the tab "Não entregues". No migration.
+- 029 the Histórico holds only the works and exams the teacher closed or cancelled (superseding 028's amendment): a
+  cancelled one is newly shown (tab "Canceladas", "Cancelada", "—" in Nota, never a grade or a link; its other routes
+  stay `404`), each row dated by its delivery or else by the close or cancellation; every exercise and every ACTIVE work
+  or exam stays in "Minhas atividades", whose "Entregues/concluídas" filter is back, and the Painel's "Concluídas" counts
+  the Histórico's rows. No migration.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–028 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–029 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -174,6 +179,8 @@ hand-maintained.
 - PostgreSQL 17 — two migrations: `…_027_enum_values` (enum values only) and `…_027_manager_classes`, which is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
 - No new dependency (028-student-history-redesign)
 - PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
+- TypeScript 7 on Node.js 24 LTS (API, contracts, web) + no new dependency (029-history-closed-only)
+- PostgreSQL 17 — no migration (`class_activities.status`, `closed_at`, `cancelled_at` already exist) (029-history-closed-only)
 
 ## Stack notes
 
@@ -256,7 +263,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027 and 028; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028 and 029; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -570,24 +577,30 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   a `CLASS_ENROLLMENT_NOTICE` scheduled (no token, link to `/entrar`). Removing an enrollment removes it from every
   disciplina of the turma. Invitations and the notice name only the turma, never a teacher or subject; e-mails and
   names stay out of the new audit metadata and logs.
-- Student's Histórico (028): `GET /me/history` derives everything on every read from the student's scoped summaries
-  (the 012 loader, the 016 attendance gate included), newest delivery first. Amendment 2026-11-23: `GET /me/activities`
-  and the Painel hold only what the student can still do (no `COMPLETED` filter, `400`); a delivery and a "não
-  entregue" (`MISSED`: no delivery and `canAnswer` false — closed, class or turma not ACTIVE, deadline passed under
-  REJECT, exam window closed — never a held exam) are only in the history, the latter dated by `missedAt`; the Painel's
-  "Concluídas" links to `/historico` and "Atrasadas" counts only the overdue that still accept a delivery. `GRADED` only when the result is visible to the student (released with complete grading); before it
-  the row is `AWAITING` with no grade or feedback. An exercise is delivered at its attempt 1 conclusion, `GRADED` unless
-  its points await correction, and shows points, never a grade or a bar. `totals` follow only `classId`, `tabCounts` `classId` and `q`, `items`/`total` also the tab; `q` is a
-  title "contains", case- and accent-insensitive, trimmed and ≤ 100 code points, and is redacted from the logs (the
-  URL's `q=` and `req.query.q`). `classId` is the 026 check (ACTIVE enrollment, else the same `404`).
+- Student's Histórico (028, 029): `GET /me/history` derives everything on every read, newest row first. Since 029 the
+  placement is the teacher's act on the activity (pure `inHistory`/`inList` in `student-activities/history.ts`): the
+  Histórico holds only the works and exams the teacher closed or cancelled; every exercise and every ACTIVE work or exam
+  (pending, in progress, overdue accepting or not, delivered, graded, concluded) stays in "Minhas atividades", whose
+  `COMPLETED` filter ("Entregues/concluídas") is back. The class's or turma's status never moves a row. A CLOSED row is
+  `AWAITING`/`GRADED` with a delivery (a held exam awaits too), else `MISSED`; a CANCELLED one is `CANCELLED` whatever the
+  delivery, read only by `StudentActivityLoader.loadCancelled` (ACTIVE enrollment, the 016 release, published before the
+  cancellation) and built by `toCancelledSummary` (no result or points, read with `canSeeResults` false): never a grade,
+  feedback or link, and every other student route of it stays `404` (`student_access.denied`, `CANCELLED`). The row's
+  date is `deliveredAt ?? endedAt` (`closedAt`/`cancelledAt`). `GRADED` only when the result is visible to the student
+  (released with complete grading); before it the row is `AWAITING` with no grade or feedback. `totals` (the cards:
+  `delivered` = awaiting + graded; `missed` and `cancelled` apart) follow only `classId`, `tabCounts` `classId` and `q`,
+  `items`/`total` also the tab; `q` is a title "contains", case- and accent-insensitive, trimmed and ≤ 100 code points,
+  and is redacted from the logs (the URL's `q=` and `req.query.q`). `classId` is the 026 check (ACTIVE enrollment, else
+  the same `404`), made before the cancelled rows are read. The Painel counts the list ("Atrasadas" every overdue of
+  it) and its "Concluídas" is the number of the Histórico's rows of the same `classId`, linking to `/historico`.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 - 028-student-history-redesign: the student's Histórico redesigned — cards of delivered/awaiting/graded, tabs with counts, search by title and a class filter, all on the server through `GET /me/history` (newest delivery first); no migration
 - 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
-- 026-student-subject-selector: a "Matéria" card on the student's Painel and "Minhas atividades" (one subject at a time, `?materia=<classId>`); `GET /me/activities` and `GET /me/dashboard` take an optional `classId` (ACTIVE enrollment of the student, else 404), `GET /me/classes` gains `subjectName`; no migration
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

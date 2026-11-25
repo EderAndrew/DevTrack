@@ -1,7 +1,7 @@
 import type { StudentHistoryPage, TeacherActivity } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { applyWork, createActivity, createAttemptRow, createClassWithStudents, submitAttempt } from "../helpers/activities";
+import { applyWork, closeByHand, createActivity, createAttemptRow, createClassWithStudents, submitAttempt } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { applyExam, approvedExam, decideHold, holdByHand, startExam } from "../helpers/exams";
 import { loginAs, createUser, type TestUser } from "../helpers/factories";
@@ -16,6 +16,9 @@ import { type ConfirmedSyllabus, createConfirmedSyllabus, createWork, type WorkF
  * delivery of every member, an exam ended by the time is a delivery, a held exam is not until the teacher cancels it.
  *
  * The clock starts at the real time, as 018's suites: the exam triggers compare with the database clock.
+ *
+ * 029/FR-001: only works and exams the teacher closed or cancelled are in the history, so each delivery is closed
+ * (`closeByHand`) before it is read there; the exercise stays in "Minhas atividades".
  */
 
 type Client = ReturnType<typeof api>;
@@ -107,18 +110,22 @@ describe("028/US1 totais e lista redesenhada", () => {
     ids.unreleased = unreleased.activity.id;
     ids.released = released.activity.id;
     ids.exercise = exercise.activity.id;
+    // 029/FR-001: the teacher closes the two works; the exercise is never in the history.
+    for (const id of [ids.unreleased, ids.released]) await closeByHand(t, id, at(-30 * MINUTE));
   });
 
   it("028/US1-1 os totais contam todas as entregas, mesmo com pageSize=1", async () => {
     const body = await historyOf(client, "?pageSize=1");
     expect(body.items).toHaveLength(1);
-    expect(body.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 0 });
+    // 029/FR-001: the concluded exercise is no longer a delivery of the history.
+    expect(body.totals).toEqual({ delivered: 2, awaiting: 1, graded: 1, missed: 0, cancelled: 0 });
   });
 
   it("028/US1-2 028/SC-001 a ordem é pela data da entrega, a mais recente primeiro, e o total bate com a soma das páginas", async () => {
     const pages = await allPages(client, 2);
     const items = pages.flatMap((page) => page.items);
-    expect(items.map((item) => item.id)).toEqual([ids.unreleased, ids.exercise, ids.released]);
+    // 029/FR-001: no exercise in the history.
+    expect(items.map((item) => item.id)).toEqual([ids.unreleased, ids.released]);
     const times = items.map((item) => Date.parse(item.deliveredAt!));
     expect([...times].sort((a, b) => b - a)).toEqual(times);
     for (const page of pages) expect(page.total).toBe(items.length);
@@ -135,32 +142,53 @@ describe("028/US1 totais e lista redesenhada", () => {
   });
 
   it("028/US1-5 exercício concluído: COMPLETED com os pontos, nunca uma nota", async () => {
-    const item = (await historyOf(client)).items.find((entry) => entry.id === ids.exercise)!;
-    expect(item).toMatchObject({ type: "EXERCISE", status: "COMPLETED", situation: "GRADED", result: null, totalGrade: null });
+    // 029/FR-001: a concluded exercise is no longer in the history; it stays in "Minhas atividades" with its points.
+    expect((await historyOf(client)).items.map((entry) => entry.id)).not.toContain(ids.exercise);
+    const list = await client.get("/api/me/activities");
+    expect(list.status).toBe(200);
+    const item = (list.body as { items: { id: string; points: unknown }[] }).items.find((entry) => entry.id === ids.exercise)!;
+    expect(item).toMatchObject({ type: "EXERCISE", status: "COMPLETED", result: null, totalGrade: null });
     expect(item.points).not.toBeNull();
   });
 
+  /** 029/FR-002: a closed work is a MISSED row of every enrolled student who didn't deliver it, so a fresh class. */
+  const aloneInNewClass = async () => {
+    const fresh = await createClassWithStudents(t, teacher.id, { subjectId: syllabus.subject.id, students: 1 });
+    return { freshClass: fresh.schoolClass, freshStudent: fresh.students[0] as TestUser };
+  };
+
   it("028/US1-8 aluno sem entregas: lista vazia e todos os totais 0", async () => {
-    expect(await historyOf(await clientOf(classmate))).toEqual({
+    const { freshStudent } = await aloneInNewClass();
+    expect(await historyOf(await clientOf(freshStudent))).toEqual({
       items: [],
       nextCursor: null,
       total: 0,
-      tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0 },
-      totals: { delivered: 0, awaiting: 0, graded: 0, missed: 0 },
+      tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 },
+      totals: { delivered: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 },
     });
   });
 
   it("028/US1-9 25 entregas com o pageSize padrão: duas páginas, sem repetir nem pular", async () => {
+    const { freshClass, freshStudent } = await aloneInNewClass();
     const delivered: string[] = [];
     for (let index = 0; index < 25; index += 1) {
-      const created = await assignment(`Trabalho ${index + 1}`);
-      await createAttemptRow(t, created.activity.id, classmate.id, {
+      const created = await createActivity(t, freshClass, {
+        type: "ASSIGNMENT",
+        title: `Trabalho ${index + 1}`,
+        publishAt: at(-3 * DAY),
+        deadline: at(2 * DAY),
+        sourceWorkId: work.id,
+        sourceSubjectId: work.subjectId,
+      });
+      await createAttemptRow(t, created.activity.id, freshStudent.id, {
         startedAt: at(-(index + 2) * HOUR),
         submission: { submittedAt: at(-(index + 1) * HOUR) },
       });
+      // 029/FR-001: closed by the teacher, so in the history.
+      await closeByHand(t, created.activity.id, at(-MINUTE));
       delivered.push(created.activity.id);
     }
-    const pages = await allPages(await clientOf(classmate));
+    const pages = await allPages(await clientOf(freshStudent));
     expect(pages.map((page) => page.items.length)).toEqual([20, 5]);
     expect(pages.flatMap((page) => page.items.map((item) => item.id))).toEqual(delivered);
     for (const page of pages) expect([page.total, page.totals.delivered]).toEqual([25, 25]);
@@ -174,6 +202,8 @@ describe("028/US1 totais e lista redesenhada", () => {
     clock.advance(10 * MINUTE);
     const submitted = await submitAttempt(client, activityId);
     expect(submitted.status, JSON.stringify(submitted.body)).toBe(200);
+    // 029/FR-001: in the history once the teacher closes it.
+    await closeByHand(t, activityId, at(MINUTE));
 
     for (const member of [client, await clientOf(classmate)]) {
       const item = (await historyOf(member)).items.find((entry) => entry.id === activityId);
@@ -181,6 +211,8 @@ describe("028/US1 totais e lista redesenhada", () => {
     }
   });
 
+  // 029/FR-001: both exams reach the history only once the teacher closes them; before that, an ended exam is a delivery
+  // of "Minhas atividades".
   it("028/US1 prova encerrada pelo tempo conta como entrega; prova retida só aparece depois de cancelada", async () => {
     const exam = await approvedExam(t, teacherClient, syllabus);
     const apply = async () => {
@@ -201,6 +233,8 @@ describe("028/US1 totais e lista redesenhada", () => {
 
     // O tempo (60 min) acaba: a próxima leitura encerra a prova por tempo; a retida continua fora.
     clock.advance(HOUR);
+    expect((await historyOf(client)).items.map((item) => item.id)).not.toContain(timed);
+    await closeByHand(t, timed, clock.now());
     const afterTime = await historyOf(client);
     expect(afterTime.items.find((item) => item.id === timed)).toMatchObject({
       deliveredAt: new Date(startedAt.getTime() + HOUR).toISOString(),
@@ -211,8 +245,11 @@ describe("028/US1 totais e lista redesenhada", () => {
 
     const cancelled = await decideHold(teacherClient, schoolClass.id, heldId, hold.id, "cancel");
     expect(cancelled.status, JSON.stringify(cancelled.body)).toBe(200);
+    expect((await historyOf(client)).items.map((item) => item.id)).not.toContain(heldId);
+    await closeByHand(t, heldId, clock.now());
     const afterCancel = await historyOf(client);
     expect(afterCancel.items.find((item) => item.id === heldId)).toMatchObject({ situation: "AWAITING", result: null });
-    expect(afterCancel.totals).toEqual({ delivered: 5, awaiting: 3, graded: 2, missed: 0 });
+    // 029/FR-001: the two closed works and the two closed exams; no exercise.
+    expect(afterCancel.totals).toEqual({ delivered: 4, awaiting: 3, graded: 1, missed: 0, cancelled: 0 });
   });
 });

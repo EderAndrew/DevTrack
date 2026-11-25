@@ -1,8 +1,8 @@
 import type { StudentActivityPage, StudentHistoryPage } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { createActivity, createAttemptRow } from "../helpers/activities";
-import { DAY, FixedClock, HOUR } from "../helpers/clock";
+import { closeByHand, createActivity, createAttemptRow } from "../helpers/activities";
+import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helpers/works";
@@ -11,6 +11,9 @@ import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helper
  * 028 Foundational — `GET /me/history` with no filter: every delivery of the student (no pending activity), each with
  * its delivery date and situation, newest delivery first, paged by the cursor with the same counts on every page;
  * `GET /me/activities` answers exactly as before (SC-005).
+ *
+ * 029/FR-001: only works and exams the teacher closed or cancelled are in the history, so the deliveries are closed
+ * (`closeByHand`) after they are written and the exercise became a third closed work.
  */
 
 const START = "2026-11-19T12:00:00.000Z";
@@ -23,8 +26,9 @@ describe("028 GET /me/history (sem filtros)", () => {
   let student: TestUser;
   let schoolClass: SchoolClass;
   let work: WorkFixture;
-  const ids = {} as Record<"unreleased" | "released" | "exam" | "exercise" | "pending", string>;
-  const delivered = {} as Record<"unreleased" | "released" | "exam" | "exercise", Date>;
+  const ids = {} as Record<"unreleased" | "released" | "exam" | "closedWork" | "pending", string>;
+  const delivered = {} as Record<"unreleased" | "released" | "exam" | "closedWork", Date>;
+  let closedAt: Date;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
   const assignment = (title: string, extra: { resultReleasedAt?: Date } = {}) =>
@@ -84,36 +88,44 @@ describe("028 GET /me/history (sem filtros)", () => {
       startedAt: at(-90 * 60_000),
       submission: { submittedAt: delivered.exam, endReason: "STUDENT_SUBMITTED" },
     });
-    // Exercício concluído (tentativa 1, nada a corrigir) → corrigida; a data é a conclusão da tentativa 1.
-    const exercise = await createActivity(t, schoolClass, { type: "EXERCISE", title: "Lista de exercícios", publishAt: at(-DAY) });
-    delivered.exercise = at(-5 * HOUR);
-    await createAttemptRow(t, exercise.activity.id, student.id, { startedAt: at(-6 * HOUR), completedAt: delivered.exercise });
+    // 029/FR-001: the exercise of 028 (never in the history now) became a third work, released and graded.
+    const closedWork = await assignment("Trabalho encerrado", { resultReleasedAt: at(-HOUR) });
+    delivered.closedWork = at(-5 * HOUR);
+    await createAttemptRow(t, closedWork.activity.id, student.id, {
+      startedAt: at(-6 * HOUR),
+      submission: { submittedAt: delivered.closedWork, gradeCents: 100 },
+    });
     // Pendente: nunca entra no histórico.
     const pending = await assignment("Trabalho pendente");
 
     ids.unreleased = unreleased.activity.id;
     ids.released = released.activity.id;
     ids.exam = exam.activity.id;
-    ids.exercise = exercise.activity.id;
+    ids.closedWork = closedWork.activity.id;
     ids.pending = pending.activity.id;
+    // 029/FR-001: the teacher closes the four deliveries; the pending work stays ACTIVE.
+    closedAt = at(-30 * MINUTE);
+    for (const id of [ids.unreleased, ids.released, ids.exam, ids.closedWork]) await closeByHand(t, id, closedAt);
   });
 
   it("028/FR-016 devolve as quatro entregas, sem a pendente, com deliveredAt e situação, da mais recente para a mais antiga", async () => {
     const body = await history();
-    expect(body.items.map((item) => item.id)).toEqual([ids.exam, ids.unreleased, ids.exercise, ids.released]);
+    expect(body.items.map((item) => item.id)).toEqual([ids.exam, ids.unreleased, ids.closedWork, ids.released]);
     expect(body.items.map((item) => item.id)).not.toContain(ids.pending);
     const byId = new Map(body.items.map((item) => [item.id, item]));
     expect(byId.get(ids.unreleased)).toMatchObject({ deliveredAt: delivered.unreleased.toISOString(), situation: "AWAITING", result: null });
     expect(byId.get(ids.released)).toMatchObject({ deliveredAt: delivered.released.toISOString(), situation: "GRADED" });
     expect(byId.get(ids.released)!.result).not.toBeNull();
     expect(byId.get(ids.exam)).toMatchObject({ deliveredAt: delivered.exam.toISOString(), situation: "AWAITING", result: null });
-    expect(byId.get(ids.exercise)).toMatchObject({ deliveredAt: delivered.exercise.toISOString(), situation: "GRADED" });
+    expect(byId.get(ids.closedWork)).toMatchObject({ deliveredAt: delivered.closedWork.toISOString(), situation: "GRADED" });
+    // 029/FR-006: every row also carries when the teacher closed it.
+    for (const item of body.items) expect(item.endedAt).toBe(closedAt.toISOString());
   });
 
   it("028/FR-003 totais e contagens calculados pelo servidor", async () => {
     const body = await history();
-    expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0 });
-    expect(body.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0 });
+    expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0 });
+    expect(body.tabCounts).toEqual({ all: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0 });
     expect(body.total).toBe(4);
     expect(body.nextCursor).toBeNull();
   });
@@ -124,31 +136,33 @@ describe("028 GET /me/history (sem filtros)", () => {
     for (let page = 0; page < 4; page += 1) {
       const body: StudentHistoryPage = await history(`?pageSize=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
       expect(body.items).toHaveLength(1);
-      expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0 });
+      expect(body.totals).toEqual({ delivered: 4, awaiting: 2, graded: 2, missed: 0, cancelled: 0 });
       expect(body.tabCounts.all).toBe(4);
       expect(body.total).toBe(4);
       seen.push(body.items[0]!.id);
       cursor = body.nextCursor;
     }
     expect(cursor).toBeNull();
-    expect(seen).toEqual([ids.exam, ids.unreleased, ids.exercise, ids.released]);
+    expect(seen).toEqual([ids.exam, ids.unreleased, ids.closedWork, ids.released]);
     expect((await client.get("/api/me/history?cursor=xyz")).status).toBe(400);
   });
 
   it("028/SC-005 028/FR-023 GET /me/activities mantém o formato da 012, sem as entregas (emenda 2026-11-23)", async () => {
-    // Amended SC-005: the list keeps its shape (no field of the history), but deliveries now live only in the
-    // "Histórico" (FR-023) and the "Entregues/concluídas" filter is gone.
+    // Amended SC-005: the list keeps its shape (no field of the history); the closed deliveries live only in the
+    // "Histórico" (029/FR-001).
     const res = await client.get("/api/me/activities");
     expect(res.status).toBe(200);
     const body = res.body as StudentActivityPage;
     expect(Object.keys(body).sort()).toEqual(["items", "nextCursor"]);
     const listed = body.items.map((item) => item.id);
-    for (const id of [ids.unreleased, ids.released, ids.exam, ids.exercise]) expect(listed).not.toContain(id);
+    for (const id of [ids.unreleased, ids.released, ids.exam, ids.closedWork]) expect(listed).not.toContain(id);
+    expect(listed).toContain(ids.pending);
     for (const item of body.items) {
       expect(item).not.toHaveProperty("deliveredAt");
       expect(item).not.toHaveProperty("situation");
     }
-    expect((await client.get("/api/me/activities?status=COMPLETED")).status).toBe(400);
+    // 029/FR-008: the "Entregues/concluídas" filter is back.
+    expect((await client.get("/api/me/activities?status=COMPLETED")).status).toBe(200);
   });
 
   it("028/FR-018 sem sessão → 401; sem atividades.proprias.visualizar → 403", async () => {

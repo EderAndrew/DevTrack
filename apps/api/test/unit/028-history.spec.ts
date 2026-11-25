@@ -6,11 +6,11 @@ import {
   byDelivery,
   historyCursor,
   historySituation,
-  isMissed,
+  type HistoryInput,
+  inHistory,
   matchesSearch,
-  missedAt,
-  type MissedInput,
   normalizeSearch,
+  rowDate,
   type HistoryEntry,
 } from "../../src/modules/student-activities/history";
 
@@ -38,20 +38,29 @@ const entry = (n: number, at: string): HistoryEntry => ({
 
 describe("028 histórico — funções puras", () => {
   describe("028/FR-002 historySituation", () => {
+    // 029/FR-002: the situation reads the closed activity's delivery as well as the summary's `result`.
+    const closed = (type: "ASSIGNMENT" | "EXAM"): HistoryInput =>
+      ({
+        type,
+        facts: { type, activityStatus: "CLOSED" },
+        submission: { submittedAt: new Date("2026-11-10T12:00:00.000Z") },
+        closedAt: new Date("2026-11-15T12:00:00.000Z"),
+        cancelledAt: null,
+      }) as HistoryInput;
+
     it("trabalho e prova com result → GRADED; sem result → AWAITING", () => {
       for (const type of ["ASSIGNMENT", "EXAM"] as const) {
-        expect(historySituation(summary({ type, status: "GRADED", result: RESULT }))).toBe("GRADED");
+        expect(historySituation(closed(type), summary({ type, status: "GRADED", result: RESULT }))).toBe("GRADED");
         // não liberado, liberado com correção incompleta ou sem notas.proprias.visualizar: o result é null.
-        expect(historySituation(summary({ type, status: "SUBMITTED", result: null }))).toBe("AWAITING");
-        expect(historySituation(summary({ type, status: "GRADED", result: null }))).toBe("AWAITING");
+        expect(historySituation(closed(type), summary({ type, status: "SUBMITTED", result: null }))).toBe("AWAITING");
+        expect(historySituation(closed(type), summary({ type, status: "GRADED", result: null }))).toBe("AWAITING");
       }
     });
 
-    it("exercício com pontos aguardando correção → AWAITING; sem → GRADED", () => {
-      const exercise = (awaitingCorrection: boolean) =>
-        summary({ type: "EXERCISE", status: "COMPLETED", points: { possible: 30, earned: 15, awaitingCorrection } });
-      expect(historySituation(exercise(true))).toBe("AWAITING");
-      expect(historySituation(exercise(false))).toBe("GRADED");
+    it("exercício nunca está no Histórico (029/FR-001), com ou sem pontos aguardando correção", () => {
+      // 029/FR-001: exercises stay in "Minhas atividades"; 028 gave them AWAITING/GRADED here.
+      const exercise = { type: "EXERCISE", facts: { type: "EXERCISE", activityStatus: "CLOSED" } } as HistoryInput;
+      expect(inHistory(exercise)).toBe(false);
     });
   });
 
@@ -107,94 +116,44 @@ describe("028 histórico — funções puras", () => {
     });
   });
 
-  // Amendment 2026-11-23 (research HI11): an activity without a delivery the student can no longer start or continue.
-  describe("028/FR-022 isMissed e missedAt", () => {
-    const NOW = new Date("2026-11-20T12:00:00.000Z");
-    const BEFORE = new Date("2026-11-19T12:00:00.000Z");
-    const AFTER = new Date("2026-11-21T12:00:00.000Z");
-    const PUBLISHED = new Date("2026-11-01T12:00:00.000Z");
-    const common = { activityStatus: "ACTIVE", classActive: true, now: NOW } as const;
-    const assignment = (overrides: Partial<Extract<ActivityFacts, { type: "ASSIGNMENT" }>> = {}): ActivityFacts => ({
-      ...common,
+  // 029/FR-002: the amendment's "não entregue" (HI11, `isMissed`/`missedAt`) is replaced by the closed activity without a
+  // delivery, dated by its close (029 research HC4); `test/unit/029-placement.spec.ts` covers the rest of the rule.
+  describe("028/FR-022 não entregue", () => {
+    const facts = (overrides: Record<string, unknown> = {}): ActivityFacts =>
+      ({
+        type: "ASSIGNMENT",
+        activityStatus: "CLOSED",
+        classActive: true,
+        now: new Date("2026-11-20T12:00:00.000Z"),
+        deadline: new Date("2026-11-25T12:00:00.000Z"),
+        latePolicy: "REJECT",
+        attempt: null,
+        submission: null,
+        released: false,
+        ...overrides,
+      }) as ActivityFacts;
+    const closedAt = new Date("2026-11-15T12:00:00.000Z");
+    const row = (overrides: Partial<HistoryInput> = {}): HistoryInput => ({
       type: "ASSIGNMENT",
-      deadline: AFTER,
-      latePolicy: "REJECT",
-      attempt: null,
+      facts: facts(),
       submission: null,
-      released: false,
+      closedAt,
+      cancelledAt: null,
       ...overrides,
-    });
-    const exam = (overrides: Partial<Extract<ActivityFacts, { type: "EXAM" }>> = {}): ActivityFacts => ({
-      ...common,
-      type: "EXAM",
-      startDeadline: AFTER,
-      attempt: null,
-      submission: null,
-      released: false,
-      ...overrides,
-    });
-    const exercise = (overrides: Partial<Extract<ActivityFacts, { type: "EXERCISE" }>> = {}): ActivityFacts => ({
-      ...common,
-      type: "EXERCISE",
-      latestAttempt: null,
-      awaitingCorrection: false,
-      ...overrides,
-    });
-    const input = (facts: ActivityFacts, overrides: Partial<MissedInput> = {}): MissedInput => ({
-      facts,
-      publishAt: PUBLISHED,
-      closedAt: null,
-      inactiveSince: null,
-      ...overrides,
-    });
-    const submitted = { late: false, gradingComplete: false };
-
-    it("ainda dá para fazer → não é não entregue (pendente, em andamento, atrasada aceitando entrega, prova na janela)", () => {
-      expect(isMissed(input(assignment()))).toBe(false);
-      expect(isMissed(input(assignment({ attempt: { status: "IN_PROGRESS" } })))).toBe(false);
-      expect(isMissed(input(assignment({ deadline: BEFORE, latePolicy: "ACCEPT_MARKED" })))).toBe(false);
-      expect(isMissed(input(exam()))).toBe(false);
-      expect(isMissed(input(exam({ startDeadline: BEFORE, attempt: { status: "IN_PROGRESS" } })))).toBe(false);
-      expect(isMissed(input(exercise({ latestAttempt: { number: 1, status: "IN_PROGRESS" } })))).toBe(false);
     });
 
-    it("entregue ou concluído nunca é não entregue, mesmo encerrado ou com a turma inativa", () => {
-      const closed = { activityStatus: "CLOSED", classActive: false } as const;
-      expect(isMissed(input(assignment({ ...closed, submission: submitted })))).toBe(false);
-      expect(isMissed(input(exam({ ...closed, submission: { endReason: "STUDENT_SUBMITTED", gradingComplete: false } })))).toBe(false);
-      expect(isMissed(input(exercise({ ...closed, latestAttempt: { number: 1, status: "SUBMITTED" } })))).toBe(false);
+    it("encerrada sem entrega → MISSED, datada pelo encerramento", () => {
+      expect(historySituation(row(), { result: null })).toBe("MISSED");
+      expect(rowDate(row())).toEqual(closedAt);
     });
 
-    it("sem entrega e sem como fazer → não entregue: encerrada, turma não ativa, prazo vencido REJECT, janela da prova fechada", () => {
-      expect(isMissed(input(assignment({ activityStatus: "CLOSED" })))).toBe(true);
-      expect(isMissed(input(assignment({ classActive: false })))).toBe(true);
-      expect(isMissed(input(assignment({ deadline: BEFORE })))).toBe(true);
-      expect(isMissed(input(assignment({ deadline: BEFORE, attempt: { status: "IN_PROGRESS" } })))).toBe(true);
-      expect(isMissed(input(exam({ startDeadline: BEFORE })))).toBe(true);
-      expect(isMissed(input(exam({ activityStatus: "CLOSED", attempt: { status: "IN_PROGRESS" } })))).toBe(true);
-      expect(isMissed(input(exercise({ activityStatus: "CLOSED" })))).toBe(true);
-      expect(isMissed(input(exercise({ classActive: false, latestAttempt: { number: 1, status: "IN_PROGRESS" } })))).toBe(true);
+    it("uma ativa sem entrega, mesmo sem como fazer, fica em \"Minhas atividades\" (029/FR-007)", () => {
+      expect(inHistory(row({ facts: facts({ activityStatus: "ACTIVE", classActive: false }), closedAt: null }))).toBe(false);
     });
 
     it("prova retida à espera da decisão nunca é não entregue", () => {
-      expect(isMissed(input(exam({ activityStatus: "CLOSED", attempt: { status: "IN_PROGRESS" }, onHold: true })))).toBe(false);
-      expect(isMissed(input(exam({ classActive: false, attempt: { status: "IN_PROGRESS" }, onHold: true })))).toBe(false);
-    });
-
-    it("missedAt: o mais cedo entre o prazo vencido (REJECT), o encerramento, o fim da janela e a turma não ativa", () => {
-      const early = new Date("2026-11-15T12:00:00.000Z");
-      const late = new Date("2026-11-18T12:00:00.000Z");
-      expect(missedAt(input(assignment({ deadline: early })))).toEqual(early);
-      expect(missedAt(input(assignment({ deadline: late, activityStatus: "CLOSED" }), { closedAt: early }))).toEqual(early);
-      expect(missedAt(input(assignment({ deadline: early, activityStatus: "CLOSED" }), { closedAt: late }))).toEqual(early);
-      expect(missedAt(input(assignment({ classActive: false }), { inactiveSince: early }))).toEqual(early);
-      expect(missedAt(input(exam({ startDeadline: early })))).toEqual(early);
-      expect(missedAt(input(exam({ startDeadline: late, activityStatus: "CLOSED" }), { closedAt: early }))).toEqual(early);
-      expect(missedAt(input(exercise({ activityStatus: "CLOSED" }), { closedAt: late }))).toEqual(late);
-      // An ACCEPT_MARKED deadline never closes: only the close does.
-      expect(missedAt(input(assignment({ deadline: early, latePolicy: "ACCEPT_MARKED", activityStatus: "CLOSED" }), { closedAt: late }))).toEqual(late);
-      // Without any recorded moment (an old row): the publication.
-      expect(missedAt(input(assignment({ classActive: false })))).toEqual(PUBLISHED);
+      const held = row({ type: "EXAM", facts: facts({ type: "EXAM", startDeadline: closedAt, attempt: { status: "IN_PROGRESS" }, onHold: true }) });
+      expect(historySituation(held, { result: null })).toBe("AWAITING");
     });
   });
 });

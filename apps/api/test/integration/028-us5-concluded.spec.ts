@@ -1,7 +1,7 @@
 import type { StudentActivityPage, StudentDashboard, StudentHistoryPage } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { SchoolClass } from "../../src/generated/prisma/client";
-import { acceptSubmission, createActivity, createAttemptRow } from "../helpers/activities";
+import { acceptSubmission, closeByHand, createActivity, createAttemptRow } from "../helpers/activities";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { holdByHand } from "../helpers/exams";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -9,17 +9,18 @@ import { api, createTestApp, resetDb, type TestApp } from "../helpers/test-app";
 import { createConfirmedSyllabus, createWork, type WorkFixture } from "../helpers/works";
 
 /**
- * 028/US5 (amendment 2026-11-23, FR-022–FR-025, research HI11–HI13): "Minhas atividades" and the Painel hold only what
- * the student can still do; deliveries and the activities the student can no longer deliver ("não entregues") are
- * only in the "Histórico". One student with an activity in each situation, in a turma with an active disciplina (A)
- * and an archived one (B).
+ * 028/US5 (amendment 2026-11-23), superseded by 029 (FR-001, FR-007–FR-009, research HC1, HC8): the 028 ids stay, the
+ * expectations follow the 029 rule — the "Histórico" holds only the works and exams the teacher closed or cancelled;
+ * every exercise and every ACTIVE work or exam (delivered, overdue or of an archived disciplina) stays in "Minhas
+ * atividades". One student with an activity in each situation, in a turma with an active disciplina (A) and an
+ * archived one (B).
  */
 
 type Client = ReturnType<typeof api>;
 
 const START = new Date(Math.floor(Date.now() / MINUTE) * MINUTE).toISOString();
 
-describe("028/US5 concluídas só no Histórico", () => {
+describe("028/US5 029/SC-005 concluídas só no Histórico, pela regra da 029", () => {
   let t: TestApp;
   let clock: FixedClock;
   let classA: SchoolClass;
@@ -43,7 +44,7 @@ describe("028/US5 concluídas só no Histórico", () => {
     string
   >;
   let rejectedAttemptId: string;
-  let archivedAt: Date;
+  let closedAt: Date;
 
   const at = (offset: number) => new Date(clock.now().getTime() + offset);
   const work = (schoolClass: SchoolClass, fixture: WorkFixture, title: string, extra: Parameters<typeof createActivity>[2] = {}) =>
@@ -121,10 +122,11 @@ describe("028/US5 concluídas só no Histórico", () => {
     await createAttemptRow(t, corrigida, student.id, { startedAt: at(-3 * HOUR), submission: { submittedAt: at(-2 * HOUR), gradeCents: 80 } });
     const exercicio = (await createActivity(t, classA, { type: "EXERCISE", title: "Exercício concluído", publishAt: at(-3 * DAY) })).activity.id;
     await createAttemptRow(t, exercicio, student.id, { startedAt: at(-4 * HOUR), number: 1, completedAt: at(-3 * HOUR) });
-    const encerrada = await work(classA, workA, "Encerrada", { status: "CLOSED" });
+    const encerrada = await work(classA, workA, "Encerrada");
+    closedAt = at(-5 * HOUR);
+    await closeByHand(t, encerrada, closedAt);
     const arquivada = await work(classB, workB, "Da disciplina arquivada");
-    archivedAt = at(-5 * HOUR);
-    await t.prisma.schoolClass.update({ where: { id: classB.id }, data: { status: "ARCHIVED", statusChangedAt: archivedAt } });
+    await t.prisma.schoolClass.update({ where: { id: classB.id }, data: { status: "ARCHIVED", statusChangedAt: at(-5 * HOUR) } });
     // A held exam of a closed activity: still in course for the student until the teacher decides (018 FR-019).
     const provaRetida = (await createActivity(t, classA, { type: "EXAM", title: "Prova retida", publishAt: at(-HOUR) })).activity.id;
     await t.prisma.activityAttendance.create({
@@ -137,55 +139,55 @@ describe("028/US5 concluídas só no Histórico", () => {
     ids = { pendente, emAndamento, atrasadaAceita, atrasadaRejeitada, entregue, corrigida, exercicio, encerrada, arquivada, provaRetida };
   });
 
-  it("028/US5-1 028/US5-3 028/FR-023 Minhas atividades: só o que ainda dá para fazer, em todos os filtros e páginas", async () => {
-    expect(new Set(await listAll())).toEqual(new Set([ids.pendente, ids.emAndamento, ids.atrasadaAceita, ids.provaRetida]));
-    expect(await listAll("PENDING")).toEqual([ids.pendente]);
-    expect(new Set(await listAll("IN_PROGRESS"))).toEqual(new Set([ids.emAndamento, ids.provaRetida]));
-    expect(await listAll("OVERDUE")).toEqual([ids.atrasadaAceita]);
-    const completed = await client.get("/api/me/activities?status=COMPLETED");
-    expect(completed.status).toBe(400);
-    expect(completed.body.code).toBe("VALIDATION_ERROR");
+  it("028/US5-1 028/US5-3 028/FR-023 Minhas atividades: exercícios e trabalhos/provas ativos, em todos os filtros e páginas", async () => {
+    // 029/FR-007: every ACTIVE work (delivered, overdue accepting or not, of an archived disciplina) and the exercise.
+    expect(new Set(await listAll())).toEqual(
+      new Set([ids.pendente, ids.emAndamento, ids.atrasadaAceita, ids.atrasadaRejeitada, ids.entregue, ids.corrigida, ids.exercicio, ids.arquivada]),
+    );
+    // 029/FR-007: the ACTIVE work of the archived disciplina is pending, read-only (029 Assumptions).
+    expect(new Set(await listAll("PENDING"))).toEqual(new Set([ids.pendente, ids.arquivada]));
+    expect(await listAll("IN_PROGRESS")).toEqual([ids.emAndamento]);
+    // 029/FR-009: "Atrasadas" lists every overdue of the list, accepting or not.
+    expect(new Set(await listAll("OVERDUE"))).toEqual(new Set([ids.atrasadaAceita, ids.atrasadaRejeitada]));
+    // 029/FR-008: "Entregues/concluídas" is back.
+    expect(new Set(await listAll("COMPLETED"))).toEqual(new Set([ids.entregue, ids.corrigida, ids.exercicio]));
   });
 
   it("028/US5-2 028/FR-024 Histórico: as não entregues na aba própria, sem nota, fora dos cards, pela data em que fecharam", async () => {
     const all = (await historyAll()).flatMap((page) => page.items);
-    expect(new Set(all.map((item) => item.id))).toEqual(
-      new Set([ids.entregue, ids.corrigida, ids.exercicio, ids.atrasadaRejeitada, ids.encerrada, ids.arquivada]),
-    );
+    // 029/FR-001: only the works and exams the teacher closed (the held exam awaits the decision, 029 HC4).
+    expect(new Set(all.map((item) => item.id))).toEqual(new Set([ids.encerrada, ids.provaRetida]));
     const pages = await historyAll({ tab: "MISSED" });
     const missed = pages.flatMap((page) => page.items);
-    // The close (now, by the helper) is the latest, then the archive (5 h ago), then the deadline (a day ago).
-    expect(missed.map((item) => item.id)).toEqual([ids.encerrada, ids.arquivada, ids.atrasadaRejeitada]);
-    for (const item of missed) {
-      expect(item).toMatchObject({ situation: "MISSED", deliveredAt: null, result: null });
-      expect(item.missedAt).not.toBeNull();
-    }
-    expect(missed.find((item) => item.id === ids.atrasadaRejeitada)!.missedAt).toBe(at(-DAY).toISOString());
-    expect(missed.find((item) => item.id === ids.arquivada)!.missedAt).toBe(archivedAt.toISOString());
+    expect(missed.map((item) => item.id)).toEqual([ids.encerrada]);
+    // 029/FR-006: dated by the close.
+    expect(missed[0]).toMatchObject({ situation: "MISSED", deliveredAt: null, result: null, endedAt: closedAt.toISOString() });
     for (const page of pages) {
-      expect(page.tabCounts).toEqual({ all: 6, awaiting: 1, graded: 2, missed: 3 });
-      expect(page.totals).toEqual({ delivered: 3, awaiting: 1, graded: 2, missed: 3 });
-      expect(page.total).toBe(3);
+      expect(page.tabCounts).toEqual({ all: 2, awaiting: 1, graded: 0, missed: 1, cancelled: 0 });
+      expect(page.totals).toEqual({ delivered: 1, awaiting: 1, graded: 0, missed: 1, cancelled: 0 });
+      expect(page.total).toBe(1);
     }
     // The search and the matéria apply to them as to the deliveries.
-    expect((await historyAll({ tab: "MISSED", q: "arquivada" })).flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.arquivada]);
+    expect((await historyAll({ tab: "MISSED", q: "encerrada" })).flatMap((page) => page.items).map((item) => item.id)).toEqual([ids.encerrada]);
+    expect((await historyAll({ tab: "MISSED", q: "arquivada" })).flatMap((page) => page.items)).toEqual([]);
     const onlyA = await get<StudentHistoryPage>(`/api/me/history?tab=MISSED&classId=${classA.id}`);
-    expect(onlyA.items.map((item) => item.id)).toEqual([ids.encerrada, ids.atrasadaRejeitada]);
+    expect(onlyA.items.map((item) => item.id)).toEqual([ids.encerrada]);
   });
 
-  it("028/US5-4 028/FR-025 Painel: Concluídas conta as entregas; Atrasadas só as que aceitam entrega", async () => {
+  it("028/US5-4 028/FR-025 Painel: contadores da lista; Concluídas conta as linhas do Histórico", async () => {
     const body = await get<StudentDashboard>("/api/me/dashboard");
-    expect(body.counts).toEqual({ pending: 1, inProgress: 2, overdue: 1, completed: 3 });
+    // 029/FR-009: "Atrasadas" counts every overdue of the list; "Concluídas" the rows of the Histórico.
+    expect(body.counts).toEqual({ pending: 2, inProgress: 1, overdue: 2, completed: 2 });
     expect(body.overdueOpen.map((item) => item.id)).toEqual([ids.atrasadaAceita]);
-    expect(body.next.map((item) => item.id)).not.toContain(ids.arquivada);
+    expect(body.next.map((item) => item.id)).not.toContain(ids.provaRetida);
   });
 
   it("028/US5-5 aba Não entregues vazia: a lista e o total vazios, as contagens zeradas só nela", async () => {
     const body = await get<StudentHistoryPage>(`/api/me/history?tab=MISSED&q=${encodeURIComponent("nada assim")}`);
-    expect(body).toMatchObject({ items: [], total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0 } });
+    expect(body).toMatchObject({ items: [], total: 0, tabCounts: { all: 0, awaiting: 0, graded: 0, missed: 0, cancelled: 0 } });
   });
 
-  it("028/US5-6 a aceitação tardia do professor tira a atividade de Não entregues e a torna uma entrega", async () => {
+  it("028/US5-6 a aceitação tardia do professor torna a atrasada uma entrega, ainda em Minhas atividades", async () => {
     // The student saved something before the deadline (acceptance needs a saved answer, 012 FR-006b).
     const question = await t.prisma.classActivityQuestion.findFirstOrThrow({
       where: { activityId: ids.atrasadaRejeitada },
@@ -205,11 +207,12 @@ describe("028/US5 concluídas só no Histórico", () => {
     const teacher = api(t, { cookie: await loginAs(t, teacherA) });
     const res = await acceptSubmission(teacher, classA.id, ids.atrasadaRejeitada, rejectedAttemptId);
     expect(res.status, JSON.stringify(res.body)).toBeLessThan(300);
-    const items = (await historyAll()).flatMap((page) => page.items);
-    const accepted = items.find((item) => item.id === ids.atrasadaRejeitada)!;
-    expect(accepted).toMatchObject({ situation: "AWAITING", missedAt: null });
-    expect(accepted.deliveredAt).not.toBeNull();
-    expect((await get<StudentHistoryPage>("/api/me/history?tab=MISSED")).tabCounts.missed).toBe(2);
+    // 029/FR-007, FR-008: still ACTIVE, so it moves from "Atrasadas" to "Entregues/concluídas" of the list.
+    expect(await listAll("OVERDUE")).toEqual([ids.atrasadaAceita]);
+    expect(await listAll("COMPLETED")).toContain(ids.atrasadaRejeitada);
+    const page = await get<StudentActivityPage>("/api/me/activities?status=COMPLETED&pageSize=50");
+    expect(page.items.find((item) => item.id === ids.atrasadaRejeitada)).toMatchObject({ status: "SUBMITTED", late: true });
+    expect((await get<StudentHistoryPage>("/api/me/history")).items.map((item) => item.id)).not.toContain(ids.atrasadaRejeitada);
   });
 
   it("028/SC-008 cada atividade em exatamente uma das duas telas", async () => {

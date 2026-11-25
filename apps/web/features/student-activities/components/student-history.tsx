@@ -39,10 +39,12 @@ import {
   HISTORY_SEARCH_WAIT_MS,
   historyClassLines,
   historyDate,
+  historyDateLabel,
   historyFiltered,
   historyFooter,
   historyGradePercent,
-  historyPoints,
+  historyRowOpens,
+  historyRowUngraded,
   historyStatusLabel,
   historyStatusVariant,
   HISTORY_TABS,
@@ -78,8 +80,8 @@ function HistoryTabList({ counts }: { counts: StudentHistoryPage["tabCounts"] })
 }
 
 interface SummaryCardSpec {
-  /** The cards are the deliveries; `totals.missed` is never a card (028 HI12). */
-  key: Exclude<keyof StudentHistoryPage["totals"], "missed">;
+  /** The cards are the deliveries; `totals.missed` and `totals.cancelled` are never a card (028 HI12, 029 HC7). */
+  key: Exclude<keyof StudentHistoryPage["totals"], "missed" | "cancelled">;
   icon: LucideIcon;
   tone: string;
   captionTone: string;
@@ -124,13 +126,13 @@ function HistorySummary({ totals }: { totals: StudentHistoryPage["totals"] }) {
 
 /**
  * The date in two lines: "13 de novembro" and "Sexta-feira, 16:47" (with "com atraso" when late) — the delivery, or
- * when a missed activity stopped accepting one (028 HI11).
+ * "Encerrada em …" / "Cancelada em …" when nothing was delivered (029/FR-006).
  */
 function DeliveredAt({ item }: { item: StudentHistoryItem }) {
   const date = historyDate(item);
   return (
     <span className="flex flex-col">
-      <time dateTime={date}>{formatDayMonth(date)}</time>
+      <time dateTime={date}>{historyDateLabel(item, formatDayMonth(date))}</time>
       <span className="text-caption text-text-secondary">
         {formatWeekdayTime(date)}
         {item.late && item.situation !== "MISSED" ? " (com atraso)" : ""}
@@ -150,14 +152,13 @@ function ClassLines({ item }: { item: StudentHistoryItem }) {
 }
 
 /**
- * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it; an
- * exercise's points (013), never a grade or a bar. The grade shows only on a GRADED delivery (028/FR-018), the same
+ * The "Nota" of a row: a released grade with its bar and "Com feedback"; "Aguardando correção" before it (029/FR-001:
+ * never an exercise, so never points). The grade shows only on a GRADED delivery (028/FR-018), the same
  * `situation` the pill reads, so the two never disagree.
  */
 function HistoryScore({ item }: { item: StudentHistoryItem }) {
-  // 028/FR-024: nothing was delivered, so there is nothing to grade or score.
-  if (item.situation === "MISSED") return <span>—</span>;
-  if (item.type === "EXERCISE") return <span>{item.points ? historyPoints(item.points) : "—"}</span>;
+  // 028/FR-024: nothing was delivered, so there is nothing to grade; 029/FR-005: a cancelled one is never graded.
+  if (historyRowUngraded(item)) return <span>—</span>;
   if (item.situation !== "GRADED" || !item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
   const grade = formatGrade(item.result.grade);
   const total = formatGrade(item.totalGrade ?? "0.00");
@@ -192,7 +193,7 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
             <TableHead scope="col">Atividade</TableHead>
             <TableHead scope="col">Tipo</TableHead>
             <TableHead scope="col">Turma</TableHead>
-            <TableHead scope="col">Entregue em</TableHead>
+            <TableHead scope="col">Data</TableHead>
             <TableHead scope="col">Situação</TableHead>
             <TableHead scope="col">Nota</TableHead>
             <TableHead scope="col">
@@ -204,12 +205,17 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
           {items.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
-                <Link href={activityHref(item.id)} className="flex flex-col text-primary">
+                {/* 029/US2-4: a cancelled row is plain text — its routes answer 404. */}
+                {historyRowOpens(item) ? (
+                  <Link href={activityHref(item.id)} className="flex flex-col text-primary">
+                    <span>{item.title}</span>
+                    <span aria-hidden="true" className="text-caption text-text-secondary">
+                      {VIEW_ACTIVITY}
+                    </span>
+                  </Link>
+                ) : (
                   <span>{item.title}</span>
-                  <span aria-hidden="true" className="text-caption text-text-secondary">
-                    {VIEW_ACTIVITY}
-                  </span>
-                </Link>
+                )}
               </TableCell>
               <TableCell>
                 <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
@@ -227,9 +233,11 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
                 <HistoryScore item={item} />
               </TableCell>
               <TableCell>
-                <Link href={activityHref(item.id)} aria-label={`Abrir ${item.title}`} className="flex text-text-secondary">
-                  <ChevronRight aria-hidden="true" className="size-5" />
-                </Link>
+                {historyRowOpens(item) ? (
+                  <Link href={activityHref(item.id)} aria-label={`Abrir ${item.title}`} className="flex text-text-secondary">
+                    <ChevronRight aria-hidden="true" className="size-5" />
+                  </Link>
+                ) : null}
               </TableCell>
             </TableRow>
           ))}
@@ -239,15 +247,17 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
   );
 }
 
-/** Phones: one card per delivery, the whole card one link. */
+const CARD = "flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground";
+
+/** Phones: one card per row, the whole card one link — except a cancelled row, which opens nothing (029/US2-4). */
 function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
   return (
     <ul aria-label={HISTORY_CAPTION} className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link href={activityHref(item.id)} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground">
+      {items.map((item) => {
+        const content = (
+          <>
             <span className="flex items-start justify-between gap-2">
-              <span className="text-primary">{item.title}</span>
+              <span className={historyRowOpens(item) ? "text-primary" : undefined}>{item.title}</span>
               <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
             </span>
             <span className="text-body-sm text-text-secondary">
@@ -256,9 +266,20 @@ function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
             <DeliveredAt item={item} />
             <HistoryStatus item={item} />
             <HistoryScore item={item} />
-          </Link>
-        </li>
-      ))}
+          </>
+        );
+        return (
+          <li key={item.id}>
+            {historyRowOpens(item) ? (
+              <Link href={activityHref(item.id)} className={CARD}>
+                {content}
+              </Link>
+            ) : (
+              <div className={CARD}>{content}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -365,9 +386,9 @@ function useHistorySubject(requested: string | null) {
 }
 
 /**
- * "Histórico" (012 US6, redesigned in 028/US1): the three totals of every delivery, then the deliveries newest first
- * (`GET /me/history`) with the type, the class, the delivery date, the situation and the grade (or the points of an
- * exercise), the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
+ * "Histórico" (012 US6, redesigned in 028/US1; since 029 only the works and exams the teacher closed or cancelled): the
+ * three totals of the deliveries, then the rows newest first (`GET /me/history`) with the type, the class, the date (the
+ * delivery, else the close), the situation and the grade, the footer "Exibindo N de M atividades" with "Carregar mais", and the final note. Each row opens the
  * activity with the student's read-only answers. Since 028/US2 the tabs "Todas", "Aguardando" and "Corrigidas" (with
  * the server's counts) narrow the list on the server and live in the address (`?aba=`); since 028/US3 the search by
  * title (`?busca=`) and the "Matéria" filter (`?materia=`) too, combined with the tab.

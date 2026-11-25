@@ -347,12 +347,12 @@ describe("013/US2 aluno pratica, conclui e vê gabarito e pontos", () => {
 
     await conclude(1, answersFor(await start()));
     const after = (await student.get("/api/me/dashboard")).body;
-    expect(after.counts).toEqual({ pending: 2, inProgress: 0, overdue: 0, completed: 1 });
-    // 028/FR-023 (amendment 2026-11-23): the deliveries are read from the "Histórico", not from a list filter.
-    const completed = (await student.get("/api/me/history")).body.items;
+    // 029/FR-009: "Concluídas" counts the Histórico, which never holds an exercise (029/FR-007: it stays in the list).
+    expect(after.counts).toEqual({ pending: 2, inProgress: 0, overdue: 0, completed: 0 });
+    // 029/FR-007 (SC-005): still ACTIVE, so read back from "Minhas atividades" (the 028 amendment had moved it to the Histórico).
+    const completed = (await student.get("/api/me/activities?status=COMPLETED")).body.items;
     expect(completed).toEqual([expect.objectContaining({ id: activityId, status: "COMPLETED", points: { possible: 105, earned: 30, awaitingCorrection: true } })]);
-    // The concluded exercise left "Minhas atividades" (028/FR-023); the newer one is still there.
-    expect((await student.get("/api/me/activities?type=EXERCISE")).body.items.map((item: { id: string }) => item.id)).toEqual([newer.id]);
+    expect((await student.get("/api/me/activities?type=EXERCISE")).body.items.map((item: { id: string }) => item.id)).toEqual([newer.id, activityId]);
   });
 
   it("013/FR-012 a tentativa por número: só concluída e só do próprio aluno", async () => {
