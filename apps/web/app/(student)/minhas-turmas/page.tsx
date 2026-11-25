@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/layout/page-header";
 import { NoAccess } from "@/components/shared/no-access";
 import { getMe } from "@/features/auth/api/server";
 import { MyClasses } from "@/features/my-classes/components/my-classes";
@@ -15,7 +14,6 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
 
   return (
     <section>
-      <PageHeader title="Minhas turmas" />
       <MyClasses welcome={welcome === "1"} showRanking={me.permissions.includes("ranking.turma.visualizar")} />
     </section>
   );

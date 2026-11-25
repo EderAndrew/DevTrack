@@ -50,3 +50,61 @@ export const mySubjectLabel = (subjectName: string | null, cohortName: string) =
 
 /** "Minhas atividades" of one subject (026, `?materia=<classId>`). */
 export const subjectActivitiesHref = (classId: string) => `${MY_ACTIVITIES_PATH}?materia=${encodeURIComponent(classId)}`;
+
+/**
+ * One card of the 030 "Minhas turmas": a disciplina da turma with its turma's fields and the student's enrollment date,
+ * or the turma alone when it has no disciplina yet (`classId` null: no "Acessar turma", no ranking).
+ */
+export interface SubjectCard {
+  key: string;
+  classId: string | null;
+  cohortName: string;
+  cohortCode: string;
+  period: string | null;
+  cohortStatus: MyCohort["status"];
+  academicYear: number;
+  enrolledAt: string;
+  subjectName: string | null;
+  teacherName: string | null;
+  effectiveStatus: MyCohortClass["effectiveStatus"] | null;
+}
+
+/** Every card in the API's order (030 MT3): ano letivo desc, enrollment desc, disciplinas in the order they were added. */
+export const subjectCards = (list: MyCohortList | undefined): SubjectCard[] =>
+  (list?.years ?? []).flatMap(({ academicYear, cohorts }) =>
+    cohorts.flatMap((cohort): SubjectCard[] => {
+      const turma = {
+        cohortName: cohort.name,
+        cohortCode: cohort.code,
+        period: cohort.period,
+        cohortStatus: cohort.status,
+        academicYear,
+        enrolledAt: cohort.enrolledAt,
+      };
+      if (cohort.classes.length === 0) {
+        return [{ key: `cohort:${cohort.id}`, classId: null, subjectName: null, teacherName: null, effectiveStatus: null, ...turma }];
+      }
+      return cohort.classes.map((item) => ({
+        key: item.classId,
+        classId: item.classId,
+        subjectName: item.subjectName,
+        teacherName: item.teacherName,
+        effectiveStatus: item.effectiveStatus,
+        ...turma,
+      }));
+    }),
+  );
+
+/** The card's badge (027): the turma's when it is not ACTIVE, else the disciplina's; none when both are ACTIVE. */
+export const cardStatusBadge = (card: SubjectCard): string | null =>
+  STATUS_BADGE[card.cohortStatus] ?? (card.effectiveStatus ? STATUS_BADGE[card.effectiveStatus] : null);
+
+/** The card's highlight: the disciplina, or the turma's name (no "Disciplina" caption) without one (027/FR-030). */
+export const cardHeading = (card: SubjectCard): { title: string; isSubject: boolean } =>
+  card.subjectName ? { title: card.subjectName, isSubject: true } : { title: card.cohortName, isSubject: false };
+
+export const PAGE_TITLE = "Minhas turmas";
+export const PAGE_SUBTITLE = "Suas disciplinas, professores e rankings em um só lugar.";
+export const RANKING_PANEL_TITLE = "Ranking da turma";
+export const RANKING_PANEL_TEXT = "Confira a classificação e acompanhe sua posição nesta turma.";
+export const NO_PERIOD = "—";

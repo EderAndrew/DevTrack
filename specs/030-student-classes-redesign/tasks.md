@@ -109,11 +109,11 @@ conteúdo de cada um e os destinos dos botões (com "Todos os anos" no endereço
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T009 [P] [US1] Criar `apps/web/features/my-classes/schemas/my-classes.test.ts` (funções puras de data-model.md):
+- [X] T009 [P] [US1] Criar `apps/web/features/my-classes/schemas/my-classes.test.ts` (funções puras de data-model.md):
       `030/US1-1` `subjectCards` dá um card por disciplina na ordem da API e um card com `classId: null` para turma sem
       disciplinas; `030/US1-6` `cardStatusBadge` (selo da turma; o da disciplina só com a turma ACTIVE); `030/US1-8`
       disciplina sem nome usa o nome da turma.
-- [ ] T010 [US1] Reescrever `apps/web/features/my-classes/components/my-classes.test.tsx` (mesmo `fetchMock`,
+- [X] T010 [US1] Reescrever `apps/web/features/my-classes/components/my-classes.test.tsx` (mesmo `fetchMock`,
       `renderWithProviders`, `expectNoA11yViolations`; fixtures com `enrolledAt`), com um `it` por cenário
       `030/US1-1`…`030/US1-10`, mantendo nos títulos os ids antigos (ver "Ids antigos"):
       - US1-1 título, subtítulo e um `article` por disciplina (`getAllByRole("article")`);
@@ -136,17 +136,17 @@ conteúdo de cada um e os destinos dos botões (com "Todos os anos" no endereço
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Em `apps/web/features/my-classes/schemas/my-classes.ts`, acrescentar o tipo `SubjectCard` e
+- [X] T011 [P] [US1] Em `apps/web/features/my-classes/schemas/my-classes.ts`, acrescentar o tipo `SubjectCard` e
       `subjectCards(list)`, `cardStatusBadge(card)` e os textos (`PAGE_SUBTITLE`, `RANKING_PANEL_TEXT`, `NO_RESULTS`,
       etc.), sem mudar `mySubjectClasses`, `mySubjectLabel` nem `subjectActivitiesHref` (026/028 usam). T009 verde.
-- [ ] T012 [P] [US1] Criar `apps/web/features/my-classes/components/academic-year-card.tsx`: o card "Ano letivo"
+- [X] T012 [P] [US1] Criar `apps/web/features/my-classes/components/academic-year-card.tsx`: o card "Ano letivo"
       (`CalendarDays` decorativo, legenda em versalete, o ano grande), só tokens do Design System.
-- [ ] T013 [P] [US1] Criar `apps/web/features/my-classes/components/subject-card.tsx` conforme contracts/ui.md "Card":
+- [X] T013 [P] [US1] Criar `apps/web/features/my-classes/components/subject-card.tsx` conforme contracts/ui.md "Card":
       `Card` em `article` com `aria-labelledby` do `h2`; grade de duas colunas a partir de `md` (dados | painel), empilhada
       abaixo; fatos com ícones Lucide `aria-hidden` e texto visível; `formatDateTime(enrolledAt)`; `Button asChild` com
       `Link` para "Acessar turma" (`subjectActivitiesHref`) e, com `showRanking`, o painel com `Trophy` e "Ver ranking"
       (`classRankingHref`), `aria-label`s de MT7 via `mySubjectLabel`; a variante de turma sem disciplinas.
-- [ ] T014 [US1] Reescrever `apps/web/features/my-classes/components/my-classes.tsx`: `useMyClasses`; estados (carregando
+- [X] T014 [US1] Reescrever `apps/web/features/my-classes/components/my-classes.tsx`: `useMyClasses`; estados (carregando
       com `Skeleton` de card, erro com "Tentar novamente", vazio); a lista de `SubjectCard`; a `Notice` de boas-vindas;
       por ora todos os anos (o filtro vem em US2). O `PageHeader` passa para dentro de `MyClasses` (componente de
       cliente, que já tem a lista): título "Minhas turmas", `description` com o subtítulo e, quando há turmas, o
@@ -154,11 +154,11 @@ conteúdo de cada um e os destinos dos botões (com "Todos os anos" no endereço
       `PageHeader` e só renderizar `<MyClasses welcome showRanking />` dentro da `section` (a checagem de sessão e de
       permissão continua na página). O `h1` continua único (o teste de `student-layout.test.tsx` procura um
       `heading` nível 1 "Minhas turmas"). T010 verde.
-- [ ] T015 [US1] Ajustar o E2E que lia a tabela antiga, sem mudar o que cada teste prova:
+- [X] T015 [US1] Ajustar o E2E que lia a tabela antiga, sem mudar o que cada teste prova:
       `apps/web/e2e/class-new-student.spec.ts` (o card da disciplina: `getByRole("article", { name: subjectName })` com o
       professor), `apps/web/e2e/manager-classes.spec.ts` (linhas 164–185: o card de cada disciplina com "Encerrada" e o
       professor; `027/US8-3` com `?ano=todos` ou o ano corrente e o link "Acessar …"). Os títulos dos testes não mudam.
-- [ ] T016 [US1] Tirar a história 1 e `SC-001`, `SC-002` e `SC-005` de `pending` em `apps/api/test/traceability.spec.ts`
+- [X] T016 [US1] Tirar a história 1 e `SC-001`, `SC-002` e `SC-005` de `pending` em `apps/api/test/traceability.spec.ts`
       (`SC-001` e `SC-002` citados em `it`s de T010: um card por disciplina com os dados certos; 1 interação até
       atividades/ranking).
 

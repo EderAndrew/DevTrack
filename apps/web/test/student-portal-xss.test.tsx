@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ExamMonitor,
@@ -1135,9 +1135,11 @@ describe("026/FR-001 matéria e turma como texto", () => {
       ),
     );
     renderWithProviders(<MyClasses welcome={false} />);
-    // 027/US8: the turma's heading and the disciplina's cell.
-    expect(await screen.findByText(ITEM.subjectName)).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 3, name: ITEM.name })).toBeTruthy();
+    // 030/FR-013: the disciplina's card (its heading), the turma's name and the teacher, all as text.
+    const card = await screen.findByRole("article", { name: ITEM.subjectName });
+    expect(within(card).getByRole("heading", { level: 2, name: ITEM.subjectName })).toBeTruthy();
+    expect(within(card).getByText(ITEM.name)).toBeTruthy();
+    expect(within(card).getByText(ITEM.teacherName)).toBeTruthy();
     noElements();
   });
 });
