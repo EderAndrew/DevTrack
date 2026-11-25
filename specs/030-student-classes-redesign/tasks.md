@@ -47,14 +47,14 @@ description: "Task list for 030 — \"Minhas turmas\" do aluno redesenhada: um c
 
 **Purpose**: a 030 entra na guarda de rastreabilidade.
 
-- [ ] T001 Incluir a 030 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 028:
+- [X] T001 Incluir a 030 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 028:
       `feature: "030"`, `path: "specs/030-student-classes-redesign/spec.md"`, `stories: 3`, `scenarios: 19`
       (10 + 6 + 3), `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 6)` e
       `pending: { stories: [1, 2, 3], successCriteria: ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006"] }`,
       com o comentário de que cada história e SC saem de `pending` na tarefa que escreve o seu último teste; atualizar a
       lista de features do texto "Cross-cutting guards" do `CLAUDE.md` da raiz (`… 027, 028, 029 and 030`). Rodar
       `pnpm --filter api test test/traceability.spec.ts` (verde: tudo pendente).
-- [ ] T002 [P] Anotar a substituição na 027: em `specs/027-manager-classes/spec.md`, logo abaixo do título da User Story 8,
+- [X] T002 [P] Anotar a substituição na 027: em `specs/027-manager-classes/spec.md`, logo abaixo do título da User Story 8,
       a nota `> Tela redesenhada pela 030 em 2026-11-25 (`specs/030-student-classes-redesign/`): um card por disciplina,
       filtro de ano (o mais recente de início) em vez de seções por ano; o conteúdo e as regras de US8 continuam.`
 
