@@ -151,25 +151,25 @@ exercício concluído: só os dois encerrados no Histórico, com cards e abas ce
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T014 [P] [US2] Criar `apps/api/test/integration/029-us2-cancelled.spec.ts` com `029/US2-1`…`029/US2-6`: aparece em
+- [X] T014 [P] [US2] Criar `apps/api/test/integration/029-us2-cancelled.spec.ts` com `029/US2-1`…`029/US2-6`: aparece em
       "Todas" e `tab=CANCELLED`; com entrega e resultado liberado antes do cancelamento → `deliveredAt` e `result: null`,
       `points: null`, sem feedback; sem entrega → `endedAt` = `cancelledAt`; cancelada antes da publicação ou nunca
       liberada (PRESENT_ONLY sem presença) → ausente; fora dos cards; uma encerrada depois cancelada passa para
       CANCELLED.
-- [ ] T015 [P] [US2] Criar `apps/api/test/security/029-cancelled-isolation.spec.ts` (`029/SC-002`, `029/SC-003`,
+- [X] T015 [P] [US2] Criar `apps/api/test/security/029-cancelled-isolation.spec.ts` (`029/SC-002`, `029/SC-003`,
       `029/US2-4`): a cancelada de outro aluno, de matrícula encerrada e de outra matéria (`classId`) nunca aparece; a
       rota da atividade, a da tentativa e o resultado continuam `404` com `student_access.denied` (`CANCELLED`);
       nenhuma resposta de `/api/me/history` em nenhuma combinação de aba/busca/matéria traz `"grade"`, `generalFeedback`
       ou o marcador de feedback para uma linha CANCELLED (padrão `RESULT` de `026-isolation.spec.ts`).
-- [ ] T016 [P] [US2] Web, `student-history.test.tsx`: `029/US2-1` (aba "Canceladas, N"), `029/US2-2`/`029/US2-3` (pílula
+- [X] T016 [P] [US2] Web, `student-history.test.tsx`: `029/US2-1` (aba "Canceladas, N"), `029/US2-2`/`029/US2-3` (pílula
       "Cancelada", "—", data), `029/US2-4` (sem link, sem "Ver atividade", sem seta, no celular o cartão não é link),
       axe com uma linha cancelada nos dois temas.
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] `my-activities.service.ts`: `history()` junta `loader.loadCancelled` (com o mesmo `classId`, depois do
+- [X] T017 [US2] `my-activities.service.ts`: `history()` junta `loader.loadCancelled` (com o mesmo `classId`, depois do
       `assertActiveEnrollment`) via `toCancelledSummary`, situação CANCELLED, contagens `cancelled`. T014 e T015 verdes.
-- [ ] T018 [US2] Web: aba "Canceladas" (`?aba=canceladas`), rótulo e variante da pílula, linha sem link em
+- [X] T018 [US2] Web: aba "Canceladas" (`?aba=canceladas`), rótulo e variante da pílula, linha sem link em
       `student-history.tsx` e `schemas/student-history.ts`; estado vazio "Nenhuma atividade cancelada.". T016 verde.
       Tirar `029/US2` do `pending`.
 

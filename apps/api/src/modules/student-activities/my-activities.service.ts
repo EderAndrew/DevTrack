@@ -25,6 +25,7 @@ import { RankingService } from "../ranking/ranking.service";
 import {
   runsCode,
   type StudentActivityInput,
+  toCancelledSummary,
   toStudentActivity,
   toStudentExerciseAttempt,
   toStudentSummary,
@@ -153,7 +154,8 @@ export class MyActivitiesService {
   }
 
   /**
-   * The "Histórico" (029 research HC1–HC4, 028 HI2–HI7): the scoped works and exams the teacher closed (`inHistory`),
+   * The "Histórico" (029 research HC1–HC4, 028 HI2–HI7): the scoped works and exams the teacher closed (`inHistory`)
+   * and those cancelled after their release to the student (`loadCancelled`, `toCancelledSummary`),
    * each with its situation and its date (`deliveredAt ?? endedAt`), newest first, counted and paged in memory. HI7:
    * `classId` (checked first, the 026 404) narrows everything; `totals` (the cards) count every row of it, `tabCounts`
    * those matching `q`, and the list and `total` also the tab. Never an audit event (contracts/audit-events.md).
@@ -161,10 +163,17 @@ export class MyActivitiesService {
   async history(userId: string, query: StudentHistoryQuery): Promise<StudentHistoryPage> {
     const after = query.cursor === undefined ? null : afterCursor(query.cursor);
     const pageSize = query.pageSize ?? STUDENT_ACTIVITIES_PAGE_SIZE;
-    const rows = (await this.inputs(userId, this.clock.now(), query.classId)).filter(inHistory).map((input): HistoryRow => {
-      const summary = toStudentSummary(input);
-      return { input, entry: { summary, at: rowDate(input) }, situation: historySituation(input, summary) };
+    const now = this.clock.now();
+    const row = (input: StudentActivityInput, summary: StudentActivitySummary): HistoryRow => ({
+      input,
+      entry: { summary, at: rowDate(input) },
+      situation: historySituation(input, summary),
     });
+    // `inputs` checks the `classId` (the 026 404) before the cancelled ones are read with the same class (HC2).
+    const closed = (await this.inputs(userId, now, query.classId)).filter(inHistory).map((input) => row(input, toStudentSummary(input)));
+    // 029/FR-005: the cancelled works and exams, only from their own loader and view (never a result, HC3).
+    const cancelled = (await this.loader.loadCancelled(userId, now, query.classId)).map((input) => row(input, toCancelledSummary(input)));
+    const rows = [...closed, ...cancelled];
     const countOf = (list: HistoryRow[]) => {
       const of = (situation: StudentHistorySituation) => list.filter((row) => row.situation === situation).length;
       return { all: list.length, awaiting: of("AWAITING"), graded: of("GRADED"), missed: of("MISSED"), cancelled: of("CANCELLED") };

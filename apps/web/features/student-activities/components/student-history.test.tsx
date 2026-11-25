@@ -247,8 +247,8 @@ describe("028/US2 Histórico: abas Todas, Aguardando e Corrigidas", () => {
     setup({ [HISTORY]: json(200, page(FOUR, COUNTS)) });
     const list = await tabs();
     const all = within(list).getAllByRole("tab");
-    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues".
-    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0"]);
+    // 028/FR-004 (amendment 2026-11-23): a fourth tab, "Não entregues". 029/FR-003: a fifth, "Canceladas".
+    expect(all.map((tab) => tab.getAttribute("aria-label"))).toEqual(["Todas, 4", "Aguardando, 3", "Corrigidas, 1", "Não entregues, 0", "Canceladas, 0"]);
     expect(within(list).getByRole("tab", { name: "Aguardando, 3" }).textContent).toBe("Aguardando3");
     expect(within(list).getByRole("tab", { name: "Todas, 4" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tabpanel", { name: "Todas, 4" })).toBeTruthy();
@@ -497,6 +497,8 @@ describe("028/US5 Histórico: não entregues (emenda 2026-11-23)", () => {
       "Aguardando, 2",
       "Corrigidas, 2",
       "Não entregues, 1",
+      // 029/FR-003: the fifth tab.
+      "Canceladas, 0",
     ]);
     const row = await rowOf("Trabalho perdido");
     expect(within(row).getByText("Não entregue")).toBeTruthy();
@@ -577,8 +579,120 @@ describe("029/US1 Histórico só com o que o professor encerrou", () => {
       ["aguardando", "Nenhuma entrega aguardando correção."],
       ["corrigidas", "Nenhuma entrega corrigida ainda."],
       ["nao-entregues", "Nenhuma atividade não entregue."],
+      ["canceladas", "Nenhuma atividade cancelada."],
     ]);
     expect(HISTORY_DESCRIPTION).toBe("Provas e trabalhos encerrados ou cancelados pelo professor.");
+  });
+});
+
+describe("029/US2 Histórico: provas e trabalhos cancelados", () => {
+  beforeEach(() => router.replace.mockReset());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.theme;
+  });
+
+  // Local time, as FRIDAY: "11 de novembro" and "Quarta-feira, 09:30".
+  const WEDNESDAY = new Date(2026, 10, 11, 9, 30).toISOString();
+  const cancelledDelivered = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000041",
+    title: "Trabalho cancelado entregue",
+    status: "SUBMITTED",
+    deliveredAt: FRIDAY,
+    endedAt: WEDNESDAY,
+    situation: "CANCELLED",
+    totalGrade: "2.00",
+  });
+  const cancelledMissed = entry({
+    id: "bbbbbbbb-0000-4000-8000-000000000042",
+    title: "Prova cancelada",
+    type: "EXAM",
+    status: "OVERDUE",
+    late: false,
+    submittedAt: null,
+    deliveredAt: null,
+    endedAt: WEDNESDAY,
+    situation: "CANCELLED",
+    totalGrade: "10.00",
+  });
+  const CANCELLED = [cancelledDelivered, cancelledMissed];
+  const COUNTS = { tabCounts: { all: 6, awaiting: 2, graded: 2, missed: 0, cancelled: 2 }, totals: { cancelled: 2 } };
+
+  it("029/US2-1 a aba \"Canceladas\" com a contagem; um clique escreve ?aba=canceladas e pede tab=CANCELLED", async () => {
+    const { user, api, rerender } = setup({
+      [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)),
+      [`${HISTORY}?tab=CANCELLED`]: json(200, page(CANCELLED, { ...COUNTS, total: 2 })),
+    });
+    const tabs = await screen.findByRole("tablist", { name: "Situação das entregas" });
+    expect(within(tabs).getAllByRole("tab").map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Todas, 6",
+      "Aguardando, 2",
+      "Corrigidas, 2",
+      "Não entregues, 0",
+      "Canceladas, 2",
+    ]);
+    await user.click(within(tabs).getByRole("tab", { name: "Canceladas, 2" }));
+    expect(router.replace).toHaveBeenLastCalledWith("/historico?aba=canceladas");
+    expect(historyFromSearch({ aba: "canceladas" }).tab).toBe("CANCELLED");
+    rerender(<StudentHistory filters={historyFromSearch({ aba: "canceladas" })} />);
+    expect(await screen.findByText("Exibindo 2 de 2 atividades")).toBeTruthy();
+    expect(api.calls.some((call) => call.url.endsWith("/me/history?tab=CANCELLED"))).toBe(true);
+  });
+
+  it("029/US2-2 cancelada com entrega: pílula \"Cancelada\", a data da entrega e \"—\" na Nota, sem nota nem feedback", async () => {
+    // Even a payload that carried a result (never sent by the API, 029/SC-002) shows none: the row follows `situation`.
+    const leaked = { ...cancelledDelivered, result: { grade: "1.90", hasFeedback: true } };
+    setup({ [HISTORY]: json(200, page([leaked], COUNTS)) });
+    const row = await rowOf("Trabalho cancelado entregue");
+    expect(within(row).getByText("Cancelada")).toBeTruthy();
+    expect(within(row).getByText("13 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Sexta-feira, 16:47")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(within(row).queryByText("Com feedback")).toBeNull();
+    expect(within(row).queryByText("Aguardando correção")).toBeNull();
+    expect(row.textContent).not.toContain("1,90");
+  });
+
+  it("029/US2-3 cancelada sem entrega: \"Cancelada em …\" com o dia da semana e \"—\" na Nota", async () => {
+    setup({ [HISTORY]: json(200, page([cancelledMissed], COUNTS)) });
+    const row = await rowOf("Prova cancelada");
+    expect(within(row).getByText("Cancelada")).toBeTruthy();
+    expect(within(row).getByText("Cancelada em 11 de novembro")).toBeTruthy();
+    expect(within(row).getByText("Quarta-feira, 09:30")).toBeTruthy();
+    expect(within(row).getByText("—")).toBeTruthy();
+  });
+
+  it("029/US2-4 a linha cancelada não é link: sem \"Ver atividade\", sem seta e, no celular, o cartão não é link", async () => {
+    setup({ [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)) });
+    for (const item of CANCELLED) {
+      const row = await rowOf(item.title);
+      expect(within(row).queryAllByRole("link")).toEqual([]);
+      expect(within(row).getByText(item.title)).toBeTruthy();
+      expect(within(row).queryByText("Ver atividade")).toBeNull();
+      expect(within(row).queryByLabelText(`Abrir ${item.title}`)).toBeNull();
+    }
+    // The other rows still open the activity.
+    expect(within(await rowOf("Trabalho de interfaces")).getByRole("link", { name: "Trabalho de interfaces" })).toBeTruthy();
+    const cards = screen.getByRole("list", { name: "Atividades que você entregou." });
+    expect(within(cards).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(cards).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/minhas-atividades/${graded.id}`]);
+    expect(within(cards).getByText("Prova cancelada")).toBeTruthy();
+  });
+
+  it("029/US2 aba \"Canceladas\" vazia: \"Nenhuma atividade cancelada.\", com os cards e as abas", async () => {
+    setup({ [`${HISTORY}?tab=CANCELLED`]: json(200, page([], { total: 0 })) }, historyFromSearch({ aba: "canceladas" }));
+    expect(await screen.findByText("Nenhuma atividade cancelada.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Resumo das suas entregas" })).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+  });
+
+  it("029/US2 sem violações de acessibilidade com uma linha cancelada, nos temas escuro e claro", async () => {
+    const { container } = setup({ [HISTORY]: json(200, page([graded, ...CANCELLED], COUNTS)) });
+    await table();
+    await expectNoA11yViolations(container);
+    document.documentElement.dataset.theme = "light";
+    await expectNoA11yViolations(container);
   });
 });
 

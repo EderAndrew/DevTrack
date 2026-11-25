@@ -1,4 +1,4 @@
-import type { StudentHistoryItem, StudentHistorySituation } from "@repo/contracts";
+import type { StudentHistoryItem, StudentHistoryPage, StudentHistorySituation } from "@repo/contracts";
 import type { StatusVariant } from "@/components/ui/status";
 import { HISTORY_PATH } from "@/lib/navigation";
 import type { StudentHistoryFilters } from "../api/student-activities";
@@ -39,19 +39,28 @@ export const historyClassLines = (item: Pick<StudentHistoryItem, "class" | "subj
 
 /** 028 amendment (FR-024): the pill of an activity the student can no longer deliver. */
 export const MISSED_LABEL = "Não entregue";
+/** 029/FR-005: the pill of a work or exam the teacher cancelled. */
+export const CANCELLED_LABEL = "Cancelada";
+
+/** 029/US2-4: a cancelled row opens nothing (the activity's routes answer 404). */
+export const historyRowOpens = (item: Pick<StudentHistoryItem, "situation">): boolean => item.situation !== "CANCELLED";
+
+/** 029/FR-005, 028/FR-024: nothing to grade on a missed or cancelled row ("—" in Nota). */
+export const historyRowUngraded = (item: Pick<StudentHistoryItem, "situation">): boolean => item.situation === "MISSED" || item.situation === "CANCELLED";
 
 /**
- * The pill of a row (contracts/ui.md "Situação"): MISSED → "Não entregue"; otherwise GRADED → "Corrigida" and
+ * The pill of a row (contracts/ui.md "Situação"): CANCELLED → "Cancelada", MISSED → "Não entregue"; otherwise GRADED → "Corrigida" and
  * AWAITING → "Entregue", each "… com atraso" when the delivery was late. 029/FR-001: never an exercise.
  */
 export function historyStatusLabel(item: Pick<StudentHistoryItem, "situation" | "late">): string {
+  if (item.situation === "CANCELLED") return CANCELLED_LABEL;
   if (item.situation === "MISSED") return MISSED_LABEL;
   const base = item.situation === "GRADED" ? "Corrigida" : "Entregue";
   return item.late ? `${base} com atraso` : base;
 }
 
 export const historyStatusVariant = (item: Pick<StudentHistoryItem, "situation">): StatusVariant =>
-  item.situation === "MISSED" ? "neutral" : item.situation === "AWAITING" ? "warning" : "success";
+  historyRowUngraded(item) ? "neutral" : item.situation === "AWAITING" ? "warning" : "success";
 
 /** The row's date (029/FR-006): the delivery when there is one, else when the teacher closed or cancelled it. */
 export const historyDate = (item: Pick<StudentHistoryItem, "deliveredAt" | "endedAt">): string => item.deliveredAt ?? item.endedAt;
@@ -71,11 +80,13 @@ export const HISTORY_TABS = [
   { tab: "AWAITING", slug: "aguardando", label: "Aguardando", count: "awaiting", empty: "Nenhuma entrega aguardando correção." },
   { tab: "GRADED", slug: "corrigidas", label: "Corrigidas", count: "graded", empty: "Nenhuma entrega corrigida ainda." },
   { tab: "MISSED", slug: "nao-entregues", label: "Não entregues", count: "missed", empty: "Nenhuma atividade não entregue." },
+  // 029/FR-003: the cancelled works and exams.
+  { tab: "CANCELLED", slug: "canceladas", label: "Canceladas", count: "cancelled", empty: "Nenhuma atividade cancelada." },
 ] as const satisfies readonly {
   tab: StudentHistorySituation | null;
   slug: string;
   label: string;
-  count: "all" | "awaiting" | "graded" | "missed";
+  count: keyof StudentHistoryPage["tabCounts"];
   empty: string;
 }[];
 

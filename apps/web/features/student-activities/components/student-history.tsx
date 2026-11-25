@@ -43,6 +43,8 @@ import {
   historyFiltered,
   historyFooter,
   historyGradePercent,
+  historyRowOpens,
+  historyRowUngraded,
   historyStatusLabel,
   historyStatusVariant,
   HISTORY_TABS,
@@ -155,8 +157,8 @@ function ClassLines({ item }: { item: StudentHistoryItem }) {
  * `situation` the pill reads, so the two never disagree.
  */
 function HistoryScore({ item }: { item: StudentHistoryItem }) {
-  // 028/FR-024: nothing was delivered, so there is nothing to grade or score.
-  if (item.situation === "MISSED") return <span>—</span>;
+  // 028/FR-024: nothing was delivered, so there is nothing to grade; 029/FR-005: a cancelled one is never graded.
+  if (historyRowUngraded(item)) return <span>—</span>;
   if (item.situation !== "GRADED" || !item.result) return <span className="text-warning-text">{AWAITING_GRADE}</span>;
   const grade = formatGrade(item.result.grade);
   const total = formatGrade(item.totalGrade ?? "0.00");
@@ -203,12 +205,17 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
           {items.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
-                <Link href={activityHref(item.id)} className="flex flex-col text-primary">
+                {/* 029/US2-4: a cancelled row is plain text — its routes answer 404. */}
+                {historyRowOpens(item) ? (
+                  <Link href={activityHref(item.id)} className="flex flex-col text-primary">
+                    <span>{item.title}</span>
+                    <span aria-hidden="true" className="text-caption text-text-secondary">
+                      {VIEW_ACTIVITY}
+                    </span>
+                  </Link>
+                ) : (
                   <span>{item.title}</span>
-                  <span aria-hidden="true" className="text-caption text-text-secondary">
-                    {VIEW_ACTIVITY}
-                  </span>
-                </Link>
+                )}
               </TableCell>
               <TableCell>
                 <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
@@ -226,9 +233,11 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
                 <HistoryScore item={item} />
               </TableCell>
               <TableCell>
-                <Link href={activityHref(item.id)} aria-label={`Abrir ${item.title}`} className="flex text-text-secondary">
-                  <ChevronRight aria-hidden="true" className="size-5" />
-                </Link>
+                {historyRowOpens(item) ? (
+                  <Link href={activityHref(item.id)} aria-label={`Abrir ${item.title}`} className="flex text-text-secondary">
+                    <ChevronRight aria-hidden="true" className="size-5" />
+                  </Link>
+                ) : null}
               </TableCell>
             </TableRow>
           ))}
@@ -238,15 +247,17 @@ function HistoryTable({ items }: { items: readonly StudentHistoryItem[] }) {
   );
 }
 
-/** Phones: one card per delivery, the whole card one link. */
+const CARD = "flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground";
+
+/** Phones: one card per row, the whole card one link — except a cancelled row, which opens nothing (029/US2-4). */
 function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
   return (
     <ul aria-label={HISTORY_CAPTION} className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link href={activityHref(item.id)} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground">
+      {items.map((item) => {
+        const content = (
+          <>
             <span className="flex items-start justify-between gap-2">
-              <span className="text-primary">{item.title}</span>
+              <span className={historyRowOpens(item) ? "text-primary" : undefined}>{item.title}</span>
               <Badge>{ACTIVITY_TYPE_LABELS[item.type]}</Badge>
             </span>
             <span className="text-body-sm text-text-secondary">
@@ -255,9 +266,20 @@ function HistoryCards({ items }: { items: readonly StudentHistoryItem[] }) {
             <DeliveredAt item={item} />
             <HistoryStatus item={item} />
             <HistoryScore item={item} />
-          </Link>
-        </li>
-      ))}
+          </>
+        );
+        return (
+          <li key={item.id}>
+            {historyRowOpens(item) ? (
+              <Link href={activityHref(item.id)} className={CARD}>
+                {content}
+              </Link>
+            ) : (
+              <div className={CARD}>{content}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
