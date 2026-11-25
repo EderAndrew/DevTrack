@@ -174,18 +174,18 @@ conteúdo de cada um e os destinos dos botões (com "Todos os anos" no endereço
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T017 [P] [US3] Em `apps/api/test/integration/030-my-classes.spec.ts`: `030/US3-1` dois alunos da mesma turma com
+- [X] T017 [P] [US3] Em `apps/api/test/integration/030-my-classes.spec.ts`: `030/US3-1` dois alunos da mesma turma com
       `enrolledAt` diferentes — cada um recebe só o seu; `030/US3-2` a turma de uma matrícula encerrada não aparece;
       `030/US3-3` e `030/SC-004` as chaves de cada turma são exatamente
       `["classes","code","enrolledAt","id","name","period","status"]` e as de cada disciplina as de hoje (nenhum e-mail, RA,
       convite ou outro aluno); passam já com T006 (a regra existe; o teste a fixa).
-- [ ] T018 [P] [US3] Em `apps/web/test/student-portal-xss.test.tsx`, o caso de "Minhas turmas" com nomes de turma,
+- [X] T018 [P] [US3] Em `apps/web/test/student-portal-xss.test.tsx`, o caso de "Minhas turmas" com nomes de turma,
       disciplina e professor com marcação renderizados como texto nos cards (`030/FR-013`), se o arquivo já tiver o caso
       do 027 — ajustar ao card; senão acrescentar.
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Nenhuma mudança de código esperada (MT1: a consulta já é da sessão e só de matrículas ACTIVE); se T017
+- [X] T019 [US3] Nenhuma mudança de código esperada (MT1: a consulta já é da sessão e só de matrículas ACTIVE); se T017
       falhar, corrigir em `my-classes.service.ts`. Tirar a história 3 e `SC-004` de `pending`.
 
 **Checkpoint**: US1 + US3 = MVP entregue.
