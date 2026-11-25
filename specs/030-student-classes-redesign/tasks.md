@@ -260,7 +260,7 @@ rodapé e o endereço.
       (`pnpm --filter web test:e2e student-classes`, `class-new-student`, `manager-classes`,
       `class-invitation-keyboard`, `class-remove-student`) — exige consentimento do usuário para o reset do
       `devtrack_e2e` (memória "Local dev environment").
-- [ ] T030 Validar o quickstart.md manualmente (dev, temas escuro e claro, 360 px) e conferir `pending` vazio em
+- [X] T030 Validar o quickstart.md manualmente (dev, temas escuro e claro, 360 px) e conferir `pending` vazio em
       `traceability.spec.ts`; `pnpm lint && pnpm check-types && pnpm test` verde.
 
 ---
