@@ -12,8 +12,9 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
   if (!me.permissions.includes("turmas.proprias.listar")) return <NoAccess title="Minhas turmas" />;
   const { "bem-vindo": welcome } = await searchParams;
 
+  // 030: a little wider than the student layout's 960 px, so the subject cards breathe (up to 1120 px).
   return (
-    <section>
+    <section data-layout="wide" className="mx-auto w-full max-w-280">
       <MyClasses welcome={welcome === "1"} showRanking={me.permissions.includes("ranking.turma.visualizar")} />
     </section>
   );
