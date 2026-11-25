@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
+import { mySubjectClasses } from "../schemas/my-classes";
 import { MyClasses } from "./my-classes";
 
 // 030/US2 (I1): the year and the search live in the address. Each test sets `address.params`; `replace` is recorded.
@@ -229,6 +230,38 @@ describe("MyClasses — Minhas turmas (030)", () => {
     }
     expect(screen.getAllByRole("article")).toHaveLength(4);
     await expectNoA11yViolations(container);
+  });
+
+  it("030/SC-005 030/FR-014 sem violações de acessibilidade nos temas escuro e claro, com busca, filtro e o estado vazio do filtro", async () => {
+    // The 360 px check needs a real layout: the E2E `030/SC-005` covers it in both themes.
+    try {
+      for (const theme of ["dark", "light"] as const) {
+        document.documentElement.dataset.theme = theme;
+        address.params = new URLSearchParams("ano=todos");
+        fetchMock.mockResolvedValueOnce(json(200, body([2027, [ADS_4NA, EMPTY]], [2026, [ADS_3NA_2026]])));
+        const { container, unmount } = renderWithProviders(<MyClasses welcome={false} showRanking />);
+        await screen.findByRole("article", { name: "Banco de Dados" });
+        await expectNoA11yViolations(container);
+        unmount();
+        address.params = new URLSearchParams("ano=todos&busca=nada-assim");
+        fetchMock.mockResolvedValueOnce(json(200, body([2027, [ADS_4NA]])));
+        const empty = renderWithProviders(<MyClasses welcome={false} />);
+        await screen.findByText("Nenhuma turma encontrada.");
+        await expectNoA11yViolations(empty.container);
+        empty.unmount();
+      }
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
+  });
+
+  it("030/SC-006 a lista que o card \"Matéria\", o Histórico e o ranking leem continua a mesma: enrolledAt não entra", () => {
+    // The same `GET /me/classes` body that the 030 screen reads gives the 026/028 consumers exactly what it gave before.
+    expect(mySubjectClasses(TWO_YEARS)).toEqual([
+      { id: BD_ID, name: "ADS 4NA", code: "ADS-4NA", academicYear: 2027, period: "Noite", teacherName: "Prof. Eder", subjectName: "Banco de Dados", status: "ACTIVE" },
+      { id: REDES_ID, name: "ADS 4NA", code: "ADS-4NA", academicYear: 2027, period: "Noite", teacherName: "Prof. Ana", subjectName: "Redes", status: "ACTIVE" },
+      { id: OLD_ID, name: "ADS 3NA", code: "ADS-3NA", academicYear: 2026, period: null, teacherName: "Prof. Caio", subjectName: "Algoritmos", status: "INACTIVE" },
+    ]);
   });
 
   describe("030/US2 busca e ano letivo", () => {

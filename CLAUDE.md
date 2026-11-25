@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–029 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–030 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -98,8 +98,12 @@ new feature through `/speckit-specify`.
   stay `404`), each row dated by its delivery or else by the close or cancellation; every exercise and every ACTIVE work
   or exam stays in "Minhas atividades", whose "Entregues/concluídas" filter is back, and the Painel's "Concluídas" counts
   the Histórico's rows. No migration.
+- 030 the student's "Minhas turmas" redesigned: one card per disciplina da turma (subject, turma and code, teacher, ano
+  letivo and period, the date the student entered the turma, "Acessar turma" to `?materia=`, the ranking panel), a search
+  by turma, code or subject and an ano letivo filter (`?ano=&busca=`, the most recent year by default), both in the
+  browser; `GET /me/classes` gains the turma's `enrolledAt`. No migration.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–029 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–030 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -595,6 +599,8 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and is redacted from the logs (the URL's `q=` and `req.query.q`). `classId` is the 026 check (ACTIVE enrollment, else
   the same `404`), made before the cancelled rows are read. The Painel counts the list ("Atrasadas" every overdue of
   it) and its "Concluídas" is the number of the Histórico's rows of the same `classId`, linking to `/historico`.
+- Student's "Minhas turmas" (030): `GET /me/classes` carries the turma's `enrolledAt` (the student's own ACTIVE
+  enrollment); the 030 year filter and search run in the browser over that list, the route takes no parameters.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.

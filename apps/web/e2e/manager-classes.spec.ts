@@ -83,8 +83,10 @@ test.describe.serial("027 turmas do gestor", () => {
     await expect(page.getByText("Convite enviado.")).toBeVisible();
     const studentPage = await (await browser.newContext()).newPage();
     await acceptClassInvitation(studentPage, newStudent);
-    await expect(studentPage.getByRole("heading", { level: 3, name: cohortName, exact: true })).toBeVisible();
-    await expect(studentPage.getByText("Ainda não há disciplinas nesta turma.")).toBeVisible();
+    // 030: a turma with no disciplina yet is one card named by the turma.
+    const cohortCard = studentPage.getByRole("article", { name: cohortName, exact: true });
+    await expect(cohortCard).toBeVisible();
+    await expect(cohortCard.getByText("Ainda não há disciplinas nesta turma.")).toBeVisible();
     await studentPage.context().close();
 
     // US2-7: an existing student is found by the exact e-mail and included at once, with a notice e-mail (no token).

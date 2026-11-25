@@ -240,18 +240,18 @@ rodapé e o endereço.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T026 [P] `030/SC-005` e `030/FR-014`: em `my-classes.test.tsx`, `expectNoA11yViolations` no tema claro (como os
+- [X] T026 [P] `030/SC-005` e `030/FR-014`: em `my-classes.test.tsx`, `expectNoA11yViolations` no tema claro (como os
       testes de tema da 022) e conferir que nenhuma classe fixa de cor ou tamanho fora dos tokens entrou
       (`pnpm --filter web test test/contrast.test.ts` e as varreduras do Design System de `apps/web/CLAUDE.md`).
-- [ ] T027 [P] `030/SC-006`: rodar as suítes web do card "Matéria" (`use-current-subject.test.tsx`,
+- [X] T027 [P] `030/SC-006`: rodar as suítes web do card "Matéria" (`use-current-subject.test.tsx`,
       `subject-switcher.test.tsx`), do Histórico (`student-history.test.tsx`) e do ranking (`ranking-table.test.tsx`) sem
       mudar asserções (só fixtures de T007); citar `030/SC-006` num `it` de `my-classes.test.tsx` que monta o
       `mySubjectClasses` a partir da mesma resposta e confere que ele não mudou. Tirar `SC-006` de `pending`.
-- [ ] T028 [P] Atualizar o `CLAUDE.md` da raiz: em "Project state", o item da 030 (uma linha no estilo da 028/029); em
+- [X] T028 [P] Atualizar o `CLAUDE.md` da raiz: em "Project state", o item da 030 (uma linha no estilo da 028/029); em
       "Rules that are easy to get wrong", uma linha: "`GET /me/classes` carries the turma's `enrolledAt` (the student's
       own ACTIVE enrollment); the 030 year filter and search run in the browser over that list, the route takes no
       parameters".
-- [ ] T029 `030/SC-005` (G1): criar `apps/web/e2e/student-classes.spec.ts` com
+- [X] T029 `030/SC-005` (G1): criar `apps/web/e2e/student-classes.spec.ts` com
       `test("030/SC-005 Minhas turmas sem rolagem horizontal em 360 px")`: o aluno da turma E2E (fixtures de
       `e2e/fixtures/journeys.ts`, como `class-new-student.spec.ts`) abre `/minhas-turmas` com
       `page.setViewportSize({ width: 360, height: 800 })`, vê o card da disciplina e confere
