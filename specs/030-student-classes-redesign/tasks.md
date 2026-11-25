@@ -202,11 +202,11 @@ rodapé e o endereço.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T020 [P] [US2] Em `apps/web/features/my-classes/schemas/my-classes.test.ts`: `studentYears` (distintos, desc);
+- [X] T020 [P] [US2] Em `apps/web/features/my-classes/schemas/my-classes.test.ts`: `studentYears` (distintos, desc);
       `resolveYear` (ausente, mal formado, de outro ano → o mais recente; `todos`; um ano válido) — `030/US2-6`;
       `normalizeSearch` (espaços nas pontas, só espaços = vazio, acentos e maiúsculas, corte em 100) e
       `filterSubjectCards` por nome/código da turma e nome da disciplina, nunca pelo professor — `030/US2-3`.
-- [ ] T021 [US2] Em `apps/web/features/my-classes/components/my-classes.test.tsx`, primeiro um
+- [X] T021 [US2] Em `apps/web/features/my-classes/components/my-classes.test.tsx`, primeiro um
       `vi.mock("next/navigation")` no topo do arquivo, valendo para todos os testes (os da US1 também, que passam a
       renderizar um componente com `useSearchParams`/`useRouter`): `useSearchParams` lendo um `URLSearchParams` mutável
       por teste (vazio por padrão) e `useRouter().replace` como `vi.fn()`, no molde de
@@ -223,16 +223,16 @@ rodapé e o endereço.
 
 ### Implementation for User Story 2
 
-- [ ] T022 [P] [US2] Em `apps/web/features/my-classes/schemas/my-classes.ts`: `studentYears`, `resolveYear`,
+- [X] T022 [P] [US2] Em `apps/web/features/my-classes/schemas/my-classes.ts`: `studentYears`, `resolveYear`,
       `normalizeSearch`, `filterSubjectCards` e `footerText(shown, total)` (MT4, MT5). T020 verde.
-- [ ] T023 [US2] Criar `apps/web/features/my-classes/hooks/use-my-classes-filters.ts`: lê `ano`/`busca` de
+- [X] T023 [US2] Criar `apps/web/features/my-classes/hooks/use-my-classes-filters.ts`: lê `ano`/`busca` de
       `useSearchParams`, devolve o ano resolvido e a busca e os setters que fazem `router.replace` preservando o outro
       parâmetro e `bem-vindo` (busca com 300 ms de espera e Enter imediato), no molde do hook de filtros da 028.
-- [ ] T024 [US2] Em `apps/web/features/my-classes/components/my-classes.tsx`: a barra (contracts/ui.md "Toolbar":
+- [X] T024 [US2] Em `apps/web/features/my-classes/components/my-classes.tsx`: a barra (contracts/ui.md "Toolbar":
       `Tabs` com uma aba e a contagem, `Input type="search"` com rótulo oculto e `maxLength` 100, `NativeSelect` "Ano"),
       a lista filtrada, o vazio de filtro com "Limpar busca e filtro", o rodapé com `aria-live="polite"` e o card "Ano
       letivo" com o ano resolvido. Atualizar T015 se o E2E precisar de `?ano=todos`. T021 verde.
-- [ ] T025 [US2] Tirar a história 2 e `SC-003` de `pending`.
+- [X] T025 [US2] Tirar a história 2 e `SC-003` de `pending`.
 
 **Checkpoint**: todas as histórias funcionam juntas.
 

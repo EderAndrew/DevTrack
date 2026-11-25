@@ -108,3 +108,57 @@ export const PAGE_SUBTITLE = "Suas disciplinas, professores e rankings em um só
 export const RANKING_PANEL_TITLE = "Ranking da turma";
 export const RANKING_PANEL_TEXT = "Confira a classificação e acompanhe sua posição nesta turma.";
 export const NO_PERIOD = "—";
+
+/** `ano=todos` (030 MT5): every year; the "Ano letivo" card then shows the most recent. */
+export const ALL_YEARS = "todos";
+export type YearChoice = number | typeof ALL_YEARS;
+
+/** The student's anos letivos, most recent first (030/FR-007). */
+export const studentYears = (list: MyCohortList | undefined): number[] =>
+  [...new Set((list?.years ?? []).map((year) => year.academicYear))].sort((a, b) => b - a);
+
+/**
+ * The year of the address (030 MT5, FR-010): `todos`, or a four-digit year among the student's; anything else (absent,
+ * malformed, a year without an active enrollment) is the most recent. `null` only when the student has no year.
+ */
+export const resolveYear = (param: string | null | undefined, years: readonly number[]): YearChoice | null => {
+  if (years.length === 0) return null;
+  if (param === ALL_YEARS) return ALL_YEARS;
+  if (param && /^\d{4}$/.test(param) && years.includes(Number(param))) return Number(param);
+  return years[0]!;
+};
+
+/** Longest search kept (030/FR-008; the input's `maxLength`). */
+export const SEARCH_MAX = 100;
+
+/** The search as matched (030 MT4): trimmed, cut at 100, without accents, lower case; only spaces = no search. */
+export const normalizeSearch = (text: string | null | undefined): string =>
+  (text ?? "")
+    .trim()
+    .slice(0, SEARCH_MAX)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase("pt-BR");
+
+/** The cards of the chosen year (or every year) whose turma name or code, or disciplina name, contain the search. */
+export const filterSubjectCards = (cards: readonly SubjectCard[], { year, search }: { year: YearChoice; search: string }): SubjectCard[] => {
+  const needle = normalizeSearch(search);
+  return cards.filter(
+    (card) =>
+      (year === ALL_YEARS || card.academicYear === year) &&
+      (needle === "" || [card.cohortName, card.cohortCode, card.subjectName ?? ""].some((text) => normalizeSearch(text).includes(needle))),
+  );
+};
+
+/** "Mostrando N de M turmas" (030/FR-009), "turma" when M is 1. */
+export const footerText = (shown: number, total: number) => `Mostrando ${shown} de ${total} ${total === 1 ? "turma" : "turmas"}`;
+
+export const FOOTER_ORDER = "Entrada mais recente primeiro";
+export const ALL_CLASSES_TAB = "Todas as turmas";
+export const SEARCH_LABEL = "Buscar turma ou disciplina";
+export const YEAR_LABEL = "Ano";
+export const ALL_YEARS_LABEL = "Todos os anos";
+export const NO_RESULTS = "Nenhuma turma encontrada.";
+export const CLEAR_FILTERS = "Limpar busca e filtro";
+/** Wait after the last keystroke before the search goes to the address (Enter applies at once). */
+export const SEARCH_WAIT_MS = 300;

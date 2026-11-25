@@ -78,9 +78,11 @@ import { Toaster } from "@/components/ui/toast";
 import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
 
-// 018: the exam screens navigate (ExamDetail, ExamAttempt); the router is not mounted in a unit test.
+// 018: the exam screens navigate (ExamDetail, ExamAttempt); the router is not mounted in a unit test. 030: "Minhas
+// turmas" reads its year and search from the address.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const SCRIPT = `<script>alert("xss")</script><img src=x onerror="alert(1)">`;

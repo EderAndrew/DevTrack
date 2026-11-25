@@ -6,6 +6,15 @@ import { expectNoA11yViolations } from "../../../test/a11y";
 import { renderWithProviders } from "../../../test/render";
 import { MyClasses } from "./my-classes";
 
+// 030/US2 (I1): the year and the search live in the address. Each test sets `address.params`; `replace` is recorded.
+const address = vi.hoisted(() => ({ params: new URLSearchParams() }));
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => address.params }));
+/** Every year (`?ano=todos`): the US1 tests that span years read all of them. */
+const allYears = () => {
+  address.params = new URLSearchParams("ano=todos");
+};
+
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const apiError = (status: number, code: string, message: string) => json(status, { statusCode: status, code, message });
@@ -52,6 +61,8 @@ describe("MyClasses — Minhas turmas (030)", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
+    address.params = new URLSearchParams();
+    router.replace.mockReset();
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -100,6 +111,7 @@ describe("MyClasses — Minhas turmas (030)", () => {
   });
 
   it("030/US1-4 013/FR-021 com ranking.turma.visualizar, cada card tem o painel \"Ranking da turma\" e \"Ver ranking\"", async () => {
+    allYears();
     fetchMock.mockResolvedValueOnce(json(200, TWO_YEARS));
     const { container } = renderWithProviders(<MyClasses welcome={false} showRanking />);
     const bd = await screen.findByRole("article", { name: "Banco de Dados" });
@@ -120,6 +132,7 @@ describe("MyClasses — Minhas turmas (030)", () => {
   });
 
   it("030/US1-6 027/US8-3 027/US8-4 turma encerrada e disciplina arquivada dizem a situação em texto e seguem com \"Acessar turma\"", async () => {
+    allYears();
     const archived: MyCohort = { ...ADS_4NA, classes: [{ ...ADS_4NA.classes[0]!, effectiveStatus: "ARCHIVED" }, ADS_4NA.classes[1]!] };
     fetchMock.mockResolvedValueOnce(json(200, body([2027, [archived]], [2026, [ADS_3NA_2026]])));
     renderWithProviders(<MyClasses welcome={false} />);
@@ -130,7 +143,7 @@ describe("MyClasses — Minhas turmas (030)", () => {
     const closed = card("Algoritmos");
     expect(within(closed).getAllByText("Encerrada")).toHaveLength(1);
     expect(within(closed).getByRole("link", { name: "Acessar Algoritmos · ADS 3NA" }).getAttribute("href")).toBe(`/minhas-atividades?materia=${OLD_ID}`);
-    // 027/US8-3: the most recent ano letivo first.
+    // 027/US8-3: the most recent ano letivo first (every year in the address).
     expect(screen.getAllByRole("article").map((article) => within(article).getByRole("heading", { level: 2 }).textContent)).toEqual([
       "Banco de Dados",
       "Redes",
@@ -206,6 +219,7 @@ describe("MyClasses — Minhas turmas (030)", () => {
   });
 
   it("030/SC-001 030/SC-002 030/SC-005 cada disciplina em exatamente um card, a um clique das atividades e do ranking, sem violações de acessibilidade", async () => {
+    allYears();
     fetchMock.mockResolvedValueOnce(json(200, body([2027, [ADS_4NA, EMPTY]], [2026, [ADS_3NA_2026]])));
     const { container } = renderWithProviders(<MyClasses welcome={false} showRanking />);
     await screen.findByRole("article", { name: "Banco de Dados" });
@@ -215,5 +229,175 @@ describe("MyClasses — Minhas turmas (030)", () => {
     }
     expect(screen.getAllByRole("article")).toHaveLength(4);
     await expectNoA11yViolations(container);
+  });
+
+  describe("030/US2 busca e ano letivo", () => {
+    const POO_ID = "88888888-8888-4888-8888-888888888888";
+    const OLD_2025_ID = "99999999-9999-4999-8999-999999999999";
+    const SI_2026: MyCohort = {
+      ...ADS_4NA,
+      id: "dddddddd-4444-4444-8444-444444444444",
+      name: "SI 2NA",
+      code: "SI-2NA",
+      classes: [
+        { classId: POO_ID, subjectName: "Object Oriented Programming", teacherName: "Prof. Lia", effectiveStatus: "ACTIVE" },
+        { classId: BD_ID, subjectName: "Banco de Dados", teacherName: "Prof. Eder", effectiveStatus: "ACTIVE" },
+      ],
+    };
+    const ADS_2025: MyCohort = {
+      ...ADS_3NA_2026,
+      id: "eeeeeeee-5555-4555-8555-555555555555",
+      name: "ADS 1NB",
+      code: "ADS-1NB",
+      classes: [{ classId: OLD_2025_ID, subjectName: "Lógica de Programação", teacherName: "Prof. Caio", effectiveStatus: "INACTIVE" }],
+    };
+    const LIST = body([2026, [SI_2026]], [2025, [ADS_2025]]);
+    const headings = () => screen.queryAllByRole("article").map((article) => within(article).getByRole("heading", { level: 2 }).textContent);
+    const yearCard = () => screen.getByText("Ano letivo").nextElementSibling?.textContent;
+
+    it("030/US2-1 abre no ano letivo mais recente: card \"Ano letivo\" com ele e só as disciplinas dele", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      const { container } = renderWithProviders(<MyClasses welcome={false} />);
+      await screen.findByRole("article", { name: "Object Oriented Programming" });
+      expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados"]);
+      expect(yearCard()).toBe("2026");
+      expect((screen.getByRole("combobox", { name: "Ano" }) as HTMLSelectElement).value).toBe("2026");
+      expect(router.replace).not.toHaveBeenCalled();
+      await expectNoA11yViolations(container);
+    });
+
+    it("030/US2-2 o filtro \"Ano\" oferece os anos do mais recente ao mais antigo e \"Todos os anos\"", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      renderWithProviders(<MyClasses welcome={false} />);
+      const select = (await screen.findByRole("combobox", { name: "Ano" })) as HTMLSelectElement;
+      expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual(["Ano: 2026", "Ano: 2025", "Todos os anos"]);
+
+      const user = userEvent.setup();
+      await user.selectOptions(select, "todos");
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?ano=todos");
+      expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados", "Lógica de Programação"]);
+      expect(yearCard()).toBe("2026");
+
+      await user.selectOptions(select, "2025");
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?ano=2025");
+      expect(headings()).toEqual(["Lógica de Programação"]);
+      expect(yearCard()).toBe("2025");
+    });
+
+    it("030/US2-3 a busca por parte do nome da disciplina, sem acentos nem maiúsculas, combinada com o ano", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      renderWithProviders(<MyClasses welcome={false} />);
+      const search = await screen.findByRole("searchbox", { name: "Buscar turma ou disciplina" });
+      expect(search.getAttribute("maxLength")).toBe("100");
+
+      const user = userEvent.setup();
+      await user.type(search, "ORIÉNT{Enter}");
+      expect(headings()).toEqual(["Object Oriented Programming"]);
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?busca=ORI%C3%89NT");
+
+      await user.selectOptions(screen.getByRole("combobox", { name: "Ano" }), "2025");
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?ano=2025&busca=ORI%C3%89NT");
+      expect(headings()).toEqual([]);
+    });
+
+    it("030/US2-3 a busca vai para o endereço 300 ms depois de parar de digitar, uma vez só", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        fetchMock.mockResolvedValueOnce(json(200, LIST));
+        renderWithProviders(<MyClasses welcome={false} />);
+        const search = await screen.findByRole("searchbox", { name: "Buscar turma ou disciplina" });
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        await user.type(search, "si-2");
+        expect(router.replace).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(300);
+        expect(router.replace).toHaveBeenCalledTimes(1);
+        expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?busca=si-2");
+        expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados"]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("030/US2-4 sem resultado: \"Nenhuma turma encontrada.\" e \"Limpar busca e filtro\" volta ao ano mais recente", async () => {
+      address.params = new URLSearchParams("ano=2025&busca=redes");
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      const { container } = renderWithProviders(<MyClasses welcome={false} />);
+      expect(await screen.findByText("Nenhuma turma encontrada.")).toBeTruthy();
+      expect(screen.queryByRole("article")).toBeNull();
+      await expectNoA11yViolations(container);
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "Limpar busca e filtro" }));
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas");
+      expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados"]);
+      expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
+      expect((screen.getByRole("combobox", { name: "Ano" }) as HTMLSelectElement).value).toBe("2026");
+    });
+
+    it("030/US2-5 aba \"Todas as turmas\" com a contagem do ano (sem a busca) e o rodapé", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      renderWithProviders(<MyClasses welcome={false} />);
+      expect(await screen.findByRole("tab", { name: "Todas as turmas, 2" })).toBeTruthy();
+      expect(screen.getByText("Mostrando 2 de 2 turmas")).toBeTruthy();
+      expect(screen.getByText("Entrada mais recente primeiro")).toBeTruthy();
+
+      const user = userEvent.setup();
+      await user.type(screen.getByRole("searchbox"), "banco{Enter}");
+      expect(screen.getByRole("tab", { name: "Todas as turmas, 2" })).toBeTruthy();
+      expect(screen.getByText("Mostrando 1 de 2 turmas").getAttribute("aria-live")).toBe("polite");
+
+      await user.selectOptions(screen.getByRole("combobox", { name: "Ano" }), "2025");
+      expect(screen.getByRole("tab", { name: "Todas as turmas, 1" })).toBeTruthy();
+      expect(screen.getByText("Mostrando 0 de 1 turma")).toBeTruthy();
+    });
+
+    it("030/US2-6 o ano e a busca do endereço valem ao abrir; o bem-vindo fica no endereço", async () => {
+      address.params = new URLSearchParams("bem-vindo=1&ano=2025&busca=logica");
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      renderWithProviders(<MyClasses welcome />);
+      await screen.findByRole("article", { name: "Lógica de Programação" });
+      expect(headings()).toEqual(["Lógica de Programação"]);
+      expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("logica");
+      expect(yearCard()).toBe("2025");
+
+      await userEvent.setup().selectOptions(screen.getByRole("combobox", { name: "Ano" }), "todos");
+      expect(router.replace).toHaveBeenLastCalledWith("/minhas-turmas?bem-vindo=1&ano=todos&busca=logica");
+    });
+
+    it("030/US2-6 um ano do endereço sem matrícula ativa ou mal formado cai no mais recente, sem reescrever o endereço", async () => {
+      for (const ano of ["2019", "abc"]) {
+        address.params = new URLSearchParams(`ano=${ano}`);
+        fetchMock.mockResolvedValueOnce(json(200, LIST));
+        const { unmount } = renderWithProviders(<MyClasses welcome={false} />);
+        await screen.findByRole("article", { name: "Object Oriented Programming" });
+        expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados"]);
+        expect(yearCard()).toBe("2026");
+        unmount();
+      }
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("030/US2-6 uma mudança do endereço (voltar no navegador) troca o ano e a busca", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      const { rerender } = renderWithProviders(<MyClasses welcome={false} />);
+      await screen.findByRole("article", { name: "Object Oriented Programming" });
+      address.params = new URLSearchParams("ano=2025&busca=prog");
+      rerender(<MyClasses welcome={false} />);
+      expect(headings()).toEqual(["Lógica de Programação"]);
+      expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("prog");
+    });
+
+    it("030/SC-003 a busca e a troca de ano não pedem a lista de novo", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, LIST));
+      renderWithProviders(<MyClasses welcome={false} />);
+      const search = await screen.findByRole("searchbox");
+      const user = userEvent.setup();
+      await user.type(search, "banco{Enter}");
+      await user.selectOptions(screen.getByRole("combobox", { name: "Ano" }), "todos");
+      await user.clear(search);
+      await user.type(search, "{Enter}");
+      expect(headings()).toEqual(["Object Oriented Programming", "Banco de Dados", "Lógica de Programação"]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
