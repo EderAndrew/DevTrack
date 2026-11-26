@@ -130,6 +130,8 @@ const EXPECTED_MODELS = [
   "ExamNudge",
   // 027 (specs/027-manager-classes/data-model.md) — the turma; `classes` became the disciplina da turma.
   "Cohort",
+  // 031 (specs/031-calendar-day-kinds/data-model.md) — the days of a class that are not encontros.
+  "ClassCalendarDay",
 ];
 
 /**

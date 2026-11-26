@@ -22,7 +22,7 @@ import { AuditService } from "../audit/audit.service";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { isoDate } from "../classes/class.view";
 import { requirePlannable } from "../classes/plannable-class";
-import { meetingViews } from "./class-plan.view";
+import { dayViews, meetingViews } from "./class-plan.view";
 import { lockOwnedClass } from "./owned-class-lock";
 import { bumpRevision } from "./plan-revision.guard";
 import { type TopicActor, TopicMutations } from "./topic-mutations";
@@ -193,7 +193,8 @@ export class ClassMeetingsService {
   /** The list with numbers by date order (`row_number()`, E12) and each meeting's non-archived topics. */
   private async view(db: Tx | PrismaService, classId: string): Promise<ClassMeetingList> {
     const items = await meetingViews(db, classId);
+    const days = await dayViews(db, classId);
     const plan = await db.classPlan.findUnique({ where: { classId }, select: { revision: true } });
-    return { items, total: items.length, planRevision: plan?.revision ?? null };
+    return { items, days, total: items.length, planRevision: plan?.revision ?? null };
   }
 }

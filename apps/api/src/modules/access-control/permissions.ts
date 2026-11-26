@@ -101,6 +101,8 @@ export const PERMISSIONS = [
   "feedbacks.alterar_situacao",
   // 025 — the teacher's discreet warning to a student in an exam, sent only from the app (specs/025-exam-student-nudge/data-model.md "Permission seed").
   "provas.avisos.enviar",
+  // 031 — the student reads the calendar of their turmas' disciplinas (specs/031-calendar-day-kinds/contracts/permissions.md).
+  "calendario.turma.visualizar",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

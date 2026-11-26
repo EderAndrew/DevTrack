@@ -64,6 +64,8 @@ describe("US1 — verificação de e-mail (FR-014–FR-016)", () => {
           "atividades.proprias.executar",
           "atividades.proprias.responder",
           "atividades.proprias.visualizar",
+          // 031: o calendário da disciplina
+          "calendario.turma.visualizar",
           "feedbacks.enviar",
           "feedbacks.proprios.listar",
           "ia.ajuda.pedir",

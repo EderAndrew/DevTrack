@@ -69,7 +69,7 @@ description: "Task list for 031 — Calendário com tipos de data (Aula, Prova, 
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Teste de schema da migration em `apps/api/test/integration/031-schema.spec.ts` (no molde de
+- [X] T003 [P] Teste de schema da migration em `apps/api/test/integration/031-schema.spec.ts` (no molde de
       `004-schema.spec.ts`): `031/FR-011` uma linha de `class_meetings` sem `kind` fica `CLASS` e `description` NULL;
       CHECKs de `class_meetings` (`CLASS` com descrição → erro; `EXAM` sem descrição → erro; descrição de 121 code points →
       erro); CHECKs de `class_calendar_days` por tipo (Feriado sem descrição, Falta sem motivo, Falta com descrição, aviso
@@ -77,7 +77,7 @@ description: "Task list for 031 — Calendário com tipos de data (Aula, Prova, 
       (inserir em `class_calendar_days` uma data que já é encontro da mesma disciplina → erro, e o contrário; outra
       disciplina da mesma turma na mesma data → aceito, `031/FR-013`); a permissão `calendario.turma.visualizar` existe e
       só o papel `STUDENT` a tem.
-- [ ] T004 [P] Testes de contrato em `packages/contracts/test/calendar.spec.ts`: `DayKindSchema` com os nove valores;
+- [X] T004 [P] Testes de contrato em `packages/contracts/test/calendar.spec.ts`: `DayKindSchema` com os nove valores;
       `CalendarDayInputSchema` aceita `{date, kind:"CLASS"}` e recusa `CLASS` com `description`; os sete tipos descritos
       exigem `description` (1–120 code points após trim, só espaços recusado, NUL recusado); `TEACHER_ABSENCE` exige
       `absenceReason` (1–500), aceita `absenceNotice` até 200 e transforma `""`/espaços em `null`, recusa `description`;
@@ -87,7 +87,7 @@ description: "Task list for 031 — Calendário com tipos de data (Aula, Prova, 
 
 ### Implementation for Foundational
 
-- [ ] T005 Migration `apps/api/prisma/migrations/<timestamp>_031_calendar_day_kinds/migration.sql` e
+- [X] T005 Migration `apps/api/prisma/migrations/<timestamp>_031_calendar_day_kinds/migration.sql` e
       `apps/api/prisma/schema.prisma` conforme `data-model.md`: enums `class_meeting_kind` e `class_calendar_day_kind`;
       `class_meetings.kind NOT NULL DEFAULT 'CLASS'` e `description` com os CHECKs; tabela `class_calendar_days`
       (FK `class_id` → `classes` RESTRICT, `UNIQUE (class_id, day_date)`, CHECKs por tipo e de tamanho em `char_length`
@@ -95,21 +95,20 @@ description: "Task list for 031 — Calendário com tipos de data (Aula, Prova, 
       `calendario.turma.visualizar` com o papel `STUDENT` (`INSERT … ON CONFLICT DO NOTHING`, no molde da migration da
       027, seção "(8) permissions"). Modelos Prisma `ClassMeeting.kind/description` e `ClassCalendarDay` com relação em
       `SchoolClass`. Rodar `prisma generate`, `migrate deploy` (dev) e T003 (verde).
-- [ ] T006 [P] Registrar a chave `calendario.turma.visualizar` no catálogo `apps/api/src/modules/access-control/permissions.ts`
+- [X] T006 [P] Registrar a chave `calendario.turma.visualizar` no catálogo `apps/api/src/modules/access-control/permissions.ts`
       e na matriz `apps/api/test/security/authorization-matrix.ts` (STUDENT sim; TEACHER, MANAGER, ADMIN não); incluir
       a chave, em ordem alfabética e com o comentário "031: o calendário da disciplina", nas listas exatas de permissões
       do STUDENT em `GET /me` de `apps/api/test/integration/us1-email-verification.spec.ts` e
       `apps/api/test/integration/us2-auth-sessions.spec.ts` (sem isso as duas falham).
-- [ ] T007 Contratos em `packages/contracts/src/curriculum/class-meetings.ts` (`MeetingKindSchema`,
+- [X] T007 Contratos em `packages/contracts/src/curriculum/class-meetings.ts` (`MeetingKindSchema`,
       `CalendarDayKindSchema`, `DayKindSchema`, `DescriptionSchema`, `AbsenceReasonSchema`, `AbsenceNoticeSchema`,
       `CalendarDayInputSchema` como união discriminada estrita por `kind`, `set` com `.default([])` e `.max(400)` em
       `UpdateClassMeetingsRequestSchema`, `kind`/`description` em `ClassMeetingViewSchema`, `CalendarDayViewSchema` do
       professor e `days` em `ClassMeetingListSchema`); novo `packages/contracts/src/me/calendar.ts` com
       `StudentCalendarSchema` (`class: {id, subjectName, teacherName, startsOn, endsOn}`, `today`, `days: [{date, kind,
-      text}]`, tudo estrito); exportar em `src/index.ts`; catalogar `"me.classCalendar"` (`GET
-      /me/classes/:classId/calendar`, resposta `StudentCalendarSchema`) em `src/endpoints.ts`. Build dos contratos e T004
-      verde.
-- [ ] T008 Ajustar quem monta `ClassMeetingView`/`ClassMeetingList` para compilar com os campos novos, sem mudar
+      text}]`, tudo estrito); exportar em `src/index.ts`. Build dos contratos e T004 verde. (A entrada `"me.classCalendar"` de `src/endpoints.ts`
+      vai com a rota, na T024: `endpoint-catalog.spec.ts` exige uma rota Nest para cada entrada.)
+- [X] T008 Ajustar quem monta `ClassMeetingView`/`ClassMeetingList` para compilar com os campos novos, sem mudar
       comportamento ainda: `apps/api/src/modules/class-plans/class-plan.view.ts` (`meetingViews` seleciona e copia
       `kind`/`description`; nova `dayViews(db, classId)` lendo `class_calendar_days` por data) e
       `class-meetings.service.ts` (`view` devolve `days`); fixtures web que montam encontros:
@@ -271,7 +270,11 @@ matéria mostra cada dia corretamente ao navegar.
       { some: { id } } } })` — senão `notFound()`; depois `select` só de `meeting_date/kind/description` e
       `day_date/kind/description/absence_notice`, a matéria, o professor e o período; `today` pelo `Clock` e
       `planningToday`) e `views/student-calendar.view.ts` (copia a lista fechada de chaves de `contracts/http-api.md`).
-      T021 verde.
+      Catalogar `"me.classCalendar"` (`GET /me/classes/:classId/calendar`, `params: ClassParamsSchema`, resposta
+      `StudentCalendarSchema`) em `packages/contracts/src/endpoints.ts` e atualizar a contagem de
+      `apps/api/test/contracts/endpoint-catalog.spec.ts`. Acrescentar a linha `GET /me/classes/:classId/calendar` → `calendario.turma.visualizar` no `MATRIX` de
+      `authorization-matrix.ts` e tirar a chave de `SEEDED_BEFORE_ROUTES` em `test/security/us7-matrix-completeness.spec.ts`
+      (entrou lá na T006). T021 verde.
 - [ ] T025 [P] [US3] `apps/web/features/student-calendar/schemas/week.ts` (datas em `YYYY-MM-DD` sem fuso do navegador,
       textos de `contracts/ui.md`) até T022 verde.
 - [ ] T026 [US3] `apps/web/features/student-calendar/api/student-calendar.ts`, `hooks/use-student-calendar.ts`

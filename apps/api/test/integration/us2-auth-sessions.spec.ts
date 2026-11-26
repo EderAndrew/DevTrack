@@ -68,6 +68,8 @@ describe("US2 — login, logout e sessões próprias (FR-020–FR-028)", () => {
             "atividades.proprias.executar",
             "atividades.proprias.responder",
             "atividades.proprias.visualizar",
+            // 031: o calendário da disciplina
+            "calendario.turma.visualizar",
             "feedbacks.enviar",
             "feedbacks.proprios.listar",
             "ia.ajuda.pedir",

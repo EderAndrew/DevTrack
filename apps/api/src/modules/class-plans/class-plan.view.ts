@@ -1,4 +1,11 @@
-import type { ClassMeetingStatus, ClassMeetingView, ClassPlanView, TopicView } from "@repo/contracts";
+import type {
+  CalendarDayView,
+  ClassMeetingStatus,
+  ClassMeetingView,
+  ClassPlanView,
+  MeetingKind,
+  TopicView,
+} from "@repo/contracts";
 import type { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { isoDate } from "../classes/class.view";
@@ -11,6 +18,8 @@ interface MeetingRow {
   number: number;
   status: ClassMeetingStatus;
   topicCount: number;
+  kind: MeetingKind;
+  description: string | null;
 }
 
 /**
@@ -23,10 +32,28 @@ export function meetingViews(db: Db, classId: string): Promise<ClassMeetingView[
            to_char(m.meeting_date, 'YYYY-MM-DD') AS date,
            (row_number() OVER (ORDER BY m.meeting_date))::int AS number,
            m.status::text AS status,
-           (SELECT count(*)::int FROM topics t WHERE t.meeting_id = m.id AND t.status <> 'ARCHIVED') AS "topicCount"
+           (SELECT count(*)::int FROM topics t WHERE t.meeting_id = m.id AND t.status <> 'ARCHIVED') AS "topicCount",
+           m.kind::text AS kind,
+           m.description
     FROM class_meetings m
     WHERE m.class_id = ${classId}::uuid
     ORDER BY m.meeting_date`;
+}
+
+/** 031: the class's days without class by date, as the teacher sees them (the absence's reason included). */
+export async function dayViews(db: Db, classId: string): Promise<CalendarDayView[]> {
+  const rows = await db.classCalendarDay.findMany({
+    where: { classId },
+    orderBy: { dayDate: "asc" },
+    select: { dayDate: true, kind: true, description: true, absenceReason: true, absenceNotice: true },
+  });
+  return rows.map((row) => ({
+    date: isoDate(row.dayDate)!,
+    kind: row.kind,
+    description: row.description,
+    absenceReason: row.absenceReason,
+    absenceNotice: row.absenceNotice,
+  }));
 }
 
 /**

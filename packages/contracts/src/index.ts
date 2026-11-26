@@ -10,6 +10,7 @@ export * from "./auth/responses.js";
 export * from "./me/me.js";
 export * from "./me/preferences.js";
 export * from "./me/sessions.js";
+export * from "./me/calendar.js";
 export * from "./accounts/accounts.js";
 export * from "./provisioning/invitations.js";
 export * from "./provisioning/managers.js";

@@ -13,6 +13,8 @@ import { MATRIX, ROLE_PERMISSIONS, routeKey } from "./authorization-matrix";
  */
 const SEEDED_BEFORE_ROUTES = new Set<PermissionKey>([
   "notas.proprias.visualizar",
+  // 031: seeded in the Foundational phase; leaves with `GET /me/classes/:classId/calendar` (US3).
+  "calendario.turma.visualizar",
 ]);
 
 /** Keeps the authorization matrix honest as routes and seed evolve. */

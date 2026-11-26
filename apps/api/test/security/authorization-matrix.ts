@@ -153,6 +153,9 @@ export const FEEDBACK_STUDENT = ["feedbacks.enviar", "feedbacks.proprios.listar"
 /** 020: the ADMIN reads the students' feedbacks and changes their status. */
 export const FEEDBACK_ADMIN = ["feedbacks.visualizar", "feedbacks.alterar_situacao"] as const satisfies PermissionKey[];
 
+/** 031: the student reads the calendar of the disciplinas of their turmas. */
+export const CALENDAR_STUDENT = ["calendario.turma.visualizar"] as const satisfies PermissionKey[];
+
 /** "Papéis → permissões" of the contract. */
 export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ADMIN: [
@@ -168,7 +171,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, readonly PermissionKey[]> = {
   ],
   MANAGER: [...SESSOES, ...PROFESSORES, ...TURMAS],
   TEACHER: [...SESSOES, ...DISCIPLINAS_TURMA, ...CURRICULUM, ...AI_TEACHER, ...EXERCISE_BANK, ...WORK_BANK, ...CLASS_ACTIVITIES, ...EXERCISE_POINTS_TEACHER, ...ATTENDANCE_TEACHER, ...EXAMS_TEACHER],
-  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT, ...FEEDBACK_STUDENT],
+  STUDENT: [...SESSOES, "turmas.proprias.listar", ...STUDENT_PORTAL, ...EXERCISE_POINTS_STUDENT, ...WORK_HELP_STUDENT, ...CODE_RUNNER_STUDENT, ...FEEDBACK_STUDENT, ...CALENDAR_STUDENT],
 };
 
 /** Every non-public route and what it requires ("Matriz de autorização esperada"). */

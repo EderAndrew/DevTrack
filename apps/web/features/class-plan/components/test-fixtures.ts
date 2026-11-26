@@ -11,6 +11,8 @@ export const meetingView = (date: string, number: number, topicCount = 0): Class
   number,
   status: "PLANNED",
   topicCount,
+  kind: "CLASS",
+  description: null,
 });
 
 export const topicView = (title: string, overrides: Partial<TopicView> = {}): TopicView => ({

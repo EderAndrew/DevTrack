@@ -20,9 +20,12 @@ const meeting = (date: string, number: number, topicCount = 0): ClassMeetingView
   number,
   status: "PLANNED",
   topicCount,
+  kind: "CLASS",
+  description: null,
 });
 const meetingList = (items: ClassMeetingView[], planRevision: number | null = null): ClassMeetingList => ({
   items,
+  days: [],
   total: items.length,
   planRevision,
 });

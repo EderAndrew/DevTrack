@@ -1,6 +1,6 @@
 "use client";
 
-import type { UpdateClassMeetingsRequest } from "@repo/contracts";
+import type { UpdateClassMeetingsBody } from "@repo/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { classesKeys } from "@/features/classes/hooks/use-classes";
 import { classMeetingsApi } from "../api/class-meetings";
@@ -18,7 +18,7 @@ export const useClassMeetings = (classId: string) =>
 export function useUpdateClassMeetings(classId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: UpdateClassMeetingsRequest) => classMeetingsApi.update(classId, body),
+    mutationFn: (body: UpdateClassMeetingsBody) => classMeetingsApi.update(classId, body),
     onSuccess: async (list) => {
       queryClient.setQueryData(classMeetingsKeys.meetings(classId), list);
       await queryClient.invalidateQueries({ queryKey: classMeetingsKeys.plan(classId) });
