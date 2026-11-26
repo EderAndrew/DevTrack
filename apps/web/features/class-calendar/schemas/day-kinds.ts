@@ -50,8 +50,32 @@ export const ABSENCE_NOTE =
 export const KIND_LEGEND = "Tipo do dia";
 export const CONFIRM = "Confirmar";
 export const UNMARK_DAY = "Desmarcar dia";
-export const LEGEND_TITLE = "Legenda";
+export const LEGEND_TITLE = "Tipos de dia";
 export const NO_CLASS_DAYS_TITLE = "Dias sem aula";
+export const CALENDAR_HINT = "Selecione um dia para definir o tipo de atividade.";
+export const MONTH_HINT = "Clique em uma data para editar";
+export const MEETING_LIST_TITLE = "Aulas selecionadas";
+export const OTHER_DAYS_LABEL = "Outros dias marcados";
+export const TODAY_LABEL = "Hoje";
+export const SAVE_CALENDAR = "Salvar calendário";
+export const SAVE_HINT = "As alterações só são gravadas ao salvar o calendário.";
+export const DIALOG_DESCRIPTION = "Defina como este dia aparece no calendário.";
+export const DIALOG_SAVE_NOTE = "Nada é gravado até você clicar em “Salvar calendário”";
+export const DIALOG_SAVE_NOTE_DETAIL = "na página da turma, depois de confirmar esta escolha.";
+export const MEETING_DONE = "Concluída";
+export const MEETING_SCHEDULED = "Programada";
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+/** The words after the number of "14 aulas selecionadas" (the summary beside the title). */
+export const meetingsSelectedWords = (count: number) => (count === 1 ? "aula selecionada" : "aulas selecionadas");
+export const doneCountLabel = (count: number) => plural(count, "concluída", "concluídas");
+export const scheduledCountLabel = (count: number) => plural(count, "programada", "programadas");
+/** The save bar: how many days differ from what is saved. */
+export const pendingLabel = (count: number) =>
+  count === 0 ? "Nenhuma alteração pendente" : plural(count, "alteração pendente", "alterações pendentes");
+/** "Aula é o tipo selecionado para este dia." under the kinds of "Marcar dia". */
+export const selectedKindLabel = (kind: DayKind) => `${DAY_KIND_LABELS[kind]} é o tipo selecionado para este dia.`;
 
 const MEETING_KINDS: ReadonlySet<DayKind> = new Set<DayKind>([
   "CLASS",
@@ -81,6 +105,19 @@ export const DOT_CLASSES: Record<DayKind, string> = {
   RECESS: "bg-muted-foreground",
   SPECIAL_EVENT: "bg-success",
   TEACHER_ABSENCE: "border-2 border-danger-text bg-transparent",
+};
+
+/** The icon color of each kind, the same tokens as its dot (decorative: the kind is always said in words). */
+export const ICON_CLASSES: Record<DayKind, string> = {
+  CLASS: "text-primary",
+  EXAM: "text-danger",
+  ASSIGNMENT: "text-warning",
+  REVIEW: "text-info",
+  MAKEUP: "text-info",
+  HOLIDAY: "text-muted-foreground",
+  RECESS: "text-muted-foreground",
+  SPECIAL_EVENT: "text-success",
+  TEACHER_ABSENCE: "text-danger-text",
 };
 
 /** The token of each dot, checked against `card` by `test/contrast.test.ts`. */

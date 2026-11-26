@@ -8,6 +8,10 @@ import { apiError, json } from "../../subjects/components/test-fixtures";
 import { classMeetingsKeys } from "../hooks/use-class-meetings";
 import { MeetingCalendar } from "./meeting-calendar";
 
+/** A paragraph whose whole text (number and words in separate elements) is `text`. */
+const fullText = (text: string) => (_content: string, element: Element | null) =>
+  element?.tagName === "P" && element.textContent === text;
+
 const CLASS_ID = "00000000-0000-4000-9000-000000000444";
 const PERIOD = { startsOn: "2027-02-02", endsOn: "2027-06-30" };
 
@@ -108,7 +112,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
   it("004/FR-052 mês com dia da semana, dias fora do período desabilitados, total e lista numerada", async () => {
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1), meeting("2027-02-10", 2)]));
 
-    expect(await screen.findByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(await screen.findByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     const grid = screen.getByRole("grid");
     expect(grid.getAttribute("aria-label")).toMatch(/fevereiro/i);
     // The weekday row is hidden from the accessibility tree; each day button names its weekday.
@@ -131,8 +135,8 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
 
     const list = screen.getByRole("list", { name: "Aulas selecionadas" });
     expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "Aula 01 — 03/02/2027",
-      "Aula 02 — 10/02/2027",
+      "Aula 01 — 03/02/2027 · Programada",
+      "Aula 02 — 10/02/2027 · Programada",
     ]);
     await expectNoA11yViolations(container);
   });
@@ -140,7 +144,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
   it("004/FR-052 031/FR-010 setas movem o foco, PageUp/PageDown trocam o mês, Espaço/Enter abrem o modal e marcam", async () => {
     const user = userEvent.setup();
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1)]));
-    await screen.findByText("Total de aulas selecionadas: 1");
+    await screen.findByText(fullText("1 aula selecionada"));
 
     dayButton(container, "2027-02-03").focus();
     await user.keyboard("{ArrowRight}");
@@ -155,7 +159,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     within(dialog).getByRole("button", { name: "Confirmar" }).focus();
     await user.keyboard("{Enter}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(dayButton(container, "2027-02-11")));
 
     await user.keyboard("{PageDown}");
@@ -166,7 +170,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     await screen.findByRole("dialog", { name: /^Marcar dia/ });
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(dayButton(container, "2027-03-11")));
 
     await user.keyboard("{PageUp}");
@@ -178,22 +182,22 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     within(dialog).getByRole("button", { name: "Desmarcar dia" }).focus();
     await user.keyboard("{Enter}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(screen.getByText(fullText("1 aula selecionada"))).toBeTruthy();
   });
 
   it("004/US4-4 004/US4-5 \"Salvar calendário\" envia só as datas acrescentadas e removidas", async () => {
     const user = userEvent.setup();
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1), meeting("2027-02-10", 2)]));
-    await screen.findByText("Total de aulas selecionadas: 2");
+    await screen.findByText(fullText("2 aulas selecionadas"));
 
     await markAula(user, container, "2027-02-17");
     await unmarkDay(user, container, "2027-02-10");
     await markAula(user, container, "2027-02-24");
     await unmarkDay(user, container, "2027-02-24");
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     expect(within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
-      "Aula 01 — 03/02/2027",
-      "Aula 02 — 17/02/2027",
+      "Aula 01 — 03/02/2027 · Programada",
+      "Aula 02 — 17/02/2027 · Programada",
     ]);
 
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
@@ -221,7 +225,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const { container } = renderCalendar(meetingList(meetings, 7), {
       plan: planEnvelope(meetings, [other, toMove, toMerge, toArchive, toUnschedule], 7),
     });
-    await screen.findByText("Total de aulas selecionadas: 3");
+    await screen.findByText(fullText("3 aulas selecionadas"));
 
     await unmarkDay(user, container, "2027-02-10");
     const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
@@ -254,7 +258,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     await user.click(within(dialog).getByRole("button", { name: "Desmarcar aula" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
 
     expect(await screen.findByText("Calendário salvo.")).toBeTruthy();
@@ -275,13 +279,13 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const busy = meeting("2027-02-10", 1, 1);
     const only = topic("Encapsulamento", busy.id, 1);
     const { container } = renderCalendar(meetingList([busy], 2), { plan: planEnvelope([busy], [only], 2) });
-    await screen.findByText("Total de aulas selecionadas: 1");
+    await screen.findByText(fullText("1 aula selecionada"));
 
     await unmarkDay(user, container, "2027-02-10");
     let dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(screen.getByText(fullText("1 aula selecionada"))).toBeTruthy();
 
     await unmarkDay(user, container, "2027-02-10");
     dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
@@ -296,7 +300,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const user = userEvent.setup();
     const list = meetingList([], 3);
     const { container } = renderCalendar(list, { plan: planEnvelope([], [], 3) });
-    await screen.findByText("Total de aulas selecionadas: 0");
+    await screen.findByText(fullText("0 aulas selecionadas"));
     // The calendar also reads the plan (it has one): only the save fails.
     fetchMock.mockImplementation(async (_url, init) =>
       init?.method === "PUT" ? apiError(409, "PLAN_REVISION_CONFLICT", "x") : json(200, list),
@@ -314,7 +318,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const days = [meeting("2027-02-03", 1)];
     const archived = planEnvelope(days, [], 4);
     const { container } = renderCalendar(meetingList(days, 4), { plan: { plan: { ...archived.plan!, status: "ARCHIVED" } } });
-    await screen.findByText("Total de aulas selecionadas: 1");
+    await screen.findByText(fullText("1 aula selecionada"));
     expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
     expect(dayButton(container, "2027-02-10").disabled).toBe(true);
   });
@@ -327,7 +331,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const open = { ...topic("Herança", days[2]!.id, 2), status: "ACTIVE" as const };
     const plan = planEnvelope(days, [concluded, archived, open], 5);
     const { container } = renderCalendar(meetingList(days, 5), { plan: { plan: { ...plan.plan!, status: "ACTIVE" } } });
-    await screen.findByText("Total de aulas selecionadas: 3");
+    await screen.findByText(fullText("3 aulas selecionadas"));
 
     for (const date of ["2027-02-03", "2027-02-10"]) {
       const day = dayButton(container, date);
@@ -342,19 +346,19 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
 
     const items = within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      "Aula 01 — 03/02/2027(aula concluída)",
-      "Aula 02 — 10/02/2027(aula concluída)",
-      "Aula 03 — 17/02/2027",
+      "Aula 01 — 03/02/2027 · Concluída",
+      "Aula 02 — 10/02/2027 · Concluída",
+      "Aula 03 — 17/02/2027 · Programada",
     ]);
-    expect(items[0]!.querySelector(".line-through")?.textContent).toBe("Aula 01 — 03/02/2027");
     expect(items[0]!.querySelector("svg")).toBeTruthy();
-    expect(items[2]!.querySelector(".line-through, svg")).toBeNull();
+    expect(items[2]!.querySelector("svg")).toBeNull();
+
     await expectNoA11yViolations(container);
   });
 
   it("sem calendario.gerenciar: somente leitura", async () => {
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1)]), { canEdit: false });
-    await screen.findByText("Total de aulas selecionadas: 1");
+    await screen.findByText(fullText("1 aula selecionada"));
     expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
     expect(dayButton(container, "2027-02-10").disabled).toBe(true);
     await expectNoA11yViolations(container);
@@ -402,7 +406,7 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
 
   it("031/US1-5 cada dia mostra o tipo por ícone e nome acessível, os encontros com o número, e a legenda dos nove tipos", async () => {
     const { container } = renderKinds(KINDS_LIST);
-    await screen.findByText("Total de aulas selecionadas: 2");
+    await screen.findByText(fullText("2 aulas selecionadas"));
 
     expect(dayButton(container, "2027-02-03").getAttribute("aria-label")).toMatch(/3 de fevereiro de 2027.*: Aula — aula 1$/);
     expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Prova — aula 2$/);
@@ -412,7 +416,7 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
     expect(dayButton(container, "2027-02-10").querySelector('svg[data-kind="EXAM"]')).toBeTruthy();
     expect(dayButton(container, "2027-02-17").querySelector('svg[data-kind="HOLIDAY"]')).toBeTruthy();
 
-    const legend = screen.getByRole("region", { name: "Legenda" });
+    const legend = screen.getByRole("region", { name: "Tipos de dia" });
     expect(within(legend).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "Aula",
       "Prova",
@@ -427,8 +431,8 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
 
     // The list: each encontro's kind and description; the days without class apart, with the Falta's reason.
     expect(within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
-      "Aula 01 — 03/02/2027",
-      "Aula 02 — 10/02/2027 · Prova: P1 — Herança",
+      "Aula 01 — 03/02/2027 · Programada",
+      "Aula 02 — 10/02/2027 · Programada · Prova: P1 — Herança",
     ]);
     const days = within(screen.getByRole("region", { name: "Dias sem aula" })).getAllByRole("listitem");
     expect(days.map((item) => item.textContent)).toEqual([
@@ -441,8 +445,8 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
   it("031/US1-8 \"Total de aulas selecionadas\" e \"Outros dias marcados\" seguem as mudanças pendentes", async () => {
     const user = userEvent.setup();
     const { container } = renderKinds(KINDS_LIST);
-    await screen.findByText("Total de aulas selecionadas: 2");
-    expect(screen.getByText("Outros dias marcados: 2")).toBeTruthy();
+    await screen.findByText(fullText("2 aulas selecionadas"));
+    expect(screen.getByText(fullText("Outros dias marcados: 2"))).toBeTruthy();
 
     // Aula → Recesso: one encontro less, one other day more; the Prova becomes aula 1.
     await user.click(dayButton(container, "2027-02-03"));
@@ -451,8 +455,8 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
     await user.type(within(dialog).getByRole("textbox", { name: /^Descrição/ }), "Recesso acadêmico");
     await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
-    expect(screen.getByText("Outros dias marcados: 3")).toBeTruthy();
+    expect(screen.getByText(fullText("1 aula selecionada"))).toBeTruthy();
+    expect(screen.getByText(fullText("Outros dias marcados: 3"))).toBeTruthy();
     expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Prova — aula 1$/);
 
     // Feriado → Reposição: an encontro again.
@@ -464,8 +468,8 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
     await user.type(description, "Reposição da aula 3");
     await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
-    expect(screen.getByText("Outros dias marcados: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
+    expect(screen.getByText(fullText("Outros dias marcados: 2"))).toBeTruthy();
 
     // "Salvar calendário" sends only what changed.
     await markAula(user, container, "2027-03-03");
@@ -489,7 +493,7 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
   it("031/SC-001 marcar um dia com tipo e descrição em até 3 interações", async () => {
     const user = userEvent.setup();
     const { container } = renderKinds({ items: [], days: [], total: 0, planRevision: null });
-    await screen.findByText("Total de aulas selecionadas: 0");
+    await screen.findByText(fullText("0 aulas selecionadas"));
 
     // 1. the day; 2. the kind; (writing does not count) 3. "Confirmar".
     await user.click(dayButton(container, "2027-02-24"));
@@ -500,7 +504,7 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(dayButton(container, "2027-02-24").getAttribute("aria-label")).toMatch(/: Prova — aula 1$/);
-    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(screen.getByText(fullText("1 aula selecionada"))).toBeTruthy();
   });
 });
 
@@ -546,13 +550,13 @@ describe("031/US2 MeetingCalendar — dia com tópicos que deixa de ser aula", (
   it("031/US2-1 mudar um dia salvo com tópicos para Falta abre \"Esta aula tem tópicos planejados\"; o corpo leva o set e as resolutions", async () => {
     const user = userEvent.setup();
     const { container, open, done } = scene();
-    await screen.findByText("Total de aulas selecionadas: 3");
+    await screen.findByText(fullText("3 aulas selecionadas"));
 
     await changeKind(user, container, "2027-02-10", "Falta do professor", { Motivo: "Consulta médica" });
     const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     expect(within(dialog).getByText(/antes de mudar 10\/02\/2027 para Falta do professor/)).toBeTruthy();
     // The day stays a class until the choices are confirmed.
-    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    expect(screen.getByText(fullText("3 aulas selecionadas"))).toBeTruthy();
 
     // A completed topic only takes "Arquivar".
     const doneGroup = within(dialog).getByRole("group", { name: /Construtores/ });
@@ -571,7 +575,7 @@ describe("031/US2 MeetingCalendar — dia com tópicos que deixa de ser aula", (
     await user.click(within(dialog).getByRole("button", { name: "Confirmar mudança" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText(fullText("2 aulas selecionadas"))).toBeTruthy();
     expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Falta do professor$/);
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
 
@@ -593,24 +597,24 @@ describe("031/US2 MeetingCalendar — dia com tópicos que deixa de ser aula", (
   it("\"Cancelar\" na resolução mantém o dia como aula", async () => {
     const user = userEvent.setup();
     const { container } = scene();
-    await screen.findByText("Total de aulas selecionadas: 3");
+    await screen.findByText(fullText("3 aulas selecionadas"));
 
     await changeKind(user, container, "2027-02-10", "Feriado", { Descrição: "Carnaval" });
     const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    expect(screen.getByText(fullText("3 aulas selecionadas"))).toBeTruthy();
     expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Aula — aula 2, concluído$/);
   });
 
   it("031/US2-4 mudar Aula → Prova não abre a resolução e os tópicos ficam no dia", async () => {
     const user = userEvent.setup();
     const { container } = scene();
-    await screen.findByText("Total de aulas selecionadas: 3");
+    await screen.findByText(fullText("3 aulas selecionadas"));
 
     await changeKind(user, container, "2027-02-10", "Prova", { Descrição: "P1" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    expect(screen.getByText(fullText("3 aulas selecionadas"))).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
     await screen.findByText("Calendário salvo.");
     expect(putBodies()).toEqual([

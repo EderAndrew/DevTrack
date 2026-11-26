@@ -1,24 +1,40 @@
 "use client";
 
 import type { ClassMeetingList, ClassMeetingView, DayKind, TopicResolution } from "@repo/contracts";
-import { type ComponentProps, useMemo, useState } from "react";
-import { labelDayButton } from "react-day-picker";
+import { Info, Save } from "lucide-react";
+import { type ComponentProps, createContext, useContext, useMemo, useState } from "react";
+import { labelDayButton, type MonthCaptionProps } from "react-day-picker";
 import { Notice } from "@/components/shared";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { messageForError } from "@/lib/messages/error-messages";
+import { cn } from "@/lib/utils";
 import { useClassPlan } from "@/features/class-plan/hooks/use-class-plan";
 import { useClassMeetings, useUpdateClassMeetings } from "../hooks/use-class-meetings";
 import {
+  CALENDAR_HINT,
   DAY_KIND_LABELS,
   DAY_KINDS,
   type DayMark,
-  isMeetingKind,
   dayKindName,
+  doneCountLabel,
+  ICON_CLASSES,
+  isMeetingKind,
   marksOf,
+  MEETING_LIST_TITLE,
   meetingNumbers,
+  meetingsSelectedWords,
+  MONTH_HINT,
+  OTHER_DAYS_LABEL,
+  pendingLabel,
   pendingToRequest,
+  SAVE_CALENDAR,
+  SAVE_HINT,
+  scheduledCountLabel,
+  TODAY_LABEL,
 } from "../schemas/day-kinds";
 import { fromIsoDate, meetingLabel, toIsoDate } from "./calendar-dates";
 import { DayKindDialog } from "./day-kind-dialog";
@@ -87,14 +103,66 @@ interface CalendarEditorProps extends MeetingCalendarProps {
 
 const KIND_MODIFIER = (kind: DayKind) => `kind-${kind}`;
 
-/** A day of the calendar with the icon of its kind under the number (031/FR-010); the name says the kind in words. */
-function KindDayButton(props: ComponentProps<typeof CalendarDayButton>) {
+/** What a day of the grid shows beyond its modifiers: the numbers of the encontros and whether days can be chosen. */
+const DayInfo = createContext<{ numbers: ReadonlyMap<string, number>; editable: boolean }>({
+  numbers: new Map(),
+  editable: false,
+});
+
+const DAY_CELL = cn(
+  "aspect-auto h-14 min-w-0 items-start justify-between gap-1 rounded-md bg-muted p-2 text-left sm:h-20",
+  "group-data-[today=true]/day:border group-data-[today=true]/day:border-foreground",
+  "data-[selected-single=true]:bg-primary-subtle data-[selected-single=true]:text-foreground",
+  "[&>svg[data-done]]:absolute [&>svg[data-done]]:top-2 [&>svg[data-done]]:right-2",
+);
+
+/**
+ * A day of the calendar (031/FR-010): its number, and under it the icon and name of its kind ("Hoje" on today's unmarked
+ * day); the day last chosen is filled and names its class number. The button's accessible name says the kind in words.
+ */
+function KindDayButton({ className, ...props }: ComponentProps<typeof CalendarDayButton>) {
+  const { numbers } = useContext(DayInfo);
   const kind = DAY_KINDS.find((option) => props.modifiers[KIND_MODIFIER(option)]);
+  const current = Boolean(props.modifiers.current);
+  const number = numbers.get(toIsoDate(props.day.date));
   return (
-    <CalendarDayButton {...props}>
-      {props.children}
-      {kind ? <DayKindIcon kind={kind} /> : null}
+    <CalendarDayButton
+      {...props}
+      className={cn(
+        className,
+        DAY_CELL,
+        "relative",
+        current && "bg-primary text-primary-foreground data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground",
+      )}
+    >
+      <div className="text-body font-medium">{props.children}</div>
+      {kind ? (
+        <div className="flex w-full min-w-0 items-center gap-1 text-caption">
+          <DayKindIcon kind={kind} className={cn("size-3", current ? undefined : ICON_CLASSES[kind])} />
+          <span className="hidden truncate md:inline">
+            {current && number ? `${DAY_KIND_LABELS[kind]} ${number}` : DAY_KIND_LABELS[kind]}
+          </span>
+        </div>
+      ) : props.modifiers.today ? (
+        <div className="hidden text-caption text-text-secondary md:block">{TODAY_LABEL}</div>
+      ) : null}
     </CalendarDayButton>
+  );
+}
+
+/** "Novembro 2026" and the hint, on the left of the month's arrows; the picker's own caption stays for screen readers. */
+function MonthCaption({ calendarMonth, displayIndex: _index, children, ...props }: MonthCaptionProps) {
+  const { editable } = useContext(DayInfo);
+  const month = calendarMonth.date.toLocaleString("pt-BR", { month: "long" });
+  return (
+    <div {...props}>
+      {children}
+      <p aria-hidden="true" className="m-0 flex items-baseline gap-2">
+        <span className="text-h3">{month.charAt(0).toUpperCase() + month.slice(1)}</span>
+        <span className="text-body text-text-secondary">{calendarMonth.date.getFullYear()}</span>
+      </p>
+      {editable ? <p className="m-0 text-body-sm text-text-secondary">{MONTH_HINT}</p> : null}
+    </div>
   );
 }
 
@@ -106,6 +174,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   /** Choices for the topics of each saved meeting being unmarked, by date. */
   const [resolutions, setResolutions] = useState<Record<string, TopicResolution[]>>({});
   const [editing, setEditing] = useState<string | null>(null);
+  /** The day last opened in "Marcar dia", highlighted in the calendar and in the list. */
+  const [current, setCurrent] = useState<string | null>(null);
+  const [month, setMonth] = useState(() => fromIsoDate(startsOn));
   /** A saved meeting with topics leaving the meeting condition: unmarked (`mark` null) or changed to another kind. */
   const [resolving, setResolving] = useState<{ meeting: ClassMeetingView; mark: DayMark | null } | null>(null);
   const [error, setError] = useState("");
@@ -224,59 +295,131 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   );
   const unchanged = request.add.length === 0 && (request.set?.length ?? 0) === 0 && request.remove.length === 0;
 
+  const pendingCount = request.add.length + (request.set?.length ?? 0) + request.remove.length;
+  const doneCount = completed.size;
+  const open = (date: string) => {
+    setCurrent(date);
+    setEditing(date);
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {error ? (
         <p role="alert" className="m-0 font-semibold text-danger-text">
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-start gap-10">
-        <div className="flex flex-col gap-4">
-          <Calendar
-            mode="multiple"
-            selected={meetingDates.map(fromIsoDate)}
-            modifiers={{ done: [...completed].map(fromIsoDate), ...kindModifiers }}
-            // Activating a day opens "Marcar dia" (031/FR-003) instead of toggling it.
-            onSelect={(_all, day) => (editable ? setEditing(toIsoDate(day)) : undefined)}
-            disabled={editable ? [{ before: start }, { after: end }] : true}
-            startMonth={start}
-            endMonth={end}
-            defaultMonth={start}
-            weekStartsOn={0}
-            components={{ DayButton: KindDayButton }}
-            labels={{
-              labelDayButton: (date, modifiers, options, dateLib) => {
-                const iso = toIsoDate(date);
-                const mark = marks.get(iso);
-                const kind = mark ? `: ${dayKindName(mark.kind, numbers.get(iso))}` : "";
-                return `${labelDayButton(date, modifiers, options, dateLib)}${kind}${modifiers.done ? ", concluído" : ""}`;
-              },
-            }}
-            className="rounded-md border border-border p-5 [--cell-size:--spacing(12)] [&_th]:text-body-sm [&_td[data-day]]:p-1"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="m-0 text-body text-text-secondary">{editable ? CALENDAR_HINT : null}</p>
+        <p
+          aria-live="polite"
+          className="m-0 flex items-center gap-3 rounded-md border border-border bg-card px-5 py-3 text-body-sm"
+        >
+          <span className="text-h2 text-primary">{meetingDates.length}</span>{" "}
+          {meetingsSelectedWords(meetingDates.length)}
+        </p>
+      </div>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card className="gap-0 px-4 py-5 sm:px-6">
+            <DayInfo.Provider value={{ numbers, editable }}>
+              <Calendar
+                mode="multiple"
+                selected={meetingDates.map(fromIsoDate)}
+                modifiers={{
+                  done: [...completed].map(fromIsoDate),
+                  current: current ? [fromIsoDate(current)] : [],
+                  ...kindModifiers,
+                }}
+                // Activating a day opens "Marcar dia" (031/FR-003) instead of toggling it.
+                onSelect={(_all, day) => (editable ? open(toIsoDate(day)) : undefined)}
+                disabled={editable ? [{ before: start }, { after: end }] : true}
+                month={month}
+                onMonthChange={setMonth}
+                startMonth={start}
+                endMonth={end}
+                weekStartsOn={0}
+                components={{ DayButton: KindDayButton, MonthCaption }}
+                labels={{
+                  labelDayButton: (date, modifiers, options, dateLib) => {
+                    const iso = toIsoDate(date);
+                    const mark = marks.get(iso);
+                    const kind = mark ? `: ${dayKindName(mark.kind, numbers.get(iso))}` : "";
+                    return `${labelDayButton(date, modifiers, options, dateLib)}${kind}${modifiers.done ? ", concluído" : ""}`;
+                  },
+                }}
+                classNames={{
+                  root: "w-full",
+                  months: "relative flex w-full flex-col",
+                  month: "flex w-full flex-col gap-5",
+                  nav: "absolute top-0 right-0 flex items-center gap-2",
+                  button_previous: cn(buttonVariants({ variant: "outline" }), "size-11 p-0 aria-disabled:opacity-50"),
+                  button_next: cn(buttonVariants({ variant: "outline" }), "size-11 p-0 aria-disabled:opacity-50"),
+                  month_caption: "flex min-h-11 flex-col items-start gap-1 pr-16",
+                  caption_label: "sr-only",
+                  month_grid: "w-full table-fixed border-collapse",
+                  weekdays: "",
+                  weekday: "pb-2 text-caption font-medium text-text-secondary uppercase",
+                  week: "",
+                  day: "group/day relative p-1 text-center select-none",
+                  today: "",
+                  outside: "text-muted-foreground",
+                  disabled: "text-muted-foreground opacity-50",
+                  hidden: "invisible",
+                }}
+                className="w-full bg-transparent p-0"
+              />
+            </DayInfo.Provider>
+          </Card>
           <DayKindLegend />
         </div>
-        <div className="flex min-w-60 flex-1 flex-col gap-3">
-          <p aria-live="polite" className="m-0 font-semibold">
-            Total de aulas selecionadas: {meetingDates.length}
-          </p>
-          <p aria-live="polite" className="m-0 text-body-sm text-text-secondary">
-            Outros dias marcados: {otherDays.length}
-          </p>
+        <Card className="min-w-0 gap-4 px-2 py-5 sm:px-3">
+          <div className="flex flex-col gap-3 px-3">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="m-0 text-h3">{MEETING_LIST_TITLE}</h3>
+              <span aria-hidden="true" className="text-h3 text-primary">
+                {meetingDates.length}
+              </span>
+            </div>
+            {meetingDates.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="success">{doneCountLabel(doneCount)}</Badge>
+                <Badge>{scheduledCountLabel(meetingDates.length - doneCount)}</Badge>
+              </div>
+            ) : null}
+          </div>
           <MeetingList
             meetings={meetingDates.map((date) => ({ date, ...marks.get(date)! }))}
             days={otherDays.map((date) => ({ date, ...marks.get(date)! }))}
             completed={completed}
+            current={current}
           />
-        </div>
+          <p
+            aria-live="polite"
+            className="m-0 mx-3 flex items-center justify-between gap-4 border-t border-border pt-4 text-body-sm text-text-secondary"
+          >
+            <span>
+              {OTHER_DAYS_LABEL}
+              <span className="sr-only">:</span>
+            </span>{" "}
+            <span className="font-semibold text-foreground">{otherDays.length}</span>
+          </p>
+        </Card>
       </div>
       {editable ? (
-        <div>
+        <Card className="flex-row flex-wrap items-center gap-4 px-6 py-4">
+          <Info aria-hidden="true" className="size-5 shrink-0 text-text-secondary" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p aria-live="polite" className="m-0 font-medium">
+              {pendingLabel(pendingCount)}
+            </p>
+            <p className="m-0 text-body-sm text-text-secondary">{SAVE_HINT}</p>
+          </div>
           <Button type="button" onClick={() => void save()} disabled={update.isPending || unchanged}>
-            Salvar calendário
+            <Save aria-hidden="true" />
+            {SAVE_CALENDAR}
           </Button>
-        </div>
+        </Card>
       ) : null}
       <DayKindDialog
         date={editing}

@@ -71,7 +71,7 @@ test.describe("031 calendário com tipos de dia", () => {
       }
       await markDay(page, date, kind, texts);
     }
-    await expect(page.getByText("Total de aulas selecionadas: 1")).toBeVisible();
+    await expect(page.getByText("1 aula selecionada", { exact: true })).toBeVisible();
     await expect(page.getByText("Outros dias marcados: 2")).toBeVisible();
     await page.getByRole("button", { name: "Salvar calendário" }).click();
     await expect(page.getByText("Calendário salvo.")).toBeVisible();
