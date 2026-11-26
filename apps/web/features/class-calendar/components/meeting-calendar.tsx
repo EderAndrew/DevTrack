@@ -11,8 +11,10 @@ import { messageForError } from "@/lib/messages/error-messages";
 import { useClassPlan } from "@/features/class-plan/hooks/use-class-plan";
 import { useClassMeetings, useUpdateClassMeetings } from "../hooks/use-class-meetings";
 import {
+  DAY_KIND_LABELS,
   DAY_KINDS,
   type DayMark,
+  isMeetingKind,
   dayKindName,
   marksOf,
   meetingNumbers,
@@ -104,7 +106,8 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   /** Choices for the topics of each saved meeting being unmarked, by date. */
   const [resolutions, setResolutions] = useState<Record<string, TopicResolution[]>>({});
   const [editing, setEditing] = useState<string | null>(null);
-  const [resolving, setResolving] = useState<ClassMeetingView | null>(null);
+  /** A saved meeting with topics leaving the meeting condition: unmarked (`mark` null) or changed to another kind. */
+  const [resolving, setResolving] = useState<{ meeting: ClassMeetingView; mark: DayMark | null } | null>(null);
   const [error, setError] = useState("");
   // The topics of a day being unmarked (FR-029); a class without a plan has none.
   const plan = useClassPlan(classId, { enabled: list.planRevision !== null }).data?.plan ?? null;
@@ -126,20 +129,38 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
     onEdit();
   };
 
+  /** A saved meeting with topics whose topics were not resolved yet in this edit (004/FR-029, 031/FR-008). */
+  const needsResolution = (date: string) => {
+    const meeting = savedMeetings.get(date);
+    return meeting && meeting.topicCount > 0 && resolutions[date] === undefined ? meeting : null;
+  };
+
   const confirmMark = (date: string, mark: DayMark) => {
+    setEditing(null);
+    if (!isMeetingKind(mark.kind)) {
+      // 031/US2: a class with topics changed to Feriado, Recesso, Evento or Falta asks first what to do with them.
+      const meeting = needsResolution(date);
+      if (meeting) {
+        setResolving({ meeting, mark });
+        return;
+      }
+      const next = new Map(marks);
+      next.set(date, mark);
+      change(next);
+      return;
+    }
     const next = new Map(marks);
     next.set(date, mark);
-    // Marked again: the day stays, so its topics need no resolution.
+    // A class again: the day stays a meeting, so its topics need no resolution.
     const { [date]: _dropped, ...rest } = resolutions;
     change(next, rest);
-    setEditing(null);
   };
 
   const unmark = (date: string) => {
     setEditing(null);
-    const meeting = savedMeetings.get(date);
-    if (meeting && meeting.topicCount > 0 && marks.has(date)) {
-      setResolving(meeting);
+    const meeting = needsResolution(date);
+    if (meeting) {
+      setResolving({ meeting, mark: null });
       return;
     }
     const next = new Map(marks);
@@ -148,10 +169,11 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   };
 
   const confirmResolutions = (chosen: TopicResolution[]) => {
-    const date = resolving!.date;
+    const { meeting, mark } = resolving!;
     const next = new Map(marks);
-    next.delete(date);
-    change(next, { ...resolutions, [date]: chosen });
+    if (mark) next.set(meeting.date, mark);
+    else next.delete(meeting.date);
+    change(next, { ...resolutions, [meeting.date]: chosen });
     setResolving(null);
   };
 
@@ -164,7 +186,11 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
         // A 004 save (only Aula days) keeps its body without `set`.
         ...(request.set && request.set.length > 0 ? { set: request.set } : {}),
         remove: request.remove,
-        resolutions: request.remove.flatMap((date) => resolutions[date] ?? []),
+        // The topics of every saved meeting that stops being one: unmarked, or changed to a kind that is not a class.
+        resolutions: Object.keys(resolutions)
+          .sort()
+          .filter((date) => !isMeetingKind(marks.get(date)?.kind ?? "HOLIDAY"))
+          .flatMap((date) => resolutions[date]!),
       });
       onSaved();
     } catch (failure) {
@@ -172,7 +198,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
     }
   };
 
-  const resolvingTopics = resolving ? (plan?.topics ?? []).filter((topic) => topic.meetingId === resolving.id) : [];
+  const resolvingTopics = resolving
+    ? (plan?.topics ?? []).filter((topic) => topic.meetingId === resolving.meeting.id)
+    : [];
   const leaving = new Set(
     Object.values(resolutions)
       .flat()
@@ -181,9 +209,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
   );
   // Nothing is merged into a completed topic (004/FR-057).
   const mergeCandidates = (plan?.topics ?? []).filter(
-    (topic) => topic.meetingId !== resolving?.id && !leaving.has(topic.id) && topic.status !== "COMPLETED",
+    (topic) => topic.meetingId !== resolving?.meeting.id && !leaving.has(topic.id) && topic.status !== "COMPLETED",
   );
-  const remaining = meetingDates.filter((date) => date !== resolving?.date);
+  const remaining = meetingDates.filter((date) => date !== resolving?.meeting.date);
   // 004/US9: the days of the plan's concluded classes ("Reabrir aula" clears `completedOn`).
   const completedOn = new Set((plan?.topics ?? []).flatMap((topic) => (topic.completedOn ? [topic.completedOn] : [])));
   const completed = new Set(meetingDates.filter((date) => completedOn.has(date)));
@@ -258,8 +286,9 @@ function CalendarEditor({ classId, startsOn, endsOn, canEdit, list, onEdit, onSa
         onCancel={() => setEditing(null)}
       />
       <TopicResolutionDialog
-        key={resolving?.id ?? "fechado"}
-        meetingDate={resolving?.date ?? null}
+        key={resolving?.meeting.id ?? "fechado"}
+        meetingDate={resolving?.meeting.date ?? null}
+        nextKindLabel={resolving?.mark ? DAY_KIND_LABELS[resolving.mark.kind] : undefined}
         topics={resolvingTopics}
         moveTargets={moveTargets}
         mergeCandidates={mergeCandidates}

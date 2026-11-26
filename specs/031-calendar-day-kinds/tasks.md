@@ -201,7 +201,7 @@ resolução para cada um e nenhum tópico se perde.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T017 [P] [US2] Integração em `apps/api/test/integration/031-us2-topics.spec.ts`: `031/US2-1` e `031/US2-3` mudar
+- [X] T017 [P] [US2] Integração em `apps/api/test/integration/031-us2-topics.spec.ts`: `031/US2-1` e `031/US2-3` mudar
       um encontro com tópicos para cada um dos quatro tipos sem resoluções → `409 MEETING_HAS_TOPICS` e nada muda (nem o
       tipo, nem os outros itens da gravação); `031/US2-2` e `031/SC-003` com `MOVE`, `UNSCHEDULE`, `MERGE` e `ARCHIVE`
       a gravação aplica tudo, o dia vira o tipo pedido, os encontros são renumerados e todos os tópicos continuam
@@ -210,20 +210,22 @@ resolução para cada um e nenhum tópico se perde.
       `031/US2-5` a mudança de período com encontros fora segue `409 MEETINGS_OUTSIDE_PERIOD`; concorrência: duas
       gravações com o mesmo `planRevision` → a segunda `409 PLAN_REVISION_CONFLICT`.
       _Nota (T014)_: o `update` já passa os `leavingMeetingIds` ao `resolve` e à checagem de tópicos e usa como destino
-      de `MOVE` os encontros depois da gravação; a T019 fica para confirmar isso com a T017.
-- [ ] T018 [P] [US2] Em `apps/web/features/class-calendar/components/meeting-calendar.test.tsx`: `031/US2-1` mudar no
+      de `MOVE` os encontros depois da gravação; a T017 passou sem mudança de código, o que fecha a T019.
+- [X] T018 [P] [US2] Em `apps/web/features/class-calendar/components/meeting-calendar.test.tsx`: `031/US2-1` mudar no
       modal um dia salvo com tópicos para Falta e salvar abre o `TopicResolutionDialog` daquele dia (o concluído só com
       "Arquivar"), e o corpo enviado leva o `set` e as `resolutions`; mudar Aula → Prova não abre o diálogo
       (`031/US2-4`); "Desmarcar dia" com tópicos continua com o fluxo da 004 (ids `004/US4-6` mantidos).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] No `ClassMeetingsService`, os `leavingMeetingIds` do diff entram no mesmo conjunto dos removidos da 004
+- [X] T019 [US2] No `ClassMeetingsService`, os `leavingMeetingIds` do diff entram no mesmo conjunto dos removidos da 004
       (`resolve` e a checagem de tópicos não arquivados), e os destinos de `MOVE` são os encontros depois da gravação.
       T017 verde.
-- [ ] T020 [US2] No editor de `meeting-calendar.tsx`, um dia salvo com `topicCount > 0` cujo pendente é um tipo que não é
+- [X] T020 [US2] No editor de `meeting-calendar.tsx`, um dia salvo com `topicCount > 0` cujo pendente é um tipo que não é
       aula entra na fila do `TopicResolutionDialog` antes de salvar, como o desmarcar de hoje. T018 verde. Tirar US2 e
       `SC-003` de `pending`.
+      _Feito_: o diálogo abre ao confirmar o tipo no modal (como o "Desmarcar dia"), com "Confirmar mudança" e o tipo
+      novo no texto; o dia só muda depois das escolhas.
 
 **Checkpoint**: US1 + US2 = o calendário do professor completo (MVP do professor).
 

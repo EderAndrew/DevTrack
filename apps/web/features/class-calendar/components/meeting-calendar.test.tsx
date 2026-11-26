@@ -503,3 +503,118 @@ describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor",
     expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
   });
 });
+
+describe("031/US2 MeetingCalendar — dia com tópicos que deixa de ser aula", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const putBodies = () =>
+    fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT").map(([, init]) => JSON.parse(String(init!.body)) as unknown);
+
+  function scene() {
+    const first = meeting("2027-02-03", 1, 1);
+    const busy = meeting("2027-02-10", 2, 2);
+    const third = meeting("2027-02-17", 3);
+    const other = topic("Classes e objetos", first.id, 1);
+    const open = { ...topic("Encapsulamento", busy.id, 2), status: "ACTIVE" as const };
+    const done = { ...topic("Construtores", busy.id, 3), status: "COMPLETED" as const, completedOn: "2027-02-10" };
+    const meetings = [first, busy, third];
+    const envelope = planEnvelope(meetings, [other, open, done], 6);
+    const list = meetingList(meetings, 6);
+    fetchMock.mockImplementation(async () => json(200, list));
+    const queryClient = makeTestQueryClient();
+    queryClient.setQueryData(classMeetingsKeys.plan(CLASS_ID), { plan: { ...envelope.plan!, status: "ACTIVE" } });
+    const view = renderWithProviders(<MeetingCalendar classId={CLASS_ID} {...PERIOD} canEdit />, { queryClient });
+    return { ...view, open, done, other };
+  }
+
+  async function changeKind(user: User, container: HTMLElement, date: string, kind: string, fields: Record<string, string>) {
+    await user.click(dayButton(container, date));
+    const dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    await user.click(within(dialog).getByRole("radio", { name: kind }));
+    for (const [label, value] of Object.entries(fields)) {
+      await user.type(within(dialog).getByRole("textbox", { name: new RegExp(`^${label}`) }), value);
+    }
+    await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+  }
+
+  it("031/US2-1 mudar um dia salvo com tópicos para Falta abre \"Esta aula tem tópicos planejados\"; o corpo leva o set e as resolutions", async () => {
+    const user = userEvent.setup();
+    const { container, open, done } = scene();
+    await screen.findByText("Total de aulas selecionadas: 3");
+
+    await changeKind(user, container, "2027-02-10", "Falta do professor", { Motivo: "Consulta médica" });
+    const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
+    expect(within(dialog).getByText(/antes de mudar 10\/02\/2027 para Falta do professor/)).toBeTruthy();
+    // The day stays a class until the choices are confirmed.
+    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+
+    // A completed topic only takes "Arquivar".
+    const doneGroup = within(dialog).getByRole("group", { name: /Construtores/ });
+    for (const choice of ["Mover para outra aula", "Deixar sem data", "Juntar com outro tópico"]) {
+      expect((within(doneGroup).getByRole("radio", { name: choice }) as HTMLInputElement).disabled).toBe(true);
+    }
+    await user.click(within(doneGroup).getByRole("radio", { name: "Arquivar" }));
+    const openGroup = within(dialog).getByRole("group", { name: "Encapsulamento" });
+    await user.click(within(openGroup).getByRole("radio", { name: "Mover para outra aula" }));
+    const target = within(openGroup).getByRole("combobox", { name: "Aula de destino" });
+    expect(within(target).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Aula 01 — 03/02/2027",
+      "Aula 02 — 17/02/2027",
+    ]);
+    await user.selectOptions(target, "2027-02-17");
+    await user.click(within(dialog).getByRole("button", { name: "Confirmar mudança" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Falta do professor$/);
+    await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
+
+    expect(await screen.findByText("Calendário salvo.")).toBeTruthy();
+    expect(putBodies()).toEqual([
+      {
+        planRevision: 6,
+        add: [],
+        set: [{ date: "2027-02-10", kind: "TEACHER_ABSENCE", absenceReason: "Consulta médica", absenceNotice: null }],
+        remove: [],
+        resolutions: [
+          { topicId: open.id, action: "MOVE", meetingDate: "2027-02-17" },
+          { topicId: done.id, action: "ARCHIVE" },
+        ],
+      },
+    ]);
+  });
+
+  it("\"Cancelar\" na resolução mantém o dia como aula", async () => {
+    const user = userEvent.setup();
+    const { container } = scene();
+    await screen.findByText("Total de aulas selecionadas: 3");
+
+    await changeKind(user, container, "2027-02-10", "Feriado", { Descrição: "Carnaval" });
+    const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Aula — aula 2, concluído$/);
+  });
+
+  it("031/US2-4 mudar Aula → Prova não abre a resolução e os tópicos ficam no dia", async () => {
+    const user = userEvent.setup();
+    const { container } = scene();
+    await screen.findByText("Total de aulas selecionadas: 3");
+
+    await changeKind(user, container, "2027-02-10", "Prova", { Descrição: "P1" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
+    await screen.findByText("Calendário salvo.");
+    expect(putBodies()).toEqual([
+      { planRevision: 6, add: [], set: [{ date: "2027-02-10", kind: "EXAM", description: "P1" }], remove: [], resolutions: [] },
+    ]);
+  });
+});
