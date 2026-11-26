@@ -48,14 +48,14 @@ description: "Task list for 031 — Calendário com tipos de data (Aula, Prova, 
 
 **Purpose**: a 031 entra na guarda de rastreabilidade e a 004 registra o FR-026 substituído.
 
-- [ ] T001 Incluir a 031 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 030:
+- [X] T001 Incluir a 031 em `SPECS` de `apps/api/test/traceability.spec.ts`, no formato da entrada da 030:
       `feature: "031"`, `path: "specs/031-calendar-day-kinds/spec.md"`, `stories: 4`, `scenarios: 32` (11 + 5 + 11 + 5),
       `rows: 0`, `rowsWithoutIds: []`, `successCriteria: sc(1, 8)` e
       `pending: { stories: [1, 2, 3, 4], successCriteria: ["SC-001", …, "SC-008"] }`, com o comentário de que cada
       história e SC saem de `pending` na tarefa que escreve o seu último teste; atualizar a lista de features do texto
       "Cross-cutting guards" do `CLAUDE.md` da raiz (`… 029, 030 and 031`). Rodar
       `pnpm --filter api test test/traceability.spec.ts` (verde: tudo pendente).
-- [ ] T002 [P] Anotar a substituição na 004: em `specs/004-syllabus-planning/spec.md`, logo abaixo do FR-026, a nota
+- [X] T002 [P] Anotar a substituição na 004: em `specs/004-syllabus-planning/spec.md`, logo abaixo do FR-026, a nota
       `> Substituído pela 031 em 2026-11-26 (`specs/031-calendar-day-kinds/`): o professor marca feriados, recessos,
       eventos e faltas como tipos de dia; o sistema continua sem calculá-los nem pedir motivo para dias não marcados.`;
       e abaixo do FR-028 a nota de que a Falta do professor da 031 não usa `CANCELLED` (os encontros continuam só

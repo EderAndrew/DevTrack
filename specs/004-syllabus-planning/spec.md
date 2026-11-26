@@ -587,12 +587,16 @@ conferir que ele aparece como "Aula concluída" e não pode ser restaurado.
   acima de 200 encontros são recusadas.
 - **FR-026**: O sistema NÃO DEVE conhecer feriados, recessos nem eventos, nem pedir
   motivo para datas não marcadas.
+  > Substituído pela 031 em 2026-11-26 (`specs/031-calendar-day-kinds/`): o professor marca feriados, recessos,
+  > eventos e faltas como tipos de dia; o sistema continua sem calculá-los nem pedir motivo para dias não marcados.
 - **FR-027**: Encontros DEVEM ser numerados em ordem cronológica (1, 2, 3...), e a
   numeração é refeita quando datas são acrescentadas ou removidas; a tela mostra
   "Total de aulas selecionadas: N".
 - **FR-028**: Encontros DEVEM ter as situações `PLANNED` ("Planejado") e, preparadas
   para specs futuras, `COMPLETED` e `CANCELLED`; nesta feature todos nascem e ficam
   planejados. Presença não faz parte desta feature.
+  > Nota da 031 (2026-11-26): a Falta do professor é um dia sem aula (`class_calendar_days`), não um encontro
+  > `CANCELLED`; os encontros continuam só `PLANNED`.
 - **FR-029**: Remover um encontro (desmarcando a data ou mudando o período da turma)
   que tenha tópicos ligados DEVE ser recusado (409) até o professor resolver cada tópico; a interface identifica os tópicos ligados antes de salvar: mover para outro encontro, deixar sem data, juntar
   com outro tópico ou arquivar. A interface oferece essas escolhas e aplica tudo
