@@ -240,19 +240,19 @@ matéria mostra cada dia corretamente ao navegar.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T021 [P] [US3] Integração em `apps/api/test/integration/031-us3-student-calendar.spec.ts`: o aluno matriculado lê
+- [X] T021 [P] [US3] Integração em `apps/api/test/integration/031-us3-student-calendar.spec.ts`: o aluno matriculado lê
       `GET /me/classes/:classId/calendar` com `class` (matéria, professor, período), `today` do `Clock` injetado no fuso
       de `planningToday` e `days` em ordem de data juntando encontros e dias; `text` `null` na Aula, a descrição nos
       tipos descritos, o aviso (ou `null`) na Falta (`031/US3-4`…`031/US3-6` do lado da API); `031/US3-10` disciplina sem
       marcações → `days: []`; disciplina sem período → `startsOn/endsOn null` e `days: []`; disciplina migrada sem
       matéria → `subjectName` é o nome da turma; `031/US3-11` uma gravação do professor aparece na próxima leitura.
-- [ ] T022 [P] [US3] Testes web puros em `apps/web/features/student-calendar/schemas/week.test.ts`: `weekStart` (segunda),
+- [X] T022 [P] [US3] Testes web puros em `apps/web/features/student-calendar/schemas/week.test.ts`: `weekStart` (segunda),
       `weekDays`, `weekLabel` ("16–22 nov", "28 out–3 nov"), `monthLabel` da segunda-feira ("Novembro 2026"),
       `clampWeek` ao período, `initialSelection` (hoje no período → semana de hoje com hoje escolhido; antes → primeira
       semana e o primeiro dia marcado dela ou nenhum; depois → última semana; período nulo → sem semana, o card cai no
       estado "sem marcações"), `canGoPrevious/Next`, `dayDetail` por tipo
       (Aula só "Aula"; descritos com o texto; Falta com o aviso ou sem; não marcado "Nada marcado neste dia.").
-- [ ] T023 [P] [US3] Testes de componente em
+- [X] T023 [P] [US3] Testes de componente em
       `apps/web/features/student-calendar/components/student-calendar-card.test.tsx`: `031/US3-1` título, intervalo,
       mês/ano, matéria, setas e sete dias SEG–DOM; `031/US3-2` abre na semana de `today` com hoje escolhido (e os casos
       fora do período, e período nulo); `031/US3-3` ponto e nome acessível com data e tipo, "hoje" no nome; `031/US3-4`…`031/US3-7` o
@@ -267,7 +267,7 @@ matéria mostra cada dia corretamente ao navegar.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Novo módulo `apps/api/src/modules/student-calendar/` (registrado em `AppModule`):
+- [X] T024 [US3] Novo módulo `apps/api/src/modules/student-calendar/` (registrado em `AppModule`):
       `student-calendar.controller.ts` (`@RequirePermissions("calendario.turma.visualizar")`, param `classId` validado
       pelo contrato antes de qualquer consulta), `student-calendar.service.ts` (checagem da matrícula ATIVA na turma da
       disciplina com a mesma consulta do 026 — `enrollment.findFirst({ studentUserId, status: "ACTIVE", cohort: { classes:
@@ -279,9 +279,9 @@ matéria mostra cada dia corretamente ao navegar.
       `apps/api/test/contracts/endpoint-catalog.spec.ts`. Acrescentar a linha `GET /me/classes/:classId/calendar` → `calendario.turma.visualizar` no `MATRIX` de
       `authorization-matrix.ts` e tirar a chave de `SEEDED_BEFORE_ROUTES` em `test/security/us7-matrix-completeness.spec.ts`
       (entrou lá na T006). T021 verde.
-- [ ] T025 [P] [US3] `apps/web/features/student-calendar/schemas/week.ts` (datas em `YYYY-MM-DD` sem fuso do navegador,
+- [X] T025 [P] [US3] `apps/web/features/student-calendar/schemas/week.ts` (datas em `YYYY-MM-DD` sem fuso do navegador,
       textos de `contracts/ui.md`) até T022 verde.
-- [ ] T026 [US3] `apps/web/features/student-calendar/api/student-calendar.ts`, `hooks/use-student-calendar.ts`
+- [X] T026 [US3] `apps/web/features/student-calendar/api/student-calendar.ts`, `hooks/use-student-calendar.ts`
       (TanStack Query por `classId`, sem polling) e `components/student-calendar-card.tsx` (Card do Design System,
       botões dos dias com `aria-pressed`, pontos pelos tokens de CK9, detalhe com `aria-live="polite"`, estados); montar o
       card em `apps/web/features/student-activities/components/student-dashboard.tsx` na coluna principal depois de
@@ -302,7 +302,7 @@ calendário com cada um e conferir a resposta campo a campo.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T027 [P] [US4] Segurança em `apps/api/test/security/031-student-calendar.spec.ts`: `031/US4-1` e `031/FR-022` as
+- [X] T027 [P] [US4] Segurança em `apps/api/test/security/031-student-calendar.spec.ts`: `031/US4-1` e `031/FR-022` as
       chaves da resposta são exatamente as do contrato (comparar `Object.keys` em todos os níveis); `031/US4-2` e
       `031/SC-004` com tópicos, encontros numerados e uma Falta com motivo únicos, o JSON bruto não contém o título de
       tópico, o motivo, ids de tópico ou `number`/`status`; `031/US4-3` e `031/SC-005` outra turma, matrícula encerrada e
@@ -310,20 +310,23 @@ calendário com cada um e conferir a resposta campo a campo.
       professor, gestor e admin → `403`; `031/US4-5` turma encerrada (027) com a matrícula ativa → `200`; outra
       disciplina da mesma turma (de outro professor) → o calendário dela, não o da primeira (`031/FR-013`); o log
       capturado da requisição não tem descrição, aviso nem motivo.
-- [ ] T028 [P] [US4] Guarda em `apps/api/test/student-calendar-boundary.spec.ts` (CK12, no molde de
+- [X] T028 [P] [US4] Guarda em `apps/api/test/student-calendar-boundary.spec.ts` (CK12, no molde de
       `feedback-boundary.spec.ts`): `modules/student-calendar` não importa `class-plans`, `syllabus`, `curriculum-ai`,
       `activities`, `student-activities` nem módulos de IA; o código dele não cita `absenceReason`, `absence_reason`,
       `topic`/`Topic` nem `status` de encontro; `views/student-calendar.view.ts` copia chaves nomeadas (sem spread do
       objeto do banco); `apps/web/features/student-calendar` não importa `features/class-plan` nem
       `features/class-calendar`.
-- [ ] T029 [P] [US4] `apps/web/test/student-portal-xss.test.tsx`: `031/FR-023` descrição e aviso com `<img onerror>` e
+      _Nota (T024)_: o serviço do aluno importa só `class-plans/planning-date` (o `planningToday` puro, sem dados do
+      plano, CK7) e `classes/class.view` (`isoDate`); a guarda deve permitir exatamente esses dois e recusar o resto.
+- [X] T029 [P] [US4] `apps/web/test/student-portal-xss.test.tsx`: `031/FR-023` descrição e aviso com `<img onerror>` e
       `<script>` renderizados como texto no card do aluno; o mesmo em `day-kind-dialog.test.tsx`/`meeting-list` do lado do
       professor.
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Ajustar o que T027–T029 apontarem em `student-calendar.service.ts`, `student-calendar.view.ts` e no
+- [X] T030 [US4] Ajustar o que T027–T029 apontarem em `student-calendar.service.ts`, `student-calendar.view.ts` e no
       `select` (nenhum campo além da lista fechada). Tirar US4, `SC-004` e `SC-005` de `pending`.
+      _Feito_: T027–T029 passaram sem ajuste no código da T024.
 
 **Checkpoint**: todas as histórias funcionam juntas e nada vaza para o aluno.
 

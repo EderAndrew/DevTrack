@@ -27,6 +27,7 @@ import { WorksModule } from "./modules/works/works.module";
 import { ActivitiesModule } from "./modules/activities/activities.module";
 import { StudentActivitiesModule } from "./modules/student-activities/student-activities.module";
 import { RankingModule } from "./modules/ranking/ranking.module";
+import { StudentCalendarModule } from "./modules/student-calendar/student-calendar.module";
 import { AttemptIntegrityModule } from "./modules/attempt-integrity/attempt-integrity.module";
 import { WorkHelpModule } from "./modules/work-help/work-help.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
@@ -96,6 +97,7 @@ export class AppModule {
         ActivitiesModule,
         StudentActivitiesModule,
     RankingModule,
+        StudentCalendarModule,
         AttemptIntegrityModule,
         WorkHelpModule,
         AttendanceModule,

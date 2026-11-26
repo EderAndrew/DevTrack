@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatLongDay } from "@/lib/messages/dates";
 import { RankingCard } from "@/features/ranking/components/ranking-card";
+import { StudentCalendarCard } from "@/features/student-calendar/components/student-calendar-card";
 import { formatPosition } from "@/features/ranking/schemas/ranking";
 import { DASHBOARD_PATH } from "@/lib/navigation";
 import { useCurrentSubject, useForgetMissingSubject } from "../hooks/use-current-subject";
@@ -124,9 +125,10 @@ function ViewerHighlight({ rankings }: { rankings: DashboardRanking[] }) {
  * scrolling) and the overdue ones that still accept a submission. Since 013, one ranking card per class (FR-021),
  * after the activities; from `xl` the rankings sit in a column on the right (the page root is `data-layout="wide"`).
  * Since 026 every block is one subject's (the "Matéria" card, `?materia=<classId>`), asked only once the subject is
- * known, and the counters and "Ver todas" carry it to "Minhas atividades".
+ * known, and the counters and "Ver todas" carry it to "Minhas atividades". Since 031, "Seu calendário de aulas" of that
+ * subject follows the activities, only with `calendar` (the page's `calendario.turma.visualizar`, UX only).
  */
-export function StudentDashboard({ materia }: { materia: string | null }) {
+export function StudentDashboard({ materia, calendar = false }: { materia: string | null; calendar?: boolean }) {
   const router = useRouter();
   const subject = useCurrentSubject(materia);
   const classId = subject.current?.id ?? null;
@@ -160,7 +162,7 @@ export function StudentDashboard({ materia }: { materia: string | null }) {
         ) : query.isError ? (
           <LoadFailed error={query.error} onRetry={() => void query.refetch()} />
         ) : (
-          <DashboardBody data={query.data} classId={classId} />
+          <DashboardBody data={query.data} classId={classId} calendar={calendar} />
         )}
       </div>
     </>
@@ -168,7 +170,7 @@ export function StudentDashboard({ materia }: { materia: string | null }) {
 }
 
 /** The counters, the activities and the rankings of the subject shown. */
-function DashboardBody({ data, classId }: { data: Dashboard; classId: string | null }) {
+function DashboardBody({ data, classId, calendar }: { data: Dashboard; classId: string | null; calendar: boolean }) {
   const { counts, next, overdueOpen, rankings } = data;
   const withRankings = rankings.length > 0;
   return (
@@ -228,6 +230,9 @@ function DashboardBody({ data, classId }: { data: Dashboard; classId: string | n
               </Card>
             </section>
           ) : null}
+
+          {/* 031: keyed by the matéria, so a new one opens again on today's week (031/US3-9). */}
+          {calendar && classId ? <StudentCalendarCard key={classId} classId={classId} /> : null}
         </div>
 
         {withRankings ? (

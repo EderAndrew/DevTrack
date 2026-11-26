@@ -380,6 +380,8 @@ export const MATRIX: readonly MatrixEntry[] = [
   { method: "GET", path: "/me/activities/:activityId/attempt/help", access: "ia.ajuda.pedir" },
   // 013 — the class ranking of practice points (contracts/permissions.md).
   { method: "GET", path: "/me/classes/:classId/ranking", access: "ranking.turma.visualizar" },
+  // 031 — the student's calendar of a disciplina da turma (contracts/permissions.md).
+  { method: "GET", path: "/me/classes/:classId/calendar", access: "calendario.turma.visualizar" },
   { method: "GET", path: "/classes/:classId/ranking", access: "ranking.visualizar" },
   // 015 — the teacher's apply and edit forms ask whether the AI help can be turned on (contracts/permissions.md).
   { method: "GET", path: "/work-help/availability", access: "atividades.aplicar" },

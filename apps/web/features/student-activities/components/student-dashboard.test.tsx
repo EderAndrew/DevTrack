@@ -375,3 +375,61 @@ describe("026/US3 painel só com as matérias do próprio aluno", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 });
+
+describe("031/US3 \"Seu calendário de aulas\" no Painel", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const calendarOf = (schoolClass: MySubjectClass, today: string, days: { date: string; kind: "CLASS" | "HOLIDAY"; text: string | null }[]) =>
+    json(200, {
+      class: { id: schoolClass.id, subjectName: schoolClass.name, teacherName: "Ricardo Mendes", startsOn: "2026-08-03", endsOn: "2026-12-11" },
+      today,
+      days,
+    });
+
+  function setupCalendar(calendar: boolean) {
+    const api = routedFetch({
+      "GET /api/me/classes": json(200, myClassesBody([POO, SQL])),
+      [dashboardOf(POO.id)]: json(200, dashboard({ next: [summary({ title: "Trabalho de POO" })] })),
+      [dashboardOf(SQL.id)]: json(200, dashboard({ next: [summary({ title: "Trabalho de SQL" })] })),
+      [`GET /api/me/classes/${POO.id}/calendar`]: calendarOf(POO, "2026-11-16", [{ date: "2026-11-16", kind: "CLASS", text: null }]),
+      [`GET /api/me/classes/${SQL.id}/calendar`]: calendarOf(SQL, "2026-11-16", [{ date: "2026-11-20", kind: "HOLIDAY", text: "Consciência Negra" }]),
+    });
+    vi.stubGlobal("fetch", api.fetch);
+    const view = renderWithProviders(<StudentDashboard materia={null} calendar={calendar} />);
+    return { ...view, api };
+  }
+
+  const calendarCalls = (calls: { url: string }[]) => calls.map((call) => call.url).filter((url) => url.endsWith("/calendar"));
+
+  it("031/FR-014 o card aparece com a matéria atual e a permissão, depois de \"Próximas atividades\"", async () => {
+    const { api } = setupCalendar(true);
+    const card = await screen.findByRole("region", { name: "Seu calendário de aulas" });
+    expect(await within(card).findByRole("button", { name: "Segunda-feira, 16 de novembro, hoje: Aula" })).toBeTruthy();
+    const next = screen.getByRole("region", { name: "Próximas atividades" });
+    expect(next.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(calendarCalls(api.calls)).toEqual([`/api/me/classes/${POO.id}/calendar`]);
+  });
+
+  it("031/FR-014 sem a permissão, nem o card nem o pedido", async () => {
+    const { api } = setupCalendar(false);
+    await screen.findByRole("heading", { name: "Trabalho de POO" });
+    expect(screen.queryByRole("region", { name: "Seu calendário de aulas" })).toBeNull();
+    expect(calendarCalls(api.calls)).toEqual([]);
+  });
+
+  it("031/US3-9 trocar de matéria troca o calendário, de novo na semana de hoje", async () => {
+    const user = userEvent.setup();
+    const { api, rerender } = setupCalendar(true);
+    const card = await screen.findByRole("region", { name: "Seu calendário de aulas" });
+    await within(card).findByText(POO.name);
+    await user.click(within(card).getByRole("button", { name: "Próxima semana" }));
+    expect(within(card).getByText("23–29 nov")).toBeTruthy();
+
+    rerender(<StudentDashboard materia={SQL.id} calendar />);
+    await screen.findByRole("heading", { name: "Trabalho de SQL" });
+    const other = await screen.findByRole("region", { name: "Seu calendário de aulas" });
+    expect(await within(other).findByText(SQL.name)).toBeTruthy();
+    expect(within(other).getByText("16–22 nov")).toBeTruthy();
+    expect(within(other).getByRole("button", { name: "Sexta-feira, 20 de novembro: Feriado" })).toBeTruthy();
+    expect(calendarCalls(api.calls).at(-1)).toBe(`/api/me/classes/${SQL.id}/calendar`);
+  });
+});
