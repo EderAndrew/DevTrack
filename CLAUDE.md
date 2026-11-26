@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–029 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–030 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -98,8 +98,12 @@ new feature through `/speckit-specify`.
   stay `404`), each row dated by its delivery or else by the close or cancellation; every exercise and every ACTIVE work
   or exam stays in "Minhas atividades", whose "Entregues/concluídas" filter is back, and the Painel's "Concluídas" counts
   the Histórico's rows. No migration.
+- 030 the student's "Minhas turmas" redesigned: one card per disciplina da turma (subject, turma and code, teacher, ano
+  letivo and period, the date the student entered the turma, "Acessar turma" to `?materia=`, the ranking panel), a search
+  by turma, code or subject and an ano letivo filter (`?ano=&busca=`, the most recent year by default), both in the
+  browser; `GET /me/classes` gains the turma's `enrolledAt`. No migration.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–029 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–030 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -181,6 +185,8 @@ hand-maintained.
 - PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
 - TypeScript 7 on Node.js 24 LTS (API, contracts, web) + no new dependency (029-history-closed-only)
 - PostgreSQL 17 — no migration (`class_activities.status`, `closed_at`, `cancelled_at` already exist) (029-history-closed-only)
+- No new dependency (030-student-classes-redesign)
+- PostgreSQL 17 — no migration (reads the existing `enrollments.enrolled_at`) (030-student-classes-redesign)
 
 ## Stack notes
 
@@ -263,7 +269,7 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028 and 029; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028, 029 and 030; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
@@ -593,14 +599,16 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and is redacted from the logs (the URL's `q=` and `req.query.q`). `classId` is the 026 check (ACTIVE enrollment, else
   the same `404`), made before the cancelled rows are read. The Painel counts the list ("Atrasadas" every overdue of
   it) and its "Concluídas" is the number of the Histórico's rows of the same `classId`, linking to `/historico`.
+- Student's "Minhas turmas" (030): `GET /me/classes` carries the turma's `enrolledAt` (the student's own ACTIVE
+  enrollment); the 030 year filter and search run in the browser over that list, the route takes no parameters.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a
   row in `apps/web/design-system/exceptions.md`); the 014 code-highlighting rules and the rest:
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 030-student-classes-redesign: the student's "Minhas turmas" redesigned — one card per disciplina da turma (teacher, year, period, enrollment date, "Acessar turma", ranking panel), search and year filter in the browser; `GET /me/classes` gains the turma's `enrolledAt`; no migration
 - 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 - 028-student-history-redesign: the student's Histórico redesigned — cards of delivered/awaiting/graded, tabs with counts, search by title and a class filter, all on the server through `GET /me/history` (newest delivery first); no migration
-- 027-manager-classes: the MANAGER owns the turma (`cohorts`: invitations, direct enrollment of existing students, enrollments, close/archive); the teacher adds disciplinas da turma (`classes`) from their subjects and closes/archives them after the calendar; the migration merges today's classes with the same code and year
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

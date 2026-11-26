@@ -423,6 +423,22 @@ const SPECS: FeatureSpec[] = [
     // (`028-us5-concluded`) and SC-006 with T025 (`student-history.test.tsx`, E2E `student-history`).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "030",
+    path: "specs/030-student-classes-redesign/spec.md",
+    stories: 3,
+    scenarios: 19, // 10 + 6 + 3
+    // No "### Acceptance Criteria Traceability" table, as in 008–029.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 6),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
+    // with the test that cites it, so the lists are empty at the end of T030.
+    // US1 left with T016 (`my-classes.test.tsx`), with SC-001, SC-002 and SC-005; US3 with T019
+    // (`030-my-classes.spec.ts`), with SC-004; US2 with T025 (`my-classes.test.tsx`, `my-classes.test.ts`), with SC-003;
+    // SC-006 with T027 (`my-classes.test.tsx`).
+    pending: { stories: [], successCriteria: [] },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UuidSchema } from "../common/primitives.js";
+import { IsoDateTimeSchema, UuidSchema } from "../common/primitives.js";
 
 /**
  * 027: `GET /me/classes` grouped by ano letivo, most recent first (027/FR-025): each turma once, with every disciplina
@@ -20,6 +20,8 @@ export const MyCohortSchema = z.strictObject({
   code: z.string(),
   period: z.string().nullable(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
+  /** 030/FR-012: the student's own ACTIVE enrollment in the turma (the enrollment is the turma's, 027). */
+  enrolledAt: IsoDateTimeSchema,
   classes: z.array(MyCohortClassSchema),
 });
 export type MyCohort = z.infer<typeof MyCohortSchema>;

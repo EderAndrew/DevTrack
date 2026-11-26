@@ -8,6 +8,7 @@ import {
   CreateCohortRequestSchema,
   DirectEnrollmentRequestSchema,
   MyCohortListSchema,
+  MyCohortSchema,
   StudentLookupResponseSchema,
   UpdateCohortRequestSchema,
 } from "../src/index.js";
@@ -103,6 +104,7 @@ describe("027 contratos da turma do gestor", () => {
               code: "ADS-3NA",
               period: "2026.2",
               status: "INACTIVE",
+              enrolledAt: "2026-11-07T21:08:00.000Z",
               classes: [{ classId: ID, subjectName: "Redes", teacherName: "Ana", effectiveStatus: "ARCHIVED" }],
             },
           ],
@@ -113,5 +115,28 @@ describe("027 contratos da turma do gestor", () => {
     const withEmail = structuredClone(list);
     Object.assign(withEmail.years[0]!.cohorts[0]!.classes[0]!, { teacherEmail: "ana@exemplo.com" });
     expect(MyCohortListSchema.safeParse(withEmail).success).toBe(false);
+  });
+});
+
+describe("030/FR-012 MyCohortSchema.enrolledAt", () => {
+  const myCohort = {
+    id: ID,
+    name: "Turma de Teste",
+    code: "QA001",
+    period: "2026-2",
+    status: "ACTIVE",
+    enrolledAt: "2026-11-07T21:08:00.000Z",
+    classes: [],
+  };
+
+  it("aceita a turma com a data ISO da matrícula do aluno", () => {
+    expect(MyCohortSchema.safeParse(myCohort).success).toBe(true);
+  });
+
+  it("recusa a turma sem enrolledAt, com data mal formada ou com um campo a mais", () => {
+    const { enrolledAt: _omitted, ...withoutDate } = myCohort;
+    expect(MyCohortSchema.safeParse(withoutDate).success).toBe(false);
+    expect(MyCohortSchema.safeParse({ ...myCohort, enrolledAt: "07/11/2026 18:08" }).success).toBe(false);
+    expect(MyCohortSchema.safeParse({ ...myCohort, enrolledBy: "gestor" }).success).toBe(false);
   });
 });

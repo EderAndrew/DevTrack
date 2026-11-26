@@ -24,7 +24,8 @@ test("003/SC-010 003/US4-1 aluno existente entra, aceita o convite da segunda tu
   await page.getByRole("button", { name: "Aceitar convite" }).click();
   await expect(page).toHaveURL("/minhas-turmas?bem-vindo=1");
   await expect(page.getByRole("heading", { name: "Você agora faz parte da turma." })).toBeVisible();
+  // 030: each turma appears in its disciplina's card (or, with none yet, in its own card).
   for (const name of ["Turma E2E", "Segunda Turma E2E"]) {
-    await expect(page.getByRole("heading", { level: 3, name, exact: true })).toBeVisible();
+    await expect(page.getByRole("article").getByText(name, { exact: true }).first()).toBeVisible();
   }
 });

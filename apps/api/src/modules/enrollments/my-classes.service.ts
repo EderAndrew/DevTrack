@@ -7,7 +7,8 @@ import { effectiveStatus } from "../classes/effective-status";
  * "Minhas turmas" of the student (003 US7, 027 US8, FR-025): the turmas of the session's ACTIVE enrollments grouped by
  * ano letivo (most recent first; within a year the most recent enrollment first), each once with every disciplina da
  * turma (in the order they were added) and its teacher's name, whatever its effective status — a closed turma or an
- * archived disciplina stays readable (FR-004). Nothing about other students, invitations or the administration.
+ * archived disciplina stays readable (FR-004). Each turma carries the date of the student's own enrollment (030/FR-012).
+ * Nothing about other students, invitations or the administration.
  */
 @Injectable()
 export class MyClassesService {
@@ -18,6 +19,7 @@ export class MyClassesService {
       where: { studentUserId: userId, status: "ACTIVE" },
       orderBy: [{ cohort: { academicYear: "desc" } }, { enrolledAt: "desc" }, { id: "desc" }],
       select: {
+        enrolledAt: true,
         cohort: {
           select: {
             id: true,
@@ -35,7 +37,7 @@ export class MyClassesService {
       },
     });
     const years: MyCohortList["years"] = [];
-    for (const { cohort } of enrollments) {
+    for (const { cohort, enrolledAt } of enrollments) {
       let year = years.at(-1);
       if (year?.academicYear !== cohort.academicYear) {
         year = { academicYear: cohort.academicYear, cohorts: [] };
@@ -47,6 +49,7 @@ export class MyClassesService {
         code: cohort.code,
         period: cohort.period,
         status: cohort.status,
+        enrolledAt: enrolledAt.toISOString(),
         classes: cohort.classes.map((schoolClass) => ({
           classId: schoolClass.id,
           subjectName: schoolClass.subject?.name ?? null,

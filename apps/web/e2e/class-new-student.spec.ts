@@ -11,10 +11,11 @@ test("003/SC-010 003/US3-2 aluno novo aceita o convite criando a conta e vê a t
   await acceptClassInvitation(page, student);
   await expect(page.getByRole("heading", { level: 1, name: "Minhas turmas" })).toBeVisible();
   const teacher = classTeacher();
-  const cohort = page.getByRole("region", { name: teacher.cohortName, exact: true });
-  const row = cohort.getByRole("row").filter({ hasText: teacher.subjectName });
-  await expect(row).toBeVisible();
-  await expect(row.getByText("Professora da Turma E2E")).toBeVisible();
+  // 030: one card per disciplina da turma, with the turma's name and the teacher.
+  const card = page.getByRole("article", { name: teacher.subjectName, exact: true });
+  await expect(card).toBeVisible();
+  await expect(card.getByText(teacher.cohortName, { exact: true })).toBeVisible();
+  await expect(card.getByText("Professora da Turma E2E")).toBeVisible();
 
   const teacherPage = await (await browser.newContext()).newPage();
   await logIn(teacherPage, teacher, `/turmas/${teacher.classId}`);

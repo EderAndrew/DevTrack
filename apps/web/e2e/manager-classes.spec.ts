@@ -83,8 +83,10 @@ test.describe.serial("027 turmas do gestor", () => {
     await expect(page.getByText("Convite enviado.")).toBeVisible();
     const studentPage = await (await browser.newContext()).newPage();
     await acceptClassInvitation(studentPage, newStudent);
-    await expect(studentPage.getByRole("heading", { level: 3, name: cohortName, exact: true })).toBeVisible();
-    await expect(studentPage.getByText("Ainda não há disciplinas nesta turma.")).toBeVisible();
+    // 030: a turma with no disciplina yet is one card named by the turma.
+    const cohortCard = studentPage.getByRole("article", { name: cohortName, exact: true });
+    await expect(cohortCard).toBeVisible();
+    await expect(cohortCard.getByText("Ainda não há disciplinas nesta turma.")).toBeVisible();
     await studentPage.context().close();
 
     // US2-7: an existing student is found by the exact e-mail and included at once, with a notice e-mail (no token).
@@ -162,10 +164,12 @@ test.describe.serial("027 turmas do gestor", () => {
 
     expect(await subjectOptions(studentPage)).toEqual([`${subjectA} · ${cohortName}`]);
     await studentPage.goto("/minhas-turmas");
-    const cohort = studentPage.getByRole("region", { name: cohortName, exact: true });
-    await expect(cohort.getByRole("row").filter({ hasText: subjectB }).getByText("Encerrada")).toBeVisible();
-    await expect(cohort.getByRole("row").filter({ hasText: subjectA }).getByText(teacherA.name)).toBeVisible();
-    await expect(cohort.getByRole("row").filter({ hasText: subjectB }).getByText(teacherB.name)).toBeVisible();
+    // 030: one card per disciplina da turma.
+    const cardA = studentPage.getByRole("article", { name: subjectA, exact: true });
+    const cardB = studentPage.getByRole("article", { name: subjectB, exact: true });
+    await expect(cardB.getByText("Encerrada", { exact: true })).toBeVisible();
+    await expect(cardA.getByText(teacherA.name)).toBeVisible();
+    await expect(cardB.getByText(teacherB.name)).toBeVisible();
     await studentPage.context().close();
   });
 
@@ -177,10 +181,12 @@ test.describe.serial("027 turmas do gestor", () => {
 
     const studentPage = await (await browser.newContext()).newPage();
     await logIn(studentPage, newStudent, "/minhas-turmas");
-    const year = studentPage.getByRole("region", { name: String(new Date().getFullYear()), exact: true });
-    const cohort = year.getByRole("region", { name: cohortName, exact: true });
-    await expect(cohort.getByText("Encerrada", { exact: true }).first()).toBeVisible();
-    await expect(cohort.getByRole("link", { name: new RegExp(`^Atividades de ${subjectA}`) })).toBeVisible();
+    // 030: the card of the turma's disciplina says "Encerrada" and keeps "Acessar turma" for reading; its year is shown.
+    const card = studentPage.getByRole("article", { name: subjectA, exact: true });
+    await expect(card.getByText(cohortName, { exact: true })).toBeVisible();
+    await expect(card.getByText(String(new Date().getFullYear()), { exact: true })).toBeVisible();
+    await expect(card.getByText("Encerrada", { exact: true }).first()).toBeVisible();
+    await expect(card.getByRole("link", { name: new RegExp(`^Acessar ${subjectA}`) })).toBeVisible();
     await studentPage.context().close();
   });
 });

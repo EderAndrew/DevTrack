@@ -286,6 +286,9 @@ identificador recursos que não são seus, e conferir as respostas.
 
 ### User Story 8 - Aluno vê as suas turmas e matérias (Priority: P3)
 
+> Tela redesenhada pela 030 em 2026-11-25 (`specs/030-student-classes-redesign/`): um card por disciplina, filtro de ano
+> (o mais recente de início) em vez de seções por ano; o conteúdo e as regras de US8 continuam.
+
 Em "Minhas turmas", o aluno vê cada turma em que está, com as disciplinas dela e seus professores. No Painel e em
 "Minhas atividades", o card "Matéria" (026) lista cada disciplina das suas turmas, como "Banco de Dados · ADS 3NA".
 

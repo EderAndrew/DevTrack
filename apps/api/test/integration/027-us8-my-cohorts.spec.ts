@@ -86,6 +86,7 @@ describe("027/US8 — aluno vê as suas turmas e matérias", () => {
               code: "ADS-3NA",
               period: "2027.1",
               status: "ACTIVE",
+              enrolledAt: expect.any(String),
               classes: [
                 { classId: bd.id, subjectName: "Banco de Dados", teacherName: "Prof. Eder", effectiveStatus: "ACTIVE" },
                 { classId: redes.id, subjectName: "Redes", teacherName: "Prof. Ana", effectiveStatus: "ACTIVE" },
