@@ -159,6 +159,7 @@ export class ClassesService {
       if (offeringFields.length === 0) return this.get(auth.userId, classId, tx);
 
       await this.assertMeetingsInside(tx, classId, offering.startsOn, offering.endsOn);
+      const calendarDaysRemoved = await this.removeDaysOutside(tx, classId, offering.startsOn, offering.endsOn);
       await tx.schoolClass.update({
         where: { id: classId },
         data: { startsOn: toDbDate(offering.startsOn), endsOn: toDbDate(offering.endsOn) },
@@ -170,7 +171,7 @@ export class ClassesService {
         targetType: "CLASS",
         targetId: classId,
         requestId,
-        metadata: { fields: offeringFields, subjectId: current.subjectId },
+        metadata: { fields: offeringFields, subjectId: current.subjectId, calendarDaysRemoved },
       });
       return this.get(auth.userId, classId, tx);
     });
@@ -227,6 +228,20 @@ export class ClassesService {
       },
     });
     if (outside > 0) throw meetingsOutsidePeriod();
+  }
+
+  /**
+   * 031/FR-009, research CK5: the days without class (holidays, events, absences) outside the new period are deleted with
+   * the change — all of them when the dates are cleared; they carry no topics, so nothing needs resolving.
+   */
+  private async removeDaysOutside(tx: Tx, classId: string, startsOn: string | null, endsOn: string | null) {
+    const { count } = await tx.classCalendarDay.deleteMany({
+      where: {
+        classId,
+        ...(startsOn && endsOn ? { OR: [{ dayDate: { lt: toDbDate(startsOn)! } }, { dayDate: { gt: toDbDate(endsOn)! } }] } : {}),
+      },
+    });
+    return count;
   }
 
   /** Locks the teacher's class row for the rest of the transaction; 404 outside the teacher's context. */

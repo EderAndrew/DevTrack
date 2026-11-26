@@ -10,12 +10,12 @@ de tópicos, nomes de disciplina, nomes de arquivo nem conteúdo do documento (F
 |--------|------|------|----------------------|--------|
 | `subject.created` | USER | SUBJECT | — | FR-002 |
 | `subject.updated` | USER | SUBJECT | `fields`, `status` (se mudou) | FR-002 |
-| `class.offering_updated` | USER | CLASS | `fields` (`subjectId`, `period`, `startsOn`, `endsOn`), `subjectId` | FR-003 |
+| `class.offering_updated` | USER | CLASS | `fields` (`subjectId`, `period`, `startsOn`, `endsOn`), `subjectId`, `calendarDaysRemoved` (031: dias sem aula apagados fora do novo período) | FR-003 |
 | `syllabus.uploaded` | USER | SYLLABUS_DOCUMENT | `subjectId`, `version`, `mediaType`, `sizeBytes` | FR-006 |
 | `syllabus.processed` | SYSTEM | SYLLABUS_DOCUMENT | `result` (`TEXT`\|`NO_TEXT`), `groupCount`, `itemCount`, `attempts`, `extractorVersion` | FR-014 |
 | `syllabus.processing_failed` | SYSTEM | SYLLABUS_DOCUMENT | `category`, `attempts` | FR-015 |
 | `syllabus.revision_confirmed` | USER | SYLLABUS_REVISION | `documentId`, `number`, `source`, `groupCount`, `itemCount`, `languageId` (010, null without one) | FR-023 |
-| `class_meetings.updated` | USER | CLASS | `added`, `removed`, `total`, `resolutions` (quantidade por ação) | FR-025, FR-029 |
+| `class_meetings.updated` | USER | CLASS | `added`, `removed`, `total`, `resolutions` (quantidade por ação), `kinds` (031: quantidade por tipo), `changed` (031) | FR-025, FR-029 |
 | `topic.created` | USER | TOPIC | `planId`, `itemCount`, `hasMeeting` | FR-035 |
 | `topic.updated` | USER | TOPIC | `planId`, `fields` | FR-035 |
 | `topic.merged` | USER | TOPIC | `planId`, `mergedTopicIds` | FR-036 |

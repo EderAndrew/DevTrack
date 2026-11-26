@@ -294,6 +294,9 @@ describe("004/US4 — calendário de encontros da turma (FR-025 – FR-030)", ()
         removed: 1,
         total: 3,
         resolutions: { MOVE: 1, UNSCHEDULE: 1, MERGE: 1, ARCHIVE: 1 },
+        // 031 CK11: the count per kind after the save and the marks whose kind or text changed.
+        kinds: { CLASS: 3, EXAM: 0, ASSIGNMENT: 0, REVIEW: 0, MAKEUP: 0, HOLIDAY: 0, RECESS: 0, SPECIAL_EVENT: 0, TEACHER_ABSENCE: 0 },
+        changed: 0,
       });
       const topicUpdates = await events("topic.updated");
       expect(topicUpdates.map((e) => e.targetId).sort()).toEqual([toMove.id, toUnschedule.id].sort());

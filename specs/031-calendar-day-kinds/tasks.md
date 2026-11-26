@@ -133,13 +133,13 @@ Evento especial; salvar e conferir tipos, descrições, "Total de aulas selecion
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T009 [P] [US1] Testes puros de `apps/api/src/modules/class-plans/calendar-diff.spec.ts` (CK3): dado o mapa salvo
+- [X] T009 [P] [US1] Testes puros de `apps/api/src/modules/class-plans/calendar-diff.spec.ts` (CK3): dado o mapa salvo
       (encontros com tipo/textos e dias) e `add`/`set`/`remove`, devolve `createMeetings`, `updateMeetings`,
       `createDays`, `updateDays`, `deleteDays`, `leavingMeetingIds` (encontros que deixam de ser encontro) e `changed`;
       casos: cada transição da tabela de `data-model.md`; data repetida entre `add`/`set`/`remove` → erro de validação;
       `add` de um dia que não é encontro → erro; `add` de encontro existente → nada; `set` idêntico ao salvo → nada e
       `changed = 0`; mudar para Aula descarta a descrição (`031/FR-006`).
-- [ ] T010 [P] [US1] Integração em `apps/api/test/integration/031-us1-day-kinds.spec.ts` (no molde de
+- [X] T010 [P] [US1] Integração em `apps/api/test/integration/031-us1-day-kinds.spec.ts` (no molde de
       `004-us4-class-meetings.spec.ts`): `031/US1-7` uma gravação com `add`, `set` e `remove` aplica tudo numa operação;
       `031/US1-8` e `031/SC-002` o `total` e a numeração contam só `CLASS/EXAM/ASSIGNMENT/REVIEW/MAKEUP` (Feriado,
       Recesso, Evento e Falta fora); `031/US1-10` e `031/FR-006` mudar Prova → Aula limpa a descrição e Falta → Feriado
@@ -154,11 +154,11 @@ Evento especial; salvar e conferir tipos, descrições, "Total de aulas selecion
       encontros usada pela 007 é a de `total`;
       auditoria: um `class_meetings.updated` por gravação com `kinds` (nove chaves) e `changed`, sem nenhum texto
       (procurar a descrição, o motivo e o aviso no `metadata` e no log capturado); `set` idêntico → nenhum evento.
-- [ ] T011 [P] [US1] Testes web puros em `apps/web/features/class-calendar/schemas/day-kinds.test.ts`: rótulos e dicas
+- [X] T011 [P] [US1] Testes web puros em `apps/web/features/class-calendar/schemas/day-kinds.test.ts`: rótulos e dicas
       dos nove tipos (`contracts/ui.md`), `isMeetingKind`, `dotToken`, `pendingToRequest(saved, pending)` → `add`/`set`/
       `remove` mínimos (dia novo Aula → `add`; tipo ou texto mudado → `set`; desmarcado → `remove`; sem mudança → nada),
       `meetingCount(saved, pending)` e `meetingNumbers` só sobre os tipos de aula.
-- [ ] T012 [P] [US1] Testes de componente: `apps/web/features/class-calendar/components/day-kind-dialog.test.tsx` —
+- [X] T012 [P] [US1] Testes de componente: `apps/web/features/class-calendar/components/day-kind-dialog.test.tsx` —
       `031/US1-1` modal de dia não marcado com a data por extenso, nove opções, Aula escolhida e sem campo; `031/US1-2`
       confirmar Aula; `031/US1-3` tipos descritos mostram "Descrição" com a dica e não confirmam vazios (só espaços
       também); `031/US1-4` Falta mostra "Motivo (só você vê)" obrigatório, "Aviso para a turma (opcional)" e a nota sobre
@@ -170,8 +170,8 @@ Evento especial; salvar e conferir tipos, descrições, "Total de aulas selecion
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Implementar `apps/api/src/modules/class-plans/calendar-diff.ts` (puro, sem Prisma) até T009 verde.
-- [ ] T014 [US1] `ClassMeetingsService.update` em `apps/api/src/modules/class-plans/class-meetings.service.ts`: ler
+- [X] T013 [US1] Implementar `apps/api/src/modules/class-plans/calendar-diff.ts` (puro, sem Prisma) até T009 verde.
+- [X] T014 [US1] `ClassMeetingsService.update` em `apps/api/src/modules/class-plans/class-meetings.service.ts`: ler
       encontros e dias salvos sob `lockOwnedClass`; validar período de `add`/`set`; aplicar o diff na ordem — resoluções
       (US2) → apagar dias que viram encontro e encontros que saem (com a checagem de tópicos da 004) → criar/atualizar
       encontros e dias; limite de 200 encontros; auditoria com `kinds` e `changed`, escrita só quando algo mudou
@@ -179,8 +179,8 @@ Evento especial; salvar e conferir tipos, descrições, "Total de aulas selecion
       `apps/api/src/modules/classes/classes.service.ts`, a mudança de período apaga os `class_calendar_days` fora do
       novo período na mesma transação e registra `calendarDaysRemoved` em `class.offering_updated`. T010 verde, exceto
       os casos de tópicos de US2.
-- [ ] T015 [P] [US1] `apps/web/features/class-calendar/schemas/day-kinds.ts` (textos, tokens, conversões) até T011 verde.
-- [ ] T016 [US1] `apps/web/features/class-calendar/components/day-kind-dialog.tsx` (shadcn `Dialog`, `components/ui/radio`,
+- [X] T015 [P] [US1] `apps/web/features/class-calendar/schemas/day-kinds.ts` (textos, tokens, conversões) até T011 verde.
+- [X] T016 [US1] `apps/web/features/class-calendar/components/day-kind-dialog.tsx` (shadcn `Dialog`, `components/ui/radio`,
       `Textarea`, `FormField`; React Hook Form com o schema do contrato) e a integração em `meeting-calendar.tsx`
       (clique/Enter num dia do período abre o modal em vez de alternar; mapa de pendências; rótulo/ícone por dia; legenda;
       "Outros dias marcados: M") e `meeting-list.tsx` (tipo e descrição de cada encontro; seção "Dias sem aula" com o
@@ -209,6 +209,8 @@ resolução para cada um e nenhum tópico se perde.
       que vira Feriado na mesma gravação → `400`; `031/US2-4` Aula → Prova mantém os tópicos sem resolução;
       `031/US2-5` a mudança de período com encontros fora segue `409 MEETINGS_OUTSIDE_PERIOD`; concorrência: duas
       gravações com o mesmo `planRevision` → a segunda `409 PLAN_REVISION_CONFLICT`.
+      _Nota (T014)_: o `update` já passa os `leavingMeetingIds` ao `resolve` e à checagem de tópicos e usa como destino
+      de `MOVE` os encontros depois da gravação; a T019 fica para confirmar isso com a T017.
 - [ ] T018 [P] [US2] Em `apps/web/features/class-calendar/components/meeting-calendar.test.tsx`: `031/US2-1` mudar no
       modal um dia salvo com tópicos para Falta e salvar abre o `TopicResolutionDialog` daquele dia (o concluído só com
       "Arquivar"), e o corpo enviado leva o `set` e as `resolutions`; mudar Aula → Prova não abre o diálogo

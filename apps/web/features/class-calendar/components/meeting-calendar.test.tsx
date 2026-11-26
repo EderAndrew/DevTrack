@@ -65,6 +65,23 @@ const dayButton = (container: HTMLElement, date: string) => {
   return button;
 };
 
+type User = ReturnType<typeof userEvent.setup>;
+
+/** 031: a day is marked through "Marcar dia" — open it, keep "Aula" and confirm. */
+async function markAula(user: User, container: HTMLElement, date: string) {
+  await user.click(dayButton(container, date));
+  const dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+  await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: /^Marcar dia/ })).toBeNull());
+}
+
+/** 031: "Desmarcar dia" in the day's modal. */
+async function unmarkDay(user: User, container: HTMLElement, date: string) {
+  await user.click(dayButton(container, date));
+  const dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+  await user.click(within(dialog).getByRole("button", { name: "Desmarcar dia" }));
+}
+
 describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => {
   const fetchMock = vi.fn<typeof fetch>();
 
@@ -120,7 +137,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     await expectNoA11yViolations(container);
   });
 
-  it("004/FR-052 setas movem o foco, PageUp/PageDown trocam o mês, Espaço/Enter marcam", async () => {
+  it("004/FR-052 031/FR-010 setas movem o foco, PageUp/PageDown trocam o mês, Espaço/Enter abrem o modal e marcam", async () => {
     const user = userEvent.setup();
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1)]));
     await screen.findByText("Total de aulas selecionadas: 1");
@@ -131,20 +148,37 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     await user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(dayButton(container, "2027-02-11"));
 
+    // Space opens "Marcar dia" with Aula chosen; Enter on "Confirmar" marks it and the focus returns to the day.
     await user.keyboard(" ");
+    let dialog = await screen.findByRole("dialog", { name: "Marcar dia — quinta-feira, 11 de fevereiro de 2027" });
+    expect((within(dialog).getByRole("radio", { name: "Aula" }) as HTMLInputElement).checked).toBe(true);
+    within(dialog).getByRole("button", { name: "Confirmar" }).focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(dayButton(container, "2027-02-11")));
 
     await user.keyboard("{PageDown}");
     await waitFor(() => expect(screen.getByRole("grid").getAttribute("aria-label")).toMatch(/março/i));
     expect(document.activeElement).toBe(dayButton(container, "2027-03-11"));
+    // Esc closes the modal without marking.
     await user.keyboard("{Enter}");
-    expect(screen.getByText("Total de aulas selecionadas: 3")).toBeTruthy();
+    await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(dayButton(container, "2027-03-11")));
 
     await user.keyboard("{PageUp}");
     await waitFor(() => expect(screen.getByRole("grid").getAttribute("aria-label")).toMatch(/fevereiro/i));
     expect(document.activeElement).toBe(dayButton(container, "2027-02-11"));
+    // On a marked day, the modal offers "Desmarcar dia".
     await user.keyboard("{Enter}");
-    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    within(dialog).getByRole("button", { name: "Desmarcar dia" }).focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
   });
 
   it("004/US4-4 004/US4-5 \"Salvar calendário\" envia só as datas acrescentadas e removidas", async () => {
@@ -152,10 +186,10 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const { container } = renderCalendar(meetingList([meeting("2027-02-03", 1), meeting("2027-02-10", 2)]));
     await screen.findByText("Total de aulas selecionadas: 2");
 
-    await user.click(dayButton(container, "2027-02-17"));
-    await user.click(dayButton(container, "2027-02-10"));
-    await user.click(dayButton(container, "2027-02-24"));
-    await user.click(dayButton(container, "2027-02-24"));
+    await markAula(user, container, "2027-02-17");
+    await unmarkDay(user, container, "2027-02-10");
+    await markAula(user, container, "2027-02-24");
+    await unmarkDay(user, container, "2027-02-24");
     expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
     expect(within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
       "Aula 01 — 03/02/2027",
@@ -189,7 +223,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     });
     await screen.findByText("Total de aulas selecionadas: 3");
 
-    await user.click(dayButton(container, "2027-02-10"));
+    await unmarkDay(user, container, "2027-02-10");
     const dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     expect(within(dialog).getAllByRole("group").map((group) => group.getAttribute("aria-label") ?? group.textContent)).toHaveLength(3);
     const moveGroup = within(dialog).getByRole("group", { name: "Encapsulamento" });
@@ -243,13 +277,13 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     const { container } = renderCalendar(meetingList([busy], 2), { plan: planEnvelope([busy], [only], 2) });
     await screen.findByText("Total de aulas selecionadas: 1");
 
-    await user.click(dayButton(container, "2027-02-10"));
+    await unmarkDay(user, container, "2027-02-10");
     let dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
 
-    await user.click(dayButton(container, "2027-02-10"));
+    await unmarkDay(user, container, "2027-02-10");
     dialog = await screen.findByRole("dialog", { name: "Esta aula tem tópicos planejados" });
     await user.click(within(dialog).getByRole("radio", { name: "Deixar sem data" }));
     await user.click(within(dialog).getByRole("button", { name: "Desmarcar aula" }));
@@ -268,7 +302,7 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
       init?.method === "PUT" ? apiError(409, "PLAN_REVISION_CONFLICT", "x") : json(200, list),
     );
 
-    await user.click(dayButton(container, "2027-02-03"));
+    await markAula(user, container, "2027-02-03");
     await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
@@ -324,5 +358,148 @@ describe("004/US4 MeetingCalendar — calendário de encontros da turma", () => 
     expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
     expect(dayButton(container, "2027-02-10").disabled).toBe(true);
     await expectNoA11yViolations(container);
+  });
+});
+
+describe("031/US1 MeetingCalendar — tipos de dia no calendário do professor", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const putBodies = () =>
+    fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT").map(([, init]) => JSON.parse(String(init!.body)) as unknown);
+
+  const typed = (date: string, number: number, kind: ClassMeetingView["kind"], description: string | null) => ({
+    ...meeting(date, number),
+    kind,
+    description,
+  });
+
+  function renderKinds(list: ClassMeetingList) {
+    fetchMock.mockImplementation(async () => json(200, list));
+    return renderWithProviders(<MeetingCalendar classId={CLASS_ID} {...PERIOD} canEdit />, { queryClient: makeTestQueryClient() });
+  }
+
+  const KINDS_LIST: ClassMeetingList = {
+    items: [typed("2027-02-03", 1, "CLASS", null), typed("2027-02-10", 2, "EXAM", "P1 — Herança")],
+    days: [
+      { date: "2027-02-17", kind: "HOLIDAY", description: "Carnaval", absenceReason: null, absenceNotice: null },
+      {
+        date: "2027-02-24",
+        kind: "TEACHER_ABSENCE",
+        description: null,
+        absenceReason: "Consulta médica",
+        absenceNotice: "Atividade no portal.",
+      },
+    ],
+    total: 2,
+    planRevision: null,
+  };
+
+  it("031/US1-5 cada dia mostra o tipo por ícone e nome acessível, os encontros com o número, e a legenda dos nove tipos", async () => {
+    const { container } = renderKinds(KINDS_LIST);
+    await screen.findByText("Total de aulas selecionadas: 2");
+
+    expect(dayButton(container, "2027-02-03").getAttribute("aria-label")).toMatch(/3 de fevereiro de 2027.*: Aula — aula 1$/);
+    expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Prova — aula 2$/);
+    expect(dayButton(container, "2027-02-17").getAttribute("aria-label")).toMatch(/: Feriado$/);
+    expect(dayButton(container, "2027-02-24").getAttribute("aria-label")).toMatch(/: Falta do professor$/);
+    expect(dayButton(container, "2027-02-05").getAttribute("aria-label")).not.toMatch(/:/);
+    expect(dayButton(container, "2027-02-10").querySelector('svg[data-kind="EXAM"]')).toBeTruthy();
+    expect(dayButton(container, "2027-02-17").querySelector('svg[data-kind="HOLIDAY"]')).toBeTruthy();
+
+    const legend = screen.getByRole("region", { name: "Legenda" });
+    expect(within(legend).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Aula",
+      "Prova",
+      "Trabalho",
+      "Revisão",
+      "Reposição",
+      "Feriado",
+      "Recesso",
+      "Evento especial",
+      "Falta do professor",
+    ]);
+
+    // The list: each encontro's kind and description; the days without class apart, with the Falta's reason.
+    expect(within(screen.getByRole("list", { name: "Aulas selecionadas" })).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
+      "Aula 01 — 03/02/2027",
+      "Aula 02 — 10/02/2027 · Prova: P1 — Herança",
+    ]);
+    const days = within(screen.getByRole("region", { name: "Dias sem aula" })).getAllByRole("listitem");
+    expect(days.map((item) => item.textContent)).toEqual([
+      "17/02/2027 — Feriado: Carnaval",
+      "24/02/2027 — Falta do professorMotivo: Consulta médica · Aviso: Atividade no portal.",
+    ]);
+    await expectNoA11yViolations(container);
+  });
+
+  it("031/US1-8 \"Total de aulas selecionadas\" e \"Outros dias marcados\" seguem as mudanças pendentes", async () => {
+    const user = userEvent.setup();
+    const { container } = renderKinds(KINDS_LIST);
+    await screen.findByText("Total de aulas selecionadas: 2");
+    expect(screen.getByText("Outros dias marcados: 2")).toBeTruthy();
+
+    // Aula → Recesso: one encontro less, one other day more; the Prova becomes aula 1.
+    await user.click(dayButton(container, "2027-02-03"));
+    let dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    await user.click(within(dialog).getByRole("radio", { name: "Recesso" }));
+    await user.type(within(dialog).getByRole("textbox", { name: /^Descrição/ }), "Recesso acadêmico");
+    await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(screen.getByText("Outros dias marcados: 3")).toBeTruthy();
+    expect(dayButton(container, "2027-02-10").getAttribute("aria-label")).toMatch(/: Prova — aula 1$/);
+
+    // Feriado → Reposição: an encontro again.
+    await user.click(dayButton(container, "2027-02-17"));
+    dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    await user.click(within(dialog).getByRole("radio", { name: "Reposição" }));
+    const description = within(dialog).getByRole("textbox", { name: /^Descrição/ });
+    await user.clear(description);
+    await user.type(description, "Reposição da aula 3");
+    await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Total de aulas selecionadas: 2")).toBeTruthy();
+    expect(screen.getByText("Outros dias marcados: 2")).toBeTruthy();
+
+    // "Salvar calendário" sends only what changed.
+    await markAula(user, container, "2027-03-03");
+    await unmarkDay(user, container, "2027-02-24");
+    await user.click(screen.getByRole("button", { name: "Salvar calendário" }));
+    expect(await screen.findByText("Calendário salvo.")).toBeTruthy();
+    expect(putBodies()).toEqual([
+      {
+        planRevision: null,
+        add: ["2027-03-03"],
+        set: [
+          { date: "2027-02-03", kind: "RECESS", description: "Recesso acadêmico" },
+          { date: "2027-02-17", kind: "MAKEUP", description: "Reposição da aula 3" },
+        ],
+        remove: ["2027-02-24"],
+        resolutions: [],
+      },
+    ]);
+  });
+
+  it("031/SC-001 marcar um dia com tipo e descrição em até 3 interações", async () => {
+    const user = userEvent.setup();
+    const { container } = renderKinds({ items: [], days: [], total: 0, planRevision: null });
+    await screen.findByText("Total de aulas selecionadas: 0");
+
+    // 1. the day; 2. the kind; (writing does not count) 3. "Confirmar".
+    await user.click(dayButton(container, "2027-02-24"));
+    const dialog = await screen.findByRole("dialog", { name: /^Marcar dia/ });
+    await user.click(within(dialog).getByRole("radio", { name: "Prova" }));
+    await user.type(within(dialog).getByRole("textbox", { name: /^Descrição/ }), "P1 — Herança e polimorfismo");
+    await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(dayButton(container, "2027-02-24").getAttribute("aria-label")).toMatch(/: Prova — aula 1$/);
+    expect(screen.getByText("Total de aulas selecionadas: 1")).toBeTruthy();
   });
 });
