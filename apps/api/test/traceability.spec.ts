@@ -439,6 +439,22 @@ const SPECS: FeatureSpec[] = [
     // SC-006 with T027 (`my-classes.test.tsx`).
     pending: { stories: [], successCriteria: [] },
   },
+  {
+    feature: "031",
+    path: "specs/031-calendar-day-kinds/spec.md",
+    stories: 4,
+    scenarios: 32, // 11 + 5 + 11 + 5
+    // No "### Acceptance Criteria Traceability" table, as in 008–030.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 8),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
+    // with the test that cites it, so the lists are empty at the end of T034.
+    pending: {
+      stories: [],
+      successCriteria: [],
+    },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

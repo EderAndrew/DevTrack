@@ -132,6 +132,29 @@ describe.each(Object.entries(THEMES))("028/FR-020 028/SC-007 contraste dos tons 
   });
 });
 
+// 031 research CK9: the dot of each kind of day (non-text, 3:1) over the card of the student's week and of the teacher's
+// calendar, and over the chosen day of the student's week (`--primary-subtle`).
+const CALENDAR_DOTS = ["--primary", "--danger", "--warning", "--info", "--muted-foreground", "--success", "--danger-text"];
+const CALENDAR_DOT_PAIRS: Pair[] = [
+  ...CALENDAR_DOTS.flatMap((dot): Pair[] => [
+    [dot, "--card", 3],
+    [dot, "--primary-subtle", 3],
+  ]),
+  // The chosen day's text and its border.
+  ["--foreground", "--primary-subtle", 4.5],
+  ["--primary", "--card", 3],
+];
+
+describe.each(Object.entries(THEMES))("031/FR-024 contraste dos pontos dos tipos de dia no tema %s", (_theme, tokens) => {
+  it.each(CALENDAR_DOT_PAIRS)("%s sobre %s ≥ %s:1", (foreground, background, minimum) => {
+    const fg = resolve(tokens, foreground);
+    const bg = resolve(tokens, background);
+    expect(fg, foreground).toBeDefined();
+    expect(bg, background).toBeDefined();
+    expect(ratio(fg!, bg!)).toBeGreaterThanOrEqual(minimum);
+  });
+});
+
 /** The light block of `tokens.css` as written, `color-scheme` included (custom properties aside). */
 const lightBlock = (() => {
   const start = css.search(/:root\[data-theme="light"\]\s*\{/);

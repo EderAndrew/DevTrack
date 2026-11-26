@@ -321,6 +321,27 @@ enum ClassMeetingStatus {
   @@map("class_meeting_status")
 }
 
+/// 031: the kinds that are encontros (numbered, take topics).
+enum ClassMeetingKind {
+  CLASS
+  EXAM
+  ASSIGNMENT
+  REVIEW
+  MAKEUP
+
+  @@map("class_meeting_kind")
+}
+
+/// 031: the kinds that are not encontros.
+enum ClassCalendarDayKind {
+  HOLIDAY
+  RECESS
+  SPECIAL_EVENT
+  TEACHER_ABSENCE
+
+  @@map("class_calendar_day_kind")
+}
+
 enum ClassPlanStatus {
   DRAFT
   READY
@@ -566,6 +587,7 @@ model SchoolClass {
   cohort          Cohort                   @relation(fields: [cohortId], references: [id], onDelete: Restrict)
   subject         Subject?                 @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   meetings        ClassMeeting[]
+  calendarDays    ClassCalendarDay[]
   plan            ClassPlan?
   activities      ClassActivity[]
   attendances     ActivityAttendance[]
@@ -878,6 +900,9 @@ model ClassMeeting {
   classId     String             @map("class_id") @db.Uuid
   meetingDate DateTime           @map("meeting_date") @db.Date
   status      ClassMeetingStatus @default(PLANNED)
+  /// 031: the kind of encontro (CHECK: CLASS has no description, the others 1–120 code points).
+  kind        ClassMeetingKind   @default(CLASS)
+  description String?
   createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -886,6 +911,25 @@ model ClassMeeting {
 
   @@unique([classId, meetingDate])
   @@map("class_meetings")
+}
+
+/// 031: a day of a class that is not an encontro (never numbered, takes no topics). One mark per date of a class
+/// across this table and `class_meetings` (triggers `*_date_free`). The reason of a TEACHER_ABSENCE is the teacher's.
+model ClassCalendarDay {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classId       String               @map("class_id") @db.Uuid
+  dayDate       DateTime             @map("day_date") @db.Date
+  kind          ClassCalendarDayKind
+  description   String?
+  absenceReason String?              @map("absence_reason")
+  absenceNotice String?              @map("absence_notice")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  @@unique([classId, dayDate])
+  @@map("class_calendar_days")
 }
 
 /// One per class, created when the class first selects a confirmed syllabus revision.

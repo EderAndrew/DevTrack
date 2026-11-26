@@ -43,6 +43,11 @@ export interface TopicResolutionDialogProps {
   mergeCandidates: readonly TopicView[];
   onConfirm: (resolutions: TopicResolution[]) => void;
   onCancel: () => void;
+  /**
+   * 031/US2: the kind the day is changing to (e.g. "Falta do professor") when it stops being a class without being
+   * unmarked; absent when the day is unmarked (004).
+   */
+  nextKindLabel?: string;
 }
 
 /**
@@ -58,6 +63,7 @@ export function TopicResolutionDialog({
   mergeCandidates,
   onConfirm,
   onCancel,
+  nextKindLabel,
 }: TopicResolutionDialogProps) {
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [error, setError] = useState("");
@@ -97,7 +103,11 @@ export function TopicResolutionDialog({
         <DialogHeader>
           <DialogTitle>Esta aula tem tópicos planejados</DialogTitle>
           <DialogDescription>
-            {meetingDate ? `Escolha o que fazer com cada tópico antes de desmarcar ${formatIsoDate(meetingDate)}.` : null}
+            {meetingDate
+              ? nextKindLabel
+                ? `Escolha o que fazer com cada tópico antes de mudar ${formatIsoDate(meetingDate)} para ${nextKindLabel}.`
+                : `Escolha o que fazer com cada tópico antes de desmarcar ${formatIsoDate(meetingDate)}.`
+              : null}
           </DialogDescription>
         </DialogHeader>
         {error ? (
@@ -186,7 +196,7 @@ export function TopicResolutionDialog({
           </DialogClose>
           {topics.length > 0 ? (
             <Button type="button" onClick={confirm}>
-              Desmarcar aula
+              {nextKindLabel ? "Confirmar mudança" : "Desmarcar aula"}
             </Button>
           ) : null}
         </DialogFooter>

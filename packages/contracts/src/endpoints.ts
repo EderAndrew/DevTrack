@@ -214,6 +214,7 @@ import {
   ExerciseGenerationAvailabilitySchema,
 } from "./exercises/exercise-batches.js";
 import { HealthStatusSchema } from "./health/health.js";
+import { StudentCalendarSchema } from "./me/calendar.js";
 import { MeViewSchema } from "./me/me.js";
 import { PreferencesViewSchema, UpdatePreferencesRequestSchema } from "./me/preferences.js";
 import { ExamAlertPreferenceRequestSchema, ExamAlertPreferenceSchema } from "./mobile/alerts.js";
@@ -1711,6 +1712,14 @@ export const endpoints = {
     path: "/me/classes/:classId/ranking",
     params: ClassParamsSchema,
     response: ClassRankingSchema,
+    status: 200,
+  },
+  /** 031 — the student's calendar of one disciplina da turma of an ACTIVE enrollment (US3, research CK6). */
+  "me.classCalendar": {
+    method: "GET",
+    path: "/me/classes/:classId/calendar",
+    params: ClassParamsSchema,
+    response: StudentCalendarSchema,
     status: 200,
   },
   /** 013 — the full ranking of one of the session teacher's classes (FR-022). */

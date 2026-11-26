@@ -82,7 +82,10 @@ describe("004/US1 — turma como oferta da disciplina (FR-003)", () => {
     expect(dated.body).toMatchObject({ subject: null, startsOn: "2027-02-01", endsOn: "2027-06-30", plannable: false });
 
     const offering = await events("class.offering_updated");
-    expect(offering.map((event) => event.metadata)).toEqual([{ fields: ["startsOn", "endsOn"], subjectId: null }]);
+    expect(offering.map((event) => event.metadata)).toEqual([
+      // 031/FR-009: the count of days without class deleted with the change.
+      { fields: ["startsOn", "endsOn"], subjectId: null, calendarDaysRemoved: 0 },
+    ]);
     expect(offering[0]).toMatchObject({ actorUserId: teacher.id, targetType: "CLASS", targetId: legacy.id });
     expect(await events("class.updated")).toEqual([]);
   });
@@ -96,7 +99,7 @@ describe("004/US1 — turma como oferta da disciplina (FR-003)", () => {
     expect((await client.patch(`/api/classes/${schoolClass.id}`, { period: "2026.2", name: "Outro nome" })).status).toBe(400);
     expect((await client.patch(`/api/classes/${schoolClass.id}`, { startsOn: "2026-02-09", endsOn: "2026-06-30" })).status).toBe(200);
     expect((await events("class.offering_updated")).map((event) => event.metadata)).toEqual([
-      { fields: ["startsOn"], subjectId: subject.id },
+      { fields: ["startsOn"], subjectId: subject.id, calendarDaysRemoved: 0 },
     ]);
 
     expect((await client.patch(`/api/classes/${schoolClass.id}`, { startsOn: "2026-02-09", endsOn: "2026-06-30" })).status).toBe(200);

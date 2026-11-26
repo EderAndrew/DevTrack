@@ -51,3 +51,17 @@ export const dayButton = (page: Page, date: string) => {
   const [year, month, day] = date.split("-");
   return page.locator(`button[data-day="${day}/${month}/${year}"]`);
 };
+
+/**
+ * 031: marks a day of the class calendar through "Marcar dia" — the kind (Aula by default) and its texts, by label
+ * ("Descrição", "Motivo (só você vê)", "Aviso para a turma (opcional)") — and waits for the modal to close.
+ */
+export async function markDay(page: Page, date: string, kind = "Aula", texts: Record<string, string> = {}): Promise<void> {
+  await dayButton(page, date).click();
+  const dialog = page.getByRole("dialog", { name: /^Marcar dia/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("radio", { name: kind, exact: true }).check();
+  for (const [label, value] of Object.entries(texts)) await dialog.getByRole("textbox", { name: label }).fill(value);
+  await dialog.getByRole("button", { name: "Confirmar" }).click();
+  await expect(dialog).toBeHidden();
+}

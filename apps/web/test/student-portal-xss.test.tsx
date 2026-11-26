@@ -77,6 +77,9 @@ import { MyFeedbacks } from "@/features/feedback/components/my-feedbacks";
 import { Toaster } from "@/components/ui/toast";
 import { codeMirrorContent, codeMirrorText } from "./code-editor";
 import { renderWithProviders } from "./render";
+import { StudentCalendarCard } from "@/features/student-calendar/components/student-calendar-card";
+import { MeetingList } from "@/features/class-calendar/components/meeting-list";
+import { DayKindDialog } from "@/features/class-calendar/components/day-kind-dialog";
 
 // 018: the exam screens navigate (ExamDetail, ExamAttempt); the router is not mounted in a unit test. 030: "Minhas
 // turmas" reads its year and search from the address.
@@ -113,6 +116,9 @@ const SCANNED = [
   "features/group-work",
   // 026: "Minhas turmas" with each class's subject (the "Matéria" card is in features/student-activities).
   "features/my-classes",
+  // 031: the student's calendar card and the teacher's calendar (modal, list of days).
+  "features/student-calendar",
+  "features/class-calendar",
 ];
 
 function filesUnder(dir: string): string[] {
@@ -1142,6 +1148,69 @@ describe("026/FR-001 matéria e turma como texto", () => {
     expect(within(card).getByRole("heading", { level: 2, name: ITEM.subjectName })).toBeTruthy();
     expect(within(card).getByText(ITEM.name)).toBeTruthy();
     expect(within(card).getByText(ITEM.teacherName)).toBeTruthy();
+    noElements();
+  });
+});
+
+describe("031/FR-023 calendário com tipos de dia: os textos aparecem como texto", () => {
+  const noElements = () => expect(document.body.querySelector("script, img")).toBeNull();
+  const CLASS_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeee031";
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("card do aluno: a descrição, o aviso da falta, a matéria e o professor com HTML aparecem como texto", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(200, {
+          class: { id: CLASS_ID, subjectName: SCRIPT, teacherName: SCRIPT, startsOn: "2026-08-03", endsOn: "2026-12-11" },
+          today: "2026-11-16",
+          days: [
+            { date: "2026-11-16", kind: "HOLIDAY", text: SCRIPT },
+            { date: "2026-11-18", kind: "TEACHER_ABSENCE", text: SCRIPT },
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<StudentCalendarCard classId={CLASS_ID} />);
+    const region = await screen.findByRole("region", { name: "Seu calendário de aulas" });
+    await within(region).findByText("16–22 nov");
+    expect(region.querySelector("[aria-live=polite]")!.textContent).toContain(`Feriado${SCRIPT}${SCRIPT} · Prof. ${SCRIPT}`);
+    within(region).getByRole("button", { name: /^Quarta-feira, 18 de novembro/ }).click();
+    await waitFor(() => expect(region.querySelector("[aria-live=polite]")!.textContent).toContain(`Falta do professor${SCRIPT}`));
+    noElements();
+  });
+
+  it("lista do professor: a descrição, o motivo e o aviso com HTML aparecem como texto", () => {
+    render(
+      <MeetingList
+        meetings={[{ date: "2026-11-23", kind: "EXAM", description: SCRIPT, absenceReason: null, absenceNotice: null }]}
+        days={[
+          { date: "2026-11-18", kind: "TEACHER_ABSENCE", description: null, absenceReason: SCRIPT, absenceNotice: SCRIPT },
+          { date: "2026-11-20", kind: "HOLIDAY", description: SCRIPT, absenceReason: null, absenceNotice: null },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("list", { name: "Aulas selecionadas" }).textContent).toContain(`Prova: ${SCRIPT}`);
+    const days = screen.getByRole("region", { name: "Dias sem aula" }).textContent!;
+    expect(days).toContain(`Motivo: ${SCRIPT} · Aviso: ${SCRIPT}`);
+    expect(days).toContain(`Feriado: ${SCRIPT}`);
+    noElements();
+  });
+
+  it("modal \"Marcar dia\": os textos atuais com HTML voltam como valor dos campos, nunca como marcação", () => {
+    render(
+      <DayKindDialog
+        date="2026-11-18"
+        mark={{ kind: "TEACHER_ABSENCE", description: null, absenceReason: SCRIPT, absenceNotice: SCRIPT }}
+        onConfirm={() => {}}
+        onUnmark={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect((within(dialog).getByRole("textbox", { name: /^Motivo/ }) as HTMLTextAreaElement).value).toBe(SCRIPT);
+    expect((within(dialog).getByRole("textbox", { name: /^Aviso/ }) as HTMLTextAreaElement).value).toBe(SCRIPT);
     noElements();
   });
 });

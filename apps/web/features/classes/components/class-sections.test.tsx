@@ -96,7 +96,7 @@ describe("004/US1-4 seções da turma", () => {
 
   it("004/US4 Calendário da turma: encontros do período; turma arquivada fica só para leitura", async () => {
     const planned = { ...CLASS, subject: { id: "33333333-3333-4333-8333-333333333333", name: "POO" }, startsOn: "2027-02-01", endsOn: "2027-06-30", plannable: true };
-    const meetings = { items: [{ id: "44444444-4444-4444-8444-444444444444", date: "2027-03-04", number: 1, status: "PLANNED", topicCount: 0 }], total: 1, planRevision: null };
+    const meetings = { items: [{ id: "44444444-4444-4444-8444-444444444444", date: "2027-03-04", number: 1, status: "PLANNED", topicCount: 0, kind: "CLASS", description: null }], days: [], total: 1, planRevision: null };
     const answer = (schoolClass: ClassView) =>
       fetchMock.mockImplementation((input) =>
         Promise.resolve(String(input) === `/api/classes/${CLASS.id}` ? json(200, schoolClass) : json(200, meetings)),

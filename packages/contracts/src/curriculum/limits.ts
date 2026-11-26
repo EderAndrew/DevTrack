@@ -11,6 +11,14 @@ export const MAX_DOCX_ENTRIES = 1000;
 export const MAX_IMAGE_PIXELS = 40_000_000;
 /** Dates in a class's calendar. */
 export const MAX_MEETINGS_PER_CLASS = 200;
+/** 031: typed entries (`set`) in one calendar save — the meetings plus the days without class of one period. */
+export const MAX_CALENDAR_SET_ENTRIES = 400;
+/** 031: code points of a day's description (every kind but CLASS and TEACHER_ABSENCE). */
+export const MAX_DAY_DESCRIPTION_LENGTH = 120;
+/** 031: code points of a teacher absence's private reason. */
+export const MAX_ABSENCE_REASON_LENGTH = 500;
+/** 031: code points of a teacher absence's notice to the class. */
+export const MAX_ABSENCE_NOTICE_LENGTH = 200;
 /** Topics in a class plan, archived ones included. */
 export const MAX_TOPICS_PER_PLAN = 300;
 /** Learning-object items in one syllabus revision, across all its groups. */

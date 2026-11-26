@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createOffering, createSubject, dayButton, sendSyllabus, syllabusFile, unique, upload } from "./fixtures/curriculum.ts";
+import { createOffering, createSubject, markDay, sendSyllabus, syllabusFile, unique, upload } from "./fixtures/curriculum.ts";
 import { classTeacher, field, logIn } from "./fixtures/journeys.ts";
 
 /** 18 class days: Mondays and Wednesdays of March (10) and April (8) 2027. */
@@ -37,11 +37,11 @@ test("004/SC-011 disciplina → turma → ementa em PDF → revisão → calend�
   await offer.getByRole("button", { name: "Usar ementa" }).click();
   await expect(page.getByText(`A turma ${className} agora usa esta ementa.`)).toBeVisible();
 
-  // 004/US4: 18 class days.
+  // 004/US4: 18 class days (031: each one through "Marcar dia", keeping "Aula").
   await page.goto(`/turmas/${classId}/calendario`);
-  for (const date of MARCH) await dayButton(page, date).click();
+  for (const date of MARCH) await markDay(page, date);
   await page.getByRole("button", { name: "Próximo mês" }).click();
-  for (const date of APRIL) await dayButton(page, date).click();
+  for (const date of APRIL) await markDay(page, date);
   await expect(page.getByText("Total de aulas selecionadas: 18")).toBeVisible();
   await page.getByRole("button", { name: "Salvar calendário" }).click();
   await expect(page.getByText("Calendário salvo.")).toBeVisible();

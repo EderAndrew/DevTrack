@@ -15,7 +15,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!me.permissions.includes("atividades.proprias.visualizar")) return <NoAccess title="Painel" />;
   return (
     <section data-layout="wide">
-      <StudentDashboard materia={subjectFromSearch(await searchParams)} />
+      <StudentDashboard
+        materia={subjectFromSearch(await searchParams)}
+        calendar={me.permissions.includes("calendario.turma.visualizar")}
+      />
     </section>
   );
 }
