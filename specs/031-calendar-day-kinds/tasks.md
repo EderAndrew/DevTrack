@@ -334,26 +334,34 @@ calendário com cada um e conferir a resposta campo a campo.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T031 [P] `031/SC-008` e `031/FR-024`: incluir os tokens dos pontos (CK9) contra `card` em
+- [X] T031 [P] `031/SC-008` e `031/FR-024`: incluir os tokens dos pontos (CK9) contra `card` em
       `apps/web/test/contrast.test.ts` nos dois temas (não-texto ≥ 3:1); conferir as varreduras do Design System de
       `apps/web/CLAUDE.md` (nenhuma cor ou tamanho fora dos tokens) e `expectNoA11yViolations` no tema claro no modal e no
       card. Tirar `SC-008` de `pending` depois de T033.
-- [ ] T032 [P] Atualizar o `CLAUDE.md` da raiz: em "Project state", o item da 031 (no estilo da 030); em "Rules that are
+- [X] T032 [P] Atualizar o `CLAUDE.md` da raiz: em "Project state", o item da 031 (no estilo da 030); em "Rules that are
       easy to get wrong", uma regra: `class_meetings` são só os encontros (CLASS/EXAM/ASSIGNMENT/REVIEW/MAKEUP, com
       `description` fora da Aula); Feriado/Recesso/Evento/Falta vivem em `class_calendar_days`, uma data por disciplina
       nas duas tabelas (triggers); sair da condição de encontro com tópicos exige as resoluções do 004/FR-029; o motivo
       da Falta é só do professor (nunca aluno, auditoria ou log); o aluno lê `GET /me/classes/:classId/calendar` só com
       matrícula ativa (`404` igual) e nunca tópicos; e o novo guarda `student-calendar-boundary.spec.ts` na lista
       "Cross-cutting guards". Em `apps/api/CLAUDE.md`, o módulo `student-calendar` na lista de módulos.
-- [ ] T033 `031/SC-008` E2E em `apps/web/e2e/calendar-day-kinds.spec.ts` (fixtures de `e2e/fixtures/journeys.ts`, no molde
+- [X] T033 `031/SC-008` E2E em `apps/web/e2e/calendar-day-kinds.spec.ts` (fixtures de `e2e/fixtures/journeys.ts`, no molde
       de `student-classes.spec.ts`): o professor marca Prova, Feriado e uma Falta com motivo e aviso e salva; o aluno abre
       o Painel, navega até a semana, vê os tipos, o aviso e nunca o motivo; em 360 px
       `document.documentElement.scrollWidth <= clientWidth`, também no tema claro. Rodar também `syllabus-plan`
       (o calendário da 004 com o modal: ajustar o passo que marca dias para confirmar "Aula" no modal) e `student-portal`.
       Exige consentimento do usuário para o reset do `devtrack_e2e` (memória "Local dev environment").
+      _Feito (2026-11-26, com consentimento)_: `calendar-day-kinds` (professor; aluno em 360 px nos dois temas) e
+      `syllabus-plan` (com `markDay`) verdes. `student-portal` falha em "012/US1-1 … ciclo professor → aluno": o passo
+      espera no Histórico um trabalho com nota liberada mas não encerrado, o que a 029 tirou do Histórico; a spec não
+      foi atualizada na 029 (falha anterior à 031, fora desta tarefa). O SC-008 saiu de `pending`.
 - [ ] T034 Validar o quickstart.md manualmente (dev, temas escuro e claro, 360 px) e conferir `pending` vazio em
       `traceability.spec.ts`; `pnpm lint && pnpm check-types && pnpm test` verde; rodar a skill `owasp-security-auditor`
       nos arquivos alterados quando o hook pedir.
+      _Estado (2026-11-26)_: `pending` vazio; `pnpm lint && pnpm check-types && pnpm test` verde (API 470 arquivos, web 188,
+      contratos 26; o `check-types` dos contratos pediu um ajuste de tipo em `test/calendar.spec.ts`); auditorias
+      confirmadas. Falta só a validação manual do quickstart no ambiente de dev (temas e 360 px), coberta em parte pelo
+      E2E da T033.
 
 ---
 

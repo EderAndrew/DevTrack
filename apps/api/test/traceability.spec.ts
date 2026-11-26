@@ -452,7 +452,7 @@ const SPECS: FeatureSpec[] = [
     // with the test that cites it, so the lists are empty at the end of T034.
     pending: {
       stories: [],
-      successCriteria: ["SC-008"],
+      successCriteria: [],
     },
   },
 ];

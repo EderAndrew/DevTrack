@@ -242,4 +242,22 @@ describe('031/US1 DayKindDialog — o modal "Marcar dia"', () => {
     await user.keyboard("{Escape}");
     expect(onConfirm).not.toHaveBeenCalled();
   });
+
+  it("031/FR-024 sem violações de acessibilidade nos temas escuro e claro, com a Falta aberta", async () => {
+    try {
+      for (const theme of ["dark", "light"] as const) {
+        document.documentElement.dataset.theme = theme;
+        const { baseElement, unmount } = open({
+          kind: "TEACHER_ABSENCE",
+          description: null,
+          absenceReason: "Consulta médica",
+          absenceNotice: "Atividade no portal.",
+        });
+        await expectNoA11yViolations(baseElement);
+        unmount();
+      }
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
+  });
 });

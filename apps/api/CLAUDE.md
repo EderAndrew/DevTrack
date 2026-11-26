@@ -476,6 +476,11 @@ What the code alone doesn't make obvious:
   `counts.completed` is the number of those rows. Tests write the end with `closeByHand`/`cancelByHand`
   (`test/helpers/activities.ts`). Suites: `029-us1-closed-history`, `029-us2-cancelled`, `029-us3-list-dashboard` (the
   `029/SC-001` matrix), unit `029-placement`, security `029-cancelled-isolation`.
+- Calendar (031): the teacher's save lives in `class-plans` (`class-meetings.service.ts` with the pure `calendar-diff.ts`;
+  `class-plan.view.ts` adds `dayViews`); the student's read is its own module `student-calendar` (controller, service
+  with the 026 enrollment check and a scoped `select`, `views/student-calendar.view.ts`), guarded by
+  `test/student-calendar-boundary.spec.ts`. Suites: `031-schema`, `031-us1-day-kinds`, `031-us2-topics`,
+  `031-us3-student-calendar`, security `031-student-calendar`.
 - Mail (017): `MailOutbox.schedule(tx, kind, subjectId)` in the request's transaction, `attemptNow` after the commit
   (`attemptSync` in the admin bootstrap CLI), then `MailDeliveryWorker` retries (1 min to 6 h, FAILED after 7) within
   `MAIL_SENDS_PER_MINUTE`; `MAIL_RETRY_INTERVAL_SECONDS=0` disables the timer and tests call `runOnce(now)`. Each owner

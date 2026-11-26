@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–030 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–031 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 - 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
@@ -102,8 +102,13 @@ new feature through `/speckit-specify`.
   letivo and period, the date the student entered the turma, "Acessar turma" to `?materia=`, the ranking panel), a search
   by turma, code or subject and an ano letivo filter (`?ano=&busca=`, the most recent year by default), both in the
   browser; `GET /me/classes` gains the turma's `enrolledAt`. No migration.
+- 031 calendar day kinds: the teacher's "Calendário" of a disciplina da turma gives each marked day one of nine kinds
+  through the modal "Marcar dia" — Aula, Prova, Trabalho, Revisão and Reposição are encontros (numbered, counted, take
+  topics); Feriado, Recesso, Evento especial and Falta do professor are not (the Falta with a private reason and an
+  optional notice to the class); the student's Painel shows "Seu calendário de aulas" of the 026 matéria (a Monday–Sunday
+  week, a dot per kind, the chosen day's detail), never topics. Supersedes 004/FR-026. One migration.
 
-Take-home works and grading by the Code Runner or AI are later features. The rules of 012–030 that are
+Take-home works and grading by the Code Runner or AI are later features. The rules of 012–031 that are
 easy to break are under "Rules that are easy to get wrong" below.
 
 AI agents (`curriculum-agent`, `exercise-generator`, `work-generator`, `work-helper`, `exam-generator`) are
@@ -333,6 +338,10 @@ Cross-cutting guards that fail when the spec and the code drift apart:
   readers use the view `class_enrollments` or `schoolClass.cohort.enrollments`), when a module other than `cohorts`,
   `class-invitations` and `enrollments` writes enrollments or invitations, and when a class's own `status` is read
   without the cohort's (outside `ClassContextPolicy`, whose `status` is the effective one).
+- `apps/api/test/student-calendar-boundary.spec.ts` (031) keeps `modules/student-calendar` away from the class plan
+  (only the pure `class-plans/planning-date`), the syllabus, the activities and AI, keeps the absence reason, topics and a
+  meeting's number or status out of its code, makes its view copy named keys, and keeps `features/student-calendar`
+  (web) away from the teacher's `features/class-plan` and `features/class-calendar`.
 - Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
   user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
   web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
@@ -601,6 +610,20 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   and is redacted from the logs (the URL's `q=` and `req.query.q`). `classId` is the 026 check (ACTIVE enrollment, else
   the same `404`), made before the cancelled rows are read. The Painel counts the list ("Atrasadas" every overdue of
   it) and its "Concluídas" is the number of the Histórico's rows of the same `classId`, linking to `/historico`.
+- Calendar day kinds (031): `class_meetings` holds only the encontros (`kind` CLASS/EXAM/ASSIGNMENT/REVIEW/MAKEUP;
+  `description` required on all but CLASS, null on CLASS); Feriado/Recesso/Evento especial/Falta live in
+  `class_calendar_days`, and a date of a disciplina is in one table at most (cross-table triggers, `23505`). Every 004–030
+  reader of meetings stays unchanged: numbering, "Total de aulas", topics, coverage and 007 count only meetings. The
+  save is the 004 `PUT /classes/:id/meetings` with `set` (a strict union per kind; a date in only one of
+  `add`/`set`/`remove`, `add` of a day without class → 400), diffed by the pure `class-plans/calendar-diff.ts` under
+  `lockOwnedClass`: a meeting leaving the meeting condition (removed or set to a day kind) needs the 004/FR-029
+  resolutions of its topics, else `409 MEETING_HAS_TOPICS`; a period change deletes the days without class outside it
+  (`calendarDaysRemoved`). The Falta's reason is the teacher's only — never in the student's shape, audit metadata or
+  logs (`class_meetings.updated` carries counts: `kinds`, `changed`). The student reads `GET /me/classes/:classId/calendar`
+  (`calendario.turma.visualizar`, STUDENT) only with an ACTIVE enrollment in the class's turma (the same `404`
+  otherwise, a malformed id `400`), built by the allowlist `student-calendar/views/student-calendar.view.ts`: date, kind
+  and the student's text (the description, the notice, nothing on CLASS) — never topics, numbers, status or ids; `today`
+  is the server's `planningToday`. The class's effective status does not hide it. Texts render as text.
 - Student's "Minhas turmas" (030): `GET /me/classes` carries the turma's `enrolledAt` (the student's own ACTIVE
   enrollment); the 030 year filter and search run in the browser over that list, the route takes no parameters.
 - UI only with Design System tokens and components (exceptions need a `ds-exception` marker and a

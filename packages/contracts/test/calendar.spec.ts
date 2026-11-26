@@ -86,6 +86,11 @@ describe("031 contratos do calendário com tipos de dia", () => {
         kind: "TEACHER_ABSENCE",
         ...fields,
       });
+    /** The notice of a parsed Falta (only that variant of the union has it). */
+    const notice = (fields: Record<string, unknown>) => {
+      const data = parse(fields).data;
+      return data?.kind === "TEACHER_ABSENCE" ? data.absenceNotice : undefined;
+    };
     expect(parse({}).success).toBe(false);
     expect(parse({ absenceReason: "  " }).success).toBe(false);
     expect(parse({ absenceReason: "x".repeat(501) }).success).toBe(false);
@@ -111,20 +116,16 @@ describe("031 contratos do calendário com tipos de dia", () => {
       absenceNotice: null,
     });
     expect(
-      parse({ absenceReason: "Consulta", absenceNotice: "   " }).data
-        ?.absenceNotice,
+      notice({ absenceReason: "Consulta", absenceNotice: "   " }),
     ).toBeNull();
     expect(
-      parse({ absenceReason: "Consulta", absenceNotice: "" }).data
-        ?.absenceNotice,
+      notice({ absenceReason: "Consulta", absenceNotice: "" }),
     ).toBeNull();
     expect(
-      parse({ absenceReason: "Consulta", absenceNotice: null }).data
-        ?.absenceNotice,
+      notice({ absenceReason: "Consulta", absenceNotice: null }),
     ).toBeNull();
     expect(
-      parse({ absenceReason: "Consulta", absenceNotice: " Atividade " }).data
-        ?.absenceNotice,
+      notice({ absenceReason: "Consulta", absenceNotice: " Atividade " }),
     ).toBe("Atividade");
   });
 

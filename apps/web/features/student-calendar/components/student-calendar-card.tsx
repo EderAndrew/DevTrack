@@ -201,12 +201,14 @@ function Week({
               <li key={date} className="min-w-0">
                 <Button
                   type="button"
-                  variant={selected === date ? "primary" : "ghost"}
+                  variant="ghost"
                   aria-pressed={selected === date}
                   aria-label={dayButtonName(date, day, calendar.today)}
                   onClick={() => setSelected(date)}
                   className={cn(
                     "h-auto w-full min-w-0 flex-col gap-1 px-0 py-2",
+                    // The chosen day keeps the dots visible (a tinted square, never the primary fill, CK9).
+                    selected === date && "border-2 border-primary bg-primary-subtle text-foreground",
                     isToday && selected !== date && "border border-primary",
                   )}
                 >
