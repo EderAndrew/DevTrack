@@ -128,6 +128,10 @@ test.describe("012 portal do aluno", () => {
     await teacherPage.getByRole("button", { name: "Liberar resultado" }).click();
     await teacherPage.getByRole("alertdialog").getByRole("button", { name: "Liberar resultado" }).click();
     await expect(teacherPage.getByText("Resultado liberado.")).toBeVisible();
+    // 029/FR-001: the Histórico holds only the works the teacher closed or cancelled.
+    await teacherPage.getByRole("button", { name: "Encerrar atividade" }).click();
+    await teacherPage.getByRole("alertdialog").getByRole("button", { name: "Encerrar atividade" }).click();
+    await expect(teacherPage.getByText("Atividade encerrada.")).toBeVisible();
     await teacherPage.context().close();
 
     // The student sees the grade in the history and the result on the activity, never the answer key.

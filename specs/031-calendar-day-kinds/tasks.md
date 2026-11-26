@@ -355,6 +355,8 @@ calendário com cada um e conferir a resposta campo a campo.
       `syllabus-plan` (com `markDay`) verdes. `student-portal` falha em "012/US1-1 … ciclo professor → aluno": o passo
       espera no Histórico um trabalho com nota liberada mas não encerrado, o que a 029 tirou do Histórico; a spec não
       foi atualizada na 029 (falha anterior à 031, fora desta tarefa). O SC-008 saiu de `pending`.
+      _Corrigido (2026-11-26)_: o professor encerra o trabalho ("Encerrar atividade") depois de liberar o resultado;
+      `student-portal` verde (5 de 5).
 - [ ] T034 Validar o quickstart.md manualmente (dev, temas escuro e claro, 360 px) e conferir `pending` vazio em
       `traceability.spec.ts`; `pnpm lint && pnpm check-types && pnpm test` verde; rodar a skill `owasp-security-auditor`
       nos arquivos alterados quando o hook pedir.
