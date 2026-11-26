@@ -30,6 +30,25 @@ Texts live in the web only (`features/class-calendar/schemas/day-kinds.ts`, `fea
 - "Salvar calendário": if a saved meeting with topics is leaving the meeting condition, the 004 `TopicResolutionDialog`
   opens for it first; then one request. Success "Calendário salvo."; errors through `messageForError`.
 
+### Amendment 2026-11-26 — visual redesign (no behavior change)
+
+- Under the section title, "Selecione um dia para definir o tipo de atividade." and, on the right, the summary
+  "N aulas selecionadas" ("1 aula selecionada"), which replaces "Total de aulas selecionadas: N".
+- Two columns on wide screens: the month in a card (month name and year on the left, "Clique em uma data para editar",
+  the arrows on the right; large day cells with the number on top and the kind's icon and name below, today framed with
+  "Hoje", the encontros tinted, the day last opened filled with its kind and number, e.g. "Aula 12"), the legend "Tipos de
+  dia" (renamed from "Legenda") in three columns under it; on the right the card "Aulas selecionadas" with the count, the
+  badges "N concluídas" / "N programadas", one row per encontro ("Aula 01", date, "Concluída" with a check or
+  "Programada"; the kind and description of a non-Aula below), "Dias sem aula", and "Outros dias marcados" with its number
+  at the bottom. A concluded class is no longer struck through in the list (the word "Concluída" says it); the calendar day
+  keeps the strike and the check.
+- A save bar under both: "Nenhuma alteração pendente" / "N alterações pendentes" (days that differ from the saved
+  calendar), "As alterações só são gravadas ao salvar o calendário." and "Salvar calendário".
+- "Marcar dia": the title "Marcar dia" with the long date below it (accessible name unchanged, "Marcar dia — …"), "Defina
+  como este dia aparece no calendário.", an info box about "Salvar calendário", the nine kinds as cards (icon in the kind's
+  color, the radio on the right, the chosen card outlined), "<Tipo> é o tipo selecionado para este dia.", then "Desmarcar
+  dia" on the left and "Cancelar"/"Confirmar" on the right.
+
 ## Student: card "Seu calendário de aulas" in the Painel (new)
 
 - In the Painel's main column after "Próximas" (and "Atrasadas"), only with the 026 matéria and

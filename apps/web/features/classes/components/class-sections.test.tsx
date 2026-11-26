@@ -104,7 +104,7 @@ describe("004/US1-4 seções da turma", () => {
     answer(planned);
     const { unmount } = renderWithProviders(<ClassCalendarSection classId={CLASS.id} canEditClass canManage />);
 
-    expect(await screen.findByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(await screen.findByText((_c, el) => el?.tagName === "P" && el.textContent === "1 aula selecionada")).toBeTruthy();
     expect(urls()).toContain(`/api/classes/${CLASS.id}/meetings`);
     expect(screen.getByRole("heading", { level: 2, name: "Calendário" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Salvar calendário" })).toBeTruthy();
@@ -112,7 +112,7 @@ describe("004/US1-4 seções da turma", () => {
 
     answer({ ...planned, status: "ARCHIVED", plannable: false });
     const archived = renderWithProviders(<ClassCalendarSection classId={CLASS.id} canEditClass canManage />);
-    expect(await screen.findByText("Total de aulas selecionadas: 1")).toBeTruthy();
+    expect(await screen.findByText((_c, el) => el?.tagName === "P" && el.textContent === "1 aula selecionada")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Salvar calendário" })).toBeNull();
     archived.unmount();
 

@@ -42,7 +42,7 @@ test("004/SC-011 disciplina → turma → ementa em PDF → revisão → calend�
   for (const date of MARCH) await markDay(page, date);
   await page.getByRole("button", { name: "Próximo mês" }).click();
   for (const date of APRIL) await markDay(page, date);
-  await expect(page.getByText("Total de aulas selecionadas: 18")).toBeVisible();
+  await expect(page.getByText("18 aulas selecionadas", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Salvar calendário" }).click();
   await expect(page.getByText("Calendário salvo.")).toBeVisible();
 

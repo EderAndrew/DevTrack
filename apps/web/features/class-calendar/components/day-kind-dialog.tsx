@@ -6,6 +6,7 @@ import {
   MAX_ABSENCE_REASON_LENGTH,
   MAX_DAY_DESCRIPTION_LENGTH,
 } from "@repo/contracts";
+import { Info, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { FieldMessage } from "@/components/ui/field-message";
 import { FormField } from "@/components/ui/form-field";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   ABSENCE_NOTE,
   CONFIRM,
@@ -33,6 +35,10 @@ import {
   DayKindFormSchema,
   type DayMark,
   DESCRIPTION_LABEL,
+  DIALOG_DESCRIPTION,
+  DIALOG_SAVE_NOTE,
+  DIALOG_SAVE_NOTE_DETAIL,
+  ICON_CLASSES,
   formValuesOf,
   hasDescription,
   KIND_LEGEND,
@@ -40,9 +46,10 @@ import {
   MARK_DAY_TITLE,
   NOTICE_LABEL,
   REASON_LABEL,
+  selectedKindLabel,
   UNMARK_DAY,
 } from "../schemas/day-kinds";
-import { DayKindDot, DayKindIcon } from "./day-kind-icon";
+import { DayKindIcon } from "./day-kind-icon";
 
 export interface DayKindDialogProps {
   /** The day being marked ("YYYY-MM-DD"); `null` keeps the dialog closed. */
@@ -128,28 +135,44 @@ function DayKindForm({
   const { errors } = formState;
 
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
       <form
         className="flex flex-col gap-4"
         noValidate
         onSubmit={handleSubmit(onConfirm)}
       >
         <DialogHeader>
-          <DialogTitle>{`${MARK_DAY_TITLE} — ${longDate(date)}`}</DialogTitle>
-          <DialogDescription>
-            Escolha o tipo do dia. Nada é gravado até “Salvar calendário”.
-          </DialogDescription>
+          <DialogTitle className="flex flex-col gap-2" aria-label={`${MARK_DAY_TITLE} — ${longDate(date)}`}>
+            {MARK_DAY_TITLE}
+            <span className="text-h3 font-normal first-letter:uppercase">{longDate(date)}</span>
+          </DialogTitle>
+          <DialogDescription>{DIALOG_DESCRIPTION}</DialogDescription>
         </DialogHeader>
+        <div className="flex items-start gap-3 rounded-md bg-muted px-4 py-3">
+          <Info aria-hidden="true" className="mt-1 size-4 shrink-0 text-text-secondary" />
+          <p className="m-0 flex flex-col gap-1 text-body-sm">
+            <span>{DIALOG_SAVE_NOTE}</span>
+            <span className="text-text-secondary">{DIALOG_SAVE_NOTE_DETAIL}</span>
+          </p>
+        </div>
         <RadioGroup
-          legend={KIND_LEGEND}
-          className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+          legend={<span className="text-caption tracking-wide text-text-secondary uppercase">{KIND_LEGEND}</span>}
+          className="grid grid-cols-1 gap-3 sm:grid-cols-3"
         >
           {DAY_KINDS.map((option) => (
-            <label key={option} className="flex items-center gap-2 text-body">
-              <Radio value={option} {...register("kind")} />
-              <DayKindDot kind={option} />
-              <DayKindIcon kind={option} />
-              {DAY_KIND_LABELS[option]}
+            <label
+              key={option}
+              className={cn(
+                "flex cursor-pointer flex-col gap-3 rounded-md border border-border bg-card p-4 text-body transition-colors",
+                "hover:border-border-control has-checked:border-primary has-checked:bg-primary-subtle",
+                "has-focus-visible:ring-3 has-focus-visible:ring-ring",
+              )}
+            >
+              <span className="flex items-start justify-between gap-2">
+                <DayKindIcon kind={option} className={cn("size-5", ICON_CLASSES[option])} />
+                <Radio value={option} {...register("kind")} />
+              </span>
+              <span className="font-medium">{DAY_KIND_LABELS[option]}</span>
             </label>
           ))}
         </RadioGroup>
@@ -234,7 +257,11 @@ function DayKindForm({
           </>
         ) : null}
 
-        <DialogFooter>
+        <p aria-live="polite" className="m-0 border-t border-border pt-4 text-body-sm text-text-secondary">
+          {selectedKindLabel(kind)}
+        </p>
+
+        <DialogFooter className="gap-3">
           {mark ? (
             <Button
               type="button"
@@ -242,11 +269,12 @@ function DayKindForm({
               className="sm:mr-auto"
               onClick={onUnmark}
             >
+              <Trash2 aria-hidden="true" />
               {UNMARK_DAY}
             </Button>
           ) : null}
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="ghost" className="bg-muted">
               Cancelar
             </Button>
           </DialogClose>
