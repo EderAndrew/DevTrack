@@ -43,7 +43,7 @@ import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
 import { examTiming } from "./status/facts";
 import { startDeadline } from "./status/exam-time";
-import { validPeriod } from "./status/period";
+import { canChangeEnd, validPeriod } from "./status/period";
 import { readSource, type SourceContent, toSnapshot } from "./snapshot/read-source";
 import { settleExpiredExamAttempts } from "./submission/settle-exam";
 import { writeSnapshot } from "./snapshot/write-snapshot";
@@ -51,7 +51,10 @@ import { toTeacherActivity, toTeacherActivitySummary } from "./views/teacher-vie
 
 const HOUR_SEC = 3_600;
 
-const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+/** The text of `class_activities_fixed_columns()` when an exam's end would move earlier (032 migration). */
+const EXAM_END_TRIGGER_MESSAGE = "only moves later once a student started";
+
+const isUniqueViolation =(error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
 /** The fields a PATCH may change, in the order `activity.updated` lists them. */
 /** Since 032 the late policy is not editable: the server writes `REJECT` on every new work (research AP2, AP11). */
@@ -346,9 +349,8 @@ export class ActivitiesService {
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
       const definition = ACTIVITY_TYPES[current.type];
-      // 032: until the end's change rules of a published exam are applied (T017, `canChangeEnd`), an EXAM's end
-      // is refused here as before 032; an EXERCISE has none (013/FR-004).
-      if (body.deadline !== undefined && (!definition.hasDeadline || current.type === "EXAM")) throw validationError();
+      // An EXERCISE has no period (013/FR-004); a work's and an exam's end change by `canChangeEnd` (032 AP5).
+      if (body.deadline !== undefined && !definition.hasDeadline) throw validationError();
       if (
         !definition.workOptions &&
         (body.executionMode !== undefined || body.aiHelpAllowance !== undefined || body.codeExecution !== undefined || body.groupSize !== undefined)
@@ -392,8 +394,14 @@ export class ActivitiesService {
       if (changed.length === 0 && !optionsChanged) return this.read(teacherId, classId, activityId, tx);
 
       const now = this.clock.now();
-      if (changed.includes("publishAt") && ActivityStateMachine.phase(current.status, current.publishAt, now) !== "SCHEDULED") {
+      const phase = ActivityStateMachine.phase(current.status, current.publishAt, now);
+      if (changed.includes("publishAt") && phase !== "SCHEDULED") {
         throw new AppException("ALREADY_PUBLISHED");
+      }
+      // 032 AP5: a published exam's end only moves later, and only while it has not passed.
+      if (changed.includes("deadline") && current.deadline && deadline && phase) {
+        const endChange = canChangeEnd({ type: current.type, phase, currentEnd: current.deadline, newEnd: deadline, now });
+        if (endChange !== "ok") throw new AppException(endChange);
       }
       if (deadline && !validPeriod({ type: current.type, publishAt, deadline, durationMinutes: current.durationMinutes })) {
         throw new AppException("INVALID_SCHEDULE");
@@ -406,17 +414,23 @@ export class ActivitiesService {
         if (options.groupSize !== null && stored.releaseMode !== "PRESENT_ONLY") throw new AppException("GROUP_NEEDS_ATTENDANCE");
       }
 
-      await tx.classActivity.update({
-        where: { id: activityId },
-        data: {
-          ...(changed.includes("title") ? { title: body.title } : {}),
-          ...(changed.includes("instructions") ? { instructions: body.instructions } : {}),
-          ...(optionsChanged ? options : {}),
-          publishAt,
-          deadline,
-          version: { increment: 1 },
-        },
-      });
+      await tx.classActivity
+        .update({
+          where: { id: activityId },
+          data: {
+            ...(changed.includes("title") ? { title: body.title } : {}),
+            ...(changed.includes("instructions") ? { instructions: body.instructions } : {}),
+            ...(optionsChanged ? options : {}),
+            publishAt,
+            deadline,
+            version: { increment: 1 },
+          },
+        })
+        .catch((error: unknown) => {
+          // 032 AP5: the trigger backs `canChangeEnd` (an exam with an attempt never gets an earlier end).
+          if (error instanceof Error && error.message.includes(EXAM_END_TRIGGER_MESSAGE)) throw new AppException("EXAM_END_CANNOT_MOVE_EARLIER");
+          throw error;
+        });
       const event = { actorType: "USER", actorUserId: teacherId, targetType: "CLASS_ACTIVITY", targetId: activityId, requestId } as const;
       if (changed.length > 0) await this.audit.record(tx, { ...event, type: "activity.updated", metadata: { classId, fields: changed } });
       if (optionsChanged) await this.audit.record(tx, { ...event, type: "activity.settings_changed", metadata: { classId, ...optionsMetadata(options, groupChanged) } });

@@ -19,9 +19,10 @@ export const student = (studentUserId: string, name: string, overrides: Partial<
   ...overrides,
 });
 
-export const room = (students: Room["students"]): Room => ({
+export const room = (students: Room["students"], periodEnded = false): Room => ({
   releaseMode: "PRESENT_ONLY",
   present: students.filter((row) => row.markedAt !== null).length,
   enrolled: students.length,
+  periodEnded,
   students,
 });

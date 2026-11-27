@@ -24,9 +24,11 @@ import {
   ATTENDANCE_HINT,
   ATTENDANCE_TITLE,
   attendanceDelta,
+  attendanceErrorMessage,
   attendanceSummary,
   MARK_ALL,
   NO_STUDENTS,
+  PERIOD_ENDED,
   RELEASE_TO_PRESENT,
   releaseNotice,
   releaseQuestion,
@@ -110,13 +112,14 @@ function AttendanceChecklist({ classId, activityId, room, item }: { classId: str
     try {
       await apply.mutateAsync(delta);
     } catch (caught) {
-      setError(messageForError(caught));
+      setError(attendanceErrorMessage(caught));
     }
   };
 
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0">{ATTENDANCE_HINT}</p>
+      {room.periodEnded ? <p className="m-0 text-text-secondary">{PERIOD_ENDED}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="secondary" onClick={() => setSelected(new Set(room.students.map((row) => row.studentUserId)))}>
           {MARK_ALL}
@@ -147,7 +150,7 @@ function AttendanceChecklist({ classId, activityId, room, item }: { classId: str
       ) : null}
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button type="button" className="w-fit" disabled={selected.size === 0 || apply.isPending}>
+          <Button type="button" className="w-fit" disabled={selected.size === 0 || apply.isPending || room.periodEnded}>
             <Send aria-hidden="true" />
             {RELEASE_TO_PRESENT}
           </Button>

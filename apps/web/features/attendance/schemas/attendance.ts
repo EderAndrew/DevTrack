@@ -1,5 +1,6 @@
 import type { PauseInitiator, PauseReason, RoomStatus, StudentPauseReason } from "@repo/contracts";
 import { formatTime } from "@/lib/messages/dates";
+import { apiErrorCode, messageForError } from "@/lib/messages/error-messages";
 
 // Texts and rules of the attendance (016 contracts/web-ui.md, "Chamada").
 
@@ -12,6 +13,12 @@ export const UNMARK_ALL = "Desmarcar todos";
 export const RELEASE_TO_PRESENT = "Liberar para os presentes";
 /** The room panel's row actions (US2): release to a late student, undo a mistaken mark before the start. */
 export const MARK_PRESENT = "Marcar presente";
+
+/** 032/FR-014 (contracts/ui.md): after the period's end no mark releases the activity. */
+export const PERIOD_ENDED = "O período terminou: não é possível liberar mais alunos.";
+
+/** A refused attendance batch in words: a race with the period's end reads as the disabled marks do. */
+export const attendanceErrorMessage = (error: unknown) => (apiErrorCode(error) === "ACTIVITY_PERIOD_ENDED" ? PERIOD_ENDED : messageForError(error));
 export const UNMARK = "Desmarcar";
 export const NO_STUDENTS = "Nenhum aluno matriculado nesta turma.";
 export const ATTENDANCE_HINT = "Marque os alunos que estão em sala. Só eles veem o trabalho.";

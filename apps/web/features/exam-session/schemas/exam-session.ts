@@ -45,6 +45,12 @@ const FIXED: Partial<Record<ExamStatusOfStudent, string>> = {
   CANCELLED: "Cancelada — nota zero",
 };
 
+/** 032 contracts/ui.md: the monitor's header, the period's end (`closesAt`). */
+export const endsAtLabel = (closesAt: string) => `Termina às ${formatTime(closesAt)}`;
+
+/** 032/FR-014: the period ended by the server's clock, so no mark releases the exam any more. */
+export const periodEnded = (monitor: { closesAt: string; serverNow: string }) => new Date(monitor.serverNow).getTime() > new Date(monitor.closesAt).getTime();
+
 /** A student's situation in words (the table of contracts/web-ui.md), with the times of the server. */
 export function examStatusLabel(row: ExamMonitorStudent, monitor: { startDeadline: string; serverNow: string }): string {
   switch (row.examStatus) {

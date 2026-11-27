@@ -130,7 +130,7 @@ estender para 22:30 funciona, antecipar não.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T013 [P] [US1] Integração em `apps/api/test/integration/032-us1-exam-period.spec.ts` com o `Clock` injetado:
+- [X] T013 [P] [US1] Integração em `apps/api/test/integration/032-us1-exam-period.spec.ts` com o `Clock` injetado:
   `032/US1-1` (criar com período; a linha gravada tem `late_policy` nulo; detalhe e monitor com `closesAt = deadline`,
   sem janela), `032/US1-2` (presença às
   20:30, início aceito, `endsAt` = início + 60), `032/US1-3` (presença depois do fim → `409 ACTIVITY_PERIOD_ENDED`,
@@ -139,36 +139,36 @@ estender para 22:30 funciona, antecipar não.
   `032/US1-7` (estender move o `endsAt` de quem estava cortado; antecipar → `422 EXAM_END_CANNOT_MOVE_EARLIER`; fim já
   passado → `409 ACTIVITY_PERIOD_ENDED`; agendada muda livre; mudar só o **início** de uma agendada para deixar menos que
   a duração até o término → `422 INVALID_SCHEDULE`), `032/SC-001` (todos os marcados durante o período começam).
-- [ ] T014 [P] [US1] Testes web em `apps/web/features/activities/components/new-activity-exam.test.tsx` e
+- [X] T014 [P] [US1] Testes web em `apps/web/features/activities/components/new-activity-exam.test.tsx` e
   `activity-detail.test.tsx`: fieldset "Período" (Agora/Agendar, Término com a data do início pré-preenchida), sem
   "Limite para iniciar"; erro no campo Término (cliente e `INVALID_SCHEDULE`); detalhe "Período: … → …"; a lista de
   atividades da turma mostra o período de cada prova e trabalho (FR-008); "Estender término" só oferece horário posterior
   e mostra `EXAM_END_CANNOT_MOVE_EARLIER` no campo; axe sem violações; `032/SC-004` (o formulário tem só Início, Término e
   Duração como campos de tempo, nenhum de janela ou prazo).
-- [ ] T015 [P] [US1] Testes web em `apps/web/features/attendance/components/attendance-tab.test.tsx` (ou `room-panel`):
+- [X] T015 [P] [US1] Testes web em `apps/web/features/attendance/components/attendance-tab.test.tsx` (ou `room-panel`):
   depois do término, marcar fica desabilitado com "O período terminou: não é possível liberar mais alunos."; um `409
   ACTIVITY_PERIOD_ENDED` de corrida mostra o mesmo texto.
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] `apps/api/src/modules/activities/activities.service.ts` `create`: EXAM grava `deadline` do corpo e valida
+- [X] T016 [US1] `apps/api/src/modules/activities/activities.service.ts` `create`: EXAM grava `deadline` do corpo e valida
   `deadline > publishAt` e `deadline ≥ publishAt + duração` com o "agora" do `Clock` (`422 INVALID_SCHEDULE`); remover
   `startWindowMinutes`. Validação por `validPeriod` (T008).
-- [ ] T017 [US1] `activities.service.ts` `update`: aceitar `deadline` em EXAM com `canChangeEnd` (T008, AP5) sob o `FOR
+- [X] T017 [US1] `activities.service.ts` `update`: aceitar `deadline` em EXAM com `canChangeEnd` (T008, AP5) sob o `FOR
   UPDATE` da atividade, com o "agora" do `Clock`; depois de qualquer mudança de `publishAt` ou `deadline`, revalidar o par
   com `validPeriod` (`422 INVALID_SCHEDULE`); `changed` inclui `deadline`; violação do trigger (EXAM com tentativa e
   término menor) mapeada para `422 EXAM_END_CANNOT_MOVE_EARLIER` se escapar a checagem.
-- [ ] T018 [US1] `apps/api/src/modules/attendance/attendance.service.ts` `apply`: com `batch.mark` não vazio e
+- [X] T018 [US1] `apps/api/src/modules/attendance/attendance.service.ts` `apply`: com `batch.mark` não vazio e
   `!acceptsAttendanceMark(…)` (T008) → `409 ACTIVITY_PERIOD_ENDED`, exceto ASSIGNMENT legado `ACCEPT_MARKED` (AP6); incluir `deadline` e
   `late_policy` no `findActivity`. `readRoom`/view: expor se o período terminou (campo no contrato `RoomSchema`, ex.
   `periodEnded: boolean`, derivado do `Clock`) para a web desabilitar.
-- [ ] T019 [US1] Web `apps/web/features/activities/schemas/activity-form.ts` e `components/new-activity.tsx`: fieldset
+- [X] T019 [US1] Web `apps/web/features/activities/schemas/activity-form.ts` e `components/new-activity.tsx`: fieldset
   "Período" (contracts/ui.md, AP8) para EXAM; remover `startWindowMinutes` e suas constantes; `FIELD_IDS.deadline` vira
   "atividade-termino"; validação cliente igual à do servidor.
-- [ ] T020 [US1] Web `components/activity-detail.tsx`: "Período: …"; "Alterar período" (agendada) e "Estender término"
+- [X] T020 [US1] Web `components/activity-detail.tsx`: "Período: …"; "Alterar período" (agendada) e "Estender término"
   (publicada, fim no futuro) pela PATCH com `deadline`. Lista de atividades da turma (o componente de lista em
   `apps/web/features/activities/components/`): coluna/linha com o período no lugar do prazo (FR-008).
-- [ ] T021 [US1] Web chamada (`apps/web/features/attendance/components/…`) desabilitada com `periodEnded`; monitor
+- [X] T021 [US1] Web chamada (`apps/web/features/attendance/components/…`) desabilitada com `periodEnded`; monitor
   (`apps/web/features/exam-session/components/exam-room-panel.tsx` e `schemas/exam-session.ts`) com "Termina às".
 
 **Checkpoint**: US1 testável sozinha (quickstart passos 1, 2, 4, 5).

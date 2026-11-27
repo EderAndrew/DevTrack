@@ -238,8 +238,9 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
     expect(activity).toMatchObject({ executionMode: "CONTROLLED", aiHelp: { allowance: 0 }, releaseMode: "PRESENT_ONLY" });
     const stored = await t.prisma.classActivity.findUniqueOrThrow({ where: { id: activity.id } });
     expect(stored).toMatchObject({ executionMode: "CONTROLLED", aiHelpAllowance: 0, releaseMode: "PRESENT_ONLY", sourceExamId: exam.id });
-    // Nor afterwards: an edit can't change the mode, the help or a deadline either.
-    for (const fields of [{ executionMode: "NORMAL" }, { aiHelpAllowance: 3 }, { deadline: "2030-12-31T23:59:00.000Z" }, { latePolicy: "REJECT" }]) {
+    // Nor afterwards: an edit can't change the mode, the help or a late policy either. Since 032 the end
+    // (`deadline`) is the period's and can be extended (032/US1-7, `032-us1-exam-period.spec.ts`).
+    for (const fields of [{ executionMode: "NORMAL" }, { aiHelpAllowance: 3 }, { latePolicy: "REJECT" }]) {
       expect((await client.patch(`${base()}/${activity.id}`, { version: activity.version, ...fields })).status, JSON.stringify(fields)).toBe(400);
     }
   });

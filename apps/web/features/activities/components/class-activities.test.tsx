@@ -130,3 +130,31 @@ describe("016/US1 ClassActivities — chamada do Trabalho na lista", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("032/FR-008 ClassActivities — o período de cada prova e trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("032/US1-1 032/FR-008 a lista mostra o período no lugar do prazo; o Exercício segue \"Sem prazo\"", async () => {
+    const at = (day: number, hour: number, minute: number) => new Date(2026, 10, day, hour, minute).toISOString();
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        [PATH]: json(200, {
+          items: [
+            summary({ type: "EXAM", publishAt: at(30, 19, 10), deadline: at(30, 22, 0), latePolicy: null }),
+            summary({ id: "22222222-2222-4222-8222-222222222225", title: "Trabalho longo", publishAt: at(29, 8, 0), deadline: at(30, 23, 59) }),
+            summary({ id: "22222222-2222-4222-8222-222222222223", title: "Exercícios", type: "EXERCISE", deadline: null, latePolicy: null }),
+          ],
+        }),
+      }).fetch,
+    );
+    renderWithProviders(<ClassActivities classId={CLASS_ID} canApply />);
+    const table = await screen.findByRole("table");
+    expect(within(table).getByRole("columnheader", { name: "Período" })).toBeTruthy();
+    expect(within(table).queryByRole("columnheader", { name: "Prazo" })).toBeNull();
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(within(rows[0]!).getByText("30/11, 19:10 → 22:00")).toBeTruthy();
+    expect(within(rows[1]!).getByText("29/11 08:00 → 30/11 23:59")).toBeTruthy();
+    expect(within(rows[2]!).getByText("Sem prazo")).toBeTruthy();
+  });
+});
