@@ -54,11 +54,14 @@ export function pauseTime(pause: PauseFacts, context: PauseEndContext, now: Date
 }
 
 /**
- * 018: an exam attempt's end by its duration, for `examEndsAt` (exam-time.ts `endsAt` without the
- * close's cap, which `activityEndedAt` already carries); null for a work, which has no duration.
+ * 018: an exam attempt's end by its duration, capped by the period's end (032 research AP3), for
+ * `examEndsAt` (exam-time.ts `endsAt` without the close's cap, which `activityEndedAt` already
+ * carries); null for a work, which has no duration.
  */
-export function examEndOf(startedAt: Date, durationMinutes: number | null): Date | null {
-  return durationMinutes === null ? null : new Date(startedAt.getTime() + durationMinutes * 60_000);
+export function examEndOf(startedAt: Date, exam: { durationMinutes: number | null; deadline: Date | null }): Date | null {
+  if (exam.durationMinutes === null) return null;
+  const byDuration = startedAt.getTime() + exam.durationMinutes * 60_000;
+  return new Date(exam.deadline ? Math.min(byDuration, exam.deadline.getTime()) : byDuration);
 }
 
 /** Whole seconds an attempt spent out of the room: the sum of its pauses (016 FR-019, FR-021). */

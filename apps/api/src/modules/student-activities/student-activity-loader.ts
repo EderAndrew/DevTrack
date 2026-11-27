@@ -239,7 +239,7 @@ export class StudentActivityLoader {
       acceptedAt: submission?.acceptedById ? submission.submittedAt : null,
       activityEndedAt: activity.closedAt,
       // 018 research T11: an exam's pause still open at the attempt's end ends there (TIME_EXPIRED).
-      examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+      examEndsAt: attempt && examEndOf(attempt.startedAt, activity),
     };
     return {
       ...toInput(activity, attempts, now, canSeeResults),

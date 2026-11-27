@@ -216,3 +216,50 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
     expect(screen.queryByRole("button", { name: START_EXAM })).toBeNull();
   });
 });
+
+// 032/US2 (contracts/ui.md, "Student"): the timer is unchanged and counts to the `endsAt` the server
+// cut at the period's end; after the end, a student who never started reads why.
+describe("032/US2 o tempo do aluno na prova termina no fim do período", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    router.push.mockReset();
+    fullscreenDevice();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("032/US2-1 032/SC-003 começou 30 min antes do fim de uma prova de 60 min: o cronômetro mostra 30 min, não a duração", async () => {
+    // durationMinutes stays 60; the server's `endsAt` is the period's end, 30 min ahead.
+    setup(<ExamAttempt activityId={exam().id} userId="aluno-1" />, running(30 * MINUTE, { exam: examFacts({ startDeadline: at(30 * MINUTE), endsAt: at(30 * MINUTE) }) }));
+    const timer = await screen.findByRole("timer", { name: "Tempo restante" });
+    expect(timer.textContent).toBe("30:00 restantes");
+  });
+
+  it("032/US2-2 o fim do período chegou durante a prova: a página lê de novo e mostra \"Tempo esgotado\"", async () => {
+    const ended = exam(
+      {
+        status: "SUBMITTED",
+        canAnswer: false,
+        attempt: { number: 1, startedAt: at(-30 * MINUTE), lastSavedAt: null, answers: [] },
+        submission: { submittedAt: at(0), late: false, acceptedByTeacher: false, blankCount: 3 },
+        serverNow: at(MINUTE),
+      },
+      { startDeadline: at(0), endsAt: at(0), endReason: "TIME_EXPIRED" },
+    );
+    setup(<ActivityAnswering activityId={ended.id} userId="aluno-1" />, ended);
+    expect(await screen.findByText(TIME_OVER)).toBeTruthy();
+  });
+
+  it("032/US2 depois do fim do período, sem tentativa: \"O período desta prova terminou.\", sem botão de início", async () => {
+    const closed = exam({ canAnswer: false, serverNow: at(MINUTE) }, { startDeadline: at(0) });
+    const { calls, container } = setup(<ActivityAnswering activityId={closed.id} userId="aluno-1" />, closed);
+    expect(START_CLOSED).toBe("O período desta prova terminou.");
+    expect(await screen.findByText("O período desta prova terminou.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: START_EXAM })).toBeNull();
+    expect(calls.some((call) => call.key.startsWith("POST"))).toBe(false);
+    await expectNoA11yViolations(container);
+  });
+});

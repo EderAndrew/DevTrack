@@ -73,7 +73,8 @@ describe("029/US2 provas e trabalhos cancelados no Histórico", () => {
 
   it("029/US2-1 cancelado pelo professor depois de publicado: em Todas e na aba CANCELLED", async () => {
     const work1 = await assignment("Trabalho cancelado");
-    const exam = await createActivity(t, schoolClass, { type: "EXAM", title: "Prova cancelada", publishAt: at(-DAY) });
+    const exam = await createActivity(t, schoolClass, { type: "EXAM", title: "Prova cancelada", publishAt: at(-DAY), deadline: at(2 * DAY) });
+    // 032: presence is taken only inside the period, so the period is still open.
     expect((await markPresent(teacherClient, schoolClass.id, exam.activity.id, [student.id])).status).toBe(200);
     // The teacher's own route, as in the classroom.
     const cancelled = await teacherClient.post(`/api/classes/${schoolClass.id}/activities/${work1.activity.id}/cancel`, {});

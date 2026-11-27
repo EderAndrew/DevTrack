@@ -72,7 +72,7 @@ export interface RosterActivity {
   id: string;
   type: ActivityType;
   status: ActivityStatus;
-  /** ASSIGNMENT only (013 K1). */
+  /** The period's end of an ASSIGNMENT or EXAM (013 K1, 032). */
   deadline: Date | null;
   latePolicy: LatePolicy | null;
   released: boolean;
@@ -82,7 +82,7 @@ export interface RosterActivity {
   endedAt: Date | null;
   /** EXAM only: the publication plus the start window (018 research T4); null for the others. */
   startDeadline: Date | null;
-  /** EXAM only: an open pause ends at the attempt's end by its duration (018 research T11). */
+  /** EXAM only: an open pause ends at the attempt's end, by its duration or the period's end (018 research T11, 032). */
   durationMinutes: number | null;
 }
 
@@ -133,7 +133,7 @@ function pausesOf(activity: RosterActivity, attempt: RosterAttempt | null, now: 
   const context = {
     acceptedAt: submission?.acceptedByTeacher ? submission.submittedAt : null,
     activityEndedAt: activity.endedAt,
-    examEndsAt: attempt && examEndOf(attempt.startedAt, activity.durationMinutes),
+    examEndsAt: attempt && examEndOf(attempt.startedAt, activity),
   };
   const times = (attempt?.pauses ?? []).map((pause) => pauseTime(pause, context, now));
   return {

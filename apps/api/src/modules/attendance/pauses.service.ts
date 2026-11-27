@@ -57,8 +57,8 @@ export class PausesService {
   ): Promise<{ pause: TeacherPause; created: boolean }> {
     return this.prisma.runInTransaction(async (tx) => {
       await this.classes.findOwnedOrNotFound(teacherId, classId, tx);
-      const activities = await tx.$queryRaw<{ release_mode: ReleaseMode; status: ActivityStatus; class_active: boolean; duration_minutes: number | null }[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active, ca.duration_minutes
+      const activities = await tx.$queryRaw<{ release_mode: ReleaseMode; status: ActivityStatus; class_active: boolean; duration_minutes: number | null; deadline: Date | null }[]>`
+        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active, ca.duration_minutes, ca.deadline
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid
         FOR SHARE OF ca`;
@@ -87,7 +87,7 @@ export class PausesService {
       const holds = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM exam_attempt_holds WHERE attempt_id = ${attempt.id}::uuid AND resolution IS NULL`;
       if (holds[0]) throw new AppException("EXAM_ATTEMPT_ON_HOLD");
-      const examEndsAt = examEndOf(attempt.started_at, activity.duration_minutes);
+      const examEndsAt = examEndOf(attempt.started_at, { durationMinutes: activity.duration_minutes, deadline: activity.deadline });
       if (examEndsAt && now >= examEndsAt) throw new AppException("EXAM_TIME_OVER");
       // An IN_PROGRESS attempt of an ACTIVE activity within its time: a pause with no release is open.
       const context = { acceptedAt: null, activityEndedAt: null, examEndsAt };
@@ -136,7 +136,7 @@ export class PausesService {
       if (!activity) throw notFound();
       const pauses = await tx.$queryRaw<PauseRow[]>`
         SELECT p.id, p.attempt_id, p.student_user_id, p.initiated_by::text AS initiated_by, p.reason::text AS reason, p.note, p.started_at, p.released_at,
-               s.submitted_at AS accepted_at, a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at
+               s.submitted_at AS accepted_at, CASE WHEN ca.duration_minutes IS NOT NULL THEN LEAST(a.started_at + make_interval(mins => ca.duration_minutes), ca.deadline) END AS exam_ends_at
         FROM attempt_pauses p
         JOIN activity_attempts a ON a.id = p.attempt_id
         JOIN class_activities ca ON ca.id = p.activity_id
@@ -180,7 +180,7 @@ export class PausesService {
       where: { id: attemptId, activityId, activity: { classId } },
       select: {
         startedAt: true,
-        activity: { select: { closedAt: true, cancelledAt: true, durationMinutes: true } },
+        activity: { select: { closedAt: true, cancelledAt: true, durationMinutes: true, deadline: true } },
         submission: { select: { submittedAt: true, acceptedById: true } },
         pauses: {
           orderBy: [{ startedAt: "asc" }, { id: "asc" }],
@@ -192,7 +192,7 @@ export class PausesService {
     const context = {
       acceptedAt: attempt.submission?.acceptedById ? attempt.submission.submittedAt : null,
       activityEndedAt: attempt.activity.closedAt ?? attempt.activity.cancelledAt,
-      examEndsAt: examEndOf(attempt.startedAt, attempt.activity.durationMinutes),
+      examEndsAt: examEndOf(attempt.startedAt, attempt.activity),
     };
     const now = this.clock.now();
     const items = attempt.pauses.map((pause) => toTeacherPause(pause, context, now));

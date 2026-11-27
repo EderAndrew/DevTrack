@@ -166,7 +166,7 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date, 
     SELECT e.student_user_id, u.name, aa.marked_at,
            a.id AS attempt_id, a.status::text AS attempt_status,
            s.submitted_at AS accepted_at, COALESCE(ca.closed_at, ca.cancelled_at) AS activity_ended_at,
-           a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at,
+           CASE WHEN ca.duration_minutes IS NOT NULL THEN LEAST(a.started_at + make_interval(mins => ca.duration_minutes), ca.deadline) END AS exam_ends_at,
            p.id AS pause_id, p.initiated_by::text AS pause_initiated_by, p.reason::text AS pause_reason,
            p.note AS pause_note, p.started_at AS pause_started_at
     FROM class_enrollments e

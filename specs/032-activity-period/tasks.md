@@ -184,23 +184,23 @@ entregar dão tempo esgotado.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T022 [P] [US2] Integração em `apps/api/test/integration/032-us2-period-cap.spec.ts`: `032/US2-1` (`endsAt` = 22:00
+- [X] T022 [P] [US2] Integração em `apps/api/test/integration/032-us2-period-cap.spec.ts`: `032/US2-1` (`endsAt` = 22:00
   na visão do aluno e no monitor), `032/US2-2` (salvar/entregar aceitos até 22:00 + 2 s, depois `409 EXAM_TIME_OVER`; o
   próximo acesso finaliza com `exam_attempt.time_expired` e motivo `TIME_EXPIRED`), `032/US2-3` (quem começou cedo
   termina pela duração), `032/US2-4` (espera de decisão no fim: "retornar" recusado, "Não cancelar" e cancelar aceitos;
   e o caso de borda: aluno em espera, o professor estende o término antes do fim e "retornar" passa a ser aceito,
   inclusive pelo trigger `exam_attempt_holds_transition`),
   `032/US2-5` (encerrar/cancelar antes do fim corta todos, motivo `ACTIVITY_CLOSED`), `032/SC-002`, `032/SC-003`.
-- [ ] T023 [P] [US2] Teste web em `apps/web/features/exam-attempt/components/exam-attempt.test.tsx` e
+- [X] T023 [P] [US2] Teste web em `apps/web/features/exam-attempt/components/exam-attempt.test.tsx` e
   `rules-screen.tsx` test: relógio conta até o `endsAt` cortado; depois do fim, sem tentativa, a tela mostra "O período
   desta prova terminou.".
-- [ ] T024 [P] [US2] Compatibilidade do app: rodar `pnpm --filter mobile test` sem mudar fixtures além de valores; anotar
+- [X] T024 [P] [US2] Compatibilidade do app: rodar `pnpm --filter mobile test` sem mudar fixtures além de valores; anotar
   num teste de `apps/mobile/features/exam-room/schemas/exam-room.test.ts` (ou o existente) `032/US2-1` que o rótulo usa
   `startDeadline = closesAt = término`.
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Conferir que `exam-sessions` (salvar, entregar, eventos, decisões), `attempt-integrity`, `exam-alerts` e
+- [X] T025 [US2] Conferir que `exam-sessions` (salvar, entregar, eventos, decisões), `attempt-integrity`, `exam-alerts` e
   `exam-nudges` usam só `endsAt` de `exam-time.ts` (T008/T009); corrigir onde ainda calculem início + duração por conta
   própria. Texto de `rules-screen.tsx` para o período encerrado.
 
