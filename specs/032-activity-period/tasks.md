@@ -28,11 +28,11 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Incluir a 032 em `SPECS` de `apps/api/test/traceability.spec.ts` (`feature: "032"`, `path:
+- [X] T001 Incluir a 032 em `SPECS` de `apps/api/test/traceability.spec.ts` (`feature: "032"`, `path:
   "specs/032-activity-period/spec.md"`, `stories: 4`, `scenarios: 22 // 7 + 5 + 6 + 4`, `rows: 0`, `rowsWithoutIds: []`,
   `successCriteria: sc(1, 6)`) com `pending: { stories: ["US1", "US2", "US3", "US4"], successCriteria: ["SC-001", …,
   "SC-006"] }`; atualizar a lista de features no `CLAUDE.md` (seção do guard de rastreabilidade) para incluir 032.
-- [ ] T002 [P] Anotar a substituição nos specs antigos, sem mudar regra: em `specs/018-controlled-exams/spec.md` e
+- [X] T002 [P] Anotar a substituição nos specs antigos, sem mudar regra: em `specs/018-controlled-exams/spec.md` e
   `specs/012-student-portal/spec.md`, uma nota "Substituído pela 032
   (período)" junto aos FRs da janela de início e da política de atraso.
 
