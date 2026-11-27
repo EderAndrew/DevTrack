@@ -194,6 +194,8 @@ hand-maintained.
 - PostgreSQL 17 — no migration (reads the existing `enrollments.enrolled_at`) (030-student-classes-redesign)
 - No new dependency (031-calendar-day-kinds)
 - PostgreSQL 17 — one migration: enums `class_meeting_kind`/`class_calendar_day_kind`, `class_meetings.kind`/`description`, table `class_calendar_days` (cross-table date triggers), permission `calendario.turma.visualizar` (031-calendar-day-kinds)
+- No new dependency (032-activity-period)
+- PostgreSQL 17 — one migration: `class_activities.deadline` is the period's end for ASSIGNMENT and EXAM (exams backfilled with publish + window + duration), `start_window_minutes` dropped, CHECKs and the fixed-columns/holds triggers updated (032-activity-period)
 
 ## Stack notes
 
@@ -631,9 +633,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 032-activity-period: works and exams applied with a period (start now or scheduled, end date and time) instead of the exam's start window and the work's late policy; a present student starts any time in the period, an exam attempt ends at min(start + duration, end); a published exam's end only extends; attendance refused after the end
 - 031-calendar-day-kinds: nine kinds per calendar day (Aula, Prova, Trabalho, Revisão, Reposição are encontros; Feriado, Recesso, Evento especial, Falta do professor are not), a modal per day, the Falta's private reason + optional notice; the student's "Seu calendário de aulas" card on the Painel through `GET /me/classes/:classId/calendar`, never topics
 - 030-student-classes-redesign: the student's "Minhas turmas" redesigned — one card per disciplina da turma (teacher, year, period, enrollment date, "Acessar turma", ranking panel), search and year filter in the browser; `GET /me/classes` gains the turma's `enrolledAt`; no migration
-- 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
