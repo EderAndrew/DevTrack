@@ -490,3 +490,55 @@ describe("013/US1 NewActivity — exercícios valem pontos pelo nível", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+describe("032/US3 NewActivity — o Trabalho aplicado com um período, sem prazo nem política de atraso", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Step 2 of the approved work. */
+  async function chooseWork(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    return screen.findByRole("form", { name: "Dados da atividade" });
+  }
+
+  it("032/US3-1 032/FR-009 o Trabalho mostra o fieldset \"Período\" (Início e Término) e nenhum \"Prazo de entrega\", \"Entrega atrasada\" ou duração", async () => {
+    const { user, container } = setup();
+    await chooseWork(user);
+    const period = screen.getByRole("group", { name: "Período" });
+    expect(within(period).getByRole("radio", { name: "Agora" })).toBeTruthy();
+    expect(within(period).getByRole("radio", { name: "Agendar" })).toBeTruthy();
+    expect(within(period).getByLabelText(/Data do término/)).toBeTruthy();
+    expect(within(period).getByLabelText(/Horário do término/)).toBeTruthy();
+    expect(within(period).getByText("Depois do término ninguém mais começa nem entrega.")).toBeTruthy();
+    // "Término" starts on the start's day: today for "Agora".
+    expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    for (const gone of [/Prazo de entrega/, /Duração/, /Limite para iniciar/]) expect(screen.queryByLabelText(gone)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Aceitar e marcar como atrasada" })).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("032/US3-1 032/FR-002 agendado com o término antes do início: o erro fica no Término e nada é enviado; um início válido envia o período", async () => {
+    const { api, user } = setup();
+    await chooseWork(user);
+    await user.click(screen.getByRole("radio", { name: "Agendar" }));
+    setValue(NEW_ACTIVITY_FIELD_IDS.startDate, "2030-11-30");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startTime, "19:10");
+    setEnd("2030-11-30T19:10");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
+    expect(api.writes()).toHaveLength(1);
+
+    setEnd("2030-11-30T22:00");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(2));
+    const sent = api.writes()[1]!.body as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      source: { type: "ASSIGNMENT", workId: WORK.id },
+      publishAt: new Date("2030-11-30T19:10").toISOString(),
+      deadline: new Date("2030-11-30T22:00").toISOString(),
+    });
+    for (const key of ["latePolicy", "durationMinutes", "startWindowMinutes"]) expect(sent).not.toHaveProperty(key);
+  });
+});

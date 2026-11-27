@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { unique } from "./fixtures/curriculum.ts";
-import { field, logIn } from "./fixtures/journeys.ts";
+import { field, fillPeriodEnd, logIn } from "./fixtures/journeys.ts";
 import { apiPost, releaseToPresent, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** The private case: its input and expected output must appear nowhere on the student's page. */
@@ -14,11 +14,6 @@ const result = (page: Page) => page.getByRole("region", { name: "Resultado da ex
 const isFocused = (target: Locator) => target.evaluate((element) => element === document.activeElement);
 
 /** "YYYY-MM-DDTHH:mm" of a `datetime-local` input, in the browser's (and this process's) time zone. */
-function localInput(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** Presses Tab until `target` has the focus, leaving the code editor with Esc first (014/FR-010). */
 async function tabTo(page: Page, target: Locator, max = 80): Promise<void> {
   for (let i = 0; i < max; i++) {
@@ -88,7 +83,7 @@ async function applyWithCodeExecution(page: Page, seed: StudentPortalSeed, workT
   await page.getByRole("radio", { name: "Trabalho", exact: true }).check();
   await page.getByRole("radio", { name: new RegExp(workTitle) }).check();
   await page.getByRole("button", { name: "Continuar" }).click();
-  await field(page, "Prazo de entrega").fill(localInput(new Date(Date.now() + 7 * 24 * 3_600_000)));
+  await fillPeriodEnd(page);
   const option = page.getByRole("checkbox", { name: "Permitir executar o código" });
   // 021/SC-006: one interaction more — the option is there, unchecked.
   await expect(option).not.toBeChecked();

@@ -1,5 +1,5 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
-import { bootstrapAdmin, field, logIn } from "./fixtures/journeys.ts";
+import { bootstrapAdmin, field, fillPeriodEnd, logIn } from "./fixtures/journeys.ts";
 import { apiPost, markAllPresentThroughApi, releaseToPresent, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** The orientation of the AI help's `open-poo-saldo-privado` case, replayed by e2e/openrouter-mock.ts. */
@@ -7,11 +7,6 @@ const GUIDANCE_START = "Comece imaginando o contrário: e se qualquer parte do s
 const PASTE_BLOCKED = "Colar não é permitido neste trabalho. Digite a sua resposta.";
 
 /** "YYYY-MM-DDTHH:mm" of a `datetime-local` input, in the browser's (and this process's) time zone. */
-function localInput(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** Presses Tab until `target` has the focus (keyboard only, 015/SC-009). */
 async function tabTo(page: Page, target: Locator, max = 80): Promise<void> {
   for (let i = 0; i < max; i++) {
@@ -95,7 +90,7 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
     await teacherPage.getByRole("radio", { name: new RegExp(seed.workTitle) }).check();
     await teacherPage.getByRole("button", { name: "Continuar" }).click();
     await expect(field(teacherPage, "Título")).toHaveValue(seed.workTitle);
-    await field(teacherPage, "Prazo de entrega").fill(localInput(new Date(Date.now() + 7 * 24 * 3_600_000)));
+    await fillPeriodEnd(teacherPage);
     const options = teacherPage.getByRole("group", { name: "Como os alunos respondem" });
     await options.getByRole("checkbox", { name: "Modo controlado" }).check();
     await options.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }).check();

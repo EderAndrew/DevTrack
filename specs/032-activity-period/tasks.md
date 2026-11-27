@@ -218,20 +218,20 @@ recusados; presença 22:01 recusada.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] Integração em `apps/api/test/integration/032-us3-work-period.spec.ts`: `032/US3-1` (corpo sem
+- [X] T026 [P] [US3] Integração em `apps/api/test/integration/032-us3-work-period.spec.ts`: `032/US3-1` (corpo sem
   `latePolicy`, com ela → `400`; o servidor grava `REJECT`), `032/US3-2` (presença às 21:00 libera), `032/US3-3` (no fim
   começar/salvar/entregar/ajuda/executar código recusados como `DEADLINE_PASSED` de hoje; sem entrega automática),
   `032/US3-4` (presença depois do fim → `409 ACTIVITY_PERIOD_ENDED`), `032/US3-5` (estender o término reabre salvar e
   entregar), `032/US3-6` (grupo 023 e modo controlado 015: a mesma recusa para todo o grupo; eventos inalterados).
-- [ ] T027 [P] [US3] Testes web em `apps/web/features/activities/components/new-activity.test.tsx`: trabalho com
+- [X] T027 [P] [US3] Testes web em `apps/web/features/activities/components/new-activity.test.tsx`: trabalho com
   "Período", sem "Prazo de entrega" nem "Política de atraso"; erro no Término; "Alterar término" no detalhe.
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] `activities.service.ts` `create`/`update` de ASSIGNMENT: gravar `latePolicy = REJECT` (por
+- [X] T028 [US3] `activities.service.ts` `create`/`update` de ASSIGNMENT: gravar `latePolicy = REJECT` (por
   `hasLatePolicy`, T009); remover `latePolicy` dos campos editáveis (`EditableField`); o término do trabalho também passa
   por `validPeriod`/`canChangeEnd`.
-- [ ] T029 [US3] Web: fieldset "Período" também para ASSIGNMENT em `new-activity.tsx`; remover `LatePolicyField` e
+- [X] T029 [US3] Web: fieldset "Período" também para ASSIGNMENT em `new-activity.tsx`; remover `LatePolicyField` e
   `LATE_POLICY_LABELS` do formulário (manter o rótulo só para o selo do legado, T032); detalhe com "Alterar término".
 
 **Checkpoint**: US3 testável sozinha (quickstart passo 6).

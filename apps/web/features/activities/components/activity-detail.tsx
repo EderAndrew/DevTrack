@@ -51,6 +51,7 @@ import {
   LATE_POLICY_LABELS,
   mayAllowCodeExecution,
   mayChooseGroup,
+  PERIOD_TEXTS,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
@@ -65,6 +66,8 @@ export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostr
 
 /** 032 contracts/ui.md: a published exam's end, only later. */
 export const EXTEND_END = "Estender término";
+/** 032 contracts/ui.md: a work's end, which changes freely while the work is active (FR-012). */
+export const CHANGE_WORK_END = "Alterar término";
 const EXTEND_END_HINT = "Só um horário depois do término atual: quem já começou ganha de volta o tempo cortado, até a duração.";
 
 export const EDIT_FIELD_IDS = {
@@ -469,8 +472,8 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
         <Field
           id={EDIT_FIELD_IDS.deadline}
           type="datetime-local"
-          label={activity.type === "ASSIGNMENT" ? "Prazo de entrega" : endEdit === "EXTEND" ? EXTEND_END : "Término"}
-          hint={endEdit === "EXTEND" ? EXTEND_END_HINT : undefined}
+          label={activity.type === "ASSIGNMENT" ? CHANGE_WORK_END : endEdit === "EXTEND" ? EXTEND_END : "Término"}
+          hint={endEdit === "EXTEND" ? EXTEND_END_HINT : activity.type === "ASSIGNMENT" ? PERIOD_TEXTS.endHint : undefined}
           min={endEdit === "EXTEND" && activity.deadline ? isoToLocal(activity.deadline) : undefined}
           required
           error={errorFor(EDIT_FIELD_IDS.deadline)}

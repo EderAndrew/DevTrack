@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { field, logIn, logOut } from "./fixtures/journeys.ts";
+import { field, fillPeriodEnd, logIn, logOut } from "./fixtures/journeys.ts";
 import { applyWorkThroughApi, releaseToPresent, seedStudentPortal, type StudentPortalSeed, WORK_QUESTIONS } from "./support/student-portal-seed.ts";
 
 const OFFLINE_ALERT =
@@ -8,11 +8,6 @@ const SUBMIT_CONFIRMATION =
   "Tem certeza de que deseja entregar esta atividade? Depois de entregue, não será possível alterar as respostas.";
 
 /** "YYYY-MM-DDTHH:mm" of a `datetime-local` input, in the browser's (and this process's) time zone. */
-function localInput(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** Signs in from the login page with no `next`: the app root picks the student's start page. */
 async function logInToStartPage(page: Page, account: { email: string; password: string }): Promise<void> {
   await page.goto("/entrar");
@@ -57,7 +52,7 @@ test.describe("012 portal do aluno", () => {
     await teacherPage.getByRole("radio", { name: new RegExp(seed.workTitle) }).check();
     await teacherPage.getByRole("button", { name: "Continuar" }).click();
     await expect(field(teacherPage, "Título")).toHaveValue(seed.workTitle);
-    await field(teacherPage, "Prazo de entrega").fill(localInput(new Date(Date.now() + 7 * 24 * 3_600_000)));
+    await fillPeriodEnd(teacherPage);
     await teacherPage.getByRole("button", { name: "Publicar atividade" }).click();
     await expect(teacherPage).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
     const activityPath = new URL(teacherPage.url()).pathname;

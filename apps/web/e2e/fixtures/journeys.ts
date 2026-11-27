@@ -23,6 +23,17 @@ export function newAccount(journey: string, name = `Pessoa ${journey}`): Account
 /** Labels end with " (obrigatório)"; anchoring keeps "Nova senha" apart from "Confirme a nova senha". */
 export const field = (scope: Page | Locator, label: string) => scope.getByLabel(new RegExp(`^${label}`));
 
+/**
+ * 032: the "Término" of a Trabalho or a Prova in "Nova atividade" (contracts/ui.md): its date and time in the browser's
+ * time zone, `days` ahead of now (the início stays "Agora").
+ */
+export async function fillPeriodEnd(scope: Page | Locator, days = 7): Promise<void> {
+  const end = new Date(Date.now() + days * 24 * 3_600_000);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  await field(scope, "Data do término").fill(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+  await field(scope, "Horário do término").fill(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
+}
+
 /** Signs in through the login page and waits for `next` (default: the page's own fallback). */
 /** The account menu at the bottom of the side menu (name and e-mail); it holds "Meu perfil" and "Sair". */
 export const accountMenu = (page: Page): Locator => page.locator('[data-sidebar="footer"]').getByRole("button").last();

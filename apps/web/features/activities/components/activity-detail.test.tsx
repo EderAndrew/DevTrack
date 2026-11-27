@@ -751,3 +751,25 @@ describe("032/US1 ActivityDetail — o período da prova e \"Estender término\"
     expect(api.writes()[0]!.body).toEqual({ version: exam().version, deadline: iso(21, 0) });
   });
 });
+
+describe("032/US3 ActivityDetail — \"Alterar término\" do trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("032/US3-5 032/FR-012 o trabalho publicado oferece \"Alterar término\" (sem \"Prazo de entrega\" nem regra de atraso) e envia só o término", async () => {
+    const { api, user, container } = setup({ [`PATCH ${PATH}`]: json(200, activity({ version: 3, deadline: "2026-10-11T01:30:00.000Z" })) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    const end = screen.getByLabelText(/^Alterar término/) as HTMLInputElement;
+    expect(end.id).toBe(EDIT_FIELD_IDS.deadline);
+    // A work's end changes freely while active: earlier or later, no minimum.
+    expect(end.min).toBe("");
+    expect(screen.getByText("Depois do término ninguém mais começa nem entrega.")).toBeTruthy();
+    expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    await expectNoA11yViolations(container);
+
+    fireEvent.change(end, { target: { value: "2030-10-12T22:30" } });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(1));
+    expect(api.writes()[0]!.body).toEqual({ version: 2, deadline: new Date("2030-10-12T22:30").toISOString() });
+  });
+});

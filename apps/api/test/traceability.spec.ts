@@ -467,8 +467,9 @@ const SPECS: FeatureSpec[] = [
     // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
     // with the test that cites it, so the lists are empty at the end of the feature.
     pending: {
-      // US1 left with `032-us1-exam-period.spec.ts` (T013), US2 with `032-us2-period-cap.spec.ts` (T022).
-      stories: [3, 4],
+      // US1 left with `032-us1-exam-period.spec.ts` (T013), US2 with `032-us2-period-cap.spec.ts` (T022), US3 with
+      // `032-us3-work-period.spec.ts` (T026).
+      stories: [4],
       // SC-005 left with `032-schema.spec.ts` (T003), SC-006 with `status.spec.ts` (T010), SC-001 with T013, SC-004 with
       // `new-activity-exam.test.tsx` (T014), SC-002 and SC-003 with T022.
       successCriteria: [],

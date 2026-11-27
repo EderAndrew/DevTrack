@@ -1,7 +1,7 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { WEB_URL } from "./env.ts";
 import { unique } from "./fixtures/curriculum.ts";
-import { type Account, field, inviteThroughApi, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
+import { type Account, field, fillPeriodEnd, inviteThroughApi, logIn, newAccount, raFor } from "./fixtures/journeys.ts";
 import { waitForLink } from "./fixtures/mailpit.ts";
 import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
@@ -9,11 +9,6 @@ import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/st
 const WITHIN_10_S = { timeout: 10_000 };
 const answerBox = (page: Page) => page.getByLabel("Sua resposta");
 const goToQuestion = (page: Page, n: number) => page.getByRole("button", { name: new RegExp(`^Questão ${n}\\b`) }).click();
-const localInput = (date: Date) => {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
 /** Students of the turma through its invitations (003 FR-048; the run's ADMIN invites since 027), each with the e-mail's token, all through the API. */
 async function enroll(browser: Browser, cohortId: string, accounts: Account[]): Promise<void> {
   await inviteThroughApi(browser, cohortId, accounts.map((account) => account.email));
@@ -66,7 +61,7 @@ test.describe("023 trabalho em grupo", () => {
     await teacherPage.getByRole("radio", { name: new RegExp(seed.workTitle) }).check();
     await teacherPage.getByRole("button", { name: "Continuar" }).click();
     await expect(field(teacherPage, "Título")).toHaveValue(seed.workTitle);
-    await field(teacherPage, "Prazo de entrega").fill(localInput(new Date(Date.now() + 7 * 24 * 3_600_000)));
+    await fillPeriodEnd(teacherPage);
     await teacherPage.getByRole("radio", { name: "Em grupo" }).check();
     await field(teacherPage, "Máximo de integrantes, com o líder").selectOption("3");
     await teacherPage.getByRole("button", { name: "Publicar atividade" }).click();
