@@ -6,6 +6,9 @@ import { createCodeWork, requestRun, seedHeartbeat } from "../helpers/code-runs"
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
 import { api, createTestApp, resetDb, type TestApp, testConfig } from "../helpers/test-app";
 
+/** Simultaneous run requests of one student: more than the database pool's 10 connections. */
+const SIMULTANEOUS = 20;
+
 const ROUNDS = 10;
 type Client = ReturnType<typeof api>;
 
@@ -65,12 +68,14 @@ describe("021 concorrência da opção de executar e das execuções num trabalh
     expect(await t.prisma.auditEvent.count({ where: { type: "activity.settings_changed" } })).toBeLessThanOrEqual(ROUNDS);
   });
 
-  it("021/FR-010 10 execuções simultâneas do mesmo aluno num trabalho → uma só pendente", async () => {
+  it("021/FR-010 20 execuções simultâneas do mesmo aluno num trabalho → uma só pendente, nenhum 500", async () => {
     const { activity, questionIds } = await createCodeWork(t, schoolClass);
     await seedHeartbeat(t, clock.now());
     expect((await startAttempt(client, activity.id)).status).toBe(200);
-    const responses = await Promise.all(Array.from({ length: 10 }, (_, index) => requestRun(client, activity.id, questionIds[0]!, `print(${index})`)));
-    expect(responses.map((res) => res.status).sort()).toEqual([200, 200, 200, 200, 200, 200, 200, 200, 200, 202]);
+    // More requests than the pool's 10 connections: a read on another connection inside the transaction once
+    // made them wait for each other until the transaction timed out (500).
+    const responses = await Promise.all(Array.from({ length: SIMULTANEOUS }, (_, index) => requestRun(client, activity.id, questionIds[0]!, `print(${index})`)));
+    expect(responses.map((res) => res.status).sort()).toEqual([...Array<number>(SIMULTANEOUS - 1).fill(200), 202]);
     expect(new Set(responses.map((res) => res.body.id)).size).toBe(1);
     expect(await t.prisma.codeRun.count()).toBe(1);
   });
