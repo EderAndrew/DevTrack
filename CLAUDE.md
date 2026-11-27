@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–031 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–032 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
 Each feature is summarized by its own `specs/NNN-*/spec.md` (list: `ls specs/`).
@@ -266,11 +266,11 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   it never takes a session or an `Origin`. Account e-mails never show a delivery situation, and the
   public flows answer exactly as before (anti-enumeration).
 - Exams (018): an EXAM activity is always CONTROLLED, with no AI help and only for the students
-  marked present; its body never takes `deadline`, `latePolicy`, `executionMode`, `aiHelpAllowance` or
-  `releaseMode` (400). Duration 1–120 min, inactivity 30–60 s, start window 0–60 min; the start needs
-  `{ acceptRules: true }` and one attempt per student, and after the window `409 EXAM_START_CLOSED`.
-  The end is the server's (`startedAt` + duration, or the activity's close or cancellation if earlier,
-  against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
+  marked present; its body never takes `latePolicy`, `startWindowMinutes`, `executionMode`, `aiHelpAllowance` or
+  `releaseMode` (400) and requires the period's end `deadline` (032). Duration 1–120 min, inactivity 30–60 s; the start
+  needs `{ acceptRules: true }` and one attempt per student, and after the period's end `409 EXAM_START_CLOSED`.
+  The end is the server's (`startedAt` + duration capped by the period's end, or the activity's close or cancellation
+  if earlier, against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
   expired attempt is settled by the next touch (`exam_attempt.time_expired`, SYSTEM), never by a job.
   Countable occurrences (screen, fullscreen, clipboard, `INACTIVITY` with `idleSeconds` 30–60) are
   grouped within 2 s; occurrences 1–3 are warnings and the 4th opens the hold in the events batch's
@@ -285,6 +285,18 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   keeps running. No AI call happens during an attempt; `exam-sessions` grades only through
   `activities/submission`. No text says "fraude", "cola" or "violação"; audit metadata carries ids,
   enums, counts and times, never a statement or an answer.
+- Activity period (032): a work and an exam are applied for a period, `publishAt` (null = now) → `deadline` (the end,
+  required for ASSIGNMENT and EXAM, inclusive); `deadline > publishAt` and an exam's period holds at least its
+  duration, else `422 INVALID_SCHEDULE` (pure `activities/status/period.ts`: `validPeriod`, `canChangeEnd`,
+  `acceptsAttendanceMark`). No body takes `latePolicy` (400): the server stores `REJECT` on every new work, and
+  `ACCEPT_MARKED` exists only on works applied before 032, which keep accepting late submissions (marked late) and
+  attendance marks after the end until the teacher closes them (web badge "Aceita entrega atrasada (regra anterior)").
+  Whoever is marked present during the period starts any time in it; after the end nobody starts, saves, submits, asks
+  for help or runs code (`DEADLINE_PASSED`, never an automatic submission) and a mark is refused
+  (`409 ACTIVITY_PERIOD_ENDED`; the room's `periodEnded`). A work's end changes freely while ACTIVE; a scheduled exam's
+  too; a published exam's end only extends (`422 EXAM_END_CANNOT_MOVE_EARLIER`, DB trigger once a student started) and
+  not after it passed (`409 ACTIVITY_PERIOD_ENDED`). The monitor, the mobile list and the student's `startDeadline` /
+  `closesAt` are the `deadline`. Exercises are unchanged (no period).
 - Code Runner (019): student code never runs in the API process. Only the worker (its own process,
   never imported by the API) talks to Docker, through `DockerSandbox`; each step (check/compile, then
   each PUBLIC case) is a fresh container with no network, a read-only root, a tmpfs `/tmp`, memory, CPU,

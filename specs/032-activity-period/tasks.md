@@ -266,12 +266,12 @@ comparar períodos e situações.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T033 [P] E2E em `apps/web/e2e/exam.spec.ts` (e `attendance.spec.ts`/`student-portal-seed.ts` já ajustados em
+- [X] T033 [P] E2E em `apps/web/e2e/exam.spec.ts` (e `attendance.spec.ts`/`student-portal-seed.ts` já ajustados em
   T012): aplicar prova com "Período" pelo formulário e liberar um aluno depois do início; `032/US1-2` no título.
-- [ ] T034 [P] Documentação: regras da 018 e da 012 em "Rules that are easy to get wrong" do `CLAUDE.md` (janela →
+- [X] T034 [P] Documentação: regras da 018 e da 012 em "Rules that are easy to get wrong" do `CLAUDE.md` (janela →
   período; `deadline` é o fim para ASSIGNMENT e EXAM; `ACCEPT_MARKED` só legado; o fim da prova publicada só estende;
   chamada recusa depois do fim) e o item 032 em "Project state"; `apps/api/CLAUDE.md` se citar a janela.
-- [ ] T035 Remover de `pending` cada história/SC conforme os testes entram (T013, T022, T026, T030, T010) e conferir
+- [X] T035 Remover de `pending` cada história/SC conforme os testes entram (T013, T022, T026, T030, T010) e conferir
   `pnpm --filter api test test/traceability.spec.ts`.
 - [ ] T036 Rodar `pnpm lint`, `pnpm check-types`, `pnpm test`, `pnpm --filter mobile test` e o quickstart no ambiente de
   dev (passos 1–8, inclusive o app instalado listando a prova).
