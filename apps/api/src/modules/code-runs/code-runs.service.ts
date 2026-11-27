@@ -77,6 +77,10 @@ export class CodeRunsService {
     const now = this.clock.now();
     let runId: string;
     let created: boolean;
+    // The heartbeats are read before the transaction: `RunnerAvailability` reads on its own connection, and
+    // asking it while holding the transaction's made simultaneous requests of one student wait for a free
+    // connection until the transaction timed out (500). Still checked below, in the same order as before.
+    const runner = await this.availability.state(now);
     try {
       ({ runId, created } = await this.prisma.runInTransaction(async (tx) => {
         const { context, attempt, question } = await this.runnableQuestion(tx, studentUserId, activityId, questionId, now);
@@ -91,7 +95,7 @@ export class CodeRunsService {
         if (question.publicCaseCount === 0) throw new AppException("CODE_RUN_NOT_AVAILABLE", undefined, {}, { reason: "NO_PUBLIC_CASES" });
 
         await settleStaleRuns(tx, this.audit, { now, scope: { studentUserId }, disabled: !this.config.codeRunner.enabled });
-        const execution = questionExecution(question, await this.availability.state(now));
+        const execution = questionExecution(question, runner);
         if (execution.status !== "AVAILABLE") throw new AppException("CODE_RUNNER_UNAVAILABLE");
 
         // A conflict waits for the other transaction and returns its pending run; if that run became
