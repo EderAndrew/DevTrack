@@ -263,7 +263,7 @@ describe("032/US1 NewActivity — a prova é aplicada com um período", () => {
     expect(timeInputs()).toEqual([NEW_ACTIVITY_FIELD_IDS.endDate, NEW_ACTIVITY_FIELD_IDS.endTime]);
     expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toBe(todayLocal());
     expect(field(NEW_ACTIVITY_FIELD_IDS.durationMinutes)).toBeTruthy();
-    expect(screen.getByText("Depois do término ninguém mais começa nem entrega.")).toBeTruthy();
+    expect(screen.queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
     expect(screen.getByText("De 1 a 120. Quem começar perto do término terá só o tempo que falta.")).toBeTruthy();
     for (const gone of [/Limite para iniciar/, /Prazo de entrega/, /Entrega atrasada/, /Data e hora da publicação/]) {
       expect(screen.queryByLabelText(gone)).toBeNull();

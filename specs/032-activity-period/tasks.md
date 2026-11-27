@@ -273,7 +273,7 @@ comparar períodos e situações.
   chamada recusa depois do fim) e o item 032 em "Project state"; `apps/api/CLAUDE.md` se citar a janela.
 - [X] T035 Remover de `pending` cada história/SC conforme os testes entram (T013, T022, T026, T030, T010) e conferir
   `pnpm --filter api test test/traceability.spec.ts`.
-- [ ] T036 Rodar `pnpm lint`, `pnpm check-types`, `pnpm test`, `pnpm --filter mobile test` e o quickstart no ambiente de
+- [X] T036 Rodar `pnpm lint`, `pnpm check-types`, `pnpm test`, `pnpm --filter mobile test` e o quickstart no ambiente de
   dev (passos 1–8, inclusive o app instalado listando a prova).
 
 ---

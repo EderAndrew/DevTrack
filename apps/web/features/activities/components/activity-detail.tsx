@@ -53,7 +53,6 @@ import {
   LEGACY_LATE_BADGE,
   mayAllowCodeExecution,
   mayChooseGroup,
-  PERIOD_TEXTS,
   ROSTER_STATUS_LABELS,
   toUpdateActivityRequest,
 } from "../schemas/activity-form";
@@ -475,7 +474,7 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
           id={EDIT_FIELD_IDS.deadline}
           type="datetime-local"
           label={activity.type === "ASSIGNMENT" ? CHANGE_WORK_END : endEdit === "EXTEND" ? EXTEND_END : "Término"}
-          hint={endEdit === "EXTEND" ? EXTEND_END_HINT : activity.type === "ASSIGNMENT" ? PERIOD_TEXTS.endHint : undefined}
+          hint={endEdit === "EXTEND" ? EXTEND_END_HINT : undefined}
           min={endEdit === "EXTEND" && activity.deadline ? isoToLocal(activity.deadline) : undefined}
           required
           error={errorFor(EDIT_FIELD_IDS.deadline)}

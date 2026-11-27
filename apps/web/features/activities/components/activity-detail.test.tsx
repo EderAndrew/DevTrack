@@ -763,7 +763,7 @@ describe("032/US3 ActivityDetail — \"Alterar término\" do trabalho", () => {
     expect(end.id).toBe(EDIT_FIELD_IDS.deadline);
     // A work's end changes freely while active: earlier or later, no minimum.
     expect(end.min).toBe("");
-    expect(screen.getByText("Depois do término ninguém mais começa nem entrega.")).toBeTruthy();
+    expect(screen.queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
     expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
     expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
     await expectNoA11yViolations(container);

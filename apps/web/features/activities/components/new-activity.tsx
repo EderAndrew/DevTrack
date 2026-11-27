@@ -529,15 +529,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
           ) : null}
           <div className="flex flex-wrap gap-4">
             <Field id={FIELD_IDS.endDate} type="date" label={PERIOD_TEXTS.endDate} required error={errorFor(FIELD_IDS.endDate)} {...register("endDate")} />
-            <Field
-              id={FIELD_IDS.endTime}
-              type="time"
-              label={PERIOD_TEXTS.endTime}
-              hint={PERIOD_TEXTS.endHint}
-              required
-              error={errorFor(FIELD_IDS.endTime)}
-              {...register("endTime")}
-            />
+            <Field id={FIELD_IDS.endTime} type="time" label={PERIOD_TEXTS.endTime} required error={errorFor(FIELD_IDS.endTime)} {...register("endTime")} />
           </div>
         </fieldset>
       ) : (

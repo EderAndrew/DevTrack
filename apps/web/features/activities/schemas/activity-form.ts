@@ -257,7 +257,6 @@ export const PERIOD_TEXTS = {
   startTime: "Horário do início",
   endDate: "Data do término",
   endTime: "Horário do término",
-  endHint: "Depois do término ninguém mais começa nem entrega.",
   durationHint: "De 1 a 120. Quem começar perto do término terá só o tempo que falta.",
 } as const;
 

@@ -510,7 +510,7 @@ describe("032/US3 NewActivity — o Trabalho aplicado com um período, sem prazo
     expect(within(period).getByRole("radio", { name: "Agendar" })).toBeTruthy();
     expect(within(period).getByLabelText(/Data do término/)).toBeTruthy();
     expect(within(period).getByLabelText(/Horário do término/)).toBeTruthy();
-    expect(within(period).getByText("Depois do término ninguém mais começa nem entrega.")).toBeTruthy();
+    expect(within(period).queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
     // "Término" starts on the start's day: today for "Agora".
     expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     for (const gone of [/Prazo de entrega/, /Duração/, /Limite para iniciar/]) expect(screen.queryByLabelText(gone)).toBeNull();
