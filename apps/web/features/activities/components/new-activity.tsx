@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { ErrorSummary, Field, SubmitButton } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,21 +33,28 @@ import {
   GROUP_SIZE_DEFAULT,
   formatGrade,
   formatPoints,
+  hasPeriod,
   hasWorkOptions,
   helpUnavailableText,
   HELP_CHECK_PENDING,
   OUT_OF_TAUGHT_SCOPE,
+  PERIOD_TEXTS,
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
+  todayLocalDate,
 } from "../schemas/activity-form";
-import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
+import { ConfirmationField, TextareaField } from "./form-fields";
 import { GroupFormatField, WorkOptionsFieldset } from "./work-options";
 
 export const NEW_ACTIVITY_FIELD_IDS = {
   title: "atividade-titulo",
   instructions: "atividade-instrucoes",
   publishAt: "atividade-publicacao",
-  deadline: "atividade-prazo",
+  // 032 "Período" of a Trabalho or a Prova.
+  startDate: "atividade-inicio-data",
+  startTime: "atividade-inicio",
+  endDate: "atividade-termino-data",
+  endTime: "atividade-termino",
   acknowledgeOutOfScope: "atividade-confirmar-escopo",
   controlled: "atividade-modo-controlado",
   aiHelp: "atividade-ajuda-ia",
@@ -55,13 +62,12 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   groupSize: "atividade-max-integrantes",
   durationMinutes: "atividade-duracao",
   inactivityLimitSeconds: "atividade-inatividade",
-  startWindowMinutes: "atividade-limite-iniciar",
 } as const;
 const FIELD_IDS = NEW_ACTIVITY_FIELD_IDS;
 
 /** API answers shown next to a field (the rest goes to the summary). */
 const FIELD_OF_CODE: Record<string, string> = {
-  INVALID_SCHEDULE: FIELD_IDS.deadline,
+  INVALID_SCHEDULE: FIELD_IDS.endTime,
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: FIELD_IDS.acknowledgeOutOfScope,
   AI_HELP_UNAVAILABLE: FIELD_IDS.aiHelp,
   CODE_EXECUTION_NOT_ELIGIBLE: FIELD_IDS.codeExecution,
@@ -92,7 +98,9 @@ interface ChosenSource {
  * (FR-004). "Publicar atividade" sends one idempotency key per form, so a double click creates one
  * activity. A Prova (018/US2) comes from the APPROVED exams of the class's subject ("Prova do banco"):
  * step 1's check brings its coverage per topic and per difficulty, shown before confirming, and step 2
- * asks the duração, the limite de inatividade and the limite para iniciar, never a mode, help or deadline.
+ * asks the duração and the limite de inatividade, never a mode, help or late policy. Since 032 a Trabalho
+ * and a Prova are applied for a "Período" (início now or scheduled, término's date and time; no start
+ * window, deadline or "Entrega atrasada"); an Exercício keeps its "Publicação".
  */
 export function NewActivity({ classId }: { classId: string }) {
   const schoolClass = useClass(classId);
@@ -434,7 +442,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
   const create = useCreateActivity(classId);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const { errors, setErrors, onInvalid, errorFor } = useErrorSummary<ActivityFormValues>(FIELD_IDS);
-  const { register, handleSubmit, formState, control } = useForm<ActivityFormValues>({
+  const { register, handleSubmit, formState, control, getFieldState, setValue } = useForm<ActivityFormValues>({
     shouldFocusError: false,
     resolver: zodResolver(ActivityFormSchema, { error: activityFormMessages }),
     defaultValues: {
@@ -443,8 +451,10 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       instructions: "",
       publishMode: "NOW",
       publishAt: "",
-      deadline: "",
-      latePolicy: "REJECT",
+      startDate: "",
+      startTime: "",
+      endDate: todayLocalDate(),
+      endTime: "",
       needsAcknowledgement: chosen.scope.outOfScope.length > 0,
       acknowledgeOutOfScope: false,
       controlled: false,
@@ -455,7 +465,6 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       ...EXAM_FIELD_DEFAULTS,
     },
   });
-  const isExercise = chosen.source.type === "EXERCISE";
   const isExam = chosen.source.type === "EXAM";
   const withOptions = hasWorkOptions(chosen.source.type);
   const availability = useHelpAvailability(withOptions);
@@ -463,6 +472,12 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
   const runner = useCodeRunnerAvailability(withCodeExecution);
   const publishMode = useWatch({ control, name: "publishMode" });
   const groupFormat = useWatch({ control, name: "groupFormat" });
+  const startDate = useWatch({ control, name: "startDate" });
+  const withPeriod = hasPeriod(chosen.source.type);
+  // 032/FR-003: the término's date follows the início's until the teacher picks another one.
+  useEffect(() => {
+    if (!getFieldState("endDate").isDirty) setValue("endDate", startDate || todayLocalDate());
+  }, [startDate, getFieldState, setValue]);
 
   const onSubmit = handleSubmit(async (formValues) => {
     setErrors([]);
@@ -493,26 +508,54 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       ) : null}
       <Field id={FIELD_IDS.title} label="Título" required autoComplete="off" error={errorFor(FIELD_IDS.title)} {...register("title")} />
       <TextareaField id={FIELD_IDS.instructions} label="Instruções" hint="Opcional." error={errorFor(FIELD_IDS.instructions)} {...register("instructions")} />
-      <RadioGroup legend="Publicação" className="mb-4">
-        <div className="flex items-center gap-2">
-          <Radio id="publicar-agora" value="NOW" {...register("publishMode")} />
-          <Label htmlFor="publicar-agora">Publicar agora</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Radio id="publicar-agendar" value="SCHEDULE" {...register("publishMode")} />
-          <Label htmlFor="publicar-agendar">Agendar</Label>
-        </div>
-      </RadioGroup>
-      {publishMode === "SCHEDULE" ? (
-        <Field
-          id={FIELD_IDS.publishAt}
-          type="datetime-local"
-          label="Data e hora da publicação"
-          required
-          error={errorFor(FIELD_IDS.publishAt)}
-          {...register("publishAt")}
-        />
-      ) : null}
+      {withPeriod ? (
+        <fieldset className="m-0 mb-4 flex flex-col gap-2 border-0 p-0">
+          <legend className="mb-2 text-label text-foreground">{PERIOD_TEXTS.legend}</legend>
+          <RadioGroup legend={PERIOD_TEXTS.start} className="mb-4">
+            <div className="flex items-center gap-2">
+              <Radio id="inicio-agora" value="NOW" {...register("publishMode")} />
+              <Label htmlFor="inicio-agora">{PERIOD_TEXTS.now}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Radio id="inicio-agendar" value="SCHEDULE" {...register("publishMode")} />
+              <Label htmlFor="inicio-agendar">{PERIOD_TEXTS.schedule}</Label>
+            </div>
+          </RadioGroup>
+          {publishMode === "SCHEDULE" ? (
+            <div className="flex flex-wrap gap-4">
+              <Field id={FIELD_IDS.startDate} type="date" label={PERIOD_TEXTS.startDate} required error={errorFor(FIELD_IDS.startDate)} {...register("startDate")} />
+              <Field id={FIELD_IDS.startTime} type="time" label={PERIOD_TEXTS.startTime} required error={errorFor(FIELD_IDS.startTime)} {...register("startTime")} />
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-4">
+            <Field id={FIELD_IDS.endDate} type="date" label={PERIOD_TEXTS.endDate} required error={errorFor(FIELD_IDS.endDate)} {...register("endDate")} />
+            <Field id={FIELD_IDS.endTime} type="time" label={PERIOD_TEXTS.endTime} required error={errorFor(FIELD_IDS.endTime)} {...register("endTime")} />
+          </div>
+        </fieldset>
+      ) : (
+        <>
+          <RadioGroup legend="Publicação" className="mb-4">
+            <div className="flex items-center gap-2">
+              <Radio id="publicar-agora" value="NOW" {...register("publishMode")} />
+              <Label htmlFor="publicar-agora">Publicar agora</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Radio id="publicar-agendar" value="SCHEDULE" {...register("publishMode")} />
+              <Label htmlFor="publicar-agendar">Agendar</Label>
+            </div>
+          </RadioGroup>
+          {publishMode === "SCHEDULE" ? (
+            <Field
+              id={FIELD_IDS.publishAt}
+              type="datetime-local"
+              label="Data e hora da publicação"
+              required
+              error={errorFor(FIELD_IDS.publishAt)}
+              {...register("publishAt")}
+            />
+          ) : null}
+        </>
+      )}
       {isExam ? (
         <>
           <p className="m-0 mb-4">{EXAM_APPLY_NOTICE}</p>
@@ -523,7 +566,7 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
             min={1}
             max={120}
             label="Duração (minutos)"
-            hint="De 1 a 120. Cada aluno tem a duração inteira a partir do próprio início."
+            hint={PERIOD_TEXTS.durationHint}
             required
             error={errorFor(FIELD_IDS.durationMinutes)}
             {...register("durationMinutes")}
@@ -540,32 +583,8 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
             error={errorFor(FIELD_IDS.inactivityLimitSeconds)}
             {...register("inactivityLimitSeconds")}
           />
-          <Field
-            id={FIELD_IDS.startWindowMinutes}
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={60}
-            label="Limite para iniciar (minutos após a abertura)"
-            hint="De 0 a 60. Depois dele, quem não iniciou não inicia mais."
-            required
-            error={errorFor(FIELD_IDS.startWindowMinutes)}
-            {...register("startWindowMinutes")}
-          />
         </>
-      ) : isExercise ? null : (
-        <>
-          <Field
-            id={FIELD_IDS.deadline}
-            type="datetime-local"
-            label="Prazo de entrega"
-            required
-            error={errorFor(FIELD_IDS.deadline)}
-            {...register("deadline")}
-          />
-          <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
-        </>
-      )}
+      ) : null}
       {withOptions ? (
         <GroupFormatField
           idPrefix="atividade"

@@ -8,10 +8,13 @@ export interface ActivityTypeDefinition {
   /** A grade split in hundredths and released by the teacher (ASSIGNMENT, EXAM), or fixed practice points (EXERCISE). */
   scoring: "GRADE" | "POINTS";
   /**
-   * A deadline and a late policy (ASSIGNMENT); an EXERCISE has only its publication date, and an EXAM
-   * a duration from each student's start instead (018 research T4).
+   * A period's end, `deadline` (032 research AP1): ASSIGNMENT and EXAM; an EXERCISE has only its
+   * publication date. Never read as "is a work": the late rules follow `hasLatePolicy`, and an EXAM's
+   * time only `status/exam-time.ts`.
    */
   hasDeadline: boolean;
+  /** A late policy (ASSIGNMENT only, AP11): `REJECT` on every new work, `ACCEPT_MARKED` only legacy (AP2). */
+  hasLatePolicy: boolean;
   /** One attempt submitted once (ASSIGNMENT), or numbered practice attempts where only the first conclusion scores. */
   attempts: "SINGLE" | "PRACTICE";
   /** Bank items an activity of this type takes. */
@@ -29,7 +32,7 @@ export interface ActivityTypeDefinition {
 }
 
 export const ACTIVITY_TYPES: { readonly [T in ActivityType]: ActivityTypeDefinition } = {
-  ASSIGNMENT: { scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true, releaseMode: "PRESENT_ONLY" },
-  EXERCISE: { scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false, releaseMode: "ALL_ENROLLED" },
-  EXAM: { scoring: "GRADE", hasDeadline: false, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: false, releaseMode: "PRESENT_ONLY" },
+  ASSIGNMENT: { scoring: "GRADE", hasDeadline: true, hasLatePolicy: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true, releaseMode: "PRESENT_ONLY" },
+  EXERCISE: { scoring: "POINTS", hasDeadline: false, hasLatePolicy: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false, releaseMode: "ALL_ENROLLED" },
+  EXAM: { scoring: "GRADE", hasDeadline: true, hasLatePolicy: false, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: false, releaseMode: "PRESENT_ONLY" },
 };

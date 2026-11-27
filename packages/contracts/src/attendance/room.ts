@@ -36,6 +36,8 @@ export const RoomSchema = z.strictObject({
   releaseMode: ReleaseModeSchema,
   present: z.int().min(0),
   enrolled: z.int().min(0),
+  /** 032 FR-014: the period ended, so no more marks (false for a legacy `ACCEPT_MARKED` work). */
+  periodEnded: z.boolean(),
   students: z.array(RoomStudentSchema),
 });
 export type Room = z.infer<typeof RoomSchema>;

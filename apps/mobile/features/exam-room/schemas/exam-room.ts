@@ -52,6 +52,9 @@ const FIXED: Partial<Record<ExamStatusOfStudent, string>> = {
   CANCELLED: "Cancelada — nota zero",
 };
 
+/** 032 contracts/ui.md: the monitor's header, the period's end (`closesAt`). */
+export const endsAtLabel = (closesAt: string) => `Termina às ${formatTime(closesAt)}`;
+
 /** A student's situation in words, with the times of the server (024/FR-007, FR-011). */
 export function examStatusLabel(row: ExamMonitorStudent, monitor: { startDeadline: string; serverNow: string }): string {
   switch (row.examStatus) {

@@ -1,7 +1,7 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { unique } from "./fixtures/curriculum.ts";
 import { confirmedSyllabus } from "./fixtures/exams.ts";
-import { type Account, acceptClassInvitation, inviteThroughApi, logIn, newAccount } from "./fixtures/journeys.ts";
+import { type Account, acceptClassInvitation, fillPeriodEnd, inviteThroughApi, logIn, newAccount } from "./fixtures/journeys.ts";
 import { apiPost, seedStudentPortal, type StudentPortalSeed } from "./support/student-portal-seed.ts";
 
 /** 018/SC-007: what one side does shows on the other within 10 s, through the 5 s polling, never a reload. */
@@ -106,7 +106,7 @@ test.describe("018 prova em modo restrito com avisos e decisão do professor", (
     await page.context().close();
   });
 
-  test("018/SC-001 018/SC-004 018/SC-007 018/SC-011 aprovar, aplicar, chamada, avisos, retenção, devolução, tempo esgotado, cancelamento e liberação, só com o teclado", async ({
+  test("018/SC-001 018/SC-004 018/SC-007 018/SC-011 032/US1-2 aprovar, aplicar com período, chamada depois do início, avisos, retenção, devolução, tempo esgotado, cancelamento e liberação, só com o teclado", async ({
     browser,
   }) => {
     test.setTimeout(420_000);
@@ -138,6 +138,12 @@ test.describe("018 prova em modo restrito com avisos e decisão do professor", (
     await tabTo(teacherPage, form.getByLabel(/^Duração/));
     await teacherPage.keyboard.press("ControlOrMeta+a");
     await teacherPage.keyboard.type(String(DURATION_MINUTES));
+    // 032: the "Período" — início "Agora" (the default), término 3 hours from now in the browser's time zone; no
+    // "Limite para iniciar" any more.
+    const period = form.getByRole("group", { name: "Período" });
+    await expect(period.getByRole("radio", { name: "Agora" })).toBeChecked();
+    await expect(form.getByLabel(/^Limite para iniciar/)).toHaveCount(0);
+    await fillPeriodEnd(period, 3);
     const acknowledge = form.getByRole("checkbox", { name: "Entendo e quero aplicar mesmo assim" });
     if (await acknowledge.isVisible()) {
       await tabTo(teacherPage, acknowledge);
@@ -157,7 +163,8 @@ test.describe("018 prova em modo restrito com avisos e decisão do professor", (
     expect((await pageA.request.get(`/api/me/activities/${activityId}`)).status()).toBe(404);
     expect((await pageA.request.post(`/api/me/activities/${activityId}/attempt`, { data: { acceptRules: true }, headers: { Origin: new URL(teacherPage.url()).origin } })).status()).toBe(404);
 
-    // 4. The attendance by keyboard: both present, released.
+    // 4. The attendance by keyboard, after the start (032/US1-2: whoever is marked during the period starts): both
+    // present, released.
     await press(teacherPage, attendance.getByRole("button", { name: "Marcar todos", exact: true }));
     await press(teacherPage, attendance.getByRole("button", { name: "Liberar para os presentes" }));
     const release = teacherPage.getByRole("alertdialog");

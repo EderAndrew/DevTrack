@@ -9,10 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Status, type StatusVariant } from "@/components/ui/status";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { attendanceSummary } from "@/features/attendance/schemas/attendance";
-import { formatLongDateTime } from "@/lib/messages/dates";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useClassActivities } from "../hooks/use-activities";
-import { ACTIVITY_TYPE_LABELS, activitySituation } from "../schemas/activity-form";
+import { ACTIVITY_TYPE_LABELS, activitySituation, formatPeriod } from "../schemas/activity-form";
 import { WorkOptionBadges } from "./work-options";
 
 const SITUATION_VARIANTS: Record<string, StatusVariant> = {
@@ -62,7 +61,7 @@ export interface ClassActivitiesProps {
 
 /**
  * The class's activities (012 contracts/web-ui.md, `/turmas/[id]/atividades`): título (with a
- * Trabalho's mode and AI help as text, 015/FR-006, and its attendance, 016/FR-006), tipo, situação in words, prazo, entregas and the
+ * Trabalho's mode and AI help as text, 015/FR-006, and its attendance, 016/FR-006), tipo, situação in words, the período of a work or an exam (032/FR-008), entregas and the
  * action "Nova atividade". Every status is listed, by
  * deadline (latest first), as the API orders them.
  */
@@ -114,13 +113,13 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
         />
       ) : (
         <Table>
-          <TableCaption>Atividades da turma, por prazo (o mais distante primeiro).</TableCaption>
+          <TableCaption>Atividades da turma, pelo término (o mais distante primeiro).</TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead scope="col">Título</TableHead>
               <TableHead scope="col">Tipo</TableHead>
               <TableHead scope="col">Situação</TableHead>
-              <TableHead scope="col">Prazo</TableHead>
+              <TableHead scope="col">Período</TableHead>
               <TableHead scope="col">Entregas e conclusões</TableHead>
             </TableRow>
           </TableHeader>
@@ -138,7 +137,7 @@ export function ClassActivities({ classId, canApply }: ClassActivitiesProps) {
                 <TableCell>
                   <Situation status={activity.status} phase={activity.phase} />
                 </TableCell>
-                <TableCell>{activity.deadline ? formatLongDateTime(activity.deadline) : "Sem prazo"}</TableCell>
+                <TableCell>{activity.deadline ? formatPeriod(activity.publishAt, activity.deadline) : "Sem prazo"}</TableCell>
                 <TableCell>
                   <Deliveries activity={activity} />
                 </TableCell>

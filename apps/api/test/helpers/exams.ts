@@ -288,7 +288,11 @@ export interface ApplyExamOverrides {
   /** Default 60. */
   durationMinutes?: number;
   inactivityLimitSeconds?: number;
-  startWindowMinutes?: number;
+  /**
+   * The period's end (032). Default: far ahead (`EXAM_FAR_DEADLINE`), so every attempt ends by its duration as
+   * before 032 whatever the suite's `FixedClock`; a suite about the end of the period passes its own.
+   */
+  deadline?: string;
   acknowledgeOutOfScope?: boolean;
   [forbidden: string]: unknown;
   /**
@@ -298,6 +302,9 @@ export interface ApplyExamOverrides {
    */
   attendance?: "ALL" | "NONE";
 }
+
+/** 032: the default period's end of `applyExam`, far enough for any clock of the suites. */
+export const EXAM_FAR_DEADLINE = "2030-12-31T23:59:00.000Z";
 
 /** `POST /classes/:classId/activities` with an exam of the teacher's Banco de Provas (018/US2). */
 export async function applyExam(client: Client, classId: string, examId: string, overrides: ApplyExamOverrides = {}) {
@@ -310,6 +317,7 @@ export async function applyExam(client: Client, classId: string, examId: string,
       instructions: "Leia as regras.",
       publishAt: null,
       durationMinutes: 60,
+      deadline: EXAM_FAR_DEADLINE,
       acknowledgeOutOfScope: false,
       ...fields,
     }).filter(([, value]) => value !== undefined),

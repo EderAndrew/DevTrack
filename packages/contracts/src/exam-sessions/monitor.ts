@@ -48,7 +48,9 @@ export type ExamMonitorStudent = z.infer<typeof ExamMonitorStudentSchema>;
 export const ExamMonitorSchema = z.strictObject({
   activityId: UuidSchema,
   durationMinutes: z.int().min(1),
+  /** = deadline desde a 032 (AP4): kept for the installed mobile app. */
   startDeadline: IsoDateTimeSchema,
+  /** = deadline desde a 032 (AP4). */
   closesAt: IsoDateTimeSchema,
   serverNow: IsoDateTimeSchema,
   students: z.array(ExamMonitorStudentSchema),

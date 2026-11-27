@@ -20,7 +20,6 @@ describe("023 formato do Trabalho (contracts/http-api.md)", () => {
     ...common,
     source: { type: "ASSIGNMENT", workId: uuid(5) },
     deadline: "2026-10-10T23:59:00.000Z",
-    latePolicy: "REJECT",
     ...overrides,
   });
   const exercise = { ...common, source: { type: "EXERCISE", exerciseIds: [uuid(1)] } };

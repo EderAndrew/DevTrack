@@ -56,7 +56,12 @@ describe("018/SC-002 nada é aceito depois do fim calculado pelo servidor", () =
     [student, lateStudent] = created.students as [TestUser, TestUser];
     studentApi = api(t, { cookie: await loginAs(t, student) });
     const exam = await approvedExam(t, client, syllabus);
-    const res = await applyExam(client, classId, exam.id, { acknowledgeOutOfScope: true, durationMinutes: 10, startWindowMinutes: 5 });
+    const res = await applyExam(client, classId, exam.id, {
+      acknowledgeOutOfScope: true,
+      durationMinutes: 10,
+      // 032: the period's end replaces the 5-minute start window (the 018 closing: 5 + 10 min).
+      deadline: at(15 * MINUTE).toISOString(),
+    });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     activity = res.body as TeacherActivity;
     expect((await startExam(studentApi, activity.id)).status).toBe(200);
@@ -91,9 +96,10 @@ describe("018/SC-002 nada é aceito depois do fim calculado pelo servidor", () =
     expect(submission).toMatchObject({ endReason: "TIME_EXPIRED", blankCount: 2 });
   });
 
+  // 032: the limit to start is the period's end (research AP3).
   it("018/SC-002 iniciar depois do limite para iniciar é recusado (409) e nenhuma tentativa é criada; quem já iniciou recebe a mesma tentativa", async () => {
     const lateApi = api(t, { cookie: await loginAs(t, lateStudent) });
-    clock.set(at(5 * MINUTE + 1).toISOString());
+    clock.set(at(15 * MINUTE + 1).toISOString());
     const refused = await startExam(lateApi, activity.id);
     expect({ status: refused.status, code: refused.body.code }).toEqual({ status: 409, code: "EXAM_START_CLOSED" });
     expect(await t.prisma.activityAttempt.count({ where: { activityId: activity.id, studentUserId: lateStudent.id } })).toBe(0);

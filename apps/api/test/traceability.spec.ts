@@ -455,6 +455,26 @@ const SPECS: FeatureSpec[] = [
       successCriteria: [],
     },
   },
+  {
+    feature: "032",
+    path: "specs/032-activity-period/spec.md",
+    stories: 4,
+    scenarios: 22, // 7 + 5 + 6 + 4
+    // No "### Acceptance Criteria Traceability" table, as in 008–031.
+    rows: 0,
+    rowsWithoutIds: [],
+    successCriteria: sc(1, 6),
+    // Joined in the Setup phase (T001); each story leaves `pending` with the task that writes its last test, each SC
+    // with the test that cites it, so the lists are empty at the end of the feature.
+    pending: {
+      // US1 left with `032-us1-exam-period.spec.ts` (T013), US2 with `032-us2-period-cap.spec.ts` (T022), US3 with
+      // `032-us3-work-period.spec.ts` (T026), US4 with `032-us4-legacy.spec.ts` (T030).
+      stories: [],
+      // SC-005 left with `032-schema.spec.ts` (T003), SC-006 with `status.spec.ts` (T010), SC-001 with T013, SC-004 with
+      // `new-activity-exam.test.tsx` (T014), SC-002 and SC-003 with T022.
+      successCriteria: [],
+    },
+  },
 ];
 
 /** Coverage key of a spec's own id: bare for 001, `NNN/id` for later features. */

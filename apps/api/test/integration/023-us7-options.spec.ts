@@ -302,10 +302,14 @@ describe("023/US7 modo controlado, pausa, ajuda da IA e execução no grupo", ()
       orderBy: { startedAt: "asc" },
       select: { attemptId: true, studentUserId: true },
     });
-    expect(pauses).toEqual([
-      { attemptId, studentUserId: bruno.id },
-      { attemptId, studentUserId: carla.id },
-    ]);
+    // Both pauses may share the clock's instant, so their order is not part of the rule.
+    expect(pauses).toHaveLength(2);
+    expect(pauses).toEqual(
+      expect.arrayContaining([
+        { attemptId, studentUserId: bruno.id },
+        { attemptId, studentUserId: carla.id },
+      ]),
+    );
     expect((await view(carla, activityId)).questions).toEqual([]);
     expect((await view(ana, activityId)).questions).toHaveLength(2);
 

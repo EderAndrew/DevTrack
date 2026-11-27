@@ -110,3 +110,41 @@ describe("016/US1 AttendanceTab — chamada antes da primeira liberação", () =
     expect(screen.getByText("1 de 3 selecionados")).toBeTruthy();
   });
 });
+
+describe("032/US1-3 AttendanceTab — depois do término ninguém mais é liberado", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const ENDED = "O período terminou: não é possível liberar mais alunos.";
+
+  it("032/US1-3 032/FR-014 antes da primeira liberação: o aviso e \"Liberar para os presentes\" desabilitado", async () => {
+    const api = routedFetch({ [`GET ${PATH}`]: json(200, room(EMPTY_ROOM.students, true)) });
+    vi.stubGlobal("fetch", api.fetch);
+    const user = userEvent.setup();
+    const { container } = render();
+    expect(await screen.findByText(ENDED)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Marcar todos" }));
+    expect(screen.getByRole("button", { name: "Liberar para os presentes" }).hasAttribute("disabled")).toBe(true);
+    expect(api.writes()).toHaveLength(0);
+    await expectNoA11yViolations(container);
+  });
+
+  it("032/US1-3 032/FR-014 depois da liberação: \"Marcar presente\" desabilitado; \"Desmarcar\" segue a regra de hoje", async () => {
+    const released = [student(ANA, "Ana Souza", { markedAt: "2026-10-01T12:05:00.000Z", roomStatus: "PRESENT" }), student(BRUNO, "Bruno Lima")];
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${PATH}`]: json(200, room(released, true)) }).fetch);
+    render();
+    expect(await screen.findByText(ENDED)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Marcar presente Bruno Lima" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Desmarcar Ana Souza" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("032/US1-3 um 409 ACTIVITY_PERIOD_ENDED de corrida mostra o mesmo texto", async () => {
+    const released = [student(ANA, "Ana Souza", { markedAt: "2026-10-01T12:05:00.000Z", roomStatus: "PRESENT" }), student(BRUNO, "Bruno Lima")];
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({ [`GET ${PATH}`]: json(200, room(released)), [`POST ${PATH}`]: apiError(409, "ACTIVITY_PERIOD_ENDED", "O período desta atividade terminou.") }).fetch,
+    );
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Marcar presente Bruno Lima" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(ENDED);
+  });
+});

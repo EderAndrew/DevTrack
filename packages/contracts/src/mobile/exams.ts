@@ -9,6 +9,7 @@ export const MobileExamListItemSchema = z.strictObject({
   classId: UuidSchema,
   className: z.string(),
   title: z.string(),
+  /** = deadline desde a 032 (AP4). */
   closesAt: IsoDateTimeSchema,
   muted: z.boolean(),
 });

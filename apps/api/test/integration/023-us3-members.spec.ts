@@ -1,6 +1,6 @@
 import type { Answer, GroupCandidates, Room, StudentActivity, StudentActivitySummary, TeacherActivity } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { applyWork, saveAnswers, startAttempt } from "../helpers/activities";
+import { applyWork, legacyAcceptMarked, saveAnswers, startAttempt } from "../helpers/activities";
 import { getRoom } from "../helpers/attendance";
 import { FixedClock, HOUR } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -203,8 +203,10 @@ describe("023/US3 integrantes participam e quem já está num grupo é avisado",
 
     it("prazo vencido sem entrega atrasada → 409 DEADLINE_PASSED; com entrega atrasada a lista continua", async () => {
       const deadline = new Date(clock.now().getTime() + HOUR).toISOString();
-      const rejecting = (await applyWork(teacherClient, classId, work.id, { groupSize: 3, deadline, latePolicy: "REJECT" })).body as TeacherActivity;
-      const accepting = (await applyWork(teacherClient, classId, work.id, { groupSize: 3, deadline, latePolicy: "ACCEPT_MARKED" })).body as TeacherActivity;
+      const rejecting = (await applyWork(teacherClient, classId, work.id, { groupSize: 3, deadline })).body as TeacherActivity;
+      // 032: a work that accepts late submissions is only a legacy one (research AP2).
+      const accepting = (await applyWork(teacherClient, classId, work.id, { groupSize: 3, deadline })).body as TeacherActivity;
+      await legacyAcceptMarked(t, accepting.id);
       clock.advance(2 * HOUR);
       const refused = await getCandidates(as[ana.id]!, rejecting.id);
       expect([refused.status, refused.body.code]).toEqual([409, "DEADLINE_PASSED"]);

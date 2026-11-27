@@ -13,6 +13,7 @@ import {
   activity,
   apiError,
   CLASS_ID,
+  examActivity,
   exerciseActivity,
   gradingActivity,
   json,
@@ -44,7 +45,8 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
     const { user } = setup();
     expect(await screen.findByRole("heading", { name: "Lista de herança" })).toBeTruthy();
     expect(screen.getByText("Publicada")).toBeTruthy();
-    expect(screen.getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    // 032: a REJECT work shows no late rule; only a legacy ACCEPT_MARKED one gets its badge (032/US4).
+    expect(screen.queryByText("Entrega atrasada", { selector: "dt" })).toBeNull();
     await openTab(user, "Alunos");
     expect(screen.getByText("Entregas: 12 de 30")).toBeTruthy();
     const roster = screen.getByRole("table", { name: /Situação de cada aluno/ });
@@ -55,17 +57,16 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
     expect(within(questions).getByText("Vale 1,00")).toBeTruthy();
   });
 
-  it("012/US1-8 edita a regra de atraso e o prazo: só o que mudou, com a versão lida", async () => {
-    const { api, user } = setup({ [`PATCH ${PATH}`]: json(200, activity({ latePolicy: "ACCEPT_MARKED", version: 3 })) });
+  // 032: the late policy is no longer edited (AP2); only the end changes.
+  it("012/US1-8 edita o prazo: só o que mudou, com a versão lida", async () => {
+    const { api, user } = setup({ [`PATCH ${PATH}`]: json(200, activity({ version: 3 })) });
     await screen.findByRole("form", { name: "Editar atividade" });
-    await user.click(screen.getByRole("radio", { name: "Aceitar e marcar como atrasada" }));
     fireEvent.change(field(EDIT_FIELD_IDS.deadline), { target: { value: "2030-10-12T18:00" } });
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
     expect(await screen.findByText("Alterações salvas.")).toBeTruthy();
     expect(api.writes()[0]!.body).toEqual({
       version: 2,
       deadline: new Date("2030-10-12T18:00").toISOString(),
-      latePolicy: "ACCEPT_MARKED",
     });
   });
 
@@ -136,7 +137,7 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
       field(EDIT_FIELD_IDS.title),
       field(EDIT_FIELD_IDS.instructions),
       field(EDIT_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       // 015: a work nobody started keeps its mode and AI help editable.
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }),
@@ -427,7 +428,7 @@ describe("016/US1 ActivityDetail — chamada de um Trabalho PRESENT_ONLY", () =>
   afterEach(() => vi.unstubAllGlobals());
 
   const ROOM_PATH = `GET ${PATH}/attendance`;
-  const room = { releaseMode: "PRESENT_ONLY", present: 0, enrolled: 1, students: [{ studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1", name: "Ana Souza", markedAt: null, roomStatus: "NOT_MARKED", attemptId: null, openPause: null }] };
+  const room = { releaseMode: "PRESENT_ONLY", present: 0, enrolled: 1, periodEnded: false, students: [{ studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1", name: "Ana Souza", markedAt: null, roomStatus: "NOT_MARKED", attemptId: null, openPause: null }] };
 
   it("016/US1-1 016/FR-006 016/FR-003 mostra \"Aguardando chamada\" e a seção Chamada com chamada.registrar", async () => {
     const api = routedFetch({
@@ -528,7 +529,7 @@ describe("ActivityDetail — abas Informações, Alunos e Questões e gabarito",
     expect(tabs.map((tab) => tab.textContent)).toEqual(["Informações", "Alunos", "Questões e gabarito"]);
     expect(screen.getByRole("tab", { name: "Informações" }).getAttribute("aria-selected")).toBe("true");
     const panel = screen.getByRole("tabpanel", { name: "Informações" });
-    expect(within(panel).getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    expect(within(panel).getByText("Período", { selector: "dt" })).toBeTruthy();
     expect(within(panel).getByRole("form", { name: "Editar atividade" })).toBeTruthy();
     expect(within(panel).queryByRole("table")).toBeNull();
     // The actions stay reachable from every tab.
@@ -651,5 +652,148 @@ describe("021/US2 ActivityDetail — \"Permitir executar o código\" do Trabalho
     expect(box().disabled).toBe(false);
     await waitFor(() => expect((screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement).disabled).toBe(false));
     await expectNoA11yViolations(container);
+  });
+});
+
+describe("032/US1 ActivityDetail — o período da prova e \"Estender término\"", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const local = (hour: number, minute: number, day = 30) => new Date(2030, 10, day, hour, minute);
+  const iso = (hour: number, minute: number, day = 30) => local(hour, minute, day).toISOString();
+  /** A published exam 19:10 → 22:00 of 60 min. */
+  const exam = (overrides: Parameters<typeof examActivity>[0] = {}) =>
+    examActivity({
+      publishAt: iso(19, 10),
+      deadline: iso(22, 0),
+      exam: { durationMinutes: 60, inactivityLimitSeconds: 45, startDeadline: iso(22, 0), closesAt: iso(22, 0), pendingDecisions: 0 },
+      ...overrides,
+    });
+  /** The browser's clock only decides whether the field shows (the server decides the change). */
+  const at = (date: Date) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(date);
+  };
+  const term = (name: string) => screen.getByText(name, { selector: "dt" }).nextElementSibling!.textContent;
+
+  it("032/US1-1 032/FR-008 Informações mostra \"Período: 30/11, 19:10 → 22:00\", sem publicação, prazo nem fechamento", async () => {
+    at(local(20, 30));
+    setup({ [`GET ${PATH}`]: json(200, exam()) }, true, false, "informacoes");
+    await screen.findByRole("heading", { name: "Prova de herança" });
+    expect(term("Período")).toBe("30/11, 19:10 → 22:00");
+    for (const gone of ["Publicação", "Prazo", "Fechamento", "Limite para iniciar"]) expect(screen.queryByText(gone, { selector: "dt" })).toBeNull();
+  });
+
+  it("032/US1-7 publicada com o término à frente: \"Estender término\" só aceita um horário posterior e envia só o término", async () => {
+    at(local(21, 30));
+    const { api, user, container } = setup(
+      { [`GET ${PATH}`]: json(200, exam()), [`PATCH ${PATH}`]: json(200, exam({ version: 3, deadline: iso(22, 30) })) },
+      true,
+      false,
+      "informacoes",
+    );
+    const end = (await screen.findByLabelText(/Estender término/)) as HTMLInputElement;
+    expect(end.id).toBe(EDIT_FIELD_IDS.deadline);
+    expect(end.min).toBe("2030-11-30T22:00");
+    expect(end.value).toBe("2030-11-30T22:00");
+    await expectNoA11yViolations(container);
+
+    fireEvent.change(end, { target: { value: "2030-11-30T21:45" } });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expectFieldErrorLinked(end);
+    expect(screen.getAllByText("Depois de publicada, o término da prova só pode ser estendido.").length).toBeGreaterThan(0);
+    expect(api.writes()).toHaveLength(0);
+
+    fireEvent.change(end, { target: { value: "2030-11-30T22:30" } });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(1));
+    expect(api.writes()[0]!.body).toEqual({ version: exam().version, deadline: iso(22, 30) });
+  });
+
+  it("032/US1-7 a recusa do servidor (EXAM_END_CANNOT_MOVE_EARLIER, ACTIVITY_PERIOD_ENDED) aparece no campo", async () => {
+    at(local(21, 30));
+    for (const [status, code, message] of [
+      [422, "EXAM_END_CANNOT_MOVE_EARLIER", "Depois de publicada, o término da prova só pode ser estendido."],
+      [409, "ACTIVITY_PERIOD_ENDED", "O período desta atividade terminou."],
+    ] as const) {
+      const { user, unmount } = setup({ [`GET ${PATH}`]: json(200, exam()), [`PATCH ${PATH}`]: apiError(status, code, message) }, true, false, "informacoes");
+      const end = (await screen.findByLabelText(/Estender término/)) as HTMLInputElement;
+      fireEvent.change(end, { target: { value: "2030-11-30T23:00" } });
+      await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+      await screen.findByText("Não foi possível salvar");
+      expectFieldErrorLinked(end);
+      unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("032/US1-7 depois do término não há ação; agendada, o término muda livre como \"Término\"", async () => {
+    at(local(22, 1));
+    const ended = setup({ [`GET ${PATH}`]: json(200, exam()) }, true, false, "informacoes");
+    await screen.findByRole("form", { name: "Editar atividade" });
+    expect(screen.queryByLabelText(/término/i)).toBeNull();
+    ended.unmount();
+    vi.unstubAllGlobals();
+
+    at(local(19, 10, 29));
+    const { api, user } = setup(
+      { [`GET ${PATH}`]: json(200, exam({ phase: "SCHEDULED" })), [`PATCH ${PATH}`]: json(200, exam({ phase: "SCHEDULED", version: 3 })) },
+      true,
+      false,
+      "informacoes",
+    );
+    const end = (await screen.findByLabelText(/^Término/)) as HTMLInputElement;
+    expect(end.min).toBe("");
+    fireEvent.change(end, { target: { value: "2030-11-30T21:00" } });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(1));
+    expect(api.writes()[0]!.body).toEqual({ version: exam().version, deadline: iso(21, 0) });
+  });
+});
+
+describe("032/US3 ActivityDetail — \"Alterar término\" do trabalho", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("032/US3-5 032/FR-012 o trabalho publicado oferece \"Alterar término\" (sem \"Prazo de entrega\" nem regra de atraso) e envia só o término", async () => {
+    const { api, user, container } = setup({ [`PATCH ${PATH}`]: json(200, activity({ version: 3, deadline: "2026-10-11T01:30:00.000Z" })) });
+    await screen.findByRole("form", { name: "Editar atividade" });
+    const end = screen.getByLabelText(/^Alterar término/) as HTMLInputElement;
+    expect(end.id).toBe(EDIT_FIELD_IDS.deadline);
+    // A work's end changes freely while active: earlier or later, no minimum.
+    expect(end.min).toBe("");
+    expect(screen.queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
+    expect(screen.queryByLabelText(/Prazo de entrega/)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    await expectNoA11yViolations(container);
+
+    fireEvent.change(end, { target: { value: "2030-10-12T22:30" } });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(1));
+    expect(api.writes()[0]!.body).toEqual({ version: 2, deadline: new Date("2030-10-12T22:30").toISOString() });
+  });
+});
+
+describe("032/US4 ActivityDetail — selo do trabalho legado que aceita entrega atrasada", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("032/US4-3 032/FR-015 só o trabalho legado ACCEPT_MARKED mostra \"Aceita entrega atrasada (regra anterior)\"", async () => {
+    const legacy = setup({ [`GET ${PATH}`]: json(200, activity({ latePolicy: "ACCEPT_MARKED" })) });
+    expect(await screen.findByRole("heading", { name: "Lista de herança" })).toBeTruthy();
+    expect(screen.getByText("Aceita entrega atrasada (regra anterior)")).toBeTruthy();
+    // The old field and its labels are gone: the badge says it all.
+    expect(screen.queryByText("Entrega atrasada", { selector: "dt" })).toBeNull();
+    expect(screen.queryByText("Aceitar e marcar como atrasada")).toBeNull();
+    await expectNoA11yViolations(legacy.container);
+    legacy.unmount();
+
+    for (const view of [activity(), exerciseActivity(), examActivity()]) {
+      const { unmount } = setup({ [`GET ${PATH}`]: json(200, view) });
+      await screen.findByRole("heading", { name: view.title });
+      expect(screen.queryByText("Aceita entrega atrasada (regra anterior)"), view.type).toBeNull();
+      expect(screen.queryByText("Não aceitar"), view.type).toBeNull();
+      unmount();
+    }
   });
 });

@@ -1,18 +1,27 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ActivityStatus, AttemptStatus, AttendanceBatch, PauseInitiator, PauseReason, ReleaseMode, Room } from "@repo/contracts";
+import type { ActivityStatus, ActivityType, AttemptStatus, AttendanceBatch, LatePolicy, PauseInitiator, PauseReason, ReleaseMode, Room } from "@repo/contracts";
 import { CLOCK, type Clock } from "../../platform/clock/clock";
 import { PrismaService } from "../../platform/database/prisma.service";
 import type { Tx } from "../../platform/database/transaction";
 import { AppException, notFound } from "../../platform/http/errors";
 import { AuditService } from "../audit/audit.service";
+import { acceptsAttendanceMark } from "../activities/status/period";
 import { ClassContextPolicy } from "../classes/class-context.policy";
 import { type RoomRow, toRoomStudent } from "./views";
 
 interface ActivityRow {
+  type: ActivityType;
   release_mode: ReleaseMode;
   status: ActivityStatus;
+  /** The period's end (032), null for an EXERCISE. */
+  deadline: Date | null;
+  late_policy: LatePolicy | null;
   class_active: boolean;
 }
+
+/** FR-014: after the period's end no mark is taken, except by a legacy `ACCEPT_MARKED` work (032 AP6). */
+const periodEnded = (activity: ActivityRow, now: Date) =>
+  !acceptsAttendanceMark({ type: activity.type, latePolicy: activity.late_policy, deadline: activity.deadline, now });
 
 interface RoomQueryRow {
   student_user_id: string;
@@ -54,7 +63,8 @@ export class AttendanceService {
     await this.classes.findOwnedOrNotFound(teacherId, classId);
     const activity = await findActivity(this.prisma, classId, activityId, false);
     if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");
-    return readRoom(this.prisma, classId, activityId, this.clock.now());
+    const now = this.clock.now();
+    return readRoom(this.prisma, classId, activityId, now, periodEnded(activity, now));
   }
 
   /**
@@ -71,6 +81,9 @@ export class AttendanceService {
       if (activity.release_mode !== "PRESENT_ONLY") throw new AppException("ATTENDANCE_NOT_REQUIRED");
       if (activity.status !== "ACTIVE") throw new AppException("ACTIVITY_CLOSED");
       if (!activity.class_active) throw new AppException("CLASS_NOT_ACTIVE");
+      const now = this.clock.now();
+      // 032 AP6: marking is the release, so after the period's end it is refused, nothing written; unmark keeps 016.
+      if (batch.mark.length > 0 && periodEnded(activity, now)) throw new AppException("ACTIVITY_PERIOD_ENDED");
 
       const ids = [...new Set([...batch.mark, ...batch.unmark])];
       const enrolled = await tx.$queryRaw<{ student_user_id: string }[]>`
@@ -78,7 +91,6 @@ export class AttendanceService {
         WHERE e.class_id = ${classId}::uuid AND e.status = 'ACTIVE' AND e.student_user_id = ANY(${ids}::uuid[])`;
       if (new Set(enrolled.map((row) => row.student_user_id)).size !== ids.length) throw new AppException("STUDENT_NOT_IN_CLASS");
 
-      const now = this.clock.now();
       const changed: { type: "attendance.marked" | "attendance.unmarked"; studentUserId: string }[] = [];
       if (batch.unmark.length > 0) {
         await tx.$queryRaw`
@@ -121,7 +133,7 @@ export class AttendanceService {
           metadata: { classId, studentUserId },
         });
       }
-      return readRoom(tx, classId, activityId, now);
+      return readRoom(tx, classId, activityId, now, periodEnded(activity, now));
     });
   }
 }
@@ -130,12 +142,14 @@ export class AttendanceService {
 async function findActivity(db: Tx, classId: string, activityId: string, lock: boolean): Promise<ActivityRow> {
   const rows = lock
     ? await db.$queryRaw<ActivityRow[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active
+        SELECT ca.type::text AS type, ca.release_mode::text AS release_mode, ca.status::text AS status, ca.deadline,
+               ca.late_policy::text AS late_policy, (class_effective_status(c.id) = 'ACTIVE') AS class_active
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid
         FOR SHARE OF ca`
     : await db.$queryRaw<ActivityRow[]>`
-        SELECT ca.release_mode::text AS release_mode, ca.status::text AS status, (class_effective_status(c.id) = 'ACTIVE') AS class_active
+        SELECT ca.type::text AS type, ca.release_mode::text AS release_mode, ca.status::text AS status, ca.deadline,
+               ca.late_policy::text AS late_policy, (class_effective_status(c.id) = 'ACTIVE') AS class_active
         FROM class_activities ca JOIN classes c ON c.id = ca.class_id
         WHERE ca.id = ${activityId}::uuid AND ca.class_id = ${classId}::uuid`;
   const activity = rows[0];
@@ -147,12 +161,12 @@ async function findActivity(db: Tx, classId: string, activityId: string, lock: b
  * Every ACTIVE student of the class with their presence, latest attempt and pause without a release,
  * in one query whatever the class size (research M8); the situation in the room is derived here.
  */
-async function readRoom(db: Tx, classId: string, activityId: string, now: Date): Promise<Room> {
+async function readRoom(db: Tx, classId: string, activityId: string, now: Date, ended: boolean): Promise<Room> {
   const rows = await db.$queryRaw<RoomQueryRow[]>`
     SELECT e.student_user_id, u.name, aa.marked_at,
            a.id AS attempt_id, a.status::text AS attempt_status,
            s.submitted_at AS accepted_at, COALESCE(ca.closed_at, ca.cancelled_at) AS activity_ended_at,
-           a.started_at + make_interval(mins => ca.duration_minutes) AS exam_ends_at,
+           CASE WHEN ca.duration_minutes IS NOT NULL THEN LEAST(a.started_at + make_interval(mins => ca.duration_minutes), ca.deadline) END AS exam_ends_at,
            p.id AS pause_id, p.initiated_by::text AS pause_initiated_by, p.reason::text AS pause_reason,
            p.note AS pause_note, p.started_at AS pause_started_at
     FROM class_enrollments e
@@ -197,6 +211,7 @@ async function readRoom(db: Tx, classId: string, activityId: string, now: Date):
     releaseMode: "PRESENT_ONLY",
     present: students.filter((student) => student.markedAt !== null).length,
     enrolled: students.length,
+    periodEnded: ended,
     students,
   };
 }

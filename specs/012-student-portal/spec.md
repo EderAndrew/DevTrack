@@ -449,6 +449,8 @@ nota só aparece na liberada e que nenhuma resposta da API traz a nota não libe
   ao professor como não entregue); "aceitar" permite salvar e entregar até o encerramento da
   atividade pelo professor, registrando a entrega como atrasada. A regra pode ser alterada pelo
   professor enquanto a atividade não estiver encerrada; entregas já feitas não mudam.
+  > Substituído pela 032 (período) em 2026-11-27 (`specs/032-activity-period/`): o trabalho é aplicado com um período
+  > (início e fim) e não tem mais política de atraso; depois do fim, salvar e entregar são recusados.
 - **FR-025**: A entrega DEVE ser idempotente: repetições (clique duplo, reenvio após queda)
   devolvem a mesma entrega, sem segunda entrega nem evento duplicado; salvamentos concorrentes
   nunca alteram uma entrega registrada.

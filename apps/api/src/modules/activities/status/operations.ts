@@ -51,8 +51,8 @@ function decideAssignment(operation: StudentOperation, facts: AssignmentFacts): 
 }
 
 /**
- * EXAM (018/FR-011): the ASSIGNMENT's rules without a deadline; a new attempt only up to the start
- * deadline (`EXAM_START_CLOSED` after). The time of a started attempt is ruled in the attempts
+ * EXAM (018/FR-011): the ASSIGNMENT's rules without the late rules; a new attempt only up to the start
+ * deadline, the end of the period since 032 (`EXAM_START_CLOSED` after). The time of a started attempt is ruled in the attempts
  * service, which knows the attempt's start (research T4).
  */
 function decideExam(operation: StudentOperation, facts: ExamFacts): OperationOutcome {

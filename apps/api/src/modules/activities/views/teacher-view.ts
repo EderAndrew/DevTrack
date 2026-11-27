@@ -47,7 +47,8 @@ const possiblePointsOf = (header: ActivityHeader): number | null =>
 
 /**
  * An EXAM's time for the teacher (018 research T3, T4), derived from the stored columns: the start
- * deadline and the latest end, and the holds still waiting for a decision. Null for the other types.
+ * deadline and the latest end (both the period's end since 032, AP4), and the holds still waiting for
+ * a decision. Null for the other types.
  */
 function examOf(header: ActivityHeader, pendingDecisions: number): ActivityExam | null {
   if (header.type !== "EXAM") return null;
@@ -56,7 +57,6 @@ function examOf(header: ActivityHeader, pendingDecisions: number): ActivityExam 
   return {
     durationMinutes: timing.durationMinutes,
     inactivityLimitSeconds: header.inactivityLimitSeconds,
-    startWindowMinutes: timing.startWindowMinutes,
     startDeadline: startDeadline(timing).toISOString(),
     closesAt: closesAt(timing).toISOString(),
     pendingDecisions,
@@ -66,7 +66,8 @@ function examOf(header: ActivityHeader, pendingDecisions: number): ActivityExam 
 /**
  * One line of the class's activity list; the phase by the server clock (research P4). An EXERCISE
  * has no grade, deadline or late policy, only its possible points (013/FR-013); an EXAM has its time
- * instead of a deadline (018). `pendingDecisions` is the EXAM's open holds, 0 for the others.
+ * and, since 032, its period's end as `deadline`, with no late policy. `pendingDecisions` is the EXAM's
+ * open holds, 0 for the others.
  */
 export function toTeacherActivitySummary(
   header: ActivityHeader,

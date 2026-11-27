@@ -449,6 +449,8 @@ entregue), corrigir, liberar e conferir a nota e o que cada aluno vê.
   segundos, padrão 60), a abertura e o limite para iniciar (inteiro de 0 a 60 minutos depois da
   abertura, padrão 15). O fechamento da atividade é derivado: limite para iniciar + duração. A turma guarda uma cópia da prova; mudar a prova original
   nunca altera a aplicada.
+  > Substituído pela 032 (período) em 2026-11-27 (`specs/032-activity-period/`): no lugar do limite para iniciar, a
+  > prova é aplicada com um período (início agora ou agendado, fim com data e hora); o fechamento é o fim do período.
 - **FR-008**: Antes de confirmar a aplicação, o professor DEVE ver a distribuição das questões e dos
   pontos por tópico e por dificuldade, com os tópicos fora do escopo ensinado da turma sinalizados;
   aplicar com tópicos fora do escopo exige confirmação explícita, auditada (012 FR-005a).
@@ -465,6 +467,8 @@ entregue), corrigir, liberar e conferir a nota e o que cada aluno vê.
   recusado com `409`. O fim de cada tentativa é o início dela mais a duração inteira, calculado pelo
   servidor, inclusive para o aluno atrasado. O fim nunca muda por pausa, aviso, encerramento por
   avisos ou devolução; só o encerramento da atividade pelo professor (012) o antecipa.
+  > Substituído pela 032 (período) em 2026-11-27 (`specs/032-activity-period/`): o início é aceito a qualquer momento
+  > do período, e o fim da tentativa é o menor entre o início mais a duração e o fim do período.
 - **FR-012**: O aluno DEVE ver um cronômetro com o tempo restante calculado pelo servidor, um alerta
   quando faltam 10 minutos, outro quando faltam 5 minutos e uma contagem regressiva nos últimos 10
   segundos. Os alertas não bloqueiam a tela e são anunciados a leitores de tela.

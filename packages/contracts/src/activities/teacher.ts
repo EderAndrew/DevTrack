@@ -22,9 +22,6 @@ import {
   EXAM_INACTIVITY_SECONDS_DEFAULT,
   EXAM_INACTIVITY_SECONDS_MAX,
   EXAM_INACTIVITY_SECONDS_MIN,
-  EXAM_START_WINDOW_MINUTES_DEFAULT,
-  EXAM_START_WINDOW_MINUTES_MAX,
-  EXAM_START_WINDOW_MINUTES_MIN,
   ExamEndReasonSchema,
   ExamOccurrenceViewSchema,
   ExecutionModeSchema,
@@ -78,9 +75,16 @@ export type ScopeCheck = z.infer<typeof ScopeCheckSchema>;
 const TitleSchema = z.string().trim().min(1).max(ACTIVITY_TITLE_MAX);
 const InstructionsSchema = z.string().max(ACTIVITY_INSTRUCTIONS_MAX);
 
-/** FR-005: the deadline comes after the publication (a null publication is "now", checked on the server). */
+/**
+ * 012/FR-005, 032/FR-002: the period's end comes after its start (a null publication is "now", checked on
+ * the server with its clock).
+ */
 const deadlineAfterPublication = (body: { publishAt?: string | null; deadline?: string }) =>
   !body.publishAt || !body.deadline || Date.parse(body.deadline) > Date.parse(body.publishAt);
+
+/** 032/FR-002: an exam's period holds at least its duration (checked again on the server, also for "now"). */
+const examPeriodHoldsDuration = (body: { publishAt?: string | null; deadline: string; durationMinutes: number }) =>
+  !body.publishAt || Date.parse(body.deadline) - Date.parse(body.publishAt) >= body.durationMinutes * 60_000;
 
 const createCommon = {
   idempotencyKey: UuidSchema,
@@ -92,15 +96,16 @@ const createCommon = {
 };
 
 /**
- * An ASSIGNMENT keeps its work's grade (012), with a deadline and a late policy. Since 015 the
- * teacher also picks the mode and the AI help (015/FR-001, FR-003): NORMAL and none by default.
+ * An ASSIGNMENT keeps its work's grade (012), applied for a period: `publishAt` → `deadline` (032). Since
+ * 032 the body takes no late policy (strict → 400): the server stores `REJECT` (research AP2). Since 015
+ * the teacher also picks the mode and the AI help (015/FR-001, FR-003): NORMAL and none by default.
  */
 export const CreateAssignmentRequestSchema = z
   .strictObject({
     ...createCommon,
     source: AssignmentSourceSchema,
+    /** The period's end (032). */
     deadline: IsoDateTimeSchema,
-    latePolicy: LatePolicySchema,
     executionMode: ExecutionModeSchema.default("NORMAL"),
     aiHelpAllowance: AiHelpAllowanceSchema.default(0),
     /**
@@ -131,16 +136,22 @@ export type CreateExerciseActivityRequest = z.infer<typeof CreateExerciseActivit
 /**
  * An EXAM (018 research T3): the server sets CONTROLLED, no AI help and `PRESENT_ONLY` and pins
  * them in the database, so `executionMode`, `aiHelpAllowance` and `releaseMode` are refused here
- * (strict → 400), and so are `deadline` and `latePolicy`: each student's time is the duration from
- * their own start. The grade is the exam's.
+ * (strict → 400), and so is `latePolicy`. Since 032 it is applied for a period (`publishAt` →
+ * `deadline`, at least the duration long) and the start window is gone (`startWindowMinutes` → 400):
+ * a present student starts any time in the period, and each attempt ends at the earlier of their
+ * start + duration and the period's end (research AP3). The grade is the exam's.
  */
-export const CreateExamActivityRequestSchema = z.strictObject({
-  ...createCommon,
-  source: ExamSourceSchema,
-  durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
-  inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX).default(EXAM_INACTIVITY_SECONDS_DEFAULT),
-  startWindowMinutes: z.int().min(EXAM_START_WINDOW_MINUTES_MIN).max(EXAM_START_WINDOW_MINUTES_MAX).default(EXAM_START_WINDOW_MINUTES_DEFAULT),
-});
+export const CreateExamActivityRequestSchema = z
+  .strictObject({
+    ...createCommon,
+    source: ExamSourceSchema,
+    /** The period's end (032). */
+    deadline: IsoDateTimeSchema,
+    durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
+    inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX).default(EXAM_INACTIVITY_SECONDS_DEFAULT),
+  })
+  .refine(deadlineAfterPublication, { path: ["deadline"], message: "INVALID_SCHEDULE" })
+  .refine(examPeriodHoldsDuration, { path: ["deadline"], message: "INVALID_SCHEDULE" });
 export type CreateExamActivityRequest = z.infer<typeof CreateExamActivityRequestSchema>;
 
 /** `POST /classes/:classId/activities`: a union by `source.type` (013 contracts/http-api.md). */
@@ -158,9 +169,11 @@ export const UpdateActivityRequestSchema = z
     instructions: InstructionsSchema.nullable().optional(),
     /** Only while scheduled (`422 ALREADY_PUBLISHED`). */
     publishAt: IsoDateTimeSchema.optional(),
-    /** ASSIGNMENT only: an EXERCISE has neither, so the service answers 400 to them (013/FR-004). */
+    /**
+     * The period's end, ASSIGNMENT and EXAM (032/FR-012): a published exam's end only moves later; an
+     * EXERCISE has none, so the service answers 400 to it (013/FR-004). No late policy since 032 (strict → 400).
+     */
     deadline: IsoDateTimeSchema.optional(),
-    latePolicy: LatePolicySchema.optional(),
     /**
      * ASSIGNMENT only, like the deadline (015/FR-002); only while no student started it (`409
      * ACTIVITY_ALREADY_STARTED`, 015/FR-005).
@@ -208,15 +221,16 @@ export const ActivityAttendanceCountsSchema = z.strictObject({ present: z.int().
 export type ActivityAttendanceCounts = z.infer<typeof ActivityAttendanceCountsSchema>;
 
 /**
- * An EXAM's timing (018 research T3, T4): `startDeadline` = publication + start window, `closesAt`
- * = start deadline + duration (the latest a student can still answer), and the holds waiting for
- * the teacher's decision. Derived on read, never stored.
+ * An EXAM's timing (018 research T3, T4) and the holds waiting for the teacher's decision. Derived on
+ * read, never stored. Since 032 there is no start window: `startDeadline` and `closesAt` both = the
+ * period's end (`deadline`), kept on the wire for compatibility (research AP4).
  */
 export const ActivityExamSchema = z.strictObject({
   durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
   inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX),
-  startWindowMinutes: z.int().min(EXAM_START_WINDOW_MINUTES_MIN).max(EXAM_START_WINDOW_MINUTES_MAX),
+  /** = deadline desde a 032 (AP4). */
   startDeadline: IsoDateTimeSchema,
+  /** = deadline desde a 032 (AP4). */
   closesAt: IsoDateTimeSchema,
   pendingDecisions: z.int().min(0),
 });
@@ -241,8 +255,9 @@ export const TeacherActivitySummarySchema = z.strictObject({
   /** Only for an ACTIVE activity. */
   phase: PublicationPhaseSchema.nullable(),
   publishAt: IsoDateTimeSchema,
-  /** ASSIGNMENT only; null for EXERCISE (013/FR-013). */
+  /** The period's end of an ASSIGNMENT or EXAM (032); null for EXERCISE (013/FR-013). */
   deadline: IsoDateTimeSchema.nullable(),
+  /** ASSIGNMENT only, read only: `ACCEPT_MARKED` only on works applied before 032 (AP2). */
   latePolicy: LatePolicySchema.nullable(),
   totalGrade: GradeOutputSchema.nullable(),
   /** EXERCISE only: the sum of its exercises' points (013/FR-003); null for ASSIGNMENT. */

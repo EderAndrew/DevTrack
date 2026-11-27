@@ -9,8 +9,9 @@ export const URGENT_WITHIN_MS = 48 * 60 * 60 * 1000;
  * The student's situation, first match wins. ASSIGNMENT (012/FR-014): CORRIGIDO, ENTREGUE, ATRASADO,
  * EM_ANDAMENTO, PENDENTE; a closed activity without a submission counts as overdue. EXERCISE
  * (013/FR-014): CONCLUÍDA once any attempt is concluded, EM_ANDAMENTO with an open attempt,
- * PENDENTE otherwise — never overdue, submitted or graded. EXAM (018): as a work, with the start
- * deadline in place of the deadline: not started by then (or closed) is ATRASADO, never startable again.
+ * PENDENTE otherwise — never overdue, submitted or graded. EXAM (018, 032): as a work, with the end of
+ * its period as the start deadline: not started by then (or closed) is ATRASADO, never startable again;
+ * never by `isPastDeadline` or a late policy (an EXAM is never SUBMITTED_LATE).
  */
 export function deriveStudentStatus(facts: ActivityFacts): StudentActivityStatus {
   if (facts.type === "EXAM") {
@@ -33,7 +34,7 @@ export function deriveStudentStatus(facts: ActivityFacts): StudentActivityStatus
  * Highlighted as urgent (FR-011): not submitted and due within 48 hours, or overdue but still
  * accepting a submission. Other overdue activities show "Atrasada" without the highlight. An
  * EXERCISE has no deadline, so it is never urgent (013/FR-013); an EXAM is while it can still be
- * started (its start window is minutes long, 018/FR-007).
+ * started (in its period, 032), and never "overdue but still accepting".
  */
 export function isUrgent(facts: ActivityFacts): boolean {
   if (facts.type === "EXERCISE") return false;

@@ -123,15 +123,12 @@ export type ExamOccurrenceView = z.infer<typeof ExamOccurrenceViewSchema>;
 export const StudentExamEndReasonSchema = z.enum(["STUDENT_SUBMITTED", "TIME_EXPIRED", "ACTIVITY_CLOSED", "WARNINGS", "CANCELLED"]);
 export type StudentExamEndReason = z.infer<typeof StudentExamEndReasonSchema>;
 
-/** An exam's duration, inactivity limit and start window (018 contracts/configuration.md). */
+/** An exam's duration and inactivity limit (018 contracts/configuration.md); the start window left in 032. */
 export const EXAM_DURATION_MINUTES_MIN = 1;
 export const EXAM_DURATION_MINUTES_MAX = 120;
 export const EXAM_INACTIVITY_SECONDS_MIN = 30;
 export const EXAM_INACTIVITY_SECONDS_MAX = 60;
 export const EXAM_INACTIVITY_SECONDS_DEFAULT = 60;
-export const EXAM_START_WINDOW_MINUTES_MIN = 0;
-export const EXAM_START_WINDOW_MINUTES_MAX = 60;
-export const EXAM_START_WINDOW_MINUTES_DEFAULT = 15;
 
 /**
  * The situation of a row of the student's "Histórico" (029 research HC4), also the `tab` values of `GET /me/history`:

@@ -11,17 +11,17 @@ export interface NewActivity {
   title: string;
   instructions: string | null;
   publishAt: Date;
-  /** ASSIGNMENT only (CHECK by type, 013 K1). */
+  /** The period's end, ASSIGNMENT and EXAM (CHECK by type, 032). */
   deadline: Date | null;
+  /** ASSIGNMENT only (CHECK by type, 013 K1): `REJECT` since 032. */
   latePolicy: LatePolicy | null;
   /** ASSIGNMENT: the work; EXAM: the exam (CHECK by type); both carry their subject (CHECK: not EXERCISE). */
   sourceWorkId: string | null;
   sourceExamId: string | null;
   sourceSubjectId: string | null;
-  /** EXAM only (CHECK by type, 018 T3): 1–120 min, 30–60 s and 0–60 min. */
+  /** EXAM only (CHECK by type, 018 T3): 1–120 min and 30–60 s. */
   durationMinutes: number | null;
   inactivityLimitSeconds: number | null;
-  startWindowMinutes: number | null;
   outOfScopeTopicCount: number;
   /** ASSIGNMENT's choice; an EXAM is always CONTROLLED and 0 (CHECK by type, 015 research F2, 018 T3). */
   executionMode: ExecutionMode;

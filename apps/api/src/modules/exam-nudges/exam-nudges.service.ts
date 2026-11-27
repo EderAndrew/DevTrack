@@ -21,7 +21,7 @@ interface ExamRow {
   status: ActivityStatus;
   publish_at: Date;
   duration_minutes: number | null;
-  start_window_minutes: number | null;
+  deadline: Date | null;
   closed_at: Date | null;
   cancelled_at: Date | null;
 }
@@ -263,7 +263,7 @@ function dismissRefusalOf(facts: NudgeAttemptFacts, now: Date): DismissRefusal |
 /** What the derivations read of an exam attempt (research N6): status, submission, hold, pause, end, occurrences. */
 async function loadFacts(db: Tx | PrismaService, activityId: string, attemptId: string): Promise<NudgeAttemptFacts> {
   const exams = await db.$queryRaw<ExamRow[]>`
-    SELECT status::text AS status, publish_at, duration_minutes, start_window_minutes, closed_at, cancelled_at
+    SELECT status::text AS status, publish_at, duration_minutes, deadline, closed_at, cancelled_at
     FROM class_activities WHERE id = ${activityId}::uuid`;
   const exam = exams[0]!;
   const rows = await db.$queryRaw<AttemptFactsRow[]>`
@@ -279,7 +279,7 @@ async function loadFacts(db: Tx | PrismaService, activityId: string, attemptId: 
   const timing = examTiming({
     publishAt: exam.publish_at,
     durationMinutes: exam.duration_minutes,
-    startWindowMinutes: exam.start_window_minutes,
+    deadline: exam.deadline,
     closedAt: exam.closed_at,
     cancelledAt: exam.cancelled_at,
   });

@@ -68,7 +68,7 @@ export class IntegrityReviewService {
         status: true,
         startedAt: true,
         submission: { select: { submittedAt: true } },
-        activity: { select: { type: true, status: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
+        activity: { select: { type: true, status: true, publishAt: true, durationMinutes: true, deadline: true, closedAt: true, cancelledAt: true } },
         holds: {
           orderBy: { occurrenceOrdinal: "asc" },
           select: { id: true, attemptId: true, occurrenceOrdinal: true, openedAt: true, resolution: true, resolvedAt: true },

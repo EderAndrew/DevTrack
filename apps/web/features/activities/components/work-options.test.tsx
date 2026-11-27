@@ -14,6 +14,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 const PATH = `/api/classes/${CLASS_ID}/activities/${ACTIVITY_ID}`;
 const AVAILABLE = { available: true, reason: null };
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
+/** 032: the "Término" is a date and a time; `local` is a `datetime-local` value. */
+const setEnd = (local: string) => {
+  const [date, time] = local.split("T");
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endDate)!, { target: { value: date } });
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endTime)!, { target: { value: time } });
+};
 
 function setupNew() {
   const api = routedFetch({
@@ -59,7 +65,7 @@ describe("023/US1 Formato do Trabalho — Individual ou Em grupo", () => {
     expect(individual().checked).toBe(true);
     expect(inGroup().checked).toBe(false);
     expect(maximum()).toBeNull();
-    fireEvent.change(field(NEW_ACTIVITY_FIELD_IDS.deadline), { target: { value: "2030-10-10T23:59" } });
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     await waitFor(() => expect(api.writes()).toHaveLength(2));
     expect(api.writes()[1]!.body).toMatchObject({ groupSize: null });
@@ -73,7 +79,7 @@ describe("023/US1 Formato do Trabalho — Individual ou Em grupo", () => {
     expect(select.value).toBe("3");
     expect([...select.options].map((option) => option.value)).toEqual(["2", "3", "4", "5"]);
     await user.selectOptions(select, "4");
-    fireEvent.change(field(NEW_ACTIVITY_FIELD_IDS.deadline), { target: { value: "2030-10-10T23:59" } });
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     await waitFor(() => expect(api.writes()).toHaveLength(2));
     expect(api.writes()[1]!.body).toMatchObject({ groupSize: 4 });
@@ -102,9 +108,10 @@ describe("023/US1 Formato do Trabalho — Individual ou Em grupo", () => {
     await expectTabOrder(user, [
       field(NEW_ACTIVITY_FIELD_IDS.title),
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
-      screen.getByRole("radio", { name: "Publicar agora" }),
-      field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      screen.getByRole("radio", { name: "Agora" }),
+      field(NEW_ACTIVITY_FIELD_IDS.endDate),
+      field(NEW_ACTIVITY_FIELD_IDS.endTime),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       inGroup(),
       maximum()!,
       screen.getByRole("checkbox", { name: "Modo controlado" }),

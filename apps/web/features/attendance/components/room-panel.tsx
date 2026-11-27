@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { messageForError } from "@/lib/messages/error-messages";
 import { useApplyAttendance, usePauseStudent, useReleasePause } from "../hooks/use-attendance";
 import {
+  attendanceErrorMessage,
   awayForLabel,
   CONFIRM_PAUSE,
   MARK_PRESENT,
@@ -26,6 +26,7 @@ import {
   PAUSE_STUDENT,
   PAUSE_STUDENT_NOTICE,
   pauseQuestion,
+  PERIOD_ENDED,
   RELEASE_RETURN,
   ROOM_STATUS_LABELS,
   UNMARK,
@@ -69,13 +70,14 @@ export function RoomPanel({ classId, activityId, room }: RoomPanelProps) {
     try {
       await action();
     } catch (caught) {
-      setError(messageForError(caught));
+      setError(attendanceErrorMessage(caught));
     }
   };
   const send = (batch: AttendanceBatch) => run(() => apply.mutateAsync(batch));
 
   return (
     <div className="flex flex-col gap-2">
+      {room.periodEnded ? <p className="m-0 text-text-secondary">{PERIOD_ENDED}</p> : null}
       {error ? (
         <p role="alert" className="m-0 text-danger-text">
           {error}
@@ -135,7 +137,7 @@ export function RoomPanel({ classId, activityId, room }: RoomPanelProps) {
                 size="sm"
                 variant="secondary"
                 aria-label={`${MARK_PRESENT} ${row.name}`}
-                disabled={busy}
+                disabled={busy || room.periodEnded}
                 onClick={() => void send({ mark: [row.studentUserId], unmark: [] })}
               >
                 {MARK_PRESENT}

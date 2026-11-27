@@ -96,8 +96,8 @@ Paths below are relative to `apps/web` unless they start with `apps/` or `packag
 - Exams (018): `features/exams` is the Banco de Provas (`ExamBankList`, `ExamForm` with `ExamQuestionCard`, `ExamDetail`
   with "Aprovar" listing the questions that block it, `ExamGenerationForm` and `ExamGenerationRequestDetail` for "Criar prova
   com IA"), apart from the exercise and work banks. Applying is the 012 "Nova atividade" with the source "Prova":
-  the coverage by topic and difficulty before confirming, duration, inactivity and start window, and no mode, help,
-  release, deadline or late policy. `features/exam-session` is the teacher's side of an applied exam: the tab "Chamada
+  the coverage by topic and difficulty before confirming, the 032 "Período" (início "Agora"/"Agendar", término date and
+  time), duration and inactivity, and no mode, help, release, start window or late policy. `features/exam-session` is the teacher's side of an applied exam: the tab "Chamada
   e prova" is the 016 `AttendanceTab` whose room is `ExamRoomPanel` (each situation in words with the server's
   times, holds first, "Confirmar cancelamento" with the zero said before the click, "Devolver prova" only with
   `canReturn`, "Não cancelar" after the end, "Ver ocorrências", "Pausar aluno"), polled every `ATTENDANCE_POLL_MS`.

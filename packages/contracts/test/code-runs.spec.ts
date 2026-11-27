@@ -411,7 +411,6 @@ describe("021 Code Runner nos Trabalhos (contracts/http-api.md, research Y10)", 
     ...common,
     source: { type: "ASSIGNMENT", workId: uuid(5) },
     deadline: "2026-10-10T23:59:00.000Z",
-    latePolicy: "REJECT",
     ...overrides,
   });
   const exercise = {
@@ -422,6 +421,7 @@ describe("021 Code Runner nos Trabalhos (contracts/http-api.md, research Y10)", 
     ...common,
     source: { type: "EXAM", examId: uuid(6) },
     durationMinutes: 60,
+    deadline: "2026-10-10T23:59:00.000Z",
   };
 
   it("021/FR-001 o Trabalho aceita a opção de executar, desligada por padrão", () => {

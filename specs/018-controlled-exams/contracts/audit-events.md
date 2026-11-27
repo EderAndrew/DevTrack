@@ -29,7 +29,7 @@ and rule results in `exam_occurrences` (015 kept events out of the audit the sam
 
 | Type | Metadata added |
 |---|---|
-| `activity.published` | `type: EXAM`, `durationMinutes`, `inactivityLimitSeconds`, `startWindowMinutes`, `sourceExamId` |
+| `activity.published` | `type: EXAM`, `durationMinutes`, `inactivityLimitSeconds`, `sourceExamId` (and `startWindowMinutes` until 032, which removed the start window) |
 | `activity_attempt.started` | `rulesAccepted: true` for EXAM |
 | `activity_submission.created` | `endReason: STUDENT_SUBMITTED` for EXAM |
 | `activity_submission.rejected` | codes `EXAM_TIME_OVER`, `EXAM_ATTEMPT_ON_HOLD`, `EXAM_START_CLOSED` |

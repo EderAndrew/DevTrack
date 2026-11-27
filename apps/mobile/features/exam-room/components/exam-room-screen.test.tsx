@@ -1,6 +1,7 @@
 import { act, screen } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
 import { apiError, fakeApi, memoryStore, renderApp } from "../../../test/render";
+import { formatTime } from "../schemas/exam-room";
 import { ExamRoomScreen } from "./exam-room-screen";
 
 jest.mock("expo-router", () => ({
@@ -150,5 +151,30 @@ describe("024/US2 a sala da prova no celular", () => {
     fakeApi({ [monitorPath]: apiError(404, "NOT_FOUND"), "GET /mobile/exams": inProgress });
     await renderRoom();
     expect(await screen.findByText("Esta prova não está mais disponível.")).toBeOnTheScreen();
+  });
+});
+
+// 032: the app reads the 018 monitor unchanged; only the values move: the start deadline and the
+// close are both the period's end, and an attempt's end is already cut at it by the server.
+describe("032/US2 a sala no celular com o período da prova", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it("032/US2-1 pode iniciar até o término (startDeadline = closesAt) e quem começou tarde tem só o que falta do período", async () => {
+    const period = {
+      ...monitor(),
+      durationMinutes: 60,
+      startDeadline: plus(45),
+      closesAt: plus(45),
+      students: [
+        student(1, { examStatus: "PRESENT", attemptId: null, startedAt: null, endsAt: null }),
+        // Started at +15 for 60 min (+75), cut at the period's end (+45): 40 min left at the server's +5.
+        student(2, { startedAt: plus(15), endsAt: plus(45), occurrenceCount: 0 }),
+      ],
+    };
+    fakeApi({ [monitorPath]: period, "GET /mobile/exams": inProgress });
+    await renderRoom();
+    expect(await screen.findByText(`Presente — pode iniciar até ${formatTime(plus(45))}`)).toBeOnTheScreen();
+    expect(screen.getByText("Respondendo — 40 min restantes — 0 ocorrências")).toBeOnTheScreen();
   });
 });

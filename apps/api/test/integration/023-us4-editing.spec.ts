@@ -1,6 +1,6 @@
 import type { Answer, StudentActivity, TeacherActivity } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { applyWork, saveAnswers, submitAttempt } from "../helpers/activities";
+import { applyWork, legacyAcceptMarked, saveAnswers, submitAttempt } from "../helpers/activities";
 import { pauseStudent } from "../helpers/attendance";
 import { FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { createClass, createEnrollment, createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -47,10 +47,12 @@ describe("023/US4 um integrante edita por vez e o líder passa a edição", () =
     return res.body as StudentActivity;
   };
   /** A group work of 4 led by Ana with Bruno and Carla. */
-  const startedGroup = async (overrides: Record<string, unknown> = {}) => {
+  /** 032: `latePolicy` is not part of the body any more; `ACCEPT_MARKED` is written as a legacy work (research AP2). */
+  const startedGroup = async ({ latePolicy, ...overrides }: Record<string, unknown> = {}) => {
     const created = await applyWork(teacherClient, classId, work.id, { groupSize: 4, ...overrides });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     const activity = created.body as TeacherActivity;
+    if (latePolicy === "ACCEPT_MARKED") await legacyAcceptMarked(t, activity.id);
     const res = await startGroup(as[ana.id]!, activity.id, [bruno.id, carla.id]);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     const question = (res.body as StudentActivity).questions[0]!;

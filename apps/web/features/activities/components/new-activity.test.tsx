@@ -23,6 +23,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 const NO_SCOPE = { hasPlan: true, outOfScope: [] };
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 const setValue = (id: string, value: string) => fireEvent.change(field(id), { target: { value } });
+/** 032: the "Término" is a date and a time; `local` is a `datetime-local` value. */
+const setEnd = (local: string) => {
+  const [date, time] = local.split("T");
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endDate)!, { target: { value: date } });
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endTime)!, { target: { value: time } });
+};
 
 const AVAILABLE = { available: true, reason: null };
 
@@ -66,8 +72,7 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
 
     expect(await screen.findByDisplayValue("Trabalho de herança")).toBeTruthy();
     expect(screen.queryByLabelText(/Nota total/)).toBeNull();
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
-    await user.click(screen.getByRole("radio", { name: "Aceitar e marcar como atrasada" }));
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
 
     const sent = api.writes()[1]!.body as Record<string, unknown>;
@@ -76,10 +81,11 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
       title: "Trabalho de herança",
       publishAt: null,
       deadline: new Date("2030-10-10T23:59").toISOString(),
-      latePolicy: "ACCEPT_MARKED",
       acknowledgeOutOfScope: false,
     });
     expect(sent).not.toHaveProperty("totalGrade");
+    // 032: no late policy in the body; the server stores REJECT.
+    expect(sent).not.toHaveProperty("latePolicy");
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${activity().id}`);
   });
 
@@ -119,26 +125,29 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     await screen.findByRole("form", { name: "Dados da atividade" });
     await user.click(screen.getByRole("radio", { name: "Agendar" }));
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
-    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.publishAt));
-    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.deadline));
+    // 032: the início's date and time, and the término's time (its date starts as today's).
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.startDate));
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.startTime));
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
 
-    setValue(NEW_ACTIVITY_FIELD_IDS.publishAt, "2030-10-11T08:00");
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startDate, "2030-10-11");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startTime, "08:00");
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
-    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.deadline));
-    expect(screen.getAllByText("O prazo deve ser depois da data de publicação.").length).toBeGreaterThan(0);
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
+    expect(screen.getAllByText("O término deve ser depois do início e, na prova, deixar pelo menos a duração.").length).toBeGreaterThan(0);
     expect(api.writes()).toHaveLength(1);
     await expectNoA11yViolations(container);
   });
 
   it("012/US1-5 a recusa do servidor (INVALID_SCHEDULE) aparece no campo do prazo", async () => {
-    const { user } = setup(NO_SCOPE, apiError(422, "INVALID_SCHEDULE", "O prazo deve ser depois da data de publicação."));
+    const { user } = setup(NO_SCOPE, apiError(422, "INVALID_SCHEDULE", "O término deve ser depois do início e, na prova, deixar pelo menos a duração."));
     await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
     await user.click(screen.getByRole("button", { name: "Continuar" }));
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(await screen.findByRole("button", { name: "Publicar atividade" }));
     await screen.findByText("Não foi possível publicar a atividade");
-    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.deadline));
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
   });
 
   it("012/FR-005a tópicos ainda não concluídos: a confirmação é obrigatória e vai no pedido", async () => {
@@ -148,7 +157,7 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     expect(await screen.findByText("Tópicos ainda não concluídos no planejamento desta turma")).toBeTruthy();
     expect(screen.getByText("Polimorfismo (questões 2, 3)")).toBeTruthy();
 
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     const confirmation = screen.getByRole("checkbox", { name: "Entendo e quero aplicar mesmo assim" });
     expectFieldErrorLinked(confirmation);
@@ -164,7 +173,7 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     const { api, user } = setup(NO_SCOPE, () => (++attempt === 1 ? apiError(500, "INTERNAL_ERROR", "Erro interno.") : json(201, activity())));
     await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
     await user.click(screen.getByRole("button", { name: "Continuar" }));
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(await screen.findByRole("button", { name: "Publicar atividade" }));
     await screen.findByText("Não foi possível publicar a atividade");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
@@ -232,7 +241,7 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
     expect(document.getElementById(help.getAttribute("aria-describedby")!)!.textContent).toBe(
       "A IA orienta sem dar a resposta. Você verá as perguntas e as orientações na correção.",
     );
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(controlled);
     await user.click(help);
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
@@ -242,7 +251,7 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
   it("015/US1-2 sem mexer nas opções: NORMAL e nenhuma ajuda", async () => {
     const { api, user } = setup();
     await chooseWork(user);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expect(api.writes()[1]!.body).toMatchObject({ executionMode: "NORMAL", aiHelpAllowance: 0 });
   });
@@ -276,7 +285,7 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
       apiError(503, "AI_HELP_UNAVAILABLE", "A ajuda está indisponível agora; tente de novo em instantes."),
     );
     await chooseWork(user);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     const help = screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }) as HTMLInputElement;
     await waitFor(() => expect(help.disabled).toBe(false));
     await user.click(help);
@@ -307,9 +316,10 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
     await expectTabOrder(user, [
       field(NEW_ACTIVITY_FIELD_IDS.title),
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
-      screen.getByRole("radio", { name: "Publicar agora" }),
-      field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      screen.getByRole("radio", { name: "Agora" }),
+      field(NEW_ACTIVITY_FIELD_IDS.endDate),
+      field(NEW_ACTIVITY_FIELD_IDS.endTime),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       help,
       screen.getByRole("button", { name: "Publicar atividade" }),
@@ -355,7 +365,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
     expect(box().disabled).toBe(false);
     expect(document.getElementById(box().getAttribute("aria-describedby")!.split(" ")[0]!)!.textContent).toBe(DESCRIPTION);
     expect(screen.queryByText(DOWN)).toBeNull();
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(box());
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expect(api.writes()[1]!.body).toMatchObject({ codeExecution: true });
@@ -364,7 +374,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
   it("021/US2-1 sem mexer na opção: codeExecution false", async () => {
     const { api, user } = setupRunnable();
     await chooseWork(user);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expect(api.writes()[1]!.body).toMatchObject({ codeExecution: false });
   });
@@ -374,7 +384,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
     await chooseWork(user);
     expect(screen.queryByRole("checkbox", { name: LABEL })).toBeNull();
     expect(api.calls.some((call) => call.url.includes("/code-runner/availability"))).toBe(false);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expect(api.writes()[1]!.body).toMatchObject({ codeExecution: false });
   });
@@ -382,7 +392,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
   it("021/US2-2 a recusa do servidor (422 CODE_EXECUTION_NOT_ELIGIBLE) aparece no resumo, ligada à opção", async () => {
     const { user } = setupRunnable(RUNNABLE, json(200, { available: true }), apiError(422, "CODE_EXECUTION_NOT_ELIGIBLE", "Recusado."));
     await chooseWork(user);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(box());
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     const summary = (await screen.findByText("Não foi possível publicar a atividade")).closest("[role=group]") as HTMLElement;
@@ -397,7 +407,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
     const notice = await screen.findByText(DOWN);
     expect(box().disabled).toBe(false);
     expect(box().getAttribute("aria-describedby")!.split(" ")).toContain(notice.closest("[role=status]")!.id);
-    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
+    setEnd("2030-10-10T23:59");
     await user.click(box());
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expect(api.writes()[1]!.body).toMatchObject({ codeExecution: true });
@@ -412,9 +422,10 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
     await expectTabOrder(user, [
       field(NEW_ACTIVITY_FIELD_IDS.title),
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
-      screen.getByRole("radio", { name: "Publicar agora" }),
-      field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      screen.getByRole("radio", { name: "Agora" }),
+      field(NEW_ACTIVITY_FIELD_IDS.endDate),
+      field(NEW_ACTIVITY_FIELD_IDS.endTime),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       help,
       box(),
@@ -477,5 +488,57 @@ describe("013/US1 NewActivity — exercícios valem pontos pelo nível", () => {
     await user.click(screen.getByRole("checkbox", { name: /O que é polimorfismo/ }));
     await screen.findByText("Total: 45 pontos");
     await expectNoA11yViolations(container);
+  });
+});
+
+describe("032/US3 NewActivity — o Trabalho aplicado com um período, sem prazo nem política de atraso", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Step 2 of the approved work. */
+  async function chooseWork(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    return screen.findByRole("form", { name: "Dados da atividade" });
+  }
+
+  it("032/US3-1 032/FR-009 o Trabalho mostra o fieldset \"Período\" (Início e Término) e nenhum \"Prazo de entrega\", \"Entrega atrasada\" ou duração", async () => {
+    const { user, container } = setup();
+    await chooseWork(user);
+    const period = screen.getByRole("group", { name: "Período" });
+    expect(within(period).getByRole("radio", { name: "Agora" })).toBeTruthy();
+    expect(within(period).getByRole("radio", { name: "Agendar" })).toBeTruthy();
+    expect(within(period).getByLabelText(/Data do término/)).toBeTruthy();
+    expect(within(period).getByLabelText(/Horário do término/)).toBeTruthy();
+    expect(within(period).queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
+    // "Término" starts on the start's day: today for "Agora".
+    expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    for (const gone of [/Prazo de entrega/, /Duração/, /Limite para iniciar/]) expect(screen.queryByLabelText(gone)).toBeNull();
+    expect(screen.queryByRole("group", { name: /Entrega atrasada/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Aceitar e marcar como atrasada" })).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("032/US3-1 032/FR-002 agendado com o término antes do início: o erro fica no Término e nada é enviado; um início válido envia o período", async () => {
+    const { api, user } = setup();
+    await chooseWork(user);
+    await user.click(screen.getByRole("radio", { name: "Agendar" }));
+    setValue(NEW_ACTIVITY_FIELD_IDS.startDate, "2030-11-30");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startTime, "19:10");
+    setEnd("2030-11-30T19:10");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
+    expect(api.writes()).toHaveLength(1);
+
+    setEnd("2030-11-30T22:00");
+    await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(2));
+    const sent = api.writes()[1]!.body as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      source: { type: "ASSIGNMENT", workId: WORK.id },
+      publishAt: new Date("2030-11-30T19:10").toISOString(),
+      deadline: new Date("2030-11-30T22:00").toISOString(),
+    });
+    for (const key of ["latePolicy", "durationMinutes", "startWindowMinutes"]) expect(sent).not.toHaveProperty(key);
   });
 });

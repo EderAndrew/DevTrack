@@ -17,11 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApplyAttendance } from "@/features/attendance/hooks/use-attendance";
+import { attendanceErrorMessage, PERIOD_ENDED } from "@/features/attendance/schemas/attendance";
 import { NOT_AN_OCCURRENCE, NUDGE_PENDING_BADGE, nudgesSentText } from "@/features/exam-nudge/schemas/exam-nudge";
 import { messageForError } from "@/lib/messages/error-messages";
 import { useExamMonitor, useExamRoomActions } from "../hooks/use-exam-session";
 import {
   CONFIRM_PAUSE,
+  endsAtLabel,
   examStatusLabel,
   HIDE_OCCURRENCES,
   MARK_PRESENT,
@@ -29,6 +31,7 @@ import {
   PAUSE_NOTICE,
   PAUSE_STUDENT,
   pauseQuestion,
+  periodEnded,
   RELEASE_RETURN,
   RETURN_EXAM,
   SHOW_OCCURRENCES,
@@ -109,9 +112,21 @@ function MonitorRows({ classId, activityId, monitor, canDecide, active }: Omit<E
   };
   const decide = (row: ExamMonitorStudent, decision: "cancel" | "return" | "keep") =>
     void run(() => actions.decide.mutateAsync({ holdId: row.openHold!.id, decision }));
+  const ended = periodEnded(monitor);
+  /** 032: a mark refused by a race with the period's end reads as the disabled marks do. */
+  const mark = async (batch: { mark: string[]; unmark: string[] }) => {
+    setError(null);
+    try {
+      await attendance.mutateAsync(batch);
+    } catch (caught) {
+      setError(attendanceErrorMessage(caught));
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2">
+      <p className="m-0">{endsAtLabel(monitor.closesAt)}</p>
+      {active && ended ? <p className="m-0 text-text-secondary">{PERIOD_ENDED}</p> : null}
       {error ? (
         <p role="alert" className="m-0 text-danger-text">
           {error}
@@ -187,8 +202,8 @@ function MonitorRows({ classId, activityId, monitor, canDecide, active }: Omit<E
                   size="sm"
                   variant="secondary"
                   aria-label={`${MARK_PRESENT} ${row.name}`}
-                  disabled={busy}
-                  onClick={() => void run(() => attendance.mutateAsync({ mark: [row.studentUserId], unmark: [] }))}
+                  disabled={busy || ended}
+                  onClick={() => void mark({ mark: [row.studentUserId], unmark: [] })}
                 >
                   {MARK_PRESENT}
                 </Button>
@@ -200,7 +215,7 @@ function MonitorRows({ classId, activityId, monitor, canDecide, active }: Omit<E
                   variant="secondary"
                   aria-label={`${UNMARK} ${row.name}`}
                   disabled={busy}
-                  onClick={() => void run(() => attendance.mutateAsync({ mark: [], unmark: [row.studentUserId] }))}
+                  onClick={() => void mark({ mark: [], unmark: [row.studentUserId] })}
                 >
                   {UNMARK}
                 </Button>

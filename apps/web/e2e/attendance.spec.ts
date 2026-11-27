@@ -32,7 +32,6 @@ async function applyWork(page: Page, seed: StudentPortalSeed, classId: string, t
     title,
     publishAt: null,
     deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(),
-    latePolicy: "REJECT",
     acknowledgeOutOfScope: false,
   });
   expect(activity.releaseMode).toBe("PRESENT_ONLY");

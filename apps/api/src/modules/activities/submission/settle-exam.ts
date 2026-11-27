@@ -20,7 +20,7 @@ export interface SettleExamInput {
 interface TimingRow {
   publish_at: Date;
   duration_minutes: number | null;
-  start_window_minutes: number | null;
+  deadline: Date | null;
   closed_at: Date | null;
   cancelled_at: Date | null;
 }
@@ -28,7 +28,8 @@ interface TimingRow {
 /**
  * The time-out settlement (018 research T5): every IN_PROGRESS attempt of an EXAM whose end plus the
  * grace has passed, and that has no open hold, becomes its submission — dated at the computed end,
- * `TIME_EXPIRED` (or `ACTIVITY_CLOSED` when the teacher's close or cancellation came first), never
+ * `TIME_EXPIRED` (the duration or, since 032, the period's end; `ACTIVITY_CLOSED` when the teacher's
+ * close or cancellation came first), never
  * late, graded on the saved answers with the blanks at zero — and one `exam_attempt.time_expired`
  * (SYSTEM). Under the activity `FOR SHARE` and the attempts `FOR UPDATE`, in the caller's transaction:
  * a second run, or a student's submit that got the lock first, finds the attempt SUBMITTED and does
@@ -38,7 +39,7 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
   const { activityId, now } = input;
   const ofClass = input.classId ? Prisma.sql`AND class_id = ${input.classId}::uuid` : Prisma.empty;
   const activities = await tx.$queryRaw<TimingRow[]>`
-    SELECT publish_at, duration_minutes, start_window_minutes, closed_at, cancelled_at
+    SELECT publish_at, duration_minutes, deadline, closed_at, cancelled_at
     FROM class_activities WHERE id = ${activityId}::uuid AND type = 'EXAM' ${ofClass}
     FOR SHARE`;
   const row = activities[0];
@@ -46,7 +47,7 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
   const timing = examTiming({
     publishAt: row.publish_at,
     durationMinutes: row.duration_minutes,
-    startWindowMinutes: row.start_window_minutes,
+    deadline: row.deadline,
     closedAt: row.closed_at,
     cancelledAt: row.cancelled_at,
   });
@@ -54,7 +55,8 @@ export async function settleExpiredExamAttempts(tx: Tx, audit: AuditService, inp
   // Only the candidates are locked: an attempt still within its time is left alone (the student's
   // saves keep their own lock). `exam-time.ts` decides each one again below.
   const cutoff = new Date(now.getTime() - EXAM_END_GRACE_MS);
-  const activityEnded = [timing.closedAt, timing.cancelledAt].some((date) => date !== null && date <= cutoff);
+  // The period's end (032) cuts every attempt, like the teacher's close or cancellation.
+  const activityEnded = [timing.deadline, timing.closedAt, timing.cancelledAt].some((date) => date !== null && date <= cutoff);
   const startedBy = new Date(cutoff.getTime() - timing.durationMinutes * 60_000);
   const student = input.studentUserId
     ? Prisma.sql`AND EXISTS (SELECT 1 FROM attempt_participants pt WHERE pt.attempt_id = a.id AND pt.student_user_id = ${input.studentUserId}::uuid)`

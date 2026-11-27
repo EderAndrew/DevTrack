@@ -336,3 +336,38 @@ describe("025/US3 ExamRoomPanel — os avisos do professor no monitor da web", (
     await expectNoA11yViolations(container);
   });
 });
+
+describe("032/US1 ExamRoomPanel — o término do período", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const ENDED = "O período terminou: não é possível liberar mais alunos.";
+
+  it("032/US1-1 032/FR-008 o monitor mostra \"Termina às\" com o término do período", async () => {
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, monitor([studentRow("Eva Nunes", { examStatus: "NOT_MARKED", markedAt: null })])) }).fetch);
+    render();
+    expect(await screen.findByText(`Termina às ${formatTime("2026-10-01T12:45:00.000Z")}`)).toBeTruthy();
+    expect(screen.queryByText(ENDED)).toBeNull();
+    expect(screen.getByRole("button", { name: "Marcar presente Eva Nunes" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("032/US1-3 032/FR-014 depois do término pelo relógio do servidor, \"Marcar presente\" desabilitado com o aviso; um 409 de corrida mostra o mesmo texto", async () => {
+    const ended = { ...monitor([studentRow("Eva Nunes", { examStatus: "NOT_MARKED", markedAt: null })]), serverNow: "2026-10-01T12:46:00.000Z" };
+    vi.stubGlobal("fetch", routedFetch({ [`GET ${MONITOR_PATH}`]: json(200, ended) }).fetch);
+    const view = render();
+    expect(await screen.findByText(ENDED)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Marcar presente Eva Nunes" }).hasAttribute("disabled")).toBe(true);
+    view.unmount();
+    vi.unstubAllGlobals();
+
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        [`GET ${MONITOR_PATH}`]: json(200, monitor([studentRow("Eva Nunes", { examStatus: "NOT_MARKED", markedAt: null })])),
+        [`POST ${PATH}/attendance`]: apiError(409, "ACTIVITY_PERIOD_ENDED", "O período desta atividade terminou."),
+      }).fetch,
+    );
+    const user = userEvent.setup();
+    render();
+    await user.click(await screen.findByRole("button", { name: "Marcar presente Eva Nunes" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(ENDED);
+  });
+});

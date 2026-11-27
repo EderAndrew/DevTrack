@@ -158,20 +158,21 @@ describe("013/US1 professor aplica exercícios sem nota e sem prazo", () => {
     expect(later.questions.map((q) => q.points)).toEqual([60, 30, 15]);
   });
 
-  it("013/US1-4 Trabalho continua como na 012: prazo e regra de atraso obrigatórios, nota do trabalho", async () => {
-    const applied = await applyWork(client, classId, work.id, { ...acknowledged, deadline: iso(clock, 7 * DAY), latePolicy: "ACCEPT_MARKED" });
+  // 032: the late policy left the body; the server stores REJECT (research AP2).
+  it("013/US1-4 Trabalho continua como na 012: prazo obrigatório, regra de atraso do servidor, nota do trabalho", async () => {
+    const applied = await applyWork(client, classId, work.id, { ...acknowledged, deadline: iso(clock, 7 * DAY) });
     expect(applied.status).toBe(201);
     expect(applied.body).toMatchObject({
       type: "ASSIGNMENT",
       totalGrade: "1.00",
-      latePolicy: "ACCEPT_MARKED",
+      latePolicy: "REJECT",
       possiblePoints: null,
       exerciseCounts: null,
     });
     expect((applied.body as TeacherActivity).questions.every((q) => q.value !== null && q.points === null && q.difficulty === null)).toBe(true);
-    expect((await events("activity.published"))[0]!.metadata).toMatchObject({ type: "ASSIGNMENT", totalCents: 100, latePolicy: "ACCEPT_MARKED" });
+    expect((await events("activity.published"))[0]!.metadata).toMatchObject({ type: "ASSIGNMENT", totalCents: 100, latePolicy: "REJECT" });
 
-    for (const missing of [{ deadline: undefined }, { latePolicy: undefined }]) {
+    for (const missing of [{ deadline: undefined }]) {
       const refused = await applyWork(client, classId, work.id, { ...acknowledged, ...missing });
       expect([refused.status, refused.body.code], JSON.stringify(Object.keys(missing))).toEqual([400, "VALIDATION_ERROR"]);
     }

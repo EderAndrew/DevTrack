@@ -87,7 +87,6 @@ test.describe("020 feedback dos alunos", () => {
       title: `${seed.workTitle} (controlado, feedback)`,
       publishAt: null,
       deadline: new Date(Date.now() + 7 * 24 * 3_600_000).toISOString(),
-      latePolicy: "REJECT",
       acknowledgeOutOfScope: false,
       executionMode: "CONTROLLED",
       aiHelpAllowance: 0,

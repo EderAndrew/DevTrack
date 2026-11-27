@@ -1,6 +1,6 @@
 import { type Room, RoomSchema, type StudentActivity, type TeacherActivity } from "@repo/contracts";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { applyWork, createClassWithStudents, saveAnswers, startAttempt, submitAttempt } from "../helpers/activities";
+import { applyWork, createClassWithStudents, legacyAcceptMarked, saveAnswers, startAttempt, submitAttempt } from "../helpers/activities";
 import { getRoom, markPresent, postAttendance, unmark } from "../helpers/attendance";
 import { DAY, FixedClock, HOUR, MINUTE } from "../helpers/clock";
 import { createUser, loginAs, type TestUser } from "../helpers/factories";
@@ -33,9 +33,11 @@ describe("016/US2 aluno atrasado e presença marcada por engano", () => {
   const events = (type: string) => t.prisma.auditEvent.findMany({ where: { type }, orderBy: { id: "asc" } });
 
   /** A work applied through the route, with no attendance taken. */
-  const applied = async (overrides: Parameters<typeof applyWork>[3] = {}) => {
+  /** 032: `legacy` writes `ACCEPT_MARKED` straight in the database, as a work applied before 032 (research AP2). */
+  const applied = async (overrides: Parameters<typeof applyWork>[3] = {}, legacy = false) => {
     const res = await applyWork(client, classId, work.id, { acknowledgeOutOfScope: true, attendance: "NONE", ...overrides });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    if (legacy) await legacyAcceptMarked(t, res.body.id);
     return res.body as TeacherActivity;
   };
   const room = async (activityId: string) => {
@@ -113,7 +115,7 @@ describe("016/US2 aluno atrasado e presença marcada por engano", () => {
 
   it("016/FR-004 marcar depois do prazo (ACCEPT_MARKED) libera o trabalho com o mesmo prazo, e o início fica marcado como atrasado", async () => {
     const deadline = iso(HOUR);
-    const activity = await applied({ deadline, latePolicy: "ACCEPT_MARKED" });
+    const activity = await applied({ deadline }, true);
     const [a, late] = students;
     expect((await markPresent(client, classId, activity.id, [a!.id])).status).toBe(200);
     clock.advance(2 * HOUR);

@@ -65,7 +65,8 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
   });
 
   it("012/US1-1 012/FR-001 aplica um trabalho APPROVED com publicação imediata: 201, cópia completa e activity.published", async () => {
-    const res = await applyWork(client, classId, work.id, { deadline: iso(clock, 7 * DAY), latePolicy: "ACCEPT_MARKED" });
+    // 032: no late policy in the body; the server stores REJECT (research AP2).
+    const res = await applyWork(client, classId, work.id, { deadline: iso(clock, 7 * DAY) });
     expect(res.status).toBe(201);
     const activity = res.body as TeacherActivity;
     expect(activity).toMatchObject({
@@ -74,7 +75,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       status: "ACTIVE",
       phase: "PUBLISHED",
       publishAt: START,
-      latePolicy: "ACCEPT_MARKED",
+      latePolicy: "REJECT",
       totalGrade: "1.00",
       version: 1,
       outOfScopeTopicCount: 0,
@@ -116,7 +117,7 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       sourceWorkId: work.id,
       questionCount: 3,
       totalCents: 100,
-      latePolicy: "ACCEPT_MARKED",
+      latePolicy: "REJECT",
       scheduled: false,
       outOfScopeTopicCount: 0,
       hasPlan: true,
@@ -169,7 +170,6 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
       title: "Na turma alheia",
       publishAt: null,
       deadline: iso(clock, DAY),
-      latePolicy: "REJECT",
       acknowledgeOutOfScope: true,
     });
     expect(intoStrangersClass.status).toBe(404);
@@ -264,16 +264,16 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
     expect((await applyExercises(client, classId, [open.id, open.id])).status).toBe(400);
   });
 
-  it("012/US1-8 012/FR-024a a regra de atraso fica registrada na atividade e muda enquanto ela está ativa", async () => {
-    const rejecting = (await applyWork(client, classId, work.id, { latePolicy: "REJECT" })).body as TeacherActivity;
-    const accepting = (await applyWork(client, classId, work.id, { latePolicy: "ACCEPT_MARKED" })).body as TeacherActivity;
-    expect([rejecting.latePolicy, accepting.latePolicy]).toEqual(["REJECT", "ACCEPT_MARKED"]);
-    const stored = await t.prisma.classActivity.findMany({ orderBy: { createdAt: "asc" }, select: { latePolicy: true } });
-    expect(stored.map((row) => row.latePolicy).sort()).toEqual(["ACCEPT_MARKED", "REJECT"]);
+  // 032 changed the rule (research AP2): the late policy is no longer chosen nor edited; every new work is REJECT.
+  it("012/US1-8 012/FR-024a a regra de atraso fica registrada na atividade (REJECT desde a 032) e não muda mais", async () => {
+    const applied = (await applyWork(client, classId, work.id)).body as TeacherActivity;
+    expect(applied.latePolicy).toBe("REJECT");
+    expect((await applyWork(client, classId, work.id, { latePolicy: "ACCEPT_MARKED" })).status).toBe(400);
+    const stored = await t.prisma.classActivity.findMany({ select: { latePolicy: true } });
+    expect(stored.map((row) => row.latePolicy)).toEqual(["REJECT"]);
 
-    const changed = await client.patch(`${base()}/${rejecting.id}`, { version: 1, latePolicy: "ACCEPT_MARKED" });
-    expect(changed.status).toBe(200);
-    expect(changed.body).toMatchObject({ latePolicy: "ACCEPT_MARKED", version: 2 });
+    const changed = await client.patch(`${base()}/${applied.id}`, { version: 1, latePolicy: "ACCEPT_MARKED" });
+    expect([changed.status, changed.body.code]).toEqual([400, "VALIDATION_ERROR"]);
   });
 
   describe("012/FR-005a escopo ensinado e disciplina", () => {
@@ -346,7 +346,8 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
   });
 
   describe("012/FR-004 edição, encerramento e cancelamento", () => {
-    it("012/FR-004 PATCH muda título, instruções, prazo e regra, com a versão; publicação só enquanto agendada", async () => {
+    // 032: the late policy is no longer editable (research AP2).
+    it("012/FR-004 PATCH muda título, instruções e prazo, com a versão; publicação só enquanto agendada", async () => {
       const scheduled = (await applyWork(client, classId, work.id, { publishAt: iso(clock, DAY), deadline: iso(clock, 3 * DAY) })).body;
       const edited = await client.patch(`${base()}/${scheduled.id}`, {
         version: 1,
@@ -354,7 +355,6 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
         instructions: "Novas instruções",
         publishAt: iso(clock, 2 * DAY),
         deadline: iso(clock, 5 * DAY),
-        latePolicy: "ACCEPT_MARKED",
       });
       expect(edited.status).toBe(200);
       expect(edited.body).toMatchObject({
@@ -362,11 +362,11 @@ describe("012/US1 professor aplica e publica uma atividade para a turma", () => 
         instructions: "Novas instruções",
         publishAt: iso(clock, 2 * DAY),
         deadline: iso(clock, 5 * DAY),
-        latePolicy: "ACCEPT_MARKED",
+        latePolicy: "REJECT",
         version: 2,
       });
       const [updated] = await events("activity.updated");
-      expect(updated!.metadata).toEqual({ classId, fields: ["deadline", "instructions", "latePolicy", "publishAt", "title"] });
+      expect(updated!.metadata).toEqual({ classId, fields: ["deadline", "instructions", "publishAt", "title"] });
 
       // Nothing changed: the activity as it is, no event, no new version.
       const same = await client.patch(`${base()}/${scheduled.id}`, { version: 2, title: "Lista revisada" });

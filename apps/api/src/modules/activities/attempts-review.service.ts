@@ -57,7 +57,7 @@ const ATTEMPT_SELECT = {
   },
   group: { select: { leaderUserId: true } },
   // EXAM (018/FR-031): the timing that derives the end, the occurrences and the decisions with their author.
-  activity: { select: { type: true, publishAt: true, durationMinutes: true, startWindowMinutes: true, closedAt: true, cancelledAt: true } },
+  activity: { select: { type: true, publishAt: true, durationMinutes: true, deadline: true, closedAt: true, cancelledAt: true } },
   occurrences: { orderBy: { ordinal: "asc" }, select: { ordinal: true, kind: true, recordedAt: true } },
   holds: {
     orderBy: { occurrenceOrdinal: "asc" },

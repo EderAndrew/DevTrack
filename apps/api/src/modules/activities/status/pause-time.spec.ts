@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pauseTime, secondsAway } from "./pause-time";
+import { examEndOf, pauseTime, secondsAway } from "./pause-time";
 
 const at = (minutes: number, seconds = 0) => new Date(Date.UTC(2026, 9, 9, 13, minutes, seconds));
 const none = { acceptedAt: null, activityEndedAt: null };
@@ -71,5 +71,19 @@ describe("016/FR-019 016/FR-021 fim e duração de uma pausa, derivados na leitu
       endedBy: "ACTIVITY_CLOSED",
     });
     expect(secondsAway([{ startedAt: at(0), releasedAt: null }], { ...none, examEndsAt: at(4) }, at(30))).toBe(240);
+  });
+});
+
+describe("032/US2-2 o fim da prova para a pausa: início + duração, cortado no fim do período", () => {
+  it("032/SC-003 o menor entre início + duração e o término; nulo para um trabalho", () => {
+    expect(examEndOf(at(0), { durationMinutes: 30, deadline: at(50) })).toEqual(at(30));
+    expect(examEndOf(at(30), { durationMinutes: 30, deadline: at(50) })).toEqual(at(50));
+    expect(examEndOf(at(20), { durationMinutes: 30, deadline: at(50) })).toEqual(at(50));
+    expect(examEndOf(at(0), { durationMinutes: null, deadline: at(50) })).toBeNull();
+  });
+
+  it("032/US2-2 a pausa aberta no término termina nele, por tempo", () => {
+    const examEndsAt = examEndOf(at(30), { durationMinutes: 30, deadline: at(50) });
+    expect(pauseTime({ startedAt: at(45), releasedAt: null }, { ...none, examEndsAt }, at(55))).toEqual({ endedAt: at(50), endedBy: "TIME_EXPIRED", seconds: 300 });
   });
 });

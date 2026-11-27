@@ -5,108 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 DevTrack is a teaching/assessment platform configurable per teacher (docs, specs, UI copy, and
-test names are in Portuguese). Features 001–031 in `specs/` are implemented. Later work starts a
+test names are in Portuguese). Features 001–032 in `specs/` are implemented. Later work starts a
 new feature through `/speckit-specify`.
 
-- 001 foundation, identity and access; 002 the same behavior on the official stack (shared Zod
-  contracts, web stack, Playwright E2E, GitHub Actions CI).
-- 003 classes, class invitations by e-mail (the only way a student account is created),
-  enrollments, "Minhas turmas" (since 027 the turma, its invitations and enrollments are the MANAGER's).
-- 004 subjects, syllabus upload/extraction/review, class calendar, class plan with manual topics
-  and coverage; US9 (2026-09-24 amendment) marks a topic's class completed. A teacher lands on
-  "Minhas disciplinas" after login.
-- 005 design system and the Exam Mode visual contract; 012 built its NORMAL-mode subset in
-  `apps/web/components/ui/assessment/` (timer, review flag and focus warnings wait for exams).
-- 006 AI foundation with no domain agent and no real provider (tests use the reference agents and
-  fake provider in `apps/api/test/fixtures/ai`).
-- 007 Curriculum Agent ("Preencher com IA" → L2 proposal → `AI_ASSISTED` 004 draft); 008 OpenRouter
-  as the only real provider, task routing, fallback, circuits; 009 model policy (catalog in code,
-  cheapest approved model of the task's tier).
-- 010 the teacher's private exercise bank, with "Criar com IA" through `exercise-generator`; the
-  Curriculum Agent v3 also proposes the syllabus's programming language.
-- 011 the teacher's private work bank, apart from the exercise bank (1–10 questions, grade split in
-  exact hundredths, manual or "Criar trabalho com IA" through `work-generator`).
-- 012 the student portal and class activities (a work or 1–10 exercises applied to a class as a
-  snapshot; autosave, one submission, grade only after release).
-- 013 exercise points (15/30/60 by difficulty, only attempt 1 scores) and the class ranking.
-- 014 code syntax highlighting (`CodeEditor` with CodeMirror 6 on demand, read-only `CodeBlock`).
-- 015 per-work CONTROLLED mode (focus page, screen exits and blocked copy/paste as server-timed facts,
-  typing allowance on save) and AI help (3 orientations per student by `work-helper`, never the
-  answer key, a deterministic leak check before delivery).
-- 016 attendance-gated release: a new work is released only to the students the teacher marks present
-  in its "Chamada" (late students marked later); "Sair da sala" pauses the attempt until the teacher
-  releases the return; exercises and works applied before 016 stay open to every enrolled student.
-- 017 production e-mail: the seven e-mails (class, teacher and manager invitations, verification,
-  password reset, admin activation and, since 027, the turma enrollment notice) go through one outbox with retries; provider notices (Resend now,
-  AWS SES later by configuration) mark an invitation "Não entregue"; HTML + text templates; a
-  production config guard and the deploy guide `docs/deploy/email.md`.
-- 018 controlled exams: the teacher's own Banco de Provas (1–20 questions with difficulty and topics,
-  manual or "Criar prova com IA" through `exam-generator`, an L2 draft), applied as an EXAM that is
-  always CONTROLLED, help-free and attendance-gated, with a per-student server timer; occurrences give
-  3 warnings and the 4th opens a hold that only the teacher resolves (cancel → zero, return while time
-  is left, or "Não cancelar" after the end); the teacher's exam monitor and the review with the
-  occurrences and decisions.
-- 019 Code Runner, first stage: the teacher types 0–20 test cases (input, expected output,
-  PUBLIC/PRIVATE) on a CODE exercise of the bank, copied into the activity snapshot; on an EXERCISE CODE
-  question the student's "Executar" queues a `code_runs` row that a separate worker
-  (`apps/api/src/code-runner/`, `dist/code-runner/main.js`) runs against the public cases, one hardened
-  Docker container per step (gVisor `runsc` in production, deploy guide `docs/deploy/code-runner.md`);
-  a verdict per case, never points or grades; content purged after 24 h (job `code-run-content`).
-- 020 student feedback to the platform ADMIN: "Enviar feedback" in the student layout (never on the focus
-  page), category + 10–2 000 code points + origin path, idempotent by `submissionId`, 5 per student in
-  24 h; the ADMIN's "Feedbacks" (list, filters, menu badge of RECEIVED, detail, status with append-only
-  history) and the student's "Meus feedbacks"; closed feedbacks purged after 24 months (job
-  `student-feedback`).
-- 021 Code Runner in works: "Permitir executar o código" when applying a work (`codeExecution`, off by
-  default, only with a CODE question that has a PUBLIC case in a language with execution, `422
-  CODE_EXECUTION_NOT_ELIGIBLE`; one of the 015 options, fixed once a student starts); the 019 "Executar" on
-  its CODE questions, also on the CONTROLLED focus page, only while a save would be accepted and never while
-  paused; the teacher's review shows per CODE question the run count and the last run's verdicts
-  (`GET …/attempts/:attemptId/code-runs`), never code or output; never a grade.
-- 022 optional light theme, stored on the account ("Aparência" in "Meu perfil").
-- 023 group work: a work applied "Em grupo" (2–5 with the leader, attendance-gated) is one shared attempt; the
-  student who starts leads, chooses present classmates or goes alone, and adds members later; one member edits at a
-  time, handed by the leader, every save logged per student; the leader submits and the released grade reaches every
-  member; the teacher's review shows the members, the handovers and who saved each answer.
-- 024 mobile exam monitor: `apps/mobile`, a read-only Expo app (Android first, internal EAS distribution) where the
-  teacher signs in with a MOBILE session (bearer, 30 d idle / 90 d), lists the exams in progress of their classes and
-  watches the 018 room and a student's occurrences; each counted occurrence and each hold sends a push alert (vibrate
-  and sound, hidden on a locked phone) through an outbox and Expo Push; "Silenciar avisos desta prova" per teacher
-  and exam; decisions, attendance and pauses stay on the computer.
-- 025 discreet exam nudge: the teacher's bell in the mobile room (a student in progress with 2+ counted occurrences)
-  sends a fixed warning that only that student sees in an `AlertDialog` on the exam page ("Entendi" closes it); one
-  pending per attempt, sent only from the app (`@MobileOnly()`), never an occurrence; the web room, the review and the
-  app show the warnings sent, closed and "Não visto". The app's only write.
-
-- 026 the student's current subject: a "Matéria" card on the Painel and "Minhas atividades" shows one subject (class) at a
-  time (`?materia=<classId>`, the most recent enrollment by default); the lists, counters, summary cards and ranking of
-  those pages are of that class only; "Minhas turmas" shows each class's subject. No migration.
-- 027 turmas of the MANAGER: the turma (`cohorts`: name, code unique per ano letivo, year, period) belongs to the MANAGER
-  (and ADMIN) at `/gestao/turmas`, who invites students, enrolls an existing student directly by exact e-mail (notice
-  e-mail, no account created) and ends enrollments, closes and archives it; a teacher searches an active turma and adds
-  a "disciplina da turma" (`classes`, same id, routes and pedagogical tables as before) from one of their subjects,
-  several per turma (of different teachers too, one per subject), and closes/archives it only after its calendar's last
-  day; "Minhas turmas" is grouped by ano letivo. The migration was the transition: today's classes with the same code
-  and year merged into one turma.
-- 028 the student's Histórico redesigned: cards of delivered/awaiting/graded, tabs "Todas"/"Aguardando correção"/
-  "Corrigidas" with counts, a search by title and a matéria filter, all derived on the server by `GET /me/history`
-  (newest delivery first); a row shows the grade and its bar only once the result is visible to the student. Amended
-  2026-11-23: concluded activities live only in the Histórico — "Minhas atividades" and the Painel hold what the
-  student can still do, and what can no longer be delivered goes to the tab "Não entregues". No migration.
-- 029 the Histórico holds only the works and exams the teacher closed or cancelled (superseding 028's amendment): a
-  cancelled one is newly shown (tab "Canceladas", "Cancelada", "—" in Nota, never a grade or a link; its other routes
-  stay `404`), each row dated by its delivery or else by the close or cancellation; every exercise and every ACTIVE work
-  or exam stays in "Minhas atividades", whose "Entregues/concluídas" filter is back, and the Painel's "Concluídas" counts
-  the Histórico's rows. No migration.
-- 030 the student's "Minhas turmas" redesigned: one card per disciplina da turma (subject, turma and code, teacher, ano
-  letivo and period, the date the student entered the turma, "Acessar turma" to `?materia=`, the ranking panel), a search
-  by turma, code or subject and an ano letivo filter (`?ano=&busca=`, the most recent year by default), both in the
-  browser; `GET /me/classes` gains the turma's `enrolledAt`. No migration.
-- 031 calendar day kinds: the teacher's "Calendário" of a disciplina da turma gives each marked day one of nine kinds
-  through the modal "Marcar dia" — Aula, Prova, Trabalho, Revisão and Reposição are encontros (numbered, counted, take
-  topics); Feriado, Recesso, Evento especial and Falta do professor are not (the Falta with a private reason and an
-  optional notice to the class); the student's Painel shows "Seu calendário de aulas" of the 026 matéria (a Monday–Sunday
-  week, a dot per kind, the chosen day's detail), never topics. Supersedes 004/FR-026. One migration.
+Each feature is summarized by its own `specs/NNN-*/spec.md` (list: `ls specs/`).
 
 Take-home works and grading by the Code Runner or AI are later features. The rules of 012–031 that are
 easy to break are under "Rules that are easy to get wrong" below.
@@ -158,42 +60,7 @@ hand-maintained.
 
 ## Active Technologies
 - TypeScript 7 on Node.js 24 LTS + web: Next.js 16, React 19, React Hook Form 7, shadcn/ui, Lucide; new: CodeMirror 6 (`@codemirror/{state,view,language,commands}`, `@lezer/highlight`, `@codemirror/lang-{java,python,javascript,cpp,php,rust,go,html}`), lazy-loaded (014-code-syntax-highlighting)
-- PostgreSQL 17 — one migration: `programming_languages.highlight` (text NULL, CHECK) + seed (014-code-syntax-highlighting)
-- No new dependency (015-controlled-work-ai-help)
-- PostgreSQL 17 — one migration: `activity_execution_mode` += `CONTROLLED`, `class_activities.ai_help_allowance` (0 or 3), tables `attempt_integrity_events` (append-only) and `work_help_requests` (015-controlled-work-ai-help)
-- No new dependency (016-attendance-gated-release)
-- PostgreSQL 17 — one migration: `class_activities.release_mode` (`ALL_ENROLLED`/`PRESENT_ONLY`), tables `activity_attendances` and `attempt_pauses`, defense triggers on attempt writes while paused (016-attendance-gated-release)
-- No new dependency; `nodemailer` SMTP stays the only transport (Resend now, AWS SES later by configuration), `node:crypto` + `fetch` verify provider notices (017-production-email)
-- PostgreSQL 17 — one migration: `mail_deliveries` (replaces `class_invitation_deliveries`, all six e-mails) and `mail_notices` (append-only), `delivery_status` += `DELIVERED`/`UNDELIVERED`/`DISCARDED` (017-production-email)
-- No new dependency (018-controlled-exams)
-- PostgreSQL 17 — one migration: the Banco de Provas tables (mirroring 011), `class_activity_type` += `EXAM` with duration/inactivity/start-window columns, submissions `end_reason`, integrity `INACTIVITY`, tables `exam_occurrences` (append-only) and `exam_attempt_holds` (018-controlled-exams)
-- No new npm dependency; the code-runner worker drives Docker through the `docker` CLI (`node:child_process`), gVisor `runsc` in production, three official images pinned by digest (019-exercise-code-runner)
-- PostgreSQL 17 — one migration: `programming_languages.execution`, `exercise_test_cases`, `code_runs` + `code_run_cases` (the queue, one pending run per student), `code_runner_heartbeats` (019-exercise-code-runner)
 - Recharts 3.10.1 in `apps/web`, only through `components/ui/chart.tsx` and the Indicadores charts of Operação de IA (006 amendment 2026-10-22)
-- No new dependency (020-student-feedback)
-- PostgreSQL 17 — one migration: tables `student_feedbacks` (UNIQUE per `submission_id`, update/delete guards) and `student_feedback_status_changes` (append-only), enums `student_feedback_category`/`student_feedback_status`, permissions `feedbacks.*` (020-student-feedback)
-- No new dependency; the 019 worker and images serve works unchanged (021-work-code-runner)
-- PostgreSQL 17 — one migration: `class_activities.code_execution_allowed` (ASSIGNMENT only, fixed after the first attempt), `code_runs_insert_valid` widened to works with the option, `code_runs_paused` trigger (021-work-code-runner)
-- No new dependency (022-light-theme)
-- PostgreSQL 17 — one migration: enum `ui_theme` and `users.theme NOT NULL DEFAULT 'DARK'`. (022-light-theme)
-- No new dependency (023-group-work)
-- PostgreSQL 17 — one migration: `class_activities.group_size`, tables `attempt_participants` (backfilled, UNIQUE per activity/student/attempt number), `attempt_groups`, `attempt_group_events` and `activity_answer_saves` (append-only), `saved_by_user_id`/`submitted_by_user_id`, four per-student FKs moved to the participants, pause triggers per writer (023-group-work)
-- API: no new npm dependency (Expo Push over `fetch`); new `apps/mobile`: Expo SDK 58 (`expo ~58.0.23`, React Native 0.88, React 19.3.0, TypeScript 7 accepted; pnpm's isolated `node_modules` works with Metro, no hoisting), Expo Router, `expo-notifications`, `expo-secure-store`, `expo-haptics`, `expo-font`, TanStack Query, React Hook Form, Zod (catalog), `lucide-react-native`, Jest + RNTL; new `packages/design-tokens` generated from `tokens.css` (024-mobile-exam-monitor)
-- PostgreSQL 17 — one migration: `sessions.client` (`WEB`/`MOBILE`), tables `mobile_devices`, `exam_alert_mutes`, `exam_alerts` (outbox, UNIQUE per attempt/ordinal) and `exam_alert_deliveries` (PK per alert/device) (024-mobile-exam-monitor)
-- No new dependency (025-exam-student-nudge)
-- PostgreSQL 17 — one migration: table `exam_nudges` (partial UNIQUE pending per attempt, insert/update/delete guard triggers), permission `provas.avisos.enviar` (025-exam-student-nudge)
-- No new dependency (026-student-subject-selector)
-- PostgreSQL 17 — no migration (reads `enrollments`, `school_classes.subject_id`, `subjects.name`) (026-student-subject-selector)
-- No new dependency (027-manager-classes)
-- PostgreSQL 17 — two migrations: `…_027_enum_values` (enum values only) and `…_027_manager_classes`, which is also the transition: table `cohorts` (the turma); `classes` (the disciplina da turma) gains `cohort_id` and loses the turma's columns; enrollments and invitations keyed by cohort; view `class_enrollments`, function `class_effective_status`; mail kind `CLASS_ENROLLMENT_NOTICE`; class permissions moved to MANAGER/ADMIN, new `turmas.buscar`, `turmas.incluir_aluno`, `disciplinas_turma.*` (027-manager-classes)
-- No new dependency (028-student-history-redesign)
-- PostgreSQL 17 — no migration (new read route `GET /me/history` over the student's scoped summaries) (028-student-history-redesign)
-- TypeScript 7 on Node.js 24 LTS (API, contracts, web) + no new dependency (029-history-closed-only)
-- PostgreSQL 17 — no migration (`class_activities.status`, `closed_at`, `cancelled_at` already exist) (029-history-closed-only)
-- No new dependency (030-student-classes-redesign)
-- PostgreSQL 17 — no migration (reads the existing `enrollments.enrolled_at`) (030-student-classes-redesign)
-- No new dependency (031-calendar-day-kinds)
-- PostgreSQL 17 — one migration: enums `class_meeting_kind`/`class_calendar_day_kind`, `class_meetings.kind`/`description`, table `class_calendar_days` (cross-table date triggers), permission `calendario.turma.visualizar` (031-calendar-day-kinds)
 
 ## Stack notes
 
@@ -276,77 +143,16 @@ under `apps/api`.
 
 Cross-cutting guards that fail when the spec and the code drift apart:
 - `apps/api/test/traceability.spec.ts` parses the `spec.md` of each feature listed in its `SPECS`
-  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028, 029, 030 and 031; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
+  (001, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 023, 024, 025, 026, 027, 028, 029, 030, 031 and 032; the on-demand evals' `apps/api/test/eval/*.eval.ts` counts
   too). Every `USn-k` scenario, every traceability row and the listed SC ids must appear
   in a `describe`/`it`/`test` title (API, web unit, `apps/web/e2e` and `apps/mobile`), so name new tests with
   their scenario or SC/FR id. 001 ids are bare; later features carry their number (`003/US1-1`,
   `003/SC-004`), which never covers the bare 001 id. A new feature is checked once it's added to
   `SPECS`.
-- Per-feature API security and integration suites (004–011) and the endpoint catalog guard: see
-  `apps/api/CLAUDE.md`.
-- `apps/api/test/works-boundary.spec.ts` (011) keeps the work bank and the exercise bank apart in
-  the API modules, the contracts and the web features (no imports either way), and forbids code
-  execution, model choice and float arithmetic (`parseFloat`, `Number(`, `.toNumber()`) in
-  `works`/`work-ai`.
-- `apps/api/test/activities-boundary.spec.ts` (012) lets `activities`/`student-activities` (API
-  and web) reach the banks only through their snapshot readers and the pure `works/grading` and
-  `works/types`; no exercise/AI module imports, no code execution, AI calls or float arithmetic on
-  grades, and students are answered only through the student-view allowlist; it also keeps exams
-  and timer/fullscreen/focus/clipboard code out (SC-012). Since 015 the activity modules reach
-  `attempt-integrity` and `work-help` only through the hooks they register (`AnswerSaveGuard`,
-  `HelpAvailability`), and monitoring lives only in `attempt-integrity`, `features/controlled-attempt`
-  and `components/ui/assessment`. Since 016 they read the attendance tables in their own scoped
-  queries, never import `attendance` code.
-- `apps/api/test/exams-boundary.spec.ts` (018) keeps `exams`/`exam-ai` (API) and `features/exams` (web) apart
-  from the exercise and work banks (only `works/{types,grading,grade}`), with no code execution, model choice or
-  float arithmetic; `exam-sessions` calls no AI or AI help and grades only through `activities/submission`; no
-  exam text says "fraude", "cola" or "violação". `activities-boundary.spec.ts` (amended in 018) lets the
-  activity modules reach exams only through `exams/coverage`, never `exam-sessions`, and keeps the exam timer
-  and countdown in `features/exam-attempt` and `components/ui/assessment`.
-- `apps/api/test/attendance-boundary.spec.ts` (016) keeps `attendance` (API) and
-  `features/attendance` (web) away from AI, AI help, controlled-mode monitoring, grading, the banks
-  and mail; no code execution or float arithmetic, and presence is only the teacher's mark (no
-  location, camera or QR code).
-- `apps/api/test/work-help-boundary.spec.ts` (015) keeps the answer key out of everything that
-  reaches the `work-helper` model (only `work-help/help` may read it, for the leak check), lets only
-  the task declaration name tiers/families (no model choice), and forbids float arithmetic, and
-  grading/submitting/blocking or exam code in `work-help`/`attempt-integrity`.
-- `apps/api/test/mail-boundary.spec.ts` (017) keeps `platform/mail` free of domain-module imports
-  (each module registers its `MailSubject`), forbids provider SDKs (`resend`, `svix`, `@aws-sdk/*`…),
-  allows `nodemailer` only in `smtp.mailer.ts`, and only `platform/mail/outbox` may call `Mailer.send`.
-- `apps/api/test/code-runner-boundary.spec.ts` (019) keeps the worker (`src/code-runner`) out of every
-  import outside it (the API never loads it), lets only `code-runner/sandbox/docker-sandbox.ts` start
-  processes, keeps `code-runs` and the worker away from grading, points, the ranking and the submission,
-  keeps programs, inputs and outputs out of their audit and log calls, and lets them name only profile
-  keys (`java`/`python`/`javascript`), never a catalog language.
-- `apps/api/test/feedback-boundary.spec.ts` (020) keeps `modules/student-feedback` (API) and
-  `features/feedback` (web) away from AI, AI help, mail, the activities, the banks, the ranking and
-  `code-runs`, and keeps the message and the origin path out of the `student_feedback.*` audit types and
-  the module's log calls.
-- `apps/api/test/exam-alerts-boundary.spec.ts` (024) lets `attempt-integrity` reach the alerts only through its
-  `ExamAlertSink` hook, keeps `exam-alerts` away from grading, decisions, pauses, exam sessions and AI and from any
-  write to the exam's tables, allows Expo only in `platform/push/expo-push.client.ts` over `fetch` (no push SDK),
-  and keeps tokens, names, titles and notification texts out of the audit and log calls of the alerts and the
-  mobile session; `test/security/024-mobile-allowlist.spec.ts` checks that the bearer gets
-  `403 MOBILE_ROUTE_NOT_ALLOWED` on every route without `@MobileAccess()`. `packages/design-tokens/test/in-sync.test.ts`
-  fails when `src/generated.ts` differs from what `apps/web/design-system/tokens.css` generates.
-- `apps/api/test/exam-nudges-boundary.spec.ts` (025) keeps `exam-nudges` away from AI, push, mail, grading, decisions,
-  attendance and monitoring code and from any write to the exam's tables; `exam-sessions` and `attempt-integrity`
-  reach it only through `exam-nudges/nudge-status.ts` and `views.ts`; names and texts stay out of its audit and log
-  calls, and the warning's sentence lives only in the web and the app.
-- `apps/api/test/cohorts-boundary.spec.ts` (027) fails when a reader joins `enrollments` by a `class_id` (pedagogical
-  readers use the view `class_enrollments` or `schoolClass.cohort.enrollments`), when a module other than `cohorts`,
-  `class-invitations` and `enrollments` writes enrollments or invitations, and when a class's own `status` is read
-  without the cohort's (outside `ClassContextPolicy`, whose `status` is the effective one).
-- `apps/api/test/student-calendar-boundary.spec.ts` (031) keeps `modules/student-calendar` away from the class plan
-  (only the pure `class-plans/planning-date`), the syllabus, the activities and AI, keeps the absence reason, topics and a
-  meeting's number or status out of its code, makes its view copy named keys, and keeps `features/student-calendar`
-  (web) away from the teacher's `features/class-plan` and `features/class-calendar`.
-- Contracts (`packages/contracts/test/`): `boundary.spec.ts` (no Prisma/Nest/React imports and no
-  user-facing text in the package), `duplication.spec.ts` (no contract type redefined in api or
-  web), `zod-version.spec.ts` (one Zod version in the lockfile; every workspace uses `catalog:`).
-- Web guards (XSS, keyboard helpers, ESLint layers, contrast, design-system scans, the E2E
-  OpenRouter mock): see `apps/web/CLAUDE.md`, loaded when working under `apps/web`.
+- Boundary guards: `apps/api/test/*-boundary.spec.ts` (works, activities, exams, attendance, work-help, mail,
+  code-runner, feedback, exam-alerts, exam-nudges, cohorts, student-calendar), `packages/contracts/test/` and the web
+  guards (`apps/web/CLAUDE.md`) fail on forbidden imports, code execution, float arithmetic on grades and texts in
+  audit/logs; read the one for a module before changing it. API suites and the endpoint catalog: `apps/api/CLAUDE.md`.
 
 Unsafe HTTP methods need both an allowed `Origin` and `Content-Type: application/json` (send
 `{}` if there's no body), even from curl or scripts. Otherwise the API returns
@@ -460,11 +266,11 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   it never takes a session or an `Origin`. Account e-mails never show a delivery situation, and the
   public flows answer exactly as before (anti-enumeration).
 - Exams (018): an EXAM activity is always CONTROLLED, with no AI help and only for the students
-  marked present; its body never takes `deadline`, `latePolicy`, `executionMode`, `aiHelpAllowance` or
-  `releaseMode` (400). Duration 1–120 min, inactivity 30–60 s, start window 0–60 min; the start needs
-  `{ acceptRules: true }` and one attempt per student, and after the window `409 EXAM_START_CLOSED`.
-  The end is the server's (`startedAt` + duration, or the activity's close or cancellation if earlier,
-  against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
+  marked present; its body never takes `latePolicy`, `startWindowMinutes`, `executionMode`, `aiHelpAllowance` or
+  `releaseMode` (400) and requires the period's end `deadline` (032). Duration 1–120 min, inactivity 30–60 s; the start
+  needs `{ acceptRules: true }` and one attempt per student, and after the period's end `409 EXAM_START_CLOSED`.
+  The end is the server's (`startedAt` + duration capped by the period's end, or the activity's close or cancellation
+  if earlier, against the injected `Clock`; saves and the hand-in get a 2 s grace): time-out, PAUSED and "awaiting decision" are derived on read, and an
   expired attempt is settled by the next touch (`exam_attempt.time_expired`, SYSTEM), never by a job.
   Countable occurrences (screen, fullscreen, clipboard, `INACTIVITY` with `idleSeconds` 30–60) are
   grouped within 2 s; occurrences 1–3 are warnings and the 4th opens the hold in the events batch's
@@ -479,6 +285,18 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   keeps running. No AI call happens during an attempt; `exam-sessions` grades only through
   `activities/submission`. No text says "fraude", "cola" or "violação"; audit metadata carries ids,
   enums, counts and times, never a statement or an answer.
+- Activity period (032): a work and an exam are applied for a period, `publishAt` (null = now) → `deadline` (the end,
+  required for ASSIGNMENT and EXAM, inclusive); `deadline > publishAt` and an exam's period holds at least its
+  duration, else `422 INVALID_SCHEDULE` (pure `activities/status/period.ts`: `validPeriod`, `canChangeEnd`,
+  `acceptsAttendanceMark`). No body takes `latePolicy` (400): the server stores `REJECT` on every new work, and
+  `ACCEPT_MARKED` exists only on works applied before 032, which keep accepting late submissions (marked late) and
+  attendance marks after the end until the teacher closes them (web badge "Aceita entrega atrasada (regra anterior)").
+  Whoever is marked present during the period starts any time in it; after the end nobody starts, saves, submits, asks
+  for help or runs code (`DEADLINE_PASSED`, never an automatic submission) and a mark is refused
+  (`409 ACTIVITY_PERIOD_ENDED`; the room's `periodEnded`). A work's end changes freely while ACTIVE; a scheduled exam's
+  too; a published exam's end only extends (`422 EXAM_END_CANNOT_MOVE_EARLIER`, DB trigger once a student started) and
+  not after it passed (`409 ACTIVITY_PERIOD_ENDED`). The monitor, the mobile list and the student's `startDeadline` /
+  `closesAt` are the `deadline`. Exercises are unchanged (no period).
 - Code Runner (019): student code never runs in the API process. Only the worker (its own process,
   never imported by the API) talks to Docker, through `DockerSandbox`; each step (check/compile, then
   each PUBLIC case) is a fresh container with no network, a read-only root, a tmpfs `/tmp`, memory, CPU,
@@ -631,9 +449,9 @@ and the ADMIN's shapes, the student's with no history, origin path or `submissio
   `apps/web/CLAUDE.md`.
 
 ## Recent Changes
+- 032-activity-period: works and exams applied with a period (start now or scheduled, end date and time) instead of the exam's start window and the work's late policy; a present student starts any time in the period, an exam attempt ends at min(start + duration, end); a published exam's end only extends; attendance refused after the end
 - 031-calendar-day-kinds: nine kinds per calendar day (Aula, Prova, Trabalho, Revisão, Reposição are encontros; Feriado, Recesso, Evento especial, Falta do professor are not), a modal per day, the Falta's private reason + optional notice; the student's "Seu calendário de aulas" card on the Painel through `GET /me/classes/:classId/calendar`, never topics
 - 030-student-classes-redesign: the student's "Minhas turmas" redesigned — one card per disciplina da turma (teacher, year, period, enrollment date, "Acessar turma", ranking panel), search and year filter in the browser; `GET /me/classes` gains the turma's `enrolledAt`; no migration
-- 029-history-closed-only: the student's Histórico holds only works and exams the teacher closed or cancelled (cancelled ones newly shown, tab "Canceladas", no grade or link); active works/exams and every exercise stay in "Minhas atividades" (its `COMPLETED` filter back); no migration
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

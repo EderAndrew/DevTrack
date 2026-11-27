@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../../../test/a11y";
@@ -13,6 +13,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const field = (id: string) => document.getElementById(id) as HTMLInputElement;
 const setValue = (id: string, value: string) => fireEvent.change(field(id), { target: { value } });
+/** 032: the "Término" is a date and a time; `local` is a `datetime-local` value. */
+const setEnd = (local: string) => {
+  const [date, time] = local.split("T");
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endDate)!, { target: { value: date } });
+  fireEvent.change(document.getElementById(NEW_ACTIVITY_FIELD_IDS.endTime)!, { target: { value: time } });
+};
 
 function setup(scope: object = EXAM_SCOPE, create: Response = json(201, examActivity()), classView = schoolClass()) {
   const api = routedFetch({
@@ -78,13 +84,14 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("018/US2-2 018/FR-007 duração, inatividade (padrão 60 s) e limite para iniciar (padrão 15 min) vão no pedido; sem prazo", async () => {
+  // 032: the start window left the form; the exam takes the period's end (`deadline`) instead.
+  it("018/US2-2 018/FR-007 duração, inatividade (padrão 60 s) e término vão no pedido", async () => {
     const { api, user } = setup({ ...EXAM_SCOPE, outOfScope: [], coverage: { ...EXAM_SCOPE.coverage!, byTopic: [EXAM_SCOPE.coverage!.byTopic[0]!] } });
     await chooseExam(user);
     expect(field(NEW_ACTIVITY_FIELD_IDS.title).value).toBe("Prova de herança");
     expect(field(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds).value).toBe("60");
-    expect(field(NEW_ACTIVITY_FIELD_IDS.startWindowMinutes).value).toBe("15");
     setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "30");
+    setEnd("2030-10-10T22:00");
     setValue(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "45");
     await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
 
@@ -95,9 +102,9 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
       title: "Prova de herança",
       instructions: null,
       publishAt: null,
+      deadline: new Date("2030-10-10T22:00").toISOString(),
       durationMinutes: 30,
       inactivityLimitSeconds: 45,
-      startWindowMinutes: 15,
       acknowledgeOutOfScope: false,
     });
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`);
@@ -112,6 +119,8 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     await screen.findByRole("form", { name: "Dados da atividade" });
     await tabTo(user, field(NEW_ACTIVITY_FIELD_IDS.durationMinutes));
     await user.keyboard("{Backspace}{Backspace}{Backspace}30");
+    // 032: the date-time field is filled directly (jsdom has no picker); the rest stays on the keyboard.
+    setEnd("2030-10-10T22:00");
     await tabTo(user, screen.getByRole("button", { name: "Aplicar prova" }));
     await user.keyboard("{Enter}");
     await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`));
@@ -125,11 +134,11 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     for (const [id, value, message] of [
       [NEW_ACTIVITY_FIELD_IDS.durationMinutes, "121", "A duração vai de 1 a 120 minutos."],
       [NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "29", "O limite de inatividade vai de 30 a 60 segundos."],
-      [NEW_ACTIVITY_FIELD_IDS.startWindowMinutes, "61", "O limite para iniciar vai de 0 a 60 minutos."],
+      [NEW_ACTIVITY_FIELD_IDS.endTime, "", "Informe o término."],
     ] as const) {
       setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "30");
       setValue(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "60");
-      setValue(NEW_ACTIVITY_FIELD_IDS.startWindowMinutes, "15");
+      setEnd("2030-10-10T22:00");
       setValue(id, value);
       await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
       expectFieldErrorLinked(field(id));
@@ -179,6 +188,7 @@ describe("018/US2 ActivityDetail — a prova aplicada abre em \"Chamada e prova\
     releaseMode: "PRESENT_ONLY",
     present: 0,
     enrolled: 1,
+    periodEnded: false,
     students: [{ studentUserId: "cccccccc-cccc-4ccc-8ccc-ccccccccccc1", name: "Ana Souza", markedAt: null, roomStatus: "NOT_MARKED", attemptId: null, openPause: null }],
   };
 
@@ -209,18 +219,108 @@ describe("018/US2 ActivityDetail — a prova aplicada abre em \"Chamada e prova\
     expect(within(dialog).getByText("Os alunos marcados passam a ver a prova. Quem chegar depois pode ser marcado a qualquer momento.")).toBeTruthy();
   });
 
-  it("018/FR-007 018/FR-010 Informações mostra a duração, a inatividade e os limites, sem prazo, modo editável nem ajuda", async () => {
+  // 032: no "Limite para iniciar" nor "Fechamento": the "Período" (032/US1-1) says when it ends.
+  it("018/FR-007 018/FR-010 Informações mostra a duração, a inatividade e o período, sem prazo, modo editável nem ajuda", async () => {
     const { user } = setupDetail();
     await user.click(await screen.findByRole("tab", { name: "Informações" }));
     const term = (name: string) => screen.getByText(name, { selector: "dt" }).nextElementSibling!.textContent;
     expect(term("Tipo")).toBe("Prova");
     expect(term("Duração")).toBe("30 min");
     expect(term("Limite de inatividade")).toBe("45 s");
-    expect(term("Limite para iniciar")).toMatch(/15 min após a abertura/);
-    expect(term("Fechamento")).toBeTruthy();
+    expect(screen.queryByText("Limite para iniciar", { selector: "dt" })).toBeNull();
+    expect(screen.queryByText("Fechamento", { selector: "dt" })).toBeNull();
+    expect(term("Período")).toMatch(/→/);
     expect(screen.queryByText("Prazo", { selector: "dt" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Modo controlado/ })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Ajuda da IA/ })).toBeNull();
     expect(screen.getByText("Modo restrito")).toBeTruthy();
+  });
+});
+
+describe("032/US1 NewActivity — a prova é aplicada com um período", () => {
+  beforeEach(() => router.push.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const NO_OUT_OF_SCOPE = { ...EXAM_SCOPE, outOfScope: [], coverage: { ...EXAM_SCOPE.coverage!, byTopic: [EXAM_SCOPE.coverage!.byTopic[0]!] } };
+  /** The ids of the time inputs of the form, in order. */
+  const timeInputs = () =>
+    [...screen.getByRole("form", { name: "Dados da atividade" }).querySelectorAll<HTMLInputElement>('input[type="date"], input[type="time"], input[type="datetime-local"]')].map(
+      (input) => input.id,
+    );
+  const todayLocal = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  it("032/US1-1 032/SC-004 o formulário tem só Início, Término e Duração como campos de tempo, sem janela nem prazo", async () => {
+    const { user, container } = setup(NO_OUT_OF_SCOPE);
+    await chooseExam(user);
+    const period = screen.getByRole("group", { name: "Período" });
+    const now = within(period).getByRole("radio", { name: "Agora" }) as HTMLInputElement;
+    expect(now.checked).toBe(true);
+    expect(within(period).getByRole("radio", { name: "Agendar" })).toBeTruthy();
+    // "Agora": only the término (its date prefilled with today's), plus the duration.
+    expect(timeInputs()).toEqual([NEW_ACTIVITY_FIELD_IDS.endDate, NEW_ACTIVITY_FIELD_IDS.endTime]);
+    expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toBe(todayLocal());
+    expect(field(NEW_ACTIVITY_FIELD_IDS.durationMinutes)).toBeTruthy();
+    expect(screen.queryByText("Depois do término ninguém mais começa nem entrega.")).toBeNull();
+    expect(screen.getByText("De 1 a 120. Quem começar perto do término terá só o tempo que falta.")).toBeTruthy();
+    for (const gone of [/Limite para iniciar/, /Prazo de entrega/, /Entrega atrasada/, /Data e hora da publicação/]) {
+      expect(screen.queryByLabelText(gone)).toBeNull();
+    }
+    // "Agendar": the início's date and time join them, nothing else.
+    await user.click(within(period).getByRole("radio", { name: "Agendar" }));
+    expect(timeInputs()).toEqual([
+      NEW_ACTIVITY_FIELD_IDS.startDate,
+      NEW_ACTIVITY_FIELD_IDS.startTime,
+      NEW_ACTIVITY_FIELD_IDS.endDate,
+      NEW_ACTIVITY_FIELD_IDS.endTime,
+    ]);
+    await expectNoA11yViolations(container);
+  });
+
+  it("032/US1-1 032/US1-4 agendada para o dia 30, 19:10–22:00: a data do término acompanha a do início e o pedido leva os dois", async () => {
+    const { api, user } = setup(NO_OUT_OF_SCOPE);
+    await chooseExam(user);
+    await user.click(screen.getByRole("radio", { name: "Agendar" }));
+    setValue(NEW_ACTIVITY_FIELD_IDS.startDate, "2030-11-30");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startTime, "19:10");
+    await waitFor(() => expect(field(NEW_ACTIVITY_FIELD_IDS.endDate).value).toBe("2030-11-30"));
+    setValue(NEW_ACTIVITY_FIELD_IDS.endTime, "22:00");
+    setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "60");
+    await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
+    await waitFor(() => expect(api.writes()).toHaveLength(2));
+    expect(api.writes()[1]!.body).toMatchObject({
+      publishAt: new Date("2030-11-30T19:10").toISOString(),
+      deadline: new Date("2030-11-30T22:00").toISOString(),
+      durationMinutes: 60,
+    });
+    expect(api.writes()[1]!.body).not.toHaveProperty("startWindowMinutes");
+  });
+
+  it("032/US1-6 término antes do início ou período menor que a duração: erro no Término e nada enviado", async () => {
+    const { api, user } = setup(NO_OUT_OF_SCOPE);
+    await chooseExam(user);
+    await user.click(screen.getByRole("radio", { name: "Agendar" }));
+    setValue(NEW_ACTIVITY_FIELD_IDS.startDate, "2030-11-30");
+    setValue(NEW_ACTIVITY_FIELD_IDS.startTime, "19:10");
+    setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "60");
+    for (const end of ["19:00", "19:10", "20:09"]) {
+      setValue(NEW_ACTIVITY_FIELD_IDS.endTime, end);
+      await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
+      expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
+      expect(screen.getAllByText("O término deve ser depois do início e, na prova, deixar pelo menos a duração.").length).toBeGreaterThan(0);
+    }
+    expect(api.writes()).toHaveLength(1);
+  });
+
+  it("032/US1-6 a recusa do servidor (INVALID_SCHEDULE) aparece no campo do Término", async () => {
+    const { user } = setup(NO_OUT_OF_SCOPE, apiError(422, "INVALID_SCHEDULE", "O término deve ser depois do início e, na prova, deixar pelo menos a duração."));
+    await chooseExam(user);
+    setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "30");
+    setEnd("2030-10-10T22:00");
+    await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
+    await screen.findByText("Não foi possível publicar a atividade");
+    expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.endTime));
   });
 });

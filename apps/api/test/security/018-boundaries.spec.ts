@@ -21,7 +21,7 @@ type Client = ReturnType<typeof api>;
 /**
  * 018 contracts/http-api.md: bodies are strict and the fields the server controls are refused (400) on
  * every new and changed route; an exam has 1–20 questions; an applied exam takes 1–120 min, 30–60 s of
- * inactivity and a start window of 0–60 min, and never the work's `deadline`, `latePolicy`,
+ * inactivity and, since 032, the period's end (`deadline`) instead of a start window; never `latePolicy`,
  * `executionMode`, `aiHelpAllowance` or `releaseMode`; `idleSeconds` (30–60) only with INACTIVITY. A
  * refused body writes nothing. 018/FR-034: no route beyond the contract, no help, exit or second
  * attempt in an exam; 018/SC-012: the Trabalho and the Exercício keep their 012–016 rules.
@@ -113,30 +113,31 @@ describe("018 fronteiras da prova", () => {
   });
 
   describe("aplicação", () => {
-    it("duração 0/121, inatividade 29/61 e janela -1/61 → 400; 1/120, 30/60 e 0/60 cabem", async () => {
+    // 032: no start window at all (any `startWindowMinutes` → 400).
+    it("duração 0/121, inatividade 29/61 e qualquer janela → 400; 1/120 e 30/60 cabem", async () => {
       for (const fields of [
         { durationMinutes: 0 },
         { durationMinutes: 121 },
         { inactivityLimitSeconds: 29 },
         { inactivityLimitSeconds: 61 },
-        { startWindowMinutes: -1 },
-        { startWindowMinutes: 61 },
+        { startWindowMinutes: 0 },
+        { startWindowMinutes: 15 },
       ]) {
         const res = await applyExam(client, classId, exam.id, { acknowledgeOutOfScope: true, attendance: "NONE", ...fields });
         expect([res.status, res.body], JSON.stringify(fields)).toEqual([400, VALIDATION]);
       }
       expect(await t.prisma.classActivity.count()).toBe(0);
-      const low = await applied({ durationMinutes: 1, inactivityLimitSeconds: 30, startWindowMinutes: 0, attendance: "NONE" });
-      const high = await applied({ durationMinutes: 120, inactivityLimitSeconds: 60, startWindowMinutes: 60, attendance: "NONE" });
+      const low = await applied({ durationMinutes: 1, inactivityLimitSeconds: 30, attendance: "NONE" });
+      const high = await applied({ durationMinutes: 120, inactivityLimitSeconds: 60, attendance: "NONE" });
       expect([low.exam, high.exam]).toEqual([
-        expect.objectContaining({ durationMinutes: 1, inactivityLimitSeconds: 30, startWindowMinutes: 0 }),
-        expect.objectContaining({ durationMinutes: 120, inactivityLimitSeconds: 60, startWindowMinutes: 60 }),
+        expect.objectContaining({ durationMinutes: 1, inactivityLimitSeconds: 30 }),
+        expect.objectContaining({ durationMinutes: 120, inactivityLimitSeconds: 60 }),
       ]);
     });
 
-    it("018/FR-034 prazo, política de atraso, modo, ajuda e liberação no corpo da prova → 400 (a prova é sempre restrita, sem ajuda e só para os presentes)", async () => {
+    // 032: the exam takes the period's end (`deadline`); a late policy is still refused.
+    it("018/FR-034 política de atraso, modo, ajuda e liberação no corpo da prova → 400 (a prova é sempre restrita, sem ajuda e só para os presentes)", async () => {
       for (const fields of [
-        { deadline: new Date(clock.now().getTime() + DAY).toISOString() },
         { latePolicy: "REJECT" },
         { executionMode: "NORMAL" },
         { executionMode: "CONTROLLED" },
@@ -251,7 +252,7 @@ describe("018 fronteiras da prova", () => {
     });
 
     it("018/SC-012 o Trabalho e o Exercício não aceitam os campos da prova e seguem sem contagem de ocorrências nem retenção", async () => {
-      const work = { idempotencyKey: randomUUID(), source: { type: "ASSIGNMENT", workId: randomUUID() }, title: "Trabalho", instructions: null, publishAt: null, deadline: new Date(clock.now().getTime() + DAY).toISOString(), latePolicy: "REJECT", acknowledgeOutOfScope: false };
+      const work = { idempotencyKey: randomUUID(), source: { type: "ASSIGNMENT", workId: randomUUID() }, title: "Trabalho", instructions: null, publishAt: null, deadline: new Date(clock.now().getTime() + DAY).toISOString(), acknowledgeOutOfScope: false };
       for (const fields of [{ durationMinutes: 30 }, { inactivityLimitSeconds: 60 }, { startWindowMinutes: 15 }]) {
         const res = await client.post(`/api/classes/${classId}/activities`, { ...work, ...fields });
         expect([res.status, res.body], JSON.stringify(fields)).toEqual([400, VALIDATION]);

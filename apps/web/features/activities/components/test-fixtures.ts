@@ -448,15 +448,15 @@ export const examActivity = (overrides: Partial<TeacherActivity> = {}): TeacherA
     executionMode: "CONTROLLED",
     releaseMode: "PRESENT_ONLY",
     attendance: { present: 0, enrolled: 2 },
-    deadline: null,
+    deadline: "2026-10-01T12:45:00.000Z",
     latePolicy: null,
     totalGrade: "10.00",
     source: { examId: EXAM.id },
     exam: {
       durationMinutes: 30,
       inactivityLimitSeconds: 45,
-      startWindowMinutes: 15,
-      startDeadline: "2026-10-01T12:15:00.000Z",
+      // 032: both the period's end (AP4).
+      startDeadline: "2026-10-01T12:45:00.000Z",
       closesAt: "2026-10-01T12:45:00.000Z",
       pendingDecisions: 0,
     },

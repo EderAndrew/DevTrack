@@ -109,8 +109,8 @@ describe("016 chamada e pausas (contracts/http-api.md)", () => {
 
   it("016 a sala e as pausas de uma tentativa", () => {
     const student = { studentUserId: uuid(1), name: "Ana", markedAt: AT, roomStatus: "OUT_OF_ROOM", attemptId: uuid(2), openPause: teacherPause() };
-    expect(accepts(RoomSchema, { releaseMode: "PRESENT_ONLY", present: 1, enrolled: 2, students: [student] })).toBe(true);
-    expect(accepts(RoomSchema, { releaseMode: "PRESENT_ONLY", present: 1, enrolled: 2, students: [{ ...student, roomStatus: "ABSENT" }] })).toBe(false);
+    expect(accepts(RoomSchema, { releaseMode: "PRESENT_ONLY", present: 1, enrolled: 2, periodEnded: false, students: [student] })).toBe(true);
+    expect(accepts(RoomSchema, { releaseMode: "PRESENT_ONLY", present: 1, enrolled: 2, periodEnded: false, students: [{ ...student, roomStatus: "ABSENT" }] })).toBe(false);
     expect(accepts(AttemptPausesSchema, { items: [teacherPause()], totalSecondsAway: 120 })).toBe(true);
     expect(accepts(AttemptPausesSchema, { items: [], totalSecondsAway: -1 })).toBe(false);
   });

@@ -79,8 +79,8 @@ describe("029/US3 Minhas atividades e o Painel com tudo o que está ativo", () =
       ...extra,
     }).then((created) => created.activity.id);
   /** An exam of A published `ago`, the student marked present (016/018: an exam is only for those present). */
-  const exam = async (title: string, ago: number) => {
-    const id = (await createActivity(t, classA, { type: "EXAM", title, publishAt: at(-ago) })).activity.id;
+  const exam = async (title: string, ago: number, deadline?: Date) => {
+    const id = (await createActivity(t, classA, { type: "EXAM", title, publishAt: at(-ago), deadline })).activity.id;
     await t.prisma.activityAttendance.create({
       data: { activityId: id, studentUserId: student.id, classId: classA.id, markedAt: at(-ago + MINUTE), markedById: teacherA.id },
     });
@@ -133,8 +133,8 @@ describe("029/US3 Minhas atividades e o Painel com tudo o que está ativo", () =
     await createAttemptRow(t, emAndamento, student.id, { startedAt: at(-HOUR) });
     const atrasadaAceita = await work("Atrasada aceita", { deadline: at(-DAY), latePolicy: "ACCEPT_MARKED" });
     const atrasadaRejeitada = await work("Atrasada rejeitada", { deadline: at(-DAY), latePolicy: "REJECT" });
-    // Published an hour ago with the default 15-minute start window, never started: no longer accepts a start.
-    const provaJanelaFechada = await exam("Prova com janela fechada", HOUR);
+    // 032: published two hours ago, its period ended an hour ago, never started: no longer accepts a start.
+    const provaJanelaFechada = await exam("Prova com janela fechada", 2 * HOUR, at(-HOUR));
     const entregue = await work("Entregue");
     await createAttemptRow(t, entregue, student.id, { startedAt: at(-2 * HOUR), submission: { submittedAt: at(-HOUR) } });
     const corrigida = await work("Corrigida", { resultReleasedAt: at(-MINUTE) });

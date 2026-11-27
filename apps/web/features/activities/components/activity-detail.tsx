@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,18 +35,22 @@ import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvai
 import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
 import { rosterLines } from "../schemas/group-facts";
 import {
+  acceptsLateLegacy,
   ACTIVITY_TYPE_LABELS,
   activityStarted,
   type ActivityEditValues,
   ActivityEditSchema,
   activityEditDefaults,
   activityFormMessages,
+  endEditOf,
   formatGrade,
+  formatPeriod,
   formatPoints,
   hasWorkOptions,
   HELP_CHECK_PENDING,
   helpUnavailableText,
-  LATE_POLICY_LABELS,
+  isoToLocal,
+  LEGACY_LATE_BADGE,
   mayAllowCodeExecution,
   mayChooseGroup,
   ROSTER_STATUS_LABELS,
@@ -54,17 +59,23 @@ import {
 import { ActivityQuestions } from "./activity-questions";
 import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_EXAM, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
-import { LatePolicyField, TextareaField } from "./form-fields";
+import { TextareaField } from "./form-fields";
 import { GroupLabel } from "./group-facts";
 import { GroupFormatField, WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
 export const VERSION_CONFLICT_NOTICE = "Esta atividade mudou em outra aba. Mostramos a versão atual; revise antes de continuar.";
 
+/** 032 contracts/ui.md: a published exam's end, only later. */
+export const EXTEND_END = "Estender término";
+/** 032 contracts/ui.md: a work's end, which changes freely while the work is active (FR-012). */
+export const CHANGE_WORK_END = "Alterar término";
+const EXTEND_END_HINT = "Só um horário depois do término atual: quem já começou ganha de volta o tempo cortado, até a duração.";
+
 export const EDIT_FIELD_IDS = {
   title: "editar-titulo",
   instructions: "editar-instrucoes",
   publishAt: "editar-publicacao",
-  deadline: "editar-prazo",
+  deadline: "editar-termino",
   controlled: "editar-modo-controlado",
   aiHelp: "editar-ajuda-ia",
   codeExecution: "editar-executar-codigo",
@@ -73,6 +84,8 @@ export const EDIT_FIELD_IDS = {
 
 const FIELD_OF_CODE: Record<string, string> = {
   INVALID_SCHEDULE: EDIT_FIELD_IDS.deadline,
+  EXAM_END_CANNOT_MOVE_EARLIER: EDIT_FIELD_IDS.deadline,
+  ACTIVITY_PERIOD_ENDED: EDIT_FIELD_IDS.deadline,
   ALREADY_PUBLISHED: EDIT_FIELD_IDS.publishAt,
   ACTIVITY_ALREADY_STARTED: EDIT_FIELD_IDS.controlled,
   AI_HELP_UNAVAILABLE: EDIT_FIELD_IDS.aiHelp,
@@ -190,6 +203,7 @@ export function ActivityDetail({
         </p>
         <ActivitySituation status={activity.status} phase={activity.phase} />
         <WorkOptionBadges activity={activity} />
+        {acceptsLateLegacy(activity.latePolicy) ? <Badge variant="warning">{LEGACY_LATE_BADGE}</Badge> : null}
         {activity.attendance ? <p className="m-0">{attendanceSummary(activity.attendance)}</p> : null}
         <div className="flex flex-wrap gap-2">
           {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
@@ -216,17 +230,16 @@ export function ActivityDetail({
         <TabsContent value="informacoes" className="flex flex-col gap-6">
           <dl className="m-0 grid gap-2">
             <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
-            <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
-            {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
-            {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
+            {/* 032: a work and an exam show their period; an exercise only its publication. */}
+            {activity.deadline ? (
+              <Item term="Período">{formatPeriod(activity.publishAt, activity.deadline)}</Item>
+            ) : (
+              <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
+            )}
             {activity.exam ? (
               <>
                 <Item term="Duração">{activity.exam.durationMinutes} min</Item>
                 <Item term="Limite de inatividade">{activity.exam.inactivityLimitSeconds} s</Item>
-                <Item term="Limite para iniciar">
-                  {activity.exam.startWindowMinutes} min após a abertura (até {formatTime(activity.exam.startDeadline)})
-                </Item>
-                <Item term="Fechamento">{formatLongDateTime(activity.exam.closesAt)}</Item>
               </>
             ) : null}
             {activity.totalGrade ? <Item term="Nota total">{formatGrade(activity.totalGrade)}</Item> : null}
@@ -412,6 +425,7 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
     defaultValues: activityEditDefaults(activity),
   });
   const scheduled = activity.phase === "SCHEDULED";
+  const endEdit = endEditOf(activity);
   const withOptions = hasWorkOptions(activity.type);
   const availability = useHelpAvailability(withOptions);
   const withCodeExecution = mayAllowCodeExecution(activity);
@@ -454,19 +468,19 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
         error={errorFor(EDIT_FIELD_IDS.publishAt)}
         {...register("publishAt")}
       />
-      {activity.deadline ? (
-        <>
-          <Field
-            id={EDIT_FIELD_IDS.deadline}
-            type="datetime-local"
-            label="Prazo de entrega"
-            required
-            error={errorFor(EDIT_FIELD_IDS.deadline)}
-            {...register("deadline")}
-          />
-          <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
-        </>
-      ) : null}
+      {/* 032/FR-012: no late policy; a scheduled exam's end moves with its start, a published one's only later. */}
+      {endEdit === "NONE" ? null : (
+        <Field
+          id={EDIT_FIELD_IDS.deadline}
+          type="datetime-local"
+          label={activity.type === "ASSIGNMENT" ? CHANGE_WORK_END : endEdit === "EXTEND" ? EXTEND_END : "Término"}
+          hint={endEdit === "EXTEND" ? EXTEND_END_HINT : undefined}
+          min={endEdit === "EXTEND" && activity.deadline ? isoToLocal(activity.deadline) : undefined}
+          required
+          error={errorFor(EDIT_FIELD_IDS.deadline)}
+          {...register("deadline")}
+        />
+      )}
       {mayChooseGroup(activity) ? (
         <GroupFormatField
           idPrefix="editar"
