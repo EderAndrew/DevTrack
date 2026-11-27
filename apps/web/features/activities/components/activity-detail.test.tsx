@@ -45,7 +45,8 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
     const { user } = setup();
     expect(await screen.findByRole("heading", { name: "Lista de herança" })).toBeTruthy();
     expect(screen.getByText("Publicada")).toBeTruthy();
-    expect(screen.getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    // 032: a REJECT work shows no late rule; only a legacy ACCEPT_MARKED one gets its badge (032/US4).
+    expect(screen.queryByText("Entrega atrasada", { selector: "dt" })).toBeNull();
     await openTab(user, "Alunos");
     expect(screen.getByText("Entregas: 12 de 30")).toBeTruthy();
     const roster = screen.getByRole("table", { name: /Situação de cada aluno/ });
@@ -528,7 +529,7 @@ describe("ActivityDetail — abas Informações, Alunos e Questões e gabarito",
     expect(tabs.map((tab) => tab.textContent)).toEqual(["Informações", "Alunos", "Questões e gabarito"]);
     expect(screen.getByRole("tab", { name: "Informações" }).getAttribute("aria-selected")).toBe("true");
     const panel = screen.getByRole("tabpanel", { name: "Informações" });
-    expect(within(panel).getByText("Não aceitar", { selector: "dd" })).toBeTruthy();
+    expect(within(panel).getByText("Período", { selector: "dt" })).toBeTruthy();
     expect(within(panel).getByRole("form", { name: "Editar atividade" })).toBeTruthy();
     expect(within(panel).queryByRole("table")).toBeNull();
     // The actions stay reachable from every tab.
@@ -771,5 +772,28 @@ describe("032/US3 ActivityDetail — \"Alterar término\" do trabalho", () => {
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
     await waitFor(() => expect(api.writes()).toHaveLength(1));
     expect(api.writes()[0]!.body).toEqual({ version: 2, deadline: new Date("2030-10-12T22:30").toISOString() });
+  });
+});
+
+describe("032/US4 ActivityDetail — selo do trabalho legado que aceita entrega atrasada", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("032/US4-3 032/FR-015 só o trabalho legado ACCEPT_MARKED mostra \"Aceita entrega atrasada (regra anterior)\"", async () => {
+    const legacy = setup({ [`GET ${PATH}`]: json(200, activity({ latePolicy: "ACCEPT_MARKED" })) });
+    expect(await screen.findByRole("heading", { name: "Lista de herança" })).toBeTruthy();
+    expect(screen.getByText("Aceita entrega atrasada (regra anterior)")).toBeTruthy();
+    // The old field and its labels are gone: the badge says it all.
+    expect(screen.queryByText("Entrega atrasada", { selector: "dt" })).toBeNull();
+    expect(screen.queryByText("Aceitar e marcar como atrasada")).toBeNull();
+    await expectNoA11yViolations(legacy.container);
+    legacy.unmount();
+
+    for (const view of [activity(), exerciseActivity(), examActivity()]) {
+      const { unmount } = setup({ [`GET ${PATH}`]: json(200, view) });
+      await screen.findByRole("heading", { name: view.title });
+      expect(screen.queryByText("Aceita entrega atrasada (regra anterior)"), view.type).toBeNull();
+      expect(screen.queryByText("Não aceitar"), view.type).toBeNull();
+      unmount();
+    }
   });
 });

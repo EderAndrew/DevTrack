@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,6 +35,7 @@ import { isActivityVersionConflict, useActivity, useActivityActions, useHelpAvai
 import { formatDuration, helpsUsedLabel } from "../schemas/attempt-records";
 import { rosterLines } from "../schemas/group-facts";
 import {
+  acceptsLateLegacy,
   ACTIVITY_TYPE_LABELS,
   activityStarted,
   type ActivityEditValues,
@@ -48,7 +50,7 @@ import {
   HELP_CHECK_PENDING,
   helpUnavailableText,
   isoToLocal,
-  LATE_POLICY_LABELS,
+  LEGACY_LATE_BADGE,
   mayAllowCodeExecution,
   mayChooseGroup,
   PERIOD_TEXTS,
@@ -202,6 +204,7 @@ export function ActivityDetail({
         </p>
         <ActivitySituation status={activity.status} phase={activity.phase} />
         <WorkOptionBadges activity={activity} />
+        {acceptsLateLegacy(activity.latePolicy) ? <Badge variant="warning">{LEGACY_LATE_BADGE}</Badge> : null}
         {activity.attendance ? <p className="m-0">{attendanceSummary(activity.attendance)}</p> : null}
         <div className="flex flex-wrap gap-2">
           {canApply ? <LifecycleActions activity={activity} actions={actions} run={run} /> : null}
@@ -234,7 +237,6 @@ export function ActivityDetail({
             ) : (
               <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
             )}
-            {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
             {activity.exam ? (
               <>
                 <Item term="Duração">{activity.exam.durationMinutes} min</Item>

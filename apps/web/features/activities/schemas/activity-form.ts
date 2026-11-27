@@ -29,10 +29,12 @@ import { fieldMessages } from "@/lib/forms/field-messages";
 
 // Labels of 012 contracts/web-ui.md (and 018's "Prova").
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = { ASSIGNMENT: "Trabalho", EXERCISE: "Exercício", EXAM: "Prova" };
-export const LATE_POLICY_LABELS: Record<LatePolicy, string> = {
-  REJECT: "Não aceitar",
-  ACCEPT_MARKED: "Aceitar e marcar como atrasada",
-};
+/**
+ * 032 (research AP2): a new work has no late policy (the server stores `REJECT`, shown as nothing); a work applied
+ * before 032 may keep `ACCEPT_MARKED`, the only one with this badge.
+ */
+export const LEGACY_LATE_BADGE = "Aceita entrega atrasada (regra anterior)";
+export const acceptsLateLegacy = (latePolicy: LatePolicy | null) => latePolicy === "ACCEPT_MARKED";
 export const QUESTION_TYPE_LABELS: Record<WorkQuestionType, string> = {
   OPEN_ANSWER: "Pergunta e resposta",
   MULTIPLE_CHOICE: "Múltipla escolha",

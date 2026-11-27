@@ -247,17 +247,17 @@ comparar períodos e situações.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T030 [P] [US4] Integração em `apps/api/test/integration/032-us4-legacy.spec.ts`: `032/US4-2` (trabalho `REJECT`:
+- [X] T030 [P] [US4] Integração em `apps/api/test/integration/032-us4-legacy.spec.ts`: `032/US4-2` (trabalho `REJECT`:
   fim = prazo, mesmo comportamento), `032/US4-3` (trabalho legado `ACCEPT_MARKED`: depois do fim aceita entrega marcada
   atrasada, `SUBMITTED_LATE`, e a chamada ainda aceita presença; nenhuma entrega perde a marca), `032/US4-4` (atividade
   encerrada/cancelada/de turma arquivada: Histórico, notas, revisão e ranking iguais), `032/SC-005`. (`032/US4-1` fica em
   T003.)
-- [ ] T031 [P] [US4] Teste web em `activity-detail.test.tsx`: selo "Aceita entrega atrasada (regra anterior)" só para
+- [X] T031 [P] [US4] Teste web em `activity-detail.test.tsx`: selo "Aceita entrega atrasada (regra anterior)" só para
   `latePolicy = ACCEPT_MARKED`.
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Web `activity-detail.tsx`: selo do legado; conferir que `operations.ts`/`student-status.ts` mantêm o
+- [X] T032 [US4] Web `activity-detail.tsx`: selo do legado; conferir que `operations.ts`/`student-status.ts` mantêm o
   caminho `ACCEPT_MARKED` (T009) e que a chamada o respeita (T018).
 
 **Checkpoint**: todas as histórias funcionando; `pending` da 032 vazio no `traceability.spec.ts`.
