@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { getMeForNavigation } from "@/features/auth/api/server";
+import { SITE_DESCRIPTION, SITE_ORIGIN } from "@/lib/seo/site";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -58,9 +59,15 @@ const fredoka = localFont({
   preload: true,
 });
 
+// Search engines: every page is `noindex` unless it says otherwise (only "/entrar" does); the token pages and the
+// signed-in areas are also kept out of robots.txt (`lib/seo/site.ts`).
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   title: { default: "DevTrack", template: "%s · DevTrack" },
-  description: "Plataforma de ensino e avaliação configurável por professor.",
+  description: SITE_DESCRIPTION,
+  applicationName: "DevTrack",
+  robots: { index: false, follow: false },
+  openGraph: { type: "website", siteName: "DevTrack", locale: "pt_BR", title: "DevTrack", description: SITE_DESCRIPTION },
 };
 
 /**
