@@ -97,11 +97,10 @@ export const ACTIVITY_HEADER_SELECT = {
   deadline: true,
   latePolicy: true,
   sourceWorkId: true,
-  /** 018: the exam it was copied from and its time (EXAM only, CHECK). */
+  /** 018: the exam it was copied from and its time (EXAM only, CHECK); its period's end is `deadline` (032). */
   sourceExamId: true,
   durationMinutes: true,
   inactivityLimitSeconds: true,
-  startWindowMinutes: true,
   outOfScopeTopicCount: true,
   resultReleasedAt: true,
   /** 016: where an open pause ends by derivation (research M7). */

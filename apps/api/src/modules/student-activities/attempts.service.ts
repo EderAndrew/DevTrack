@@ -55,12 +55,11 @@ interface ContextRow {
   /** 015: NORMAL or CONTROLLED (an EXERCISE is always NORMAL, CHECK). */
   execution_mode: ExecutionMode;
   status: ActivityStatus;
-  /** ASSIGNMENT only (013 K1). */
+  /** The period's end, ASSIGNMENT and EXAM (032); null for EXERCISE (013 K1). */
   deadline: Date | null;
   late_policy: LatePolicy | null;
-  /** 018: an EXAM's publication, start window, duration and the close or cancellation that caps its end (research T4). */
+  /** 018: an EXAM's publication, duration and the period's end, close or cancellation that cap its end (research T4, 032 AP3). */
   publish_at: Date;
-  start_window_minutes: number | null;
   duration_minutes: number | null;
   closed_at: Date | null;
   cancelled_at: Date | null;
@@ -277,7 +276,7 @@ export class AttemptsService {
         if (refused.length > 0) throw new TypingRefused((recordTx) => this.recordTypingRefusal(recordTx, guarded, refused, now));
         if (saved > 0) await tx.activityAttempt.update({ where: { id: attemptId }, data: { lastSavedAt: now } });
       }
-      // An EXAM is never late: it has no deadline, and its time was checked above (018 research T4).
+      // An EXAM is never late: its period's end only caps its time, checked above (018 research T4, 032 AP3).
       const late = facts.type === "ASSIGNMENT" && wouldBeLate(facts);
       const endReason = facts.type === "EXAM" ? ("STUDENT_SUBMITTED" as const) : undefined;
       const submission = await registerSubmission(tx, { attemptId, activityId, submittedByUserId: studentUserId, now, late, endReason });
@@ -514,7 +513,7 @@ export class AttemptsService {
 async function lockContext(tx: Tx, studentUserId: string, activityId: string, now: Date): Promise<ContextRow> {
   const rows = await tx.$queryRaw<ContextRow[]>`
     SELECT ca.class_id, ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline, ca.late_policy::text AS late_policy,
-           ca.publish_at, ca.start_window_minutes, ca.duration_minutes, ca.closed_at, ca.cancelled_at, ca.question_count,
+           ca.publish_at, ca.duration_minutes, ca.closed_at, ca.cancelled_at, ca.question_count,
            class_effective_status(c.id)::text AS class_status, (ca.result_released_at IS NOT NULL) AS released, ca.release_mode::text AS release_mode,
            ca.group_size
     FROM class_activities ca
@@ -620,7 +619,7 @@ async function assertExamTime(tx: Tx, context: ContextRow, attempt: AttemptRow |
   const timing = examTiming({
     publishAt: context.publish_at,
     durationMinutes: context.duration_minutes,
-    startWindowMinutes: context.start_window_minutes,
+    deadline: context.deadline,
     closedAt: context.closed_at,
     cancelledAt: context.cancelled_at,
   });
@@ -741,11 +740,11 @@ function factsOf(context: ContextRow, attempt: AttemptRow | null, now: Date): Ac
     };
   }
   if (context.type === "EXAM") {
-    if (context.start_window_minutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    if (context.deadline === null) throw new Error("an EXAM has a period's end (CHECK)");
     return {
       type: "EXAM",
       activityStatus: context.status,
-      startDeadline: startDeadline({ publishAt: context.publish_at, startWindowMinutes: context.start_window_minutes }),
+      startDeadline: startDeadline({ deadline: context.deadline }),
       classActive,
       attempt: attempt && { status: attempt.status },
       submission: attempt?.status === "SUBMITTED" ? { endReason: null, gradingComplete: false } : null,

@@ -1,6 +1,6 @@
 import { LatePolicySchema } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import type { AssignmentFacts, ExerciseFacts } from "./facts";
+import type { AssignmentFacts, ExamFacts, ExerciseFacts } from "./facts";
 import { acceptanceRefusal, canAnswer, decideOperation, type StudentOperation } from "./operations";
 import { deriveRosterStatus } from "./roster-status";
 import { deriveStudentStatus, isResultVisible, isUrgent, URGENT_WITHIN_MS } from "./student-status";
@@ -290,5 +290,56 @@ describe("013/FR-005 013/FR-007 o que o aluno pode fazer no Exercício (research
     for (const combination of everyExerciseCombination()) {
       expect(canAnswer(combination)).toBe(combination.classActive && combination.activityStatus === "ACTIVE");
     }
+  });
+});
+
+describe("032 a prova com período nunca é atrasada (research AP1)", () => {
+  // The period's end is the exam's `deadline`; past it, the exam reads only its own rules (`exam-time.ts`).
+  const exam = (overrides: Partial<ExamFacts> = {}): ExamFacts => ({
+    type: "EXAM",
+    activityStatus: "ACTIVE",
+    startDeadline: DEADLINE,
+    classActive: true,
+    attempt: null,
+    submission: null,
+    released: false,
+    now: at(-HOUR),
+    ...overrides,
+  });
+  const after = { now: at(5 * 24 * HOUR) };
+  const isOverdueStillAccepting = (value: ExamFacts) => deriveStudentStatus(value) === "OVERDUE" && canAnswer(value);
+
+  it("032/FR-011 depois do término a prova nunca é OVERDUE para quem entregou nem SUBMITTED_LATE para o professor", () => {
+    for (const endReason of ["STUDENT_SUBMITTED", "TIME_EXPIRED", "ACTIVITY_CLOSED"] as const) {
+      const delivered = exam({ ...after, attempt: { status: "SUBMITTED" }, submission: { endReason, gradingComplete: false } });
+      expect(deriveStudentStatus(delivered), endReason).toBe("SUBMITTED");
+      expect(deriveRosterStatus(delivered, "MARKED"), endReason).not.toBe("SUBMITTED_LATE");
+      expect(deriveRosterStatus(delivered, "MARKED"), endReason).not.toBe("MISSED");
+    }
+    const notStarted = exam(after);
+    expect(deriveRosterStatus(notStarted, "MARKED")).toBe("START_CLOSED");
+    expect(decideOperation("START", notStarted)).toMatchObject({ kind: "REFUSED", code: "EXAM_START_CLOSED" });
+  });
+
+  it("032/FR-011 depois do término a prova nunca está em \"atrasadas que ainda aceitam\" do Painel", () => {
+    for (const state of [{}, { attempt: { status: "IN_PROGRESS" as const } }]) {
+      expect(isOverdueStillAccepting(exam({ ...after, ...state }))).toBe(false);
+    }
+    expect(isUrgent(exam(after))).toBe(false);
+  });
+
+  it("032/SC-006 o exercício continua sem término nem atraso", () => {
+    const exercise: ExerciseFacts = {
+      type: "EXERCISE",
+      activityStatus: "ACTIVE",
+      classActive: true,
+      latestAttempt: null,
+      awaitingCorrection: false,
+      now: at(5 * 24 * HOUR),
+    };
+    expect(exercise).not.toHaveProperty("deadline");
+    expect(deriveStudentStatus(exercise)).toBe("PENDING");
+    expect(decideOperation("START", exercise)).toEqual({ kind: "ALLOWED" });
+    expect(isUrgent(exercise)).toBe(false);
   });
 });

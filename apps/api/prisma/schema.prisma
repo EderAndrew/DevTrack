@@ -2304,9 +2304,10 @@ model ClassActivity {
   /// 1–10, equal to the number of questions (deferred trigger).
   questionCount          Int                   @map("question_count")
   publishAt              DateTime              @map("publish_at") @db.Timestamptz(6)
-  /// ASSIGNMENT only (CHECK by type, 013 K1); after `publishAt` (CHECK).
+  /// The period's end (032 AP1): ASSIGNMENT and EXAM (CHECK by type), null for EXERCISE; after `publishAt` (CHECK),
+  /// and for an EXAM at least `publishAt` + duration; an EXAM's end only moves later once a student started (trigger).
   deadline               DateTime?             @db.Timestamptz(6)
-  /// ASSIGNMENT only (CHECK by type, 013 K1).
+  /// ASSIGNMENT only (CHECK by type, 013 K1); `REJECT` on every work applied since 032, `ACCEPT_MARKED` only legacy (AP2).
   latePolicy             ActivityLatePolicy?   @map("late_policy")
   /// Set iff ASSIGNMENT (CHECK); informative, the content lives in the snapshot.
   sourceWorkId           String?               @map("source_work_id") @db.Uuid
@@ -2318,8 +2319,6 @@ model ClassActivity {
   durationMinutes        Int?                  @map("duration_minutes") @db.SmallInt
   /// EXAM only (CHECK): 30–60 seconds without interaction is an occurrence (018 T7); immutable.
   inactivityLimitSeconds Int?                  @map("inactivity_limit_seconds") @db.SmallInt
-  /// EXAM only (CHECK): 0–60 minutes after `publishAt` to start (018 T4); immutable.
-  startWindowMinutes     Int?                  @map("start_window_minutes") @db.SmallInt
   /// Topics outside the taught scope that the teacher acknowledged (FR-005a).
   outOfScopeTopicCount   Int                   @default(0) @map("out_of_scope_topic_count")
   /// Set together (CHECK), never for EXERCISE; governs what the students see (research P14).

@@ -138,6 +138,12 @@ test.describe("018 prova em modo restrito com avisos e decisão do professor", (
     await tabTo(teacherPage, form.getByLabel(/^Duração/));
     await teacherPage.keyboard.press("ControlOrMeta+a");
     await teacherPage.keyboard.type(String(DURATION_MINUTES));
+    // 032: the period's end, 3 hours from now in the browser's local time (`datetime-local`).
+    const end = new Date(Date.now() + 3 * 3_600_000);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    await form
+      .getByLabel(/^Término/)
+      .fill(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`);
     const acknowledge = form.getByRole("checkbox", { name: "Entendo e quero aplicar mesmo assim" });
     if (await acknowledge.isVisible()) {
       await tabTo(teacherPage, acknowledge);

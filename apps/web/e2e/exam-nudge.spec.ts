@@ -97,6 +97,8 @@ test.describe("025 aviso discreto do professor na prova", () => {
       title: "Prova com aviso",
       instructions: "Leia as regras.",
       publishAt: null,
+      // 032: the period's end (the old 15 min window + the duration).
+      deadline: new Date(Date.now() + 35 * 60_000).toISOString(),
       durationMinutes: 20,
       acknowledgeOutOfScope: true,
     });

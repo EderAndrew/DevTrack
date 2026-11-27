@@ -35,12 +35,13 @@ export interface ExerciseFacts extends CommonFacts {
 }
 
 /**
- * An EXAM (018 research T3, T4): one attempt, like an ASSIGNMENT, but no deadline or late policy: a
- * start window from the publication, and the duration counted from each student's own start.
+ * An EXAM (018 research T3, T4; 032 AP3): one attempt, like an ASSIGNMENT, but no late policy: a period
+ * from the publication to its end, and the duration counted from each student's own start, capped by
+ * the period's end. Never OVERDUE or SUBMITTED_LATE.
  */
 export interface ExamFacts extends CommonFacts {
   type: "EXAM";
-  /** The publication plus the start window: no new attempt after it (`EXAM_START_CLOSED`). */
+  /** The period's end (032): no new attempt after it (`EXAM_START_CLOSED`). */
   startDeadline: Date;
   attempt: { status: AttemptStatus } | null;
   /** `endReason` is set for every EXAM submission (trigger); null only where the reader doesn't need it. */
@@ -61,16 +62,16 @@ export function assignmentSchedule(row: { deadline: Date | null; latePolicy: Lat
   return { deadline: row.deadline, latePolicy: row.latePolicy };
 }
 
-/** The timing columns of an EXAM row: NOT NULL for that type by the CHECK of `class_activities` (018 T3). */
+/** The timing columns of an EXAM row: NOT NULL for that type by the CHECK of `class_activities` (018 T3, 032). */
 export function examTiming(row: {
   publishAt: Date;
   durationMinutes: number | null;
-  startWindowMinutes: number | null;
+  deadline: Date | null;
   closedAt: Date | null;
   cancelledAt: Date | null;
 }): ExamTiming {
-  if (row.durationMinutes === null || row.startWindowMinutes === null) throw new Error("an EXAM has a duration and a start window (CHECK)");
-  return { publishAt: row.publishAt, durationMinutes: row.durationMinutes, startWindowMinutes: row.startWindowMinutes, closedAt: row.closedAt, cancelledAt: row.cancelledAt };
+  if (row.durationMinutes === null || row.deadline === null) throw new Error("an EXAM has a duration and a period's end (CHECK)");
+  return { publishAt: row.publishAt, durationMinutes: row.durationMinutes, deadline: row.deadline, closedAt: row.closedAt, cancelledAt: row.cancelledAt };
 }
 
 /** No new attempt from the start deadline on (strictly after it, as `exam-time.ts` `canStart`). */

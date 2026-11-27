@@ -43,6 +43,7 @@ export interface ApplyOverrides {
   /** Default null: published now, by the server clock. */
   publishAt?: string | null;
   deadline?: string;
+  /** 032: no longer part of the body (400); set only by the tests that expect it. */
   latePolicy?: ActivityLatePolicy;
   acknowledgeOutOfScope?: boolean;
   /** 015: a work's mode and AI help; left out by default (NORMAL, 0). Any value goes in as given, for the 400s. */
@@ -74,18 +75,26 @@ const applyBody = (source: object, defaults: object, overrides: Omit<ApplyOverri
     }).filter(([, value]) => value !== undefined),
   );
 
-/** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1): deadline far ahead, REJECT. */
+/** `POST /classes/:classId/activities` with a work of the teacher's bank (012/US1): deadline far ahead (REJECT by the server, 032). */
 export async function applyWork(client: ApiClient, classId: string, workId: string, overrides: ApplyOverrides = {}) {
   const { attendance = "ALL", ...body } = overrides;
   const res = await client.post(
     `/api/classes/${classId}/activities`,
-    applyBody({ type: "ASSIGNMENT", workId }, { deadline: FAR_DEADLINE, latePolicy: "REJECT" }, body),
+    applyBody({ type: "ASSIGNMENT", workId }, { deadline: FAR_DEADLINE }, body),
   );
   // Only a created (or replayed) work that takes attendance; the create's view keeps its own counts.
   if (attendance === "ALL" && (res.status === 200 || res.status === 201) && res.body.releaseMode === "PRESENT_ONLY") {
     await markAllPresent(client, classId, res.body.id);
   }
   return res;
+}
+
+/**
+ * 032 (research AP2): a work applied before 032 may keep `ACCEPT_MARKED`; the API no longer takes a late policy, so
+ * the suites of that legacy path apply the work and then write the policy straight in the database.
+ */
+export async function legacyAcceptMarked(t: TestApp, activityId: string): Promise<void> {
+  await t.prisma.classActivity.update({ where: { id: activityId }, data: { latePolicy: "ACCEPT_MARKED" } });
 }
 
 /**
@@ -228,8 +237,16 @@ export interface CreateActivityOptions {
   /** Default: one MULTIPLE_CHOICE question worth 1.00 (ASSIGNMENT) or BASIC (EXERCISE). */
   questions?: ActivityQuestionSpec[];
   publishAt?: Date;
-  /** ASSIGNMENT only (CHECK by type); default in a week. */
+  /**
+   * The period's end, ASSIGNMENT and EXAM (CHECK by type, 032). Default for an ASSIGNMENT: in a week.
+   * Default for an EXAM: `publishAt + startWindowMinutes + duration` when either of those is given (the
+   * 018 `closesAt`, so a suite written for the start window keeps its times), else in a week.
+   */
   deadline?: Date;
+  /**
+   * ASSIGNMENT only (CHECK). Since 032 the API stores `REJECT` on every new work; `ACCEPT_MARKED` here
+   * writes a legacy work (applied before 032) straight in the database.
+   */
   latePolicy?: ActivityLatePolicy;
   status?: ClassActivityStatus;
   /** ASSIGNMENT only (CHECK); default a new APPROVED work of the teacher, with its subject. */
@@ -249,9 +266,13 @@ export interface CreateActivityOptions {
   groupSize?: number | null;
   /** EXAM only (CHECK): default a new APPROVED exam of the teacher, with its subject. */
   sourceExamId?: string;
-  /** EXAM only (CHECK, 018 T3): defaults 60 min, 60 s and 15 min. */
+  /** EXAM only (CHECK, 018 T3): defaults 60 min and 60 s. */
   durationMinutes?: number;
   inactivityLimitSeconds?: number;
+  /**
+   * 032: no column any more. A suite of the 018 start window passes it (default 15 when `publishAt` is
+   * given) to get the exam's `deadline` = publication + window + duration, as the migration converted it.
+   */
   startWindowMinutes?: number;
 }
 
@@ -282,7 +303,7 @@ export async function createActivity(
   const now = Date.now();
   const type = options.type ?? "ASSIGNMENT";
   const exercise = type === "EXERCISE";
-  // 018: an EXAM is always CONTROLLED, without help, PRESENT_ONLY, timed, with no deadline (CHECKs).
+  // 018: an EXAM is always CONTROLLED, without help, PRESENT_ONLY, timed; since 032 with a period's end (CHECKs).
   const exam = type === "EXAM";
   const specs = options.questions ?? [{ type: "MULTIPLE_CHOICE" as const }];
   const values = specs.map((spec) => spec.valueCents ?? 100);
@@ -290,6 +311,15 @@ export async function createActivity(
   const languages = new Map<string, string>();
   for (const key of new Set(specs.flatMap((spec) => (spec.type === "CODE" ? [spec.languageKey ?? "java"] : [])))) languages.set(key, await languageId(t, key));
   const status = options.status ?? "ACTIVE";
+  const publishAt = options.publishAt ?? new Date(now - 24 * 3_600_000);
+  const inAWeek = new Date(now + 7 * 24 * 3_600_000);
+  const durationMinutes = options.durationMinutes ?? 60;
+  // 032: the exam's period end; with a given start (or window) it is the 018 `closesAt` (research AP7).
+  const examDeadline =
+    options.deadline ??
+    (options.publishAt !== undefined || options.startWindowMinutes !== undefined
+      ? new Date(publishAt.getTime() + ((options.startWindowMinutes ?? 15) + durationMinutes) * 60_000)
+      : inAWeek);
   let sourceWorkId = options.sourceWorkId ?? null;
   let sourceSubjectId = options.sourceSubjectId ?? null;
   let sourceExamId = options.sourceExamId ?? null;
@@ -323,15 +353,14 @@ export async function createActivity(
         instructions: options.instructions ?? null,
         totalGrade: exercise ? null : cents(totalCents),
         questionCount: specs.length,
-        publishAt: options.publishAt ?? new Date(now - 24 * 3_600_000),
-        deadline: exercise || exam ? null : (options.deadline ?? new Date(now + 7 * 24 * 3_600_000)),
+        publishAt,
+        deadline: exercise ? null : exam ? examDeadline : (options.deadline ?? inAWeek),
         latePolicy: exercise || exam ? null : (options.latePolicy ?? "REJECT"),
         sourceWorkId,
         sourceExamId,
         sourceSubjectId,
-        durationMinutes: exam ? (options.durationMinutes ?? 60) : null,
+        durationMinutes: exam ? durationMinutes : null,
         inactivityLimitSeconds: exam ? (options.inactivityLimitSeconds ?? 60) : null,
-        startWindowMinutes: exam ? (options.startWindowMinutes ?? 15) : null,
         outOfScopeTopicCount: options.outOfScopeTopicCount ?? 0,
         executionMode: options.executionMode ?? (exam ? "CONTROLLED" : "NORMAL"),
         aiHelpAllowance: options.aiHelpAllowance ?? 0,

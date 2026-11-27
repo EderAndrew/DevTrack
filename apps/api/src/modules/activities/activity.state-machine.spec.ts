@@ -40,12 +40,13 @@ describe("012/FR-004 ciclo de vida da atividade da turma", () => {
     expect(Object.keys(ACTIVITY_TYPES)).toHaveLength(3);
   });
 
-  it("018/FR-010 a Prova tem nota, uma tentativa, sem prazo nem opções do professor, só para os presentes", () => {
-    expect(ACTIVITY_TYPES.EXAM).toEqual({ scoring: "GRADE", hasDeadline: false, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: false, releaseMode: "PRESENT_ONLY" });
+  // 032: the exam has a period's end (`deadline`, AP1) but no late policy (AP11).
+  it("018/FR-010 032/FR-001 a Prova tem nota, uma tentativa, término sem política de atraso, sem opções do professor, só para os presentes", () => {
+    expect(ACTIVITY_TYPES.EXAM).toEqual({ scoring: "GRADE", hasDeadline: true, hasLatePolicy: false, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: false, releaseMode: "PRESENT_ONLY" });
   });
 
   it("013/FR-001 015/FR-002 016/FR-007 Trabalho tem nota, prazo, uma tentativa e as opções da 015; Exercício tem pontos, sem prazo, com tentativas de prática e sem opções", () => {
-    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ scoring: "GRADE", hasDeadline: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true, releaseMode: "PRESENT_ONLY" });
-    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ scoring: "POINTS", hasDeadline: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false, releaseMode: "ALL_ENROLLED" });
+    expect(ACTIVITY_TYPES.ASSIGNMENT).toEqual({ scoring: "GRADE", hasDeadline: true, hasLatePolicy: true, attempts: "SINGLE", sourceCount: { min: 1, max: 1 }, workOptions: true, releaseMode: "PRESENT_ONLY" });
+    expect(ACTIVITY_TYPES.EXERCISE).toEqual({ scoring: "POINTS", hasDeadline: false, hasLatePolicy: false, attempts: "PRACTICE", sourceCount: { min: 1, max: 10 }, workOptions: false, releaseMode: "ALL_ENROLLED" });
   });
 });

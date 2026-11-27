@@ -76,7 +76,7 @@ export const StudentActivitySummarySchema = z.strictObject({
   subjectName: z.string().nullable(),
   teacherName: z.string(),
   publishedAt: IsoDateTimeSchema,
-  /** ASSIGNMENT only; null for EXERCISE (013/FR-013). */
+  /** The period's end of an ASSIGNMENT or EXAM (032); null for EXERCISE (013/FR-013). */
   deadline: IsoDateTimeSchema.nullable(),
   latePolicy: LatePolicySchema.nullable(),
   status: StudentActivityStatusSchema,
@@ -135,7 +135,9 @@ export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 export const StudentExamSchema = z.strictObject({
   durationMinutes: z.int().min(EXAM_DURATION_MINUTES_MIN).max(EXAM_DURATION_MINUTES_MAX),
   inactivityLimitSeconds: z.int().min(EXAM_INACTIVITY_SECONDS_MIN).max(EXAM_INACTIVITY_SECONDS_MAX),
+  /** = deadline desde a 032 (AP4): the period's end, the last moment to start. */
   startDeadline: IsoDateTimeSchema,
+  /** min(start + duration, period's end, close, cancellation) (032 AP3). */
   endsAt: IsoDateTimeSchema.nullable(),
   occurrences: z.strictObject({ count: z.int().min(0), warningsAllowed: z.literal(EXAM_WARNINGS) }),
   hold: z.strictObject({ openedAt: IsoDateTimeSchema }).nullable(),

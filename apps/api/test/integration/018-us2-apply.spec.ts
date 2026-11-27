@@ -105,15 +105,15 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
     expect(published!.metadata).toMatchObject({ outOfScopeTopicCount: 1, hasPlan: false });
   });
 
-  it("018/US2-2 018/FR-007 duração, inatividade e limite para iniciar fora das faixas são recusados pelo servidor; as bordas cabem", async () => {
+  // 032: the start window left the body (any `startWindowMinutes` → 400); the exam takes the period's end instead.
+  it("018/US2-2 018/FR-007 duração e inatividade fora das faixas são recusados pelo servidor; as bordas cabem", async () => {
     for (const fields of [
       { durationMinutes: 0 },
       { durationMinutes: 121 },
       { durationMinutes: 30.5 },
       { inactivityLimitSeconds: 29 },
       { inactivityLimitSeconds: 61 },
-      { startWindowMinutes: -1 },
-      { startWindowMinutes: 61 },
+      { startWindowMinutes: 15 },
       { durationMinutes: undefined },
     ]) {
       const res = await applyExam(client, classId, exam.id, { acknowledgeOutOfScope: true, ...fields });
@@ -121,23 +121,25 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
     }
     expect(await t.prisma.classActivity.count()).toBe(0);
 
-    const low = await applied({ durationMinutes: 1, inactivityLimitSeconds: 30, startWindowMinutes: 0 });
-    expect(low.exam).toMatchObject({ durationMinutes: 1, inactivityLimitSeconds: 30, startWindowMinutes: 0 });
-    const high = await applied({ durationMinutes: 120, inactivityLimitSeconds: 60, startWindowMinutes: 60 });
-    expect(high.exam).toMatchObject({ durationMinutes: 120, inactivityLimitSeconds: 60, startWindowMinutes: 60 });
-    // Left out: the defaults, 60 s of inactivity and 15 min to start.
-    const defaults = await applied({ inactivityLimitSeconds: undefined, startWindowMinutes: undefined });
-    expect(defaults.exam).toMatchObject({ inactivityLimitSeconds: 60, startWindowMinutes: 15 });
+    const low = await applied({ durationMinutes: 1, inactivityLimitSeconds: 30 });
+    expect(low.exam).toMatchObject({ durationMinutes: 1, inactivityLimitSeconds: 30 });
+    const high = await applied({ durationMinutes: 120, inactivityLimitSeconds: 60 });
+    expect(high.exam).toMatchObject({ durationMinutes: 120, inactivityLimitSeconds: 60 });
+    // Left out: the default, 60 s of inactivity.
+    const defaults = await applied({ inactivityLimitSeconds: undefined });
+    expect(defaults.exam).toMatchObject({ inactivityLimitSeconds: 60 });
   });
 
-  it("018/FR-007 a atividade guarda as faixas e o fechamento derivado: limite para iniciar + duração", async () => {
+  // 032: the closing is the period's end (`deadline`), also the last moment to start (research AP3, AP4).
+  it("018/FR-007 a atividade guarda as faixas e o fechamento: o fim do período", async () => {
     const publishAt = new Date(clock.now().getTime() + 60 * MINUTE).toISOString();
-    const activity = await applied({ publishAt, durationMinutes: 30, inactivityLimitSeconds: 45, startWindowMinutes: 10 });
+    const deadline = new Date(Date.parse(publishAt) + 40 * MINUTE).toISOString();
+    const activity = await applied({ publishAt, deadline, durationMinutes: 30, inactivityLimitSeconds: 45 });
     expect(activity).toMatchObject({
       type: "EXAM",
       phase: "SCHEDULED",
       publishAt,
-      deadline: null,
+      deadline,
       latePolicy: null,
       totalGrade: "10.00",
       possiblePoints: null,
@@ -145,9 +147,8 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
       exam: {
         durationMinutes: 30,
         inactivityLimitSeconds: 45,
-        startWindowMinutes: 10,
-        startDeadline: new Date(Date.parse(publishAt) + 10 * MINUTE).toISOString(),
-        closesAt: new Date(Date.parse(publishAt) + 40 * MINUTE).toISOString(),
+        startDeadline: deadline,
+        closesAt: deadline,
         pendingDecisions: 0,
       },
     });
@@ -162,7 +163,6 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
       sourceExamId: exam.id,
       durationMinutes: 30,
       inactivityLimitSeconds: 45,
-      startWindowMinutes: 10,
       questionCount: 3,
       totalCents: 1000,
       scheduled: true,
@@ -225,7 +225,7 @@ describe("018/US2 professor aplica a prova à turma e faz a chamada", () => {
       { aiHelpAllowance: 3 },
       { releaseMode: "ALL_ENROLLED" },
       { releaseMode: "PRESENT_ONLY" },
-      { deadline: "2030-12-31T23:59:00.000Z" },
+      // 032: the exam takes the period's end (`deadline`), never a late policy.
       { latePolicy: "REJECT" },
       { totalGrade: "10.00" },
     ]) {

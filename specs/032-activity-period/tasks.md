@@ -44,7 +44,7 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] Teste de schema/migração em `apps/api/test/integration/032-schema.spec.ts` (modelo:
+- [X] T003 [P] Teste de schema/migração em `apps/api/test/integration/032-schema.spec.ts` (modelo:
   `018-schema.spec.ts`): (a) `deadline` obrigatório em EXAM e ASSIGNMENT, nulo em EXERCISE (CHECK); (b) EXAM com `deadline
   < publish_at + duration` → violação; (c) `start_window_minutes` não existe; (d) trigger, sem depender de relógio: o
   `deadline` de uma EXAM **com tentativa** não diminui (aumentar passa, diminuir falha); sem tentativa muda livre (a regra
@@ -54,12 +54,12 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
   teste verifica, com valores literais na mesma expressão SQL (`SELECT $publish + make_interval(…)`), que o resultado é o
   `closesAt` antigo, e com a função pura `endsAt` (T005) que toda tentativa iniciada até `publish + janela` tem o mesmo
   fim antes e depois (o banco de teste já está migrado, então não há linha pré-032 para converter).
-- [ ] T004 [P] Testes de contrato em `packages/contracts/test/activity-period.spec.ts`: criar ASSIGNMENT sem `deadline`
+- [X] T004 [P] Testes de contrato em `packages/contracts/test/activity-period.spec.ts`: criar ASSIGNMENT sem `deadline`
   → erro; com `latePolicy` → erro (strict); EXAM exige `deadline`; EXAM com `startWindowMinutes` → erro; refinamento
   `deadline > publishAt` em ambos; `UpdateActivityRequestSchema` recusa `latePolicy` e aceita `deadline`;
   `ActivityExamSchema` sem `startWindowMinutes`; `ExamMonitorSchema` e `MobileExamListItemSchema` inalterados (mesmas
   chaves que antes — compatibilidade AP4).
-- [ ] T005 [P] Testes puros de `apps/api/src/modules/activities/status/exam-time.spec.ts` (reescrever os da janela):
+- [X] T005 [P] Testes puros de `apps/api/src/modules/activities/status/exam-time.spec.ts` (reescrever os da janela):
   `canStart` de `publishAt` a `deadline` inclusive; `endsAt = min(início + duração, deadline, closedAt, cancelledAt)`;
   `closesAt = startDeadline = deadline`; o fim pelo período não é `endedByActivity` (fica `TIME_EXPIRED`, AP3); estender
   `deadline` aumenta o `endsAt` só de quem estava cortado. No mesmo commit, testes puros de
@@ -71,7 +71,7 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
 
 ### Implementation for Foundational
 
-- [ ] T006 Migração `apps/api/prisma/migrations/<timestamp>_032_activity_period/migration.sql` (data-model.md, AP7), numa
+- [X] T006 Migração `apps/api/prisma/migrations/<timestamp>_032_activity_period/migration.sql` (data-model.md, AP7), numa
   transação: backfill de `deadline` das EXAM; trocar `class_activities_type_fields_chk` e `class_activities_exam_chk`;
   `CREATE OR REPLACE` de `class_activities_fixed_columns()` (partir da **versão mais recente** da função — conferir com
   `grep -l 'FUNCTION "class_activities_fixed_columns"' apps/api/prisma/migrations/*/migration.sql` e preservar o que
@@ -80,17 +80,17 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
   de `exam_attempt_holds_transition()` (versão mais recente, idem) com `least(…, deadline)`; `DROP COLUMN
   start_window_minutes`. Atualizar `apps/api/prisma/schema.prisma` (remover `startWindowMinutes`, comentar `deadline`
   como fim do período para ASSIGNMENT e EXAM) e rodar `pnpm --filter api prisma generate`.
-- [ ] T007 Contratos em `packages/contracts/src/activities/teacher.ts` e `enums.ts` (contracts/http-api.md): `deadline`
+- [X] T007 Contratos em `packages/contracts/src/activities/teacher.ts` e `enums.ts` (contracts/http-api.md): `deadline`
   obrigatório no corpo de EXAM; remover `latePolicy` dos corpos de criação de ASSIGNMENT e de atualização; remover
   `startWindowMinutes` do corpo de EXAM e de `ActivityExamSchema`; remover `EXAM_START_WINDOW_*`; manter `startDeadline`
   e `closesAt` em `ActivityExamSchema`, no bloco de prova do aluno (`student.ts`), em `exam-sessions/monitor.ts` e
   `mobile/exams.ts`, com comentário "= deadline desde a 032 (AP4)". `pnpm --filter @repo/contracts build`.
-- [ ] T008 `apps/api/src/modules/activities/status/exam-time.ts` e `facts.ts`: `ExamTiming` troca `startWindowMinutes`
+- [X] T008 `apps/api/src/modules/activities/status/exam-time.ts` e `facts.ts`: `ExamTiming` troca `startWindowMinutes`
   por `deadline`; `startDeadline`, `canStart`, `endsAt`, `closesAt`, `endedByActivity` conforme AP3; `examTiming(row)`
   lê `deadline`; `isStartClosed` usa o novo `startDeadline`. Criar o puro
   `apps/api/src/modules/activities/status/period.ts` (`validPeriod`, `canChangeEnd`, `acceptsAttendanceMark`) que T016,
   T017, T018 e T028 chamam; nenhuma dessas regras fica escrita só no serviço.
-- [ ] T009 Varredura dos leitores de `deadline` e do tempo da prova (AP1), cada um lendo o **tipo** e nunca "tem
+- [X] T009 Varredura dos leitores de `deadline` e do tempo da prova (AP1), cada um lendo o **tipo** e nunca "tem
   deadline ⇒ é trabalho": `activities/activity-types.ts` (`hasDeadline: true` para EXAM **e** um novo `hasLatePolicy`,
   `true` só em ASSIGNMENT; ajustar `activity.state-machine.spec.ts`), `activities.service.ts` linhas ~222 e ~340 (hoje
   `hasDeadline && "deadline" in body` grava `latePolicy: body.latePolicy`, que numa EXAM violaria o CHECK: `latePolicy`
@@ -103,13 +103,13 @@ a migração, os contratos e `exam-time.ts` mudam juntos; cada história depois 
   `exam-sessions/exam-monitor.service.ts`, `exam-sessions/exam-status.ts`, `exam-alerts/mobile-exams.service.ts`,
   `exam-nudges/exam-nudges.service.ts`, `student-activities/{attempts.service,group-work.service,my-activities.service,
   save-facts,student-activity-loader}.ts`, `work-help/work-help.service.ts`. Remover `startWindowMinutes` dos selects.
-- [ ] T010 [P] Testes de regressão do AP1 em `apps/api/src/modules/activities/status/status.spec.ts`: uma EXAM depois do
+- [X] T010 [P] Testes de regressão do AP1 em `apps/api/src/modules/activities/status/status.spec.ts`: uma EXAM depois do
   `deadline` nunca é `OVERDUE` nem `SUBMITTED_LATE` para aluno ou professor, e nunca aparece em "atrasadas que ainda
   aceitam" do Painel; uma EXERCISE continua sem `deadline` (`032/SC-006`).
-- [ ] T011 `apps/api/src/modules/audit/audit-event-types.ts`: remover `startWindowMinutes` de `class_activity.created`
+- [X] T011 `apps/api/src/modules/audit/audit-event-types.ts`: remover `startWindowMinutes` de `class_activity.created`
   (contracts/audit-events.md). `apps/api/src/platform/http/errors.ts`: `INVALID_SCHEDULE` com a mensagem nova,
   `EXAM_END_CANNOT_MOVE_EARLIER` (422), `ACTIVITY_PERIOD_ENDED` (409), texto novo de `EXAM_START_CLOSED` (AP9).
-- [ ] T012 Helpers e fixtures de teste: `apps/api/test/helpers/{activities,exams,journey,mobile,code-runs}.ts` criam
+- [X] T012 Helpers e fixtures de teste: `apps/api/test/helpers/{activities,exams,journey,mobile,code-runs}.ts` criam
   EXAM com `deadline` (padrão: `publishAt + 15 + duração`, que reproduz o comportamento antigo) e ASSIGNMENT sem
   `latePolicy` (um parâmetro opcional `legacyLatePolicy` grava `ACCEPT_MARKED` direto no banco para os testes do
   legado); varrer os ~70 arquivos de teste (API, web, e2e, contracts) que citam `startWindowMinutes`/`latePolicy` até

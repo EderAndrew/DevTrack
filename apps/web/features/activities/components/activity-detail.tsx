@@ -54,7 +54,7 @@ import {
 import { ActivityQuestions } from "./activity-questions";
 import { ACTIVITY_TABS, type ActivityTab, ATTENDANCE_AND_EXAM, ATTENDANCE_AND_STUDENTS, isActivityTab } from "./activity-tabs";
 import { ActivitySituation } from "./class-activities";
-import { LatePolicyField, TextareaField } from "./form-fields";
+import { TextareaField } from "./form-fields";
 import { GroupLabel } from "./group-facts";
 import { GroupFormatField, WorkOptionBadges, WorkOptionsFieldset } from "./work-options";
 
@@ -217,15 +217,12 @@ export function ActivityDetail({
           <dl className="m-0 grid gap-2">
             <Item term="Tipo">{ACTIVITY_TYPE_LABELS[activity.type]}</Item>
             <Item term="Publicação">{formatLongDateTime(activity.publishAt)}</Item>
-            {activity.deadline ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
+            {activity.deadline && !activity.exam ? <Item term="Prazo">{formatLongDateTime(activity.deadline)}</Item> : null}
             {activity.latePolicy ? <Item term="Entrega atrasada">{LATE_POLICY_LABELS[activity.latePolicy]}</Item> : null}
             {activity.exam ? (
               <>
                 <Item term="Duração">{activity.exam.durationMinutes} min</Item>
                 <Item term="Limite de inatividade">{activity.exam.inactivityLimitSeconds} s</Item>
-                <Item term="Limite para iniciar">
-                  {activity.exam.startWindowMinutes} min após a abertura (até {formatTime(activity.exam.startDeadline)})
-                </Item>
                 <Item term="Fechamento">{formatLongDateTime(activity.exam.closesAt)}</Item>
               </>
             ) : null}
@@ -454,18 +451,16 @@ function ActivityEditForm({ activity, onSave }: { activity: TeacherActivity; onS
         error={errorFor(EDIT_FIELD_IDS.publishAt)}
         {...register("publishAt")}
       />
-      {activity.deadline ? (
-        <>
-          <Field
-            id={EDIT_FIELD_IDS.deadline}
-            type="datetime-local"
-            label="Prazo de entrega"
-            required
-            error={errorFor(EDIT_FIELD_IDS.deadline)}
-            {...register("deadline")}
-          />
-          <LatePolicyField idPrefix="editar-atraso" {...register("latePolicy")} />
-        </>
+      {/* 032: the late policy is no longer edited; an exam's end changes by "Estender término" (US1). */}
+      {activity.type === "ASSIGNMENT" ? (
+        <Field
+          id={EDIT_FIELD_IDS.deadline}
+          type="datetime-local"
+          label="Prazo de entrega"
+          required
+          error={errorFor(EDIT_FIELD_IDS.deadline)}
+          {...register("deadline")}
+        />
       ) : null}
       {mayChooseGroup(activity) ? (
         <GroupFormatField

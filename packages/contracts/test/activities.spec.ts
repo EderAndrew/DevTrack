@@ -136,7 +136,6 @@ describe("015 opções do Trabalho na aplicação, na edição e nas visões (co
     publishAt: null,
     acknowledgeOutOfScope: false,
     deadline: "2026-10-10T23:59:00.000Z",
-    latePolicy: "REJECT",
     ...overrides,
   });
   const exercises = (overrides: Record<string, unknown> = {}) => ({
@@ -224,7 +223,7 @@ describe("012 contratos do professor (contracts/http-api.md)", () => {
     ...overrides,
   });
   const work = (overrides: Record<string, unknown> = {}) =>
-    body({ source: { type: "ASSIGNMENT", workId: uuid(5) }, deadline: "2026-10-10T23:59:00.000Z", latePolicy: "REJECT", ...overrides });
+    body({ source: { type: "ASSIGNMENT", workId: uuid(5) }, deadline: "2026-10-10T23:59:00.000Z", ...overrides });
 
   it("012/FR-001 1 a 10 exercícios distintos, ou um trabalho", () => {
     expect(accepts(CreateActivityRequestSchema, body({ source: exercises(0) }))).toBe(false);
@@ -250,10 +249,10 @@ describe("012 contratos do professor (contracts/http-api.md)", () => {
     }
   });
 
-  it("012/FR-005 o Trabalho exige prazo e regra; o prazo vem depois da publicação", () => {
+  // 032: the late policy left the body (032/FR-009, `activity-period.spec.ts`); the end of the period stays required.
+  it("012/FR-005 o Trabalho exige prazo; o prazo vem depois da publicação", () => {
     const publishAt = "2026-10-10T23:59:00.000Z";
     expect(accepts(CreateActivityRequestSchema, work({ deadline: undefined }))).toBe(false);
-    expect(accepts(CreateActivityRequestSchema, work({ latePolicy: undefined }))).toBe(false);
     expect(accepts(CreateActivityRequestSchema, work({ publishAt }))).toBe(false);
     expect(accepts(CreateActivityRequestSchema, work({ publishAt: "2026-10-09T00:00:00.000Z" }))).toBe(true);
     expect(accepts(UpdateActivityRequestSchema, { version: 1, publishAt, deadline: "2026-10-01T00:00:00.000Z" })).toBe(false);
@@ -673,7 +672,6 @@ describe("016 chamada nas visões das atividades (contracts/http-api.md)", () =>
       publishAt: null,
       acknowledgeOutOfScope: false,
       deadline: "2026-10-20T00:00:00.000Z",
-      latePolicy: "REJECT",
     };
     expect(accepts(CreateActivityRequestSchema, work)).toBe(true);
     for (const releaseMode of ["PRESENT_ONLY", "ALL_ENROLLED"]) {
@@ -711,27 +709,27 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
     publishAt: null,
     acknowledgeOutOfScope: false,
     durationMinutes: 60,
+    deadline: "2026-10-20T00:00:00.000Z",
     ...overrides,
   });
 
-  it("018/FR-007 duração de 1 a 120 min, inatividade de 30 a 60 s (padrão 60), limite para iniciar de 0 a 60 min (padrão 15)", () => {
-    expect(CreateActivityRequestSchema.parse(exam())).toMatchObject({ inactivityLimitSeconds: 60, startWindowMinutes: 15 });
+  // 032: the start window left (032/FR-005, `activity-period.spec.ts`).
+  it("018/FR-007 duração de 1 a 120 min, inatividade de 30 a 60 s (padrão 60)", () => {
+    expect(CreateActivityRequestSchema.parse(exam())).toMatchObject({ inactivityLimitSeconds: 60 });
     for (const durationMinutes of [1, 120]) expect(accepts(CreateExamActivityRequestSchema, exam({ durationMinutes })), String(durationMinutes)).toBe(true);
     for (const durationMinutes of [0, 121, 1.5, "60", undefined]) {
       expect(accepts(CreateActivityRequestSchema, exam({ durationMinutes })), String(durationMinutes)).toBe(false);
     }
     for (const inactivityLimitSeconds of [30, 60]) expect(accepts(CreateExamActivityRequestSchema, exam({ inactivityLimitSeconds }))).toBe(true);
     for (const inactivityLimitSeconds of [29, 61, 45.5]) expect(accepts(CreateExamActivityRequestSchema, exam({ inactivityLimitSeconds }))).toBe(false);
-    for (const startWindowMinutes of [0, 60]) expect(accepts(CreateExamActivityRequestSchema, exam({ startWindowMinutes }))).toBe(true);
-    for (const startWindowMinutes of [-1, 61, 7.5]) expect(accepts(CreateExamActivityRequestSchema, exam({ startWindowMinutes }))).toBe(false);
   });
 
-  it("018/FR-010 a aplicação da prova recusa modo, ajuda, liberação, prazo e regra de atraso", () => {
+  // 032: the exam takes the period's end (`deadline`, 032/FR-001); the late policy is still refused.
+  it("018/FR-010 a aplicação da prova recusa modo, ajuda, liberação e regra de atraso", () => {
     const refused = {
       executionMode: "CONTROLLED",
       aiHelpAllowance: 0,
       releaseMode: "PRESENT_ONLY",
-      deadline: "2026-10-20T00:00:00.000Z",
       latePolicy: "REJECT",
       totalGrade: "10.00",
     };
@@ -755,7 +753,7 @@ describe("018 a prova como atividade da turma (contracts/http-api.md, research T
   });
 
   it("018/FR-007 o professor vê os tempos derivados da prova e as decisões pendentes", () => {
-    const timing = { durationMinutes: 60, inactivityLimitSeconds: 60, startWindowMinutes: 15, startDeadline: AT, closesAt: AT, pendingDecisions: 0 };
+    const timing = { durationMinutes: 60, inactivityLimitSeconds: 60, startDeadline: AT, closesAt: AT, pendingDecisions: 0 };
     expect(accepts(ActivityExamSchema, timing)).toBe(true);
     expect(accepts(ActivityExamSchema, { ...timing, pendingDecisions: -1 })).toBe(false);
     expect(accepts(ActivityExamSchema, { ...timing, endsAt: AT })).toBe(false);

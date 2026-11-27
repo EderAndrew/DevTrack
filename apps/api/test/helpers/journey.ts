@@ -663,19 +663,19 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   // exercises to the class, edits, closes and cancels: `activity.published`, `activity.updated`,
   // `activity.closed` and `activity.cancelled`, with ids, counts and enums only.
   const activitiesPath = `/api/classes/${classId}/activities`;
-  // A work (ASSIGNMENT) has a deadline and a late policy; exercises (EXERCISE) have neither since 013.
+  // A work (ASSIGNMENT) has a period's end (`REJECT` by the server since 032); exercises (EXERCISE) have none since 013.
   const activityBody = (source: { type: "ASSIGNMENT"; workId: string } | { type: "EXERCISE"; exerciseIds: string[] }) => ({
     idempotencyKey: randomUUID(),
     source,
     title: text("título da atividade (012)", "Atividade da jornada doze"),
     instructions: text("instruções da atividade (012)", "Instruções da atividade da jornada doze"),
     publishAt: null,
-    ...(source.type === "ASSIGNMENT" ? { deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(), latePolicy: "REJECT" } : {}),
+    ...(source.type === "ASSIGNMENT" ? { deadline: new Date(Date.now() + 7 * DAY_MS).toISOString() } : {}),
     acknowledgeOutOfScope: true,
   });
   const appliedWork = await teacherClient.post(activitiesPath, activityBody({ type: "ASSIGNMENT", workId: work.body.id }));
   expect(appliedWork.status).toBe(201);
-  const editedActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 1, latePolicy: "ACCEPT_MARKED" });
+  const editedActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 1, deadline: new Date(Date.now() + 8 * DAY_MS).toISOString() });
   expect(editedActivity.status).toBe(200);
   // 015/US1 — before any student starts, the work goes to the controlled mode (`activity.settings_changed`).
   const controlledActivity = await teacherClient.patch(`${activitiesPath}/${appliedWork.body.id}`, { version: 2, executionMode: "CONTROLLED" });
@@ -698,7 +698,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
   expect(appliedExercises.status).toBe(201);
   expect((await teacherClient.post(`${activitiesPath}/${appliedExercises.body.id}/cancel`, {})).status).toBe(200);
   // 018/US2 — the restored exam goes to the class as an EXAM with its time (`activity.published` with
-  // `sourceExamId`, `durationMinutes`, `inactivityLimitSeconds` and `startWindowMinutes`), always CONTROLLED,
+  // `sourceExamId`, `durationMinutes` and `inactivityLimitSeconds`; its period's end since 032), always CONTROLLED,
   // without help and only for the students marked present; then cancelled.
   const examScope = await teacherClient.post(`${activitiesPath}/scope-check`, { type: "EXAM", examId: examDraft.body.id });
   expect(examScope.body.coverage.byTopic).toHaveLength(1);
@@ -707,6 +707,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
     source: { type: "EXAM", examId: examDraft.body.id },
     title: text("título da prova aplicada (018)", "Prova aplicada da jornada dezoito"),
     publishAt: null,
+    deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(),
     durationMinutes: 30,
     inactivityLimitSeconds: 45,
     acknowledgeOutOfScope: true,
@@ -1068,6 +1069,7 @@ export async function runFullJourney(t: AiTestApp): Promise<JourneyResult> {
       source: { type: "EXAM", examId: examDraft.body.id },
       title: text("título da prova aplicada (018)", title),
       publishAt: null,
+      deadline: new Date(Date.now() + 7 * DAY_MS).toISOString(),
       durationMinutes: 30,
       acknowledgeOutOfScope: true,
     });

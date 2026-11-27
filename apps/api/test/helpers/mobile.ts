@@ -43,8 +43,8 @@ const MINUTE = 60_000;
 
 /**
  * An EXAM of the class with its timing relative to now: `startedMinutesAgo` since the publication
- * (negative = scheduled), 15 min start window and 60 min duration, so it is in progress until 75 min
- * after the publication.
+ * (negative = scheduled) and 60 min duration, with the period's end 75 min after the publication (the
+ * 018 default window of 15 min, as 032 converted it), so it is in progress until then.
  */
 export function examActivity(
   t: TestApp,

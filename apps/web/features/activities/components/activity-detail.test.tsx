@@ -55,17 +55,16 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
     expect(within(questions).getByText("Vale 1,00")).toBeTruthy();
   });
 
-  it("012/US1-8 edita a regra de atraso e o prazo: só o que mudou, com a versão lida", async () => {
-    const { api, user } = setup({ [`PATCH ${PATH}`]: json(200, activity({ latePolicy: "ACCEPT_MARKED", version: 3 })) });
+  // 032: the late policy is no longer edited (AP2); only the end changes.
+  it("012/US1-8 edita o prazo: só o que mudou, com a versão lida", async () => {
+    const { api, user } = setup({ [`PATCH ${PATH}`]: json(200, activity({ version: 3 })) });
     await screen.findByRole("form", { name: "Editar atividade" });
-    await user.click(screen.getByRole("radio", { name: "Aceitar e marcar como atrasada" }));
     fireEvent.change(field(EDIT_FIELD_IDS.deadline), { target: { value: "2030-10-12T18:00" } });
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
     expect(await screen.findByText("Alterações salvas.")).toBeTruthy();
     expect(api.writes()[0]!.body).toEqual({
       version: 2,
       deadline: new Date("2030-10-12T18:00").toISOString(),
-      latePolicy: "ACCEPT_MARKED",
     });
   });
 
@@ -136,7 +135,7 @@ describe("012/US1 ActivityDetail — dados, edição, gabarito, alunos, encerrar
       field(EDIT_FIELD_IDS.title),
       field(EDIT_FIELD_IDS.instructions),
       field(EDIT_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       // 015: a work nobody started keeps its mode and AI help editable.
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       screen.getByRole("checkbox", { name: "Ajuda da IA (3 perguntas por aluno)" }),

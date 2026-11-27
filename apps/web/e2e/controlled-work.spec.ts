@@ -186,7 +186,6 @@ test.describe("015 trabalho em modo controlado com ajuda da IA", () => {
       title: `${seed.workTitle} (celular)`,
       publishAt: null,
       deadline: new Date(Date.now() + 7 * 24 * 3_600_000).toISOString(),
-      latePolicy: "REJECT",
       acknowledgeOutOfScope: false,
       executionMode: "CONTROLLED",
       aiHelpAllowance: 3,

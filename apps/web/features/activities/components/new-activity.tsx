@@ -40,7 +40,7 @@ import {
   QUESTION_TYPE_LABELS,
   toCreateActivityRequest,
 } from "../schemas/activity-form";
-import { ConfirmationField, LatePolicyField, TextareaField } from "./form-fields";
+import { ConfirmationField, TextareaField } from "./form-fields";
 import { GroupFormatField, WorkOptionsFieldset } from "./work-options";
 
 export const NEW_ACTIVITY_FIELD_IDS = {
@@ -55,7 +55,6 @@ export const NEW_ACTIVITY_FIELD_IDS = {
   groupSize: "atividade-max-integrantes",
   durationMinutes: "atividade-duracao",
   inactivityLimitSeconds: "atividade-inatividade",
-  startWindowMinutes: "atividade-limite-iniciar",
 } as const;
 const FIELD_IDS = NEW_ACTIVITY_FIELD_IDS;
 
@@ -92,7 +91,8 @@ interface ChosenSource {
  * (FR-004). "Publicar atividade" sends one idempotency key per form, so a double click creates one
  * activity. A Prova (018/US2) comes from the APPROVED exams of the class's subject ("Prova do banco"):
  * step 1's check brings its coverage per topic and per difficulty, shown before confirming, and step 2
- * asks the duração, the limite de inatividade and the limite para iniciar, never a mode, help or deadline.
+ * asks the término (032: the period's end, no start window), the duração and the limite de inatividade,
+ * never a mode, help or late policy. Since 032 a Trabalho has no "Entrega atrasada" either.
  */
 export function NewActivity({ classId }: { classId: string }) {
   const schoolClass = useClass(classId);
@@ -444,7 +444,6 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
       publishMode: "NOW",
       publishAt: "",
       deadline: "",
-      latePolicy: "REJECT",
       needsAcknowledgement: chosen.scope.outOfScope.length > 0,
       acknowledgeOutOfScope: false,
       controlled: false,
@@ -541,16 +540,13 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
             {...register("inactivityLimitSeconds")}
           />
           <Field
-            id={FIELD_IDS.startWindowMinutes}
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={60}
-            label="Limite para iniciar (minutos após a abertura)"
-            hint="De 0 a 60. Depois dele, quem não iniciou não inicia mais."
+            id={FIELD_IDS.deadline}
+            type="datetime-local"
+            label="Término"
+            hint="Até este horário os alunos presentes podem iniciar; o tempo de cada um termina nele."
             required
-            error={errorFor(FIELD_IDS.startWindowMinutes)}
-            {...register("startWindowMinutes")}
+            error={errorFor(FIELD_IDS.deadline)}
+            {...register("deadline")}
           />
         </>
       ) : isExercise ? null : (
@@ -563,7 +559,6 @@ function ActivityDetailsStep({ classId, chosen, onBack }: { classId: string; cho
             error={errorFor(FIELD_IDS.deadline)}
             {...register("deadline")}
           />
-          <LatePolicyField idPrefix="atraso" {...register("latePolicy")} />
         </>
       )}
       {withOptions ? (

@@ -49,7 +49,6 @@ async function applyChoiceWork(teacherPage: Page, seed: StudentPortalSeed, title
     title,
     publishAt: null,
     deadline: new Date(Date.now() + 7 * 24 * 3_600_000).toISOString(),
-    latePolicy: "REJECT",
     acknowledgeOutOfScope: false,
   });
   await markAllPresentThroughApi(teacherPage, seed.classId, activity.id);

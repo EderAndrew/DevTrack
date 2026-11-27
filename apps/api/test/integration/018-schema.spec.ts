@@ -101,36 +101,32 @@ describe("018/FR-001 018/FR-004 018/FR-017 018/FR-019 regras da prova garantidas
   });
 
   describe("a prova aplicada à turma (research T3)", () => {
-    it("018/FR-010 sempre restrita, sem ajuda da IA, só para os presentes; sem prazo nem política de atraso", async () => {
+    // 032: the exam has the period's end (`deadline`, `032-schema.spec.ts`), still no late policy.
+    it("018/FR-010 sempre restrita, sem ajuda da IA, só para os presentes; sem política de atraso", async () => {
       const exam = await createActivity(t, schoolClass, { type: "EXAM" });
-      expect(exam.activity).toMatchObject({ type: "EXAM", executionMode: "CONTROLLED", aiHelpAllowance: 0, releaseMode: "PRESENT_ONLY", deadline: null });
+      expect(exam.activity).toMatchObject({ type: "EXAM", executionMode: "CONTROLLED", aiHelpAllowance: 0, releaseMode: "PRESENT_ONLY", latePolicy: null });
       await expect(createActivity(t, schoolClass, { type: "EXAM", executionMode: "NORMAL" })).rejects.toThrow(/execution_mode_chk/);
       await expect(createActivity(t, schoolClass, { type: "EXAM", aiHelpAllowance: 3 })).rejects.toThrow(/ai_help_allowance_chk/);
       await expect(createActivity(t, schoolClass, { type: "EXAM", releaseMode: "ALL_ENROLLED" })).rejects.toThrow(/release_mode_chk/);
       const id = exam.activity.id;
-      await expect(t.prisma.classActivity.update({ where: { id }, data: { deadline: new Date(Date.now() + MINUTE) } })).rejects.toThrow(
-        /type_fields_chk/,
-      );
       await expect(t.prisma.classActivity.update({ where: { id }, data: { latePolicy: "REJECT" } })).rejects.toThrow(/type_fields_chk/);
     });
 
-    it("018/FR-007 duração de 1 a 120 min, inatividade de 30 a 60 s, limite para iniciar de 0 a 60 min; nada disso fora da prova", async () => {
+    // 032: no start window column any more (`032-schema.spec.ts`).
+    it("018/FR-007 duração de 1 a 120 min, inatividade de 30 a 60 s; nada disso fora da prova", async () => {
       for (const durationMinutes of [1, 120]) await expect(createActivity(t, schoolClass, { type: "EXAM", durationMinutes })).resolves.toBeTruthy();
       for (const durationMinutes of [0, 121]) await expect(createActivity(t, schoolClass, { type: "EXAM", durationMinutes })).rejects.toThrow(/exam_chk/);
       for (const inactivityLimitSeconds of [29, 61]) {
         await expect(createActivity(t, schoolClass, { type: "EXAM", inactivityLimitSeconds })).rejects.toThrow(/exam_chk/);
       }
-      for (const startWindowMinutes of [-1, 61]) {
-        await expect(createActivity(t, schoolClass, { type: "EXAM", startWindowMinutes })).rejects.toThrow(/exam_chk/);
-      }
       const work = await createActivity(t, schoolClass);
-      expect(work.activity).toMatchObject({ durationMinutes: null, inactivityLimitSeconds: null, startWindowMinutes: null, sourceExamId: null });
+      expect(work.activity).toMatchObject({ durationMinutes: null, inactivityLimitSeconds: null, sourceExamId: null });
       await expect(t.prisma.classActivity.update({ where: { id: work.activity.id }, data: { durationMinutes: 60 } })).rejects.toThrow(/immutable/);
     });
 
-    it("018/FR-007 a fonte, a duração, a inatividade e o limite para iniciar da prova aplicada nunca mudam", async () => {
+    it("018/FR-007 a fonte, a duração e a inatividade da prova aplicada nunca mudam", async () => {
       const { activity } = await createActivity(t, schoolClass, { type: "EXAM" });
-      for (const data of [{ durationMinutes: 90 }, { inactivityLimitSeconds: 30 }, { startWindowMinutes: 5 }, { sourceExamId: null }]) {
+      for (const data of [{ durationMinutes: 90 }, { inactivityLimitSeconds: 30 }, { sourceExamId: null }]) {
         await expect(t.prisma.classActivity.update({ where: { id: activity.id }, data }), JSON.stringify(data)).rejects.toThrow(/immutable/);
       }
       await expect(t.prisma.classActivity.update({ where: { id: activity.id }, data: { title: "Prova 1 — turma A" } })).resolves.toBeTruthy();

@@ -115,7 +115,7 @@ const PHASE_012_TEXTS: Record<string, string> = {
   SUBJECT_MISMATCH: "Este item do banco é de outra disciplina. Aplique-o numa turma da mesma disciplina.",
   OUT_OF_SCOPE_NOT_ACKNOWLEDGED: "Confirme a aplicação com tópicos ainda não concluídos no planejamento desta turma.",
   SOURCE_NOT_APPROVED: "Só itens aprovados do seu banco podem ser aplicados a uma turma.",
-  INVALID_SCHEDULE: "O prazo deve ser depois da data de publicação.",
+  INVALID_SCHEDULE: "O término deve ser depois do início e, na prova, deixar pelo menos a duração.",
   ALREADY_PUBLISHED: "A data de publicação não pode mudar depois que a atividade foi publicada.",
   CLASS_NOT_ACTIVE: "Esta turma não está ativa.",
   ACTIVITY_VERSION_CONFLICT: "Esta atividade mudou em outra aba. Recarregue para ver a versão atual.",
@@ -161,7 +161,9 @@ const PHASE_018_TEXTS = {
   EXAM_VERSION_CONFLICT: "Esta prova mudou em outra aba. Recarregue para ver a versão atual.",
   EXAM_ARCHIVED: "Esta prova está arquivada.",
   EXAM_NOT_APPROVED: "Só uma prova aprovada pode ser aplicada.",
-  EXAM_START_CLOSED: "O prazo para iniciar esta prova terminou. Fale com o professor.",
+  EXAM_START_CLOSED: "O período desta prova terminou.",
+  EXAM_END_CANNOT_MOVE_EARLIER: "Depois de publicada, o término da prova só pode ser estendido.",
+  ACTIVITY_PERIOD_ENDED: "O período desta atividade terminou.",
   EXAM_TIME_OVER: "Tempo esgotado. Suas respostas salvas foram registradas.",
   EXAM_ATTEMPT_ON_HOLD: "Prova encerrada por excesso de avisos; o cancelamento com nota zero será confirmado pelo professor",
   EXAM_TIME_NOT_OVER: "Ainda há tempo de prova: devolva a prova ou confirme o cancelamento.",
@@ -214,12 +216,12 @@ const apiError = (code: string, retryAfterSeconds: number | null = null) =>
   new ApiError(400, code, "texto enviado pela API", retryAfterSeconds);
 
 describe("002/US2-3 catálogo de mensagens de erro do web (002/SC-004)", () => {
-  it("007/FR-040 cobre os 136 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018, da 019, da 021, da 023, da 025 e da 027", () => {
+  it("007/FR-040 cobre os 138 códigos do contrato que chegam ao web e os 2 códigos do web, com os textos da Fase 001, da 003, da 004, da 006, da 007, da 009, da 010, da 011, da 012, da 013, da 015, da 016, da 018, da 019, da 021, da 023, da 025, da 027 e da 032", () => {
     expect(ERROR_MESSAGES).toEqual(ALL_TEXTS);
     const notForWeb: string[] = ["NOTICE_REJECTED", "NOTICE_TOO_LARGE", "MOBILE_NOT_ALLOWED", "MOBILE_ROUTE_NOT_ALLOWED", "MOBILE_SESSION_REQUIRED", "EXAM_NUDGE_NOT_ALLOWED"];
     const webCodes = ErrorCodeSchema.options.filter((code) => !notForWeb.includes(code));
     expect(Object.keys(ERROR_MESSAGES)).toEqual(expect.arrayContaining(webCodes));
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(138);
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(140);
   });
 
   it.each(["NOTICE_REJECTED", "NOTICE_TOO_LARGE"])("017 %s só chega ao provedor de e-mail: o web não tem texto para ele", (code) => {

@@ -222,11 +222,10 @@ export const AUDIT_EVENT_METADATA = {
     "hasPlan",
     // 016: `PRESENT_ONLY` for every work applied since 016, `ALL_ENROLLED` for exercises (research M2).
     "releaseMode",
-    // 018: an EXAM carries its exam and its time instead of a work and a late policy.
+    // 018: an EXAM carries its exam and its time instead of a work and a late policy (no start window since 032).
     "sourceExamId",
     "durationMinutes",
     "inactivityLimitSeconds",
-    "startWindowMinutes",
     // 021: "Permitir executar o código" (false for EXERCISE and EXAM, research Y11).
     "codeExecution",
     // 023: "Em grupo" with its maximum, only for a group work (contracts/audit-events.md).

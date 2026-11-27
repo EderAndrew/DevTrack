@@ -43,6 +43,7 @@ import { buildRoster, loadRosterData } from "./roster";
 import { scopeCheckOf } from "./scope/load-taught-scope";
 import { examTiming } from "./status/facts";
 import { startDeadline } from "./status/exam-time";
+import { validPeriod } from "./status/period";
 import { readSource, type SourceContent, toSnapshot } from "./snapshot/read-source";
 import { settleExpiredExamAttempts } from "./submission/settle-exam";
 import { writeSnapshot } from "./snapshot/write-snapshot";
@@ -53,7 +54,8 @@ const HOUR_SEC = 3_600;
 const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
 /** The fields a PATCH may change, in the order `activity.updated` lists them. */
-type EditableField = "deadline" | "instructions" | "latePolicy" | "publishAt" | "title";
+/** Since 032 the late policy is not editable: the server writes `REJECT` on every new work (research AP2, AP11). */
+type EditableField = "deadline" | "instructions" | "publishAt" | "title";
 
 /**
  * A work's options (015 research F2, 021 research Y1): NORMAL, 0 and no code execution unless the
@@ -89,7 +91,6 @@ const optionsMetadata = (options: WorkOptions, groupChanged = false) => ({
 interface ExamTime {
   durationMinutes: number;
   inactivityLimitSeconds: number;
-  startWindowMinutes: number;
 }
 
 interface LockedActivity {
@@ -97,8 +98,10 @@ interface LockedActivity {
   status: ActivityStatus;
   version: number;
   publishAt: Date;
-  /** ASSIGNMENT only (013 K1). */
+  /** The period's end, ASSIGNMENT and EXAM (032); null for EXERCISE (013 K1). */
   deadline: Date | null;
+  /** EXAM only (018): the period holds at least it (032 `validPeriod`). */
+  durationMinutes: number | null;
   resultReleasedAt: Date | null;
 }
 
@@ -202,7 +205,9 @@ export class ActivitiesService {
    * 422), the subject (422), the taught scope (422 unless acknowledged), the snapshot and
    * `activity.published`. A work carries its mode and AI help (015/FR-001); an EXERCISE body can't
    * (the contract refuses them, 015/FR-002). An EXAM carries its time instead of a deadline and is
-   * always CONTROLLED, without help and `PRESENT_ONLY`, set here (018/FR-007, FR-010).
+   * always CONTROLLED, without help and `PRESENT_ONLY`, set here (018/FR-007, FR-010). Since 032 a work
+   * and an exam are applied for a period (`publishAt` → `deadline`, `validPeriod` with the server's "now");
+   * the late policy comes from the type, never from the body: `REJECT` on a work (research AP2, AP11).
    */
   async create(
     auth: AuthContext,
@@ -217,17 +222,22 @@ export class ActivitiesService {
 
     const now = this.clock.now();
     const publishAt = body.publishAt ? new Date(body.publishAt) : now;
-    // A type with a deadline (ASSIGNMENT) has it after the publication; an EXERCISE has neither deadline nor late
-    // policy (013/FR-001, K1). The contract's union already refused a body that doesn't match its type.
-    const schedule: { deadline: Date; latePolicy: LatePolicy } | null =
-      ACTIVITY_TYPES[body.source.type].hasDeadline && "deadline" in body
-        ? { deadline: new Date(body.deadline), latePolicy: body.latePolicy }
-        : null;
-    if (schedule && schedule.deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+    // 032: a type with a period (ASSIGNMENT, EXAM) has its end after the start, an exam's at least the
+    // duration later (`validPeriod`); only a work has a late policy, always `REJECT` (AP11). An EXERCISE has
+    // neither (013/FR-001, K1). The contract's union already refused a body that doesn't match its type.
+    const definition = ACTIVITY_TYPES[body.source.type];
     const examTime: ExamTime | null =
-      "durationMinutes" in body
-        ? { durationMinutes: body.durationMinutes, inactivityLimitSeconds: body.inactivityLimitSeconds, startWindowMinutes: body.startWindowMinutes }
+      "durationMinutes" in body ? { durationMinutes: body.durationMinutes, inactivityLimitSeconds: body.inactivityLimitSeconds } : null;
+    const schedule: { deadline: Date; latePolicy: LatePolicy | null } | null =
+      definition.hasDeadline && "deadline" in body
+        ? { deadline: new Date(body.deadline), latePolicy: definition.hasLatePolicy ? "REJECT" : null }
         : null;
+    if (
+      schedule &&
+      !validPeriod({ type: body.source.type, publishAt, deadline: schedule.deadline, durationMinutes: examTime?.durationMinutes ?? null })
+    ) {
+      throw new AppException("INVALID_SCHEDULE");
+    }
     const options: WorkOptions =
       ACTIVITY_TYPES[body.source.type].workOptions && "executionMode" in body
         ? {
@@ -270,7 +280,6 @@ export class ActivitiesService {
             sourceSubjectId: content.type === "EXERCISE" ? null : content.subjectId,
             durationMinutes: examTime?.durationMinutes ?? null,
             inactivityLimitSeconds: examTime?.inactivityLimitSeconds ?? null,
-            startWindowMinutes: examTime?.startWindowMinutes ?? null,
             outOfScopeTopicCount: scope.outOfScope.length,
             ...options,
             releaseMode: ACTIVITY_TYPES[content.type].releaseMode,
@@ -294,7 +303,7 @@ export class ActivitiesService {
             questionCount: snapshot.questions.length,
             // A grade and a late policy (ASSIGNMENT), a grade and the time (EXAM, 018) or the possible points (EXERCISE, 013 K15).
             ...(ACTIVITY_TYPES[content.type].scoring === "GRADE" && snapshot.totalCents !== null
-              ? { totalCents: snapshot.totalCents, ...(schedule ? { latePolicy: schedule.latePolicy } : {}), ...(examTime ?? {}) }
+              ? { totalCents: snapshot.totalCents, ...(schedule?.latePolicy ? { latePolicy: schedule.latePolicy } : {}), ...(examTime ?? {}) }
               : { possiblePoints: snapshot.questions.reduce((sum, question) => sum + (question.points ?? 0), 0) }),
             scheduled: publishAt.getTime() > now.getTime(),
             outOfScopeTopicCount: scope.outOfScope.length,
@@ -337,7 +346,9 @@ export class ActivitiesService {
     return this.prisma.runInTransaction(async (tx) => {
       const current = await lockActivity(tx, classId, activityId);
       const definition = ACTIVITY_TYPES[current.type];
-      if (!definition.hasDeadline && (body.deadline !== undefined || body.latePolicy !== undefined)) throw validationError();
+      // 032: until the end's change rules of a published exam are applied (T017, `canChangeEnd`), an EXAM's end
+      // is refused here as before 032; an EXERCISE has none (013/FR-004).
+      if (body.deadline !== undefined && (!definition.hasDeadline || current.type === "EXAM")) throw validationError();
       if (
         !definition.workOptions &&
         (body.executionMode !== undefined || body.aiHelpAllowance !== undefined || body.codeExecution !== undefined || body.groupSize !== undefined)
@@ -352,7 +363,6 @@ export class ActivitiesService {
         select: {
           title: true,
           instructions: true,
-          latePolicy: true,
           executionMode: true,
           aiHelpAllowance: true,
           codeExecutionAllowed: true,
@@ -377,7 +387,6 @@ export class ActivitiesService {
       const changed: EditableField[] = [];
       if (deadline?.getTime() !== current.deadline?.getTime()) changed.push("deadline");
       if (body.instructions !== undefined && body.instructions !== stored.instructions) changed.push("instructions");
-      if (body.latePolicy !== undefined && body.latePolicy !== stored.latePolicy) changed.push("latePolicy");
       if (publishAt.getTime() !== current.publishAt.getTime()) changed.push("publishAt");
       if (body.title !== undefined && body.title !== stored.title) changed.push("title");
       if (changed.length === 0 && !optionsChanged) return this.read(teacherId, classId, activityId, tx);
@@ -386,7 +395,9 @@ export class ActivitiesService {
       if (changed.includes("publishAt") && ActivityStateMachine.phase(current.status, current.publishAt, now) !== "SCHEDULED") {
         throw new AppException("ALREADY_PUBLISHED");
       }
-      if (deadline && deadline.getTime() <= publishAt.getTime()) throw new AppException("INVALID_SCHEDULE");
+      if (deadline && !validPeriod({ type: current.type, publishAt, deadline, durationMinutes: current.durationMinutes })) {
+        throw new AppException("INVALID_SCHEDULE");
+      }
       if (optionsChanged) {
         if ((await tx.activityAttempt.count({ where: { activityId } })) > 0) throw new AppException("ACTIVITY_ALREADY_STARTED");
         if (options.aiHelpAllowance > stored.aiHelpAllowance) await this.assertHelpAvailable();
@@ -400,7 +411,6 @@ export class ActivitiesService {
         data: {
           ...(changed.includes("title") ? { title: body.title } : {}),
           ...(changed.includes("instructions") ? { instructions: body.instructions } : {}),
-          ...(changed.includes("latePolicy") ? { latePolicy: body.latePolicy } : {}),
           ...(optionsChanged ? options : {}),
           publishAt,
           deadline,
@@ -611,9 +621,17 @@ async function lockClass(tx: Tx, teacherId: string, classId: string): Promise<{ 
 /** The activity of this class under `FOR UPDATE` (edits, transitions and release serialize). */
 async function lockActivity(tx: Tx, classId: string, activityId: string): Promise<LockedActivity> {
   const rows = await tx.$queryRaw<
-    { type: ActivityType; status: ActivityStatus; version: number; publish_at: Date; deadline: Date | null; result_released_at: Date | null }[]
+    {
+      type: ActivityType;
+      status: ActivityStatus;
+      version: number;
+      publish_at: Date;
+      deadline: Date | null;
+      duration_minutes: number | null;
+      result_released_at: Date | null;
+    }[]
   >`
-    SELECT type::text AS type, status::text AS status, version, publish_at, deadline, result_released_at FROM class_activities
+    SELECT type::text AS type, status::text AS status, version, publish_at, deadline, duration_minutes, result_released_at FROM class_activities
     WHERE id = ${activityId}::uuid AND class_id = ${classId}::uuid FOR UPDATE`;
   if (rows.length === 0) throw notFound();
   const row = rows[0]!;
@@ -623,6 +641,7 @@ async function lockActivity(tx: Tx, classId: string, activityId: string): Promis
     version: row.version,
     publishAt: row.publish_at,
     deadline: row.deadline,
+    durationMinutes: row.duration_minutes,
     resultReleasedAt: row.result_released_at,
   };
 }

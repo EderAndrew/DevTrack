@@ -912,6 +912,13 @@ describe("023/FR-003 migração das tentativas de 012–021", () => {
                   FROM public.enrollments e`,
     class_invitations: `SELECT i.*, (SELECT c.id FROM public.classes c WHERE c.cohort_id = i.cohort_id ORDER BY c.created_at, c.id LIMIT 1) AS class_id
                         FROM public.class_invitations i`,
+    // 032 moved an exam's end to `deadline` and dropped the start window: before it, an EXAM had no deadline and a
+    // window of 0–60 min (the period's length minus the duration, kept in range).
+    class_activities: `SELECT (json_populate_record(a, json_build_object('deadline', CASE WHEN a.type = 'EXAM' THEN NULL ELSE a.deadline END))).*,
+                              CASE WHEN a.type = 'EXAM'
+                                THEN greatest(0, least(60, floor(extract(epoch FROM a.deadline - a.publish_at) / 60) - a.duration_minutes))::smallint
+                              END AS start_window_minutes
+                       FROM public.class_activities a`,
   };
 
   /** Every table the migrations left empty gets the public rows, in the columns both have, enums cast by name. */

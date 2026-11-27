@@ -104,7 +104,7 @@ describe("023/US1 Formato do Trabalho — Individual ou Em grupo", () => {
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
       screen.getByRole("radio", { name: "Publicar agora" }),
       field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       inGroup(),
       maximum()!,
       screen.getByRole("checkbox", { name: "Modo controlado" }),

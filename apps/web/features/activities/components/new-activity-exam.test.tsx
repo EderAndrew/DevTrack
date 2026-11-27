@@ -78,13 +78,14 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("018/US2-2 018/FR-007 duração, inatividade (padrão 60 s) e limite para iniciar (padrão 15 min) vão no pedido; sem prazo", async () => {
+  // 032: the start window left the form; the exam takes the period's end (`deadline`) instead.
+  it("018/US2-2 018/FR-007 duração, inatividade (padrão 60 s) e término vão no pedido", async () => {
     const { api, user } = setup({ ...EXAM_SCOPE, outOfScope: [], coverage: { ...EXAM_SCOPE.coverage!, byTopic: [EXAM_SCOPE.coverage!.byTopic[0]!] } });
     await chooseExam(user);
     expect(field(NEW_ACTIVITY_FIELD_IDS.title).value).toBe("Prova de herança");
     expect(field(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds).value).toBe("60");
-    expect(field(NEW_ACTIVITY_FIELD_IDS.startWindowMinutes).value).toBe("15");
     setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "30");
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T22:00");
     setValue(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "45");
     await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
 
@@ -95,9 +96,9 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
       title: "Prova de herança",
       instructions: null,
       publishAt: null,
+      deadline: new Date("2030-10-10T22:00").toISOString(),
       durationMinutes: 30,
       inactivityLimitSeconds: 45,
-      startWindowMinutes: 15,
       acknowledgeOutOfScope: false,
     });
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`);
@@ -112,6 +113,8 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     await screen.findByRole("form", { name: "Dados da atividade" });
     await tabTo(user, field(NEW_ACTIVITY_FIELD_IDS.durationMinutes));
     await user.keyboard("{Backspace}{Backspace}{Backspace}30");
+    // 032: the date-time field is filled directly (jsdom has no picker); the rest stays on the keyboard.
+    setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T22:00");
     await tabTo(user, screen.getByRole("button", { name: "Aplicar prova" }));
     await user.keyboard("{Enter}");
     await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${ACTIVITY_ID}`));
@@ -125,11 +128,11 @@ describe("018/US2 NewActivity — aplicar uma prova do banco à turma", () => {
     for (const [id, value, message] of [
       [NEW_ACTIVITY_FIELD_IDS.durationMinutes, "121", "A duração vai de 1 a 120 minutos."],
       [NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "29", "O limite de inatividade vai de 30 a 60 segundos."],
-      [NEW_ACTIVITY_FIELD_IDS.startWindowMinutes, "61", "O limite para iniciar vai de 0 a 60 minutos."],
+      [NEW_ACTIVITY_FIELD_IDS.deadline, "", "Informe o término."],
     ] as const) {
       setValue(NEW_ACTIVITY_FIELD_IDS.durationMinutes, "30");
       setValue(NEW_ACTIVITY_FIELD_IDS.inactivityLimitSeconds, "60");
-      setValue(NEW_ACTIVITY_FIELD_IDS.startWindowMinutes, "15");
+      setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T22:00");
       setValue(id, value);
       await user.click(screen.getByRole("button", { name: "Aplicar prova" }));
       expectFieldErrorLinked(field(id));
@@ -209,14 +212,15 @@ describe("018/US2 ActivityDetail — a prova aplicada abre em \"Chamada e prova\
     expect(within(dialog).getByText("Os alunos marcados passam a ver a prova. Quem chegar depois pode ser marcado a qualquer momento.")).toBeTruthy();
   });
 
-  it("018/FR-007 018/FR-010 Informações mostra a duração, a inatividade e os limites, sem prazo, modo editável nem ajuda", async () => {
+  // 032: no "Limite para iniciar"; "Fechamento" is the period's end.
+  it("018/FR-007 018/FR-010 Informações mostra a duração, a inatividade e o fechamento, sem prazo, modo editável nem ajuda", async () => {
     const { user } = setupDetail();
     await user.click(await screen.findByRole("tab", { name: "Informações" }));
     const term = (name: string) => screen.getByText(name, { selector: "dt" }).nextElementSibling!.textContent;
     expect(term("Tipo")).toBe("Prova");
     expect(term("Duração")).toBe("30 min");
     expect(term("Limite de inatividade")).toBe("45 s");
-    expect(term("Limite para iniciar")).toMatch(/15 min após a abertura/);
+    expect(screen.queryByText("Limite para iniciar", { selector: "dt" })).toBeNull();
     expect(term("Fechamento")).toBeTruthy();
     expect(screen.queryByText("Prazo", { selector: "dt" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Modo controlado/ })).toBeNull();

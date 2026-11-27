@@ -67,7 +67,6 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     expect(await screen.findByDisplayValue("Trabalho de herança")).toBeTruthy();
     expect(screen.queryByLabelText(/Nota total/)).toBeNull();
     setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
-    await user.click(screen.getByRole("radio", { name: "Aceitar e marcar como atrasada" }));
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
 
     const sent = api.writes()[1]!.body as Record<string, unknown>;
@@ -76,10 +75,11 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
       title: "Trabalho de herança",
       publishAt: null,
       deadline: new Date("2030-10-10T23:59").toISOString(),
-      latePolicy: "ACCEPT_MARKED",
       acknowledgeOutOfScope: false,
     });
     expect(sent).not.toHaveProperty("totalGrade");
+    // 032: no late policy in the body; the server stores REJECT.
+    expect(sent).not.toHaveProperty("latePolicy");
     expect(router.push).toHaveBeenCalledWith(`/turmas/${CLASS_ID}/atividades/${activity().id}`);
   });
 
@@ -126,13 +126,13 @@ describe("012/US1 NewActivity — aplicar trabalho ou exercícios à turma", () 
     setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
     await user.click(screen.getByRole("button", { name: "Publicar atividade" }));
     expectFieldErrorLinked(field(NEW_ACTIVITY_FIELD_IDS.deadline));
-    expect(screen.getAllByText("O prazo deve ser depois da data de publicação.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("O término deve ser depois do início e, na prova, deixar pelo menos a duração.").length).toBeGreaterThan(0);
     expect(api.writes()).toHaveLength(1);
     await expectNoA11yViolations(container);
   });
 
   it("012/US1-5 a recusa do servidor (INVALID_SCHEDULE) aparece no campo do prazo", async () => {
-    const { user } = setup(NO_SCOPE, apiError(422, "INVALID_SCHEDULE", "O prazo deve ser depois da data de publicação."));
+    const { user } = setup(NO_SCOPE, apiError(422, "INVALID_SCHEDULE", "O término deve ser depois do início e, na prova, deixar pelo menos a duração."));
     await user.click(await screen.findByRole("radio", { name: /Trabalho de herança/ }));
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     setValue(NEW_ACTIVITY_FIELD_IDS.deadline, "2030-10-10T23:59");
@@ -309,7 +309,7 @@ describe("015/US1 NewActivity — modo controlado e ajuda da IA no Trabalho", ()
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
       screen.getByRole("radio", { name: "Publicar agora" }),
       field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       help,
       screen.getByRole("button", { name: "Publicar atividade" }),
@@ -414,7 +414,7 @@ describe("021/US2 NewActivity — \"Permitir executar o código\" no Trabalho", 
       field(NEW_ACTIVITY_FIELD_IDS.instructions),
       screen.getByRole("radio", { name: "Publicar agora" }),
       field(NEW_ACTIVITY_FIELD_IDS.deadline),
-      screen.getByRole("radio", { name: "Não aceitar" }),
+      // 032: no "Entrega atrasada" field (the server stores REJECT).
       screen.getByRole("checkbox", { name: "Modo controlado" }),
       help,
       box(),

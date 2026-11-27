@@ -31,7 +31,7 @@ export interface OwnAttemptContext {
   type: ActivityType;
   executionMode: ExecutionMode;
   activityStatus: ActivityStatus;
-  /** ASSIGNMENT only (013 K1): the 012 deadline rule decides what the student may still do. */
+  /** The period's end of an ASSIGNMENT or EXAM (032): for a work the 012 deadline rule decides what the student may still do; an EXAM's time is `exam-time.ts`'s. */
   deadline: Date | null;
   latePolicy: LatePolicy | null;
   aiHelpAllowance: AiHelpAllowance;
@@ -88,8 +88,7 @@ const ACTIVITY_SELECT = {
   resultReleasedAt: true,
   /** 016: an open pause of a submitted attempt ends at the close by derivation (research M7). */
   closedAt: true,
-  /** 018: an EXAM's time (research T4): its start window, duration, inactivity limit and what caps its end. */
-  startWindowMinutes: true,
+  /** 018: an EXAM's time (research T4): its duration, inactivity limit and what caps its end (since 032 also `deadline`). */
   durationMinutes: true,
   inactivityLimitSeconds: true,
   /** 029 research HC4: a cancelled row's `endedAt` in the "Histórico". */
@@ -371,7 +370,7 @@ export class StudentActivityLoader {
    * occurrences themselves only once it ended (018/FR-031), and only the session student's attempt.
    */
   private async examOf(
-    activity: Pick<ActivityRow, "publishAt" | "durationMinutes" | "startWindowMinutes" | "inactivityLimitSeconds" | "closedAt" | "cancelledAt">,
+    activity: Pick<ActivityRow, "publishAt" | "durationMinutes" | "deadline" | "inactivityLimitSeconds" | "closedAt" | "cancelledAt">,
     attempt: AttemptRow | null,
   ): Promise<StudentExamInput> {
     const timing = examTiming(activity);
@@ -470,14 +469,13 @@ export class StudentActivityLoader {
         code_execution_allowed: boolean;
         publish_at: Date;
         duration_minutes: number | null;
-        start_window_minutes: number | null;
         closed_at: Date | null;
         cancelled_at: Date | null;
       }[]
     >`
       SELECT ca.type::text AS type, ca.execution_mode::text AS execution_mode, ca.status::text AS status, ca.deadline,
              ca.late_policy::text AS late_policy, ca.ai_help_allowance, (class_effective_status(ca.class_id) = 'ACTIVE') AS class_active,
-             ca.release_mode::text AS release_mode, ca.code_execution_allowed, ca.publish_at, ca.duration_minutes, ca.start_window_minutes, ca.closed_at, ca.cancelled_at
+             ca.release_mode::text AS release_mode, ca.code_execution_allowed, ca.publish_at, ca.duration_minutes, ca.closed_at, ca.cancelled_at
       FROM class_activities ca
       WHERE ca.id = ${activityId}::uuid
         AND ca.status <> 'CANCELLED'
@@ -525,7 +523,7 @@ export class StudentActivityLoader {
           ? examTiming({
               publishAt: activity.publish_at,
               durationMinutes: activity.duration_minutes,
-              startWindowMinutes: activity.start_window_minutes,
+              deadline: activity.deadline,
               closedAt: activity.closed_at,
               cancelledAt: activity.cancelled_at,
             })
@@ -613,11 +611,11 @@ function factsOf(activity: ActivityRow, attempts: readonly AttemptRow[], now: Da
   }
   const submission = latest?.submission ?? null;
   if (activity.type === "EXAM") {
-    if (activity.startWindowMinutes === null) throw new Error("an EXAM has a start window (CHECK)");
+    if (activity.deadline === null) throw new Error("an EXAM has a period's end (CHECK)");
     return {
       type: "EXAM",
       activityStatus: activity.status,
-      startDeadline: startDeadline({ publishAt: activity.publishAt, startWindowMinutes: activity.startWindowMinutes }),
+      startDeadline: startDeadline({ deadline: activity.deadline }),
       classActive,
       attempt: latest && { status: latest.status },
       submission: submission && { endReason: submission.endReason, gradingComplete: !submission.gradePartial },

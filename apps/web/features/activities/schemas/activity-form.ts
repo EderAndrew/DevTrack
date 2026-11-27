@@ -12,15 +12,11 @@ import {
   EXAM_INACTIVITY_SECONDS_DEFAULT,
   EXAM_INACTIVITY_SECONDS_MAX,
   EXAM_INACTIVITY_SECONDS_MIN,
-  EXAM_START_WINDOW_MINUTES_DEFAULT,
-  EXAM_START_WINDOW_MINUTES_MAX,
-  EXAM_START_WINDOW_MINUTES_MIN,
   type ExerciseDifficulty,
   GradeStringSchema,
   GroupSizeSchema,
   type HelpAvailability,
   type LatePolicy,
-  LatePolicySchema,
   type PublicationPhase,
   type RosterStatus,
   type TeacherActivity,
@@ -182,7 +178,8 @@ export function isoToLocal(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-const SCHEDULE_MESSAGE = "O prazo deve ser depois da data de publicação.";
+const SCHEDULE_MESSAGE = "O término deve ser depois do início e, na prova, deixar pelo menos a duração.";
+const MINUTE_MS = 60_000;
 const localDateTime = z.string().trim();
 
 /** An exam's time fields (018/FR-007): whole numbers in their ranges, with their messages. */
@@ -192,11 +189,6 @@ const EXAM_RANGES = {
     min: EXAM_INACTIVITY_SECONDS_MIN,
     max: EXAM_INACTIVITY_SECONDS_MAX,
     message: "O limite de inatividade vai de 30 a 60 segundos.",
-  },
-  startWindowMinutes: {
-    min: EXAM_START_WINDOW_MINUTES_MIN,
-    max: EXAM_START_WINDOW_MINUTES_MAX,
-    message: "O limite para iniciar vai de 0 a 60 minutos.",
   },
 } as const;
 
@@ -219,9 +211,10 @@ const checkGroupSize = (values: { groupFormat: GroupFormat; groupSize: string },
 
 /**
  * Step 2 of "Nova atividade" (contracts/web-ui.md). `type` and `needsAcknowledgement` come from
- * step 1 and the scope check. A Trabalho has a deadline after the publication (now when "Publicar
- * agora") and a late policy; an Exercício has neither, nor a grade (013/FR-001); a Prova has its
- * duração, limite de inatividade and limite para iniciar instead (018/FR-007).
+ * step 1 and the scope check. A Trabalho and a Prova have the period's end after the publication (now
+ * when "Publicar agora"), the Prova's at least its duration later (032/FR-002); no late policy since 032
+ * (the server stores `REJECT`). An Exercício has neither, nor a grade (013/FR-001); a Prova also has its
+ * duração and limite de inatividade (018/FR-007).
  */
 export const ActivityFormSchema = z
   .object({
@@ -231,7 +224,6 @@ export const ActivityFormSchema = z
     publishMode: z.enum(["NOW", "SCHEDULE"]),
     publishAt: localDateTime,
     deadline: localDateTime,
-    latePolicy: LatePolicySchema,
     needsAcknowledgement: z.boolean(),
     acknowledgeOutOfScope: z.boolean(),
     /** A Trabalho's options (015/FR-001): ignored for an Exercício. */
@@ -245,7 +237,6 @@ export const ActivityFormSchema = z
     /** A Prova's time (018/FR-007), as typed: checked only for an EXAM. */
     durationMinutes: z.string(),
     inactivityLimitSeconds: z.string(),
-    startWindowMinutes: z.string(),
   })
   .superRefine((values, ctx) => {
     if (values.type === "ASSIGNMENT") checkGroupSize(values, ctx);
@@ -256,14 +247,16 @@ export const ActivityFormSchema = z
         if (value === null || value < range.min || value > range.max) ctx.addIssue({ code: "custom", path: [key], message: range.message });
       }
     }
-    if (values.type === "ASSIGNMENT" && !values.deadline) {
-      ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o prazo de entrega." });
+    const hasPeriod = values.type === "ASSIGNMENT" || values.type === "EXAM";
+    if (hasPeriod && !values.deadline) {
+      ctx.addIssue({ code: "custom", path: ["deadline"], message: "Informe o término." });
     }
     if (values.publishMode === "SCHEDULE" && !values.publishAt) {
       ctx.addIssue({ code: "custom", path: ["publishAt"], message: "Informe a data e a hora da publicação." });
     }
     const publication = values.publishMode === "SCHEDULE" && values.publishAt ? new Date(values.publishAt) : new Date();
-    if (values.type === "ASSIGNMENT" && values.deadline && new Date(values.deadline).getTime() <= publication.getTime()) {
+    const minimumMs = values.type === "EXAM" ? (wholeNumber(values.durationMinutes) ?? 0) * MINUTE_MS : 1;
+    if (hasPeriod && values.deadline && new Date(values.deadline).getTime() - publication.getTime() < minimumMs) {
       ctx.addIssue({ code: "custom", path: ["deadline"], message: SCHEDULE_MESSAGE });
     }
     if (values.needsAcknowledgement && !values.acknowledgeOutOfScope) {
@@ -278,20 +271,19 @@ export type ActivityFormValues = z.infer<typeof ActivityFormSchema>;
 
 export const activityFormMessages = fieldMessages({
   title: "Informe o título da atividade.",
-  deadline: "Informe o prazo de entrega.",
+  deadline: "Informe o término.",
 });
 
-/** The defaults of a Prova's time fields (018/FR-007): no duration, 60 s and 15 min. */
+/** The defaults of a Prova's time fields (018/FR-007): no duration and 60 s. */
 export const EXAM_FIELD_DEFAULTS = {
   durationMinutes: "",
   inactivityLimitSeconds: String(EXAM_INACTIVITY_SECONDS_DEFAULT),
-  startWindowMinutes: String(EXAM_START_WINDOW_MINUTES_DEFAULT),
 } as const;
 
 /**
- * The request by the source's type: a Trabalho with its deadline, late policy, mode and AI help
- * (015/FR-001), an Exercício without them, a Prova with its time and never a mode, help or
- * release mode (018/FR-010).
+ * The request by the source's type: a Trabalho with its period's end, mode and AI help (015/FR-001),
+ * an Exercício without them, a Prova with its period's end and time and never a mode, help or release
+ * mode (018/FR-010). No late policy since 032.
  */
 export function toCreateActivityRequest(values: ActivityFormValues, source: ActivitySource, idempotencyKey: string): CreateActivityRequest {
   const common = {
@@ -306,16 +298,15 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
     return {
       ...common,
       source,
+      deadline: localToIso(values.deadline),
       durationMinutes: wholeNumber(values.durationMinutes)!,
       inactivityLimitSeconds: wholeNumber(values.inactivityLimitSeconds)!,
-      startWindowMinutes: wholeNumber(values.startWindowMinutes)!,
     };
   }
   return {
     ...common,
     source,
     deadline: localToIso(values.deadline),
-    latePolicy: values.latePolicy,
     executionMode: values.controlled ? "CONTROLLED" : "NORMAL",
     codeExecution: values.codeExecution,
     aiHelpAllowance: values.aiHelp ? AI_HELP_ALLOWANCE : 0,
@@ -325,8 +316,9 @@ export function toCreateActivityRequest(values: ActivityFormValues, source: Acti
 
 /**
  * The detail's edit form: the publication only while scheduled (`422 ALREADY_PUBLISHED` otherwise);
- * deadline, late policy, mode and AI help only for a Trabalho (an Exercício has none, 013/FR-004,
- * 015/FR-002), the last two only until a student starts (015/FR-005).
+ * deadline, mode and AI help only for a Trabalho (an Exercício has none, 013/FR-004, 015/FR-002), the
+ * last two only until a student starts (015/FR-005). The late policy is read only since 032; an exam's
+ * end is edited with the 032 rules (US1).
  */
 export const ActivityEditSchema = z
   .object({
@@ -335,7 +327,6 @@ export const ActivityEditSchema = z
     publishAt: localDateTime,
     hasDeadline: z.boolean(),
     deadline: localDateTime,
-    latePolicy: LatePolicySchema,
     controlled: z.boolean(),
     aiHelp: z.boolean(),
     codeExecution: z.boolean(),
@@ -355,9 +346,9 @@ export const activityEditDefaults = (activity: TeacherActivity): ActivityEditVal
   title: activity.title,
   instructions: activity.instructions ?? "",
   publishAt: isoToLocal(activity.publishAt),
-  hasDeadline: activity.deadline !== null,
-  deadline: activity.deadline ? isoToLocal(activity.deadline) : "",
-  latePolicy: activity.latePolicy ?? "REJECT",
+  // 032: an exam's end is changed by "Estender término" (US1), not by this form, so only a work edits it here.
+  hasDeadline: activity.type === "ASSIGNMENT",
+  deadline: activity.type === "ASSIGNMENT" && activity.deadline ? isoToLocal(activity.deadline) : "",
   controlled: activity.executionMode === "CONTROLLED",
   aiHelp: activity.aiHelp.allowance > 0,
   codeExecution: activity.codeExecution,
@@ -374,7 +365,6 @@ export function toUpdateActivityRequest(values: ActivityEditValues, activity: Te
     ...(values.instructions !== initial.instructions ? { instructions: values.instructions.trim() || null } : {}),
     ...(activity.phase === "SCHEDULED" && values.publishAt !== initial.publishAt ? { publishAt: localToIso(values.publishAt) } : {}),
     ...(initial.hasDeadline && values.deadline !== initial.deadline ? { deadline: localToIso(values.deadline) } : {}),
-    ...(initial.hasDeadline && values.latePolicy !== initial.latePolicy ? { latePolicy: values.latePolicy } : {}),
     ...(hasWorkOptions(activity.type) && values.controlled !== initial.controlled
       ? { executionMode: values.controlled ? "CONTROLLED" : "NORMAL" }
       : {}),

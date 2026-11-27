@@ -73,14 +73,15 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
   });
 
   it("018/US3-1 018/FR-011 as regras antes do início: sem aceitá-las o início é recusado; o aceite registra o início com o horário do servidor", async () => {
-    const activity = await applied({ durationMinutes: 60, inactivityLimitSeconds: 45, startWindowMinutes: 15 });
+    // 032: the period's end replaces the start window (the 018 closing: 15 + 60 min).
+    const activity = await applied({ durationMinutes: 60, inactivityLimitSeconds: 45, deadline: at(75 * MINUTE).toISOString() });
     const student = await studentClient(students[0]!);
 
     const before = await detail(student, activity.id);
     expect(before.exam).toEqual({
       durationMinutes: 60,
       inactivityLimitSeconds: 45,
-      startDeadline: at(15 * MINUTE).toISOString(),
+      startDeadline: at(75 * MINUTE).toISOString(),
       endsAt: null,
       occurrences: { count: 0, warningsAllowed: 3 },
       hold: null,
@@ -172,7 +173,7 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
   });
 
   it("018/US3-7 018/FR-011 o aluno atrasado marcado depois inicia 12 minutos após a abertura e tem os 60 minutos inteiros, contados do seu início", async () => {
-    const activity = await applied({ durationMinutes: 60, startWindowMinutes: 15, attendance: "NONE" });
+    const activity = await applied({ durationMinutes: 60, deadline: at(75 * MINUTE).toISOString(), attendance: "NONE" });
     clock.advance(12 * MINUTE);
     expect((await markPresent(client, classId, activity.id, [students[0]!.id])).status).toBe(200);
     const student = await studentClient(students[0]!);
@@ -186,17 +187,18 @@ describe("018/US3 aluno faz a prova com tempo controlado", () => {
     expect((await answerMultipleChoice(student, activity, 1)).body.code).toBe("EXAM_TIME_OVER");
   });
 
+  // 032: the limit to start is the period's end (research AP3).
   it("018/US3-8 018/FR-011 passado o limite para iniciar, o presente que não iniciou vê o aviso, o início é recusado com 409 e ele aparece como \"Não iniciou\"", async () => {
-    const activity = await applied({ durationMinutes: 60, startWindowMinutes: 15 });
+    const activity = await applied({ durationMinutes: 60, deadline: at(75 * MINUTE).toISOString() });
     const student = await studentClient(students[0]!);
 
-    clock.set(at(15 * MINUTE).toISOString());
+    clock.set(at(75 * MINUTE).toISOString());
     expect((await detail(student, activity.id)).canAnswer).toBe(true);
 
-    clock.set(at(15 * MINUTE + SECOND).toISOString());
+    clock.set(at(75 * MINUTE + SECOND).toISOString());
     const view = await detail(student, activity.id);
     expect(view.canAnswer).toBe(false);
-    expect(view.exam).toMatchObject({ startDeadline: at(15 * MINUTE).toISOString(), endsAt: null });
+    expect(view.exam).toMatchObject({ startDeadline: at(75 * MINUTE).toISOString(), endsAt: null });
     const refused = await startExam(student, activity.id);
     expect({ status: refused.status, code: refused.body.code }).toEqual({ status: 409, code: "EXAM_START_CLOSED" });
     expect(await t.prisma.activityAttempt.count({ where: { activityId: activity.id } })).toBe(0);
